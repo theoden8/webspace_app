@@ -111,8 +111,8 @@ avoids both, and costs one failed connection per host per launch.
 The upgrade SHALL be applied after the navigation decision has allowed the URL,
 never before. Taken first, an upgraded URL would arrive at the engine as a
 different URL from the one the site asked for, and a scheme rewrite would become
-a way to re-enter the pipeline with `blockAutoRedirects`, the gesture
-requirement and cross-domain nested routing already behind it.
+a way to re-enter the pipeline with the gesture requirement and cross-domain
+nested routing already behind it.
 
 This is CAPTCHA-008's lesson, applied before it is learned a second time: the
 captcha allow was taken before the navigation verdict for eight months and was

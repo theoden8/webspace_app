@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/settings/microphone.dart';
@@ -149,8 +150,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _letterboxEnabled;
   late bool _blockScreenshots;
   late bool _localCdnEnabled;
-  late bool _blockAutoRedirects;
-  late bool _externalLinksInBrowser;
+  late ExternalLinkMode _externalLinkMode;
   late bool _routeOutboundLinks;
   late List<OutboundPreference> _outboundPreferences;
   late bool _fullscreenMode;
@@ -254,8 +254,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'letterboxEnabled': _letterboxEnabled,
         'blockScreenshots': _blockScreenshots,
         'localCdnEnabled': _localCdnEnabled,
-        'blockAutoRedirects': _blockAutoRedirects,
-        'externalLinksInBrowser': _externalLinksInBrowser,
+        'externalLinkMode': _externalLinkMode,
         'routeOutboundLinks': _routeOutboundLinks,
         'outboundPreferences': _outboundPreferences.join(','),
         'fullscreenMode': _fullscreenMode,
@@ -488,8 +487,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _letterboxEnabled = m.letterboxEnabled;
     _blockScreenshots = m.blockScreenshots;
     _localCdnEnabled = m.localCdnEnabled;
-    _blockAutoRedirects = m.blockAutoRedirects;
-    _externalLinksInBrowser = m.externalLinksInBrowser;
+    _externalLinkMode = m.externalLinkMode;
     _routeOutboundLinks = m.routeOutboundLinks;
     _outboundPreferences = [...m.outboundPreferences];
     _fullscreenMode = m.fullscreenMode;
@@ -660,8 +658,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.letterboxEnabled = _letterboxEnabled;
       widget.webViewModel.blockScreenshots = _blockScreenshots;
       widget.webViewModel.localCdnEnabled = _localCdnEnabled;
-      widget.webViewModel.blockAutoRedirects = _blockAutoRedirects;
-      widget.webViewModel.externalLinksInBrowser = _externalLinksInBrowser;
+      widget.webViewModel.externalLinkMode = _externalLinkMode;
       widget.webViewModel.routeOutboundLinks = _routeOutboundLinks;
       widget.webViewModel.outboundPreferences = [..._outboundPreferences];
       widget.webViewModel.fullscreenMode = _fullscreenMode;
@@ -1027,8 +1024,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         kioskMode: _kioskMode,
         fullscreenMode: _fullscreenMode,
         htmlCachingEnabled: _htmlCachingEnabled,
-        blockAutoRedirects: _blockAutoRedirects,
-        externalLinksInBrowser: _externalLinksInBrowser,
+        externalLinkMode: _externalLinkMode,
         routeOutboundLinks: _routeOutboundLinks,
         outboundPreferences: _outboundPreferences,
       );
@@ -1044,10 +1040,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (v.kioskMode) loc.siteSettingsKioskMode,
       if (v.fullscreenMode) loc.siteSettingsFullscreen,
       if (v.htmlCachingEnabled) loc.siteSettingsHtmlCaching,
-      if (v.blockAutoRedirects) loc.siteSettingsBlockAutoRedirects,
-      if (v.routeOutboundLinks)
+      if (v.effectiveRouteOutboundLinks)
         loc.siteSettingsRouteOutboundLinks,
-      if (v.externalLinksInBrowser) loc.siteSettingsExternalLinksInBrowser,
+      if (v.externalLinkMode == ExternalLinkMode.browser)
+        loc.siteSettingsExternalLinksInBrowser,
+      if (v.externalLinkMode == ExternalLinkMode.block)
+        loc.siteSettingsExternalLinksBlockedSummary,
     ];
 
     // Built as data before it reaches Text(): the separator and the count are
@@ -1099,8 +1097,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _kioskMode = values.kioskMode;
               _fullscreenMode = values.fullscreenMode;
               _htmlCachingEnabled = values.htmlCachingEnabled;
-              _blockAutoRedirects = values.blockAutoRedirects;
-              _externalLinksInBrowser = values.externalLinksInBrowser;
+              _externalLinkMode = values.externalLinkMode;
               _routeOutboundLinks = values.routeOutboundLinks;
               _outboundPreferences = values.outboundPreferences;
             });

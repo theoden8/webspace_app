@@ -265,12 +265,29 @@ Future<void> confirmAndLaunchExternalUrl(
 }
 
 /// Hands [url] to the system's default browser (or whichever app handles
-/// http/https). Public entry for the per-site "open external links in
-/// browser" path (NESTED-009): an unclaimed cross-domain link tapped on a
-/// site with the toggle on leaves WebSpace entirely instead of opening a
-/// nested webview.
+/// http/https). Public entry for the per-site "open in browser" external
+/// link mode (NESTED-009): an unclaimed cross-domain link tapped on such a
+/// site leaves WebSpace entirely instead of opening a nested webview.
 Future<bool> launchUrlInSystemBrowser(String url) =>
     _launchExternally(url, label: 'external-link');
+
+/// Says that a link the user tapped was not followed because the site's
+/// external links are blocked (NESTED-009). Not for script redirects: those
+/// are the page's doing, and a page could flood the screen with them.
+void showExternalLinkBlocked(String url) {
+  final messengerContext = rootScaffoldMessengerKey.currentContext;
+  final messenger = rootScaffoldMessengerKey.currentState;
+  if (messengerContext == null || messenger == null) return;
+  final host = Uri.tryParse(url)?.host ?? '';
+  final target = host.isEmpty ? url : host;
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(
+      content:
+          Text(AppLocalizations.of(messengerContext).externalLinkBlocked(target)),
+      duration: const Duration(seconds: 2),
+    ));
+}
 
 /// Hands [url] to the OS via url_launcher so the system browser (or
 /// whichever app handles the scheme) takes over. Used by both

@@ -4,6 +4,7 @@ import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
@@ -230,23 +231,70 @@ void main() {
       ]);
     });
 
-    test('externalLinksInBrowser defaults off; toJson omits the default', () {
+    test('externalLinkMode defaults to in-app; toJson omits the default', () {
       final m = WebViewModel(initUrl: 'https://example.org/');
-      expect(m.externalLinksInBrowser, isFalse);
-      expect(m.toJson().containsKey('externalLinksInBrowser'), isFalse,
+      expect(m.externalLinkMode, ExternalLinkMode.inApp);
+      expect(m.toJson().containsKey('externalLinkMode'), isFalse,
           reason: 'omitting the default keeps on-disk JSON byte-stable');
       final back = WebViewModel.fromJson(m.toJson(), null);
-      expect(back.externalLinksInBrowser, isFalse);
+      expect(back.externalLinkMode, ExternalLinkMode.inApp);
     });
 
-    test('externalLinksInBrowser=true round-trips through JSON', () {
-      final m = WebViewModel(
-        initUrl: 'https://example.org/',
-        externalLinksInBrowser: true,
+    test('externalLinkMode round-trips through JSON', () {
+      for (final mode in [ExternalLinkMode.browser, ExternalLinkMode.block]) {
+        final json =
+            WebViewModel(initUrl: 'https://example.org/', externalLinkMode: mode)
+                .toJson();
+        expect(json['externalLinkMode'], mode.name);
+        expect(json.containsKey('externalLinksInBrowser'), isFalse);
+        expect(WebViewModel.fromJson(json, null).externalLinkMode, mode);
+      }
+    });
+
+    test('legacy externalLinksInBrowser reads as the browser mode', () {
+      final json = WebViewModel(initUrl: 'https://example.org/').toJson();
+      expect(
+        WebViewModel.fromJson({...json, 'externalLinksInBrowser': true}, null)
+            .externalLinkMode,
+        ExternalLinkMode.browser,
       );
-      final json = m.toJson();
-      expect(json['externalLinksInBrowser'], isTrue);
-      expect(WebViewModel.fromJson(json, null).externalLinksInBrowser, isTrue);
+      expect(
+        WebViewModel.fromJson({...json, 'externalLinksInBrowser': false}, null)
+            .externalLinkMode,
+        ExternalLinkMode.inApp,
+      );
+      expect(
+        WebViewModel.fromJson({
+          ...json,
+          'externalLinksInBrowser': true,
+          'externalLinkMode': 'block',
+        }, null).externalLinkMode,
+        ExternalLinkMode.block,
+        reason: 'the new field wins over the bool it replaced',
+      );
+    });
+
+    test('an unknown or wrong-typed externalLinkMode reads as in-app', () {
+      final json = WebViewModel(initUrl: 'https://example.org/').toJson();
+      for (final odd in <Object>['sideways', 3, true]) {
+        expect(
+          WebViewModel.fromJson({...json, 'externalLinkMode': odd}, null)
+              .externalLinkMode,
+          ExternalLinkMode.inApp,
+        );
+      }
+    });
+
+    test('routing applies only in the in-app mode', () {
+      final m = WebViewModel(
+          initUrl: 'https://example.org/', routeOutboundLinks: true);
+      expect(m.effectiveRouteOutboundLinks, isTrue);
+      m.externalLinkMode = ExternalLinkMode.browser;
+      expect(m.effectiveRouteOutboundLinks, isFalse);
+      m.externalLinkMode = ExternalLinkMode.block;
+      expect(m.effectiveRouteOutboundLinks, isFalse);
+      expect(m.routeOutboundLinks, isTrue,
+          reason: 'the stored switch is kept for when the mode comes back');
     });
 
     test('backgroundAudioEnabled defaults off; toJson omits the default '
@@ -318,15 +366,18 @@ void main() {
       expect(WebViewModel.fromJson(legacy, null).kioskMode, isFalse);
     });
 
-    test('externalLinksInBrowser forced off for archive-tier sites (ARCH-006)', () {
+    test('archive-tier sites keep browser-mode links in the app (ARCH-006)', () {
       final m = WebViewModel(
         initUrl: 'https://example.org/',
-        externalLinksInBrowser: true,
+        externalLinkMode: ExternalLinkMode.browser,
         isArchiveTier: true,
       );
-      expect(m.externalLinksInBrowser, isTrue);
-      expect(m.effectiveExternalLinksInBrowser, isFalse,
+      expect(m.externalLinkMode, ExternalLinkMode.browser);
+      expect(m.effectiveExternalLinkMode, ExternalLinkMode.inApp,
           reason: 'archive sites never hand a URL to the system browser');
+      m.externalLinkMode = ExternalLinkMode.block;
+      expect(m.effectiveExternalLinkMode, ExternalLinkMode.block,
+          reason: 'blocking crosses no boundary');
     });
 
     test('should round-trip through JSON correctly', () {

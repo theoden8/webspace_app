@@ -707,7 +707,7 @@ longer calls it; the native plugin does the bind during `prepare()`.
 A profile gives storage isolation, not behavior changes. Per-site
 settings — language, geolocation/timezone spoof, WebRTC policy, user
 scripts, content blocking, ClearURLs, DNS blocklist, cookie blocking,
-blockAutoRedirects — remain `WebViewConfig`-driven
+the external-link mode — remain `WebViewConfig`-driven
 and propagate to nested webviews via `launchUrl` →
 `InAppWebViewScreen` exactly as today (per the CLAUDE.md
 "Per-site settings MUST apply to nested webviews" rule).

@@ -123,6 +123,7 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
@@ -2735,8 +2736,6 @@ class _WebSpacePageState extends State<WebSpacePage>
             '${sourceIsParent ? ', overSource' : ''})';
       case DispatchNestedFallback():
         return 'NestedFallback';
-      case DispatchOpenExternal():
-        return 'OpenExternal';
       case DispatchCreateSite(:final home, :final fullUrl):
         return 'CreateSite(home=$home, fullUrl=$fullUrl)';
       case DispatchCreateSiteFromHtml(:final suggestedTitle):
@@ -2775,8 +2774,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (inboundUri == null) return;
         await _showDispatchPicker(action, inboundUri);
       case DispatchNestedFallback():
-      case DispatchOpenExternal():
-        // Outbound only: `_executeOutboundDispatch` runs these with the source.
+        // Outbound only: `_executeOutboundDispatch` runs it with the source.
         LogService.instance.log(
           'LinkIntent',
           'outbound-only action on the inbound path: '
@@ -2820,9 +2818,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       (url, decision, hadGesture) =>
           _routeOutboundLink(source, url, decision, hadGesture);
 
-  /// [source]'s webview is about to nest [url] or hand it to the system
-  /// browser. True when routing took the link over, so the webview must not
-  /// also launch it.
+  /// [source]'s webview is about to nest [url], hand it to the system
+  /// browser or block it. True when routing took the link over, so the
+  /// webview must not also launch it.
   bool _routeOutboundLink(
     WebViewModel source,
     String url,
@@ -2830,10 +2828,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     bool hadGesture,
   ) {
     if (!mounted) return false;
+    if (decision == NavigationDecision.blockOutbound) {
+      if (hadGesture) showExternalLinkBlocked(url);
+      return true;
+    }
     final action = LinkIntentDispatchEngine.routeOutbound(
       url: url,
       decision: decision,
-      routeOutboundLinks: source.routeOutboundLinks,
+      routeOutboundLinks: source.effectiveRouteOutboundLinks,
       kioskLocked: _kioskLocked,
       hadGesture: hadGesture,
       containersActive: _useContainers,
@@ -2865,8 +2867,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _showOutboundPicker(source, action, url);
       case DispatchNestedFallback():
         await _launchNestedForModel(source, url.toString());
-      case DispatchOpenExternal(:final url):
-        await launchUrlInSystemBrowser(url);
       default:
         LogService.instance.log(
           'LinkIntent',
@@ -2918,16 +2918,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         }
         await _executeOpenNested(pick.action, source: source);
       case DispatchChoiceFallback():
-        final fallback = action.fallback;
-        if (fallback == null) return;
         await _executeOutboundDispatch(
-          source,
-          LinkIntentDispatchEngine.unroutedOutbound(
-            url: url,
-            fallback: fallback,
-          ),
-          url,
-        );
+            source, const DispatchNestedFallback(), url);
       case DispatchChoiceBind():
       case DispatchChoiceCreate():
         return;
@@ -3108,8 +3100,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         userScripts: model.combineUserScripts(_globalUserScripts),
         proxySettings: model.outboundProxySettings,
         notificationsEnabled: model.effectiveNotificationsEnabled,
-        externalLinksInBrowser: model.effectiveExternalLinksInBrowser,
-        blockAutoRedirects: model.blockAutoRedirects,
+        externalLinkMode: model.effectiveExternalLinkMode,
         blockedCookies: model.blockedCookies,
         cameraMode: model.effectiveCameraMode,
         virtualCameraSource: model.virtualCameraSource,
@@ -5980,8 +5971,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     required List<UserScriptConfig> userScripts,
     UserProxySettings? proxySettings,
     bool notificationsEnabled = false,
-    bool externalLinksInBrowser = false,
-    bool blockAutoRedirects = false,
+    ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
     Set<BlockedCookie> blockedCookies = const {},
     CameraAccessMode cameraMode = CameraAccessMode.ask,
     VirtualCameraSource? virtualCameraSource,
@@ -6044,8 +6034,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           },
           proxySettings: proxySettings,
           notificationsEnabled: notificationsEnabled,
-          externalLinksInBrowser: externalLinksInBrowser,
-          blockAutoRedirects: blockAutoRedirects,
+          externalLinkMode: externalLinkMode,
           blockedCookies: blockedCookies,
           cookieManager: _cookieManager,
           containerCookieManager: _containerCookieManager,
@@ -8388,7 +8377,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (turnsOff('dnsBlockEnabled')) loc.siteSettingsDnsBlocklist,
       if (turnsOff('contentBlockEnabled')) loc.siteSettingsContentBlocker,
       if (turnsOff('localCdnEnabled')) loc.siteSettingsLocalCdn,
-      if (turnsOff('blockAutoRedirects')) loc.siteSettingsBlockAutoRedirects,
       // A level below the app-wide one, or a filter list switched off, weakens
       // the blockers without turning either toggle off. Unnamed, a QR could
       // relax protection while the review reported nothing.

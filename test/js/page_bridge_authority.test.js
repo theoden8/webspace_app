@@ -87,8 +87,8 @@ test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
   assert.notEqual(captcha, -1, 'the captcha allow is gone');
   assert.ok(captcha > override,
     'taken first, "is this a captcha URL?" is a way to navigate the parent ' +
-    'webview to any origin with blockAutoRedirects, the gesture requirement ' +
-    'and the cross-domain nested route all skipped');
+    'webview to any origin with the gesture requirement and the ' +
+    'cross-domain nested route skipped');
 });
 
 test('HTTPS-004: the https upgrade comes after the routing decision', () => {
@@ -98,8 +98,8 @@ test('HTTPS-004: the https upgrade comes after the routing decision', () => {
   assert.notEqual(upgrade, -1, 'the https upgrade is gone');
   assert.ok(upgrade > override,
     'taken first, a scheme rewrite re-enters the navigation pipeline with ' +
-    'blockAutoRedirects, the gesture requirement and the cross-domain nested ' +
-    'route already behind it — the same hole CAPTCHA-008 had to close');
+    'the gesture requirement and the cross-domain nested route already ' +
+    'behind it — the same hole CAPTCHA-008 had to close');
 });
 
 // The upgrade cancels and reissues, so it is the shape the guard above the

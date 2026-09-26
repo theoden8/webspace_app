@@ -35,6 +35,7 @@ import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
@@ -399,10 +400,11 @@ bool matchesBlockedCookie(
               b.domain.endsWith('.$domain'))));
 }
 
-/// Outbound routing's hook into a site's own navigation (LIR-014): called
-/// with a link the navigation engine decided to nest or send to the system
-/// browser. True means the host took the link over and the caller must not
-/// also launch it; false means the caller's own path runs.
+/// The host's hook into a site's own navigation: called with a link the
+/// navigation engine decided to nest, send to the system browser (outbound
+/// routing, LIR-014) or block (NESTED-009, so the host can say so). True
+/// means the host took the link over and the caller must not also launch it;
+/// false means the caller's own path runs.
 typedef OutboundLinkHandler = bool Function(
     String url, NavigationDecision decision, bool hadGesture);
 
@@ -447,8 +449,7 @@ typedef LaunchUrlFunc = void Function(
   required List<UserScriptConfig> userScripts,
   UserProxySettings? proxySettings,
   bool notificationsEnabled,
-  bool externalLinksInBrowser,
-  bool blockAutoRedirects,
+  ExternalLinkMode externalLinkMode,
   Set<BlockedCookie> blockedCookies,
   CameraAccessMode cameraMode,
   VirtualCameraSource? virtualCameraSource,
@@ -547,12 +548,11 @@ class WebViewModel {
   /// When false, the three sub-toggles act independently as before.
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
-  bool blockAutoRedirects; // Block script-initiated cross-domain navigations
-  /// When true, a cross-domain link that is not covered by this site's
-  /// domain claims opens in the system's default browser instead of a
-  /// nested in-app webview (discussion #438). Links to claimed domains
-  /// still open in-app. Default false: the legacy nested-webview routing.
-  bool externalLinksInBrowser;
+  /// Where a cross-domain link that is not covered by this site's domain
+  /// claims goes: a nested in-app webview (the default), the system browser
+  /// (discussion #438) or nowhere (issue #629). Links to claimed domains
+  /// open in-app in every mode.
+  ExternalLinkMode externalLinkMode;
   bool fullscreenMode; // Auto-enter fullscreen when this site is selected
   /// While this site is on screen, the window is withheld from screenshots,
   /// recordings and the recent-apps preview (SCREENBLOCK-002). Android only;
@@ -883,13 +883,19 @@ class WebViewModel {
   ScreenShareMode get effectiveScreenShareMode =>
       isArchiveTier ? ScreenShareMode.block : screenShareMode;
 
-  /// Effective "open external links in the system browser" setting.
   /// Archive-tier sites never hand a URL to another app: launching the
   /// system browser is OS-level UI that crosses the archive's isolation
-  /// boundary (ARCH-006), so archive sites keep links in-app regardless
-  /// of the stored value.
-  bool get effectiveExternalLinksInBrowser =>
-      isArchiveTier ? false : externalLinksInBrowser;
+  /// boundary (ARCH-006), so a stored [ExternalLinkMode.browser] keeps links
+  /// in-app there. Blocking crosses nothing and stays in force.
+  ExternalLinkMode get effectiveExternalLinkMode =>
+      isArchiveTier && externalLinkMode == ExternalLinkMode.browser
+          ? ExternalLinkMode.inApp
+          : externalLinkMode;
+
+  /// Outbound routing is an option of the in-app mode (LIR-014): in any
+  /// other mode the switch is hidden and its stored value inert.
+  bool get effectiveRouteOutboundLinks =>
+      routeOutboundLinks && externalLinkMode == ExternalLinkMode.inApp;
 
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
@@ -1015,8 +1021,7 @@ class WebViewModel {
     this.disabledFilterLists = const <String>{},
     this.trackingProtectionEnabled = true,
     this.localCdnEnabled = true,
-    this.blockAutoRedirects = true,
-    this.externalLinksInBrowser = false,
+    this.externalLinkMode = ExternalLinkMode.inApp,
     this.fullscreenMode = false,
     this.blockScreenshots = false,
     this.tabBarButtonCorner,
@@ -1342,9 +1347,9 @@ class WebViewModel {
       // + 2× evaluateJavascript IPCs per navigation, doubling the
       // race-window count for the chromium dangling-raw_ptr crash.
       String? lastNotifiedUrl;
-      // True when `u` is covered by one of this site's domain claims. The
-      // externalLinksInBrowser path keeps claimed cross-domain links in a
-      // nested webview and only hands unclaimed ones to the system browser.
+      // True when `u` is covered by one of this site's domain claims. Every
+      // external-link mode keeps claimed cross-domain links in a nested
+      // webview; only unclaimed ones go to the browser or are blocked.
       bool matchesSiteClaim(String u) {
         final uri = Uri.tryParse(u);
         return uri != null &&
@@ -1495,11 +1500,10 @@ class WebViewModel {
               targetUrl: url,
               initUrl: initUrl,
               hasGesture: hasGesture,
-              blockAutoRedirects: blockAutoRedirects,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
-              externalLinksInBrowser: effectiveExternalLinksInBrowser,
+              externalLinkMode: effectiveExternalLinkMode,
               matchesSiteClaim: matchesSiteClaim,
             );
             switch (result.gestureUpdate) {
@@ -1541,7 +1545,7 @@ class WebViewModel {
                   sensitivity: LogSensitivity.sensitive,
                 );
                 if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
+                launchUrlFunc(url, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1551,6 +1555,14 @@ class WebViewModel {
                 );
                 if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
                 launchUrlInSystemBrowser(url);
+                return false;
+              case NavigationDecision.blockOutbound:
+                LogService.instance.log(
+                  'WebView',
+                  '  -> CANCEL (external links blocked)',
+                  sensitivity: LogSensitivity.sensitive,
+                );
+                onOutboundLink?.call(url, result.decision, result.hadGesture);
                 return false;
             }
           },
@@ -1586,14 +1598,13 @@ class WebViewModel {
             final handled = NavigationDecisionEngine.handleOnUrlChanged(
               newUrl: url,
               initUrl: initUrl,
-              blockAutoRedirects: blockAutoRedirects,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
               isCaptchaChallenge: (u) =>
                   WebViewFactory.isCaptchaChallenge(u, siteUrl: initUrl),
               state: urlChangedState,
-              externalLinksInBrowser: effectiveExternalLinksInBrowser,
+              externalLinkMode: effectiveExternalLinkMode,
               matchesSiteClaim: matchesSiteClaim,
             );
             switch (handled.gestureUpdate) {
@@ -1651,7 +1662,7 @@ class WebViewModel {
                   );
                   if (handled.launchNestedUrl != null) {
                     if (onOutboundLink?.call(handled.launchNestedUrl!, NavigationDecision.blockOpenNested, handled.hadGesture) ?? false) return;
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinksInBrowser: effectiveExternalLinksInBrowser, blockAutoRedirects: blockAutoRedirects, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: webRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -1664,6 +1675,14 @@ class WebViewModel {
                     if (onOutboundLink?.call(handled.launchExternalUrl!, NavigationDecision.blockOpenExternal, handled.hadGesture) ?? false) return;
                     launchUrlInSystemBrowser(handled.launchExternalUrl!);
                   }
+                  return;
+                case NavigationDecision.blockOutbound:
+                  LogService.instance.log(
+                    'WebView',
+                    'onUrlChanged: cross-domain redirect blocked by external-link mode: $url (expected domain: $initDomain)',
+                    sensitivity: LogSensitivity.sensitive,
+                  );
+                  onOutboundLink?.call(url, NavigationDecision.blockOutbound, handled.hadGesture);
                   return;
                 case NavigationDecision.allow:
                   break;
@@ -2520,8 +2539,8 @@ class WebViewModel {
         'contentBlockEnabled': contentBlockEnabled,
         'trackingProtectionEnabled': trackingProtectionEnabled,
         'localCdnEnabled': localCdnEnabled,
-        'blockAutoRedirects': blockAutoRedirects,
-        if (externalLinksInBrowser) 'externalLinksInBrowser': true,
+        if (externalLinkMode != ExternalLinkMode.inApp)
+          'externalLinkMode': externalLinkMode.name,
         'fullscreenMode': fullscreenMode,
         if (blockScreenshots) 'blockScreenshots': true,
         if (tabBarButtonCorner != null)
@@ -2660,8 +2679,9 @@ class WebViewModel {
       trackingProtectionEnabled:
           field<bool>('trackingProtectionEnabled') ?? true,
       localCdnEnabled: field<bool>('localCdnEnabled') ?? true,
-      blockAutoRedirects: field<bool>('blockAutoRedirects') ?? true,
-      externalLinksInBrowser: field<bool>('externalLinksInBrowser') ?? false,
+      // `externalLinksInBrowser` is the bool this field replaced.
+      externalLinkMode: externalLinkModeFromJson(
+          json['externalLinkMode'], json['externalLinksInBrowser']),
       fullscreenMode: field<bool>('fullscreenMode') ?? false,
       blockScreenshots: field<bool>('blockScreenshots') ?? false,
       // `tabBarButtonOnRight` is the short-lived bool predecessor of the

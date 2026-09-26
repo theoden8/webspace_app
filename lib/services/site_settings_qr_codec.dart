@@ -50,7 +50,6 @@ class SiteSettingsQrCodec {
     'disabledFilterLists',
     'trackingProtectionEnabled',
     'localCdnEnabled',
-    'blockAutoRedirects',
     'fullscreenMode',
     'blockScreenshots',
     'htmlCachingEnabled',
@@ -101,7 +100,7 @@ class SiteSettingsQrCodec {
     'fingerprintResetNonce',
     // Never shared so far. Sharing one of these is its own decision, not a
     // side effect of the drift check reaching them.
-    'externalLinksInBrowser',
+    'externalLinkMode',
     'tabBarButtonCorner',
     'letterboxEnabled',
     'spoofWindowWidth',

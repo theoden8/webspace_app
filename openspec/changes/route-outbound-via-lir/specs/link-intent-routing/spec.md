@@ -2,7 +2,7 @@
 
 ### Requirement: LIR-013 - Per-Site Outbound Routing Toggle And Preferences
 
-Each site SHALL carry a `routeOutboundLinks` boolean (default `false`) and an `outboundPreferences` list of `(DomainClaim claim, String targetSiteId)` entries (default empty). While `routeOutboundLinks` is `false`, the site's cross-domain navigation SHALL behave exactly as it did before this change: a `blockOpenNested` decision from `NavigationDecisionEngine` opens a nested `InAppWebViewScreen` with the site's own posture, and a `blockOpenExternal` decision (NESTED-009, `externalLinksInBrowser`) hands the URL to the system browser. `WebViewModel.toJson` SHALL omit `routeOutboundLinks` when `false` and `outboundPreferences` when empty, so the on-disk JSON of a user who never enables the feature is unchanged.
+Each site SHALL carry a `routeOutboundLinks` boolean (default `false`) and an `outboundPreferences` list of `(DomainClaim claim, String targetSiteId)` entries (default empty). Routing is an option of the in-app external-link mode (NESTED-009): it takes effect only while the site's `externalLinkMode` is `inApp` (`WebViewModel.effectiveRouteOutboundLinks`), and in the browser and block modes the stored value is kept and inert. While routing is not in effect, the site's cross-domain navigation SHALL behave exactly as it did before this change: a `blockOpenNested` decision from `NavigationDecisionEngine` opens a nested `InAppWebViewScreen` with the site's own posture, a `blockOpenExternal` decision hands the URL to the system browser, and a `blockOutbound` decision opens nothing. `WebViewModel.toJson` SHALL omit `routeOutboundLinks` when `false` and `outboundPreferences` when empty, so the on-disk JSON of a user who never enables the feature is unchanged.
 
 Both fields SHALL ride settings backup through `WebViewModel.toJson` and SHALL NOT be registered in `kExportedAppPrefs`. The site QR share (site-settings-qr) SHALL carry `routeOutboundLinks` and SHALL NOT carry `outboundPreferences`: every entry names a device-local `siteId`, the same reason QR-003 refuses `siteId` itself.
 
@@ -18,8 +18,15 @@ Both fields SHALL ride settings backup through `WebViewModel.toJson` and SHALL N
 - **GIVEN** site A has `routeOutboundLinks = false` and an outbound preference for `exactHost(github.com) -> site B`
 - **WHEN** the user taps a `github.com` link inside site A's webview
 - **THEN** no outbound resolution runs
-- **AND** the navigation takes the path `NavigationDecisionEngine` chose: a nested screen with site A's posture, or the system browser when A has `externalLinksInBrowser` on and no A claim covers `github.com`
+- **AND** the navigation takes the path `NavigationDecisionEngine` chose for A's external-link mode: a nested screen with site A's posture, the system browser, or nothing
 - **AND** site B's container is not consulted
+
+#### Scenario: Routing is off outside the in-app mode
+
+- **GIVEN** site A has `routeOutboundLinks = true` and its external-link mode is `browser` or `block`
+- **WHEN** the user taps a `github.com` link that site B claims
+- **THEN** no outbound resolution runs
+- **AND** the link goes to the system browser, or nowhere, as A's mode says
 
 #### Scenario: Preferences persist across restart
 
@@ -40,9 +47,9 @@ Both fields SHALL ride settings backup through `WebViewModel.toJson` and SHALL N
 
 Outbound routing SHALL run for a navigation only when all of the following hold:
 
-1. The source site has `routeOutboundLinks == true`.
-2. The navigation came from the source's own webview through `shouldOverrideUrlLoading` or `onUrlChanged`, and `NavigationDecisionEngine` returned `blockOpenNested` or `blockOpenExternal`. `allow`, `blockSilent` and `blockSuppressed` are never routed. A nested `InAppWebViewScreen` does not route: it has nowhere further to nest and navigates in place (NESTED-010).
-3. The navigation carried an effective user gesture: the gesture flag of `shouldOverrideUrlLoading`, or the gesture propagation window (NESTED-007) that `NavigationDecisionEngine` already computes, which it SHALL return on its result. A gesture-less cross-domain navigation, reachable when `blockAutoRedirects` is off, SHALL NOT be routed, or a page could load a URL of its choosing inside another site's signed-in container without a click.
+1. The source site has `routeOutboundLinks == true` and its external-link mode is `inApp` (LIR-013).
+2. The navigation came from the source's own webview through `shouldOverrideUrlLoading` or `onUrlChanged`, and `NavigationDecisionEngine` returned `blockOpenNested`. `allow`, `blockSilent`, `blockSuppressed`, `blockOpenExternal` and `blockOutbound` are never routed. A nested `InAppWebViewScreen` does not route: it has nowhere further to nest and navigates in place (NESTED-010).
+3. The navigation carried an effective user gesture: the gesture flag of `shouldOverrideUrlLoading`, or the gesture propagation window (NESTED-007) that `NavigationDecisionEngine` already computes, which it SHALL return on its result. A gesture-less cross-domain navigation SHALL NOT be routed, or a page could load a URL of its choosing inside another site's signed-in container without a click. The navigation engine already blocks such a navigation on every site (NESTED-004), so this gate is a second line.
 4. The container engine is active. On the legacy engine a nested screen runs in the shared cookie jar (ISO-007), so a routed screen would carry neither the destination's cookies nor its isolation.
 5. The kiosk shell is not locked (KIOSK-001). A routed open is another site's signed-in identity, which a locked shell must not reach (KIOSK-002); links there take the navigation engine's path with the source's posture.
 
@@ -54,7 +61,7 @@ The candidate sites SHALL be those on the source's side of the archive boundary:
 2. **Global LIR**: when no preference matches, the result of `LinkRoutingService.resolve(targetUrl, candidates)` wrapped as `OutboundResolution.global(...)`.
 3. **Self-match collapse**: any resolution that names the source itself SHALL collapse to `OutboundResolution.selfMatch()`.
 
-A resolution that names a destination (a preference, a global single, or a picker choice under LIR-016) SHALL take precedence over a `blockOpenExternal` decision: a link to a site the user keeps in the app stays in the app. A resolution that names no destination (`RoutingNone`, `selfMatch`) SHALL leave the navigation engine's decision in force.
+A resolution that names a destination (a preference, a global single, or a picker choice under LIR-016) SHALL open there (LIR-015). A resolution that names no destination (`RoutingNone`, `selfMatch`) SHALL leave the link nested with the source's own posture. Routing does not compose with the browser or block modes: a site that sends unclaimed links to the system browser, or blocks them, does so for every unclaimed link, and the Behaviour screen shows the routing switch only under the in-app option (BEHAV-003).
 
 #### Scenario: Source preference beats global single match
 
@@ -91,22 +98,21 @@ A resolution that names a destination (a preference, a global single, or a picke
 - **WHEN** `resolveOutbound` runs on `https://gist.github.com/abc`
 - **THEN** the result is `OutboundResolution.preference(work-gh)`
 
-#### Scenario: A routed destination wins over the system browser
+#### Scenario: An unclaimed link nests with the source's posture
 
-- **GIVEN** a DuckDuckGo site with `routeOutboundLinks` and `externalLinksInBrowser` both on, whose claims do not cover `github.com`
+- **GIVEN** a DuckDuckGo site in the in-app mode with `routeOutboundLinks` on
 - **AND** a GitHub site that is the single global match for `github.com`
 - **WHEN** the user taps `https://github.com/x` in DuckDuckGo
 - **THEN** the link opens nested with the GitHub site's posture
-- **AND** the system browser is not opened
-- **AND** a tap on `https://blog.example/` that no site claims still opens in the system browser
+- **AND** a tap on `https://blog.example/` that no site claims opens nested with DuckDuckGo's posture
 
 #### Scenario: A gesture-less navigation is not routed
 
-- **GIVEN** a DuckDuckGo site with `routeOutboundLinks` on and `blockAutoRedirects` off
+- **GIVEN** a DuckDuckGo site with `routeOutboundLinks` on
 - **AND** no same-domain gesture was recorded in the propagation window
 - **WHEN** a script navigates the page to `https://github.com/settings`
 - **THEN** no outbound resolution runs
-- **AND** the navigation takes today's path with DuckDuckGo's posture
+- **AND** the navigation is cancelled (NESTED-004)
 
 #### Scenario: A site behind the archive boundary is not a candidate
 
@@ -147,14 +153,14 @@ For a resolution that names a destination, the dispatch engine SHALL emit `Dispa
 
 When pushing the destination's screen changed the process-global proxy (Android without router mode, Linux), popping it SHALL re-run the source's activation, its PROXY-008 sequence and, if the mismatch unload disposed it, its rebuild with its captured navigation state queued, before the source is shown again. The source SHALL NOT be rebuilt while the destination's proxy is still applied, or the source's traffic would leave through the destination's proxy.
 
-When routing runs and names no destination, the engine SHALL emit `DispatchNestedFallback` for a `blockOpenNested` decision and `DispatchOpenExternal` for a `blockOpenExternal` one. The call site SHALL then run the code it runs today: `launchUrlFunc(url, ...)` with the source's posture, or `launchUrlInSystemBrowser(url)`. On the `onUrlChanged` path routing decides only where the link opens: the source webview is left as it is without routing, whatever the dispatch result.
+When routing runs and names no destination, the engine SHALL emit `DispatchNestedFallback`. The call site SHALL then run the code it runs today: `launchUrlFunc(url, ...)` with the source's posture. On the `onUrlChanged` path routing decides only where the link opens: the source webview is left as it is without routing, whatever the dispatch result.
 
 #### Scenario: Outbound hijack opens nested with destination settings
 
 - **GIVEN** source DuckDuckGo has `routeOutboundLinks = true` and the resolver picks site `work-gh` for `https://github.com/x`
 - **WHEN** the user taps the link inside DuckDuckGo
 - **THEN** the executor pushes an `InAppWebViewScreen` with `siteId == work-gh`
-- **AND** every `LaunchUrlFunc` field of the screen comes from `work-gh`: container, incognito, language, user scripts, proxy, location, WebRTC policy, ClearURLs, DNS and content blocking, camera and microphone modes, `blockAutoRedirects`, `externalLinksInBrowser`
+- **AND** every `LaunchUrlFunc` field of the screen comes from `work-gh`: container, incognito, language, user scripts, proxy, location, WebRTC policy, ClearURLs, DNS and content blocking, camera and microphone modes, `externalLinkMode`
 - **AND** the current webspace is unchanged
 
 #### Scenario: Back gesture returns to source in the same webspace
@@ -188,19 +194,11 @@ When routing runs and names no destination, the engine SHALL emit `DispatchNeste
 - **THEN** the engine emits `DispatchNestedFallback`
 - **AND** the nested view carries DuckDuckGo's settings
 
-#### Scenario: An unrouted external link stays external
-
-- **GIVEN** source DuckDuckGo has `routeOutboundLinks` and `externalLinksInBrowser` on
-- **AND** no candidate claims `blog.example`
-- **WHEN** the user taps `https://blog.example/post`
-- **THEN** the engine emits `DispatchOpenExternal`
-- **AND** the URL opens in the system browser
-
 ---
 
 ### Requirement: LIR-016 - Picker Remember Checkbox Writes Outbound Preference Back To Source
 
-When `resolveOutbound` returns `OutboundResolution.global(RoutingAmbiguous(sites))`, the engine SHALL emit `DispatchShowPicker(winnerSiteIds: sites, offerBind: false, offerCreate: false, source: sourceSiteId, fallback: ...)`, where `fallback` names the navigation engine's decision. The picker SHALL render one "Open in {site}" row per winner, SHALL render an "Open without routing" row that runs the fallback (the source-posture nested screen, or the system browser), SHALL suppress the send-or-open-to-a-site row and the create row, and SHALL show a "Always use this when opening links from {sourceName}" checkbox beneath the winner rows, checked by default. Dismissing the picker SHALL open nothing: the source page stays as it was.
+When `resolveOutbound` returns `OutboundResolution.global(RoutingAmbiguous(sites))`, the engine SHALL emit `DispatchShowPicker(winnerSiteIds: sites, offerBind: false, offerCreate: false, source: sourceSiteId)`. The picker SHALL render one "Open in {site}" row per winner, SHALL render an "Open without routing" row that opens the source-posture nested screen, SHALL suppress the send-or-open-to-a-site row and the create row, and SHALL show a "Always use this when opening links from {sourceName}" checkbox beneath the winner rows, checked by default. Dismissing the picker SHALL open nothing: the source page stays as it was.
 
 When the user picks a winner with the checkbox checked, the executor SHALL:
 
@@ -240,7 +238,7 @@ With the checkbox unchecked, the executor SHALL route this navigation only and S
 
 #### Scenario: Open without routing runs today's path
 
-- **GIVEN** the outbound picker is showing for `https://github.com/x` from source DuckDuckGo, whose `externalLinksInBrowser` is off
+- **GIVEN** the outbound picker is showing for `https://github.com/x` from source DuckDuckGo
 - **WHEN** the user taps "Open without routing"
 - **THEN** the URL opens nested with DuckDuckGo's posture
 - **AND** `outboundPreferences` is unchanged

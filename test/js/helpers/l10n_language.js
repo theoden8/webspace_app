@@ -53,9 +53,8 @@ function localeValues(file) {
 
 function localeText(file) {
   return localeValues(file)
-    .map(([, v]) => v)
-    .join(' ')
-    .replace(/\{[^}]*\}/g, ' '); // drop {placeholder} tokens
+    .map(([, v]) => cleanValue(v))
+    .join(' ');
 }
 
 // --- Per-string check -------------------------------------------------

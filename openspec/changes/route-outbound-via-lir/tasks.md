@@ -85,5 +85,5 @@
 - [ ] 11.6 Self-match: a Mastodon site claiming `joinmastodon.org` opens that link with its own posture.
 - [ ] 11.7 Delete the work GitHub site; DuckDuckGo's preference naming it is gone, with no snackbar.
 - [ ] 11.8 Ambiguous: picker appears; with remember, the next tap does not show it; "Open without routing" opens with DuckDuckGo's posture.
-- [ ] 11.9 Routing and external links both on: GitHub results route in-app, unclaimed links go to the system browser.
+- [ ] 11.9 Routing on in the in-app mode: GitHub results route to the GitHub site, unclaimed links nest with the source's posture; switching the site to the browser mode hides the routing switch and stops routing (external-link-mode).
 - [ ] 11.10 Legacy engine (or a device without `MULTI_PROFILE`): the switch is disabled and taps behave as before.

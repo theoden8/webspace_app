@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
@@ -20,8 +21,7 @@ class SiteBehaviourValues {
     required this.kioskMode,
     required this.fullscreenMode,
     required this.htmlCachingEnabled,
-    required this.blockAutoRedirects,
-    required this.externalLinksInBrowser,
+    required this.externalLinkMode,
     this.routeOutboundLinks = false,
     this.outboundPreferences = const [],
   });
@@ -30,8 +30,7 @@ class SiteBehaviourValues {
   final bool kioskMode;
   final bool fullscreenMode;
   final bool htmlCachingEnabled;
-  final bool blockAutoRedirects;
-  final bool externalLinksInBrowser;
+  final ExternalLinkMode externalLinkMode;
   final bool routeOutboundLinks;
   final List<OutboundPreference> outboundPreferences;
 
@@ -40,8 +39,7 @@ class SiteBehaviourValues {
     bool? kioskMode,
     bool? fullscreenMode,
     bool? htmlCachingEnabled,
-    bool? blockAutoRedirects,
-    bool? externalLinksInBrowser,
+    ExternalLinkMode? externalLinkMode,
     bool? routeOutboundLinks,
     List<OutboundPreference>? outboundPreferences,
   }) =>
@@ -50,9 +48,7 @@ class SiteBehaviourValues {
         kioskMode: kioskMode ?? this.kioskMode,
         fullscreenMode: fullscreenMode ?? this.fullscreenMode,
         htmlCachingEnabled: htmlCachingEnabled ?? this.htmlCachingEnabled,
-        blockAutoRedirects: blockAutoRedirects ?? this.blockAutoRedirects,
-        externalLinksInBrowser:
-            externalLinksInBrowser ?? this.externalLinksInBrowser,
+        externalLinkMode: externalLinkMode ?? this.externalLinkMode,
         routeOutboundLinks: routeOutboundLinks ?? this.routeOutboundLinks,
         outboundPreferences: outboundPreferences ?? this.outboundPreferences,
       );
@@ -61,6 +57,11 @@ class SiteBehaviourValues {
   /// home page whatever this stores. Mirrors `WebViewModel.toJson`'s `dropUrl`,
   /// which is what actually decides it.
   bool effectiveAlwaysOpenHome(bool incognito) => incognito || alwaysOpenHome;
+
+  /// Routing is an option of the in-app mode (LIR-014); mirrors
+  /// `WebViewModel.effectiveRouteOutboundLinks`.
+  bool get effectiveRouteOutboundLinks =>
+      routeOutboundLinks && externalLinkMode == ExternalLinkMode.inApp;
 }
 
 /// Per-site behaviour screen: how the app hosts the site — where it opens, how
@@ -91,7 +92,7 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// The site's `DomainClaimsEditor`, built by the caller. It writes straight
   /// to the model rather than through [values], so it stays with the screen
   /// that holds the model; it renders here because the link group is where a
-  /// reader looks for it (the external-links hint points at it by name).
+  /// reader looks for it (the external-links hint points at it).
   final Widget? domainClaims;
 
   /// Outbound routing runs only on the container engine (LIR-014); on the
@@ -188,16 +189,6 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
 
   // --- Link handling -------------------------------------------------------
 
-  Widget _blockAutoRedirects(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsBlockAutoRedirects,
-        hintTitle: loc.siteSettingsBlockAutoRedirectsHintTitle,
-        hint: loc.siteSettingsBlockAutoRedirectsHint,
-        subtitle: loc.siteSettingsBlockAutoRedirectsSubtitle,
-        value: _values.blockAutoRedirects,
-        onChanged: (value) =>
-            _update(_values.copyWith(blockAutoRedirects: value)),
-      );
-
   Widget _routeOutboundLinks(AppLocalizations loc) => _tile(
         title: loc.siteSettingsRouteOutboundLinks,
         hint: loc.siteSettingsRouteOutboundLinksHint,
@@ -232,14 +223,74 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     );
   }
 
-  Widget _externalLinks(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsExternalLinksInBrowser,
-        hintTitle: loc.siteSettingsExternalLinksInBrowserHintTitle,
-        hint: loc.siteSettingsExternalLinksInBrowserHint,
-        value: _values.externalLinksInBrowser,
-        onChanged: (value) =>
-            _update(_values.copyWith(externalLinksInBrowser: value)),
-      );
+  /// Where links leaving the site go, as a dropdown like the other
+  /// multiple-choice settings. Routing to the user's own sites is an option of
+  /// opening them in the app, so its rows sit indented under this one and
+  /// only while that is the choice.
+  Widget _externalLinks(AppLocalizations loc) {
+    final mode = _values.externalLinkMode;
+    final labels = {
+      ExternalLinkMode.inApp: loc.siteSettingsExternalLinksInApp,
+      ExternalLinkMode.browser: loc.siteSettingsExternalLinksBrowser,
+      ExternalLinkMode.block: loc.siteSettingsExternalLinksBlock,
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ListTile(
+          title: Row(
+            children: [
+              Flexible(child: Text(loc.siteSettingsExternalLinks)),
+              HintButton(
+                title: loc.siteSettingsExternalLinks,
+                description: loc.siteSettingsExternalLinksHint,
+              ),
+            ],
+          ),
+          // Capped so a long label (Greek runs to 32 characters) cannot
+          // squeeze the title; the open menu is wider and shows it whole.
+          trailing: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 160),
+            child: DropdownButton<ExternalLinkMode>(
+              value: mode,
+              isExpanded: true,
+              menuWidth: 280,
+              onChanged: (value) {
+                if (value != null) {
+                  _update(_values.copyWith(externalLinkMode: value));
+                }
+              },
+              selectedItemBuilder: (context) => [
+                for (final m in ExternalLinkMode.values)
+                  Align(
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: Text(
+                      labels[m]!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              items: [
+                for (final m in ExternalLinkMode.values)
+                  DropdownMenuItem(value: m, child: Text(labels[m]!)),
+              ],
+            ),
+          ),
+        ),
+        if (mode == ExternalLinkMode.inApp)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(start: 24),
+            child: Column(
+              children: [
+                _routeOutboundLinks(loc),
+                if (_values.routeOutboundLinks) _outboundPreferences(loc),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -264,9 +315,6 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           _fullscreen(loc),
           _htmlCaching(loc),
           _groupHeader(loc.linkHandlingScreenTitle),
-          _blockAutoRedirects(loc),
-          _routeOutboundLinks(loc),
-          if (_values.routeOutboundLinks) _outboundPreferences(loc),
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
           const SizedBox(height: 24),

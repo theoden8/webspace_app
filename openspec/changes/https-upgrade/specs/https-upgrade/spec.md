@@ -183,13 +183,13 @@ original URL has allowed it: in `shouldOverrideUrlLoading` after
 
 Taken first, the engine and the nested-url-blocking rules would see a URL the
 site never asked for, and a scheme rewrite would become a way to re-enter the
-navigation pipeline with `blockAutoRedirects`, the user-gesture requirement and
-cross-domain nested routing already behind it. This is the same ordering
+navigation pipeline with the user-gesture requirement and cross-domain nested
+routing already behind it. This is the same ordering
 CAPTCHA-008 had to impose on the captcha allow after the fact.
 
 #### Scenario: A blocked navigation is not upgraded into an allowed one
 
-**Given** a site with `blockAutoRedirects` on and no recent gesture
+**Given** a site with no recent gesture
 **When** a script-driven navigation to `http://elsewhere.example/` is decided
 **Then** the navigation decision engine sees `http://elsewhere.example/`
 **And** its verdict is honored before the upgrade is considered

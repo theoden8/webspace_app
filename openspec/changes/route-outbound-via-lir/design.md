@@ -96,6 +96,8 @@ Candidates are the sites on the source's side of the archive boundary (D11).
 
 **Composition with `externalLinksInBrowser`**: a resolution that names a destination wins over `blockOpenExternal`; one that names none leaves the navigation engine's decision in force. So a DuckDuckGo site with both switches on sends GitHub results to the GitHub site and everything unclaimed to the system browser. The other order (external first) would make routing dead on any site with external links on, because NESTED-009 only keeps the source's own claimed links in the app, and those resolve to `selfMatch`.
 
+*Superseded by `external-link-mode`*: the external-links switch became a three-way choice (in app, browser, block), and routing is an option of the in-app choice only. A site in the browser or block mode never routes, so the two no longer compose.
+
 **Source-preference-wins rule**: a preference at any score beats a global winner at any score. The user wrote the preference from this source's context, which is a more specific signal than the global claim graph, and the work-vs-personal-GitHub case needs it.
 
 ### D3. Dispatch shape
@@ -181,6 +183,8 @@ Link handling
   Open external links in browser          [switch] (?)
   Domain claims                           (editor)
 ```
+
+*Superseded by `external-link-mode`*: the routing rows now sit under the "Open in the app" option of the External links choice (BEHAV-003, BEHAV-004).
 
 - Routing sits above external links because it wins over them (D2); the claims editor stays last, under the switch whose hint points at it.
 - The switch's explanation ("taps on links to other domains open in the site that claims them, with that site's login and settings; links no site claims behave as before") goes in its `HintButton`. The switch has no subtitle, except the state string "Needs per-site containers" when the legacy engine disables it (D10).

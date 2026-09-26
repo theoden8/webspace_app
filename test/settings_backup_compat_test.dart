@@ -107,13 +107,18 @@ Object? _expectedImported(String key, Object? value) => switch (key) {
 /// value over; add the pair here when you rename a persisted key.
 const Map<String, String> _renamedKeys = {
   // Per-site `tabBarButtonOnRight` (never in a release) became
-  // `tabBarButtonCorner`; kept here as the worked example once one ships.
+  // `tabBarButtonCorner`.
+  // The per-site bool gained a third value (issue #629): `true` is the
+  // browser mode.
+  'externalLinksInBrowser': 'externalLinkMode',
 };
 
 /// A key a release wrote that HEAD deliberately stops reading, and why losing
 /// it is intended. Anything else a release wrote must still be read.
 const Map<String, String> _retiredKeys = {
   'trustedHosts': 'BACKUP-010: a TLS pin never rides a backup',
+  'blockAutoRedirects': 'NESTED-004: every site blocks gesture-less '
+      'cross-domain navigations; there is no per-site switch to restore',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

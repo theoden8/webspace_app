@@ -72,8 +72,8 @@ class HttpsUpgradeEngine {
   ///
   /// Call this AFTER the navigation decision has allowed [url] (HTTPS-004).
   /// Taken first, a scheme rewrite is a way back into the navigation pipeline
-  /// with `blockAutoRedirects`, the gesture requirement and cross-domain nested
-  /// routing already behind it — the hole CAPTCHA-008 had to close for the
+  /// with the gesture requirement and cross-domain nested routing already
+  /// behind it — the hole CAPTCHA-008 had to close for the
   /// captcha allow.
   String? upgradeFor(String url, {required bool enabled}) {
     if (!enabled) return null;

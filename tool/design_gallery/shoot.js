@@ -27,6 +27,7 @@ const CARDS = [
   { id: 'location-picker', width: 400, height: 740 },
   { id: 'site-settings', width: 400, height: 900 },
   { id: 'site-settings-signins', width: 400, height: 900 },
+  { id: 'site-behaviour', width: 400, height: 1000 },
   { id: 'color-roles', width: 900, height: 180 },
   { id: 'type-scale', width: 520, height: 260 },
   { id: 'radius-scale', width: 520, height: 130 },

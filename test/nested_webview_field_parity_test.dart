@@ -10,9 +10,8 @@ import 'package:webspace/web_view_model.dart';
 /// A per-site field that is applied by the parent webview but never threaded
 /// into `InAppWebViewScreen` is a silent hole: one tap on an outbound link
 /// drops the user's posture for the rest of that browsing session, inside the
-/// parent's own container. `blockAutoRedirects`, `blockedCookies`, the
-/// camera/microphone modes and their sources, and `protectedContentAllowed`
-/// were all in `WebViewModel.toJson` and in the parent's `WebViewConfig` yet
+/// parent's own container. `blockedCookies`, the camera/microphone modes and
+/// their sources, and `protectedContentAllowed` were all in `WebViewModel.toJson` and in the parent's `WebViewConfig` yet
 /// missing from the nested chain.
 ///
 /// `LaunchUrlFunc` is the single declaration of that chain, so this gate reads
@@ -58,7 +57,6 @@ void main() {
     expect(
       chainFields,
       containsAll(<String>[
-        'blockAutoRedirects',
         'blockedCookies',
         'cameraMode',
         'virtualCameraSource',
@@ -156,7 +154,6 @@ void main() {
       localCdnEnabled: true,
       trackingProtectionEnabled: true,
       language: 'en',
-      blockAutoRedirects: true,
       blockedCookies: {const BlockedCookie(name: 'sid', domain: 'ads.example')},
       cameraMode: CameraAccessMode.block,
       virtualCameraSource: source,
@@ -165,7 +162,6 @@ void main() {
       protectedContentAllowed: false,
     );
 
-    expect(screen.blockAutoRedirects, isTrue);
     expect(screen.blockedCookies.single.name, equals('sid'));
     expect(screen.cameraMode, equals(CameraAccessMode.block));
     expect(screen.virtualCameraSource, same(source));
@@ -188,7 +184,6 @@ void main() {
       language: 'en',
     );
 
-    expect(screen.blockAutoRedirects, isFalse);
     expect(screen.blockedCookies, isEmpty);
     expect(screen.cameraMode, equals(CameraAccessMode.ask));
     expect(screen.microphoneMode, equals(MicrophoneAccessMode.ask));

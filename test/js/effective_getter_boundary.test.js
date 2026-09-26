@@ -24,7 +24,7 @@ const OVERRIDDEN = [
   'cameraMode',
   'microphoneMode',
   'protectedContentAllowed',
-  'externalLinksInBrowser',
+  'externalLinkMode',
   'localCdnEnabled',
 ];
 
