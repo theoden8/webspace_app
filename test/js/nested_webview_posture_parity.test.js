@@ -148,6 +148,10 @@ const POSTURE = new Set([
   // webview answering from saved sign-ins, or saving one, has to hold the
   // opening site to the same rule.
   'httpAuthMemory',
+  // The opaque container an archive-tier site binds (ARCH-007). Without it,
+  // Android binds its nested webviews to a profile named after the archived
+  // site's cleartext id, which the archive's close leaves on disk (BUG-019).
+  'archiveContainerId',
 ]);
 
 const PLUMBING = new Set([
@@ -194,13 +198,9 @@ const PLUMBING = new Set([
   'siteIcon',
 ]);
 
-// Posture-ish but not yet threaded to nested webviews. An archive-tier site
-// following an outbound link gets a nested webview bound to the cleartext
-// `ws-<siteId>` container instead of the opaque archive container. Narrow
-// (archive-tier + cross-domain nav) and tracked here rather than hidden.
-const KNOWN_GAP = new Set([
-  'archiveContainerId',
-]);
+// Posture-ish but not yet threaded to nested webviews: tracked here rather
+// than hidden, and promoted to POSTURE once it is.
+const KNOWN_GAP = new Set([]);
 
 // --- tests ---------------------------------------------------------------
 
