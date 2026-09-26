@@ -240,21 +240,15 @@ bool _isIpAddress(String host) {
   return false;
 }
 
-/// Test-only override for whether Google's and DuckDuckGo's icon services
-/// may be asked. When null, the build flavor decides.
-@visibleForTesting
-bool? debugPublicIconServicesOverride;
-
-// F-Droid lists third-party icon services as a NonFreeNet anti-feature, so
-// that build takes a site's icon only from the site: its own webview on
-// Android (ICON-009) and the page scrape.
-bool get _publicIconServicesAllowed =>
-    debugPublicIconServicesOverride ?? !isFdroidFlavor;
-
 // Check if we should use public icon services (Google, DuckDuckGo)
 // Returns false in the F-Droid build, for http:// sites and IP addresses
 bool _shouldUsePublicIconServices(Uri uri) {
-  if (!_publicIconServicesAllowed) return false;
+  // F-Droid lists third-party icon services as a NonFreeNet anti-feature, so
+  // that build takes a site's icon only from the site: its own webview on
+  // Android (ICON-009) and the page scrape. Tested against the compile-time
+  // constant alone so the release compiler drops both services from that
+  // build; scripts/check_no_icon_services.sh asserts it on the APK.
+  if (isFdroidFlavor) return false;
 
   // Skip for non-HTTPS sites
   if (uri.scheme != 'https') return false;

@@ -352,7 +352,21 @@ placeholder.
 **When** the icon of an https site is fetched
 **Then** Google and DuckDuckGo are asked as in ICON-002
 
-Test: `test/icon_public_services_test.dart`.
+The gate SHALL be the compile-time constant alone, so the release compiler
+drops both services from the F-Droid build. CI holds this at two levels:
+`test/icon_public_services_test.dart` runs as that build (`flutter test
+--flavor fdroid`) and records every host the icon code contacts, and
+`scripts/check_no_icon_services.sh` fails when either service's host is
+compiled into the built fdroid APK's `libapp.so`, which also catches a call
+site added outside the gate.
+
+#### Scenario: A reverted gate fails the APK scan
+
+**Given** a change that lets the F-Droid build reach Google's or DuckDuckGo's
+icon service
+**When** CI builds the fdroid APK
+**Then** `check_no_icon_services.sh` finds the service's host in `libapp.so`
+**And** the build-android job fails
 
 ---
 
