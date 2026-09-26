@@ -25,6 +25,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/material.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -32,11 +33,13 @@ import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:socks5_proxy/socks_client.dart' as socks5;
 
+import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_geoip_io.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
@@ -87,6 +90,42 @@ String? countryIn(String table, String ipv4) {
     if (int.parse(row[0]) <= n && n <= int.parse(row[1])) return row[2];
   }
   return null;
+}
+
+/// A GeoIP table read once, for lookups by the thousand.
+class CountryTable {
+  CountryTable._(this._lows, this._highs, this._codes);
+
+  factory CountryTable.parse(String table) {
+    final lows = <int>[], highs = <int>[], codes = <String>[];
+    for (final line in const LineSplitter().convert(table)) {
+      if (line.isEmpty || line.startsWith('#')) continue;
+      final row = line.split(',');
+      lows.add(int.parse(row[0]));
+      highs.add(int.parse(row[1]));
+      codes.add(row[2]);
+    }
+    return CountryTable._(lows, highs, codes);
+  }
+
+  final List<int> _lows, _highs;
+  final List<String> _codes;
+
+  String? of(String ipv4) {
+    final n = ipv4.split('.').map(int.parse).fold<int>(0, (a, o) => a * 256 + o);
+    var lo = 0, hi = _lows.length - 1;
+    while (lo <= hi) {
+      final mid = (lo + hi) >> 1;
+      if (_lows[mid] > n) {
+        hi = mid - 1;
+      } else if (_highs[mid] < n) {
+        lo = mid + 1;
+      } else {
+        return _codes[mid];
+      }
+    }
+    return null;
+  }
 }
 
 /// A raw stream through [via] to [to], outside any HTTP client.
@@ -259,6 +298,23 @@ class TorProbe {
     }
     return 'circuit ${parts[0]} ${parts[1]} ${fields['PURPOSE']} '
         'created ${fields['TIME_CREATED']}: $exit';
+  }
+
+  /// Address of every relay the consensus lists as a usable exit.
+  Future<List<String>> exitAddresses() async {
+    final out = <String>[];
+    String? address;
+    for (final line in (await info('ns/all')).split('\n')) {
+      if (line.startsWith('r ')) {
+        final f = line.split(' ');
+        address = f.length >= 8 && _ipv4.hasMatch(f[f.length - 3]) ? f[f.length - 3] : null;
+      } else if (line.startsWith('s ') && address != null) {
+        final flags = line.split(' ').toSet();
+        if (flags.contains('Exit') && !flags.contains('BadExit')) out.add(address);
+        address = null;
+      }
+    }
+    return out;
   }
 
   /// Every live circuit, described.
@@ -797,4 +853,203 @@ void main() {
     }
     trace('scenario 4 done');
   }, timeout: const Timeout(Duration(minutes: 5)));
+
+  testWidgets('a pin to a country with no exit fails instead of reporting up',
+      (tester) async {
+    trace('scenario 5 start');
+    if (!TorService.instance.isAvailable) {
+      if (isApple) {
+        fail('the Tor runtime reports unavailable on an Apple build');
+      }
+      markTestSkipped('no Tor runtime on this platform (TOR-007)');
+      return;
+    }
+
+    // TOR-014, "A strict pin with no usable exit fails visibly". A pin to
+    // Brazil, which had relays but no running exit, took, the runtime said
+    // `up`, and every page pinned there timed out a minute later: with no
+    // relay in ExitNodes tor reports "0% of exit bw" and builds no circuit
+    // at all. Antarctica has never had a relay, so it stays a country with
+    // no exit; the consensus is asked below to make sure.
+    final up = await waitFor(
+      () => TorService.instance.status is TorUp,
+      const Duration(seconds: 120),
+    );
+    if (!up) {
+      if (torRequired) {
+        fail('Tor was not up to take a pin:\n${torTranscript()}');
+      }
+      markTestSkipped('Tor did not reach the network here; nothing to pin');
+      return;
+    }
+
+    const nowhere = 'aq';
+    final clock = Stopwatch()..start();
+    try {
+      await TorService.instance.setExitCountry('{$nowhere}');
+      final status = TorService.instance.status;
+      trace('{$nowhere} answered after ${clock.elapsed.inSeconds}s with $status');
+
+      final kept = await createTorGeoIpStore()!.newest();
+      expect(kept, isNotNull,
+          reason: 'no GeoIP table on the device to check the consensus '
+              'against:\n${torTranscript()}');
+      final table = CountryTable.parse(await File(kept!.path).readAsString());
+      final probe = await TorProbe.open();
+      String config;
+      List<String> exits;
+      try {
+        exits = await probe.exitAddresses();
+        config = await probe.config();
+      } finally {
+        probe.close();
+      }
+      final there = [
+        for (final ip in exits)
+          if (table.of(ip) == nowhere.toUpperCase()) ip,
+      ];
+      trace('consensus: ${exits.length} exits, ${there.length} in '
+          '${nowhere.toUpperCase()}; $config');
+      expect(exits, isNotEmpty,
+          reason: 'read no exit at all from the consensus, so the count below '
+              'says nothing');
+      expect(there, isEmpty,
+          reason: 'the consensus now has an exit in ${nowhere.toUpperCase()} '
+              '($there); pick another country with none');
+
+      expect(status, isA<TorErrored>(),
+          reason: 'tor has no exit in ${nowhere.toUpperCase()}, so it builds '
+              'no circuit under {$nowhere}, and the runtime reported $status: '
+              'every site pinned there waits on a load that never '
+              'completes:\n${torTranscript()}');
+      expect((status as TorErrored).kind, TorFailureKind.exitPolicy,
+          reason: 'the failure is the country\'s, and the card has to say '
+              'so: ${status.message}');
+      expect(TorService.instance.socksFor(siteId: 'nowhere'), isNull,
+          reason: 'a site pinned to a country with no exit was handed a '
+              'SOCKS route');
+      expect(config, contains('ExitNodes={$nowhere}'),
+          reason: 'the pin was dropped rather than kept in force, so a site '
+              'pinned there could leave from anywhere: $config');
+      expect(config, contains('StrictNodes=1'), reason: config);
+    } finally {
+      await TorService.instance.setExitCountry(null);
+    }
+    expect(TorService.instance.status, isA<TorUp>(),
+        reason: 'clearing a pin to a country with no exit did not bring Tor '
+            'back:\n${torTranscript()}');
+    trace('scenario 5 done');
+  }, timeout: const Timeout(Duration(minutes: 5)));
+
+  testWidgets('a site moved from direct to Tor reaches the web only through Tor',
+      (tester) async {
+    trace('scenario 6 start');
+    if (!TorService.instance.isAvailable) {
+      if (isApple) {
+        fail('the Tor runtime reports unavailable on an Apple build');
+      }
+      markTestSkipped('no Tor runtime on this platform (TOR-007)');
+      return;
+    }
+    // Where a site has its own WKWebsiteDataStore, which is what outlives
+    // the WebView and carried the old route on a device.
+    if (!await ContainerNative.instance.isSupported()) {
+      markTestSkipped('no per-site container on this OS');
+      return;
+    }
+    await PlatformInfo.initialize();
+    final up = await waitFor(
+      () => TorService.instance.status is TorUp,
+      const Duration(seconds: 120),
+    );
+    if (!up) {
+      if (torRequired) {
+        fail('Tor was not up to move a site onto:\n${torTranscript()}');
+      }
+      markTestSkipped('Tor did not reach the network here');
+      return;
+    }
+
+    const site = 'tor-after-direct';
+    // Cloudflare keeps its connections alive and speaks h2 and h3, like the
+    // page that showed the leak; the Tor Project's check closes each one.
+    final whereFrom = Uri.parse('https://www.cloudflare.com/cdn-cgi/trace');
+    var generation = 0;
+    WebViewController? controller;
+
+    Future<void> mount(UserProxySettings? proxy) async {
+      final key = ValueKey('tor-webview-${generation++}');
+      controller = null;
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 320,
+              height: 480,
+              child: KeyedSubtree(
+                key: key,
+                child: WebViewFactory.createWebView(
+                  config: WebViewConfig(
+                    siteId: site,
+                    initialUrl: whereFrom.toString(),
+                    proxySettings: proxy,
+                    clearUrlEnabled: false,
+                    dnsBlockEnabled: false,
+                    contentBlockEnabled: false,
+                    trackingProtectionEnabled: false,
+                    localCdnEnabled: false,
+                  ),
+                  onControllerCreated: (c) => controller = c,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+
+    /// The address the far side saw this WebView come from, once the page
+    /// has it.
+    Future<String?> seenFrom(Duration budget) async {
+      String? seen;
+      await tester.runAsync(() async {
+        final deadline = DateTime.now().add(budget);
+        while (DateTime.now().isBefore(deadline)) {
+          final c = controller;
+          if (c != null) {
+            final body = await c.nativeController
+                .evaluateJavascript(
+                    source: 'document.body ? document.body.innerText : ""')
+                .catchError((Object _) => null);
+            seen = RegExp(r'^ip=(\S+)$', multiLine: true)
+                .firstMatch('${body ?? ''}')
+                ?.group(1);
+            if (seen != null) return;
+          }
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+        }
+      });
+      return seen;
+    }
+
+    await mount(null);
+    final direct = await seenFrom(const Duration(seconds: 60));
+    trace('direct load came from $direct');
+    expect(direct, isNotNull,
+        reason: 'the control: the direct load has to show the runner\'s own '
+            'address, or the arm below cannot tell a leak from a pass');
+
+    await mount(TorService.instance.socksFor(siteId: site));
+    final viaTor = await seenFrom(const Duration(seconds: 150));
+    trace('after the move to Tor came from $viaTor');
+    expect(viaTor, isNotNull,
+        reason: 'the site moved to Tor never got an answer:\n${torTranscript()}');
+    expect(viaTor, isNot(direct),
+        reason: 'the site was moved to Tor and the web still saw it come from '
+            '$direct, the address of its direct load: the new WebView rode '
+            'the container\'s network session from before the move');
+    trace('scenario 6 done');
+  }, timeout: const Timeout(Duration(minutes: 6)));
 }

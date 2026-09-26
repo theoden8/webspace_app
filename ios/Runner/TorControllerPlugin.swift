@@ -537,8 +537,7 @@ class TorControllerPlugin: NSObject {
   private func launchLocked(generation: Int) {
     hasLaunched = true
     let config = TorConfiguration()
-    let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("Tor", isDirectory: true)
+    let base = Self.torDataDirectory()
     try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
     config.dataDirectory = base
     config.cookieAuthentication = true
@@ -1302,6 +1301,27 @@ class TorControllerPlugin: NSObject {
       return failed
     }
     await closeExitCircuits(controller)
+    // A country with no exit takes the pin without complaint, and then tor
+    // builds no circuit at all: its path check finds 0% of exit bandwidth
+    // and it stops treating its directory as usable. Nothing on the control
+    // port says so until a stream times out, so count. The pin stays in
+    // force either way; the answer is what the user sees.
+    if let countries = Self.pinnedCountries(exitNodes) {
+      switch Self.exitCount(in: countries, geoipFile: geoipFile) {
+      case .some(0):
+        let names = countries.sorted().map { $0.uppercased() }.joined(separator: ", ")
+        return FlutterError(
+          code: "exit_country_empty",
+          message: "tor's consensus lists no exit relay in \(names), so no circuit can be "
+            + "built under this exit-country pin. The pin stays in force: nothing leaves "
+            + "from another country instead.",
+          details: nil)
+      case .none:
+        note("Could not count the exits in the pinned country; the pin is in force.")
+      case .some:
+        break
+      }
+    }
     // tor also wants an IPv6 table once a country pin is in force, and warns
     // on every config change that it has none. Exit countries are decided by
     // a relay's IPv4 address alone (`node_set_country`), so the IPv4 table
@@ -1402,6 +1422,100 @@ class TorControllerPlugin: NSObject {
       }
       return words[0]
     }
+  }
+
+  /// The country codes an `ExitNodes` value names, lowercased. Nil when it
+  /// names anything but countries, since a count by country cannot speak
+  /// for a fingerprint or a nickname.
+  static func pinnedCountries(_ exitNodes: String) -> Set<String>? {
+    var out = Set<String>()
+    for item in exitNodes.split(separator: ",") {
+      let code = item.trimmingCharacters(in: .whitespaces)
+      guard code.count == 4, code.hasPrefix("{"), code.hasSuffix("}") else { return nil }
+      out.insert(code.dropFirst().dropLast().lowercased())
+    }
+    return out.isEmpty ? nil : out
+  }
+
+  /// IPv4 address of every relay a `GETINFO ns/all` value lists with the
+  /// Exit flag and without BadExit, which is what tor draws an exit from.
+  /// An `r` line ends `IP ORPort DirPort` in every flavour tor prints.
+  static func exitAddresses(fromNetworkStatus raw: String) -> [String] {
+    var out: [String] = []
+    var address: String?
+    for line in raw.components(separatedBy: .newlines) {
+      if line.hasPrefix("r ") {
+        let words = line.split(separator: " ")
+        let candidate = words.count >= 8 ? String(words[words.count - 3]) : ""
+        address = candidate.split(separator: ".").count == 4 ? candidate : nil
+      } else if line.hasPrefix("s "), let current = address {
+        let flags = Set(line.split(separator: " ").map(String.init))
+        if flags.contains("Exit") && !flags.contains("BadExit") {
+          out.append(current)
+        }
+        address = nil
+      }
+    }
+    return out
+  }
+
+  /// How many exits tor's consensus has in [countries], by the GeoIP table
+  /// the pin loaded; at least 1 when there are some, as the count stops at
+  /// the first. Nil when either file cannot be read.
+  ///
+  /// Read from the files tor reads, not over the control port: the consensus
+  /// is megabytes, and Tor.framework parses every controller's replies on
+  /// one queue, so a `GETINFO ns/all` stalled each command after it until
+  /// the channel read as dead.
+  private static func exitCount(in countries: Set<String>, geoipFile: String?) -> Int? {
+    let dir = torDataDirectory()
+    guard let geoipFile = geoipFile,
+          let table = try? String(contentsOfFile: geoipFile, encoding: .utf8),
+          let consensus = ["cached-microdesc-consensus", "cached-consensus"].lazy
+            .compactMap({ try? String(
+              contentsOf: dir.appendingPathComponent($0), encoding: .utf8) })
+            .first
+    else { return nil }
+    return exitCount(in: countries, consensus: consensus, geoipTable: table)
+  }
+
+  /// [exitCount] over the contents of a consensus and a GeoIP table
+  /// (`low,high,CC` per row, addresses as integers).
+  static func exitCount(
+    in countries: Set<String>, consensus: String, geoipTable: String
+  ) -> Int? {
+    let exits = exitAddresses(fromNetworkStatus: consensus)
+      .compactMap(ipv4Number).sorted()
+    guard !exits.isEmpty else { return nil }
+    for row in geoipTable.split(whereSeparator: \.isNewline) {
+      guard let comma = row.lastIndex(of: ","),
+            countries.contains(
+              row[row.index(after: comma)...].trimmingCharacters(in: .whitespaces)
+                .lowercased())
+      else { continue }
+      let bounds = row[..<comma].split(separator: ",")
+      guard bounds.count == 2, let low = UInt32(bounds[0]), let high = UInt32(bounds[1])
+      else { continue }
+      var lo = 0, hi = exits.count
+      while lo < hi {
+        let mid = (lo + hi) / 2
+        if exits[mid] < low { lo = mid + 1 } else { hi = mid }
+      }
+      if lo < exits.count && exits[lo] <= high { return 1 }
+    }
+    return 0
+  }
+
+  private static func ipv4Number(_ address: String) -> UInt32? {
+    let octets = address.split(separator: ".").compactMap { UInt32($0) }
+    guard octets.count == 4, octets.allSatisfy({ $0 < 256 }) else { return nil }
+    return octets.reduce(0) { $0 << 8 | $1 }
+  }
+
+  /// tor's DataDirectory, where it caches the consensus.
+  static func torDataDirectory() -> URL {
+    FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("Tor", isDirectory: true)
   }
 
   /// Whether tor has an IPv4 GeoIP table loaded. Asked twice at most, for

@@ -91,6 +91,18 @@ class Socks5Fixture {
   /// Every `<host><path>` a synthetic destination was asked for, in order.
   final syntheticPaths = <String>[];
 
+  /// Answer synthetic destinations with keep-alive responses and go on
+  /// serving the same tunnel, the way a real origin keeps a connection for
+  /// the client to pool. Off, every tunnel carries exactly one request, so
+  /// connection reuse is never exercised.
+  bool syntheticKeepAlive = false;
+
+  /// With [syntheticKeepAlive], every request as `<tunnel> <host><path>`,
+  /// where `<tunnel>` counts this fixture's synthetic CONNECTs from 0. Two
+  /// requests with one tunnel number rode one pooled connection.
+  final syntheticRequests = <String>[];
+  var _tunnels = 0;
+
   /// Body to answer a synthetic destination with, by destination host and
   /// request path. Null falls back to a plain marker page.
   ///
@@ -182,6 +194,36 @@ class Socks5Fixture {
         servedSynthetic.add('$host:$destPort');
         client.add(const [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
         await client.flush();
+
+        if (syntheticKeepAlive && syntheticTls == null) {
+          final tunnel = _tunnels++;
+          while (true) {
+            final head = <int>[];
+            while (!String.fromCharCodes(head).endsWith('\r\n\r\n')) {
+              final next = await buffer.read(1);
+              if (next == null) {
+                await client.close();
+                return;
+              }
+              head.addAll(next);
+            }
+            final path = RegExp(r'^\S+ (\S+)')
+                    .firstMatch(String.fromCharCodes(head))
+                    ?.group(1) ??
+                '/';
+            syntheticPaths.add('$host$path');
+            syntheticRequests.add('$tunnel $host$path');
+            final body = syntheticBody?.call(host, path) ??
+                '<!doctype html><html><body><p>$host</p></body></html>';
+            client.add(const AsciiEncoder().convert('HTTP/1.1 200 OK\r\n'
+                'Content-Type: text/html\r\n'
+                'Cache-Control: no-store\r\n'
+                'Connection: keep-alive\r\n'
+                'Keep-Alive: timeout=120\r\n'
+                'Content-Length: ${body.length}\r\n\r\n$body'));
+            await client.flush();
+          }
+        }
 
         /// Reads one request line and answers it, over whichever socket the
         /// connection ended up on.

@@ -42,6 +42,19 @@ const Duration kTorBootstrapTimeout = Duration(seconds: 90);
 /// use it until their country is in force (TOR-014).
 const String kTorExitPinTag = 'exit_country';
 
+/// Thrown by [TorRuntime.applyExitCountry] when the pin is in force and
+/// tor's consensus has no exit in the country it names. tor then builds no
+/// circuit at all, so a site pinned there cannot load; the pin is kept, as
+/// TOR-014 wants, and the remedy is another country.
+class TorExitCountryEmpty implements Exception {
+  const TorExitCountryEmpty(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// How long tor gets to load a GeoIP table and take a pin. A control
 /// connection that dropped mid-command never answers, and every later pin
 /// change queues behind this one.
@@ -637,6 +650,13 @@ class TorEngine {
           'country was being changed, so the change is not in force.';
       _emit(TorErrored(message,
           failure: classifyTorFailure(message, hadExitPin: pin != null)));
+      return;
+    } on TorExitCountryEmpty catch (e) {
+      if (superseded()) return;
+      // Not "could not apply": it applied, and that is the problem. Left
+      // unapplied here so a Retry counts the exits again.
+      _emit(TorErrored(e.message,
+          failure: TorFailure(kind: TorFailureKind.exitPolicy, detail: e.message)));
       return;
     } catch (e) {
       if (superseded()) return;

@@ -107,10 +107,17 @@ class MethodChannelTorRuntime implements TorRuntime {
   @override
   Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {
     if (!isAvailable) return;
-    await _channel.invokeMethod<void>('setExitCountry', {
-      'exitNodes': exitNodes,
-      'geoipFile': geoipFile,
-    });
+    try {
+      await _channel.invokeMethod<void>('setExitCountry', {
+        'exitNodes': exitNodes,
+        'geoipFile': geoipFile,
+      });
+    } on PlatformException catch (e) {
+      if (e.code == 'exit_country_empty') {
+        throw TorExitCountryEmpty(e.message ?? 'No exit relay in that country.');
+      }
+      rethrow;
+    }
   }
 
   @override
