@@ -190,7 +190,7 @@ On iOS, the OS suspends apps within seconds of backgrounding. The system SHALL:
 
 ### Requirement: NOTIF-005-A - Android Background Strategy
 
-On Android, the system SHALL mirror the iOS opportunistic-refresh strategy: schedule a `WorkManager` periodic refresh that wakes the app every 15 minutes (system minimum) and runs the same wake as iOS (NOTIF-013, NOTIF-014). The system SHALL NOT use a foreground service to keep notification sites running. Apps that notify from the background are woken by a push channel (FCM, APNs) rather than staying resident, and a resident `specialUse` service also carries the Play review cost of `FOREGROUND_SERVICE_SPECIAL_USE`. So a site's page JS runs while the app is visible and in the short grace before Android freezes the process; after that, the wake is what reaches the user.
+On Android, the system SHALL mirror the iOS opportunistic-refresh strategy: schedule a `WorkManager` periodic refresh that wakes the app every 15 minutes (system minimum) and runs the same wake as iOS (NOTIF-013, NOTIF-014). The system SHALL NOT use a foreground service to keep notification sites running (NOTIF-015). Apps that notify from the background are woken by a push channel (FCM, APNs) rather than staying resident, and a resident `specialUse` service also carries the Play review cost of `FOREGROUND_SERVICE_SPECIAL_USE`. So a site's page JS runs while the app is visible and in the short grace before Android freezes the process; after that, the wake is what reaches the user.
 
 The `ProxyController` is a process-wide singleton, so concurrent background-poll sites with different proxy configurations remain unsupported even under the refresh model — proxies thrash when reloads run back-to-back.
 
@@ -505,3 +505,40 @@ site is persisted for it; archive-tier sites never reach the wake
 **Given** a wake during which site A posts its own notification
 **Then** no unread fallback is posted for site A
 
+### Requirement: NOTIF-015 - No foreground service for notifications
+
+The system SHALL NOT keep a notification site running in the background by
+keeping the app resident: no Android foreground service of any type, and no
+iOS background mode held open for it. A site's page runs while the app is
+visible and in the grace the OS gives on leaving it (NOTIF-005-I,
+NOTIF-011); after that, the background wake (NOTIF-005-A, NOTIF-013,
+NOTIF-014) is what reaches the user. Delivering in real time from the
+background takes a push channel that wakes the app, which is how other apps
+do it, not a process kept alive.
+
+- A `specialUse` keep-alive service was built for this and withdrawn. The
+  same holds for `dataSync`, `remoteMessaging`, `shortService` or any other
+  type that would stand in for it, and for iOS's `location` or `voip`
+  background modes.
+- The one foreground service the app runs is background audio's
+  `mediaPlayback` service (BGAUDIO-006), only while a site with that toggle
+  is playing; iOS's `audio` background mode likewise belongs to background
+  audio (BGAUDIO-003). Neither SHALL be started, extended or reused for a
+  notification site.
+- Structural gate: `test/js/notification_no_foreground_service.test.js`
+  fails if an Android manifest declares a foreground-service permission or
+  service other than media playback, if code outside `MediaPlaybackService`
+  enters the foreground, or if iOS's `UIBackgroundModes` gains a mode.
+
+#### Scenario: A notification site in the background
+
+**Given** Android and a loaded site with notifications on and background audio off
+**When** the app leaves the screen
+**Then** no foreground service starts and no ongoing notification is shown
+**And** the periodic wake is scheduled (NOTIF-005-A)
+
+#### Scenario: A keep-alive service is proposed again
+
+**Given** a change that declares a foreground service to keep notification sites running
+**When** the JS tier runs
+**Then** `notification_no_foreground_service.test.js` fails and names the manifest
