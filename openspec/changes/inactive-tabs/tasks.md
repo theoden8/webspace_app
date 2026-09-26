@@ -1,4 +1,4 @@
-Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (TAB-001 to TAB-011) is implemented; its steps are the Migration Plan in `design.md`.
+Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (TAB-001 to TAB-012) is implemented, behind the Experimental group's Site tabs switch (TAB-012, DEVTOOLS-011); its steps are the Migration Plan in `design.md`. Hosted tabs sit behind the same switch.
 
 ## 1. Hosted tabs: prerequisites
 

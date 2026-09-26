@@ -339,3 +339,44 @@ site to the `resident` tier, because the rebuilt webview is fresh.
 - **GIVEN** GitHub is on screen at the `cacheCleared` tier
 - **WHEN** the user switches to another of its tabs
 - **THEN** GitHub is at the `resident` tier with one webview
+
+---
+
+### Requirement: TAB-012 - Tabs are experimental
+
+Tabs SHALL be reachable only while developer mode is on and the Experimental
+group's **Site tabs** switch is on (DEVTOOLS-011); the switch SHALL default off.
+The gate SHALL be read when it is used, so flipping the switch or developer mode
+takes effect without a restart.
+
+While tabs are off, a site SHALL behave as it did before tabs existed: the app
+bar SHALL show no tab count, a tap on the active site's chip SHALL do nothing,
+the overflow menus SHALL offer neither "New tab" nor "Duplicate tab", a long
+press on a refresh button SHALL do nothing, a long press on a link SHALL open no
+link menu, system back at the start of a page SHALL keep NAV-001 even in a tab
+opened from another, and no chip or tile SHALL show a count pill. Every way into
+tabs SHALL return before acting, not only hide its button.
+
+Turning tabs off SHALL NOT delete or rewrite a site's tabs. The site keeps
+showing its active tab, its other tabs stay stored under TAB-009's rules, and
+turning tabs back on shows them again.
+
+#### Scenario: Off by default
+
+- **GIVEN** a fresh install with developer mode on
+- **WHEN** the user opens a site
+- **THEN** there is no tab count in the app bar and no "New tab" in the menu
+- **AND** App settings lists "Site tabs" in the Experimental group, switched off
+
+#### Scenario: The switch applies without a restart
+
+- **GIVEN** developer mode is on and Site tabs is off
+- **WHEN** the user turns Site tabs on and returns to a site
+- **THEN** the tab count and the tab rows of the menu are there
+
+#### Scenario: Turning tabs off keeps them
+
+- **GIVEN** GitHub has four tabs and its third is active
+- **WHEN** the user turns developer mode off
+- **THEN** GitHub shows its third tab with no tab count or count pill
+- **AND** after developer mode is back on, all four tabs are listed again

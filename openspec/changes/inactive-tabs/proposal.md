@@ -67,7 +67,9 @@ LIR-018 to LIR-027 land after the tab model above (`tasks.md`). TAB-001, TAB-002
 
 ## Status
 
-The tab model (TAB-001 to TAB-011) is implemented. Hosted tabs and reattach
+The tab model (TAB-001 to TAB-012) is implemented and experimental: it needs
+developer mode and the Experimental group's Site tabs switch, which is off by
+default (TAB-012, DEVTOOLS-011). Hosted tabs and reattach
 (LIR-018 to LIR-027) are specified and not implemented; `tasks.md` tracks them.
 The flow is also captured in a clickable prototype (a static HTML simulator of
 the phone, the site strip, the drawer tree, the Tabs sheet, the link menu, a
@@ -82,6 +84,8 @@ memory panel with OS-pressure and relaunch buttons, and an engine log).
   drawer tree.
 
 ### Modified Capabilities
+- `developer-tools`: DEVTOOLS-011's Experimental group gains the Site tabs
+  switch, off by default (TAB-012).
 - `link-intent-routing`: hosted tabs and reattach, LIR-018 (owned by one site, runs as another), LIR-019 (who may host), LIR-020 (open in new tab as another site), LIR-021 (keep a nested screen as a tab), LIR-022 (persistence and host-keyed state), LIR-023 (host deleted, cleared, archived or ineligible), LIR-024 (the process-global proxy follows the running identity), LIR-025 (move to site), LIR-026 (move under), LIR-027 (run as).
 - `webview-pause-lifecycle`: `WebViewStateStorage` is keyed by
   `<siteId>.<tabId>`; PAUSE-009 capture points write the active tab's bytes.

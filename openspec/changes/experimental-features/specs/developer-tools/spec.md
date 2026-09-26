@@ -17,6 +17,7 @@ The features are:
 |---|---|---|---|
 | Embedded Tor client (`tor-proxy` TOR-007) | Built-in Tor | on | `TorService.isAvailable` |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
+| Tabs inside a site (`inactive-tabs` TAB-012) | Site tabs | off | `_tabsEnabled` in `main.dart`, read on every use |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as.
 
