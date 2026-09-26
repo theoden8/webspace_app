@@ -29,6 +29,7 @@ On close, after deleting the archive's opaque containers, `_closeArchive` SHALL 
 **When** the user taps a cross-domain link in S and it opens in a nested screen, on Android
 **Then** the nested webview binds `ws-<X>`
 **And** no container named `ws-<S>` is created
+**And** the nested screen's site info sheet (NAV-011) names `ws-<X>`
 
 #### Scenario: Close sweeps a cleartext-named container
 

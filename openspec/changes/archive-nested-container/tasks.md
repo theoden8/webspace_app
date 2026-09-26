@@ -2,6 +2,7 @@
 
 - [x] 1.1 Thread `archiveContainerId` through the nested chain into the nested `WebViewConfig`.
 - [x] 1.2 `_closeArchive` deletes `ws-<siteId>` for archive sites no app-tier site shares an id with.
+- [x] 1.3 The nested site info sheet computes its container with the same `archiveContainerId`.
 
 ## 2. Gates and records
 

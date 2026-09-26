@@ -787,6 +787,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         pageUrl: _currentUrl,
         containerId: containerIdFor(
           siteId: widget.siteId,
+          archiveContainerId: widget.archiveContainerId,
           incognito: widget.incognito,
         ),
         incognito: widget.incognito,
