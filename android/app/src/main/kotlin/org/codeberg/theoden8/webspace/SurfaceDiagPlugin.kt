@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.PixelCopy
+import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
@@ -14,15 +15,20 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Samples the composited window pixels over a region of the screen.
+ * Samples the composited pixels over a region of the screen.
  *
- * The webview is a hybrid-composition SurfaceView whose buffer is composited
- * by the OS, out of band of both Flutter's raster tree and the renderer's own
- * draw path. A JS probe or a WebView-level capture reports the renderer's
- * content plane, which is healthy in every confirmed BUG-001 instance; only a
- * window-level PixelCopy reads what the user actually sees. Uniform
+ * A JS probe or a WebView-level capture reports the renderer's content plane,
+ * which is healthy in every confirmed BUG-001 instance; only a pixel copy of
+ * what SurfaceFlinger composites reads what the user actually sees. Uniform
  * white/black over the webview rect while the renderer claims a painted
  * document is the blank-surface symptom itself.
+ *
+ * A window copy never includes a SurfaceView's layer. Under hybrid
+ * composition that does not matter, because Flutter draws into image views
+ * inside the window. In texture mode (PAUSE-032) Flutter and the webview's
+ * texture are in `FlutterSurfaceView`, and the window over it is a
+ * transparent hole, so the sample fills transparent window pixels from the
+ * SurfaceView behind them.
  *
  * Everything runs on the main looper (the method-channel handler, the
  * PixelCopy callback, the 1024-pixel histogram), so there is no shared
@@ -149,11 +155,14 @@ class SurfaceDiagPlugin(private val activity: Activity, flutterEngine: FlutterEn
                 bitmap,
                 { copyResult ->
                     if (copyResult == PixelCopy.SUCCESS) {
-                        result.success(histogram(bitmap))
+                        fillFromSurfaceBehind(decor, region, bitmap) {
+                            result.success(histogram(bitmap))
+                            bitmap.recycle()
+                        }
                     } else {
                         result.success(mapOf("status" to "copy-failed:$copyResult"))
+                        bitmap.recycle()
                     }
-                    bitmap.recycle()
                 },
                 Handler(Looper.getMainLooper()),
             )
@@ -162,6 +171,67 @@ class SurfaceDiagPlugin(private val activity: Activity, flutterEngine: FlutterEn
             bitmap.recycle()
             result.success(mapOf("status" to "no-surface"))
         }
+    }
+
+    private fun fillFromSurfaceBehind(
+        decor: View,
+        region: Rect,
+        windowPixels: Bitmap,
+        done: () -> Unit,
+    ) {
+        val pixels = IntArray(SAMPLE_SIZE * SAMPLE_SIZE)
+        windowPixels.getPixels(pixels, 0, SAMPLE_SIZE, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE)
+        val surface = if (pixels.any { (it ushr 24) == 0 }) surfaceBehind(decor, region) else null
+        if (surface == null) {
+            done()
+            return
+        }
+        val loc = IntArray(2)
+        surface.getLocationInWindow(loc)
+        val src = Rect(region)
+        src.offset(-loc[0], -loc[1])
+        val behind = Bitmap.createBitmap(SAMPLE_SIZE, SAMPLE_SIZE, Bitmap.Config.ARGB_8888)
+        try {
+            PixelCopy.request(
+                surface,
+                src,
+                behind,
+                { copyResult ->
+                    if (copyResult == PixelCopy.SUCCESS) {
+                        val under = IntArray(SAMPLE_SIZE * SAMPLE_SIZE)
+                        behind.getPixels(under, 0, SAMPLE_SIZE, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE)
+                        for (i in pixels.indices) {
+                            if ((pixels[i] ushr 24) == 0) pixels[i] = under[i]
+                        }
+                        windowPixels.setPixels(pixels, 0, SAMPLE_SIZE, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE)
+                    }
+                    behind.recycle()
+                    done()
+                },
+                Handler(Looper.getMainLooper()),
+            )
+        } catch (e: IllegalArgumentException) {
+            behind.recycle()
+            done()
+        }
+    }
+
+    /** The visible SurfaceView whose window rect contains all of [region]. */
+    private fun surfaceBehind(view: View, region: Rect): SurfaceView? {
+        if (view.visibility != View.VISIBLE) return null
+        if (view is SurfaceView) {
+            if (view.width <= 0 || view.height <= 0 || !view.holder.surface.isValid) return null
+            val loc = IntArray(2)
+            view.getLocationInWindow(loc)
+            val rect = Rect(loc[0], loc[1], loc[0] + view.width, loc[1] + view.height)
+            return if (rect.contains(region)) view else null
+        }
+        if (view is ViewGroup) {
+            for (i in view.childCount - 1 downTo 0) {
+                surfaceBehind(view.getChildAt(i), region)?.let { return it }
+            }
+        }
+        return null
     }
 
     private fun histogram(bitmap: Bitmap): Map<String, Any> {

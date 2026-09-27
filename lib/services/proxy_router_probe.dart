@@ -4,7 +4,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart'
-    show answerProxyRouterChallenge, routerRelayProxyFor;
+    show WebViewFactory, answerProxyRouterChallenge, routerRelayProxyFor;
 
 /// The real attribution probe (PROXY-015).
 ///
@@ -50,6 +50,7 @@ Future<void> _probeOne(String siteId, String probeUrl) async {
           routerRelayProxyFor(siteId: siteId, ownsContainer: true),
       javaScriptEnabled: false,
       transparentBackground: true,
+      useHybridComposition: WebViewFactory.hybridComposition,
     ),
     onReceivedHttpAuthRequest: (controller, challenge) =>
         answerProxyRouterChallenge(siteId, challenge),
