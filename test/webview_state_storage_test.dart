@@ -80,6 +80,16 @@ void main() {
       expect(await storage.siteIds(), {'b'});
     });
 
+    test('removeStatesForSite drops every tab of that site and no other',
+        () async {
+      await storage.saveState('a.main', Uint8List.fromList([1]));
+      await storage.saveState('a.t1', Uint8List.fromList([2]));
+      // A site whose id merely starts with "a" is a different site.
+      await storage.saveState('ab.main', Uint8List.fromList([3]));
+      expect(await storage.removeStatesForSite('a'), 2);
+      expect(await storage.siteIds(), {'ab.main'});
+    });
+
     test('saving empty bytes is treated as no-op', () async {
       // Defensive: the platform's saveState() can return null or empty
       // bytes when there's nothing meaningful to save (e.g. a webview

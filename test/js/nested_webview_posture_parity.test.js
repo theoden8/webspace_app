@@ -167,6 +167,11 @@ const PLUMBING = new Set([
   'onProgressChanged', 'onReloadIssued', 'onMainFrameLoad',
   'onWindowRequested', 'onHtmlLoaded', 'shouldFetchHtml', 'onConsoleMessage',
   'onConfirmScriptFetch', 'onExternalSchemeUrl', 'pullToRefreshController',
+  // A host callback, not a posture value: a long press on a link opens the
+  // root shell's link menu, whose "open in new tab" adds a tab to the site
+  // that owns the webview (TAB-006). A nested screen has no tab list of its
+  // own to add to, so it deliberately leaves this null.
+  'onLinkLongPress',
   // Pointer bookkeeping for the refresh control above it, created next to it
   // on both surfaces; not a posture value to copy.
   'pullToRefreshGate',

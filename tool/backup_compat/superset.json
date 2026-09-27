@@ -9,6 +9,10 @@
       "currentUrl": "https://mail.example.com/inbox",
       "name": "Mail",
       "pageTitle": "Inbox",
+      "tabs": [
+        {"id": "main", "url": "https://mail.example.com/inbox", "title": "Inbox", "createdAt": 1700000000000, "lastActiveAt": 1700000500000, "active": true},
+        {"id": "t1", "url": "https://mail.example.com/drafts", "title": "Drafts", "parentId": "main", "createdAt": 1700000100000, "lastActiveAt": 1700000200000}
+      ],
       "cookies": [
         {
           "name": "prefs",

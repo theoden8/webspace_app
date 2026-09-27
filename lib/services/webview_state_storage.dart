@@ -1,7 +1,13 @@
 import 'dart:typed_data';
 
 /// Storage abstraction for `WKWebView.interactionState` /
-/// `WebView.saveState` bytes, keyed by site ID. Used by the
+/// `WebView.saveState` bytes, keyed by *state key* — `<siteId>.<tabId>`, built
+/// by [webViewStateKey]. State is per tab, not per site: a site's tabs share
+/// one webview, so switching between them captures the outgoing tab's stack
+/// and restores the incoming one's (TAB-003). A site that never opened a
+/// second tab has exactly one key, `<siteId>.main`.
+///
+/// Used by the
 /// memory-pressure cascade ([SiteLifecyclePromotionEngine]) to persist
 /// a webview's navigation state before its renderer is torn down so
 /// re-activation can re-hydrate the back/forward stack and (on
@@ -19,25 +25,30 @@ import 'dart:typed_data';
 /// navigated doesn't leave a dangling empty entry that a later
 /// `restoreState` would then attempt to apply.
 abstract class WebViewStateStorage {
-  /// Persist [state] under [siteId]. If [state] is empty, the call
-  /// is treated as a no-op (any previously-saved entry is left
+  /// Persist [state] under [key] (see [webViewStateKey]). If [state] is empty,
+  /// the call is treated as a no-op (any previously-saved entry is left
   /// untouched).
-  Future<void> saveState(String siteId, Uint8List state);
+  Future<void> saveState(String key, Uint8List state);
 
-  /// Returns the bytes previously stored for [siteId], or null if
+  /// Returns the bytes previously stored for [key], or null if
   /// none exist.
-  Future<Uint8List?> loadState(String siteId);
+  Future<Uint8List?> loadState(String key);
 
-  /// Removes any saved bytes for [siteId]. No-op when nothing is
+  /// Removes any saved bytes for [key]. No-op when nothing is
   /// stored.
-  Future<void> removeState(String siteId);
+  Future<void> removeState(String key);
 
-  /// Removes every entry whose siteId is not in [activeSiteIds].
+  /// Removes every key this site owns — one per tab. Used by site deletion,
+  /// the per-site data wipe and archive close, none of which can enumerate
+  /// the tabs of a site that is already gone.
+  Future<int> removeStatesForSite(String siteId);
+
+  /// Removes every entry whose key is not in [activeKeys].
   /// Returns the count removed. Run on app startup to reap state
-  /// belonging to sites the user deleted in a previous session.
-  Future<int> removeOrphans(Set<String> activeSiteIds);
+  /// belonging to sites and tabs closed in a previous session.
+  Future<int> removeOrphans(Set<String> activeKeys);
 
-  /// Returns the set of siteIds currently holding state. Used by the
+  /// Returns the set of state keys currently holding state. Used by the
   /// counters in [SiteLifecyclePromotionEngine.tierCounts] and by
   /// debug surfaces.
   Future<Set<String>> siteIds();
@@ -50,27 +61,37 @@ class InMemoryWebViewStateStorage implements WebViewStateStorage {
   final Map<String, Uint8List> _store = <String, Uint8List>{};
 
   @override
-  Future<void> saveState(String siteId, Uint8List state) async {
+  Future<void> saveState(String key, Uint8List state) async {
     if (state.isEmpty) return;
-    _store[siteId] = state;
+    _store[key] = state;
   }
 
   @override
-  Future<Uint8List?> loadState(String siteId) async {
-    return _store[siteId];
+  Future<Uint8List?> loadState(String key) async {
+    return _store[key];
   }
 
   @override
-  Future<void> removeState(String siteId) async {
-    _store.remove(siteId);
+  Future<void> removeState(String key) async {
+    _store.remove(key);
   }
 
   @override
-  Future<int> removeOrphans(Set<String> activeSiteIds) async {
+  Future<int> removeStatesForSite(String siteId) async {
+    final prefix = '$siteId.';
+    final doomed = _store.keys.where((k) => k.startsWith(prefix)).toList();
+    for (final k in doomed) {
+      _store.remove(k);
+    }
+    return doomed.length;
+  }
+
+  @override
+  Future<int> removeOrphans(Set<String> activeKeys) async {
     var removed = 0;
     final keys = _store.keys.toList();
     for (final k in keys) {
-      if (!activeSiteIds.contains(k)) {
+      if (!activeKeys.contains(k)) {
         _store.remove(k);
         removed++;
       }

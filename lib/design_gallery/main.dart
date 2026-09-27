@@ -46,6 +46,8 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/widgets/tabs_sheet.dart';
 
 const Map<String, Color> galleryAccents = {
   'blue': accentBlue,
@@ -91,6 +93,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
   GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: (c) => const _AddSiteCard()),
   GalleryCard(id: 'unproxied-block', label: 'Blocked navigation interstitial', fullBleed: true, builder: (c) => const _UnproxiedBlockCard()),
+  GalleryCard(id: 'tabs-sheet', label: 'Tabs sheet', fullBleed: true, builder: (c) => const _TabsSheetCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
@@ -858,6 +861,86 @@ class _BrowserChromeCard extends StatelessWidget {
             ),
           ),
           UrlBar(currentUrl: 'https://codeberg.org/theoden8/webspace', onUrlSubmitted: (_) {}),
+        ],
+      ),
+    );
+  }
+}
+
+/// A site whose tabs are [tabs], with [active] bound to its webview.
+WebViewModel _siteWithTabs(
+    String name, String initUrl, List<SiteTab> tabs, String active) {
+  final m = WebViewModel(initUrl: initUrl, name: name);
+  m.tabs = tabs;
+  m.activeTabId = active;
+  return m;
+}
+
+/// The real TabsSheet over a page, as the app's modal presents it. Three sites
+/// cover every load state TAB-011 draws: GitHub is on screen, Mastodon is
+/// loaded in the background, Wikipedia holds no webview.
+class _TabsSheetCard extends StatelessWidget {
+  const _TabsSheetCard();
+
+  static final List<TabsSheetSite> _sites = [
+    TabsSheetSite(
+      index: 0,
+      isCurrent: true,
+      isLoaded: true,
+      model: _siteWithTabs('GitHub', 'https://github.com/', [
+        SiteTab.primary(url: 'https://github.com/theoden8/webspace_app', title: 'theoden8/webspace_app'),
+        SiteTab(id: 'pulls', url: 'https://github.com/theoden8/webspace_app/pulls', title: 'Pull requests', parentId: kPrimaryTabId),
+        SiteTab(id: 'pr611', url: 'https://github.com/theoden8/webspace_app/pull/611', title: 'Add per-site tabs #611', parentId: 'pulls'),
+        SiteTab(id: 'pr630', url: 'https://github.com/theoden8/webspace_app/pull/630', title: 'Add a screenshot block #630', parentId: 'pulls'),
+        SiteTab(id: 'issues', url: 'https://github.com/theoden8/webspace_app/issues', title: 'Issues', parentId: kPrimaryTabId),
+        SiteTab(id: 'notif', url: 'https://github.com/notifications', title: 'Notifications'),
+      ], 'pr611'),
+    ),
+    TabsSheetSite(
+      index: 1,
+      isCurrent: false,
+      isLoaded: true,
+      model: _siteWithTabs('Mastodon', 'https://mastodon.social/', [
+        SiteTab.primary(url: 'https://mastodon.social/home', title: 'Home'),
+        SiteTab(id: 'thread', url: 'https://mastodon.social/@flutter/113', title: 'Thread by @flutter', parentId: kPrimaryTabId),
+        SiteTab(id: 'explore', url: 'https://mastodon.social/explore', title: 'Explore'),
+      ], 'thread'),
+    ),
+    TabsSheetSite(
+      index: 2,
+      isCurrent: false,
+      isLoaded: false,
+      model: _siteWithTabs('Wikipedia', 'https://en.wikipedia.org/', [
+        SiteTab.primary(url: 'https://en.wikipedia.org/wiki/Tab_(interface)', title: 'Tab (interface)'),
+        SiteTab(id: 'tree', url: 'https://en.wikipedia.org/wiki/Tree_(data_structure)', title: 'Tree (data structure)', parentId: kPrimaryTabId),
+      ], kPrimaryTabId),
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('GitHub')),
+      body: Stack(
+        children: [
+          Positioned.fill(child: ColoredBox(color: theme.colorScheme.surfaceContainerHighest)),
+          const Positioned.fill(child: ColoredBox(color: Colors.black54)),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: BottomSheet(
+              enableDrag: false,
+              onClosing: _noop,
+              builder: (_) => TabsSheet(
+                sites: _sites,
+                currentIndex: 0,
+                onOpenTab: (_, _) {},
+                onNewTab: (_) {},
+                onCloseTab: (_, _) {},
+                onCloseSubtree: (_, _) {},
+              ),
+            ),
+          ),
         ],
       ),
     );

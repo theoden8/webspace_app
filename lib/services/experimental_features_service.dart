@@ -8,6 +8,7 @@ const String kExperimentalTorKey = 'experimentalTor';
 const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
 const String kExperimentalPageIconsKey = 'experimentalPageIcons';
 const String kExperimentalTextureRenderingKey = 'experimentalTextureRendering';
+const String kExperimentalSiteTabsKey = 'experimentalSiteTabs';
 
 /// A feature that ships before it is finished (DEVTOOLS-011): reachable only
 /// with developer mode on and its own switch on in App Settings'
@@ -28,7 +29,11 @@ enum ExperimentalFeature {
 
   /// Android's texture-layer webview composition (PAUSE-032). Off by
   /// default: every release before it drew pages with hybrid composition.
-  textureRendering(kExperimentalTextureRenderingKey, defaultOn: false);
+  textureRendering(kExperimentalTextureRenderingKey, defaultOn: false),
+
+  /// Several pages per site (inactive-tabs TAB-012). Off by default: it is
+  /// new. With it off a site shows its one page, as before tabs existed.
+  siteTabs(kExperimentalSiteTabsKey, defaultOn: false);
 
   const ExperimentalFeature(this.prefKey, {required this.defaultOn});
 
