@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, one{አንድ ጣቢያ Tor እንዲጠቀም ተዋቅሯል። አብሮ የተሰራውን Tor እንደገና እስኪያበሩ ድረስ በእውነተኛ የIP አድራሻዎ ከመጫን ይልቅ ታግዶ ይቆያል።} other{{count} ጣቢያዎች Tor እንዲጠቀሙ ተዋቅረዋል። አብሮ የተሰራውን Tor እንደገና እስኪያበሩ ድረስ በእውነተኛ የIP አድራሻዎ ከመጫን ይልቅ ታግደው ይቆያሉ።}}",
   "appSettingsExperimentalProxyRouter": "የ Proxy ራውተር",
   "appSettingsExperimentalProxyRouterHint": "በAndroid ላይ አንድ የ proxy ቅንብር መላውን መተግበሪያ ይሸፍናል፤ ስለዚህ የተለየ proxy ያለው ጣቢያ መክፈት ሌላ proxy የሚጠቀሙትን ጣቢያዎች ይዘጋል። ራውተሩ ሁሉንም ክፍት አድርጎ ያቆያቸዋል፦ በመተግበሪያው ውስጥ ያለ ማስተላለፊያ የእያንዳንዱን ጣቢያ ትራፊክ ወደዚያው ጣቢያ የራሱ proxy ይልካል። በእያንዳንዱ ጅምር የእያንዳንዱ ጣቢያ ትራፊክ ተለይቶ መታወቅ እንደሚችል በዚህ መሣሪያ ላይ ያረጋግጣል፤ ማረጋገጫው ካልተሳካ እንደበፊቱ ጣቢያዎችን ይዘጋል። የሙከራ ባህሪ ነው፦ የተሞከረው በጥቂት መሣሪያዎች ላይ ብቻ ነው። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
+  "appSettingsExperimentalPageIcons": "የገጽ አዶዎች",
+  "appSettingsExperimentalPageIconsHint": "በGoogle ወይም በDuckDuckGo በኩል የተገኘ አዶ ሳይሆን፣ የድረ-ገጹ የራሱ ገጾች የሚያውጁትን አዶ፣ አሳሽ በትሩ ላይ የሚያሳየውን፣ ያሳያል። መተግበሪያው እያንዳንዱ ገጽ ከተጫነ በኋላ ራሱ ያመጣዋል፤ በድረ-ገጹ ተኪ እና አጋጆች በኩል፣ ያለ ድረ-ገጹ ኩኪዎች፣ ስለዚህ ለገቡ ተጠቃሚዎች ብቻ የሚታይ አዶ ይታለፋል። ሙከራዊ፦ በጥቂት ድረ-ገጾች ላይ ብቻ ተሞክሯል። ከበራ በኋላ ለሚከፈቱ ድረ-ገጾች ይሠራል።",
   "appSettingsDeveloperModeTorWarningConfirm": "አጥፋ",
   "appSettingsDeveloperModeAlreadyOn": "የገንቢ ሁነታ አስቀድሞ በርቷል",
   "appSettingsDeveloperModeStepsAway": "የገንቢ ሁነታን ለማብራት {count} ተጨማሪ ንኪዎች",

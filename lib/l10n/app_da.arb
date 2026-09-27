@@ -325,6 +325,8 @@
   "appSettingsExperimentalTorOffBody": "{count, plural, one{Ét websted er indstillet til at bruge Tor. Det forbliver blokeret, indtil du slår Indbygget Tor til igen, i stedet for at indlæse via din rigtige IP-adresse.} other{{count} websteder er indstillet til at bruge Tor. De forbliver blokeret, indtil du slår Indbygget Tor til igen, i stedet for at indlæse via din rigtige IP-adresse.}}",
   "appSettingsExperimentalProxyRouter": "Proxyrouter",
   "appSettingsExperimentalProxyRouterHint": "På Android gælder én proxyindstilling for hele appen, så når du åbner et websted med en anden proxy, lukkes de websteder, der bruger en anden proxy. Routeren holder dem alle åbne: et relæ inde i appen sender hvert websteds trafik til webstedets egen proxy. Ved hver opstart kontrollerer den på denne enhed, at de enkelte websteders trafik kan skelnes fra hinanden, og lukker websteder som før, hvis kontrollen mislykkes. Eksperimentel: routeren er kun afprøvet på få enheder. Træder i kraft næste gang appen starter.",
+  "appSettingsExperimentalPageIcons": "Sideikoner",
+  "appSettingsExperimentalPageIconsHint": "Viser det ikon, som webstedets egne sider angiver, det en browser viser på sin fane, i stedet for et ikon fundet via Google eller DuckDuckGo. Appen henter det selv, efter hver side er indlæst, gennem webstedets proxy og blokeringer og uden webstedets cookies, så et ikon, der kun vises for loggede brugere, går tabt. Eksperimentel: den er kun afprøvet på få websteder. Gælder for websteder, der åbnes, efter den er slået til.",
   "appSettingsDeveloperModeTorWarningConfirm": "Slå fra",
   "appSettingsDeveloperModeAlreadyOn": "Udviklertilstand er allerede slået til",
   "appSettingsDeveloperModeStepsAway": "{count} tryk mere for at slå udviklertilstand til",

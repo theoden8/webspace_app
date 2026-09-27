@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -132,6 +133,99 @@ Future<Uint8List?> fetchIconBytes(String iconUrl, {UserProxySettings? proxy}) as
     client.close();
   }
   return null;
+}
+
+/// Largest page icon read, in bytes.
+const int kMaxPageIconBytes = 1024 * 1024;
+
+const int _maxPageIconRedirects = 3;
+
+bool _isRedirectStatus(int status) =>
+    status == 301 ||
+    status == 302 ||
+    status == 303 ||
+    status == 307 ||
+    status == 308;
+
+/// GET [iconUrl], an icon link a site's page declared (ICON-013), through
+/// the site's [proxy].
+///
+/// The page chooses the address, so every hop (the link and each redirect)
+/// must pass [allowed], the site's own blockers, and the private-range guard
+/// the user-script bridge uses; a redirect may not drop from https to http.
+/// Hops to [documentHost] skip the range guard: a site the user added on
+/// their LAN serves its icon from the LAN. Reads at most [kMaxPageIconBytes].
+/// Null on any refusal or failure.
+Future<Uint8List?> fetchPageIconBytes(
+  String iconUrl, {
+  required String documentHost,
+  required bool Function(Uri target) allowed,
+  UserProxySettings? proxy,
+}) async {
+  final effective = _resolve(proxy);
+  Future<bool> permitted(Uri target) async {
+    if (target.scheme != 'http' && target.scheme != 'https') return false;
+    final host = target.host.toLowerCase();
+    if (host.isEmpty || !allowed(target)) return false;
+    if (host == documentHost.toLowerCase()) return true;
+    if (isPrivateOrLoopbackHost(host)) return false;
+    final verdict = await classifyOutboundTarget(target.toString(), effective);
+    return verdict == HostRangeVerdict.public ||
+        verdict == HostRangeVerdict.notResolvedHere;
+  }
+
+  final first = Uri.tryParse(iconUrl);
+  if (first == null || !await permitted(first)) return null;
+  final client = _proxiedClient(effective);
+  if (client == null) return null;
+  try {
+    return await _readPageIcon(client, first, permitted)
+        .timeout(const Duration(seconds: 15));
+  } catch (e) {
+    LogService.instance.log(
+      'Icon',
+      'Failed to fetch page icon $iconUrl: $e',
+      level: LogLevel.warning,
+      sensitivity: LogSensitivity.sensitive,
+    );
+    return null;
+  } finally {
+    client.close();
+  }
+}
+
+Future<Uint8List?> _readPageIcon(
+  http.Client client,
+  Uri first,
+  Future<bool> Function(Uri target) permitted,
+) async {
+  var target = first;
+  for (var hop = 0;; hop++) {
+    final response = await client
+        .send(http.Request('GET', target)..followRedirects = false);
+    final location = response.headers['location'];
+    if (_isRedirectStatus(response.statusCode) &&
+        location != null &&
+        location.isNotEmpty) {
+      final next = target.resolve(location);
+      if (hop >= _maxPageIconRedirects ||
+          (target.scheme == 'https' && next.scheme == 'http') ||
+          !await permitted(next)) {
+        return null;
+      }
+      target = next;
+      continue;
+    }
+    if (response.statusCode != 200) return null;
+    final length = response.contentLength;
+    if (length != null && length > kMaxPageIconBytes) return null;
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in response.stream) {
+      bytes.add(chunk);
+      if (bytes.length > kMaxPageIconBytes) return null;
+    }
+    return bytes.takeBytes();
+  }
 }
 
 /// Bytes for [iconUrl], cached in memory, fetched through the proxy-aware

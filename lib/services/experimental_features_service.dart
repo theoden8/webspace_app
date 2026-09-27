@@ -6,6 +6,7 @@ import 'package:webspace/settings/pref_read.dart';
 
 const String kExperimentalTorKey = 'experimentalTor';
 const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
+const String kExperimentalPageIconsKey = 'experimentalPageIcons';
 
 /// A feature that ships before it is finished (DEVTOOLS-011): reachable only
 /// with developer mode on and its own switch on in App Settings'
@@ -18,7 +19,11 @@ enum ExperimentalFeature {
 
   /// Android's per-site proxy router (PROXY-013). On by default for the same
   /// reason as [tor]: developer mode alone ran it before this switch existed.
-  proxyRouter(kExperimentalProxyRouterKey, defaultOn: true);
+  proxyRouter(kExperimentalProxyRouterKey, defaultOn: true),
+
+  /// Page icons fetched from the links a site's page declares, where the
+  /// webview reports none (icon-fetching ICON-013). New, so off by default.
+  pageIcons(kExperimentalPageIconsKey, defaultOn: false);
 
   const ExperimentalFeature(this.prefKey, {required this.defaultOn});
 

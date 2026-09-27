@@ -50,6 +50,24 @@ void main() {
         isTrue);
   });
 
+  test('page icons default off, so developer mode alone does not fetch them',
+      () async {
+    await ExperimentalFeaturesService.instance.initialize();
+    DeveloperModeService.instance.debugSet(true);
+    expect(
+        ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.pageIcons),
+        isFalse);
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.pageIcons, true);
+    expect(
+        ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.pageIcons),
+        isTrue);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool(kExperimentalPageIconsKey), isTrue);
+  });
+
   test('a switch persists and is read back', () async {
     await ExperimentalFeaturesService.instance
         .setSwitch(ExperimentalFeature.tor, false);
