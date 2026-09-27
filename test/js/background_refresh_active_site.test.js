@@ -39,3 +39,20 @@ test('it passes excludeActive derived from the lifecycle state', () => {
   assert.match(assignment[1], /AppLifecycleState\.resumed/,
     `${rel} must derive excludeActive from the resumed lifecycle state`);
 });
+
+// NOTIF-013: the OS task ends when this handler returns. Handing the
+// backgrounded branch anything that returns once reloads are merely issued
+// (as _refreshNotificationSites does) lets iOS suspend the app before a page
+// has loaded, so no page JS ever runs in a wake.
+test('the backgrounded branch runs the wake that waits for the pages', () => {
+  assert.match(assignment[1], /_backgroundWake\(\)/,
+    `${rel} must run _backgroundWake when the app is not resumed`);
+  const wake = /Future<void> _backgroundWake\(\) async \{([\s\S]*?)\n  \}/.exec(src);
+  assert.ok(wake, `${rel} must define _backgroundWake`);
+  assert.match(wake[1], /await _wakeEngine\.wake\(/,
+    '_backgroundWake must await the engine, or it returns before the pages settle');
+  const service = fs.readFileSync(
+    path.join(repoRoot, 'lib/services/background_task_service.dart'), 'utf8');
+  assert.match(service, /await cb\(\);\s*\n\s*}\s*\n\s*await bgRefreshDidComplete\(success: true\);/,
+    'the OS task must be completed only after the Dart handler has returned');
+});
