@@ -35,6 +35,8 @@ mkdir -p "$OUT"
 rm -f "$OUT"/*.txt "$OUT"/*.json "$OUT"/*.xml "$OUT"/*.log
 
 adb_() { adb -s "$device_id" "$@"; }
+# For the tapper: one adb call that hangs must not stall it for the whole phase.
+adbt() { timeout 20 adb -s "$device_id" "$@"; }
 
 failures=0
 summary=()
@@ -53,6 +55,10 @@ trap cleanup EXIT
 
 echo "── device ──"
 adb_ shell getprop ro.build.version.sdk | sed 's/^/sdk /'
+# The first phase starts after a long idle build; a screen that timed out
+# meanwhile leaves the passkey sheet with nobody to answer it.
+adb_ shell svc power stayon true
+adb_ shell settings put system screen_off_timeout 2147483647
 bash scripts/print_android_webview_version.sh "$device_id" | tee "$OUT/webview_version.txt"
 
 # ── G0: the harness ──────────────────────────────────────────────────────────
@@ -109,17 +115,29 @@ LOGCAT_PID=$!
 
 # The system passkey sheet (com.android.credentialmanager) always asks before
 # a creation. Tap its confirm button whenever it is up. The first sightings
-# are kept as evidence. uiautomator is only run while the sheet has focus: it
-# turns accessibility on, and a Flutter app under test then holds a semantics
-# handle that fails the test's end-of-test check.
+# are kept as evidence. uiautomator is only run while the sheet is up (focused
+# or the top resumed activity): it turns accessibility on, and a Flutter app
+# under test then holds a semantics handle that fails the test's end-of-test
+# check. Every change in what it sees goes to tapper.log.
 touch "$OUT/.tapping"
 (
   seen=0
+  last=""
   while [ -f "$OUT/.tapping" ]; do
-    focus="$(adb_ shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=')"
-    if printf '%s' "$focus" | grep -q 'com.android.credentialmanager' \
-        && adb_ shell uiautomator dump /sdcard/ws_ui.xml >/dev/null 2>&1; then
-      xml="$(adb_ shell cat /sdcard/ws_ui.xml 2>/dev/null)"
+    focus="$(adbt shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=' | tr -d '\r' | sed 's/^ *//')"
+    top="$(adbt shell dumpsys activity activities 2>/dev/null | grep -m1 'topResumedActivity=' | tr -d '\r' | sed 's/^ *//')"
+    state="${focus:-no focus line} | ${top:-no resumed line}"
+    if [ "$state" != "$last" ]; then
+      echo "$(date -u +%T) $state" >> "$OUT/tapper.log"
+      last="$state"
+    fi
+    if printf '%s' "$state" | grep -q 'com.android.credentialmanager'; then
+      if ! adbt shell uiautomator dump /sdcard/ws_ui.xml >/dev/null 2>&1; then
+        echo "$(date -u +%T) uiautomator dump failed" >> "$OUT/tapper.log"
+        sleep 1
+        continue
+      fi
+      xml="$(adbt shell cat /sdcard/ws_ui.xml 2>/dev/null)"
       if printf '%s' "$xml" | grep -q 'package="com.android.credentialmanager"'; then
         seen=$((seen + 1))
         [ "$seen" -le 6 ] && printf '%s' "$xml" > "$OUT/sheet-$seen.xml"
@@ -130,8 +148,8 @@ touch "$OUT/.tapping"
             | grep -o '[0-9]*' | tr '\n' ' ')"
           if [ -n "$b" ]; then
             set -- $b
-            echo "tap '$label' at $((($1 + $3) / 2)),$((($2 + $4) / 2))" >> "$OUT/taps.log"
-            adb_ shell input tap $((($1 + $3) / 2)) $((($2 + $4) / 2))
+            echo "$(date -u +%T) tap '$label' at $((($1 + $3) / 2)),$((($2 + $4) / 2))" >> "$OUT/tapper.log"
+            adbt shell input tap $((($1 + $3) / 2)) $((($2 + $4) / 2))
             break
           fi
         done
@@ -154,11 +172,18 @@ run_phase() {
     sleep 1
   done
   adb_ shell am force-stop "$APP_ID" >/dev/null 2>&1
+  adb_ shell input keyevent KEYCODE_WAKEUP
+  adb_ shell wm dismiss-keyguard
   timeout -k 30s 20m $FLUTTER test integration_test/passkey_test.dart \
     -d "$device_id" --flavor fdebug \
     --dart-define=PASSKEY_GATE=true --dart-define=PASSKEY_GATE_PHASE="$phase" \
     2>&1 | tee "$OUT/phase-$phase.txt"
-  return "${PIPESTATUS[0]}"
+  local rc="${PIPESTATUS[0]}"
+  if [ "$rc" -ne 0 ]; then
+    echo "── tapper, phase $phase ──"
+    tail -20 "$OUT/tapper.log" 2>/dev/null || echo "(no tapper log)"
+  fi
+  return "$rc"
 }
 
 # Trust names the package; the provider pins the certificate of the first
