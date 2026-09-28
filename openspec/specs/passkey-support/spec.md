@@ -239,15 +239,26 @@ only the operation and the DOMException name.
 ### Requirement: PASSKEY-010 — The WebView's own WebAuthn is a comparison, not a path
 
 `PasskeyBackend.webView` sets the WebView's `WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER`
-instead of installing the bridge. It is reachable from tests only: the WebView
-advertises `WEB_AUTHENTICATION` on 126 to 129 and from 131, and an earlier
-attempt crashed without the origin permission.
+instead of installing the bridge. It is reachable from tests only, because
+advertising the feature does not mean an authenticator is behind it. On the
+gate's emulator (API 35 AOSP image, `com.android.webview` 124.0.6367.219,
+three runs on 2026-09-28) the WebView advertises `WEB_AUTHENTICATION`, reads
+back FOR_BROWSER (2) after it is set, and does not crash with the origin
+permission declared, yet `isUserVerifyingPlatformAuthenticatorAvailable()`
+resolves false and `create()` rejects with NotSupportedError "Not implemented".
+The bridge answers the same page on the same WebView.
 
 #### Scenario: A WebView without WEB_AUTHENTICATION
 
 **Given** the WebView does not advertise `WEB_AUTHENTICATION`
 **When** a test selects the WebView backend
 **Then** the setting is not applied and the test reports it as unsupported
+
+#### Scenario: A WebView that advertises the switch with nothing behind it
+
+**Given** the gate's AOSP WebView, which advertises `WEB_AUTHENTICATION`
+**When** the `webview` phase sets FOR_BROWSER and the page calls `create()`
+**Then** the phase reports the page's outcome and the gate records it as a NOTE, never a FAIL
 
 ---
 
