@@ -267,7 +267,7 @@ The same rule SHALL run as orphan cleanup at startup, after an import and after 
 
 ### Requirement: LIR-024 - The Process-Global Proxy Follows The Identity A Slot Runs As
 
-Every engine that reads a loaded slot's proxy or Tor pin (`SiteUnloadEngine.indicesToUnloadForProxyMismatch`, `indicesToUnloadForTorExitMismatch`, `torExitNodesFor`, and router mode's `sharesDefaultSession`) SHALL read the slot's running identity: the host of its active tab, or the owner when that tab has no host.
+Every engine that reads a loaded slot's proxy or Tor pin (`SiteUnloadEngine.indicesToUnloadForProxyMismatch`, `indicesToUnloadForTorExitMismatch`, `torExitAnchor`, `torExitNodesFor`, and router mode's `sharesDefaultSession`) SHALL read the slot's running identity: the host of its active tab, or the owner when that tab has no host.
 
 On Android without router mode, and on Linux:
 

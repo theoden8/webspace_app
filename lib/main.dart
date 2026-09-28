@@ -3597,11 +3597,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     // activation does, or it is rebuilt under a country it never chose.
     final order = <int>{?_currentIndex, ..._loadedIndices.toList().reversed};
     final anchor = SiteUnloadEngine.torExitAnchor(
-        indices: order, models: _webViewModels);
+        indices: order, models: _slotIdentities());
     if (anchor != null && TorService.instance.isAvailable) {
       final exitMismatch = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
         targetIndex: anchor,
-        models: _webViewModels,
+        models: _slotIdentities(),
         loadedIndices: _loadedIndices,
       );
       for (final i in exitMismatch) {

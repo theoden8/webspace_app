@@ -124,6 +124,7 @@ void main() {
       for (final engine in [
         'indicesToUnloadForProxyMismatch(',
         'indicesToUnloadForTorExitMismatch(',
+        'torExitAnchor(',
         'torExitNodesFor(',
         'torExitPinIsArchiveOnly(',
       ]) {
