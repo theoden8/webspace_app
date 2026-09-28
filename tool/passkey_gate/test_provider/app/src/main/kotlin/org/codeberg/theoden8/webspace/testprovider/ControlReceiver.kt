@@ -10,12 +10,11 @@ class ControlReceiver : BroadcastReceiver() {
         when (intent.action?.substringAfterLast('.')) {
             "TRUST" -> {
                 val pkg = intent.getStringExtra("package")
-                val fp = intent.getStringExtra("fp")
-                if (pkg == null || fp == null) {
-                    Log.e(TAG, "TRUST needs --es package and --es fp")
+                if (pkg == null) {
+                    Log.e(TAG, "TRUST needs a package extra")
                     return
                 }
-                Allowlist(context).trust(pkg, fp)
+                Allowlist(context).trust(pkg, intent.getStringExtra("fp"))
             }
             "CLEAR" -> Allowlist(context).clear()
             else -> Log.e(TAG, "unknown control action ${intent.action}")

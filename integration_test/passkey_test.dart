@@ -53,6 +53,18 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(d));
   }
 
+  // The script's uiautomator dumps of the passkey sheet turn accessibility
+  // on, and the binding then holds a semantics handle until the platform
+  // turns it off again; ending a test before that fails its handle check.
+  Future<void> semanticsOff(WidgetTester tester) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (tester.binding.platformDispatcher.semanticsEnabled &&
+        DateTime.now().isBefore(deadline)) {
+      await settle(tester, const Duration(milliseconds: 300));
+    }
+    await tester.pump();
+  }
+
   Future<Map<String, dynamic>?> read(
       WidgetTester tester, WebViewController c, String expression) async {
     Map<String, dynamic>? out;
@@ -194,6 +206,7 @@ void main() {
       expect(second['verified'], isTrue, reason: '$second');
       expect((second['counter'] as num) > (first['counter'] as num), isTrue,
           reason: 'the signature counter must increase: $first then $second');
+      await semanticsOff(tester);
     }, timeout: const Timeout(Duration(minutes: 8)));
 
     testWidgets('a second webview signs in with the first one\'s passkey (G8)',
@@ -216,6 +229,7 @@ void main() {
       final untouched = await read(tester, a!, 'window.gate.status');
       expect(untouched?['kind'], 'register',
           reason: 'tab 2\'s ceremony must not answer tab 1\'s page: $untouched');
+      await semanticsOff(tester);
     }, timeout: const Timeout(Duration(minutes: 8)));
   }
 
@@ -233,6 +247,7 @@ void main() {
       expect(reg['isDomException'], isTrue);
       final alive = await probe(tester, c!);
       expect(alive['secure'], isTrue, reason: 'the page must survive the refusal');
+      await semanticsOff(tester);
     }, timeout: const Timeout(Duration(minutes: 6)));
   }
 
@@ -253,6 +268,7 @@ void main() {
       final p = await probe(tester, c!);
       final reg = await ceremony(tester, c!, 'register', 'dave');
       report('webview', {'probe': p, 'register': reg});
+      await semanticsOff(tester);
     }, timeout: const Timeout(Duration(minutes: 6)));
   }
 }

@@ -45,14 +45,24 @@ class Store(context: Context) {
  * The privileged-browser allowlist, in the gstatic apps.json format that
  * [CallingAppInfo.getOrigin] parses. Empty until a TRUST broadcast names the
  * browser, which stands in for a provider's own "trust this browser" prompt.
+ * Like Bitwarden's, that trust pins the certificate of the first request the
+ * named package makes, unless the broadcast carried one.
  */
 class Allowlist(context: Context) {
     private val prefs = context.getSharedPreferences("allowlist", Context.MODE_PRIVATE)
 
-    fun trust(packageName: String, fingerprint: String) {
-        val fp = fingerprint.replace(":", "").uppercase().chunked(2).joinToString(":")
-        prefs.edit().putString("package", packageName).putString("fp", fp).commit()
-        Log.i(TAG, "allowlist trust package=$packageName fp=$fp")
+    fun trust(packageName: String, fingerprint: String?) {
+        val fp = fingerprint?.replace(":", "")?.uppercase()?.chunked(2)?.joinToString(":")
+        prefs.edit().clear().putString("package", packageName).putString("fp", fp).commit()
+        Log.i(TAG, "allowlist trust package=$packageName fp=${fp ?: "pinned on first request"}")
+    }
+
+    private fun pinIfUnpinned(caller: CallingAppInfo) {
+        if (prefs.getString("fp", null) != null) return
+        if (prefs.getString("package", null) != caller.packageName) return
+        val fp = fingerprintOf(caller)
+        prefs.edit().putString("fp", fp).commit()
+        Log.i(TAG, "allowlist pinned package=${caller.packageName} fp=$fp")
     }
 
     fun clear() {
@@ -80,6 +90,7 @@ class Allowlist(context: Context) {
      * allowlist with no apps at all, and both mean "not trusted" here.
      */
     fun originOf(caller: CallingAppInfo): String? = try {
+        pinIfUnpinned(caller)
         caller.getOrigin(json)
     } catch (e: IllegalStateException) {
         null

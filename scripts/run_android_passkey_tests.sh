@@ -62,21 +62,6 @@ else
   fail G0-feature "android.software.credentials missing; Credential Manager does not run on this image"
 fi
 
-# The provider's allowlist names this app by package and signing certificate,
-# so the certificate has to be known before `flutter test` signs anything.
-# AGP signs debug builds with this keystore and creates it only if missing.
-KS="$HOME/.android/debug.keystore"
-if [ ! -f "$KS" ]; then
-  mkdir -p "$HOME/.android"
-  keytool -genkeypair -keystore "$KS" -storepass android -alias androiddebugkey \
-    -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
-    -dname "CN=Android Debug,O=Android,C=US" >/dev/null 2>&1
-fi
-FP="$(keytool -list -v -keystore "$KS" -alias androiddebugkey -storepass android 2>/dev/null \
-  | sed -n 's/^[[:space:]]*SHA256:[[:space:]]*//p' | head -1)"
-echo "debug certificate SHA-256: $FP"
-[ -n "$FP" ] || { fail G0-cert "could not read the debug certificate"; }
-
 echo "── test provider ──"
 if ! (cd tool/passkey_gate/test_provider && $GRADLE assembleDebug --console=plain -q); then
   fail G0-provider "test provider did not build"
@@ -113,13 +98,17 @@ adb_ logcat -v time > "$OUT/logcat.txt" 2>&1 &
 LOGCAT_PID=$!
 
 # The system passkey sheet (com.android.credentialmanager) always asks before
-# a creation. Tap its confirm button whenever it is up. The first sighting of
-# each distinct screen is kept as evidence.
+# a creation. Tap its confirm button whenever it is up. The first sightings
+# are kept as evidence. uiautomator is only run while the sheet has focus: it
+# turns accessibility on, and a Flutter app under test then holds a semantics
+# handle that fails the test's end-of-test check.
 touch "$OUT/.tapping"
 (
   seen=0
   while [ -f "$OUT/.tapping" ]; do
-    if adb_ shell uiautomator dump /sdcard/ws_ui.xml >/dev/null 2>&1; then
+    focus="$(adb_ shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=')"
+    if printf '%s' "$focus" | grep -q 'com.android.credentialmanager' \
+        && adb_ shell uiautomator dump /sdcard/ws_ui.xml >/dev/null 2>&1; then
       xml="$(adb_ shell cat /sdcard/ws_ui.xml 2>/dev/null)"
       if printf '%s' "$xml" | grep -q 'package="com.android.credentialmanager"'; then
         seen=$((seen + 1))
@@ -153,8 +142,10 @@ run_phase() {
   return "${PIPESTATUS[0]}"
 }
 
+# Trust names the package; the provider pins the certificate of the first
+# request it makes, as Bitwarden's "Trust" does with the caller's signature.
 adb_ shell am broadcast -n "$PROVIDER_ID/.ControlReceiver" -a "$PROVIDER_ID.TRUST" \
-  --es package "$APP_ID" --es fp "$FP" >/dev/null
+  --es package "$APP_ID" >/dev/null
 run_phase main
 main_rc=$?
 curl -fs "http://127.0.0.1:$PORT/results" > "$OUT/rp_results_main.json" || echo '[]' > "$OUT/rp_results_main.json"
@@ -243,7 +234,7 @@ fi
 
 # ── Path A: the WebView's own FOR_BROWSER WebAuthn, best effort ─────────────
 adb_ shell am broadcast -n "$PROVIDER_ID/.ControlReceiver" -a "$PROVIDER_ID.TRUST" \
-  --es package "$APP_ID" --es fp "$FP" >/dev/null
+  --es package "$APP_ID" >/dev/null
 run_phase webview
 webview_rc=$?
 note path-a "exit $webview_rc: $(gate_line webview)"

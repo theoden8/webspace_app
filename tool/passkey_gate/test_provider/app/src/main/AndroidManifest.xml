@@ -24,9 +24,9 @@
             android:excludeFromRecents="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
-        <!-- Driven by adb: an explicit TRUST broadcast carrying the browser's
-             package and certificate SHA-256 puts it on the allowlist, CLEAR
-             empties it (scripts/run_android_passkey_tests.sh). -->
+        <!-- Driven by adb: an explicit TRUST broadcast naming the browser's
+             package puts it on the allowlist, CLEAR empties it
+             (scripts/run_android_passkey_tests.sh). -->
         <receiver
             android:name=".ControlReceiver"
             android:exported="true" />
