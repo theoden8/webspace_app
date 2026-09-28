@@ -372,7 +372,10 @@ as the Runner's entrypoint and reads its verdict off stderr. Before the fix (run
 36420085762, tests only): the app sandbox refused the call on its own pid (EPERM) and
 the root helper made it; `kernel: tcp=dead unix=alive`; tor's SOCKS listener and its
 TCP control connection both stopped answering; and after the resume the runtime still
-reported `up` on the dead port.
+reported `up` on the dead port. After it (run 36430625500, 404df43): the same kernel
+split, and this time the Unix control connection answered after the defunct, the resume
+published a new SOCKS port (50597 to 50608), a request through it left from a Tor exit,
+and the probe's verdict was `recovered`.
 
 **Why it is partial.** The probe defuncts the sockets but does not freeze the process:
 tor's timers, its view of the clock and a bootstrap caught mid-handshake behave on macOS
