@@ -180,6 +180,20 @@ silently. Only something that observes the *effect* can catch it.
    every later scenario found Tor down. **Second fix 2026-09-25:** the count
    reads tor's `cached-microdesc-consensus` and the GeoIP table the pin
    loaded, from disk, with no control-port traffic.
+   **Third fix 2026-09-28:** counted before the pin reaches tor, and an
+   exitless pin is refused rather than kept in force. The macOS tier (run
+   36420085762) showed why: tor had judged its directory unusable under
+   `{aq}` ("0% of exit bw = 0% of path bw"), and clearing the pin did not
+   make it judge again, since an `ExitNodes` change never reaches
+   `router_dir_info_changed`; only a directory change does. The next
+   scenario's page, moved onto Tor after the pin was gone, waited 150
+   seconds and got nothing while tor sat on "not enough directory
+   information" until a microdescriptor download happened to land. A user
+   moving from Brazil to another country would have met the same stall.
+   The sites pinned to the exitless country stay blocked by the engine,
+   which is TOR-008's job rather than tor's. **Partial:** tor still judges
+   a pinned country whose exits leave the consensus later the same way,
+   until its next directory change.
 
 8. **A proxy change reached the live session and not the connections it
    already held (iOS, macOS).** Reported 2026-09-25: a site that loaded

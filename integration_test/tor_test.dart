@@ -940,16 +940,32 @@ void main() {
       expect(TorService.instance.socksFor(siteId: 'nowhere'), isNull,
           reason: 'a site pinned to a country with no exit was handed a '
               'SOCKS route');
-      expect(config, contains('ExitNodes={$nowhere}'),
-          reason: 'the pin was dropped rather than kept in force, so a site '
-              'pinned there could leave from anywhere: $config');
-      expect(config, contains('StrictNodes=1'), reason: config);
+      expect(config, isNot(contains('ExitNodes={$nowhere}')),
+          reason: 'a pin to a country with no exit reached tor, which then '
+              'stops building circuits and does not look again when the pin '
+              'changes: $config');
     } finally {
       await TorService.instance.setExitCountry(null);
     }
     expect(TorService.instance.status, isA<TorUp>(),
         reason: 'clearing a pin to a country with no exit did not bring Tor '
             'back:\n${torTranscript()}');
+
+    // The next pin loads at once. With the pin applied first, tor went on
+    // judging its directory unusable after it was cleared, and the next
+    // scenario's page timed out behind it.
+    final route =
+        outboundHttp.clientFor(TorService.instance.socksFor(siteId: 'after-nowhere')!);
+    if (route is! OutboundClientReady) fail('no route through Tor: $route');
+    final since = Stopwatch()..start();
+    try {
+      final response =
+          await route.client.get(exitCheck).timeout(const Duration(seconds: 45));
+      trace('after {$nowhere}: a request answered in ${since.elapsed.inSeconds}s');
+      expect(response.statusCode, 200);
+    } finally {
+      route.client.close();
+    }
     trace('scenario 5 done');
   }, timeout: const Timeout(Duration(minutes: 5)));
 

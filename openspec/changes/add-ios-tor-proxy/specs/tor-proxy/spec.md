@@ -688,18 +688,30 @@ circuit at all: its path check finds no exit bandwidth and it stops
 treating its directory as usable, for every stream, not only the pinned
 site's. Nothing on the control port reports this until a stream times out,
 so the runtime SHALL count the consensus relays carrying the Exit flag (and
-not BadExit) that tor's GeoIP table places in the pinned country when it
+not BadExit) that tor's GeoIP table places in the pinned country before it
 applies the pin. None is a failure of kind `exitPolicy`, reported at once
-rather than after a page's own timeout, with the pin left in force.
+rather than after a page's own timeout, and the pin SHALL NOT reach tor:
+once tor has judged its directory unusable under such a pin it does not
+judge again when `ExitNodes` changes, only when its directory does, so the
+next country's first loads stalled behind a pin that was already gone. The
+sites pinned to the country stay blocked by the engine (TOR-008), so
+nothing leaves from another country instead.
 
 #### Scenario: A pin to a country with no exit is reported when it is applied
 
 - **GIVEN** Tor is `up` and tor's consensus has no exit in country X
 - **WHEN** a site pinned to X is activated
 - **THEN** the runtime answers the pin with an `exitPolicy` failure, not `up`
-- **AND** `ExitNodes` stays `{x}` with `StrictNodes 1`
+- **AND** tor's `ExitNodes` is not `{x}`
 - **AND** no site is handed a SOCKS route until the pin changes or a Retry
   finds an exit there
+
+#### Scenario: The next pin after a country with no exit loads at once
+
+- **GIVEN** a pin to a country with no exit was just refused
+- **WHEN** the pin is cleared or changed to a country with exits
+- **THEN** a request through Tor completes without waiting on tor to
+  re-read its directory
 
 #### Scenario: Saving a site's pin unloads a loaded site that disagrees
 

@@ -42,10 +42,10 @@ const Duration kTorBootstrapTimeout = Duration(seconds: 90);
 /// use it until their country is in force (TOR-014).
 const String kTorExitPinTag = 'exit_country';
 
-/// Thrown by [TorRuntime.applyExitCountry] when the pin is in force and
-/// tor's consensus has no exit in the country it names. tor then builds no
-/// circuit at all, so a site pinned there cannot load; the pin is kept, as
-/// TOR-014 wants, and the remedy is another country.
+/// Thrown by [TorRuntime.applyExitCountry] when tor's consensus has no exit
+/// in the country the pin names. Under such a pin tor builds no circuit at
+/// all, so the runtime refuses it before tor sees it (TOR-014); the sites
+/// pinned there stay blocked, and the remedy is another country.
 class TorExitCountryEmpty implements Exception {
   const TorExitCountryEmpty(this.message);
 
@@ -729,8 +729,8 @@ class TorEngine {
       return;
     } on TorExitCountryEmpty catch (e) {
       if (superseded()) return;
-      // Not "could not apply": it applied, and that is the problem. Left
-      // unapplied here so a Retry counts the exits again.
+      // Not "could not apply": tor was reachable, and the country has no
+      // exit. Left unapplied so a Retry counts the exits again.
       _emit(TorErrored(e.message,
           failure: TorFailure(kind: TorFailureKind.exitPolicy, detail: e.message)));
       return;

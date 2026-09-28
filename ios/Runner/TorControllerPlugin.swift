@@ -1481,31 +1481,37 @@ class TorControllerPlugin: NSObject {
         details: nil)
     }
 
-    if let failed = check(await Self.setConfs(controller, Self.exitPinConfigs(exitNodes))) {
-      return failed
-    }
-    await closeExitCircuits(controller)
     // A country with no exit takes the pin without complaint, and then tor
     // builds no circuit at all: its path check finds 0% of exit bandwidth
     // and it stops treating its directory as usable. Nothing on the control
-    // port says so until a stream times out, so count. The pin stays in
-    // force either way; the answer is what the user sees.
+    // port says so until a stream times out, so count.
+    //
+    // Before the pin goes in, not after: tor does not look at its directory
+    // again when ExitNodes changes (only a directory change reaches
+    // router_dir_info_changed), so once it had judged a pin exitless, the
+    // next country's first loads waited on whatever download landed next.
+    // A refused pin leaves tor's exit configuration as it was; the engine
+    // keeps the sites that asked for it blocked.
     if let countries = Self.pinnedCountries(exitNodes) {
       switch Self.exitCount(in: countries, geoipFile: geoipFile) {
       case .some(0):
         let names = countries.sorted().map { $0.uppercased() }.joined(separator: ", ")
         return FlutterError(
           code: "exit_country_empty",
-          message: "tor's consensus lists no exit relay in \(names), so no circuit can be "
-            + "built under this exit-country pin. The pin stays in force: nothing leaves "
-            + "from another country instead.",
+          message: "tor's consensus lists no exit relay in \(names), so no circuit could be "
+            + "built under this exit-country pin, and it was not applied. Sites pinned "
+            + "there stay blocked: nothing leaves from another country instead.",
           details: nil)
       case .none:
-        note("Could not count the exits in the pinned country; the pin is in force.")
+        note("Could not count the exits in the pinned country; applying the pin anyway.")
       case .some:
         break
       }
     }
+    if let failed = check(await Self.setConfs(controller, Self.exitPinConfigs(exitNodes))) {
+      return failed
+    }
+    await closeExitCircuits(controller)
     // tor also wants an IPv6 table once a country pin is in force, and warns
     // on every config change that it has none. Exit countries are decided by
     // a relay's IPv4 address alone (`node_set_country`), so the IPv4 table
