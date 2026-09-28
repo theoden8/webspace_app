@@ -197,22 +197,31 @@ silently. Only something that observes the *effect* can catch it.
    another and read `same-host=OLD fresh-host=new`, the same host riding
    tunnel 0 of the old proxy; `tor_test.dart` scenario 6 loaded Cloudflare's
    trace direct, moved the site to Tor, and was seen from the runner's
-   address both times. **Fixed 2026-09-25** (#627, fork f40e2a7):
-   `ContainerController.resetNetworkSession` drops the fork's cached store and
-   waits for WebKit to destroy it, so the next store for the container starts
-   a session bound to its first WebView's proxy before any connection opens;
-   cookies and storage are on disk under the identifier and carry over. The
-   app records which route each container's session was opened on
-   (`ContainerSessionRoutes`), and `createWebView` builds nothing on a
-   container whose session carries another route until the reset lands,
-   retrying while something still holds the store. Gated by
-   `test/container_session_routes_test.dart` and the two integration arms.
-   **Partial:** Linux binds the proxy on a cached `WebKitNetworkSession` the
-   same way and is not reset; whether its pooled connections outlive a
-   `webkit_network_session_set_proxy_settings` is unmeasured. Android's
-   override is process-wide and was not examined. A popup or nested browser
-   still bound to the container keeps the old session alive, and the site
-   then waits behind a spinner rather than loading.
+   address both times. **First fix 2026-09-25** (fork f40e2a7, then
+   b245c13): `ContainerController.resetNetworkSession` dropped the fork's
+   cached store and waited for WebKit to destroy it, and the app built
+   nothing on a container whose session carried another route until the
+   reset landed. Green on every tier (run 36135054451), and dropped before
+   it merged: the app had to track each container's route, and a popup or
+   nested browser still holding the store kept the site behind a spinner.
+   **Second fix 2026-09-25** (fork f75b5b9, folded into `container-v9` and
+   pinned through `privacy-v11`): the fork's
+   `ProxyManager.setProxyConfigurations` remembers the proxy each store was
+   last given, and on a different one sets it together with an Oblivious
+   HTTP relay scoped to `session-rebuild.invalid` first. A relay needs the
+   HTTP stack, so WebKit rebuilds the store's sessions rather than swapping
+   the proxy on its `nw_context`, which closes the pooled connections; the
+   plain configuration follows. Direct to a proxy counts as a change (from
+   none), and the same proxy again, as when another WebView joins the
+   store, is set as is so the loads already on it are not cancelled. The
+   app does nothing: the route is the fork's to keep. Gated by the fork's
+   `container_proxy_change.dart` and the two integration arms here.
+   **Partial:** it rests on WebKit rebuilding sessions for a relay
+   configuration, which no API promises; the integration arms are what
+   notice if that changes. Linux binds the proxy on a cached
+   `WebKitNetworkSession` the same way and is not handled; whether its
+   pooled connections outlive a `webkit_network_session_set_proxy_settings`
+   is unmeasured. Android's override is process-wide and was not examined.
 
 ## What the platform actually does
 
