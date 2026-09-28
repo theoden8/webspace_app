@@ -161,7 +161,7 @@ test('a stop can reach a tor it never adopted a controller for', () => {
   // until the app was killed and every later start refused, because only
   // one tor may run per process (TOR-020). BUG-007 attempt 7.
   const halt = functionBody(swiftCode, 'halt');
-  assert.match(halt, /connectedController\(to: portFile\)/,
+  assert.match(halt, /connectedController\(to: endpoint\)/,
     'the halt path must open its own control connection, not reuse one');
   assert.match(halt, /authenticate\(with: cookie\)/,
     'it must authenticate with the configuration cookie');
@@ -217,7 +217,7 @@ test('every control-port read happens on a quiet connection', () => {
     'observeLocked must still read the phase and the SOCKS listener');
 
   const bounded = /controlRead\(\s*controller/g;
-  const boundedQuiet = ['closeExitCircuits', 'geoipAvailable', 'liveController']
+  const boundedQuiet = ['closeExitCircuits', 'geoipAvailable', 'liveController', 'cycleNetwork']
     .reduce((n, name) => n + count(functionBody(swiftCode, name), bounded), 0);
   assert.equal(count(swiftCode, bounded), boundedQuiet,
     'a post-bootstrap read outside the exit-country path');
@@ -235,6 +235,8 @@ test('every control-port read happens on a quiet connection', () => {
     'dropped before up is published, so no read after up can meet an event');
   assert.match(functionBody(swiftCode, 'setExitCountry'), /self\.state == "up"/,
     'the exit-country reads must only run once the runtime is up');
+  assert.match(functionBody(swiftCode, 'reopenListeners'), /self\.state == "up"/,
+    'reopening the listeners reads the control port, so it only runs once up');
 });
 
 test('a replaced control connection is swapped on the queue that owns it', () => {
@@ -433,7 +435,9 @@ test('one funnel opens the control connection, and it asks isConnected', () => {
   // tier here runs the plugin: construct in one place, and decide there by
   // isConnected rather than by a throw.
   const body = functionBody(swiftCode, 'connectedController');
-  for (const call of ['TorController(controlPortFile:', '.connect()']) {
+  for (const call of [
+    'TorController(controlPortFile:', 'TorController(socketURL:', '.connect()',
+  ]) {
     const inFile = swiftCode.split(call).length - 1;
     const inFunnel = body.split(call).length - 1;
     assert.equal(inFunnel, 1, `${swiftRel}: connectedController must ${call}`);
@@ -529,7 +533,7 @@ test('nothing reaches Tor.framework\'s asserts', () => {
   // them out -- which is why the shipped app restarts fine -- and a debug
   // build, which is every integration run, aborted ten seconds in.
   const funnel = functionBody(swiftCode, 'connectedController');
-  assert.match(funnel, /parseControlPortFile\(portFile\)/,
+  assert.match(funnel, /parseControlPortFile\(url\)/,
     `${swiftRel}: read the port file before handing it to the framework`);
   const parser = functionBody(swiftCode, 'parseControlPortFile');
   assert.match(parser, /UInt16\(parts\[1\]\)/,

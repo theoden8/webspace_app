@@ -248,6 +248,9 @@ class _Runtime implements TorRuntime {
     socksIsolation = isolateDestAddr;
   }
 
+  @override
+  Future<void> reopenListeners() async {}
+
   bool? socksIsolation;
 
   void emit(TorStatus s) => _events.add(s);

@@ -12,6 +12,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -19,6 +20,8 @@ import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_geoip_web.dart'
     if (dart.library.io) 'package:webspace/services/tor_geoip_io.dart';
+import 'package:webspace/services/tor_socks_probe_web.dart'
+    if (dart.library.io) 'package:webspace/services/tor_socks_probe_io.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/app_prefs.dart';
 
@@ -151,6 +154,12 @@ class MethodChannelTorRuntime implements TorRuntime {
     await _channel.invokeMethod<void>('setSocksIsolation', {
       'isolateDestAddr': isolateDestAddr,
     });
+  }
+
+  @override
+  Future<void> reopenListeners() async {
+    if (!isAvailable) return;
+    await _channel.invokeMethod<void>('reopenListeners');
   }
 
   @override
@@ -310,19 +319,30 @@ class TorService {
   static TorService? _instance;
 
   /// The live singleton, created on first touch.
-  static TorService get instance =>
-      _instance ??= TorService._(TorEngine(
-        runtime: MethodChannelTorRuntime(),
-        sessionSecret: newSessionSecret(),
-        // The engine reads bridges itself rather than waiting for a startup
-        // call to push them: nothing on a cold start opens the bridge
-        // screen, so a pushed-only configuration was simply absent on every
-        // relaunch (TOR-016).
-        bridgeLoader: () => TorBridgeSecureStorage().load(),
-        isolateDestAddrLoader: readTorIsolateDestAddr,
-        // Downloaded on the device, never shipped (LICENSE-002).
-        geoIpStore: createTorGeoIpStore(),
-      ));
+  static TorService get instance => _instance ??= _production();
+
+  static TorService _production() {
+    final service = TorService._(TorEngine(
+      runtime: MethodChannelTorRuntime(),
+      sessionSecret: newSessionSecret(),
+      // The engine reads bridges itself rather than waiting for a startup
+      // call to push them: nothing on a cold start opens the bridge
+      // screen, so a pushed-only configuration was simply absent on every
+      // relaunch (TOR-016).
+      bridgeLoader: () => TorBridgeSecureStorage().load(),
+      isolateDestAddrLoader: readTorIsolateDestAddr,
+      // Downloaded on the device, never shipped (LICENSE-002).
+      geoIpStore: createTorGeoIpStore(),
+      socksProbe: createTorSocksProbe(),
+    ));
+    // Here rather than in a screen, so every way back into the foreground
+    // reaches it, whatever is on screen (TOR-024). A unit test touching the
+    // singleton with no binding has no lifecycle to watch.
+    try {
+      WidgetsBinding.instance.addObserver(_TorResumeWatch(service));
+    } catch (_) {}
+    return service;
+  }
 
   /// Swap in an engine backed by a fake runtime. Tests only.
   @visibleForTesting
@@ -399,6 +419,13 @@ class TorService {
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
 
+  /// Check that tor still carries traffic after the app was away, and
+  /// reopen its SOCKS listener when a suspension killed it (TOR-024).
+  Future<void> revive() async {
+    if (!isAvailable) return;
+    await _engine.revive();
+  }
+
   /// The bridge configuration currently in force, or queued for next start.
   TorBridgeConfig get bridges => _engine.bridges;
 
@@ -452,6 +479,17 @@ class TorService {
     final rng = Random.secure();
     final bytes = List<int>.generate(32, (_) => rng.nextInt(256));
     return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+}
+
+class _TorResumeWatch with WidgetsBindingObserver {
+  _TorResumeWatch(this._service);
+
+  final TorService _service;
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_service.revive());
   }
 }
 

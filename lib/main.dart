@@ -5941,6 +5941,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// NOTIF-013/014: what an OS background wake runs. Returns once the
   /// reloaded pages have settled, which is what ends the OS task.
   Future<void> _backgroundWake() async {
+    // A wake resumes the process without the app coming back to the
+    // foreground, so the resume check tor's listener needs has not run yet
+    // (TOR-024), and a Tor notification site would reload through a dead one.
+    await TorService.instance.revive();
     final posted = await _wakeEngine.wake(_WakeHost(this));
     LogService.instance.log(
       'BackgroundTask',

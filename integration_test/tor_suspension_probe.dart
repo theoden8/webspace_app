@@ -17,8 +17,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -119,12 +119,14 @@ class _Control {
 
   static Future<_Control?> open() async {
     final tor = '${(await getApplicationCacheDirectory()).parent.path}/Tor';
-    final unix = File('${(await getTemporaryDirectory()).path}/tor/ctl');
+    final status = await const MethodChannel('org.codeberg.theoden8.webspace/tor')
+        .invokeMapMethod<String, Object?>('status');
+    final unix = status?['controlSocket'];
     Socket socket;
     String kind;
-    if (await unix.exists()) {
+    if (unix is String && await File(unix).exists()) {
       socket = await Socket.connect(
-          InternetAddress(unix.path, type: InternetAddressType.unix), 0);
+          InternetAddress(unix, type: InternetAddressType.unix), 0);
       kind = 'unix';
     } else {
       final port = RegExp(r'PORT=([\d.]+):(\d+)')
@@ -204,7 +206,7 @@ Future<bool> _run() async {
       'a request through $before left from a Tor exit ($exitBefore)');
 
   final tcp = await _Pair.open(InternetAddress.loopbackIPv4, 0);
-  final unixPath = '${(await getTemporaryDirectory()).path}/tor-suspend.sock';
+  final unixPath = '${(await getTemporaryDirectory()).path}/ts.sock';
   if (await File(unixPath).exists()) await File(unixPath).delete();
   final unix = await _Pair.open(
       InternetAddress(unixPath, type: InternetAddressType.unix), 0);

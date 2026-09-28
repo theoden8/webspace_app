@@ -158,6 +158,19 @@ class TorControlParsingTests: XCTestCase {
       "no exits read means the count says nothing")
   }
 
+  func testControlSocketFitsSunPath() {
+    // An iOS container's tmp leaves room; its Library/Caches, where tor's
+    // data directory is, would not have.
+    let tmp = "/private/var/mobile/Containers/Data/Application/"
+      + "6F9619FF-8B86-D011-B42D-00C04FC964FF/tmp/"
+    let url = TorControllerPlugin.controlSocketURL(in: tmp)
+    XCTAssertEqual(url?.path, tmp + "tor/ctl")
+    XCTAssertLessThan(url?.path.utf8.count ?? 104, 104)
+    XCTAssertNil(
+      TorControllerPlugin.controlSocketURL(in: tmp + String(repeating: "x", count: 20)),
+      "a path past sun_path falls back to TCP rather than being truncated")
+  }
+
   func testPinnedCountries() {
     XCTAssertEqual(TorControllerPlugin.pinnedCountries("{br}"), ["br"])
     XCTAssertEqual(TorControllerPlugin.pinnedCountries("{DE},{nl}"), ["de", "nl"])

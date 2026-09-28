@@ -26,6 +26,7 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -180,10 +181,21 @@ class TorProbe {
     // `<Caches>/Tor`, the plugin's data directory, beside path_provider's
     // `<Caches>/<bundle id>`.
     final tor = '${(await getApplicationCacheDirectory()).parent.path}/Tor';
-    final port = RegExp(r'PORT=([\d.]+):(\d+)')
-        .firstMatch(await File('$tor/controlport').readAsString());
-    if (port == null) throw StateError('no control port in $tor/controlport');
-    final socket = await Socket.connect(port[1]!, int.parse(port[2]!));
+    // The plugin's control socket (TOR-024), else the TCP port it falls
+    // back to when that path would not fit a sockaddr_un.
+    final status = await const MethodChannel('org.codeberg.theoden8.webspace/tor')
+        .invokeMapMethod<String, Object?>('status');
+    final unix = status?['controlSocket'];
+    final Socket socket;
+    if (unix is String && await File(unix).exists()) {
+      socket = await Socket.connect(
+          InternetAddress(unix, type: InternetAddressType.unix), 0);
+    } else {
+      final port = RegExp(r'PORT=([\d.]+):(\d+)')
+          .firstMatch(await File('$tor/controlport').readAsString());
+      if (port == null) throw StateError('no control port in $tor/controlport');
+      socket = await Socket.connect(port[1]!, int.parse(port[2]!));
+    }
     final probe = TorProbe._(
       socket,
       StreamIterator(utf8.decoder.bind(socket).transform(const LineSplitter())),
