@@ -569,6 +569,11 @@ class ProxyManager {
   /// through it.
   static bool overrideActive = false;
 
+  /// The process-wide proxy state with no address in it, so a failed load
+  /// can say whether a proxy was in its path without a sensitive entry.
+  static String get stateForLogs => 'proxyOverride=$overrideActive '
+      'router=${ProxyRouterService.instance.isActive}';
+
   static ProxyBinding? _binding;
 
   /// Where this process enforces a per-site proxy (PROXY-027).
@@ -5469,6 +5474,11 @@ class WebViewFactory {
         //     marks suppression on the user's choice.
         //   * external scheme + no host UI → best-effort reload.
         if (request.isForMainFrame != true) return;
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'main-frame load error type=${error.type} ${ProxyManager.stateForLogs}',
+          level: LogLevel.warning,
+        );
         final reqUrl = request.url.toString();
         // iOS/macOS post-failure TLS path: `_handleServerTrust` deferred
         // to the OS and the OS rejected. Show the user prompt; on
@@ -5587,6 +5597,22 @@ class WebViewFactory {
             );
           } catch (_) {}
         });
+      },
+      // Header names, never values, and no URL, so the line reaches logcat:
+      // the name set tells the app's own proxy relay (`connection` alone, or
+      // `proxy-authenticate`) apart from a real server.
+      onReceivedHttpError: (controller, request, errorResponse) {
+        if (request.isForMainFrame != true) return;
+        final headerNames = [
+          for (final name in errorResponse.headers?.keys ?? const <String>[])
+            name.toLowerCase(),
+        ]..sort();
+        LogService.instance.log(
+          'WebViewLifecycle',
+          'main-frame HTTP ${errorResponse.statusCode} '
+              'headers=[${headerNames.join(',')}] ${ProxyManager.stateForLogs}',
+          level: LogLevel.warning,
+        );
       },
       onDownloadStartRequest: (controller, downloadStartRequest) async {
         // onUrlChanged / onUpdateVisitedHistory has likely already fired
