@@ -3,7 +3,6 @@ package org.codeberg.theoden8.webspace
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
-import android.util.Log
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.codeberg.theoden8.webspace.proxy.ProxyRelay
@@ -28,11 +27,12 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
     // in-app Logs tab next to the proxy-apply events — critical for the
     // container-reach diagnostic (zero accepted connections during a
     // proxied page load = ProxyController not reaching the container).
+    // Dart files these as sensitive (memory-only, never printed): they name
+    // sites and every proxied destination host, so they must not reach logcat.
     // `logger` by name, not as a trailing lambda: ProxyRelay takes a second
     // optional parameter, so a trailing lambda binds to whichever one is last.
     private val relay = ProxyRelay(
         logger = { msg ->
-            Log.i(TAG, msg)
             mainHandler.post {
                 runCatching { channel.invokeMethod("logEvent", mapOf("msg" to msg)) }
             }
@@ -161,7 +161,6 @@ class ProxyRelayPlugin(flutterEngine: FlutterEngine) {
     }
 
     companion object {
-        private const val TAG = "ProxyRelayPlugin"
         const val CHANNEL = "org.codeberg.theoden8.webspace/proxy_relay"
     }
 }
