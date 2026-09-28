@@ -331,6 +331,8 @@
   "appSettingsExperimentalTextureRenderingHint": "Ritar varje sida i en textur som WebSpace själv sätter samman, i stället för som en separat Android-vy lagd ovanpå appen. Det kan förhindra sidor som förblir tomma och vita tills du vrider telefonen eller byter app. Skrivning, textmarkering och skärmläsare är mindre testade på det här sättet, och snabb rullning kan hacka. Börjar gälla nästa gång appen startar.",
   "appSettingsExperimentalSiteTabs": "Webbplatsflikar",
   "appSettingsExperimentalSiteTabsHint": "Låter en webbplats ha flera sidor öppna samtidigt, som flikar i en webbläsare: en fliklista via flikräknaren högst upp, ”Ny flik” och ”Duplicera flik” i menyn, och ”Öppna i ny flik” när du håller ned fingret på en länk. Alla flikar på en webbplats delar webbplatsens inloggning och inställningar. När det är avstängt visar varje webbplats en sida, som förut; flikar du redan har öppnat behålls tills du slår på det igen.",
+  "appSettingsExperimentalPasskeys": "Inloggningsnycklar",
+  "appSettingsExperimentalPasskeysHint": "Låter webbplatser logga in dig med en inloggningsnyckel som förvaras av appen för inloggningsnycklar som du valt i Android-inställningarna, så som en webbläsare gör. Kräver Android 14 eller senare. Varje app för inloggningsnycklar avgör själv om den litar på WebSpace för en webbplats: Bitwarden frågar dig en gång, medan appar som bara litar på webbläsare på Googles lista, till exempel Google Password Manager och Proton Pass, vägrar. Används aldrig för webbplatser i ett arkiv.",
   "appSettingsDeveloperModeTorWarningConfirm": "Stäng av",
   "appSettingsDeveloperModeAlreadyOn": "Utvecklarläget är redan på",
   "appSettingsDeveloperModeStepsAway": "{count} tryck till för att slå på utvecklarläget",

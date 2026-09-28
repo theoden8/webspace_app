@@ -331,6 +331,8 @@
   "appSettingsExperimentalTextureRenderingHint": "將每個頁面繪製到由 WebSpace 自行合成的紋理中，而不是作為與應用程式分層的獨立 Android 檢視。這可能避免頁面一直保持空白，直到你旋轉手機或切換應用程式。以這種方式時，輸入、選取文字和螢幕閱讀器的測試較少，快速捲動也可能卡頓。下次啟動應用程式時生效。",
   "appSettingsExperimentalSiteTabs": "網站分頁",
   "appSettingsExperimentalSiteTabsHint": "讓一個網站像瀏覽器分頁一樣，同時開啟多個頁面：點選頂端的分頁數量可開啟分頁清單，選單中有「新分頁」和「複製分頁」，長按連結時則有「在新分頁中開啟」。同一網站的所有分頁共用該網站的登入狀態與設定。關閉時，每個網站會像以前一樣只顯示一個頁面；已開啟的分頁會保留，待您再次開啟此功能時沿用。",
+  "appSettingsExperimentalPasskeys": "密碼金鑰",
+  "appSettingsExperimentalPasskeysHint": "讓網站像瀏覽器一樣，使用你在 Android 設定中選擇的密碼金鑰應用程式所保存的密碼金鑰為你登入。需要 Android 14 以上版本。是否在某個網站上信任 WebSpace，由各密碼金鑰應用程式自行決定：Bitwarden 會詢問你一次，而只信任 Google 名單上瀏覽器的應用程式（例如 Google Password Manager 和 Proton Pass）則會拒絕。封存中的網站一律不會使用。",
   "appSettingsDeveloperModeTorWarningConfirm": "關閉",
   "appSettingsDeveloperModeAlreadyOn": "開發者模式已經開啟",
   "appSettingsDeveloperModeStepsAway": "再輕觸 {count} 次即可開啟開發者模式",

@@ -331,6 +331,8 @@
   "appSettingsExperimentalTextureRenderingHint": "각 페이지를 앱과 겹쳐진 별도의 Android 뷰가 아니라 WebSpace가 직접 합성하는 텍스처에 그립니다. 휴대전화를 회전하거나 앱을 전환할 때까지 하얗게 비어 있는 페이지를 막을 수 있습니다. 이 방식에서는 입력, 텍스트 선택, 화면 낭독기가 덜 검증되었고 빠른 스크롤이 끊길 수 있습니다. 다음에 앱을 시작할 때 적용됩니다.",
   "appSettingsExperimentalSiteTabs": "사이트 탭",
   "appSettingsExperimentalSiteTabsHint": "브라우저 탭처럼 한 사이트에서 여러 페이지를 동시에 열어 둘 수 있습니다. 상단의 탭 개수를 누르면 탭 목록이 열리고, 메뉴에는 '새 탭'과 '탭 복제'가, 링크를 길게 누르면 '새 탭에서 열기'가 표시됩니다. 한 사이트의 모든 탭은 그 사이트의 로그인 상태와 설정을 공유합니다. 끄면 각 사이트는 예전처럼 한 페이지만 표시하며, 이미 연 탭은 다시 켤 때를 위해 유지됩니다.",
+  "appSettingsExperimentalPasskeys": "패스키",
+  "appSettingsExperimentalPasskeysHint": "Android 설정에서 선택한 패스키 앱에 저장된 패스키로 브라우저처럼 사이트에 로그인할 수 있게 합니다. Android 14 이상이 필요합니다. 사이트마다 WebSpace를 신뢰할지는 각 패스키 앱이 스스로 결정합니다. Bitwarden은 한 번 확인을 요청하지만, Google 목록에 있는 브라우저만 신뢰하는 앱(Google Password Manager, Proton Pass 등)은 거부합니다. 아카이브에 있는 사이트에는 사용되지 않습니다.",
   "appSettingsDeveloperModeTorWarningConfirm": "끄기",
   "appSettingsDeveloperModeAlreadyOn": "개발자 모드가 이미 켜져 있습니다",
   "appSettingsDeveloperModeStepsAway": "개발자 모드를 켜려면 {count}번 더 탭하세요",
