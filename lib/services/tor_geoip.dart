@@ -25,6 +25,11 @@ import 'package:webspace/settings/proxy.dart';
 /// clearnet host is the fallback, through an exit, for when the onion
 /// service is unreachable. Both serve tor's `main`, which its maintainers
 /// regenerate from the IPFire database.
+///
+/// Neither is reliable on one circuit: the onion service has taken over two
+/// minutes on one, and the clearnet host has refused an exit with HTTP 403.
+/// So each request rides a circuit of its own, and a download goes through
+/// the list [kTorGeoIpPasses] times.
 const List<String> kTorGeoIpUrls = [
   'http://eweiibe6tdjsdprb4px6rqrzzcsi22m4koia44kc5pcjr7nec2rlxyad.onion'
       '/tpo/core/tor/-/raw/main/src/config/geoip',
@@ -40,8 +45,11 @@ const String kTorGeoIpTag = '__webspace_tor_geoip__';
 /// until the new one lands.
 const Duration kTorGeoIpMaxAge = Duration(days: 30);
 
-/// Per-URL budget for the download: about 10 MB through a Tor circuit.
+/// Per-request budget for the download: about 10 MB through a Tor circuit.
 const Duration kTorGeoIpTimeout = Duration(seconds: 120);
+
+/// Times a download goes through [kTorGeoIpUrls] before it fails.
+const int kTorGeoIpPasses = 2;
 
 /// The licence the table must declare in its own header. A table under any
 /// other terms is refused: accepting it would mean running on data nobody
@@ -68,9 +76,10 @@ abstract class TorGeoIpStore {
   /// The newest table kept, or null when there is none.
   Future<TorGeoIpTable?> newest();
 
-  /// Download a fresh table through [via], keep it, and drop older ones.
-  /// Null when every source failed or answered with something that is not
-  /// a table. A download already in flight is joined, not repeated.
+  /// Download a fresh table through the SOCKS proxy [via], each request on
+  /// a circuit of its own, keep it, and drop older ones. Null when every
+  /// source failed on every pass or answered with something that is not a
+  /// table. A download already in flight is joined, not repeated.
   Future<TorGeoIpTable?> download(UserProxySettings via);
 }
 

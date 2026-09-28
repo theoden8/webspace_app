@@ -732,6 +732,11 @@ Location Database under CC BY-SA 4.0 (LICENSE-002), which rules out
 Tor.framework's `Tor/GeoIP` subspec. The device SHALL download tor's own
 `src/config/geoip` from the Tor Project, through Tor on an isolation tag of
 its own, from the GitLab onion service first and the clearnet host second.
+Each request SHALL take a circuit no earlier request took, and a download
+SHALL go through both sources twice before it fails: the onion service has
+timed out on one circuit while the clearnet host refused that download's exit
+with HTTP 403, and tor reuses a circuit for ten minutes, so a Retry on the
+same tag went back to both.
 It SHALL be kept verbatim, licence header included, in the app's cache
 directory, and refused unless its header declares CC BY-SA 4.0. tor has no
 updater and re-reads `GeoIPFile` only when the path changes, so every
@@ -813,6 +818,17 @@ memory pressure evicts a site, not left for the next activation.
 - **AND** it is stored unmodified and handed to tor as `GeoIPFile`
 - **AND** the release artifact contains no GeoIP data (gated by
   `test/js/tor_geoip_not_bundled.test.js`)
+
+#### Scenario: One bad circuit does not fail the download
+
+- **GIVEN** no GeoIP table is kept on the device
+- **AND** the onion service times out on the circuit the first request took
+- **AND** the clearnet host answers the next request's exit with HTTP 403
+- **WHEN** a site's pin is applied
+- **THEN** the onion service is asked again on a circuit no earlier request
+  took, and the table it answers is kept
+- **AND** a Retry after a download that failed on every source asks each on
+  circuits none of the failed requests took
 
 #### Scenario: Missing country data fails visibly and names the data
 
