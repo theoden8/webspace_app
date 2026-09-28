@@ -798,10 +798,12 @@ void main() {
       control?.destroy();
       client.close();
       probe?.close();
+      // Clearing is its own round trip, RESETCONF and the same circuit
+      // close. It runs when a pin failed too: an errored pin left in place
+      // kept every later scenario from ever seeing tor up.
+      await TorService.instance.setExitCountry(null);
     }
 
-    // Clearing is its own round trip, RESETCONF and the same circuit close.
-    await TorService.instance.setExitCountry(null);
     expect(TorService.instance.status, isA<TorUp>(),
         reason: 'clearing the pin did not land:\n${torTranscript()}');
     expect(TorService.instance.exitNodes, isNull);
