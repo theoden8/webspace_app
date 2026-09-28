@@ -76,7 +76,7 @@ A search URL SHALL be the address with every `%s` replaced by the trimmed query,
 
 ### Requirement: LIR-029 - Web Search From The Page Menu
 
-Both page overflow menus (the app bar's, and the bottom bar's when the tab strip is shown) SHALL offer "Web search", below Find, except while the kiosk shell is locked (KIOSK-002). Find, the URL bar and shared links SHALL NOT change: text typed in the URL bar is still a URL, never a search.
+The Tabs sheet (TAB-008) SHALL offer "Web search" in its header, beside "New tab": a search opens a tab (LIR-030), so it sits with the other ways to make one. The label SHALL drop to its icon, with the label as its tooltip, when it would leave the sheet's title too little room, before "New tab" does, so the header fits a phone in every locale. While Site tabs are off (TAB-012) there is no Tabs sheet, and both page overflow menus (the app bar's, and the bottom bar's when the tab strip is shown) SHALL offer "Web search" below Find instead; with Site tabs on they SHALL NOT. Neither is reachable while the kiosk shell is locked (KIOSK-002). Find, the URL bar and shared links SHALL NOT change: text typed in the URL bar is still a URL, never a search.
 
 "Web search" SHALL open a sheet for the site on screen. The site on screen is the slot's running identity (LIR-018): the host when a hosted tab is active, else the site. The sheet SHALL hold a query field, a scope and a row of search-site chips.
 
@@ -145,10 +145,28 @@ Submitting SHALL pop the sheet with the query, the scope and the chosen chip; a 
 - **AND** the app default, which names no archive site, preselects nothing
 - **AND** with no search site in the archive, no engine is offered to add
 
+#### Scenario: Web search sits beside New tab
+
+- **GIVEN** Site tabs are on and GitHub is on screen
+- **WHEN** the user opens the Tabs sheet
+- **THEN** its header offers Web search beside New tab
+- **AND** neither page menu offers Web search
+
+#### Scenario: With Site tabs off the menu offers it
+
+- **GIVEN** Site tabs are off
+- **THEN** both page menus offer Web search below Find
+
+#### Scenario: A long label gives way to its icon
+
+- **GIVEN** a locale whose Web search and New tab labels leave the title too little room on a phone
+- **WHEN** the user opens the Tabs sheet
+- **THEN** Web search shows as its icon, with the label as its tooltip, and the header does not overflow
+
 #### Scenario: A locked kiosk shell has no web search
 
 - **GIVEN** the app was launched from a kiosk site's shortcut
-- **THEN** neither page menu offers Web search
+- **THEN** neither page menu offers Web search and the Tabs sheet cannot be opened
 
 ---
 

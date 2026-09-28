@@ -11,7 +11,7 @@
 - [x] 2.2 `lib/widgets/web_search_sheet.dart`: query, scope, chips, the empty state with known engines to add; nothing to add inside an archive.
 - [x] 2.3 `webSearchDefaultSite` in `kExportedAppPrefs`, default empty; the Default search row in App Settings.
 - [x] 2.4 `_webSearch` in `lib/main.dart`: kiosk and re-entry guards, candidates from `_outboundCandidates`, the add-a-site path.
-- [x] 2.5 Web search row in both overflow menus, below Find.
+- [x] 2.5 Web search in the Tabs sheet header beside New tab, the label dropping to its icon where it does not fit; the overflow-menu rows only for a site without tabs (TAB-013).
 - [x] 2.6 Tests: `test/web_search_sheet_test.dart`, `test/web_search_entry_test.dart`.
 
 ## 3. Landing

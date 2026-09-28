@@ -1242,6 +1242,7 @@ class _TabsSheetCard extends StatelessWidget {
                 currentIndex: 0,
                 onOpenTab: (_, _) {},
                 onNewTab: (_) {},
+                onWebSearch: () {},
                 onCloseTab: (_, _) {},
                 onCloseSubtree: (_, _) {},
               ),

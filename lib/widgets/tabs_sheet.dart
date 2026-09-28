@@ -50,6 +50,7 @@ class TabsSheet extends StatefulWidget {
     required this.currentIndex,
     required this.onOpenTab,
     required this.onNewTab,
+    this.onWebSearch,
     required this.onCloseTab,
     required this.onCloseSubtree,
   });
@@ -62,6 +63,9 @@ class TabsSheet extends StatefulWidget {
 
   final void Function(int siteIndex, String tabId) onOpenTab;
   final void Function(int siteIndex) onNewTab;
+
+  /// Opens web search for the site on screen (LIR-029); null hides it.
+  final VoidCallback? onWebSearch;
   final void Function(int siteIndex, String tabId) onCloseTab;
   final void Function(int siteIndex, String tabId) onCloseSubtree;
 
@@ -98,27 +102,7 @@ class _TabsSheetState extends State<TabsSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.xs, Spacing.sm, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      loc.tabsSheetTitle(
-                          site.model.getDisplayName(), site.model.tabs.length),
-                      style: theme.textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      widget.onNewTab(site.index);
-                    },
-                    icon: const Icon(Icons.add, size: IconSizes.action),
-                    label: Text(loc.tabsNewTab),
-                  ),
-                ],
-              ),
+              child: _header(site, loc, theme),
             ),
             if (widget.sites.length > 1) _scopeSwitch(loc, theme),
             Flexible(
@@ -143,6 +127,80 @@ class _TabsSheetState extends State<TabsSheet> {
         ),
       ),
     );
+  }
+
+  /// The title, then Web search and New tab. A label that leaves the title
+  /// too little room drops to its icon, Web search first, so the row fits a
+  /// phone in every locale.
+  Widget _header(TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
+    return LayoutBuilder(builder: (context, constraints) {
+      final scaler = MediaQuery.textScalerOf(context);
+      final direction = Directionality.of(context);
+      double labelled(String label) {
+        final painter = TextPainter(
+          text: TextSpan(text: label, style: theme.textTheme.labelLarge),
+          textScaler: scaler,
+          textDirection: direction,
+          maxLines: 1,
+        )..layout();
+        final width = painter.width;
+        painter.dispose();
+        // TextButton.icon: 12 start, the icon, 8, the label, 16 end.
+        return 36 + IconSizes.action + width;
+      }
+
+      const iconOnly = kMinInteractiveDimension;
+      const titleRoom = 96.0;
+      final search = widget.onWebSearch != null;
+      var searchLabel = search;
+      var newTabLabel = true;
+      double needed() =>
+          titleRoom +
+          (!search ? 0 : searchLabel ? labelled(loc.webSearchMenu) : iconOnly) +
+          (newTabLabel ? labelled(loc.tabsNewTab) : iconOnly);
+      if (needed() > constraints.maxWidth) searchLabel = false;
+      if (needed() > constraints.maxWidth) newTabLabel = false;
+
+      Widget action(IconData icon, String label, bool withLabel,
+          VoidCallback onPressed) {
+        void run() {
+          Navigator.of(context).pop();
+          onPressed();
+        }
+
+        return withLabel
+            ? TextButton.icon(
+                onPressed: run,
+                icon: Icon(icon, size: IconSizes.action),
+                label: Text(label),
+              )
+            : IconButton(
+                onPressed: run,
+                tooltip: label,
+                icon: Icon(icon, size: IconSizes.action),
+                color: theme.colorScheme.primary,
+              );
+      }
+
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              loc.tabsSheetTitle(
+                  site.model.getDisplayName(), site.model.tabs.length),
+              style: theme.textTheme.titleMedium,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (search)
+            action(Icons.travel_explore, loc.webSearchMenu, searchLabel,
+                widget.onWebSearch!),
+          action(Icons.add, loc.tabsNewTab, newTabLabel,
+              () => widget.onNewTab(site.index)),
+        ],
+      );
+    });
   }
 
   Widget _grabHandle(ThemeData theme) => Center(

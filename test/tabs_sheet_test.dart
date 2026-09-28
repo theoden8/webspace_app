@@ -23,22 +23,28 @@ Future<void> pumpSheet(
   List<TabsSheetSite> sites, {
   void Function(int, String)? onOpenTab,
   void Function(int)? onNewTab,
+  VoidCallback? onWebSearch,
   void Function(int, String)? onCloseTab,
   void Function(int, String)? onCloseSubtree,
+  Locale? locale,
+  double width = 400,
 }) async {
-  tester.view.physicalSize = const Size(400, 900);
+  tester.view.physicalSize = Size(width, 900);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
     supportedLocales: AppLocalizations.supportedLocales,
+    locale: locale,
     home: Scaffold(
+      key: UniqueKey(),
       body: TabsSheet(
         sites: sites,
         currentIndex: 0,
         onOpenTab: onOpenTab ?? (_, _) {},
         onNewTab: onNewTab ?? (_) {},
+        onWebSearch: onWebSearch,
         onCloseTab: onCloseTab ?? (_, _) {},
         onCloseSubtree: onCloseSubtree ?? (_, _) {},
       ),
@@ -131,6 +137,56 @@ void main() {
       await tester.tap(find.text('New tab'));
       await tester.pump();
       expect(opened, 7);
+    });
+
+    testWidgets('Web search sits beside New tab (LIR-029)', (tester) async {
+      var searched = 0;
+      final site = siteWithChain('GitHub', ['https://github.com/']);
+      final sites = [
+        TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
+      ];
+      await pumpSheet(tester, sites);
+      expect(find.byIcon(Icons.travel_explore), findsNothing);
+      await pumpSheet(tester, sites, onWebSearch: () => searched++);
+      await tester.tap(find.byIcon(Icons.travel_explore));
+      await tester.pump();
+      expect(searched, 1);
+    });
+
+    testWidgets('both labels show where they fit', (tester) async {
+      final site = siteWithChain('GitHub', ['https://github.com/']);
+      await pumpSheet(
+        tester,
+        [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
+        onWebSearch: () {},
+        width: 600,
+      );
+      expect(find.text('Web search'), findsOneWidget);
+      expect(find.text('New tab'), findsOneWidget);
+    });
+
+    testWidgets('the header fits a phone in every locale', (tester) async {
+      final site = siteWithChain('GitHub', ['https://github.com/']);
+      const width = 360.0;
+      for (final locale in AppLocalizations.supportedLocales) {
+        await pumpSheet(
+          tester,
+          [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
+          onWebSearch: () {},
+          locale: locale,
+          width: width,
+        );
+        // A locale without Material strings warns; only an overflow fails.
+        final error = tester.takeException();
+        expect('$error', isNot(contains('overflowed')), reason: '$locale');
+        for (final icon in [Icons.travel_explore, Icons.add]) {
+          final rect = tester.getRect(find.byIcon(icon));
+          expect(rect.left >= 0 && rect.right <= width, isTrue,
+              reason: '$locale: $icon at $rect');
+        }
+        final title = tester.getRect(find.textContaining('GitHub'));
+        expect(title.width, greaterThan(40), reason: '$locale title');
+      }
     });
 
     testWidgets('closing a row reports that tab', (tester) async {

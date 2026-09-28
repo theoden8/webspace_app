@@ -23,8 +23,9 @@ requirements.
   searches. Any other site can be given an address on its Behaviour screen,
   and says whether it searches the whole web. Web searches other than
   Perplexity can search inside another site with `site:`.
-- **The sheet** (LIR-029). "Web search" in both page menus, below Find, opens
-  a sheet with a query, a scope (The web, or the site on screen) and a chip per
+- **The sheet** (LIR-029). "Web search" in the Tabs sheet header, beside New
+  tab (in both page menus, below Find, only for a site without tabs), opens a
+  sheet with a query, a scope (The web, or the site on screen) and a chip per
   search site. A site may declare which search sites it offers and which it
   starts with; the app has a Default search in App Settings. With no search
   site at all, the sheet offers to add a known engine as a site.

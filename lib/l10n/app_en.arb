@@ -3457,7 +3457,7 @@
   },
   "webSearchMenu": "Web search",
   "@webSearchMenu": {
-    "description": "Row in the page's overflow menu, next to Find, that opens a field for searching the web with the user's chosen search engine. Also the tooltip of the arrow button that runs the search, and the field's placeholder before an engine is chosen."
+    "description": "Button in the header of the Tabs sheet, beside New tab, that opens the web search sheet for searching the web or the site on screen with one of the user's search sites. With the Site tabs experiment off it is instead a row in the page's overflow menu, below Find. Also the tooltip of the arrow button that runs the search, and the field's placeholder before a search site is chosen."
   },
   "webSearchFieldHint": "Search with {engine}",
   "@webSearchFieldHint": {

@@ -8248,6 +8248,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         currentIndex: at,
         onOpenTab: (i, id) => unawaited(_openTab(i, id)),
         onNewTab: (i) => unawaited(_newTab(i)),
+        onWebSearch: () => unawaited(_webSearch()),
         onCloseTab: (i, id) => unawaited(_closeTab(i, id)),
         onCloseSubtree: (i, id) => unawaited(_closeTab(i, id, subtree: true)),
       ),
@@ -8786,16 +8787,18 @@ class _WebSpacePageState extends State<WebSpacePage>
                     ],
                   ),
                 ),
-                PopupMenuItem<String>(
-                  value: "webSearch",
-                  child: Row(
-                    children: [
-                      Icon(Icons.travel_explore),
-                      SizedBox(width: 8),
-                      Text(loc.webSearchMenu),
-                    ],
+                // Where the site has tabs, web search lives in the Tabs sheet.
+                if (!_tabsEnabledAt(_currentIndex))
+                  PopupMenuItem<String>(
+                    value: "webSearch",
+                    child: Row(
+                      children: [
+                        Icon(Icons.travel_explore),
+                        SizedBox(width: 8),
+                        Text(loc.webSearchMenu),
+                      ],
+                    ),
                   ),
-                ),
                 PopupMenuItem<String>(
                   value: "toggleUrlBar",
                   child: Row(
@@ -9391,16 +9394,18 @@ class _WebSpacePageState extends State<WebSpacePage>
               ],
             ),
           ),
-          PopupMenuItem<String>(
-            value: "webSearch",
-            child: Row(
-              children: [
-                Icon(Icons.travel_explore),
-                SizedBox(width: 8),
-                Text(loc.webSearchMenu),
-              ],
+          // Where the site has tabs, web search lives in the Tabs sheet.
+          if (!_tabsEnabledAt(_currentIndex))
+            PopupMenuItem<String>(
+              value: "webSearch",
+              child: Row(
+                children: [
+                  Icon(Icons.travel_explore),
+                  SizedBox(width: 8),
+                  Text(loc.webSearchMenu),
+                ],
+              ),
             ),
-          ),
           PopupMenuItem<String>(
             value: "toggleUrlBar",
             child: Row(

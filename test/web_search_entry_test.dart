@@ -32,8 +32,17 @@ void main() {
   }
 
   group('web search (LIR-029 to LIR-031)', () {
-    test('both overflow menus offer Web search', () {
-      expect(count(main, 'value: "webSearch"'), 2);
+    test('the Tabs sheet offers Web search; the menus only with tabs off', () {
+      expect(bodyOf(main, 'Future<void> _showTabsSheet('),
+          contains('onWebSearch: () => unawaited(_webSearch()),'));
+      expect(
+        RegExp(r'if \(!_tabsEnabledAt\(_currentIndex\)\)\s*'
+                r'PopupMenuItem<String>\(\s*value: "webSearch",')
+            .allMatches(main)
+            .length,
+        2,
+        reason: 'both overflow menus, and only while tabs are off',
+      );
       expect(
         RegExp(r"case 'webSearch':\s*await _webSearch\(\);")
             .allMatches(main)
