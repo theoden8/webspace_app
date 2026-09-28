@@ -1427,3 +1427,71 @@ the sites are blocked either way.
 - **GIVEN** no site carries `ProxyType.TOR`
 - **WHEN** the user turns developer mode off
 - **THEN** the flag turns off with no confirmation
+
+### Requirement: TOR-024 - Tor outlives the app being suspended
+
+iOS suspends an app it has sent to the background, and while it is
+suspended the kernel defuncts every socket the app owns that is not marked
+non-defunctable: `socket_defunct` passes `noforce`, and every Unix-domain
+socket is born SOF_NODEFUNCT while a TCP socket can only be marked by root
+(xnu `socreate`, `sosetdefunct`, `SO_DEFUNCTOK`). tor itself survives,
+frozen with the app, but a loopback TCP control port, its SOCKS listener
+and its relay connections do not, and tor goes on naming the dead listener
+as its own. Since tor runs once per process (TOR-020), a runtime nobody can
+reach again is Tor gone until the app restarts, which is how it was first
+reported: a background launch started tor, iOS suspended the app, and the
+next foreground found "The previous Tor is still running".
+
+- The plugin's control channel SHALL be a Unix-domain socket (`ControlSocket`)
+  in a directory only the app's user can list, whose path fits a
+  `sockaddr_un`. Where it would not fit, the plugin SHALL fall back to a TCP
+  control port and SHALL say in the log that it will not survive a
+  suspension.
+- When the app returns to the foreground, and at the start of a background
+  wake, the engine SHALL ask tor's SOCKS listener for a SOCKS5 greeting. A
+  listener that does not answer SHALL be reopened over the control channel
+  (`DisableNetwork 1`, then `0`, which closes every listener and relay
+  connection except control ones and opens the listeners again), and the new
+  endpoint SHALL be published as `up`, which rebinds every Tor-bound site.
+  While that happens the engine SHALL hold the sites off Tor, as a pin change
+  does.
+- A return while tor is still bootstrapping SHALL have the listener asked
+  when tor next reports `up`, before anything is bound to it.
+- A reopen that fails SHALL be reported as a failure, never as the dead
+  listener being `up`, and Retry SHALL try the reopen again.
+- An exit-country pin in force SHALL stay in force across a reopen: it is
+  the same tor, and nothing re-applies it.
+- The bootstrap deadline (TOR-013) SHALL NOT report a bootstrap the app was
+  suspended through. A deadline that fires more than a few seconds after it
+  was due SHALL start its window over.
+
+#### Scenario: The app comes back after tor's sockets were defuncted
+
+- **GIVEN** Tor is up and a site is bound to its SOCKS listener
+- **AND** the process's sockets have been defuncted, as iOS does to a
+  suspended app
+- **WHEN** the app returns to the foreground
+- **THEN** tor's control channel still answers
+- **AND** tor opens a new SOCKS listener and the runtime publishes it as `up`
+- **AND** a request through it leaves from a Tor exit
+
+#### Scenario: A listener that still answers is left alone
+
+- **GIVEN** Tor is up
+- **WHEN** the app returns to the foreground without having been suspended
+- **THEN** the listener answers the greeting and nothing is reopened
+
+#### Scenario: The app comes back mid-bootstrap
+
+- **GIVEN** the app was suspended while tor was bootstrapping
+- **WHEN** the app returns and tor then reports `up` on a listener opened
+  before the suspension
+- **THEN** that listener is asked before any site is bound to it
+- **AND** a dead one is reopened and never published as `up`
+
+#### Scenario: The deadline slept through a suspension
+
+- **GIVEN** tor was started and the app was suspended before it finished
+  bootstrapping
+- **WHEN** the bootstrap deadline fires on the next wake, long after it was due
+- **THEN** no bootstrap failure is reported and the window starts over
