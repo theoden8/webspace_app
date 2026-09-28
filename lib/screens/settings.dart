@@ -12,16 +12,14 @@ import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
-import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
-import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
@@ -30,14 +28,13 @@ import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/site_behaviour.dart';
+import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/screens/site_permissions.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
-import 'package:webspace/widgets/hint_button.dart';
-import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
@@ -165,10 +162,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ScreenShareMode _screenShareMode = ScreenShareMode.ask;
   VirtualScreenSource? _virtualScreenSource;
   String? _selectedLanguage;
-  /// Bumped on every [_loadFromModel]. The credentials fold reads its open
-  /// state once, at construction, so re-keying it is what lets an applied QR
-  /// payload open a section the user has not touched.
-  int _formEpoch = 0;
   late int _zoomPercent;
   late TextEditingController _latitudeController;
   late TextEditingController _longitudeController;
@@ -205,7 +198,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _accuracyController = TextEditingController();
     _loadFromModel();
     _initialSnapshot = _currentSnapshot();
-    _loadSavedSignIns();
     _userAgentController.addListener(_onAnyFieldChanged);
     _proxyAddressController.addListener(_onAnyFieldChanged);
     _proxyUsernameController.addListener(_onAnyFieldChanged);
@@ -235,6 +227,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Map<String, Object?> _currentSnapshot() => {
         'proxyType': _proxySettings.type,
+        'torExitCountry': _proxySettings.torExitCountry,
         'proxyAddress': _proxyAddressController.text,
         'proxyUsername': _proxyUsernameController.text,
         'proxyPassword': _proxyPasswordController.text,
@@ -511,7 +504,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _isLiveLocation = m.locationMode == LocationMode.live;
     _liveLocationGranularity = m.liveLocationGranularity;
     _webRtcPolicy = m.webRtcPolicy;
-    _formEpoch++;
   }
 
   @override
@@ -545,32 +537,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         siteId: widget.webViewModel.siteId,
       );
 
-  String? _validateProxyAddress(String? value) {
-    final loc = AppLocalizations.of(context);
-    // TOR supplies its own address once the runtime is up, so there is
-    // nothing for the user to type and nothing to validate.
-    if (_proxySettings.type == ProxyType.DEFAULT ||
-        _proxySettings.type == ProxyType.TOR) {
-      return null;
-    }
-
-    if (value == null || value.isEmpty) {
-      return loc.siteSettingsProxyAddressRequired;
-    }
-
-    final parts = value.split(':');
-    if (parts.length != 2) {
-      return loc.siteSettingsProxyAddressFormatError;
-    }
-
-    final port = int.tryParse(parts[1]);
-    if (port == null || port < 1 || port > 65535) {
-      return loc.siteSettingsProxyInvalidPort;
-    }
-
-    return null;
-  }
-
   String _userScriptsSubtitle() {
     final loc = AppLocalizations.of(context);
     final siteCount = widget.webViewModel.userScripts.where((s) => s.enabled).length;
@@ -591,7 +557,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Only validate and update proxy settings on supported platforms
     if (PlatformInfo.isProxySupported) {
       // Validate proxy address if needed
-      final proxyError = _validateProxyAddress(_proxyAddressController.text);
+      final proxyError = validateProxyAddress(
+          loc, _proxySettings.type, _proxyAddressController.text);
       if (proxyError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(loc.siteSettingsProxyError(proxyError))),
@@ -842,10 +809,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       double.tryParse(_latitudeController.text.trim()) != null &&
       double.tryParse(_longitudeController.text.trim()) != null;
 
-  /// Label above a group of leaf settings. The three screens below the "Site"
-  /// heading (behaviour, privacy, permissions) carry their own structure; what
-  /// is left on this screen is flat controls, and a header is all they need to
-  /// stop reading as one list of unrelated things.
+  /// Label above a group of leaf settings. The four screens below the "Site"
+  /// heading (behaviour, network, privacy, permissions) carry their own
+  /// structure; what is left on this screen is flat controls, and a header is
+  /// all they need to stop reading as one list of unrelated things.
   Widget _sectionHeader(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
         child: Text(
@@ -1029,7 +996,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         outboundPreferences: _outboundPreferences,
       );
 
-  /// One of the three rows that open a screen of their own. Behaviour is what
+  /// One of the four rows that open a screen of their own. Behaviour is what
   /// the app does with the site rather than what the site is allowed to do, so
   /// it leads the group.
   Widget _buildBehaviourRow() {
@@ -1100,6 +1067,96 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _externalLinkMode = values.externalLinkMode;
               _routeOutboundLinks = values.routeOutboundLinks;
               _outboundPreferences = values.outboundPreferences;
+            });
+          },
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
+  }
+
+  SiteNetworkValues get _networkValues => SiteNetworkValues(
+        proxyType: _proxySettings.type,
+        torExitCountry: _proxySettings.torExitCountry,
+        webRtcPolicy: _webRtcPolicy,
+      );
+
+  /// Follows Behaviour: like it, this is how the app carries the site rather
+  /// than what the site may do. The subtitle names the route the traffic
+  /// takes, so whether the site is proxied is answered without opening it.
+  Widget _buildNetworkRow() {
+    final loc = AppLocalizations.of(context);
+    final v = _networkValues;
+    final proxied =
+        PlatformInfo.isProxySupported && v.proxyType != ProxyType.DEFAULT;
+    // DEFAULT means "no proxy of my own", and such a site goes through the
+    // app-wide one when that is set (resolveEffectiveProxy). Reading it as
+    // unproxied would answer the row's one question wrongly.
+    final inheritsAppProxy = PlatformInfo.isProxySupported &&
+        v.proxyType == ProxyType.DEFAULT &&
+        GlobalOutboundProxy.current.type != ProxyType.DEFAULT;
+    final address = _proxyAddressController.text.trim();
+    final pin = v.torExitCountry?.trim() ?? '';
+    final exitCountry = pin.isEmpty
+        ? null
+        : (torExitCountryFor(pin)?.label ?? pin.toUpperCase());
+
+    // Built as data before it reaches Text(): a proxy type, an address, a
+    // country, the separator and the count are not translatable copy
+    // (LOC-002).
+    final on = <String>[
+      if (inheritsAppProxy) loc.networkSummaryAppProxy,
+      if (proxied)
+        v.proxyType == ProxyType.TOR || address.isEmpty
+            ? v.proxyType.name
+            : '${v.proxyType.name} $address',
+      if (proxied && v.proxyType == ProxyType.TOR && exitCountry != null)
+        exitCountry,
+      if (v.webRtcPolicy == WebRtcPolicy.relayOnly)
+        loc.networkSummaryWebRtc(loc.siteSettingsWebRtcRelayOnly),
+      if (v.webRtcPolicy == WebRtcPolicy.disabled)
+        loc.networkSummaryWebRtc(loc.siteSettingsWebRtcDisabled),
+    ];
+    final String summary;
+    if (on.isEmpty) {
+      summary = loc.networkSummaryDefault;
+    } else {
+      const separator = ' \u00b7 ';
+      final shown = on.take(2).join(separator);
+      final overflow = on.length - 2;
+      summary = overflow > 0
+          ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
+          : shown;
+    }
+
+    return ListTile(
+      leading: const Icon(Icons.lan_outlined),
+      title: Text(loc.networkTitle),
+      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: _openNetwork,
+    );
+  }
+
+  Future<void> _openNetwork() async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SiteNetworkScreen(
+          host: widget.webViewModel.currentUrl,
+          siteId: widget.webViewModel.siteId,
+          values: _networkValues,
+          proxySupported: PlatformInfo.isProxySupported,
+          proxyAddressController: _proxyAddressController,
+          proxyUsernameController: _proxyUsernameController,
+          proxyPasswordController: _proxyPasswordController,
+          proxyTest: _buildProxyTestTile(),
+          showSavedSignIns: !widget.webViewModel.isArchiveTier,
+          onChanged: (values) {
+            setState(() {
+              _proxySettings.type = values.proxyType;
+              _proxySettings.torExitCountry = values.torExitCountry;
+              _webRtcPolicy = values.webRtcPolicy;
             });
           },
         ),
@@ -1198,153 +1255,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (mounted) setState(() {});
-  }
-
-  Widget _buildTorExitCountryTile() {
-    final loc = AppLocalizations.of(context);
-    final pinned = _proxySettings.torExitCountry;
-    final known = torExitCountryFor(pinned);
-    // An unlisted pin keeps its bare code rather than reading as unpinned:
-    // it is still a valid `{cc}` that tor honours, and showing "Any" for a
-    // site that is in fact pinned would be the mis-report TOR-014 forbids.
-    final subtitle = known?.label ??
-        (pinned == null || pinned.trim().isEmpty
-            ? loc.siteSettingsTorExitCountryAny
-            : pinned.toUpperCase());
-    return ListTile(
-      title: Row(
-        children: [
-          Flexible(child: Text(loc.siteSettingsTorExitCountry)),
-          HintButton(
-            title: loc.siteSettingsTorExitCountry,
-            description: loc.siteSettingsTorExitCountryHint,
-          ),
-        ],
-      ),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: _pickTorExitCountry,
-    );
-  }
-
-  Future<void> _pickTorExitCountry() async {
-    final loc = AppLocalizations.of(context);
-    final selected = await showDialog<String?>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(loc.siteSettingsTorExitCountry),
-        children: [
-          // Sentinel: `null` is a legal value here (unpin), so the dialog
-          // returns a wrapper the caller unpacks rather than relying on a
-          // null result, which also means "dismissed".
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, ''),
-            child: Text(loc.siteSettingsTorExitCountryAny),
-          ),
-          for (final c in kTorExitCountries)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(ctx, c.code),
-              child: Text(c.label),
-            ),
-        ],
-      ),
-    );
-    if (selected == null || !mounted) return;
-    setState(() {
-      _proxySettings.torExitCountry = selected.isEmpty ? null : selected;
-    });
-  }
-
-  /// Null until secure storage answers, and for archive-tier sites, which
-  /// never save a sign-in (HTTPAUTH-004).
-  int? _savedSignIns;
-
-  Future<void> _loadSavedSignIns() async {
-    if (widget.webViewModel.isArchiveTier) return;
-    final count = await HttpAuthSecureStorage.instance
-        .countForSite(widget.webViewModel.siteId);
-    if (mounted) setState(() => _savedSignIns = count);
-  }
-
-  Future<void> _forgetSavedSignIns() async {
-    final loc = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.siteSettingsSavedSignInsClearTitle),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.siteSettingsClearConfirm),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    await HttpAuthSecureStorage.instance
-        .removeSite(widget.webViewModel.siteId);
-    await _loadSavedSignIns();
-  }
-
-  Widget _buildSavedSignInsTile() {
-    final loc = AppLocalizations.of(context);
-    final count = _savedSignIns;
-    return ListTile(
-      title: Row(
-        children: [
-          Flexible(child: Text(loc.siteSettingsSavedSignIns)),
-          HintButton(
-            title: loc.siteSettingsSavedSignIns,
-            description: loc.siteSettingsSavedSignInsHint,
-          ),
-        ],
-      ),
-      subtitle: count == null
-          ? null
-          : Text(count == 0
-              ? loc.siteSettingsSavedSignInsNone
-              : loc.siteSettingsSavedSignInsCount(count)),
-      trailing: TextButton(
-        onPressed: (count ?? 0) > 0 ? _forgetSavedSignIns : null,
-        child: Text(loc.siteSettingsClearConfirm),
-      ),
-    );
-  }
-
-  Widget _buildWebRtcTile() {
-    final loc = AppLocalizations.of(context);
-    return ListTile(
-      title: Row(
-        children: [
-          Flexible(child: Text(loc.siteSettingsWebRtcPolicy)),
-          HintButton(
-            title: loc.siteSettingsWebRtcHintTitle,
-            description: loc.siteSettingsWebRtcHintBody,
-          ),
-        ],
-      ),
-      trailing: DropdownButton<WebRtcPolicy>(
-        value: _webRtcPolicy,
-        onChanged: (v) {
-          if (v != null) setState(() => _webRtcPolicy = v);
-        },
-        items: [
-          DropdownMenuItem(
-              value: WebRtcPolicy.defaultPolicy,
-              child: Text(loc.siteSettingsWebRtcDefault)),
-          DropdownMenuItem(
-              value: WebRtcPolicy.relayOnly,
-              child: Text(loc.siteSettingsWebRtcRelayOnly)),
-          DropdownMenuItem(
-              value: WebRtcPolicy.disabled,
-              child: Text(loc.siteSettingsWebRtcDisabled)),
-        ],
-      ),
-    );
   }
 
   @override
@@ -1551,95 +1461,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          _sectionHeader(loc.siteSettingsSectionNetwork),
-          // Only show proxy settings on supported platforms
-          if (PlatformInfo.isProxySupported) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Text(
-                loc.siteSettingsProxyShared,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ),
-            ListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.siteSettingsProxyType)),
-                  HintButton(
-                    title: loc.siteSettingsProxyType,
-                    description: loc.siteSettingsProxyCoverageHint,
-                  ),
-                ],
-              ),
-              // What a configured proxy actually covers here, which is not
-              // the same claim as "a proxy is configured" (LEAK-010). Absent
-              // on DEFAULT, where the row claims nothing.
-              subtitle: _proxySettings.type == ProxyType.DEFAULT
-                  ? null
-                  : Text(ProxyManager.binding == ProxyBinding.perSite
-                      ? loc.siteSettingsProxyCoverageFirstOnly
-                      : loc.siteSettingsProxyCoverageAll),
-              trailing: DropdownButton<ProxyType>(
-                value: _proxySettings.type,
-                onChanged: (ProxyType? newValue) {
-                  if (newValue != null) {
-                    setState(() {
-                      _proxySettings.type = newValue;
-                    });
-                  }
-                },
-                // TOR is only offerable where a Tor runtime exists (TOR-007).
-                // A site that already carries TOR — say, from a backup taken
-                // on iOS and imported on Android — keeps the option visible,
-                // because a DropdownButton whose `value` is absent from its
-                // `items` throws.
-                items: ProxyType.values
-                    .where((v) =>
-                        v != ProxyType.TOR ||
-                        TorService.instance.isAvailable ||
-                        _proxySettings.type == ProxyType.TOR)
-                    .map<DropdownMenuItem<ProxyType>>(
-                  (ProxyType value) {
-                    return DropdownMenuItem<ProxyType>(
-                      value: value,
-                      child: Text(value.toString().split('.').last),
-                    );
-                  },
-                ).toList(),
-              ),
-            ),
-            if (_proxySettings.type == ProxyType.TOR) _buildTorExitCountryTile(),
-            // TOR supplies its own loopback address and stream-isolation
-            // auth, so the manual fields are inert while it is selected.
-            // Hidden, not cleared: PROXY-010 requires a stored SOCKS5 config
-            // to survive a trip through TOR and come back on switch-out.
-            if (_proxySettings.type != ProxyType.DEFAULT &&
-                _proxySettings.type != ProxyType.TOR) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: TextFormField(
-                  controller: _proxyAddressController,
-                  decoration: InputDecoration(
-                    labelText: loc.siteSettingsProxyAddress,
-                    hintText: loc.siteSettingsProxyAddressHint,
-                    helperText: loc.siteSettingsProxyAddressHelper,
-                    border: const OutlineInputBorder(),
-                  ),
-                  validator: _validateProxyAddress,
-                ),
-              ),
-              ProxyAuthSection(
-                key: ValueKey('proxy-auth-$_formEpoch'),
-                usernameController: _proxyUsernameController,
-                passwordController: _proxyPasswordController,
-              ),
-            ],
-            if (_proxySettings.type != ProxyType.DEFAULT) _buildProxyTestTile(),
-          ],
-          _buildWebRtcTile(),
-          if (!widget.webViewModel.isArchiveTier) _buildSavedSignInsTile(),
           _sectionHeader(loc.siteSettingsSectionSite),
           _buildBehaviourRow(),
+          _buildNetworkRow(),
           _buildPrivacyRow(),
           _buildPermissionsRow(),
           const SizedBox(height: 8),

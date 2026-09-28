@@ -274,6 +274,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | settings-backup | JSON import/export; every released format still imports (per-release fixture corpus), and an import is planned whole before it is applied |
 | settings-hints | where a settings row's text goes: state in the subtitle, explanation behind the hint button; fixed-string subtitles capped across all locales |
 | site-behaviour | per-site Behaviour screen: how the app hosts the site (opening + display, link handling), reached from one row under "Site" |
+| site-network *(change)* | per-site Network screen: proxy, Tor exit, WebRTC policy, saved sign-ins, reached from one row under "Site" that names the route the traffic takes |
 | site-editing | URL + custom name |
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
 | site-settings-qr | share a site's configuration as a QR / `webspace://qr/site/v1/` URL; never carries secrets, cookies, user scripts or imported HTML |

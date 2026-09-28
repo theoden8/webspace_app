@@ -36,6 +36,7 @@ import 'package:webspace/screens/location_picker.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_behaviour.dart';
+import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/screens/webspace_detail.dart';
@@ -86,8 +87,8 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'webspaces', label: 'Webspaces screen', fullBleed: true, builder: (c) => const _WebspacesCard()),
   GalleryCard(id: 'webspace-detail', label: 'Webspace detail screen', fullBleed: true, builder: (c) => const _WebspaceDetailCard()),
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: (c) => const _SiteSettingsCard()),
-  GalleryCard(id: 'site-settings-signins', label: 'Site settings, saved sign-ins', fullBleed: true, builder: (c) => const _SiteSettingsSignInsCard()),
   GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: (c) => const _SiteBehaviourCard()),
+  GalleryCard(id: 'site-network', label: 'Site network screen', fullBleed: true, builder: (c) => const _SiteNetworkCard()),
   GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: (c) => const _AppSettingsCard()),
   GalleryCard(id: 'protection-report', label: 'Protection report screen', fullBleed: true, builder: (c) => const _ProtectionReportCard()),
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
@@ -654,18 +655,21 @@ class _HttpAuthCard extends StatelessWidget {
       );
 }
 
-/// The real SettingsScreen for a site with two saved sign-ins, so the Saved
-/// sign-ins row shows its count and an enabled Clear.
-class _SiteSettingsSignInsCard extends StatefulWidget {
-  const _SiteSettingsSignInsCard();
+/// The real per-site Network screen for a site on a SOCKS5 proxy with
+/// credentials and two saved sign-ins, so every proxy row, the sign-ins count
+/// and an enabled Clear show.
+class _SiteNetworkCard extends StatefulWidget {
+  const _SiteNetworkCard();
 
   @override
-  State<_SiteSettingsSignInsCard> createState() =>
-      _SiteSettingsSignInsCardState();
+  State<_SiteNetworkCard> createState() => _SiteNetworkCardState();
 }
 
-class _SiteSettingsSignInsCardState extends State<_SiteSettingsSignInsCard> {
+class _SiteNetworkCardState extends State<_SiteNetworkCard> {
   final model = WebViewModel(initUrl: 'https://nas.example.com/', name: 'NAS');
+  final address = TextEditingController(text: '127.0.0.1:1080');
+  final username = TextEditingController(text: 'proxy-user');
+  final password = TextEditingController(text: 'hunter2');
   late final Future<void> _seeded = () async {
     const c = HttpAuthCredential(username: 'alice', password: 's3cret');
     await HttpAuthSecureStorage.instance
@@ -675,10 +679,37 @@ class _SiteSettingsSignInsCardState extends State<_SiteSettingsSignInsCard> {
   }();
 
   @override
+  void dispose() {
+    address.dispose();
+    username.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => FutureBuilder<void>(
         future: _seeded,
         builder: (context, snap) => snap.connectionState == ConnectionState.done
-            ? SettingsScreen(webViewModel: model, useContainers: true)
+            ? SiteNetworkScreen(
+                host: 'nas.example.com',
+                siteId: model.siteId,
+                values: const SiteNetworkValues(
+                  proxyType: ProxyType.SOCKS5,
+                  webRtcPolicy: WebRtcPolicy.relayOnly,
+                ),
+                onChanged: (_) {},
+                proxySupported: true,
+                proxyAddressController: address,
+                proxyUsernameController: username,
+                proxyPasswordController: password,
+                proxyTest: ProxyTestTile(
+                  settings: () => UserProxySettings(
+                    type: ProxyType.SOCKS5,
+                    address: address.text,
+                  ),
+                  target: Uri.parse('https://nas.example.com/'),
+                ),
+              )
             : const SizedBox.shrink(),
       );
 }
