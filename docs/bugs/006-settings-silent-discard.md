@@ -1,8 +1,9 @@
 # BUG-006 — Site settings silently drop unsaved changes on leave
 
 Status: closed (structural gate `test/js/site_settings_dirty_snapshot.test.js`
-subsumes per-field fixes: a form field loaded in `_loadFromModel` but missing
-from `_currentSnapshot` now fails CI instead of shipping unguarded)
+subsumes per-field fixes: a form field loaded in `_loadFromModel`, or a member
+written into a form object in place, but missing from `_currentSnapshot` now
+fails CI instead of shipping)
 
 **Spec:** [openspec/specs/site-editing/spec.md](../../openspec/specs/site-editing/spec.md) — EDIT-009
 
@@ -49,13 +50,38 @@ except fields fully derived from an already-registered field.**
    `_liveLocationGranularity`). A forgotten registration now fails
    `npm run test:js` in CI naming the field.
 
+4. **2026-09-09 — PR #589 (`6f68e7d`).** Not a fix — the regression.
+   Added the Tor exit country row, which writes into the form's proxy object
+   in place (`_proxySettings.torExitCountry = ...`). The gate saw
+   `_proxySettings` referenced in `_currentSnapshot` (through
+   `_proxySettings.type`) and passed, but the snapshot never read the exit
+   country, so pinning one and leaving discarded it with no prompt.
+
+5. **2026-09-28 — this branch.** Registered `_proxySettings.torExitCountry`
+   in `_currentSnapshot`, and added a second rule to the gate: every
+   `_field.member = ...` statement in `settings.dart` must have
+   `_field.member` referenced in the snapshot. Found while moving the
+   network controls onto the per-site Network screen (NET-001), whose value
+   object carries the exit country. *Why partial*: attempt 3 closed the
+   class at field granularity, and a form object is one field holding
+   several values; the member rule reads plain assignment statements, so a
+   member changed through a method call or a cascade would still escape it.
+   Regression test: `test/site_settings_network_row_test.dart` ("pinning a
+   Tor exit country guards the leave").
+
 ## Known open gaps
+
+- The member rule matches `_field.member = ...` statements only. A form
+  object mutated through a method (`_proxySettings.pin(...)`) or a cascade
+  would not be seen; keep form objects plain, or replace them whole.
 
 - The gate keys off `_loadFromModel`. A hypothetical form field initialized
   elsewhere (inline initializer only, never loaded from the model) would
   escape it — though such a field also wouldn't reflect persisted state, so
   it would be broken in a more visible way first.
 - Sub-screens reached from settings (user scripts, domain claims, QR
-  import) apply their changes immediately via callbacks rather than through
-  the Save flow; they are outside this mechanism by design and do not
-  silently drop anything.
+  import, saved sign-ins) apply their changes immediately via callbacks
+  rather than through the Save flow; they are outside this mechanism by
+  design and do not silently drop anything. The four "Site" screens
+  (behaviour, network, privacy, permissions) are not in that set: they
+  report into the settings screen's fields, which the snapshot reads.

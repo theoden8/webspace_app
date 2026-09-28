@@ -185,16 +185,30 @@ test('TOR-001: nothing hardcodes Tor\'s default SOCKS port', () => {
   }
 });
 
-// Two screens render the ProxyType enum into a dropdown: the per-site block in
-// settings.dart and the app-global one in app_settings.dart. Adding TOR taught
-// only the first about it, so global Tor was unselectable — the validator
-// refused an empty address and the save bailed. The value of a gate here is
-// that it fails for a *third* dropdown too, which is how this recurs.
+// Two screens render the ProxyType enum into a dropdown: the per-site one in
+// site_network.dart and the app-global one in app_settings.dart. Adding TOR
+// taught only the first about it, so global Tor was unselectable — the
+// validator refused an empty address and the save bailed. The value of a gate
+// here is that it fails for a *third* dropdown too, which is how this recurs,
+// so the screens are found by what they render rather than listed: a list
+// silently stops gating a dropdown that moves to a new file.
 test('TOR-007: every ProxyType dropdown handles TOR', () => {
-  const screens = ['lib/screens/settings.dart', 'lib/screens/app_settings.dart'];
+  const screens = [];
+  for (const dir of ['lib/screens', 'lib/widgets']) {
+    for (const file of fs.readdirSync(path.join(repo, dir))) {
+      const rel = `${dir}/${file}`;
+      if (file.endsWith('.dart') && /DropdownButton<ProxyType>/.test(read(rel))) {
+        screens.push(rel);
+      }
+    }
+  }
+  assert.ok(
+    screens.length >= 2,
+    'expected the per-site and the app-global ProxyType dropdowns, found ' +
+      `${screens.join(', ') || 'none'}; the search broke or one was removed.`,
+  );
   for (const rel of screens) {
     const src = read(rel);
-    if (!/DropdownButton<ProxyType>/.test(src)) continue;
 
     assert.match(
       src, /TorService\.instance\.isAvailable/,

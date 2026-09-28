@@ -9,7 +9,10 @@
 //
 // Rule: every instance field assigned in _loadFromModel() must be
 // referenced in _currentSnapshot(), unless it is fully derived from a
-// field that already is (allowlist below, each entry justified).
+// field that already is (allowlist below, each entry justified). A form
+// object edited in place (`_proxySettings.type = ...`) is registered member
+// by member: the object being in the snapshot says nothing about a member
+// that is not, which is how the Tor exit country escaped the rule above.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -89,5 +92,34 @@ test('settings form fields loaded from the model are all dirty-tracked', () => {
     `form fields loaded in _loadFromModel but absent from _currentSnapshot ` +
       `(unsaved edits to them are silently dropped on back — BUG-006): ${missing.join(', ')}. ` +
       `Register each in _currentSnapshot, or add it to DERIVED here with a justification.`,
+  );
+});
+
+test('form objects edited in place are dirty-tracked member by member', () => {
+  const src = fs.readFileSync(path.join(repoRoot, SETTINGS), 'utf8');
+  const snapshotBody = extractBody(
+    src,
+    /Map<String,\s*Object\?>\s+_currentSnapshot\s*\(\s*\)\s*(?:=>)?\s*\{/,
+    '_currentSnapshot',
+  );
+
+  const members = new Set();
+  for (const m of src.matchAll(/^\s*(_[A-Za-z0-9_]+\.[A-Za-z0-9_]+)\s*=(?!=)/gm)) {
+    members.add(m[1]);
+  }
+  assert.ok(
+    members.has('_proxySettings.type'),
+    'expected the proxy type to be edited in place — extraction broke?',
+  );
+
+  const missing = [...members].filter(
+    (member) => !new RegExp(`${member.replace('.', '\\.')}\\b`).test(snapshotBody),
+  );
+  assert.deepEqual(
+    missing,
+    [],
+    `members written in place but absent from _currentSnapshot (an edit to ` +
+      `only that member is dropped on back without a prompt — BUG-006): ` +
+      `${missing.join(', ')}. Register each in _currentSnapshot.`,
   );
 });

@@ -3989,7 +3989,7 @@
   },
   "permissionsSummaryMore": "{count} more",
   "@permissionsSummaryMore": {
-    "description": "Appended to the permissions or privacy summary in site settings when more entries are on than fit on the row.",
+    "description": "Appended to a summary row in site settings (behaviour, network, privacy or permissions) when more entries are on than fit on the row.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -4072,13 +4072,38 @@
   "@behaviourSummaryNothingOn": {
     "description": "Summary on the behaviour row in site settings when none of the behaviour switches is on."
   },
-  "siteSettingsSectionNetwork": "Network",
-  "@siteSettingsSectionNetwork": {
-    "description": "Heading in site settings for the group covering how the site's traffic reaches the internet: proxy and WebRTC."
+  "networkTitle": "Network",
+  "@networkTitle": {
+    "description": "Title of the per-site network screen, and of the row in site settings that opens it. Covers how the site's traffic reaches the internet (proxy, WebRTC) and the sign-ins saved for the site's server."
+  },
+  "networkGroupProxy": "Proxy",
+  "@networkGroupProxy": {
+    "description": "Heading for the network group holding the site's proxy: its type, address, credentials and a connection test."
+  },
+  "networkGroupConnection": "Connection",
+  "@networkGroupConnection": {
+    "description": "Heading for the network group holding the WebRTC policy (whether peer-to-peer calls may reveal the device's IP address) and the sign-ins saved for the site's server."
+  },
+  "networkSummaryDefault": "Default connection",
+  "@networkSummaryDefault": {
+    "description": "Summary on the network row in site settings when the site uses no proxy (neither its own nor the app-wide one) and the default WebRTC policy, so its traffic goes out the way the device's other traffic does."
+  },
+  "networkSummaryAppProxy": "App-wide proxy",
+  "@networkSummaryAppProxy": {
+    "description": "Entry in the network row summary in site settings when the site sets no proxy of its own and so goes through the app-wide outbound proxy configured in App Settings."
+  },
+  "networkSummaryWebRtc": "WebRTC: {policy}",
+  "@networkSummaryWebRtc": {
+    "description": "Entry in the network row summary in site settings when the site's WebRTC policy is not the default. {policy} is the chosen policy's name, such as 'Relay only' or 'Disabled'.",
+    "placeholders": {
+      "policy": {
+        "type": "String"
+      }
+    }
   },
   "siteSettingsSectionSite": "Site",
   "@siteSettingsSectionSite": {
-    "description": "Heading in site settings for the group holding the Permissions and Privacy rows, which open screens of their own."
+    "description": "Heading in site settings for the group holding the Behaviour, Network, Privacy and Permissions rows, which open screens of their own."
   },
   "homeScreenShareTitle": "Allow screen sharing?",
   "@homeScreenShareTitle": {
