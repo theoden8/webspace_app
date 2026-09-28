@@ -56,8 +56,14 @@ class TestProviderService : CredentialProviderService() {
         val response = BeginGetCredentialResponse.Builder()
         var code = 100
         for (option in request.beginGetCredentialOptions.filterIsInstance<BeginGetPublicKeyCredentialOption>()) {
-            val rpId = JSONObject(option.requestJson).optString("rpId")
-            for (c in Store(this).forRp(rpId)) {
+            val options = JSONObject(option.requestJson)
+            val rpId = options.optString("rpId")
+            // An RP that names its credentials gets only those, as from any
+            // provider; offering the rest would put a chooser in front of it.
+            val allowed = options.optJSONArray("allowCredentials")
+                ?.let { list -> (0 until list.length()).map { list.getJSONObject(it).getString("id") }.toSet() }
+                ?.takeIf { it.isNotEmpty() }
+            for (c in Store(this).forRp(rpId).filter { allowed == null || it.id in allowed }) {
                 val pi = PendingIntent.getActivity(this, code++,
                     Intent(this, GetPasskeyActivity::class.java).putExtra("credId", c.id),
                     PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)

@@ -135,6 +135,15 @@ TAP_PID=$!
 run_phase() {
   local phase="$1"
   echo "── phase $phase ──"
+  # A ceremony the previous phase left waiting keeps its sheet on top of
+  # the next launch, and the app under test never gets to run.
+  for _ in 1 2 3; do
+    adb_ shell dumpsys window 2>/dev/null | grep -m1 'mCurrentFocus=' \
+      | grep -q 'com.android.credentialmanager' || break
+    adb_ shell input keyevent KEYCODE_BACK
+    sleep 1
+  done
+  adb_ shell am force-stop "$APP_ID" >/dev/null 2>&1
   timeout -k 30s 20m $FLUTTER test integration_test/passkey_test.dart \
     -d "$device_id" --flavor fdebug \
     --dart-define=PASSKEY_GATE=true --dart-define=PASSKEY_GATE_PHASE="$phase" \
