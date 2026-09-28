@@ -799,6 +799,21 @@ about. The sampler now fills transparent window pixels from the
     the next run of it will say what happened in the job log rather than only in
     an artifact.
 
+    **The same symptom on the debug arm (2026-09-28, #643, run 36431970822):
+    not BUG-001.** Scenario A read `blank-white` (`uniform 0.9934`) with the app
+    in focus, and the page server again logged only the host's own curl. The
+    failure screenshot is Chromium's error page for
+    `http://10.0.2.2:<port>/dark.html` with `net::ERR_HTTP_RESPONSE_CODE_FAILURE`:
+    the navigation was answered with a non-2xx status and no body, and not by
+    the page server, so it was answered inside the emulator. The tier had run
+    `pm clear` after install, so no earlier tier's state was in play. The only
+    app code found that answers that way is the Android proxy relay
+    (`ProxyRelay.writeStatus`), which a DEFAULT site with no global proxy
+    should never reach; what answered is open. A main-frame failure now logs
+    its status, response header names and the proxy override/router state at
+    that moment without a URL, so the lines reach logcat, and the tier prints
+    them in its failure dump and keeps the whole logcat buffer.
+
 15. **The release predates the fix the tests are testing.** `v0.3.1` is tagged
     2026-08-27. Attempt 11 (`PAUSE-027`/`PAUSE-028`, the bounded commit window)
     landed 2026-09-03 in `7453743`, six days later. `v0.3.1:lib/main.dart`

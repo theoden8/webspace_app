@@ -78,6 +78,9 @@ if [ -n "$home_pkg" ] && [ "$home_pkg" != "$pkg" ]; then
   adb shell am force-stop "$home_pkg" 2>/dev/null || true
 fi
 adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
+# A failure dump reads logcat after a deadline of up to 180s; the ring has to
+# still hold the load that deadline was waiting on.
+adb logcat -G 16M >/dev/null 2>&1 || true
 
 www="$(mktemp -d)"
 server_log="$www/server.log"
@@ -353,7 +356,7 @@ wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectati
       echo "FAIL: $slug did not reach the expected pixels within ${deadline}s" >&2
       echo "  last classification: $out" >&2
       adb exec-out screencap -p > "$artifacts/fail-$slug.png" 2>/dev/null || true
-      adb logcat -d -t 500 > "$artifacts/fail-$slug.logcat.txt" 2>/dev/null || true
+      adb logcat -d > "$artifacts/fail-$slug.logcat.txt" 2>/dev/null || true
       printf '%s\n' "$out" > "$artifacts/fail-$slug.classify.json" || true
       # A blank frame alone does not say which bug it is: an app that is alive
       # and unpainted is BUG-001, a dead one or a system dialog over the window
@@ -364,6 +367,12 @@ wait_for_pixels() { # $1 = slug, $2 = deadline secs, rest = classifier expectati
         | grep -m1 -i 'mCurrentFocus' | tr -d '\r' || true)" >&2
       echo "  page server access log (did the emulator fetch the page?):" >&2
       tail -15 "$server_log" | sed 's/^/    /' >&2 || true
+      # A white frame is also what Chromium's error page looks like. These say
+      # whether the load failed, with what status and headers, and whether a
+      # proxy override or the router was in its path at that moment.
+      echo "  main-frame load failures:" >&2
+      adb logcat -d -s flutter:V 2>/dev/null | grep -F 'main-frame ' | tail -5 \
+        | sed 's/^/    /' >&2 || true
       echo "  last SurfaceDiag lines:" >&2
       adb logcat -d 2>/dev/null | grep -F 'SurfaceDiag' | tail -8 \
         | sed 's/^/    /' >&2 || true
