@@ -19,6 +19,10 @@
 (* egress is the VISIBLE site's proxy, so "each site egresses through its   *)
 (* own" only follows once they are known to agree. On-mode carries it       *)
 (* directly. One inductive invariant covers both.                          *)
+(*                                                                         *)
+(* Both properties read a slot's running identity (LIR-018): a hosted tab's *)
+(* rebind is part of GoodNext, so the proof also covers every interleaving  *)
+(* of tab switches that change what a slot runs as (LIR-024).               *)
 (***************************************************************************)
 EXTENDS proxy, TLAPS
 
@@ -35,16 +39,16 @@ USE NAssumption, ProxyTyping, RouterTyping
 
 LEMMA InitInd == Init => IndInv
   BY DEF Init, IndInv, TypeOK, Coherence, Inv_ProxyCoherent,
-         Inv_EgressMatchesConfig, ActiveProxy, EgressFor, Egresses, RouterOn,
-         Sites
+         Inv_EgressMatchesConfig, ActiveProxy, ProxyOfSlot, EgressFor,
+         Egresses, RouterOn, Sites
 
 LEMMA StepInd == IndInv /\ [GoodNext]_vars => IndInv'
   <1> SUFFICES ASSUME IndInv, [GoodNext]_vars
                PROVE  IndInv'
     OBVIOUS
   <1> USE DEF IndInv, TypeOK, Coherence, Inv_ProxyCoherent,
-              Inv_EgressMatchesConfig, ActiveProxy, EgressFor, Egresses,
-              RouterOn
+              Inv_EgressMatchesConfig, ActiveProxy, ProxyOfSlot, EgressFor,
+              Egresses, RouterOn
   <1>1. CASE GoodNext
     <2>1. CASE \E s \in Sites : Activate(s)
       BY <2>1 DEF Activate
@@ -52,8 +56,12 @@ LEMMA StepInd == IndInv /\ [GoodNext]_vars => IndInv'
       BY <2>2 DEF LoadAllowed
     <2>3. CASE \E s \in Sites : Unload(s)
       BY <2>3 DEF Unload
+    <2>4. CASE \E i \in Sites : RebindVisible(i)
+      BY <2>4 DEF RebindVisible
+    <2>5. CASE \E s, i \in Sites : RebindBackground(s, i)
+      BY <2>5 DEF RebindBackground
     <2> QED
-      BY <1>1, <2>1, <2>2, <2>3 DEF GoodNext
+      BY <1>1, <2>1, <2>2, <2>3, <2>4, <2>5 DEF GoodNext
   <1>2. CASE UNCHANGED vars
     BY <1>2 DEF vars
   <1> QED

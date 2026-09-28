@@ -52,8 +52,10 @@ void main() {
     String firstStatement(String signature) {
       final start = source.indexOf(signature);
       expect(start, isNot(-1), reason: '$signature not found');
-      final open = source.indexOf('{', start);
-      return source.substring(open + 1, source.indexOf(';', open));
+      // The body's brace, not a named-parameter list's.
+      final open = source.indexOf(RegExp(r'\)\s*(async\s*)?\{'), start);
+      final body = source.indexOf('{', open);
+      return source.substring(body + 1, source.indexOf(';', body));
     }
 
     test('the gate is the Site tabs switch and the site\'s own Tabs', () {
@@ -92,6 +94,17 @@ void main() {
             reason: '$signature must return before doing anything while '
                 'the site it acts on has no tabs');
       }
+    });
+
+    test('a hosted tab returns links to its owner only while it has tabs',
+        () {
+      expect(
+        RegExp(r'webViewModel\.onReturnToOwner =\s*'
+                r'_tabsEnabledFor\(webViewModel\)\s*\?')
+            .hasMatch(source),
+        isTrue,
+        reason: 'an owner without tabs has no tree to take the child',
+      );
     });
 
     test('the tab list leaves out sites without tabs', () {

@@ -68,6 +68,7 @@ const migrated = new Set([
   'lib/widgets/untrusted_cert_prompt.dart',
   'lib/widgets/url_bar.dart',
   'lib/widgets/virtual_source_preview.dart',
+  'lib/widgets/web_search_sheet.dart',
 ]);
 
 // Known not-yet-migrated. Shrinks as files move to `migrated`; goal is empty.

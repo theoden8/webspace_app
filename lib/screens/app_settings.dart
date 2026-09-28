@@ -122,6 +122,9 @@ class AppSettingsScreen extends StatefulWidget {
   final bool linkHandlingEnabled;
   final ValueChanged<bool> onLinkHandlingEnabledChanged;
   final VoidCallback onOpenLinkHandlingSettings;
+
+  /// The user's web search sites outside every archive (LIR-029).
+  final List<({String siteId, String name})> webSearchSites;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired after the global outbound proxy is updated. Parent should
@@ -183,6 +186,7 @@ class AppSettingsScreen extends StatefulWidget {
     required this.linkHandlingEnabled,
     required this.onLinkHandlingEnabledChanged,
     required this.onOpenLinkHandlingSettings,
+    this.webSearchSites = const [],
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onOutboundProxyChanged,
@@ -287,6 +291,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _loadAppVersion();
     _loadOsmTileUrl();
     _loadFirefoxAutoRefresh();
+    _loadWebSearchDefault();
     _outboundProxy = UserProxySettings(
       type: GlobalOutboundProxy.current.type,
       address: GlobalOutboundProxy.current.address,
@@ -1055,6 +1060,61 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     }
   }
 
+  String _webSearchDefault = '';
+
+  Future<void> _loadWebSearchDefault() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _webSearchDefault =
+        readPrefAs<String>(prefs, kWebSearchDefaultSiteKey) ?? '');
+  }
+
+  /// LIR-029: which web search site Web search starts with. Only sites outside
+  /// every archive are offered, so the pref never names an archived site.
+  Future<void> _pickWebSearchDefault() async {
+    final loc = AppLocalizations.of(context);
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.webSearchDefaultTitle),
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: widget.webSearchSites.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(loc.webSearchNoWebSites),
+                )
+              : RadioGroup<String>(
+                  groupValue: _webSearchDefault,
+                  onChanged: (v) => Navigator.pop(ctx, v),
+                  child: ListView(
+                    shrinkWrap: true,
+                    children: [
+                      for (final site in widget.webSearchSites)
+                        RadioListTile<String>(
+                          value: site.siteId,
+                          title: Text(site.name),
+                        ),
+                    ],
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(loc.commonCancel),
+          ),
+        ],
+      ),
+    );
+    if (picked == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(kWebSearchDefaultSiteKey, picked);
+    if (!mounted) return;
+    setState(() => _webSearchDefault = picked);
+  }
+
   Future<void> _loadFirefoxAutoRefresh() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
@@ -1553,6 +1613,25 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 : loc.appSettingsLinkHandlingOff),
             trailing: const Icon(Icons.chevron_right),
             onTap: widget.onOpenLinkHandlingSettings,
+          ),
+          ListTile(
+            leading: const Icon(Icons.travel_explore),
+            title: Row(
+              children: [
+                Flexible(child: Text(loc.webSearchDefaultTitle)),
+                HintButton(
+                  title: loc.webSearchDefaultTitle,
+                  description: loc.webSearchDefaultHint,
+                ),
+              ],
+            ),
+            subtitle: Text(widget.webSearchSites
+                    .where((s) => s.siteId == _webSearchDefault)
+                    .firstOrNull
+                    ?.name ??
+                loc.appSettingsNotConfigured),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickWebSearchDefault,
           ),
           const Divider(height: 32),
           // Global outbound proxy section

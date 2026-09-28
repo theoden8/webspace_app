@@ -121,6 +121,14 @@ expect proxy_router_reach.cfg proxy.tla "Reach_MismatchedCoLoaded is violated" \
 expect proxy_serialised_noconcurrency.cfg proxy.tla "No error has been found" \
   "and CANNOT co-load under PROXY-008 serialisation (same formula, both sides)"
 
+echo "── PROXY: hosted tabs follow the slot's identity (LIR-024) ──"
+expect proxy_staleident.cfg proxy.tla "Inv_EgressMatchesConfig is violated" \
+  "a background slot kept loaded under a mismatched identity is caught"
+expect proxy_sitenotslot.cfg proxy.tla "Inv_EgressMatchesConfig is violated" \
+  "serialising by the sites instead of their slot identities is caught"
+expect proxy_hosted_reach.cfg proxy.tla "Reach_HostedCoLoaded is violated" \
+  "a hosted slot co-loads with its host's own slot (not vacuous)"
+
 echo "── RETENTION: memory-pressure cascade + notification retention (PAUSE-006) ──"
 expect retention.cfg retention.tla "No error has been found" \
   "current is never evicted and notification sites are evicted last"
@@ -136,6 +144,10 @@ expect containers_alias.cfg containers.tla "Inv_Disjoint is violated" \
   "binding two sites to one container is caught"
 expect containers_reach.cfg containers.tla "Reach_TwoCreated is violated" \
   "two sites are actually created (disjointness not vacuous)"
+expect containers_ownermirror.cfg containers.tla "Inv_PostureMatchesContainer is violated" \
+  "a hosted slot mirroring cookies to its owner is caught (LIR-018)"
+expect containers_hosted_reach.cfg containers.tla "Reach_Hosted is violated" \
+  "a slot actually runs as another site (posture check not vacuous)"
 
 echo "── KIOSK: locked shortcut session seals the shell (KIOSK-001/002/003) ──"
 expect kiosk.cfg kiosk.tla "No error has been found" \

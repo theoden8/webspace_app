@@ -212,6 +212,14 @@ class _TabsSheetState extends State<TabsSheet> {
   Widget _row(TabsSheetSite site, TabRow row, AppLocalizations loc,
       ThemeData theme) {
     final tab = row.tab;
+    // A hosted tab runs as another site (LIR-018): the row shows that site's
+    // icon and names it, since two rows with one URL can be two identities.
+    final host = site.model.hostOf(tab);
+    final identity = host ?? site.model;
+    final domain = extractDomain(tab.url);
+    final secondLine = host == null
+        ? domain
+        : '${loc.tabsRunsAs(host.getDisplayName())} · $domain';
     final isActive = tab.id == site.model.activeTabId;
     final isLoaded = isActive && site.isLoaded;
     final isOnScreen = isLoaded && site.isCurrent;
@@ -255,11 +263,11 @@ class _TabsSheetState extends State<TabsSheet> {
                 child: Row(
                   children: [
                     UnifiedFaviconImage(
-                      url: site.model.initUrl,
+                      url: identity.initUrl,
                       size: IconSizes.inline,
-                      proxy: site.model.outboundProxySettings,
-                      customIcon: site.model.customIconPng,
-                      persist: !site.model.isArchiveTier,
+                      proxy: identity.outboundProxySettings,
+                      customIcon: identity.customIconPng,
+                      persist: !identity.isArchiveTier,
                     ),
                     const SizedBox(width: Spacing.sm),
                     Expanded(
@@ -282,7 +290,7 @@ class _TabsSheetState extends State<TabsSheet> {
                                     TabLifecycleEngine.descendants(
                                             site.model.tabs, tab.id)
                                         .length)
-                                : extractDomain(tab.url),
+                                : secondLine,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: theme.textTheme.bodySmall?.copyWith(

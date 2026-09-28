@@ -101,6 +101,10 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // site without mutating its claim list — users manage claims manually in
   // the site's link-handling settings.
   'linkHandlingClaimDomains': false,
+  // LIR-029: the siteId of the search site Web search starts with when the
+  // site on screen names none. Empty until the user picks one, so no build
+  // ships a default engine. Never an archived site's id (ARCH-001).
+  kWebSearchDefaultSiteKey: '',
   // Gates uBO web_accessible_resources/ — the resource pool that
   // backs $redirect= rules (noop.js, 1x1.gif, neutered tracker stubs)
   // and snippet injection. Enabled by default: filter authors rely on
@@ -147,6 +151,7 @@ const String kFirefoxUaAutoRefreshKey = 'firefoxUaAutoRefresh';
 
 const String kLinkHandlingEnabledKey = 'linkHandlingEnabled';
 const String kLinkHandlingClaimDomainsKey = 'linkHandlingClaimDomains';
+const String kWebSearchDefaultSiteKey = 'webSearchDefaultSite';
 const String kUseUboResourcesKey = 'useUboResources';
 const String kAppLocaleOverrideKey = 'appLocaleOverride';
 

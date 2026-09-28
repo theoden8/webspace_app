@@ -3441,6 +3441,92 @@
   "@homeFindMenu": {
     "description": "Menu item to open the find-in-page toolbar"
   },
+  "webSearchMenu": "Web search",
+  "@webSearchMenu": {
+    "description": "Row in the page's overflow menu, next to Find, that opens a field for searching the web with the user's chosen search engine. Also the tooltip of the arrow button that runs the search, and the field's placeholder before an engine is chosen."
+  },
+  "webSearchFieldHint": "Search with {engine}",
+  "@webSearchFieldHint": {
+    "description": "Placeholder of the web search field. {engine} is the chosen search engine's name, such as DuckDuckGo, or the web address it searches on.",
+    "placeholders": {
+      "engine": {
+        "type": "String",
+        "example": "DuckDuckGo"
+      }
+    }
+  },
+  "webSearchTemplateLabel": "Search address",
+  "@webSearchTemplateLabel": {
+    "description": "Label of the text field where the user types a custom search engine's web address."
+  },
+  "webSearchTemplateHelper": "Put %s where the search words go, for example https://example.com/search?q=%s",
+  "@webSearchTemplateHelper": {
+    "description": "Help text under the custom search address field. Keep both %s exactly as written: the app replaces %s with what the user searches for. Keep the example address unchanged."
+  },
+  "webSearchTemplateInvalid": "Needs an http or https address with %s in it",
+  "@webSearchTemplateInvalid": {
+    "description": "Error under the custom search address field when the address is not a web address or has no %s. Keep %s exactly as written."
+  },
+  "webSearchScopeWeb": "The web",
+  "@webSearchScopeWeb": {
+    "description": "Choice in the web search sheet: search the whole web. The other choice beside it is the name of the site on screen, for searching only that site."
+  },
+  "webSearchNoSites": "None of your sites can run this search. Add one:",
+  "@webSearchNoSites": {
+    "description": "Shown in the web search sheet when none of the user's sites is a search engine that can run the search. Search engines to add as new sites follow it, such as DuckDuckGo."
+  },
+  "webSearchDefaultTitle": "Default search",
+  "@webSearchDefaultTitle": {
+    "description": "Title of the App Settings row that picks which of the user's sites Web search starts with, and of the dialog listing them. The sites are search engines the user added as sites, such as DuckDuckGo."
+  },
+  "webSearchDefaultHint": "The search site Web search in the page menu starts with when the site on screen names none of its own. A search runs in that site, with its sign-in, proxy and blockers, never in the site you searched from. Search engines you add as sites appear here.",
+  "@webSearchDefaultHint": {
+    "description": "Explanation behind the hint button of the Default search row in App Settings. 'Page menu' is the three-dot menu of a site."
+  },
+  "webSearchNoWebSites": "None of your sites searches the web yet. Add a search engine, such as DuckDuckGo, as a site.",
+  "@webSearchNoWebSites": {
+    "description": "Shown instead of a list when the user has no site that is a web search engine."
+  },
+  "webSearchGroup": "Search",
+  "@webSearchGroup": {
+    "description": "Group heading in a site's Behaviour settings for how the site is searched and what a search from it offers."
+  },
+  "webSearchAddressHint": "How to search this site: an address with %s where the search words go. Known search engines, and sites such as GitHub or Wikipedia, fill it in themselves. A site with a search address is offered by Web search.",
+  "@webSearchAddressHint": {
+    "description": "Explanation behind the hint button of the Search address row in a site's Behaviour settings. Keep %s exactly as written."
+  },
+  "webSearchSearchesWeb": "Searches the whole web",
+  "@webSearchSearchesWeb": {
+    "description": "Switch in the search address dialog: on when the address searches the whole web, like a search engine; off when it searches only this site, like a site's own search box."
+  },
+  "webSearchAddressReset": "Reset",
+  "@webSearchAddressReset": {
+    "description": "Button in the search address dialog that drops the typed address and goes back to the one the site is known for, if any."
+  },
+  "webSearchFromSiteTitle": "Default search from this site",
+  "@webSearchFromSiteTitle": {
+    "description": "Title of the row in a site's Behaviour settings that picks which search site Web search starts with while this site is on screen, and of the dialog listing them."
+  },
+  "webSearchFromSiteHint": "The search site Web search starts with while you are on this site. The others stay one tap away in the search sheet.",
+  "@webSearchFromSiteHint": {
+    "description": "Explanation behind the hint button of the Default search from this site row."
+  },
+  "webSearchUseAppDefault": "App default",
+  "@webSearchUseAppDefault": {
+    "description": "Choice and row value meaning the site follows the Default search set in App Settings."
+  },
+  "webSearchOfferedTitle": "Search sites offered",
+  "@webSearchOfferedTitle": {
+    "description": "Title of the row in a site's Behaviour settings that limits which search sites a search from this site offers, and of the dialog with a checkbox per search site."
+  },
+  "webSearchOfferedHint": "Which of your search sites a search from this site offers. With none picked, every one is offered. This site's own search is always offered.",
+  "@webSearchOfferedHint": {
+    "description": "Explanation behind the hint button of the Search sites offered row."
+  },
+  "webSearchOfferedAll": "All",
+  "@webSearchOfferedAll": {
+    "description": "Row value when a site limits nothing: every search site is offered."
+  },
   "homeHideUrlBarMenu": "Hide URL Bar",
   "@homeHideUrlBarMenu": {
     "description": "Menu item to hide the URL bar"
@@ -4629,6 +4715,16 @@
   "tabsSwitchAction": "Switch",
   "@tabsSwitchAction": {
     "description": "Action on the confirmation that opens the tab that was just created in the background."
+  },
+  "tabsRunsAs": "as {site}",
+  "@tabsRunsAs": {
+    "description": "In the tab list, beside a tab's web address: the tab belongs to the current site's list but runs as another of the user's sites, with that site's sign-in and settings. {site} is that site's name, for example 'as DuckDuckGo'. Lowercase unless the language requires otherwise.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "DuckDuckGo"
+      }
+    }
   },
   "tabsLinkOutsideSite": "{host} belongs to another site, so it opens on top of this one instead of in a tab",
   "@tabsLinkOutsideSite": {

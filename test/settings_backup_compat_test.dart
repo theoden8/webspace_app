@@ -102,6 +102,19 @@ Object? _expectedImported(String key, Object? value) => switch (key) {
       _ => value,
     };
 
+/// The superset's [value] for [key] as far as a release that [written] it
+/// knew it. A list of records grows by kinds a later release adds (a hosted
+/// tab, LIR-018), and an earlier release wrote only the records it had.
+Object? _asWritten(String key, Object? value, Object? written) => switch (key) {
+      'tabs' => [
+          for (final t in value as List)
+            if ((written as List)
+                .any((w) => (w as Map)['id'] == (t as Map)['id']))
+              t,
+        ],
+      _ => value,
+    };
+
 /// A key a release wrote under a name HEAD no longer uses, and the name its
 /// value lives under now. `fromJson` must read the old name and carry the
 /// value over; add the pair here when you rename a persisted key.
@@ -388,7 +401,8 @@ void main() {
                       if (e.value == key && written.containsKey(e.key)) e.key,
                   ].firstOrNull;
             final expected = writtenAs != null
-                ? _expectedImported(key, want[key])
+                ? _expectedImported(
+                    key, _asWritten(key, want[key], written[writtenAs]))
                 : fresh[key];
             expect(got[key], expected,
                 reason: writtenAs != null

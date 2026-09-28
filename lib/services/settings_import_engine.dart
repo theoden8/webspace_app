@@ -116,6 +116,17 @@ SettingsImportPlan planSettingsImport(
     setPrefs: (s, prefs) => s.outboundPreferences = prefs,
     isCandidate: (_, id) => known.contains(id),
   );
+  // LIR-031: and searches only with one.
+  for (final site in sites) {
+    site.pruneSearchReferences(known.contains);
+  }
+  final appPrefs = resolveExportedAppPrefs(backup.globalPrefs);
+  final searchDefault = appPrefs[kWebSearchDefaultSiteKey];
+  if (searchDefault is String &&
+      searchDefault.isNotEmpty &&
+      !known.contains(searchDefault)) {
+    appPrefs[kWebSearchDefaultSiteKey] = '';
+  }
 
   final selected = backup.selectedWebspaceId;
   final current = backup.currentIndex;
@@ -124,7 +135,7 @@ SettingsImportPlan planSettingsImport(
     sites: sites,
     webspaces: webspaces,
     themeStorageIndex: normalizeBackupThemeIndex(backup.themeMode, backup.sites),
-    appPrefs: resolveExportedAppPrefs(backup.globalPrefs),
+    appPrefs: appPrefs,
     selectedWebspaceId:
         selected != null && webspaces.any((ws) => ws.id == selected)
             ? selected

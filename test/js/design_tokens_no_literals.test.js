@@ -32,6 +32,7 @@ const MIGRATED = [
   'lib/widgets/tab_bar_corner_button.dart',
   'lib/widgets/tabs_sheet.dart',
   'lib/widgets/tor_bootstrap.dart',
+  'lib/widgets/web_search_sheet.dart',
   // Ambient layout state, no painting: nothing to tokenise.
   'lib/widgets/surface_nudge_scope.dart',
   'lib/widgets/tor_status_card.dart',

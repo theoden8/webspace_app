@@ -291,6 +291,36 @@ class TabLifecycleEngine {
     );
   }
 
+  /// Close every tab [shouldClose] names, with TAB-007's re-parenting. Used
+  /// for hosted tabs whose host is gone or may no longer host (LIR-023).
+  static TabCloseResult closeWhere(
+    List<SiteTab> tabs,
+    String activeTabId,
+    bool Function(SiteTab tab) shouldClose,
+  ) =>
+      _close(
+        tabs,
+        activeTabId,
+        {for (final t in tabs) if (shouldClose(t)) t.id},
+        reparent: true,
+      );
+
+  /// The tab an owner URL may load into (LIR-018): [activeTabId] when the
+  /// owner runs it itself, else its nearest ancestor the owner runs, else null
+  /// (the caller opens a new root tab at the owner's home).
+  static String? ownerRunTab(List<SiteTab> tabs, String activeTabId) {
+    final byId = {for (final t in tabs) t.id: t};
+    final seen = <String>{};
+    String? id = activeTabId;
+    while (id != null && seen.add(id)) {
+      final tab = byId[id];
+      if (tab == null) return null;
+      if (tab.hostSiteId == null) return tab.id;
+      id = tab.parentId;
+    }
+    return null;
+  }
+
   /// What a back gesture means once the active tab's own history is exhausted.
   ///
   /// A tab the user opened from another tab closes and hands back to its
@@ -332,20 +362,22 @@ class TabLifecycleEngine {
   }
 
   /// Where a site with tabs lands when it is entered with Always open Home on
-  /// (TAB-014): a tab at its home page. Null when the active tab is already
-  /// there. Otherwise the most recently used parked tab at home, or failing
-  /// that a new root tab at [initUrl], appended. Either way the tab the site
-  /// was on is kept.
+  /// (TAB-014): a tab at its home page that the site runs itself (LIR-018).
+  /// Null when the active tab is already there. Otherwise the most recently
+  /// used parked tab at home, or failing that a new root tab at [initUrl],
+  /// appended. Either way the tab the site was on is kept.
   static ({List<SiteTab> tabs, String activeTabId})? homeLanding(
     List<SiteTab> tabs,
     String activeTabId,
     String initUrl,
   ) {
+    bool ownHome(SiteTab t) =>
+        t.hostSiteId == null && isHomeUrl(t.url, initUrl);
     final active = tabs.where((t) => t.id == activeTabId).firstOrNull;
-    if (active != null && isHomeUrl(active.url, initUrl)) return null;
+    if (active != null && ownHome(active)) return null;
     SiteTab? home;
     for (final t in tabs) {
-      if (t.id == activeTabId || !isHomeUrl(t.url, initUrl)) continue;
+      if (t.id == activeTabId || !ownHome(t)) continue;
       if (home == null || t.lastActiveAt.isAfter(home.lastActiveAt)) home = t;
     }
     if (home != null) return (tabs: tabs, activeTabId: home.id);

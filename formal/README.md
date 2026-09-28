@@ -65,7 +65,10 @@ class.
 - **`proxy.tla`** + `proxy*.cfg` — proxy mutual exclusion (spec: `proxy`). `Inv_ProxyCoherent`
   (every loaded site shares the active proxy, because Android serialises mismatched-proxy
   sites onto one native proxy slot); the `mismatch` demonstrator co-loads a mismatched site
-  and is caught. Standalone (fixed scenario).
+  and is caught. A slot's proxy is its running identity's (`ident`, LIR-018/LIR-024): a
+  hosted tab's rebind serialises the visible slot and unloads a background one; the
+  `staleident` and `sitenotslot` demonstrators keep a mismatched background slot loaded and
+  serialise by the sites instead of their slots. Standalone (fixed scenario).
 - **`retention.tla`** + `retention*.cfg` — memory-pressure cascade picker (PAUSE-006).
   `Inv_CurrentKept` (the active site is never evicted) + `Inv_NotifLast` (higher-retention /
   notification sites are evicted last); the `starve` demonstrator evicts a retained site early
@@ -74,6 +77,9 @@ class.
   `per-site-containers`). `Inv_Disjoint` (the site → container binding is injective, so no two
   sites share storage); the `alias` demonstrator binds two sites to one container and is
   caught. A relational invariant (the Alloy-shaped property), checked bounded in TLC.
+  `Inv_PostureMatchesContainer` (LIR-018: a slot binds the container of the site whose posture
+  and cookie mirror it applies); the `ownermirror` demonstrator binds a host's container while
+  mirroring cookies to the owner.
 - **`kiosk.tla`** + `kiosk*.cfg` — kiosk-mode shell lock (spec: `kiosk-mode`).
   `Inv_LockedIsSealed` (a locked kiosk-shortcut session hides the drawer / tab strip / app-bar
   actions and holds fullscreen) + `Inv_LockMatchesSource` (lock ⇔ kiosk-shortcut launch); the

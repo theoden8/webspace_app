@@ -348,4 +348,69 @@ void main() {
       expect(action, isA<DispatchCreateSiteFromHtml>());
     });
   });
+
+  group('LinkIntentDispatchEngine.openInChosen — search origin (LIR-030)', () {
+    _Site ddg({bool incognito = false, bool alwaysOpenHome = false}) => _Site(
+          siteId: 'ddg',
+          initUrl: 'https://duckduckgo.com/',
+          domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
+          incognito: incognito,
+          alwaysOpenHome: alwaysOpenHome,
+        );
+    final query = Uri.parse('https://duckduckgo.com/?q=flutter+tabs');
+
+    test('a search never resets the search site', () {
+      for (final site in [
+        ddg(incognito: true),
+        ddg(alwaysOpenHome: true),
+      ]) {
+        final action = LinkIntentDispatchEngine.openInChosen(
+          inbound: query,
+          site: site,
+          origin: InboundOrigin.search,
+        ) as DispatchOpenInMain;
+        expect(action.url, query.toString());
+        expect(action.disposeBeforeLoad, isFalse);
+        expect(action.wipeContainer, isFalse);
+        expect(action.clearInMemoryCookies, isFalse);
+      }
+    });
+
+    test('a search opens a new tab exactly when tabs are on', () {
+      for (final tabs in [true, false]) {
+        final action = LinkIntentDispatchEngine.openInChosen(
+          inbound: query,
+          site: ddg(),
+          origin: InboundOrigin.search,
+          tabsEnabled: tabs,
+        ) as DispatchOpenInMain;
+        expect(action.newTab, tabs);
+      }
+    });
+
+    test('a pick from the share picker keeps the LIR-011 reset and no tab', () {
+      final action = LinkIntentDispatchEngine.openInChosen(
+        inbound: query,
+        site: ddg(incognito: true),
+        tabsEnabled: true,
+      ) as DispatchOpenInMain;
+      expect(action.wipeContainer, isTrue);
+      expect(action.newTab, isFalse);
+    });
+
+    test('a search address off the site\'s domain nests with its posture', () {
+      final searx = _Site(
+        siteId: 'searx',
+        initUrl: 'https://searx.example/',
+        domainClaims: const [],
+      );
+      final action = LinkIntentDispatchEngine.openInChosen(
+        inbound: query,
+        site: searx,
+        origin: InboundOrigin.search,
+        tabsEnabled: true,
+      );
+      expect(action, isA<DispatchOpenNested>());
+    });
+  });
 }

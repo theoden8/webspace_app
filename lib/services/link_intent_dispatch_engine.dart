@@ -44,6 +44,12 @@ class InboundHtml extends InboundPayload {
   });
 }
 
+/// Where a URL opened in a chosen site came from. A share arrives from outside
+/// the app, so it gets the LIR-011 reset and resumes the site's tab (TAB-004).
+/// A search is the user typing inside the app (LIR-030), as they would into
+/// the engine's own search box: no reset, and a new tab when tabs are on.
+enum InboundOrigin { share, search }
+
 /// Subset of [WebViewModel] the engine needs. Adapter lives at the call
 /// site so the engine has zero dependency on Flutter.
 abstract class DispatchableSite implements RoutableSite {
@@ -81,12 +87,18 @@ class DispatchOpenInMain extends DispatchAction {
   final bool disposeBeforeLoad;
   final bool wipeContainer;
   final bool clearInMemoryCookies;
+
+  /// Load [url] in a new tab of the site instead of its active one (LIR-030,
+  /// TAB-005). Only a search sets it, and only while tabs are on.
+  final bool newTab;
+
   const DispatchOpenInMain({
     required this.siteId,
     required this.url,
     required this.disposeBeforeLoad,
     required this.wipeContainer,
     required this.clearInMemoryCookies,
+    this.newTab = false,
   });
 }
 
@@ -205,7 +217,8 @@ class LinkIntentDispatchEngine {
     }
     final match = LinkRoutingService.resolve(target, sites);
     if (match is RoutingSingle) {
-      return _openInExisting(match.site as DispatchableSite, target);
+      return _openInExisting(
+          match.site as DispatchableSite, target, InboundOrigin.share, false);
     }
     return DispatchShowPicker(
       winnerSiteIds: match is RoutingAmbiguous
@@ -342,13 +355,16 @@ class LinkIntentDispatchEngine {
     ];
   }
 
-  /// User picked an "Open in [site]" row from the picker.
+  /// User picked an "Open in [site]" row from the picker, or web search runs
+  /// in [site] (LIR-030, [InboundOrigin.search]).
   static DispatchAction openInChosen({
     required Uri inbound,
     required DispatchableSite site,
+    InboundOrigin origin = InboundOrigin.share,
+    bool tabsEnabled = false,
   }) {
     final target = _normalizeInbound(inbound) ?? inbound;
-    return _openInExisting(site, target);
+    return _openInExisting(site, target, origin, tabsEnabled);
   }
 
   /// User picked "Send [host] (and subdomains) to [site]". The returned
@@ -369,7 +385,7 @@ class LinkIntentDispatchEngine {
       // still produces an out-of-domain share → nested webview. This is
       // by design (LIR-011): claims drive routing of *future* arrivals;
       // the current arrival respects the existing site's session.
-      followUp: _openInExisting(site, target),
+      followUp: _openInExisting(site, target, InboundOrigin.share, false),
     );
   }
 
@@ -413,6 +429,8 @@ class LinkIntentDispatchEngine {
   static DispatchAction _openInExisting(
     DispatchableSite site,
     Uri inbound,
+    InboundOrigin origin,
+    bool tabsEnabled,
   ) {
     final inDomain =
         getNormalizedDomain(inbound.toString()) == site.navigationDomain;
@@ -420,6 +438,16 @@ class LinkIntentDispatchEngine {
       return DispatchOpenNested(
         siteId: site.siteId,
         url: inbound.toString(),
+      );
+    }
+    if (origin == InboundOrigin.search) {
+      return DispatchOpenInMain(
+        siteId: site.siteId,
+        url: inbound.toString(),
+        disposeBeforeLoad: false,
+        wipeContainer: false,
+        clearInMemoryCookies: false,
+        newTab: tabsEnabled,
       );
     }
     final reset = site.incognito || site.alwaysOpenHome;

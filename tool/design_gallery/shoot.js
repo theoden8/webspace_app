@@ -23,6 +23,8 @@ const CARDS = [
   { id: 'add-site', width: 400, height: 740 },
   { id: 'unproxied-block', width: 400, height: 740 },
   { id: 'tabs-sheet', width: 400, height: 740 },
+  { id: 'web-search-sheet', width: 400, height: 520 },
+  { id: 'web-search-empty', width: 400, height: 520 },
   { id: 'user-scripts', width: 400, height: 740 },
   { id: 'trusted-certificates', width: 400, height: 560 },
   { id: 'location-picker', width: 400, height: 740 },

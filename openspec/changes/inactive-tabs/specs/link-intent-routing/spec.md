@@ -11,11 +11,13 @@ A hosted tab is **owned** by the site whose tab list holds it: it is listed, act
 - the host's identity plumbing: the cookie reader and the cookie mirror (`cookieSiteId`, and the model `onCookiesChanged` writes, which is the host's, never the owner's), the `blockedCookies` sweep, the anti-fingerprinting seed, block-statistics attribution and notification attribution;
 - the host's navigation rules: `initUrl` and domain claims for the same-domain test, `blockAutoRedirects`, `externalLinksInBrowser`, and outbound routing (LIR-014) with the host as source. Home (NAV-004) goes to the host's `initUrl`.
 
+One exception returns the owner's own content to it. A link the host's rules would not load in place (nested, routed, or sent to the browser) whose normalized domain is the owner's navigation domain SHALL open as a child tab of the hosted tab, run as the owner, and take the slot, whatever the host's external-link mode and routing say. A redirect without a gesture that the host blocks stays blocked. An owner without tabs (TAB-013) has no tree to take the child, so the link leaves by the host's rules.
+
 What belongs to the webview slot stays with the owner: the `IndexedStack` slot and its key, membership of the loaded set, pause and retention tier, auto-load, the background-audio exemption, the kiosk and fullscreen shell, and the tab list with its url and title writes. The HTML cache, a per-site snapshot of the owner's own page, SHALL be neither read nor written while a hosted tab is active.
 
 A hosted tab's `url` SHALL stay inside its host's navigation domain (`getNormalizedDomain(url) == getNormalizedDomain(host.initUrl)`), which is TAB-001's rule with the host in place of the owner. TAB-001 and TAB-002 make the same exception: such a tab is in its host's domain and shares its host's container and posture, not its owner's. Hosted tabs SHALL NOT add a webview: the host may be loaded in its own slot at the same time, and both webviews bind the host's container, as a nested screen already does.
 
-A path that loads an owner URL into the owner's webview (a home-shortcut launch, the Always open Home reset, an inbound LIR-011 open-in-main) SHALL first bind the owner's slot to a tab the owner runs itself: the active tab when it has no host, else its nearest ancestor that has none, else a new root tab at the owner's `initUrl`. It SHALL NOT load an owner URL into a slot running as another site.
+A path that loads an owner URL into the owner's webview (a home-shortcut launch, the Always open Home reset, an inbound LIR-011 open-in-main) SHALL first bind the owner's slot to a tab the owner runs itself: the active tab when it has no host, else its nearest ancestor that has none, else a new root tab at the owner's `initUrl`. It SHALL NOT load an owner URL into a slot running as another site. A TAB-014 landing looks for a tab at home only among the tabs the owner runs itself.
 
 The tab list SHALL mark a hosted tab with its host's name, since two rows with the same URL can run as different identities.
 
@@ -40,7 +42,14 @@ The tab list SHALL mark a hosted tab with its host's name, since two rows with t
 - **GIVEN** the hosted GitHub tab is active in DuckDuckGo's slot
 - **WHEN** the user taps a link to `https://docs.github.com/`
 - **THEN** it loads in place, because it is inside GitHub's navigation domain
-- **AND** a tap on `https://duckduckgo.com/` is treated as cross-domain for GitHub, so it opens nested or routed as GitHub's settings decide
+- **AND** a tap on `https://medium.com/` is treated as cross-domain for GitHub, so it opens nested or routed as GitHub's settings decide
+
+#### Scenario: A link into the owner's domain returns to the owner
+
+- **GIVEN** the hosted GitHub tab is active in DuckDuckGo's slot
+- **WHEN** the user taps a link to `https://duckduckgo.com/?q=tabs`
+- **THEN** it opens as a child tab of the hosted tab, run as DuckDuckGo, and becomes active
+- **AND** back at its start returns to the hosted GitHub tab
 
 #### Scenario: The HTML cache is left alone
 

@@ -153,6 +153,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late ExternalLinkMode _externalLinkMode;
   late bool _routeOutboundLinks;
   late List<OutboundPreference> _outboundPreferences;
+  String? _searchAddress;
+  late bool _searchesWeb;
+  late List<String> _searchSites;
+  String? _searchDefault;
   late bool _fullscreenMode;
   late bool _tabsEnabled;
   late bool _htmlCachingEnabled;
@@ -257,6 +261,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'externalLinkMode': _externalLinkMode,
         'routeOutboundLinks': _routeOutboundLinks,
         'outboundPreferences': _outboundPreferences.join(','),
+        'searchAddress': _searchAddress,
+        'searchesWeb': _searchesWeb,
+        'searchSites': _searchSites.join(','),
+        'searchDefault': _searchDefault,
         'fullscreenMode': _fullscreenMode,
         'tabsEnabled': _tabsEnabled,
         'htmlCachingEnabled': _htmlCachingEnabled,
@@ -497,6 +505,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _externalLinkMode = m.externalLinkMode;
     _routeOutboundLinks = m.routeOutboundLinks;
     _outboundPreferences = [...m.outboundPreferences];
+    _searchAddress = m.searchAddress;
+    _searchesWeb = m.searchesWeb;
+    _searchSites = [...m.searchSites];
+    _searchDefault = m.searchDefault;
     _fullscreenMode = m.fullscreenMode;
     _tabsEnabled = m.tabsEnabled;
     _htmlCachingEnabled = m.htmlCachingEnabled;
@@ -649,6 +661,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.externalLinkMode = _externalLinkMode;
       widget.webViewModel.routeOutboundLinks = _routeOutboundLinks;
       widget.webViewModel.outboundPreferences = [..._outboundPreferences];
+      widget.webViewModel.searchAddress = _searchAddress;
+      widget.webViewModel.searchesWeb = _searchesWeb;
+      widget.webViewModel.searchSites = [..._searchSites];
+      widget.webViewModel.searchDefault = _searchDefault;
       widget.webViewModel.fullscreenMode = _fullscreenMode;
       widget.webViewModel.tabsEnabled = _tabsEnabled;
       widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
@@ -1017,6 +1033,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         externalLinkMode: _externalLinkMode,
         routeOutboundLinks: _routeOutboundLinks,
         outboundPreferences: _outboundPreferences,
+        searchAddress: _searchAddress,
+        searchesWeb: _searchesWeb,
+        searchSites: _searchSites,
+        searchDefault: _searchDefault,
       );
 
   /// One of the four rows that open a screen of their own. Behaviour is what
@@ -1071,6 +1091,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           values: _behaviourValues,
           containersActive: widget.useContainers,
           routingTargets: widget.routingTargets,
+          initUrl: widget.webViewModel.initUrl,
           // Writes straight to the model, like it did inline: domain claims
           // are not part of the dirty snapshot and are saved as they are
           // edited.
@@ -1091,6 +1112,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _externalLinkMode = values.externalLinkMode;
               _routeOutboundLinks = values.routeOutboundLinks;
               _outboundPreferences = values.outboundPreferences;
+              _searchAddress = values.searchAddress;
+              _searchesWeb = values.searchesWeb;
+              _searchSites = values.searchSites;
+              _searchDefault = values.searchDefault;
             });
           },
         ),

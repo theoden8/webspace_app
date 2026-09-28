@@ -97,8 +97,8 @@ Tapping a site in the strip or drawer, a cold start, a home-shortcut tap and
 a share arrival SHALL resume the site's active tab and SHALL NOT create a tab,
 except that a cold start or a home-shortcut tap lands a site with Always open
 Home on a tab at home (TAB-014). A tab SHALL be created only by "New tab"
-(TAB-005), "Open in new tab" (TAB-006), "Duplicate tab" (TAB-010) and that
-landing. Home (NAV-004) SHALL act on the active tab: `initUrl` with history
+(TAB-005), "Open in new tab" (TAB-006), "Duplicate tab" (TAB-010), a web search
+(LIR-030) and that landing. Home (NAV-004) SHALL act on the active tab: `initUrl` with history
 cleared, no new tab.
 
 #### Scenario: Reopening a site resumes
@@ -120,11 +120,14 @@ cleared, no new tab.
 ### Requirement: TAB-005 - New tab
 
 "New tab" SHALL create a root tab at the site's `initUrl`, make it active with
-an empty history, and park the previous active tab per TAB-003. It SHALL be
-reachable from the Tabs sheet header and from the overflow menu, meaning both
-of them: the app bar's, and the bottom bar's when the tab strip is shown. A
-long press on a strip chip is not an entry point: it already starts the drag
-that reorders sites.
+an empty history, and park the previous active tab per TAB-003. A web search
+(LIR-030) SHALL open its tab the same way at the search URL: as a child of the
+tab searched from when it lands in the same site's tree, including as a hosted
+tab (LIR-018), or as a root tab of the search site when it falls back to it.
+"New tab" SHALL be reachable from the Tabs sheet header and from the overflow
+menu, meaning both of them: the app bar's, and the bottom bar's when the tab
+strip is shown. A long press on a strip chip is not an entry point: it already
+starts the drag that reorders sites.
 
 #### Scenario: New tab from a deep page
 
