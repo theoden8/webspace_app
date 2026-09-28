@@ -1792,6 +1792,43 @@ jobs:
           fi
           exit $rc
 
+      # iOS defuncts every socket a suspended app owns except Unix-domain
+      # ones, and a phone came back from a suspension with tor's control and
+      # SOCKS ports dead (BUG-013). pid_shutdown_sockets does the same to a
+      # macOS process, but it also takes the VM service connection
+      # `flutter test` drives the app over, so the probe is the Runner's
+      # entrypoint here and reports on stderr. The root helper serves one
+      # request if the app sandbox refuses the call on the app's own pid.
+      - name: Run the Tor suspension probe
+        id: tor_suspend
+        if: success() || failure()
+        timeout-minutes: 25
+        run: |
+          log="${RUNNER_TEMP:-/tmp}/tor-suspend.log"
+          helper="${RUNNER_TEMP:-/tmp}/defunct_sockets"
+          cc -Wno-deprecated-declarations -o "$helper" tool/tor_suspension/defunct_sockets.c
+          fvm flutter build macos --debug -t integration_test/tor_suspension_probe.dart
+          app="$(ls -d build/macos/Build/Products/Debug/*.app | head -1)"
+          exe="$app/Contents/MacOS/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Contents/Info.plist")"
+          "$exe" > "$log" 2>&1 &
+          pid=$!
+          for _ in $(seq 1 900); do
+            kill -0 "$pid" 2>/dev/null || break
+            if grep -q 'request-defunct' "$log"; then
+              sudo "$helper" "$pid"
+              break
+            fi
+            sleep 1
+          done
+          rc=0
+          wait "$pid" || rc=$?
+          grep -F '[tor-suspend]' "$log" || true
+          if [ $rc -ne 0 ]; then
+            echo "=== Tor suspension probe: last 80 lines ==="
+            tail -80 "$log" || true
+          fi
+          exit $rc
+
       # Last, so the tail of the job log always says how the Tor scenario
       # went even when its own step scrolled past behind the tier's summary.
       - name: Report the Tor scenario outcome
@@ -1804,6 +1841,8 @@ jobs:
             echo "=== Tor scenario: last 80 lines ==="
             tail -80 "${RUNNER_TEMP:-/tmp}/tor-scenario.log" || true
           fi
+          echo "=== Tor suspension probe: ${{ steps.tor_suspend.outcome }} ==="
+          grep -F '[tor-suspend]' "${RUNNER_TEMP:-/tmp}/tor-suspend.log" || true
 
       - name: Create macOS ZIP archive
         run: |
