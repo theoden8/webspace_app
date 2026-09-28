@@ -133,6 +133,29 @@ void main() {
     fail('timed out after ${timeout.inSeconds}s waiting for: $description');
   }
 
+  // Integration tests drive the real soft keyboard, which comes and goes on
+  // the IME's schedule, and each inset change resizes the dialog. A target
+  // scrolled into view after a fixed pause can be below the scroll viewport
+  // by the next frame (BUG-020), so scroll it in again every frame and tap
+  // only once its centre hit-tests to it. No frame runs between that check
+  // and the pointer-down, so the tap lands on the layout just checked.
+  Future<void> tapWhenHittable(
+    WidgetTester tester,
+    Finder target, {
+    required String description,
+  }) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 30));
+    while (DateTime.now().isBefore(deadline)) {
+      await tester.ensureVisible(target);
+      await tester.pump(const Duration(milliseconds: 200));
+      if (target.hitTestable().evaluate().isNotEmpty) {
+        await tester.tap(target);
+        return;
+      }
+    }
+    fail('timed out after 30s waiting for $description to take a tap');
+  }
+
   Future<Map<String, dynamic>?> probe(
     WidgetTester tester,
     WebViewController? Function() controller,
@@ -310,14 +333,11 @@ void main() {
         reason: 'the retry keeps the username that was typed');
 
     await tester.enterText(find.byType(TextField).at(1), _password);
-    // The retry dialog carries the refusal line and the keyboard is up for
-    // the password, so the remember row can sit below the dialog's scroll
-    // viewport, where a tap at its centre lands on the viewport instead.
+    // The retry dialog carries the refusal line, so while the keyboard is up
+    // the remember row sits below the dialog's scroll viewport.
     FocusManager.instance.primaryFocus?.unfocus();
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.ensureVisible(find.byType(Checkbox));
-    await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byType(Checkbox));
+    await tapWhenHittable(tester, find.byType(Checkbox),
+        description: 'the remember box');
     await tester.pump();
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue,
         reason: 'the remember box must be ticked before signing in');
