@@ -331,6 +331,8 @@
   "appSettingsExperimentalTextureRenderingHint": "各ページを、アプリに重ねた別の Android ビューとしてではなく、WebSpace 自身が合成するテクスチャに描画します。スマートフォンを回転させるかアプリを切り替えるまで真っ白なままになるページを防げる可能性があります。この方法では入力、テキスト選択、スクリーンリーダーの検証が少なく、高速スクロールがカクつくことがあります。次回アプリを起動したときに有効になります。",
   "appSettingsExperimentalSiteTabs": "サイト内タブ",
   "appSettingsExperimentalSiteTabsHint": "ブラウザのタブのように、1つのサイトで複数のページを同時に開いておけるようにします。上部のタブ数からタブ一覧を開けるほか、メニューには「新しいタブ」と「タブを複製」が、リンクを長押しすると「新しいタブで開く」が表示されます。サイトのタブはすべて、そのサイトのログイン状態と設定を共有します。オフにすると、各サイトは以前と同じく1ページだけを表示します。すでに開いたタブは、再びオンにしたときのために保持されます。",
+  "appSettingsExperimentalPasskeys": "パスキー",
+  "appSettingsExperimentalPasskeysHint": "Android の設定で選んだパスキー アプリに保存されたパスキーで、ブラウザと同じようにサイトにログインできるようにします。Android 14 以降が必要です。サイトごとに WebSpace を信頼するかどうかは各パスキー アプリが判断します。Bitwarden は一度だけ確認を求めますが、Google のリストにあるブラウザしか信頼しないアプリ（Google Password Manager や Proton Pass など）は拒否します。アーカイブ内のサイトでは使われません。",
   "appSettingsDeveloperModeTorWarningConfirm": "オフにする",
   "appSettingsDeveloperModeAlreadyOn": "開発者モードはすでにオンです",
   "appSettingsDeveloperModeStepsAway": "開発者モードをオンにするまであと {count} 回タップ",

@@ -298,6 +298,39 @@ test('LOC-011: a live fix is served to the top document only', () => {
     + 'gets in a browser');
 });
 
+test('PASSKEY-004: the origin asserted to Credential Manager is the bridge\'s, not the page\'s', () => {
+  const at = WEBVIEW.indexOf("handlerName: 'webauthnRequest'");
+  assert.notEqual(at, -1, 'webauthnRequest registration is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData data'),
+    'webauthnRequest must use the frame-aware callback: the origin it asserts '
+    + 'is what a provider signs for, so it must come from the plugin preamble');
+  assert.ok(body.includes('frameOrigin: data.origin.toString()'),
+    'the asserted origin must be the frame origin the bridge captured');
+  assert.ok(body.includes('isMainFrame: data.isMainFrame'),
+    'the frame check must use the bridge\'s isMainFrame');
+  assert.ok(body.includes('topUrl: (await controller.getUrl())?.toString()'),
+    'a main frame must still match the document the webview shows');
+  assert.ok(!/request\['origin'\]|args\[\d\]\['origin'\]/.test(body),
+    'nothing the page passes may be read as the origin: any page could '
+    + 'otherwise ask for another site\'s passkey');
+  assert.ok(body.includes('PasskeyEngine.plan('),
+    'every request must pass the engine\'s origin, frame and rpId checks '
+    + 'before reaching the native plugin');
+  const plan = body.indexOf('PasskeyEngine.plan(');
+  const native = body.indexOf('PasskeyNative.run(');
+  assert.ok(plan !== -1 && native !== -1 && plan < native,
+    'the native call must come after the plan that allows it');
+
+  const cancelAt = WEBVIEW.indexOf("handlerName: 'webauthnCancel'");
+  assert.notEqual(cancelAt, -1, 'webauthnCancel registration is gone');
+  const cancel = WEBVIEW.slice(cancelAt, WEBVIEW.indexOf(');', cancelAt));
+  assert.ok(cancel.includes('inapp.JavaScriptHandlerFunctionData data')
+      && cancel.includes('data.origin'),
+    'webauthnCancel must key the ceremony by the calling frame\'s origin, or '
+    + 'another origin\'s frame in the page can abort it by guessing the id');
+});
+
 // --- the permission prompts ----------------------------------------------
 
 test('CAM-013 / MIC-013: camera / microphone prompts name an origin read from the webview', () => {

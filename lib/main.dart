@@ -3122,6 +3122,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         virtualScreenSource: model.virtualScreenSource,
         protectedContentAllowed: model.effectiveProtectedContentAllowed,
         httpAuthMemory: model.effectiveHttpAuthMemory,
+        passkeys: model.effectivePasskeysEnabled,
       );
 
   /// LIR-009 + LIR-010 option 3: create a brand-new site rooted at the
@@ -6053,6 +6054,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     VirtualScreenSource? virtualScreenSource,
     bool? protectedContentAllowed,
     HttpAuthMemory httpAuthMemory = HttpAuthMemory.off,
+    bool passkeys = false,
   }) async {
     await Navigator.push(
       context,
@@ -6118,6 +6120,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           virtualScreenSource: virtualScreenSource,
           protectedContentAllowed: protectedContentAllowed,
           httpAuthMemory: httpAuthMemory,
+          passkeys: passkeys,
         ),
       ),
     );

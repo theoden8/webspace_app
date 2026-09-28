@@ -51,7 +51,7 @@ in the Xcode project. Spec: PLATFORM-006.
 
 - **`[ci-only: <jobs>]` narrows a CI run.** A commit message carrying it runs only
   the jobs it names and skips the rest; tokens are `validate`, `design`, `android`,
-  `linux`, `apple`, comma-separated (`[ci-only: apple,validate]`). For a bisection
+  `linux`, `apple`, `passkey`, comma-separated (`[ci-only: apple,validate]`). For a bisection
   that reads one tier this is the difference between one runner and five. It is
   honoured on `pull_request` only, so a marker that survives a merge cannot silence
   master, and the guardrails are gated by
@@ -262,6 +262,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | navigation | back gesture, drawer swipe, refresh, race guards; URL-bar site info sheet (site + container) |
 | nested-url-blocking | nested InAppBrowser; gesture-less cross-domain hops blocked on every site (no switch); per-site external link mode (in app / browser / block), routing to other sites only in app |
 | page-zoom | per-site zoom; viewport meta on mobile (Android pins the layout width), CSS `zoom` on desktop |
+| passkey-support | Android, experimental: the shim hands `publicKey` requests to Dart, which asserts the calling frame's origin to Credential Manager (`CREDENTIAL_MANAGER_SET_ORIGIN`, a normal permission) with its own clientDataJSON hash; each provider decides whether to trust the app with an origin. Emulator gate: `scripts/run_android_passkey_tests.sh` |
 | per-site-cookie-isolation | legacy engine (fallback) |
 | per-site-containers | native containers (preferred when supported) |
 | per-site-location | geo + IANA tz override + WebRTC lockdown |

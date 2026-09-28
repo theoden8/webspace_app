@@ -38,6 +38,9 @@ import 'package:webspace/services/camera_permission_service.dart';
 import 'package:webspace/services/camera_stream_shim.dart';
 import 'package:webspace/services/microphone_stream_shim.dart';
 import 'package:webspace/services/screen_share_shim.dart';
+import 'package:webspace/services/passkey_engine.dart';
+import 'package:webspace/services/passkey_native.dart';
+import 'package:webspace/services/passkey_shim.dart';
 import 'package:webspace/services/current_location_service.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -1203,6 +1206,10 @@ class WebViewConfig {
   /// host, and must not repaint the site's icon. Android is the only platform
   /// that reports icons; elsewhere the watcher runs and nothing arrives.
   final SiteIconTarget? siteIcon;
+  /// Passkeys for this webview's pages (PASSKEY-001). Null leaves WebAuthn
+  /// off, which is the WebView's default: no shim, no handler, and the
+  /// engine's own `navigator.credentials` refuses a `publicKey` request.
+  final PasskeyAccess? passkeys;
 
   WebViewConfig({
     this.key,
@@ -1276,6 +1283,7 @@ class WebViewConfig {
     this.currentMicrophoneMode,
     this.onScreenShareDecision,
     this.siteIcon,
+    this.passkeys,
   });
 }
 
@@ -2385,6 +2393,9 @@ class WebViewFactory {
   /// proxy is a hole straight through every per-site setting.
   static final Map<int, WebViewConfig> _popupParentConfigs = {};
 
+  /// One passkey ceremony at a time across every webview (PASSKEY-006).
+  static final PasskeyCeremonyGate _passkeyGate = PasskeyCeremonyGate();
+
   /// Create a popup webview for handling window.open() calls.
   /// Used for Cloudflare challenges and other popups that require a real window.
   ///
@@ -2611,6 +2622,20 @@ class WebViewFactory {
         source: '${buildScreenShareShim()}\n;null;',
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: true,
+      ));
+    }
+
+    // Passkeys through the Credential Manager bridge (PASSKEY-003). Every
+    // frame gets the shim so a same-origin frame can sign in and a
+    // cross-origin one is refused the way Chromium refuses an undelegated
+    // frame, by the handler rather than by a missing API. The WebView
+    // backend installs nothing: the engine exposes WebAuthn itself.
+    if (config.passkeys?.backend == PasskeyBackend.credentialManager) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'passkey',
+        source: '${buildPasskeyShim()}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
       ));
     }
 
@@ -3594,6 +3619,75 @@ class WebViewFactory {
         },
       );
     }
+    // Passkey bridge (PASSKEY-004..009). The origin Credential Manager is
+    // told is the bridge's frame origin, captured by the plugin's preamble
+    // before page script ran and delivered behind the bridge secret; the
+    // page's arguments carry only its WebAuthn-JSON options.
+    final passkeys = config.passkeys;
+    if (passkeys != null &&
+        passkeys.backend == PasskeyBackend.credentialManager) {
+      final webviewKey = 'wv${identityHashCode(controller)}';
+      controller.addJavaScriptHandler(
+        handlerName: 'webauthnStatus',
+        callback: (args) async =>
+            {'available': (await PasskeyNative.status()).available},
+      );
+      controller.addJavaScriptHandler(
+        handlerName: 'webauthnRequest',
+        callback: (inapp.JavaScriptHandlerFunctionData data) async {
+          final request = data.args.isNotEmpty && data.args.first is Map
+              ? data.args.first as Map
+              : const {};
+          if (!(await PasskeyNative.status()).available) {
+            return PasskeyError.unsupported.toBridgeJson();
+          }
+          final plan = PasskeyEngine.plan(
+            op: request['op'],
+            options: request['options'],
+            frameOrigin: data.origin.toString(),
+            isMainFrame: data.isMainFrame,
+            topUrl: (await controller.getUrl())?.toString(),
+            onScreen: passkeys.isOnScreen(),
+          );
+          final ceremony = plan.ceremony;
+          if (ceremony == null) {
+            LogService.instance
+                .log('Passkey', 'refused before the provider: ${plan.error}');
+            return plan.error!.toBridgeJson();
+          }
+          final key = '$webviewKey:${ceremony.origin}:${request['requestId']}';
+          if (!_passkeyGate.begin(key)) {
+            return PasskeyError.busy.toBridgeJson();
+          }
+          try {
+            final json = await PasskeyNative.run(key, ceremony);
+            final result = PasskeyEngine.completeResponse(ceremony, json);
+            LogService.instance.log('Passkey',
+                '${ceremony.op.name} [$key]: ${result['ok'] == true ? 'ok' : result['name']}');
+            return result;
+          } on PasskeyError catch (e) {
+            LogService.instance
+                .log('Passkey', '${ceremony.op.name} [$key]: ${e.name}');
+            return e.toBridgeJson();
+          } finally {
+            _passkeyGate.end(key);
+          }
+        },
+      );
+      // Keyed by the frame's origin as well as its request id, so a frame of
+      // another origin in the same page cannot abort a ceremony it did not
+      // start by guessing the id.
+      controller.addJavaScriptHandler(
+        handlerName: 'webauthnCancel',
+        callback: (inapp.JavaScriptHandlerFunctionData data) {
+          final origin = PasskeyEngine.serializeOrigin(data.origin.toString());
+          final id = data.args.isNotEmpty ? data.args.first : '';
+          final key = '$webviewKey:$origin:$id';
+          if (_passkeyGate.active == key) unawaited(PasskeyNative.cancel(key));
+          return null;
+        },
+      );
+    }
     // Register ClearURLs handler for clipboard/share URL cleaning
     if (config.clearUrlEnabled) {
       controller.addJavaScriptHandler(handlerName: 'clearUrl', callback: (args) {
@@ -4566,6 +4660,22 @@ class WebViewFactory {
         // fires, the WebView is already bound to its per-site container
         // and every cookie / IDB / ServiceWorker / cache write that
         // follows is partitioned to that container.
+        //
+        // The WebView's own WebAuthn (PASSKEY-010), the comparison path to
+        // the bridge: the engine asserts the page origin itself. Set once the
+        // view is in the hierarchy, since that is where the plugin finds it.
+        if (hostIsAndroid &&
+            config.passkeys?.backend == PasskeyBackend.webView) {
+          Future.microtask(() async {
+            try {
+              final kept = await PasskeyNative.setWebViewSupport('browser');
+              LogService.instance.log('Passkey', 'WebView support: $kept');
+            } catch (e) {
+              LogService.instance.log('Passkey', 'WebView support failed: $e',
+                  level: LogLevel.warning);
+            }
+          });
+        }
         // Attach native interceptor (DNS blocking + LocalCDN serving) once
         // the view is in the hierarchy. Always attach on Android — the
         // handler no-ops cheaply when neither blocklist nor CDN cache are

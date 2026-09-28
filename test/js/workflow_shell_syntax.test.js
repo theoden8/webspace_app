@@ -90,6 +90,7 @@ test('every heavy job is gated on the plan job', () => {
     ['build-android', 'android'],
     ['build-linux', 'linux'],
     ['build-apple', 'apple'],
+    ['android-passkey', 'passkey'],
   ]) {
     const header = text.slice(text.indexOf(`\n  ${job}:\n`));
     const block = header.slice(0, header.indexOf('\n    steps:'));

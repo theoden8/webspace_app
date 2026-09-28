@@ -1,0 +1,12 @@
+{
+  "name": "webspace-passkey-gate-rp",
+  "private": true,
+  "description": "Relying party for the Android passkey gate: an independent WebAuthn verifier the webspace bridge has to satisfy.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@simplewebauthn/server": "14.0.3"
+  }
+}

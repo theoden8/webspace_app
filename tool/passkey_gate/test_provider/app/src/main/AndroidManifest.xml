@@ -1,0 +1,34 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="WebSpace Test Provider" android:allowBackup="false">
+        <service
+            android:name=".TestProviderService"
+            android:exported="true"
+            android:label="WebSpace Test Provider"
+            android:permission="android.permission.BIND_CREDENTIAL_PROVIDER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.credentials.CredentialProviderService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.credentials.provider"
+                android:resource="@xml/provider" />
+        </service>
+
+        <activity
+            android:name=".CreatePasskeyActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity
+            android:name=".GetPasskeyActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
+        <!-- Driven by adb: an explicit TRUST broadcast naming the browser's
+             package puts it on the allowlist, CLEAR empties it
+             (scripts/run_android_passkey_tests.sh). -->
+        <receiver
+            android:name=".ControlReceiver"
+            android:exported="true" />
+    </application>
+</manifest>
