@@ -18,7 +18,6 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
     private val SHARE_CHANNEL = "org.codeberg.theoden8.webspace/share_intent"
-    private val WEBAUTHN_CHANNEL = "org.codeberg.theoden8.webspace/webauthn"
     private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
     private var cameraPermissionPlugin: CapturePermissionPlugin? = null
@@ -30,7 +29,7 @@ class MainActivity: FlutterActivity() {
     private var proxyRelayPlugin: ProxyRelayPlugin? = null
     private var siteIconPlugin: SiteIconPlugin? = null
     private var screenCapturePlugin: ScreenCapturePlugin? = null
-    private lateinit var webAuthnHandler: WebAuthnHandler
+    private var passkeyPlugin: PasskeyPlugin? = null
     private var pendingShareUrl: String? = null
     private var pendingShareHtml: HtmlPayload? = null
 
@@ -79,6 +78,7 @@ class MainActivity: FlutterActivity() {
         proxyRelayPlugin = ProxyRelayPlugin(flutterEngine)
         siteIconPlugin = SiteIconPlugin(applicationContext, flutterEngine)
         screenCapturePlugin = ScreenCapturePlugin(this, flutterEngine)
+        passkeyPlugin = PasskeyPlugin(this, flutterEngine)
         captureSharePayload(intent)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SHARE_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
@@ -99,40 +99,6 @@ class MainActivity: FlutterActivity() {
                             "sourceUri" to payload.sourceUri,
                         ))
                     }
-                }
-                else -> result.notImplemented()
-            }
-        }
-        webAuthnHandler = WebAuthnHandler(this)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WEBAUTHN_CHANNEL).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "setupWebAuthn" -> {
-                    val info = webAuthnHandler.setupWebAuthn()
-                    result.success(info)
-                }
-                "create" -> {
-                    val requestJson = call.argument<String>("requestJson") ?: ""
-                    val origin = call.argument<String>("origin") ?: ""
-                    webAuthnHandler.handleCreate(requestJson, origin, object : WebAuthnHandler.WebAuthnResultCallback {
-                        override fun onSuccess(responseJson: String) {
-                            runOnUiThread { result.success(responseJson) }
-                        }
-                        override fun onError(errorType: String, errorMessage: String) {
-                            runOnUiThread { result.error(errorType, errorMessage, null) }
-                        }
-                    })
-                }
-                "get" -> {
-                    val requestJson = call.argument<String>("requestJson") ?: ""
-                    val origin = call.argument<String>("origin") ?: ""
-                    webAuthnHandler.handleGet(requestJson, origin, object : WebAuthnHandler.WebAuthnResultCallback {
-                        override fun onSuccess(responseJson: String) {
-                            runOnUiThread { result.success(responseJson) }
-                        }
-                        override fun onError(errorType: String, errorMessage: String) {
-                            runOnUiThread { result.error(errorType, errorMessage, null) }
-                        }
-                    })
                 }
                 else -> result.notImplemented()
             }

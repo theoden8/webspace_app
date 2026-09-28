@@ -35,6 +35,8 @@ test('Android declares exactly the permissions it needs', () => {
     'android.permission.ACCESS_COARSE_LOCATION',
     'android.permission.ACCESS_FINE_LOCATION',
     'android.permission.CAMERA',
+    'android.permission.CREDENTIAL_MANAGER_QUERY_CANDIDATE_CREDENTIALS',
+    'android.permission.CREDENTIAL_MANAGER_SET_ORIGIN',
     'android.permission.FOREGROUND_SERVICE',
     'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
     'android.permission.INTERNET',
@@ -44,6 +46,12 @@ test('Android declares exactly the permissions it needs', () => {
   // Held for the per-site real-microphone grant (MIC-015), and requested only
   // while resolving a grant the user already allowed for a site on screen.
   assert.ok(declared.includes('android.permission.RECORD_AUDIO'));
+  // Held for passkeys (PASSKEY-002): what lets the app name a page's origin
+  // to Credential Manager. Normal protection level, so it opens no OS
+  // capability by itself; every provider decides whether to trust the app
+  // with an origin, and the app only asserts one for the calling frame
+  // (PASSKEY-004).
+  assert.ok(declared.includes('android.permission.CREDENTIAL_MANAGER_SET_ORIGIN'));
 });
 
 test('iOS declares exactly the usage descriptions it needs', () => {

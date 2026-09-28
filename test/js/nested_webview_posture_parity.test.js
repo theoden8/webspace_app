@@ -152,6 +152,9 @@ const POSTURE = new Set([
   // Android binds its nested webviews to a profile named after the archived
   // site's cleartext id, which the archive's close leaves on disk (BUG-019).
   'archiveContainerId',
+  // Off for archive-tier sites (ARCH-006). The nested screen builds its own
+  // PasskeyAccess from the flag, since whether it is on screen is its own.
+  'passkeys',
 ]);
 
 const PLUMBING = new Set([

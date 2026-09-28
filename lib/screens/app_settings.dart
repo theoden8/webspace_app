@@ -222,6 +222,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       .switchOn(ExperimentalFeature.textureRendering);
   bool _siteTabsSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.siteTabs);
+  bool _passkeysSwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.passkeys);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -1009,6 +1011,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         .setSwitch(ExperimentalFeature.siteTabs, value);
     if (!mounted) return;
     setState(() => _siteTabsSwitch = value);
+  }
+
+  Future<void> _setPasskeysSwitch(bool value) async {
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.passkeys, value);
+    if (!mounted) return;
+    setState(() => _passkeysSwitch = value);
   }
 
   Future<void> _loadOsmTileUrl() async {
@@ -2395,6 +2404,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               value: _siteTabsSwitch,
               onChanged: (value) => _setSiteTabsSwitch(value),
             ),
+            if (hostIsAndroid)
+              SwitchListTile(
+                title: Row(
+                  children: [
+                    Flexible(child: Text(loc.appSettingsExperimentalPasskeys)),
+                    HintButton(
+                      title: loc.appSettingsExperimentalPasskeys,
+                      description: loc.appSettingsExperimentalPasskeysHint,
+                    ),
+                  ],
+                ),
+                secondary: const Icon(Icons.key_outlined),
+                value: _passkeysSwitch,
+                onChanged: (value) => _setPasskeysSwitch(value),
+              ),
           ],
           ListTile(
             leading: const Icon(Icons.article_outlined),

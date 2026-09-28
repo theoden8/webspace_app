@@ -1617,6 +1617,14 @@
   "@appSettingsExperimentalSiteTabsHint": {
     "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page."
   },
+  "appSettingsExperimentalPasskeys": "Passkeys",
+  "@appSettingsExperimentalPasskeys": {
+    "description": "Title of the switch in App settings > Developer > Experimental that lets websites sign in with passkeys (WebAuthn credentials kept by a password manager app). Android only."
+  },
+  "appSettingsExperimentalPasskeysHint": "Lets sites sign you in with a passkey kept by the passkey app you chose in Android settings, the way a browser does. Needs Android 14 or later. Each passkey app decides whether to trust WebSpace with a site: Bitwarden asks you once, while apps that only trust browsers on Google's list, such as Google Password Manager and Proton Pass, refuse. Never used for sites in an archive.",
+  "@appSettingsExperimentalPasskeysHint": {
+    "description": "Explanation behind the hint button of the Passkeys switch in App settings > Developer > Experimental. A passkey app is a password manager that stores passkeys (Bitwarden, Proton Pass and Google Password Manager are product names; keep them as is). 'An archive' is the app's passphrase-protected archived webspace feature."
+  },
   "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
   "@appSettingsDeveloperModeTorWarningConfirm": {
     "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."

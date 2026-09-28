@@ -17,6 +17,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/repaint_log_throttle.dart';
 import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
@@ -177,6 +178,9 @@ class InAppWebViewScreen extends StatefulWidget {
   final VirtualScreenSource? virtualScreenSource;
   final bool? protectedContentAllowed;
   final HttpAuthMemory httpAuthMemory;
+  /// The parent site's effective passkey setting (PASSKEY-001), so an
+  /// archive-tier site's nested page gets none either.
+  final bool passkeys;
 
   InAppWebViewScreen({
     required this.url,
@@ -233,6 +237,7 @@ class InAppWebViewScreen extends StatefulWidget {
     this.virtualScreenSource,
     this.protectedContentAllowed,
     this.httpAuthMemory = HttpAuthMemory.off,
+    this.passkeys = false,
   }) : proxySettings = proxySettings ??
             UserProxySettings(type: ProxyType.DEFAULT);
 
@@ -693,6 +698,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           return promptHttpAuth(context, request);
         },
         httpAuthMemory: widget.httpAuthMemory,
+        passkeys: hostIsAndroid && widget.passkeys
+            ? PasskeyAccess(
+                isOnScreen: () =>
+                    mounted && (ModalRoute.of(context)?.isCurrent ?? false))
+            : null,
         onExternalSchemeUrl: (url, info) async {
           if (!mounted) return;
           await confirmAndLaunchExternalUrl(

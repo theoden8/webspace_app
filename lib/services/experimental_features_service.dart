@@ -9,6 +9,7 @@ const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
 const String kExperimentalPageIconsKey = 'experimentalPageIcons';
 const String kExperimentalTextureRenderingKey = 'experimentalTextureRendering';
 const String kExperimentalSiteTabsKey = 'experimentalSiteTabs';
+const String kExperimentalPasskeysKey = 'experimentalPasskeys';
 
 /// A feature that ships before it is finished (DEVTOOLS-011): reachable only
 /// with developer mode on and its own switch on in App Settings'
@@ -33,7 +34,12 @@ enum ExperimentalFeature {
 
   /// Several pages per site (inactive-tabs TAB-012). Off by default: it is
   /// new. With it off a site shows its one page, as before tabs existed.
-  siteTabs(kExperimentalSiteTabsKey, defaultOn: false);
+  siteTabs(kExperimentalSiteTabsKey, defaultOn: false),
+
+  /// Passkeys on Android through Credential Manager (PASSKEY-001). Off by
+  /// default: a provider decides per app whether to answer, and most do
+  /// not yet answer this one.
+  passkeys(kExperimentalPasskeysKey, defaultOn: false);
 
   const ExperimentalFeature(this.prefKey, {required this.defaultOn});
 
