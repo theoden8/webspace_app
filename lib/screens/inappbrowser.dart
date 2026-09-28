@@ -109,6 +109,15 @@ class InAppWebViewScreen extends StatefulWidget {
   /// own, so the route back to the setting that caused the block has to come
   /// from the host.
   final VoidCallback? onOpenProxySettings;
+
+  /// A link here into one of the user's sites, with Site tabs on: true when
+  /// the app takes it as a tab of the site this screen was opened from, and
+  /// this screen closes (LIR-032). Null for a screen a share opened.
+  final bool Function(String url, bool hadGesture)? onOpenAsTab;
+
+  /// What the site on screen was running as when this screen opened, for
+  /// the site info sheet. Null for a screen a share opened.
+  final String? openedFrom;
   /// Protected-content (Widevine/EME) permission popup, forwarded from the
   /// parent so a DRM site followed through an outbound link prompts the
   /// same way. The decision is remembered in-memory for this screen only
@@ -220,6 +229,8 @@ class InAppWebViewScreen extends StatefulWidget {
     this.javascriptEnabled = true,
     this.onConfirmScriptFetch,
     this.onOpenProxySettings,
+    this.onOpenAsTab,
+    this.openedFrom,
     this.onProtectedMediaRequest,
     this.onCameraDecision,
     this.onMicrophoneDecision,
@@ -330,6 +341,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// Same-domain gesture timestamp feeding `NavigationDecisionEngine`'s
   /// 10s propagation window, mirroring the parent webview's closure state.
   DateTime? _lastSameDomainGestureTime;
+
+  /// A link was handed to [InAppWebViewScreen.onOpenAsTab] and this screen is
+  /// closing: nothing else loads or is handed over.
+  bool _handedOffToTab = false;
 
   /// Surface-repaint nudge for this nested webview (BUG-001 gap #1). A back
   /// navigation that restores a bfcached page re-attaches a blank Android
@@ -653,7 +668,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // Same decision engine as the parent webview, judged against the
         // page shown here (NESTED-009 for the external-link mode, NESTED-004
         // for gesture-less hops). A nested screen has nowhere further to
-        // nest, so `blockOpenNested` navigates in place.
+        // nest, so `blockOpenNested` navigates in place, unless the link is
+        // one of the user's sites and goes back as a tab (LIR-032).
         shouldOverrideUrlLoading: (url, hasGesture) {
           final result = NavigationDecisionEngine
               .decideShouldOverrideUrlLoading(
@@ -675,9 +691,17 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             case null:
               break;
           }
+          if (_handedOffToTab) return false;
           switch (result.decision) {
             case NavigationDecision.allow:
+              return true;
             case NavigationDecision.blockOpenNested:
+              if (mounted &&
+                  (widget.onOpenAsTab?.call(url, result.hadGesture) ?? false)) {
+                _handedOffToTab = true;
+                Navigator.of(context).pop();
+                return false;
+              }
               return true;
             case NavigationDecision.blockSilent:
             case NavigationDecision.blockSuppressed:
@@ -793,6 +817,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       context,
       SiteInfo(
         siteName: widget.homeTitle ?? extractDomain(widget.url),
+        openedFrom: widget.openedFrom,
         pageUrl: _currentUrl,
         containerId: containerIdFor(
           siteId: widget.siteId,

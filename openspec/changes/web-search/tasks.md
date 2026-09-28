@@ -33,13 +33,22 @@
 - [x] 5.2 Fields on `SiteBehaviourValues`, the settings screen's snapshot, load and save.
 - [x] 5.3 Tests: the BEHAV-005 group in `test/site_behaviour_screen_test.dart`.
 
-## 6. Strings
+## 6. Links into the user's sites (LIR-032) and site info
 
-- [x] 6.1 `webSearch*` and `tabsRunsAs` keys in `lib/l10n/app_en.arb`, then the 66 translations in their own commit.
+- [x] 6.1 `LinkIntentDispatchEngine.routeToTab` and `DispatchOpenInTab`; the picker's `asTab`.
+- [x] 6.2 `_routeOutboundLink(owner, ...)` asks `_tabRouteFor` before routing; `_openChildTab` shared by search, S6 and LIR-032; the long-press row enabled with "as {site}".
+- [x] 6.3 `InAppWebViewScreen.onOpenAsTab`: the screen closes once, `launchUrl` opens the tab after the pop; a share-opened screen gets none.
+- [x] 6.4 Routed nested screens open over the slot (`source: owner`), fixing the return from a hosted tab.
+- [x] 6.5 Site info: `siteInfoContainerOf`, Tab of, Opened from.
+- [x] 6.6 Tests: the `routeToTab` group, `test/link_as_tab_entry_test.dart`, `test/site_info_sheet_test.dart`.
 
-## 7. Manual smoke
+## 7. Strings
 
-- [ ] 7.1 Android and iOS, Site tabs on: search the web from GitHub with a DuckDuckGo site; the results tab is labelled "as DuckDuckGo" and a `github.com` result returns to GitHub signed in.
-- [ ] 7.2 Kagi signed in as its own site: search GitHub through Kagi; the results are signed in and GitHub's cookies are unchanged.
-- [ ] 7.3 Android without the proxy router, GitHub and DuckDuckGo on different proxies: opening and leaving the results tab applies each proxy.
-- [ ] 7.4 Site tabs off: the search switches to DuckDuckGo and loads there.
+- [x] 7.1 `webSearch*`, `tabsRunsAs` and the site info keys in `lib/l10n/app_en.arb`, then the 66 translations in their own commit.
+
+## 8. Manual smoke
+
+- [ ] 8.1 Android and iOS, Site tabs on: search the web from GitHub with a DuckDuckGo site; the results tab is labelled "as DuckDuckGo" and a `github.com` result returns to GitHub signed in.
+- [ ] 8.2 Kagi signed in as its own site: search GitHub through Kagi; the results are signed in and GitHub's cookies are unchanged.
+- [ ] 8.3 Android without the proxy router, GitHub and DuckDuckGo on different proxies: opening and leaving the results tab applies each proxy.
+- [ ] 8.4 Site tabs off: the search switches to DuckDuckGo and loads there.

@@ -89,6 +89,7 @@ void main() {
         ('Future<bool> _closeChildTabOnBack(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showTabsSheet(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showLinkLongPressMenu(', '!_tabsEnabledAt(index)'),
+        ('Future<void> _openChildTab(', '!_tabsEnabledFor(owner)'),
       ]) {
         expect(firstStatement(signature), contains(gate),
             reason: '$signature must return before doing anything while '

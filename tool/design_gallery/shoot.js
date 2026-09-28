@@ -39,7 +39,7 @@ const CARDS = [
   { id: 'type-scale', width: 520, height: 260 },
   { id: 'radius-scale', width: 520, height: 130 },
   { id: 'url-bar', width: 560, height: 200 },
-  { id: 'site-info', width: 400, height: 520 },
+  { id: 'site-info', width: 400, height: 600 },
   { id: 'hint-button', width: 360, height: 80 },
   { id: 'proxy-auth', width: 400, height: 640 },
   { id: 'http-auth', width: 420, height: 900 },

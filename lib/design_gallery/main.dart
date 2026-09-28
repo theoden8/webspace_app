@@ -582,6 +582,7 @@ class _SiteInfoCard extends StatelessWidget {
         child: SiteInfoSheet(
           info: SiteInfo(
             siteName: 'GitHub',
+            tabOf: 'DuckDuckGo',
             pageUrl: 'https://github.com/theoden8/webspace_app',
             containerId: 'ws-3f9c2a7e',
             incognito: false,

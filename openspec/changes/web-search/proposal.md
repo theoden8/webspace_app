@@ -46,6 +46,16 @@ requirements.
   (host deleted, archived, turned incognito or cleared) and LIR-024 (the
   process-global proxy follows what a slot runs as). LIR-018 gains the
   return-to-owner rule.
+- **Links into the user's sites** (LIR-032). Where the site on screen has tabs, a link that
+  would open a nested screen opens as a tab of the site on screen, running as
+  the user's site that can take it, whatever the routing switch says; inside
+  a nested screen opened from a tab, the screen closes and the tab opens under
+  that tab. The long-press "Open in new tab" row offers the same, as "as
+  {site}". A routed nested screen from a hosted tab brings back the slot, not
+  the host's own.
+- **Site info** (NAV-011) names the site whose container it is, and adds "Tab
+  of" for a hosted tab and "Opened from" for a nested screen that runs as
+  another site.
 
 Find, the URL bar and shared links are unchanged.
 
@@ -65,9 +75,13 @@ Find, the URL bar and shared links are unchanged.
 ### Modified Capabilities
 
 - `link-intent-routing`: adds LIR-028 (search sites), LIR-029 (web search from
-  the page menu), LIR-030 (where results land) and LIR-031 (search references
-  follow their sites). LIR-011 names a search as not an inbound share.
+  the page menu), LIR-030 (where results land), LIR-031 (search references
+  follow their sites) and LIR-032 (a link into one of the user's sites opens
+  as its tab). LIR-011 names a search as not an inbound share.
+- `navigation`: NAV-011 (in `site-info-sheet`) names the site in the Container
+  row and adds the Tab of and Opened from rows.
 - `site-behaviour`: adds BEHAV-005 (the Search group).
 - `inactive-tabs`: TAB-004 lists a web search among the ways to create a tab,
-  and TAB-005 opens it the way New tab does, as a child of the tab searched
-  from.
+  TAB-005 opens it the way New tab does, as a child of the tab searched from,
+  and TAB-006 enables "Open in new tab" for a link one of the user's sites can
+  run.

@@ -13,11 +13,16 @@ The sheet SHALL show:
 
 - **Site**: the site whose settings and identity the webview carries. For a
   nested screen that is the site whose link opened it, or the site outbound
-  routing picked (LIR-015).
+  routing picked (LIR-015). For a hosted tab it is the host (LIR-018).
+- **Tab of**, for a hosted tab only: the site whose tab list holds it.
+- **Opened from**, for a nested screen that runs as a site other than the one
+  on screen when it opened: that site.
 - **Page**: the URL on screen.
-- **Container**: the site's own container, with its `ws-<id>` name; a private
-  store discarded on close (incognito off Android); or the store every site
-  shares (the legacy engine).
+- **Container**: the named site's own container, "{site}'s own container" with
+  its `ws-<id>` name; a private store discarded on close (incognito off
+  Android); or the store every site shares (the legacy engine). The row SHALL
+  name the site rather than say "this site": with a page on one site's address
+  running as another, "this site" does not say which.
 
 The container SHALL be computed by `containerIdFor`, the same function
 `WebViewFactory.createWebView` binds by, from the same inputs the webview's
@@ -26,16 +31,23 @@ does not use.
 
 #### Scenario: A routed page names the site it runs as
 
-- **GIVEN** a DuckDuckGo site that routes `github.com` links to a GitHub site
+- **GIVEN** Site tabs are off and a DuckDuckGo site routes `github.com` links to a GitHub site
 - **WHEN** the user taps a GitHub link and then the info button of the nested screen
-- **THEN** the sheet's Site row reads GitHub
-- **AND** its Container row names the GitHub site's container
+- **THEN** the sheet's Site row reads GitHub and its Opened from row reads DuckDuckGo
+- **AND** its Container row reads "GitHub's own container"
 
 #### Scenario: An unrouted page names its source
 
 - **GIVEN** a DuckDuckGo site in the in-app mode that does not route
-- **WHEN** a tapped link opens a nested screen and the user opens its site info
-- **THEN** the Site row reads DuckDuckGo and the Container row names DuckDuckGo's container
+- **WHEN** a tapped link to a site the user does not have opens a nested screen and the user opens its site info
+- **THEN** the Site row reads DuckDuckGo, there is no Opened from row, and the Container row reads "DuckDuckGo's own container"
+
+#### Scenario: A hosted tab names both sites
+
+- **GIVEN** a GitHub tab in DuckDuckGo's tab list, running as GitHub
+- **WHEN** the user opens its site info
+- **THEN** the Site row reads GitHub, the Tab of row reads DuckDuckGo
+- **AND** the Container row reads "GitHub's own container"
 
 #### Scenario: Private and shared stores say so
 

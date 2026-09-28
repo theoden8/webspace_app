@@ -59,12 +59,12 @@ void main() {
       final body = bodyOf(main, 'Future<void> _runSearch(');
       expect(body, contains('WebSearchEngine.land('));
       expect(body, contains('canHost: _mayHost(searchSite, owner)'));
-      expect(body, contains('_openSearchTab('));
+      expect(body, contains('_openChildTab('));
       expect(body, contains('origin: InboundOrigin.search'));
     });
 
     test('a results tab is a tab entry point behind the Site tabs gate', () {
-      expect(firstStatement(main, 'Future<void> _openSearchTab('),
+      expect(firstStatement(main, 'Future<void> _openChildTab('),
           contains('!_tabsEnabled'));
     });
 
@@ -128,9 +128,8 @@ void main() {
 
     test('routing from a hosted tab uses the host as source', () {
       expect(
-        RegExp(r'_routeOutboundLink\(\s*source\.runningIdentity,')
-            .hasMatch(bodyOf(main, 'OutboundLinkHandler _outboundLinkHookFor(')),
-        isTrue,
+        bodyOf(main, 'bool _routeOutboundLink('),
+        contains('final source = owner.runningIdentity;'),
       );
     });
 
@@ -171,8 +170,7 @@ void main() {
           start, model.indexOf('  WebViewController? getController('));
       expect(count(body, 'returnsToOwner('), greaterThanOrEqualTo(4),
           reason: 'the tap and both redirect launches ask first');
-      expect(bodyOf(main, 'Future<void> _returnToOwner('),
-          contains('parentId: model.activeTabId'));
+      expect(main, contains('Future<void> _returnToOwner(WebViewModel model, String url) =>\n      _openChildTab(model, url);'));
     });
   });
 }

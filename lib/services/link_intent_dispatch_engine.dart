@@ -121,6 +121,14 @@ class DispatchOpenNested extends DispatchAction {
   });
 }
 
+/// A link into one of the user's sites, with Site tabs on: open it as a child
+/// tab of the tab it came from, run as [siteId] (LIR-032).
+class DispatchOpenInTab extends DispatchAction {
+  final String siteId;
+  final String url;
+  const DispatchOpenInTab({required this.siteId, required this.url});
+}
+
 /// Outbound routing named no destination for a `blockOpenNested` decision:
 /// open the nested screen with the source's own posture, as without routing.
 class DispatchNestedFallback extends DispatchAction {
@@ -167,11 +175,16 @@ class DispatchShowPicker extends DispatchAction {
   /// which nests the link with the source's own posture.
   final String? source;
 
+  /// The pick opens a tab run as the chosen site rather than a nested screen
+  /// (LIR-032). Only set with [source].
+  final bool asTab;
+
   const DispatchShowPicker({
     required this.winnerSiteIds,
     required this.offerBind,
     required this.offerCreate,
     this.source,
+    this.asTab = false,
   });
 }
 
@@ -261,6 +274,58 @@ class LinkIntentDispatchEngine {
       containersActive: containersActive,
     );
     return action is DispatchNestedFallback ? null : action;
+  }
+
+  /// A link [source] would nest, with Site tabs on: when one of the user's
+  /// sites can run it as a tab ([hosts], already limited to the sites that
+  /// may host in the owner's tree), it opens as that site's tab instead of a
+  /// nested screen, whatever the source's routing switch says (LIR-032).
+  /// Null keeps today's path. [urlNavigationDomain] is the link's
+  /// `getNormalizedDomain`, which a host's navigation domain must equal.
+  static DispatchAction? routeToTab({
+    required Uri url,
+    required String urlNavigationDomain,
+    required bool tabsEnabled,
+    required bool containersActive,
+    required bool kioskLocked,
+    required bool hadGesture,
+    required DispatchableSite source,
+    required List<OutboundPreference> sourcePrefs,
+    required List<DispatchableSite> Function() hosts,
+  }) {
+    if (!tabsEnabled || !containersActive || kioskLocked || !hadGesture) {
+      return null;
+    }
+    if (url.scheme != 'http' && url.scheme != 'https' || url.host.isEmpty) {
+      return null;
+    }
+    final able = [
+      for (final h in hosts())
+        if (h.siteId != source.siteId &&
+            h.navigationDomain == urlNavigationDomain)
+          h,
+    ];
+    if (able.isEmpty) return null;
+    DispatchAction pick(List<RoutableSite> sites) => sites.length == 1
+        ? DispatchOpenInTab(siteId: sites.single.siteId, url: url.toString())
+        : DispatchShowPicker(
+            winnerSiteIds: [for (final s in sites) s.siteId],
+            offerBind: false,
+            offerCreate: false,
+            source: source.siteId,
+            asTab: true,
+          );
+    final resolution =
+        LinkRoutingService.resolveOutbound(url, source.siteId, sourcePrefs, able);
+    return switch (resolution) {
+      OutboundByPreference(:final site) ||
+      OutboundByClaims(match: RoutingSingle(:final site)) =>
+        pick([site]),
+      OutboundByClaims(match: RoutingAmbiguous(:final sites)) => pick(sites),
+      // A host with claims of its own that leave this host out still runs
+      // its navigation domain.
+      OutboundByClaims(match: RoutingNone()) || OutboundSelfMatch() => pick(able),
+    };
   }
 
   /// A link the source site opens, which the navigation engine decided to

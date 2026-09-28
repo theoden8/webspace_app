@@ -272,3 +272,59 @@ Backups SHALL carry all four per-site fields and the app pref. A site's QR share
 - **WHEN** its QR payload is built
 - **THEN** it holds `searchAddress` and `searchesWeb`
 - **AND** it holds neither `searchDefault` nor `searchSites`
+
+---
+
+### Requirement: LIR-032 - A Link Into One Of The User's Sites Opens As Its Tab
+
+While the site on screen has tabs (TAB-012, TAB-013), a link that would open a nested screen (`blockOpenNested`) SHALL open as a tab instead when one of the user's sites can run it: a site whose navigation domain is the link's normalized domain and that may host in the tree of the site on screen (LIR-019), or that site itself. It SHALL open as a child of the tab it came from, run as that site, and take the slot. A nested page of one of the user's own sites is exactly what tabs replace, so the source's routing switch (LIR-013) SHALL NOT gate this; it still decides for a link no site of the user's can run as a tab (a site that cannot host, a claim outside a navigation domain) and for a site without tabs.
+
+The same gates as routing SHALL hold (LIR-014): the container engine, an effective user gesture, and no locked kiosk shell. The site SHALL be chosen as LIR-014 chooses: the source's outbound preferences first, then claim specificity. When several sites remain, the LIR-016 picker SHALL ask, and a pick opens the tab; its remember checkbox writes the preference as for routing. The source is the site the page on screen runs as (LIR-018), and a link to a site on the other side of an archive boundary is never a candidate.
+
+A link tapped inside a nested screen that was opened from a tab SHALL go the same way: the nested screen closes and the tab opens under the tab it was opened from, once the screen is gone and before whatever its opener runs on close (the proxy return of LIR-015). A nested screen a share opened (LIR-011) came from no tab and SHALL keep loading such links in place.
+
+A routed nested screen (LIR-015) SHALL open over, and on close bring back, the slot on screen, whatever that slot runs as.
+
+#### Scenario: A GitHub result opens as GitHub's tab
+
+- **GIVEN** Site tabs are on, the user has DuckDuckGo and GitHub sites, and DuckDuckGo's routing switch is off
+- **WHEN** the user taps a `github.com` result in DuckDuckGo
+- **THEN** a child tab of DuckDuckGo's current tab opens, running as GitHub and signed in
+- **AND** no nested screen opens
+
+#### Scenario: A site the user does not have stays nested
+
+- **GIVEN** Site tabs are on
+- **WHEN** the user taps a `medium.com` result in DuckDuckGo
+- **THEN** it opens as DuckDuckGo's settings decide, in a nested screen with DuckDuckGo's posture or routed
+
+#### Scenario: A link inside a nested page comes back as a tab
+
+- **GIVEN** a `medium.com` nested screen opened from DuckDuckGo's current tab
+- **WHEN** the user taps a `github.com` link on it
+- **THEN** the nested screen closes
+- **AND** a child tab of that DuckDuckGo tab opens running as GitHub
+
+#### Scenario: Two sites that can run it ask
+
+- **GIVEN** Work GitHub and Personal GitHub both at `github.com`, and no preference in DuckDuckGo
+- **WHEN** the user taps a `github.com` link in DuckDuckGo
+- **THEN** the picker offers both, and the one picked runs the new tab
+
+#### Scenario: Tabs off keeps today's behaviour
+
+- **GIVEN** Site tabs are off
+- **WHEN** the user taps a `github.com` link in DuckDuckGo
+- **THEN** it opens nested, with GitHub's posture when DuckDuckGo routes and its own otherwise
+
+#### Scenario: A kiosk site opens no tab
+
+- **GIVEN** Site tabs are on, and DuckDuckGo has Kiosk mode on (TAB-013)
+- **WHEN** the user taps a `github.com` link in DuckDuckGo
+- **THEN** it opens as DuckDuckGo's routing decides, as with tabs off, and DuckDuckGo's tab list is unchanged
+
+#### Scenario: A routed screen from a hosted tab brings back its slot
+
+- **GIVEN** DuckDuckGo's slot runs a GitHub tab on Android without the proxy router, and GitHub routes `codeberg.page` to a Codeberg site on another proxy, which cannot run it as a tab because its navigation domain is `codeberg.org`
+- **WHEN** the user taps a `codeberg.page` link and later closes the Codeberg screen
+- **THEN** DuckDuckGo's slot is re-activated, running as GitHub, under GitHub's proxy

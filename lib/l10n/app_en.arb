@@ -166,6 +166,14 @@
   "@siteInfoSite": {
     "description": "Label of a row in the Site info sheet; the value is the name of the user's site (one of the websites saved in the app) that the page on screen runs as."
   },
+  "siteInfoTabOf": "Tab of",
+  "@siteInfoTabOf": {
+    "description": "Label of a row in the Site info sheet, shown when the page is a tab in one of the user's sites' tab list but runs as another of their sites; the value is the name of the site whose tab list holds it. The Site row above names the site it runs as."
+  },
+  "siteInfoOpenedFrom": "Opened from",
+  "@siteInfoOpenedFrom": {
+    "description": "Label of a row in the Site info sheet of a page opened on top of a site by a link, shown when the page runs as a different site than the one it was opened from; the value is the name of the site that was on screen when the link was tapped."
+  },
   "siteInfoPage": "Page",
   "@siteInfoPage": {
     "description": "Label of a row in the Site info sheet; the value is the web address of the page on screen."
@@ -174,9 +182,15 @@
   "@siteInfoContainer": {
     "description": "Label of a row in the Site info sheet; the value says which storage container (the isolated store of cookies, logins and site data) the page uses. 'Container' is the same term the app uses for per-site storage isolation."
   },
-  "siteInfoContainerOwn": "This site's own container",
-  "@siteInfoContainerOwn": {
-    "description": "Value of the Container row: the page uses the storage container that belongs to the site named in the Site row, separate from every other site."
+  "siteInfoContainerOf": "{site}'s own container",
+  "@siteInfoContainerOf": {
+    "description": "Value of the Container row: the page uses the storage container that belongs to the named site, one of the user's sites, separate from every other site. {site} is the site's name, the same one as in the Site row, for example 'GitHub's own container'.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "GitHub"
+      }
+    }
   },
   "siteInfoContainerEphemeral": "Private, discarded when closed",
   "@siteInfoContainerEphemeral": {

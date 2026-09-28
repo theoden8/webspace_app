@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
+import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/web_view_model.dart' show getNormalizedDomain;
 
 class _Site implements DispatchableSite {
@@ -411,6 +412,101 @@ void main() {
         tabsEnabled: true,
       );
       expect(action, isA<DispatchOpenNested>());
+    });
+  });
+
+  group('LinkIntentDispatchEngine.routeToTab (LIR-032)', () {
+    final ddg = _Site(
+      siteId: 'ddg',
+      initUrl: 'https://duckduckgo.com/',
+      domainClaims: [DomainClaim.baseDomain('duckduckgo.com')],
+    );
+    final gh = _Site(
+      siteId: 'gh',
+      initUrl: 'https://github.com/',
+      domainClaims: [DomainClaim.baseDomain('github.com')],
+    );
+    final workGh = _Site(
+      siteId: 'work-gh',
+      initUrl: 'https://github.com/work',
+      domainClaims: [DomainClaim.baseDomain('github.com')],
+    );
+    final pages = _Site(
+      siteId: 'cb',
+      initUrl: 'https://codeberg.org/',
+      domainClaims: [DomainClaim.baseDomain('codeberg.page')],
+    );
+
+    DispatchAction? route(
+      String url, {
+      List<_Site>? hosts,
+      List<OutboundPreference> prefs = const [],
+      bool tabs = true,
+      bool containers = true,
+      bool kiosk = false,
+      bool gesture = true,
+    }) =>
+        LinkIntentDispatchEngine.routeToTab(
+          url: Uri.parse(url),
+          urlNavigationDomain: getNormalizedDomain(url),
+          tabsEnabled: tabs,
+          containersActive: containers,
+          kioskLocked: kiosk,
+          hadGesture: gesture,
+          source: ddg,
+          sourcePrefs: prefs,
+          hosts: () => hosts ?? [ddg, gh],
+        );
+
+    test('a link into one of the user\'s sites opens as its tab', () {
+      final action = route('https://github.com/x');
+      expect(action, isA<DispatchOpenInTab>());
+      expect((action as DispatchOpenInTab).siteId, 'gh');
+      expect(action.url, 'https://github.com/x');
+    });
+
+    test('whatever the routing switch says: it is not an input', () {
+      // routeToTab takes no routeOutboundLinks, by design.
+      expect(route('https://github.com/x'), isA<DispatchOpenInTab>());
+    });
+
+    test('tabs off, the legacy engine, a locked kiosk or no gesture: no tab',
+        () {
+      expect(route('https://github.com/x', tabs: false), isNull);
+      expect(route('https://github.com/x', containers: false), isNull);
+      expect(route('https://github.com/x', kiosk: true), isNull);
+      expect(route('https://github.com/x', gesture: false), isNull);
+    });
+
+    test('a site that is not the user\'s stays nested', () {
+      expect(route('https://medium.com/x'), isNull);
+    });
+
+    test('a claim outside a site\'s navigation domain makes no tab', () {
+      expect(route('https://codeberg.page/docs', hosts: [ddg, pages]), isNull);
+    });
+
+    test('two sites that can run it ask', () {
+      final action = route('https://github.com/x', hosts: [ddg, gh, workGh]);
+      expect(action, isA<DispatchShowPicker>());
+      final picker = action as DispatchShowPicker;
+      expect(picker.asTab, isTrue);
+      expect(picker.source, 'ddg');
+      expect(picker.winnerSiteIds, unorderedEquals(['gh', 'work-gh']));
+    });
+
+    test('the source\'s preference decides between them', () {
+      final action = route(
+        'https://github.com/x',
+        hosts: [ddg, gh, workGh],
+        prefs: [
+          OutboundPreference(
+            claim: DomainClaim.baseDomain('github.com'),
+            targetSiteId: 'work-gh',
+          ),
+        ],
+      );
+      expect((action as DispatchOpenInTab).siteId, 'work-gh');
     });
   });
 }

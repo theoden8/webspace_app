@@ -15,11 +15,19 @@ Widget _host(Widget child, {TextDirection? direction}) => MaterialApp(
       ),
     );
 
-SiteInfo _info({String? containerId, bool incognito = false}) => SiteInfo(
+SiteInfo _info({
+  String? containerId,
+  bool incognito = false,
+  String? tabOf,
+  String? openedFrom,
+}) =>
+    SiteInfo(
       siteName: 'GitHub',
       pageUrl: 'https://github.com/theoden8',
       containerId: containerId,
       incognito: incognito,
+      tabOf: tabOf,
+      openedFrom: openedFrom,
     );
 
 void main() {
@@ -80,8 +88,37 @@ void main() {
       expect(find.text('Site info'), findsOneWidget);
       expect(find.text('GitHub'), findsOneWidget);
       expect(find.text('https://github.com/theoden8'), findsOneWidget);
-      expect(find.text("This site's own container"), findsOneWidget);
+      expect(find.text("GitHub's own container"), findsOneWidget,
+          reason: 'the container names its site, never "this site"');
       expect(find.text('ws-gh'), findsOneWidget);
+      expect(find.text('Tab of'), findsNothing);
+      expect(find.text('Opened from'), findsNothing);
+    });
+
+    testWidgets('a hosted tab names the site whose tab it is', (tester) async {
+      await tester.pumpWidget(_host(SiteInfoSheet(
+        info: _info(containerId: 'ws-gh', tabOf: 'DuckDuckGo'),
+      )));
+      expect(find.text('Tab of'), findsOneWidget);
+      expect(find.text('DuckDuckGo'), findsOneWidget);
+      expect(find.text("GitHub's own container"), findsOneWidget);
+    });
+
+    testWidgets('a nested screen names the site it was opened from',
+        (tester) async {
+      await tester.pumpWidget(_host(SiteInfoSheet(
+        info: _info(containerId: 'ws-gh', openedFrom: 'DuckDuckGo'),
+      )));
+      expect(find.text('Opened from'), findsOneWidget);
+      expect(find.text('DuckDuckGo'), findsOneWidget);
+    });
+
+    testWidgets('the same site twice is said once', (tester) async {
+      await tester.pumpWidget(_host(SiteInfoSheet(
+        info: _info(containerId: 'ws-gh', tabOf: 'GitHub', openedFrom: 'GitHub'),
+      )));
+      expect(find.text('Tab of'), findsNothing);
+      expect(find.text('Opened from'), findsNothing);
     });
 
     testWidgets('an ephemeral store shows no identifier', (tester) async {

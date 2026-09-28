@@ -145,9 +145,12 @@ A long-press on a link whose URL is inside the site's domain SHALL offer "Open
 in new tab", which creates a parked child tab (`parentId` = the current tab)
 without navigating, and shows a snackbar offering "Switch". No webview and no
 state bytes SHALL exist for the child until it is first activated. For a link
-outside the site's domain the row SHALL be shown disabled with the reason
-unless LIR-020 offers "Open in new tab as {site}" rows for it, and a tap on
-such a link SHALL keep opening the nested screen as today.
+outside the site's domain that one of the user's sites can run as a tab
+(LIR-032), the row SHALL be enabled, name that site ("as {site}"), and create
+the parked child running as it; when several can, it SHALL ask with the
+LIR-016 picker first. For any other link outside the domain the row SHALL be
+shown disabled with the reason, and a tap on such a link SHALL keep opening the
+nested screen as today.
 
 The menu's "Open" row SHALL route the link exactly as a tap on it would: in
 place when it is inside the site's domain, otherwise in the nested screen, or
