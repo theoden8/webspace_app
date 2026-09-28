@@ -1067,6 +1067,38 @@ tears one down
 
 ---
 
+### Requirement: PROXY-028 - A proxy change is in force for everything after it
+
+On iOS and macOS, once a site's effective proxy changes, no request the site
+makes afterwards SHALL travel a connection opened on its previous route,
+including requests to a host it had already reached.
+
+A container's `WKWebsiteDataStore` keeps one network session for as long as
+the store lives, and WebKit applies a SOCKS proxy change to that live
+session in place: new connections take the new proxy, and connections
+already pooled keep the old route and carry the site's next requests to the
+same host (BUG-014 instance 8). The fork SHALL therefore make WebKit
+rebuild a store's sessions whenever the store is given a proxy other than
+the one it last had, which closes the connections opened on the old route.
+A proxy the store already has is set as is: rebuilding then would cancel
+the loads of the WebViews already on it. Cookies and storage are not
+touched.
+
+#### Scenario: A site moved from direct to Tor leaves through Tor
+
+**Given** a site loaded a page directly
+**When** the user moves it to Tor and it loads the same host again
+**Then** the far side sees a Tor exit, not the device's address
+
+#### Scenario: The same host after a proxy change uses the new proxy
+
+**Given** a site loaded host H through proxy A over a kept-alive connection
+**When** its proxy becomes B and it requests H again
+**Then** the request reaches H through B
+**And** proxy A carries nothing for the site after the change
+
+---
+
 ## Data Model
 
 ### ProxyType Enum

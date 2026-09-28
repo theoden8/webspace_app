@@ -115,6 +115,18 @@ class FakeTorRuntime implements TorRuntime {
   bool? socksIsolation;
   Object? socksIsolationError;
 
+  int reopenCalls = 0;
+  int reopenPort = 45000;
+  Object? reopenError;
+
+  /// Models the plugin: a fresh listener, published as `up` on its own port.
+  @override
+  Future<void> reopenListeners() async {
+    reopenCalls++;
+    if (reopenError != null) throw reopenError!;
+    push(TorUp('127.0.0.1', reopenPort));
+  }
+
   void dispose() => _controller.close();
 }
 
@@ -130,6 +142,7 @@ void main() {
     Future<bool> Function()? isolateDestAddrLoader,
     TorGeoIpStore? geoIpStore,
     DateTime Function()? clock,
+    TorSocksProbe? socksProbe,
   }) =>
       TorEngine(
         runtime: runtime,
@@ -139,6 +152,7 @@ void main() {
         isolateDestAddrLoader: isolateDestAddrLoader,
         geoIpStore: geoIpStore,
         clock: clock,
+        socksProbe: socksProbe,
       );
 
   group('TOR-003 destination isolation is the user\'s choice', () {
@@ -565,6 +579,34 @@ void main() {
       await e.dispose();
     });
 
+    test('a pin to a country with no exit is the country\'s failure, and a '
+        'Retry counts again', () async {
+      // TOR-014. The pin is in force and tor builds no circuit under it; the
+      // card has to name the country as the problem, not the control port.
+      final e = build();
+      await e.acquire('a1');
+      runtime.bootstrapTo(9999);
+      await pumpEventQueue();
+
+      runtime.exitCountryError =
+          const TorExitCountryEmpty('tor lists no exit relay in BR');
+      await e.setExitCountry('{br}');
+      final status = e.status;
+      expect(status, isA<TorErrored>());
+      expect((status as TorErrored).kind, TorFailureKind.exitPolicy);
+      expect(status.message, 'tor lists no exit relay in BR',
+          reason: 'it applied, so it must not read as "could not apply"');
+      expect(e.socksFor('a1'), isNull,
+          reason: 'a site pinned where no exit is must not get a route');
+
+      runtime.exitCountryError = null;
+      await e.restart();
+      expect(runtime.appliedExitNodes, ['{br}'],
+          reason: 'a Retry re-applies the pin, which counts the exits again');
+      expect(e.status, isA<TorUp>());
+      await e.dispose();
+    });
+
     test('a restart re-applies the pin to the instance that comes back', () {
       // A restart cannot assume the pin survived: whatever tor answers, the
       // SETCONF that carried it belonged to the run that failed.
@@ -873,6 +915,174 @@ void main() {
       await e.setExitCountry('{br}');
       expect((e.status as TorErrored).kind, TorFailureKind.exitCountryData);
       await e.dispose();
+    });
+  });
+
+  group('TOR-024 tor outlives the app being suspended', () {
+    // iOS defuncts every TCP socket a suspended app owns. tor lives on, and
+    // so does its control channel (a Unix socket), but its SOCKS listener
+    // is dead while tor still lists it. The listener is asked on the way
+    // back, and a dead one is reopened on another port.
+    final dead = <int>{};
+    final asked = <int>[];
+    Future<bool> probe(String host, int port) async {
+      asked.add(port);
+      return !dead.contains(port);
+    }
+
+    setUp(() {
+      dead.clear();
+      asked.clear();
+    });
+
+    test('a listener that still answers is left alone', () {
+      fakeAsync((async) {
+        final e = build(socksProbe: probe);
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(41337);
+        async.flushMicrotasks();
+
+        e.revive();
+        async.flushMicrotasks();
+        expect(asked, [41337]);
+        expect(runtime.reopenCalls, 0);
+        expect(e.socksFor('site-a')!.address, '127.0.0.1:41337');
+      });
+    });
+
+    test('a dead listener is reopened and the sites move with it', () {
+      fakeAsync((async) {
+        final e = build(socksProbe: probe);
+        final seen = <TorStatus>[];
+        e.statusStream.listen(seen.add);
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(41337);
+        async.flushMicrotasks();
+        final before = e.status;
+
+        dead.add(41337);
+        e.revive();
+        async.flushMicrotasks();
+        expect(runtime.reopenCalls, 1);
+        expect(runtime.startCalls, 1,
+            reason: 'the same tor, never a second launch (BUG-013)');
+        expect(e.socksFor('site-a')!.address, '127.0.0.1:45000');
+        expect(torBindingChanged(before, e.status), isTrue,
+            reason: 'the endpoint moved, so every Tor-bound site rebuilds');
+        expect(
+            seen.whereType<TorBootstrapping>().map((s) => s.tag),
+            contains(kTorReopenTag),
+            reason: 'sites wait while the listener is reopened rather than '
+                'dial the dead one');
+      });
+    });
+
+    test('a reopen that fails is reported, and Retry tries it again', () {
+      fakeAsync((async) {
+        final e = build(socksProbe: probe);
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(41337);
+        async.flushMicrotasks();
+
+        dead.add(41337);
+        runtime.reopenError = StateError('control_unreachable');
+        e.revive();
+        async.flushMicrotasks();
+        expect(e.status, isA<TorErrored>());
+        expect(e.socksFor('site-a'), isNull,
+            reason: 'the dead listener must never be handed out as up');
+
+        runtime.reopenError = null;
+        e.restart();
+        async.flushMicrotasks();
+        expect(runtime.reopenCalls, 2);
+        expect(e.socksFor('site-a')!.address, '127.0.0.1:45000');
+      });
+    });
+
+    test('a resume mid-bootstrap asks the listener tor names on coming up', () {
+      // A background launch starts tor and iOS suspends it seconds later;
+      // tor then finishes bootstrapping on a listener opened before that.
+      fakeAsync((async) {
+        final e = build(socksProbe: probe);
+        final seen = <TorStatus>[];
+        e.statusStream.listen(seen.add);
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.push(const TorBootstrapping(40));
+        async.flushMicrotasks();
+
+        e.revive();
+        async.flushMicrotasks();
+        expect(asked, isEmpty, reason: 'there is no listener to ask yet');
+
+        dead.add(41337);
+        runtime.push(TorUp('127.0.0.1', 41337));
+        async.flushMicrotasks();
+        expect(asked, [41337]);
+        expect(seen.whereType<TorUp>().map((s) => s.port), [45000],
+            reason: 'the dead listener is never published as up');
+      });
+    });
+
+    test('an exit pin in force stays in force across a reopen', () {
+      fakeAsync((async) {
+        final e = build(socksProbe: probe);
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(41337);
+        async.flushMicrotasks();
+        e.setExitCountry('{de}');
+        async.flushMicrotasks();
+        expect(runtime.appliedExitNodes, ['{de}']);
+
+        dead.add(41337);
+        e.revive();
+        async.flushMicrotasks();
+        expect(e.socksFor('site-a')!.address, '127.0.0.1:45000');
+        expect(runtime.appliedExitNodes, ['{de}'],
+            reason: 'the same tor keeps its ExitNodes; nothing re-applies it');
+      });
+    });
+
+    test('a bootstrap deadline slept through starts over', () {
+      fakeAsync((async) {
+        var now = DateTime(2026, 9, 25, 7, 25);
+        final e = build(
+          timeout: const Duration(seconds: 90),
+          clock: () => now,
+        );
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.push(const TorBootstrapping(10));
+        async.flushMicrotasks();
+
+        // Suspended for a quarter of an hour; the timer fires on the wake.
+        now = now.add(const Duration(minutes: 15));
+        async.elapse(const Duration(seconds: 91));
+        expect(e.status, isA<TorBootstrapping>(),
+            reason: 'tor was frozen for all but a moment of that window');
+
+        async.elapse(const Duration(seconds: 91));
+        expect(e.status, isA<TorErrored>(),
+            reason: 'a window tor actually had still ends in a report');
+      });
+    });
+
+    test('without a probe nothing is asked', () {
+      fakeAsync((async) {
+        final e = build();
+        e.acquire('site-a');
+        async.flushMicrotasks();
+        runtime.bootstrapTo(41337);
+        async.flushMicrotasks();
+        e.revive();
+        async.flushMicrotasks();
+        expect(runtime.reopenCalls, 0);
+      });
     });
   });
 }

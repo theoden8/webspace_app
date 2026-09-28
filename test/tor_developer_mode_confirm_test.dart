@@ -46,6 +46,9 @@ class _PresentRuntime implements TorRuntime {
   Future<void> setTorrcOptions(List<(String, String)> options) async {}
   @override
   Future<void> setSocksIsolation({required bool isolateDestAddr}) async {}
+
+  @override
+  Future<void> reopenListeners() async {}
 }
 
 void main() {

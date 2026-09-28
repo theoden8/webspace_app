@@ -27,6 +27,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
   final Directory? _overrideRoot;
   final DateTime Function() _clock;
   Future<TorGeoIpTable?>? _inFlight;
+  var _circuits = 0;
 
   Future<Directory> _directory() async {
     final root = _overrideRoot ?? await getApplicationCacheDirectory();
@@ -54,15 +55,15 @@ class IoTorGeoIpStore implements TorGeoIpStore {
       _inFlight ??= _download(via).whenComplete(() => _inFlight = null);
 
   Future<TorGeoIpTable?> _download(UserProxySettings via) async {
-    final result = outboundHttp.clientFor(via);
-    if (result is OutboundClientBlocked) {
-      LogService.instance.log(_logTag, 'Download blocked: ${result.reason}',
-          level: LogLevel.warning);
-      return null;
-    }
-    final client = (result as OutboundClientReady).client;
-    try {
+    for (var pass = 0; pass < kTorGeoIpPasses; pass++) {
       for (final url in kTorGeoIpUrls) {
+        final result = outboundHttp.clientFor(_freshCircuit(via));
+        if (result is OutboundClientBlocked) {
+          LogService.instance.log(_logTag, 'Download blocked: ${result.reason}',
+              level: LogLevel.warning);
+          return null;
+        }
+        final client = (result as OutboundClientReady).client;
         final host = Uri.parse(url).host;
         try {
           final response =
@@ -90,13 +91,24 @@ class IoTorGeoIpStore implements TorGeoIpStore {
         } catch (e) {
           LogService.instance.log(_logTag, '$host failed: $e',
               level: LogLevel.warning);
+        } finally {
+          client.close();
         }
       }
-      return null;
-    } finally {
-      client.close();
     }
+    return null;
   }
+
+  /// [via] under a SOCKS username no earlier request from this store used.
+  /// tor keys circuits on it (IsolateSOCKSAuth) and keeps reusing one for
+  /// ten minutes, so without this the next source, the next pass and the
+  /// user's Retry would all go back to the circuit that just failed.
+  UserProxySettings _freshCircuit(UserProxySettings via) => UserProxySettings(
+        type: via.type,
+        address: via.address,
+        username: '${via.username}/${++_circuits}',
+        password: via.password,
+      );
 
   static bool _isTable(Uint8List bytes) {
     try {

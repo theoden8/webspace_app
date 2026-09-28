@@ -11,9 +11,12 @@ memory pressure and release-vs-debug assert behaviour, so a macOS pass is eviden
 about the control-port conversation and not about the phone.
 **Spec:** [tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md)
 TOR-018 (the bootstrap says what it is doing), TOR-019 (one control connection, read
-before subscribing), TOR-020 (one tor per process; a stop asks it to exit).
+before subscribing), TOR-020 (one tor per process; a stop asks it to exit), TOR-024
+(tor outlives the app being suspended).
 **Tests:** `integration_test/tor_test.dart` (the only tier that runs the plugin, macOS
-only), `test/js/tor_bootstrap_observability.test.js` (structural) and
+only), `integration_test/tor_suspension_probe.dart` (the same runtime with its sockets
+defuncted, run as the Runner's entrypoint), `test/js/tor_bootstrap_observability.test.js`
+and `test/js/tor_suspension.test.js` (structural) and
 `tool/swift_typecheck/check.sh` (compiles it, runs nothing). Every other Tor test drives
 a fake `TorRuntime`.
 
@@ -319,6 +322,67 @@ phone, on cellular or cold.
 It also exercises only the happy path plus a restart. A control port that opens late —
 the mechanism of attempt 2 — is still simulated nowhere (gap 4).
 
+### Attempt 11 — A suspension killed every socket tor had but its thread
+**Date:** 2026-09-28 · **PR:** #627 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`lib/services/tor_engine.dart`, `lib/services/tor_service.dart`,
+`lib/services/tor_socks_probe_io.dart`, `lib/main.dart`,
+`integration_test/tor_suspension_probe.dart`, `tool/tor_suspension/defunct_sockets.c`
+
+**What happened.** A device log from 2026-09-25: a background refresh launched the app
+at 07:25 with the phone locked, which started tor, and iOS suspended the app seconds
+later. At 07:40 the next wake ran the 90-second bootstrap deadline first ("Tor did not
+finish bootstrapping in time", fifteen minutes after it was armed), and when the app
+came to the foreground the plugin could neither reach tor's control port nor ask it to
+exit: "The previous Tor is still running". Attempt 9 had made that a named dead end
+rather than a crash, and it stayed a dead end: tor runs once per process.
+
+**Mechanism.** iOS defuncts a suspended app's sockets through the kernel's
+`socket_defunct`, which calls `sosetdefunct(..., noforce=TRUE)` and so skips any socket
+marked SOF_NODEFUNCT. `socreate` marks every PF_LOCAL socket that way ("Don't mark Unix
+domain or system eligible for defunct by default"), and only root may mark any other
+(`SO_DEFUNCTOK`). So the loopback TCP control port, the connection to it, tor's SOCKS
+listener and its relay connections all died, and tor's thread came back running with
+nothing anyone could reach. Onion Browser avoids the same thing by stopping tor when its
+background time runs out and starting another on return, which is the second
+`tor_run_main` attempt 9 found never bootstraps.
+
+**What it did.**
+- tor's control channel is a Unix-domain socket (`ControlSocket`, under `tmp/tor/`, a
+  0700 directory, with a TCP fallback that says so when the path would not fit a
+  `sockaddr_un`). It survives the suspension, and so does the connection to it.
+- On every return to the foreground, and at the start of a background wake, the engine
+  asks the SOCKS listener for a SOCKS5 greeting. A dead one is reopened with
+  `DisableNetwork 1` then `0` over the surviving channel, which closes every listener
+  and relay connection but the control ones and opens the listeners again; the new port
+  is published as `up` and every Tor-bound site rebinds (`torBindingChanged`). A return
+  mid-bootstrap has the listener asked at the next `up`.
+- The bootstrap deadline starts its window over when it fires long after it was due,
+  instead of reporting a bootstrap the app slept through.
+
+**Why.** Keeping the one tor alive is the only recovery a single-launch process has, and
+the kernel leaves exactly one kind of socket standing to reach it with. A plain
+`SETCONF SocksPort` would not do: tor keeps a listener it believes is running (see
+`setSocksIsolation`).
+
+**Reproduced** on the macOS tier by `integration_test/tor_suspension_probe.dart`, which
+calls `pid_shutdown_sockets(pid, SHUTDOWN_SOCKET_LEVEL_DISCONNECT_ALL)` on the app, the
+same kernel call, and then injects the resume. It cannot run under `flutter test`: the
+defunct takes the VM service connection that drives the app, so the workflow builds it
+as the Runner's entrypoint and reads its verdict off stderr. Before the fix (run
+36420085762, tests only): the app sandbox refused the call on its own pid (EPERM) and
+the root helper made it; `kernel: tcp=dead unix=alive`; tor's SOCKS listener and its
+TCP control connection both stopped answering; and after the resume the runtime still
+reported `up` on the dead port. After it (run 36430625500, 404df43): the same kernel
+split, and this time the Unix control connection answered after the defunct, the resume
+published a new SOCKS port (50597 to 50608), a request through it left from a Tor exit,
+and the probe's verdict was `recovered`.
+
+**Why it is partial.** The probe defuncts the sockets but does not freeze the process:
+tor's timers, its view of the clock and a bootstrap caught mid-handshake behave on macOS
+as they would on a phone that was never suspended. Nothing has run it on an iOS device.
+The TCP fallback, if a container path is ever too long, is as dead after a suspension
+as before, and says so in the log.
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS.** The macOS half of this gap is closed by
@@ -350,6 +414,7 @@ the mechanism of attempt 2 — is still simulated nowhere (gap 4).
    end the feature until the app is restarted. The only real fix is out of
    process — tor in an XPC service or an extension — which iOS makes expensive
    and macOS does not make free.
-4. **Fault injection does not exist at any layer.** Even the macOS tier only exercises the
-   happy path plus a restart; nothing simulates a control port that opens late, which is
-   the mechanism of attempt 2.
+4. **Fault injection barely exists.** The macOS tier exercises the happy path, a
+   restart and, since attempt 11, a process whose sockets were defuncted; nothing
+   simulates a control port that opens late, which is the mechanism of attempt 2, or a
+   process frozen rather than merely cut off.

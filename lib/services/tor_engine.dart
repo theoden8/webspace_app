@@ -42,10 +42,38 @@ const Duration kTorBootstrapTimeout = Duration(seconds: 90);
 /// use it until their country is in force (TOR-014).
 const String kTorExitPinTag = 'exit_country';
 
+/// Thrown by [TorRuntime.applyExitCountry] when tor's consensus has no exit
+/// in the country the pin names. Under such a pin tor builds no circuit at
+/// all, so the runtime refuses it before tor sees it (TOR-014); the sites
+/// pinned there stay blocked, and the remedy is another country.
+class TorExitCountryEmpty implements Exception {
+  const TorExitCountryEmpty(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// How long tor gets to load a GeoIP table and take a pin. A control
 /// connection that dropped mid-command never answers, and every later pin
 /// change queues behind this one.
 const Duration kTorExitPinApplyTimeout = Duration(seconds: 30);
+
+/// Bootstrap tag the engine publishes while tor reopens a SOCKS listener
+/// the app's suspension killed (TOR-024).
+const String kTorReopenTag = 'reopen';
+
+/// How long reopening tor's listeners may take before it counts as failed.
+const Duration kTorReopenTimeout = Duration(seconds: 30);
+
+/// How late the bootstrap deadline may fire before the engine reads it as
+/// the app having been suspended through it rather than tor being slow. A
+/// busy isolate delays a timer by moments; a suspension by minutes.
+const Duration kTorSuspendedSlack = Duration(seconds: 15);
+
+/// Whether a SOCKS5 listener at [host]:[port] answers a greeting.
+typedef TorSocksProbe = Future<bool> Function(String host, int port);
 
 /// Observable state of the runtime.
 sealed class TorStatus {
@@ -219,6 +247,11 @@ abstract class TorRuntime {
   /// host it loads from.
   Future<void> setSocksIsolation({required bool isolateDestAddr});
 
+  /// Close tor's listeners and relay connections, open the listeners again,
+  /// and publish `up` with the SOCKS endpoint tor now has (TOR-024). Throws
+  /// when tor could not be reached or opened no listener.
+  Future<void> reopenListeners();
+
   /// Status pushed from the native side.
   Stream<TorStatus> get events;
 }
@@ -239,6 +272,7 @@ class TorEngine {
     Future<bool> Function()? isolateDestAddrLoader,
     TorGeoIpStore? geoIpStore,
     DateTime Function()? clock,
+    TorSocksProbe? socksProbe,
   })  : _runtime = runtime,
         _sessionSecret = sessionSecret,
         _idleDebounce = idleDebounce,
@@ -246,7 +280,8 @@ class TorEngine {
         _bridgeLoader = bridgeLoader,
         _isolateDestAddrLoader = isolateDestAddrLoader,
         _geoIpStore = geoIpStore,
-        _clock = clock ?? DateTime.now {
+        _clock = clock ?? DateTime.now,
+        _socksProbe = socksProbe {
     // Second gate, belt to the runtime's braces: a runtime with no plugin
     // behind it has nothing to say, and subscribing to find that out is
     // what threw MissingPluginException on Android.
@@ -284,6 +319,14 @@ class TorEngine {
   /// runtime is expected to have its own.
   final TorGeoIpStore? _geoIpStore;
   final DateTime Function() _clock;
+
+  /// Asks tor's SOCKS listener whether it is alive. Null where nothing can
+  /// suspend the app out from under it (tests that do not care).
+  final TorSocksProbe? _socksProbe;
+
+  /// The app came back while tor was not up yet, so the listener tor
+  /// reports when it is may be one the suspension already killed.
+  bool _checkNextUp = false;
 
   bool get _pinPending => _exitNodes != null && !_exitNodesApplied;
 
@@ -395,6 +438,51 @@ class TorEngine {
     await _runtime.rebuildCircuits();
   }
 
+  /// Make sure the runtime still carries traffic now that the app is back
+  /// (TOR-024).
+  ///
+  /// iOS defuncts every TCP socket a suspended app owns. tor survives it,
+  /// and so does its control channel, a Unix socket for that reason; its
+  /// SOCKS listener and its relay connections do not, and tor goes on
+  /// listing the dead listener as its own. So the listener is asked. One
+  /// that does not answer is reopened, and the endpoint the runtime then
+  /// publishes is new, which rebuilds every Tor-bound site
+  /// ([torBindingChanged]). A runtime still bootstrapping is asked when it
+  /// comes up.
+  Future<void> revive() async {
+    if (!_runtime.isAvailable || _disposed || _socksProbe == null) return;
+    final up = _runtimeUp;
+    if (up == null) {
+      _checkNextUp = true;
+      return;
+    }
+    await _reopenIfDead(up);
+  }
+
+  /// Whether [up]'s listener answered. When it did not, it has been
+  /// reopened or the failure published, and the `up` for the new listener
+  /// arrives from the runtime like any other; nothing here re-publishes one.
+  Future<bool> _reopenIfDead(TorUp up) async {
+    final probe = _socksProbe;
+    if (probe == null) return true;
+    if (await probe(up.host, up.port)) return true;
+    if (_disposed || !identical(_runtimeUp, up)) return false;
+    // Held like a pin change: the listener the sites are bound to is gone,
+    // and the one coming is on another port.
+    _emit(const TorBootstrapping(100, tag: kTorReopenTag));
+    try {
+      await _runtime.reopenListeners().timeout(kTorReopenTimeout);
+    } catch (e) {
+      if (_disposed || !identical(_runtimeUp, up)) return false;
+      final message = e is TimeoutException
+          ? 'Tor did not reopen its SOCKS listener after the app was suspended.'
+          : 'Tor could not reopen its SOCKS listener after the app was '
+              'suspended: $e';
+      _emit(TorErrored(message));
+    }
+    return false;
+  }
+
   /// The bridge configuration currently in force, or queued for next start.
   TorBridgeConfig get bridges => _bridges;
 
@@ -498,11 +586,12 @@ class TorEngine {
     // bootstrap deadline would report a failure against a tor that is
     // working. A Retry must never be able to break a running runtime.
     if (_status is TorUp) return;
-    // tor itself is up and only the exit pin is not: retry the pin. A stop
-    // and start could not help, and the start would be a no-op that left
-    // the status on `starting` for good.
-    if (_runtimeUp != null) {
-      await _flushExitCountry();
+    // tor itself is up and only the exit pin or its listener is not: retry
+    // those. A stop and start could not help, and the start would be a
+    // no-op that left the status on `starting` for good.
+    final up = _runtimeUp;
+    if (up != null) {
+      if (await _reopenIfDead(up)) await _flushExitCountry();
       return;
     }
     _cancelBootstrapTimeout();
@@ -638,6 +727,13 @@ class TorEngine {
       _emit(TorErrored(message,
           failure: classifyTorFailure(message, hadExitPin: pin != null)));
       return;
+    } on TorExitCountryEmpty catch (e) {
+      if (superseded()) return;
+      // Not "could not apply": tor was reachable, and the country has no
+      // exit. Left unapplied so a Retry counts the exits again.
+      _emit(TorErrored(e.message,
+          failure: TorFailure(kind: TorFailureKind.exitPolicy, detail: e.message)));
+      return;
     } catch (e) {
       if (superseded()) return;
       // A pin that did not land must not be reported as in force: the user
@@ -745,12 +841,30 @@ class TorEngine {
     // about that: releasing the last one leaves tor running (see [release]),
     // so the only shutdown left is this engine's own.
     if (_disposed) return;
+    if (s is TorUp) {
+      // The app came back mid-bootstrap, and tor has just named a listener
+      // it opened before the suspension. Asked before anything is bound to
+      // it; a dead one is reopened and its successor arrives as a new `up`.
+      if (_checkNextUp) {
+        _checkNextUp = false;
+        unawaited(_reopenIfDead(s).then((alive) {
+          if (alive && !_disposed && identical(_runtimeUp, s)) _publishUp(s);
+        }));
+        return;
+      }
+      _publishUp(s);
+      return;
+    }
+    _emit(s);
+  }
+
+  void _publishUp(TorUp s) {
     // A pin requested before bootstrap finished has been waiting for a
     // control port, and now there is one. `up` is not published until it
     // lands. Only when there is a pin to establish: a fresh tor has no
     // ExitNodes of its own, so a reset on every bootstrap would be a SETCONF
     // round trip that changes nothing.
-    if (s is TorUp && _pinPending) {
+    if (_pinPending) {
       _holdForPin();
       unawaited(_flushExitCountry());
       return;
@@ -760,9 +874,19 @@ class TorEngine {
 
   void _armBootstrapTimeout() {
     _bootstrapTimer?.cancel();
+    final armedAt = _clock();
     _bootstrapTimer = Timer(_bootstrapTimeout, () {
       _bootstrapTimer = null;
       if (_status is TorUp) return;
+      // A deadline that fires long after it was due slept through it: the
+      // app was suspended, and tor with it. A background launch starts tor
+      // and iOS suspends it seconds later, so the first thing the next wake
+      // ran was this timer, reporting a bootstrap tor was never given time
+      // for. The window starts over instead.
+      if (_clock().difference(armedAt) > _bootstrapTimeout + kTorSuspendedSlack) {
+        _armBootstrapTimeout();
+        return;
+      }
       // tor is left running. It keeps trying on its own, and this process
       // has no second launch to spend on stopping it (BUG-013): a stop here
       // is what turned "the network was down for a minute" into "Tor is

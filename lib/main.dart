@@ -3312,8 +3312,32 @@ class _WebSpacePageState extends State<WebSpacePage>
     await TorService.instance.syncHolders(holders);
     // Clearing a site's pin in settings never re-activates it, so without
     // this the country the user just removed would stay applied until the
-    // next site switch.
-    _syncTorExitPin(<int>{?_currentIndex, ..._loadedIndices});
+    // next site switch. The site on screen wins, then the most recently
+    // used; a saved change can leave two loaded sites wanting different
+    // pins, and the one that loses is unloaded before the pin moves, as
+    // activation does, or it is rebuilt under a country it never chose.
+    final order = <int>{?_currentIndex, ..._loadedIndices.toList().reversed};
+    final anchor = SiteUnloadEngine.torExitAnchor(
+        indices: order, models: _webViewModels);
+    if (anchor != null && TorService.instance.isAvailable) {
+      final exitMismatch = SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: anchor,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
+      );
+      for (final i in exitMismatch) {
+        LogService.instance.log(
+          'SiteUnload',
+          'Tor exit-country mismatch after a settings change — unloading '
+              'site $i: "${_webViewModels[i].name}"',
+          level: LogLevel.warning,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        await _unloadSiteForOtherReason(i);
+      }
+      if (exitMismatch.isNotEmpty && mounted) setState(() {});
+    }
+    _syncTorExitPin(order);
   }
 
   /// Put in force the exit pin the sites in [pinned] want (TOR-014),
@@ -5918,6 +5942,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// NOTIF-013/014: what an OS background wake runs. Returns once the
   /// reloaded pages have settled, which is what ends the OS task.
   Future<void> _backgroundWake() async {
+    // A wake resumes the process without the app coming back to the
+    // foreground, so the resume check tor's listener needs has not run yet
+    // (TOR-024), and a Tor notification site would reload through a dead one.
+    await TorService.instance.revive();
     final posted = await _wakeEngine.wake(_WakeHost(this));
     LogService.instance.log(
       'BackgroundTask',

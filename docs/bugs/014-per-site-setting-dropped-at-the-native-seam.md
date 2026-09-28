@@ -14,14 +14,16 @@ Android, where an empty rule list unproxies the whole process (instance 6).
 
 **Spec:** [ip-leakage](../../openspec/specs/ip-leakage/spec.md) LEAK-003,
 [proxy](../../openspec/specs/proxy/spec.md) PROXY-011,
-[tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md) TOR-018
+[tor-proxy](../../openspec/changes/add-ios-tor-proxy/specs/tor-proxy/spec.md) TOR-018,
+[proxy](../../openspec/specs/proxy/spec.md) PROXY-028 (instance 8)
 **Tests:** one arm per guarantee, each reading its verdict off a destination
 only a proxy can reach: `proxy_binding` (the binding survives navigation and
 is not shared between sites), `proxy_frame_ladder` (it holds at any distance
 from the first frame), `proxy_http_connect` and `proxy_connect_https`
 (delivery over CONNECT, plaintext and TLS), `proxy_simultaneous` (Linux, per
 container), `proxy_apple_relay_parity` (the relay Apple keeps but does not
-take), `proxy_fail_closed` (Linux, caution 13).
+take), `proxy_fail_closed` (Linux, caution 13), `proxy_rebind` (a proxy
+change reaches a host the site already had a connection to, instance 8).
 `test/js/proxy_binding_fixture.test.js` gates their shape.
 Two more sit beside them: `proxy_malformed_rule` (Apple, same instrument --
 an unusable rule must not clear the store the last one bound) and
@@ -156,6 +158,84 @@ silently. Only something that observes the *effect* can catch it.
    tor places in Germany and the United States, and the circuit table after
    each pin held no conflux leg, only the onion-service circuits of the
    table download.
+   **Third finding 2026-09-25** (#627), from a device: with the pin finally
+   in force, Brazil loaded nothing while the runtime said `up`. Brazil had 32
+   relays and no running exit, so under `{br}` with `StrictNodes 1` tor found
+   "0% of exit bw", stopped treating its directory as usable and built no
+   circuit at all; each page timed out a minute later. The conflux leak had
+   hidden this by leaving from the Netherlands. Reproduced on the macOS tier
+   by pinning `{aq}`: the consensus listed 3176 exits and none in AQ, and the
+   pin answered `up` at once. **Fixed** (e43227d): the plugin counts the
+   consensus relays with the Exit flag and without BadExit that tor's table
+   places in the pinned country, and with none answers `exit_country_empty`,
+   which the engine reports as `exitPolicy` with the pin kept in force.
+   **Partial:** the count is taken when the pin is applied. A country whose
+   last exit leaves the consensus later is not re-checked, and reads as
+   before, a hang until a Retry.
+   Its first version read the consensus with `GETINFO ns/all` over the
+   control port. The reply is megabytes and Tor.framework parses every
+   controller's replies on one queue, so the count timed out and each
+   command after it stalled until the channel read as dead: on the macOS
+   tier the `{us}` pin after `{de}` failed as `control_unreachable`, and
+   every later scenario found Tor down. **Second fix 2026-09-25:** the count
+   reads tor's `cached-microdesc-consensus` and the GeoIP table the pin
+   loaded, from disk, with no control-port traffic.
+   **Third fix 2026-09-28:** counted before the pin reaches tor, and an
+   exitless pin is refused rather than kept in force. The macOS tier (run
+   36420085762) showed why: tor had judged its directory unusable under
+   `{aq}` ("0% of exit bw = 0% of path bw"), and clearing the pin did not
+   make it judge again, since an `ExitNodes` change never reaches
+   `router_dir_info_changed`; only a directory change does. The next
+   scenario's page, moved onto Tor after the pin was gone, waited 150
+   seconds and got nothing while tor sat on "not enough directory
+   information" until a microdescriptor download happened to land. A user
+   moving from Brazil to another country would have met the same stall.
+   The sites pinned to the exitless country stay blocked by the engine,
+   which is TOR-008's job rather than tor's. **Partial:** tor still judges
+   a pinned country whose exits leave the consensus later the same way,
+   until its next directory change.
+
+8. **A proxy change reached the live session and not the connections it
+   already held (iOS, macOS).** Reported 2026-09-25: a site that loaded
+   direct and was then moved to Tor in its settings still showed the
+   device's own address, while its rebuilt WebView reported the proxy bound.
+   After a restart it showed that address once more, from the page snapshot
+   saved before the restart, and then the Tor exit. The fork caches one
+   `WKWebsiteDataStore` per container for the life of the process, and the
+   store keeps one network session. WebKit hands a SOCKS change to that live
+   session in place (`NetworkSessionCocoa::setProxyConfigData` adds it to the
+   session's `nw_context`; only a proxy that needs HTTP protocols rebuilds
+   the session), so the next connection honours it and a pooled one does not.
+   Reproduced 2026-09-25 on the macOS tier before any fix (run 36112534629):
+   `proxy_rebind_test.dart` moved a site from one keep-alive SOCKS fixture to
+   another and read `same-host=OLD fresh-host=new`, the same host riding
+   tunnel 0 of the old proxy; `tor_test.dart` scenario 6 loaded Cloudflare's
+   trace direct, moved the site to Tor, and was seen from the runner's
+   address both times. **First fix 2026-09-25** (fork f40e2a7, then
+   b245c13): `ContainerController.resetNetworkSession` dropped the fork's
+   cached store and waited for WebKit to destroy it, and the app built
+   nothing on a container whose session carried another route until the
+   reset landed. Green on every tier (run 36135054451), and dropped before
+   it merged: the app had to track each container's route, and a popup or
+   nested browser still holding the store kept the site behind a spinner.
+   **Second fix 2026-09-25** (fork f75b5b9, folded into `container-v9` and
+   pinned through `privacy-v11`): the fork's
+   `ProxyManager.setProxyConfigurations` remembers the proxy each store was
+   last given, and on a different one sets it together with an Oblivious
+   HTTP relay scoped to `session-rebuild.invalid` first. A relay needs the
+   HTTP stack, so WebKit rebuilds the store's sessions rather than swapping
+   the proxy on its `nw_context`, which closes the pooled connections; the
+   plain configuration follows. Direct to a proxy counts as a change (from
+   none), and the same proxy again, as when another WebView joins the
+   store, is set as is so the loads already on it are not cancelled. The
+   app does nothing: the route is the fork's to keep. Gated by the fork's
+   `container_proxy_change.dart` and the two integration arms here.
+   **Partial:** it rests on WebKit rebuilding sessions for a relay
+   configuration, which no API promises; the integration arms are what
+   notice if that changes. Linux binds the proxy on a cached
+   `WebKitNetworkSession` the same way and is not handled; whether its
+   pooled connections outlive a `webkit_network_session_set_proxy_settings`
+   is unmeasured. Android's override is process-wide and was not examined.
 
 ## What the platform actually does
 
@@ -330,6 +410,13 @@ Not a record of what was tried. A record of what bit, so it bites once.
     the pin showed only fresh `CONFLUX_UNLINKED` legs. Whether an exit
     follows a setting is answered by the traffic, not by what was closed.
 
+18. **A bound proxy is not a fresh route.** The readback, the engine's
+    settings and every new connection agreed the site was on its new proxy,
+    and the request that mattered went out on a connection opened before the
+    change. A test of a proxy *change* has to ask the same host again, over a
+    fixture that keeps its connections alive; a fixture that closes each one
+    cannot see this.
+
 ## Open
 
 1. **Fail-closed on Apple: closed as not measurable in CI.** The guarantee is
@@ -405,3 +492,7 @@ Not a record of what was tried. A record of what bit, so it bites once.
    by tor's). The macOS tier runs the same plugin source as iOS, but not the
    iOS suspension and resume that BUG-018 came from, so a device run is
    still the last word for the field report.
+   The device run of 2026-09-25 took 12 s for the table download, and found
+   the exitless-country gap and instance 8 above; both are reproduced and
+   fixed on the macOS tier. Tor after a background launch and suspension
+   is still unmeasured by any tier.

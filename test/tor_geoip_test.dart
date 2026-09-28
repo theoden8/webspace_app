@@ -137,8 +137,10 @@ void main() {
       expect(table, isNotNull);
       expect(requested, [kTorGeoIpUrls.first]);
       expect(Uri.parse(kTorGeoIpUrls.first).host, endsWith('.onion'));
-      expect(factory.seen.single.username, kTorGeoIpTag,
+      expect(factory.seen.single.username, startsWith('$kTorGeoIpTag/'),
           reason: 'never a site circuit, never direct');
+      expect(factory.seen.single.address, via.address);
+      expect(factory.seen.single.password, via.password);
       expect(File(table!.path).readAsStringSync(), _table(),
           reason: 'kept verbatim, licence header and all');
       expect((await store().newest())?.path, table.path);
@@ -149,6 +151,34 @@ void main() {
       final table = await store().download(via);
       expect(table, isNotNull);
       expect(requested, kTorGeoIpUrls);
+    });
+
+    test('a source that failed is asked again on a fresh circuit', () async {
+      // The onion service timing out on one circuit while the clearnet host
+      // refused the exit with 403 failed a whole pin on a real tor.
+      var onionAsked = 0;
+      answers[kTorGeoIpUrls.first] = () => ++onionAsked == 1
+          ? http.Response('', 504)
+          : http.Response(_table(), 200);
+      answers[kTorGeoIpUrls.last] = () => http.Response('', 403);
+
+      expect(await store().download(via), isNotNull);
+      expect(requested, [...kTorGeoIpUrls, kTorGeoIpUrls.first]);
+      final circuits = factory.seen.map((s) => s.username).toList();
+      expect(circuits.toSet(), hasLength(circuits.length),
+          reason: 'a request went back to a circuit that already failed');
+    });
+
+    test('Retry never goes back to a circuit that failed', () async {
+      final s = store();
+      expect(await s.download(via), isNull);
+      expect(await s.download(via), isNull);
+
+      expect(requested,
+          hasLength(2 * kTorGeoIpPasses * kTorGeoIpUrls.length));
+      final circuits = factory.seen.map((s) => s.username).toList();
+      expect(circuits.toSet(), hasLength(circuits.length));
+      expect(circuits, everyElement(startsWith('$kTorGeoIpTag/')));
     });
 
     test('an answer that is not a table is never kept', () async {

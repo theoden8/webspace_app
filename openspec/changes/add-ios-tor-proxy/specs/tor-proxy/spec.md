@@ -683,6 +683,47 @@ site is gone, must not linger and apply itself to whatever loads next.
 - **THEN** the request fails and the failure is surfaced to the user
 - **AND** the traffic does NOT leave from another country instead
 
+tor takes a pin to a country whose relays include no exit, then builds no
+circuit at all: its path check finds no exit bandwidth and it stops
+treating its directory as usable, for every stream, not only the pinned
+site's. Nothing on the control port reports this until a stream times out,
+so the runtime SHALL count the consensus relays carrying the Exit flag (and
+not BadExit) that tor's GeoIP table places in the pinned country before it
+applies the pin. None is a failure of kind `exitPolicy`, reported at once
+rather than after a page's own timeout, and the pin SHALL NOT reach tor:
+once tor has judged its directory unusable under such a pin it does not
+judge again when `ExitNodes` changes, only when its directory does, so the
+next country's first loads stalled behind a pin that was already gone. The
+sites pinned to the country stay blocked by the engine (TOR-008), so
+nothing leaves from another country instead.
+
+#### Scenario: A pin to a country with no exit is reported when it is applied
+
+- **GIVEN** Tor is `up` and tor's consensus has no exit in country X
+- **WHEN** a site pinned to X is activated
+- **THEN** the runtime answers the pin with an `exitPolicy` failure, not `up`
+- **AND** tor's `ExitNodes` is not `{x}`
+- **AND** no site is handed a SOCKS route until the pin changes or a Retry
+  finds an exit there
+
+#### Scenario: The next pin after a country with no exit loads at once
+
+- **GIVEN** a pin to a country with no exit was just refused
+- **WHEN** the pin is cleared or changed to a country with exits
+- **THEN** a request through Tor completes without waiting on tor to
+  re-read its directory
+
+#### Scenario: Saving a site's pin unloads a loaded site that disagrees
+
+- **GIVEN** site A is loaded with `torExitCountry = "dk"`
+- **AND** site B is the site on screen
+- **WHEN** the user saves site B with `torExitCountry = "ca"`
+- **THEN** site A is unloaded before `ExitNodes` flips to `{ca}`
+- **AND** site A is not rebuilt under `{ca}` when Tor comes back up
+
+Every path that moves the pin reconciles the loaded set first, the site on
+screen winning and then the most recently used, not only activation.
+
 **A pin is only in force once tor can resolve it** (BUG-014 instance 7).
 tor matches `{cc}`
 against its IPv4 GeoIP table, and with no table loaded the pin names no
@@ -691,6 +732,11 @@ Location Database under CC BY-SA 4.0 (LICENSE-002), which rules out
 Tor.framework's `Tor/GeoIP` subspec. The device SHALL download tor's own
 `src/config/geoip` from the Tor Project, through Tor on an isolation tag of
 its own, from the GitLab onion service first and the clearnet host second.
+Each request SHALL take a circuit no earlier request took, and a download
+SHALL go through both sources twice before it fails: the onion service has
+timed out on one circuit while the clearnet host refused that download's exit
+with HTTP 403, and tor reuses a circuit for ten minutes, so a Retry on the
+same tag went back to both.
 It SHALL be kept verbatim, licence header included, in the app's cache
 directory, and refused unless its header declares CC BY-SA 4.0. tor has no
 updater and re-reads `GeoIPFile` only when the path changes, so every
@@ -772,6 +818,17 @@ memory pressure evicts a site, not left for the next activation.
 - **AND** it is stored unmodified and handed to tor as `GeoIPFile`
 - **AND** the release artifact contains no GeoIP data (gated by
   `test/js/tor_geoip_not_bundled.test.js`)
+
+#### Scenario: One bad circuit does not fail the download
+
+- **GIVEN** no GeoIP table is kept on the device
+- **AND** the onion service times out on the circuit the first request took
+- **AND** the clearnet host answers the next request's exit with HTTP 403
+- **WHEN** a site's pin is applied
+- **THEN** the onion service is asked again on a circuit no earlier request
+  took, and the table it answers is kept
+- **AND** a Retry after a download that failed on every source asks each on
+  circuits none of the failed requests took
 
 #### Scenario: Missing country data fails visibly and names the data
 
@@ -1398,3 +1455,71 @@ the sites are blocked either way.
 - **GIVEN** no site carries `ProxyType.TOR`
 - **WHEN** the user turns developer mode off
 - **THEN** the flag turns off with no confirmation
+
+### Requirement: TOR-024 - Tor outlives the app being suspended
+
+iOS suspends an app it has sent to the background, and while it is
+suspended the kernel defuncts every socket the app owns that is not marked
+non-defunctable: `socket_defunct` passes `noforce`, and every Unix-domain
+socket is born SOF_NODEFUNCT while a TCP socket can only be marked by root
+(xnu `socreate`, `sosetdefunct`, `SO_DEFUNCTOK`). tor itself survives,
+frozen with the app, but a loopback TCP control port, its SOCKS listener
+and its relay connections do not, and tor goes on naming the dead listener
+as its own. Since tor runs once per process (TOR-020), a runtime nobody can
+reach again is Tor gone until the app restarts, which is how it was first
+reported: a background launch started tor, iOS suspended the app, and the
+next foreground found "The previous Tor is still running".
+
+- The plugin's control channel SHALL be a Unix-domain socket (`ControlSocket`)
+  in a directory only the app's user can list, whose path fits a
+  `sockaddr_un`. Where it would not fit, the plugin SHALL fall back to a TCP
+  control port and SHALL say in the log that it will not survive a
+  suspension.
+- When the app returns to the foreground, and at the start of a background
+  wake, the engine SHALL ask tor's SOCKS listener for a SOCKS5 greeting. A
+  listener that does not answer SHALL be reopened over the control channel
+  (`DisableNetwork 1`, then `0`, which closes every listener and relay
+  connection except control ones and opens the listeners again), and the new
+  endpoint SHALL be published as `up`, which rebinds every Tor-bound site.
+  While that happens the engine SHALL hold the sites off Tor, as a pin change
+  does.
+- A return while tor is still bootstrapping SHALL have the listener asked
+  when tor next reports `up`, before anything is bound to it.
+- A reopen that fails SHALL be reported as a failure, never as the dead
+  listener being `up`, and Retry SHALL try the reopen again.
+- An exit-country pin in force SHALL stay in force across a reopen: it is
+  the same tor, and nothing re-applies it.
+- The bootstrap deadline (TOR-013) SHALL NOT report a bootstrap the app was
+  suspended through. A deadline that fires more than a few seconds after it
+  was due SHALL start its window over.
+
+#### Scenario: The app comes back after tor's sockets were defuncted
+
+- **GIVEN** Tor is up and a site is bound to its SOCKS listener
+- **AND** the process's sockets have been defuncted, as iOS does to a
+  suspended app
+- **WHEN** the app returns to the foreground
+- **THEN** tor's control channel still answers
+- **AND** tor opens a new SOCKS listener and the runtime publishes it as `up`
+- **AND** a request through it leaves from a Tor exit
+
+#### Scenario: A listener that still answers is left alone
+
+- **GIVEN** Tor is up
+- **WHEN** the app returns to the foreground without having been suspended
+- **THEN** the listener answers the greeting and nothing is reopened
+
+#### Scenario: The app comes back mid-bootstrap
+
+- **GIVEN** the app was suspended while tor was bootstrapping
+- **WHEN** the app returns and tor then reports `up` on a listener opened
+  before the suspension
+- **THEN** that listener is asked before any site is bound to it
+- **AND** a dead one is reopened and never published as `up`
+
+#### Scenario: The deadline slept through a suspension
+
+- **GIVEN** tor was started and the app was suspended before it finished
+  bootstrapping
+- **WHEN** the bootstrap deadline fires on the next wake, long after it was due
+- **THEN** no bootstrap failure is reported and the window starts over

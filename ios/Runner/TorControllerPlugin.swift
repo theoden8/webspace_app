@@ -67,6 +67,31 @@ private let kTorControlReplyTimeout = 8.0
 private let kTorControlProbeTimeout = 3.0
 private let kTorExitCountryTimeout = 20.0
 
+/// How long reopening tor's listeners after a suspension may take, end to
+/// end: two SETCONFs and a read on a control channel that may need
+/// re-attaching first.
+private let kTorReopenTimeout = 20.0
+
+/// `sizeof(sockaddr_un.sun_path)` on Darwin, the NUL included.
+private let kSunPathSize = 104
+
+/// Where a tor takes control connections.
+enum TorControlEndpoint {
+  /// A Unix-domain socket. iOS spares these when it suspends the app: the
+  /// kernel's `socket_defunct` skips a socket marked SOF_NODEFUNCT, and every
+  /// PF_LOCAL socket is born with it (xnu `socreate`). A loopback TCP port it
+  /// defuncts, and a tor reached only that way cannot be reached again.
+  case socket(URL)
+  /// The file tor names its auto-picked TCP control port in.
+  case portFile(URL)
+
+  var url: URL {
+    switch self {
+    case .socket(let url), .portFile(let url): return url
+    }
+  }
+}
+
 /// Lets one of several racing callers through. `open` is read and written
 /// only under `lock` (BUG-007).
 final class OnceGate {
@@ -309,6 +334,8 @@ class TorControllerPlugin: NSObject {
     case "rebuildCircuits":
       rebuildCircuits()
       result(nil)
+    case "reopenListeners":
+      reopenListeners(result: result)
     case "setTorrcOptions":
       let args = call.arguments as? [String: Any]
       // [[key, value], ...]. Anything that is not a two-element pair of
@@ -450,16 +477,6 @@ class TorControllerPlugin: NSObject {
     }
   }
 
-  /// A live control connection to [portFile], or nil if there is none.
-  ///
-  /// `TORController(controlPortFile:)` opens the connection inside its own
-  /// initializer, and `connect()` answers an already-connected controller
-  /// with a bare NO and no error written — which Swift raises as
-  /// "The operation couldn't be completed. (Foundation._GenericObjCError
-  /// error 0.)", the same thing it raises for a port file that does not
-  /// parse. So connecting a second time turns every success into that
-  /// error, and the two cases cannot be told apart from the throw. Ask
-  /// `isConnected`, which means what it says (BUG-013).
   /// `host:port` from tor's control-port file, or nil while it is absent,
   /// empty or half-written.
   ///
@@ -478,18 +495,53 @@ class TorControllerPlugin: NSObject {
     return (parts[0], port)
   }
 
-  private static func connectedController(to portFile: URL) -> TorController? {
-    // Read the file ourselves first. `TORController(controlPortFile:)` reads
-    // it inside its initializer and `NSAssert`s on one that is missing or
-    // does not parse. A release build compiles those out and hands back a
-    // controller with a nil host; a debug build -- which is every
-    // integration run -- raises and the process aborts. tor writes this file
-    // when its listener is up, so every attach before that would abort.
-    guard parseControlPortFile(portFile) != nil else { return nil }
-    let controller = TorController(controlPortFile: portFile)
+  /// A live control connection to [endpoint], or nil if there is none.
+  ///
+  /// Both initializers open the connection themselves, and `connect()`
+  /// answers an already-connected controller with a bare NO and no error
+  /// written — which Swift raises as "The operation couldn't be completed.
+  /// (Foundation._GenericObjCError error 0.)", the same thing it raises for
+  /// a port file that does not parse. So connecting a second time turns
+  /// every success into that error, and the two cases cannot be told apart
+  /// from the throw. Ask `isConnected`, which means what it says (BUG-013).
+  private static func connectedController(to endpoint: TorControlEndpoint) -> TorController? {
+    let controller: TorController
+    switch endpoint {
+    case .socket(let url):
+      // tor binds the socket once it reaches its listeners; before that
+      // there is nothing to connect to, and no reason to build a controller.
+      guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+      controller = TorController(socketURL: url)
+    case .portFile(let url):
+      // Read the file ourselves first. `TORController(controlPortFile:)`
+      // reads it inside its initializer and `NSAssert`s on one that is
+      // missing or does not parse. A release build compiles those out and
+      // hands back a controller with a nil host; a debug build -- which is
+      // every integration run -- raises and the process aborts. tor writes
+      // this file when its listener is up, so every attach before that
+      // would abort.
+      guard parseControlPortFile(url) != nil else { return nil }
+      controller = TorController(controlPortFile: url)
+    }
     if controller.isConnected { return controller }
     try? controller.connect()
     return controller.isConnected ? controller : nil
+  }
+
+  /// Where [config]'s tor takes control connections.
+  static func controlEndpoint(_ config: TorConfiguration) -> TorControlEndpoint? {
+    if let socket = config.controlSocket { return .socket(socket) }
+    return config.controlPortFile.map { .portFile($0) }
+  }
+
+  /// Where tor's control socket goes, under [temporaryDirectory], or nil
+  /// when the path would not fit a `sockaddr_un`. Not beside the data
+  /// directory: under an iOS container's `Library/Caches` it does not fit.
+  static func controlSocketURL(in temporaryDirectory: String) -> URL? {
+    let url = URL(fileURLWithPath: temporaryDirectory, isDirectory: true)
+      .appendingPathComponent("tor", isDirectory: true)
+      .appendingPathComponent("ctl")
+    return url.path.utf8.count < kSunPathSize ? url : nil
   }
 
   /// Connect to [config]'s control port and ask tor to quit.
@@ -504,11 +556,11 @@ class TorControllerPlugin: NSObject {
   /// does. The `disconnect()` after it sends SHUTDOWN as well, which covers
   /// a tor that does not recognise HALT.
   private func halt(_ config: TorConfiguration) {
-    guard let portFile = config.controlPortFile else {
+    guard let endpoint = Self.controlEndpoint(config) else {
       note("The previous tor published no control port; it cannot be asked to quit.")
       return
     }
-    guard let controller = Self.connectedController(to: portFile) else {
+    guard let controller = Self.connectedController(to: endpoint) else {
       note("The previous tor's control port is not answering yet.")
       return
     }
@@ -537,12 +589,28 @@ class TorControllerPlugin: NSObject {
   private func launchLocked(generation: Int) {
     hasLaunched = true
     let config = TorConfiguration()
-    let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-      .appendingPathComponent("Tor", isDirectory: true)
+    let base = Self.torDataDirectory()
     try? FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
     config.dataDirectory = base
     config.cookieAuthentication = true
-    config.autoControlPort = true
+    // A port file an earlier launch left names a port nothing listens on.
+    try? FileManager.default.removeItem(at: base.appendingPathComponent("controlport"))
+    if let socket = Self.controlSocketURL(in: NSTemporaryDirectory()) {
+      // tor refuses a control socket in a directory anyone else can list.
+      let dir = socket.deletingLastPathComponent()
+      try? FileManager.default.createDirectory(
+        at: dir, withIntermediateDirectories: true,
+        attributes: [.posixPermissions: 0o700])
+      try? FileManager.default.setAttributes(
+        [.posixPermissions: 0o700], ofItemAtPath: dir.path)
+      config.controlSocket = socket
+      config.autoControlPort = false
+    } else {
+      config.autoControlPort = true
+      note("The temporary directory's path is too long for a control socket, so "
+        + "tor's control channel is a TCP port, which does not survive the app "
+        + "being suspended.")
+    }
     // Client only: this app is never a relay, a bridge, or a hidden
     // service host, and saying so keeps tor from opening anything it
     // does not need.
@@ -617,25 +685,31 @@ class TorControllerPlugin: NSObject {
       return
     }
     let waited = Double(attempt) * kTorAttachPoll
-    guard let portFile = config.controlPortFile else {
+    guard let endpoint = Self.controlEndpoint(config) else {
       failLocked("Tor did not publish a control port.", generation: generation)
       return
     }
-    // Which side of the line we are on: tor has not written its port file
-    // (so it never reached its listeners), or it has and the port will not
-    // accept us. The framework cannot tell these apart — a missing file
-    // fails its connect the same opaque way — and they are different bugs.
-    let published = FileManager.default.fileExists(atPath: portFile.path)
+    // Which side of the line we are on: tor has not bound its socket or
+    // written its port file (so it never reached its listeners), or it has
+    // and will not accept us. The framework cannot tell these apart — a
+    // missing file fails its connect the same opaque way — and they are
+    // different bugs.
+    let published = FileManager.default.fileExists(atPath: endpoint.url.path)
+    let what: String
+    switch endpoint {
+    case .socket: what = "control socket"
+    case .portFile: what = "port file"
+    }
     guard attempt < kTorAttachAttempts else {
       failLocked(
         "Could not reach the Tor control port after \(Int(waited)) seconds "
-          + "(tor \(published ? "published one" : "never wrote its port file")).",
+          + "(tor \(published ? "published one" : "never wrote its \(what)")).",
         generation: generation)
       return
     }
     if attempt > 0, attempt % 10 == 0 {
       note(
-        "Still waiting for tor's control port (\(Int(waited))s); port file "
+        "Still waiting for tor's control port (\(Int(waited))s); \(what) "
           + "\(published ? "written" : "not written yet"), thread "
           + "\(thread.isExecuting ? "running" : "not running").")
     }
@@ -648,10 +722,10 @@ class TorControllerPlugin: NSObject {
             config, thread: thread, generation: generation, attempt: attempt + 1)
         }
       }
-      // Not a failure when this comes back nil: the port file may not be
-      // written yet, or the listener may not be accepting. Both resolve
-      // themselves.
-      guard let controller = Self.connectedController(to: portFile) else {
+      // Not a failure when this comes back nil: the socket or port file may
+      // not be there yet, or the listener may not be accepting. Both
+      // resolve themselves.
+      guard let controller = Self.connectedController(to: endpoint) else {
         retry()
         return
       }
@@ -1207,11 +1281,13 @@ class TorControllerPlugin: NSObject {
         done.resume(returning: generation == self.generation ? self.configuration : nil)
       }
     }
-    guard let portFile = config?.controlPortFile, let cookie = config?.cookie else {
+    guard let config = config, let endpoint = Self.controlEndpoint(config),
+          let cookie = config.cookie
+    else {
       return nil
     }
     let fresh: TorController? = await withCheckedContinuation { done in
-      attachQueue.async { done.resume(returning: Self.connectedController(to: portFile)) }
+      attachQueue.async { done.resume(returning: Self.connectedController(to: endpoint)) }
     }
     guard let fresh = fresh else {
       note("Tor's control port did not accept a new connection.")
@@ -1238,6 +1314,113 @@ class TorControllerPlugin: NSObject {
         done.resume(returning: self.controller)
       }
     }
+  }
+
+  // MARK: - Suspension
+
+  /// Close every listener and connection but the control channel, open the
+  /// listeners again, and publish the SOCKS endpoint tor now has (TOR-024).
+  ///
+  /// What an iOS suspension leaves behind: the kernel defuncts the app's TCP
+  /// sockets, tor's SOCKS listener and its relay connections among them, and
+  /// tor goes on listing that listener as its own. `SETCONF SocksPort` would
+  /// keep it ("This listener is already running", see setSocksIsolation).
+  /// `DisableNetwork 1` closes it along with every relay connection, and
+  /// `DisableNetwork 0` opens a fresh one on a fresh port. Control listeners
+  /// and connections are left alone by both, and the control channel is a
+  /// Unix socket, which the suspension spared.
+  ///
+  /// Dart decides when this is needed (it asks the listener); this only
+  /// carries it out, and answers exactly once (BUG-018).
+  private func reopenListeners(result: @escaping FlutterResult) {
+    let answer = OneShotResult(result)
+    DispatchQueue.global().asyncAfter(deadline: .now() + kTorReopenTimeout) {
+      answer.send(FlutterError(
+        code: "control_timeout",
+        message: "Tor's control port did not answer while its listeners were being "
+          + "reopened.",
+        details: nil))
+    }
+    stateQueue.async { [weak self] in
+      guard let self = self else {
+        answer.send(FlutterError(code: "tor_not_up", message: "Tor is gone.", details: nil))
+        return
+      }
+      // Up only: the event subscription is gone by then, so the reads below
+      // meet no event in a reply's place.
+      guard let controller = self.controller, self.state == "up" else {
+        answer.send(FlutterError(
+          code: "tor_not_up",
+          message: "Tor is not connected, so there are no listeners to reopen.",
+          details: nil))
+        return
+      }
+      let generation = self.generation
+      Task {
+        guard let live = await self.liveController(controller, generation: generation) else {
+          answer.send(FlutterError(
+            code: "control_unreachable",
+            message: "Tor's control port did not answer after the app was suspended, so "
+              + "its listeners could not be reopened. Restarting the app makes Tor "
+              + "available again.",
+            details: nil))
+          return
+        }
+        self.note("Tor's SOCKS listener stopped answering; reopening tor's listeners.")
+        guard let endpoint = await self.cycleNetwork(live) else {
+          answer.send(FlutterError(
+            code: "reopen_failed",
+            message: "Tor did not reopen its SOCKS listener.",
+            details: nil))
+          return
+        }
+        self.stateQueue.async {
+          guard generation == self.generation, self.state == "up" else {
+            answer.send(FlutterError(
+              code: "tor_not_up",
+              message: "Tor stopped while its listeners were being reopened.",
+              details: nil))
+            return
+          }
+          self.pendingSocksHost = endpoint.host
+          self.pendingSocksPort = endpoint.port
+          self.socksHost = endpoint.host
+          self.socksPort = endpoint.port
+          self.publishLocked(state: "up", pct: 100)
+          self.note("Reopened. SOCKS listener on \(endpoint.host):\(endpoint.port).")
+          answer.send(nil)
+        }
+      }
+    }
+  }
+
+  /// `DisableNetwork 1`, `DisableNetwork 0`, then the SOCKS listener tor
+  /// opened. Nil when a step went unanswered or refused.
+  private func cycleNetwork(_ controller: TorController) async -> (host: String, port: Int)? {
+    for value in ["1", "0"] {
+      guard let outcome = await Self.setConfs(
+        controller, [["key": "DisableNetwork", "value": value]])
+      else {
+        note("tor did not answer DisableNetwork \(value).")
+        return nil
+      }
+      let (success, error) = outcome
+      guard success else {
+        note("tor refused DisableNetwork \(value): "
+          + (error?.localizedDescription ?? "no reason given"))
+        return nil
+      }
+    }
+    // tor opens its listeners inside the SETCONF, before it answers; the
+    // second read covers an unrelated line landing in the first's place.
+    for _ in 0..<2 {
+      guard let listeners = await Self.controlRead(
+        controller, ["net/listeners/socks"], within: kTorControlReplyTimeout)
+      else { return nil }
+      if let endpoint = Self.parseSocksEndpoint(listeners.first) { return endpoint }
+    }
+    note("tor reopened no SOCKS listener.")
+    return nil
   }
 
   /// The pin itself, as one sequence. Nil on success.
@@ -1298,6 +1481,33 @@ class TorControllerPlugin: NSObject {
         details: nil)
     }
 
+    // A country with no exit takes the pin without complaint, and then tor
+    // builds no circuit at all: its path check finds 0% of exit bandwidth
+    // and it stops treating its directory as usable. Nothing on the control
+    // port says so until a stream times out, so count.
+    //
+    // Before the pin goes in, not after: tor does not look at its directory
+    // again when ExitNodes changes (only a directory change reaches
+    // router_dir_info_changed), so once it had judged a pin exitless, the
+    // next country's first loads waited on whatever download landed next.
+    // A refused pin leaves tor's exit configuration as it was; the engine
+    // keeps the sites that asked for it blocked.
+    if let countries = Self.pinnedCountries(exitNodes) {
+      switch Self.exitCount(in: countries, geoipFile: geoipFile) {
+      case .some(0):
+        let names = countries.sorted().map { $0.uppercased() }.joined(separator: ", ")
+        return FlutterError(
+          code: "exit_country_empty",
+          message: "tor's consensus lists no exit relay in \(names), so no circuit could be "
+            + "built under this exit-country pin, and it was not applied. Sites pinned "
+            + "there stay blocked: nothing leaves from another country instead.",
+          details: nil)
+      case .none:
+        note("Could not count the exits in the pinned country; applying the pin anyway.")
+      case .some:
+        break
+      }
+    }
     if let failed = check(await Self.setConfs(controller, Self.exitPinConfigs(exitNodes))) {
       return failed
     }
@@ -1404,6 +1614,100 @@ class TorControllerPlugin: NSObject {
     }
   }
 
+  /// The country codes an `ExitNodes` value names, lowercased. Nil when it
+  /// names anything but countries, since a count by country cannot speak
+  /// for a fingerprint or a nickname.
+  static func pinnedCountries(_ exitNodes: String) -> Set<String>? {
+    var out = Set<String>()
+    for item in exitNodes.split(separator: ",") {
+      let code = item.trimmingCharacters(in: .whitespaces)
+      guard code.count == 4, code.hasPrefix("{"), code.hasSuffix("}") else { return nil }
+      out.insert(code.dropFirst().dropLast().lowercased())
+    }
+    return out.isEmpty ? nil : out
+  }
+
+  /// IPv4 address of every relay a `GETINFO ns/all` value lists with the
+  /// Exit flag and without BadExit, which is what tor draws an exit from.
+  /// An `r` line ends `IP ORPort DirPort` in every flavour tor prints.
+  static func exitAddresses(fromNetworkStatus raw: String) -> [String] {
+    var out: [String] = []
+    var address: String?
+    for line in raw.components(separatedBy: .newlines) {
+      if line.hasPrefix("r ") {
+        let words = line.split(separator: " ")
+        let candidate = words.count >= 8 ? String(words[words.count - 3]) : ""
+        address = candidate.split(separator: ".").count == 4 ? candidate : nil
+      } else if line.hasPrefix("s "), let current = address {
+        let flags = Set(line.split(separator: " ").map(String.init))
+        if flags.contains("Exit") && !flags.contains("BadExit") {
+          out.append(current)
+        }
+        address = nil
+      }
+    }
+    return out
+  }
+
+  /// How many exits tor's consensus has in [countries], by the GeoIP table
+  /// the pin loaded; at least 1 when there are some, as the count stops at
+  /// the first. Nil when either file cannot be read.
+  ///
+  /// Read from the files tor reads, not over the control port: the consensus
+  /// is megabytes, and Tor.framework parses every controller's replies on
+  /// one queue, so a `GETINFO ns/all` stalled each command after it until
+  /// the channel read as dead.
+  private static func exitCount(in countries: Set<String>, geoipFile: String?) -> Int? {
+    let dir = torDataDirectory()
+    guard let geoipFile = geoipFile,
+          let table = try? String(contentsOfFile: geoipFile, encoding: .utf8),
+          let consensus = ["cached-microdesc-consensus", "cached-consensus"].lazy
+            .compactMap({ try? String(
+              contentsOf: dir.appendingPathComponent($0), encoding: .utf8) })
+            .first
+    else { return nil }
+    return exitCount(in: countries, consensus: consensus, geoipTable: table)
+  }
+
+  /// [exitCount] over the contents of a consensus and a GeoIP table
+  /// (`low,high,CC` per row, addresses as integers).
+  static func exitCount(
+    in countries: Set<String>, consensus: String, geoipTable: String
+  ) -> Int? {
+    let exits = exitAddresses(fromNetworkStatus: consensus)
+      .compactMap(ipv4Number).sorted()
+    guard !exits.isEmpty else { return nil }
+    for row in geoipTable.split(whereSeparator: \.isNewline) {
+      guard let comma = row.lastIndex(of: ","),
+            countries.contains(
+              row[row.index(after: comma)...].trimmingCharacters(in: .whitespaces)
+                .lowercased())
+      else { continue }
+      let bounds = row[..<comma].split(separator: ",")
+      guard bounds.count == 2, let low = UInt32(bounds[0]), let high = UInt32(bounds[1])
+      else { continue }
+      var lo = 0, hi = exits.count
+      while lo < hi {
+        let mid = (lo + hi) / 2
+        if exits[mid] < low { lo = mid + 1 } else { hi = mid }
+      }
+      if lo < exits.count && exits[lo] <= high { return 1 }
+    }
+    return 0
+  }
+
+  private static func ipv4Number(_ address: String) -> UInt32? {
+    let octets = address.split(separator: ".").compactMap { UInt32($0) }
+    guard octets.count == 4, octets.allSatisfy({ $0 < 256 }) else { return nil }
+    return octets.reduce(0) { $0 << 8 | $1 }
+  }
+
+  /// tor's DataDirectory, where it caches the consensus.
+  static func torDataDirectory() -> URL {
+    FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      .appendingPathComponent("Tor", isDirectory: true)
+  }
+
   /// Whether tor has an IPv4 GeoIP table loaded. Asked twice at most, for
   /// the same unrelated-event reason as [closeExitCircuits]; anything but a
   /// clear "1" reads as no, since the pin is refused on a no.
@@ -1504,6 +1808,8 @@ class TorControllerPlugin: NSObject {
     if let host = socksHost { payload["socksHost"] = host }
     if let port = socksPort { payload["socksPort"] = port }
     if let error = lastError { payload["lastError"] = error }
+    // For a test's own control connection; nothing in the app reads it.
+    if let socket = configuration?.controlSocket { payload["controlSocket"] = socket.path }
     return payload
   }
 
