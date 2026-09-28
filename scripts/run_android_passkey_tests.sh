@@ -93,6 +93,16 @@ else
   fail G0-reverse "adb reverse not active"
 fi
 
+# `flutter test` counts its build against the 12-minute loading timeout, and
+# a cold runner spends half of that installing the NDK and CMake. Build once
+# first so each phase's build is incremental.
+echo "── build ──"
+if ! $FLUTTER build apk --debug --flavor fdebug -t integration_test/passkey_test.dart \
+    --dart-define=PASSKEY_GATE=true --dart-define=PASSKEY_GATE_PHASE=main > "$OUT/build.txt" 2>&1; then
+  tail -30 "$OUT/build.txt"
+  fail G0-build "the integration test APK did not build (see $OUT/build.txt)"
+fi
+
 adb_ logcat -c
 adb_ logcat -v time > "$OUT/logcat.txt" 2>&1 &
 LOGCAT_PID=$!
