@@ -529,6 +529,7 @@
   "siteSettingsWebRtcDefault": "E parazgjedhur",
   "siteSettingsWebRtcRelayOnly": "Vetëm relay",
   "siteSettingsWebRtcDisabled": "E çaktivizuar",
+  "siteSettingsWebRtcNoDirect": "Mbrojtja nga gjurmimi bllokon lidhjet e drejtpërdrejta pas një proxy",
   "siteSettingsDnsStatTotal": "Gjithsej",
   "siteSettingsDnsStatAllowed": "Të lejuara",
   "siteSettingsDnsStatBlocked": "Të bllokuara",

@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Predefinição",
   "siteSettingsWebRtcRelayOnly": "Apenas relay",
   "siteSettingsWebRtcDisabled": "Desativado",
+  "siteSettingsWebRtcNoDirect": "Ligações diretas bloqueadas pela proteção contra rastreio atrás de um proxy",
   "siteSettingsDnsStatTotal": "Total",
   "siteSettingsDnsStatAllowed": "Permitidas",
   "siteSettingsDnsStatBlocked": "Bloqueadas",

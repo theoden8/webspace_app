@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Predeterminat",
   "siteSettingsWebRtcRelayOnly": "Només repetidor",
   "siteSettingsWebRtcDisabled": "Desactivat",
+  "siteSettingsWebRtcNoDirect": "La Protecció contra el seguiment bloqueja les connexions directes amb intermediari",
   "siteSettingsDnsStatTotal": "Total",
   "siteSettingsDnsStatAllowed": "Permeses",
   "siteSettingsDnsStatBlocked": "Bloquejades",

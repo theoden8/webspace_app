@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "ডিফল্ট",
   "siteSettingsWebRtcRelayOnly": "শুধু রিলে",
   "siteSettingsWebRtcDisabled": "নিষ্ক্রিয়",
+  "siteSettingsWebRtcNoDirect": "প্রক্সির পিছনে ট্র্যাকিং সুরক্ষা সরাসরি সংযোগ ব্লক করেছে",
   "siteSettingsDnsStatTotal": "মোট",
   "siteSettingsDnsStatAllowed": "অনুমোদিত",
   "siteSettingsDnsStatBlocked": "ব্লক করা",

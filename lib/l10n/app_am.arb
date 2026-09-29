@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "ነባሪ",
   "siteSettingsWebRtcRelayOnly": "Relay ብቻ",
   "siteSettingsWebRtcDisabled": "ተሰናክሏል",
+  "siteSettingsWebRtcNoDirect": "ፕሮክሲ በሚሠራበት ጊዜ ቀጥተኛ ግንኙነቶች በክትትል ጥበቃ ታግደዋል",
   "siteSettingsDnsStatTotal": "ጠቅላላ",
   "siteSettingsDnsStatAllowed": "ተፈቅዷል",
   "siteSettingsDnsStatBlocked": "ታግዷል",

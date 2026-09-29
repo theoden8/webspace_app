@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Standaard",
   "siteSettingsWebRtcRelayOnly": "Alleen relay",
   "siteSettingsWebRtcDisabled": "Uitgeschakeld",
+  "siteSettingsWebRtcNoDirect": "Directe verbindingen geblokkeerd door trackingbescherming achter een proxy",
   "siteSettingsDnsStatTotal": "Totaal",
   "siteSettingsDnsStatAllowed": "Toegestaan",
   "siteSettingsDnsStatBlocked": "Geblokkeerd",

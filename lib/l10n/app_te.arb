@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "డిఫాల్ట్",
   "siteSettingsWebRtcRelayOnly": "రిలే మాత్రమే",
   "siteSettingsWebRtcDisabled": "నిలిపివేయబడింది",
+  "siteSettingsWebRtcNoDirect": "ప్రాక్సీ వెనుక ట్రాకింగ్ రక్షణ నేరుగా కనెక్షన్‌లను బ్లాక్ చేస్తుంది",
   "siteSettingsDnsStatTotal": "మొత్తం",
   "siteSettingsDnsStatAllowed": "అనుమతించబడ్డాయి",
   "siteSettingsDnsStatBlocked": "నిరోధించబడ్డాయి",

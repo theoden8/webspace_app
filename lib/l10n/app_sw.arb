@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Chaguomsingi",
   "siteSettingsWebRtcRelayOnly": "Relay pekee",
   "siteSettingsWebRtcDisabled": "Imezimwa",
+  "siteSettingsWebRtcNoDirect": "Ulinzi wa Ufuatiliaji huzuia miunganisho ya moja kwa moja nyuma ya proksi",
   "siteSettingsDnsStatTotal": "Jumla",
   "siteSettingsDnsStatAllowed": "Yameruhusiwa",
   "siteSettingsDnsStatBlocked": "Yamezuiwa",

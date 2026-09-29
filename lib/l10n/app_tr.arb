@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Varsayılan",
   "siteSettingsWebRtcRelayOnly": "Yalnızca aktarma",
   "siteSettingsWebRtcDisabled": "Devre dışı",
+  "siteSettingsWebRtcNoDirect": "İzleme Koruması, proxy arkasında doğrudan bağlantıları engeller",
   "siteSettingsDnsStatTotal": "Toplam",
   "siteSettingsDnsStatAllowed": "İzin verildi",
   "siteSettingsDnsStatBlocked": "Engellendi",

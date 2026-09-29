@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Standard",
   "siteSettingsWebRtcRelayOnly": "Kun relé",
   "siteSettingsWebRtcDisabled": "Deaktivert",
+  "siteSettingsWebRtcNoDirect": "Direkte tilkoblinger blokkert av sporingsbeskyttelse bak en proxy",
   "siteSettingsDnsStatTotal": "Totalt",
   "siteSettingsDnsStatAllowed": "Tillatt",
   "siteSettingsDnsStatBlocked": "Blokkert",

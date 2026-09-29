@@ -529,6 +529,7 @@
   "siteSettingsWebRtcDefault": "លំនាំដើម",
   "siteSettingsWebRtcRelayOnly": "Relay ប៉ុណ្ណោះ",
   "siteSettingsWebRtcDisabled": "បិទ",
+  "siteSettingsWebRtcNoDirect": "ការការពារការតាមដានរារាំងការតភ្ជាប់ផ្ទាល់នៅពីក្រោយប្រូកស៊ី",
   "siteSettingsDnsStatTotal": "សរុប",
   "siteSettingsDnsStatAllowed": "អនុញ្ញាត",
   "siteSettingsDnsStatBlocked": "ទប់ស្កាត់",

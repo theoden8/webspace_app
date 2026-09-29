@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Numatytoji",
   "siteSettingsWebRtcRelayOnly": "Tik perdavimas",
   "siteSettingsWebRtcDisabled": "Išjungta",
+  "siteSettingsWebRtcNoDirect": "Sekimo apsauga blokuoja tiesioginius ryšius už tarpinio serverio",
   "siteSettingsDnsStatTotal": "Iš viso",
   "siteSettingsDnsStatAllowed": "Leista",
   "siteSettingsDnsStatBlocked": "Užblokuota",

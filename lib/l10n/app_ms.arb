@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Lalai",
   "siteSettingsWebRtcRelayOnly": "Geganti sahaja",
   "siteSettingsWebRtcDisabled": "Dilumpuhkan",
+  "siteSettingsWebRtcNoDirect": "Sambungan terus disekat oleh Perlindungan Penjejakan di sebalik proksi",
   "siteSettingsDnsStatTotal": "Jumlah",
   "siteSettingsDnsStatAllowed": "Dibenarkan",
   "siteSettingsDnsStatBlocked": "Disekat",

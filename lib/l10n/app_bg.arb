@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "По подразбиране",
   "siteSettingsWebRtcRelayOnly": "Само реле",
   "siteSettingsWebRtcDisabled": "Изключено",
+  "siteSettingsWebRtcNoDirect": "Директните връзки са блокирани от Защита от проследяване зад прокси",
   "siteSettingsDnsStatTotal": "Общо",
   "siteSettingsDnsStatAllowed": "Разрешени",
   "siteSettingsDnsStatBlocked": "Блокирани",

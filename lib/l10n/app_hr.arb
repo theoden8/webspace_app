@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Zadano",
   "siteSettingsWebRtcRelayOnly": "Samo relej",
   "siteSettingsWebRtcDisabled": "Onemogućeno",
+  "siteSettingsWebRtcNoDirect": "Zaštita od praćenja blokira izravne veze iza proxyja",
   "siteSettingsDnsStatTotal": "Ukupno",
   "siteSettingsDnsStatAllowed": "Dopušteno",
   "siteSettingsDnsStatBlocked": "Blokirano",

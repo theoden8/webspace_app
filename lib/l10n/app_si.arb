@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "පෙරනිමිය",
   "siteSettingsWebRtcRelayOnly": "Relay පමණි",
   "siteSettingsWebRtcDisabled": "අක්‍රීයයි",
+  "siteSettingsWebRtcNoDirect": "ප්‍රොක්සියක් පිටුපස ලුහුබැඳීම් ආරක්ෂණය සෘජු සම්බන්ධතා අවහිර කරයි",
   "siteSettingsDnsStatTotal": "මුළු",
   "siteSettingsDnsStatAllowed": "අවසර දුන්",
   "siteSettingsDnsStatBlocked": "අවහිර කළ",

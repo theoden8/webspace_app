@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Լռելյայն",
   "siteSettingsWebRtcRelayOnly": "Միայն ռելե",
   "siteSettingsWebRtcDisabled": "Անջատված",
+  "siteSettingsWebRtcNoDirect": "Հետևման պաշտպանությունը պրոքսիի հետևում արգելափակում է ուղիղ կապերը",
   "siteSettingsDnsStatTotal": "Ընդամենը",
   "siteSettingsDnsStatAllowed": "Թույլատրված",
   "siteSettingsDnsStatBlocked": "Արգելափակված",

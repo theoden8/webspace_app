@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Alapértelmezett",
   "siteSettingsWebRtcRelayOnly": "Csak relé",
   "siteSettingsWebRtcDisabled": "Letiltva",
+  "siteSettingsWebRtcNoDirect": "A nyomkövetés elleni védelem proxy mögött letiltja a közvetlen kapcsolatokat",
   "siteSettingsDnsStatTotal": "Összes",
   "siteSettingsDnsStatAllowed": "Engedélyezve",
   "siteSettingsDnsStatBlocked": "Blokkolva",

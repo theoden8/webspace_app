@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "既定",
   "siteSettingsWebRtcRelayOnly": "リレーのみ",
   "siteSettingsWebRtcDisabled": "無効",
+  "siteSettingsWebRtcNoDirect": "プロキシ使用中はトラッキング保護により直接接続がブロックされます",
   "siteSettingsDnsStatTotal": "合計",
   "siteSettingsDnsStatAllowed": "許可",
   "siteSettingsDnsStatBlocked": "ブロック",

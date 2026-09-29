@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Анхдагч",
   "siteSettingsWebRtcRelayOnly": "Зөвхөн дамжуулагч",
   "siteSettingsWebRtcDisabled": "Идэвхгүй",
+  "siteSettingsWebRtcNoDirect": "Прокси ашиглах үед Хяналтаас хамгаалалт шууд холболтыг хаадаг",
   "siteSettingsDnsStatTotal": "Нийт",
   "siteSettingsDnsStatAllowed": "Зөвшөөрсөн",
   "siteSettingsDnsStatBlocked": "Хориглосон",

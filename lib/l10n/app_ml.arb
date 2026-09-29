@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "സ്ഥിരസ്ഥിതി",
   "siteSettingsWebRtcRelayOnly": "റിലേ മാത്രം",
   "siteSettingsWebRtcDisabled": "പ്രവർത്തനരഹിതം",
+  "siteSettingsWebRtcNoDirect": "പ്രോക്സിക്ക് പിന്നിൽ ട്രാക്കിംഗ് സംരക്ഷണം നേരിട്ടുള്ള കണക്ഷനുകൾ തടയുന്നു",
   "siteSettingsDnsStatTotal": "ആകെ",
   "siteSettingsDnsStatAllowed": "അനുവദിച്ചു",
   "siteSettingsDnsStatBlocked": "തടഞ്ഞു",

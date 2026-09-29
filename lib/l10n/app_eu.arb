@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Lehenetsia",
   "siteSettingsWebRtcRelayOnly": "Erreleburako soilik",
   "siteSettingsWebRtcDisabled": "Desgaituta",
+  "siteSettingsWebRtcNoDirect": "Jarraipenaren aurkako babesak konexio zuzenak blokeatzen ditu proxy baten atzean",
   "siteSettingsDnsStatTotal": "Guztira",
   "siteSettingsDnsStatAllowed": "Baimenduta",
   "siteSettingsDnsStatBlocked": "Blokeatuta",

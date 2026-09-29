@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Sjálfgefið",
   "siteSettingsWebRtcRelayOnly": "Aðeins endurvarp",
   "siteSettingsWebRtcDisabled": "Óvirkt",
+  "siteSettingsWebRtcNoDirect": "Rakningarvörn lokar á beinar tengingar á bak við milliþjón",
   "siteSettingsDnsStatTotal": "Alls",
   "siteSettingsDnsStatAllowed": "Leyfðar",
   "siteSettingsDnsStatBlocked": "Útilokaðar",

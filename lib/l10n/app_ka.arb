@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "ნაგულისხმევი",
   "siteSettingsWebRtcRelayOnly": "მხოლოდ რელე",
   "siteSettingsWebRtcDisabled": "გათიშული",
+  "siteSettingsWebRtcNoDirect": "თვალთვალისგან დაცვა ბლოკავს პირდაპირ კავშირებს პროქსის მიღმა",
   "siteSettingsDnsStatTotal": "სულ",
   "siteSettingsDnsStatAllowed": "დაშვებული",
   "siteSettingsDnsStatBlocked": "დაბლოკილი",

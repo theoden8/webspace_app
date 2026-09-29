@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "Oletus",
   "siteSettingsWebRtcRelayOnly": "Vain välitys",
   "siteSettingsWebRtcDisabled": "Poistettu käytöstä",
+  "siteSettingsWebRtcNoDirect": "Seurannan suojaus estää suorat yhteydet välityspalvelimen takana",
   "siteSettingsDnsStatTotal": "Yhteensä",
   "siteSettingsDnsStatAllowed": "Sallittu",
   "siteSettingsDnsStatBlocked": "Estetty",

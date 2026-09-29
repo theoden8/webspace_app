@@ -527,6 +527,7 @@
   "siteSettingsWebRtcDefault": "ค่าเริ่มต้น",
   "siteSettingsWebRtcRelayOnly": "รีเลย์เท่านั้น",
   "siteSettingsWebRtcDisabled": "ปิดใช้งาน",
+  "siteSettingsWebRtcNoDirect": "การป้องกันการติดตามบล็อกการเชื่อมต่อโดยตรงเมื่ออยู่หลังพร็อกซี",
   "siteSettingsDnsStatTotal": "ทั้งหมด",
   "siteSettingsDnsStatAllowed": "อนุญาต",
   "siteSettingsDnsStatBlocked": "บล็อก",
