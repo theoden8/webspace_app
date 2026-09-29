@@ -231,6 +231,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'proxyType': _proxySettings.type,
         'torExitCountry': _proxySettings.torExitCountry,
         'savedProxyId': _proxySettings.savedProxyId,
+        'ownAddress': _proxySettings.ownAddress,
+        'ownCredentials': _proxySettings.ownCredentials,
         'proxyAddress': _proxyAddressController.text,
         'proxyUsername': _proxyUsernameController.text,
         'proxyPassword': _proxyPasswordController.text,
@@ -461,6 +463,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           PlatformInfo.isProxySupported ? m.proxySettings.torExitCountry : null,
       savedProxyId:
           PlatformInfo.isProxySupported ? m.proxySettings.savedProxyId : null,
+      ownAddress: m.proxySettings.ownAddress,
+      ownCredentials: m.proxySettings.ownCredentials,
     );
     // effectiveUserAgent so a preset site's field shows the string the
     // webview actually sends (current version), not the stored snapshot.
@@ -537,6 +541,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             username: _proxyUsernameController.text,
             password: _proxyPasswordController.text,
             savedProxyId: _proxySettings.savedProxyId,
+            ownAddress: _proxySettings.ownAddress,
+            ownCredentials: _proxySettings.ownCredentials,
           ),
         ),
         target: proxyTestTarget(widget.webViewModel.initUrl),
@@ -564,7 +570,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (PlatformInfo.isProxySupported) {
       // Validate proxy address if needed
       final proxyError = validateProxyAddress(
-          loc, _proxySettings.type, _proxyAddressController.text);
+          loc, _proxySettings.type, _proxyAddressController.text,
+          ownAddress: _proxySettings.ownAddress);
       if (proxyError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(loc.siteSettingsProxyError(proxyError))),
@@ -584,6 +591,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             username: _proxyUsernameController.text,
             password: _proxyPasswordController.text,
             savedProxyId: _proxySettings.savedProxyId,
+            ownAddress: _proxySettings.ownAddress,
+            ownCredentials: _proxySettings.ownCredentials,
           ),
         );
 
@@ -1086,6 +1095,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         proxyType: _proxySettings.type,
         torExitCountry: _proxySettings.torExitCountry,
         savedProxyId: _proxySettings.savedProxyId,
+        ownAddress: _proxySettings.ownAddress,
+        ownCredentials: _proxySettings.ownCredentials,
         webRtcPolicy: _webRtcPolicy,
       );
 
@@ -1182,6 +1193,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _proxySettings.type = values.proxyType;
               _proxySettings.torExitCountry = values.torExitCountry;
               _proxySettings.savedProxyId = values.savedProxyId;
+              _proxySettings.ownAddress = values.ownAddress;
+              _proxySettings.ownCredentials = values.ownCredentials;
               _webRtcPolicy = values.webRtcPolicy;
             });
           },

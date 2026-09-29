@@ -21,6 +21,11 @@ button inside one site's settings.
   `savedProxyId`), resolved at use by `resolveEffectiveProxy`, so editing a
   saved proxy moves every site that names it. An edit or delete disposes every
   loaded webview, as an app-wide proxy change already does.
+- **Part from a saved proxy in either half.** A site (or the app-wide proxy)
+  using a saved proxy can switch on its own address, keeping the saved
+  credentials (one account, a gateway per country), or its own credentials,
+  keeping the saved address (a session or exit picked by username, or an
+  account per site).
 - **Fail closed on a missing saved proxy.** A reference that resolves to
   nothing (deleted, or carried in from elsewhere) is SAVED with no address,
   which every seam already treats as unroutable. It never falls through to

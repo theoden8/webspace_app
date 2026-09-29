@@ -41,6 +41,17 @@ class UserProxySettings {
   /// reason the manual fields are (PROXY-010).
   String? savedProxyId;
 
+  /// Under [ProxyType.SAVED]: connect to this setting's own [address]
+  /// instead of the saved proxy's, keeping its type and, unless
+  /// [ownCredentials] is also set, its credentials. One account behind
+  /// several gateways, such as one per country.
+  bool ownAddress;
+
+  /// Under [ProxyType.SAVED]: sign in with this setting's own [username]
+  /// and [password] instead of the saved proxy's. Providers that pick the
+  /// session or the exit from the username give each site its own that way.
+  bool ownCredentials;
+
   UserProxySettings({
     required this.type,
     this.address,
@@ -48,6 +59,8 @@ class UserProxySettings {
     this.password,
     this.torExitCountry,
     this.savedProxyId,
+    this.ownAddress = false,
+    this.ownCredentials = false,
   });
 
   /// The pin as tor's `ExitNodes` value, or null when unpinned or invalid.
@@ -78,6 +91,8 @@ class UserProxySettings {
         'username': username,
         if (torExitCountry != null) 'torExitCountry': torExitCountry,
         if (savedProxyId != null) 'savedProxyId': savedProxyId,
+        if (ownAddress) 'ownAddress': true,
+        if (ownCredentials) 'ownCredentials': true,
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) {
@@ -93,6 +108,8 @@ class UserProxySettings {
       password: text('password'),
       torExitCountry: text('torExitCountry'),
       savedProxyId: text('savedProxyId'),
+      ownAddress: json['ownAddress'] == true,
+      ownCredentials: json['ownCredentials'] == true,
     );
   }
 
@@ -121,7 +138,8 @@ class UserProxySettings {
     return 'type=$t address=$a hasUsername=${username != null && username!.isNotEmpty} '
         'hasPassword=${password != null && password!.isNotEmpty} '
         'exitCountry=${torExitCountry ?? '<any>'}'
-        '${type == ProxyType.SAVED ? ' saved=${savedProxyId ?? '<none>'}' : ''}';
+        '${type == ProxyType.SAVED ? ' saved=${savedProxyId ?? '<none>'} '
+            'ownAddress=$ownAddress ownCredentials=$ownCredentials' : ''}';
   }
 
   /// Returns true if credentials are provided

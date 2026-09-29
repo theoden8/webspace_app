@@ -29,6 +29,15 @@
 - [x] 3.5 Gallery cards `saved-proxies`, `saved-proxy-edit`,
   `site-network-saved`; `site-info` shows the Connection row.
 
+## 3b. Parting from a saved proxy
+
+- [x] 3b.1 `ownAddress` / `ownCredentials` on `UserProxySettings`, applied by
+  `SavedProxy.resolveFor`; `applyProxyForm` treats each field as visible only
+  while its switch is on.
+- [x] 3b.2 `SavedProxyOverrides`, shared by the site Network screen and the
+  app-wide form; the status row follows the overrides as they are typed, and
+  the indicator waits a second after a change before probing.
+
 ## 4. Tests
 
 - [x] 4.1 `test/saved_proxies_test.dart`: resolution, fail-closed seams,

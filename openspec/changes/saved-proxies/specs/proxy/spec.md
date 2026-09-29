@@ -27,11 +27,25 @@ are routes the user did not pick for that site. Deleting a saved proxy SHALL
 first say how many sites use it, and whether the app-wide proxy does, and
 that they will be blocked.
 
+A setting that names a saved proxy MAY part from it in either half, each a
+switch of its own: its own address (the saved proxy's type and credentials
+with another `host:port`, for one account behind several gateways) and its
+own credentials (the saved proxy's address with another username and
+password, for providers that pick the session or exit from the username, or
+one account per site). The per-site and the app-wide forms SHALL both offer
+them. An own address SHALL be validated as any typed address, and one left
+empty SHALL fail closed, never falling back to the saved proxy's. An edit to
+the saved proxy SHALL still reach whatever half the setting did not replace.
+A site's own password SHALL be stored as its own proxy password (PWD-001),
+never with the saved proxy's.
+
 A reference SHALL keep the site's manual address and credentials, as TOR does
 (PROXY-010), and picking another type SHALL keep the reference.
 
-Sites that name one saved proxy have equal effective proxies, so Android
-SHALL load them together under PROXY-008.
+Sites that name one saved proxy without parting from it have equal
+effective proxies, so Android SHALL load them together under PROXY-008.
+Sites that part from it in either half are different proxies, and PROXY-008
+keeps them apart unless router mode (PROXY-013) is on.
 
 Sharing a site by QR SHALL carry the saved proxy's own type, address and
 username in place of the reference, never its password; a reference that
@@ -69,6 +83,27 @@ and a missing one as missing.
 - **GIVEN** the app-wide proxy names "Work VPN"
 - **AND** a site whose proxy type is DEFAULT
 - **THEN** the site and the app's own downloads route through "Work VPN"
+
+#### Scenario: One account, a gateway per site
+
+- **GIVEN** "Work VPN" is SOCKS5 `10.8.0.1:1080` with username `alice`
+- **AND** site Mail uses it with its own address `de.gw.example:1080`
+- **THEN** Mail's traffic goes to `de.gw.example:1080` signed in as `alice`
+
+#### Scenario: One gateway, credentials per site
+
+- **GIVEN** "Work VPN" is SOCKS5 `10.8.0.1:1080` with username `alice`
+- **AND** site Mail uses it with its own credentials `alice-session-mail`
+- **THEN** Mail's traffic goes to `10.8.0.1:1080` signed in as
+  `alice-session-mail`
+- **AND** on Android without router mode, activating Mail unloads a loaded
+  site that uses "Work VPN" unchanged
+
+#### Scenario: An own address left empty blocks
+
+- **GIVEN** a site uses "Work VPN" with its own address switched on and no
+  address stored (a hand-edited backup)
+- **THEN** the site fails closed rather than using `10.8.0.1:1080`
 
 #### Scenario: A shared site carries the proxy, not the name
 

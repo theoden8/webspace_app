@@ -4790,5 +4790,21 @@
   "siteInfoConnectionDirect": "Direct, no proxy",
   "@siteInfoConnectionDirect": {
     "description": "Value of the Connection row in the site info sheet when the site's traffic goes out without any proxy."
+  },
+  "savedProxyOwnAddress": "Use a different address",
+  "@savedProxyOwnAddress": {
+    "description": "Title of a switch shown when a site (or the app-wide proxy) uses a saved proxy: connect to another host and port than the saved proxy's, keeping its type and, unless also changed, its username and password."
+  },
+  "savedProxyOwnAddressHint": "Connects to the address you type here instead of the saved proxy's, keeping its type and, unless you also turn on different credentials, its username and password. For a provider whose one account works on several gateways, such as one per country.",
+  "@savedProxyOwnAddressHint": {
+    "description": "Explanation in the hint dialog of the \"Use a different address\" switch for a saved proxy: what it keeps from the saved proxy, what it replaces, and the typical reason to use it."
+  },
+  "savedProxyOwnCredentials": "Use different credentials",
+  "@savedProxyOwnCredentials": {
+    "description": "Title of a switch shown when a site (or the app-wide proxy) uses a saved proxy: sign in to the proxy with another username and password than the saved proxy's, keeping its address."
+  },
+  "savedProxyOwnCredentialsHint": "Signs in with the username and password you type here instead of the saved proxy's, keeping its address. For a provider that picks the session or the exit country from the username, or for a separate account per site. Sites with different credentials are different proxies, so on Android they are not kept loaded side by side unless the per-site proxy router is on.",
+  "@savedProxyOwnCredentialsHint": {
+    "description": "Explanation in the hint dialog of the \"Use different credentials\" switch for a saved proxy: what it keeps and replaces, why one would use it, and that on Android sites with different credentials cannot stay loaded together unless the per-site proxy router experiment is on."
   }
 }

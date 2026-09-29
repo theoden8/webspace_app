@@ -14,6 +14,7 @@ import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
+import 'package:webspace/widgets/saved_proxy_overrides.dart';
 
 /// Everything the network screen may change through a switch or a picker, in
 /// one value so the caller can apply a whole edit in a single `setState`.
@@ -27,6 +28,8 @@ class SiteNetworkValues {
     required this.proxyType,
     this.torExitCountry,
     this.savedProxyId,
+    this.ownAddress = false,
+    this.ownCredentials = false,
     required this.webRtcPolicy,
   });
 
@@ -34,6 +37,11 @@ class SiteNetworkValues {
 
   /// The saved proxy named under [ProxyType.SAVED].
   final String? savedProxyId;
+
+  /// Under [ProxyType.SAVED], whether the site uses its own address and its
+  /// own credentials with the saved proxy.
+  final bool ownAddress;
+  final bool ownCredentials;
 
   /// Country the Tor exit is pinned to, or null for any.
   final String? torExitCountry;
@@ -47,6 +55,8 @@ class SiteNetworkValues {
     ProxyType? proxyType,
     Object? torExitCountry = _keep,
     Object? savedProxyId = _keep,
+    bool? ownAddress,
+    bool? ownCredentials,
     WebRtcPolicy? webRtcPolicy,
   }) =>
       SiteNetworkValues(
@@ -57,6 +67,8 @@ class SiteNetworkValues {
         savedProxyId: identical(savedProxyId, _keep)
             ? this.savedProxyId
             : savedProxyId as String?,
+        ownAddress: ownAddress ?? this.ownAddress,
+        ownCredentials: ownCredentials ?? this.ownCredentials,
         webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
       );
 }
@@ -65,14 +77,18 @@ class SiteNetworkValues {
 /// and the field it guards cannot drift apart. TOR supplies its own address
 /// once the runtime is up, and a saved proxy was checked where it was saved,
 /// so for both there is nothing for the user to type and nothing to validate.
+///
+/// [ownAddress] is a saved proxy used with an address of the setting's own,
+/// which is then typed and checked like any other.
 String? validateProxyAddress(
   AppLocalizations loc,
   ProxyType type,
-  String? value,
-) {
+  String? value, {
+  bool ownAddress = false,
+}) {
   if (type == ProxyType.DEFAULT ||
       type == ProxyType.TOR ||
-      type == ProxyType.SAVED) {
+      (type == ProxyType.SAVED && !ownAddress)) {
     return null;
   }
   if (value == null || value.isEmpty) {
@@ -151,6 +167,34 @@ class SiteNetworkScreen extends StatefulWidget {
 class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
   late SiteNetworkValues _values = widget.values;
 
+  List<TextEditingController> get _controllers => [
+        widget.proxyAddressController,
+        widget.proxyUsernameController,
+        widget.proxyPasswordController,
+      ];
+
+  // The saved-proxy row shows the route the form would store, overrides
+  // included, so it follows the fields as they are typed.
+  @override
+  void initState() {
+    super.initState();
+    for (final c in _controllers) {
+      c.addListener(_fieldsChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final c in _controllers) {
+      c.removeListener(_fieldsChanged);
+    }
+    super.dispose();
+  }
+
+  void _fieldsChanged() {
+    if (mounted && _values.proxyType == ProxyType.SAVED) setState(() {});
+  }
+
   void _update(SiteNetworkValues next) {
     setState(() => _values = next);
     widget.onChanged(next);
@@ -210,21 +254,31 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
   List<SavedProxy> get _savedProxies =>
       widget.savedProxies ?? SavedProxies.all;
 
-  /// The saved proxy this site names: its route, and whether it answers
-  /// (PROXY-030). Edited in App Settings, so shown here, not edited.
+  /// The saved proxy this site names: the route it takes with this site's
+  /// overrides, and whether it answers (PROXY-030). The saved proxy itself
+  /// is edited in App Settings.
   Widget _savedProxy(AppLocalizations loc) {
     SavedProxy? saved;
     for (final p in _savedProxies) {
       if (p.id == _values.savedProxyId) saved = p;
     }
+    String? orNull(String v) => v.trim().isEmpty ? null : v.trim();
     final route = saved == null
         ? UserProxySettings(
             type: ProxyType.SAVED, savedProxyId: _values.savedProxyId)
-        : saved.settings;
+        : saved.resolveFor(UserProxySettings(
+            type: ProxyType.SAVED,
+            savedProxyId: saved.id,
+            ownAddress: _values.ownAddress,
+            ownCredentials: _values.ownCredentials,
+            address: orNull(widget.proxyAddressController.text),
+            username: orNull(widget.proxyUsernameController.text),
+            password: orNull(widget.proxyPasswordController.text),
+          ));
     // Data, not copy (LOC-002): a type name and an address.
     final address = saved == null
         ? null
-        : '${saved.settings.type.name} ${saved.settings.address ?? ''}'.trim();
+        : '${route.type.name} ${route.address ?? ''}'.trim();
     return ListTile(
       leading: const Icon(Icons.vpn_lock_outlined),
       title: address == null ? null : Text(address),
@@ -304,7 +358,23 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
       ),
       _proxyType(loc),
       if (type == ProxyType.TOR) _torExitCountry(loc),
-      if (type == ProxyType.SAVED) _savedProxy(loc),
+      if (type == ProxyType.SAVED) ...[
+        _savedProxy(loc),
+        SavedProxyOverrides(
+          ownAddress: _values.ownAddress,
+          ownCredentials: _values.ownCredentials,
+          onOwnAddressChanged: (v) =>
+              _update(_values.copyWith(ownAddress: v)),
+          onOwnCredentialsChanged: (v) =>
+              _update(_values.copyWith(ownCredentials: v)),
+          addressController: widget.proxyAddressController,
+          usernameController: widget.proxyUsernameController,
+          passwordController: widget.proxyPasswordController,
+          addressValidator: (value) => validateProxyAddress(
+              loc, type, value,
+              ownAddress: _values.ownAddress),
+        ),
+      ],
       // TOR supplies its own loopback address and stream-isolation auth, so
       // the manual fields are inert while it is selected. Hidden, not
       // cleared: PROXY-010 requires a stored SOCKS5 config to survive a trip

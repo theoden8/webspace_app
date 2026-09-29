@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
@@ -26,11 +28,17 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
   ProxyHealthService get _service =>
       widget.service ?? ProxyHealthService.instance;
 
+  /// A proxy that changes under the indicator is usually being typed; each
+  /// keystroke is a different proxy, and a complete `host:port` on the way
+  /// to the intended one is a real host that would be sent a probe.
+  static const Duration _settle = Duration(seconds: 1);
+  Timer? _pending;
+
   @override
   void initState() {
     super.initState();
     _service.addListener(_changed);
-    _ensureFresh();
+    _ensureFresh(immediately: true);
   }
 
   @override
@@ -41,22 +49,36 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
       oldService.removeListener(_changed);
       _service.addListener(_changed);
     }
-    _ensureFresh();
+    if (!_sameProxy(old.proxy, widget.proxy)) _ensureFresh();
   }
 
   @override
   void dispose() {
+    _pending?.cancel();
     _service.removeListener(_changed);
     super.dispose();
   }
+
+  static bool _sameProxy(UserProxySettings a, UserProxySettings b) =>
+      a.type == b.type &&
+      a.address == b.address &&
+      a.username == b.username &&
+      a.password == b.password;
 
   void _changed() {
     if (mounted) setState(() {});
   }
 
-  void _ensureFresh() {
+  void _ensureFresh({bool immediately = false}) {
+    _pending?.cancel();
     if (!ProxyHealthService.probeable(widget.proxy)) return;
     if (_service.isFresh(widget.proxy)) return;
+    if (!immediately) {
+      _pending = Timer(_settle, () {
+        if (mounted) _service.check(widget.proxy);
+      });
+      return;
+    }
     // After the frame: `check` notifies synchronously, and a listener may
     // not rebuild a widget during build.
     WidgetsBinding.instance.addPostFrameCallback((_) {

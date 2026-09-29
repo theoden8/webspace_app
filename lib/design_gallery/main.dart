@@ -226,8 +226,9 @@ class _SavedProxyEditCard extends StatelessWidget {
       );
 }
 
-/// The per-site Network screen for a site set to a saved proxy: the picker
-/// names it, and the row under it shows its route and whether it answers.
+/// The per-site Network screen for a site set to a saved proxy with its own
+/// credentials: the picker names it, the row under it shows its route and
+/// whether it answers, and the credentials fold holds the site's own.
 class _SiteNetworkSavedCard extends StatefulWidget {
   const _SiteNetworkSavedCard();
 
@@ -239,8 +240,8 @@ class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
   final model =
       WebViewModel(initUrl: 'https://mail.example.com/', name: 'Mail');
   final address = TextEditingController();
-  final username = TextEditingController();
-  final password = TextEditingController();
+  final username = TextEditingController(text: 'alice-session-mail');
+  final password = TextEditingController(text: 'hunter2');
 
   @override
   void dispose() {
@@ -257,6 +258,7 @@ class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
         values: const SiteNetworkValues(
           proxyType: ProxyType.SAVED,
           savedProxyId: 'demo-work',
+          ownCredentials: true,
           webRtcPolicy: WebRtcPolicy.relayOnly,
         ),
         onChanged: (_) {},

@@ -67,7 +67,9 @@ class SavedProxy {
     settings
       ..password = null
       ..torExitCountry = null
-      ..savedProxyId = null;
+      ..savedProxyId = null
+      ..ownAddress = false
+      ..ownCredentials = false;
     return SavedProxy(
       id: id,
       name: name is String ? name : '',
@@ -84,6 +86,20 @@ class SavedProxy {
           username: settings.username,
           password: settings.password,
         ),
+      );
+
+  /// This proxy as [reference] uses it: the reference's own address and
+  /// credentials where it asks for them (PROXY-029), this proxy's otherwise.
+  /// An own address that is empty stays empty and fails closed; it never
+  /// falls back to this proxy's.
+  UserProxySettings resolveFor(UserProxySettings reference) =>
+      UserProxySettings(
+        type: settings.type,
+        address: reference.ownAddress ? reference.address : settings.address,
+        username:
+            reference.ownCredentials ? reference.username : settings.username,
+        password:
+            reference.ownCredentials ? reference.password : settings.password,
       );
 
   static String newId() {
@@ -235,10 +251,5 @@ UserProxySettings resolveSavedProxy(UserProxySettings settings) {
       savedProxyId: settings.savedProxyId,
     );
   }
-  return UserProxySettings(
-    type: saved.settings.type,
-    address: saved.settings.address,
-    username: saved.settings.username,
-    password: saved.settings.password,
-  );
+  return saved.resolveFor(settings);
 }

@@ -99,6 +99,138 @@ void main() {
     });
   });
 
+  group('a site parting from its saved proxy (PROXY-029)', () {
+    test('its own address keeps the saved type and credentials', () {
+      final route = resolveEffectiveProxy(UserProxySettings(
+        type: ProxyType.SAVED,
+        savedProxyId: 'vpn',
+        ownAddress: true,
+        address: 'de.gw.example:1080',
+        username: 'ignored',
+      ));
+      expect(route.type, ProxyType.SOCKS5);
+      expect(route.address, 'de.gw.example:1080');
+      expect(route.username, 'alice');
+      expect(route.password, 'vpn-secret');
+    });
+
+    test('its own credentials keep the saved address', () {
+      final route = resolveEffectiveProxy(UserProxySettings(
+        type: ProxyType.SAVED,
+        savedProxyId: 'vpn',
+        ownCredentials: true,
+        address: 'ignored:1',
+        username: 'alice-session-mail',
+        password: 'site-secret',
+      ));
+      expect(route.address, '10.8.0.1:1080');
+      expect(route.username, 'alice-session-mail');
+      expect(route.password, 'site-secret');
+    });
+
+    test('an own address left empty fails closed', () {
+      final route = resolveEffectiveProxy(UserProxySettings(
+        type: ProxyType.SAVED,
+        savedProxyId: 'vpn',
+        ownAddress: true,
+      ));
+      expect(route.address, isNull);
+      expect(const DefaultOutboundHttpFactory().clientFor(route),
+          isA<OutboundClientBlocked>());
+    });
+
+    test('an edit to the saved proxy still reaches what the site kept', () {
+      final site = UserProxySettings(
+        type: ProxyType.SAVED,
+        savedProxyId: 'vpn',
+        ownCredentials: true,
+        username: 'mine',
+      );
+      SavedProxies.setInMemory([_vpn()..settings.address = '10.9.0.1:1080']);
+      expect(resolveEffectiveProxy(site).address, '10.9.0.1:1080');
+      expect(resolveEffectiveProxy(site).username, 'mine');
+    });
+
+    test('the flags round-trip and are only written when set', () {
+      final json = UserProxySettings(
+        type: ProxyType.SAVED,
+        savedProxyId: 'vpn',
+        ownCredentials: true,
+      ).toJson();
+      expect(json['ownCredentials'], true);
+      expect(json.containsKey('ownAddress'), isFalse);
+      final back = UserProxySettings.fromJson(json);
+      expect(back.ownCredentials, isTrue);
+      expect(back.ownAddress, isFalse);
+    });
+
+    test('a non-bool flag reads as off', () {
+      final back = UserProxySettings.fromJson(
+          {'type': ProxyType.SAVED.index, 'ownAddress': 'yes'});
+      expect(back.ownAddress, isFalse);
+    });
+
+    test('a saved proxy entry cannot carry the flags itself', () {
+      final raw = jsonEncode([
+        {
+          'id': 'x',
+          'name': 'X',
+          'proxy': {
+            'type': ProxyType.HTTP.index,
+            'address': 'a:1',
+            'ownAddress': true,
+            'ownCredentials': true,
+          },
+        },
+      ]);
+      final p = decodeSavedProxies(raw).single.settings;
+      expect(p.ownAddress, isFalse);
+      expect(p.ownCredentials, isFalse);
+    });
+
+    test('Android keeps sites with different credentials apart', () {
+      final models = [
+        WebViewModel(
+          initUrl: 'https://mail.example.com/',
+          proxySettings: UserProxySettings(
+            type: ProxyType.SAVED,
+            savedProxyId: 'vpn',
+            ownCredentials: true,
+            username: 'alice-session-mail',
+          ),
+        ),
+        WebViewModel(initUrl: 'https://chat.example.com/', proxySettings: _names('vpn')),
+      ];
+      expect(
+        SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+          targetIndex: 0,
+          models: models,
+          loadedIndices: {1},
+          proxyIsGlobal: true,
+        ),
+        {1},
+      );
+    });
+
+    test('a shared site carries its own username, never a password', () {
+      final model = WebViewModel(
+        initUrl: 'https://example.com/',
+        proxySettings: UserProxySettings(
+          type: ProxyType.SAVED,
+          savedProxyId: 'vpn',
+          ownCredentials: true,
+          username: 'alice-session-mail',
+          password: 'site-secret',
+        ),
+      );
+      final shared = SiteSettingsQrCodec.shareableSubset(model.toJson());
+      final proxy = shared['proxySettings'] as Map<String, dynamic>;
+      expect(proxy['address'], '10.8.0.1:1080');
+      expect(proxy['username'], 'alice-session-mail');
+      expect(jsonEncode(shared), isNot(contains('secret')));
+    });
+  });
+
   group('every seam fails closed on a missing saved proxy', () {
     test('Dart HTTP blocks', () {
       final client = const DefaultOutboundHttpFactory().clientFor(_names('gone'));
@@ -301,6 +433,31 @@ void main() {
       expect(out.savedProxyId, 'vpn');
       expect(out.address, '127.0.0.1:1080');
       expect(out.password, 'p');
+    });
+
+    test('an override field on screen is the truth', () {
+      final stored = UserProxySettings(
+        type: ProxyType.SOCKS5,
+        address: '127.0.0.1:1080',
+        username: 'old-user',
+        password: 'old-pass',
+      );
+      final out = applyProxyForm(
+        stored: stored,
+        fields: const ProxyFormFields(
+          type: ProxyType.SAVED,
+          savedProxyId: 'vpn',
+          ownCredentials: true,
+          address: 'hidden:1',
+          username: 'new-user',
+          password: '',
+        ),
+      );
+      expect(out.ownCredentials, isTrue);
+      expect(out.ownAddress, isFalse);
+      expect(out.username, 'new-user');
+      expect(out.password, isNull);
+      expect(out.address, '127.0.0.1:1080');
     });
 
     test('switching away keeps the reference for the way back', () {

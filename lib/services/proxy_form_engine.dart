@@ -10,6 +10,8 @@ class ProxyFormFields {
     this.username = '',
     this.password = '',
     this.savedProxyId,
+    this.ownAddress = false,
+    this.ownCredentials = false,
   });
 
   final ProxyType type;
@@ -20,6 +22,11 @@ class ProxyFormFields {
   /// The saved proxy picked, under [ProxyType.SAVED]. Not text: it comes
   /// from a picker, so null means nothing was picked.
   final String? savedProxyId;
+
+  /// Under [ProxyType.SAVED], whether the address and the credentials fields
+  /// are on screen as overrides of the saved proxy's.
+  final bool ownAddress;
+  final bool ownCredentials;
 }
 
 /// Fold the form into the settings to store (PROXY-019).
@@ -46,18 +53,22 @@ UserProxySettings applyProxyForm({
   required UserProxySettings stored,
   required ProxyFormFields fields,
 }) {
+  final saved = fields.type == ProxyType.SAVED;
   final hidden = fields.type == ProxyType.DEFAULT ||
       fields.type == ProxyType.TOR ||
-      fields.type == ProxyType.SAVED;
+      saved;
+  // Under SAVED each half is on screen only as the override it names.
+  final addressHidden = hidden && !(saved && fields.ownAddress);
+  final credentialsHidden = hidden && !(saved && fields.ownCredentials);
   return UserProxySettings(
     type: fields.type,
-    address: hidden ? stored.address : _orNull(fields.address.trim()),
-    username: hidden ? stored.username : _orNull(fields.username),
-    password: hidden ? stored.password : _orNull(fields.password),
+    address: addressHidden ? stored.address : _orNull(fields.address.trim()),
+    username: credentialsHidden ? stored.username : _orNull(fields.username),
+    password: credentialsHidden ? stored.password : _orNull(fields.password),
     torExitCountry: stored.torExitCountry,
-    savedProxyId: fields.type == ProxyType.SAVED
-        ? fields.savedProxyId
-        : stored.savedProxyId,
+    savedProxyId: saved ? fields.savedProxyId : stored.savedProxyId,
+    ownAddress: saved ? fields.ownAddress : stored.ownAddress,
+    ownCredentials: saved ? fields.ownCredentials : stored.ownCredentials,
   );
 }
 

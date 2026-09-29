@@ -10,6 +10,7 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/saved_proxies.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
+import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 
 class _MemoryStore extends SavedProxyStore {
@@ -304,6 +305,114 @@ void main() {
       expect(reported!.proxyType, ProxyType.SAVED);
       expect(reported!.savedProxyId, 'vpn');
       expect(reported!.webRtcPolicy, WebRtcPolicy.relayOnly);
+    });
+  });
+
+  group('Network screen overrides', () {
+    Future<List<SiteNetworkValues>> pumpSaved(
+      WidgetTester tester, {
+      bool ownAddress = false,
+      bool ownCredentials = false,
+      TextEditingController? address,
+    }) async {
+      final reported = <SiteNetworkValues>[];
+      await _pump(
+        tester,
+        SiteNetworkScreen(
+          host: 'example.com',
+          siteId: 'site-1',
+          values: SiteNetworkValues(
+            proxyType: ProxyType.SAVED,
+            savedProxyId: 'vpn',
+            ownAddress: ownAddress,
+            ownCredentials: ownCredentials,
+            webRtcPolicy: WebRtcPolicy.defaultPolicy,
+          ),
+          onChanged: reported.add,
+          proxyAddressController: address ?? TextEditingController(),
+          proxyUsernameController: TextEditingController(),
+          proxyPasswordController: TextEditingController(),
+          proxySupported: true,
+          showSavedSignIns: false,
+          savedProxies: [_vpn()],
+        ),
+      );
+      return reported;
+    }
+
+    testWidgets('both switches start off with no fields', (tester) async {
+      await pumpSaved(tester);
+      expect(find.text(loc.savedProxyOwnAddress), findsOneWidget);
+      expect(find.text(loc.savedProxyOwnCredentials), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, loc.siteSettingsProxyAddress),
+          findsNothing);
+    });
+
+    testWidgets('turning on an own address reports it and shows the field',
+        (tester) async {
+      final reported = await pumpSaved(tester);
+      await tester.tap(find.text(loc.savedProxyOwnAddress));
+      await tester.pumpAndSettle();
+      expect(reported.last.ownAddress, isTrue);
+      expect(reported.last.ownCredentials, isFalse);
+      expect(reported.last.savedProxyId, 'vpn');
+      expect(find.widgetWithText(TextFormField, loc.siteSettingsProxyAddress),
+          findsOneWidget);
+    });
+
+    testWidgets('the route follows the own address as it is typed',
+        (tester) async {
+      final address = TextEditingController();
+      await pumpSaved(tester, ownAddress: true, address: address);
+      await tester.enterText(
+          find.widgetWithText(TextFormField, loc.siteSettingsProxyAddress),
+          'de.gw.example:1080');
+      await tester.pump();
+      expect(find.text('SOCKS5 de.gw.example:1080'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+    });
+
+    testWidgets('a malformed own address is flagged', (tester) async {
+      await pumpSaved(tester, ownAddress: true);
+      await tester.enterText(
+          find.widgetWithText(TextFormField, loc.siteSettingsProxyAddress),
+          'no-port');
+      await tester.pump();
+      expect(find.text(loc.siteSettingsProxyAddressFormatError),
+          findsOneWidget);
+      await tester.pump(const Duration(seconds: 2));
+    });
+  });
+
+  group('Connection indicator', () {
+    testWidgets('a proxy being typed is probed once it settles',
+        (tester) async {
+      final probed = <String?>[];
+      final service = ProxyHealthService(probe: (s) async {
+        probed.add(s.address);
+        return const ProxyTestResult(ProxyTestOutcome.reachable);
+      });
+      Widget at(String address) => MaterialApp(
+            localizationsDelegates: AppLocalizations.localizationsDelegates,
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: ProxyStatusIndicator(
+                service: service,
+                proxy: UserProxySettings(
+                    type: ProxyType.SOCKS5, address: address),
+              ),
+            ),
+          );
+      await tester.pumpWidget(at('10.0.0.1:1'));
+      await tester.pump();
+      expect(probed, ['10.0.0.1:1']);
+      await tester.pumpWidget(at('10.0.0.1:10'));
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpWidget(at('10.0.0.1:1080'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(probed, ['10.0.0.1:1']);
+      await tester.pump(const Duration(seconds: 2));
+      expect(probed, ['10.0.0.1:1', '10.0.0.1:1080']);
     });
   });
 
