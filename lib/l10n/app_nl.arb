@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Zoeken op pagina",
   "urlBarHint": "Voer URL in",
   "urlBarGoTooltip": "Ga",
+  "urlBarSearchSiteTooltip": "Zoeksite kiezen",
   "siteInfoTitle": "Site-info",
   "siteInfoSite": "Site",
   "siteInfoTabOf": "Tabblad van",

@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Meklēt lapā",
   "urlBarHint": "Ievadiet URL",
   "urlBarGoTooltip": "Doties",
+  "urlBarSearchSiteTooltip": "Izvēlēties meklēšanas vietni",
   "siteInfoTitle": "Vietnes informācija",
   "siteInfoSite": "Vietne",
   "siteInfoTabOf": "Cilne vietnē",

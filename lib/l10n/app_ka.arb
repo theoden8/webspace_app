@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "ძებნა გვერდზე",
   "urlBarHint": "შეიყვანეთ URL",
   "urlBarGoTooltip": "გადასვლა",
+  "urlBarSearchSiteTooltip": "საძიებო საიტის არჩევა",
   "siteInfoTitle": "საიტის ინფორმაცია",
   "siteInfoSite": "საიტი",
   "siteInfoTabOf": "ჩანართი ეკუთვნის",

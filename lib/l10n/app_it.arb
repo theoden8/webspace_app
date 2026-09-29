@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Cerca nella pagina",
   "urlBarHint": "Inserisci URL",
   "urlBarGoTooltip": "Vai",
+  "urlBarSearchSiteTooltip": "Scegli il sito di ricerca",
   "siteInfoTitle": "Info sul sito",
   "siteInfoSite": "Sito",
   "siteInfoTabOf": "Scheda di",

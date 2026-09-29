@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Търсене в страницата",
   "urlBarHint": "Въведете URL",
   "urlBarGoTooltip": "Към сайта",
+  "urlBarSearchSiteTooltip": "Избор на сайт за търсене",
   "siteInfoTitle": "Информация за сайта",
   "siteInfoSite": "Сайт",
   "siteInfoTabOf": "Раздел на",

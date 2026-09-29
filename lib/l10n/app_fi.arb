@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Etsi sivulta",
   "urlBarHint": "Syötä URL",
   "urlBarGoTooltip": "Siirry",
+  "urlBarSearchSiteTooltip": "Valitse hakusivusto",
   "siteInfoTitle": "Sivuston tiedot",
   "siteInfoSite": "Sivusto",
   "siteInfoTabOf": "Välilehti sivustolla",

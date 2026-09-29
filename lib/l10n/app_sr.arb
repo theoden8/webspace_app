@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Претражи на страници",
   "urlBarHint": "Унесите URL",
   "urlBarGoTooltip": "Иди",
+  "urlBarSearchSiteTooltip": "Изаберите сајт за претрагу",
   "siteInfoTitle": "Информације о сајту",
   "siteInfoSite": "Сајт",
   "siteInfoTabOf": "Картица сајта",

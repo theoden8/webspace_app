@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "جستجو در صفحه",
   "urlBarHint": "URL را وارد کنید",
   "urlBarGoTooltip": "برو",
+  "urlBarSearchSiteTooltip": "انتخاب سایت جستجو",
   "siteInfoTitle": "اطلاعات سایت",
   "siteInfoSite": "سایت",
   "siteInfoTabOf": "زبانهٔ سایت",

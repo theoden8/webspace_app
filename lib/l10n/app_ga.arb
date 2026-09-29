@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Cuardaigh ar an leathanach",
   "urlBarHint": "Iontráil URL",
   "urlBarGoTooltip": "Téigh",
+  "urlBarSearchSiteTooltip": "Roghnaigh suíomh cuardaigh",
   "siteInfoTitle": "Faisnéis an tsuímh",
   "siteInfoSite": "Suíomh",
   "siteInfoTabOf": "Cluaisín an tsuímh",

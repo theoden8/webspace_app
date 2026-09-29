@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Sök på sidan",
   "urlBarHint": "Ange URL",
   "urlBarGoTooltip": "Gå",
+  "urlBarSearchSiteTooltip": "Välj söksajt",
   "siteInfoTitle": "Webbplatsinfo",
   "siteInfoSite": "Webbplats",
   "siteInfoTabOf": "Flik hos",

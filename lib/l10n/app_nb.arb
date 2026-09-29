@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Søk på siden",
   "urlBarHint": "Skriv inn URL",
   "urlBarGoTooltip": "Gå",
+  "urlBarSearchSiteTooltip": "Velg søkeside",
   "siteInfoTitle": "Nettstedsinfo",
   "siteInfoSite": "Nettsted",
   "siteInfoTabOf": "Fane hos",

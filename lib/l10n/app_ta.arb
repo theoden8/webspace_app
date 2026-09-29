@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "பக்கத்தில் தேடு",
   "urlBarHint": "URL ஐ உள்ளிடவும்",
   "urlBarGoTooltip": "செல்",
+  "urlBarSearchSiteTooltip": "தேடல் தளத்தைத் தேர்ந்தெடுக்கவும்",
   "siteInfoTitle": "தளத் தகவல்",
   "siteInfoSite": "தளம்",
   "siteInfoTabOf": "தாவல் உள்ள தளம்",

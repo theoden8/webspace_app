@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Cari di halaman",
   "urlBarHint": "Masukkan URL",
   "urlBarGoTooltip": "Pergi",
+  "urlBarSearchSiteTooltip": "Pilih laman carian",
   "siteInfoTitle": "Maklumat tapak",
   "siteInfoSite": "Tapak",
   "siteInfoTabOf": "Tab milik",

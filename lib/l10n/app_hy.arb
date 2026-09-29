@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Որոնել էջում",
   "urlBarHint": "Մուտքագրեք URL",
   "urlBarGoTooltip": "Անցնել",
+  "urlBarSearchSiteTooltip": "Ընտրել որոնման կայքը",
   "siteInfoTitle": "Կայքի տեղեկություններ",
   "siteInfoSite": "Կայք",
   "siteInfoTabOf": "Ներդիրը պատկանում է",

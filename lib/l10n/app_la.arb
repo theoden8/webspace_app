@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "In pagina quaerere",
   "urlBarHint": "URL inscribere",
   "urlBarGoTooltip": "Ire",
+  "urlBarSearchSiteTooltip": "Situm quaerendi elige",
   "siteInfoTitle": "Notitiae loci",
   "siteInfoSite": "Locus",
   "siteInfoTabOf": "Scheda loci",

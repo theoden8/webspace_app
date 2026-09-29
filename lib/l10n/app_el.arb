@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Αναζήτηση στη σελίδα",
   "urlBarHint": "Εισαγωγή URL",
   "urlBarGoTooltip": "Μετάβαση",
+  "urlBarSearchSiteTooltip": "Επιλογή ιστότοπου αναζήτησης",
   "siteInfoTitle": "Πληροφορίες ιστότοπου",
   "siteInfoSite": "Ιστότοπος",
   "siteInfoTabOf": "Καρτέλα του ιστότοπου",

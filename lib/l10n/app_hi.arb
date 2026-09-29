@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "पृष्ठ पर खोजें",
   "urlBarHint": "URL दर्ज करें",
   "urlBarGoTooltip": "जाएँ",
+  "urlBarSearchSiteTooltip": "खोज साइट चुनें",
   "siteInfoTitle": "साइट जानकारी",
   "siteInfoSite": "साइट",
   "siteInfoTabOf": "टैब वाली साइट",

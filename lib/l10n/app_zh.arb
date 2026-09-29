@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "在頁面中搜尋",
   "urlBarHint": "輸入網址",
   "urlBarGoTooltip": "前往",
+  "urlBarSearchSiteTooltip": "選擇搜尋網站",
   "siteInfoTitle": "網站資訊",
   "siteInfoSite": "網站",
   "siteInfoTabOf": "分頁所屬網站",

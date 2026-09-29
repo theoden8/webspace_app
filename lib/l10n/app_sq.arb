@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Kërko në faqe",
   "urlBarHint": "Fut URL-në",
   "urlBarGoTooltip": "Shko",
+  "urlBarSearchSiteTooltip": "Zgjidh sajtin e kërkimit",
   "siteInfoTitle": "Informacioni i sajtit",
   "siteInfoSite": "Sajti",
   "siteInfoTabOf": "Skedë e sajtit",

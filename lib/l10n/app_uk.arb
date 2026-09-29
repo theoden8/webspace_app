@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Пошук на сторінці",
   "urlBarHint": "Введіть URL",
   "urlBarGoTooltip": "Перейти",
+  "urlBarSearchSiteTooltip": "Вибрати сайт для пошуку",
   "siteInfoTitle": "Відомості про сайт",
   "siteInfoSite": "Сайт",
   "siteInfoTabOf": "Вкладка сайту",

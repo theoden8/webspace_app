@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Bilatu orrian",
   "urlBarHint": "Sartu URLa",
   "urlBarGoTooltip": "Joan",
+  "urlBarSearchSiteTooltip": "Aukeratu bilaketa-gunea",
   "siteInfoTitle": "Gunearen informazioa",
   "siteInfoSite": "Gunea",
   "siteInfoTabOf": "Fitxa duen gunea",

@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "ページ内を検索",
   "urlBarHint": "URLを入力",
   "urlBarGoTooltip": "移動",
+  "urlBarSearchSiteTooltip": "検索サイトを選択",
   "siteInfoTitle": "サイト情報",
   "siteInfoSite": "サイト",
   "siteInfoTabOf": "タブの所属先",

@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Išči na strani",
   "urlBarHint": "Vnesite URL",
   "urlBarGoTooltip": "Pojdi",
+  "urlBarSearchSiteTooltip": "Izberite iskalno spletno mesto",
   "siteInfoTitle": "Podatki o strani",
   "siteInfoSite": "Stran",
   "siteInfoTabOf": "Zavihek strani",

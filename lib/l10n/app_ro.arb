@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Caută în pagină",
   "urlBarHint": "Introdu URL",
   "urlBarGoTooltip": "Accesează",
+  "urlBarSearchSiteTooltip": "Alege site-ul de căutare",
   "siteInfoTitle": "Informații despre site",
   "siteInfoSite": "Site",
   "siteInfoTabOf": "Filă a site-ului",

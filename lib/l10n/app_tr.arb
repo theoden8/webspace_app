@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Sayfada ara",
   "urlBarHint": "URL girin",
   "urlBarGoTooltip": "Git",
+  "urlBarSearchSiteTooltip": "Arama sitesini seç",
   "siteInfoTitle": "Site bilgisi",
   "siteInfoSite": "Site",
   "siteInfoTabOf": "Sekmesi olduğu site",

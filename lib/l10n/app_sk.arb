@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Hľadať na stránke",
   "urlBarHint": "Zadajte URL",
   "urlBarGoTooltip": "Prejsť",
+  "urlBarSearchSiteTooltip": "Vybrať vyhľadávaciu stránku",
   "siteInfoTitle": "Informácie o stránke",
   "siteInfoSite": "Stránka",
   "siteInfoTabOf": "Karta stránky",

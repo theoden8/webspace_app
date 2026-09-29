@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Søg på siden",
   "urlBarHint": "Indtast URL",
   "urlBarGoTooltip": "Gå",
+  "urlBarSearchSiteTooltip": "Vælg søgeside",
   "siteInfoTitle": "Webstedsinfo",
   "siteInfoSite": "Websted",
   "siteInfoTabOf": "Faneblad hos",

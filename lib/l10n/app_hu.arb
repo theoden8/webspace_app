@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Keresés az oldalon",
   "urlBarHint": "Adjon meg URL-t",
   "urlBarGoTooltip": "Ugrás",
+  "urlBarSearchSiteTooltip": "Keresőoldal kiválasztása",
   "siteInfoTitle": "Webhely-információ",
   "siteInfoSite": "Webhely",
   "siteInfoTabOf": "Lap tulajdonosa",

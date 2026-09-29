@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "البحث في الصفحة",
   "urlBarHint": "أدخل عنوان URL",
   "urlBarGoTooltip": "انتقال",
+  "urlBarSearchSiteTooltip": "اختيار موقع البحث",
   "siteInfoTitle": "معلومات الموقع",
   "siteInfoSite": "الموقع",
   "siteInfoTabOf": "ضمن ألسنة",

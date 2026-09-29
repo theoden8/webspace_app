@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Szukaj na stronie",
   "urlBarHint": "Wpisz adres URL",
   "urlBarGoTooltip": "Przejdź",
+  "urlBarSearchSiteTooltip": "Wybierz witrynę wyszukiwania",
   "siteInfoTitle": "Informacje o witrynie",
   "siteInfoSite": "Witryna",
   "siteInfoTabOf": "Karta witryny",

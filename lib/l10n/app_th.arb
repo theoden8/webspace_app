@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "ค้นหาในหน้า",
   "urlBarHint": "ป้อน URL",
   "urlBarGoTooltip": "ไป",
+  "urlBarSearchSiteTooltip": "เลือกเว็บไซต์ค้นหา",
   "siteInfoTitle": "ข้อมูลเว็บไซต์",
   "siteInfoSite": "เว็บไซต์",
   "siteInfoTabOf": "แท็บของ",

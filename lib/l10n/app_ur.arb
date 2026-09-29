@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "صفحے پر تلاش کریں",
   "urlBarHint": "URL درج کریں",
   "urlBarGoTooltip": "جائیں",
+  "urlBarSearchSiteTooltip": "تلاش کی سائٹ منتخب کریں",
   "siteInfoTitle": "سائٹ کی معلومات",
   "siteInfoSite": "سائٹ",
   "siteInfoTabOf": "ٹیب والی سائٹ",

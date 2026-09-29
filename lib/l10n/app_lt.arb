@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Ieškoti puslapyje",
   "urlBarHint": "Įveskite URL",
   "urlBarGoTooltip": "Pirmyn",
+  "urlBarSearchSiteTooltip": "Pasirinkti paieškos svetainę",
   "siteInfoTitle": "Svetainės informacija",
   "siteInfoSite": "Svetainė",
   "siteInfoTabOf": "Kortelė svetainėje",

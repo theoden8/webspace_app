@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "חפש בעמוד",
   "urlBarHint": "הזן URL",
   "urlBarGoTooltip": "עבור",
+  "urlBarSearchSiteTooltip": "בחירת אתר חיפוש",
   "siteInfoTitle": "פרטי אתר",
   "siteInfoSite": "אתר",
   "siteInfoTabOf": "כרטיסייה של",

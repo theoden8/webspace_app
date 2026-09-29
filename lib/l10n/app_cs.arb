@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Hledat na stránce",
   "urlBarHint": "Zadejte URL",
   "urlBarGoTooltip": "Přejít",
+  "urlBarSearchSiteTooltip": "Vybrat vyhledávací web",
   "siteInfoTitle": "Informace o webu",
   "siteInfoSite": "Web",
   "siteInfoTabOf": "Panel webu",

@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "페이지에서 검색",
   "urlBarHint": "URL 입력",
   "urlBarGoTooltip": "이동",
+  "urlBarSearchSiteTooltip": "검색 사이트 선택",
   "siteInfoTitle": "사이트 정보",
   "siteInfoSite": "사이트",
   "siteInfoTabOf": "탭 소속",

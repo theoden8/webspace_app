@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Chwilio ar y dudalen",
   "urlBarHint": "Rhowch URL",
   "urlBarGoTooltip": "Mynd",
+  "urlBarSearchSiteTooltip": "Dewis gwefan chwilio",
   "siteInfoTitle": "Gwybodaeth y safle",
   "siteInfoSite": "Safle",
   "siteInfoTabOf": "Tab yn perthyn i",

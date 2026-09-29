@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Otsi lehelt",
   "urlBarHint": "Sisesta URL",
   "urlBarGoTooltip": "Mine",
+  "urlBarSearchSiteTooltip": "Vali otsingusait",
   "siteInfoTitle": "Saidi teave",
   "siteInfoSite": "Sait",
   "siteInfoTabOf": "Kaart saidil",

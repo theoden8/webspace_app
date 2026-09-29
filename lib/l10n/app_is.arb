@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Leita á síðu",
   "urlBarHint": "Sláðu inn URL",
   "urlBarGoTooltip": "Áfram",
+  "urlBarSearchSiteTooltip": "Velja leitarvef",
   "siteInfoTitle": "Upplýsingar um vefsvæði",
   "siteInfoSite": "Vefsvæði",
   "siteInfoTabOf": "Flipi hjá",

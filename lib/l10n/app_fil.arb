@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Maghanap sa pahina",
   "urlBarHint": "Maglagay ng URL",
   "urlBarGoTooltip": "Pumunta",
+  "urlBarSearchSiteTooltip": "Pumili ng site para sa paghahanap",
   "siteInfoTitle": "Impormasyon ng site",
   "siteInfoSite": "Site",
   "siteInfoTabOf": "Tab ng",

@@ -54,6 +54,7 @@
   "findToolbarSearchHint": "Cerca a la pàgina",
   "urlBarHint": "Introduïu l'URL",
   "urlBarGoTooltip": "Ves-hi",
+  "urlBarSearchSiteTooltip": "Tria el lloc de cerca",
   "siteInfoTitle": "Informació del lloc",
   "siteInfoSite": "Lloc",
   "siteInfoTabOf": "Pestanya de",
