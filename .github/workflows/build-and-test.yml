@@ -646,13 +646,10 @@ jobs:
       # @simplewebauthn/server and a test credential provider that checks the
       # caller against a privileged allowlist. Its own boot, after the
       # scenarios above, because it installs that provider as the device's
-      # credential service. The debug build skips the Rust adblock engine,
-      # which nothing here touches.
+      # credential service.
       - name: Run passkey gate
         timeout-minutes: 45
         uses: reactivecircus/android-emulator-runner@v2
-        env:
-          ORG_GRADLE_PROJECT_skipRustAdblock: 'true'
         with:
           api-level: 35
           target: default
