@@ -90,7 +90,6 @@ test('every heavy job is gated on the plan job', () => {
     ['build-android', 'android'],
     ['build-linux', 'linux'],
     ['build-apple', 'apple'],
-    ['android-passkey', 'passkey'],
   ]) {
     const header = text.slice(text.indexOf(`\n  ${job}:\n`));
     const block = header.slice(0, header.indexOf('\n    steps:'));
@@ -126,5 +125,20 @@ test('the ci-only marker is honoured on pull requests only', () => {
     plan,
     /case ",\$only," in/,
     'token matching is not comma-delimited, so one token can enable another',
+  );
+});
+
+// PASSKEY-012 runs inside the Android job rather than a job of its own, so no
+// plan token guards it and nothing above would notice the step going missing.
+test('the Android job runs the passkey gate', () => {
+  const text = fs.readFileSync(path.join(repoRoot, WORKFLOW), 'utf8');
+  const start = text.indexOf('\n  build-android:\n');
+  assert.notEqual(start, -1, 'build-android job not found');
+  const rest = text.slice(start + 1);
+  const next = rest.search(/\n  [a-z][a-z-]*:\n/);
+  const job = next === -1 ? rest : rest.slice(0, next);
+  assert.ok(
+    /\n +bash scripts\/run_android_passkey_tests\.sh\n/.test(job),
+    'build-android no longer runs scripts/run_android_passkey_tests.sh',
   );
 });

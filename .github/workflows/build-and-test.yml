@@ -46,7 +46,7 @@ jobs:
   #
   # Put `[ci-only: apple]` in the commit message -- or several, as
   # `[ci-only: apple,validate]` -- and everything else skips. Tokens are the
-  # job ids below: validate, design, android, linux, apple, passkey.
+  # job ids below: validate, design, android, linux, apple.
   #
   # Honoured on pull_request only. The marker stays in the message after a
   # merge, so on master and on workflow_dispatch every job runs regardless
@@ -61,7 +61,6 @@ jobs:
       android: ${{ steps.pick.outputs.android }}
       linux: ${{ steps.pick.outputs.linux }}
       apple: ${{ steps.pick.outputs.apple }}
-      passkey: ${{ steps.pick.outputs.passkey }}
       only: ${{ steps.pick.outputs.only }}
     steps:
       - uses: actions/checkout@v4
@@ -95,7 +94,6 @@ jobs:
             pick android
             pick linux
             pick apple
-            pick passkey
             echo "only=$only"
           } >> "$GITHUB_OUTPUT"
           if [ -n "$only" ]; then
@@ -556,6 +554,11 @@ jobs:
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
       # `target: default` is the AOSP image, deliberately: this app ships
       # GMS-free (the "Verify APK is free of Google Mobile Services" step above
       # asserts it), so the test host must not be a google_apis image either.
@@ -589,7 +592,10 @@ jobs:
       #   HTTPAUTH-007 HTTP authentication: a site's own 401 answered from
       #     the sign-in prompt and from a saved sign-in, with the page's image
       #     and fetch() behind the same htpasswd;
-      #   INTEG-011/012 lifecycle + background refresh, adb-driven.
+      #   INTEG-011/012 lifecycle + background refresh, adb-driven;
+      #   PASSKEY-012 passkeys: the Credential Manager bridge against
+      #     @simplewebauthn/server and a test credential provider that checks
+      #     the caller against a privileged allowlist.
       - name: Run emulator integration scenarios
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -611,7 +617,11 @@ jobs:
           # The action runs each script line as a separate `sh -c`, so the
           # test invocations live in wrapper scripts. The lifecycle tier
           # (INTEG-011) must run after the in-process suites: it replaces the
-          # test-entrypoint APK they installed.
+          # test-entrypoint APK they installed. The passkey gate runs last
+          # because it leaves its test provider as the credential service.
+          # hide_error_dialogs is set again before it: the lifecycle tier
+          # clears it on exit, and a dialog holding focus blocks the gate's
+          # taps on the system passkey sheet.
           script: |
             adb wait-for-device
             adb shell input keyevent 82
@@ -626,6 +636,8 @@ jobs:
             bash scripts/run_android_settings_seam_test.sh
             bash scripts/run_android_http_auth_tests.sh
             WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
+            adb shell settings put global hide_error_dialogs 1
+            bash scripts/run_android_passkey_tests.sh
 
       # always(), not failure(): the tier now dumps the platform view's
       # composition mode on every run, and that dump is only worth having on
@@ -637,6 +649,14 @@ jobs:
         with:
           name: white-screen-adb-diagnostics
           path: build/white_screen_adb/
+          if-no-files-found: ignore
+
+      - name: Upload passkey gate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: passkey-gate-evidence
+          path: build/passkey_gate/
           if-no-files-found: ignore
 
       - name: Create AVD and generate screenshots
@@ -679,133 +699,6 @@ jobs:
           name: android-screenshots
           path: screenshots/android/*.png
           if-no-files-found: warn
-
-  # Passkeys end to end (PASSKEY-012): the Credential Manager bridge against
-  # @simplewebauthn/server and a test credential provider that checks the
-  # caller against a privileged allowlist, on the same AOSP API 35 image as
-  # the emulator scenarios above. Its own job so a passkey iteration pays for
-  # one debug build and one boot, not the whole Android tier. The debug build
-  # skips the Rust adblock engine, which nothing here touches.
-  android-passkey:
-    name: Android passkey gate
-    runs-on: ubuntu-latest
-    needs: plan
-    if: needs.plan.outputs.passkey == 'true'
-    timeout-minutes: 75
-    env:
-      GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=512m
-      ORG_GRADLE_PROJECT_skipRustAdblock: 'true'
-    steps:
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: false
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'zulu'
-          java-version: '17'
-          cache: 'gradle'
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Setup Flutter (for Dart SDK)
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.38.6'
-          channel: 'stable'
-
-      - name: Cache fvm Flutter SDK
-        uses: actions/cache@v4
-        with:
-          path: ~/.fvm/versions
-          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
-          restore-keys: |
-            fvm-${{ runner.os }}-
-
-      - name: Install fvm
-        run: |
-          dart pub global activate fvm
-          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
-
-      - name: Setup Flutter with fvm
-        run: |
-          fvm install
-          fvm use --force
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.pub-cache
-            .dart_tool
-          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            pub-${{ runner.os }}-
-
-      - name: Get dependencies
-        run: fvm flutter pub get --enforce-lockfile
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.13"
-
-      - name: Enable KVM for emulator acceleration
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: platform-tools
-
-      - name: AVD snapshot cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-api35-x86_64-aosp-pixel_5-v1
-
-      - name: Run passkey gate
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: default
-          arch: x86_64
-          profile: pixel_5
-          disk-size: 4096M
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          script: |
-            adb wait-for-device
-            adb shell input keyevent 82
-            adb shell settings put global hide_error_dialogs 1
-            bash scripts/run_android_passkey_tests.sh
-
-      - name: Upload passkey gate evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: passkey-gate-evidence
-          path: build/passkey_gate/
-          if-no-files-found: ignore
 
   build-linux:
     name: Build Linux
@@ -1228,7 +1121,7 @@ jobs:
                 [ "$(basename "$t")" = "shortcut_behavior_test.dart" ] && continue
                 [ "$(basename "$t")" = "camera_test.dart" ] && continue
                 # PASSKEY-012 needs the emulator harness (credential provider,
-                # relying party, sheet taps); android-passkey owns it.
+                # relying party, sheet taps); the Android job owns it.
                 [ "$(basename "$t")" = "passkey_test.dart" ] && continue
                 # ICON-013: the icon fetch path this would run here is the
                 # same Dart the macOS loop runs against WKWebView, and this
@@ -1816,7 +1709,7 @@ jobs:
             # Android-only WebView media-gate suite (CAM-010); runs in the
             # emulator job.
             [ "$(basename "$t")" = "camera_test.dart" ] && continue
-            # Android-only passkey gate (PASSKEY-012); android-passkey job.
+            # Android-only passkey gate (PASSKEY-012); emulator job.
             [ "$(basename "$t")" = "passkey_test.dart" ] && continue
             # Android-only BGAUDIO-006 media foreground service; emulator job.
             [ "$(basename "$t")" = "background_audio_media_notification_test.dart" ] && continue

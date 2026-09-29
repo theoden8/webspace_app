@@ -331,8 +331,6 @@
   "appSettingsExperimentalTextureRenderingHint": "Tegner hver side i en tekstur, som WebSpace selv sammensætter, i stedet for som en separat Android-visning lagt oven på appen. Det kan forhindre sider, der forbliver tomme og hvide, indtil du drejer telefonen eller skifter app. Indtastning, tekstmarkering og skærmlæsere er mindre testet på denne måde, og hurtig rulning kan hakke. Træder i kraft næste gang appen starter.",
   "appSettingsExperimentalSiteTabs": "Webstedsfaneblade",
   "appSettingsExperimentalSiteTabsHint": "Lader et websted holde flere sider åbne på én gang, ligesom faneblade i en browser: en liste over faneblade fra fanebladstælleren øverst, \"Nyt faneblad\" og \"Dupliker faneblad\" i menuen samt \"Åbn i nyt faneblad\", når du holder fingeren på et link. Alle faneblade på samme websted deler webstedets login og indstillinger. Når det er slået fra, viser hvert websted én side som før; faneblade, du allerede har åbnet, gemmes til, når du slår det til igen.",
-  "appSettingsExperimentalPasskeys": "Adgangsnøgler",
-  "appSettingsExperimentalPasskeysHint": "Lader websteder logge dig ind med en adgangsnøgle, som opbevares af den app til adgangsnøgler, du har valgt i Android-indstillingerne, sådan som en browser gør. Kræver Android 14 eller nyere. Hver app til adgangsnøgler afgør selv, om den stoler på WebSpace for et websted: Bitwarden spørger dig én gang, mens apps, der kun stoler på browsere på Googles liste, såsom Google Password Manager og Proton Pass, afviser. Bruges aldrig til sider i et arkiv.",
   "appSettingsDeveloperModeTorWarningConfirm": "Slå fra",
   "appSettingsDeveloperModeAlreadyOn": "Udviklertilstand er allerede slået til",
   "appSettingsDeveloperModeStepsAway": "{count} tryk mere for at slå udviklertilstand til",

@@ -331,8 +331,6 @@
   "appSettingsExperimentalTextureRenderingHint": "Joonistab iga lehe tekstuuri, mille WebSpace ise kokku paneb, mitte eraldi Androidi vaatena rakenduse peal. See võib ära hoida lehed, mis jäävad tühjaks ja valgeks, kuni telefoni pöörate või rakendust vahetate. Trükkimist, teksti valimist ja ekraanilugejaid on nii vähem katsetatud ning kiire kerimine võib hakitud olla. Jõustub rakenduse järgmisel käivitusel.",
   "appSettingsExperimentalSiteTabs": "Saidi kaardid",
   "appSettingsExperimentalSiteTabsHint": "Laseb saidil hoida mitu lehte korraga avatuna, nagu brauseri kaardid: kaartide loend ülal asuva kaartide arvu kaudu, menüüs „Uus kaart“ ja „Tee kaardist koopia“ ning lingil sõrme hoides „Ava uuel kaardil“. Kõik saidi kaardid jagavad selle saidi sisselogimist ja seadeid. Väljalülitatuna näitab iga sait nagu varem ühte lehte; juba avatud kaardid jäetakse alles ajaks, mil selle uuesti sisse lülitad.",
-  "appSettingsExperimentalPasskeys": "Pääsuvõtmed",
-  "appSettingsExperimentalPasskeysHint": "Laseb saitidel teid sisse logida pääsuvõtmega, mida hoiab Androidi seadetes valitud pääsuvõtmete rakendus, nii nagu brauser seda teeb. Vajab Android 14 või uuemat. Iga pääsuvõtmete rakendus otsustab ise, kas ta usaldab WebSpace'i mõne saidi puhul: Bitwarden küsib teilt ühe korra, kuid rakendused, mis usaldavad ainult Google'i loendis olevaid brausereid, näiteks Google Password Manager ja Proton Pass, keelduvad. Arhiivis olevate saitide puhul ei kasutata seda kunagi.",
   "appSettingsDeveloperModeTorWarningConfirm": "Lülita välja",
   "appSettingsDeveloperModeAlreadyOn": "Arendajarežiim on juba sees",
   "appSettingsDeveloperModeStepsAway": "Veel {count} puudutust arendajarežiimi sisselülitamiseks",
