@@ -1591,7 +1591,7 @@
   "@appSettingsExperimentalSiteTabs": {
     "description": "Title of the switch in App settings > Developer > Experimental that turns on tabs inside a site: several pages of one site kept open at once, like browser tabs."
   },
-  "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab and Duplicate tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on.",
+  "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on.",
   "@appSettingsExperimentalSiteTabsHint": {
     "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page."
   },
@@ -4564,10 +4564,6 @@
   "tabsNewTab": "New tab",
   "@tabsNewTab": {
     "description": "Button that opens a new tab at the site's home page. The tab the user was on is kept and parked."
-  },
-  "tabsDuplicateTab": "Duplicate tab",
-  "@tabsDuplicateTab": {
-    "description": "Menu item (also a long press on the refresh button) that copies the current tab, with its back history, into a new tab next to it. The current page stays on screen."
   },
   "tabsThisSite": "This site",
   "@tabsThisSite": {

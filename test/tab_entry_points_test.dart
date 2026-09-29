@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// TAB-005 / TAB-010: where "New tab" and "Duplicate tab" are reached from.
 /// The app has two overflow menus (app bar, and the bottom bar when the tab
 /// strip is on), and a spec that names "the overflow menu" means both.
+/// "Duplicate tab" is a long press on refresh only, never a menu row.
 /// Structural, because `_WebSpacePageState` is not constructible from a unit
 /// test.
 void main() {
@@ -17,11 +18,12 @@ void main() {
   int count(String needle) =>
       RegExp(RegExp.escape(needle)).allMatches(source).length;
 
-  test('both overflow menus offer New tab and Duplicate tab', () {
+  test('both overflow menus offer New tab and neither offers Duplicate tab',
+      () {
     expect(count('value: "newTab"'), 2);
-    expect(count('value: "duplicateTab"'), 2);
     expect(count("case 'newTab':"), 2);
-    expect(count("case 'duplicateTab':"), 2);
+    expect(count('value: "duplicateTab"'), 0);
+    expect(count("case 'duplicateTab':"), 0);
   });
 
   test('a long press on either refresh button duplicates the tab', () {
@@ -86,11 +88,10 @@ void main() {
       );
       final rows = RegExp(
         r'if \(_tabsEnabled\) \.\.\.\[\s*PopupMenuItem<String>\(\s*'
-        r'value: "newTab",[\s\S]*?PopupMenuItem<String>\(\s*'
-        r'value: "duplicateTab",',
+        r'value: "newTab",',
       );
       expect(rows.allMatches(source).length, 2,
-          reason: 'New tab and Duplicate tab, in both overflow menus');
+          reason: 'New tab, in both overflow menus');
       final pills = RegExp(r'(?<!Widget )_tabCountPill\(')
           .allMatches(source)
           .toList();

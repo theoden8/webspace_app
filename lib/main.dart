@@ -8194,16 +8194,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                       ],
                     ),
                   ),
-                  PopupMenuItem<String>(
-                    value: "duplicateTab",
-                    child: Row(
-                      children: [
-                        Icon(Icons.copy_all),
-                        SizedBox(width: 8),
-                        Text(loc.tabsDuplicateTab),
-                      ],
-                    ),
-                  ),
                 ],
                 PopupMenuItem<String>(
                   value: "search",
@@ -8291,9 +8281,6 @@ class _WebSpacePageState extends State<WebSpacePage>
               switch(value) {
                 case 'newTab':
                   await _newTab(_currentIndex!);
-                break;
-                case 'duplicateTab':
-                  await _duplicateTab(_currentIndex!);
                 break;
                 case 'search':
                   _toggleFind();
@@ -8776,16 +8763,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                 ],
               ),
             ),
-            PopupMenuItem<String>(
-              value: "duplicateTab",
-              child: Row(
-                children: [
-                  Icon(Icons.copy_all),
-                  SizedBox(width: 8),
-                  Text(loc.tabsDuplicateTab),
-                ],
-              ),
-            ),
           ],
           PopupMenuItem<String>(
             value: "backToWebspaces",
@@ -8890,9 +8867,6 @@ class _WebSpacePageState extends State<WebSpacePage>
           break;
           case 'newTab':
             await _newTab(_currentIndex!);
-          break;
-          case 'duplicateTab':
-            await _duplicateTab(_currentIndex!);
           break;
           case 'search':
             _toggleFind();

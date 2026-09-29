@@ -68,7 +68,7 @@ are the whole feature.
    - **New tab** (Tabs sheet header, both overflow menus): a root tab at
      `initUrl`, the current tab parks. A strip chip's long press is taken by
      the reorder drag, so it is not an entry point.
-   - **Duplicate tab** (both overflow menus, long press on refresh): a parked
+   - **Duplicate tab** (long press on refresh): a parked
      copy of the current tab next to it, back stack included.
    - **Open in new tab** (long-press an in-domain link): a child tab of the
      current one, opened in the background with a snackbar to switch.
@@ -204,8 +204,8 @@ named future tier if it turns out to matter.
   parks (D3). Reached from the Tabs sheet header and both overflow menus. The
   rebuild is the NAV-004 shape, so the new tab starts with an empty history.
 - **Duplicate tab** (TAB-010): the active tab's record and back stack copied
-  into a parked sibling. Reached from both overflow menus and a long press on
-  either refresh button; opens in the background like "Open in new tab".
+  into a parked sibling. Reached from a long press on either refresh button,
+  not from the overflow menus; opens in the background like "Open in new tab".
 - **Open in new tab**: offered on a link's long-press menu only when the link
   is inside the site's domain. Creates a parked child tab (`parentId` = the
   current tab) and shows a snackbar with "Switch". No webview and no bytes

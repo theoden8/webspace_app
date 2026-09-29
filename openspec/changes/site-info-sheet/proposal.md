@@ -27,8 +27,8 @@ to my sites" switch, off by default, is the only gate.
   reports exactly what was bound. The main screen passes the site's
   `archiveContainerId` and `effectiveIncognito`, the nested screen its
   `siteId` and `incognito`, the same inputs their `WebViewConfig`s carry.
-- **Main and nested URL bars** pass the handler; the nested screen's overflow
-  menu also carries "Site info", since the URL bar is optional there.
+- **Main and nested URL bars** pass the handler. No overflow menu carries
+  "Site info"; the URL bar is its only entry.
 - **Link routing graduates**: `ExperimentalFeature.linkRouting`, its pref
   (`experimentalLinkRouting`, never in a release) and its App settings switch
   are removed; `routeOutbound` loses its `experimentEnabled` gate; the

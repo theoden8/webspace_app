@@ -3,7 +3,7 @@
 - [x] 1.1 `containerIdFor` in `webview.dart`, used by `createWebView`.
 - [x] 1.2 `SiteInfo`, `SiteContainerKind` and `SiteInfoSheet`.
 - [x] 1.3 `UrlBar.onSiteInfo`: trailing (i), hidden while editing.
-- [x] 1.4 Main and nested URL bars pass it; the nested menu carries "Site info".
+- [x] 1.4 Main and nested URL bars pass it; no overflow menu carries "Site info".
 
 ## 2. Routing graduates
 
