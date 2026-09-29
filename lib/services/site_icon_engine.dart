@@ -192,11 +192,16 @@ List<String> siteIconCandidates(List<SiteIconLink> links, String documentUrl) {
 /// `didStopLoading`, so the loading document's own icon can come first. No
 /// callback orders the two, so a mid-load icon is taken only when it is the
 /// site's whichever document it came from. `onLoadStart` is posted at commit
-/// with the committed URL, so the loading document's host is known by then.
+/// with the committed URL, but on a cold first WebView an icon can still reach
+/// Dart before it, so an icon that arrives while no web document is known is
+/// held and judged, as a mid-load icon, against the next one that is.
 ///
 /// Where the webview reports no icons (iOS, macOS, Linux), the app fetches
 /// the links the document declared at load instead; those carry a document
-/// token so a fetch that outlives its document is dropped.
+/// token so a fetch that outlives its document is dropped. The document's own
+/// load report can reach Dart before its `onLoadStart`, so a start for the URL
+/// that already reported its load, before that load's `onLoadStop`, is that
+/// document's late start, not a new document.
 class SiteIconEngine {
   SiteIconEngine(String siteUrl) : _siteHost = siteIconHost(siteUrl);
 
@@ -209,19 +214,33 @@ class SiteIconEngine {
   bool _replacedIconsAreSites = true;
   int _document = 0;
   int? _linksClaimed;
+  final List<Uint8List> _held = [];
+  String? _loadReported;
+
+  /// Icons a page may send before its document is known. Pages declare a
+  /// handful; this bounds a page that declares hundreds.
+  static const int _maxHeld = 16;
 
   /// The decision state, for the app log: no URL, so it is not sensitive.
   String get stateForLog => 'doc=$_document loading=$_loading '
-      'onSite=$_onSite linksChanged=$_iconLinksChanged '
+      'onSite=$_onSite web=$_documentIsWeb linksChanged=$_iconLinksChanged '
       'replacedAreSites=$_replacedIconsAreSites best=$_documentBestEdge '
-      'claimed=$_linksClaimed';
+      'claimed=$_linksClaimed held=${_held.length} '
+      'loadReported=${_loadReported != null}';
 
   bool _matchesSite(String? url) {
     final host = siteIconHost(url);
     return host != null && host == _siteHost;
   }
 
-  void onLoadStarted(String? url) {
+  /// A main-frame load committed at [url]. Returns the held icons it makes
+  /// the site's.
+  List<SiteIcon> onLoadStarted(String? url) {
+    final reported = _loadReported;
+    _loadReported = null;
+    if (reported != null && reported == _withoutFragment(url)) {
+      return const [];
+    }
     // A page that is not http(s) announces no icons of its own, so what may
     // still be in flight is from the page before it.
     if (_documentIsWeb) {
@@ -233,15 +252,26 @@ class SiteIconEngine {
     _iconLinksChanged = false;
     _documentBestEdge = 0;
     _documentIsWeb = siteIconHost(url) != null;
+    return _judgeHeld();
   }
 
-  /// The top document at [url] finished loading: `onLoadStop`, and where the
-  /// app fetches page icons (ICON-013) also the document's load event, which
-  /// the watcher reports and which can come first.
-  void onLoadFinished(String? url) {
+  /// `onLoadStop` for the top document at [url]. Returns the held icons it
+  /// makes the site's.
+  List<SiteIcon> onLoadFinished(String? url) {
+    _loadReported = null;
     _loading = false;
     _onSite = _matchesSite(url);
     _documentIsWeb = siteIconHost(url) != null;
+    return _judgeHeld();
+  }
+
+  /// The watcher's report of the top document's load event, where the app
+  /// fetches page icons (ICON-013). It can come before `onLoadStop`, and on
+  /// a cold first WebView before `onLoadStart` too.
+  List<SiteIcon> onDocumentLoaded(String? url) {
+    final taken = onLoadFinished(url);
+    _loadReported = _withoutFragment(url);
+    return taken;
   }
 
   /// The top document edited its icon links after the set Blink announced
@@ -254,6 +284,10 @@ class SiteIconEngine {
   /// The icon to report for [png], or null when it is not this site's icon
   /// or does not beat one this document already produced.
   SiteIcon? onIcon(Uint8List png) {
+    if (!_documentIsWeb) {
+      if (_held.length < _maxHeld) _held.add(png);
+      return null;
+    }
     if (!_onSite || _iconLinksChanged) return null;
     if (_loading && !_replacedIconsAreSites) return null;
     return _accept(png);
@@ -275,6 +309,22 @@ class SiteIconEngine {
   SiteIcon? onLinkedIcon(int document, Uint8List png) {
     if (document != _document) return null;
     return _accept(png);
+  }
+
+  List<SiteIcon> _judgeHeld() {
+    if (!_documentIsWeb || _held.isEmpty) return const [];
+    final held = List.of(_held);
+    _held.clear();
+    return [
+      for (final png in held)
+        if (onIcon(png) case final icon?) icon,
+    ];
+  }
+
+  static String? _withoutFragment(String? url) {
+    if (url == null) return null;
+    final uri = Uri.tryParse(url);
+    return uri == null ? url : uri.removeFragment().toString();
   }
 
   SiteIcon? _accept(Uint8List png) {

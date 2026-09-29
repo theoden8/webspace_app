@@ -446,12 +446,12 @@ HttpAuthSession _httpAuthSessionFor(WebViewConfig config) => HttpAuthSession(
       prompt: config.onHttpAuthRequest,
     );
 
-/// Whether the site's own blockers let a request for one of its page icons
-/// through: the DNS level and filter lists its webview applies to an image
-/// the page loads (ICON-013).
 void _logSiteIcon(String message) =>
     LogService.instance.log('SiteIcon', message);
 
+/// Whether the site's own blockers let a request for one of its page icons
+/// through: the DNS level and filter lists its webview applies to an image
+/// the page loads (ICON-013).
 bool _pageIconRequestAllowed(
   WebViewConfig config,
   Uri target,
@@ -4625,7 +4625,9 @@ class WebViewFactory {
               handlerName: kIconDocumentLoadedHandler,
               callback: (inapp.JavaScriptHandlerFunctionData call) {
                 if (call.isMainFrame) {
-                  iconEngine.onLoadFinished(call.requestUrl.toString());
+                  iconEngine
+                      .onDocumentLoaded(call.requestUrl.toString())
+                      .forEach(siteIcon!.onIcon);
                 }
                 _logSiteIcon('documentLoaded main=${call.isMainFrame} '
                     '${iconEngine.stateForLog}');
@@ -5156,8 +5158,8 @@ class WebViewFactory {
           'onLoadStart siteId=${config.siteId} url=$url',
           sensitivity: LogSensitivity.sensitive,
         );
-        iconEngine?.onLoadStarted(url?.toString());
         if (iconEngine != null) {
+          iconEngine.onLoadStarted(url?.toString()).forEach(siteIcon!.onIcon);
           _logSiteIcon('loadStart ${iconEngine.stateForLog}');
         }
         // Snapshot the navigation generation BEFORE any await — if a
@@ -5264,8 +5266,8 @@ class WebViewFactory {
           'onLoadStop siteId=${config.siteId} url=$url',
           sensitivity: LogSensitivity.sensitive,
         );
-        iconEngine?.onLoadFinished(url?.toString());
         if (iconEngine != null) {
+          iconEngine.onLoadFinished(url?.toString()).forEach(siteIcon!.onIcon);
           _logSiteIcon('loadStop ${iconEngine.stateForLog}');
         }
         // An upgrade that loaded is no longer in flight. Without this the

@@ -23,22 +23,11 @@ fi
 
 # Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
 # layer (same rationale as the white-screen tier).
-run_pass() {
-  adb -s "$device_id" logcat -c || true
-  local rc=0
-  timeout -k 30s 15m fvm flutter test \
-    integration_test/site_icon_test.dart \
-    -d "$device_id" --flavor fdebug "$@" || rc=$?
-  echo "=== logcat after site_icon_test $* (rc=$rc) ==="
-  adb -s "$device_id" logcat -d -v time 2>/dev/null |
-    grep -E 'SiteIcon|site_icon_test|JavaScriptBridge|IAWebView|InAppWebView|Bridge access|CONSOLE' |
-    tail -300 || true
-  return $rc
-}
+timeout -k 30s 15m fvm flutter test \
+  integration_test/site_icon_test.dart \
+  -d "$device_id" --flavor fdebug
 
-fail=0
-run_pass || fail=1
-run_pass || fail=1
-run_pass --dart-define=WS_SITE_ICONS_ONLY=true || fail=1
-run_pass --dart-define=WS_SITE_ICONS_ONLY=true || fail=1
-exit $fail
+exec timeout -k 30s 15m fvm flutter test \
+  integration_test/site_icon_test.dart \
+  -d "$device_id" --flavor fdebug \
+  --dart-define=WS_SITE_ICONS_ONLY=true
