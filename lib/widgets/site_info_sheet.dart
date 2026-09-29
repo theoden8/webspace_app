@@ -4,9 +4,10 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/saved_proxies.dart';
+import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
-    show savedProxyLabel;
+    show gatewayLabel, libraryProblemLabel, routeLabel, savedProxyLabel;
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 
 /// Where the page's cookies, logins and site data live.
@@ -139,20 +140,29 @@ Widget _connection(
   String? siteId,
 ) {
   final route = resolveEffectiveProxy(configured, siteId: siteId);
-  // Data, not copy (LOC-002): a type name and an address.
+  final uses = configured.type == ProxyType.DEFAULT
+      ? GlobalOutboundProxy.current
+      : configured;
+  final problem = resolveLibrary(uses).problem;
+  final problemLabel = problem == LibraryProblem.none
+      ? null
+      : libraryProblemLabel(loc, problem);
   final address = switch (route.type) {
-    ProxyType.DEFAULT || ProxyType.SAVED => null,
+    ProxyType.DEFAULT || ProxyType.SAVED || ProxyType.GATEWAY => null,
     ProxyType.TOR => route.type.name,
-    _ => '${route.type.name} ${route.address ?? ''}'.trim(),
+    _ => routeLabel(route),
   };
   final String value;
   if (route.type == ProxyType.DEFAULT) {
     value = loc.siteInfoConnectionDirect;
   } else if (configured.type == ProxyType.DEFAULT) {
     value = loc.networkSummaryAppProxy;
+  } else if (problemLabel != null) {
+    value = problemLabel;
   } else if (configured.type == ProxyType.SAVED) {
-    final saved = SavedProxies.byId(configured.savedProxyId);
-    value = saved == null ? loc.savedProxyMissing : savedProxyLabel(saved);
+    value = savedProxyLabel(ProxyLibrary.proxy(configured.savedProxyId)!);
+  } else if (configured.type == ProxyType.GATEWAY) {
+    value = gatewayLabel(ProxyLibrary.gateway(configured.gatewayId)!);
   } else {
     value = address ?? route.type.name;
   }
@@ -163,7 +173,7 @@ Widget _connection(
     detail: value == address ? null : address,
     status: route.type == ProxyType.DEFAULT
         ? null
-        : ProxyStatusIndicator(proxy: route),
+        : ProxyStatusIndicator(proxy: route, problem: problemLabel),
   );
 }
 

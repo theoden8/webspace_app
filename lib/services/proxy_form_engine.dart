@@ -10,8 +10,8 @@ class ProxyFormFields {
     this.username = '',
     this.password = '',
     this.savedProxyId,
-    this.ownAddress = false,
-    this.ownCredentials = false,
+    this.gatewayId,
+    this.credentialsId,
   });
 
   final ProxyType type;
@@ -19,14 +19,12 @@ class ProxyFormFields {
   final String username;
   final String password;
 
-  /// The saved proxy picked, under [ProxyType.SAVED]. Not text: it comes
-  /// from a picker, so null means nothing was picked.
+  /// What the library pickers hold: the saved proxy under
+  /// [ProxyType.SAVED], the saved gateway under [ProxyType.GATEWAY], and the
+  /// saved credentials, null meaning the typed ones.
   final String? savedProxyId;
-
-  /// Under [ProxyType.SAVED], whether the address and the credentials fields
-  /// are on screen as overrides of the saved proxy's.
-  final bool ownAddress;
-  final bool ownCredentials;
+  final String? gatewayId;
+  final String? credentialsId;
 }
 
 /// Fold the form into the settings to store (PROXY-019).
@@ -45,30 +43,39 @@ class ProxyFormFields {
 ///    address and credentials are on screen, so what they hold is what gets
 ///    stored, and emptying one is how it gets removed.
 ///  - **A hidden field is not.** Under DEFAULT, TOR and SAVED they are not
-///    rendered, so their controllers hold whatever was last drawn. Writing
-///    that back would destroy the manual configuration the user expects to
-///    find again on switch-out, so the stored values carry over untouched
-///    (PROXY-010).
+///    rendered, nor the address under a saved gateway, nor the credentials
+///    while saved ones are picked, so their controllers hold whatever was
+///    last drawn. Writing that back would destroy the manual configuration
+///    the user expects to find again on switch-out, so the stored values
+///    carry over untouched (PROXY-010).
 UserProxySettings applyProxyForm({
   required UserProxySettings stored,
   required ProxyFormFields fields,
 }) {
-  final saved = fields.type == ProxyType.SAVED;
-  final hidden = fields.type == ProxyType.DEFAULT ||
-      fields.type == ProxyType.TOR ||
-      saved;
-  // Under SAVED each half is on screen only as the override it names.
-  final addressHidden = hidden && !(saved && fields.ownAddress);
-  final credentialsHidden = hidden && !(saved && fields.ownCredentials);
+  final type = fields.type;
+  final gateway = type == ProxyType.GATEWAY;
+  final typedGateway = type == ProxyType.HTTP ||
+      type == ProxyType.HTTPS ||
+      type == ProxyType.SOCKS5;
+  // A saved gateway takes the place of the address field; saved credentials
+  // take the place of the credentials fields.
+  final addressShown = typedGateway;
+  final credentialsShown =
+      typedGateway || (gateway && fields.credentialsId == null);
   return UserProxySettings(
-    type: fields.type,
-    address: addressHidden ? stored.address : _orNull(fields.address.trim()),
-    username: credentialsHidden ? stored.username : _orNull(fields.username),
-    password: credentialsHidden ? stored.password : _orNull(fields.password),
+    type: type,
+    address: addressShown ? _orNull(fields.address.trim()) : stored.address,
+    username: credentialsShown ? _orNull(fields.username) : stored.username,
+    password: credentialsShown ? _orNull(fields.password) : stored.password,
     torExitCountry: stored.torExitCountry,
-    savedProxyId: saved ? fields.savedProxyId : stored.savedProxyId,
-    ownAddress: saved ? fields.ownAddress : stored.ownAddress,
-    ownCredentials: saved ? fields.ownCredentials : stored.ownCredentials,
+    savedProxyId:
+        type == ProxyType.SAVED ? fields.savedProxyId : stored.savedProxyId,
+    gatewayId: gateway ? fields.gatewayId : stored.gatewayId,
+    // Saved credentials fit saved gateways only, so a typed gateway drops
+    // the reference rather than keep one that would fail closed.
+    credentialsId: gateway
+        ? fields.credentialsId
+        : (typedGateway ? null : stored.credentialsId),
   );
 }
 

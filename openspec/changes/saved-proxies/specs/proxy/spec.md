@@ -1,116 +1,124 @@
 ## ADDED Requirements
 
-### Requirement: PROXY-029 - Saved proxies are defined once and named by sites
+### Requirement: PROXY-029 - A proxy library of saved proxies, gateways and credentials
 
-The app SHALL let the user define a proxy once, under a name, and pick it by
-that name wherever a proxy is chosen: a site's Network screen and the app-wide
-outbound proxy. A saved proxy SHALL carry one of HTTP, HTTPS or SOCKS5 and an
-address, and MAY carry credentials. Tor SHALL NOT be a saved proxy's type: it
-is one built-in route with per-site circuits (TOR-003), not a configuration to
-share.
+The app SHALL keep a proxy library of three kinds of named entry:
 
-A site that picks a saved proxy SHALL store a reference to it
-(`ProxyType.SAVED` and `savedProxyId`), not a copy. The reference SHALL be
+- a **gateway**: a type (HTTP, HTTPS or SOCKS5) and an address;
+- **credentials**: a username and password, and the gateways they work on,
+  at least one;
+- a **saved proxy**: a gateway choice (typed, or a saved gateway) and a
+  credentials choice (typed, or saved credentials that list that gateway).
+
+With both halves typed, a saved proxy is simply a proxy, and the user never
+has to create a gateway or credentials entry for it. Those entries exist for
+what is shared: one account that works on several gateways, several accounts
+on one gateway. Tor SHALL NOT be a gateway: it is one built-in route with
+per-site circuits (TOR-003), not an endpoint to share.
+
+Wherever a proxy is chosen (a site's Network screen and the app-wide outbound
+proxy), the app SHALL offer the saved proxies and the saved gateways by name
+beside the plain types. A setting on a saved gateway SHALL offer the saved
+credentials that list it, and typed credentials; a setting on a typed gateway
+SHALL offer typed credentials only. Credentials SHALL NOT be offered for a
+gateway they do not list, and moving a setting to such a gateway SHALL drop
+the saved credentials rather than keep a pairing that cannot sign in.
+
+A setting SHALL store references (`ProxyType.SAVED` + `savedProxyId`,
+`ProxyType.GATEWAY` + `gatewayId`, `credentialsId`), not copies. They SHALL be
 resolved at use by `resolveEffectiveProxy`, so every outbound seam that
 already resolves through it (the native binding, the Android override and
-relay, the router, Dart-side HTTP) takes the saved proxy's current
-configuration. Editing a saved proxy SHALL therefore change the route of every
-site that names it, and SHALL dispose every loaded webview, as an app-wide
-proxy change does, so none keeps routing through the configuration it was
-bound with.
+relay, the router, Dart-side HTTP) takes the entries' current values. Editing
+an entry SHALL therefore change every route that uses it, directly or through
+a saved proxy, and SHALL dispose every loaded webview, as an app-wide proxy
+change does.
 
-A reference that resolves to nothing, because the saved proxy was deleted or
-the reference came from another device, SHALL fail closed: it resolves to
-SAVED with no address, which every seam treats as unroutable. It SHALL NOT
-fall through to the app-wide proxy or to a direct connection, both of which
-are routes the user did not pick for that site. Deleting a saved proxy SHALL
-first say how many sites use it, and whether the app-wide proxy does, and
-that they will be blocked.
+A reference that does not resolve SHALL fail closed: a missing saved proxy,
+gateway or credentials, or credentials paired with a gateway they do not
+list. It resolves to SAVED with no address, which every seam treats as
+unroutable, and SHALL NOT fall through to the app-wide proxy or to a direct
+connection. Deleting an entry SHALL first say how many sites use it, through
+a saved proxy included, and whether the app-wide proxy does, and that they
+will be blocked. Deleting a gateway SHALL remove it from every credentials
+entry's list. The Network row (NET-002), the site info sheet and the
+connection indicator SHALL name what failed.
 
-A setting that names a saved proxy MAY part from it in either half, each a
-switch of its own: its own address (the saved proxy's type and credentials
-with another `host:port`, for one account behind several gateways) and its
-own credentials (the saved proxy's address with another username and
-password, for providers that pick the session or exit from the username, or
-one account per site). The per-site and the app-wide forms SHALL both offer
-them. An own address SHALL be validated as any typed address, and one left
-empty SHALL fail closed, never falling back to the saved proxy's. An edit to
-the saved proxy SHALL still reach whatever half the setting did not replace.
-A site's own password SHALL be stored as its own proxy password (PWD-001),
-never with the saved proxy's.
+A setting SHALL keep its typed address and credentials across a switch to
+the library and back (PROXY-010).
 
-A reference SHALL keep the site's manual address and credentials, as TOR does
-(PROXY-010), and picking another type SHALL keep the reference.
+Settings that resolve to the same route have equal effective proxies, so
+Android SHALL load them together under PROXY-008; one gateway with two sets
+of credentials is two routes, kept apart unless router mode (PROXY-013) is
+on.
 
-Sites that name one saved proxy without parting from it have equal
-effective proxies, so Android SHALL load them together under PROXY-008.
-Sites that part from it in either half are different proxies, and PROXY-008
-keeps them apart unless router mode (PROXY-013) is on.
+Sharing a site by QR SHALL carry the resolved type, address and username in
+place of the references, never a password; a reference that does not resolve
+SHALL carry no proxy. A received payload that names the library SHALL be
+refused, since the encoder never emits one.
 
-Sharing a site by QR SHALL carry the saved proxy's own type, address and
-username in place of the reference, never its password; a reference that
-resolves to nothing SHALL carry no proxy. A received payload that names a
-saved proxy SHALL be refused, since the encoder never emits one.
+#### Scenario: One VPN, typed once
 
-The site settings Network row (NET-002) SHALL name a saved proxy by its name,
-and a missing one as missing.
+- **GIVEN** the user adds a saved proxy "Home", SOCKS5 `192.0.2.1:1080`, with
+  both halves typed
+- **AND** sites Mail and Chat pick "Home"
+- **THEN** both route through `192.0.2.1:1080`
+- **AND** no gateway or credentials entry was created
 
-#### Scenario: One VPN for several sites
+#### Scenario: One account on several gateways
 
-- **GIVEN** a saved proxy "Work VPN", SOCKS5 `10.8.0.1:1080`
-- **AND** sites Mail and Chat both pick "Work VPN"
-- **WHEN** either site loads
-- **THEN** its traffic goes through `10.8.0.1:1080`
-- **AND** on Android both stay loaded when switching between them
+- **GIVEN** gateways "VPN US" and "VPN DE", and credentials "Alice" that list
+  both
+- **AND** site Mail uses "VPN US" with "Alice", and site Chat uses "VPN DE"
+  with "Alice"
+- **WHEN** the user changes Alice's password
+- **THEN** both sites sign in with the new password
 
-#### Scenario: An edit moves every site that names it
+#### Scenario: Several accounts on one gateway
 
-- **GIVEN** Mail and Chat name "Work VPN"
-- **WHEN** the user changes its address to `10.9.0.1:1080` and saves
-- **THEN** every loaded webview is disposed
-- **AND** both sites route through `10.9.0.1:1080` when they next load
+- **GIVEN** gateway "VPN DE" and credentials "Alice" and "Mail session" that
+  both list it
+- **AND** site Mail uses "VPN DE" with "Mail session"
+- **THEN** Mail signs in to `de.gw:1080` as the Mail session user
+- **AND** on Android without router mode, activating Mail unloads a loaded
+  site that uses "VPN DE" with "Alice"
 
-#### Scenario: A deleted saved proxy blocks, it does not go direct
+#### Scenario: Credentials are offered only where they fit
 
-- **GIVEN** Mail names "Work VPN" and the app-wide proxy is HTTP `1.2.3.4:8080`
-- **WHEN** the user deletes "Work VPN"
+- **GIVEN** "Mail session" lists "VPN DE" only
+- **WHEN** a site picks "VPN US"
+- **THEN** "Mail session" is not offered
+- **AND** a site that had "VPN DE" with "Mail session" and moves to "VPN US"
+  has its credentials dropped
+
+#### Scenario: A deleted entry blocks, it does not go direct
+
+- **GIVEN** Mail uses saved proxy "Work VPN" and the app-wide proxy is HTTP
+  `1.2.3.4:8080`
+- **WHEN** the user deletes the gateway "Work VPN" is built on
 - **THEN** the confirmation says one site uses it and will be blocked
 - **AND** Mail's webview fails closed rather than loading
 - **AND** no request from Mail goes through `1.2.3.4:8080` or direct
 
-#### Scenario: The app-wide proxy can name a saved proxy
+#### Scenario: A pairing that does not fit blocks
+
+- **GIVEN** a site on "VPN US" with credentials that do not list it (a
+  hand-edited backup, or a list edited since)
+- **THEN** the site fails closed
+- **AND** its Network row reads that the credentials don't fit the gateway
+
+#### Scenario: The app-wide proxy can use the library
 
 - **GIVEN** the app-wide proxy names "Work VPN"
 - **AND** a site whose proxy type is DEFAULT
 - **THEN** the site and the app's own downloads route through "Work VPN"
 
-#### Scenario: One account, a gateway per site
+#### Scenario: A shared site carries the route, not the references
 
-- **GIVEN** "Work VPN" is SOCKS5 `10.8.0.1:1080` with username `alice`
-- **AND** site Mail uses it with its own address `de.gw.example:1080`
-- **THEN** Mail's traffic goes to `de.gw.example:1080` signed in as `alice`
-
-#### Scenario: One gateway, credentials per site
-
-- **GIVEN** "Work VPN" is SOCKS5 `10.8.0.1:1080` with username `alice`
-- **AND** site Mail uses it with its own credentials `alice-session-mail`
-- **THEN** Mail's traffic goes to `10.8.0.1:1080` signed in as
-  `alice-session-mail`
-- **AND** on Android without router mode, activating Mail unloads a loaded
-  site that uses "Work VPN" unchanged
-
-#### Scenario: An own address left empty blocks
-
-- **GIVEN** a site uses "Work VPN" with its own address switched on and no
-  address stored (a hand-edited backup)
-- **THEN** the site fails closed rather than using `10.8.0.1:1080`
-
-#### Scenario: A shared site carries the proxy, not the name
-
-- **GIVEN** Mail names "Work VPN", which has a password
+- **GIVEN** Mail uses "VPN DE" with "Mail session"
 - **WHEN** the user shares Mail by QR
-- **THEN** the payload's proxy is SOCKS5 `10.8.0.1:1080` with its username
-- **AND** the payload carries no password and no saved-proxy id
+- **THEN** the payload's proxy is SOCKS5 `de.gw:1080` with the Mail session
+  username
+- **AND** the payload carries no password and no library id
 
 ---
 
@@ -124,20 +132,22 @@ resolved proxy by the same `testProxyConnection` seam the connection test uses
 (PROXY-019), so a route that fails closed there reads as not reached and never
 probes over the device IP.
 
-The indicator SHALL appear on every row of the saved proxies list, under a
-site's proxy picker and under the app-wide picker while they name a saved
-proxy, and in a Connection row of the URL-bar site info sheet. That row SHALL
-name the route the site's traffic takes: direct, the app-wide proxy, a saved
-proxy by name, the site's own proxy, or Tor; the indicator is absent for a
-direct route. The row SHALL be absent where the platform binds no per-site
+The indicator SHALL appear on every saved proxy in the library, under a
+site's proxy picker and under the app-wide picker while they use the library,
+and in a Connection row of the URL-bar site info sheet. That row SHALL name
+the route the site's traffic takes: direct, the app-wide proxy, a saved proxy
+or gateway by name, the site's own proxy, or Tor; the indicator is absent for
+a direct route. The row SHALL be absent where the platform binds no per-site
 proxy (PROXY-006).
 
 A check SHALL run only when an indicator is shown and its last answer is
 older than two minutes, or when the user taps it again; never on a timer,
 which would be traffic the user did not cause. Answers SHALL be kept per
 proxy configuration, password included, so every surface showing one proxy
-agrees and an edited proxy is checked afresh. A reference to a missing saved
-proxy SHALL read as missing without a probe.
+agrees and an edited proxy is checked afresh. A route that does not resolve
+SHALL name what failed without a probe. An indicator whose proxy changes
+under it, as while an address is typed, SHALL wait a second before probing,
+so no intermediate `host:port` is sent a request.
 
 #### Scenario: The list shows which proxies are up
 

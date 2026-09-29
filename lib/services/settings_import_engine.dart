@@ -21,8 +21,8 @@ import 'package:webspace/settings/global_outbound_proxy.dart'
     show kGlobalOutboundProxyKey;
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/saved_proxies.dart'
-    show decodeSavedProxies, kSavedProxiesKey;
+import 'package:webspace/settings/proxy_library.dart'
+    show ProxyLibraryData, kProxyLibraryKey, resolveLibrary;
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -249,14 +249,13 @@ String? backupGlobalProxyAddress(SettingsBackup backup) {
   if (proxy == null) return null;
   final type = proxy['type'];
   if (type is! int || type == ProxyType.DEFAULT.index) return null;
-  // An app-wide proxy that names a saved proxy installs that one's address.
-  if (type == ProxyType.SAVED.index) {
-    final id = proxy['savedProxyId'];
-    for (final saved
-        in decodeSavedProxies(backup.globalPrefs[kSavedProxiesKey])) {
-      if (saved.id == id) return saved.settings.address;
-    }
-    return null;
+  // An app-wide proxy that uses the backup's proxy library installs the
+  // address that library resolves it to.
+  if (type == ProxyType.SAVED.index || type == ProxyType.GATEWAY.index) {
+    return resolveLibrary(
+      UserProxySettings.fromJson(proxy),
+      ProxyLibraryData.decode(backup.globalPrefs[kProxyLibraryKey]),
+    ).route.address;
   }
   final address = proxy['address'];
   if (address is! String || address.isEmpty) return null;
@@ -290,8 +289,14 @@ bool _backupNamesProxyUsername(SettingsBackup backup) {
       (proxy['username'] as String).isNotEmpty;
   return backup.sites.any((s) => named(s['proxySettings'])) ||
       named(_decodeProxyPref(backup.globalPrefs[kGlobalOutboundProxyKey])) ||
-      decodeSavedProxies(backup.globalPrefs[kSavedProxiesKey])
-          .any((p) => p.settings.username?.isNotEmpty ?? false);
+      _libraryNamesUsername(
+          ProxyLibraryData.decode(backup.globalPrefs[kProxyLibraryKey]));
+}
+
+bool _libraryNamesUsername(ProxyLibraryData lib) {
+  bool named(String? u) => u != null && u.isNotEmpty;
+  return lib.credentials.any((c) => named(c.username)) ||
+      lib.proxies.any((p) => named(p.settings.username));
 }
 
 UserScriptConfig? _scriptOrNull(Map<String, dynamic> json) {

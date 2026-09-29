@@ -53,7 +53,6 @@ const migrated = new Set([
   'lib/widgets/proxy_test_tile.dart',
   'lib/widgets/proxy_choice_dropdown.dart',
   'lib/widgets/proxy_status_indicator.dart',
-  'lib/widgets/saved_proxy_overrides.dart',
   'lib/widgets/level_slider.dart',
   'lib/widgets/root_messenger.dart',
   'lib/widgets/site_info_sheet.dart',

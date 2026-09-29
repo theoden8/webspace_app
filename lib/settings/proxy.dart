@@ -5,15 +5,16 @@
 /// [TorService] is listening on, with per-caller stream-isolation auth.
 /// See `openspec/specs/tor-proxy/spec.md` (TOR-001/TOR-003).
 ///
-/// [SAVED] is resolved late too: it names one of the user's saved proxies by
-/// [UserProxySettings.savedProxyId] and takes that proxy's configuration at
-/// use-time, so editing the saved proxy moves every site that names it
-/// (PROXY-029). A name that no longer resolves carries no address, which
-/// every seam already treats as unroutable.
+/// [SAVED] and [GATEWAY] are resolved late too, from the proxy library
+/// (PROXY-029): [SAVED] names a saved proxy by
+/// [UserProxySettings.savedProxyId], [GATEWAY] a saved gateway by
+/// [UserProxySettings.gatewayId]. Editing the entry moves every setting that
+/// names it. One that no longer resolves carries no address, which every
+/// seam already treats as unroutable.
 ///
 /// Append new values only. The index is the serialized form, so
 /// renumbering silently rewrites every user's stored proxy.
-enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR, SAVED }
+enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR, SAVED, GATEWAY }
 
 class UserProxySettings {
   ProxyType type;
@@ -41,16 +42,14 @@ class UserProxySettings {
   /// reason the manual fields are (PROXY-010).
   String? savedProxyId;
 
-  /// Under [ProxyType.SAVED]: connect to this setting's own [address]
-  /// instead of the saved proxy's, keeping its type and, unless
-  /// [ownCredentials] is also set, its credentials. One account behind
-  /// several gateways, such as one per country.
-  bool ownAddress;
+  /// The saved gateway this setting connects to. Meaningful only under
+  /// [ProxyType.GATEWAY].
+  String? gatewayId;
 
-  /// Under [ProxyType.SAVED]: sign in with this setting's own [username]
-  /// and [password] instead of the saved proxy's. Providers that pick the
-  /// session or the exit from the username give each site its own that way.
-  bool ownCredentials;
+  /// Saved credentials to sign in with instead of [username] and
+  /// [password]. Only a saved gateway the credentials list can take them;
+  /// any other pairing fails closed.
+  String? credentialsId;
 
   UserProxySettings({
     required this.type,
@@ -59,8 +58,8 @@ class UserProxySettings {
     this.password,
     this.torExitCountry,
     this.savedProxyId,
-    this.ownAddress = false,
-    this.ownCredentials = false,
+    this.gatewayId,
+    this.credentialsId,
   });
 
   /// The pin as tor's `ExitNodes` value, or null when unpinned or invalid.
@@ -91,8 +90,8 @@ class UserProxySettings {
         'username': username,
         if (torExitCountry != null) 'torExitCountry': torExitCountry,
         if (savedProxyId != null) 'savedProxyId': savedProxyId,
-        if (ownAddress) 'ownAddress': true,
-        if (ownCredentials) 'ownCredentials': true,
+        if (gatewayId != null) 'gatewayId': gatewayId,
+        if (credentialsId != null) 'credentialsId': credentialsId,
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) {
@@ -108,8 +107,8 @@ class UserProxySettings {
       password: text('password'),
       torExitCountry: text('torExitCountry'),
       savedProxyId: text('savedProxyId'),
-      ownAddress: json['ownAddress'] == true,
-      ownCredentials: json['ownCredentials'] == true,
+      gatewayId: text('gatewayId'),
+      credentialsId: text('credentialsId'),
     );
   }
 
@@ -138,8 +137,9 @@ class UserProxySettings {
     return 'type=$t address=$a hasUsername=${username != null && username!.isNotEmpty} '
         'hasPassword=${password != null && password!.isNotEmpty} '
         'exitCountry=${torExitCountry ?? '<any>'}'
-        '${type == ProxyType.SAVED ? ' saved=${savedProxyId ?? '<none>'} '
-            'ownAddress=$ownAddress ownCredentials=$ownCredentials' : ''}';
+        '${type == ProxyType.SAVED ? ' saved=${savedProxyId ?? '<none>'}' : ''}'
+        '${type == ProxyType.GATEWAY ? ' gateway=${gatewayId ?? '<none>'}' : ''}'
+        '${credentialsId != null ? ' credentials=$credentialsId' : ''}';
   }
 
   /// Returns true if credentials are provided

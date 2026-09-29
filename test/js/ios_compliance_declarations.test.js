@@ -193,9 +193,10 @@ test('TOR-001: nothing hardcodes Tor\'s default SOCKS port', () => {
 // so the screens are found by what they render rather than listed: a list
 // silently stops gating a dropdown that moves to a new file.
 //
-// Both render it through ProxyChoiceDropdown now, which also offers saved
-// proxies. A raw DropdownButton<ProxyType> is gated too, unless it lists a
-// fixed subset without TOR (the saved proxy form offers kSavedProxyTypes).
+// Both render it through ProxyChoiceDropdown now, which also offers the proxy
+// library. A raw DropdownButton<ProxyType> is gated too, unless it lists a
+// fixed subset without TOR (the gateway form offers kGatewayTypes), and so is
+// a picker that offers gateways only (the saved proxy form).
 test('TOR-007: every ProxyType dropdown handles TOR', () => {
   const screens = [];
   for (const dir of ['lib/screens', 'lib/widgets']) {
@@ -205,7 +206,9 @@ test('TOR-007: every ProxyType dropdown handles TOR', () => {
       const src = read(rel);
       const wholeEnum =
         /DropdownButton<ProxyType>/.test(src) && /ProxyType\.values/.test(src);
-      const usesPicker = /ProxyChoiceDropdown\(/.test(src) &&
+      const pickers = (src.match(/ProxyChoiceDropdown\(/g) || []).length;
+      const gatewayOnly = (src.match(/gatewaysOnly: true/g) || []).length;
+      const usesPicker = pickers > gatewayOnly &&
         !/class ProxyChoiceDropdown\b/.test(src);
       if (wholeEnum || usesPicker) screens.push(rel);
     }
@@ -213,7 +216,7 @@ test('TOR-007: every ProxyType dropdown handles TOR', () => {
   // The picker is where TOR is offered or not; the screens only say whether.
   assert.match(
     read('lib/widgets/proxy_choice_dropdown.dart'),
-    /if \(torAvailable \|\| type == ProxyType\.TOR\)/,
+    /torAvailable \|\| type == ProxyType\.TOR/,
     'ProxyChoiceDropdown offers TOR without asking torAvailable (TOR-007).',
   );
   assert.ok(

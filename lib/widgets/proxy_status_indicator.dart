@@ -10,12 +10,20 @@ import 'package:webspace/theme/design_tokens.dart';
 /// Whether a proxy answers: a coloured dot and a line of text, checked when
 /// shown and again on tap (PROXY-030).
 ///
-/// [proxy] is the resolved route. An unresolved [ProxyType.SAVED] reads as
-/// the missing saved proxy it is, without a probe; DEFAULT shows nothing.
+/// [proxy] is the resolved route. An unresolved one ([ProxyType.SAVED] with
+/// no address) reads as [problem] without a probe; DEFAULT shows nothing.
 class ProxyStatusIndicator extends StatefulWidget {
-  const ProxyStatusIndicator({super.key, required this.proxy, this.service});
+  const ProxyStatusIndicator({
+    super.key,
+    required this.proxy,
+    this.problem,
+    this.service,
+  });
 
   final UserProxySettings proxy;
+
+  /// What an unresolved route reads as; the missing saved proxy by default.
+  final String? problem;
 
   /// Defaults to [ProxyHealthService.instance].
   final ProxyHealthService? service;
@@ -99,7 +107,7 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
     final state = health?.state ?? ProxyHealthState.checking;
 
     final (Color color, String label) = missing
-        ? (scheme.error, loc.savedProxyMissing)
+        ? (scheme.error, widget.problem ?? loc.savedProxyMissing)
         : switch (state) {
             ProxyHealthState.checking => (
                 scheme.onSurfaceVariant,

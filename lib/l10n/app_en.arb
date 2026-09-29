@@ -4694,22 +4694,18 @@
   "@savedProxiesTitle": {
     "description": "Title of the App Settings row and of the screen listing proxies the user configured once so several sites can use the same one (for example one VPN for several sites)."
   },
-  "savedProxiesHint": "Set up a proxy once, such as a VPN's SOCKS5 or HTTP endpoint, and pick it by name in any site's Network settings or as the app-wide proxy. Editing it changes the route of every site that uses it. Deleting it blocks those sites until you pick another proxy for them, rather than sending them out directly. Passwords stay in this device's secure storage and are never included in backups.",
+  "savedProxiesHint": "A saved proxy is a gateway, meaning a proxy's type and address, plus the credentials to sign in with. Save one and pick it by name in any site's Network settings or as the app-wide proxy. When a gateway or a set of credentials is shared, for example one account that works on several gateways, or several accounts on one gateway, save it under Gateways or Credentials. A saved proxy or a site can then pick it, and editing it changes everything that uses it. Credentials list the gateways they work on and can only be paired with those. Deleting an entry blocks what uses it until you pick something else, rather than sending it out directly. Passwords stay in this device's secure storage and are never included in backups.",
   "@savedProxiesHint": {
-    "description": "Explanation shown in the hint dialog of the Saved proxies row in App Settings and on the Saved proxies screen: what a saved proxy is for, what editing and deleting one does to the sites that use it, and where its password is kept."
+    "description": "Explanation shown in the hint dialog of the Saved proxies row in App Settings and on the Saved proxies screen: what a saved proxy, a gateway and a set of credentials are, how they combine, what editing and deleting do, and where passwords are kept."
   },
   "savedProxiesCount": "{count, plural, =0{None saved} =1{1 saved} other{{count} saved}}",
   "@savedProxiesCount": {
-    "description": "Subtitle of the Saved proxies row in App Settings: how many proxies the user has saved.",
+    "description": "Subtitle of the Saved proxies row in App Settings: how many entries (saved proxies, gateways and credentials together) the user has saved.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  },
-  "savedProxiesEmpty": "No saved proxies yet. Add one to use the same proxy for several sites.",
-  "@savedProxiesEmpty": {
-    "description": "Text shown in the middle of the Saved proxies screen when the user has not saved any proxy."
   },
   "savedProxiesAdd": "Add proxy",
   "@savedProxiesAdd": {
@@ -4758,9 +4754,9 @@
       }
     }
   },
-  "savedProxyDeleteBody": "{count, plural, =0{No site uses this proxy.} =1{1 site uses this proxy. It will be blocked until you pick another proxy for it.} other{{count} sites use this proxy. They will be blocked until you pick another proxy for them.}}",
+  "savedProxyDeleteBody": "{count, plural, =0{No site uses it.} =1{1 site uses it and will be blocked until you pick something else for it.} other{{count} sites use it and will be blocked until you pick something else for them.}}",
   "@savedProxyDeleteBody": {
-    "description": "Body of the confirmation dialog shown before deleting a saved proxy: how many sites use it, and that those sites stop loading rather than connecting without a proxy.",
+    "description": "Body of the confirmation dialog shown before deleting a saved proxy, gateway or set of credentials: how many sites use it, and that those sites stop loading rather than connecting without a proxy.",
     "placeholders": {
       "count": {
         "type": "int"
@@ -4791,20 +4787,73 @@
   "@siteInfoConnectionDirect": {
     "description": "Value of the Connection row in the site info sheet when the site's traffic goes out without any proxy."
   },
-  "savedProxyOwnAddress": "Use a different address",
-  "@savedProxyOwnAddress": {
-    "description": "Title of a switch shown when a site (or the app-wide proxy) uses a saved proxy: connect to another host and port than the saved proxy's, keeping its type and, unless also changed, its username and password."
+  "proxyLibraryGateways": "Gateways",
+  "@proxyLibraryGateways": {
+    "description": "Heading of the list of saved gateways on the Saved proxies screen, and of the saved gateways in proxy pickers. A gateway is a proxy's type and address (host and port), without credentials."
   },
-  "savedProxyOwnAddressHint": "Connects to the address you type here instead of the saved proxy's, keeping its type and, unless you also turn on different credentials, its username and password. For a provider whose one account works on several gateways, such as one per country.",
-  "@savedProxyOwnAddressHint": {
-    "description": "Explanation in the hint dialog of the \"Use a different address\" switch for a saved proxy: what it keeps from the saved proxy, what it replaces, and the typical reason to use it."
+  "proxyLibraryCredentials": "Credentials",
+  "@proxyLibraryCredentials": {
+    "description": "Heading of the list of saved usernames and passwords on the Saved proxies screen, and label of the row that picks which credentials to sign in to a gateway with."
   },
-  "savedProxyOwnCredentials": "Use different credentials",
-  "@savedProxyOwnCredentials": {
-    "description": "Title of a switch shown when a site (or the app-wide proxy) uses a saved proxy: sign in to the proxy with another username and password than the saved proxy's, keeping its address."
+  "proxyLibraryNone": "None yet",
+  "@proxyLibraryNone": {
+    "description": "Shown under a heading on the Saved proxies screen when that list (saved proxies, gateways or credentials) is empty."
   },
-  "savedProxyOwnCredentialsHint": "Signs in with the username and password you type here instead of the saved proxy's, keeping its address. For a provider that picks the session or the exit country from the username, or for a separate account per site. Sites with different credentials are different proxies, so on Android they are not kept loaded side by side unless the per-site proxy router is on.",
-  "@savedProxyOwnCredentialsHint": {
-    "description": "Explanation in the hint dialog of the \"Use different credentials\" switch for a saved proxy: what it keeps and replaces, why one would use it, and that on Android sites with different credentials cannot stay loaded together unless the per-site proxy router experiment is on."
+  "proxyLibraryAddGateway": "Add gateway",
+  "@proxyLibraryAddGateway": {
+    "description": "Button beside the Gateways heading on the Saved proxies screen that opens the form for a new gateway."
+  },
+  "proxyLibraryAddCredentials": "Add credentials",
+  "@proxyLibraryAddCredentials": {
+    "description": "Button beside the Credentials heading on the Saved proxies screen that opens the form for a new username and password."
+  },
+  "proxyLibraryNewGateway": "New gateway",
+  "@proxyLibraryNewGateway": {
+    "description": "Title of the form for adding a gateway (a proxy's type and address)."
+  },
+  "proxyLibraryNewCredentials": "New credentials",
+  "@proxyLibraryNewCredentials": {
+    "description": "Title of the form for adding saved credentials (a username and password for proxies)."
+  },
+  "proxyLibraryGateway": "Gateway",
+  "@proxyLibraryGateway": {
+    "description": "Label of the picker in the saved proxy form that chooses the gateway: a saved gateway, or a type (HTTP, HTTPS, SOCKS5) with an address typed below."
+  },
+  "proxyLibraryCredentialsTyped": "Enter below",
+  "@proxyLibraryCredentialsTyped": {
+    "description": "Option in the credentials picker meaning the username and password are typed into the fields below rather than taken from saved credentials. Leaving the fields empty means no credentials."
+  },
+  "proxyLibraryWorksOn": "Works on",
+  "@proxyLibraryWorksOn": {
+    "description": "Heading above the list of saved gateways in the credentials form; the user ticks the gateways these credentials can sign in to."
+  },
+  "proxyLibraryWorksOnRequired": "Pick at least one gateway",
+  "@proxyLibraryWorksOnRequired": {
+    "description": "Error in the credentials form when no gateway is ticked: credentials can only be used with gateways they list."
+  },
+  "proxyLibraryWorksOnList": "Works on {gateways}",
+  "@proxyLibraryWorksOnList": {
+    "description": "Line under saved credentials in the Saved proxies list naming the gateways they can sign in to. {gateways} is a comma-separated list of gateway names.",
+    "placeholders": {
+      "gateways": {
+        "type": "String"
+      }
+    }
+  },
+  "proxyLibraryNoGateways": "Add a gateway first.",
+  "@proxyLibraryNoGateways": {
+    "description": "Shown in the credentials form when there are no saved gateways to pair the credentials with."
+  },
+  "proxyLibraryGatewayMissing": "Missing gateway",
+  "@proxyLibraryGatewayMissing": {
+    "description": "Shown in place of a gateway's name when a site or saved proxy uses a saved gateway that was deleted. Such a site does not load until another is picked."
+  },
+  "proxyLibraryCredentialsMissing": "Missing credentials",
+  "@proxyLibraryCredentialsMissing": {
+    "description": "Shown when a site or saved proxy signs in with saved credentials that were deleted. Such a site does not load until other credentials are picked."
+  },
+  "proxyLibraryCredentialsMismatch": "Credentials don't fit this gateway",
+  "@proxyLibraryCredentialsMismatch": {
+    "description": "Shown when saved credentials are paired with a gateway they do not list as one they work on. Such a site does not load until the pairing is fixed."
   }
 }

@@ -8,13 +8,11 @@ import 'package:webspace/services/webview.dart' show ProxyManager;
 import 'package:webspace/settings/location.dart'
     show WebRtcPolicy, resolveWebRtcPolicy;
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/saved_proxies.dart';
+import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/widgets/hint_button.dart';
-import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
-import 'package:webspace/widgets/saved_proxy_overrides.dart';
 
 /// Everything the network screen may change through a switch or a picker, in
 /// one value so the caller can apply a whole edit in a single `setState`.
@@ -28,20 +26,19 @@ class SiteNetworkValues {
     required this.proxyType,
     this.torExitCountry,
     this.savedProxyId,
-    this.ownAddress = false,
-    this.ownCredentials = false,
+    this.gatewayId,
+    this.credentialsId,
     required this.webRtcPolicy,
   });
 
   final ProxyType proxyType;
 
-  /// The saved proxy named under [ProxyType.SAVED].
+  /// The library entries picked: the saved proxy under [ProxyType.SAVED],
+  /// the saved gateway under [ProxyType.GATEWAY], and saved credentials
+  /// (null meaning the typed ones).
   final String? savedProxyId;
-
-  /// Under [ProxyType.SAVED], whether the site uses its own address and its
-  /// own credentials with the saved proxy.
-  final bool ownAddress;
-  final bool ownCredentials;
+  final String? gatewayId;
+  final String? credentialsId;
 
   /// Country the Tor exit is pinned to, or null for any.
   final String? torExitCountry;
@@ -55,8 +52,8 @@ class SiteNetworkValues {
     ProxyType? proxyType,
     Object? torExitCountry = _keep,
     Object? savedProxyId = _keep,
-    bool? ownAddress,
-    bool? ownCredentials,
+    Object? gatewayId = _keep,
+    Object? credentialsId = _keep,
     WebRtcPolicy? webRtcPolicy,
   }) =>
       SiteNetworkValues(
@@ -67,28 +64,28 @@ class SiteNetworkValues {
         savedProxyId: identical(savedProxyId, _keep)
             ? this.savedProxyId
             : savedProxyId as String?,
-        ownAddress: ownAddress ?? this.ownAddress,
-        ownCredentials: ownCredentials ?? this.ownCredentials,
+        gatewayId:
+            identical(gatewayId, _keep) ? this.gatewayId : gatewayId as String?,
+        credentialsId: identical(credentialsId, _keep)
+            ? this.credentialsId
+            : credentialsId as String?,
         webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
       );
 }
 
 /// The address check the save path runs. Lives beside the field so the rule
 /// and the field it guards cannot drift apart. TOR supplies its own address
-/// once the runtime is up, and a saved proxy was checked where it was saved,
-/// so for both there is nothing for the user to type and nothing to validate.
-///
-/// [ownAddress] is a saved proxy used with an address of the setting's own,
-/// which is then typed and checked like any other.
+/// once the runtime is up, and a saved proxy or gateway was checked where it
+/// was saved, so for these there is nothing to type and nothing to validate.
 String? validateProxyAddress(
   AppLocalizations loc,
   ProxyType type,
-  String? value, {
-  bool ownAddress = false,
-}) {
+  String? value,
+) {
   if (type == ProxyType.DEFAULT ||
       type == ProxyType.TOR ||
-      (type == ProxyType.SAVED && !ownAddress)) {
+      type == ProxyType.SAVED ||
+      type == ProxyType.GATEWAY) {
     return null;
   }
   if (value == null || value.isEmpty) {
@@ -123,7 +120,7 @@ class SiteNetworkScreen extends StatefulWidget {
     this.showSavedSignIns = true,
     this.trackingProtectionEnabled = false,
     this.appProxySet = false,
-    this.savedProxies,
+    this.library,
   });
 
   final String host;
@@ -157,8 +154,8 @@ class SiteNetworkScreen extends StatefulWidget {
   final bool trackingProtectionEnabled;
   final bool appProxySet;
 
-  /// Offered in the proxy picker. Defaults to [SavedProxies.all].
-  final List<SavedProxy>? savedProxies;
+  /// The proxy library the pickers offer. Defaults to [ProxyLibrary]'s.
+  final ProxyLibraryData? library;
 
   @override
   State<SiteNetworkScreen> createState() => _SiteNetworkScreenState();
@@ -173,8 +170,8 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         widget.proxyPasswordController,
       ];
 
-  // The saved-proxy row shows the route the form would store, overrides
-  // included, so it follows the fields as they are typed.
+  // The saved-gateway row checks the route the form would store, typed
+  // credentials included, so it follows the fields as they are typed.
   @override
   void initState() {
     super.initState();
@@ -192,7 +189,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
   }
 
   void _fieldsChanged() {
-    if (mounted && _values.proxyType == ProxyType.SAVED) setState(() {});
+    if (mounted && _values.proxyType == ProxyType.GATEWAY) setState(() {});
   }
 
   void _update(SiteNetworkValues next) {
@@ -237,54 +234,68 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
       trailing: ProxyChoiceDropdown(
         type: type,
         savedProxyId: _values.savedProxyId,
-        savedProxies: _savedProxies,
+        gatewayId: _values.gatewayId,
+        library: _library,
         torAvailable: TorService.instance.isAvailable,
-        onChanged: (choice) => _update(_values.copyWith(
-          proxyType: choice.type,
-          // Only a pick of a saved proxy moves the reference; switching away
-          // keeps it, like the manual fields (PROXY-010).
-          savedProxyId: choice.type == ProxyType.SAVED
-              ? choice.savedProxyId
-              : _values.savedProxyId,
-        )),
+        onChanged: _pickProxy,
       ),
     );
   }
 
-  List<SavedProxy> get _savedProxies =>
-      widget.savedProxies ?? SavedProxies.all;
+  ProxyLibraryData get _library => widget.library ?? ProxyLibrary.data;
 
-  /// The saved proxy this site names: the route it takes with this site's
-  /// overrides, and whether it answers (PROXY-030). The saved proxy itself
-  /// is edited in App Settings.
-  Widget _savedProxy(AppLocalizations loc) {
-    SavedProxy? saved;
-    for (final p in _savedProxies) {
-      if (p.id == _values.savedProxyId) saved = p;
-    }
+  /// A pick moves only the reference it names; the others are kept, like
+  /// the manual fields (PROXY-010). Saved credentials go with the gateway
+  /// they were paired with: a typed gateway, or another saved one they do
+  /// not list, would fail closed with them.
+  void _pickProxy(ProxyChoice choice) {
+    final gatewayId = choice.type == ProxyType.GATEWAY
+        ? choice.gatewayId
+        : _values.gatewayId;
+    final keepCredentials = choice.type == ProxyType.GATEWAY &&
+        (_library.credentialsById(_values.credentialsId)?.fits(gatewayId) ??
+            false);
+    _update(_values.copyWith(
+      proxyType: choice.type,
+      savedProxyId: choice.type == ProxyType.SAVED
+          ? choice.savedProxyId
+          : _values.savedProxyId,
+      gatewayId: gatewayId,
+      credentialsId: keepCredentials ? _values.credentialsId : null,
+    ));
+  }
+
+  /// The route this form would store, resolved against the library, with
+  /// whatever is typed so far.
+  LibraryResolution _route() {
     String? orNull(String v) => v.trim().isEmpty ? null : v.trim();
-    final route = saved == null
-        ? UserProxySettings(
-            type: ProxyType.SAVED, savedProxyId: _values.savedProxyId)
-        : saved.resolveFor(UserProxySettings(
-            type: ProxyType.SAVED,
-            savedProxyId: saved.id,
-            ownAddress: _values.ownAddress,
-            ownCredentials: _values.ownCredentials,
-            address: orNull(widget.proxyAddressController.text),
-            username: orNull(widget.proxyUsernameController.text),
-            password: orNull(widget.proxyPasswordController.text),
-          ));
-    // Data, not copy (LOC-002): a type name and an address.
-    final address = saved == null
+    return resolveLibrary(
+      UserProxySettings(
+        type: _values.proxyType,
+        savedProxyId: _values.savedProxyId,
+        gatewayId: _values.gatewayId,
+        credentialsId: _values.credentialsId,
+        address: orNull(widget.proxyAddressController.text),
+        username: orNull(widget.proxyUsernameController.text),
+        password: orNull(widget.proxyPasswordController.text),
+      ),
+      _library,
+    );
+  }
+
+  /// Where a saved proxy or gateway takes this site, and whether it answers
+  /// (PROXY-030). The entries themselves are edited in App Settings.
+  Widget _libraryRoute(AppLocalizations loc) {
+    final resolved = _route();
+    final problem = resolved.problem == LibraryProblem.none
         ? null
-        : '${route.type.name} ${route.address ?? ''}'.trim();
+        : libraryProblemLabel(loc, resolved.problem);
     return ListTile(
       leading: const Icon(Icons.vpn_lock_outlined),
-      title: address == null ? null : Text(address),
+      title: problem == null ? Text(routeLabel(resolved.route)) : null,
       subtitle: Align(
         alignment: AlignmentDirectional.centerStart,
-        child: ProxyStatusIndicator(proxy: route),
+        child: ProxyStatusIndicator(proxy: resolved.route, problem: problem),
       ),
     );
   }
@@ -358,51 +369,27 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
       ),
       _proxyType(loc),
       if (type == ProxyType.TOR) _torExitCountry(loc),
-      if (type == ProxyType.SAVED) ...[
-        _savedProxy(loc),
-        SavedProxyOverrides(
-          ownAddress: _values.ownAddress,
-          ownCredentials: _values.ownCredentials,
-          onOwnAddressChanged: (v) =>
-              _update(_values.copyWith(ownAddress: v)),
-          onOwnCredentialsChanged: (v) =>
-              _update(_values.copyWith(ownCredentials: v)),
+      if (type == ProxyType.SAVED || type == ProxyType.GATEWAY)
+        _libraryRoute(loc),
+      // TOR supplies its own loopback address and stream-isolation auth, and
+      // a saved proxy its whole route, so the manual fields are inert while
+      // either is selected. Hidden, not cleared: PROXY-010 requires a stored
+      // SOCKS5 config to survive the trip and come back on switch-out.
+      if (type != ProxyType.DEFAULT &&
+          type != ProxyType.TOR &&
+          type != ProxyType.SAVED)
+        ProxyRouteFields(
+          type: type,
+          gatewayId: _values.gatewayId,
+          credentialsId: _values.credentialsId,
+          library: _library,
           addressController: widget.proxyAddressController,
           usernameController: widget.proxyUsernameController,
           passwordController: widget.proxyPasswordController,
-          addressValidator: (value) => validateProxyAddress(
-              loc, type, value,
-              ownAddress: _values.ownAddress),
+          addressValidator: (value) => validateProxyAddress(loc, type, value),
+          onCredentialsChanged: (id) =>
+              _update(_values.copyWith(credentialsId: id)),
         ),
-      ],
-      // TOR supplies its own loopback address and stream-isolation auth, so
-      // the manual fields are inert while it is selected. Hidden, not
-      // cleared: PROXY-010 requires a stored SOCKS5 config to survive a trip
-      // through TOR and come back on switch-out.
-      if (type != ProxyType.DEFAULT &&
-          type != ProxyType.TOR &&
-          type != ProxyType.SAVED) ...[
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: TextFormField(
-            controller: widget.proxyAddressController,
-            decoration: InputDecoration(
-              labelText: loc.siteSettingsProxyAddress,
-              hintText: loc.siteSettingsProxyAddressHint,
-              helperText: loc.siteSettingsProxyAddressHelper,
-              border: const OutlineInputBorder(),
-            ),
-            // The save button is a screen away, so a malformed address is
-            // flagged here, where it can still be fixed.
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: (value) => validateProxyAddress(loc, type, value),
-          ),
-        ),
-        ProxyAuthSection(
-          usernameController: widget.proxyUsernameController,
-          passwordController: widget.proxyPasswordController,
-        ),
-      ],
       if (type != ProxyType.DEFAULT && widget.proxyTest != null)
         widget.proxyTest!,
     ];

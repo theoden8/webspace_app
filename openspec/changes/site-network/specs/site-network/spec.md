@@ -74,7 +74,8 @@ and Privacy (BEHAV-002).
 The row SHALL answer whether and how the site is proxied without being opened,
 from the unsaved form: the site's own proxy as its type and address (TOR as
 its type, followed by the pinned exit country when there is one; a saved proxy
-by its name, or as missing when it no longer exists, PROXY-029); "App-wide
+or saved gateway by its name, or what failed when it no longer resolves,
+PROXY-029); "App-wide
 proxy" when the site sets no proxy of its own and the app-wide outbound proxy
 is set, since such a site goes through it; and "WebRTC: {policy}" when the
 WebRTC policy the site will run is not the default, which counts a Default

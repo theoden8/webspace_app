@@ -37,15 +37,13 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/saved_proxies.dart';
+import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/screens/saved_proxies.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
-import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
-import 'package:webspace/widgets/saved_proxy_overrides.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
@@ -138,10 +136,11 @@ class AppSettingsScreen extends StatefulWidget {
   /// restart.
   final VoidCallback? onOutboundProxyChanged;
 
-  /// How many sites name the saved proxy with this id (PROXY-029).
-  final int Function(String id)? savedProxyUsage;
+  /// Every site's proxy setting, so the proxy library can say what uses each
+  /// entry (PROXY-029).
+  final List<UserProxySettings> Function()? siteProxies;
 
-  /// Fired after the saved proxies were edited. Same duty as
+  /// Fired after the proxy library was edited. Same duty as
   /// [onOutboundProxyChanged]: a webview bound to a saved proxy's old
   /// configuration keeps routing through it until it is rebuilt.
   final VoidCallback? onSavedProxiesChanged;
@@ -187,7 +186,7 @@ class AppSettingsScreen extends StatefulWidget {
     this.globalUserScripts = const [],
     this.onGlobalUserScriptsChanged,
     this.onOutboundProxyChanged,
-    this.savedProxyUsage,
+    this.siteProxies,
     this.onSavedProxiesChanged,
   });
 
@@ -292,8 +291,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       username: GlobalOutboundProxy.current.username,
       password: GlobalOutboundProxy.current.password,
       savedProxyId: GlobalOutboundProxy.current.savedProxyId,
-      ownAddress: GlobalOutboundProxy.current.ownAddress,
-      ownCredentials: GlobalOutboundProxy.current.ownCredentials,
+      gatewayId: GlobalOutboundProxy.current.gatewayId,
+      credentialsId: GlobalOutboundProxy.current.credentialsId,
     );
     _outboundProxyAddressController = TextEditingController(
       text: _outboundProxy.address ?? '',
@@ -377,8 +376,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     // field and global Tor cannot be turned on at all.
     if (_outboundProxy.type == ProxyType.DEFAULT ||
         _outboundProxy.type == ProxyType.TOR ||
-        (_outboundProxy.type == ProxyType.SAVED &&
-            !_outboundProxy.ownAddress)) {
+        _outboundProxy.type == ProxyType.SAVED ||
+        _outboundProxy.type == ProxyType.GATEWAY) {
       return null;
     }
     final trimmed = value.trim();
@@ -411,8 +410,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         username: _outboundProxyUsernameController.text,
         password: _outboundProxyPasswordController.text,
         savedProxyId: _outboundProxy.savedProxyId,
-        ownAddress: _outboundProxy.ownAddress,
-        ownCredentials: _outboundProxy.ownCredentials,
+        gatewayId: _outboundProxy.gatewayId,
+        credentialsId: _outboundProxy.credentialsId,
       ),
     );
     final previous = GlobalOutboundProxy.current;
@@ -421,8 +420,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         previous.username != settings.username ||
         previous.password != settings.password ||
         previous.savedProxyId != settings.savedProxyId ||
-        previous.ownAddress != settings.ownAddress ||
-        previous.ownCredentials != settings.ownCredentials;
+        previous.gatewayId != settings.gatewayId ||
+        previous.credentialsId != settings.credentialsId;
     await GlobalOutboundProxy.update(settings);
     setState(() {
       _outboundProxy = settings;
@@ -469,8 +468,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           username: _outboundProxyUsernameController.text,
           password: _outboundProxyPasswordController.text,
           savedProxyId: _outboundProxy.savedProxyId,
-          ownAddress: _outboundProxy.ownAddress,
-          ownCredentials: _outboundProxy.ownCredentials,
+          gatewayId: _outboundProxy.gatewayId,
+          credentialsId: _outboundProxy.credentialsId,
         ),
       );
 
@@ -481,8 +480,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   Map<String, Object?> _currentOutboundProxySnapshot() => {
         'type': _outboundProxy.type,
         'savedProxyId': _outboundProxy.savedProxyId,
-        'ownAddress': _outboundProxy.ownAddress,
-        'ownCredentials': _outboundProxy.ownCredentials,
+        'gatewayId': _outboundProxy.gatewayId,
+        'credentialsId': _outboundProxy.credentialsId,
         'address': _outboundProxyAddressController.text,
         'username': _outboundProxyUsernameController.text,
         'password': _outboundProxyPasswordController.text,
@@ -500,11 +499,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     await Navigator.push<void>(
       context,
       MaterialPageRoute(
-        builder: (_) => SavedProxiesScreen(
-          usageCount: (id) => widget.savedProxyUsage?.call(id) ?? 0,
-          usedByAppWide: (id) =>
-              GlobalOutboundProxy.current.type == ProxyType.SAVED &&
-              GlobalOutboundProxy.current.savedProxyId == id,
+        builder: (_) => ProxyLibraryScreen(
+          siteProxies: widget.siteProxies ?? () => const [],
+          appWideProxy: () => GlobalOutboundProxy.current,
           onChanged: () => widget.onSavedProxiesChanged?.call(),
         ),
       ),
@@ -1577,7 +1574,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ),
               ],
             ),
-            subtitle: Text(loc.savedProxiesCount(SavedProxies.all.length)),
+            subtitle: Text(loc.savedProxiesCount(ProxyLibrary.data.length)),
             trailing: const Icon(Icons.chevron_right),
             onTap: _openSavedProxies,
           ),
@@ -1586,7 +1583,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             trailing: ProxyChoiceDropdown(
               type: _outboundProxy.type,
               savedProxyId: _outboundProxy.savedProxyId,
-              savedProxies: SavedProxies.all,
+              gatewayId: _outboundProxy.gatewayId,
+              library: ProxyLibrary.data,
               torAvailable: TorService.instance.isAvailable,
               onChanged: (choice) {
                 setState(() {
@@ -1594,64 +1592,57 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   if (choice.type == ProxyType.SAVED) {
                     _outboundProxy.savedProxyId = choice.savedProxyId;
                   }
+                  if (choice.type == ProxyType.GATEWAY) {
+                    _outboundProxy.gatewayId = choice.gatewayId;
+                  }
+                  // Saved credentials stay only with a gateway they list.
+                  final credentials = ProxyLibrary.credentialsById(
+                      _outboundProxy.credentialsId);
+                  if (choice.type != ProxyType.GATEWAY ||
+                      !(credentials?.fits(_outboundProxy.gatewayId) ??
+                          false)) {
+                    _outboundProxy.credentialsId = null;
+                  }
                 });
                 _saveOutboundProxy();
               },
             ),
           ),
-          if (_outboundProxy.type == ProxyType.SAVED) ...[
+          if (_outboundProxy.type == ProxyType.SAVED ||
+              _outboundProxy.type == ProxyType.GATEWAY)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ProxyStatusIndicator(
-                proxy: resolveSavedProxy(_currentOutboundProxyForTest()),
-              ),
+              child: Builder(builder: (context) {
+                final resolved = resolveLibrary(_currentOutboundProxyForTest());
+                return ProxyStatusIndicator(
+                  proxy: resolved.route,
+                  problem: resolved.problem == LibraryProblem.none
+                      ? null
+                      : libraryProblemLabel(loc, resolved.problem),
+                );
+              }),
             ),
-            SavedProxyOverrides(
-              ownAddress: _outboundProxy.ownAddress,
-              ownCredentials: _outboundProxy.ownCredentials,
-              onOwnAddressChanged: (v) {
-                setState(() => _outboundProxy.ownAddress = v);
-                // Turned on with an empty field, the save would be refused
-                // until an address is typed, which then saves it.
-                if (!v || _outboundProxyAddressController.text.isNotEmpty) {
-                  _saveOutboundProxy();
-                }
-              },
-              onOwnCredentialsChanged: (v) {
-                setState(() => _outboundProxy.ownCredentials = v);
-                _saveOutboundProxy();
-              },
+          if (_outboundProxy.type != ProxyType.DEFAULT &&
+              _outboundProxy.type != ProxyType.TOR &&
+              _outboundProxy.type != ProxyType.SAVED)
+            ProxyRouteFields(
+              type: _outboundProxy.type,
+              gatewayId: _outboundProxy.gatewayId,
+              credentialsId: _outboundProxy.credentialsId,
+              library: ProxyLibrary.data,
               addressController: _outboundProxyAddressController,
               usernameController: _outboundProxyUsernameController,
               passwordController: _outboundProxyPasswordController,
               addressValidator: (v) => _validateOutboundProxyAddress(v ?? ''),
+              addressLabel: loc.appSettingsProxyAddress,
+              addressHint: loc.appSettingsProxyAddressHint,
+              addressHelper: loc.appSettingsProxyAddressHelper,
+              onCredentialsChanged: (id) {
+                setState(() => _outboundProxy.credentialsId = id);
+                _saveOutboundProxy();
+              },
               onEditingComplete: _saveOutboundProxy,
             ),
-          ],
-          if (_outboundProxy.type != ProxyType.DEFAULT &&
-              _outboundProxy.type != ProxyType.TOR &&
-              _outboundProxy.type != ProxyType.SAVED) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16.0, vertical: 8.0),
-              child: TextFormField(
-                controller: _outboundProxyAddressController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsProxyAddress,
-                  hintText: loc.appSettingsProxyAddressHint,
-                  helperText: loc.appSettingsProxyAddressHelper,
-                  border: const OutlineInputBorder(),
-                ),
-                onFieldSubmitted: (_) => _saveOutboundProxy(),
-                onEditingComplete: _saveOutboundProxy,
-              ),
-            ),
-            ProxyAuthSection(
-              usernameController: _outboundProxyUsernameController,
-              passwordController: _outboundProxyPasswordController,
-              onEditingComplete: _saveOutboundProxy,
-            ),
-          ],
           if (_outboundProxy.type != ProxyType.DEFAULT)
             ProxyTestTile(
               settings: _currentOutboundProxyForTest,

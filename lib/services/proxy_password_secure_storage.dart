@@ -23,7 +23,9 @@ import 'package:webspace/services/log_service.dart';
 /// Storage keys:
 /// - per-site proxy password: keyed by the site's `siteId`
 /// - global outbound-proxy password: keyed by [globalProxyKey]
-/// - saved proxy password: keyed by [savedProxyKey], owned by `SavedProxies`
+/// - proxy library passwords: [savedProxyKey] for a saved proxy's typed
+///   password, [savedCredentialsKey] for saved credentials; both owned by
+///   `ProxyLibrary`
 class ProxyPasswordSecureStorage {
   static const String _secureStorageKey = 'proxy_passwords';
 
@@ -33,12 +35,17 @@ class ProxyPasswordSecureStorage {
   static const String globalProxyKey = '__global_outbound__';
 
   static const String _savedProxyPrefix = '__saved_proxy__:';
+  static const String _savedCredentialsPrefix = '__saved_credentials__:';
 
-  /// Key for a saved proxy's password. The prefix cannot collide with a
+  /// Keys for proxy library passwords. The prefixes cannot collide with a
   /// site id for the same reason [globalProxyKey] cannot.
   static String savedProxyKey(String id) => '$_savedProxyPrefix$id';
+  static String savedCredentialsKey(String id) =>
+      '$_savedCredentialsPrefix$id';
 
-  static bool isSavedProxyKey(String key) => key.startsWith(_savedProxyPrefix);
+  static bool isLibraryKey(String key) =>
+      key.startsWith(_savedProxyPrefix) ||
+      key.startsWith(_savedCredentialsPrefix);
 
   final FlutterSecureStorage _secureStorage;
   bool _secureStorageAvailable = true;
@@ -161,10 +168,10 @@ class ProxyPasswordSecureStorage {
     final removed = <String>[];
     await mutate((draft) {
       for (final key in draft.keys.toList()) {
-        // Always preserve the global key; it's not tied to a site. Saved
-        // proxy keys are not tied to a site either, and `SavedProxies`
+        // Always preserve the global key; it's not tied to a site. Proxy
+        // library keys are not tied to a site either, and `ProxyLibrary`
         // collects its own orphans.
-        if (key == globalProxyKey || isSavedProxyKey(key)) continue;
+        if (key == globalProxyKey || isLibraryKey(key)) continue;
         if (!activeKeys.contains(key)) {
           draft.remove(key);
           removed.add(key);

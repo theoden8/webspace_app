@@ -14,7 +14,7 @@ import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
-import 'package:webspace/settings/saved_proxies.dart';
+import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -36,7 +36,8 @@ import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
-import 'package:webspace/widgets/proxy_choice_dropdown.dart' show savedProxyLabel;
+import 'package:webspace/widgets/proxy_choice_dropdown.dart'
+    show gatewayLabel, libraryProblemLabel, savedProxyLabel;
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
@@ -231,8 +232,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'proxyType': _proxySettings.type,
         'torExitCountry': _proxySettings.torExitCountry,
         'savedProxyId': _proxySettings.savedProxyId,
-        'ownAddress': _proxySettings.ownAddress,
-        'ownCredentials': _proxySettings.ownCredentials,
+        'gatewayId': _proxySettings.gatewayId,
+        'credentialsId': _proxySettings.credentialsId,
         'proxyAddress': _proxyAddressController.text,
         'proxyUsername': _proxyUsernameController.text,
         'proxyPassword': _proxyPasswordController.text,
@@ -463,8 +464,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           PlatformInfo.isProxySupported ? m.proxySettings.torExitCountry : null,
       savedProxyId:
           PlatformInfo.isProxySupported ? m.proxySettings.savedProxyId : null,
-      ownAddress: m.proxySettings.ownAddress,
-      ownCredentials: m.proxySettings.ownCredentials,
+      gatewayId:
+          PlatformInfo.isProxySupported ? m.proxySettings.gatewayId : null,
+      credentialsId:
+          PlatformInfo.isProxySupported ? m.proxySettings.credentialsId : null,
     );
     // effectiveUserAgent so a preset site's field shows the string the
     // webview actually sends (current version), not the stored snapshot.
@@ -541,8 +544,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             username: _proxyUsernameController.text,
             password: _proxyPasswordController.text,
             savedProxyId: _proxySettings.savedProxyId,
-            ownAddress: _proxySettings.ownAddress,
-            ownCredentials: _proxySettings.ownCredentials,
+            gatewayId: _proxySettings.gatewayId,
+            credentialsId: _proxySettings.credentialsId,
           ),
         ),
         target: proxyTestTarget(widget.webViewModel.initUrl),
@@ -570,8 +573,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (PlatformInfo.isProxySupported) {
       // Validate proxy address if needed
       final proxyError = validateProxyAddress(
-          loc, _proxySettings.type, _proxyAddressController.text,
-          ownAddress: _proxySettings.ownAddress);
+          loc, _proxySettings.type, _proxyAddressController.text);
       if (proxyError != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(loc.siteSettingsProxyError(proxyError))),
@@ -591,8 +593,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             username: _proxyUsernameController.text,
             password: _proxyPasswordController.text,
             savedProxyId: _proxySettings.savedProxyId,
-            ownAddress: _proxySettings.ownAddress,
-            ownCredentials: _proxySettings.ownCredentials,
+            gatewayId: _proxySettings.gatewayId,
+            credentialsId: _proxySettings.credentialsId,
           ),
         );
 
@@ -1095,8 +1097,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         proxyType: _proxySettings.type,
         torExitCountry: _proxySettings.torExitCountry,
         savedProxyId: _proxySettings.savedProxyId,
-        ownAddress: _proxySettings.ownAddress,
-        ownCredentials: _proxySettings.ownCredentials,
+        gatewayId: _proxySettings.gatewayId,
+        credentialsId: _proxySettings.credentialsId,
         webRtcPolicy: _webRtcPolicy,
       );
 
@@ -1131,15 +1133,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Built as data before it reaches Text(): a proxy type, an address, a
     // country, the separator and the count are not translatable copy
     // (LOC-002).
-    final saved = v.proxyType == ProxyType.SAVED
-        ? SavedProxies.byId(v.savedProxyId)
-        : null;
     final on = <String>[
       if (inheritsAppProxy) loc.networkSummaryAppProxy,
-      // A saved proxy goes by its name; one that was deleted says so, since
-      // the site is blocked until it names another (PROXY-029).
-      if (proxied && v.proxyType == ProxyType.SAVED)
-        saved == null ? loc.savedProxyMissing : savedProxyLabel(saved)
+      // A saved proxy or gateway goes by its name; one that no longer
+      // resolves says why, since the site is blocked until it is fixed
+      // (PROXY-029).
+      if (proxied &&
+          (v.proxyType == ProxyType.SAVED || v.proxyType == ProxyType.GATEWAY))
+        _libraryName(loc, v)
       else if (proxied)
         v.proxyType == ProxyType.TOR || address.isEmpty
             ? v.proxyType.name
@@ -1172,6 +1173,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  String _libraryName(AppLocalizations loc, SiteNetworkValues v) {
+    final problem = resolveLibrary(UserProxySettings(
+      type: v.proxyType,
+      savedProxyId: v.savedProxyId,
+      gatewayId: v.gatewayId,
+      credentialsId: v.credentialsId,
+    )).problem;
+    if (problem != LibraryProblem.none) return libraryProblemLabel(loc, problem);
+    if (v.proxyType == ProxyType.SAVED) {
+      return savedProxyLabel(ProxyLibrary.proxy(v.savedProxyId)!);
+    }
+    return gatewayLabel(ProxyLibrary.gateway(v.gatewayId)!);
+  }
+
   Future<void> _openNetwork() async {
     await Navigator.push<void>(
       context,
@@ -1193,8 +1208,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _proxySettings.type = values.proxyType;
               _proxySettings.torExitCountry = values.torExitCountry;
               _proxySettings.savedProxyId = values.savedProxyId;
-              _proxySettings.ownAddress = values.ownAddress;
-              _proxySettings.ownCredentials = values.ownCredentials;
+              _proxySettings.gatewayId = values.gatewayId;
+              _proxySettings.credentialsId = values.credentialsId;
               _webRtcPolicy = values.webRtcPolicy;
             });
           },
