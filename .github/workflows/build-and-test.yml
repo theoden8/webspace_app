@@ -554,6 +554,11 @@ jobs:
           disable-animations: true
           script: echo "Generated AVD snapshot for caching."
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+
       # `target: default` is the AOSP image, deliberately: this app ships
       # GMS-free (the "Verify APK is free of Google Mobile Services" step above
       # asserts it), so the test host must not be a google_apis image either.
@@ -587,7 +592,10 @@ jobs:
       #   HTTPAUTH-007 HTTP authentication: a site's own 401 answered from
       #     the sign-in prompt and from a saved sign-in, with the page's image
       #     and fetch() behind the same htpasswd;
-      #   INTEG-011/012 lifecycle + background refresh, adb-driven.
+      #   INTEG-011/012 lifecycle + background refresh, adb-driven;
+      #   PASSKEY-012 passkeys: the Credential Manager bridge against
+      #     @simplewebauthn/server and a test credential provider that checks
+      #     the caller against a privileged allowlist.
       - name: Run emulator integration scenarios
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -609,7 +617,11 @@ jobs:
           # The action runs each script line as a separate `sh -c`, so the
           # test invocations live in wrapper scripts. The lifecycle tier
           # (INTEG-011) must run after the in-process suites: it replaces the
-          # test-entrypoint APK they installed.
+          # test-entrypoint APK they installed. The passkey gate runs last
+          # because it leaves its test provider as the credential service.
+          # hide_error_dialogs is set again before it: the lifecycle tier
+          # clears it on exit, and a dialog holding focus blocks the gate's
+          # taps on the system passkey sheet.
           script: |
             adb wait-for-device
             adb shell input keyevent 82
@@ -624,6 +636,8 @@ jobs:
             bash scripts/run_android_settings_seam_test.sh
             bash scripts/run_android_http_auth_tests.sh
             WS_RUN_NATIVE_REPAINT_PROBE=1 WS_RUN_BLANK_CONTROL=${{ inputs.blank_control && '1' || '0' }} WS_LIFECYCLE_BUILD_MODE=${{ inputs.lifecycle_build_mode || 'debug' }} bash scripts/run_android_lifecycle_tests.sh
+            adb shell settings put global hide_error_dialogs 1
+            bash scripts/run_android_passkey_tests.sh
 
       # always(), not failure(): the tier now dumps the platform view's
       # composition mode on every run, and that dump is only worth having on
@@ -636,34 +650,6 @@ jobs:
           name: white-screen-adb-diagnostics
           path: build/white_screen_adb/
           if-no-files-found: ignore
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version-file: '.nvmrc'
-
-      # Passkeys end to end (PASSKEY-012): the Credential Manager bridge against
-      # @simplewebauthn/server and a test credential provider that checks the
-      # caller against a privileged allowlist. Its own boot, after the
-      # scenarios above, because it installs that provider as the device's
-      # credential service.
-      - name: Run passkey gate
-        timeout-minutes: 45
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          target: default
-          arch: x86_64
-          profile: pixel_5
-          disk-size: 4096M
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          disable-animations: true
-          script: |
-            adb wait-for-device
-            adb shell input keyevent 82
-            adb shell settings put global hide_error_dialogs 1
-            bash scripts/run_android_passkey_tests.sh
 
       - name: Upload passkey gate evidence
         if: always()
