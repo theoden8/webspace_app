@@ -494,3 +494,49 @@ its active tab is sent home in place.
 - **WHEN** the user taps its shortcut
 - **THEN** the parked home tab becomes active and no tab is created
 
+---
+
+### Requirement: TAB-015 - Drag to reorder and nest
+
+A long press on a row of the Tabs sheet SHALL lift that tab with its whole
+subtree, and a drop SHALL move them within the same site's tree through the
+pure engine operation `TabLifecycleEngine.drop(tabs, tabId, drop)`:
+
+- in the top quarter of another row, the tab SHALL become that row's sibling
+  just before it;
+- in the middle half, the tab SHALL become that row's last child;
+- in the bottom quarter, the tab SHALL become the row's first child when the
+  row's children are showing, and otherwise its sibling just after its whole
+  subtree;
+- past a site's last row, the tab SHALL become that site's last root.
+
+While a drag is over a row the sheet SHALL show where the tab would land: a
+line at the landing depth for a sibling or first child, an outline for a last
+child. A drop on the dragged tab, inside its own subtree, or on another site's
+row SHALL be refused and change nothing; moving a tab to another site is
+LIR-025's. A drop into a collapsed row SHALL expand it so the moved tab stays
+in view. Holding a drag near the list's top or bottom edge SHALL scroll it.
+
+A move SHALL change only `parentId` and list positions, as LIR-026's
+`reparent` does: no webview is rebuilt, and no host, URL, state key or active
+tab changes. The new tree SHALL be persisted. A tap on a row SHALL still open
+the tab.
+
+#### Scenario: Nest a tab
+
+- **GIVEN** GitHub tabs A, B and C, each a root
+- **WHEN** the user long-presses C and drops it on the middle of A's row
+- **THEN** C is A's child, listed under A and indented
+- **AND** no webview is rebuilt and the tab on screen is unchanged
+
+#### Scenario: Reorder siblings
+
+- **GIVEN** GitHub tabs A, B and C, each a root
+- **WHEN** the user drops C on the top edge of A's row
+- **THEN** the order is C, A, B, all still roots
+
+#### Scenario: A tab cannot land in its own subtree
+
+- **GIVEN** GitHub tab A with child B
+- **WHEN** the user drags A over B's row
+- **THEN** no landing is shown and the drop changes nothing

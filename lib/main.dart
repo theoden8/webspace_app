@@ -8195,6 +8195,18 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
+  /// A tab and its subtree dragged to another place in its site's tree
+  /// (TAB-015). Only the tree changes: no webview, host or state key does.
+  bool _moveTab(int index, String tabId, TabDrop drop) {
+    if (_isTabHandling || !_tabsEnabledAt(index)) return false;
+    final model = _webViewModels[index];
+    final moved = TabLifecycleEngine.drop(model.tabs, tabId, drop);
+    if (moved == null) return false;
+    setState(() => model.tabs = moved);
+    unawaited(_saveWebViewModels());
+    return true;
+  }
+
   /// A back gesture that ran out of page history. Returns true when it was
   /// spent closing a tab the user had opened from another one, which is what a
   /// browser does with a tab opened from a link (TAB-007). A root tab falls
@@ -8251,6 +8263,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         onWebSearch: () => unawaited(_webSearch()),
         onCloseTab: (i, id) => unawaited(_closeTab(i, id)),
         onCloseSubtree: (i, id) => unawaited(_closeTab(i, id, subtree: true)),
+        onMoveTab: _moveTab,
       ),
     );
   }

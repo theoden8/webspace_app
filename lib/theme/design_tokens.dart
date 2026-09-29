@@ -77,6 +77,10 @@ abstract final class TapTargets {
 abstract final class Motion {
   /// Press / release feedback. Short enough to feel attached to the finger.
   static const Duration press = Duration(milliseconds: 100);
+
+  /// One step of a list scrolling itself while something is dragged at its
+  /// edge.
+  static const Duration autoScrollTick = Duration(milliseconds: 16);
 }
 
 abstract final class Elevations {
@@ -97,6 +101,17 @@ abstract final class TabRows {
   /// A tab that holds no webview is drawn at this strength, as a browser
   /// fades an unloaded tab.
   static const double unloadedOpacity = 0.5;
+
+  /// The row being dragged, left in place (TAB-015).
+  static const double draggingOpacity = 0.3;
+
+  /// The line that shows where a dragged tab will land.
+  static const double dropLineWidth = 2;
+
+  /// How close to the list's top or bottom a drag starts scrolling it, and
+  /// how far one step scrolls.
+  static const double autoScrollEdge = 48;
+  static const double autoScrollStep = 8;
 }
 
 abstract final class TextSizes {

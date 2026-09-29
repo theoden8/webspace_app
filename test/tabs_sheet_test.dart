@@ -1,7 +1,10 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/tab_lifecycle_engine.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 
@@ -26,6 +29,7 @@ Future<void> pumpSheet(
   VoidCallback? onWebSearch,
   void Function(int, String)? onCloseTab,
   void Function(int, String)? onCloseSubtree,
+  bool Function(int, String, TabDrop)? onMoveTab,
   Locale? locale,
   double width = 400,
 }) async {
@@ -47,6 +51,7 @@ Future<void> pumpSheet(
         onWebSearch: onWebSearch,
         onCloseTab: onCloseTab ?? (_, _) {},
         onCloseSubtree: onCloseSubtree ?? (_, _) {},
+        onMoveTab: onMoveTab,
       ),
     ),
   ));
@@ -68,7 +73,133 @@ bool isHighlighted(String text) => find
     .evaluate()
     .isNotEmpty;
 
+/// A site with [urls] as root tabs, the first one active.
+WebViewModel siteWithRoots(String name, List<String> urls) {
+  final m = WebViewModel(initUrl: urls.first, name: name);
+  for (final url in urls.skip(1)) {
+    m.tabs = [...m.tabs, SiteTab(id: 'tab${m.tabs.length}', url: url)];
+  }
+  return m;
+}
+
+/// Long-press the row showing [from] and drop it at [fraction] of the height
+/// of the row showing [to], or past the last row when [to] is null.
+Future<void> dragRow(WidgetTester tester, String from, String? to,
+    {double fraction = 0.5}) async {
+  final start = tester.getCenter(find.text(from));
+  final Offset end;
+  if (to == null) {
+    final last = tester.getRect(find.byType(InkWell).last);
+    end = Offset(last.center.dx, last.bottom + Spacing.sm);
+  } else {
+    final row = tester.getRect(find
+        .ancestor(of: find.text(to), matching: find.byType(InkWell))
+        .first);
+    end = Offset(row.center.dx, row.top + row.height * fraction);
+  }
+  final gesture = await tester.startGesture(start);
+  await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+  await gesture.moveTo(end - const Offset(0, 1));
+  await tester.pump();
+  await gesture.moveTo(end);
+  await tester.pump();
+  await gesture.up();
+  await tester.pumpAndSettle();
+}
+
+/// Row texts top to bottom.
+List<String> rowOrder(WidgetTester tester, List<String> texts) {
+  final ys = {for (final t in texts) t: tester.getCenter(find.text(t)).dy};
+  return [...texts]..sort((a, b) => ys[a]!.compareTo(ys[b]!));
+}
+
 void main() {
+  group('TAB-015 — drag to reorder and nest', () {
+    const a = 'https://github.com/a';
+    const b = 'https://github.com/b';
+    const c = 'https://github.com/c';
+
+    Future<(WebViewModel, List<(String, TabDrop)>)> pumpDraggable(
+        WidgetTester tester) async {
+      final m = siteWithRoots('GitHub', [a, b, c]);
+      final drops = <(String, TabDrop)>[];
+      await pumpSheet(
+        tester,
+        [TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)],
+        onMoveTab: (i, id, drop) {
+          drops.add((id, drop));
+          final moved = TabLifecycleEngine.drop(m.tabs, id, drop);
+          if (moved == null) return false;
+          m.tabs = moved;
+          return true;
+        },
+      );
+      return (m, drops);
+    }
+
+    String idOf(WebViewModel m, String url) =>
+        m.tabs.firstWhere((t) => t.url == url).id;
+
+    testWidgets('the middle of a row nests the tab under it', (tester) async {
+      final (m, drops) = await pumpDraggable(tester);
+      await dragRow(tester, c, a);
+      expect(drops.single.$2.zone, TabDropZone.into);
+      expect(m.tabs.firstWhere((t) => t.url == c).parentId, idOf(m, a));
+      expect(rowOrder(tester, [a, b, c]), [a, c, b]);
+      expect(tester.getTopLeft(find.text(c)).dx,
+          greaterThan(tester.getTopLeft(find.text(a)).dx),
+          reason: 'the nested tab is indented');
+    });
+
+    testWidgets('the top of a row puts the tab before it', (tester) async {
+      final (m, drops) = await pumpDraggable(tester);
+      await dragRow(tester, c, a, fraction: 0.1);
+      expect(drops.single.$2.zone, TabDropZone.before);
+      expect(rowOrder(tester, [a, b, c]), [c, a, b]);
+      expect(m.tabs.every((t) => t.parentId == null), isTrue);
+    });
+
+    testWidgets('the bottom of a row puts the tab after it', (tester) async {
+      final (_, drops) = await pumpDraggable(tester);
+      await dragRow(tester, a, b, fraction: 0.9);
+      expect(drops.single.$2.zone, TabDropZone.after);
+      expect(rowOrder(tester, [a, b, c]), [b, a, c]);
+    });
+
+    testWidgets('past the last row the tab becomes the last root',
+        (tester) async {
+      final (_, drops) = await pumpDraggable(tester);
+      await dragRow(tester, a, null);
+      expect(drops.single.$2.targetId, isNull);
+      expect(rowOrder(tester, [a, b, c]), [b, c, a]);
+    });
+
+    testWidgets('a tab is not dropped into its own subtree', (tester) async {
+      final m = siteWithChain('GitHub', [a, b, c]);
+      final drops = <TabDrop>[];
+      await pumpSheet(
+        tester,
+        [TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)],
+        onMoveTab: (i, id, drop) {
+          drops.add(drop);
+          return false;
+        },
+      );
+      await dragRow(tester, a, c);
+      expect(drops, isEmpty);
+    });
+
+    testWidgets('without a move handler a long press drags nothing',
+        (tester) async {
+      final m = siteWithRoots('GitHub', [a, b]);
+      await pumpSheet(tester,
+          [TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)]);
+      expect(find.byWidgetPredicate((w) => w is LongPressDraggable),
+          findsNothing);
+      expect(find.byWidgetPredicate((w) => w is DragTarget), findsNothing);
+    });
+  });
+
   group('TAB-008 — the tab list', () {
     testWidgets('lists every tab of the site, with the open one selected',
         (tester) async {

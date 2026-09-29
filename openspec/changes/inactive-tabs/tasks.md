@@ -51,7 +51,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 ## 7. Reattach instruments: engine
 
 - [ ] 7.1 `TabLifecycleEngine.moveSubtree(...)` returning `TabMovePlan` (design D15): identities preserved and re-normalised against the destination; id re-minted on collision with a rename; drops when the destination does not persist the record; refusals (legacy engine, archive tier, a resulting host that may not host, a parent not in the destination).
-- [ ] 7.2 `TabLifecycleEngine.reparent(tabs, tabId, newParentId)`: refuses a parent inside the subtree; moves the subtree to follow the new parent's last descendant.
+- [x] 7.2 `TabLifecycleEngine.reparent(tabs, tabId, newParentId)`: refuses a parent inside the subtree; moves the subtree to follow the new parent's last descendant. Built with dragging (TAB-015) on `TabLifecycleEngine.move` and `drop`.
 - [ ] 7.3 `TabLifecycleEngine.changeHost(owner, tabId, newHostId)`: normalised host, the old key to drop, children untouched.
 - [ ] 7.4 `test/tab_lifecycle_engine_test.dart`: every rule above with in-memory fakes that model the host-keyed store (a moved tab's bytes are found under the same key afterwards; a renamed primary tab's bytes under the new one; a host change leaves nothing under either key).
 
