@@ -6,8 +6,8 @@ The URL bar SHALL end with an info button that opens a sheet saying which of
 the user's sites the page on screen runs as and which container holds its data.
 The button SHALL sit at the trailing end of the bar, so a right-to-left locale
 puts it on the left, and SHALL give way to the Go button while the URL is being
-edited. The nested screen's overflow menu SHALL carry the same entry, because
-its URL bar can be hidden.
+edited. The URL bar SHALL be the only way to the sheet: no overflow menu SHALL
+carry it, the nested screen's included.
 
 The sheet SHALL show:
 

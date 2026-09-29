@@ -1215,16 +1215,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   ),
                 ),
                 PopupMenuItem<String>(
-                  value: "siteInfo",
-                  child: Row(
-                    children: [
-                      Icon(Icons.info_outline),
-                      SizedBox(width: 8),
-                      Text(loc.siteInfoTitle),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
                   value: "toggleUrlBar",
                   child: Row(
                     children: [
@@ -1287,9 +1277,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   break;
                 case 'search':
                   _toggleFind();
-                  break;
-                case 'siteInfo':
-                  _showSiteInfo();
                   break;
                 case 'toggleUrlBar':
                   setState(() {

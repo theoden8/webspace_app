@@ -51,6 +51,13 @@ test('every URL bar offers site info', () => {
   }
 });
 
+test('site info is reached from the URL bar only, never a menu', () => {
+  for (const [rel, src] of [['lib/main.dart', main], ['lib/screens/inappbrowser.dart', nested]]) {
+    assert.doesNotMatch(src, /value: "siteInfo"/, `${rel} offers site info in a menu`);
+    assert.doesNotMatch(src, /case 'siteInfo':/, `${rel} handles a site info menu item`);
+  }
+});
+
 test('the main sheet reads the inputs of the site webview config', () => {
   const config = callText(model, model.indexOf('webview = WebViewFactory.createWebView('));
   assert.match(config, /archiveContainerId: archiveContainerId,/);
