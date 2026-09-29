@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Tarkistetaan välityspalvelinta…",
   "proxyStatusCheckAgain": "Tarkista uudelleen",
   "siteInfoConnection": "Yhteys",
-  "siteInfoConnectionDirect": "Suora, ei välityspalvelinta"
+  "siteInfoConnectionDirect": "Suora, ei välityspalvelinta",
+  "savedProxyOwnAddress": "Käytä eri osoitetta",
+  "savedProxyOwnAddressHint": "Muodostaa yhteyden tähän kirjoittamaasi osoitteeseen tallennetun välityspalvelimen osoitteen sijaan ja säilyttää sen tyypin sekä, ellet ota käyttöön myös eri tunnuksia, sen käyttäjätunnuksen ja salasanan. Palveluntarjoajalle, jonka yksi tili toimii useissa yhdyskäytävissä, esimerkiksi yhdessä kutakin maata kohden.",
+  "savedProxyOwnCredentials": "Käytä eri tunnuksia",
+  "savedProxyOwnCredentialsHint": "Kirjautuu tähän kirjoittamallasi käyttäjätunnuksella ja salasanalla tallennetun välityspalvelimen tunnusten sijaan ja säilyttää sen osoitteen. Palveluntarjoajalle, joka valitsee istunnon tai poistumismaan käyttäjätunnuksen perusteella, tai jos haluat erillisen tilin kullekin sivustolle. Sivustot, joilla on eri tunnukset, ovat eri välityspalvelimia, joten Androidissa ne eivät pysy ladattuina rinnakkain, ellei välityspalvelinreititin ole käytössä."
 }

@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Qed jiġi ċċekkjat il-proxy…",
   "proxyStatusCheckAgain": "Iċċekkja mill-ġdid",
   "siteInfoConnection": "Konnessjoni",
-  "siteInfoConnectionDirect": "Diretta, mingħajr proxy"
+  "siteInfoConnectionDirect": "Diretta, mingħajr proxy",
+  "savedProxyOwnAddress": "Uża indirizz differenti",
+  "savedProxyOwnAddressHint": "Jikkonnettja mal-indirizz li tikteb hawn minflok dak tal-proxy issejvjat, filwaqt li jżomm it-tip tiegħu u, sakemm ma tixgħelx ukoll kredenzjali differenti, l-username u l-password tiegħu. Għal fornitur li kont wieħed tiegħu jaħdem fuq diversi gateways, bħal wieħed għal kull pajjiż.",
+  "savedProxyOwnCredentials": "Uża kredenzjali differenti",
+  "savedProxyOwnCredentialsHint": "Jidħol bl-username u l-password li tikteb hawn minflok il-kredenzjali tal-proxy issejvjat, filwaqt li jżomm l-indirizz tiegħu. Għal fornitur li jagħżel is-sessjoni jew il-pajjiż tal-ħruġ mill-username, jew għal kont separat għal kull sit. Siti b'kredenzjali differenti huma proxies differenti, għalhekk fuq Android ma jinżammux mgħobbija flimkien sakemm ir-router tal-proxy għal kull sit ma jkunx mixgħul."
 }

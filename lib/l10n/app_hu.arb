@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Proxy ellenőrzése…",
   "proxyStatusCheckAgain": "Újraellenőrzés",
   "siteInfoConnection": "Kapcsolat",
-  "siteInfoConnectionDirect": "Közvetlen, proxy nélkül"
+  "siteInfoConnectionDirect": "Közvetlen, proxy nélkül",
+  "savedProxyOwnAddress": "Eltérő cím használata",
+  "savedProxyOwnAddressHint": "Az itt megadott címhez csatlakozik a mentett proxy címe helyett, és megtartja a proxy típusát, valamint a felhasználónevét és jelszavát is, kivéve, ha az eltérő hitelesítő adatokat is bekapcsolja. Olyan szolgáltatóhoz, amelynek egyetlen fiókja több átjárón is működik, például országonként egyen.",
+  "savedProxyOwnCredentials": "Eltérő hitelesítő adatok használata",
+  "savedProxyOwnCredentialsHint": "Az itt megadott felhasználónévvel és jelszóval jelentkezik be a mentett proxy hitelesítő adatai helyett, és megtartja a proxy címét. Olyan szolgáltatóhoz, amely a felhasználónév alapján választja ki a munkamenetet vagy a kilépési országot, vagy webhelyenként külön fiókhoz. Az eltérő hitelesítő adatokat használó webhelyek különböző proxynak számítanak, ezért Androidon nem maradnak egyszerre betöltve, kivéve, ha be van kapcsolva a webhelyenkénti proxyútválasztó."
 }

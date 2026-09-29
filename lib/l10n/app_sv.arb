@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Kontrollerar proxyn…",
   "proxyStatusCheckAgain": "Kontrollera igen",
   "siteInfoConnection": "Anslutning",
-  "siteInfoConnectionDirect": "Direkt, ingen proxy"
+  "siteInfoConnectionDirect": "Direkt, ingen proxy",
+  "savedProxyOwnAddress": "Använd en annan adress",
+  "savedProxyOwnAddressHint": "Ansluter till adressen du skriver här i stället för den sparade proxyns, och behåller dess typ och, om du inte också slår på andra inloggningsuppgifter, dess användarnamn och lösenord. Passar en leverantör där ett och samma konto fungerar på flera anslutningspunkter, till exempel en per land.",
+  "savedProxyOwnCredentials": "Använd andra inloggningsuppgifter",
+  "savedProxyOwnCredentialsHint": "Loggar in med användarnamnet och lösenordet du skriver här i stället för den sparade proxyns, och behåller dess adress. Passar en leverantör som väljer sessionen eller utgångslandet utifrån användarnamnet, eller ett separat konto per webbplats. Webbplatser med olika inloggningsuppgifter räknas som olika proxyer, så på Android hålls de inte inlästa sida vid sida om inte proxyroutern per webbplats är på."
 }

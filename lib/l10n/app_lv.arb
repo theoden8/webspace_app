@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Pārbauda starpniekserveri…",
   "proxyStatusCheckAgain": "Pārbaudīt vēlreiz",
   "siteInfoConnection": "Savienojums",
-  "siteInfoConnectionDirect": "Tiešs, bez starpniekservera"
+  "siteInfoConnectionDirect": "Tiešs, bez starpniekservera",
+  "savedProxyOwnAddress": "Izmantot citu adresi",
+  "savedProxyOwnAddressHint": "Savienojas ar šeit ievadīto adresi, nevis saglabātā starpniekservera adresi, un saglabā tā tipu, kā arī tā lietotājvārdu un paroli, ja vien neieslēgsiet arī citus pieteikšanās datus. Pakalpojumu sniedzējam, kura viens konts darbojas vairākās vārtejās, piemēram, pa vienai katrai valstij.",
+  "savedProxyOwnCredentials": "Izmantot citus pieteikšanās datus",
+  "savedProxyOwnCredentialsHint": "Piesakās ar šeit ievadīto lietotājvārdu un paroli, nevis saglabātā starpniekservera pieteikšanās datiem, un saglabā tā adresi. Pakalpojumu sniedzējam, kas sesiju vai izejas valsti izvēlas pēc lietotājvārda, vai atsevišķam kontam katrai vietnei. Vietnes ar atšķirīgiem pieteikšanās datiem ir atšķirīgi starpniekserveri, tāpēc Android ierīcēs tās paliek ielādētas vienlaikus tikai tad, ja ir ieslēgts vietņu starpniekserveru maršrutētājs."
 }

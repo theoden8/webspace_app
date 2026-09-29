@@ -989,5 +989,9 @@
   "proxyStatusChecking": "S'està comprovant el servidor intermediari…",
   "proxyStatusCheckAgain": "Torna a comprovar",
   "siteInfoConnection": "Connexió",
-  "siteInfoConnectionDirect": "Directa, sense servidor intermediari"
+  "siteInfoConnectionDirect": "Directa, sense servidor intermediari",
+  "savedProxyOwnAddress": "Utilitza una adreça diferent",
+  "savedProxyOwnAddressHint": "Es connecta a l'adreça que escriviu aquí en lloc de la del servidor intermediari desat, i en conserva el tipus i, tret que també activeu unes credencials diferents, l'usuari i la contrasenya. Per a un proveïdor amb un sol compte que funciona en diverses passarel·les, com ara una per país.",
+  "savedProxyOwnCredentials": "Utilitza credencials diferents",
+  "savedProxyOwnCredentialsHint": "Inicia la sessió amb l'usuari i la contrasenya que escriviu aquí en lloc dels del servidor intermediari desat, i en conserva l'adreça. Per a un proveïdor que tria la sessió o el país de sortida a partir de l'usuari, o per tenir un compte separat per a cada lloc. Els llocs amb credencials diferents són servidors intermediaris diferents, de manera que a Android no es mantenen carregats alhora tret que l'encaminador de servidors intermediaris estigui activat."
 }

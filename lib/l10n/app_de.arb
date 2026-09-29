@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Proxy wird geprüft…",
   "proxyStatusCheckAgain": "Erneut prüfen",
   "siteInfoConnection": "Verbindung",
-  "siteInfoConnectionDirect": "Direkt, ohne Proxy"
+  "siteInfoConnectionDirect": "Direkt, ohne Proxy",
+  "savedProxyOwnAddress": "Andere Adresse verwenden",
+  "savedProxyOwnAddressHint": "Verbindet sich mit der hier eingegebenen Adresse statt mit der des gespeicherten Proxys und behält dessen Typ sowie, sofern Sie nicht auch andere Zugangsdaten einschalten, dessen Benutzernamen und Passwort. Für einen Anbieter, dessen eines Konto an mehreren Gateways funktioniert, etwa einem pro Land.",
+  "savedProxyOwnCredentials": "Andere Zugangsdaten verwenden",
+  "savedProxyOwnCredentialsHint": "Meldet sich mit dem hier eingegebenen Benutzernamen und Passwort statt mit denen des gespeicherten Proxys an und behält dessen Adresse. Für einen Anbieter, der die Sitzung oder das Ausgangsland anhand des Benutzernamens wählt, oder für ein eigenes Konto pro Seite. Seiten mit unterschiedlichen Zugangsdaten sind unterschiedliche Proxys, daher bleiben sie unter Android nicht gleichzeitig geladen, es sei denn, der Proxy-Router ist eingeschaltet."
 }

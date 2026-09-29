@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Verificando o proxy…",
   "proxyStatusCheckAgain": "Verificar novamente",
   "siteInfoConnection": "Conexão",
-  "siteInfoConnectionDirect": "Direta, sem proxy"
+  "siteInfoConnectionDirect": "Direta, sem proxy",
+  "savedProxyOwnAddress": "Usar um endereço diferente",
+  "savedProxyOwnAddressHint": "Conecta ao endereço que você digitar aqui em vez do endereço do proxy salvo, mantendo o tipo e, a menos que você também ative credenciais diferentes, o nome de usuário e a senha. Útil para um provedor em que uma única conta funciona em vários gateways, como um por país.",
+  "savedProxyOwnCredentials": "Usar credenciais diferentes",
+  "savedProxyOwnCredentialsHint": "Faz login com o nome de usuário e a senha que você digitar aqui em vez dos do proxy salvo, mantendo o endereço. Útil para um provedor que escolhe a sessão ou o país de saída pelo nome de usuário, ou para ter uma conta separada por site. Sites com credenciais diferentes contam como proxies diferentes, então no Android eles não ficam carregados lado a lado, a menos que o roteador de proxy por site esteja ativado."
 }

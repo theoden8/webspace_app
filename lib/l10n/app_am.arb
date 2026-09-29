@@ -989,5 +989,9 @@
   "proxyStatusChecking": "ፕሮክሲውን በመፈተሽ ላይ…",
   "proxyStatusCheckAgain": "እንደገና ፈትሽ",
   "siteInfoConnection": "ግንኙነት",
-  "siteInfoConnectionDirect": "ቀጥታ፣ ያለ ፕሮክሲ"
+  "siteInfoConnectionDirect": "ቀጥታ፣ ያለ ፕሮክሲ",
+  "savedProxyOwnAddress": "የተለየ አድራሻ ተጠቀም",
+  "savedProxyOwnAddressHint": "ከተቀመጠው ፕሮክሲ አድራሻ ይልቅ እዚህ ከምትጽፈው አድራሻ ጋር ይገናኛል፤ ዓይነቱን፣ እንዲሁም የተለየ የመግቢያ መረጃ ካላበራህ በስተቀር የተጠቃሚ ስሙንና የይለፍ ቃሉን ይይዛል። አንድ መለያው በብዙ መግቢያ በሮች ላይ ለሚሠራ አቅራቢ ነው፤ ለምሳሌ ለእያንዳንዱ አገር አንድ።",
+  "savedProxyOwnCredentials": "የተለየ የመግቢያ መረጃ ተጠቀም",
+  "savedProxyOwnCredentialsHint": "ከተቀመጠው ፕሮክሲ ይልቅ እዚህ በምትጽፈው የተጠቃሚ ስምና የይለፍ ቃል ይገባል፤ አድራሻውን ይይዛል። ክፍለ ጊዜውን ወይም የመውጫ አገሩን ከተጠቃሚ ስሙ ለሚመርጥ አቅራቢ፣ ወይም ለእያንዳንዱ ጣቢያ የተለየ መለያ እንዲኖር ነው። የተለያየ የመግቢያ መረጃ ያላቸው ጣቢያዎች የተለያዩ ፕሮክሲዎች ናቸው፤ ስለዚህ በAndroid ላይ የ Proxy ራውተሩ ካልበራ በስተቀር ጎን ለጎን ተጭነው አይቆዩም።"
 }

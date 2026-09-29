@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Besig om die proxy na te gaan…",
   "proxyStatusCheckAgain": "Gaan weer na",
   "siteInfoConnection": "Verbinding",
-  "siteInfoConnectionDirect": "Direk, geen proxy"
+  "siteInfoConnectionDirect": "Direk, geen proxy",
+  "savedProxyOwnAddress": "Gebruik 'n ander adres",
+  "savedProxyOwnAddressHint": "Koppel aan die adres wat jy hier intik in plaas van dié van die gestoorde proxy, en behou sy tipe en, tensy jy ook ander geloofsbriewe aanskakel, sy gebruikersnaam en wagwoord. Vir 'n verskaffer wie se een rekening op verskeie poorte werk, soos een per land.",
+  "savedProxyOwnCredentials": "Gebruik ander geloofsbriewe",
+  "savedProxyOwnCredentialsHint": "Meld aan met die gebruikersnaam en wagwoord wat jy hier intik in plaas van dié van die gestoorde proxy, en behou sy adres. Vir 'n verskaffer wat die sessie of die uitgangsland uit die gebruikersnaam kies, of vir 'n aparte rekening per werf. Werwe met verskillende geloofsbriewe tel as verskillende proxy's, so op Android bly hulle nie gelyktydig gelaai nie, tensy die proxy-roeteerder aan is."
 }

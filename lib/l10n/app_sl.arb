@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Preverjanje posredniškega strežnika…",
   "proxyStatusCheckAgain": "Preveri znova",
   "siteInfoConnection": "Povezava",
-  "siteInfoConnectionDirect": "Neposredna, brez posredniškega strežnika"
+  "siteInfoConnectionDirect": "Neposredna, brez posredniškega strežnika",
+  "savedProxyOwnAddress": "Uporabi drug naslov",
+  "savedProxyOwnAddressHint": "Poveže se z naslovom, ki ga vnesete tukaj, namesto z naslovom shranjenega posredniškega strežnika, pri čemer ohrani njegovo vrsto in, če ne vklopite tudi drugih poverilnic, njegovo uporabniško ime in geslo. Primerno za ponudnika, pri katerem en račun deluje na več prehodih, na primer enem za vsako državo.",
+  "savedProxyOwnCredentials": "Uporabi druge poverilnice",
+  "savedProxyOwnCredentialsHint": "Prijavi se z uporabniškim imenom in geslom, ki ju vnesete tukaj, namesto s poverilnicami shranjenega posredniškega strežnika, pri čemer ohrani njegov naslov. Primerno za ponudnika, ki sejo ali izhodno državo izbere glede na uporabniško ime, ali za ločen račun za vsako stran. Strani z različnimi poverilnicami štejejo za različne posredniške strežnike, zato na Androidu ne ostanejo naložene hkrati, razen če je vklopljen usmerjevalnik posredniških strežnikov za posamezne strani."
 }

@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Tjekker proxyen…",
   "proxyStatusCheckAgain": "Tjek igen",
   "siteInfoConnection": "Forbindelse",
-  "siteInfoConnectionDirect": "Direkte, ingen proxy"
+  "siteInfoConnectionDirect": "Direkte, ingen proxy",
+  "savedProxyOwnAddress": "Brug en anden adresse",
+  "savedProxyOwnAddressHint": "Opretter forbindelse til den adresse, du skriver her, i stedet for den gemte proxys, og beholder dens type og, medmindre du også slår andre loginoplysninger til, dens brugernavn og adgangskode. Til en udbyder, hvis ene konto virker på flere gateways, f.eks. én pr. land.",
+  "savedProxyOwnCredentials": "Brug andre loginoplysninger",
+  "savedProxyOwnCredentialsHint": "Logger ind med det brugernavn og den adgangskode, du skriver her, i stedet for den gemte proxys, og beholder dens adresse. Til en udbyder, der vælger sessionen eller udgangslandet ud fra brugernavnet, eller til en separat konto pr. side. Sider med forskellige loginoplysninger er forskellige proxyer, så på Android forbliver de ikke indlæst side om side, medmindre proxyrouteren er slået til."
 }

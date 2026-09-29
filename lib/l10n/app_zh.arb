@@ -989,5 +989,9 @@
   "proxyStatusChecking": "正在檢查代理…",
   "proxyStatusCheckAgain": "重新檢查",
   "siteInfoConnection": "連線",
-  "siteInfoConnectionDirect": "直接連線，不使用代理"
+  "siteInfoConnectionDirect": "直接連線，不使用代理",
+  "savedProxyOwnAddress": "使用其他位址",
+  "savedProxyOwnAddressHint": "連線到你在此輸入的位址，而非已儲存代理的位址，並保留其類型；除非你同時開啟其他憑證，否則也保留其使用者名稱和密碼。適用於同一個帳號可在多個閘道使用的供應商，例如每個國家一個閘道。",
+  "savedProxyOwnCredentials": "使用其他憑證",
+  "savedProxyOwnCredentialsHint": "使用你在此輸入的使用者名稱和密碼登入，而非已儲存代理的憑證，並保留其位址。適用於依使用者名稱選擇工作階段或出口國家的供應商，或是想讓每個網站使用個別帳號的情況。憑證不同的網站會被視為不同的代理，因此在 Android 上，除非開啟各網站代理路由器，否則它們不會同時保持載入。"
 }

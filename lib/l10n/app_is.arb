@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Athuga milliþjóninn…",
   "proxyStatusCheckAgain": "Athuga aftur",
   "siteInfoConnection": "Tenging",
-  "siteInfoConnectionDirect": "Beint, án milliþjóns"
+  "siteInfoConnectionDirect": "Beint, án milliþjóns",
+  "savedProxyOwnAddress": "Nota annað vistfang",
+  "savedProxyOwnAddressHint": "Tengist vistfanginu sem þú slærð inn hér í stað vistfangs vistaða milliþjónsins, en heldur tegund hans og, nema þú kveikir líka á öðrum auðkennum, notandanafni hans og lykilorði. Fyrir þjónustuveitu þar sem einn aðgangur virkar á mörgum gáttum, til dæmis einni fyrir hvert land.",
+  "savedProxyOwnCredentials": "Nota önnur auðkenni",
+  "savedProxyOwnCredentialsHint": "Skráir sig inn með notandanafninu og lykilorðinu sem þú slærð inn hér í stað auðkenna vistaða milliþjónsins, en heldur vistfangi hans. Fyrir þjónustuveitu sem velur lotuna eða útgöngulandið út frá notandanafninu, eða fyrir sérstakan aðgang fyrir hvert vefsvæði. Vefsvæði með öðrum auðkennum teljast aðrir milliþjónar, svo á Android eru þau ekki höfð hlaðin hlið við hlið nema kveikt sé á milliþjónabeininum fyrir hvert vefsvæði."
 }

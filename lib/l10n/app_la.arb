@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Procurator probatur…",
   "proxyStatusCheckAgain": "Iterum probare",
   "siteInfoConnection": "Conexio",
-  "siteInfoConnectionDirect": "Directa, sine procuratore"
+  "siteInfoConnectionDirect": "Directa, sine procuratore",
+  "savedProxyOwnAddress": "Alia inscriptione uti",
+  "savedProxyOwnAddressHint": "Ad inscriptionem quam hic scribis se coniungit, non ad eam procuratoris servati, eius genus servans atque, nisi etiam alias credentiales accendis, eius nomen usoris et tesseram. Ad praebitorem cuius una ratio in pluribus portis valet, ut una pro quaque terra.",
+  "savedProxyOwnCredentials": "Aliis credentialibus uti",
+  "savedProxyOwnCredentialsHint": "Nomine usoris et tessera quae hic scribis intrat, non credentialibus procuratoris servati, eius inscriptionem servans. Ad praebitorem qui sessionem vel terram exitus ex nomine usoris eligit, vel ad rationem separatam pro quoque loco. Loci cum aliis credentialibus alii procuratores sunt, itaque in systemate Android non simul onerati servantur, nisi director procuratorum per locos accensus est."
 }

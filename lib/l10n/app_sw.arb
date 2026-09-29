@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Inakagua proksi…",
   "proxyStatusCheckAgain": "Kagua tena",
   "siteInfoConnection": "Muunganisho",
-  "siteInfoConnectionDirect": "Moja kwa moja, bila proksi"
+  "siteInfoConnectionDirect": "Moja kwa moja, bila proksi",
+  "savedProxyOwnAddress": "Tumia anwani tofauti",
+  "savedProxyOwnAddressHint": "Huunganisha kwenye anwani unayoandika hapa badala ya ile ya proksi iliyohifadhiwa, ikibakiza aina yake na, usipowasha pia vitambulisho tofauti, jina la mtumiaji na nywila yake. Inafaa kwa mtoa huduma ambaye akaunti yake moja inafanya kazi kwenye lango kadhaa, kama moja kwa kila nchi.",
+  "savedProxyOwnCredentials": "Tumia vitambulisho tofauti",
+  "savedProxyOwnCredentialsHint": "Huingia kwa jina la mtumiaji na nywila unayoandika hapa badala ya zile za proksi iliyohifadhiwa, ikibakiza anwani yake. Inafaa kwa mtoa huduma anayechagua kipindi au nchi ya kutokea kulingana na jina la mtumiaji, au kwa akaunti tofauti kwa kila tovuti. Tovuti zenye vitambulisho tofauti huhesabiwa kuwa proksi tofauti, kwa hivyo kwenye Android hazibaki zimepakiwa kando kwa kando isipokuwa kipanga njia cha proksi kwa kila tovuti kimewashwa."
 }

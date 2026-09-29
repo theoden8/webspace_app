@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Yn gwirio'r dirprwy…",
   "proxyStatusCheckAgain": "Gwirio eto",
   "siteInfoConnection": "Cysylltiad",
-  "siteInfoConnectionDirect": "Uniongyrchol, dim dirprwy"
+  "siteInfoConnectionDirect": "Uniongyrchol, dim dirprwy",
+  "savedProxyOwnAddress": "Defnyddio cyfeiriad gwahanol",
+  "savedProxyOwnAddressHint": "Yn cysylltu â'r cyfeiriad rydych chi'n ei deipio yma yn lle cyfeiriad y dirprwy wedi'i gadw, gan gadw ei fath ac, oni bai eich bod hefyd yn troi manylion gwahanol ymlaen, ei enw defnyddiwr a'i gyfrinair. Ar gyfer darparwr sydd ag un cyfrif sy'n gweithio ar sawl porth, fel un i bob gwlad.",
+  "savedProxyOwnCredentials": "Defnyddio manylion gwahanol",
+  "savedProxyOwnCredentialsHint": "Yn mewngofnodi gyda'r enw defnyddiwr a'r cyfrinair rydych chi'n eu teipio yma yn lle rhai'r dirprwy wedi'i gadw, gan gadw ei gyfeiriad. Ar gyfer darparwr sy'n dewis y sesiwn neu'r wlad allanfa o'r enw defnyddiwr, neu ar gyfer cyfrif ar wahân i bob safle. Mae safleoedd â manylion gwahanol yn ddirprwyon gwahanol, felly ar Android nid ydynt yn aros wedi'u llwytho ochr yn ochr oni bai bod y llwybrydd dirprwy ymlaen."
 }

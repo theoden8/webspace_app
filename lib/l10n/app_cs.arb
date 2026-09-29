@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Kontrola proxy…",
   "proxyStatusCheckAgain": "Zkontrolovat znovu",
   "siteInfoConnection": "Připojení",
-  "siteInfoConnectionDirect": "Přímé, bez proxy"
+  "siteInfoConnectionDirect": "Přímé, bez proxy",
+  "savedProxyOwnAddress": "Použít jinou adresu",
+  "savedProxyOwnAddressHint": "Připojí se k adrese, kterou sem zadáte, místo k adrese uložené proxy a zachová její typ a, pokud nezapnete i jiné přihlašovací údaje, také její uživatelské jméno a heslo. Pro poskytovatele, jehož jeden účet funguje na několika bránách, například na jedné pro každou zemi.",
+  "savedProxyOwnCredentials": "Použít jiné přihlašovací údaje",
+  "savedProxyOwnCredentialsHint": "Přihlásí se uživatelským jménem a heslem, které sem zadáte, místo údajů uložené proxy a zachová její adresu. Pro poskytovatele, který volí relaci nebo výstupní zemi podle uživatelského jména, nebo pro samostatný účet pro každý web. Weby s různými přihlašovacími údaji jsou různé proxy, takže v Androidu nezůstávají načtené vedle sebe, pokud není zapnutý směrovač proxy."
 }

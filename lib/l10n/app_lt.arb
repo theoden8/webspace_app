@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Tikrinamas tarpinis serveris…",
   "proxyStatusCheckAgain": "Tikrinti dar kartą",
   "siteInfoConnection": "Ryšys",
-  "siteInfoConnectionDirect": "Tiesioginis, be tarpinio serverio"
+  "siteInfoConnectionDirect": "Tiesioginis, be tarpinio serverio",
+  "savedProxyOwnAddress": "Naudoti kitą adresą",
+  "savedProxyOwnAddressHint": "Jungiasi prie jūsų čia įvesto adreso vietoj išsaugoto tarpinio serverio adreso ir išlaiko jo tipą, o jei neįjungsite ir kitų prisijungimo duomenų, ir jo naudotojo vardą bei slaptažodį. Paslaugų teikėjui, kurio viena paskyra veikia keliuose šliuzuose, pavyzdžiui, po vieną kiekvienai šaliai.",
+  "savedProxyOwnCredentials": "Naudoti kitus prisijungimo duomenis",
+  "savedProxyOwnCredentialsHint": "Prisijungia jūsų čia įvestu naudotojo vardu ir slaptažodžiu vietoj išsaugoto tarpinio serverio prisijungimo duomenų ir išlaiko jo adresą. Paslaugų teikėjui, kuris seansą ar išėjimo šalį parenka pagal naudotojo vardą, arba atskirai paskyrai kiekvienai svetainei. Svetainės su skirtingais prisijungimo duomenimis yra skirtingi tarpiniai serveriai, todėl Android sistemoje jos nelaikomos įkeltos viena šalia kitos, nebent įjungtas tarpinių serverių maršrutizatorius atskiroms svetainėms."
 }

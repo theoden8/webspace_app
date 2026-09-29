@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Duke kontrolluar proxy-n…",
   "proxyStatusCheckAgain": "Kontrollo sërish",
   "siteInfoConnection": "Lidhja",
-  "siteInfoConnectionDirect": "Drejtpërdrejt, pa proxy"
+  "siteInfoConnectionDirect": "Drejtpërdrejt, pa proxy",
+  "savedProxyOwnAddress": "Përdor një adresë tjetër",
+  "savedProxyOwnAddressHint": "Lidhet me adresën që shkruani këtu në vend të asaj të proxy-t të ruajtur, duke ruajtur llojin e tij dhe, nëse nuk aktivizoni edhe kredenciale të tjera, emrin e përdoruesit dhe fjalëkalimin e tij. I dobishëm për një ofrues, llogaria e vetme e të cilit funksionon në disa porta hyrëse, si p.sh. një për çdo vend.",
+  "savedProxyOwnCredentials": "Përdor kredenciale të tjera",
+  "savedProxyOwnCredentialsHint": "Identifikohet me emrin e përdoruesit dhe fjalëkalimin që shkruani këtu në vend të atyre të proxy-t të ruajtur, duke ruajtur adresën e tij. I dobishëm për një ofrues që e zgjedh seancën ose vendin e daljes sipas emrit të përdoruesit, ose për një llogari të veçantë për çdo sajt. Sajtet me kredenciale të ndryshme konsiderohen proxy të ndryshme, prandaj në Android nuk mbahen të ngarkuara krah për krah, përveç nëse ruteri i proxy-ve për çdo sajt është aktiv."
 }

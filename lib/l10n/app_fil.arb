@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Sinusuri ang proxy…",
   "proxyStatusCheckAgain": "Suriin muli",
   "siteInfoConnection": "Koneksyon",
-  "siteInfoConnectionDirect": "Direkta, walang proxy"
+  "siteInfoConnectionDirect": "Direkta, walang proxy",
+  "savedProxyOwnAddress": "Gumamit ng ibang address",
+  "savedProxyOwnAddressHint": "Kumokonekta sa address na ita-type mo rito sa halip na sa address ng naka-save na proxy, at pinananatili ang uri nito at, maliban kung i-on mo rin ang ibang kredensyal, ang username at password nito. Para sa provider na gumagana ang iisang account sa ilang gateway, gaya ng isa bawat bansa.",
+  "savedProxyOwnCredentials": "Gumamit ng ibang kredensyal",
+  "savedProxyOwnCredentialsHint": "Nagsa-sign in gamit ang username at password na ita-type mo rito sa halip na ang sa naka-save na proxy, at pinananatili ang address nito. Para sa provider na pumipili ng session o ng bansang labasan batay sa username, o para sa hiwalay na account bawat site. Magkaibang proxy ang mga site na may magkaibang kredensyal, kaya sa Android hindi sila nananatiling naka-load nang magkatabi maliban kung naka-on ang router ng proxy."
 }

@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Sprawdzanie proxy…",
   "proxyStatusCheckAgain": "Sprawdź ponownie",
   "siteInfoConnection": "Połączenie",
-  "siteInfoConnectionDirect": "Bezpośrednio, bez proxy"
+  "siteInfoConnectionDirect": "Bezpośrednio, bez proxy",
+  "savedProxyOwnAddress": "Użyj innego adresu",
+  "savedProxyOwnAddressHint": "Łączy się z adresem wpisanym tutaj zamiast z adresem zapisanego proxy, zachowując jego typ oraz, jeśli nie włączysz też innych danych logowania, jego nazwę użytkownika i hasło. Przydatne u dostawcy, którego jedno konto działa na kilku bramach, na przykład po jednej na kraj.",
+  "savedProxyOwnCredentials": "Użyj innych danych logowania",
+  "savedProxyOwnCredentialsHint": "Loguje się nazwą użytkownika i hasłem wpisanymi tutaj zamiast danymi zapisanego proxy, zachowując jego adres. Przydatne u dostawcy, który wybiera sesję lub kraj wyjścia na podstawie nazwy użytkownika, albo gdy każda witryna ma mieć osobne konto. Witryny z różnymi danymi logowania są traktowane jak różne proxy, więc na Androidzie nie pozostają załadowane jednocześnie, chyba że włączony jest router proxy dla poszczególnych witryn."
 }

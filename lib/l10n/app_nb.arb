@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Sjekker proxyen…",
   "proxyStatusCheckAgain": "Sjekk igjen",
   "siteInfoConnection": "Tilkobling",
-  "siteInfoConnectionDirect": "Direkte, uten proxy"
+  "siteInfoConnectionDirect": "Direkte, uten proxy",
+  "savedProxyOwnAddress": "Bruk en annen adresse",
+  "savedProxyOwnAddressHint": "Kobler til adressen du skriver inn her i stedet for adressen til den lagrede proxyen, og beholder typen og, med mindre du også slår på annen pålogging, brukernavnet og passordet. Passer for en leverandør der én konto fungerer på flere tilkoblingspunkter, for eksempel ett per land.",
+  "savedProxyOwnCredentials": "Bruk en annen pålogging",
+  "savedProxyOwnCredentialsHint": "Logger på med brukernavnet og passordet du skriver inn her i stedet for den lagrede proxyens, og beholder adressen. Passer for en leverandør som velger økten eller utgangslandet ut fra brukernavnet, eller for en egen konto per nettsted. Nettsteder med ulik pålogging regnes som ulike proxyer, så på Android holdes de ikke lastet side om side med mindre proxy-ruteren per nettsted er slått på."
 }

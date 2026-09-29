@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Ag seiceáil an tseachfhreastalaí…",
   "proxyStatusCheckAgain": "Seiceáil arís",
   "siteInfoConnection": "Nasc",
-  "siteInfoConnectionDirect": "Díreach, gan seachfhreastalaí"
+  "siteInfoConnectionDirect": "Díreach, gan seachfhreastalaí",
+  "savedProxyOwnAddress": "Úsáid seoladh eile",
+  "savedProxyOwnAddressHint": "Ceanglaíonn sé leis an seoladh a chlóscríobhann tú anseo in ionad sheoladh an tseachfhreastalaí shábháilte, agus coinníonn sé a chineál agus, mura gcuireann tú dintiúir dhifriúla ar siúl freisin, a ainm úsáideora agus a phasfhocal. Do sholáthraí a n-oibríonn a chuntas amháin ar roinnt geataí, mar shampla ceann in aghaidh na tíre.",
+  "savedProxyOwnCredentials": "Úsáid dintiúir eile",
+  "savedProxyOwnCredentialsHint": "Síníonn sé isteach leis an ainm úsáideora agus an pasfhocal a chlóscríobhann tú anseo in ionad na gcinn atá ag an seachfhreastalaí sábháilte, agus coinníonn sé a sheoladh. Do sholáthraí a roghnaíonn an seisiún nó an tír imeachta ón ainm úsáideora, nó chun cuntas ar leith a bheith agat do gach suíomh. Is seachfhreastalaithe difriúla iad suíomhanna a bhfuil dintiúir dhifriúla acu, mar sin ar Android ní fhanann siad luchtaithe taobh le taobh mura bhfuil an ródaire seachfhreastalaí ar siúl."
 }

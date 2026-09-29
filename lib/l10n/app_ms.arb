@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Menyemak proksi…",
   "proxyStatusCheckAgain": "Semak semula",
   "siteInfoConnection": "Sambungan",
-  "siteInfoConnectionDirect": "Terus, tanpa proksi"
+  "siteInfoConnectionDirect": "Terus, tanpa proksi",
+  "savedProxyOwnAddress": "Guna alamat lain",
+  "savedProxyOwnAddressHint": "Menyambung ke alamat yang anda taip di sini dan bukannya alamat proksi yang disimpan, sambil mengekalkan jenisnya dan, melainkan anda turut menghidupkan kelayakan lain, nama pengguna serta kata laluannya. Untuk penyedia yang satu akaunnya berfungsi pada beberapa get laluan, seperti satu bagi setiap negara.",
+  "savedProxyOwnCredentials": "Guna kelayakan lain",
+  "savedProxyOwnCredentialsHint": "Log masuk dengan nama pengguna dan kata laluan yang anda taip di sini dan bukannya kelayakan proksi yang disimpan, sambil mengekalkan alamatnya. Untuk penyedia yang memilih sesi atau negara keluar berdasarkan nama pengguna, atau untuk akaun berasingan bagi setiap tapak. Tapak dengan kelayakan berbeza ialah proksi yang berbeza, jadi pada Android tapak tersebut tidak kekal dimuatkan serentak melainkan penghala proksi setiap tapak dihidupkan."
 }

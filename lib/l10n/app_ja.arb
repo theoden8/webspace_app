@@ -989,5 +989,9 @@
   "proxyStatusChecking": "プロキシを確認中…",
   "proxyStatusCheckAgain": "再確認",
   "siteInfoConnection": "接続",
-  "siteInfoConnectionDirect": "直接（プロキシなし）"
+  "siteInfoConnectionDirect": "直接（プロキシなし）",
+  "savedProxyOwnAddress": "別のアドレスを使用",
+  "savedProxyOwnAddressHint": "保存済みのプロキシのアドレスではなく、ここに入力したアドレスに接続します。種類はそのまま引き継ぎ、別の認証情報もオンにしない限り、ユーザー名とパスワードも引き継ぎます。国ごとに 1 つなど、1 つのアカウントで複数のゲートウェイを使えるプロバイダー向けです。",
+  "savedProxyOwnCredentials": "別の認証情報を使用",
+  "savedProxyOwnCredentialsHint": "保存済みのプロキシの認証情報ではなく、ここに入力したユーザー名とパスワードでサインインします。アドレスはそのまま引き継ぎます。ユーザー名でセッションや出口の国を選ぶプロバイダーや、サイトごとに別のアカウントを使う場合に向いています。認証情報が異なるサイトは別のプロキシとして扱われるため、Android ではサイトごとのプロキシルーターがオンでない限り、同時に読み込んだままにはなりません。"
 }

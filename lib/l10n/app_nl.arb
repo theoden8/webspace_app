@@ -989,5 +989,9 @@
   "proxyStatusChecking": "De proxy wordt gecontroleerd…",
   "proxyStatusCheckAgain": "Opnieuw controleren",
   "siteInfoConnection": "Verbinding",
-  "siteInfoConnectionDirect": "Rechtstreeks, zonder proxy"
+  "siteInfoConnectionDirect": "Rechtstreeks, zonder proxy",
+  "savedProxyOwnAddress": "Ander adres gebruiken",
+  "savedProxyOwnAddressHint": "Maakt verbinding met het adres dat je hier invult in plaats van dat van de opgeslagen proxy, en behoudt het type en, tenzij je ook andere inloggegevens inschakelt, de gebruikersnaam en het wachtwoord. Handig bij een aanbieder waarbij één account op meerdere gateways werkt, bijvoorbeeld één per land.",
+  "savedProxyOwnCredentials": "Andere inloggegevens gebruiken",
+  "savedProxyOwnCredentialsHint": "Logt in met de gebruikersnaam en het wachtwoord die je hier invult in plaats van die van de opgeslagen proxy, en behoudt het adres. Handig bij een aanbieder die de sessie of het uitgangsland uit de gebruikersnaam afleidt, of voor een apart account per site. Sites met andere inloggegevens gelden als verschillende proxy's, dus op Android blijven ze niet naast elkaar geladen, tenzij de proxyrouter per site aanstaat."
 }

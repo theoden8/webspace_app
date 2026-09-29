@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Proxya egiaztatzen…",
   "proxyStatusCheckAgain": "Egiaztatu berriro",
   "siteInfoConnection": "Konexioa",
-  "siteInfoConnectionDirect": "Zuzena, proxyrik gabe"
+  "siteInfoConnectionDirect": "Zuzena, proxyrik gabe",
+  "savedProxyOwnAddress": "Erabili beste helbide bat",
+  "savedProxyOwnAddressHint": "Hemen idazten duzun helbidera konektatzen da gordetako proxyarenaren ordez, eta haren mota gordetzen du, baita erabiltzaile-izena eta pasahitza ere, beste kredentzial batzuk ere aktibatzen ez badituzu. Kontu bakarra hainbat atebidetan erabiltzen uzten duen hornitzaile baterako, adibidez herrialde bakoitzeko atebide bat.",
+  "savedProxyOwnCredentials": "Erabili beste kredentzial batzuk",
+  "savedProxyOwnCredentialsHint": "Hemen idazten dituzun erabiltzaile-izenarekin eta pasahitzarekin hasten du saioa gordetako proxyarenen ordez, eta haren helbidea gordetzen du. Saioa edo irteera-herrialdea erabiltzaile-izenaren arabera aukeratzen duen hornitzaile baterako, edo gune bakoitzak kontu bereizi bat izateko. Kredentzial desberdinak dituzten guneak proxy desberdinak dira; beraz, Androiden ez dira aldi berean kargatuta geratzen, proxy-bideratzailea aktibatuta ez badago."
 }

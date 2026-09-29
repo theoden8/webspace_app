@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Vérification du proxy…",
   "proxyStatusCheckAgain": "Vérifier à nouveau",
   "siteInfoConnection": "Connexion",
-  "siteInfoConnectionDirect": "Directe, sans proxy"
+  "siteInfoConnectionDirect": "Directe, sans proxy",
+  "savedProxyOwnAddress": "Utiliser une autre adresse",
+  "savedProxyOwnAddressHint": "Se connecte à l'adresse que vous saisissez ici au lieu de celle du proxy enregistré, en conservant son type et, sauf si vous activez aussi d'autres identifiants, son nom d'utilisateur et son mot de passe. Pour un fournisseur dont le même compte fonctionne sur plusieurs passerelles, par exemple une par pays.",
+  "savedProxyOwnCredentials": "Utiliser d'autres identifiants",
+  "savedProxyOwnCredentialsHint": "Se connecte avec le nom d'utilisateur et le mot de passe que vous saisissez ici au lieu de ceux du proxy enregistré, en conservant son adresse. Pour un fournisseur qui choisit la session ou le pays de sortie d'après le nom d'utilisateur, ou pour un compte distinct par site. Des sites aux identifiants différents sont des proxys différents, donc sur Android ils ne restent pas chargés côte à côte, sauf si le routeur de proxy est activé."
 }

@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Memeriksa proxy…",
   "proxyStatusCheckAgain": "Periksa lagi",
   "siteInfoConnection": "Koneksi",
-  "siteInfoConnectionDirect": "Langsung, tanpa proxy"
+  "siteInfoConnectionDirect": "Langsung, tanpa proxy",
+  "savedProxyOwnAddress": "Gunakan alamat lain",
+  "savedProxyOwnAddressHint": "Menyambung ke alamat yang Anda ketik di sini, bukan alamat proxy tersimpan, dengan tetap memakai jenisnya dan, kecuali Anda juga mengaktifkan kredensial lain, nama pengguna serta kata sandinya. Untuk penyedia yang satu akunnya berlaku di beberapa gerbang, misalnya satu gerbang per negara.",
+  "savedProxyOwnCredentials": "Gunakan kredensial lain",
+  "savedProxyOwnCredentialsHint": "Masuk dengan nama pengguna dan kata sandi yang Anda ketik di sini, bukan kredensial proxy tersimpan, dengan tetap memakai alamatnya. Untuk penyedia yang memilih sesi atau negara keluar berdasarkan nama pengguna, atau untuk akun terpisah per situs. Situs dengan kredensial berbeda dianggap proxy yang berbeda, sehingga di Android situs-situs itu tidak tetap dimuat berdampingan kecuali router proxy per situs aktif."
 }

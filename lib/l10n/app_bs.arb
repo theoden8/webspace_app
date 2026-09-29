@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Provjera proxyja…",
   "proxyStatusCheckAgain": "Provjeri ponovo",
   "siteInfoConnection": "Veza",
-  "siteInfoConnectionDirect": "Direktno, bez proxyja"
+  "siteInfoConnectionDirect": "Direktno, bez proxyja",
+  "savedProxyOwnAddress": "Koristi drugu adresu",
+  "savedProxyOwnAddressHint": "Povezuje se na adresu koju ovdje unesete umjesto na adresu sačuvanog proxyja, zadržavajući njegov tip i, osim ako ne uključite i druge podatke za prijavu, njegovo korisničko ime i lozinku. Za pružaoca usluge čiji jedan račun radi na više pristupnika, npr. po jedan za svaku državu.",
+  "savedProxyOwnCredentials": "Koristi druge podatke za prijavu",
+  "savedProxyOwnCredentialsHint": "Prijavljuje se korisničkim imenom i lozinkom koje ovdje unesete umjesto onih iz sačuvanog proxyja, zadržavajući njegovu adresu. Za pružaoca usluge koji sesiju ili izlaznu državu bira prema korisničkom imenu, ili za zaseban račun za svaku stranicu. Stranice s različitim podacima za prijavu su različiti proxyji, pa na Androidu ne ostaju učitane jedna uz drugu osim ako je uključen proxy ruter."
 }

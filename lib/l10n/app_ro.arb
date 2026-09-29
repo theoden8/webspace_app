@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Se verifică proxy-ul…",
   "proxyStatusCheckAgain": "Verifică din nou",
   "siteInfoConnection": "Conexiune",
-  "siteInfoConnectionDirect": "Directă, fără proxy"
+  "siteInfoConnectionDirect": "Directă, fără proxy",
+  "savedProxyOwnAddress": "Folosește altă adresă",
+  "savedProxyOwnAddressHint": "Se conectează la adresa pe care o introduci aici în locul celei a proxy-ului salvat, păstrându-i tipul și, dacă nu activezi și alte date de autentificare, numele de utilizator și parola. Util pentru un furnizor al cărui cont unic funcționează pe mai multe gateway-uri, de exemplu câte unul pentru fiecare țară.",
+  "savedProxyOwnCredentials": "Folosește alte date de autentificare",
+  "savedProxyOwnCredentialsHint": "Se autentifică cu numele de utilizator și parola pe care le introduci aici în locul celor ale proxy-ului salvat, păstrându-i adresa. Util pentru un furnizor care alege sesiunea sau țara de ieșire după numele de utilizator ori pentru un cont separat pentru fiecare site. Site-urile cu date de autentificare diferite contează ca proxy-uri diferite, așa că pe Android nu rămân încărcate unul lângă altul decât dacă routerul proxy pentru fiecare site este activat."
 }

@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Proksi kontrollimine…",
   "proxyStatusCheckAgain": "Kontrolli uuesti",
   "siteInfoConnection": "Ühendus",
-  "siteInfoConnectionDirect": "Otse, ilma proksita"
+  "siteInfoConnectionDirect": "Otse, ilma proksita",
+  "savedProxyOwnAddress": "Kasuta teist aadressi",
+  "savedProxyOwnAddressHint": "Ühendub siin sisestatud aadressiga salvestatud proksi aadressi asemel ning säilitab selle tüübi ja, kui sa ei lülita sisse ka teisi sisselogimisandmeid, selle kasutajanime ja parooli. Teenusepakkujale, kelle üks konto töötab mitmel lüüsil, näiteks ühel iga riigi kohta.",
+  "savedProxyOwnCredentials": "Kasuta teisi sisselogimisandmeid",
+  "savedProxyOwnCredentialsHint": "Logib sisse siin sisestatud kasutajanime ja parooliga salvestatud proksi omade asemel ning säilitab selle aadressi. Teenusepakkujale, kes valib seansi või väljumisriigi kasutajanime järgi, või selleks, et igal saidil oleks eraldi konto. Erinevate sisselogimisandmetega saidid on erinevad proksid, seega Androidis ei jää need korraga laadituks, kui proksiruuter pole sisse lülitatud."
 }

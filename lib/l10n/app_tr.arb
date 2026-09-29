@@ -989,5 +989,9 @@
   "proxyStatusChecking": "Proxy denetleniyor…",
   "proxyStatusCheckAgain": "Yeniden denetle",
   "siteInfoConnection": "Bağlantı",
-  "siteInfoConnectionDirect": "Doğrudan, proxy yok"
+  "siteInfoConnectionDirect": "Doğrudan, proxy yok",
+  "savedProxyOwnAddress": "Farklı bir adres kullan",
+  "savedProxyOwnAddressHint": "Kayıtlı proxy'nin adresi yerine buraya yazdığınız adrese bağlanır; türünü ve, farklı kimlik bilgilerini de açmadığınız sürece, kullanıcı adını ve parolasını korur. Tek hesabı birden çok ağ geçidinde çalışan bir sağlayıcı için uygundur, örneğin ülke başına bir tane.",
+  "savedProxyOwnCredentials": "Farklı kimlik bilgileri kullan",
+  "savedProxyOwnCredentialsHint": "Kayıtlı proxy'nin kimlik bilgileri yerine buraya yazdığınız kullanıcı adı ve parolayla giriş yapar; adresini korur. Oturumu veya çıkış ülkesini kullanıcı adından seçen bir sağlayıcı ya da site başına ayrı bir hesap için uygundur. Farklı kimlik bilgilerine sahip siteler farklı proxy'ler sayılır, bu yüzden Android'de site başına proxy yönlendirici açık olmadıkça yan yana yüklü tutulmazlar."
 }
