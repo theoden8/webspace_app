@@ -27,28 +27,43 @@ unlisted one. The app does not control that; see Known Limitations.
 
 ## Requirements
 
-### Requirement: PASSKEY-001 — Access is an Android experiment, off for archives
+### Requirement: PASSKEY-001 — Access is Android-only, off for archives
 
-Passkeys SHALL be offered only on Android, only while the Passkeys experiment
-(`ExperimentalFeature.passkeys`, developer mode plus its own switch) is on, and
-never for an archive-tier site: the system passkey sheet is OS-level UI naming
-the relying party, and a created passkey lives in the provider, outside the
-archive's keyspace (ARCH-006). `WebViewModel.effectivePasskeysEnabled` is the
-one reading of that rule, and nested webviews receive it through `launchUrl`.
+Passkeys SHALL be offered on Android to every site except an archive-tier one:
+the system passkey sheet is OS-level UI naming the relying party, and a created
+passkey lives in the provider, outside the archive's keyspace (ARCH-006).
+`WebViewModel.effectivePasskeysEnabled` is the one reading of that rule, and
+nested webviews receive it through `launchUrl`.
+
+There is no switch. Without the shim a site sees the WebView's default, no
+`PublicKeyCredential` at all, and a sign-in that probes for passkeys without
+checking the interface exists throws a TypeError and stalls: target.com's
+Continue did nothing (issue #567). With the shim, a device that cannot answer
+reads as one without a platform authenticator (PASSKEY-002), which sites
+handle.
 
 A webview whose `WebViewConfig.passkeys` is null SHALL get neither the shim
 nor the handlers, which leaves the WebView's default: no WebAuthn.
 
-#### Scenario: Experiment off
+#### Scenario: Any site outside an archive
 
-**Given** the Passkeys experiment is off
-**When** a site's page loads
-**Then** `PublicKeyCredential` is whatever the WebView exposes (nothing)
-**And** no passkey handler is registered on the webview
+**Given** an Android site that is not in an archive
+**When** its page loads
+**Then** `PublicKeyCredential` is installed by the shim
+**And** the passkey handlers are registered on the webview
+
+#### Scenario: A sign-in that probes without checking the interface
+
+**Given** a sign-in page that calls
+`window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()`
+without checking that `PublicKeyCredential` exists
+**When** the user submits their email
+**Then** the call resolves instead of throwing
+**And** the sign-in continues
 
 #### Scenario: Archive-tier site
 
-**Given** the experiment is on and the site is in an open archive
+**Given** the site is in an open archive
 **When** the site, or a nested webview it opens, loads a page
 **Then** no passkey shim or handler is installed
 
@@ -69,7 +84,7 @@ The manifest SHALL declare `CREDENTIAL_MANAGER_SET_ORIGIN` and
 
 #### Scenario: API 33
 
-**Given** an API 33 device with the experiment on
+**Given** an API 33 device
 **When** a page calls `navigator.credentials.create({publicKey})`
 **Then** it rejects with NotSupportedError
 **And** Credential Manager is not called
@@ -95,7 +110,7 @@ The page never names the origin: nothing it passes is read as one (PASSKEY-004).
 
 #### Scenario: Registration
 
-**Given** a page on an https origin with the experiment on
+**Given** a page on an https origin
 **When** it calls `navigator.credentials.create({publicKey: ...})` and the provider answers
 **Then** it receives a `PublicKeyCredential` whose `response` is an `AuthenticatorAttestationResponse`
 **And** `response.clientDataJSON` is the one PASSKEY-006 built

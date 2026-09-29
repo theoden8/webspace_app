@@ -13,7 +13,6 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/external_url_engine.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/http_auth_engine.dart';
@@ -952,14 +951,11 @@ class WebViewModel {
   ScreenShareMode get effectiveScreenShareMode =>
       isArchiveTier ? ScreenShareMode.block : screenShareMode;
 
-  /// Passkeys (PASSKEY-001): the app-wide experiment, never for an
-  /// archive-tier site. The system passkey sheet is OS-level UI naming the
-  /// relying party, and a created passkey lives in the provider's store,
-  /// outside the archive's keyspace (ARCH-006).
-  bool get effectivePasskeysEnabled =>
-      !isArchiveTier &&
-      ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.passkeys);
+  /// Passkeys (PASSKEY-001): every site but an archive-tier one. The system
+  /// passkey sheet is OS-level UI naming the relying party, and a created
+  /// passkey lives in the provider's store, outside the archive's keyspace
+  /// (ARCH-006).
+  bool get effectivePasskeysEnabled => !isArchiveTier;
 
   /// Archive-tier sites never hand a URL to another app: launching the
   /// system browser is OS-level UI that crosses the archive's isolation
