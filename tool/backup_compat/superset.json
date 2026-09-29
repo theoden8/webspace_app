@@ -222,7 +222,6 @@
     "backForwardCacheEnabled": false,
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,
-    "torIsolateDestAddr": true,
     "blockScreenshots": true,
     "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
   },

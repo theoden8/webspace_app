@@ -254,14 +254,6 @@ class TorControllerPlugin: NSObject {
   /// bridge. They are applied at start rather than by SETCONF because
   /// bridges have to be in force before bootstrap begins.
   private var pendingTorrcOptions: [(String, String)] = []
-  /// Whether tor also isolates streams by destination address, on top of the
-  /// per-site SOCKS credentials (TOR-003). Dart owns the setting; this is the
-  /// value the next launch will use.
-  ///
-  /// `true` here is NOT the user-facing default, which is off. It is what a
-  /// launch falls back to when Dart never got to send the preference -- a
-  /// failed read leaves isolation stricter rather than weaker.
-  private var pendingIsolateDestAddr = true
 
   private var state: String = "stopped"
   private var bootstrapPct: Int = 0
@@ -347,10 +339,6 @@ class TorControllerPlugin: NSObject {
         self?.pendingTorrcOptions = pairs
         DispatchQueue.main.async { result(nil) }
       }
-    case "setSocksIsolation":
-      let isolate =
-        (call.arguments as? [String: Any])?["isolateDestAddr"] as? Bool ?? true
-      setSocksIsolation(isolate, result: result)
     case "startTransport":
       let name = (call.arguments as? [String: Any])?["transport"] as? String ?? ""
       startTransport(name, result: result)
@@ -618,7 +606,7 @@ class TorControllerPlugin: NSObject {
     config.avoidDiskWrites = true
     config.ignoreMissingTorrc = true
     config.options = [
-      "SocksPort": Self.socksPortValue(isolateDestAddr: pendingIsolateDestAddr),
+      "SocksPort": Self.socksPortValue,
       "SafeLogging": "1",
     ]
     // tor's own log, which `TORConfiguration` turns into
@@ -1144,7 +1132,7 @@ class TorControllerPlugin: NSObject {
 
   // MARK: - Exit country
 
-  /// tor's `SocksPort` line for [isolateDestAddr].
+  /// tor's `SocksPort` line.
   ///
   /// `auto` lets tor pick a free loopback port and report it back. Never
   /// 9050: another tor-embedding app (Onion Browser) may already own it,
@@ -1153,51 +1141,18 @@ class TorControllerPlugin: NSObject {
   ///
   /// IsolateSOCKSAuth is on by default per tor(1), but written out so the
   /// isolation contract is legible here rather than inherited from an
-  /// upstream default that could change (TOR-003).
+  /// upstream default that could change (TOR-003). Per-site isolation is the
+  /// contract and it alone delivers it.
   ///
-  /// IsolateDestAddr splits circuits per destination *address* as well, so
-  /// one site loading from two hosts exits from two relays. That is more
-  /// isolation than per-site, and it shows: a page whose own API lives on a
-  /// second host reports two different addresses while it loads, and a
-  /// session that checks its client IP across hosts breaks. It also costs a
-  /// circuit build per host, which a page pulling from a dozen of them pays
-  /// on first load.
-  ///
-  /// Off by default. Per-site isolation is the contract and IsolateSOCKSAuth
-  /// alone delivers it; this extra split buys only that no single exit sees a
-  /// whole page load, and it hid BUG-014's dropped credential by keeping some
-  /// isolation alive when the per-site key was gone.
-  static func socksPortValue(isolateDestAddr: Bool) -> String {
-    isolateDestAddr
-      ? "auto IsolateSOCKSAuth IsolateDestAddr" : "auto IsolateSOCKSAuth"
-  }
-
-  /// Record the isolation the user chose. It reaches tor at the next start.
-  ///
-  /// Not a live `SETCONF`, and not a restart, because neither works:
-  ///
-  ///  * A restart is impossible. tor keeps process-global state its own
-  ///    `tor_run_main` does not reset, so a second launch dies in
-  ///    `threadpool_new` ("Can't create worker thread pool") and never
-  ///    bootstraps. Tor.framework says the same thing from the other side:
-  ///    `TORThread` asserts there can only be one per process.
-  ///  * `SETCONF SocksPort="auto ..."` is accepted and changes nothing. On a
-  ///    config transition tor runs `retry_listener_ports`, which treats a
-  ///    `CFG_AUTO_PORT` request as matching any existing listener on that
-  ///    address and keeps it ("This listener is already running"). The
-  ///    isolation flags live on the listener's `entry_cfg`, copied once in
-  ///    `connection_listener_new`, so a kept listener keeps the old flags
-  ///    and tor still answers 250 OK.
-  ///
-  /// So the honest contract is the next start, and the UI says so.
-  private func setSocksIsolation(
-    _ isolateDestAddr: Bool, result: @escaping FlutterResult
-  ) {
-    stateQueue.async { [weak self] in
-      self?.pendingIsolateDestAddr = isolateDestAddr
-      DispatchQueue.main.async { result(nil) }
-    }
-  }
+  /// No IsolateDestAddr. It splits circuits per destination address as well,
+  /// so a page whose own API lives on a second host reports two client
+  /// addresses while it loads and a session that checks its IP across hosts
+  /// breaks; it also hid BUG-014's dropped credential by keeping some
+  /// isolation alive when the per-site key was gone. It cannot be a live
+  /// setting either: tor's `retry_listener_ports` keeps an `auto` listener
+  /// it believes is running, with the flags it was opened with, and answers
+  /// `SETCONF SocksPort` with 250 OK regardless.
+  static let socksPortValue = "auto IsolateSOCKSAuth"
 
   /// Apply or clear the `ExitNodes` pin (TOR-014).
   ///
@@ -1324,7 +1279,7 @@ class TorControllerPlugin: NSObject {
   /// What an iOS suspension leaves behind: the kernel defuncts the app's TCP
   /// sockets, tor's SOCKS listener and its relay connections among them, and
   /// tor goes on listing that listener as its own. `SETCONF SocksPort` would
-  /// keep it ("This listener is already running", see setSocksIsolation).
+  /// keep it ("This listener is already running", see socksPortValue).
   /// `DisableNetwork 1` closes it along with every relay connection, and
   /// `DisableNetwork 0` opens a fresh one on a fresh port. Control listeners
   /// and connections are left alone by both, and the control channel is a

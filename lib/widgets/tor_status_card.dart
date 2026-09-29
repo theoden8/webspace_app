@@ -8,8 +8,7 @@
 // fails — which kind of failure it is and what to do about it (TOR-013,
 // TOR-015).
 //
-// Gated with the rest of Tor on `TorService.isAvailable`, which is the
-// platform gate AND developer mode (DEVTOOLS-010).
+// Gated with the rest of Tor on `TorService.isAvailable` (TOR-007).
 
 import 'dart:async';
 
@@ -110,22 +109,24 @@ class _TorStatusCardState extends State<TorStatusCard> {
 
   @override
   Widget build(BuildContext context) {
-    // Nothing to report on a platform without a runtime, and nothing to
-    // offer with developer mode off — the same gate the proxy dropdown uses.
-    if (!TorService.instance.isAvailable) return const SizedBox.shrink();
+    final s = _status;
+    // Tor starts when a site or the app-wide proxy first asks for it and does
+    // not stop on its own (TOR-002), so `stopped` means nothing uses it and
+    // there is nothing here to act on (TOR-004).
+    if (!TorService.instance.isAvailable || s is TorStopped) {
+      return const SizedBox.shrink();
+    }
 
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final s = _status;
 
     final Widget body = switch (s) {
       TorErrored(:final failure) => _error(loc, theme, failure),
       TorUp(:final host, :final port) => _connected(loc, theme, '$host:$port'),
       TorBootstrapping(:final percent, :final summary) =>
         _bootstrapping(loc, theme, percent, summary),
-      TorStarting() => _plain(theme, loc.torStatusStarting, indeterminate: true),
-      TorStopped() => _plain(theme, loc.torStatusStopped),
+      TorStarting() || TorStopped() => _starting(loc, theme),
     };
 
     return Padding(
@@ -165,15 +166,13 @@ class _TorStatusCardState extends State<TorStatusCard> {
     );
   }
 
-  Widget _plain(ThemeData theme, String text, {bool indeterminate = false}) {
+  Widget _starting(AppLocalizations loc, ThemeData theme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(text, style: theme.textTheme.bodyMedium),
-        if (indeterminate) ...[
-          const SizedBox(height: Spacing.sm),
-          const LinearProgressIndicator(minHeight: Spacing.xs),
-        ],
+        Text(loc.torStatusStarting, style: theme.textTheme.bodyMedium),
+        const SizedBox(height: Spacing.sm),
+        const LinearProgressIndicator(minHeight: Spacing.xs),
       ],
     );
   }

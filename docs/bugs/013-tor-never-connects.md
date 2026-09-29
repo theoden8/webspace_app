@@ -413,7 +413,10 @@ as before, and says so in the log.
    bridge edit, a `SIGNAL HALT` that lands, or a tor that exits on its own all
    end the feature until the app is restarted. The only real fix is out of
    process — tor in an XPC service or an extension — which iOS makes expensive
-   and macOS does not make free.
+   and macOS does not make free. Until 2026-09-29 this and gap 1 held Tor behind
+   developer mode (TOR-007); it has since graduated with both still open, so this
+   now reaches every iOS and macOS user who picks Tor, and what stands between
+   them and a silent dead feature is the named failure TOR-015 shows.
 4. **Fault injection barely exists.** The macOS tier exercises the happy path, a
    restart and, since attempt 11, a process whose sockets were defuncted; nothing
    simulates a control port that opens late, which is the mechanism of attempt 2, or a

@@ -23,6 +23,8 @@ const RETIRED = {
   dns_block_downloaded_levels:
     'written since it was added, never read: initialize() rebuilds the level set from '
     + "dns_blocklist_levels.txt's #<mask-hex> sections",
+  torIsolateDestAddr:
+    'TOR-003: circuits are isolated per site only; the per-destination split is no longer a setting',
 };
 
 const head = scan(path.join(root, 'lib'));

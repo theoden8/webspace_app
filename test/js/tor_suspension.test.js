@@ -51,7 +51,7 @@ test('tor\'s control channel is a Unix socket, the kind a suspension spares', ()
 
 test('a dead listener is reopened, not reconfigured', () => {
   // SETCONF SocksPort keeps a listener tor believes is running
-  // (setSocksIsolation says why); only DisableNetwork closes it.
+  // (socksPortValue says why); only DisableNetwork closes it.
   const cycle = body(swift, 'func cycleNetwork(');
   assert.match(cycle, /for value in \["1", "0"\]/,
     'DisableNetwork 1 closes the dead listener, 0 opens a fresh one');

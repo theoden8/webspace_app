@@ -35,7 +35,6 @@ import 'package:path_provider/path_provider.dart';
 import 'package:socks5_proxy/socks_client.dart' as socks5;
 
 import 'package:webspace/services/container_native.dart';
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_geoip_io.dart';
@@ -392,7 +391,6 @@ void main() {
   }
 
   setUpAll(() {
-    DeveloperModeService.instance.debugSet(true);
     sub = TorService.instance.statusStream.listen(seen.add);
     trace('platform=$defaultTargetPlatform '
         'available=${TorService.instance.isAvailable} '
@@ -403,7 +401,6 @@ void main() {
   tearDownAll(() async {
     await sub.cancel();
     TorService.instance.release('integration');
-    DeveloperModeService.instance.debugSet(false);
   });
 
   /// Poll until [done] or [budget] runs out. A plain `await for` on the

@@ -142,10 +142,9 @@ bool torBindingChanged(TorStatus previous, TorStatus next) =>
 /// runtime's own [TorStatus] cannot answer on its own.
 ///
 /// `stopped` is a moment inside a start-up where Tor can run, and forever
-/// where it cannot: the platform has no plugin (TOR-007), or developer mode
-/// is off, and in both cases every start path returns before the engine
-/// emits [TorStarting]. A screen that reads the status alone shows a
-/// progress bar for a wait that never ends.
+/// where the platform has no plugin (TOR-007): every start path returns
+/// before the engine emits [TorStarting]. A screen that reads the status
+/// alone shows a progress bar for a wait that never ends.
 enum TorGate {
   /// The runtime can come up and is on its way; a progress bar means
   /// something.
@@ -158,24 +157,17 @@ enum TorGate {
   /// No embedded Tor on this platform. Nothing the user does on this screen
   /// will start one; the site's proxy is what has to change.
   unsupported,
-
-  /// Tor exists here but is switched off: developer mode or the
-  /// Experimental group's Tor switch (TOR-007, DEVTOOLS-011).
-  switchedOff,
 }
 
 /// Which [TorGate] a site is sitting behind.
 ///
-/// Availability is read before [status] on purpose: an errored runtime that
-/// has since become unreachable must not show Retry, because `restart()`
-/// returns at the same gate and the button would do nothing.
+/// Availability is read before [status] on purpose: Retry on a platform with
+/// no runtime would do nothing, because `restart()` returns at the same gate.
 TorGate torGateFor({
   required TorStatus status,
   required bool hasNativeTor,
-  required bool torEnabled,
 }) {
   if (!hasNativeTor) return TorGate.unsupported;
-  if (!torEnabled) return TorGate.switchedOff;
   if (status is TorErrored) return TorGate.errored;
   return TorGate.working;
 }
@@ -241,12 +233,6 @@ abstract class TorRuntime {
   /// a bootstrap attempt over the direct guards the user is trying to avoid.
   Future<void> setTorrcOptions(List<(String, String)> options);
 
-  /// Whether the next [start] also isolates circuits by destination address
-  /// (TOR-003). Per-site isolation comes from the SOCKS credentials and is
-  /// always on; this is the extra split, which costs a site one exit per
-  /// host it loads from.
-  Future<void> setSocksIsolation({required bool isolateDestAddr});
-
   /// Close tor's listeners and relay connections, open the listeners again,
   /// and publish `up` with the SOCKS endpoint tor now has (TOR-024). Throws
   /// when tor could not be reached or opened no listener.
@@ -269,7 +255,6 @@ class TorEngine {
     Duration idleDebounce = kTorIdleDebounce,
     Duration bootstrapTimeout = kTorBootstrapTimeout,
     Future<TorBridgeConfig> Function()? bridgeLoader,
-    Future<bool> Function()? isolateDestAddrLoader,
     TorGeoIpStore? geoIpStore,
     DateTime Function()? clock,
     TorSocksProbe? socksProbe,
@@ -278,7 +263,6 @@ class TorEngine {
         _idleDebounce = idleDebounce,
         _bootstrapTimeout = bootstrapTimeout,
         _bridgeLoader = bridgeLoader,
-        _isolateDestAddrLoader = isolateDestAddrLoader,
         _geoIpStore = geoIpStore,
         _clock = clock ?? DateTime.now,
         _socksProbe = socksProbe {
@@ -358,10 +342,6 @@ class TorEngine {
   /// [_applyBridgeConfig].
   final Future<TorBridgeConfig> Function()? _bridgeLoader;
 
-  /// Reads the app-wide "isolate by destination too" preference. Injected
-  /// rather than read here: an engine does not touch SharedPreferences.
-  final Future<bool> Function()? _isolateDestAddrLoader;
-
   /// Whether [_bridges] reflects storage yet. Set by the first load and by
   /// any [setBridges]: an explicit set is the user acting now, so it wins
   /// over a re-read and is not overwritten by one.
@@ -389,7 +369,6 @@ class TorEngine {
     _emit(const TorStarting());
     _armBootstrapTimeout();
     try {
-      await _applyIsolationConfig();
       await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {
@@ -528,20 +507,6 @@ class TorEngine {
   /// port 0, and [torBridgeOptions] then produces nothing rather than a
   /// configuration pointing at a dead port — tor would otherwise hang the
   /// whole bootstrap dialling it.
-  /// Hand the runtime the isolation the user asked for, before it starts.
-  ///
-  /// A failure to read the preference leaves the runtime on its own default,
-  /// which is the stricter of the two — never the weaker one.
-  Future<void> _applyIsolationConfig() async {
-    final loader = _isolateDestAddrLoader;
-    if (loader == null) return;
-    try {
-      await _runtime.setSocksIsolation(isolateDestAddr: await loader());
-    } catch (_) {
-      // Leave the runtime's default in place.
-    }
-  }
-
   Future<void> _applyBridgeConfig() async {
     await _hydrateBridges();
     final config = _bridges;
@@ -604,32 +569,14 @@ class TorEngine {
     _armBootstrapTimeout();
     try {
       // Still applied: `start()` is a no-op on a live tor, and on a dead one
-      // these are what the launch would need. Neither reaches a tor that is
+      // this is what the launch would need. It never reaches a tor that is
       // already running — that is what makes an edited bridge configuration
       // an app restart rather than a Retry.
-      await _applyIsolationConfig();
       await _applyBridgeConfig();
       await _runtime.start();
     } catch (e) {
       _cancelBootstrapTimeout();
       _emit(TorErrored('$e'));
-    }
-  }
-
-  /// Apply the destination-isolation choice (TOR-003).
-  ///
-  /// Never a restart: tor cannot be run twice in one process, so a
-  /// stop-then-start for a settings change leaves the runtime dead until
-  /// the app itself is relaunched (BUG-013). The runtime applies this live
-  /// when it is up and stores it for the next start otherwise, so this is
-  /// the same call either way.
-  Future<void> applySocksIsolation({required bool isolateDestAddr}) async {
-    if (!_runtime.isAvailable) return;
-    try {
-      await _runtime.setSocksIsolation(isolateDestAddr: isolateDestAddr);
-    } catch (_) {
-      // A refused change leaves the isolation tor already has; the
-      // preference still stands and the next start carries it.
     }
   }
 

@@ -294,8 +294,7 @@ Tor's default SOCKS port is 9050. We do **not** use it: another app
 (Onion Browser, or anything else embedding tor) may already own it, and
 iOS does not let us know whether a port is free without trying.
 
-`TorConfiguration` sets `SocksPort auto IsolateSOCKSAuth
-IsolateDestAddr` — Tor picks a free loopback port itself and reports
+`TorConfiguration` sets `SocksPort auto IsolateSOCKSAuth` — Tor picks a free loopback port itself and reports
 it on the control port. `TorService` reads it after bootstrap and
 exposes it via `socksEndpoint`. Any code that hardcodes `9050` is a
 bug.

@@ -2,7 +2,7 @@
 
 ### Requirement: LEAK-013 - Tor stream isolation contract
 
-The system SHALL route per-site `ProxyType.TOR` traffic and `globalOutboundProxy.type == TOR` traffic through the embedded Tor runtime's SOCKS5 endpoint, using a SOCKS5 username that gives Tor's `IsolateSOCKSAuth IsolateDestAddr` semantics a stable per-context isolation tag: per-site traffic MUST use the site's `siteId`, app-global traffic MUST use the reserved literal `__webspace_app_global__`, and the system MUST NOT share a single SOCKS username across distinct sites or re-use a site's username for app-global traffic.
+The system SHALL route per-site `ProxyType.TOR` traffic and `globalOutboundProxy.type == TOR` traffic through the embedded Tor runtime's SOCKS5 endpoint, using a SOCKS5 username that gives Tor's `IsolateSOCKSAuth` semantics a stable per-context isolation tag: per-site traffic MUST use the site's `siteId`, app-global traffic MUST use the reserved literal `__webspace_app_global__`, and the system MUST NOT share a single SOCKS username across distinct sites or re-use a site's username for app-global traffic.
 
 #### Scenario: Two Tor sites get uncorrelatable circuits
 

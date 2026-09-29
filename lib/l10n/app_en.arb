@@ -1543,19 +1543,6 @@
   "@appSettingsDeveloperModeEnabled": {
     "description": "Confirmation shown after the seventh tap on the version row turns developer mode on"
   },
-  "appSettingsDeveloperModeTorWarningTitle": "Turn Developer mode off?",
-  "@appSettingsDeveloperModeTorWarningTitle": {
-    "description": "Title of the dialog shown when the user turns Developer mode off while one or more sites are set to use Tor. Tor only runs while Developer mode is on, so those sites become blocked."
-  },
-  "appSettingsDeveloperModeTorWarningBody": "{count, plural, one{One site is set to use Tor. It will stay blocked until you turn Developer mode back on, rather than loading over your real IP address.} other{{count} sites are set to use Tor. They will stay blocked until you turn Developer mode back on, rather than loading over your real IP address.}}",
-  "@appSettingsDeveloperModeTorWarningBody": {
-    "description": "Body of the dialog warning that turning Developer mode off blocks every site pinned to Tor. Explains the sites are blocked rather than sent out unproxied.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "appSettingsExperimental": "Experimental",
   "@appSettingsExperimental": {
     "description": "Heading of a group inside App settings > Developer, shown only while Developer mode is on. Lists features that ship before they are finished, each with its own on/off switch."
@@ -1563,27 +1550,6 @@
   "appSettingsExperimentalHint": "Features that ship before they are finished. Each needs Developer mode and its own switch here. Turning Developer mode off turns them all off; their switches keep their positions for when it comes back on.",
   "@appSettingsExperimentalHint": {
     "description": "Explanation behind the hint button of the Experimental heading in App settings > Developer."
-  },
-  "appSettingsExperimentalTor": "Built-in Tor",
-  "@appSettingsExperimentalTor": {
-    "description": "Switch in App settings > Developer > Experimental that turns on the Tor client built into the app, which sites can use as their proxy. Tor is the name of the anonymity network and is not translated."
-  },
-  "appSettingsExperimentalTorHint": "Lets sites use the Tor client built into the app. Experimental because Tor runs at most once per launch: if it stops, the app has to be restarted to get it back. Turning this off blocks every site set to use Tor rather than loading it over your real IP address.",
-  "@appSettingsExperimentalTorHint": {
-    "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental."
-  },
-  "appSettingsExperimentalTorOffTitle": "Turn Built-in Tor off?",
-  "@appSettingsExperimentalTorOffTitle": {
-    "description": "Title of the dialog shown when the user turns the Built-in Tor switch off while some sites are set to use Tor."
-  },
-  "appSettingsExperimentalTorOffBody": "{count, plural, one{One site is set to use Tor. It will stay blocked until you turn Built-in Tor back on, rather than loading over your real IP address.} other{{count} sites are set to use Tor. They will stay blocked until you turn Built-in Tor back on, rather than loading over your real IP address.}}",
-  "@appSettingsExperimentalTorOffBody": {
-    "description": "Body of the dialog warning that turning Built-in Tor off blocks every site set to use Tor. Explains the sites are blocked rather than sent out unproxied.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "appSettingsExperimentalProxyRouter": "Proxy router",
   "@appSettingsExperimentalProxyRouter": {
@@ -1628,10 +1594,6 @@
   "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab and Duplicate tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on.",
   "@appSettingsExperimentalSiteTabsHint": {
     "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page."
-  },
-  "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
-  "@appSettingsDeveloperModeTorWarningConfirm": {
-    "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."
   },
   "appSettingsDeveloperModeAlreadyOn": "Developer mode is already on",
   "@appSettingsDeveloperModeAlreadyOn": {
@@ -4283,14 +4245,6 @@
   "@torUnavailableBody": {
     "description": "Explains why a site set to use Tor shows nothing on a platform without a Tor client, and what the user can do about it."
   },
-  "torDeveloperGateTitle": "Tor is turned off",
-  "@torDeveloperGateTitle": {
-    "description": "Heading shown in place of a site that is set to use Tor while Developer mode, which Tor is behind, is off."
-  },
-  "torDeveloperGateBody": "Tor runs only while Developer mode and Built-in Tor, under Experimental, are both on. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Turn them on in App settings, or change the site's proxy.",
-  "@torDeveloperGateBody": {
-    "description": "Explains why a site set to use Tor shows nothing while Developer mode, or the Built-in Tor switch in App settings > Developer > Experimental, is off, and what the user can do about it."
-  },
   "torFailOfflineTitle": "No network",
   "@torFailOfflineTitle": {
     "description": "Tor failure heading: nothing on the network answered."
@@ -4541,14 +4495,6 @@
   "proxyTestUnreachable": "Could not reach the proxy",
   "@proxyTestUnreachable": {
     "description": "Result shown when the proxy could not be contacted at all: wrong address, nothing listening, or no answer before the deadline."
-  },
-  "torIsolateDestAddrTitle": "Separate circuit per destination",
-  "@torIsolateDestAddrTitle": {
-    "description": "Title of the switch in App Settings, under the Tor status card, controlling whether Tor also isolates circuits by destination address on top of the per-site isolation."
-  },
-  "torIsolateDestAddrHint": "Each site always gets its own Tor circuit. With this on, a site also gets a separate circuit for every host it loads from, so one page can reach the internet from two or more exit addresses at once — more isolation, but a site that checks your address across its own hosts may log you out. Turning it off gives the site one address for everything it loads. Changing this takes effect the next time you open the app.",
-  "@torIsolateDestAddrHint": {
-    "description": "Explanation shown in the hint dialog for the \"Separate circuit per destination\" switch. Mentions the trade-off: more isolation versus sites that verify the client's IP address across their own hostnames."
   },
   "tabsTooltip": "Tabs",
   "@tabsTooltip": {

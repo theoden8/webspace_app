@@ -22,7 +22,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -188,7 +187,6 @@ Future<bool> _run() async {
     if (!passed) ok = false;
   }
 
-  DeveloperModeService.instance.debugSet(true);
   if (!TorService.instance.isAvailable) {
     check(false, 'the Tor runtime is available on this build');
     return false;

@@ -44,15 +44,12 @@ void main() {
         isTrue);
   });
 
-  test('Tor defaults on, so developer mode alone keeps opening it', () async {
-    await ExperimentalFeaturesService.instance.initialize();
+  test('Tor graduated: it has no switch (TOR-007)', () {
     expect(
-        ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor),
-        isTrue);
-    DeveloperModeService.instance.debugSet(true);
-    expect(
-        ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.tor),
-        isTrue);
+        ExperimentalFeature.values.map((f) => f.prefKey),
+        isNot(contains('experimentalTor')),
+        reason: 'a graduated feature removes its switch and stops reading '
+            'this gate (DEVTOOLS-011)');
   });
 
   test('the proxy router defaults on, so developer mode alone keeps it',
@@ -85,22 +82,25 @@ void main() {
 
   test('a switch persists and is read back', () async {
     await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.tor, false);
+        .setSwitch(ExperimentalFeature.proxyRouter, false);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kExperimentalTorKey), isFalse);
+    expect(prefs.getBool(kExperimentalProxyRouterKey), isFalse);
 
-    ExperimentalFeaturesService.instance.debugSet(ExperimentalFeature.tor, true);
+    ExperimentalFeaturesService.instance
+        .debugSet(ExperimentalFeature.proxyRouter, true);
     await ExperimentalFeaturesService.instance.reload();
     expect(
-        ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor),
+        ExperimentalFeaturesService.instance
+            .switchOn(ExperimentalFeature.proxyRouter),
         isFalse);
   });
 
   test('a wrong-typed stored value reads as the default', () async {
-    SharedPreferences.setMockInitialValues({kExperimentalTorKey: 'yes'});
+    SharedPreferences.setMockInitialValues({kExperimentalProxyRouterKey: 'yes'});
     await ExperimentalFeaturesService.instance.initialize();
     expect(
-        ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor),
+        ExperimentalFeaturesService.instance
+            .switchOn(ExperimentalFeature.proxyRouter),
         isTrue);
   });
 }
