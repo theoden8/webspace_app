@@ -38,6 +38,9 @@ const MIGRATED = [
   'lib/widgets/unproxied_block.dart',
   'lib/widgets/proxy_auth_section.dart',
   'lib/widgets/proxy_test_tile.dart',
+  'lib/widgets/proxy_choice_dropdown.dart',
+  'lib/widgets/proxy_status_indicator.dart',
+  'lib/screens/saved_proxies.dart',
 ];
 
 const PENDING = [

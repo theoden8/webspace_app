@@ -12,6 +12,7 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
 
 /// Default factory backed by `dart:io`'s [HttpClient].
 ///
@@ -71,6 +72,20 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           );
         }
         return clientFor(tor);
+
+      case ProxyType.SAVED:
+        // Callers that hand over the app-wide proxy as stored, without
+        // going through `resolveEffectiveProxy`, still reach the saved
+        // proxy it names.
+        final saved = resolveSavedProxy(settings);
+        if (saved.type == ProxyType.SAVED) {
+          return const OutboundClientBlocked(
+            'The saved proxy this setting names no longer exists. Outbound '
+            'request blocked to avoid leaking the device IP via a direct '
+            'fallback.',
+          );
+        }
+        return clientFor(saved);
 
       case ProxyType.SOCKS5:
         final addr = settings.address;

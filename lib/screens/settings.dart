@@ -14,6 +14,7 @@ import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -35,6 +36,7 @@ import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart' show savedProxyLabel;
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
@@ -228,6 +230,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, Object?> _currentSnapshot() => {
         'proxyType': _proxySettings.type,
         'torExitCountry': _proxySettings.torExitCountry,
+        'savedProxyId': _proxySettings.savedProxyId,
         'proxyAddress': _proxyAddressController.text,
         'proxyUsername': _proxyUsernameController.text,
         'proxyPassword': _proxyPasswordController.text,
@@ -456,6 +459,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       password: PlatformInfo.isProxySupported ? m.proxySettings.password : null,
       torExitCountry:
           PlatformInfo.isProxySupported ? m.proxySettings.torExitCountry : null,
+      savedProxyId:
+          PlatformInfo.isProxySupported ? m.proxySettings.savedProxyId : null,
     );
     // effectiveUserAgent so a preset site's field shows the string the
     // webview actually sends (current version), not the stored snapshot.
@@ -531,6 +536,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             address: _proxyAddressController.text,
             username: _proxyUsernameController.text,
             password: _proxyPasswordController.text,
+            savedProxyId: _proxySettings.savedProxyId,
           ),
         ),
         target: proxyTestTarget(widget.webViewModel.initUrl),
@@ -577,6 +583,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             address: _proxyAddressController.text,
             username: _proxyUsernameController.text,
             password: _proxyPasswordController.text,
+            savedProxyId: _proxySettings.savedProxyId,
           ),
         );
 
@@ -1078,6 +1085,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   SiteNetworkValues get _networkValues => SiteNetworkValues(
         proxyType: _proxySettings.type,
         torExitCountry: _proxySettings.torExitCountry,
+        savedProxyId: _proxySettings.savedProxyId,
         webRtcPolicy: _webRtcPolicy,
       );
 
@@ -1112,9 +1120,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Built as data before it reaches Text(): a proxy type, an address, a
     // country, the separator and the count are not translatable copy
     // (LOC-002).
+    final saved = v.proxyType == ProxyType.SAVED
+        ? SavedProxies.byId(v.savedProxyId)
+        : null;
     final on = <String>[
       if (inheritsAppProxy) loc.networkSummaryAppProxy,
-      if (proxied)
+      // A saved proxy goes by its name; one that was deleted says so, since
+      // the site is blocked until it names another (PROXY-029).
+      if (proxied && v.proxyType == ProxyType.SAVED)
+        saved == null ? loc.savedProxyMissing : savedProxyLabel(saved)
+      else if (proxied)
         v.proxyType == ProxyType.TOR || address.isEmpty
             ? v.proxyType.name
             : '${v.proxyType.name} $address',
@@ -1166,6 +1181,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             setState(() {
               _proxySettings.type = values.proxyType;
               _proxySettings.torExitCountry = values.torExitCountry;
+              _proxySettings.savedProxyId = values.savedProxyId;
               _webRtcPolicy = values.webRtcPolicy;
             });
           },

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
 
 /// Resolve the effective proxy for a per-site outbound call.
 ///
@@ -17,6 +18,11 @@ import 'package:webspace/settings/proxy.dart';
 /// This matches user intent: "I configured a global proxy (e.g. Tor); a
 /// site I haven't customized should also go through it." When the per-site
 /// type is anything else, the site's own settings win.
+///
+/// [ProxyType.SAVED], on the site or on the global, is replaced by the saved
+/// proxy it names (PROXY-029). A name that resolves to nothing stays SAVED
+/// with no address and fails closed downstream; it never falls through to
+/// the global, which is a route the user did not pick for that site.
 ///
 /// Apply this at every per-site outbound seam — Dart-side HTTP *and* the
 /// native webview proxy — so a site set to DEFAULT doesn't silently bypass
@@ -32,13 +38,13 @@ UserProxySettings resolveEffectiveProxy(
   String? siteId,
 }) {
   if (perSite.type == ProxyType.DEFAULT) {
-    final global = GlobalOutboundProxy.current;
+    final global = resolveSavedProxy(GlobalOutboundProxy.current);
     return global.type == ProxyType.TOR
         ? _torTagged(global, kTorAppGlobalTag)
         : global;
   }
   if (perSite.type == ProxyType.TOR) return _torTagged(perSite, siteId);
-  return perSite;
+  return resolveSavedProxy(perSite);
 }
 
 /// Stamp the isolation tag into `username`, where the SOCKS5 expansion later

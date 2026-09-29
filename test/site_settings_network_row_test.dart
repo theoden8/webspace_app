@@ -7,6 +7,7 @@ import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/webview.dart' show PlatformInfo;
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -120,6 +121,40 @@ void main() {
       ),
     );
     expect(_summary(tester), 'SOCKS5 127.0.0.1:1080 · WebRTC: Relay only');
+  });
+
+  testWidgets('a saved proxy goes by its name (NET-002, PROXY-029)',
+      (tester) async {
+    SavedProxies.setInMemory([
+      SavedProxy(
+        id: 'vpn',
+        name: 'Work VPN',
+        settings:
+            UserProxySettings(type: ProxyType.SOCKS5, address: '10.8.0.1:1080'),
+      ),
+    ]);
+    addTearDown(SavedProxies.resetForTest);
+    await _pump(
+      tester,
+      WebViewModel(
+        initUrl: 'https://example.com/',
+        proxySettings:
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'vpn'),
+      ),
+    );
+    expect(_summary(tester), 'Work VPN');
+  });
+
+  testWidgets('a deleted saved proxy reads as missing', (tester) async {
+    await _pump(
+      tester,
+      WebViewModel(
+        initUrl: 'https://example.com/',
+        proxySettings:
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'gone'),
+      ),
+    );
+    expect(_summary(tester), 'Missing saved proxy');
   });
 
   testWidgets('a pinned Tor exit counts, and more than two overflow',

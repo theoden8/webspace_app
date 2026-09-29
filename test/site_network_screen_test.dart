@@ -7,6 +7,7 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
 import 'helpers/mock_secure_storage.dart';
 
@@ -66,7 +67,7 @@ Future<_Form> _pump(
   return form;
 }
 
-Finder get _proxyDropdown => find.byType(DropdownButton<ProxyType>);
+Finder get _proxyDropdown => find.byType(ProxyChoiceDropdown);
 Finder get _webRtcDropdown => find.byType(DropdownButton<WebRtcPolicy>);
 Finder get _addressField =>
     find.widgetWithText(TextFormField, 'Proxy Address');

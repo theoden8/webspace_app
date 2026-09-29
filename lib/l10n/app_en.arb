@@ -4689,5 +4689,106 @@
   "siteSettingsSavedSignInsClearTitle": "Forget saved sign-ins for this site?",
   "@siteSettingsSavedSignInsClearTitle": {
     "description": "Title of the confirmation dialog shown before deleting every username and password saved for this site from the HTTP authentication sign-in dialog."
+  },
+  "savedProxiesTitle": "Saved proxies",
+  "@savedProxiesTitle": {
+    "description": "Title of the App Settings row and of the screen listing proxies the user configured once so several sites can use the same one (for example one VPN for several sites)."
+  },
+  "savedProxiesHint": "Set up a proxy once, such as a VPN's SOCKS5 or HTTP endpoint, and pick it by name in any site's Network settings or as the app-wide proxy. Editing it changes the route of every site that uses it. Deleting it blocks those sites until you pick another proxy for them, rather than sending them out directly. Passwords stay in this device's secure storage and are never included in backups.",
+  "@savedProxiesHint": {
+    "description": "Explanation shown in the hint dialog of the Saved proxies row in App Settings and on the Saved proxies screen: what a saved proxy is for, what editing and deleting one does to the sites that use it, and where its password is kept."
+  },
+  "savedProxiesCount": "{count, plural, =0{None saved} =1{1 saved} other{{count} saved}}",
+  "@savedProxiesCount": {
+    "description": "Subtitle of the Saved proxies row in App Settings: how many proxies the user has saved.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savedProxiesEmpty": "No saved proxies yet. Add one to use the same proxy for several sites.",
+  "@savedProxiesEmpty": {
+    "description": "Text shown in the middle of the Saved proxies screen when the user has not saved any proxy."
+  },
+  "savedProxiesAdd": "Add proxy",
+  "@savedProxiesAdd": {
+    "description": "Label of the floating button on the Saved proxies screen that opens the form for a new saved proxy."
+  },
+  "savedProxiesCheckAll": "Check all proxies",
+  "@savedProxiesCheckAll": {
+    "description": "Tooltip of the toolbar button on the Saved proxies screen that checks again whether every saved proxy can be reached."
+  },
+  "savedProxyUsage": "{count, plural, =0{Not used by any site} =1{Used by 1 site} other{Used by {count} sites}}",
+  "@savedProxyUsage": {
+    "description": "Line under a saved proxy in the Saved proxies list: how many of the user's sites are set to use it.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savedProxyUsageWithAppWide": "{count, plural, =0{Used as the app-wide proxy} =1{Used by 1 site and as the app-wide proxy} other{Used by {count} sites and as the app-wide proxy}}",
+  "@savedProxyUsageWithAppWide": {
+    "description": "Line under a saved proxy in the Saved proxies list when the app-wide proxy is also set to it: how many sites use it, and that the app-wide proxy does too.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savedProxyNew": "New proxy",
+  "@savedProxyNew": {
+    "description": "Title of the form for adding a saved proxy."
+  },
+  "savedProxyName": "Name",
+  "@savedProxyName": {
+    "description": "Label of the text field holding the name the user gives a saved proxy, such as the name of their VPN. The name is what sites' proxy pickers show."
+  },
+  "savedProxyNameRequired": "Enter a name",
+  "@savedProxyNameRequired": {
+    "description": "Error under the name field of the saved proxy form when it is left empty."
+  },
+  "savedProxyDeleteTitle": "Delete {name}?",
+  "@savedProxyDeleteTitle": {
+    "description": "Title of the confirmation dialog shown before deleting a saved proxy. {name} is the name the user gave it.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "savedProxyDeleteBody": "{count, plural, =0{No site uses this proxy.} =1{1 site uses this proxy. It will be blocked until you pick another proxy for it.} other{{count} sites use this proxy. They will be blocked until you pick another proxy for them.}}",
+  "@savedProxyDeleteBody": {
+    "description": "Body of the confirmation dialog shown before deleting a saved proxy: how many sites use it, and that those sites stop loading rather than connecting without a proxy.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "savedProxyDeleteAppWide": "The app-wide proxy uses it too, so the app's own downloads and every site without a proxy of its own will be blocked as well.",
+  "@savedProxyDeleteAppWide": {
+    "description": "Extra paragraph in the delete confirmation for a saved proxy that the app-wide proxy is set to."
+  },
+  "savedProxyMissing": "Missing saved proxy",
+  "@savedProxyMissing": {
+    "description": "Shown in place of a saved proxy's name when a site or the app-wide proxy names a saved proxy that was deleted. Such a site does not load until another proxy is picked."
+  },
+  "proxyStatusChecking": "Checking the proxy…",
+  "@proxyStatusChecking": {
+    "description": "Status line of the connection indicator while it is sending a request through a proxy to see whether it answers."
+  },
+  "proxyStatusCheckAgain": "Check again",
+  "@proxyStatusCheckAgain": {
+    "description": "Tooltip of the small button beside the connection indicator that checks the proxy again now."
+  },
+  "siteInfoConnection": "Connection",
+  "@siteInfoConnection": {
+    "description": "Label of the row in the site info sheet that names the route the site's traffic takes: no proxy, the app-wide proxy, a saved proxy, the site's own proxy or Tor."
+  },
+  "siteInfoConnectionDirect": "Direct, no proxy",
+  "@siteInfoConnectionDirect": {
+    "description": "Value of the Connection row in the site info sheet when the site's traffic goes out without any proxy."
   }
 }

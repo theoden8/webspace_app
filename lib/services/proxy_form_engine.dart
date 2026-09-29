@@ -9,12 +9,17 @@ class ProxyFormFields {
     this.address = '',
     this.username = '',
     this.password = '',
+    this.savedProxyId,
   });
 
   final ProxyType type;
   final String address;
   final String username;
   final String password;
+
+  /// The saved proxy picked, under [ProxyType.SAVED]. Not text: it comes
+  /// from a picker, so null means nothing was picked.
+  final String? savedProxyId;
 }
 
 /// Fold the form into the settings to store (PROXY-019).
@@ -32,22 +37,27 @@ class ProxyFormFields {
 ///  - **A visible field is the truth.** Under HTTP / HTTPS / SOCKS5 the
 ///    address and credentials are on screen, so what they hold is what gets
 ///    stored, and emptying one is how it gets removed.
-///  - **A hidden field is not.** Under DEFAULT and TOR they are not rendered,
-///    so their controllers hold whatever was last drawn. Writing that back
-///    would destroy the manual configuration the user expects to find again
-///    on switch-out, so the stored values carry over untouched (PROXY-010).
+///  - **A hidden field is not.** Under DEFAULT, TOR and SAVED they are not
+///    rendered, so their controllers hold whatever was last drawn. Writing
+///    that back would destroy the manual configuration the user expects to
+///    find again on switch-out, so the stored values carry over untouched
+///    (PROXY-010).
 UserProxySettings applyProxyForm({
   required UserProxySettings stored,
   required ProxyFormFields fields,
 }) {
-  final hidden =
-      fields.type == ProxyType.DEFAULT || fields.type == ProxyType.TOR;
+  final hidden = fields.type == ProxyType.DEFAULT ||
+      fields.type == ProxyType.TOR ||
+      fields.type == ProxyType.SAVED;
   return UserProxySettings(
     type: fields.type,
     address: hidden ? stored.address : _orNull(fields.address.trim()),
     username: hidden ? stored.username : _orNull(fields.username),
     password: hidden ? stored.password : _orNull(fields.password),
     torExitCountry: stored.torExitCountry,
+    savedProxyId: fields.type == ProxyType.SAVED
+        ? fields.savedProxyId
+        : stored.savedProxyId,
   );
 }
 

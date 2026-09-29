@@ -799,6 +799,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           incognito: widget.incognito,
         ),
         incognito: widget.incognito,
+        proxy: PlatformInfo.isProxySupported ? widget.proxySettings : null,
+        siteId: widget.siteId,
       ),
     );
   }

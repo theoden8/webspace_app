@@ -140,6 +140,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:share_plus/share_plus.dart';
@@ -847,6 +848,9 @@ void main() async {
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
   await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
+  // Before any site resolves a proxy: a site that names a saved proxy that
+  // has not loaded yet fails closed until it does.
+  await _runTimed('savedProxiesInit', SavedProxies.initialize);
   // Teach the outbound seams how to expand ProxyType.TOR. Until this is
   // installed every TOR request blocks rather than connecting directly,
   // which is the right failure but a useless one, so install it early —
@@ -7032,6 +7036,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // address/username without an app restart.
     final reloadedPrefs = await SharedPreferences.getInstance();
     await GlobalOutboundProxy.update(readGlobalOutboundProxy(reloadedPrefs));
+    await SavedProxies.reloadAfterImport();
     // Restore the downloaded-data blockers' user intent. Both carry only
     // the selection (DNS level / list URLs + enabled), never the blob —
     // the user re-downloads from App Settings to activate blocking.
@@ -8102,6 +8107,15 @@ class _WebSpacePageState extends State<WebSpacePage>
                       _resetAllWebViews();
                     },
                     onOutboundProxyChanged: _resetAllWebViews,
+                    savedProxyUsage: (id) => _webViewModels
+                        .where((m) =>
+                            m.proxySettings.type == ProxyType.SAVED &&
+                            m.proxySettings.savedProxyId == id)
+                        .length,
+                    onSavedProxiesChanged: () {
+                      _resetAllWebViews();
+                      unawaited(_refreshProxyRoutes());
+                    },
                   ),
                 ),
               );
@@ -8638,6 +8652,10 @@ class _WebSpacePageState extends State<WebSpacePage>
               SiteInfo(
                 siteName: model.getDisplayName(),
                 pageUrl: model.currentUrl,
+                proxy: PlatformInfo.isProxySupported
+                    ? model.proxySettings
+                    : null,
+                siteId: model.siteId,
                 containerId: containerIdFor(
                   siteId: model.siteId,
                   archiveContainerId: model.archiveContainerId,

@@ -23,6 +23,7 @@ import 'package:webspace/services/log_service.dart';
 /// Storage keys:
 /// - per-site proxy password: keyed by the site's `siteId`
 /// - global outbound-proxy password: keyed by [globalProxyKey]
+/// - saved proxy password: keyed by [savedProxyKey], owned by `SavedProxies`
 class ProxyPasswordSecureStorage {
   static const String _secureStorageKey = 'proxy_passwords';
 
@@ -30,6 +31,14 @@ class ProxyPasswordSecureStorage {
   /// are not possible — site ids are generated as random UUID-like strings,
   /// not literal `__global_outbound__`.
   static const String globalProxyKey = '__global_outbound__';
+
+  static const String _savedProxyPrefix = '__saved_proxy__:';
+
+  /// Key for a saved proxy's password. The prefix cannot collide with a
+  /// site id for the same reason [globalProxyKey] cannot.
+  static String savedProxyKey(String id) => '$_savedProxyPrefix$id';
+
+  static bool isSavedProxyKey(String key) => key.startsWith(_savedProxyPrefix);
 
   final FlutterSecureStorage _secureStorage;
   bool _secureStorageAvailable = true;
@@ -152,8 +161,10 @@ class ProxyPasswordSecureStorage {
     final removed = <String>[];
     await mutate((draft) {
       for (final key in draft.keys.toList()) {
-        // Always preserve the global key; it's not tied to a site.
-        if (key == globalProxyKey) continue;
+        // Always preserve the global key; it's not tied to a site. Saved
+        // proxy keys are not tied to a site either, and `SavedProxies`
+        // collects its own orphans.
+        if (key == globalProxyKey || isSavedProxyKey(key)) continue;
         if (!activeKeys.contains(key)) {
           draft.remove(key);
           removed.add(key);

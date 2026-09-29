@@ -8,9 +8,12 @@ import 'package:webspace/services/webview.dart' show ProxyManager;
 import 'package:webspace/settings/location.dart'
     show WebRtcPolicy, resolveWebRtcPolicy;
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart';
+import 'package:webspace/widgets/proxy_status_indicator.dart';
 
 /// Everything the network screen may change through a switch or a picker, in
 /// one value so the caller can apply a whole edit in a single `setState`.
@@ -23,10 +26,14 @@ class SiteNetworkValues {
   const SiteNetworkValues({
     required this.proxyType,
     this.torExitCountry,
+    this.savedProxyId,
     required this.webRtcPolicy,
   });
 
   final ProxyType proxyType;
+
+  /// The saved proxy named under [ProxyType.SAVED].
+  final String? savedProxyId;
 
   /// Country the Tor exit is pinned to, or null for any.
   final String? torExitCountry;
@@ -39,6 +46,7 @@ class SiteNetworkValues {
   SiteNetworkValues copyWith({
     ProxyType? proxyType,
     Object? torExitCountry = _keep,
+    Object? savedProxyId = _keep,
     WebRtcPolicy? webRtcPolicy,
   }) =>
       SiteNetworkValues(
@@ -46,20 +54,25 @@ class SiteNetworkValues {
         torExitCountry: identical(torExitCountry, _keep)
             ? this.torExitCountry
             : torExitCountry as String?,
+        savedProxyId: identical(savedProxyId, _keep)
+            ? this.savedProxyId
+            : savedProxyId as String?,
         webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
       );
 }
 
 /// The address check the save path runs. Lives beside the field so the rule
 /// and the field it guards cannot drift apart. TOR supplies its own address
-/// once the runtime is up, so there is nothing for the user to type and
-/// nothing to validate.
+/// once the runtime is up, and a saved proxy was checked where it was saved,
+/// so for both there is nothing for the user to type and nothing to validate.
 String? validateProxyAddress(
   AppLocalizations loc,
   ProxyType type,
   String? value,
 ) {
-  if (type == ProxyType.DEFAULT || type == ProxyType.TOR) {
+  if (type == ProxyType.DEFAULT ||
+      type == ProxyType.TOR ||
+      type == ProxyType.SAVED) {
     return null;
   }
   if (value == null || value.isEmpty) {
@@ -94,6 +107,7 @@ class SiteNetworkScreen extends StatefulWidget {
     this.showSavedSignIns = true,
     this.trackingProtectionEnabled = false,
     this.appProxySet = false,
+    this.savedProxies,
   });
 
   final String host;
@@ -126,6 +140,9 @@ class SiteNetworkScreen extends StatefulWidget {
   /// is off the menu (ETP-031).
   final bool trackingProtectionEnabled;
   final bool appProxySet;
+
+  /// Offered in the proxy picker. Defaults to [SavedProxies.all].
+  final List<SavedProxy>? savedProxies;
 
   @override
   State<SiteNetworkScreen> createState() => _SiteNetworkScreenState();
@@ -173,22 +190,47 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           : Text(ProxyManager.binding == ProxyBinding.perSite
               ? loc.siteSettingsProxyCoverageFirstOnly
               : loc.siteSettingsProxyCoverageAll),
-      trailing: DropdownButton<ProxyType>(
-        value: type,
-        onChanged: (next) {
-          if (next != null) _update(_values.copyWith(proxyType: next));
-        },
-        // TOR is only offerable where a Tor runtime exists (TOR-007). A site
-        // that already carries TOR — say, from a backup taken on iOS and
-        // imported on Android — keeps the option visible, because a
-        // DropdownButton whose `value` is absent from its `items` throws.
-        items: ProxyType.values
-            .where((v) =>
-                v != ProxyType.TOR ||
-                TorService.instance.isAvailable ||
-                type == ProxyType.TOR)
-            .map((v) => DropdownMenuItem(value: v, child: Text(v.name)))
-            .toList(),
+      trailing: ProxyChoiceDropdown(
+        type: type,
+        savedProxyId: _values.savedProxyId,
+        savedProxies: _savedProxies,
+        torAvailable: TorService.instance.isAvailable,
+        onChanged: (choice) => _update(_values.copyWith(
+          proxyType: choice.type,
+          // Only a pick of a saved proxy moves the reference; switching away
+          // keeps it, like the manual fields (PROXY-010).
+          savedProxyId: choice.type == ProxyType.SAVED
+              ? choice.savedProxyId
+              : _values.savedProxyId,
+        )),
+      ),
+    );
+  }
+
+  List<SavedProxy> get _savedProxies =>
+      widget.savedProxies ?? SavedProxies.all;
+
+  /// The saved proxy this site names: its route, and whether it answers
+  /// (PROXY-030). Edited in App Settings, so shown here, not edited.
+  Widget _savedProxy(AppLocalizations loc) {
+    SavedProxy? saved;
+    for (final p in _savedProxies) {
+      if (p.id == _values.savedProxyId) saved = p;
+    }
+    final route = saved == null
+        ? UserProxySettings(
+            type: ProxyType.SAVED, savedProxyId: _values.savedProxyId)
+        : saved.settings;
+    // Data, not copy (LOC-002): a type name and an address.
+    final address = saved == null
+        ? null
+        : '${saved.settings.type.name} ${saved.settings.address ?? ''}'.trim();
+    return ListTile(
+      leading: const Icon(Icons.vpn_lock_outlined),
+      title: address == null ? null : Text(address),
+      subtitle: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: ProxyStatusIndicator(proxy: route),
       ),
     );
   }
@@ -262,11 +304,14 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
       ),
       _proxyType(loc),
       if (type == ProxyType.TOR) _torExitCountry(loc),
+      if (type == ProxyType.SAVED) _savedProxy(loc),
       // TOR supplies its own loopback address and stream-isolation auth, so
       // the manual fields are inert while it is selected. Hidden, not
       // cleared: PROXY-010 requires a stored SOCKS5 config to survive a trip
       // through TOR and come back on switch-out.
-      if (type != ProxyType.DEFAULT && type != ProxyType.TOR) ...[
+      if (type != ProxyType.DEFAULT &&
+          type != ProxyType.TOR &&
+          type != ProxyType.SAVED) ...[
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
           child: TextFormField(

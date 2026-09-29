@@ -249,6 +249,9 @@ class ProxyRouterEngine {
       if (expanded == null) return null;
       return _encodeUpstream(ProxyRoute(siteId: route.siteId, upstream: expanded));
     }
+    // Same leftover-address hazard as TOR: an unresolved SAVED still holds
+    // the manual address the site had before, which is not its route.
+    if (proxy.type == ProxyType.SAVED) return null;
     final parsed = splitProxyAddress(proxy.address);
     if (parsed == null) return null;
     final host = parsed.host;

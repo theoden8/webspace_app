@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/services/outbound_http_types.dart'
+    show resolveEffectiveProxy;
+import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart'
+    show savedProxyLabel;
+import 'package:webspace/widgets/proxy_status_indicator.dart';
 
 /// Where the page's cookies, logins and site data live.
 enum SiteContainerKind {
@@ -23,6 +30,8 @@ class SiteInfo {
     required this.pageUrl,
     required this.containerId,
     required this.incognito,
+    this.proxy,
+    this.siteId,
   });
 
   /// The site the page runs as: its settings, identity and container.
@@ -33,6 +42,15 @@ class SiteInfo {
   /// it binds none.
   final String? containerId;
   final bool incognito;
+
+  /// The site's proxy as configured, or null where the platform binds no
+  /// proxy to a site (PROXY-006), in which case the sheet says nothing
+  /// about the route.
+  final UserProxySettings? proxy;
+
+  /// The Tor stream-isolation tag, so a Tor route is checked on the site's
+  /// own circuit.
+  final String? siteId;
 
   SiteContainerKind get containerKind {
     if (containerId != null) return SiteContainerKind.own;
@@ -102,11 +120,51 @@ class SiteInfoSheet extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(color: muted),
               ),
             ),
+            if (info.proxy != null) ...[
+              const SizedBox(height: 8),
+              _connection(loc, info.proxy!, info.siteId),
+            ],
           ],
         ),
       ),
     );
   }
+}
+
+/// Which route the site's traffic takes, and whether that route answers
+/// (PROXY-030).
+Widget _connection(
+  AppLocalizations loc,
+  UserProxySettings configured,
+  String? siteId,
+) {
+  final route = resolveEffectiveProxy(configured, siteId: siteId);
+  // Data, not copy (LOC-002): a type name and an address.
+  final address = switch (route.type) {
+    ProxyType.DEFAULT || ProxyType.SAVED => null,
+    ProxyType.TOR => route.type.name,
+    _ => '${route.type.name} ${route.address ?? ''}'.trim(),
+  };
+  final String value;
+  if (route.type == ProxyType.DEFAULT) {
+    value = loc.siteInfoConnectionDirect;
+  } else if (configured.type == ProxyType.DEFAULT) {
+    value = loc.networkSummaryAppProxy;
+  } else if (configured.type == ProxyType.SAVED) {
+    final saved = SavedProxies.byId(configured.savedProxyId);
+    value = saved == null ? loc.savedProxyMissing : savedProxyLabel(saved);
+  } else {
+    value = address ?? route.type.name;
+  }
+  return _InfoRow(
+    icon: Icons.vpn_lock_outlined,
+    label: loc.siteInfoConnection,
+    value: value,
+    detail: value == address ? null : address,
+    status: route.type == ProxyType.DEFAULT
+        ? null
+        : ProxyStatusIndicator(proxy: route),
+  );
 }
 
 class _InfoRow extends StatelessWidget {
@@ -115,6 +173,7 @@ class _InfoRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.detail,
+    this.status,
   });
 
   final IconData icon;
@@ -124,6 +183,8 @@ class _InfoRow extends StatelessWidget {
   /// A technical identifier under the value, selectable so it can be matched
   /// against logs.
   final String? detail;
+
+  final Widget? status;
 
   @override
   Widget build(BuildContext context) {
@@ -146,6 +207,7 @@ class _InfoRow extends StatelessWidget {
                 fontFamily: 'monospace',
               ),
             ),
+          if (status != null) status!,
         ],
       ),
     );

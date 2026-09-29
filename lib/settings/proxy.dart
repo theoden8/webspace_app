@@ -5,9 +5,15 @@
 /// [TorService] is listening on, with per-caller stream-isolation auth.
 /// See `openspec/specs/tor-proxy/spec.md` (TOR-001/TOR-003).
 ///
+/// [SAVED] is resolved late too: it names one of the user's saved proxies by
+/// [UserProxySettings.savedProxyId] and takes that proxy's configuration at
+/// use-time, so editing the saved proxy moves every site that names it
+/// (PROXY-029). A name that no longer resolves carries no address, which
+/// every seam already treats as unroutable.
+///
 /// Append new values only. The index is the serialized form, so
 /// renumbering silently rewrites every user's stored proxy.
-enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR }
+enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR, SAVED }
 
 class UserProxySettings {
   ProxyType type;
@@ -30,12 +36,18 @@ class UserProxySettings {
   /// cannot coexist — see TOR-014.
   String? torExitCountry;
 
+  /// The saved proxy this setting names. Meaningful only under
+  /// [ProxyType.SAVED]; kept across a switch to another type for the same
+  /// reason the manual fields are (PROXY-010).
+  String? savedProxyId;
+
   UserProxySettings({
     required this.type,
     this.address,
     this.username,
     this.password,
     this.torExitCountry,
+    this.savedProxyId,
   });
 
   /// The pin as tor's `ExitNodes` value, or null when unpinned or invalid.
@@ -65,6 +77,7 @@ class UserProxySettings {
         'address': address,
         'username': username,
         if (torExitCountry != null) 'torExitCountry': torExitCountry,
+        if (savedProxyId != null) 'savedProxyId': savedProxyId,
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) {
@@ -79,6 +92,7 @@ class UserProxySettings {
       username: text('username'),
       password: text('password'),
       torExitCountry: text('torExitCountry'),
+      savedProxyId: text('savedProxyId'),
     );
   }
 
@@ -106,7 +120,8 @@ class UserProxySettings {
     final a = address ?? '<none>';
     return 'type=$t address=$a hasUsername=${username != null && username!.isNotEmpty} '
         'hasPassword=${password != null && password!.isNotEmpty} '
-        'exitCountry=${torExitCountry ?? '<any>'}';
+        'exitCountry=${torExitCountry ?? '<any>'}'
+        '${type == ProxyType.SAVED ? ' saved=${savedProxyId ?? '<none>'}' : ''}';
   }
 
   /// Returns true if credentials are provided

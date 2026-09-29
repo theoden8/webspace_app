@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/saved_proxies.dart';
 
 /// Encode/decode the QR-shareable subset of a [WebViewModel] JSON dict.
 ///
@@ -110,10 +111,25 @@ class SiteSettingsQrCodec {
   };
 
   /// Strip a full `WebViewModel.toJson()` to the QR-shareable subset.
+  ///
+  /// A site that names a saved proxy carries that proxy's own fields instead
+  /// of the name: saved-proxy ids are local to this device, so the receiver
+  /// could only fail closed on one. A name that no longer resolves carries no
+  /// proxy at all.
   static Map<String, dynamic> shareableSubset(Map<String, dynamic> fullJson) {
     final out = <String, dynamic>{};
     for (final k in includedKeys) {
       if (fullJson.containsKey(k)) out[k] = fullJson[k];
+    }
+    final proxy = out['proxySettings'];
+    if (proxy is Map && proxy['type'] == ProxyType.SAVED.index) {
+      final resolved = resolveSavedProxy(UserProxySettings.fromJson(
+          Map<String, dynamic>.from(proxy)));
+      if (resolved.type == ProxyType.SAVED) {
+        out.remove('proxySettings');
+      } else {
+        out['proxySettings'] = resolved.toJson();
+      }
     }
     return out;
   }
@@ -208,15 +224,21 @@ class SiteSettingsQrCodec {
       if (proxy is Map) {
         final stripped = <String, dynamic>{
           for (final e in proxy.entries)
-            if (e.key is String && e.key != 'password')
+            if (e.key is String &&
+                e.key != 'password' &&
+                e.key != 'savedProxyId')
               e.key as String: e.value,
         };
         // `UserProxySettings.fromJson` coerces a numeric-string `type`, so
         // a value the review dialog could not classify would still apply.
         // Hold the payload to exactly what our own encoder emits.
+        // SAVED is never emitted: [shareableSubset] inlines the proxy.
         final type = stripped['type'];
         if (type != null &&
-            (type is! int || type < 0 || type >= ProxyType.values.length)) {
+            (type is! int ||
+                type < 0 ||
+                type >= ProxyType.values.length ||
+                type == ProxyType.SAVED.index)) {
           return null;
         }
         for (final key in const ['address', 'username', 'torExitCountry']) {
