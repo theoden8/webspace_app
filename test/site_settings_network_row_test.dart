@@ -10,6 +10,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
 /// Pushes site settings over a plain home route, so a back press is a real
 /// pop that the unsaved-changes guard can intercept.
@@ -75,6 +76,7 @@ void main() {
       (tester) async {
     await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
     expect(find.byType(DropdownButton<ProxyType>), findsNothing);
+    expect(find.byType(ProxyChoiceDropdown), findsNothing);
     expect(find.byType(DropdownButton<WebRtcPolicy>), findsNothing);
     expect(find.text('Saved sign-ins'), findsNothing);
   });
