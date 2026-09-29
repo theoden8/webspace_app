@@ -77,6 +77,11 @@ String? controlChannelFailure(TorStatus status) {
 /// The Tor Project's own answer to "which address reached me".
 final Uri exitCheck = Uri.parse('https://check.torproject.org/api/ip');
 
+/// A request that failed on its connection rather than timing out. Past the
+/// exit, a connection can drop mid-TLS on a circuit tor built correctly.
+bool connectionDropped(Object e) =>
+    e is http.ClientException || e is IOException;
+
 /// Country of [ipv4] in a tor GeoIP [table], or null when no row covers it.
 ///
 /// The table is the one tor resolved the pin against. What it is applied to
@@ -679,10 +684,11 @@ void main() {
       try {
         try {
           response = await ask();
-        } on http.ClientException catch (e) {
+        } on Exception catch (e) {
           // A kept-alive connection tor has just ended can fail the request
           // that races the close. The retry cannot hide a stale exit: that
           // answers, it does not fail.
+          if (!connectionDropped(e)) rethrow;
           trace('check request $when failed once: $e');
           response = await ask();
         }
@@ -957,9 +963,19 @@ void main() {
         outboundHttp.clientFor(TorService.instance.socksFor(siteId: 'after-nowhere')!);
     if (route is! OutboundClientReady) fail('no route through Tor: $route');
     final since = Stopwatch()..start();
+    Future<http.Response> ask() =>
+        route.client.get(exitCheck).timeout(const Duration(seconds: 45));
     try {
-      final response =
-          await route.client.get(exitCheck).timeout(const Duration(seconds: 45));
+      http.Response response;
+      try {
+        response = await ask();
+      } on Exception catch (e) {
+        // What this guards is a load that hangs because tor builds no
+        // circuit, and that still fails on the timeout.
+        if (!connectionDropped(e)) rethrow;
+        trace('after {$nowhere}: a request failed once: $e');
+        response = await ask();
+      }
       trace('after {$nowhere}: a request answered in ${since.elapsed.inSeconds}s');
       expect(response.statusCode, 200);
     } finally {
