@@ -333,8 +333,6 @@
   "appSettingsExperimentalTextureRenderingHint": "Quamque paginam in texturam pingit quam WebSpace ipsum componit, non ut visum Android separatum cum applicatione stratum. Paginas quae vacuae et albae manent donec telephonum vertas aut applicationem mutes prohibere potest. Scriptio, selectio textus et lectores quadri hoc modo minus probati sunt, et celeris volutatio haesitare potest. Valebit proximo applicationis initio.",
   "appSettingsExperimentalSiteTabs": "Schedae situs",
   "appSettingsExperimentalSiteTabsHint": "Sinit situm plures paginas simul apertas tenere, ut schedas navigatri: catalogum schedarum ex numero schedarum in summo, «Scheda nova» et «Schedam duplica» in indice, atque «In scheda nova aperire» cum nexum diu premis. Omnes schedae situs aditum et institutiones illius situs communicant. Hoc exstincto, quisque situs unam paginam ostendit, ut antea; schedae quas iam aperuisti servantur in tempus quo hoc iterum accendes.",
-  "appSettingsExperimentalPasskeys": "Claves accessus",
-  "appSettingsExperimentalPasskeysHint": "Sinit situs te inducere clave accessus quam servat applicatio clavium accessus quam in optionibus Android elegisti, sicut navigatrum facit. Android 14 vel recentius requiritur. Quaeque applicatio clavium accessus ipsa decernit utrum WebSpace pro situ confidat: Bitwarden te semel rogat, applicationes autem quae solis navigatris in indice Google confidunt, ut Google Password Manager et Proton Pass, recusant. Numquam adhibetur pro sitibus in tabulario.",
   "appSettingsDeveloperModeTorWarningConfirm": "Exstinguere",
   "appSettingsDeveloperModeAlreadyOn": "Modus fabri iam accensus est",
   "appSettingsDeveloperModeStepsAway": "{count} tactus adhuc ut modus fabri accendatur",

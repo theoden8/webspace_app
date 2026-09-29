@@ -331,8 +331,6 @@
   "appSettingsExperimentalTextureRenderingHint": "Zeichnet jede Seite in eine Textur, die WebSpace selbst zusammensetzt, statt als eigene Android-Ansicht, die mit der App überlagert wird. Das kann Seiten verhindern, die leer und weiß bleiben, bis Sie das Telefon drehen oder die App wechseln. Tippen, Textauswahl und Screenreader sind so weniger erprobt, und schnelles Scrollen kann ruckeln. Wirkt ab dem nächsten App-Start.",
   "appSettingsExperimentalSiteTabs": "Website-Tabs",
   "appSettingsExperimentalSiteTabsHint": "Lässt eine Website mehrere Seiten gleichzeitig offen halten, wie Tabs im Browser: eine Tab-Liste über die Tab-Anzahl oben, „Neuer Tab“ und „Tab duplizieren“ im Menü sowie „In neuem Tab öffnen“, wenn Sie einen Link gedrückt halten. Alle Tabs einer Website teilen deren Anmeldung und Einstellungen. Ausgeschaltet zeigt jede Website wie bisher eine Seite; bereits geöffnete Tabs bleiben erhalten, bis Sie die Funktion wieder einschalten.",
-  "appSettingsExperimentalPasskeys": "Passkeys",
-  "appSettingsExperimentalPasskeysHint": "Lässt Websites Sie mit einem Passkey anmelden, den die Passkey-App verwahrt, die Sie in den Android-Einstellungen gewählt haben, so wie ein Browser es tut. Erfordert Android 14 oder neuer. Jede Passkey-App entscheidet selbst, ob sie WebSpace für eine Website vertraut: Bitwarden fragt Sie einmal, während Apps, die nur Browsern auf Googles Liste vertrauen, etwa Google Password Manager und Proton Pass, ablehnen. Wird nie für Websites in einem Archiv verwendet.",
   "appSettingsDeveloperModeTorWarningConfirm": "Ausschalten",
   "appSettingsDeveloperModeAlreadyOn": "Entwicklermodus ist bereits an",
   "appSettingsDeveloperModeStepsAway": "Noch {count} Tippen bis zum Entwicklermodus",

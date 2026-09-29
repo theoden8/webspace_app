@@ -331,8 +331,6 @@
   "appSettingsExperimentalTextureRenderingHint": "Teiknar hverja síðu í áferð sem WebSpace setur sjálft saman, í stað sérstakrar Android-sýnar sem liggur ofan á forritinu. Það getur komið í veg fyrir síður sem haldast auðar og hvítar þar til þú snýrð símanum eða skiptir um forrit. Innsláttur, textaval og skjálesarar eru minna prófuð á þennan hátt og hröð skrunun getur hikstað. Tekur gildi næst þegar forritið er ræst.",
   "appSettingsExperimentalSiteTabs": "Flipar á vefsvæðum",
   "appSettingsExperimentalSiteTabsHint": "Leyfir vefsvæði að hafa margar síður opnar í einu, eins og flipa í vafra: flipalisti frá flipafjöldanum efst, „Nýr flipi“ og „Afrita flipa“ í valmyndinni, og „Opna í nýjum flipa“ þegar þú ýtir lengi á tengil. Allir flipar vefsvæðis deila innskráningu þess og stillingum. Þegar slökkt er á þessu sýnir hvert vefsvæði eina síðu, eins og áður; flipar sem þú hefur þegar opnað eru geymdir þar til þú kveikir á þessu aftur.",
-  "appSettingsExperimentalPasskeys": "Aðgangslyklar",
-  "appSettingsExperimentalPasskeysHint": "Leyfir vefsvæðum að skrá þig inn með aðgangslykli sem aðgangslyklaforritið sem þú valdir í Android-stillingum geymir, eins og vafri gerir. Krefst Android 14 eða nýrra. Hvert aðgangslyklaforrit ákveður sjálft hvort það treystir WebSpace fyrir vefsvæði: Bitwarden spyr þig einu sinni, en forrit sem treysta aðeins vöfrum á lista Google, til dæmis Google Password Manager og Proton Pass, neita. Aldrei notað fyrir vefsvæði í safni.",
   "appSettingsDeveloperModeTorWarningConfirm": "Slökkva",
   "appSettingsDeveloperModeAlreadyOn": "Þegar er kveikt á þróunarham",
   "appSettingsDeveloperModeStepsAway": "{count} pikk í viðbót til að kveikja á þróunarham",

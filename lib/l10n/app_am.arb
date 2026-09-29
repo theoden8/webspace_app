@@ -331,8 +331,6 @@
   "appSettingsExperimentalTextureRenderingHint": "እያንዳንዱን ገጽ ከመተግበሪያው ጋር እንደተደራረበ የተለየ የAndroid እይታ ሳይሆን WebSpace ራሱ በሚያቀናብረው ቴክስቸር ውስጥ ይስለዋል። ስልኩን እስኪያዞሩ ወይም መተግበሪያ እስኪቀይሩ ድረስ ባዶ ነጭ ሆነው የሚቀሩ ገጾችን ሊያስቀር ይችላል። በዚህ መንገድ መተየብ፣ ጽሑፍ መምረጥና የስክሪን አንባቢዎች ብዙም አልተሞከሩም፤ ፈጣን ማሸብለልም ሊንገራገጭ ይችላል። መተግበሪያው በሚቀጥለው ጊዜ ሲጀምር ተግባራዊ ይሆናል።",
   "appSettingsExperimentalSiteTabs": "የጣቢያ ትሮች",
   "appSettingsExperimentalSiteTabsHint": "አንድ ጣቢያ እንደ አሳሽ ትሮች በአንድ ጊዜ ብዙ ገጾችን ክፍት አድርጎ እንዲያቆይ ያስችላል፦ ከላይ ካለው የትሮች ቁጥር የሚከፈት የትሮች ዝርዝር፣ በምናሌው ውስጥ «አዲስ ትር» እና «ትሩን አባዛ»፣ እንዲሁም አገናኝን ተጭነው ሲይዙ «በአዲስ ትር ክፈት»። የአንድ ጣቢያ ሁሉም ትሮች የዚያን ጣቢያ መግቢያ እና ቅንብሮች ይጋራሉ። ሲጠፋ እያንዳንዱ ጣቢያ እንደበፊቱ አንድ ገጽ ብቻ ያሳያል፤ አስቀድመው የከፈቷቸው ትሮች መልሰው ሲያበሩት እንዲገኙ ይቀመጣሉ።",
-  "appSettingsExperimentalPasskeys": "የይለፍ ቁልፎች",
-  "appSettingsExperimentalPasskeysHint": "ድረ-ገጾች በAndroid ቅንብሮች ውስጥ በመረጡት የይለፍ ቁልፍ መተግበሪያ በተቀመጠ የይለፍ ቁልፍ እንዲያስገቡዎ ያስችላል፣ ልክ አሳሽ እንደሚያደርገው። Android 14 ወይም ከዚያ በኋላ ያስፈልጋል። እያንዳንዱ የይለፍ ቁልፍ መተግበሪያ WebSpaceን ለአንድ ጣቢያ ያምን እንደሆነ ራሱ ይወስናል፦ Bitwarden አንድ ጊዜ ይጠይቅዎታል፣ በGoogle ዝርዝር ላይ ያሉ አሳሾችን ብቻ የሚያምኑ መተግበሪያዎች ግን፣ እንደ Google Password Manager እና Proton Pass፣ እምቢ ይላሉ። በማህደር ውስጥ ላሉ ጣቢያዎች በጭራሽ ጥቅም ላይ አይውልም።",
   "appSettingsDeveloperModeTorWarningConfirm": "አጥፋ",
   "appSettingsDeveloperModeAlreadyOn": "የገንቢ ሁነታ አስቀድሞ በርቷል",
   "appSettingsDeveloperModeStepsAway": "የገንቢ ሁነታን ለማብራት {count} ተጨማሪ ንኪዎች",
