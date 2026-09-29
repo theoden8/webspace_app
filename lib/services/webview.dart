@@ -2730,6 +2730,19 @@ class WebViewFactory {
         forMainFrameOnly: false,
       ));
     }
+    // WebKit answers WebAuthn itself and has no public switch to stop it, so
+    // on iOS and macOS "no passkeys" is this shim, in every frame
+    // (PASSKEY-013). Without the browser passkey entitlement WebKit refuses
+    // anyway; with it, this is what keeps an archive-tier site from the
+    // system passkey sheet.
+    if (config.passkeys == null && PasskeyAccess.hostIsApple) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'passkey_block',
+        source: '${buildPasskeyBlockShim()}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: false,
+      ));
+    }
 
     // Always-on: rewrite `target="_blank"` anchors to `_self` so cross-domain
     // link taps route through shouldOverrideUrlLoading (reliable gesture)

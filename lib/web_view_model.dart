@@ -2054,9 +2054,10 @@ class WebViewModel {
           initialHtml: initialHtml,
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
-          passkeys: hostIsAndroid && id.effectivePasskeysEnabled
-              ? PasskeyAccess(isOnScreen: isActive ?? () => true)
-              : null,
+          passkeys: PasskeyAccess.forHost(
+            enabled: id.effectivePasskeysEnabled,
+            isOnScreen: isActive ?? () => true,
+          ),
           siteIcon: SiteIconTarget(
             siteUrl: iconSiteUrl,
             // Incognito and archive-tier icons stay in memory: an icon the

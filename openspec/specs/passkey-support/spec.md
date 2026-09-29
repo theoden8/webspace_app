@@ -1,9 +1,12 @@
 # passkey-support Specification
 
 ## Purpose
-Let a site sign the user in with a passkey on Android, the way a browser does:
+Let a site sign the user in with a passkey, the way a browser does. On Android
 the site's own origin is asserted to Android's Credential Manager, and the
-passkey app the user chose (Bitwarden, Keyguard, a test provider) answers.
+passkey app the user chose (Bitwarden, Keyguard, a test provider) answers. On
+iOS and macOS the WebView is WebKit, which does the same through
+AuthenticationServices on its own (PASSKEY-013), and Apple decides which apps
+may ask for any site (PASSKEY-014).
 
 Android System WebView ships WebAuthn off. Its own switch has two modes, and
 neither fits an app that shows arbitrary sites: `FOR_APP` asserts the app's
@@ -27,23 +30,26 @@ unlisted one. The app does not control that; see Known Limitations.
 
 ## Requirements
 
-### Requirement: PASSKEY-001 — Access is Android-only, off for archives
+### Requirement: PASSKEY-001 — Access is every site but an archive's
 
-Passkeys SHALL be offered on Android to every site except an archive-tier one:
-the system passkey sheet is OS-level UI naming the relying party, and a created
-passkey lives in the provider, outside the archive's keyspace (ARCH-006).
-`WebViewModel.effectivePasskeysEnabled` is the one reading of that rule, and
-nested webviews receive it through `launchUrl`.
+Passkeys SHALL be offered on Android, iOS and macOS to every site except an
+archive-tier one: the system passkey sheet is OS-level UI naming the relying
+party, and a created passkey lives in the provider, outside the archive's
+keyspace (ARCH-006). `WebViewModel.effectivePasskeysEnabled` is the one reading
+of that rule, and nested webviews receive it through `launchUrl`.
+`PasskeyAccess.forHost` turns it into a webview's access, and no webview builds
+one another way.
 
-There is no switch. Without the shim a site sees the WebView's default, no
-`PublicKeyCredential` at all, and a sign-in that probes for passkeys without
-checking the interface exists throws a TypeError and stalls: target.com's
-Continue did nothing (issue #567). With the shim, a device that cannot answer
-reads as one without a platform authenticator (PASSKEY-002), which sites
-handle.
+There is no switch. On Android, without the shim a site sees the WebView's
+default, no `PublicKeyCredential` at all, and a sign-in that probes for
+passkeys without checking the interface exists throws a TypeError and stalls:
+target.com's Continue did nothing (issue #567). With the shim, a device that
+cannot answer reads as one without a platform authenticator (PASSKEY-002),
+which sites handle.
 
-A webview whose `WebViewConfig.passkeys` is null SHALL get neither the shim
-nor the handlers, which leaves the WebView's default: no WebAuthn.
+A webview whose `WebViewConfig.passkeys` is null SHALL get no passkeys. On
+Android that is neither the shim nor the handlers, which leaves the WebView's
+default: no WebAuthn. On iOS and macOS it is the block shim (PASSKEY-013).
 
 #### Scenario: Any site outside an archive
 
@@ -51,6 +57,8 @@ nor the handlers, which leaves the WebView's default: no WebAuthn.
 **When** its page loads
 **Then** `PublicKeyCredential` is installed by the shim
 **And** the passkey handlers are registered on the webview
+**When** it loads on iOS or macOS
+**Then** nothing passkey-related is installed and WebKit's own WebAuthn answers (PASSKEY-013)
 
 #### Scenario: A sign-in that probes without checking the interface
 
@@ -65,7 +73,7 @@ without checking that `PublicKeyCredential` exists
 
 **Given** the site is in an open archive
 **When** the site, or a nested webview it opens, loads a page
-**Then** no passkey shim or handler is installed
+**Then** no passkey handler is installed, and on iOS and macOS the block shim is
 
 ---
 
@@ -251,10 +259,11 @@ only the operation and the DOMException name.
 
 ---
 
-### Requirement: PASSKEY-010 — The WebView's own WebAuthn is a comparison, not a path
+### Requirement: PASSKEY-010 — On Android the WebView's own WebAuthn is a comparison, not a path
 
-`PasskeyBackend.webView` sets the WebView's `WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER`
-instead of installing the bridge. It is reachable from tests only, because
+On Android `PasskeyBackend.webView` sets the WebView's
+`WEB_AUTHENTICATION_SUPPORT_FOR_BROWSER` instead of installing the bridge
+(on iOS and macOS it is the path, PASSKEY-013). It is reachable from tests only, because
 advertising the feature does not mean an authenticator is behind it. On the
 gate's emulator (API 35 AOSP image, `com.android.webview` 124.0.6367.219,
 three runs on 2026-09-28) the WebView advertises `WEB_AUTHENTICATION`, reads
@@ -318,6 +327,70 @@ throws it, and below API 34 the native call is not made.
 **When** `scripts/run_android_passkey_tests.sh` finishes
 **Then** it prints PASS or FAIL per gate with the evidence line, and exits non-zero on any FAIL
 
+---
+
+### Requirement: PASSKEY-013 — iOS and macOS: WebKit's own WebAuthn, hidden where passkeys are off
+
+On iOS and macOS the app SHALL NOT bridge WebAuthn. WKWebView implements it,
+and asks AuthenticationServices in the app's process with the calling frame's
+origin (WebKit `WebAuthenticatorCoordinatorProxy`, the
+`createCredential*Request(clientData:)` calls Apple documents for browser
+apps): a bridge would reach the same API, under the same entitlement check,
+with less of WebAuthn than WebKit implements (Permissions Policy, security
+keys, related origins, PRF, largeBlob). A webview with passkeys on gets
+`PasskeyBackend.webView` and nothing installed.
+
+WebKit's implementation has no public switch, so a webview whose passkeys are
+off (an archive-tier site's, PASSKEY-001) SHALL get the block shim (`buildPasskeyBlockShim`) at document start in
+every frame, in site, nested and popup webviews alike. It SHALL reject a
+`publicKey` create or get with NotAllowedError (an already aborted signal with
+its reason) without calling the engine, answer
+`isUserVerifyingPlatformAuthenticatorAvailable`,
+`isConditionalMediationAvailable` and every `getClientCapabilities` entry
+false, resolve the Signal API (`signalUnknownCredential`,
+`signalAllAcceptedCredentials`, `signalCurrentUserDetails`) without reaching
+the credential store, and leave every other credential type to the engine. It
+SHALL add nothing the engine lacks. NotAllowedError is what WebKit answers when
+the app may not use passkeys for the relying party, so a page sees the same in
+an unentitled build.
+
+#### Scenario: Archive-tier site on an entitled Mac
+
+**Given** a build holding the browser passkey entitlement and a site in an open archive
+**When** its page calls `navigator.credentials.create({publicKey})`
+**Then** it rejects with NotAllowedError and no system passkey sheet appears
+
+#### Scenario: A password request with passkeys off
+
+**Given** the block shim is installed
+**When** a page calls `navigator.credentials.get({password: true})`
+**Then** WebKit's own `get` answers it
+
+#### Scenario: Real engine
+
+**Given** Chromium with a CDP virtual authenticator that registers a passkey for an unshimmed page
+**When** a page with the block shim registers and signs in
+**Then** both reject with NotAllowedError and the authenticator holds no credential
+
+---
+
+### Requirement: PASSKEY-014 — The browser passkey entitlement is Apple's to grant
+
+AuthenticationServices lets an app use passkeys for any relying party only
+with a browser entitlement Apple grants as a managed capability; without it,
+only relying parties in the app's associated domains, which this app has none
+of. The committed entitlements SHALL NOT name it until Apple has granted it to
+the team: a signature claiming a managed entitlement its provisioning profile
+does not carry does not launch (the same SIGKILL `docs/releasing-macos.md`
+records for an ad-hoc bundle naming an app group), and the CI artifact is
+ad-hoc signed. Until then every site's request is refused by the OS.
+
+#### Scenario: Unentitled build
+
+**Given** a build without the entitlement and a site outside an archive
+**When** a page on an https origin calls `navigator.credentials.create({publicKey})`
+**Then** WebKit rejects it and no system passkey sheet appears
+
 ## Architecture
 
 | Piece | Where |
@@ -327,6 +400,8 @@ throws it, and below API 34 the native call is not made.
 | Handlers `webauthnStatus` / `webauthnRequest` / `webauthnCancel` | `WebViewFactory._registerPageHandlers` in `lib/services/webview.dart` (`test/js/page_bridge_authority.test.js`) |
 | Channel `org.codeberg.theoden8.webspace/passkey` | `lib/services/passkey_native.dart`, `android/.../PasskeyPlugin.kt` (`PasskeyCeremoniesTest.kt`) |
 | Gate | `scripts/run_android_passkey_tests.sh`, `integration_test/passkey_test.dart`, `tool/passkey_gate/` |
+| Access per host | `PasskeyAccess.forHost` in `lib/services/passkey_engine.dart` (`test/passkey_engine_test.dart`) |
+| Apple block shim | `buildPasskeyBlockShim` in `lib/services/passkey_shim.dart`, installed by `WebViewFactory._buildPageScripts` (`test/js/passkey_block_shim.test.js`, `test/browser/passkey_block_real_engine.test.js`) |
 
 ## Known Limitations
 
@@ -344,7 +419,23 @@ throws it, and below API 34 the native call is not made.
   both the F-Droid certificate
   (`4B:2B:82:5D:DD:A5:38:D0:72:2C:61:31:D1:C9:91:2F:E4:50:79:08:F5:B7:39:79:85:A0:97:83:CF:4F:B3:92`)
   and the Play one.
-- No conditional mediation (passkey autofill), no hybrid or security-key
-  transports beyond what the provider offers, no Permissions Policy delegation
-  to cross-origin frames.
-- iOS and macOS: not implemented.
+- Android: no conditional mediation (passkey autofill), no hybrid or
+  security-key transports beyond what the provider offers, no Permissions
+  Policy delegation to cross-origin frames.
+- **iOS and macOS need Apple's grant** (PASSKEY-014), requested by the
+  account holder:
+  - macOS: `com.apple.developer.web-browser.public-key-credential`, through
+    the macOS browsers passkeys form
+    (https://developer.apple.com/contact/request/macos-browsers-passkeys/).
+    Apple lists it for macOS 13.3 and Mac Catalyst only. The steps once it is
+    granted are in `docs/releasing-macos.md`.
+  - iOS: Apple's browser-passkey guide says iOS browser apps get the same, but
+    no iOS entitlement for it is documented. The browser identity Apple grants
+    on iOS is `com.apple.developer.web-browser` (default browser), whose
+    criteria forbid `NSPhotoLibraryUsageDescription`, which
+    `ios/Runner/Info.plist` declares for page uploads. Settle which one
+    AuthenticationServices checks with the request.
+- **The block shim reaches documents, not realms.** A frame the native
+  injection scope misses (`about:blank`, `srcdoc`, sandboxed) reaches WebKit's
+  own WebAuthn with passkeys off. It is BUG-009's class; on an unentitled build
+  WebKit refuses there anyway.
