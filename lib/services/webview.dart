@@ -449,6 +449,9 @@ HttpAuthSession _httpAuthSessionFor(WebViewConfig config) => HttpAuthSession(
 /// Whether the site's own blockers let a request for one of its page icons
 /// through: the DNS level and filter lists its webview applies to an image
 /// the page loads (ICON-013).
+void _logSiteIcon(String message) =>
+    LogService.instance.log('SiteIcon', message);
+
 bool _pageIconRequestAllowed(
   WebViewConfig config,
   Uri target,
@@ -4624,6 +4627,8 @@ class WebViewFactory {
                 if (call.isMainFrame) {
                   iconEngine.onLoadFinished(call.requestUrl.toString());
                 }
+                _logSiteIcon('documentLoaded main=${call.isMainFrame} '
+                    '${iconEngine.stateForLog}');
                 return null;
               },
             );
@@ -4633,13 +4638,19 @@ class WebViewFactory {
                 if (!call.isMainFrame) return null;
                 final documentUrl = call.requestUrl.toString();
                 final document = iconEngine.claimIconLinks(documentUrl);
+                _logSiteIcon('links claim=$document ${iconEngine.stateForLog}');
                 if (document == null) return null;
                 final links = SiteIconLink.listFrom(
                     call.args.isEmpty ? null : call.args.first);
                 final urls = siteIconCandidates(links, documentUrl);
                 unawaited(iconFetcher.best(urls, documentUrl).then((icon) {
-                  if (icon == null) return;
+                  if (icon == null) {
+                    _logSiteIcon('linked doc=$document none');
+                    return;
+                  }
                   final accepted = iconEngine.onLinkedIcon(document, icon.png);
+                  _logSiteIcon('linked doc=$document ${icon.edge}px '
+                      'taken=${accepted != null} ${iconEngine.stateForLog}');
                   if (accepted != null) siteIcon!.onIcon(accepted);
                 }).catchError((Object e) {
                   LogService.instance.log('Icon', 'Page icon fetch failed: $e',
@@ -5146,6 +5157,9 @@ class WebViewFactory {
           sensitivity: LogSensitivity.sensitive,
         );
         iconEngine?.onLoadStarted(url?.toString());
+        if (iconEngine != null) {
+          _logSiteIcon('loadStart ${iconEngine.stateForLog}');
+        }
         // Snapshot the navigation generation BEFORE any await — if a
         // later `shouldOverrideUrlLoading` advances the counter while
         // we're between IPCs, the previous frame is being torn down and
@@ -5232,6 +5246,8 @@ class WebViewFactory {
           ? null
           : (controller, icon) {
               final accepted = iconEngine.onIcon(icon);
+              _logSiteIcon('webview ${pngDimensions(icon)?.width}px '
+                  'taken=${accepted != null} ${iconEngine.stateForLog}');
               if (accepted != null) siteIcon!.onIcon(accepted);
             },
       onPageCommitVisible: (controller, url) {
@@ -5249,6 +5265,9 @@ class WebViewFactory {
           sensitivity: LogSensitivity.sensitive,
         );
         iconEngine?.onLoadFinished(url?.toString());
+        if (iconEngine != null) {
+          _logSiteIcon('loadStop ${iconEngine.stateForLog}');
+        }
         // An upgrade that loaded is no longer in flight. Without this the
         // engine's map grows by one per upgraded navigation, and a later
         // unrelated failure on the same URL string reads as a fallback to an

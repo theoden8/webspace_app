@@ -210,6 +210,12 @@ class SiteIconEngine {
   int _document = 0;
   int? _linksClaimed;
 
+  /// The decision state, for the app log: no URL, so it is not sensitive.
+  String get stateForLog => 'doc=$_document loading=$_loading '
+      'onSite=$_onSite linksChanged=$_iconLinksChanged '
+      'replacedAreSites=$_replacedIconsAreSites best=$_documentBestEdge '
+      'claimed=$_linksClaimed';
+
   bool _matchesSite(String? url) {
     final host = siteIconHost(url);
     return host != null && host == _siteHost;

@@ -102,6 +102,8 @@ void main() {
   late HttpServer server;
   late int port;
   final requested = <String>[];
+  final clock = Stopwatch();
+  final timeline = <String>[];
 
   setUpAll(() async {
     if (_siteIconsOnly) {
@@ -115,6 +117,7 @@ void main() {
     listenFixture(server, (request) async {
       final path = request.uri.path;
       requested.add('${request.requestedUri.host}$path');
+      timeline.add('${clock.elapsedMilliseconds}ms GET $path');
       final response = request.response;
       final icon = _icons[path];
       if (icon != null) {
@@ -137,6 +140,7 @@ void main() {
         response.statusCode = HttpStatus.notFound;
       }
       await response.close();
+      if (icon != null) timeline.add('${clock.elapsedMilliseconds}ms sent $path');
     });
   });
 
@@ -172,6 +176,10 @@ void main() {
     Duration settle = const Duration(seconds: 4),
   }) async {
     final accepted = <String>[];
+    timeline.clear();
+    clock
+      ..reset()
+      ..start();
     final url = 'http://127.0.0.1:$port$path';
     final key = ValueKey('site-icon-$path');
     await tester.pumpWidget(const SizedBox.shrink());
@@ -193,7 +201,11 @@ void main() {
               localCdnEnabled: false,
               siteIcon: SiteIconTarget(
                 siteUrl: url,
-                onIcon: (icon) => accepted.add(describe(icon)),
+                onIcon: (icon) {
+                  accepted.add(describe(icon));
+                  timeline.add('${clock.elapsedMilliseconds}ms took '
+                      '${describe(icon)}');
+                },
               ),
             ),
             onControllerCreated: (_) {},
@@ -212,6 +224,7 @@ void main() {
       await Future<void>.delayed(settle);
     });
     log('$path accepted=$accepted requested=$requested');
+    log('$path timeline=$timeline');
     return accepted;
   }
 
