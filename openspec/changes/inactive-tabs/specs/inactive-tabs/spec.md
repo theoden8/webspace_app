@@ -293,8 +293,8 @@ the copy SHALL receive the source's back/forward state under its own key: the
 live webview's capture when the site is loaded, else the source's saved bytes.
 The copy SHALL open parked, as "Open in new tab" does (TAB-006): the page on
 screen stays, no webview is built or disposed, and a snackbar offers "Switch".
-It SHALL be reachable from both overflow menus and from a long press on either
-refresh button.
+It SHALL be reachable from a long press on either refresh button; neither
+overflow menu SHALL offer it.
 
 #### Scenario: Branching off a page
 
@@ -351,11 +351,11 @@ takes effect without a restart.
 
 While tabs are off, a site SHALL behave as it did before tabs existed: the app
 bar SHALL show no tab count, a tap on the active site's chip SHALL do nothing,
-the overflow menus SHALL offer neither "New tab" nor "Duplicate tab", a long
-press on a refresh button SHALL do nothing, a long press on a link SHALL open no
-link menu, system back at the start of a page SHALL keep NAV-001 even in a tab
-opened from another, and no chip or tile SHALL show a count pill. Every way into
-tabs SHALL return before acting, not only hide its button.
+the overflow menus SHALL NOT offer "New tab", a long press on a refresh button
+SHALL do nothing, a long press on a link SHALL open no link menu, system back at
+the start of a page SHALL keep NAV-001 even in a tab opened from another, and no
+chip or tile SHALL show a count pill. Every way into tabs SHALL return before
+acting, not only hide its button.
 
 Turning tabs off SHALL NOT delete or rewrite a site's tabs. The site keeps
 showing its active tab, its other tabs stay stored under TAB-009's rules, and
