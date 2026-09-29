@@ -424,6 +424,24 @@ void main() {
       await sub.cancel();
     });
 
+    test('clear drops every icon in memory and on disk', () async {
+      final files = MemoryFileStore();
+      final store = SiteIconStore(store: files);
+      await store.initialize();
+      await store.offer(site, icon(64), persist: true);
+      await store.offer('https://other.test/', icon(64), persist: true);
+
+      final changes = <String?>[];
+      final sub = store.changes.listen(changes.add);
+      await store.clear();
+      await Future<void>.delayed(Duration.zero);
+      expect(store.get(site), isNull);
+      expect(store.get('https://other.test/'), isNull);
+      expect(await files.list(), isEmpty);
+      expect(changes, [null]);
+      await sub.cancel();
+    });
+
     test('turning a site incognito deletes its file', () async {
       final files = MemoryFileStore();
       final store = SiteIconStore(store: files);

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Android-emulator site-icon tier (ICON-009/010/011): which page icon a
+# Android-emulator site-icon tier (ICON-009/010/011/014): which page icon a
 # real Android System WebView hands to `onReceivedIcon`, and which of those
-# the app takes, on the first connected device/emulator.
+# the app takes, on the first connected device/emulator. A second run turns
+# on Site icons only, under which Android fetches the declared links instead
+# (ICON-013) and ignores the callback.
 #
 # Only Android WebView has the callback, so no other tier reaches this path.
 # The macOS integration job runs the same file for the fetch path.
@@ -21,6 +23,11 @@ fi
 
 # Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
 # layer (same rationale as the white-screen tier).
-exec timeout -k 30s 15m fvm flutter test \
+timeout -k 30s 15m fvm flutter test \
   integration_test/site_icon_test.dart \
   -d "$device_id" --flavor fdebug
+
+exec timeout -k 30s 15m fvm flutter test \
+  integration_test/site_icon_test.dart \
+  -d "$device_id" --flavor fdebug \
+  --dart-define=WS_SITE_ICONS_ONLY=true

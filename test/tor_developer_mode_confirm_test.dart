@@ -12,16 +12,23 @@
 //   * the count is read when the switch is flipped, not when the screen was
 //     built -- a site can be pinned to Tor from the drawer behind it.
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
+import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/site_icon_engine.dart';
+import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 
@@ -51,12 +58,15 @@ class _PresentRuntime implements TorRuntime {
   Future<void> reopenListeners() async {}
 }
 
+final Uint8List _png64 =
+    Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
+
 void main() {
   /// Read by the screen through the callback, and mutable so a test can pin a
   /// site after the screen is built.
   var torSites = 0;
 
-  Widget host({bool routerRunsHere = false, bool pageIconsRunHere = false}) =>
+  Widget host({bool routerRunsHere = false}) =>
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
@@ -64,7 +74,6 @@ void main() {
           currentSettings: AppThemeSettings(),
           torPinnedSiteCount: () => torSites,
           proxyRouterRunsHere: routerRunsHere,
-          pageIconsRunHere: pageIconsRunHere,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},
@@ -327,7 +336,8 @@ void main() {
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      expect(find.text('Experimental'), findsOneWidget);
+      // The row is scrolled to the top, so its header sits under the app bar.
+      expect(find.text('Experimental', skipOffstage: false), findsOneWidget);
       expect(find.text('Built-in Tor'), findsNothing,
           reason: 'Tor has no runtime on this host, so only the router shows');
 
@@ -347,16 +357,14 @@ void main() {
       expect(prefs.getBool(kExperimentalProxyRouterKey), isFalse);
     });
 
-    testWidgets('offers Page icons where the app fetches them, off by default',
+    testWidgets('offers Site icons only on every platform, off by default',
         (tester) async {
-      await tester.pumpWidget(host(pageIconsRunHere: true));
+      await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      final title = find.text('Page icons');
+      final title = find.text('Site icons only');
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      expect(find.text('Experimental'), findsOneWidget);
-      expect(find.text('Proxy router'), findsNothing);
 
       final tile =
           find.ancestor(of: title, matching: find.byType(SwitchListTile));
@@ -366,10 +374,47 @@ void main() {
       await tester.pumpAndSettle();
       expect(
           ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.pageIcons),
+              .isEnabled(ExperimentalFeature.siteIconsOnly),
           isTrue);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalPageIconsKey), isTrue);
+      expect(prefs.getBool(kExperimentalSiteIconsOnlyKey), isTrue);
+    });
+
+    testWidgets('Reset icon cache forgets every cached icon', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'favicon_url_https://a.test/': 'https://a.test/icon.png',
+        'favicon_svg_https://a.test/icon.svg': '<svg/>',
+        'favicon_url_https://b.test/':
+            'https://www.google.com/s2/favicons?domain=b.test&sz=256',
+        kExperimentalTorKey: true,
+      });
+      await FaviconUrlCache.initialize();
+      final files = MemoryFileStore();
+      final previous = SiteIconStore.instance;
+      addTearDown(() => SiteIconStore.instance = previous);
+      SiteIconStore.instance = SiteIconStore(store: files);
+      await SiteIconStore.instance.initialize();
+      await SiteIconStore.instance.offer(
+          'https://a.test/', SiteIcon(_png64, 64, 64),
+          persist: true);
+
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      final row = find.text('Reset icon cache');
+      await tester.scrollUntilVisible(row, 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pumpAndSettle();
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getKeys().where((k) => k.startsWith('favicon_')), isEmpty);
+      expect(prefs.getBool(kExperimentalTorKey), isTrue,
+          reason: 'only icon entries go');
+      expect(SiteIconStore.instance.get('https://a.test/'), isNull);
+      expect(await files.list(), isEmpty);
+      expect(find.text('Icon cache cleared'), findsOneWidget);
     });
 
     testWidgets('with Tor already off, developer mode turns off silently',

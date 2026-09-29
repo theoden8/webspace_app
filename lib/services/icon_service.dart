@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -332,9 +333,71 @@ bool _isIpAddress(String host) {
   return false;
 }
 
+/// Whether Google's and DuckDuckGo's icon services may be asked at all: not
+/// while a site's icon is taken only from the site (ICON-014).
+bool get publicIconServicesAllowed => !ExperimentalFeaturesService.instance
+    .isEnabled(ExperimentalFeature.siteIconsOnly);
+
+/// Whether [url] is an icon Google's or DuckDuckGo's service serves.
+bool isPublicIconServiceUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return false;
+  final host = uri.host.toLowerCase();
+  return (host == 'www.google.com' && uri.path == '/s2/favicons') ||
+      host == 'icons.duckduckgo.com';
+}
+
+/// [url], or null when it is a public icon service's and those may not be
+/// asked: an icon resolved before site icons only was turned on.
+String? usableIconUrl(String? url) =>
+    url != null && isPublicIconServiceUrl(url) && !publicIconServicesAllowed
+        ? null
+        : url;
+
+void _dropUnusableCachedIcon(String siteUrl) {
+  final cached = _faviconCache[siteUrl];
+  if (cached != null && usableIconUrl(cached) == null) {
+    _faviconCache.remove(siteUrl);
+    _faviconQualityCache.remove(siteUrl);
+  }
+}
+
+/// Why the icons on screen should be looked at again.
+enum IconReload {
+  /// Every icon cache was cleared, so every icon is fetched again.
+  all,
+
+  /// The sources an icon may come from changed (ICON-014), so an icon from a
+  /// source no longer allowed is fetched again.
+  sources,
+}
+
+final StreamController<IconReload> _reloadController =
+    StreamController<IconReload>.broadcast();
+
+/// Fires when icons already on screen should be looked at again.
+Stream<IconReload> get iconReloads => _reloadController.stream;
+
+/// Call after developer mode or the site icons only switch changes.
+void notifyIconSourcesChanged() {
+  for (final siteUrl in _faviconCache.keys.toList()) {
+    _dropUnusableCachedIcon(siteUrl);
+  }
+  _reloadController.add(IconReload.sources);
+}
+
+/// Clear the in-memory caches and have every icon on screen fetched again.
+/// The caller clears what is kept on disk first.
+void reloadAllIcons() {
+  clearFaviconCache();
+  _reloadController.add(IconReload.all);
+}
+
 // Check if we should use public icon services (Google, DuckDuckGo)
-// Returns false for http:// sites and IP addresses
+// Returns false for http:// sites and IP addresses, and under site icons only
 bool _shouldUsePublicIconServices(Uri uri) {
+  if (!publicIconServicesAllowed) return false;
+
   // Skip for non-HTTPS sites
   if (uri.scheme != 'https') return false;
 
@@ -577,6 +640,7 @@ Future<Favicon?> _findBestIcon(String url, UserProxySettings proxy) async {
 /// - 64: DuckDuckGo
 /// - 50: favicon package (HTML parsing + favicon.ico)
 Future<String?> getFaviconUrl(String url, {UserProxySettings? proxy}) async {
+  _dropUnusableCachedIcon(url);
   // Check cache first
   if (_faviconCache.containsKey(url)) {
     LogService.instance.log(
@@ -645,6 +709,7 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
   int bestQuality = 0;
   String? bestUrl;
 
+  _dropUnusableCachedIcon(url);
   // Check cache first - if we have a cached result, emit it immediately
   if (_faviconCache.containsKey(url) && _faviconCache[url] != null) {
     final cachedUrl = _faviconCache[url]!;

@@ -219,6 +219,8 @@ test('ICON-013: only the top document reports its load and its icon links', () =
       fetcherBlock > WEBVIEW.lastIndexOf('if (iconEngine != null) {', loaded),
     'the load report gates only the fetch path: on Android onReceivedIcon can '
     + 'overtake it, so it cannot open the gate for the webview\'s own icons');
+  assert.ok(WEBVIEW.includes('iconEngine == null || iconSource != PageIconSource.declaredLinks'),
+    'the fetch path runs only where the declared links are the icon source');
 
   const links = WEBVIEW.indexOf('handlerName: kIconLinksHandler');
   assert.notEqual(links, -1, 'the icon-links handler registration is gone');
@@ -233,7 +235,7 @@ test('ICON-013: only the top document reports its load and its icon links', () =
 });
 
 test('ICON-013: page icon fetches go through the guarded fetch only', () => {
-  const at = WEBVIEW.indexOf('final iconFetcher = ');
+  const at = WEBVIEW.indexOf('final iconFetcher =');
   assert.notEqual(at, -1, 'the icon fetcher is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf(';\n', WEBVIEW.indexOf('SiteIconFetcher(', at)));
   assert.ok(body.includes('fetchPageIconBytes('),
@@ -242,8 +244,21 @@ test('ICON-013: page icon fetches go through the guarded fetch only', () => {
     "a page icon must go through the site's proxy");
   assert.ok(body.includes('_pageIconRequestAllowed(config, target, documentUrl)'),
     "the site's blockers must see every page icon request");
-  assert.ok(body.includes('.isEnabled(ExperimentalFeature.pageIcons)'),
-    'the fetch path is experimental (DEVTOOLS-011): it must read its switch');
+});
+
+test('ICON-014: the webview icon and the fetched links never run together', () => {
+  const at = WEBVIEW.indexOf('onReceivedIcon: iconEngine == null');
+  assert.notEqual(at, -1, 'the onReceivedIcon wiring is gone');
+  const line = WEBVIEW.slice(at, WEBVIEW.indexOf('\n', at));
+  assert.ok(line.includes('iconSource != PageIconSource.webview'),
+    'onReceivedIcon must be dropped whenever the declared links are fetched: '
+    + 'it can overtake the load report the fetch path relies on');
+  assert.ok(WEBVIEW.includes('final iconSource = pageIconSource;'),
+    'both paths must read one source, taken once per webview');
+  const enable = WEBVIEW.indexOf('SiteIconNative.ensureEnabled()');
+  assert.ok(WEBVIEW.slice(WEBVIEW.lastIndexOf('if (', enable), enable)
+      .includes('iconSource == PageIconSource.webview'),
+    "WebView's favicon downloads are turned on only when its icon is taken");
 });
 
 test('ICON-009: popups and the shared page scripts never report a site icon', () => {

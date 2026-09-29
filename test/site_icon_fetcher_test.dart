@@ -23,6 +23,33 @@ Uint8List png(int width, [int? height]) => Uint8List.fromList(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  group('pageIconSourceFor', () {
+    test('WebKit platforms fetch the declared links', () {
+      expect(
+          pageIconSourceFor(android: false, webkit: true, siteIconsOnly: false),
+          PageIconSource.declaredLinks);
+      expect(
+          pageIconSourceFor(android: false, webkit: true, siteIconsOnly: true),
+          PageIconSource.declaredLinks);
+    });
+
+    test('Android takes the webview icon unless icons come only from the site',
+        () {
+      expect(
+          pageIconSourceFor(android: true, webkit: false, siteIconsOnly: false),
+          PageIconSource.webview);
+      expect(
+          pageIconSourceFor(android: true, webkit: false, siteIconsOnly: true),
+          PageIconSource.declaredLinks);
+    });
+
+    test('nothing where no webview hosts a site', () {
+      expect(
+          pageIconSourceFor(android: false, webkit: false, siteIconsOnly: true),
+          PageIconSource.none);
+    });
+  });
+
   group('decodeSiteIcon', () {
     test('keeps an icon within the bounds as it is', () async {
       final icon = await decodeSiteIcon(png(64));

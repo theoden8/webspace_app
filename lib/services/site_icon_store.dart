@@ -32,7 +32,7 @@ class SiteIconStore {
   Future<void> _io = Future.value();
 
   /// Fires the site URL whenever its icon is replaced or removed, and null
-  /// once the icons on disk have been loaded.
+  /// once the icons on disk have been loaded or all of them were cleared.
   Stream<String?> get changes => _changes.stream;
 
   static String _name(String siteUrl) =>
@@ -85,6 +85,20 @@ class SiteIconStore {
     final had = _entries.remove(name) != null;
     await _sync(name, persist: false);
     if (had) _changes.add(siteUrl);
+  }
+
+  /// Drop every icon, in memory and on disk.
+  Future<void> clear() async {
+    _entries.clear();
+    final store = _store;
+    if (store != null) {
+      await (_io = _io.then((_) async {
+        for (final name in await store.list()) {
+          await store.delete(name);
+        }
+      }).catchError((Object _) {}));
+    }
+    _changes.add(null);
   }
 
   // Icons for one page arrive in a burst; serialising the writes keeps two of

@@ -6,7 +6,7 @@ import 'package:webspace/settings/pref_read.dart';
 
 const String kExperimentalTorKey = 'experimentalTor';
 const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
-const String kExperimentalPageIconsKey = 'experimentalPageIcons';
+const String kExperimentalSiteIconsOnlyKey = 'experimentalSiteIconsOnly';
 const String kExperimentalTextureRenderingKey = 'experimentalTextureRendering';
 const String kExperimentalSiteTabsKey = 'experimentalSiteTabs';
 
@@ -23,9 +23,11 @@ enum ExperimentalFeature {
   /// reason as [tor]: developer mode alone ran it before this switch existed.
   proxyRouter(kExperimentalProxyRouterKey, defaultOn: true),
 
-  /// Page icons fetched from the links a site's page declares, where the
-  /// webview reports none (icon-fetching ICON-013). New, so off by default.
-  pageIcons(kExperimentalPageIconsKey, defaultOn: false),
+  /// A site's icon taken only from the site: no third-party icon service, and
+  /// on Android the links its page declares, fetched as on every other
+  /// platform, in place of the icon WebView reports (icon-fetching ICON-014).
+  /// New, so off by default.
+  siteIconsOnly(kExperimentalSiteIconsOnlyKey, defaultOn: false),
 
   /// Android's texture-layer webview composition (PAUSE-032). Off by
   /// default: every release before it drew pages with hybrid composition.

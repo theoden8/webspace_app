@@ -17,11 +17,11 @@ The features are:
 |---|---|---|---|
 | Embedded Tor client (`tor-proxy` TOR-007) | Built-in Tor | on | `TorService.isAvailable` |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
-| Page icons fetched from the links a site's page declares, on iOS, macOS and Linux (`icon-fetching` ICON-013) | Page icons | off | `WebViewFactory.createWebView`, read when a site's webview is created |
+| A site's icon taken only from the site: no third-party icon service, and on Android the declared links in place of WebView's icon (`icon-fetching` ICON-014) | Site icons only | off | `publicIconServicesAllowed` in `icon_service.dart`, read on every icon fetch; `pageIconSource` in `site_icon_fetcher.dart`, read when a site's webview is created |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
 | Tabs inside a site (`inactive-tabs` TAB-012) | Site tabs | off | `_tabsEnabled` in `main.dart`, read on every use |
 
-Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as.
+Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
 #### Scenario: A feature needs both
 
@@ -48,21 +48,21 @@ Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the grou
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and Texture page rendering, off
+- **THEN** the Experimental group lists Proxy router, on, and Texture page rendering, Site icons only and Site tabs, off
 - **AND** it does not list Built-in Tor, which has no runtime on Android
 
 #### Scenario: A platform with neither Tor nor the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists only Page icons, off
+- **THEN** the Experimental group lists only Site icons only and Site tabs, both off
 
-#### Scenario: Page icons start off
+#### Scenario: Site icons only starts off
 
-- **GIVEN** a macOS build with developer mode on and the Page icons switch never touched
-- **WHEN** a site's page loads
-- **THEN** the app fetches none of the icon links the page declares
-- **AND** after the user turns Page icons on, a site opened afterwards gets its page's own icon
+- **GIVEN** an Android build with developer mode on and the Site icons only switch never touched
+- **WHEN** a site's icon is fetched
+- **THEN** Google's and DuckDuckGo's icon services are asked, and the site's webview reports its icon
+- **AND** after the user turns Site icons only on, neither service is asked, and a site opened afterwards gets the icon its page declares
 
 #### Scenario: The proxy router switch applies at next launch
 
