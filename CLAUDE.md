@@ -51,7 +51,7 @@ in the Xcode project. Spec: PLATFORM-006.
 
 - **`[ci-only: <jobs>]` narrows a CI run.** A commit message carrying it runs only
   the jobs it names and skips the rest; tokens are `validate`, `design`, `android`,
-  `linux`, `apple`, `passkey`, comma-separated (`[ci-only: apple,validate]`). For a bisection
+  `linux`, `apple`, comma-separated (`[ci-only: apple,validate]`). For a bisection
   that reads one tier this is the difference between one runner and five. It is
   honoured on `pull_request` only, so a marker that survives a merge cannot silence
   master, and the guardrails are gated by

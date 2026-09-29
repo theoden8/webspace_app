@@ -314,7 +314,7 @@ throws it, and below API 34 the native call is not made.
 
 #### Scenario: CI run
 
-**Given** the `android-passkey` job on an API 35 AOSP emulator
+**Given** the Android job's passkey gate step on an API 35 AOSP emulator
 **When** `scripts/run_android_passkey_tests.sh` finishes
 **Then** it prints PASS or FAIL per gate with the evidence line, and exits non-zero on any FAIL
 
