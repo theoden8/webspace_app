@@ -14,7 +14,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
@@ -23,7 +22,6 @@ import 'package:webspace/services/tor_geoip_web.dart'
 import 'package:webspace/services/tor_socks_probe_web.dart'
     if (dart.library.io) 'package:webspace/services/tor_socks_probe_io.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/app_prefs.dart';
 
 export 'package:webspace/services/tor_engine.dart'
     show
@@ -56,9 +54,7 @@ const String kTorDaemonLogTag = 'TorLog';
 ///
 /// The two Apple platforms ship it; nothing else does (TOR-007), and asking
 /// elsewhere must not touch a channel, or `receiveBroadcastStream().listen`
-/// throws MissingPluginException. This is capability, not permission:
-/// developer mode and the Experimental Tor switch still decide whether
-/// anything may offer Tor, and that gate lives on [TorService].
+/// throws MissingPluginException.
 bool get _hasNativeTor =>
     !kIsWeb &&
     (defaultTargetPlatform == TargetPlatform.iOS ||
@@ -145,14 +141,6 @@ class MethodChannelTorRuntime implements TorRuntime {
       'options': [
         for (final (key, value) in options) [key, value],
       ],
-    });
-  }
-
-  @override
-  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
-    if (!isAvailable) return;
-    await _channel.invokeMethod<void>('setSocksIsolation', {
-      'isolateDestAddr': isolateDestAddr,
     });
   }
 
@@ -330,7 +318,6 @@ class TorService {
       // screen, so a pushed-only configuration was simply absent on every
       // relaunch (TOR-016).
       bridgeLoader: () => TorBridgeSecureStorage().load(),
-      isolateDestAddrLoader: readTorIsolateDestAddr,
       // Downloaded on the device, never shipped (LICENSE-002).
       geoIpStore: createTorGeoIpStore(),
       socksProbe: createTorSocksProbe(),
@@ -363,38 +350,17 @@ class TorService {
   final TorLogBridge _logs;
   StreamSubscription<TorStatus>? _statusTap;
 
-  /// Whether anything may offer or start Tor.
-  ///
-  /// Two conditions, and both are gates rather than one being a detail of
-  /// the other. The platform must actually have the runtime (TOR-007), and
-  /// the Experimental group's Tor switch must be on with developer mode
-  /// (DEVTOOLS-011).
-  ///
-  /// Developer mode used to be held by the interstitial not existing. It
-  /// exists now, and the gate stays for a different reason: tor runs at most
-  /// once per process (TOR-020, BUG-013 gap 3), so a session that loses it
-  /// cannot get it back until the app restarts — a feature that works until
-  /// it doesn't and then asks for a relaunch. That, plus no tier having ever
-  /// run the plugin on iOS, is what holds it. Not the surface.
-  ///
-  /// The gate lives here rather than in [MethodChannelTorRuntime] or
-  /// [TorEngine], which answer the narrower question "does this build have
-  /// a tor to talk to" and are unit-tested against fakes on that basis.
-  /// Every start path below re-checks it, so the answer does not depend on
-  /// the caller having asked first.
-  bool get isAvailable =>
-      _engine.isAvailable &&
-      ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.tor);
-
-  /// The capability half of [isAvailable]: whether this build has a Tor to
-  /// talk to at all. Split out because a screen in front of a Tor-bound site
-  /// has to tell "no Tor on this platform" from "Tor is behind developer
-  /// mode" — the same status, `stopped`, with different things for the user
-  /// to do about it (TOR-007, TOR-022).
-  bool get hasNativeRuntime => _engine.isAvailable;
+  /// Whether anything may offer or start Tor: this build has the runtime
+  /// (TOR-007). Every start path below re-checks it, so the answer does not
+  /// depend on the caller having asked first.
+  bool get isAvailable => _engine.isAvailable;
 
 
   TorStatus get status => _engine.status;
+
+  /// The reasons holding the runtime up: site ids, the app-wide tag, and the
+  /// prefixed holders in `tor_holders.dart`.
+  Set<String> get holders => _engine.holders;
   Stream<TorStatus> get statusStream => _engine.statusStream;
 
   /// `host:port` of the live SOCKS5 listener, or null when not up.
@@ -411,10 +377,8 @@ class TorService {
   void release(String reason) => _engine.release(reason);
 
   Future<void> syncHolders(Iterable<String> reasons) async {
-    // Not an early return: turning developer mode off while Tor sites are
-    // configured has to release the holders it already took, or the runtime
-    // stays pinned up for a feature the user can no longer reach.
-    await _engine.syncHolders(isAvailable ? reasons : const <String>[]);
+    if (!isAvailable) return;
+    await _engine.syncHolders(reasons);
   }
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
@@ -444,12 +408,6 @@ class TorService {
     await _engine.restart();
   }
 
-  /// Apply the destination-isolation choice, live where Tor is already up.
-  Future<void> applySocksIsolation({required bool isolateDestAddr}) async {
-    if (!isAvailable) return;
-    await _engine.applySocksIsolation(isolateDestAddr: isolateDestAddr);
-  }
-
   /// Pin every circuit to a country (tor `ExitNodes` syntax) or clear it.
   /// Global to the runtime — see TOR-014 for why that makes per-site pins
   /// mutually exclusive.
@@ -464,9 +422,9 @@ class TorService {
   /// SOCKS5 settings for a site (or app-global traffic when [siteId] is
   /// null). Null means "not routable yet" — the caller must fail closed.
   ///
-  /// Returns null with the gate shut, which is the fail-closed answer: a
-  /// site still carrying `ProxyType.TOR` from before developer mode was
-  /// turned off is blocked, never quietly sent out over the device IP.
+  /// Returns null on a platform with no runtime, which is the fail-closed
+  /// answer: a site carrying `ProxyType.TOR` imported from an Apple device is
+  /// blocked, never quietly sent out over the device IP.
   UserProxySettings? socksFor({String? siteId}) =>
       isAvailable ? _engine.socksFor(TorEngine.tagFor(siteId)) : null;
 

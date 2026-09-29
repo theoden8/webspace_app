@@ -94,7 +94,7 @@ stream isolation, with no entitlement extensions needed.
   `address`/`username`/`password` fields without erasing them.
 - `ip-leakage`: stream-isolation contract (every per-site Tor circuit
   is partitioned by `siteId`, never shared across sites), reaffirm the
-  DNS posture (Tor's `SocksPort … IsolateDestAddr` plus the existing
+  DNS posture (Tor's SOCKS listener plus the existing
   `socks5_proxy` remote-resolution idiom keep the local resolver out of
   the loop), and a new row in the LEAK-007 coverage matrix for the
   Tor-runtime control port (loopback-only, no external traffic).

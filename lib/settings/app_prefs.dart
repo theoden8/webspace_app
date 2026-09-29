@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
 /// Registry of global app-level preferences that are round-tripped through
@@ -75,12 +74,9 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // affordances that only make sense while diagnosing the app (the Repaint
   // Screen menu entry), so an ordinary user never meets them.
   kDeveloperModeKey: false,
-  // DEVTOOLS-011: the Experimental group's switch for the embedded Tor
-  // client. On by default, so developer mode alone keeps opening Tor for a
-  // user who had it before the switch existed.
-  kExperimentalTorKey: true,
-  // DEVTOOLS-011: the switch for Android's per-site proxy router, on by
-  // default for the same reason.
+  // DEVTOOLS-011: the switch for Android's per-site proxy router. On by
+  // default, so developer mode alone keeps running it for a user who had it
+  // before the switch existed.
   kExperimentalProxyRouterKey: true,
   // DEVTOOLS-011: the switch that takes a site's icon only from the site
   // (ICON-014). New, so off.
@@ -127,12 +123,6 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // back silently when the host does not answer. On by default; chromium does
   // the same for ordinary navigations and Android WebView does not ship it.
   kHttpsUpgradeEnabledKey: true,
-  // TOR-003: whether tor also splits circuits by destination address. Per-site
-  // isolation is the SOCKS credentials and is never optional; this is the
-  // extra split, which gives a site one exit per host it loads from. On by
-  // default. Off is for sites that check the client IP across their own hosts,
-  // and for anyone who would rather read one address than two.
-  kTorIsolateDestAddrKey: false,
   // SCREENBLOCK-002: withhold the whole app from screenshots, recordings and
   // the recent-apps preview. Android only; off by default.
   kBlockScreenshotsKey: false,
@@ -141,7 +131,6 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
 const String kBackForwardCacheEnabledKey = 'backForwardCacheEnabled';
 
 const String kHttpsUpgradeEnabledKey = 'httpsUpgradeEnabled';
-const String kTorIsolateDestAddrKey = 'torIsolateDestAddr';
 
 const String kBlockScreenshotsKey = 'blockScreenshots';
 
@@ -263,13 +252,4 @@ Future<void> _writeTypedPref(
       'Unsupported pref type ${value.runtimeType} for key $key',
     );
   }
-}
-
-/// The isolation preference, for the Tor engine's loader. Defaults to the
-/// registry value, so a device that has never seen the setting keeps the
-/// stricter behaviour.
-Future<bool> readTorIsolateDestAddr() async {
-  final prefs = await SharedPreferences.getInstance();
-  return readPrefAs<bool>(prefs, kTorIsolateDestAddrKey) ??
-      kExportedAppPrefs[kTorIsolateDestAddrKey]! as bool;
 }

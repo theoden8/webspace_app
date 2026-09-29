@@ -17,9 +17,9 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
+import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/tor_status_card.dart'
@@ -59,7 +59,8 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       setState(() => _status = s);
     });
     // Kick a start attempt if nothing else has. Idempotent under refcount.
-    TorService.instance.maybeStart('interstitial:${identityHashCode(this)}');
+    TorService.instance
+        .maybeStart('$kTorInterstitialHolderPrefix${identityHashCode(this)}');
   }
 
   @override
@@ -69,7 +70,8 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     // symmetric with the acquire above. The site itself still holds its own
     // refcount via _syncTorHolders, so the runtime does not shut down just
     // because the placeholder went away.
-    TorService.instance.release('interstitial:${identityHashCode(this)}');
+    TorService.instance
+        .release('$kTorInterstitialHolderPrefix${identityHashCode(this)}');
     super.dispose();
   }
 
@@ -125,12 +127,10 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     // live one, so the branch and the state it renders cannot disagree.
     final gate = torGateFor(
       status: s,
-      hasNativeTor: TorService.instance.hasNativeRuntime,
-      torEnabled:
-          ExperimentalFeaturesService.instance.isEnabled(ExperimentalFeature.tor),
+      hasNativeTor: TorService.instance.isAvailable,
     );
 
-    Widget gated({required bool unsupported}) => centered([
+    Widget unsupported() => centered([
       Icon(
         Icons.do_not_disturb_on_outlined,
         size: _glyphSize,
@@ -138,13 +138,13 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       ),
       const SizedBox(height: Spacing.lg),
       Text(
-        unsupported ? loc.torUnavailableTitle : loc.torDeveloperGateTitle,
+        loc.torUnavailableTitle,
         textAlign: TextAlign.center,
         style: theme.textTheme.titleMedium,
       ),
       const SizedBox(height: Spacing.sm),
       Text(
-        unsupported ? loc.torUnavailableBody : loc.torDeveloperGateBody,
+        loc.torUnavailableBody,
         textAlign: TextAlign.center,
         style: theme.textTheme.bodySmall?.copyWith(
           color: scheme.onSurfaceVariant,
@@ -270,8 +270,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     // could not carry that obligation -- `stopped` is two different screens
     // depending on whether anything can start (TOR-022).
     return switch (gate) {
-      TorGate.unsupported => gated(unsupported: true),
-      TorGate.switchedOff => gated(unsupported: false),
+      TorGate.unsupported => unsupported(),
       // Sound by construction: torGateFor returns `errored` only for a
       // TorErrored status, and both read the same `s`.
       TorGate.errored => failure(s as TorErrored),

@@ -15,7 +15,6 @@ The features are:
 
 | Feature | Switch | Default | Gate |
 |---|---|---|---|
-| Embedded Tor client (`tor-proxy` TOR-007) | Built-in Tor | on | `TorService.isAvailable` |
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | A site's icon taken only from the site: no third-party icon service, and on Android the declared links in place of WebView's icon (`icon-fetching` ICON-014) | Site icons only | off | `publicIconServicesAllowed` in `icon_service.dart`, read on every icon fetch; `pageIconSource` in `site_icon_fetcher.dart`, read when a site's webview is created |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
@@ -23,35 +22,36 @@ The features are:
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
+The embedded Tor client (`tor-proxy` TOR-007) was the first feature in the group, with a Built-in Tor switch that defaulted on; it graduated, and Tor is now offered wherever the platform has the runtime, with developer mode on or off.
+
 #### Scenario: A feature needs both
 
-- **GIVEN** developer mode is on and the Built-in Tor switch is off
-- **WHEN** the user opens a site's proxy settings on iOS
-- **THEN** Tor is not offered
-- **AND** turning the switch on offers it with no restart
+- **GIVEN** developer mode is on and the Site tabs switch is off
+- **WHEN** the user opens a site
+- **THEN** it shows one page, with no tabs
+- **AND** turning the switch on offers tabs with no restart
 
 #### Scenario: Developer mode off closes every feature
 
-- **GIVEN** the Built-in Tor switch is on
+- **GIVEN** the Site tabs switch is on
 - **WHEN** the user turns developer mode off
-- **THEN** Tor is not reachable
-- **AND** turning developer mode back on makes it reachable again, with the switch still on
+- **THEN** tabs are not reachable
+- **AND** turning developer mode back on makes them reachable again, with the switch still on
 
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with Built-in Tor on
+- **AND** after unlocking developer mode the Developer section shows it, with Site tabs off and no Tor switch
 
 #### Scenario: Only what this platform can run
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
 - **THEN** the Experimental group lists Proxy router, on, and Texture page rendering, Site icons only and Site tabs, off
-- **AND** it does not list Built-in Tor, which has no runtime on Android
 
-#### Scenario: A platform with neither Tor nor the router
+#### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
@@ -73,6 +73,6 @@ Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the grou
 
 #### Scenario: Switches survive a backup round trip
 
-- **GIVEN** the Built-in Tor switch is off and the user exports settings
+- **GIVEN** the Site icons only switch is on and the user exports settings
 - **WHEN** that backup is imported
-- **THEN** the switch is off and Tor is unreachable without a restart
+- **THEN** the switch is on without a restart

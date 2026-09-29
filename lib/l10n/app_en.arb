@@ -1543,19 +1543,6 @@
   "@appSettingsDeveloperModeEnabled": {
     "description": "Confirmation shown after the seventh tap on the version row turns developer mode on"
   },
-  "appSettingsDeveloperModeTorWarningTitle": "Turn Developer mode off?",
-  "@appSettingsDeveloperModeTorWarningTitle": {
-    "description": "Title of the dialog shown when the user turns Developer mode off while one or more sites are set to use Tor. Tor only runs while Developer mode is on, so those sites become blocked."
-  },
-  "appSettingsDeveloperModeTorWarningBody": "{count, plural, one{One site is set to use Tor. It will stay blocked until you turn Developer mode back on, rather than loading over your real IP address.} other{{count} sites are set to use Tor. They will stay blocked until you turn Developer mode back on, rather than loading over your real IP address.}}",
-  "@appSettingsDeveloperModeTorWarningBody": {
-    "description": "Body of the dialog warning that turning Developer mode off blocks every site pinned to Tor. Explains the sites are blocked rather than sent out unproxied.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "appSettingsExperimental": "Experimental",
   "@appSettingsExperimental": {
     "description": "Heading of a group inside App settings > Developer, shown only while Developer mode is on. Lists features that ship before they are finished, each with its own on/off switch."
@@ -1563,27 +1550,6 @@
   "appSettingsExperimentalHint": "Features that ship before they are finished. Each needs Developer mode and its own switch here. Turning Developer mode off turns them all off; their switches keep their positions for when it comes back on.",
   "@appSettingsExperimentalHint": {
     "description": "Explanation behind the hint button of the Experimental heading in App settings > Developer."
-  },
-  "appSettingsExperimentalTor": "Built-in Tor",
-  "@appSettingsExperimentalTor": {
-    "description": "Switch in App settings > Developer > Experimental that turns on the Tor client built into the app, which sites can use as their proxy. Tor is the name of the anonymity network and is not translated."
-  },
-  "appSettingsExperimentalTorHint": "Lets sites use the Tor client built into the app. Experimental because Tor runs at most once per launch: if it stops, the app has to be restarted to get it back. Turning this off blocks every site set to use Tor rather than loading it over your real IP address.",
-  "@appSettingsExperimentalTorHint": {
-    "description": "Explanation behind the hint button of the Built-in Tor switch in App settings > Developer > Experimental."
-  },
-  "appSettingsExperimentalTorOffTitle": "Turn Built-in Tor off?",
-  "@appSettingsExperimentalTorOffTitle": {
-    "description": "Title of the dialog shown when the user turns the Built-in Tor switch off while some sites are set to use Tor."
-  },
-  "appSettingsExperimentalTorOffBody": "{count, plural, one{One site is set to use Tor. It will stay blocked until you turn Built-in Tor back on, rather than loading over your real IP address.} other{{count} sites are set to use Tor. They will stay blocked until you turn Built-in Tor back on, rather than loading over your real IP address.}}",
-  "@appSettingsExperimentalTorOffBody": {
-    "description": "Body of the dialog warning that turning Built-in Tor off blocks every site set to use Tor. Explains the sites are blocked rather than sent out unproxied.",
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
   },
   "appSettingsExperimentalProxyRouter": "Proxy router",
   "@appSettingsExperimentalProxyRouter": {
@@ -1628,10 +1594,6 @@
   "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab and Duplicate tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on.",
   "@appSettingsExperimentalSiteTabsHint": {
     "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page."
-  },
-  "appSettingsDeveloperModeTorWarningConfirm": "Turn off",
-  "@appSettingsDeveloperModeTorWarningConfirm": {
-    "description": "Button that confirms turning Developer mode off even though it will block sites set to use Tor."
   },
   "appSettingsDeveloperModeAlreadyOn": "Developer mode is already on",
   "@appSettingsDeveloperModeAlreadyOn": {
@@ -4279,6 +4241,51 @@
       }
     }
   },
+  "torStateUsedBy": "Using Tor",
+  "@torStateUsedBy": {
+    "description": "Section heading on the Tor screen (opened by tapping the Tor card in App settings). Below it is the list of what currently sends traffic through Tor: sites by name, and the app's own traffic."
+  },
+  "torStateNothing": "Nothing is using Tor",
+  "@torStateNothing": {
+    "description": "Shown on the Tor screen in place of the list of sites when no site and not the app-wide proxy is set to use Tor."
+  },
+  "torStateAppWide": "All app traffic",
+  "@torStateAppWide": {
+    "description": "Row on the Tor screen's 'Using Tor' list meaning the app-wide outbound proxy is set to Tor, so the app's own requests and every site left on the default proxy go through Tor."
+  },
+  "torStateAppWideSubtitle": "The outbound proxy in App settings is set to Tor",
+  "@torStateAppWideSubtitle": {
+    "description": "Subtitle under 'All app traffic' on the Tor screen, saying where that choice was made."
+  },
+  "torStateOtherSites": "{count, plural, one{One other site} other{{count} other sites}}",
+  "@torStateOtherSites": {
+    "description": "Row on the Tor screen's 'Using Tor' list counting sites that use Tor but whose names are not shown here (for example sites in an open archive).",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "torStateExitCountryHint": "Tor leaves the network from one country at a time, for every site at once. A site picks the country in its Network settings, and opening a site pinned to a different country closes the sites that disagree.",
+  "@torStateExitCountryHint": {
+    "description": "Explanation behind the hint button on the 'Exit country' row of the Tor screen. The row shows the country Tor's traffic currently exits from, or 'Any country'."
+  },
+  "torStateBridgesOff": "Off",
+  "@torStateBridgesOff": {
+    "description": "Subtitle of the 'Bridges' row on the Tor screen when Tor connects without bridges. When bridges are on, the row shows the transport's name instead."
+  },
+  "torStateCircuits": "Circuits",
+  "@torStateCircuits": {
+    "description": "Row title on the Tor screen. A circuit is the path through the Tor network that traffic takes."
+  },
+  "torStateCircuitsPerSite": "One per site",
+  "@torStateCircuitsPerSite": {
+    "description": "Subtitle of the 'Circuits' row on the Tor screen: each site gets its own Tor circuit."
+  },
+  "torStateCircuitsHint": "Each site, and the app's own traffic, gets its own path through Tor, so a website cannot link two of your sites by the address they arrive from. Rebuild circuits gives every one of them a new path.",
+  "@torStateCircuitsHint": {
+    "description": "Explanation behind the hint button on the 'Circuits' row of the Tor screen. 'Rebuild circuits' is the name of a button on the same screen."
+  },
   "torUnavailableTitle": "Tor is not available on this device",
   "@torUnavailableTitle": {
     "description": "Heading shown in place of a site that is set to use Tor, on a device with no built-in Tor client."
@@ -4286,14 +4293,6 @@
   "torUnavailableBody": "The built-in Tor client runs on iOS and macOS only. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Change its proxy in the site's settings to open it here.",
   "@torUnavailableBody": {
     "description": "Explains why a site set to use Tor shows nothing on a platform without a Tor client, and what the user can do about it."
-  },
-  "torDeveloperGateTitle": "Tor is turned off",
-  "@torDeveloperGateTitle": {
-    "description": "Heading shown in place of a site that is set to use Tor while Developer mode, which Tor is behind, is off."
-  },
-  "torDeveloperGateBody": "Tor runs only while Developer mode and Built-in Tor, under Experimental, are both on. This site is set to use Tor, so it stays blocked rather than loading over your real IP address. Turn them on in App settings, or change the site's proxy.",
-  "@torDeveloperGateBody": {
-    "description": "Explains why a site set to use Tor shows nothing while Developer mode, or the Built-in Tor switch in App settings > Developer > Experimental, is off, and what the user can do about it."
   },
   "torFailOfflineTitle": "No network",
   "@torFailOfflineTitle": {
@@ -4545,14 +4544,6 @@
   "proxyTestUnreachable": "Could not reach the proxy",
   "@proxyTestUnreachable": {
     "description": "Result shown when the proxy could not be contacted at all: wrong address, nothing listening, or no answer before the deadline."
-  },
-  "torIsolateDestAddrTitle": "Separate circuit per destination",
-  "@torIsolateDestAddrTitle": {
-    "description": "Title of the switch in App Settings, under the Tor status card, controlling whether Tor also isolates circuits by destination address on top of the per-site isolation."
-  },
-  "torIsolateDestAddrHint": "Each site always gets its own Tor circuit. With this on, a site also gets a separate circuit for every host it loads from, so one page can reach the internet from two or more exit addresses at once — more isolation, but a site that checks your address across its own hosts may log you out. Turning it off gives the site one address for everything it loads. Changing this takes effect the next time you open the app.",
-  "@torIsolateDestAddrHint": {
-    "description": "Explanation shown in the hint dialog for the \"Separate circuit per destination\" switch. Mentions the trade-off: more isolation versus sites that verify the client's IP address across their own hostnames."
   },
   "tabsTooltip": "Tabs",
   "@tabsTooltip": {

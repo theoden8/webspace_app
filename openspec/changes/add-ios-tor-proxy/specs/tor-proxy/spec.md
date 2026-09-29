@@ -81,49 +81,37 @@ The runtime SHALL be stopped only where the process is going away.
 
 `TorService.socksFor` SHALL materialize SOCKS5 settings whose username is the requesting site's `siteId` (or the reserved literal `__webspace_app_global__` for app-global Dart-side traffic) and whose password is a per-app-launch random secret. Tor SHALL be configured with `SocksPort … IsolateSOCKSAuth` so distinct username/password tuples force distinct circuits.
 
-`IsolateDestAddr` SHALL be a user-visible setting and SHALL default to
-**off**. It splits circuits per destination *address* on top of the per-site
-split, so one page loading from two hosts exits from two relays: stronger
-isolation, at the cost of a site seeing the client arrive from two addresses —
-which a session that checks its own client IP across its hostnames reads as a
-hijack — and of one circuit build per host, which a page pulling from a dozen
-of them pays on first load. The per-site isolation above is never optional;
-only this extra split is.
+Circuits SHALL be isolated per site and never per destination: the
+`SocksPort` line is `auto IsolateSOCKSAuth`, it carries no `IsolateDestAddr`,
+and nothing in the app can change it. The circuit key is the SOCKS credential
+tuple, so `IsolateSOCKSAuth` alone gives each site its own circuit, which is
+what this requirement promises.
 
-It defaults off because the per-site contract does not need it: the circuit
-key is the SOCKS credential tuple, so `IsolateSOCKSAuth` alone already gives
-each site its own circuit, and that is what TOR-003 promises. What the extra
-split buys is narrower — no single exit relay sees a whole page load — and it
-is bought with the breakage above. It also masked a real defect: while the
-credential was being discarded on Apple (BUG-014, instance 3), this flag kept
+`IsolateDestAddr` was an app-wide setting ("Separate circuit per
+destination", off by default) and was removed. It split each site's circuit
+per destination *address*, so one page loading from two hosts exited from two
+relays. What that bought was narrow, no single exit relay seeing a whole page
+load, and it cost a site one circuit build per host and a client that arrived
+from two addresses at once, which a session that checks its own IP across its
+hostnames reads as a hijack. It also masked a real defect: while the
+credential was being discarded on Apple (BUG-014, instance 3), the flag kept
 circuits isolated by destination, so per-site isolation could be entirely
-absent while still looking alive. A default that conceals the failure of the
-mechanism it sits on top of is the wrong default.
+absent while still looking alive.
 
-A failed read of the preference is the one case that resolves the other way:
-the runtime falls back to applying `IsolateDestAddr`, so an unreadable
-preference leaves isolation stricter rather than weaker.
+It cannot come back as a live setting either. A restart is impossible (tor
+runs once per process, TOR-020), and `SETCONF SocksPort` is accepted and
+changes nothing: `retry_listener_ports` treats an `auto` request as matching
+the listener already running and keeps it, with the flags it was opened with,
+and tor still answers `250 OK`. The stored `torIsolateDestAddr` preference is
+no longer read; an old backup that carries it imports without it.
 
-Changing the setting SHALL be applied to a running tor over the control port
-(`SETCONF SocksPort="auto IsolateSOCKSAuth [IsolateDestAddr]"`) and SHALL NOT
-stop and re-start the runtime: tor keeps process-global state that its own
-`tor_run_main` does not reset, so a second launch in one process dies in
-`threadpool_new` and never bootstraps (BUG-013). A `SocksPort` change is a
-legal runtime transition — `set_options` runs `options_act_reversible`, which
-re-parses the port configuration and calls `retry_all_listeners` — but the
-listener is on `auto`, so the rebind lands on a *different* port. The runtime
-SHALL re-read `net/listeners/socks` after the change and publish the new
-endpoint, and sites SHALL rebind to it (TOR-008). With tor not running, the
-setting SHALL ride the next start.
+#### Scenario: One site reaches every host it loads from through one exit
 
-#### Scenario: Changing destination isolation does not kill the runtime
-
-- **GIVEN** Tor is `up` with a SOCKS listener on port P
-- **WHEN** the user toggles the destination-isolation setting
-- **THEN** the runtime stays `up` — it is never stopped and re-started
-- **AND** tor accepts `SETCONF SocksPort=...` with the new isolation
-- **AND** the published SOCKS endpoint is re-read, so a listener that moved
-  to a new port replaces P rather than leaving every Tor site dialling it
+- **GIVEN** site A has `type = TOR` and its page loads from
+  `example.com` and `api.example.net`
+- **WHEN** the page loads
+- **THEN** both hosts see the same exit address
+- **AND** tor's `SocksPort` line is `auto IsolateSOCKSAuth`
 
 #### Scenario: Two Tor sites get distinct exit IPs
 
@@ -168,12 +156,47 @@ progress bar during bootstrap. The per-site Settings screen SHALL
 show a small inline indicator next to the proxy-type row when
 status is anything other than `up`.
 
+The card SHALL render nothing while the status is `stopped`. Tor starts
+when a site or the app-wide proxy first asks for it and does not stop on
+its own (TOR-002), so `stopped` means nothing is set to use Tor; a card
+reading "Not running" with no action on it reads as a setting the user is
+meant to do something with, which is how it was reported.
+
+Tapping the card SHALL open the **Tor screen**, which shows the runtime as
+the one thing it is, shared by the whole app: the same card at its head; what
+is using Tor now, read from the runtime's holders (each site by name, "All app
+traffic" for the app-wide proxy, a nested browser counted as the site that
+opened it, and sites with no name to show, such as an open archive's, counted
+but not named); and the settings that hold for every site at once, each with
+its explanation behind a hint: the exit country pin in force (TOR-014), bridges
+with a way into their settings (TOR-016), and circuits, one per site (TOR-003).
+The holder summary is the pure `summarizeTorHolders`
+(`lib/services/tor_holders.dart`).
+
 #### Scenario: Settings card reflects bootstrap progress
 
 - **GIVEN** Tor is in state `bootstrapping(45)`
 - **WHEN** the user opens App Settings → Tor
 - **THEN** the status card shows "Bootstrapping… 45%"
 - **AND** a determinate progress indicator is rendered at 45%
+
+#### Scenario: No card while nothing uses Tor
+
+- **GIVEN** no site and not the app-wide proxy is set to `TOR`
+- **WHEN** the user opens App Settings
+- **THEN** no Tor card is shown
+- **AND** once a site set to `TOR` starts it, the card appears under the
+  outbound proxy block
+
+#### Scenario: The card opens what Tor is doing app-wide
+
+- **GIVEN** Tor is up, the app-wide proxy is `TOR`, and sites "Mail" and
+  "Bank" are set to `TOR`
+- **WHEN** the user taps the Tor card in App Settings
+- **THEN** the Tor screen lists "All app traffic", "Bank" and "Mail" under
+  "Using Tor"
+- **AND** it shows the exit country in force, whether bridges are on, and
+  that circuits are one per site
 
 #### Scenario: Error state surfaces the message
 
@@ -238,69 +261,41 @@ not forced to migrate.
 
 ---
 
-### Requirement: TOR-007 - Platform and developer-mode gate
+### Requirement: TOR-007 - Platform gate
 
-`TorService` SHALL operate on iOS and macOS, **and only while it is
-switched on as an experimental feature**: developer mode on and the
-Experimental group's Built-in Tor switch on (DEVTOOLS-011). The switch
-defaults on, so developer mode alone opens Tor unless the user turned it
-off. `TorService.isAvailable` SHALL be the conjunction of the platform
-and that gate, and SHALL be the single reader both the
-per-site and app-global proxy-type dropdowns consult; with it false the
-`TOR` option SHALL be absent from both. Existing per-site SOCKS5
-configuration (manual `host:port`, with or without credentials) SHALL
-remain available on every platform that supports proxies today, so
-Android users can still point at Orbot's SOCKS5 endpoint manually.
+`TorService` SHALL operate on iOS and macOS, and nowhere else.
+`TorService.isAvailable` SHALL be that platform check and nothing more,
+and SHALL be the single reader both the per-site and app-global proxy-type
+dropdowns consult; with it false the `TOR` option SHALL be absent from both.
+Existing per-site SOCKS5 configuration (manual `host:port`, with or without
+credentials) SHALL remain available on every platform that supports proxies
+today, so Android users can still point at Orbot's SOCKS5 endpoint manually.
 
-**Why developer mode and not release.** The per-feature switch only
-narrows developer mode (DEVTOOLS-011), which keeps one answer to "is
-this feature reachable", and it is deliberately reachable on release
-builds: the
-users who can exercise an embedded tor on real hardware are the ones
-who would report on it, and a debug-build gate would exclude them.
+**No developer mode, no experimental switch.** Tor was reachable only with
+developer mode on and the Experimental group's Built-in Tor switch on
+(DEVTOOLS-011). It graduated: the switch, its pref (`experimentalTor`, never
+in a release), `TorGate.switchedOff` and the TOR-023 confirmations went with
+it, and turning developer mode on or off has no effect on Tor.
 
-The original reason was that the bootstrap interstitial and status card
-(TOR-004/TOR-008/TOR-013) did not exist, and this said the gate comes
-off when that surface lands. **The surface has landed and the gate has
-not come off**, so that sentence is withdrawn rather than left standing
-as a promise nothing intends to keep. `TorBootstrapPlaceholder` now
-resolves to determinate progress, a named failure with Retry, or a
-screen saying why Tor cannot run here; `TorStatusCard` exists.
+It graduated with two of BUG-013's gaps still open, and they are the cost of
+shipping it rather than reasons it works. Tor runs at most once per process
+(TOR-020), so a session that genuinely loses it (a landed `SIGNAL HALT`, a
+bridge edit, a tor that exits on its own) cannot get it back until the app
+restarts; the failure names itself and says so (TOR-015) rather than hanging.
+And no tier runs the plugin on iOS; the macOS tier runs the real handshake
+(TOR-021).
 
-**What holds the gate now** is BUG-013 gap 3: tor runs at most once per
-process (TOR-020), so a session that genuinely loses it — a landed
-`SIGNAL HALT`, a bridge edit, a tor that exits on its own — cannot get
-it back until the app restarts, and the only real fix is out of process.
-Shipping that to someone who has not opted into diagnostics means a
-feature that works until it doesn't and then tells them to relaunch. The
-second condition is evidence: no tier has ever run the plugin on iOS,
-which is the platform every instance of BUG-013 was first observed on.
+**Where the gate lives.** On `TorService`, not on `MethodChannelTorRuntime`
+or `TorEngine`, which are unit-tested against a fake. Every start path on
+`TorService` SHALL re-check it, so no channel is touched on a platform
+without the plugin whether or not the caller asked first, and `socksFor`
+SHALL return null there: a site carrying `ProxyType.TOR` imported from an
+Apple device is blocked, never quietly sent out over the device IP.
 
-So the gate comes off when a tier returns an iOS device verdict and gap
-3 has an answer, not when the surface lands. Whoever takes it off
-removes `TorGate.switchedOff`, its strings and the Built-in Tor switch
-with it: with `isAvailable` no longer reading the gate, that state is
-unreachable and the interstitial's exhaustive switch will say so.
-
-**Where the gate lives.** On `TorService`, not on
-`MethodChannelTorRuntime` or `TorEngine`. Those answer the narrower
-question "does this build have a tor to talk to" and are unit-tested
-against a fake on that basis; folding a user-facing flag into them
-would conflate capability with permission. Every start path on
-`TorService` SHALL re-check the gate, so the answer does not depend on
-a caller having asked first, and `socksFor` SHALL return null with the
-gate shut — a site still carrying `ProxyType.TOR` from before the flag
-was turned off is blocked, never quietly sent out over the device IP.
-
-Turning developer mode or the Built-in Tor switch off SHALL release the refcount holders already
-taken rather than leave the runtime pinned up for a feature the user
-can no longer reach.
-
-**macOS carries it on the same terms as iOS.** It is behind developer
-mode, it is not a promoted feature, and it is the platform whose
-integration tier can run the real control-port handshake (TOR-021).
-Both platforms SHALL pin the same pod versions: a skew would mean the
-tier tests something other than what iOS ships.
+**macOS carries it on the same terms as iOS.** It is the platform whose
+integration tier can run the real control-port handshake (TOR-021). Both
+platforms SHALL pin the same pod versions: a skew would mean the tier tests
+something other than what iOS ships.
 
 The macOS floor moves with the pod. `Tor` is a macOS 11 pod, so
 `platform :osx`, `MACOSX_DEPLOYMENT_TARGET` and the
@@ -308,59 +303,34 @@ The macOS floor moves with the pod. `Tor` is a macOS 11 pod, so
 is no longer a supported floor — state it in the listing
 ([docs/releasing-macos.md](../../../../../docs/releasing-macos.md)).
 
-#### Scenario: Tor is absent until developer mode is on
+#### Scenario: Tor is offered with developer mode off
 
 - **GIVEN** the app is running on iOS with developer mode off
-- **WHEN** the user opens a site's Proxy settings block
-- **THEN** `TOR` is absent from the proxy-type dropdown
-- **AND** turning developer mode on makes it available with no restart
+- **WHEN** the user opens a site's Network settings
+- **THEN** `TOR` is offered in the proxy-type dropdown
+- **AND** App settings' Experimental group lists no Tor switch
 
-#### Scenario: Turning developer mode off stops the runtime
+#### Scenario: Turning developer mode off leaves Tor sites routed
 
 - **GIVEN** a site is routed through Tor and the runtime is up
 - **WHEN** the user turns developer mode off
-- **THEN** the holders are released and the runtime is allowed to stop
-- **AND** that site's requests are blocked rather than sent direct
+- **THEN** no confirmation is asked
+- **AND** the site keeps loading through Tor
 
-#### Scenario: Android hides the Tor switch
+#### Scenario: Android does not offer Tor
 
 - **GIVEN** the app is running on Android
-- **WHEN** the user opens a site's Proxy settings block
-- **THEN** the "Route through Tor" switch is not rendered
+- **WHEN** the user opens a site's Network settings
+- **THEN** `TOR` is absent from the proxy-type dropdown
 - **AND** the manual proxy fields are rendered as before
 
-#### Scenario: macOS hides the Tor switch until developer mode is on
+#### Scenario: macOS offers Tor as iOS does
 
-- **GIVEN** the app is running on macOS with developer mode off
-- **WHEN** the user opens a site's Proxy settings block
-- **THEN** the "Route through Tor" switch is not rendered
-- **AND** turning developer mode on makes it available, as on iOS
-
-#### Scenario: iOS renders the Tor switch
-
-- **GIVEN** the app is running on iOS
-- **WHEN** the user opens a site's Proxy settings block
-- **THEN** the "Route through Tor" switch is rendered above the
-  manual proxy fields
-- **AND** turning it on hides the manual `host:port` / credentials
-  inputs (the values persist underneath but are inert)
-
----
-
-#### Scenario: Turning destination isolation off gives a site one exit
-
-- **GIVEN** the app-wide "separate circuit per destination" setting is off
-- **WHEN** tor launches
-- **THEN** its `SocksPort` line carries `IsolateSOCKSAuth` and not
-  `IsolateDestAddr`
-- **AND** a site loading from several hosts reaches all of them over one
-  circuit, from one exit address
-
-#### Scenario: A failed read of the setting keeps the stricter behaviour
-
-- **GIVEN** the preference cannot be read
-- **WHEN** tor launches
-- **THEN** it launches with destination isolation on
+- **GIVEN** the app is running on macOS
+- **WHEN** the user opens a site's Network settings
+- **THEN** `TOR` is offered in the proxy-type dropdown
+- **AND** choosing it hides the manual `host:port` / credentials inputs
+  (the values persist underneath but are inert)
 
 ### Requirement: TOR-008 - Fail-closed before bootstrap
 
@@ -763,8 +733,9 @@ stream takes any linked set whose exit is not *excluded*, which a pre-pin exit
 never is. On a real tor this sent a `{de}` pin out through the Netherlands and
 a `{us}` pin out through Germany. A pin SHALL therefore set `ConfluxEnabled 0`
 in the same `SETCONF` as `ExitNodes`, before any circuit is closed, and
-clearing the pin SHALL return `ConfluxEnabled` to `auto`. With conflux off no
-leg can link, so no stream rides a set built before the pin.
+clearing the pin SHALL leave it at `0`, which is where the runtime keeps it
+anyway (TOR-024). With conflux off no leg can link, so no stream rides a set
+built before the pin.
 
 **A pin change holds up nothing but the Tor sites it concerns** (BUG-018).
 The change is a control-port round trip, and a control connection can go
@@ -1352,22 +1323,20 @@ on a site that already carries it, so a configuration imported from an
 Apple device (settings backup, site QR) leaves an Android or Linux site
 pinned to a runtime that platform does not have.
 
-The interstitial SHALL distinguish the three, and the decision SHALL be a
-pure function of (status, platform capability, the TOR-007 gate) rather
-than of the status alone:
+The interstitial SHALL distinguish these, and the decision SHALL be a
+pure function of (status, platform capability) rather than of the status
+alone:
 
 - **working** - Tor can come up here and is on its way. The progress bar
   means something.
 - **errored** - tor failed. Retry, and bridges where they help.
 - **unsupported** - this build has no Tor. The screen SHALL say so and
   SHALL name the site's own proxy setting as the thing to change.
-- **switchedOff** - Tor is here but developer mode or the Built-in Tor
-  switch is off. The screen SHALL name both.
 
-Availability SHALL be read before the status. An errored runtime behind a
-shut gate SHALL render as gated rather than as a failure, because
-`restart()` returns at the same gate and a Retry button there does
-nothing.
+Availability SHALL be read before the status. An errored status on a
+platform with no runtime SHALL render as unsupported rather than as a
+failure, because `restart()` returns at the same gate and a Retry button
+there does nothing.
 
 The site SHALL stay blocked in every one of these states: naming a
 missing runtime is a change to what the user is told, never to what
@@ -1386,75 +1355,9 @@ TOR-008 permits on the wire.
 
 - **GIVEN** an iOS build with developer mode off and a site set to `TOR`
 - **WHEN** the user opens it
-- **THEN** the interstitial names developer mode
-- **AND** it does not offer a Retry that cannot start anything
+- **THEN** the interstitial shows Tor's progress, as with developer mode on
 
 ---
-
-### Requirement: TOR-023 - Closing the gate SHALL state what it costs
-
-TOR-007 puts Tor behind developer mode and the Built-in Tor switch, and TOR-008 keeps a site pinned to
-`TOR` blocked whenever the runtime is not up. Turning the flag off therefore
-blocks every such site from that moment, and the app used to do it in
-silence: the damage surfaced sessions later as a site sitting on the
-interstitial, which reads as a Tor that will not start rather than a setting
-that turned it off. That is how it was first reported.
-
-Turning developer mode off while the Built-in Tor switch is on, or turning
-that switch off, while at least one site is pinned to `TOR` SHALL require a
-confirmation that names how many sites will be blocked. With the switch
-already off, developer mode no longer holds Tor open, and turning it off
-SHALL NOT ask. It SHALL be
-a dialog rather than a transient message: the cost is paid later, so a
-notification the user can miss is the failure mode itself.
-
-- The count SHALL be read when the switch is flipped, not when the settings
-  screen was built. A site can be pinned to Tor from the drawer behind an
-  open settings screen, and a captured count would report zero and close the
-  gate silently.
-- With no site pinned, there SHALL be no confirmation: nothing is lost.
-- Declining SHALL leave developer mode on **and** the switch showing on. A
-  switch that reads off while the flag is on is the control contradicting
-  the state it names.
-- Turning the flag back **on** SHALL never be gated by this. The
-  confirmation belongs to losing Tor, not to regaining it.
-
-This changes what the user is told, never what TOR-008 permits on the wire:
-the sites are blocked either way.
-
-#### Scenario: Two sites are pinned and the user turns the flag off
-
-- **GIVEN** developer mode is on and two sites carry `ProxyType.TOR`
-- **WHEN** the user flips the developer-mode switch off
-- **THEN** a confirmation names that two sites will stay blocked
-- **AND** developer mode is still on until the confirmation is answered
-
-#### Scenario: The user declines
-
-- **WHEN** the user cancels that confirmation
-- **THEN** developer mode stays on
-- **AND** the switch still reads on
-- **AND** nothing is written to the stored flag
-
-#### Scenario: A site is pinned while the settings screen is open
-
-- **GIVEN** the settings screen was opened with no site pinned to Tor
-- **WHEN** a site is pinned to Tor from the drawer and the user then turns
-  developer mode off
-- **THEN** the confirmation appears and counts that site
-
-#### Scenario: The Built-in Tor switch is turned off with a site pinned
-
-- **GIVEN** developer mode is on and one site carries `ProxyType.TOR`
-- **WHEN** the user turns Built-in Tor off under Experimental
-- **THEN** a confirmation names that one site will stay blocked
-- **AND** cancelling leaves the switch on and nothing written
-
-#### Scenario: Nothing is pinned
-
-- **GIVEN** no site carries `ProxyType.TOR`
-- **WHEN** the user turns developer mode off
-- **THEN** the flag turns off with no confirmation
 
 ### Requirement: TOR-024 - Tor outlives the app being suspended
 
@@ -1489,6 +1392,18 @@ next foreground found "The previous Tor is still running".
   listener being `up`, and Retry SHALL try the reopen again.
 - An exit-country pin in force SHALL stay in force across a reopen: it is
   the same tor, and nothing re-applies it.
+- tor SHALL run with conflux off for the life of the runtime:
+  `ConfluxEnabled 0` in its launch configuration, and nothing SHALL set it
+  back to `auto`. tor relaunches a closed leg of a conflux set that has not
+  linked yet (`unlinked_circuit_closed` -> `conflux_launch_leg`) without
+  checking `DisableNetwork`, so `DisableNetwork 1` closing that leg's
+  connection makes tor try a socket it refuses ("Tried to open a socket with
+  DisableNetwork set"). `note_or_connect_failed` then records the guard, and
+  `should_connect_to_relay` refuses it for `OR_CONNECT_FAILURE_LIFETIME`
+  (60 s). The reopened listener is `up` and nothing leaves through it for
+  more than a minute. Switching conflux off during the reopen is not enough:
+  a leg that opens with it off is closed, and that close relaunches too.
+  With it off from launch, tor builds no conflux set at all.
 - The bootstrap deadline (TOR-013) SHALL NOT report a bootstrap the app was
   suspended through. A deadline that fires more than a few seconds after it
   was due SHALL start its window over.
@@ -1502,6 +1417,14 @@ next foreground found "The previous Tor is still running".
 - **THEN** tor's control channel still answers
 - **AND** tor opens a new SOCKS listener and the runtime publishes it as `up`
 - **AND** a request through it leaves from a Tor exit
+
+#### Scenario: A reopen leaves no guard refused
+
+- **GIVEN** Tor has been up long enough to build its preemptive circuits
+- **WHEN** a suspension defuncts its sockets and the app reopens the listener
+- **THEN** tor never logs "Tried to open a socket with DisableNetwork set"
+- **AND** a request through the new listener leaves from a Tor exit within
+  seconds, not after the guard's minute-long refusal
 
 #### Scenario: A listener that still answers is left alone
 

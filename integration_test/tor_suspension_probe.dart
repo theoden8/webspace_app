@@ -22,7 +22,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -188,7 +187,6 @@ Future<bool> _run() async {
     if (!passed) ok = false;
   }
 
-  DeveloperModeService.instance.debugSet(true);
   if (!TorService.instance.isAvailable) {
     check(false, 'the Tor runtime is available on this build');
     return false;
@@ -265,6 +263,14 @@ Future<bool> _run() async {
     check(exitAfter != null && exitAfter != 'not-tor',
         'a request through $after left from a Tor exit ($exitAfter)');
   }
+  // A connect attempted while DisableNetwork is set marks its guard failed
+  // for a minute, so the runtime reports up and carries nothing. The one path
+  // that tries it is a conflux leg relaunching (confluxEnabledValue).
+  check(
+      !LogService.instance.allEntriesMerged.any((e) =>
+          e.tag == 'TorLog' &&
+          e.message.contains('Tried to open a socket with DisableNetwork set')),
+      'tor opened no socket while its network was off');
   return ok;
 }
 

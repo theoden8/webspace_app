@@ -13,6 +13,7 @@ import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -63,14 +64,6 @@ const Map<AccentColor, Color> _accentColors = {
 class AppSettingsScreen extends StatefulWidget {
   final AppThemeSettings currentSettings;
 
-  /// How many sites currently carry `ProxyType.TOR`, asked at the moment the
-  /// developer-mode switch is flipped rather than captured at construction:
-  /// the screen outlives an edit made from the drawer behind it.
-  ///
-  /// A callback rather than the models themselves, so the settings screen
-  /// does not gain a second copy of the site list to keep in step.
-  final int Function()? torPinnedSiteCount;
-
   /// Whether this device could run the per-site proxy router, so the
   /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
   /// the answer needs the container engine the app resolved at startup.
@@ -81,8 +74,8 @@ class AppSettingsScreen extends StatefulWidget {
 
   /// Finds the app-tier sites a uBlock Origin backup trusts (content
   /// blocker on, not held on by Tracking Protection) and, with `apply`,
-  /// switches their content blocker off and saves. A callback for the same
-  /// reason as [torPinnedSiteCount]: the sites stay owned by the page.
+  /// switches their content blocker off and saves. A callback rather than
+  /// the models themselves: the sites stay owned by the page.
   final Future<List<UboTrustedSite>> Function(Set<String> hosts,
       {required bool apply})? onTrustUboHosts;
   /// Prompt the user for a passphrase and open or create the matching
@@ -146,7 +139,6 @@ class AppSettingsScreen extends StatefulWidget {
   const AppSettingsScreen({
     super.key,
     required this.currentSettings,
-    this.torPinnedSiteCount,
     this.proxyRouterRunsHere = false,
     this.siteNames = const {},
     required this.onSettingsChanged,
@@ -202,7 +194,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   late bool _showStatsBanner;
   late TextEditingController _osmTileUrlController;
   bool _isDownloadingRules = false;
-  bool _torIsolateDestAddr = false;
   DateTime? _rulesLastUpdated;
 
   /// `version+build` from the platform package, null until it resolves.
@@ -210,8 +201,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   /// Running tap count on the version row; the developer-options gesture.
   int _versionTaps = 0;
   bool _developerMode = DeveloperModeService.instance.enabled;
-  bool _torSwitch =
-      ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor);
   bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.proxyRouter);
   bool _siteIconsOnlySwitch = ExperimentalFeaturesService.instance
@@ -282,7 +271,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _loadAppVersion();
     _loadOsmTileUrl();
     _loadFirefoxAutoRefresh();
-    _loadTorIsolateDestAddr();
     _outboundProxy = UserProxySettings(
       type: GlobalOutboundProxy.current.type,
       address: GlobalOutboundProxy.current.address,
@@ -910,54 +898,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       );
   }
 
-  /// Turning developer mode off shuts the TOR-007 gate, and every site
-  /// pinned to Tor is blocked from that moment (TOR-008 keeps it blocked
-  /// rather than sending it over the device IP). Nothing used to say so, and
-  /// the damage surfaces sessions later as a site sitting on "Not running" —
-  /// which reads as a Tor that will not start rather than a setting that
-  /// turned it off. Confirm rather than snackbar: by the time a one-second
-  /// snackbar is missed, the next reminder is a blocked site with no
-  /// obvious cause.
-  Future<bool> _confirmTorSitesWillBlock({required bool torSwitch}) async {
-    final count = widget.torPinnedSiteCount?.call() ?? 0;
-    if (count == 0) return true;
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(torSwitch
-            ? loc.appSettingsExperimentalTorOffTitle
-            : loc.appSettingsDeveloperModeTorWarningTitle),
-        content: Text(torSwitch
-            ? loc.appSettingsExperimentalTorOffBody(count)
-            : loc.appSettingsDeveloperModeTorWarningBody(count)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.appSettingsDeveloperModeTorWarningConfirm),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
   Future<void> _setDeveloperMode(bool value) async {
-    // With the Tor switch already off, developer mode no longer holds Tor
-    // open, so turning it off blocks nothing more.
-    if (!value &&
-        _torSwitch &&
-        !await _confirmTorSitesWillBlock(torSwitch: false)) {
-      // Cancelled: leave the switch where it was rather than flipping it
-      // back after a rebuild, which reads as the toggle fighting the user.
-      if (mounted) setState(() {});
-      return;
-    }
-    if (!mounted) return;
     await DeveloperModeService.instance.setEnabled(value);
     notifyIconSourcesChanged();
     if (!mounted) return;
@@ -965,21 +906,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       _developerMode = value;
       _versionTaps = 0;
     });
-  }
-
-  /// DEVTOOLS-011: the Experimental group's Tor switch. Switching it off
-  /// shuts the TOR-007 gate exactly as turning developer mode off does, so
-  /// it asks the same question first.
-  Future<void> _setTorSwitch(bool value) async {
-    if (!value && !await _confirmTorSitesWillBlock(torSwitch: true)) {
-      if (mounted) setState(() {});
-      return;
-    }
-    if (!mounted) return;
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.tor, value);
-    if (!mounted) return;
-    setState(() => _torSwitch = value);
   }
 
   Future<void> _setProxyRouterSwitch(bool value) async {
@@ -1069,25 +995,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         );
       }
     }
-  }
-
-  Future<void> _loadTorIsolateDestAddr() async {
-    final value = await readTorIsolateDestAddr();
-    if (!mounted) return;
-    setState(() => _torIsolateDestAddr = value);
-  }
-
-  /// Persist the isolation choice and rebuild tor around it.
-  ///
-  /// The `SocksPort` line is read once, when tor launches, so a running
-  /// runtime keeps the old isolation until it is restarted. Doing that here
-  /// is the difference between a setting that applies and one that applies
-  /// the next time the user happens to relaunch the app.
-  Future<void> _setTorIsolateDestAddr(bool value) async {
-    setState(() => _torIsolateDestAddr = value);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(kTorIsolateDestAddrKey, value);
-    await TorService.instance.applySocksIsolation(isolateDestAddr: value);
   }
 
   Future<void> _loadFirefoxAutoRefresh() async {
@@ -1664,26 +1571,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
           // Directly under the proxy block it reports on: the dropdown is
           // where TOR gets selected, and this is where the user finds out
-          // whether it actually came up. Renders nothing unless Tor is
-          // available (platform + developer mode).
-          const TorStatusCard(),
-          // Beside the card that reports the runtime, because this is a
-          // property of that runtime rather than of any one site, and because
-          // changing it restarts what the card is showing.
-          if (TorService.instance.isAvailable)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.torIsolateDestAddrTitle)),
-                  HintButton(
-                    title: loc.torIsolateDestAddrTitle,
-                    description: loc.torIsolateDestAddrHint,
-                  ),
-                ],
+          // whether it actually came up. Renders nothing until something
+          // uses Tor.
+          TorStatusCard(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    TorStatusScreen(siteNames: widget.siteNames),
               ),
-              value: _torIsolateDestAddr,
-              onChanged: _setTorIsolateDestAddr,
             ),
+          ),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -2324,21 +2222,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 ],
               ),
             ),
-            if (TorService.instance.hasNativeRuntime)
-              SwitchListTile(
-                title: Row(
-                  children: [
-                    Flexible(child: Text(loc.appSettingsExperimentalTor)),
-                    HintButton(
-                      title: loc.appSettingsExperimentalTor,
-                      description: loc.appSettingsExperimentalTorHint,
-                    ),
-                  ],
-                ),
-                secondary: const Icon(Icons.science_outlined),
-                value: _torSwitch,
-                onChanged: (value) => _setTorSwitch(value),
-              ),
             if (widget.proxyRouterRunsHere)
               SwitchListTile(
                 title: Row(

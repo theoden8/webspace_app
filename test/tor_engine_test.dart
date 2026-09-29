@@ -106,15 +106,6 @@ class FakeTorRuntime implements TorRuntime {
     torrcOptions = options;
   }
 
-  @override
-  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
-    if (socksIsolationError != null) throw socksIsolationError!;
-    socksIsolation = isolateDestAddr;
-  }
-
-  bool? socksIsolation;
-  Object? socksIsolationError;
-
   int reopenCalls = 0;
   int reopenPort = 45000;
   Object? reopenError;
@@ -139,7 +130,6 @@ void main() {
   TorEngine build({
     Duration? debounce,
     Duration? timeout,
-    Future<bool> Function()? isolateDestAddrLoader,
     TorGeoIpStore? geoIpStore,
     DateTime Function()? clock,
     TorSocksProbe? socksProbe,
@@ -149,67 +139,10 @@ void main() {
         sessionSecret: 'deadbeef',
         idleDebounce: debounce ?? kTorIdleDebounce,
         bootstrapTimeout: timeout ?? kTorBootstrapTimeout,
-        isolateDestAddrLoader: isolateDestAddrLoader,
         geoIpStore: geoIpStore,
         clock: clock,
         socksProbe: socksProbe,
       );
-
-  group('TOR-003 destination isolation is the user\'s choice', () {
-    test('the preference reaches the runtime before it starts', () async {
-      final e = build(isolateDestAddrLoader: () async => false);
-      await e.acquire('site-a');
-      await pumpEventQueue();
-      expect(runtime.socksIsolation, isFalse,
-          reason: 'the runtime must be told before tor is launched: the '
-              'SocksPort line is read once, at start');
-    });
-
-    test('on is carried just as explicitly as off', () async {
-      final e = build(isolateDestAddrLoader: () async => true);
-      await e.acquire('site-a');
-      await pumpEventQueue();
-      expect(runtime.socksIsolation, isTrue);
-    });
-
-    test('changing it never restarts the runtime', () async {
-      // tor cannot be run twice in one process: the second tor_run_main dies
-      // in threadpool_new and never bootstraps (BUG-013). A settings change
-      // that restarts would leave Tor dead until the app is relaunched, so
-      // the change is recorded for the next start instead.
-      final e = build(isolateDestAddrLoader: () async => true);
-      await e.acquire('site-a');
-      await pumpEventQueue();
-      runtime.bootstrapTo(41337);
-      await pumpEventQueue();
-      final startsBefore = runtime.startCalls;
-
-      await e.applySocksIsolation(isolateDestAddr: false);
-      expect(runtime.socksIsolation, isFalse);
-      expect(runtime.stopCalls, 0, reason: 'a live change never stops tor');
-      expect(runtime.startCalls, startsBefore,
-          reason: 'nor starts a second one');
-    });
-
-    test('a runtime that refuses the change does not throw at the caller',
-        () async {
-      final e = build(isolateDestAddrLoader: () async => true);
-      runtime.socksIsolationError = 'tor refused';
-      await e.applySocksIsolation(isolateDestAddr: false);
-      expect(runtime.socksIsolation, isNull,
-          reason: 'tor keeps the isolation it has; the preference still '
-              'stands and rides the next start');
-    });
-
-    test('a loader that throws leaves the stricter default alone', () async {
-      final e = build(isolateDestAddrLoader: () async => throw 'no prefs');
-      await e.acquire('site-a');
-      await pumpEventQueue();
-      expect(runtime.socksIsolation, isNull,
-          reason: 'a failed read must never relax isolation');
-      expect(runtime.startCalls, 1, reason: 'and must not block the start');
-    });
-  });
 
   group('TOR-002 lifecycle', () {
     test('first holder starts the runtime', () async {

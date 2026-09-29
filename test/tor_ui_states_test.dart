@@ -25,7 +25,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -43,8 +42,8 @@ class _Runtime implements TorRuntime {
 
   final _events = StreamController<TorStatus>.broadcast();
 
-  /// Settable so a test can be the platform that ships no Tor at all, which
-  /// is a different screen from one where Tor is merely off (TOR-022).
+  /// Settable so a test can be the platform that ships no Tor at all
+  /// (TOR-022).
   @override
   final bool isAvailable;
 
@@ -70,14 +69,7 @@ class _Runtime implements TorRuntime {
   Future<void> setTorrcOptions(List<(String, String)> options) async {}
 
   @override
-  Future<void> setSocksIsolation({required bool isolateDestAddr}) async {
-    socksIsolation = isolateDestAddr;
-  }
-
-  @override
   Future<void> reopenListeners() async {}
-
-  bool? socksIsolation;
 
   void emit(TorStatus s) => _events.add(s);
 }
@@ -278,13 +270,23 @@ void main() {
       );
     });
 
-    testWidgets('the card is hidden when Tor is unavailable', (t) async {
+    testWidgets('the card is hidden while nothing uses Tor', (t) async {
       installEngine();
-      DeveloperModeService.instance.debugSet(false);
       await t.pumpWidget(host(const TorStatusCard(), const Size(430, 300)));
       await settle(t);
+      expect(TorService.instance.status, isA<TorStopped>());
       expect(find.text('Tor'), findsNothing,
-          reason: 'gated with the rest of Tor on developer mode');
+          reason: 'a stopped runtime has nothing to act on (TOR-004)');
+      expect(find.text('Not running'), findsNothing);
+    });
+
+    testWidgets('the card is hidden where there is no runtime', (t) async {
+      TorService.overrideEngine(
+        TorEngine(runtime: _Runtime(isAvailable: false), sessionSecret: 's'),
+      );
+      await t.pumpWidget(host(const TorStatusCard(), const Size(430, 300)));
+      await settle(t);
+      expect(find.text('Tor'), findsNothing);
     });
   });
 
@@ -461,38 +463,20 @@ void main() {
   // thing that would fix it. A site imported from an Apple device sat there
   // forever.
   group('the interstitial where Tor cannot come up', () {
-    testWidgets('developer mode off says so, with no progress bar', (t) async {
+    testWidgets('developer mode off does not stop Tor coming up', (t) async {
       installEngine();
       DeveloperModeService.instance.debugSet(false);
       await t.pumpWidget(
           host(const TorBootstrapPlaceholder(), const Size(430, 430)));
       await settle(t);
 
-      expect(find.text('Tor is turned off'), findsOneWidget);
-      expect(find.textContaining('Developer mode and Built-in Tor'),
-          findsOneWidget,
-          reason: 'the screen names both switches that hold the gate');
-      expect(find.text('Not running'), findsNothing,
-          reason: 'the runtime status is true and useless here: what the '
-              'user needs to know is that nothing will change it');
-      expect(find.byType(LinearProgressIndicator), findsNothing,
-          reason: 'a bar for a wait that never ends');
-    });
+      expect(find.byType(LinearProgressIndicator), findsOneWidget,
+          reason: 'Tor is not behind developer mode (TOR-007), so a site '
+              'waits for it rather than being told to flip a switch');
+      expect(find.text('Tor is not available on this device'), findsNothing);
 
-    testWidgets('the Built-in Tor switch off shows the same gated screen',
-        (t) async {
-      installEngine();
-      DeveloperModeService.instance.debugSet(true);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.tor, false);
-      addTearDown(() => ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.tor, true));
-      await t.pumpWidget(
-          host(const TorBootstrapPlaceholder(), const Size(430, 430)));
-      await settle(t);
-
-      expect(find.text('Tor is turned off'), findsOneWidget);
-      expect(find.byType(LinearProgressIndicator), findsNothing);
+      await t.pumpWidget(const SizedBox.shrink());
+      await t.pump(const Duration(seconds: 91));
     });
 
     testWidgets('no runtime on this platform points at the site proxy',
@@ -500,18 +484,12 @@ void main() {
       TorService.overrideEngine(
         TorEngine(runtime: _Runtime(isAvailable: false), sessionSecret: 's'),
       );
-      // On purpose: developer mode is ON, so the only thing missing is the
-      // platform. The two states must not be confusable.
-      DeveloperModeService.instance.debugSet(true);
       await t.pumpWidget(
           host(const TorBootstrapPlaceholder(), const Size(430, 430)));
       await settle(t);
 
       expect(find.text('Tor is not available on this device'), findsOneWidget);
       expect(find.textContaining('iOS and macOS only'), findsOneWidget);
-      expect(find.text('Tor is turned off'), findsNothing,
-          reason: 'developer mode is on here; naming it would send the user '
-              'to a switch that is already where it needs to be');
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
   });

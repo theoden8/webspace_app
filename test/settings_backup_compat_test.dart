@@ -119,6 +119,8 @@ const Map<String, String> _retiredKeys = {
   'trustedHosts': 'BACKUP-010: a TLS pin never rides a backup',
   'blockAutoRedirects': 'NESTED-004: every site blocks gesture-less '
       'cross-domain navigations; there is no per-site switch to restore',
+  'torIsolateDestAddr': 'TOR-003: circuits are isolated per site only; the '
+      'per-destination split is no longer a setting',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

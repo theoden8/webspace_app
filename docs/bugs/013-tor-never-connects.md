@@ -383,6 +383,43 @@ as they would on a phone that was never suspended. Nothing has run it on an iOS 
 The TCP fallback, if a container path is ever too long, is as dead after a suspension
 as before, and says so in the log.
 
+### Attempt 12 — The reopen left tor's guard refused for a minute
+**Date:** 2026-09-29 · **PR:** #648 · **Files:** `ios/Runner/TorControllerPlugin.swift`,
+`integration_test/tor_suspension_probe.dart`, `test/js/tor_suspension.test.js`
+
+**What happened.** The macOS probe failed on run 36559429018 (the re-run of PR #648's
+Apple job). Every step of attempt 11 held: the defunct killed tor's TCP listener, the
+Unix control connection survived, and the resume published a new SOCKS port (50433 to
+50444) that answered the greeting. Then the request through it hung for its full 90
+seconds; the passing runs of the same probe finished in about 6. Only the failing run's
+tor log carries `Tried to open a socket with DisableNetwork set`, with a stack through
+`conflux_circuit_has_closed -> conflux_launch_leg -> circuit_establish_circuit_conflux`.
+
+**Why.** Read in tor 0.4.9.11, the version the pod ships. `DisableNetwork 1` marks every
+non-control connection for close; a circuit on one of them that was a leg of a conflux
+set that had not linked yet closes, and `unlinked_circuit_closed` relaunches it at once,
+checking neither `ConfluxEnabled` nor `DisableNetwork`. The first hop's connect is
+refused (connection.c:2200), `connection_or_connect_failed` calls
+`note_or_connect_failed`, and `should_connect_to_relay` then refuses that guard for
+`OR_CONNECT_FAILURE_LIFETIME`, 60 seconds, with nothing that clears it sooner. So the
+runtime is `up` on a fresh listener and carries nothing for over a minute. Whether a
+set is mid-link at the moment of the reopen is timing, which is why the probe passed
+twice and failed once.
+
+Turning conflux off during the reopen does not help: a leg that opens with conflux off
+is closed (`conflux_circuit_has_opened`), and that close takes the same relaunch path.
+tor now starts with `ConfluxEnabled 0` and nothing sets it back, so `conflux_predict_new`
+never builds a set and there is no leg to relaunch. The exit-country pin already set it
+to 0 for its own reason (BUG-014, caution 17); clearing the pin no longer hands it back to
+`auto`. The probe now fails on the BUG line itself, and `test/js/tor_suspension.test.js`
+fails if the launch configuration drops the setting or anything sets it to `auto`.
+
+**Why it is partial.** It removes the one path found to connect under `DisableNetwork`,
+not the class: any other relaunch tor makes from a close handler would hit the same
+refusal, and `cycleNetwork` still closes relay connections the only way that closes the
+dead listener. Conflux is a throughput feature, so a busy page may load a little slower.
+As with attempt 11, nothing has run this on an iOS device.
+
 ## Known open gaps
 
 1. **No tier runs the plugin on iOS.** The macOS half of this gap is closed by
@@ -413,7 +450,10 @@ as before, and says so in the log.
    bridge edit, a `SIGNAL HALT` that lands, or a tor that exits on its own all
    end the feature until the app is restarted. The only real fix is out of
    process — tor in an XPC service or an extension — which iOS makes expensive
-   and macOS does not make free.
+   and macOS does not make free. Until 2026-09-29 this and gap 1 held Tor behind
+   developer mode (TOR-007); it has since graduated with both still open, so this
+   now reaches every iOS and macOS user who picks Tor, and what stands between
+   them and a silent dead feature is the named failure TOR-015 shows.
 4. **Fault injection barely exists.** The macOS tier exercises the happy path, a
    restart and, since attempt 11, a process whose sockets were defuncted; nothing
    simulates a control port that opens late, which is the mechanism of attempt 2, or a

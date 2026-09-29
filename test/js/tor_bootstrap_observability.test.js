@@ -565,30 +565,20 @@ test('tor is launched at most once per process', () => {
     `${swiftRel}: nothing may clear it -- the ceiling is the process`);
 });
 
-test('a circuit-isolation change neither restarts tor nor pretends to apply', () => {
-  // A restart is impossible (above). SETCONF is worse than impossible: tor
-  // answers 250 OK and changes nothing, because retry_listener_ports treats
-  // a CFG_AUTO_PORT request as matching any existing listener on that
-  // address and keeps it, and the isolation flags live on the listener's
-  // entry_cfg, copied once in connection_listener_new. So the contract is
-  // the next start, and the UI has to say so rather than the code guess.
-  const body = functionBody(swiftCode, 'setSocksIsolation');
-  assert.match(body, /pendingIsolateDestAddr = isolateDestAddr/,
-    `${swiftRel}: the choice must be recorded for the next start`);
-  assert.ok(!/SETCONF|sendCommand|setConfs?\(/.test(body),
-    `${swiftRel}: a SETCONF here is accepted and silently ineffective`);
-  assert.ok(!/\bstop\(\)|launchLocked\(|retireRunningLocked\(/.test(body),
-    `${swiftRel}: it must not tear the runtime down to apply a setting`);
+test('circuits are isolated per site, never per destination', () => {
+  // IsolateSOCKSAuth keys a circuit on the per-site SOCKS credential, which
+  // is the whole contract (TOR-003). IsolateDestAddr split each site further
+  // by host and was a user setting until it was removed: it cost a site one
+  // exit per host, and it hid BUG-014's dropped credential. It cannot come
+  // back as a live toggle either, since tor keeps an auto listener's flags
+  // and answers SETCONF SocksPort with 250 OK.
+  assert.match(swiftCode, /static let socksPortValue = "auto IsolateSOCKSAuth"/,
+    `${swiftRel}: the SocksPort line is fixed to per-site isolation`);
+  assert.ok(!/IsolateDestAddr"/.test(swiftCode) && !/isolateDestAddr/.test(swiftCode),
+    `${swiftRel}: nothing may put destination isolation back on the listener`);
   assert.match(functionBody(swiftCode, 'launchLocked'),
-    /socksPortValue\(isolateDestAddr: pendingIsolateDestAddr\)/,
-    `${swiftRel}: the recorded choice must reach the SocksPort line`);
-
-  const settings = fs.readFileSync(
-    path.join(repoRoot, 'lib/screens/app_settings.dart'), 'utf8');
-  assert.match(settings, /applySocksIsolation\(isolateDestAddr:/,
-    'lib/screens/app_settings.dart must record the change, not restart Tor');
-  assert.ok(!/TorService\.instance\.restart\(\)/.test(settings.slice(
-    settings.indexOf('_setTorIsolateDestAddr'),
-    settings.indexOf('_setTorIsolateDestAddr') + 500)),
-    'lib/screens/app_settings.dart must not restart Tor for a setting');
+    /"SocksPort": Self\.socksPortValue/,
+    `${swiftRel}: the launch must use that line`);
+  assert.ok(!/"setSocksIsolation"/.test(swiftCode),
+    `${swiftRel}: no channel method may change it`);
 });

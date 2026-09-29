@@ -4,7 +4,6 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/pref_read.dart';
 
-const String kExperimentalTorKey = 'experimentalTor';
 const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
 const String kExperimentalSiteIconsOnlyKey = 'experimentalSiteIconsOnly';
 const String kExperimentalTextureRenderingKey = 'experimentalTextureRendering';
@@ -14,13 +13,9 @@ const String kExperimentalSiteTabsKey = 'experimentalSiteTabs';
 /// with developer mode on and its own switch on in App Settings'
 /// Experimental group.
 enum ExperimentalFeature {
-  /// The embedded Tor client (TOR-007). On by default: before this switch
-  /// existed developer mode alone opened Tor, and a user who had it on must
-  /// not find their Tor sites blocked by an upgrade.
-  tor(kExperimentalTorKey, defaultOn: true),
-
-  /// Android's per-site proxy router (PROXY-013). On by default for the same
-  /// reason as [tor]: developer mode alone ran it before this switch existed.
+  /// Android's per-site proxy router (PROXY-013). On by default: developer
+  /// mode alone ran it before this switch existed, and a user who had it on
+  /// must not lose it to an upgrade.
   proxyRouter(kExperimentalProxyRouterKey, defaultOn: true),
 
   /// A site's icon taken only from the site: no third-party icon service, and

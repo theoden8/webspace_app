@@ -3299,10 +3299,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// here, and computing a delta at each of those call sites is how a
   /// deleted site ends up pinning the runtime up forever.
   Future<void> _syncTorHolders() async {
-    // No `isAvailable` early return: `syncHolders` is also how holders get
-    // released, and turning developer mode off has to release the ones
-    // already taken rather than leave the runtime pinned up for a feature
-    // the user can no longer reach. TorService shuts its own gate.
     final holders = <String>{
       for (final m in _webViewModels)
         if (m.proxySettings.type == ProxyType.TOR) m.siteId,
@@ -7988,12 +7984,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                 MaterialPageRoute(
                   builder: (context) => AppSettingsScreen(
                     currentSettings: _themeSettings,
-                    // Asked when the developer-mode switch is flipped, not
-                    // now: a site can be pinned to Tor from the drawer while
-                    // this screen is open.
-                    torPinnedSiteCount: () => _webViewModels
-                        .where((m) => m.proxySettings.type == ProxyType.TOR)
-                        .length,
                     proxyRouterRunsHere: ProxyRouterService.canRunHere(
                         useContainers: _useContainers),
                     siteNames: _siteNames(),

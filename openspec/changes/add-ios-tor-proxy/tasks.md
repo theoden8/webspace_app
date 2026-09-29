@@ -100,7 +100,7 @@ fix or the app fails closed (LEAK-003). Lineage:
 
 - [x] 1.1 Added `pod 'Tor', '409.11.2'` (exact version, not `~>`) to `ios/Podfile`. The podspec's `prepare_command` already verifies the downloaded `tor.xcframework` against pinned sha256 digests, so no extra CI checksum step is needed. Pod requires iOS 15.0, which the Podfile floor already is.
 - [x] 1.2 Create `ios/Runner/TorControllerPlugin.swift` registering `FlutterMethodChannel <bundleId>/tor` and `FlutterEventChannel <bundleId>/tor/events`. Register in `AppDelegate.swift` alongside `BackgroundTaskPlugin`.
-- [x] 1.3 Implement `start()` — builds a `TorConfiguration` with `SocksPort auto IsolateSOCKSAuth IsolateDestAddr`, control-port cookie auth, ephemeral `DataDirectory` under `NSCachesDirectory/Tor/`, spawns `TorThread`, subscribes to control-port `BOOTSTRAP` events.
+- [x] 1.3 Implement `start()` — builds a `TorConfiguration` with `SocksPort auto IsolateSOCKSAuth` (`IsolateDestAddr` was here, then a setting, then removed: 12.2), control-port cookie auth, ephemeral `DataDirectory` under `NSCachesDirectory/Tor/`, spawns `TorThread`, subscribes to control-port `BOOTSTRAP` events.
 - [x] 1.4 Implement `status()` — returns `{state, bootstrapPct, socksHost, socksPort}` synchronously; emits the same shape via the event channel as state changes.
 - [x] 1.5 Implement `rebuildCircuits()` — sends `SIGNAL NEWNYM` via the control port. Rate-limit at the plugin layer (no-op if last NEWNYM was less than 10s ago).
 - [x] 1.6 Implement `stop()` — graceful shutdown via `TorThread.cancel()`, awaits termination with a 5s timeout then force-exits the thread. Clears in-memory port info.
@@ -144,7 +144,7 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 
 ## 6. UI surfaces
 
-- [x] 6.0 Gate the whole feature behind developer mode (DEVTOOLS-010) until TOR-013's bootstrap surface lands: `TorService.isAvailable` is the conjunction of the platform gate and `DeveloperModeService.instance.enabled`, every start path re-checks it, `socksFor` returns null with it shut, and turning the flag off releases the holders already taken. The gate deliberately sits on `TorService` rather than the runtime or engine, which stay pure platform questions for their fake-backed tests.
+- [x] 6.0 (Lifted by 12.1.) Gate the whole feature behind developer mode (DEVTOOLS-010) until TOR-013's bootstrap surface lands: `TorService.isAvailable` is the conjunction of the platform gate and `DeveloperModeService.instance.enabled`, every start path re-checks it, `socksFor` returns null with it shut, and turning the flag off releases the holders already taken. The gate deliberately sits on `TorService` rather than the runtime or engine, which stay pure platform questions for their fake-backed tests.
 
 - [x] 6.1 In [lib/screens/settings.dart](../../../lib/screens/settings.dart) per-site Proxy block: offer `ProxyType.TOR` in the proxy type dropdown, gated on `TorService.isAvailable`, and hide the manual address/credential fields under it without overwriting what they hold. Shipped as a dropdown value rather than the planned separate switch — PROXY-020 records why a second flag was dropped.
 - [x] 6.2a In [lib/screens/app_settings.dart](../../../lib/screens/app_settings.dart): add `ProxyType.TOR` to the global outbound proxy dropdown, on the same `TorService.isAvailable` gate, with the address validator exempting it.
@@ -206,10 +206,10 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 
 ## 9. Tests
 
-- [x] 9.1 Covered by [test/tor_engine_test.dart](../../../test/tor_engine_test.dart) (TOR-002 lifecycle: first holder starts, a second does not restart, one reason counts once, debounce cancel, `syncHolders`; TOR-013 bootstrap timeout; TOR-003 stream isolation) and [test/tor_developer_mode_gate_test.dart](../../../test/tor_developer_mode_gate_test.dart) (the gate, and `socksFor` failing closed behind it). Written against the engine, which is where the policy lives; `tor_service_test.dart` was never created.
+- [x] 9.1 Covered by [test/tor_engine_test.dart](../../../test/tor_engine_test.dart) (TOR-002 lifecycle: first holder starts, a second does not restart, one reason counts once, debounce cancel, `syncHolders`; TOR-013 bootstrap timeout; TOR-003 stream isolation) and [test/tor_gate_test.dart](../../../test/tor_gate_test.dart) (the platform gate, and `socksFor` failing closed where there is no runtime). Written against the engine, which is where the policy lives; `tor_service_test.dart` was never created.
 - [x] 9.2 `test/outbound_http_tor_test.dart`: `ProxyType.TOR` routes through `TorService.socksFor`, fail-closed when `status != Up`, a per-site `ProxyType.TOR` overrides a manual address, DEFAULT with global TOR uses the `__webspace_app_global__` tag.
 - [x] 9.3 Covered generically, which is stronger than a Tor-specific copy would be: [test/nested_webview_field_parity_test.dart](../../../test/nested_webview_field_parity_test.dart) reads `LaunchUrlFunc`'s own parameter list and requires every one to survive each step of the nested chain, and [test/js/nested_webview_posture_parity.test.js](../../../test/js/nested_webview_posture_parity.test.js) names `proxySettings` in the posture set. Tor rides `proxySettings`, so both cover it; the round-trip is `test/settings_backup_test.dart`'s.
-- [x] 9.4 Covered against the shipped design rather than 5.2's: [test/tor_bootstrap_placeholder_test.dart](../../../test/tor_bootstrap_placeholder_test.dart) (showing the placeholder starts the runtime and releases it on the way out) and [test/tor_ui_states_test.dart](../../../test/tor_ui_states_test.dart) (every rendered state, each failure kind with its remedy, and the two gates that cannot open).
+- [x] 9.4 Covered against the shipped design rather than 5.2's: [test/tor_bootstrap_placeholder_test.dart](../../../test/tor_bootstrap_placeholder_test.dart) (showing the placeholder starts the runtime and releases it on the way out) and [test/tor_ui_states_test.dart](../../../test/tor_ui_states_test.dart) (every rendered state, each failure kind with its remedy, and the platform with no runtime).
 - [ ] 9.5 Manual iOS test matrix in [tasks.md → manual checklist](#10-manual-test-matrix-ios) below.
 
 ## 10. Manual test matrix (iOS)
@@ -233,3 +233,11 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 - [ ] 11.2 Update fastlane iOS release notes in `fastlane/metadata/ios/en-US/release_notes.txt` (per Fastlane size limits) describing the new toggle. Run `scripts/validate_fastlane_metadata.sh` if any Android sibling notes also touched.
 - [ ] 11.3 Document the binary-size growth (~15 MB iOS IPA) in the PR description and the OpenSpec change archive note.
 - [x] 11.4 [CLAUDE.md](../../../CLAUDE.md) carries the `tor-proxy *(change)*` row in the openspec slug table.
+
+## 12. Graduation
+
+- [x] 12.1 Take Tor out of developer mode and the Experimental group (TOR-007): `TorService.isAvailable` is the platform check alone; `ExperimentalFeature.tor`, its `experimentalTor` pref, `TorGate.switchedOff`, the Built-in Tor switch and the TOR-023 confirmations are gone, with their strings. Tests: `test/tor_gate_test.dart`, `test/app_settings_experimental_test.dart`, `test/tor_ui_states_test.dart`.
+- [x] 12.2 Remove the "Separate circuit per destination" setting (TOR-003): the `SocksPort` line is fixed to `auto IsolateSOCKSAuth`, the `setSocksIsolation` channel method and the engine's loader are gone, and `torIsolateDestAddr` is declared retired in both backup-compat tests. Gate: `test/js/tor_bootstrap_observability.test.js`.
+- [x] 12.3 The App settings status card renders nothing while Tor is stopped (TOR-004), so an idle "Not running" row no longer reads as something to configure.
+- [x] 12.4 Tapping the card opens the Tor screen (`lib/screens/tor_status.dart`, TOR-004): what holds the runtime (`summarizeTorHolders`), the exit pin, bridges, circuits. Tests: `test/tor_holders_test.dart`, `test/tor_status_screen_test.dart`, the tap in `test/app_settings_experimental_test.dart`.
+- [x] 12.5 Run tor with conflux off from launch (TOR-024, BUG-013 attempt 12): a conflux leg relaunched under `DisableNetwork 1` left the guard refused for 60 s after a reopen. Gates: `test/js/tor_suspension.test.js`, the BUG-line check in `integration_test/tor_suspension_probe.dart`, `test/js/tor_exit_pin_conflux.test.js`.
