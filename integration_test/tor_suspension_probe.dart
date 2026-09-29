@@ -263,6 +263,14 @@ Future<bool> _run() async {
     check(exitAfter != null && exitAfter != 'not-tor',
         'a request through $after left from a Tor exit ($exitAfter)');
   }
+  // A connect attempted while DisableNetwork is set marks its guard failed
+  // for a minute, so the runtime reports up and carries nothing. The one path
+  // that tries it is a conflux leg relaunching (confluxEnabledValue).
+  check(
+      !LogService.instance.allEntriesMerged.any((e) =>
+          e.tag == 'TorLog' &&
+          e.message.contains('Tried to open a socket with DisableNetwork set')),
+      'tor opened no socket while its network was off');
   return ok;
 }
 

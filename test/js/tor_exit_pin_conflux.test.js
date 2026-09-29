@@ -35,14 +35,15 @@ test('the pin sets ExitNodes, StrictNodes 1 and ConfluxEnabled 0 together', () =
   const pin = body('static func exitPinConfigs(');
   assert.match(pin, /"ExitNodes"/);
   assert.match(pin, /"StrictNodes",\s*"value":\s*"1"/);
-  assert.match(pin, /"ConfluxEnabled",\s*"value":\s*"0"/,
+  assert.match(pin, /"ConfluxEnabled",\s*"value":\s*confluxEnabledValue/,
     'without conflux off, a recovering conflux set keeps its pre-pin exit');
+  assert.match(src, /static let confluxEnabledValue = "0"/);
 });
 
-test('clearing the pin gives conflux back to tor', () => {
+test('clearing the pin keeps conflux off (TOR-024)', () => {
   const clear = body('static let exitPinClearConfigs');
   assert.match(clear, /"StrictNodes",\s*"value":\s*"0"/);
-  assert.match(clear, /"ConfluxEnabled",\s*"value":\s*"auto"/);
+  assert.match(clear, /"ConfluxEnabled",\s*"value":\s*confluxEnabledValue/);
 });
 
 test('the apply path uses those, and closes circuits after them', () => {

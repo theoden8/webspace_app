@@ -607,6 +607,7 @@ class TorControllerPlugin: NSObject {
     config.ignoreMissingTorrc = true
     config.options = [
       "SocksPort": Self.socksPortValue,
+      "ConfluxEnabled": Self.confluxEnabledValue,
       "SafeLogging": "1",
     ]
     // tor's own log, which `TORConfiguration` turns into
@@ -1154,6 +1155,26 @@ class TorControllerPlugin: NSObject {
   /// `SETCONF SocksPort` with 250 OK regardless.
   static let socksPortValue = "auto IsolateSOCKSAuth"
 
+  /// Conflux stays off for the life of the runtime (TOR-024).
+  ///
+  /// When a leg of a set that has not linked yet closes, tor relaunches it
+  /// straight away (`unlinked_circuit_closed` -> `conflux_launch_leg`),
+  /// checking neither ConfluxEnabled nor DisableNetwork. `cycleNetwork`'s
+  /// `DisableNetwork 1` closes every relay connection, so a relaunch lands
+  /// while the network is off: tor refuses the socket ("Tried to open a
+  /// socket with DisableNetwork set"), and `note_or_connect_failed` records
+  /// the guard as failed. For `OR_CONNECT_FAILURE_LIFETIME` (60 s)
+  /// `should_connect_to_relay` then refuses every connection to it, so the
+  /// runtime reports up on a fresh listener and carries nothing for over a
+  /// minute. Turning conflux off mid-cycle cannot help: a leg that opens with
+  /// it off is closed, and that close relaunches too. With it off from
+  /// launch, `conflux_predict_new` never builds a set, so there is no leg to
+  /// relaunch.
+  ///
+  /// It also retires the hazard behind the exit-country pin's own
+  /// `ConfluxEnabled 0` (TOR-014): a recovering set keeping its pre-pin exit.
+  static let confluxEnabledValue = "0"
+
   /// Apply or clear the `ExitNodes` pin (TOR-014).
   ///
   /// Failure is reported to Dart rather than swallowed: the engine treats a
@@ -1401,8 +1422,8 @@ class TorControllerPlugin: NSObject {
     guard let exitNodes = exitNodes, !exitNodes.isEmpty else {
       // Clearing takes two commands: RESETCONF puts ExitNodes back to no
       // pin at all, and StrictNodes has to be turned off separately or
-      // tor keeps enforcing an empty set. Conflux goes back to tor's own
-      // default with it.
+      // tor keeps enforcing an empty set. Conflux stays off
+      // (`confluxEnabledValue`).
       //
       // StrictNodes goes through setConfs rather than the single-key
       // setter: `setConfForKey:withValue:` starts with `set`, so Swift
@@ -1540,14 +1561,15 @@ class TorControllerPlugin: NSObject {
     [
       ["key": "ExitNodes", "value": exitNodes],
       ["key": "StrictNodes", "value": "1"],
-      ["key": "ConfluxEnabled", "value": "0"],
+      ["key": "ConfluxEnabled", "value": confluxEnabledValue],
     ]
   }
 
-  /// What clearing a pin sets back, alongside RESETCONF ExitNodes.
+  /// What clearing a pin sets back, alongside RESETCONF ExitNodes. Conflux
+  /// stays off: it is off for the whole runtime (`confluxEnabledValue`).
   static let exitPinClearConfigs: [[AnyHashable: Any]] = [
     ["key": "StrictNodes", "value": "0"],
-    ["key": "ConfluxEnabled", "value": "auto"],
+    ["key": "ConfluxEnabled", "value": confluxEnabledValue],
   ]
 
   /// IDs of the circuits a `GETINFO circuit-status` value lists as able to

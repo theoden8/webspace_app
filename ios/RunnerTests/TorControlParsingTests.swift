@@ -192,8 +192,9 @@ class TorControlParsingTests: XCTestCase {
     XCTAssertEqual(
       settings(TorControllerPlugin.exitPinConfigs("{br}")),
       ["ExitNodes": "{br}", "StrictNodes": "1", "ConfluxEnabled": "0"])
+    // Clearing keeps conflux off: it is off for the whole runtime (TOR-024).
     XCTAssertEqual(
       settings(TorControllerPlugin.exitPinClearConfigs),
-      ["StrictNodes": "0", "ConfluxEnabled": "auto"])
+      ["StrictNodes": "0", "ConfluxEnabled": "0"])
   }
 }

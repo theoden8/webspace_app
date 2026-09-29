@@ -63,6 +63,23 @@ test('a dead listener is reopened, not reconfigured', () => {
     'the call answers exactly once, whatever tor does (BUG-018)');
 });
 
+test('DisableNetwork finds no conflux leg to relaunch', () => {
+  // tor relaunches a closed leg of an unlinked conflux set without checking
+  // DisableNetwork, the connect is refused, and the guard is then refused for
+  // 60 s (OR_CONNECT_FAILURE_LIFETIME): a runtime that is up and carries
+  // nothing. Seen on the macOS probe. Conflux off from launch is the only
+  // state in which no such leg exists.
+  assert.match(swift, /static let confluxEnabledValue = "0"/);
+  const launch = body(swift, 'func launchLocked(');
+  assert.match(launch, /"ConfluxEnabled": Self\.confluxEnabledValue/,
+    'tor must start with conflux off, not have it turned off later');
+  assert.ok(!/"ConfluxEnabled",\s*"value":\s*"(auto|1)"/.test(swift),
+    'nothing may turn conflux back on while the runtime lives');
+  const probe = code(read('integration_test/tor_suspension_probe.dart'));
+  assert.match(probe, /Tried to open a socket with DisableNetwork set/,
+    'the macOS probe fails on the symptom itself');
+});
+
 test('the listener is asked on every way back into the app', () => {
   const production = body(service, 'static TorService _production(');
   assert.match(production, /socksProbe: createTorSocksProbe\(\)/,

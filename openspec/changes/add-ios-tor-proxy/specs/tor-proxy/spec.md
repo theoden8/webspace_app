@@ -733,8 +733,9 @@ stream takes any linked set whose exit is not *excluded*, which a pre-pin exit
 never is. On a real tor this sent a `{de}` pin out through the Netherlands and
 a `{us}` pin out through Germany. A pin SHALL therefore set `ConfluxEnabled 0`
 in the same `SETCONF` as `ExitNodes`, before any circuit is closed, and
-clearing the pin SHALL return `ConfluxEnabled` to `auto`. With conflux off no
-leg can link, so no stream rides a set built before the pin.
+clearing the pin SHALL leave it at `0`, which is where the runtime keeps it
+anyway (TOR-024). With conflux off no leg can link, so no stream rides a set
+built before the pin.
 
 **A pin change holds up nothing but the Tor sites it concerns** (BUG-018).
 The change is a control-port round trip, and a control connection can go
@@ -1391,6 +1392,18 @@ next foreground found "The previous Tor is still running".
   listener being `up`, and Retry SHALL try the reopen again.
 - An exit-country pin in force SHALL stay in force across a reopen: it is
   the same tor, and nothing re-applies it.
+- tor SHALL run with conflux off for the life of the runtime:
+  `ConfluxEnabled 0` in its launch configuration, and nothing SHALL set it
+  back to `auto`. tor relaunches a closed leg of a conflux set that has not
+  linked yet (`unlinked_circuit_closed` -> `conflux_launch_leg`) without
+  checking `DisableNetwork`, so `DisableNetwork 1` closing that leg's
+  connection makes tor try a socket it refuses ("Tried to open a socket with
+  DisableNetwork set"). `note_or_connect_failed` then records the guard, and
+  `should_connect_to_relay` refuses it for `OR_CONNECT_FAILURE_LIFETIME`
+  (60 s). The reopened listener is `up` and nothing leaves through it for
+  more than a minute. Switching conflux off during the reopen is not enough:
+  a leg that opens with it off is closed, and that close relaunches too.
+  With it off from launch, tor builds no conflux set at all.
 - The bootstrap deadline (TOR-013) SHALL NOT report a bootstrap the app was
   suspended through. A deadline that fires more than a few seconds after it
   was due SHALL start its window over.
@@ -1404,6 +1417,14 @@ next foreground found "The previous Tor is still running".
 - **THEN** tor's control channel still answers
 - **AND** tor opens a new SOCKS listener and the runtime publishes it as `up`
 - **AND** a request through it leaves from a Tor exit
+
+#### Scenario: A reopen leaves no guard refused
+
+- **GIVEN** Tor has been up long enough to build its preemptive circuits
+- **WHEN** a suspension defuncts its sockets and the app reopens the listener
+- **THEN** tor never logs "Tried to open a socket with DisableNetwork set"
+- **AND** a request through the new listener leaves from a Tor exit within
+  seconds, not after the guard's minute-long refusal
 
 #### Scenario: A listener that still answers is left alone
 
