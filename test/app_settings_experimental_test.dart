@@ -18,6 +18,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/app_settings.dart';
+import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/file_store.dart';
@@ -57,13 +58,17 @@ final Uint8List _png64 =
     Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
 
 void main() {
-  Widget host({bool routerRunsHere = false}) =>
+  Widget host({
+    bool routerRunsHere = false,
+    Map<String, String> siteNames = const {},
+  }) =>
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: AppSettingsScreen(
           currentSettings: AppThemeSettings(),
           proxyRouterRunsHere: routerRunsHere,
+          siteNames: siteNames,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},
@@ -195,6 +200,25 @@ void main() {
       await scrollToCard(tester);
       expect(find.text('Tor'), findsOneWidget);
       expect(find.text('Connected'), findsOneWidget);
+    });
+
+    testWidgets('tapping the card opens what Tor is doing app-wide',
+        (tester) async {
+      await tester.pumpWidget(host(siteNames: const {'site-a': 'Mail'}));
+      await tester.pumpAndSettle();
+      await TorService.instance.syncHolders({'site-a'});
+      runtime.emit(const TorUp('127.0.0.1', 41337));
+      await tester.pumpAndSettle();
+      await scrollToCard(tester);
+
+      await tester.tap(find.text('Tor'));
+      await tester.pumpAndSettle();
+      expect(find.byType(TorStatusScreen), findsOneWidget);
+      expect(find.text('Using Tor'), findsOneWidget);
+      expect(find.text('Mail'), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 91));
     });
 
     testWidgets('there is no per-destination circuit switch', (tester) async {

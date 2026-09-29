@@ -28,6 +28,7 @@ const MIGRATED = [
   'lib/widgets/http_auth_prompt.dart',
   'lib/widgets/level_slider.dart',
   'lib/screens/site_network.dart',
+  'lib/screens/tor_status.dart',
   'lib/widgets/tab_bar_corner_button.dart',
   'lib/widgets/tabs_sheet.dart',
   'lib/widgets/tor_bootstrap.dart',

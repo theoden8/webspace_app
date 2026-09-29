@@ -34,6 +34,7 @@ const migrated = new Set([
   'lib/screens/location_picker.dart',
   'lib/screens/settings.dart',
   'lib/screens/tor_bridge_settings.dart',
+  'lib/screens/tor_status.dart',
   'lib/screens/site_settings_qr.dart',
   'lib/screens/site_settings_qr_scanner.dart',
   'lib/screens/trusted_certificates.dart',

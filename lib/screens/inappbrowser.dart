@@ -23,6 +23,7 @@ import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
@@ -402,7 +403,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           setState(() => _webView = _createNestedInappWebView());
         }
       });
-      TorService.instance.maybeStart('nested:${widget.siteId}');
+      TorService.instance.maybeStart('$kTorNestedHolderPrefix${widget.siteId}');
     } else {
       _webView = _createNestedInappWebView();
     }
@@ -760,7 +761,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _repaintLogFlushTimer?.cancel();
     _torStatusSub?.cancel();
     if (widget.proxySettings.type == ProxyType.TOR) {
-      TorService.instance.release('nested:${widget.siteId}');
+      TorService.instance.release('$kTorNestedHolderPrefix${widget.siteId}');
     }
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);

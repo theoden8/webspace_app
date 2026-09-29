@@ -162,6 +162,17 @@ its own (TOR-002), so `stopped` means nothing is set to use Tor; a card
 reading "Not running" with no action on it reads as a setting the user is
 meant to do something with, which is how it was reported.
 
+Tapping the card SHALL open the **Tor screen**, which shows the runtime as
+the one thing it is, shared by the whole app: the same card at its head; what
+is using Tor now, read from the runtime's holders (each site by name, "All app
+traffic" for the app-wide proxy, a nested browser counted as the site that
+opened it, and sites with no name to show, such as an open archive's, counted
+but not named); and the settings that hold for every site at once, each with
+its explanation behind a hint: the exit country pin in force (TOR-014), bridges
+with a way into their settings (TOR-016), and circuits, one per site (TOR-003).
+The holder summary is the pure `summarizeTorHolders`
+(`lib/services/tor_holders.dart`).
+
 #### Scenario: Settings card reflects bootstrap progress
 
 - **GIVEN** Tor is in state `bootstrapping(45)`
@@ -176,6 +187,16 @@ meant to do something with, which is how it was reported.
 - **THEN** no Tor card is shown
 - **AND** once a site set to `TOR` starts it, the card appears under the
   outbound proxy block
+
+#### Scenario: The card opens what Tor is doing app-wide
+
+- **GIVEN** Tor is up, the app-wide proxy is `TOR`, and sites "Mail" and
+  "Bank" are set to `TOR`
+- **WHEN** the user taps the Tor card in App Settings
+- **THEN** the Tor screen lists "All app traffic", "Bank" and "Mail" under
+  "Using Tor"
+- **AND** it shows the exit country in force, whether bridges are on, and
+  that circuits are one per site
 
 #### Scenario: Error state surfaces the message
 

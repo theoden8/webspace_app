@@ -13,6 +13,7 @@ import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -1572,7 +1573,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           // where TOR gets selected, and this is where the user finds out
           // whether it actually came up. Renders nothing until something
           // uses Tor.
-          const TorStatusCard(),
+          TorStatusCard(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>
+                    TorStatusScreen(siteNames: widget.siteNames),
+              ),
+            ),
+          ),
 
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

@@ -71,7 +71,10 @@ IconData torFailureIcon(TorFailureKind kind) => switch (kind) {
 
 /// Live Tor state for App Settings.
 class TorStatusCard extends StatefulWidget {
-  const TorStatusCard({super.key});
+  const TorStatusCard({super.key, this.onTap});
+
+  /// Opens the full Tor screen. Null where the card already sits on it.
+  final VoidCallback? onTap;
 
   @override
   State<TorStatusCard> createState() => _TorStatusCardState();
@@ -129,7 +132,7 @@ class _TorStatusCardState extends State<TorStatusCard> {
       TorStarting() || TorStopped() => _starting(loc, theme),
     };
 
-    return Padding(
+    final card = Padding(
       padding: const EdgeInsets.fromLTRB(
           Spacing.lg, Spacing.sm, Spacing.lg, Spacing.md),
       child: Column(
@@ -149,14 +152,22 @@ class _TorStatusCardState extends State<TorStatusCard> {
                     : (s is TorUp ? scheme.primary : scheme.onSurfaceVariant),
               ),
               const SizedBox(width: Spacing.sm),
-              Flexible(
-                child: Text(loc.torStatusTitle,
-                    style: theme.textTheme.labelLarge),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(loc.torStatusTitle,
+                          style: theme.textTheme.labelLarge),
+                    ),
+                    HintButton(
+                      title: loc.torStatusTitle,
+                      description: loc.torStatusHint,
+                    ),
+                  ],
+                ),
               ),
-              HintButton(
-                title: loc.torStatusTitle,
-                description: loc.torStatusHint,
-              ),
+              if (widget.onTap != null)
+                Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
             ],
           ),
           const SizedBox(height: Spacing.xs),
@@ -164,6 +175,8 @@ class _TorStatusCardState extends State<TorStatusCard> {
         ],
       ),
     );
+    final onTap = widget.onTap;
+    return onTap == null ? card : InkWell(onTap: onTap, child: card);
   }
 
   Widget _starting(AppLocalizations loc, ThemeData theme) {

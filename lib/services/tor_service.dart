@@ -357,6 +357,10 @@ class TorService {
 
 
   TorStatus get status => _engine.status;
+
+  /// The reasons holding the runtime up: site ids, the app-wide tag, and the
+  /// prefixed holders in `tor_holders.dart`.
+  Set<String> get holders => _engine.holders;
   Stream<TorStatus> get statusStream => _engine.statusStream;
 
   /// `host:port` of the live SOCKS5 listener, or null when not up.
