@@ -146,6 +146,9 @@ void main() {
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'vpn'),
+        // The entry's name is the point here; ETP-031's WebRTC entry has
+        // its own test.
+        trackingProtectionEnabled: false,
       ),
     );
     expect(_summary(tester), 'Work VPN');
@@ -163,6 +166,9 @@ void main() {
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.GATEWAY, gatewayId: 'de'),
+        // The entry's name is the point here; ETP-031's WebRTC entry has
+        // its own test.
+        trackingProtectionEnabled: false,
       ),
     );
     expect(_summary(tester), 'VPN DE');
@@ -175,6 +181,9 @@ void main() {
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'gone'),
+        // The entry's name is the point here; ETP-031's WebRTC entry has
+        // its own test.
+        trackingProtectionEnabled: false,
       ),
     );
     expect(_summary(tester), 'Missing saved proxy');

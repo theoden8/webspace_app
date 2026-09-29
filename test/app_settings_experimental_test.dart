@@ -237,11 +237,11 @@ void main() {
           TorEngine(runtime: _PresentRuntime(), sessionSecret: 's'));
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      final title = find.text('Site tabs');
-      await tester.scrollUntilVisible(title, 400,
+      final header = find.text('Experimental');
+      await tester.scrollUntilVisible(header, 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      expect(find.text('Experimental'), findsOneWidget,
+      expect(header, findsOneWidget,
           reason: 'site tabs run on every platform, so the group always has '
               'a row');
       expect(find.text('Built-in Tor'), findsNothing,

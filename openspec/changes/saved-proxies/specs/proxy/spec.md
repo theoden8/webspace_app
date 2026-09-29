@@ -10,6 +10,12 @@ The app SHALL keep a proxy library of three kinds of named entry:
 - a **saved proxy**: a gateway choice (typed, or a saved gateway) and a
   credentials choice (typed, or saved credentials that list that gateway).
 
+The library is experimental (DEVTOOLS-011): the Saved proxies row and the
+library entries in every proxy picker are offered only while developer mode
+and the **Saved proxies** switch are on. A setting already on the library
+SHALL keep resolving, and keep its entry in the picker, when the switch is
+off, so switching it off never moves a site's traffic.
+
 With both halves typed, a saved proxy is simply a proxy, and the user never
 has to create a gateway or credentials entry for it. Those entries exist for
 what is shared: one account that works on several gateways, several accounts
@@ -55,6 +61,14 @@ Sharing a site by QR SHALL carry the resolved type, address and username in
 place of the references, never a password; a reference that does not resolve
 SHALL carry no proxy. A received payload that names the library SHALL be
 refused, since the encoder never emits one.
+
+#### Scenario: The experiment off hides the library, not the route
+
+- **GIVEN** site Mail uses saved proxy "Work VPN"
+- **WHEN** the user turns the Saved proxies switch off
+- **THEN** no proxy picker offers the library
+- **AND** Mail's picker still shows "Work VPN"
+- **AND** Mail still routes through "Work VPN"
 
 #### Scenario: One VPN, typed once
 
@@ -138,7 +152,8 @@ and in a Connection row of the URL-bar site info sheet. That row SHALL name
 the route the site's traffic takes: direct, the app-wide proxy, a saved proxy
 or gateway by name, the site's own proxy, or Tor; the indicator is absent for
 a direct route. The row SHALL be absent where the platform binds no per-site
-proxy (PROXY-006).
+proxy (PROXY-006), and while the Saved proxies experiment is off, since
+opening the sheet would otherwise probe a route the user did not ask about.
 
 A check SHALL run only when an indicator is shown and its last answer is
 older than two minutes, or when the user taps it again; never on a timer,

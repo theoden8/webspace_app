@@ -3,9 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/saved_proxies.dart';
 import 'package:webspace/screens/site_network.dart';
+import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/services/outbound_http.dart' show resolveEffectiveProxy;
 import 'package:webspace/services/proxy_health_service.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
@@ -343,6 +346,7 @@ void main() {
           proxySupported: true,
           showSavedSignIns: false,
           library: _library(),
+          offerLibrary: true,
         ),
       );
       return reported;
@@ -430,6 +434,90 @@ void main() {
       await tester.pump();
       expect(find.text('SOCKS5 de.gw:1080'), findsOneWidget);
       await tester.pump(const Duration(seconds: 2));
+    });
+  });
+
+  group('Saved proxies experiment (DEVTOOLS-011)', () {
+    Widget picker({
+      required bool offer,
+      ProxyType type = ProxyType.DEFAULT,
+      String? savedProxyId,
+    }) =>
+        Scaffold(
+          body: Center(
+            child: ProxyChoiceDropdown(
+              type: type,
+              savedProxyId: savedProxyId,
+              gatewayId: null,
+              library: _library(),
+              torAvailable: false,
+              offerLibrary: offer,
+              onChanged: (_) {},
+            ),
+          ),
+        );
+
+    testWidgets('off, the pickers offer no library entry', (tester) async {
+      await _pump(tester, picker(offer: false));
+      await tester.tap(find.byType(ProxyChoiceDropdown));
+      await tester.pumpAndSettle();
+      expect(find.text('Work VPN'), findsNothing);
+      expect(find.text('VPN DE'), findsNothing);
+      expect(find.text(loc.savedProxiesTitle), findsNothing);
+      expect(find.text('SOCKS5'), findsWidgets);
+    });
+
+    testWidgets('off, a site already on the library keeps its entry',
+        (tester) async {
+      await _pump(
+        tester,
+        picker(offer: false, type: ProxyType.SAVED, savedProxyId: 'work'),
+      );
+      expect(find.text('Work VPN'), findsOneWidget);
+      await tester.tap(find.byType(ProxyChoiceDropdown));
+      await tester.pumpAndSettle();
+      expect(find.text('VPN DE'), findsNothing);
+    });
+
+    testWidgets('the Network screen follows the experiment by default',
+        (tester) async {
+      await _pump(
+        tester,
+        SiteNetworkScreen(
+          host: 'example.com',
+          siteId: 'site-1',
+          values: const SiteNetworkValues(
+            proxyType: ProxyType.DEFAULT,
+            webRtcPolicy: WebRtcPolicy.defaultPolicy,
+          ),
+          onChanged: (_) {},
+          proxyAddressController: TextEditingController(),
+          proxyUsernameController: TextEditingController(),
+          proxyPasswordController: TextEditingController(),
+          proxySupported: true,
+          showSavedSignIns: false,
+          library: _library(),
+        ),
+      );
+      await tester.tap(find.byType(ProxyChoiceDropdown));
+      await tester.pumpAndSettle();
+      expect(find.text('Work VPN'), findsNothing);
+    });
+
+    test('the switch is new, so it defaults off and rides backups', () {
+      expect(ExperimentalFeature.proxyLibrary.defaultOn, isFalse);
+      expect(kExportedAppPrefs[kExperimentalProxyLibraryKey], isFalse);
+    });
+
+    test('a library route still resolves with the experiment off', () {
+      expect(
+        ExperimentalFeaturesService.instance
+            .isEnabled(ExperimentalFeature.proxyLibrary),
+        isFalse,
+      );
+      final route = resolveEffectiveProxy(
+          UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'work'));
+      expect(route.address, 'us.gw:1080');
     });
   });
 

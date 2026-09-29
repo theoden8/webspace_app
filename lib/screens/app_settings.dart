@@ -223,6 +223,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       .switchOn(ExperimentalFeature.textureRendering);
   bool _siteTabsSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.siteTabs);
+  bool _proxyLibrarySwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.proxyLibrary);
 
   bool _isUpdatingFirefoxVersion = false;
   bool _firefoxAutoRefresh = false;
@@ -990,6 +992,16 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     setState(() => _siteTabsSwitch = value);
   }
 
+  Future<void> _setProxyLibrarySwitch(bool value) async {
+    await ExperimentalFeaturesService.instance
+        .setSwitch(ExperimentalFeature.proxyLibrary, value);
+    if (!mounted) return;
+    setState(() => _proxyLibrarySwitch = value);
+  }
+
+  bool get _proxyLibraryEnabled => ExperimentalFeaturesService.instance
+      .isEnabled(ExperimentalFeature.proxyLibrary);
+
   Future<void> _loadOsmTileUrl() async {
     final prefs = await SharedPreferences.getInstance();
     final url = readPrefAs<String>(prefs, 'osmTileUrl') ??
@@ -1563,21 +1575,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.vpn_lock_outlined),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.savedProxiesTitle)),
-                HintButton(
-                  title: loc.savedProxiesTitle,
-                  description: loc.savedProxiesHint,
-                ),
-              ],
+          if (_proxyLibraryEnabled)
+            ListTile(
+              leading: const Icon(Icons.vpn_lock_outlined),
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.savedProxiesTitle)),
+                  HintButton(
+                    title: loc.savedProxiesTitle,
+                    description: loc.savedProxiesHint,
+                  ),
+                ],
+              ),
+              subtitle: Text(loc.savedProxiesCount(ProxyLibrary.data.length)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _openSavedProxies,
             ),
-            subtitle: Text(loc.savedProxiesCount(ProxyLibrary.data.length)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _openSavedProxies,
-          ),
           ListTile(
             title: Text(loc.appSettingsProxyType),
             trailing: ProxyChoiceDropdown(
@@ -1586,6 +1599,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               gatewayId: _outboundProxy.gatewayId,
               library: ProxyLibrary.data,
               torAvailable: TorService.instance.isAvailable,
+              offerLibrary: _proxyLibraryEnabled,
               onChanged: (choice) {
                 setState(() {
                   _outboundProxy.type = choice.type;
@@ -2364,6 +2378,20 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               secondary: const Icon(Icons.tab_outlined),
               value: _siteTabsSwitch,
               onChanged: (value) => _setSiteTabsSwitch(value),
+            ),
+            SwitchListTile(
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.savedProxiesTitle)),
+                  HintButton(
+                    title: loc.savedProxiesTitle,
+                    description: loc.savedProxiesHint,
+                  ),
+                ],
+              ),
+              secondary: const Icon(Icons.vpn_lock_outlined),
+              value: _proxyLibrarySwitch,
+              onChanged: (value) => _setProxyLibrarySwitch(value),
             ),
             ListTile(
               leading: const Icon(Icons.hide_image_outlined),

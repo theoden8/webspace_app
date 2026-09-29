@@ -14,6 +14,10 @@ button inside one site's settings.
 
 ## What changes
 
+- **Experimental** (DEVTOOLS-011). Everything below is offered only with
+  developer mode and the new **Saved proxies** switch on, off by default. A
+  site already on the library keeps resolving with the switch off.
+
 - **A proxy library** (PROXY-029). App Settings gets a "Saved proxies" screen
   with three lists: saved proxies, gateways (type and address) and
   credentials (username, password, and the gateways they work on). A saved

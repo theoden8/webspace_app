@@ -93,6 +93,7 @@ class ProxyChoiceDropdown extends StatelessWidget {
     required this.torAvailable,
     required this.onChanged,
     this.gatewaysOnly = false,
+    this.offerLibrary = true,
   });
 
   final ProxyType type;
@@ -106,6 +107,11 @@ class ProxyChoiceDropdown extends StatelessWidget {
 
   /// Offer gateways only: saved ones and the typed types.
   final bool gatewaysOnly;
+
+  /// False while the Saved proxies experiment is off (DEVTOOLS-011): the
+  /// library is not offered, but a setting already on it keeps its entry,
+  /// so it reads true and can be changed away.
+  final bool offerLibrary;
 
   static const String _savedPrefix = 'saved:';
   static const String _gatewayPrefix = 'gateway:';
@@ -130,20 +136,26 @@ class ProxyChoiceDropdown extends StatelessWidget {
       add(_item(ProxyType.DEFAULT.name, ProxyType.DEFAULT.name));
     }
     if (!gatewaysOnly &&
-        (library.proxies.isNotEmpty || type == ProxyType.SAVED)) {
+        ((offerLibrary && library.proxies.isNotEmpty) ||
+            type == ProxyType.SAVED)) {
       add(_header(context, _proxiesHeader, loc.savedProxiesTitle));
       for (final p in library.proxies) {
-        add(_item('$_savedPrefix${p.id}', savedProxyLabel(p)));
+        if (offerLibrary || p.id == savedProxyId) {
+          add(_item('$_savedPrefix${p.id}', savedProxyLabel(p)));
+        }
       }
       // A setting still naming a deleted entry keeps an item, because a
       // DropdownButton whose value is absent from its items throws, and
       // because "missing" is what the setting actually has.
       if (type == ProxyType.SAVED) add(_item(current, loc.savedProxyMissing));
     }
-    if (library.gateways.isNotEmpty || type == ProxyType.GATEWAY) {
+    if ((offerLibrary && library.gateways.isNotEmpty) ||
+        type == ProxyType.GATEWAY) {
       add(_header(context, _gatewaysHeader, loc.proxyLibraryGateways));
       for (final g in library.gateways) {
-        add(_item('$_gatewayPrefix${g.id}', gatewayLabel(g)));
+        if (offerLibrary || g.id == gatewayId) {
+          add(_item('$_gatewayPrefix${g.id}', gatewayLabel(g)));
+        }
       }
       if (type == ProxyType.GATEWAY) {
         add(_item(current, loc.proxyLibraryGatewayMissing));
