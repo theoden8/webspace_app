@@ -50,7 +50,6 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/icon_service.dart' show fetchPageIconBytes;
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
@@ -4197,6 +4196,7 @@ class WebViewFactory {
     final siteIcon = config.siteIcon;
     final iconEngine =
         siteIcon == null ? null : SiteIconEngine(siteIcon.siteUrl);
+    final iconSource = pageIconSource;
     if (iconEngine != null) {
       userScripts.add(inapp.UserScript(
         groupName: 'icon_link_watcher',
@@ -4204,24 +4204,22 @@ class WebViewFactory {
         injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
         forMainFrameOnly: true,
       ));
-      unawaited(SiteIconNative.ensureEnabled());
+      if (iconSource == PageIconSource.webview) {
+        unawaited(SiteIconNative.ensureEnabled());
+      }
     }
-    // Android's webview reports the page's icons itself (onReceivedIcon);
-    // elsewhere the app fetches the links the page declared (ICON-013).
-    final iconFetcher = iconEngine == null ||
-            !siteIconFetchRunsHere ||
-            !ExperimentalFeaturesService.instance
-                .isEnabled(ExperimentalFeature.pageIcons)
-        ? null
-        : SiteIconFetcher(
-            fetch: (url, documentUrl) => fetchPageIconBytes(
-              url,
-              documentHost: Uri.tryParse(documentUrl)?.host ?? '',
-              proxy: config.proxySettings,
-              allowed: (target) =>
-                  _pageIconRequestAllowed(config, target, documentUrl),
-            ),
-          );
+    final iconFetcher =
+        iconEngine == null || iconSource != PageIconSource.declaredLinks
+            ? null
+            : SiteIconFetcher(
+                fetch: (url, documentUrl) => fetchPageIconBytes(
+                  url,
+                  documentHost: Uri.tryParse(documentUrl)?.host ?? '',
+                  proxy: config.proxySettings,
+                  allowed: (target) =>
+                      _pageIconRequestAllowed(config, target, documentUrl),
+                ),
+              );
     final zoomPlan = page.zoomPlan;
     final desktopMode = page.desktopMode;
     final userScriptService = page.userScriptService;
@@ -4616,9 +4614,10 @@ class WebViewFactory {
             },
           );
           if (iconFetcher != null) {
-            // Not on Android: the report reaches Dart through a posted Java
-            // message, which onReceivedIcon can overtake, so it cannot tell
-            // which document an icon came from there.
+            // Never beside onReceivedIcon: on Android the report reaches
+            // Dart through a posted Java message, which onReceivedIcon can
+            // overtake, so it cannot tell which document that icon came
+            // from. The link report rides the same bridge, in order.
             controller.addJavaScriptHandler(
               handlerName: kIconDocumentLoadedHandler,
               callback: (inapp.JavaScriptHandlerFunctionData call) {
@@ -5229,7 +5228,7 @@ class WebViewFactory {
       // The Android plugin dispatches only this callback; onFaviconChanged,
       // its replacement, is wired for Windows alone in the pinned fork.
       // ignore: deprecated_member_use
-      onReceivedIcon: iconEngine == null
+      onReceivedIcon: iconEngine == null || iconSource != PageIconSource.webview
           ? null
           : (controller, icon) {
               final accepted = iconEngine.onIcon(icon);

@@ -4,12 +4,49 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 
-/// Whether this platform's webview reports no page icon of its own, so the
-/// app would fetch the declared links instead (ICON-013). Android's does.
-bool get siteIconFetchRunsHere => hostIsIOS || hostIsMacOS || hostIsLinux;
+/// Where a site's own icon comes from.
+enum PageIconSource {
+  /// The icon the webview reports: Android's `onReceivedIcon` (ICON-009).
+  webview,
+
+  /// The links the page declared, fetched by the app (ICON-013).
+  declaredLinks,
+
+  /// Neither: no webview hosts a site here.
+  none,
+}
+
+/// Whether a site's icon comes only from the site (ICON-014).
+bool get siteIconsOnly => ExperimentalFeaturesService.instance
+    .isEnabled(ExperimentalFeature.siteIconsOnly);
+
+/// Where a site's own icon comes from on this platform, read when a webview
+/// is created.
+PageIconSource get pageIconSource => pageIconSourceFor(
+      android: hostIsAndroid,
+      webkit: hostIsIOS || hostIsMacOS || hostIsLinux,
+      siteIconsOnly: siteIconsOnly,
+    );
+
+/// WKWebView and WPE report no page icon, so the app fetches the declared
+/// links there. Android WebView reports one, but under [siteIconsOnly] every
+/// platform takes its icon the same way.
+@visibleForTesting
+PageIconSource pageIconSourceFor({
+  required bool android,
+  required bool webkit,
+  required bool siteIconsOnly,
+}) {
+  if (android) {
+    return siteIconsOnly ? PageIconSource.declaredLinks : PageIconSource.webview;
+  }
+  return webkit ? PageIconSource.declaredLinks : PageIconSource.none;
+}
 
 /// Largest source image edge decoded. Most formats decode at full size before
 /// scaling, so this bounds what one icon can cost in memory.
@@ -60,8 +97,7 @@ Future<SiteIcon?> decodeSiteIcon(Uint8List bytes) async {
 }
 
 /// Fetches the icon links a site's page declared and picks the one to offer
-/// (ICON-013), for webviews that report no icon of their own. One per site
-/// webview.
+/// (ICON-013). One per site webview.
 class SiteIconFetcher {
   SiteIconFetcher({required this.fetch});
 

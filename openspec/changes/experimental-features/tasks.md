@@ -33,3 +33,10 @@
 - [x] 6.2 The Page icons switch where `siteIconFetchRunsHere` (iOS, macOS, Linux), with its hint.
 - [x] 6.3 Tests: the default and persistence in `test/experimental_features_service_test.dart`, the switch in `test/tor_developer_mode_confirm_test.dart`, the gate read in `test/js/page_bridge_authority.test.js`; `integration_test/site_icon_test.dart` turns it on for the macOS fetch-path run.
 - [x] 6.4 Strings: code plus `lib/l10n/app_en.arb` in one commit, the 66 translations in the next.
+
+## 7. Site icons only
+
+- [x] 7.1 Page icons graduate: the ICON-013 fetch is the default on iOS, macOS and Linux, and `ExperimentalFeature.pageIcons` (never in a release) is replaced by `siteIconsOnly`, off by default, registered in `kExportedAppPrefs`.
+- [x] 7.2 Under it, `publicIconServicesAllowed` is false and `pageIconSource` sends Android to the fetch path; the switch is listed on every platform, with its hint.
+- [x] 7.3 Tests: `test/icon_public_services_test.dart`, `pageIconSourceFor` in `test/site_icon_fetcher_test.dart`, the switch in `test/tor_developer_mode_confirm_test.dart`, the ICON-014 gate in `test/js/page_bridge_authority.test.js`; the emulator tier runs `integration_test/site_icon_test.dart` again with it on.
+- [x] 7.4 Strings: code plus `lib/l10n/app_en.arb` in one commit, the 66 translations in the next.

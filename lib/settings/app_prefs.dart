@@ -82,9 +82,9 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // DEVTOOLS-011: the switch for Android's per-site proxy router, on by
   // default for the same reason.
   kExperimentalProxyRouterKey: true,
-  // DEVTOOLS-011: the switch for page icons fetched from the links a site's
-  // page declares (ICON-013). New, so off.
-  kExperimentalPageIconsKey: false,
+  // DEVTOOLS-011: the switch that takes a site's icon only from the site
+  // (ICON-014). New, so off.
+  kExperimentalSiteIconsOnlyKey: false,
   // DEVTOOLS-011 / PAUSE-032: the switch for Android's texture page
   // rendering. A new feature, so off by default.
   kExperimentalTextureRenderingKey: false,

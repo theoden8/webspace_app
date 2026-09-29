@@ -1593,13 +1593,25 @@
   "@appSettingsExperimentalProxyRouterHint": {
     "description": "Explanation behind the hint button of the Proxy router switch in App settings > Developer > Experimental. 'Closes the sites' means the app unloads those sites' pages."
   },
-  "appSettingsExperimentalPageIcons": "Page icons",
-  "@appSettingsExperimentalPageIcons": {
-    "description": "Switch in App settings > Developer > Experimental, shown on iOS, macOS and Linux only, that makes the app show each site's own icon, the one its pages declare, instead of an icon found through a public icon service."
+  "appSettingsExperimentalSiteIconsOnly": "Site icons only",
+  "@appSettingsExperimentalSiteIconsOnly": {
+    "description": "Switch in App settings > Developer > Experimental that makes the app take each site's icon only from the site itself: never from Google's or DuckDuckGo's public icon services, and on Android not from the web view either, only from the icons the site's pages declare. Short label."
   },
-  "appSettingsExperimentalPageIconsHint": "Shows the icon a site's own pages declare, the one a browser puts on its tab, instead of one found through Google or DuckDuckGo. The app fetches it itself after each page loads, through the site's proxy and blockers, and without the site's cookies, so an icon shown only to signed-in users is missed. Experimental: it has been tried on few sites. Applies to sites opened after it is switched on.",
-  "@appSettingsExperimentalPageIconsHint": {
-    "description": "Explanation behind the hint button of the Page icons switch in App settings > Developer > Experimental. 'Blockers' are the site's DNS blocklist and content blocker. 'Opened' means loaded into the app's view after the switch changes."
+  "appSettingsExperimentalSiteIconsOnlyHint": "Takes each site's icon only from the site itself. Google's and DuckDuckGo's icon services are never asked, so they do not learn which sites you keep in the app, and icons already found through them are fetched again. The app fetches the icons a site's pages declare, through the site's proxy and blockers and without its cookies; on Android this replaces the icon the web view reports. A site that declares only small icons shows a smaller one, or a placeholder. Applies to sites opened after it is switched on.",
+  "@appSettingsExperimentalSiteIconsOnlyHint": {
+    "description": "Explanation behind the hint button of the Site icons only switch in App settings > Developer > Experimental. 'Blockers' are the site's DNS blocklist and content blocker. The 'web view' is the built-in browser component that shows the site. 'Opened' means loaded into the app's view after the switch changes."
+  },
+  "appSettingsResetIconCache": "Reset icon cache",
+  "@appSettingsResetIconCache": {
+    "description": "Row in App settings, shown only while Developer mode is on, that forgets every site icon the app has kept so they are fetched again. Short label."
+  },
+  "appSettingsResetIconCacheHint": "Forgets every site icon the app has kept, both the ones found online and the ones sites reported, and fetches them again. A site's own icon comes back once the site loads again. Use it to check where icons come from after changing Site icons only.",
+  "@appSettingsResetIconCacheHint": {
+    "description": "Explanation behind the hint button of the Reset icon cache row in App settings (Developer mode only). 'Site icons only' is the name of an experimental switch; keep it consistent with the translation of that switch's label."
+  },
+  "appSettingsIconCacheCleared": "Icon cache cleared",
+  "@appSettingsIconCacheCleared": {
+    "description": "Brief confirmation shown at the bottom of App settings after the Reset icon cache row is tapped and every cached site icon was forgotten."
   },
   "appSettingsExperimentalTextureRendering": "Texture page rendering",
   "@appSettingsExperimentalTextureRendering": {

@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../main.dart' show extractDomain;
 import 'favicon_image.dart';
-import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate;
+import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, IconReload, iconReloads, reloadAllIcons, usableIconUrl;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
 import '../settings/proxy.dart';
@@ -32,7 +32,7 @@ class FaviconUrlCache {
   }
 
   static String? get(String siteUrl) {
-    return _prefs?.getString('$_prefix$siteUrl');
+    return usableIconUrl(_prefs?.getString('$_prefix$siteUrl'));
   }
 
   static Future<void> set(String siteUrl, String faviconUrl) async {
@@ -60,6 +60,22 @@ class FaviconUrlCache {
     if (!keepSiteIcon) await SiteIconStore.instance.remove(siteUrl);
     // Also clear in-memory caches
     invalidateFaviconFor(siteUrl);
+  }
+
+  /// Drop every cached icon: the URLs and SVGs kept here, the icons sites
+  /// reported, and the icon service's memory. Every icon on screen is then
+  /// fetched again.
+  static Future<void> resetAll() async {
+    final prefs = _prefs;
+    if (prefs != null) {
+      for (final key in prefs.getKeys().toList()) {
+        if (key.startsWith(_prefix) || key.startsWith(_svgPrefix)) {
+          await prefs.remove(key);
+        }
+      }
+    }
+    await SiteIconStore.instance.clear();
+    reloadAllIcons();
   }
 }
 
@@ -131,6 +147,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   Stream<IconUpdate>? _iconStream;
   StreamSubscription<String>? _invalidationSub;
   StreamSubscription<String?>? _siteIconSub;
+  StreamSubscription<IconReload>? _reloadSub;
 
   bool _isSvgUrl(String url) {
     return url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
@@ -147,6 +164,20 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         FaviconUrlCache.invalidate(widget.url, keepSiteIcon: true);
         _resetAndLoad();
       }
+    });
+    _reloadSub = iconReloads.listen((reason) {
+      if (!mounted || widget.customIcon != null) return;
+      if (reason == IconReload.sources &&
+          usableIconUrl(_currentIconUrl) == _currentIconUrl) {
+        return;
+      }
+      // Clearing the site icons already restarted a load with nothing shown.
+      if (reason == IconReload.all &&
+          _currentIconUrl == null &&
+          _iconStream != null) {
+        return;
+      }
+      setState(_resetAndLoad);
     });
     _siteIconSub = SiteIconStore.instance.changes.listen((siteUrl) {
       if (!mounted || (siteUrl != null && siteUrl != widget.url)) return;
@@ -169,6 +200,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   void dispose() {
     _invalidationSub?.cancel();
     _siteIconSub?.cancel();
+    _reloadSub?.cancel();
     super.dispose();
   }
 

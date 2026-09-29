@@ -10,6 +10,7 @@ import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/screens/trusted_certificates.dart';
@@ -23,6 +24,8 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
+import 'package:webspace/services/icon_service.dart'
+    show notifyIconSourcesChanged;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/widgets/root_messenger.dart';
@@ -72,10 +75,6 @@ class AppSettingsScreen extends StatefulWidget {
   /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
   /// the answer needs the container engine the app resolved at startup.
   final bool proxyRouterRunsHere;
-
-  /// Whether this platform fetches page icons itself, so the Experimental
-  /// group lists the Page icons switch (DEVTOOLS-011, ICON-013).
-  final bool pageIconsRunHere;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
@@ -149,7 +148,6 @@ class AppSettingsScreen extends StatefulWidget {
     required this.currentSettings,
     this.torPinnedSiteCount,
     this.proxyRouterRunsHere = false,
-    this.pageIconsRunHere = false,
     this.siteNames = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
@@ -216,8 +214,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.tor);
   bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.proxyRouter);
-  bool _pageIconsSwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.pageIcons);
+  bool _siteIconsOnlySwitch = ExperimentalFeaturesService.instance
+      .switchOn(ExperimentalFeature.siteIconsOnly);
   bool _textureRenderingSwitch = ExperimentalFeaturesService.instance
       .switchOn(ExperimentalFeature.textureRendering);
   bool _siteTabsSwitch = ExperimentalFeaturesService.instance
@@ -961,6 +959,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     }
     if (!mounted) return;
     await DeveloperModeService.instance.setEnabled(value);
+    notifyIconSourcesChanged();
     if (!mounted) return;
     setState(() {
       _developerMode = value;
@@ -990,11 +989,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     setState(() => _proxyRouterSwitch = value);
   }
 
-  Future<void> _setPageIconsSwitch(bool value) async {
+  Future<void> _setSiteIconsOnlySwitch(bool value) async {
     await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.pageIcons, value);
+        .setSwitch(ExperimentalFeature.siteIconsOnly, value);
+    notifyIconSourcesChanged();
     if (!mounted) return;
-    setState(() => _pageIconsSwitch = value);
+    setState(() => _siteIconsOnlySwitch = value);
+  }
+
+  Future<void> _resetIconCache() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final cleared = AppLocalizations.of(context).appSettingsIconCacheCleared;
+    await FaviconUrlCache.resetAll();
+    messenger.showSnackBar(SnackBar(content: Text(cleared)));
   }
 
   Future<void> _setTextureRenderingSwitch(bool value) async {
@@ -2348,21 +2355,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 value: _proxyRouterSwitch,
                 onChanged: (value) => _setProxyRouterSwitch(value),
               ),
-            if (widget.pageIconsRunHere)
-              SwitchListTile(
-                title: Row(
-                  children: [
-                    Flexible(child: Text(loc.appSettingsExperimentalPageIcons)),
-                    HintButton(
-                      title: loc.appSettingsExperimentalPageIcons,
-                      description: loc.appSettingsExperimentalPageIconsHint,
-                    ),
-                  ],
-                ),
-                secondary: const Icon(Icons.image_outlined),
-                value: _pageIconsSwitch,
-                onChanged: (value) => _setPageIconsSwitch(value),
+            SwitchListTile(
+              title: Row(
+                children: [
+                  Flexible(
+                      child: Text(loc.appSettingsExperimentalSiteIconsOnly)),
+                  HintButton(
+                    title: loc.appSettingsExperimentalSiteIconsOnly,
+                    description: loc.appSettingsExperimentalSiteIconsOnlyHint,
+                  ),
+                ],
               ),
+              secondary: const Icon(Icons.image_outlined),
+              value: _siteIconsOnlySwitch,
+              onChanged: (value) => _setSiteIconsOnlySwitch(value),
+            ),
             if (hostIsAndroid)
               SwitchListTile(
                 title: Row(
@@ -2394,6 +2401,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               secondary: const Icon(Icons.tab_outlined),
               value: _siteTabsSwitch,
               onChanged: (value) => _setSiteTabsSwitch(value),
+            ),
+            ListTile(
+              leading: const Icon(Icons.hide_image_outlined),
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.appSettingsResetIconCache)),
+                  HintButton(
+                    title: loc.appSettingsResetIconCache,
+                    description: loc.appSettingsResetIconCacheHint,
+                  ),
+                ],
+              ),
+              onTap: _resetIconCache,
             ),
           ],
           ListTile(

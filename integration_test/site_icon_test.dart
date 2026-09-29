@@ -1,18 +1,20 @@
-// Site icon from the webview (ICON-009/010/011/013), end to end.
+// Site icon from the webview (ICON-009/010/011/013/014), end to end.
 //
 // Android: `onReceivedIcon` exists only in Android WebView. Chromium's
 // IconHelper downloads every `rel=icon` candidate once `WebIconDatabase.open`
 // has set the process-wide flag, and hands each one over as a bare bitmap.
 // That is the path this pins: SiteIconPlugin.kt turns it on, the fork
 // forwards the PNG, SiteIconEngine decides what the site's icon is, and the
-// icon-link watcher reports a page that swaps its icon after load. Which requests Blink starts is also pinned against desktop Chrome by
+// icon-link watcher reports a page that swaps its icon after load. Which
+// requests Blink starts is also pinned against desktop Chrome by
 // test/browser/icon_link_watcher_real.test.js; which icon WebView delivers
 // can only be seen here.
 //
 // Elsewhere the webview reports no icon, and the app fetches the links the
-// watcher reports the page declared (ICON-013), behind the Page icons
-// experiment. The macOS integration job runs this file for that path against
-// WKWebView.
+// watcher reports the page declared (ICON-013). The macOS integration job
+// runs this file for that path against WKWebView. Under Site icons only
+// (ICON-014) Android fetches them too: the emulator job runs this file a
+// second time with --dart-define=WS_SITE_ICONS_ONLY=true.
 //
 // Every icon is a solid colour, so the test reads back which one was taken
 // from its pixels rather than trusting its size alone. The fixture server
@@ -85,12 +87,14 @@ final Map<String, String> _pages = {
   '/plain': _page(''),
 };
 
+const _siteIconsOnly = bool.fromEnvironment('WS_SITE_ICONS_ONLY');
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  // The webview reports its own icons on Android only; elsewhere the app
-  // fetches the declared links.
-  final fetchPath = !Platform.isAndroid;
+  // The webview reports its own icons on Android only; elsewhere, and on
+  // Android under Site icons only, the app fetches the declared links.
+  final fetchPath = !Platform.isAndroid || _siteIconsOnly;
   // A second host with no DNS involved. macOS configures only 127.0.0.1 on
   // its loopback interface, so there the other name for it stands in.
   final otherHost = Platform.isMacOS ? 'localhost' : '127.0.0.2';
@@ -100,10 +104,11 @@ void main() {
   final requested = <String>[];
 
   setUpAll(() async {
-    // The fetch path is an experiment (DEVTOOLS-011); Android ignores both.
-    DeveloperModeService.instance.debugSet(true);
-    ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.pageIcons, true);
+    if (_siteIconsOnly) {
+      DeveloperModeService.instance.debugSet(true);
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.siteIconsOnly, true);
+    }
     // Any address, so the same server answers as the other host.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;

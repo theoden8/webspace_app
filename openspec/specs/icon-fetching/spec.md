@@ -133,6 +133,7 @@ would otherwise do.
 ### Requirement: ICON-006 - Smart Public Service Filtering
 
 Google and DuckDuckGo icon services SHALL be skipped for:
+- every site while Site icons only is on (ICON-014)
 - http:// sites (non-HTTPS)
 - IPv4 addresses (e.g., 192.168.1.1)
 - IPv6 addresses (e.g., [::1])
@@ -236,9 +237,8 @@ post-import and post-delete sweeps drop files for sites no longer kept on disk.
 WKWebView has no public API for a page's icon, and the SPI that has one
 (`_WKIconLoadingDelegate`) cannot ship through the App Store (guideline
 2.5.1). WPE WebKit has no favicon property either. On iOS, macOS and Linux
-the app can fetch the icon links the page declared instead (ICON-013, an
-experiment), and the result is kept and preferred exactly as above; with the
-experiment off those platforms keep the ICON-002 sources.
+the app fetches the icon links the page declared instead (ICON-013), and the
+result is kept and preferred exactly as above.
 
 #### Scenario: Largest icon of the page wins
 
@@ -321,23 +321,23 @@ it on a later launch without the badge.
 
 ---
 
-### Requirement: ICON-013 - Page Icon Where the Webview Reports None
+### Requirement: ICON-013 - Page Icon From the Links the Page Declares
 
-While the Page icons experiment is on ([developer-tools](../developer-tools/spec.md)
-DEVTOOLS-011: developer mode and its own switch, off by default), on iOS,
-macOS and Linux the app SHALL fetch the icon links the top document declared
-at load, and SHALL apply ICON-009's host, size and store rules and ICON-010's
-floor to them. The switch is read when a site's webview is created, so it
-applies to sites opened after it changes.
+On iOS, macOS and Linux, where the webview reports no icon, and on Android
+under Site icons only (ICON-014), the app SHALL fetch the icon links the top
+document declared at load, and SHALL apply ICON-009's host, size and store
+rules and ICON-010's floor to them. `pageIconSource` decides which of the two
+a site's webview uses when the webview is created.
 
-It is an experiment because it largely overlaps ICON-002, which already reads
-the home page's HTML through the site's proxy. What it adds: the links of the
-page actually shown, where a cookie-less fetch of the home URL meets a bot
-wall, a sign-in redirect or a script-set icon (6 of the 17 suggested sites
-that loaded in a 2026-09 probe), and the page's own icon winning over the
-public services. What is open: most sites declare only small icons (a
-`favicon.ico`, 32 to 48px), so at the ICON-010 floor a site's own icon can
-displace a larger and sharper public-service one.
+It overlaps ICON-002, which already reads the home page's HTML through the
+site's proxy. What it adds: the links of the page actually shown, where a
+cookie-less fetch of the home URL meets a bot wall, a sign-in redirect or a
+script-set icon (6 of the 17 suggested sites that loaded in a 2026-09 probe),
+and the page's own icon winning over the public services. The cost: most
+sites declare only small icons (a `favicon.ico`, 32 to 48px), so at the
+ICON-010 floor a site's own icon can displace a larger and sharper
+public-service one. It ran as the Page icons experiment first; on device it
+found the icon a site's pages declare once each page had loaded.
 
 - **What is fetched.** The watcher reports the document's load event through
   the frame-aware `wsIconDocumentLoaded` handler, and right after it, through
@@ -378,8 +378,7 @@ close that and needs a fork change.
 
 #### Scenario: Largest declared icon, and nothing under the floor fetched
 
-**Given** the Page icons experiment is on
-**And** a site page on macOS declares 16px, 32px and 192px icons with
+**Given** a site page on macOS declares 16px, 32px and 192px icons with
 `sizes`
 **When** the page loads
 **Then** the site's icon is the 192px one
@@ -416,6 +415,87 @@ redirects there
 
 ---
 
+### Requirement: ICON-014 - Site Icons Only
+
+While the Site icons only experiment is on ([developer-tools](../developer-tools/spec.md)
+DEVTOOLS-011: developer mode and its own switch, off by default, listed on
+every platform), a site's icon SHALL come only from the site itself:
+
+- **No third-party service.** Google's and DuckDuckGo's icon services
+  (ICON-002 sources 1 and 2) SHALL NOT be asked, on any path that fetches an
+  icon: the drawer, the add-site preview, the home shortcut export.
+  `publicIconServicesAllowed` in `icon_service.dart` is the one gate, read on
+  every fetch. What is left is ICON-013's declared links and ICON-002's page
+  scrape and `/favicon.ico`, which go to the site's host through its proxy.
+- **Nothing resolved earlier.** A service URL resolved before the switch went
+  on, in the icon service's memory or in `FaviconUrlCache` on disk, SHALL read
+  as absent (`usableIconUrl`), so the icon is fetched again from the site.
+  Turning the switch or developer mode on or off calls
+  `notifyIconSourcesChanged`, and an icon on screen that came from a service
+  no longer allowed is fetched again at once.
+- **Android like the rest.** On Android the site's webview SHALL fetch the
+  declared links as ICON-013 describes, SHALL NOT take `onReceivedIcon`'s
+  icons, and SHALL NOT turn on WebView's favicon downloads for it. The load
+  report (`wsIconDocumentLoaded`) SHALL never run beside `onReceivedIcon`: it
+  reaches Dart through a posted Java message that the callback can overtake
+  (ICON-009). The link report rides the same bridge after the load report,
+  in order, so the two cannot swap.
+
+The page-icon source is read when a site's webview is created, so a change
+applies to sites opened afterwards. A site that declares only small icons
+shows a smaller one, or the scrape's, or the placeholder.
+
+#### Scenario: No request to a third party
+
+**Given** Site icons only is on
+**When** the icon of `https://example.com/` is fetched
+**Then** every request goes to `example.com`
+**And** none goes to `www.google.com` or `icons.duckduckgo.com`
+
+#### Scenario: A service icon found earlier is fetched again
+
+**Given** a site whose icon came from Google's service
+**When** the user turns Site icons only on
+**Then** the icon on screen is fetched again from the site
+**And** the Google URL kept on disk is not used
+
+#### Scenario: Android takes the declared links
+
+**Given** an Android build with Site icons only on
+**And** a site page that declares 16px, 32px and 192px icons with `sizes`
+**When** a site opened after the switch loads that page
+**Then** the site's icon is the 192px one, fetched by the app
+**And** no icon WebView reports for that site is taken
+
+#### Scenario: Developer mode off gives the services back
+
+**Given** Site icons only is on
+**When** the user turns developer mode off
+**Then** Google's and DuckDuckGo's services are asked again (DEVTOOLS-011)
+
+---
+
+### Requirement: ICON-015 - Reset Icon Cache
+
+While developer mode is on, App settings SHALL offer **Reset icon cache**,
+with its explanation behind a `HintButton`. It SHALL drop every icon the app
+keeps: the resolved URLs and SVGs in `FaviconUrlCache`, the icons sites
+reported in `SiteIconStore` (memory and disk), and the icon service's memory.
+Every icon on screen is then fetched again (`reloadAllIcons`), and a site's
+own icon returns once the site loads again. It is how a change of icon source
+(ICON-014) is checked without reinstalling.
+
+#### Scenario: Every cached icon goes, nothing else does
+
+**Given** developer mode is on, a resolved icon URL and SVG are cached, and a
+site has a reported icon on disk
+**When** the user taps Reset icon cache
+**Then** no `favicon_` pref and no stored site icon remains
+**And** no other pref changes
+**And** a confirmation says the icon cache was cleared
+
+---
+
 ## Performance
 
 - **Before**: Users waited 10-15 seconds seeing a spinner
@@ -430,7 +510,7 @@ redirects there
 - `lib/services/site_icon_engine.dart` - Which page icon is the site's, and which declared links to fetch (ICON-009/010/013)
 - `lib/services/site_icon_store.dart` - Memory + disk store for it
 - `lib/services/icon_link_watcher_shim.dart` - Reports icon-link edits after load (ICON-011), and the load event and announced links (ICON-013)
-- `lib/services/site_icon_fetcher.dart` - Fetches and decodes the declared links where the webview reports no icon (ICON-013)
+- `lib/services/site_icon_fetcher.dart` - Fetches and decodes the declared links (ICON-013), and `pageIconSource`, which of that and the webview's icon a site takes (ICON-014)
 - `android/.../SiteIconPlugin.kt` - Turns on WebView favicon downloads
 
 ### Modified
