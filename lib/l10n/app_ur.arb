@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "ڈیفالٹ",
   "siteSettingsWebRtcRelayOnly": "صرف ریلے",
   "siteSettingsWebRtcDisabled": "غیر فعال",
+  "siteSettingsWebRtcNoDirect": "پراکسی کے پیچھے ٹریکنگ تحفظ براہ راست کنکشنز کو بلاک کرتا ہے",
   "siteSettingsDnsStatTotal": "کل",
   "siteSettingsDnsStatAllowed": "اجازت شدہ",
   "siteSettingsDnsStatBlocked": "مسدود",

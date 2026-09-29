@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Standard",
   "siteSettingsWebRtcRelayOnly": "Endast relä",
   "siteSettingsWebRtcDisabled": "Inaktiverad",
+  "siteSettingsWebRtcNoDirect": "Direkta anslutningar blockeras av Spårningsskydd bakom en proxy",
   "siteSettingsDnsStatTotal": "Totalt",
   "siteSettingsDnsStatAllowed": "Tillåtna",
   "siteSettingsDnsStatBlocked": "Blockerade",

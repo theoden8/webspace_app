@@ -5,7 +5,8 @@ import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart' show ProxyManager;
-import 'package:webspace/settings/location.dart' show WebRtcPolicy;
+import 'package:webspace/settings/location.dart'
+    show WebRtcPolicy, resolveWebRtcPolicy;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -91,6 +92,8 @@ class SiteNetworkScreen extends StatefulWidget {
     required this.proxySupported,
     this.proxyTest,
     this.showSavedSignIns = true,
+    this.trackingProtectionEnabled = false,
+    this.appProxySet = false,
   });
 
   final String host;
@@ -117,6 +120,12 @@ class SiteNetworkScreen extends StatefulWidget {
 
   /// False for archive-tier sites, which never save a sign-in (HTTPAUTH-004).
   final bool showSavedSignIns;
+
+  /// The unsaved umbrella value and whether an app-wide proxy is set: with
+  /// both, or with the umbrella and a proxy of the site's own, direct WebRTC
+  /// is off the menu (ETP-031).
+  final bool trackingProtectionEnabled;
+  final bool appProxySet;
 
   @override
   State<SiteNetworkScreen> createState() => _SiteNetworkScreenState();
@@ -286,34 +295,50 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
 
   // --- Connection ----------------------------------------------------------
 
-  Widget _webRtc(AppLocalizations loc) => ListTile(
-        title: Row(
-          children: [
-            Flexible(child: Text(loc.siteSettingsWebRtcPolicy)),
-            HintButton(
-              title: loc.siteSettingsWebRtcHintTitle,
-              description: loc.siteSettingsWebRtcHintBody,
-            ),
-          ],
-        ),
-        trailing: DropdownButton<WebRtcPolicy>(
-          value: _values.webRtcPolicy,
-          onChanged: (next) {
-            if (next != null) _update(_values.copyWith(webRtcPolicy: next));
-          },
-          items: [
-            DropdownMenuItem(
-                value: WebRtcPolicy.defaultPolicy,
-                child: Text(loc.siteSettingsWebRtcDefault)),
-            DropdownMenuItem(
-                value: WebRtcPolicy.relayOnly,
-                child: Text(loc.siteSettingsWebRtcRelayOnly)),
-            DropdownMenuItem(
-                value: WebRtcPolicy.disabled,
-                child: Text(loc.siteSettingsWebRtcDisabled)),
-          ],
-        ),
-      );
+  Widget _webRtc(AppLocalizations loc) {
+    final proxied =
+        _values.proxyType != ProxyType.DEFAULT || widget.appProxySet;
+    final noDirect = widget.trackingProtectionEnabled && proxied;
+    final shown = resolveWebRtcPolicy(
+      stored: _values.webRtcPolicy,
+      trackingProtectionEnabled: widget.trackingProtectionEnabled,
+      proxied: proxied,
+    );
+    return ListTile(
+      title: Row(
+        children: [
+          Flexible(child: Text(loc.siteSettingsWebRtcPolicy)),
+          HintButton(
+            title: loc.siteSettingsWebRtcHintTitle,
+            description: loc.siteSettingsWebRtcHintBody,
+          ),
+        ],
+      ),
+      subtitle: noDirect ? Text(loc.siteSettingsWebRtcNoDirect) : null,
+      trailing: DropdownButton<WebRtcPolicy>(
+        value: shown,
+        onChanged: (next) {
+          // Re-picking the forced value would store it, and turning the
+          // umbrella off later would then keep it instead of Default.
+          if (next != null && next != shown) {
+            _update(_values.copyWith(webRtcPolicy: next));
+          }
+        },
+        items: [
+          DropdownMenuItem(
+              value: WebRtcPolicy.defaultPolicy,
+              enabled: !noDirect,
+              child: Text(loc.siteSettingsWebRtcDefault)),
+          DropdownMenuItem(
+              value: WebRtcPolicy.relayOnly,
+              child: Text(loc.siteSettingsWebRtcRelayOnly)),
+          DropdownMenuItem(
+              value: WebRtcPolicy.disabled,
+              child: Text(loc.siteSettingsWebRtcDisabled)),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

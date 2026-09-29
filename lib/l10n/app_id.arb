@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Default",
   "siteSettingsWebRtcRelayOnly": "Hanya relai",
   "siteSettingsWebRtcDisabled": "Dinonaktifkan",
+  "siteSettingsWebRtcNoDirect": "Koneksi langsung diblokir oleh Perlindungan Pelacakan di balik proxy",
   "siteSettingsDnsStatTotal": "Total",
   "siteSettingsDnsStatAllowed": "Diizinkan",
   "siteSettingsDnsStatBlocked": "Diblokir",

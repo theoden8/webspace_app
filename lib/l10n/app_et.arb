@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Vaikimisi",
   "siteSettingsWebRtcRelayOnly": "Ainult relee",
   "siteSettingsWebRtcDisabled": "Keelatud",
+  "siteSettingsWebRtcNoDirect": "Jälgimiskaitse blokeerib otseühendused proksi taga",
   "siteSettingsDnsStatTotal": "Kokku",
   "siteSettingsDnsStatAllowed": "Lubatud",
   "siteSettingsDnsStatBlocked": "Blokeeritud",

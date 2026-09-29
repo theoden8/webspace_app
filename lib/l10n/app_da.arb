@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Standard",
   "siteSettingsWebRtcRelayOnly": "Kun relay",
   "siteSettingsWebRtcDisabled": "Deaktiveret",
+  "siteSettingsWebRtcNoDirect": "Direkte forbindelser blokeret af sporingsbeskyttelse bag en proxy",
   "siteSettingsDnsStatTotal": "I alt",
   "siteSettingsDnsStatAllowed": "Tilladt",
   "siteSettingsDnsStatBlocked": "Blokeret",

@@ -1,6 +1,6 @@
-// Tracking-protection umbrella funnel gate (ETP-024 and the four forced-on
-// subordinates). The umbrella is only as strong as the weakest path that
-// reaches a webview: a new call site that passes the *stored* value of a
+// Tracking-protection umbrella funnel gate (ETP-024, ETP-031 and the four
+// forced-on subordinates). The umbrella is only as strong as the weakest path
+// that reaches a webview: a new call site that passes the *stored* value of a
 // forced setting silently reopens the hole the umbrella exists to close, and
 // nothing at runtime says so. Third-party cookies are the reason this gate
 // exists: they sat outside the umbrella through several releases while it
@@ -52,12 +52,23 @@ const FORCED_OFF_OK = [
   /^\s*field<bool>\(\s*'thirdPartyCookiesEnabled'\s*\)/,
 ];
 
+// Raised from Default to Relay only while the umbrella is on and a proxy
+// carries the site (ETP-031): a direct ICE candidate is the device IP.
+const FORCED_FLOOR = 'webRtcPolicy';
+
+const FORCED_FLOOR_OK = [
+  /^\s*(?:\w+\.)?effectiveWebRtcPolicy\s*$/,
+  // The nested screen, which has no model to ask.
+  /^\s*resolveWebRtcPolicy\(/,
+  /^\s*WebRtcPolicy\.values\.firstWhere\(/,
+];
+
 // `launchUrl` in main.dart forwards its own same-named parameter onward; the
 // caller resolved the value already, so that one hop is not a raw read.
 // Everywhere else the bare identifier is the stored field.
-const bareForward = (rel, value) =>
+const bareForward = (rel, value, name = FORCED_OFF) =>
   rel === 'lib/main.dart'
-  && new RegExp(`^\\s*${FORCED_OFF}\\s*$`).test(value);
+  && new RegExp(`^\\s*${name}\\s*$`).test(value);
 
 // Every `name: <value>` argument in `src`, with the value read to the comma
 // that closes it at argument depth. Comments and strings are skipped so a
@@ -108,6 +119,14 @@ test('the funnel test can actually see arguments (self-check)', () => {
   );
 });
 
+test('the funnel test can see WebRTC policy arguments (self-check)', () => {
+  const src = read('lib/screens/inappbrowser.dart');
+  assert.ok(
+    namedArgs(src, FORCED_FLOOR).length > 0,
+    `no ${FORCED_FLOOR}: arguments found; the parser is broken, not the code`,
+  );
+});
+
 test('the model exposes an effective getter for the forced-off setting', () => {
   const src = read('lib/web_view_model.dart');
   assert.match(
@@ -134,6 +153,19 @@ for (const rel of CARRIERS) {
         FORCED_OFF_OK.some((re) => re.test(value)),
         `${rel}: ${FORCED_OFF} passed as "${collapsed}". It must go through `
           + 'effectiveThirdPartyCookiesEnabled, or negate the umbrella inline.',
+      );
+    }
+  });
+
+  test(`${rel}: WebRTC policy never passes its stored value`, () => {
+    for (const value of namedArgs(src, FORCED_FLOOR)) {
+      const collapsed = value.replace(/\s+/g, ' ').trim();
+      if (/^(WebRtcPolicy|final|this\.)/.test(collapsed) || collapsed === '') continue;
+      if (bareForward(rel, value, FORCED_FLOOR)) continue;
+      assert.ok(
+        FORCED_FLOOR_OK.some((re) => re.test(value)),
+        `${rel}: ${FORCED_FLOOR} passed as "${collapsed}". It must go through `
+          + 'effectiveWebRtcPolicy, or resolveWebRtcPolicy with the umbrella.',
       );
     }
   });

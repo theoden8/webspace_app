@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "ਡਿਫਾਲਟ",
   "siteSettingsWebRtcRelayOnly": "ਸਿਰਫ਼ ਰੀਲੇਅ",
   "siteSettingsWebRtcDisabled": "ਅਯੋਗ",
+  "siteSettingsWebRtcNoDirect": "ਪ੍ਰੌਕਸੀ ਪਿੱਛੇ ਟਰੈਕਿੰਗ ਸੁਰੱਖਿਆ ਵੱਲੋਂ ਸਿੱਧੇ ਕਨੈਕਸ਼ਨ ਬਲੌਕ ਕੀਤੇ ਗਏ",
   "siteSettingsDnsStatTotal": "ਕੁੱਲ",
   "siteSettingsDnsStatAllowed": "ਮਨਜ਼ੂਰ",
   "siteSettingsDnsStatBlocked": "ਬਲੌਕ",

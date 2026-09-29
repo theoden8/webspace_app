@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "기본값",
   "siteSettingsWebRtcRelayOnly": "릴레이만",
   "siteSettingsWebRtcDisabled": "비활성화",
+  "siteSettingsWebRtcNoDirect": "프록시 사용 중에는 추적 방지가 직접 연결을 차단합니다",
   "siteSettingsDnsStatTotal": "전체",
   "siteSettingsDnsStatAllowed": "허용됨",
   "siteSettingsDnsStatBlocked": "차단됨",

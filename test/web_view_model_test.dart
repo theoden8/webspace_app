@@ -5,6 +5,7 @@ import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 void main() {
@@ -588,6 +589,61 @@ void main() {
 
       model.trackingProtectionEnabled = false;
       expect(model.effectiveThirdPartyCookiesEnabled, isTrue);
+    });
+
+    group('tracking protection behind a proxy forbids direct WebRTC (ETP-031)',
+        () {
+      tearDown(GlobalOutboundProxy.resetForTest);
+
+      test('the site\'s own proxy raises Default to Relay only', () {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          proxySettings: UserProxySettings(
+              type: ProxyType.SOCKS5, address: '127.0.0.1:1080'),
+        );
+        expect(model.trackingProtectionEnabled, isTrue);
+        expect(model.effectiveWebRtcPolicy, WebRtcPolicy.relayOnly);
+        // Stored, not erased, so turning the umbrella off gives Default back.
+        expect(model.webRtcPolicy, WebRtcPolicy.defaultPolicy);
+        expect(model.toJson()['webRtcPolicy'], 'defaultPolicy');
+
+        model.trackingProtectionEnabled = false;
+        expect(model.effectiveWebRtcPolicy, WebRtcPolicy.defaultPolicy);
+      });
+
+      test('a site left on DEFAULT counts as proxied under the app-wide one',
+          () {
+        final model = WebViewModel(initUrl: 'https://example.com');
+        expect(model.effectiveWebRtcPolicy, WebRtcPolicy.defaultPolicy);
+
+        GlobalOutboundProxy.setForTest(
+          UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
+        );
+        expect(model.effectiveWebRtcPolicy, WebRtcPolicy.relayOnly);
+      });
+
+      test('Tor counts as a proxy', () {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          proxySettings: UserProxySettings(type: ProxyType.TOR),
+        );
+        expect(model.effectiveWebRtcPolicy, WebRtcPolicy.relayOnly);
+      });
+
+      test('Disabled is stricter and stays', () {
+        final model = WebViewModel(
+          initUrl: 'https://example.com',
+          proxySettings: UserProxySettings(type: ProxyType.TOR),
+          webRtcPolicy: WebRtcPolicy.disabled,
+        );
+        expect(model.effectiveWebRtcPolicy, WebRtcPolicy.disabled);
+      });
+
+      test('no proxy leaves the stored policy alone', () {
+        final model = WebViewModel(initUrl: 'https://example.com');
+        expect(model.proxySettings.type, ProxyType.DEFAULT);
+        expect(model.effectiveWebRtcPolicy, WebRtcPolicy.defaultPolicy);
+      });
     });
 
     test('letterboxEnabled defaults to false; omitted from JSON; round-trips',

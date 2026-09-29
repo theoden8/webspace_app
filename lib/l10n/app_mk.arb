@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Стандардно",
   "siteSettingsWebRtcRelayOnly": "Само релеј",
   "siteSettingsWebRtcDisabled": "Оневозможено",
+  "siteSettingsWebRtcNoDirect": "Заштитата од следење ги блокира директните врски зад прокси",
   "siteSettingsDnsStatTotal": "Вкупно",
   "siteSettingsDnsStatAllowed": "Дозволени",
   "siteSettingsDnsStatBlocked": "Блокирани",

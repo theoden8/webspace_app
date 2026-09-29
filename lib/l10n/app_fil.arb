@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Default",
   "siteSettingsWebRtcRelayOnly": "Relay lang",
   "siteSettingsWebRtcDisabled": "Disabled",
+  "siteSettingsWebRtcNoDirect": "Hinarangan ng Tracking Protection ang mga direktang koneksyon sa likod ng proxy",
   "siteSettingsDnsStatTotal": "Kabuuan",
   "siteSettingsDnsStatAllowed": "Pinayagan",
   "siteSettingsDnsStatBlocked": "Na-block",

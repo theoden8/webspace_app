@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "پیش‌فرض",
   "siteSettingsWebRtcRelayOnly": "فقط رله",
   "siteSettingsWebRtcDisabled": "غیرفعال",
+  "siteSettingsWebRtcNoDirect": "محافظت در برابر ردیابی اتصال‌های مستقیم را پشت پراکسی مسدود می‌کند",
   "siteSettingsDnsStatTotal": "کل",
   "siteSettingsDnsStatAllowed": "مجاز",
   "siteSettingsDnsStatBlocked": "مسدود",

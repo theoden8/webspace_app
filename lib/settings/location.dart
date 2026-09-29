@@ -55,6 +55,22 @@ enum LocationGranularity { gps, approximate, gsm }
 /// [disabled] — neutralize `RTCPeerConnection` entirely.
 enum WebRtcPolicy { defaultPolicy, relayOnly, disabled }
 
+/// The policy a webview actually runs (ETP-031). Tracking Protection on a
+/// proxied site raises [WebRtcPolicy.defaultPolicy] to
+/// [WebRtcPolicy.relayOnly]: a direct ICE candidate carries the device IP
+/// around the proxy. [WebRtcPolicy.disabled] is stricter and stays; the
+/// stored value comes back when either condition goes away.
+WebRtcPolicy resolveWebRtcPolicy({
+  required WebRtcPolicy stored,
+  required bool trackingProtectionEnabled,
+  required bool proxied,
+}) =>
+    trackingProtectionEnabled &&
+            proxied &&
+            stored == WebRtcPolicy.defaultPolicy
+        ? WebRtcPolicy.relayOnly
+        : stored;
+
 /// Common IANA timezone names shown in the per-site settings picker.
 /// The list is intentionally curated — `Intl.supportedValuesOf('timeZone')`
 /// returns ~430 zones, which is unwieldy in a dropdown.

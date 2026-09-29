@@ -699,6 +699,7 @@ class _SiteNetworkCardState extends State<_SiteNetworkCard> {
                 ),
                 onChanged: (_) {},
                 proxySupported: true,
+                trackingProtectionEnabled: true,
                 proxyAddressController: address,
                 proxyUsernameController: username,
                 proxyPasswordController: password,

@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Réamhshocrú",
   "siteSettingsWebRtcRelayOnly": "Athsheachadán amháin",
   "siteSettingsWebRtcDisabled": "Díchumasaithe",
+  "siteSettingsWebRtcNoDirect": "Tá naisc dhíreacha bactha ag an gCosaint ar Rianú taobh thiar de sheachfhreastalaí",
   "siteSettingsDnsStatTotal": "Iomlán",
   "siteSettingsDnsStatAllowed": "Ceadaithe",
   "siteSettingsDnsStatBlocked": "Bactha",

@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Rhagosodedig",
   "siteSettingsWebRtcRelayOnly": "Relái yn unig",
   "siteSettingsWebRtcDisabled": "Analluogwyd",
+  "siteSettingsWebRtcNoDirect": "Mae Amddiffyn rhag Tracio yn rhwystro cysylltiadau uniongyrchol y tu ôl i ddirprwy",
   "siteSettingsDnsStatTotal": "Cyfanswm",
   "siteSettingsDnsStatAllowed": "Caniatawyd",
   "siteSettingsDnsStatBlocked": "Rhwystrwyd",

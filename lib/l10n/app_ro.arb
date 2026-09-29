@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Implicit",
   "siteSettingsWebRtcRelayOnly": "Doar releu",
   "siteSettingsWebRtcDisabled": "Dezactivat",
+  "siteSettingsWebRtcNoDirect": "Protecția împotriva urmăririi blochează conexiunile directe prin proxy",
   "siteSettingsDnsStatTotal": "Total",
   "siteSettingsDnsStatAllowed": "Permise",
   "siteSettingsDnsStatBlocked": "Blocate",

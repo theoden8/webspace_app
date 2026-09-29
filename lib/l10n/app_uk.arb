@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Типова",
   "siteSettingsWebRtcRelayOnly": "Лише ретрансляція",
   "siteSettingsWebRtcDisabled": "Вимкнено",
+  "siteSettingsWebRtcNoDirect": "Захист від стеження блокує прямі з'єднання за проксі",
   "siteSettingsDnsStatTotal": "Усього",
   "siteSettingsDnsStatAllowed": "Дозволено",
   "siteSettingsDnsStatBlocked": "Заблоковано",

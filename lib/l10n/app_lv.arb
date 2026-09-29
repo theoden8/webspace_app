@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Noklusējums",
   "siteSettingsWebRtcRelayOnly": "Tikai relejs",
   "siteSettingsWebRtcDisabled": "Atspējots",
+  "siteSettingsWebRtcNoDirect": "Izsekošanas aizsardzība bloķē tiešos savienojumus aiz starpniekservera",
   "siteSettingsDnsStatTotal": "Kopā",
   "siteSettingsDnsStatAllowed": "Atļauti",
   "siteSettingsDnsStatBlocked": "Bloķēti",

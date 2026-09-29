@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Výchozí",
   "siteSettingsWebRtcRelayOnly": "Pouze relay",
   "siteSettingsWebRtcDisabled": "Vypnuto",
+  "siteSettingsWebRtcNoDirect": "Ochrana proti sledování blokuje přímá spojení za proxy",
   "siteSettingsDnsStatTotal": "Celkem",
   "siteSettingsDnsStatAllowed": "Povoleno",
   "siteSettingsDnsStatBlocked": "Blokováno",

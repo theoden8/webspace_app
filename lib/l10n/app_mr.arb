@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "डीफॉल्ट",
   "siteSettingsWebRtcRelayOnly": "फक्त रिले",
   "siteSettingsWebRtcDisabled": "अक्षम",
+  "siteSettingsWebRtcNoDirect": "प्रॉक्सीमागे ट्रॅकिंग संरक्षणाने थेट कनेक्शन अवरोधित केले",
   "siteSettingsDnsStatTotal": "एकूण",
   "siteSettingsDnsStatAllowed": "अनुमत",
   "siteSettingsDnsStatBlocked": "अवरोधित",

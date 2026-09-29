@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Προεπιλογή",
   "siteSettingsWebRtcRelayOnly": "Μόνο αναμετάδοση",
   "siteSettingsWebRtcDisabled": "Απενεργοποιημένο",
+  "siteSettingsWebRtcNoDirect": "Η Προστασία από παρακολούθηση αποκλείει τις άμεσες συνδέσεις μέσω διακομιστή μεσολάβησης",
   "siteSettingsDnsStatTotal": "Σύνολο",
   "siteSettingsDnsStatAllowed": "Επιτράπηκαν",
   "siteSettingsDnsStatBlocked": "Αποκλείστηκαν",

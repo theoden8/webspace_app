@@ -437,10 +437,26 @@ The recommended posture for users behind a proxy is:
 - **`webRtcPolicy = disabled`** for sites that don't legitimately need
   WebRTC — neuters `RTCPeerConnection` entirely.
 
-#### Scenario: Default policy with proxy is a documented gap
+Tracking Protection applies the first of these for the user: on a site whose
+traffic resolves to a proxy under LEAK-001, a stored `defaultPolicy` runs as
+`relayOnly` while the umbrella is on ([ETP-031](../tracking-protection/spec.md)).
+The umbrella is on by default, so the gap below is left only to a site the
+user has taken out of Tracking Protection.
+
+#### Scenario: Tracking Protection closes the default-policy gap
 
 **Given** the user has configured a global SOCKS5 proxy
 **And** site "Acme" has `webRtcPolicy = defaultPolicy` (the default)
+**And** "Acme" has `trackingProtectionEnabled = true` (the default)
+**When** "Acme"'s page calls `RTCPeerConnection().createOffer()`
+**Then** the webview runs `relayOnly`, and the SDP carries only `typ relay`
+candidates
+
+#### Scenario: Default policy with proxy and no umbrella is a documented gap
+
+**Given** the user has configured a global SOCKS5 proxy
+**And** site "Acme" has `webRtcPolicy = defaultPolicy` (the default)
+**And** "Acme" has `trackingProtectionEnabled = false`
 **When** the user navigates to a STUN-fingerprinting page on "Acme"
 **Then** WebRTC may expose the device IP **— this is a known gap**
 **And** the per-site settings UI surfaces a hint encouraging
@@ -514,7 +530,7 @@ spec violation.
 | Category | Trigger | Proxy applied | Implementation |
 |---|---|---|---|
 | Webview navigation (HTTP/HTTPS/CONNECT) | Site load, in-page request | Per-site (DEFAULT → global) | `ProxyManager.setProxySettings`, `lib/services/webview.dart:164` |
-| Webview WebRTC | RTCPeerConnection / STUN | Per-site `webRtcPolicy` | `lib/services/location_spoof_service.dart` |
+| Webview WebRTC | RTCPeerConnection / STUN | Per-site `webRtcPolicy`, raised to relay only behind a proxy under Tracking Protection (ETP-031) | `lib/services/location_spoof_service.dart`, `WebViewModel.effectiveWebRtcPolicy` |
 | Favicon: DDG, Google, FaviconFinder, SVG body | `getFaviconUrl(Stream)`, `getSvgContent`, `FaviconFinder.getAll` | Per-site (DEFAULT → global) | `lib/services/icon_service.dart`, `lib/third_party/favicon/favicon.dart` |
 | Favicon raster render | Drawer / tab strip / site list paints an icon | Per-site (DEFAULT → global) | `getIconBytes` in `lib/services/icon_service.dart`, `lib/screens/favicon_image_io.dart` |
 | Per-site downloads (HTTP/HTTPS) | `onDownloadStartRequest` | Per-site (DEFAULT → global) | `DownloadEngine`, `lib/services/webview.dart:_handleHttpDownload` |
@@ -857,9 +873,11 @@ address.
 
 ## Threat Model — Known Gaps
 
-- **WebRTC default policy under a proxy**: per LEAK-005, sites with
-  `webRtcPolicy = defaultPolicy` can still leak the device IP via STUN.
-  The defense is to flip the per-site `webRtcPolicy` to `relayOnly` /
+- **WebRTC default policy under a proxy, umbrella off**: per LEAK-005,
+  a proxied site with `webRtcPolicy = defaultPolicy` and Tracking
+  Protection turned off can still leak the device IP via STUN. With the
+  umbrella on (the default) it runs `relayOnly` (ETP-031). The defense
+  for the rest is to flip the per-site `webRtcPolicy` to `relayOnly` /
   `disabled`. The settings UI hints at this when a proxy is configured.
 - **The app's own update / metrics**: WebSpace does not phone home, so
   there's no app-level analytics path to proxy. If telemetry is ever

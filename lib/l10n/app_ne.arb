@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "पूर्वनिर्धारित",
   "siteSettingsWebRtcRelayOnly": "Relay only",
   "siteSettingsWebRtcDisabled": "असक्षम",
+  "siteSettingsWebRtcNoDirect": "प्रोक्सी पछाडि ट्र्याकिङ सुरक्षाले प्रत्यक्ष जडानहरू रोकेको छ",
   "siteSettingsDnsStatTotal": "जम्मा",
   "siteSettingsDnsStatAllowed": "अनुमति",
   "siteSettingsDnsStatBlocked": "अवरुद्ध",

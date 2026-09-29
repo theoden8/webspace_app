@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "ಡೀಫಾಲ್ಟ್",
   "siteSettingsWebRtcRelayOnly": "ರಿಲೇ ಮಾತ್ರ",
   "siteSettingsWebRtcDisabled": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ",
+  "siteSettingsWebRtcNoDirect": "ಪ್ರಾಕ್ಸಿಯ ಹಿಂದೆ ಟ್ರ್ಯಾಕಿಂಗ್ ರಕ್ಷಣೆಯು ನೇರ ಸಂಪರ್ಕಗಳನ್ನು ನಿರ್ಬಂಧಿಸಿದೆ",
   "siteSettingsDnsStatTotal": "ಒಟ್ಟು",
   "siteSettingsDnsStatAllowed": "ಅನುಮತಿಸಲಾಗಿದೆ",
   "siteSettingsDnsStatBlocked": "ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ",

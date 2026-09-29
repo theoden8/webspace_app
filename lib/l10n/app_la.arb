@@ -532,6 +532,7 @@
   "siteSettingsWebRtcDefault": "Praedefinita",
   "siteSettingsWebRtcRelayOnly": "Solum relatio",
   "siteSettingsWebRtcDisabled": "Impedita",
+  "siteSettingsWebRtcNoDirect": "Tutela contra investigationem conexiones directas post procuratorem impedit",
   "siteSettingsDnsStatTotal": "Summa",
   "siteSettingsDnsStatAllowed": "Permissae",
   "siteSettingsDnsStatBlocked": "Impeditae",

@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "預設",
   "siteSettingsWebRtcRelayOnly": "僅中繼",
   "siteSettingsWebRtcDisabled": "已停用",
+  "siteSettingsWebRtcNoDirect": "使用代理時，追蹤保護會封鎖直接連線",
   "siteSettingsDnsStatTotal": "總計",
   "siteSettingsDnsStatAllowed": "已允許",
   "siteSettingsDnsStatBlocked": "已封鎖",

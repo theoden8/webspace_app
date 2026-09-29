@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "ברירת מחדל",
   "siteSettingsWebRtcRelayOnly": "ממסר בלבד",
   "siteSettingsWebRtcDisabled": "מושבת",
+  "siteSettingsWebRtcNoDirect": "הגנה מפני מעקב חוסמת חיבורים ישירים מאחורי פרוקסי",
   "siteSettingsDnsStatTotal": "סך הכול",
   "siteSettingsDnsStatAllowed": "הותרו",
   "siteSettingsDnsStatBlocked": "נחסמו",

@@ -3105,7 +3105,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         spoofTimezone: model.spoofTimezone,
         spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
         liveLocationGranularity: model.liveLocationGranularity,
-        webRtcPolicy: model.webRtcPolicy,
+        webRtcPolicy: model.effectiveWebRtcPolicy,
         userAgent: model.effectiveUserAgentOrNull,
         javascriptEnabled: model.javascriptEnabled,
         userScripts: model.combineUserScripts(_globalUserScripts),

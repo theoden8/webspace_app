@@ -1167,6 +1167,102 @@ forced row that captions itself (ETP-017)
 
 ---
 
+### Requirement: ETP-031 - No direct WebRTC behind a proxy under umbrella
+
+While `trackingProtectionEnabled` is true and the site's traffic goes through
+a proxy, the umbrella SHALL raise a stored `webRtcPolicy` of `defaultPolicy`
+to `relayOnly` (LOC-004). "Goes through a proxy" follows the precedence ladder
+the webview itself uses (LEAK-001): the site's own proxy type is not
+`DEFAULT`, or it is `DEFAULT` and the app-wide outbound proxy is set. `TOR`
+counts. A stored `disabled` is stricter than the floor and SHALL be kept.
+
+A direct ICE candidate (host or server-reflexive) is the device's own address,
+gathered over UDP the proxy never sees, so a site behind a proxy with WebRTC
+left on Default can read the very IP the user picked the proxy to hide
+(LEAK-005). Relay only keeps WebRTC usable wherever the site brings a TURN
+server; Disabled would break calls that relay would carry, and the umbrella
+forces the least it has to.
+
+As with ETP-024 the stored value SHALL be preserved: turning the umbrella off,
+or leaving the proxy, gives the site its stored policy back, and a settings
+export records the stored value.
+
+The forcing SHALL be derived on `WebViewModel` as `effectiveWebRtcPolicy`,
+through the pure `resolveWebRtcPolicy` in
+[lib/settings/location.dart](../../../lib/settings/location.dart), and every
+path that hands the policy to a webview SHALL read that getter: `WebViewConfig`
+construction and both `launchUrl` call sites. The nested `InAppWebViewScreen`
+SHALL apply `resolveWebRtcPolicy` to the config it builds, from its own
+umbrella value and proxy settings. `test/js/tracking_protection_umbrella_funnel.test.js`
+fails any carrier that passes the stored field.
+
+The app-wide proxy is read when the webview is built; changing it rebuilds
+every loaded webview, so a site picks up or drops the floor with it.
+
+On the Network screen (NET-001) the WebRTC row SHALL, while the floor applies,
+show the forced value in its dropdown, render the Default item disabled, and
+caption the row "Direct connections blocked by Tracking Protection behind a
+proxy". The floor is computed from the unsaved form, so picking a proxy on the
+screen applies it at once. Relay only and Disabled stay selectable; re-picking
+the Relay only the dropdown already shows SHALL store nothing, so a stored
+Default survives. The Network settings row (NET-002) SHALL name the policy the
+site will run, not the stored one.
+
+#### Scenario: Site's own proxy, umbrella on
+
+**Given** a site with proxy `SOCKS5 127.0.0.1:1080`,
+`trackingProtectionEnabled: true` and `webRtcPolicy: defaultPolicy`
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `webRtcPolicy: relayOnly`
+**And** the page's `RTCPeerConnection` gathers only `typ relay` candidates
+**And** the stored `webRtcPolicy` remains `defaultPolicy`
+
+#### Scenario: App-wide proxy counts for a site on DEFAULT
+
+**Given** a site with proxy type `DEFAULT` and `webRtcPolicy: defaultPolicy`
+**And** the app-wide outbound proxy is `HTTP 10.0.0.1:8080`
+**And** `trackingProtectionEnabled` is true
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `webRtcPolicy: relayOnly`
+
+#### Scenario: No proxy, no floor
+
+**Given** a site with no proxy of its own and no app-wide proxy
+**And** `trackingProtectionEnabled` is true
+**When** the webview is constructed
+**Then** the `WebViewConfig` has the stored `webRtcPolicy`
+
+#### Scenario: Umbrella off restores the stored value
+
+**Given** a proxied site with `webRtcPolicy: defaultPolicy`
+**When** the user turns Tracking Protection off for it
+**Then** the `WebViewConfig` has `webRtcPolicy: defaultPolicy`
+
+#### Scenario: Disabled is kept
+
+**Given** a proxied site with `trackingProtectionEnabled: true` and
+`webRtcPolicy: disabled`
+**When** the webview is constructed
+**Then** the `WebViewConfig` has `webRtcPolicy: disabled`
+
+#### Scenario: Nested webview forces too
+
+**Given** a parent site on `TOR` with `trackingProtectionEnabled: true` and
+`webRtcPolicy: defaultPolicy`
+**When** a cross-domain link opens a nested `InAppWebViewScreen`
+**Then** the nested `WebViewConfig` has `webRtcPolicy: relayOnly`
+
+#### Scenario: Network screen reflects the floor
+
+**Given** the umbrella is on and the site has a proxy of its own
+**When** the user opens the Network screen
+**Then** the WebRTC dropdown shows "Relay only" with the "Default" item disabled
+**And** the row reads "Direct connections blocked by Tracking Protection
+behind a proxy"
+**And** picking "Disabled" is still possible and is stored
+
+---
+
 ### Requirement: ETP-028 - Per-launch nonce for incognito fingerprint randomization
 
 The system SHALL maintain a process-lifetime random nonce, exposed as `LaunchNonce.value` in [lib/services/launch_nonce.dart](../../../lib/services/launch_nonce.dart). The nonce SHALL be generated lazily on first read using `dart:math` `Random.secure` and SHALL remain identical for every subsequent read within the same process. The nonce SHALL NOT be persisted to disk: a new process start (cold launch, OS-killed restore, debug hot-restart) SHALL produce a fresh nonce. App resume from background is NOT a new launch and SHALL NOT regenerate the nonce. The nonce SHALL be mixed into the anti-fingerprinting seed only when the site has `incognito: true` (per ETP-004).
@@ -1245,6 +1341,16 @@ bool get effectiveThirdPartyCookiesEnabled =>
     trackingProtectionEnabled ? false : thirdPartyCookiesEnabled;
 ```
 
+`effectiveWebRtcPolicy` raises Default to Relay only behind a proxy (ETP-031):
+
+```dart
+WebRtcPolicy get effectiveWebRtcPolicy => resolveWebRtcPolicy(
+      stored: webRtcPolicy,
+      trackingProtectionEnabled: trackingProtectionEnabled,
+      proxied: resolveEffectiveProxy(proxySettings).type != ProxyType.DEFAULT,
+    );
+```
+
 The stored `WebViewModel` field is unchanged; only the `WebViewConfig`
 that flows into the platform webview sees the forced values.
 
@@ -1298,7 +1404,11 @@ in `kExportedAppPrefs` is needed.
   propagation, plus `rerollFingerprint`.
   `effectiveProtectedContentAllowed` forces deny under the umbrella
   (ETP-023); `effectiveThirdPartyCookiesEnabled` forces third-party
-  cookies off under it (ETP-024).
+  cookies off under it (ETP-024); `effectiveWebRtcPolicy` raises Default
+  WebRTC to Relay only on a proxied site (ETP-031).
+- `lib/settings/location.dart` — `resolveWebRtcPolicy`, the ETP-031 rule
+  shared by the model, the nested screen and the Network screen.
+- `lib/screens/site_network.dart` — The WebRTC row shows the ETP-031 floor.
 - `lib/services/webview.dart` — Added `trackingProtectionEnabled` to
   `WebViewConfig`, shim injection. Added `letterboxEnabled` /
   `spoofWindowWidth` / `spoofWindowHeight` / `fingerprintResetNonce` to

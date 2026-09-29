@@ -34,6 +34,8 @@ Future<_Form> _pump(
   bool proxySupported = true,
   Widget? proxyTest,
   String address = '',
+  bool trackingProtectionEnabled = false,
+  bool appProxySet = false,
 }) async {
   tester.view.physicalSize = const Size(1000, 3000);
   tester.view.devicePixelRatio = 1.0;
@@ -56,6 +58,8 @@ Future<_Form> _pump(
       // Secure storage has no platform side here; the row is covered on its
       // own below with an in-memory store.
       showSavedSignIns: false,
+      trackingProtectionEnabled: trackingProtectionEnabled,
+      appProxySet: appProxySet,
     ),
   ));
   await tester.pumpAndSettle();
@@ -193,6 +197,90 @@ void main() {
     await _pick(tester, _webRtcDropdown, 'Disabled');
     expect(reported?.webRtcPolicy, WebRtcPolicy.disabled);
     expect(reported?.proxyType, ProxyType.SOCKS5);
+  });
+
+  group('Tracking Protection behind a proxy (ETP-031)', () {
+    WebRtcPolicy shown(WidgetTester tester) =>
+        tester.widget<DropdownButton<WebRtcPolicy>>(_webRtcDropdown).value!;
+
+    bool defaultEnabled(WidgetTester tester) => tester
+        .widget<DropdownButton<WebRtcPolicy>>(_webRtcDropdown)
+        .items!
+        .firstWhere((i) => i.value == WebRtcPolicy.defaultPolicy)
+        .enabled;
+
+    testWidgets('the site\'s own proxy shows Default as Relay only',
+        (tester) async {
+      await _pump(
+        tester,
+        values: _values(proxyType: ProxyType.SOCKS5),
+        trackingProtectionEnabled: true,
+      );
+      expect(shown(tester), WebRtcPolicy.relayOnly);
+      expect(defaultEnabled(tester), isFalse);
+      expect(find.text(loc.siteSettingsWebRtcNoDirect), findsOneWidget);
+    });
+
+    testWidgets('the app-wide proxy counts for a site without its own',
+        (tester) async {
+      await _pump(
+        tester,
+        values: _values(),
+        trackingProtectionEnabled: true,
+        appProxySet: true,
+      );
+      expect(shown(tester), WebRtcPolicy.relayOnly);
+      expect(defaultEnabled(tester), isFalse);
+    });
+
+    testWidgets('picking a proxy on this screen applies the floor at once',
+        (tester) async {
+      await _pump(tester, values: _values(), trackingProtectionEnabled: true);
+      expect(shown(tester), WebRtcPolicy.defaultPolicy);
+      expect(find.text(loc.siteSettingsWebRtcNoDirect), findsNothing);
+
+      await _pick(tester, _proxyDropdown, 'HTTP');
+      expect(shown(tester), WebRtcPolicy.relayOnly);
+      expect(find.text(loc.siteSettingsWebRtcNoDirect), findsOneWidget);
+    });
+
+    testWidgets('without the umbrella Default stays available',
+        (tester) async {
+      await _pump(
+        tester,
+        values: _values(proxyType: ProxyType.SOCKS5),
+        appProxySet: true,
+      );
+      expect(shown(tester), WebRtcPolicy.defaultPolicy);
+      expect(defaultEnabled(tester), isTrue);
+      expect(find.text(loc.siteSettingsWebRtcNoDirect), findsNothing);
+    });
+
+    testWidgets('Disabled can still be picked, and is kept', (tester) async {
+      SiteNetworkValues? reported;
+      await _pump(
+        tester,
+        values: _values(proxyType: ProxyType.TOR),
+        trackingProtectionEnabled: true,
+        onChanged: (v) => reported = v,
+      );
+      await _pick(tester, _webRtcDropdown, 'Disabled');
+      expect(reported?.webRtcPolicy, WebRtcPolicy.disabled);
+      expect(shown(tester), WebRtcPolicy.disabled);
+    });
+
+    testWidgets('re-picking the shown Relay only stores nothing',
+        (tester) async {
+      SiteNetworkValues? reported;
+      await _pump(
+        tester,
+        values: _values(proxyType: ProxyType.SOCKS5),
+        trackingProtectionEnabled: true,
+        onChanged: (v) => reported = v,
+      );
+      await _pick(tester, _webRtcDropdown, 'Relay only');
+      expect(reported, isNull);
+    });
   });
 
   testWidgets('the connection test shows only while a proxy is chosen',

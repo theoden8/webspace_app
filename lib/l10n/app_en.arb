@@ -2614,6 +2614,10 @@
   "@siteSettingsWebRtcDisabled": {
     "description": "WebRTC policy dropdown option: disabled."
   },
+  "siteSettingsWebRtcNoDirect": "Direct connections blocked by Tracking Protection behind a proxy",
+  "@siteSettingsWebRtcNoDirect": {
+    "description": "Subtitle under the WebRTC policy dropdown while the site has Tracking Protection on and its traffic goes through a proxy. In that state the 'Default' option is greyed out and 'Default' behaves as 'Relay only': WebRTC may not connect directly, because a direct connection would reveal the device's real IP address around the proxy. 'Tracking Protection' is the name of a setting; 'proxy' is a network proxy server."
+  },
   "siteSettingsDnsStatTotal": "Total",
   "@siteSettingsDnsStatTotal": {
     "description": "Label for the total DNS lookups stat chip."

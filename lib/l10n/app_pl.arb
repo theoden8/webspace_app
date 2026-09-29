@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Domyślna",
   "siteSettingsWebRtcRelayOnly": "Tylko przekaźnik",
   "siteSettingsWebRtcDisabled": "Wyłączona",
+  "siteSettingsWebRtcNoDirect": "Ochrona przed śledzeniem blokuje połączenia bezpośrednie za serwerem proxy",
   "siteSettingsDnsStatTotal": "Łącznie",
   "siteSettingsDnsStatAllowed": "Dozwolone",
   "siteSettingsDnsStatBlocked": "Zablokowane",

@@ -14,7 +14,10 @@ while the type is TOR (TOR-014), the address field and the credentials fold
 while the type is HTTP, HTTPS or SOCKS5 (PROXY-010, PROXY-019), and the
 connection test while any proxy is chosen; then a "Connection" group holding
 the WebRTC policy and, except for archive-tier sites (HTTPAUTH-004), the saved
-sign-ins row. The "Proxy" group SHALL be absent where the platform cannot bind
+sign-ins row. While Tracking Protection is on and the site is proxied, the
+WebRTC row shows the ETP-031 floor: Default disabled, its value raised to
+Relay only, and a caption saying why. The screen reads the unsaved umbrella
+value and whether an app-wide proxy is set from its caller. The "Proxy" group SHALL be absent where the platform cannot bind
 a per-site proxy (PROXY-006); the "Connection" group is always shown.
 
 The screen SHALL own no persistent state. `SettingsScreen` keeps the fields,
@@ -73,7 +76,9 @@ from the unsaved form: the site's own proxy as its type and address (TOR as
 its type, followed by the pinned exit country when there is one); "App-wide
 proxy" when the site sets no proxy of its own and the app-wide outbound proxy
 is set, since such a site goes through it; and "WebRTC: {policy}" when the
-WebRTC policy is not the default. At most two entries SHALL be named, followed
+WebRTC policy the site will run is not the default, which counts a Default
+that Tracking Protection raises to Relay only behind a proxy (ETP-031). At
+most two entries SHALL be named, followed
 by a "{count} more" overflow. With none of these, the row SHALL read "Default
 connection". Proxy entries SHALL appear only where the platform binds a
 per-site proxy.
@@ -85,9 +90,16 @@ per-site proxy.
 
 #### Scenario: Inherited proxy
 
-**Given** a site with no proxy of its own
+**Given** a site with no proxy of its own and Tracking Protection off
 **And** an app-wide outbound proxy is set in App Settings
 **Then** the Network row reads "App-wide proxy"
+
+#### Scenario: Inherited proxy under Tracking Protection
+
+**Given** a site with no proxy of its own, Tracking Protection on and the
+default WebRTC policy
+**And** an app-wide outbound proxy is set in App Settings
+**Then** the Network row reads "App-wide proxy · WebRTC: Relay only"
 
 #### Scenario: The site's own proxy
 

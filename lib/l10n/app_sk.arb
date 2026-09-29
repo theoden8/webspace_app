@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Predvolené",
   "siteSettingsWebRtcRelayOnly": "Iba relay",
   "siteSettingsWebRtcDisabled": "Vypnuté",
+  "siteSettingsWebRtcNoDirect": "Ochrana pred sledovaním blokuje priame spojenia za proxy",
   "siteSettingsDnsStatTotal": "Spolu",
   "siteSettingsDnsStatAllowed": "Povolené",
   "siteSettingsDnsStatBlocked": "Zablokované",

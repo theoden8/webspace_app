@@ -1092,9 +1092,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // DEFAULT means "no proxy of my own", and such a site goes through the
     // app-wide one when that is set (resolveEffectiveProxy). Reading it as
     // unproxied would answer the row's one question wrongly.
+    final appProxySet = GlobalOutboundProxy.current.type != ProxyType.DEFAULT;
     final inheritsAppProxy = PlatformInfo.isProxySupported &&
         v.proxyType == ProxyType.DEFAULT &&
-        GlobalOutboundProxy.current.type != ProxyType.DEFAULT;
+        appProxySet;
+    // Named as the site will run it, so a Default that Tracking Protection
+    // raises to Relay only reads as Relay only (ETP-031).
+    final webRtc = resolveWebRtcPolicy(
+      stored: v.webRtcPolicy,
+      trackingProtectionEnabled: _trackingProtectionEnabled,
+      proxied: v.proxyType != ProxyType.DEFAULT || appProxySet,
+    );
     final address = _proxyAddressController.text.trim();
     final pin = v.torExitCountry?.trim() ?? '';
     final exitCountry = pin.isEmpty
@@ -1112,9 +1120,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             : '${v.proxyType.name} $address',
       if (proxied && v.proxyType == ProxyType.TOR && exitCountry != null)
         exitCountry,
-      if (v.webRtcPolicy == WebRtcPolicy.relayOnly)
+      if (webRtc == WebRtcPolicy.relayOnly)
         loc.networkSummaryWebRtc(loc.siteSettingsWebRtcRelayOnly),
-      if (v.webRtcPolicy == WebRtcPolicy.disabled)
+      if (webRtc == WebRtcPolicy.disabled)
         loc.networkSummaryWebRtc(loc.siteSettingsWebRtcDisabled),
     ];
     final String summary;
@@ -1152,6 +1160,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           proxyPasswordController: _proxyPasswordController,
           proxyTest: _buildProxyTestTile(),
           showSavedSignIns: !widget.webViewModel.isArchiveTier,
+          trackingProtectionEnabled: _trackingProtectionEnabled,
+          appProxySet: GlobalOutboundProxy.current.type != ProxyType.DEFAULT,
           onChanged: (values) {
             setState(() {
               _proxySettings.type = values.proxyType;

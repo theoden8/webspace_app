@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Default",
   "siteSettingsWebRtcRelayOnly": "Relay biss",
   "siteSettingsWebRtcDisabled": "Diżattivat",
+  "siteSettingsWebRtcNoDirect": "Il-Protezzjoni mit-Traċċar timblokka l-konnessjonijiet diretti wara proxy",
   "siteSettingsDnsStatTotal": "Total",
   "siteSettingsDnsStatAllowed": "Permessi",
   "siteSettingsDnsStatBlocked": "Imblukkati",

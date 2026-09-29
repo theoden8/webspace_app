@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "افتراضي",
   "siteSettingsWebRtcRelayOnly": "الترحيل فقط",
   "siteSettingsWebRtcDisabled": "معطّل",
+  "siteSettingsWebRtcNoDirect": "الحماية من التتبّع تحظر الاتصالات المباشرة خلف الوكيل",
   "siteSettingsDnsStatTotal": "الإجمالي",
   "siteSettingsDnsStatAllowed": "المسموح",
   "siteSettingsDnsStatBlocked": "المحجوب",

@@ -530,6 +530,7 @@
   "siteSettingsWebRtcDefault": "Predeterminado",
   "siteSettingsWebRtcRelayOnly": "Só retransmisión",
   "siteSettingsWebRtcDisabled": "Desactivado",
+  "siteSettingsWebRtcNoDirect": "A Protección contra o seguimento bloquea as conexións directas detrás dun proxy",
   "siteSettingsDnsStatTotal": "Total",
   "siteSettingsDnsStatAllowed": "Permitidas",
   "siteSettingsDnsStatBlocked": "Bloqueadas",
