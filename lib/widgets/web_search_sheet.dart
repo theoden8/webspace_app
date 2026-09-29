@@ -36,6 +36,7 @@ class WebSearchSheet extends StatefulWidget {
     this.declaredDefault,
     this.appDefault,
     this.canAddSites = true,
+    this.initialQuery = '',
   });
 
   /// The site on screen: what "this site" means, and its own search.
@@ -53,12 +54,17 @@ class WebSearchSheet extends StatefulWidget {
   /// and the search would leave the archive with it (S15).
   final bool canAddSites;
 
+  /// What the field starts with: the words typed in the URL bar when no
+  /// search site could run them (LIR-033).
+  final String initialQuery;
+
   @override
   State<WebSearchSheet> createState() => _WebSearchSheetState();
 }
 
 class _WebSearchSheetState extends State<WebSearchSheet> {
-  final TextEditingController _query = TextEditingController();
+  late final TextEditingController _query =
+      TextEditingController(text: widget.initialQuery);
   late SearchScope _scope;
   late List<SearchOption> _options;
   int _selected = 0;

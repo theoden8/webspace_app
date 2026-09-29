@@ -79,4 +79,45 @@ void main() {
       expect(migrateLegacyFileImportUrl(''), '');
     });
   });
+
+  group('looksLikeAddress (LIR-033)', () {
+    test('a scheme, a dotted host, localhost, an IP or host:port is an address',
+        () {
+      for (final input in [
+        'https://github.com',
+        'github.com',
+        'github.com/theoden8/webspace_app',
+        'en.wikipedia.org/wiki/Flutter?x=1#top',
+        'münchen.de',
+        'xn--mnchen-3ya.de',
+        'localhost',
+        'localhost:8080/admin',
+        '192.168.1.1',
+        '10.0.0.2:3000',
+        '[::1]:8080',
+        'about:blank',
+        '  github.com  ',
+      ]) {
+        expect(looksLikeAddress(input), isTrue, reason: input);
+      }
+    });
+
+    test('words, a bare word, an email or a number search instead', () {
+      for (final input in [
+        'flutter hot reload',
+        'flutter',
+        'router',
+        'what is 2:3',
+        'e.g.',
+        '3.14',
+        'a.b',
+        'user@example.com',
+        'node.js tutorial',
+        '',
+        '   ',
+      ]) {
+        expect(looksLikeAddress(input), isFalse, reason: input);
+      }
+    });
+  });
 }

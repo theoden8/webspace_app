@@ -112,6 +112,58 @@ void main() {
     });
   });
 
+  group('barOptions (LIR-033)', () {
+    final gh = site('gh', 'https://github.com/');
+    final blog = site('blog', 'https://blog.example/');
+    final ddg = site('ddg', 'https://duckduckgo.com/');
+    final kagi = site('kagi', 'https://kagi.com/');
+    final all = [gh, blog, ddg, kagi];
+
+    List<String> ids(List<SearchOption> o) => [for (final x in o) x.site.siteId];
+
+    test('web engines first, then the site on screen\'s own search', () {
+      final bar = WebSearchEngine.barOptions(
+          identity: gh, candidates: all, declared: const []);
+      expect(ids(bar.options), ['ddg', 'kagi', 'gh']);
+      expect(bar.options.every((o) => !o.scoped), isTrue);
+      expect(bar.preselected, 0);
+    });
+
+    test('the default follows the site\'s, then the app\'s', () {
+      expect(
+          WebSearchEngine.barOptions(
+                  identity: blog,
+                  candidates: all,
+                  declared: const [],
+                  appDefault: 'kagi')
+              .preselected,
+          1);
+      final bar = WebSearchEngine.barOptions(
+          identity: blog,
+          candidates: all,
+          declared: const [],
+          declaredDefault: 'ddg',
+          appDefault: 'kagi');
+      expect(ids(bar.options), ['ddg', 'kagi']);
+      expect(bar.preselected, 0);
+    });
+
+    test('with no web engine the site\'s own search is the default', () {
+      final bar = WebSearchEngine.barOptions(
+          identity: gh, candidates: [gh, blog], declared: const []);
+      expect(ids(bar.options), ['gh']);
+      expect(bar.preselected, 0);
+    });
+
+    test('nothing can search: no options', () {
+      expect(
+          WebSearchEngine.barOptions(
+                  identity: blog, candidates: [blog], declared: const [])
+              .options,
+          isEmpty);
+    });
+  });
+
   group('options', () {
     final gh = site('gh', 'https://github.com/');
     final blog = site('blog', 'https://blog.example/');

@@ -552,7 +552,16 @@ class _UrlBarCard extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        UrlBar(currentUrl: 'https://codeberg.org/theoden8/webspace', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
+        UrlBar(
+          currentUrl: 'https://codeberg.org/theoden8/webspace',
+          onUrlSubmitted: (_) {},
+          onSiteInfo: () {},
+          searchSites: const [
+            UrlBarSearchSite('ddg', 'DuckDuckGo'),
+            UrlBarSearchSite('kagi', 'Kagi'),
+          ],
+          onSearch: (_, _) {},
+        ),
         const SizedBox(height: 16),
         UrlBar(currentUrl: 'http://example.org', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
         const SizedBox(height: 16),

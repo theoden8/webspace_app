@@ -76,7 +76,7 @@ A search URL SHALL be the address with every `%s` replaced by the trimmed query,
 
 ### Requirement: LIR-029 - Web Search From The Page Menu
 
-The Tabs sheet (TAB-008) SHALL offer "Web search" in its header, beside "New tab": a search opens a tab (LIR-030), so it sits with the other ways to make one. The label SHALL drop to its icon, with the label as its tooltip, when it would leave the sheet's title too little room, before "New tab" does, so the header fits a phone in every locale. While Site tabs are off (TAB-012) there is no Tabs sheet, and both page overflow menus (the app bar's, and the bottom bar's when the tab strip is shown) SHALL offer "Web search" below Find instead; with Site tabs on they SHALL NOT. Neither is reachable while the kiosk shell is locked (KIOSK-002). Find, the URL bar and shared links SHALL NOT change: text typed in the URL bar is still a URL, never a search.
+The Tabs sheet (TAB-008) SHALL offer "Web search" in its header, beside "New tab": a search opens a tab (LIR-030), so it sits with the other ways to make one. The label SHALL drop to its icon, with the label as its tooltip, when it would leave the sheet's title too little room, before "New tab" does, so the header fits a phone in every locale. While the site on screen has no tabs (TAB-012, TAB-013) there is no Tabs sheet for it, and both page overflow menus (the app bar's, and the bottom bar's when the tab strip is shown) SHALL offer "Web search" below Find instead; while it has tabs they SHALL NOT. Neither is reachable while the kiosk shell is locked (KIOSK-002). The URL bar searches too, under LIR-033. Find and shared links SHALL NOT change.
 
 "Web search" SHALL open a sheet for the site on screen. The site on screen is the slot's running identity (LIR-018): the host when a hosted tab is active, else the site. The sheet SHALL hold a query field, a scope and a row of search-site chips.
 
@@ -346,3 +346,42 @@ A routed nested screen (LIR-015) SHALL open over, and on close bring back, the s
 - **GIVEN** DuckDuckGo's slot runs a GitHub tab on Android without the proxy router, and GitHub routes `codeberg.page` to a Codeberg site on another proxy, which cannot run it as a tab because its navigation domain is `codeberg.org`
 - **WHEN** the user taps a `codeberg.page` link and later closes the Codeberg screen
 - **THEN** DuckDuckGo's slot is re-activated, running as GitHub, under GitHub's proxy
+
+---
+
+### Requirement: LIR-033 - Search From The URL Bar
+
+The URL bar of the site on screen SHALL search as well as open addresses, with the search sites, landing and archive boundary of a search from the sheet (LIR-029, LIR-030).
+
+- **Magnifier.** Beside the site info button the bar SHALL show a magnifier. Tapping it SHALL empty the field and turn it into a search field whose placeholder names the search site, "Search with {site}", with the keyboard's search action.
+- **Search sites.** The bar SHALL offer the search sites the sheet offers for The web, then the site on screen's own search when it has one, none of them scoped with `site:`. It SHALL start on the sheet's web preselection (the site's `searchDefault`, else the app default, else the first), or on the site's own search when no site searches the web. With more than one, a control at the start of the search field SHALL list them to pick from, and picking SHALL keep the field and what is typed in it.
+- **Words typed as an address.** Text submitted in the address field that does not look like an address SHALL be searched with the bar's default search site; while such text is typed, the submit button SHALL be a magnifier whose tooltip names that site. An address is anything with a scheme, or one token that is `localhost`, an IP address, a `host:port`, or a dotted host whose last label is letters; text with a space, a single bare word and an email address are searched. Text in the search field SHALL always be searched, even when it looks like an address.
+- **No search site.** A search with no search site SHALL open the sheet with the query filled in, whose empty state offers a known engine to add.
+- **Leaving.** Leaving the field without submitting SHALL end search mode and show the page's URL again. A blank search SHALL do nothing.
+- The nested screen's URL bar SHALL stay an address field, and a locked kiosk shell SHALL offer no search (KIOSK-002).
+
+#### Scenario: The magnifier searches with the default
+
+- **GIVEN** the app default is Kagi and GitHub is on screen with Site tabs on
+- **WHEN** the user taps the magnifier in the URL bar, types `webview` and submits
+- **THEN** the field read "Search with Kagi" before anything was typed
+- **AND** the Kagi search opens as GitHub's hosted child tab labelled "as Kagi" (LIR-030)
+
+#### Scenario: Another search site from the bar
+
+- **GIVEN** the user has DuckDuckGo and Kagi sites and DuckDuckGo is the default
+- **WHEN** the user taps the magnifier, picks Kagi and searches `webview`
+- **THEN** Kagi runs the search
+
+#### Scenario: Words in the address field search
+
+- **GIVEN** DuckDuckGo is the default search site
+- **WHEN** the user types `flutter hot reload` in the URL bar and submits
+- **THEN** DuckDuckGo searches `flutter hot reload`
+- **AND** typing `codeberg.org/theoden8` instead opens that address as before
+
+#### Scenario: No search site yet
+
+- **GIVEN** none of the user's sites searches
+- **WHEN** the user types `webview` in the URL bar and submits
+- **THEN** the web search sheet opens with `webview` in its field, offering search engines to add

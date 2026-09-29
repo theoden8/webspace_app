@@ -20,6 +20,41 @@ final RegExp _authoritySchemeRegex =
 final RegExp _authorityLessSchemeRegex =
     RegExp(r'^(about|javascript|data|mailto|tel|view-source):');
 
+/// Whether text typed in the URL bar names an address rather than words to
+/// search for (LIR-033): anything with a scheme, or one token that is
+/// `localhost`, an IP address, a `host:port`, or a dotted host ending in a
+/// top-level label of letters. A bare word, anything with a space, and an
+/// email address search instead.
+bool looksLikeAddress(String input) {
+  final t = input.trim();
+  if (t.isEmpty) return false;
+  if (hasUrlScheme(t)) return true;
+  if (_whitespace.hasMatch(t)) return false;
+  final authority = t.split(_authorityEnd).first;
+  if (authority.contains('@')) return false;
+  if (authority.startsWith('[')) return authority.contains(']');
+  final colon = authority.lastIndexOf(':');
+  if (colon >= 0) {
+    final host = authority.substring(0, colon);
+    return _port.hasMatch(authority.substring(colon + 1)) &&
+        host.isNotEmpty &&
+        host.split('.').every(_hostLabel.hasMatch);
+  }
+  final host = authority.toLowerCase();
+  if (host == 'localhost' || _ipv4.hasMatch(host)) return true;
+  final labels = host.split('.');
+  if (labels.length < 2 || !labels.every(_hostLabel.hasMatch)) return false;
+  final tld = labels.last;
+  return _tld.hasMatch(tld) || tld.startsWith('xn--');
+}
+
+final RegExp _whitespace = RegExp(r'\s');
+final RegExp _authorityEnd = RegExp(r'[/?#]');
+final RegExp _port = RegExp(r'^\d{1,5}$');
+final RegExp _ipv4 = RegExp(r'^\d{1,3}(\.\d{1,3}){3}$');
+final RegExp _hostLabel = RegExp(r'^[\p{L}\p{N}-]+$', unicode: true);
+final RegExp _tld = RegExp(r'^\p{L}{2,63}$', unicode: true);
+
 /// If [url] has no scheme, prepends `https://`. Otherwise returns [url]
 /// unchanged so schemes like `chrome://` are preserved.
 String ensureUrlScheme(String url) {

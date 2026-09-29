@@ -342,6 +342,35 @@ class WebSearchEngine {
     return 0;
   }
 
+  /// What the URL bar searches with (LIR-033): the web searches the sheet
+  /// would offer, then the site on screen's own search. The default is the
+  /// sheet's web preselection, or the site's own search when nothing
+  /// searches the web. Empty options mean nothing can search.
+  static ({List<SearchOption> options, int preselected}) barOptions({
+    required SearchSite identity,
+    required List<SearchSite> candidates,
+    required List<String> declared,
+    String? declaredDefault,
+    String? appDefault,
+  }) {
+    final web = options(
+      scope: SearchScope.web,
+      identity: identity,
+      candidates: candidates,
+      declared: declared,
+    );
+    final own = identity.capability?.kind == SearchKind.site
+        ? SearchOption(identity, scoped: false)
+        : null;
+    return (
+      options: [...web, ?own],
+      preselected: web.isEmpty
+          ? 0
+          : preselect(web,
+              declaredDefault: declaredDefault, appDefault: appDefault),
+    );
+  }
+
   /// The URL [option] searches [query] with, or null.
   static Uri? urlFor(SearchOption option, String query, {String? scopeHost}) {
     final template = option.site.capability?.template;

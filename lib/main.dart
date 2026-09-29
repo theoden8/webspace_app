@@ -2747,6 +2747,10 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   bool _isWebSearchHandling = false;
 
+  /// The `webSearchDefaultSite` app pref, kept here for the URL bar, which
+  /// names its search site while it builds (LIR-033).
+  String? _webSearchDefaultSite;
+
   /// [m] as web search sees it (LIR-028).
   SearchSite _searchSiteOf(WebViewModel m) => SearchSite(
         siteId: m.siteId,
@@ -2762,7 +2766,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Web search (LIR-029) from the site on screen: the sheet asks for a query
   /// and one of the user's search sites, and the results land by
   /// [WebSearchEngine.land].
-  Future<void> _webSearch() async {
+  Future<void> _webSearch({String initialQuery = ''}) async {
     if (_kioskLocked || _isWebSearchHandling) return;
     final index = _currentIndex;
     if (index == null || index < 0 || index >= _webViewModels.length) return;
@@ -2790,6 +2794,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               ? null
               : appDefault,
           canAddSites: !owner.isArchiveTier,
+          initialQuery: initialQuery,
         ),
       );
       if (!mounted || request == null) return;
@@ -2824,6 +2829,67 @@ class _WebSpacePageState extends State<WebSpacePage>
         return;
       }
       await _runSearch(owner, option.site.siteId, url);
+    } finally {
+      _isWebSearchHandling = false;
+    }
+  }
+
+  /// What the URL bar on [owner]'s slot searches with (LIR-033).
+  ({List<UrlBarSearchSite> sites, String? defaultId}) _urlBarSearchFor(
+      WebViewModel owner) {
+    final identity = owner.runningIdentity;
+    final appDefault = _webSearchDefaultSite;
+    final bar = WebSearchEngine.barOptions(
+      identity: _searchSiteOf(identity),
+      candidates: [
+        for (final m in {..._outboundCandidates(owner), identity})
+          _searchSiteOf(m),
+      ],
+      declared: owner.searchSites,
+      declaredDefault: owner.searchDefault,
+      appDefault: appDefault == null || appDefault.isEmpty ? null : appDefault,
+    );
+    return (
+      sites: [
+        for (final o in bar.options)
+          UrlBarSearchSite(o.site.siteId, o.site.name),
+      ],
+      defaultId: bar.options.isEmpty
+          ? null
+          : bar.options[bar.preselected].site.siteId,
+    );
+  }
+
+  /// A search typed in the URL bar (LIR-033): it runs as one from the sheet
+  /// would, with the search site the bar names. With none, the sheet opens
+  /// on the query, where a known engine can be added.
+  Future<void> _searchFromUrlBar(
+    WebViewModel owner,
+    String query,
+    String? siteId,
+  ) async {
+    if (_kioskLocked || _isWebSearchHandling) return;
+    if (!_webViewModels.contains(owner)) return;
+    final identity = owner.runningIdentity;
+    final site = siteId == null ? null : _modelForSiteId(siteId);
+    final reachable = site != null &&
+        (identical(site, identity) ||
+            _outboundCandidates(owner).contains(site));
+    if (!reachable) {
+      await _webSearch(initialQuery: query);
+      return;
+    }
+    final url = WebSearchEngine.urlFor(
+        SearchOption(_searchSiteOf(site), scoped: false), query);
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).homeUnsupportedUrl)),
+      );
+      return;
+    }
+    _isWebSearchHandling = true;
+    try {
+      await _runSearch(owner, site.siteId, url);
     } finally {
       _isWebSearchHandling = false;
     }
@@ -2994,11 +3060,16 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   Future<void> _pruneSearchDefaultPref() async {
     final prefs = await SharedPreferences.getInstance();
-    final id = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);
-    if (id == null || id.isEmpty) return;
-    final site = _modelForSiteId(id);
-    if (site == null || site.isArchiveTier) {
-      await prefs.setString(kWebSearchDefaultSiteKey, '');
+    var id = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);
+    if (id != null && id.isNotEmpty) {
+      final site = _modelForSiteId(id);
+      if (site == null || site.isArchiveTier) {
+        await prefs.setString(kWebSearchDefaultSiteKey, '');
+        id = '';
+      }
+    }
+    if (mounted && id != _webSearchDefaultSite) {
+      setState(() => _webSearchDefaultSite = id);
     }
   }
 
@@ -5561,6 +5632,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         }
       }
       _showUrlBar = readPrefAs<bool>(prefs, 'showUrlBar') ?? false;
+      _webSearchDefaultSite = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);
       _showTabStrip = readPrefAs<bool>(prefs, 'showTabStrip') ?? false;
       _tabStripInFullscreen = readPrefAs<bool>(prefs, 'tabStripInFullscreen') ?? false;
       _tabBarButton =
@@ -8700,7 +8772,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                   ),
                 ),
               );
-              // Experimental switches are read in build (TAB-012).
+              // Experimental switches are read in build (TAB-012); the
+              // default search site is read by the URL bar.
+              await _pruneSearchDefaultPref();
               if (mounted) setState(() {});
             },
           ),
@@ -9226,6 +9300,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!hasUrlBar && !hasFindToolbar) {
       return null;
     }
+    final urlBarSearch =
+        hasUrlBar && !_kioskLocked ? _urlBarSearchFor(model) : null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -9243,6 +9319,12 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (hasUrlBar)
           UrlBar(
             currentUrl: model.currentUrl,
+            searchSites: urlBarSearch?.sites ?? const [],
+            defaultSearchSiteId: urlBarSearch?.defaultId,
+            onSearch: urlBarSearch == null
+                ? null
+                : (query, siteId) =>
+                    _searchFromUrlBar(model, query, siteId),
             onSiteInfo: () {
               final id = model.runningIdentity;
               showSiteInfoSheet(

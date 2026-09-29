@@ -58,11 +58,15 @@ requirements.
   of" for a hosted tab and "Opened from" for a nested screen that runs as
   another site.
 
-Find, the URL bar and shared links are unchanged.
+- **Search from the URL bar** (LIR-033). A magnifier beside the site info
+  button turns the URL bar into a search field on the default search site,
+  with a picker for the others; words typed as an address are searched with
+  the default instead of being loaded as a broken address.
+
+Find and shared links are unchanged.
 
 ### Explicitly out of scope
 
-- Searching from the URL bar.
 - Searching shared text that carries no URL (LIR-005). The Android share
   handler and the iOS share extension drop such text before it reaches Dart,
   so it needs native changes on both.
@@ -77,8 +81,8 @@ Find, the URL bar and shared links are unchanged.
 
 - `link-intent-routing`: adds LIR-028 (search sites), LIR-029 (web search from
   the page menu), LIR-030 (where results land), LIR-031 (search references
-  follow their sites) and LIR-032 (a link into one of the user's sites opens
-  as its tab). LIR-011 names a search as not an inbound share.
+  follow their sites), LIR-032 (a link into one of the user's sites opens
+  as its tab) and LIR-033 (search from the URL bar). LIR-011 names a search as not an inbound share.
 - `navigation`: NAV-011 (in `site-info-sheet`) names the site in the Container
   row and adds the Tab of and Opened from rows.
 - `site-behaviour`: adds BEHAV-005 (the Search group).

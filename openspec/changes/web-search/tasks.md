@@ -52,3 +52,12 @@
 - [ ] 8.2 Kagi signed in as its own site: search GitHub through Kagi; the results are signed in and GitHub's cookies are unchanged.
 - [ ] 8.3 Android without the proxy router, GitHub and DuckDuckGo on different proxies: opening and leaving the results tab applies each proxy.
 - [ ] 8.4 Site tabs off: the search switches to DuckDuckGo and loads there.
+
+## 9. URL bar search (LIR-033)
+
+- [x] 9.1 `looksLikeAddress` in `lib/utils/url_utils.dart`; `WebSearchEngine.barOptions`.
+- [x] 9.2 `UrlBar`: magnifier, search mode with the search site picker, a submit button that shows whether Enter searches; `searchSites`, `defaultSearchSiteId`, `onSearch`.
+- [x] 9.3 `_urlBarSearchFor` and `_searchFromUrlBar` in `lib/main.dart`; the cached app default; `WebSearchSheet.initialQuery` for a search with no search site.
+- [x] 9.4 `urlBarSearchSiteTooltip` in `lib/l10n/app_en.arb`, then the 66 translations.
+- [x] 9.5 Tests: `test/url_bar_search_test.dart`, `looksLikeAddress` in `test/url_utils_test.dart`, the `barOptions` group, the structural LIR-033 checks.
+- [ ] 9.6 Manual, URL bar shown: the magnifier searches with the default and the picker switches site; `flutter hot reload` typed in the address field searches, `codeberg.org` opens.

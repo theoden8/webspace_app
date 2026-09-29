@@ -93,6 +93,30 @@ void main() {
     });
   });
 
+  group('URL bar search (LIR-033)', () {
+    test('the URL bar searches through the page, not on its own', () {
+      final bar = bodyOf(main, 'Widget? _buildInputBar(');
+      expect(bar, contains('hasUrlBar && !_kioskLocked ? _urlBarSearchFor(model) : null'));
+      expect(bar, contains('_searchFromUrlBar(model, query, siteId)'));
+    });
+
+    test('a URL bar search lands as a sheet search does', () {
+      final body = bodyOf(main, 'Future<void> _searchFromUrlBar(');
+      expect(firstStatement(main, 'Future<void> _searchFromUrlBar('),
+          contains('_kioskLocked'));
+      expect(body, contains('_outboundCandidates(owner).contains(site)'));
+      expect(body, contains('await _runSearch(owner, site.siteId, url);'));
+      expect(body, contains('await _webSearch(initialQuery: query);'));
+    });
+
+    test('the bar knows the app default without reading prefs in build', () {
+      expect(bodyOf(main, 'Future<void> _pruneSearchDefaultPref('),
+          contains('_webSearchDefaultSite = id'));
+      expect(main, contains(
+          '_webSearchDefaultSite = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);'));
+    });
+  });
+
   group('hosted tabs (LIR-018 to LIR-024)', () {
     test('only a persistent app-tier container on the container engine hosts',
         () {
