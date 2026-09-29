@@ -32,13 +32,38 @@ function callText(text, from) {
 }
 
 test('the factory binds through containerIdFor', () => {
-  const create = blockAfter(webview, '}) _bindingFor(WebViewConfig config) {', null, 'webview.dart');
+  const forConfig = callText(
+    webview,
+    webview.indexOf('=> storeBinding(', webview.indexOf('StoreBinding _bindingFor(WebViewConfig config)')),
+  );
+  assert.match(forConfig, /siteId: config\.siteId,/);
+  assert.match(forConfig, /archiveContainerId: config\.archiveContainerId,/);
+  assert.match(forConfig, /incognito: config\.incognito,/);
+  assert.match(forConfig, /proxySettings: config\.proxySettings,/);
+  const create = blockAfter(webview, 'static StoreBinding storeBinding({', '}) {', 'webview.dart');
   const at = create.indexOf('final containerId = containerIdFor(');
   assert.notEqual(at, -1, 'the binding must follow the rule the sheet reports');
   const args = callText(create, at);
-  assert.match(args, /siteId: config\.siteId/);
-  assert.match(args, /archiveContainerId: config\.archiveContainerId/);
-  assert.match(args, /incognito: config\.incognito/);
+  assert.match(args, /siteId: siteId/);
+  assert.match(args, /archiveContainerId: archiveContainerId/);
+  assert.match(args, /incognito: incognito/);
+});
+
+// The model reads the binding before it builds the webview, to know whether
+// the container's proxy has to be cleared first (PROXY-029). Read from other
+// inputs, it would clear, or fail to clear, a container the page never uses.
+test('the model reads the binding from the inputs of the site webview config', () => {
+  const early = callText(model, model.indexOf('WebViewFactory.storeBinding('));
+  const config = callText(model, model.indexOf('webview = WebViewFactory.createWebView('));
+  for (const input of [
+    'siteId: siteId,',
+    'archiveContainerId: archiveContainerId,',
+    'incognito: effectiveIncognito,',
+    'proxySettings: outboundProxySettings,',
+  ]) {
+    assert.ok(early.includes(input), `storeBinding call lacks ${input}`);
+    assert.ok(config.includes(input), `site WebViewConfig lacks ${input}`);
+  }
 });
 
 test('every URL bar offers site info', () => {

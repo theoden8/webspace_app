@@ -40,6 +40,7 @@ void main() {
           proxyIsGlobal: true,
           effectiveNonDefault: true,
           overrideActive: false,
+          releasesContainerProxy: false,
         ),
         isTrue,
       );
@@ -51,6 +52,7 @@ void main() {
           proxyIsGlobal: true,
           effectiveNonDefault: false,
           overrideActive: true,
+          releasesContainerProxy: false,
         ),
         isTrue,
       );
@@ -62,20 +64,39 @@ void main() {
           proxyIsGlobal: true,
           effectiveNonDefault: false,
           overrideActive: false,
+          releasesContainerProxy: false,
         ),
         isFalse,
       );
     });
 
-    test('per-session platforms (iOS/macOS) never defer', () {
+    test('per-session platforms (iOS/macOS) do not defer for an override', () {
       expect(
         deferInitialLoadForProxy(
           proxyIsGlobal: false,
           effectiveNonDefault: true,
           overrideActive: true,
+          releasesContainerProxy: false,
         ),
         isFalse,
       );
+    });
+
+    test('a container that keeps a proxy its site dropped defers (PROXY-029)',
+        () {
+      for (final proxyIsGlobal in [true, false]) {
+        expect(
+          deferInitialLoadForProxy(
+            proxyIsGlobal: proxyIsGlobal,
+            effectiveNonDefault: false,
+            overrideActive: false,
+            releasesContainerProxy: true,
+          ),
+          isTrue,
+          reason: 'the clear goes out from setController, so the first load '
+              'has to wait for it (proxyIsGlobal: $proxyIsGlobal)',
+        );
+      }
     });
   });
 }

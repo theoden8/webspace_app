@@ -124,7 +124,7 @@ test('the credential rides the fields, never only the URL', () => {
 test('the attribution probe travels the relay too', () => {
   assert.match(
     probe,
-    /proxySettings:\s*\n?\s*routerRelayProxyFor\(siteId: siteId, ownsContainer: true\)/,
+    /final proxy = routerRelayProxyFor\(siteId: siteId, ownsContainer: true\);[\s\S]*proxySettings: proxy,/,
     `${probeRel}: the probe's headless view must carry the site's relay `
       + 'credential. Without it the probe resolves .invalid directly, every '
       + 'pair comes back missing, and router mode is refused on every device',

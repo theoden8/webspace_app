@@ -1097,6 +1097,56 @@ touched.
 **Then** the request reaches H through B
 **And** proxy A carries nothing for the site after the change
 
+### Requirement: PROXY-029 - A site moved off its proxy stops using it
+
+On every platform that binds a proxy per container (iOS 17+, macOS 14+, and
+Linux for a site that owns a container), once a site's effective proxy
+resolves to none, its next WebView SHALL NOT issue a request through the
+proxy its container was given before.
+
+The fork (`privacy-v12`) keeps one proxy entry per container for the life of
+the process. A WebView built with `InAppWebViewSettings.proxySettings` writes
+it, and `ProxyController.setProxyOverride(containerId:)` writes the same
+entry; a WebView built naming no proxy leaves it in force, and only
+`ProxyController.clearProxyOverride(containerId:)` or deleting the container
+takes it off. The app therefore records every container it builds a WebView
+on with a proxy (`ProxyManager.noteStoreProxy`, gated by
+`test/js/container_proxy_ledger_funnel.test.js`), and a site build whose
+binding names no proxy for such a container defers its first load, clears
+the container through `ProxyController` from `setController`, and loads
+after the clear returns.
+
+The proxy is still set at WebView construction rather than through
+`ProxyController`: construction binds it before the store's first request
+with no await in between, and an incognito store has no container id to
+address. `ProxyController` is used only for the clear, which construction
+cannot express.
+
+A failed clear SHALL leave the page blank rather than load it through the
+proxy the site gave up, and the next build SHALL ask again. A site whose
+proxy is unavailable (PROXY-016, LEAK-003) SHALL NOT have its container
+cleared: that page stays blank, and a stale proxy is still a proxy.
+
+#### Scenario: Proxy removed
+
+**Given** a site on iOS 17+ loaded through SOCKS5 proxy A
+**When** the user sets the site's proxy to DEFAULT with no app-wide proxy
+**Then** the rebuilt WebView issues no request until its container's proxy
+is cleared
+**And** its first request goes direct, not through A
+
+#### Scenario: Container never given a proxy
+
+**Given** a site that has used DEFAULT since the app started
+**When** its WebView is built
+**Then** nothing is cleared and the first load is not deferred
+
+#### Scenario: Clear fails
+
+**Given** the clear for a site's container fails
+**Then** the page stays blank
+**And** the next build of that site clears again before loading
+
 ---
 
 ## Data Model
@@ -1135,8 +1185,8 @@ settings are translated by `_proxySettingsToWebspaceProxy` in
 ```
 
 `ProxyType.DEFAULT`, missing addresses, or malformed entries return
-`null`, which the fork's native side interprets as "clear proxy on this
-data store".
+`null`. Since fork `privacy-v12` a WebView built with `null` leaves its
+container's proxy as it was; clearing it is PROXY-029's job.
 
 ---
 
@@ -1180,7 +1230,7 @@ flutter_inappwebview fork (github.com/theoden8/flutter_inappwebview)
 | Platform | Proxy Support | UI Visibility | Behavior |
 |----------|--------------|---------------|----------|
 | Android  | Full (per-site, serialised) | Shown (when `PROXY_OVERRIDE` feature present) | `inapp.ProxyController` singleton; data model is genuinely per-site, but mismatched-proxy sites cannot stay loaded concurrently — activation cold-starts the conflicting ones (PROXY-008) |
-| iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
+| iOS      | Full (per-site, iOS 17+) | Shown on iOS 17+ | WebSpace fork attaches `proxyConfigurations` to per-site `WKWebsiteDataStore`; removing a site's proxy clears it through `ProxyController(containerId:)` (PROXY-029); below iOS 17 the controls are hidden and a persisted non-DEFAULT proxy fails closed (blank load) |
 | macOS    | Full (per-site, macOS 14+) | Shown on macOS 14+ | Same pattern as iOS; below macOS 14 the controls are hidden and a persisted non-DEFAULT proxy fails closed |
 | Linux    | Full (global override, fan-out) | Shown unconditionally | WebSpace fork's `flutter_inappwebview_linux` ProxyManager applies `webkit_network_session_set_proxy_settings` to the default session AND every cached container session, so contained sites honor the global proxy too; per-site is still last-write-wins (no per-site proxy primitive on Linux) |
 | Windows  | Limited      | Conditional   | Shown only if `PROXY_OVERRIDE` supported |
