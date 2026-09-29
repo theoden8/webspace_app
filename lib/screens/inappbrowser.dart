@@ -471,7 +471,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             ? true
             : widget.spoofTimezoneFromLocation,
         liveLocationGranularity: widget.liveLocationGranularity,
-        webRtcPolicy: widget.webRtcPolicy,
+        webRtcPolicy: resolveWebRtcPolicy(
+          stored: widget.webRtcPolicy,
+          trackingProtectionEnabled: widget.trackingProtectionEnabled,
+          proxied: resolveEffectiveProxy(widget.proxySettings).type !=
+              ProxyType.DEFAULT,
+        ),
         proxySettings: widget.proxySettings,
         userScripts: widget.userScripts,
         onConfirmScriptFetch: widget.onConfirmScriptFetch,

@@ -89,8 +89,23 @@ void main() {
     GlobalOutboundProxy.setForTest(
       UserProxySettings(type: ProxyType.SOCKS5, address: '10.0.0.1:1080'),
     );
-    await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
+    await _pump(
+      tester,
+      WebViewModel(
+        initUrl: 'https://example.com/',
+        trackingProtectionEnabled: false,
+      ),
+    );
     expect(_summary(tester), 'App-wide proxy');
+  });
+
+  testWidgets('a Default that Tracking Protection raises reads as Relay only',
+      (tester) async {
+    GlobalOutboundProxy.setForTest(
+      UserProxySettings(type: ProxyType.SOCKS5, address: '10.0.0.1:1080'),
+    );
+    await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
+    expect(_summary(tester), 'App-wide proxy · WebRTC: Relay only');
   });
 
   testWidgets('the row names the proxy and a non-default WebRTC policy',
