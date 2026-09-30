@@ -1,47 +1,47 @@
 {
-  "theme": {"themeMode": "dark", "accentColor": "teal"},
-  "selectedWebspaceId": "ws-compat-work",
-  "currentIndex": 2,
+  "version": 1,
   "sites": [
     {
       "siteId": "compat-site-a",
       "initUrl": "https://mail.example.com/",
       "currentUrl": "https://mail.example.com/inbox",
-      "name": "Mail",
-      "pageTitle": "Inbox",
       "tabs": [
-        {"id": "main", "url": "https://mail.example.com/inbox", "title": "Inbox", "createdAt": 1700000000000, "lastActiveAt": 1700000500000, "active": true},
-        {"id": "t1", "url": "https://mail.example.com/drafts", "title": "Drafts", "parentId": "main", "createdAt": 1700000100000, "lastActiveAt": 1700000200000}
-      ],
-      "cookies": [
         {
-          "name": "prefs",
-          "value": "plain-cookie-value",
-          "domain": ".example.com",
-          "path": "/",
-          "expiresDate": 1893456000000,
-          "isSecure": false,
-          "isHttpOnly": false,
-          "isSessionOnly": false,
-          "sameSite": "Lax"
+          "id": "main",
+          "url": "https://mail.example.com/inbox",
+          "title": "Inbox",
+          "createdAt": 1700000000000,
+          "lastActiveAt": 1700000500000,
+          "active": true
         },
         {
-          "name": "__Host-session",
-          "value": "secure-cookie-needle-5d1e",
-          "domain": "mail.example.com",
-          "path": "/",
+          "id": "t1",
+          "url": "https://mail.example.com/drafts",
+          "title": "Drafts",
+          "parentId": "main",
+          "createdAt": 1700000100000,
+          "lastActiveAt": 1700000200000
+        }
+      ],
+      "name": "Mail",
+      "pageTitle": "Inbox",
+      "cookies": [
+        {
+          "domain": ".example.com",
           "expiresDate": 1893456000000,
-          "isSecure": true,
-          "isHttpOnly": true,
+          "isHttpOnly": false,
+          "isSecure": false,
           "isSessionOnly": false,
-          "sameSite": "Lax"
+          "name": "prefs",
+          "path": "/",
+          "sameSite": "Lax",
+          "value": "plain-cookie-value"
         }
       ],
       "proxySettings": {
         "type": 3,
         "address": "127.0.0.1:1080",
-        "username": "proxyuser",
-        "password": "site-proxy-password-needle-a41c"
+        "username": "proxyuser"
       },
       "javascriptEnabled": false,
       "userAgent": "Mozilla/5.0 (X11; Linux x86_64) BackupCompatFixture/1.0",
@@ -55,7 +55,9 @@
       "clearUrlEnabled": false,
       "dnsBlockEnabled": false,
       "dnsBlockLevel": 2,
-      "disabledFilterLists": ["easylist"],
+      "disabledFilterLists": [
+        "easylist"
+      ],
       "contentBlockEnabled": false,
       "trackingProtectionEnabled": false,
       "localCdnEnabled": false,
@@ -85,8 +87,15 @@
           "bypassSitePolicy": true
         }
       ],
-      "enabledGlobalScriptIds": ["global-script-1"],
-      "blockedCookies": [{"name": "_ga", "domain": ".example.com"}],
+      "enabledGlobalScriptIds": [
+        "global-script-1"
+      ],
+      "blockedCookies": [
+        {
+          "name": "_ga",
+          "domain": ".example.com"
+        }
+      ],
       "locationMode": "live",
       "spoofLatitude": 52.52,
       "spoofLongitude": 13.405,
@@ -101,39 +110,54 @@
       "fingerprintResetNonce": "compat-nonce-1",
       "customIconPng": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==",
       "domainClaims": [
-        {"kind": "exactHost", "value": "mail.example.com"},
-        {"kind": "wildcardSubdomain", "value": "example.com"}
+        {
+          "kind": "exactHost",
+          "value": "mail.example.com"
+        },
+        {
+          "kind": "wildcardSubdomain",
+          "value": "example.com"
+        }
       ],
       "routeOutboundLinks": true,
       "outboundPreferences": [
-        {"claim": {"kind": "exactHost", "value": "private.example.net"}, "targetSiteId": "compat-site-b"}
+        {
+          "claim": {
+            "kind": "exactHost",
+            "value": "private.example.net"
+          },
+          "targetSiteId": "compat-site-b"
+        }
       ]
     },
     {
       "siteId": "compat-site-b",
       "initUrl": "https://private.example.net/",
-      "currentUrl": "https://private.example.net/secret-path",
       "name": "Private",
-      "pageTitle": "Private page",
-      "cookies": [
-        {
-          "name": "incognito-cookie",
-          "value": "incognito-cookie-needle-77b0",
-          "domain": "private.example.net",
-          "path": "/",
-          "expiresDate": 1893456000000,
-          "isSecure": false,
-          "isHttpOnly": false,
-          "isSessionOnly": false,
-          "sameSite": null
-        }
-      ],
-      "proxySettings": {"type": 1, "address": "http-proxy.example:3128"},
+      "cookies": [],
+      "proxySettings": {
+        "type": 1,
+        "address": "http-proxy.example:3128",
+        "username": null
+      },
       "javascriptEnabled": true,
       "userAgent": "",
       "thirdPartyCookiesEnabled": false,
+      "httpsUpgradeEnabled": null,
       "incognito": true,
+      "alwaysOpenHome": false,
+      "kioskMode": false,
       "language": "fr",
+      "clearUrlEnabled": true,
+      "dnsBlockEnabled": true,
+      "dnsBlockLevel": null,
+      "disabledFilterLists": [],
+      "contentBlockEnabled": true,
+      "trackingProtectionEnabled": true,
+      "localCdnEnabled": true,
+      "fullscreenMode": false,
+      "htmlCachingEnabled": false,
+      "notificationsEnabled": false,
       "protectedContentAllowed": false,
       "cameraMode": "virtual",
       "virtualCameraSource": {
@@ -146,6 +170,7 @@
         "dataUrl": "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=",
         "fileName": "voice.wav"
       },
+      "userScripts": [],
       "locationMode": "spoof",
       "spoofLatitude": 48.8566,
       "spoofLongitude": 2.3522,
@@ -156,47 +181,94 @@
     {
       "siteId": "compat-site-c",
       "initUrl": "http://localhost:8080/",
-      "currentUrl": "http://localhost:8080/dashboard",
       "name": "Dashboard",
-      "pageTitle": "Dashboard",
       "cookies": [],
-      "proxySettings": {"type": 0},
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null
+      },
       "javascriptEnabled": true,
       "userAgent": "",
       "thirdPartyCookiesEnabled": false,
+      "httpsUpgradeEnabled": null,
+      "incognito": false,
       "alwaysOpenHome": true,
+      "kioskMode": false,
+      "language": null,
+      "clearUrlEnabled": true,
+      "dnsBlockEnabled": true,
+      "dnsBlockLevel": null,
+      "disabledFilterLists": [],
+      "contentBlockEnabled": true,
+      "trackingProtectionEnabled": true,
+      "localCdnEnabled": true,
+      "fullscreenMode": false,
+      "htmlCachingEnabled": false,
+      "notificationsEnabled": false,
       "cameraMode": "block",
       "microphoneMode": "block",
       "screenShareMode": "block",
-      "locationMode": "off"
+      "userScripts": [],
+      "locationMode": "off",
+      "spoofAccuracy": 50.0,
+      "webRtcPolicy": "defaultPolicy"
     },
     {
       "siteId": "compat-site-d",
-      "initUrl": "file://notes.html",
-      "currentUrl": "file://notes.html",
+      "initUrl": "file:///notes.html",
+      "currentUrl": "file:///notes.html",
       "name": "notes",
       "pageTitle": "notes",
       "cookies": [],
-      "proxySettings": {"type": 0},
+      "proxySettings": {
+        "type": 0,
+        "address": null,
+        "username": null
+      },
       "javascriptEnabled": true,
       "userAgent": "",
-      "thirdPartyCookiesEnabled": false
+      "thirdPartyCookiesEnabled": false,
+      "httpsUpgradeEnabled": null,
+      "incognito": false,
+      "alwaysOpenHome": false,
+      "kioskMode": false,
+      "language": null,
+      "clearUrlEnabled": true,
+      "dnsBlockEnabled": true,
+      "dnsBlockLevel": null,
+      "disabledFilterLists": [],
+      "contentBlockEnabled": true,
+      "trackingProtectionEnabled": true,
+      "localCdnEnabled": true,
+      "fullscreenMode": false,
+      "htmlCachingEnabled": false,
+      "notificationsEnabled": false,
+      "userScripts": [],
+      "locationMode": "off",
+      "spoofAccuracy": 50.0,
+      "webRtcPolicy": "defaultPolicy"
     }
   ],
   "webspaces": [
     {
       "id": "ws-compat-work",
       "name": "Work",
-      "siteIndices": [0, 2, 3],
-      "siteIds": ["compat-site-a", "compat-site-c", "compat-site-d"]
+      "siteIds": [
+        "compat-site-a",
+        "compat-site-c",
+        "compat-site-d"
+      ]
     },
     {
       "id": "ws-compat-private",
       "name": "Private",
-      "siteIndices": [1],
-      "siteIds": ["compat-site-b"]
+      "siteIds": [
+        "compat-site-b"
+      ]
     }
   ],
+  "themeMode": 26,
   "globalPrefs": {
     "showUrlBar": true,
     "showTabStrip": true,
@@ -207,12 +279,7 @@
     "tabMaxWidth": 200,
     "showStatsBanner": false,
     "osmTileUrl": "https://tiles.example.org/{z}/{x}/{y}.png",
-    "globalOutboundProxy": {
-      "type": 2,
-      "address": "global-proxy.example:8443",
-      "username": "globaluser",
-      "password": "global-proxy-password-needle-9e2d"
-    },
+    "globalOutboundProxy": "{\"type\":2,\"address\":\"global-proxy.example:8443\",\"username\":\"globaluser\"}",
     "proxyLibrary": "{\"gateways\":[{\"id\":\"compat-gw-1\",\"name\":\"Office\",\"type\":3,\"address\":\"gw.example:1080\"}],\"credentials\":[{\"id\":\"compat-cred-1\",\"name\":\"Office login\",\"username\":\"gwuser\",\"gatewayIds\":[\"compat-gw-1\"]}],\"proxies\":[{\"id\":\"compat-proxy-1\",\"name\":\"Office via login\",\"proxy\":{\"type\":6,\"address\":null,\"username\":null,\"gatewayId\":\"compat-gw-1\",\"credentialsId\":\"compat-cred-1\"}}]}",
     "developerMode": true,
     "experimentalProxyRouter": false,
@@ -228,11 +295,17 @@
     "backForwardCacheEnabled": false,
     "backOpensMenu": true,
     "httpsUpgradeEnabled": false,
-    "blockScreenshots": true,
-    "trustedHosts": ["evil.example|443|tls-pin-needle-c0de"]
+    "blockScreenshots": true
   },
+  "selectedWebspaceId": "ws-compat-work",
+  "currentIndex": 2,
+  "exportedAt": "2026-09-30T16:14:11.672416",
   "suggestedSites": [
-    {"name": "Example", "url": "https://example.com", "domain": "example.com"}
+    {
+      "name": "Example",
+      "url": "https://example.com",
+      "domain": "example.com"
+    }
   ],
   "globalUserScripts": [
     {
@@ -246,30 +319,17 @@
   ],
   "dnsBlockLevel": 4,
   "contentBlockerLists": [
-    {"id": "easylist", "name": "EasyList", "url": "https://easylist.to/easylist/easylist.txt", "enabled": true},
-    {"id": "custom-1", "name": "Custom", "url": "https://filters.example/list.txt", "enabled": false}
-  ],
-  "links": [
-    "webspace://open?url=https%3A%2F%2Fexample.com%2Fpath%3Fq%3D1",
-    "webspace://open?url=https://example.com/",
-    "webspace:open?url=https%3A%2F%2Fexample.com%2F",
-    "webspace:///open?url=https%3A%2F%2Fexample.com%2F",
-    "WEBSPACE://OPEN?url=https%3A%2F%2Fexample.com%2F",
-    "webspace://open?url=http%3A%2F%2Flocalhost%3A8080%2F",
-    "webspace://open?url=https%3A%2F%2F%5B%3A%3A1%5D%3A8443%2F",
-    "webspace://open?url=https%3A%2F%2Fuser%3Apass%40example.com%2F",
-    "webspace://open?url=https%3A%2F%2Fexample.com%2F&url=https%3A%2F%2Fevil.example%2F",
-    "webspace://open?url=https%3A%2F%2Fexample.com%2F%23frag",
-    "webspace://open?url=javascript%3Aalert(1)",
-    "webspace://open?url=file%3A%2F%2F%2Fetc%2Fpasswd",
-    "webspace://open?url=data%3Atext%2Fhtml%2C%3Cscript%3Ealert(1)%3C%2Fscript%3E",
-    "webspace://open?url=intent%3A%2F%2Fexample.com%23Intent%3Bend",
-    "webspace://open?url=",
-    "webspace://open",
-    "webspace://open?url=https%3A%2F%2F",
-    "webspace://other?url=https%3A%2F%2Fexample.com%2F",
-    "webspace://qr/site/v1/AAAA",
-    "https://example.com/",
-    "webspace://open?url=%E0%A4%A"
+    {
+      "id": "easylist",
+      "name": "EasyList",
+      "url": "https://easylist.to/easylist/easylist.txt",
+      "enabled": true
+    },
+    {
+      "id": "custom-1",
+      "name": "Custom",
+      "url": "https://filters.example/list.txt",
+      "enabled": false
+    }
   ]
 }
