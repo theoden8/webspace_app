@@ -212,7 +212,7 @@ test('ICON-013: only the top document reports its load and its icon links', () =
     'the load handler must use the frame-aware callback');
   assert.ok(loadedBody.includes('if (call.isMainFrame) {'),
     'a subframe load must not open the icon gate for the top document');
-  assert.ok(loadedBody.includes('iconEngine.onLoadFinished(call.requestUrl.toString())'),
+  assert.ok(loadedBody.includes('.onDocumentLoaded(call.requestUrl.toString())'),
     'the document URL must come from the bridge, not from the page arguments');
   const fetcherBlock = WEBVIEW.lastIndexOf('if (iconFetcher != null) {', loaded);
   assert.ok(fetcherBlock !== -1 &&

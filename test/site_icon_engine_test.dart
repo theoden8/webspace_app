@@ -77,6 +77,48 @@ void main() {
       expect(engine.onIcon(png(128))?.edge, 128);
     });
 
+    test('takes an icon that reaches Dart before the first page\'s start', () {
+      final engine = SiteIconEngine('https://example.com/');
+      expect(engine.onIcon(png(32)), isNull);
+      expect(
+          engine.onLoadStarted('https://example.com/').map((i) => i.edge), [32],
+          reason: 'a cold first WebView can post onLoadStart behind the icon');
+      expect(engine.onIcon(png(192))?.edge, 192);
+    });
+
+    test('an icon during a blank start waits for the page that follows', () {
+      final engine = SiteIconEngine('https://example.com/')
+        ..onLoadStarted('about:blank');
+      expect(engine.onIcon(png(32)), isNull);
+      expect(
+          engine.onLoadFinished('https://example.com/').map((i) => i.edge), [32]);
+    });
+
+    test('held icons follow the rules of the page they are judged against', () {
+      final offSite = SiteIconEngine('https://example.com/');
+      offSite.onIcon(png(64));
+      expect(offSite.onLoadStarted('https://other.test/'), isEmpty);
+      expect(offSite.onLoadFinished('https://other.test/'), isEmpty);
+      expect(offSite.onLoadStarted('https://example.com/'), isEmpty);
+      expect(offSite.onLoadFinished('https://example.com/'), isEmpty,
+          reason: 'a held icon is judged once, against the first page known');
+
+      final afterOther =
+          loadedEngine('https://example.com/', 'https://other.test/')
+            ..onLoadStarted('about:blank');
+      afterOther.onIcon(png(64));
+      expect(afterOther.onLoadStarted('https://example.com/'), isEmpty,
+          reason: 'it may be the other host\'s icon, still in flight');
+
+      final largest = SiteIconEngine('https://example.com/');
+      largest
+        ..onIcon(png(192))
+        ..onIcon(png(32));
+      expect(
+          largest.onLoadStarted('https://example.com/').map((i) => i.edge),
+          [192]);
+    });
+
     test('takes a mid-load icon after a page of the site', () {
       final engine = loadedEngine('https://example.com/', 'https://example.com/')
         ..onLoadStarted('https://example.com/next');
@@ -210,6 +252,35 @@ void main() {
       engine.onLoadStarted('https://example.com/b');
       expect(engine.onLinkedIcon(document, png(64)), isNull);
       engine.onLoadFinished('https://example.com/b');
+      expect(engine.onLinkedIcon(document, png(64)), isNull);
+    });
+
+    test('a start that reaches Dart after the page reported its load is that '
+        'page\'s', () {
+      final claimedFirst = SiteIconEngine('https://example.com/')
+        ..onDocumentLoaded('https://example.com/#top');
+      final document = claimedFirst.claimIconLinks('https://example.com/#top')!;
+      claimedFirst.onLoadStarted('https://example.com/');
+      expect(claimedFirst.onLinkedIcon(document, png(64))?.edge, 64,
+          reason: 'the fetch has not outlived its document');
+      claimedFirst.onLoadFinished('https://example.com/');
+      expect(claimedFirst.onLinkedIcon(document, png(128))?.edge, 128);
+
+      final reportedFirst = SiteIconEngine('https://example.com/')
+        ..onDocumentLoaded('https://example.com/')
+        ..onLoadStarted('https://example.com/');
+      expect(reportedFirst.claimIconLinks('https://example.com/'), isNotNull,
+          reason: 'the late start must not read as a load still in flight');
+    });
+
+    test('a reload after the page stopped is a new document', () {
+      final engine = SiteIconEngine('https://example.com/')
+        ..onLoadStarted('https://example.com/')
+        ..onDocumentLoaded('https://example.com/');
+      final document = engine.claimIconLinks('https://example.com/')!;
+      engine
+        ..onLoadFinished('https://example.com/')
+        ..onLoadStarted('https://example.com/');
       expect(engine.onLinkedIcon(document, png(64)), isNull);
     });
 
