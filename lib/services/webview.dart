@@ -1559,6 +1559,28 @@ bool deferInitialLoadForRestore({
 }) =>
     hasPendingRestoreState && isAndroid && !isFileImport;
 
+/// Writes the fields [WebViewController.setOptions] owns onto the settings a
+/// webview was created with; every other field keeps its value.
+@visibleForTesting
+void applyWebViewOptions(
+  inapp.InAppWebViewSettings settings, {
+  required bool javascriptEnabled,
+  String? userAgent,
+  bool? thirdPartyCookiesEnabled,
+  bool? incognito,
+}) {
+  settings
+    ..javaScriptEnabled = javascriptEnabled
+    ..userAgent = userAgent
+    // Keep Sec-CH-UA*/navigator.userAgentData consistent with the UA
+    // string. Webview recreation on UA edits is the primary path
+    // (DM-001), so this is a defensive parallel apply for the rare
+    // setSettings-only path.
+    ..userAgentMetadata = buildUserAgentMetadata(userAgent)
+    ..thirdPartyCookiesEnabled = thirdPartyCookiesEnabled ?? false
+    ..incognito = incognito ?? false;
+}
+
 /// InAppWebView controller wrapper
 class _WebViewController implements WebViewController {
   final inapp.InAppWebViewController _c;
@@ -1569,11 +1591,20 @@ class _WebViewController implements WebViewController {
 
   final FileImportDocument? _import;
 
+  /// The settings this webview was created with, kept current by every
+  /// update. Each `setSettings` sends this whole object: the plugin sends
+  /// every field of what it is given, Android and iOS/macOS apply each one
+  /// that differs, and Linux replaces its settings wholesale, so a fresh
+  /// object resets whatever it leaves out to the plugin default (BUG-022).
+  final inapp.InAppWebViewSettings _settings;
+
   _WebViewController(
     this._c, {
     required PauseTimersHackState pauseHack,
+    required inapp.InAppWebViewSettings settings,
     FileImportDocument? fileImport,
   })  : _pauseHack = pauseHack,
+        _settings = settings,
         _import = fileImport;
 
   @override
@@ -1675,33 +1706,19 @@ class _WebViewController implements WebViewController {
     String? userAgent,
     bool? thirdPartyCookiesEnabled,
     bool? incognito,
-  }) => _c.setSettings(
-    settings: inapp.InAppWebViewSettings(
-      javaScriptEnabled: javascriptEnabled,
+  }) {
+    applyWebViewOptions(
+      _settings,
+      javascriptEnabled: javascriptEnabled,
       userAgent: userAgent,
-      // Keep Sec-CH-UA*/navigator.userAgentData consistent with the UA
-      // string. Webview recreation on UA edits is the primary path
-      // (DM-001), so this is a defensive parallel apply for the rare
-      // setSettings-only path.
-      userAgentMetadata: buildUserAgentMetadata(userAgent),
-      thirdPartyCookiesEnabled: thirdPartyCookiesEnabled ?? false,
-      incognito: incognito ?? false,
-      // Preserve system-derived textZoom — the InAppWebViewSettings
-      // constructor defaults it to 100 and toMap always emits it, so any
-      // setSettings call without this resets the user's font scale.
-      textZoom: WebViewFactory.systemTextZoomPercent(),
-      supportZoom: true,
-      useShouldOverrideUrlLoading: true,
-      // Enable multiple windows for Cloudflare Turnstile and other challenges
-      supportMultipleWindows: true,
-      domStorageEnabled: true,
-      databaseEnabled: true,
-      javaScriptCanOpenWindowsAutomatically: true,
-      // Enable DevTools inspection in debug mode
-      isInspectable: kDebugMode,
-      useHybridComposition: WebViewFactory.hybridComposition,
-    ),
-  );
+      thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
+      incognito: incognito,
+    );
+    // The OS text size can change between creation and this call, before
+    // didChangeTextScaleFactor can reach the controller.
+    _settings.textZoom = WebViewFactory.systemTextZoomPercent();
+    return _c.setSettings(settings: _settings);
+  }
 
   @override
   Future<void> setThemePreference(WebViewTheme theme) async {
@@ -1726,12 +1743,8 @@ class _WebViewController implements WebViewController {
   @override
   Future<void> setTextZoom(int zoomPercent) async {
     if (hostIsAndroid) {
-      await _c.setSettings(
-        settings: inapp.InAppWebViewSettings(
-          textZoom: zoomPercent,
-          useHybridComposition: WebViewFactory.hybridComposition,
-        ),
-      );
+      _settings.textZoom = zoomPercent;
+      await _c.setSettings(settings: _settings);
       return;
     }
     // iOS/macOS: WKWebView has no textZoom setting. Rotate the
@@ -4670,6 +4683,7 @@ class WebViewFactory {
         final wrappedController = _WebViewController(
           controller,
           pauseHack: pauseHack,
+          settings: settings,
           fileImport: fileImport,
         );
         onControllerCreated(wrappedController);
@@ -5419,7 +5433,7 @@ class WebViewFactory {
           final List<Cookie> cookies;
           if (config.containerCookieManager != null && config.cookieSiteId != null) {
             cookies = await config.containerCookieManager!.getCookies(
-              controller: _WebViewController(controller, pauseHack: pauseHack),
+              controller: _WebViewController(controller, pauseHack: pauseHack, settings: settings),
               siteId: config.cookieSiteId!,
               url: Uri.parse(urlStr),
             );

@@ -352,4 +352,82 @@ void main() {
                   'dropped would also produce'),
     ]);
   });
+
+  testWidgets('an update after creation keeps every field it does not own',
+      (tester) async {
+    // BUG-022. The app updates a live webview twice: setOptions when the
+    // controller attaches (WebViewModel.setController) and setTextZoom when
+    // the OS font size changes. Each must send the whole creation settings: a
+    // fresh object carries the plugin's defaults (JavaScript on, third-party
+    // cookies on, incognito off, mobile content mode, media behind a
+    // gesture), and the engine applies them over the site's own.
+    if (!usable()) return;
+    await mount(tester, incognito: true, javascriptEnabled: false);
+    expect(
+        await waitReal(tester, () => controller != null,
+            label: 'controller created'),
+        isTrue);
+
+    final zoom = WebViewFactory.systemTextZoomPercent() + 25;
+    inapp.InAppWebViewSettings? live;
+    await tester.runAsync(() async {
+      await controller!.setOptions(
+        javascriptEnabled: false,
+        userAgent: sentUserAgent,
+        thirdPartyCookiesEnabled: false,
+        incognito: true,
+      );
+      await controller!.setTextZoom(zoom);
+      live = await controller!.nativeController.getSettings();
+    });
+    expect(live, isNotNull);
+
+    const androidOnly = 'read off the live WebSettings only on Android';
+    compare('after updates', live!, [
+      _Field('javaScriptEnabled',
+          sent: false,
+          read: (s) => s.javaScriptEnabled,
+          live: true,
+          comparable: () => true,
+          skipWhy: ''),
+      _Field('incognito',
+          sent: true,
+          read: (s) => s.incognito,
+          comparable: () => !hostIsLinux,
+          skipWhy: "Linux's getRealSettings does not report it"),
+      _Field('thirdPartyCookiesEnabled',
+          sent: false,
+          read: (s) => s.thirdPartyCookiesEnabled,
+          comparable: () => hostIsAndroid,
+          skipWhy: 'the field exists only in the Android settings class'),
+      _Field('preferredContentMode',
+          sent: inapp.UserPreferredContentMode.DESKTOP,
+          read: (s) => s.preferredContentMode,
+          live: hostIsIOS || hostIsMacOS,
+          comparable: () => !hostIsLinux,
+          skipWhy: "Linux's getRealSettings returns only the eight keys it "
+              'reads off WebKitSettings, and this is not one'),
+      // Desktop mode is what keeps pinch zoom on for this site; dropping it
+      // turns supportZoom off in the live WebSettings.
+      _Field('supportZoom',
+          sent: true,
+          read: (s) => s.supportZoom,
+          live: true,
+          comparable: () => hostIsAndroid,
+          skipWhy: androidOnly),
+      _Field('mediaPlaybackRequiresUserGesture',
+          sent: false,
+          read: (s) => s.mediaPlaybackRequiresUserGesture,
+          live: true,
+          comparable: () => hostIsAndroid,
+          skipWhy: androidOnly),
+      _Field('textZoom',
+          sent: zoom,
+          read: (s) => s.textZoom,
+          live: true,
+          comparable: () => hostIsAndroid,
+          skipWhy: 'textZoom is an Android setting; elsewhere the text size '
+              'rides a user script'),
+    ]);
+  });
 }

@@ -1,19 +1,27 @@
 # BUG-022 - A partial settings object resets every field it leaves out (Android)
 
-Status: **open.** Found by reading source on 2026-09-30, during the
-accessibility audit; not yet reproduced on a device.
+Status: **fixed for the class in code (attempt 3), awaiting its first run on
+the device tiers.** Found by reading source on 2026-09-30, during the
+accessibility audit.
 
 **Spec:** [accessibility](../../openspec/specs/accessibility/spec.md) A11Y-007;
 [webview-pause-lifecycle](../../openspec/specs/webview-pause-lifecycle/spec.md)
 PAUSE-032 (attempt 2)
-**Tests:** [test/js/composition_mode_parity.test.js](../../test/js/composition_mode_parity.test.js)
-(one field, attempt 2). Nothing yet covers the class.
+**Tests:** [test/js/settings_update_whole.test.js](../../test/js/settings_update_whole.test.js)
+(every `setSettings` call sends the creation settings),
+[test/webview_settings_update_test.dart](../../test/webview_settings_update_test.dart)
+(the native diff modelled: a fresh object against an update of the creation
+settings), [integration_test/settings_seam_test.dart](../../integration_test/settings_seam_test.dart)
+"an update after creation keeps every field it does not own" (the effect, on
+the Android, Linux and Apple tiers);
+[test/js/composition_mode_parity.test.js](../../test/js/composition_mode_parity.test.js)
+(one field, attempt 2).
 
 ## Symptom
 
 A per-site setting that was right when the webview was created changes
 later, when the app calls `setSettings` for an unrelated reason. Nothing
-fails and nothing is logged. The instances open today:
+fails and nothing is logged. The instances attempt 3 closed:
 
 - **The system font size changes** (`didChangeTextScaleFactor` runs
   `setTextZoom` for every loaded site): a JavaScript-off site gets
@@ -69,20 +77,26 @@ the rest.
    `mediaPlaybackRequiresUserGesture` and `loadWithOverviewMode` are still
    unguarded, which is how the two open instances pass it.
 
+3. **2026-09-30** (branch `claude/awesome-turing-q27wr2`). `_WebViewController` keeps the
+   `InAppWebViewSettings` its webview was created with. `setOptions` writes
+   the fields it owns onto that object (`applyWebViewOptions`) and
+   `setTextZoom` writes `textZoom`; both send the whole object. Every field
+   the update does not own goes out with the value the engine already holds,
+   so Android and iOS/macOS find nothing else to apply and Linux re-applies
+   the site's own settings. *Why*: the invariant has to hold for fields
+   nobody has named yet, which a per-field list (attempts 1 and 2) cannot
+   do. *Also found while fixing*: iOS and macOS diff the same way as Android,
+   and Linux's `setSettings` replaces the whole settings object, so before
+   this every `setOptions` on Linux reset every per-site field the call did
+   not name. The object is shared with the widget's `initialSettings`, so a
+   remount of the same widget (the renderer-gone key bump) starts from the
+   latest values rather than the creation ones.
+
 ## Known open gaps
 
-1. `WebViewController.setTextZoom` (Android branch) resets JavaScript,
-   third-party cookies, incognito, desktop mode and the media gesture rule.
-   Fires on every OS font size change, for every loaded site and every open
-   nested browser.
-2. `WebViewController.setOptions` resets desktop mode (and with it pinch
-   zoom), `loadWithOverviewMode` and the media gesture rule on every
-   controller attach.
-3. No gate covers the class. A structural gate in the shape of
-   `composition_mode_parity` could require every `setSettings` argument to
-   come from one builder shared with creation, or from `getSettings()`.
-   The effect side belongs in `integration_test/settings_seam_test.dart`,
-   which today compares fields only at creation: re-read them after a
-   `setTextZoom` and after `setOptions`.
-4. iOS and macOS were not examined for the same shape. Their `setSettings`
-   is a different native implementation.
+1. The effect check (the seam test scenario above) has not yet run on a
+   device tier; the fix rests on source reading of the four native
+   `setSettings` implementations until it has.
+2. Popup webviews (`onCreateWindow`) have no controller wrapper and never
+   receive a settings update, so they are outside the class today; a future
+   update path for them has to go through the same rule.
