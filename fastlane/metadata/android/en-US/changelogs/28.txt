@@ -1,0 +1,15 @@
+✨ New Features:
+• Managed Tor with exit countries (Apple only)
+• Open links in the site that owns them
+• Custom content blocker filters
+• Screenshot blocking
+• HTTP basic auth
+
+🔧 Improvements:
+• Sites' own icons by default
+• Per-site network settings screen
+• More robust proxy handling
+
+🐛 Bug Fixes:
+• Passkey sign-in on every site
+• More reliable background notifications
