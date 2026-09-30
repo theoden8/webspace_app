@@ -133,7 +133,7 @@ class SiteInfoSheet extends StatelessWidget {
 }
 
 /// Which route the site's traffic takes, and whether that route answers
-/// (PROXY-030).
+/// (PROXY-031).
 Widget _connection(
   AppLocalizations loc,
   UserProxySettings configured,

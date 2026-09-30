@@ -21,7 +21,7 @@ import 'package:webspace/settings/proxy_library.dart';
 ///
 /// What a setting takes from the proxy library (a saved proxy, a saved
 /// gateway, saved credentials), on the site or on the global, is resolved
-/// here (PROXY-029). A reference that resolves to nothing comes back SAVED
+/// here (PROXY-030). A reference that resolves to nothing comes back SAVED
 /// with no address and fails closed downstream; it never falls through to
 /// the global, which is a route the user did not pick for that site.
 ///

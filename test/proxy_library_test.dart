@@ -82,7 +82,7 @@ void main() {
     GlobalOutboundProxy.resetForTest();
   });
 
-  group('resolution (PROXY-029)', () {
+  group('resolution (PROXY-030)', () {
     test('a saved proxy of shared entries takes both', () {
       final route = resolveEffectiveProxy(_proxy('work'));
       expect(route.type, ProxyType.SOCKS5);

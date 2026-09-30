@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/proxy.dart';
 
-/// What the connection indicator shows for a proxy (PROXY-030).
+/// What the connection indicator shows for a proxy (PROXY-031).
 enum ProxyHealthState { checking, reachable, authRejected, unreachable }
 
 class ProxyHealth {

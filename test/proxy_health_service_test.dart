@@ -13,7 +13,7 @@ UserProxySettings _socks([String password = 'p']) => UserProxySettings(
     );
 
 void main() {
-  test('each probe outcome maps to what the indicator shows (PROXY-030)',
+  test('each probe outcome maps to what the indicator shows (PROXY-031)',
       () async {
     const cases = {
       ProxyTestOutcome.reachable: ProxyHealthState.reachable,

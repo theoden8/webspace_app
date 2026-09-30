@@ -7,7 +7,7 @@ precedence ladder: **explicit per-site override → app-global outbound proxy
 → system / direct**. The implementation lives in `resolveEffectiveProxy`
 in [`lib/services/outbound_http.dart`](../../lib/services/outbound_http.dart).
 
-The proxy library (PROXY-029) SHALL be resolved on whichever rung uses it: a
+The proxy library (PROXY-030) SHALL be resolved on whichever rung uses it: a
 site on a saved proxy or gateway takes it as its explicit override, and an
 app-wide proxy on one hands it to every DEFAULT site. A reference that does
 not resolve (a missing entry, or credentials paired with a gateway they do

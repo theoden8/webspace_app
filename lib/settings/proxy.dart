@@ -6,7 +6,7 @@
 /// See `openspec/specs/tor-proxy/spec.md` (TOR-001/TOR-003).
 ///
 /// [SAVED] and [GATEWAY] are resolved late too, from the proxy library
-/// (PROXY-029): [SAVED] names a saved proxy by
+/// (PROXY-030): [SAVED] names a saved proxy by
 /// [UserProxySettings.savedProxyId], [GATEWAY] a saved gateway by
 /// [UserProxySettings.gatewayId]. Editing the entry moves every setting that
 /// names it. One that no longer resolves carries no address, which every

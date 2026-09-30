@@ -80,7 +80,7 @@ DropdownMenuItem<String> _header(
     );
 
 /// The proxy picker: the plain types, and the library's saved proxies and
-/// gateways by name, each under its heading (PROXY-029). Shared by the
+/// gateways by name, each under its heading (PROXY-030). Shared by the
 /// per-site and app-wide forms, and, with [gatewaysOnly], by the saved proxy
 /// form, whose gateway is the same choice.
 class ProxyChoiceDropdown extends StatelessWidget {

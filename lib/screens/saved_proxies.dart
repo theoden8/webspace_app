@@ -24,8 +24,8 @@ class ProxyLibraryStore {
   Future<void> save(ProxyLibraryData data) => ProxyLibrary.update(data);
 }
 
-/// The proxy library (PROXY-029): saved proxies, each with whether it answers
-/// (PROXY-030), and the gateways and credentials they and sites can share.
+/// The proxy library (PROXY-030): saved proxies, each with whether it answers
+/// (PROXY-031), and the gateways and credentials they and sites can share.
 /// Every edit takes effect at once: whatever names the entry follows.
 class ProxyLibraryScreen extends StatefulWidget {
   const ProxyLibraryScreen({

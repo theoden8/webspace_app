@@ -18,7 +18,7 @@ button inside one site's settings.
   developer mode and the new **Saved proxies** switch on, off by default. A
   site already on the library keeps resolving with the switch off.
 
-- **A proxy library** (PROXY-029). App Settings gets a "Saved proxies" screen
+- **A proxy library** (PROXY-030). App Settings gets a "Saved proxies" screen
   with three lists: saved proxies, gateways (type and address) and
   credentials (username, password, and the gateways they work on). A saved
   proxy is a gateway choice plus a credentials choice, each typed or picked
@@ -38,7 +38,7 @@ button inside one site's settings.
   which every seam already treats as unroutable. It never falls through to
   the app-wide proxy or to a direct connection, and every surface names what
   failed.
-- **Connection indicator** (PROXY-030). A dot and a line saying whether a
+- **Connection indicator** (PROXY-031). A dot and a line saying whether a
   route answers, checked when shown and on tap: on every saved proxy, under
   the site and app-wide pickers when they use the library, and in a new
   Connection row of the URL-bar site info sheet. It waits a second after the

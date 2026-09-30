@@ -34,7 +34,7 @@ enum ExperimentalFeature {
   siteTabs(kExperimentalSiteTabsKey, defaultOn: false),
 
   /// Saved proxies, gateways and credentials, and the connection indicator
-  /// (`proxy` PROXY-029, PROXY-030). Off by default: it is new. The switch
+  /// (`proxy` PROXY-030, PROXY-031). Off by default: it is new. The switch
   /// gates what is offered; a setting already on the library keeps
   /// resolving, since dropping it would send the site somewhere it did not
   /// pick.

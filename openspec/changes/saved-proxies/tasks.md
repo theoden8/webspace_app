@@ -1,6 +1,6 @@
 ## 1. Specify
 
-- [x] 1.1 PROXY-029 (saved proxies) and PROXY-030 (connection indicator) in
+- [x] 1.1 PROXY-030 (saved proxies) and PROXY-031 (connection indicator) in
   the proxy delta.
 - [x] 1.2 LEAK-001: the precedence ladder resolves a saved proxy on both the
   site rung and the app-wide rung, and a missing one fails closed.

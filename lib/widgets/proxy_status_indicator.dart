@@ -8,7 +8,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/theme/design_tokens.dart';
 
 /// Whether a proxy answers: a coloured dot and a line of text, checked when
-/// shown and again on tap (PROXY-030).
+/// shown and again on tap (PROXY-031).
 ///
 /// [proxy] is the resolved route. An unresolved one ([ProxyType.SAVED] with
 /// no address) reads as [problem] without a probe; DEFAULT shows nothing.

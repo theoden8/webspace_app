@@ -140,7 +140,7 @@ class SavedCredentials {
 /// A named route: a gateway (typed, or a saved one) and credentials (typed,
 /// saved ones that fit the gateway, or none). With both typed it is simply a
 /// proxy; the library entries matter only when something is shared
-/// (PROXY-029).
+/// (PROXY-030).
 class SavedProxy {
   SavedProxy({
     required this.id,

@@ -137,7 +137,7 @@ class AppSettingsScreen extends StatefulWidget {
   final VoidCallback? onOutboundProxyChanged;
 
   /// Every site's proxy setting, so the proxy library can say what uses each
-  /// entry (PROXY-029).
+  /// entry (PROXY-030).
   final List<UserProxySettings> Function()? siteProxies;
 
   /// Fired after the proxy library was edited. Same duty as

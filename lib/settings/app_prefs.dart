@@ -68,7 +68,7 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // value via `resolveEffectiveProxy`. Stored as a JSON-encoded
   // UserProxySettings; round-trips through backup/restore as a String.
   kGlobalOutboundProxyKey: kGlobalOutboundProxyDefault,
-  // PROXY-029: the proxy library (gateways, credentials, saved proxies),
+  // PROXY-030: the proxy library (gateways, credentials, saved proxies),
   // named by sites and by the app-wide proxy above. JSON of the non-secret
   // fields; passwords stay in secure storage and never ride a backup.
   kProxyLibraryKey: kProxyLibraryDefault,
@@ -91,7 +91,7 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   kExperimentalTextureRenderingKey: false,
   // DEVTOOLS-011 / TAB-012: the Site tabs switch. Off by default: tabs are new.
   kExperimentalSiteTabsKey: false,
-  // DEVTOOLS-011 / PROXY-029: the Saved proxies switch. Off by default: new.
+  // DEVTOOLS-011 / PROXY-030: the Saved proxies switch. Off by default: new.
   kExperimentalProxyLibraryKey: false,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an

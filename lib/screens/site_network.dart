@@ -293,7 +293,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
   }
 
   /// Where a saved proxy or gateway takes this site, and whether it answers
-  /// (PROXY-030). The entries themselves are edited in App Settings.
+  /// (PROXY-031). The entries themselves are edited in App Settings.
   Widget _libraryRoute(AppLocalizations loc) {
     final resolved = _route();
     final problem = resolved.problem == LibraryProblem.none

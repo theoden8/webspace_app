@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: PROXY-029 - A proxy library of saved proxies, gateways and credentials
+### Requirement: PROXY-030 - A proxy library of saved proxies, gateways and credentials
 
 The app SHALL keep a proxy library of three kinds of named entry:
 
@@ -136,7 +136,7 @@ refused, since the encoder never emits one.
 
 ---
 
-### Requirement: PROXY-030 - A proxy in use says whether it answers
+### Requirement: PROXY-031 - A proxy in use says whether it answers
 
 Wherever the app shows a proxy the user relies on, it SHALL show whether that
 proxy answers: a coloured dot and one line, reading that the proxy works, that

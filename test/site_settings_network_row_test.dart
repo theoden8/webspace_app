@@ -125,7 +125,7 @@ void main() {
     expect(_summary(tester), 'SOCKS5 127.0.0.1:1080 · WebRTC: Relay only');
   });
 
-  testWidgets('a saved proxy goes by its name (NET-002, PROXY-029)',
+  testWidgets('a saved proxy goes by its name (NET-002, PROXY-030)',
       (tester) async {
     ProxyLibrary.setInMemory(ProxyLibraryData(
       gateways: [

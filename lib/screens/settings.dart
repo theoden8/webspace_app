@@ -1137,7 +1137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (inheritsAppProxy) loc.networkSummaryAppProxy,
       // A saved proxy or gateway goes by its name; one that no longer
       // resolves says why, since the site is blocked until it is fixed
-      // (PROXY-029).
+      // (PROXY-030).
       if (proxied &&
           (v.proxyType == ProxyType.SAVED || v.proxyType == ProxyType.GATEWAY))
         _libraryName(loc, v)
