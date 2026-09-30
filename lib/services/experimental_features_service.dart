@@ -8,6 +8,7 @@ const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
 const String kExperimentalSiteIconsOnlyKey = 'experimentalSiteIconsOnly';
 const String kExperimentalTextureRenderingKey = 'experimentalTextureRendering';
 const String kExperimentalSiteTabsKey = 'experimentalSiteTabs';
+const String kExperimentalProxyLibraryKey = 'experimentalProxyLibrary';
 
 /// A feature that ships before it is finished (DEVTOOLS-011): reachable only
 /// with developer mode on and its own switch on in App Settings'
@@ -30,7 +31,14 @@ enum ExperimentalFeature {
 
   /// Several pages per site (inactive-tabs TAB-012). Off by default: it is
   /// new. With it off a site shows its one page, as before tabs existed.
-  siteTabs(kExperimentalSiteTabsKey, defaultOn: false);
+  siteTabs(kExperimentalSiteTabsKey, defaultOn: false),
+
+  /// Saved proxies, gateways and credentials, and the connection indicator
+  /// (`proxy` PROXY-030, PROXY-031). Off by default: it is new. The switch
+  /// gates what is offered; a setting already on the library keeps
+  /// resolving, since dropping it would send the site somewhere it did not
+  /// pick.
+  proxyLibrary(kExperimentalProxyLibraryKey, defaultOn: false);
 
   const ExperimentalFeature(this.prefKey, {required this.defaultOn});
 

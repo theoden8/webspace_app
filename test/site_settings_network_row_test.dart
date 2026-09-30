@@ -7,8 +7,10 @@ import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/webview.dart' show PlatformInfo;
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
 /// Pushes site settings over a plain home route, so a back press is a real
 /// pop that the unsaved-changes guard can intercept.
@@ -74,6 +76,7 @@ void main() {
       (tester) async {
     await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
     expect(find.byType(DropdownButton<ProxyType>), findsNothing);
+    expect(find.byType(ProxyChoiceDropdown), findsNothing);
     expect(find.byType(DropdownButton<WebRtcPolicy>), findsNothing);
     expect(find.text('Saved sign-ins'), findsNothing);
   });
@@ -120,6 +123,72 @@ void main() {
       ),
     );
     expect(_summary(tester), 'SOCKS5 127.0.0.1:1080 · WebRTC: Relay only');
+  });
+
+  testWidgets('a saved proxy goes by its name (NET-002, PROXY-030)',
+      (tester) async {
+    ProxyLibrary.setInMemory(ProxyLibraryData(
+      gateways: [
+        SavedGateway(
+            id: 'de', name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1'),
+      ],
+      proxies: [
+        SavedProxy(
+          id: 'vpn',
+          name: 'Work VPN',
+          settings: UserProxySettings(
+              type: ProxyType.SOCKS5, address: '10.8.0.1:1080'),
+        ),
+      ],
+    ));
+    addTearDown(ProxyLibrary.resetForTest);
+    await _pump(
+      tester,
+      WebViewModel(
+        initUrl: 'https://example.com/',
+        proxySettings:
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'vpn'),
+        // The entry's name is the point here; ETP-031's WebRTC entry has
+        // its own test.
+        trackingProtectionEnabled: false,
+      ),
+    );
+    expect(_summary(tester), 'Work VPN');
+  });
+
+  testWidgets('a saved gateway goes by its name', (tester) async {
+    ProxyLibrary.setInMemory(ProxyLibraryData(gateways: [
+      SavedGateway(
+          id: 'de', name: 'VPN DE', type: ProxyType.SOCKS5, address: 'de.gw:1'),
+    ]));
+    addTearDown(ProxyLibrary.resetForTest);
+    await _pump(
+      tester,
+      WebViewModel(
+        initUrl: 'https://example.com/',
+        proxySettings:
+            UserProxySettings(type: ProxyType.GATEWAY, gatewayId: 'de'),
+        // The entry's name is the point here; ETP-031's WebRTC entry has
+        // its own test.
+        trackingProtectionEnabled: false,
+      ),
+    );
+    expect(_summary(tester), 'VPN DE');
+  });
+
+  testWidgets('a deleted saved proxy reads as missing', (tester) async {
+    await _pump(
+      tester,
+      WebViewModel(
+        initUrl: 'https://example.com/',
+        proxySettings:
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'gone'),
+        // The entry's name is the point here; ETP-031's WebRTC entry has
+        // its own test.
+        trackingProtectionEnabled: false,
+      ),
+    );
+    expect(_summary(tester), 'Missing saved proxy');
   });
 
   testWidgets('a pinned Tor exit counts, and more than two overflow',

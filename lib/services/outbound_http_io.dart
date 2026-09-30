@@ -12,6 +12,7 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_library.dart';
 
 /// Default factory backed by `dart:io`'s [HttpClient].
 ///
@@ -29,6 +30,22 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
 
   @override
   OutboundClient clientFor(UserProxySettings settings) {
+    // Callers that hand over the app-wide proxy as stored, without going
+    // through `resolveEffectiveProxy`, still reach what it names in the
+    // proxy library. A resolved route names nothing, so this runs once.
+    if (settings.type == ProxyType.SAVED ||
+        settings.type == ProxyType.GATEWAY ||
+        settings.credentialsId != null) {
+      final route = resolveLibraryProxy(settings);
+      if (route.type == ProxyType.SAVED) {
+        return const OutboundClientBlocked(
+          'The saved proxy, gateway or credentials this setting names no '
+          'longer exist or do not fit together. Outbound request blocked to '
+          'avoid leaking the device IP via a direct fallback.',
+        );
+      }
+      return clientFor(route);
+    }
     switch (settings.type) {
       case ProxyType.DEFAULT:
         return OutboundClientReady(IOClient(_newHttpClient()));
@@ -71,6 +88,11 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           );
         }
         return clientFor(tor);
+
+      case ProxyType.SAVED:
+      case ProxyType.GATEWAY:
+        // Resolved above; unreachable.
+        return const OutboundClientBlocked('Unresolved proxy library route.');
 
       case ProxyType.SOCKS5:
         final addr = settings.address;

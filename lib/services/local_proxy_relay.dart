@@ -216,6 +216,11 @@ class LocalProxyRelay {
         case ProxyType.HTTP:
         case ProxyType.HTTPS:
           return await _dialThroughConnect(route, host, port);
+        case ProxyType.SAVED:
+        case ProxyType.GATEWAY:
+          // Upstreams arrive resolved; one still naming the proxy library
+          // names an entry that no longer resolves, and has nowhere to go.
+          return null;
       }
     } on Object {
       return null;

@@ -17,6 +17,10 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_health_service.dart';
+import 'package:webspace/services/proxy_test_service.dart';
+import 'package:webspace/screens/saved_proxies.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/services/http_auth_engine.dart';
@@ -89,6 +93,10 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'site-settings', label: 'Site settings screen', fullBleed: true, builder: (c) => const _SiteSettingsCard()),
   GalleryCard(id: 'site-behaviour', label: 'Site behaviour screen', fullBleed: true, builder: (c) => const _SiteBehaviourCard()),
   GalleryCard(id: 'site-network', label: 'Site network screen', fullBleed: true, builder: (c) => const _SiteNetworkCard()),
+  GalleryCard(id: 'site-network-saved', label: 'Site network screen, saved proxy', fullBleed: true, builder: (c) => const _SiteNetworkSavedCard()),
+  GalleryCard(id: 'saved-proxies', label: 'Saved proxies screen', fullBleed: true, builder: (c) => const _SavedProxiesCard()),
+  GalleryCard(id: 'saved-proxy-edit', label: 'Saved proxy form', fullBleed: true, builder: (c) => const _SavedProxyEditCard()),
+  GalleryCard(id: 'saved-credentials-edit', label: 'Saved credentials form', fullBleed: true, builder: (c) => const _SavedCredentialsEditCard()),
   GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: (c) => const _AppSettingsCard()),
   GalleryCard(id: 'protection-report', label: 'Protection report screen', fullBleed: true, builder: (c) => const _ProtectionReportCard()),
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
@@ -127,6 +135,7 @@ Future<void> _loadRoboto() async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _loadRoboto();
+  _seedSavedProxies();
   final q = Uri.base.queryParameters;
   runApp(GalleryApp(
     cardId: q['card'],
@@ -134,6 +143,188 @@ Future<void> main() async {
     accent: galleryAccents[q['accent']] ?? accentBlue,
     localeCode: q['locale'],
   ));
+}
+
+/// A library with one of each shape: a plain proxy with both halves typed
+/// (the 1-1 case), a saved proxy built from a shared gateway and credentials,
+/// and a second login on that gateway for a site to pick directly. The probe
+/// is simulated: a browser cannot send a request through a proxy, so the real
+/// one would report every proxy unreachable.
+ProxyLibraryData _demoLibrary() => ProxyLibraryData(
+      gateways: [
+        SavedGateway(
+            id: 'gw-us',
+            name: 'Work VPN US',
+            type: ProxyType.SOCKS5,
+            address: 'us.gw.example:1080'),
+        SavedGateway(
+            id: 'gw-de',
+            name: 'Work VPN DE',
+            type: ProxyType.SOCKS5,
+            address: 'de.gw.example:1080'),
+      ],
+      credentials: [
+        SavedCredentials(
+            id: 'cr-alice',
+            name: 'Alice',
+            username: 'alice',
+            password: 'hunter2',
+            gatewayIds: {'gw-us', 'gw-de'}),
+        SavedCredentials(
+            id: 'cr-mail',
+            name: 'Mail session',
+            username: 'alice-session-mail',
+            password: 'hunter2',
+            gatewayIds: {'gw-de'}),
+      ],
+      proxies: [
+        SavedProxy(
+          id: 'px-work',
+          name: 'Work VPN',
+          settings: UserProxySettings(
+              type: ProxyType.GATEWAY,
+              gatewayId: 'gw-us',
+              credentialsId: 'cr-alice'),
+        ),
+        SavedProxy(
+          id: 'px-office',
+          name: 'Office proxy',
+          settings: UserProxySettings(
+              type: ProxyType.HTTP,
+              address: 'proxy.corp.example:3128',
+              username: 'alice'),
+        ),
+        SavedProxy(
+          id: 'px-home',
+          name: 'Home router',
+          settings: UserProxySettings(
+              type: ProxyType.HTTPS, address: '203.0.113.7:8443'),
+        ),
+      ],
+    );
+
+void _seedSavedProxies() {
+  ProxyLibrary.setInMemory(_demoLibrary());
+  ProxyHealthService.instance = ProxyHealthService(probe: (s) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return switch (s.address) {
+      'us.gw.example:1080' || 'de.gw.example:1080' =>
+        const ProxyTestResult(ProxyTestOutcome.reachable, statusCode: 200),
+      'proxy.corp.example:3128' =>
+        const ProxyTestResult(ProxyTestOutcome.authRejected, statusCode: 407),
+      _ => const ProxyTestResult(ProxyTestOutcome.unreachable,
+          detail: 'Connection refused'),
+    };
+  });
+}
+
+class _DemoLibraryStore extends ProxyLibraryStore {
+  const _DemoLibraryStore();
+
+  @override
+  Future<void> save(ProxyLibraryData data) async =>
+      ProxyLibrary.setInMemory(data);
+}
+
+/// The real Saved proxies screen: three saved proxies, each showing a
+/// different answer from the connection indicator, and the gateways and
+/// credentials they share.
+class _SavedProxiesCard extends StatelessWidget {
+  const _SavedProxiesCard();
+
+  @override
+  Widget build(BuildContext context) => ProxyLibraryScreen(
+        siteProxies: () => [
+          for (var i = 0; i < 3; i++)
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'px-work'),
+          UserProxySettings(
+              type: ProxyType.GATEWAY,
+              gatewayId: 'gw-de',
+              credentialsId: 'cr-mail'),
+          UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'px-office'),
+        ],
+        appWideProxy: () =>
+            UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'px-work'),
+        onChanged: () {},
+        store: const _DemoLibraryStore(),
+      );
+}
+
+/// The form for a saved proxy made of a saved gateway and saved credentials.
+class _SavedProxyEditCard extends StatelessWidget {
+  const _SavedProxyEditCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final lib = _demoLibrary();
+    return SavedProxyEditScreen(
+      initial: lib.proxies.first,
+      library: lib,
+      usageCount: 3,
+      usedByAppWide: true,
+    );
+  }
+}
+
+/// The form for credentials, ticked for the gateways they sign in on.
+class _SavedCredentialsEditCard extends StatelessWidget {
+  const _SavedCredentialsEditCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final lib = _demoLibrary();
+    return SavedCredentialsEditScreen(
+      initial: lib.credentials.last,
+      gateways: lib.gateways,
+      usageCount: 1,
+    );
+  }
+}
+
+/// The per-site Network screen for a site on a saved gateway with saved
+/// credentials: the picker names the gateway, the row under it shows the
+/// route and whether it answers, and the credentials picker offers only the
+/// credentials that list this gateway.
+class _SiteNetworkSavedCard extends StatefulWidget {
+  const _SiteNetworkSavedCard();
+
+  @override
+  State<_SiteNetworkSavedCard> createState() => _SiteNetworkSavedCardState();
+}
+
+class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
+  final model =
+      WebViewModel(initUrl: 'https://mail.example.com/', name: 'Mail');
+  final address = TextEditingController();
+  final username = TextEditingController();
+  final password = TextEditingController();
+
+  @override
+  void dispose() {
+    address.dispose();
+    username.dispose();
+    password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SiteNetworkScreen(
+        host: 'mail.example.com',
+        siteId: model.siteId,
+        values: const SiteNetworkValues(
+          proxyType: ProxyType.GATEWAY,
+          gatewayId: 'gw-de',
+          credentialsId: 'cr-mail',
+          webRtcPolicy: WebRtcPolicy.relayOnly,
+        ),
+        offerLibrary: true,
+        onChanged: (_) {},
+        proxySupported: true,
+        proxyAddressController: address,
+        proxyUsernameController: username,
+        proxyPasswordController: password,
+        showSavedSignIns: false,
+      );
 }
 
 class GalleryApp extends StatelessWidget {
@@ -382,14 +573,18 @@ class _SiteInfoCard extends StatelessWidget {
     return Material(
       color: theme.colorScheme.surfaceContainerLow,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      child: const Padding(
-        padding: EdgeInsets.only(top: 24),
+      child: Padding(
+        padding: const EdgeInsets.only(top: 24),
         child: SiteInfoSheet(
           info: SiteInfo(
             siteName: 'GitHub',
             pageUrl: 'https://github.com/theoden8/webspace_app',
             containerId: 'ws-3f9c2a7e',
             incognito: false,
+            proxy: UserProxySettings(
+              type: ProxyType.SAVED,
+              savedProxyId: 'px-work',
+            ),
           ),
         ),
       ),

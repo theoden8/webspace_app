@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/proxy_library.dart';
 
 /// Registry of global app-level preferences that are round-tripped through
 /// settings export/import.
@@ -67,6 +68,10 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   // value via `resolveEffectiveProxy`. Stored as a JSON-encoded
   // UserProxySettings; round-trips through backup/restore as a String.
   kGlobalOutboundProxyKey: kGlobalOutboundProxyDefault,
+  // PROXY-030: the proxy library (gateways, credentials, saved proxies),
+  // named by sites and by the app-wide proxy above. JSON of the non-secret
+  // fields; passwords stay in secure storage and never ride a backup.
+  kProxyLibraryKey: kProxyLibraryDefault,
   // LIR-008: master "Handle shared links" switch. When false, the app
   // ignores incoming share/open intents (Android ACTION_SEND, webspace://,
   // iOS/macOS Share Extension) without crashing. Default: enabled.
@@ -86,6 +91,8 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   kExperimentalTextureRenderingKey: false,
   // DEVTOOLS-011 / TAB-012: the Site tabs switch. Off by default: tabs are new.
   kExperimentalSiteTabsKey: false,
+  // DEVTOOLS-011 / PROXY-030: the Saved proxies switch. Off by default: new.
+  kExperimentalProxyLibraryKey: false,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an
   // existing site via the dispatch picker, also append exactHost +

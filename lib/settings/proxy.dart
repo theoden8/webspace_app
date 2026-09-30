@@ -5,9 +5,16 @@
 /// [TorService] is listening on, with per-caller stream-isolation auth.
 /// See `openspec/specs/tor-proxy/spec.md` (TOR-001/TOR-003).
 ///
+/// [SAVED] and [GATEWAY] are resolved late too, from the proxy library
+/// (PROXY-030): [SAVED] names a saved proxy by
+/// [UserProxySettings.savedProxyId], [GATEWAY] a saved gateway by
+/// [UserProxySettings.gatewayId]. Editing the entry moves every setting that
+/// names it. One that no longer resolves carries no address, which every
+/// seam already treats as unroutable.
+///
 /// Append new values only. The index is the serialized form, so
 /// renumbering silently rewrites every user's stored proxy.
-enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR }
+enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR, SAVED, GATEWAY }
 
 class UserProxySettings {
   ProxyType type;
@@ -30,12 +37,29 @@ class UserProxySettings {
   /// cannot coexist — see TOR-014.
   String? torExitCountry;
 
+  /// The saved proxy this setting names. Meaningful only under
+  /// [ProxyType.SAVED]; kept across a switch to another type for the same
+  /// reason the manual fields are (PROXY-010).
+  String? savedProxyId;
+
+  /// The saved gateway this setting connects to. Meaningful only under
+  /// [ProxyType.GATEWAY].
+  String? gatewayId;
+
+  /// Saved credentials to sign in with instead of [username] and
+  /// [password]. Only a saved gateway the credentials list can take them;
+  /// any other pairing fails closed.
+  String? credentialsId;
+
   UserProxySettings({
     required this.type,
     this.address,
     this.username,
     this.password,
     this.torExitCountry,
+    this.savedProxyId,
+    this.gatewayId,
+    this.credentialsId,
   });
 
   /// The pin as tor's `ExitNodes` value, or null when unpinned or invalid.
@@ -65,6 +89,9 @@ class UserProxySettings {
         'address': address,
         'username': username,
         if (torExitCountry != null) 'torExitCountry': torExitCountry,
+        if (savedProxyId != null) 'savedProxyId': savedProxyId,
+        if (gatewayId != null) 'gatewayId': gatewayId,
+        if (credentialsId != null) 'credentialsId': credentialsId,
       };
 
   factory UserProxySettings.fromJson(Map<String, dynamic> json) {
@@ -79,6 +106,9 @@ class UserProxySettings {
       username: text('username'),
       password: text('password'),
       torExitCountry: text('torExitCountry'),
+      savedProxyId: text('savedProxyId'),
+      gatewayId: text('gatewayId'),
+      credentialsId: text('credentialsId'),
     );
   }
 
@@ -106,7 +136,10 @@ class UserProxySettings {
     final a = address ?? '<none>';
     return 'type=$t address=$a hasUsername=${username != null && username!.isNotEmpty} '
         'hasPassword=${password != null && password!.isNotEmpty} '
-        'exitCountry=${torExitCountry ?? '<any>'}';
+        'exitCountry=${torExitCountry ?? '<any>'}'
+        '${type == ProxyType.SAVED ? ' saved=${savedProxyId ?? '<none>'}' : ''}'
+        '${type == ProxyType.GATEWAY ? ' gateway=${gatewayId ?? '<none>'}' : ''}'
+        '${credentialsId != null ? ' credentials=$credentialsId' : ''}';
   }
 
   /// Returns true if credentials are provided

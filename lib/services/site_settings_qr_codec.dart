@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_library.dart';
 
 /// Encode/decode the QR-shareable subset of a [WebViewModel] JSON dict.
 ///
@@ -110,10 +111,30 @@ class SiteSettingsQrCodec {
   };
 
   /// Strip a full `WebViewModel.toJson()` to the QR-shareable subset.
+  ///
+  /// A site that uses the proxy library (a saved proxy, gateway or
+  /// credentials) carries the resolved route instead of the references: ids
+  /// are local to this device, so the receiver could only fail closed on one.
+  /// A reference that no longer resolves carries no proxy at all.
   static Map<String, dynamic> shareableSubset(Map<String, dynamic> fullJson) {
     final out = <String, dynamic>{};
     for (final k in includedKeys) {
       if (fullJson.containsKey(k)) out[k] = fullJson[k];
+    }
+    final proxy = out['proxySettings'];
+    if (proxy is Map) {
+      final settings =
+          UserProxySettings.fromJson(Map<String, dynamic>.from(proxy));
+      if (settings.type == ProxyType.SAVED ||
+          settings.type == ProxyType.GATEWAY ||
+          settings.credentialsId != null) {
+        final resolved = resolveLibraryProxy(settings);
+        if (resolved.type == ProxyType.SAVED) {
+          out.remove('proxySettings');
+        } else {
+          out['proxySettings'] = resolved.toJson();
+        }
+      }
     }
     return out;
   }
@@ -208,15 +229,22 @@ class SiteSettingsQrCodec {
       if (proxy is Map) {
         final stripped = <String, dynamic>{
           for (final e in proxy.entries)
-            if (e.key is String && e.key != 'password')
+            if (e.key is String &&
+                !const {'password', 'savedProxyId', 'gatewayId', 'credentialsId'}
+                    .contains(e.key))
               e.key as String: e.value,
         };
         // `UserProxySettings.fromJson` coerces a numeric-string `type`, so
         // a value the review dialog could not classify would still apply.
         // Hold the payload to exactly what our own encoder emits.
+        // Library routes are never emitted: [shareableSubset] resolves them.
         final type = stripped['type'];
         if (type != null &&
-            (type is! int || type < 0 || type >= ProxyType.values.length)) {
+            (type is! int ||
+                type < 0 ||
+                type >= ProxyType.values.length ||
+                type == ProxyType.SAVED.index ||
+                type == ProxyType.GATEWAY.index)) {
           return null;
         }
         for (final key in const ['address', 'username', 'torExitCountry']) {

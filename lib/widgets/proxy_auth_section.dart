@@ -18,6 +18,7 @@ class ProxyAuthSection extends StatefulWidget {
     required this.usernameController,
     required this.passwordController,
     this.onEditingComplete,
+    this.initiallyExpanded = false,
   });
 
   final TextEditingController usernameController;
@@ -26,6 +27,10 @@ class ProxyAuthSection extends StatefulWidget {
   /// Fired when a field loses focus or is submitted, for the screens that
   /// persist on edit rather than on a save button.
   final VoidCallback? onEditingComplete;
+
+  /// Open even when both fields are empty, for a form whose whole point is
+  /// the credentials.
+  final bool initiallyExpanded;
 
   @override
   State<ProxyAuthSection> createState() => _ProxyAuthSectionState();
@@ -40,7 +45,7 @@ class _ProxyAuthSectionState extends State<ProxyAuthSection> {
     super.initState();
     // Read once: recomputing it per build would fold the section shut under
     // the user as soon as they cleared the last character of a field.
-    _initiallyExpanded = _hasAny;
+    _initiallyExpanded = widget.initiallyExpanded || _hasAny;
     widget.usernameController.addListener(_onFieldChanged);
     widget.passwordController.addListener(_onFieldChanged);
   }

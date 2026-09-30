@@ -68,6 +68,11 @@ class ProxyRelay implements ProxyRelayApi {
   /// so that finding it costs an attacker the address as well as the port.
   Future<({String host, int port})?> start(UserProxySettings upstream) async {
     if (!hostIsAndroid) return null;
+    if (upstream.type == ProxyType.SAVED ||
+        upstream.type == ProxyType.GATEWAY ||
+        upstream.credentialsId != null) {
+      return null;
+    }
     final address = upstream.address;
     if (address == null) return null;
     final parts = address.split(':');

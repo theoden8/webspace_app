@@ -27,6 +27,7 @@ import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
 /// A runtime that exists, so App settings has Tor to report on.
@@ -176,9 +177,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(TorService.instance.isAvailable, isTrue);
       await scrollToCard(tester);
-      final dropdown = tester.widget<DropdownButton<ProxyType>>(
-          find.byType(DropdownButton<ProxyType>));
-      expect(dropdown.items!.map((i) => i.value), contains(ProxyType.TOR));
+      final dropdown = tester.widget<DropdownButton<String>>(find.descendant(
+          of: find.byType(ProxyChoiceDropdown),
+          matching: find.byType(DropdownButton<String>)));
+      expect(dropdown.items!.map((i) => i.value), contains(ProxyType.TOR.name));
     });
 
     testWidgets('no card while nothing uses Tor', (tester) async {
@@ -237,11 +239,11 @@ void main() {
           TorEngine(runtime: _PresentRuntime(), sessionSecret: 's'));
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      final title = find.text('Site tabs');
-      await tester.scrollUntilVisible(title, 400,
+      final header = find.text('Experimental');
+      await tester.scrollUntilVisible(header, 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      expect(find.text('Experimental'), findsOneWidget,
+      expect(header, findsOneWidget,
           reason: 'site tabs run on every platform, so the group always has '
               'a row');
       expect(find.text('Built-in Tor'), findsNothing,

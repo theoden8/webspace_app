@@ -67,6 +67,7 @@ import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/site_icon_native.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_shim.dart';
@@ -115,6 +116,13 @@ inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
     final expanded = expandTorProxy(settings);
     if (expanded == null) return null;
     return userProxyToInappProxy(expanded);
+  }
+  if (settings.type == ProxyType.SAVED ||
+      settings.type == ProxyType.GATEWAY ||
+      settings.credentialsId != null) {
+    final route = resolveLibraryProxy(settings);
+    if (route.type == ProxyType.SAVED) return null;
+    return userProxyToInappProxy(route);
   }
   final parsed = splitProxyAddress(settings.address);
   if (parsed == null) return null;
