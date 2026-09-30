@@ -147,7 +147,7 @@ String _region(String path, String from, String to) {
 
 /// A key read out of a JSON map, in any of the spellings the parsers use.
 const _readPattern =
-    r"(?:\b(?:json|e|values)\[\s*'(\w+)'\s*\]|\b(?:field<[^>]*>|finite|text)\(\s*'(\w+)')";
+    r"(?:\b(?:json|e|values|raw|entry)\[\s*'(\w+)'\s*\]|\b(?:field<[\w<>, ?]*>|finite|text)\(\s*'(\w+)')";
 
 Set<String> _readKeys(String text) => {
       for (final m in RegExp(_readPattern).allMatches(text))
@@ -163,6 +163,8 @@ final Set<String> _keysRead = {
     'lib/services/settings_backup.dart',
     'lib/services/settings_import_engine.dart',
     'lib/services/domain_claim.dart',
+    'lib/services/outbound_preference.dart',
+    'lib/services/site_tab.dart',
     'lib/settings/proxy.dart',
     'lib/settings/user_script.dart',
     'lib/settings/virtual_visual_source.dart',

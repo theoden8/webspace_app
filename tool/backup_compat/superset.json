@@ -213,7 +213,13 @@
       "username": "globaluser",
       "password": "global-proxy-password-needle-9e2d"
     },
+    "proxyLibrary": "{\"gateways\":[{\"id\":\"compat-gw-1\",\"name\":\"Office\",\"type\":3,\"address\":\"gw.example:1080\"}],\"credentials\":[{\"id\":\"compat-cred-1\",\"name\":\"Office login\",\"username\":\"gwuser\",\"gatewayIds\":[\"compat-gw-1\"]}],\"proxies\":[{\"id\":\"compat-proxy-1\",\"name\":\"Office via login\",\"proxy\":{\"type\":6,\"address\":null,\"username\":null,\"gatewayId\":\"compat-gw-1\",\"credentialsId\":\"compat-cred-1\"}}]}",
     "developerMode": true,
+    "experimentalProxyRouter": false,
+    "experimentalSiteIconsOnly": true,
+    "experimentalTextureRendering": true,
+    "experimentalSiteTabs": true,
+    "experimentalProxyLibrary": true,
     "linkHandlingEnabled": false,
     "linkHandlingClaimDomains": true,
     "useUboResources": false,
