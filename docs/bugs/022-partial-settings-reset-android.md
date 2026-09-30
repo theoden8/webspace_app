@@ -1,7 +1,9 @@
 # BUG-022 - A partial settings object resets every field it leaves out (Android)
 
-Status: **fixed for the class in code (attempt 3), awaiting its first run on
-the device tiers.** Found by reading source on 2026-09-30, during the
+Status: **closed.** Attempt 3 subsumes the per-field fixes: every update
+sends the settings the webview was created with, and
+`settings_update_whole.test.js` fails any `setSettings` call that sends
+anything else. Found by reading source on 2026-09-30, during the
 accessibility audit.
 
 **Spec:** [accessibility](../../openspec/specs/accessibility/spec.md) A11Y-007;
@@ -77,7 +79,7 @@ the rest.
    `mediaPlaybackRequiresUserGesture` and `loadWithOverviewMode` are still
    unguarded, which is how the two open instances pass it.
 
-3. **2026-09-30** (branch `claude/awesome-turing-q27wr2`). `_WebViewController` keeps the
+3. **2026-09-30 - #656** (`4b9aa7d`). `_WebViewController` keeps the
    `InAppWebViewSettings` its webview was created with. `setOptions` writes
    the fields it owns onto that object (`applyWebViewOptions`) and
    `setTextZoom` writes `textZoom`; both send the whole object. Every field
@@ -90,13 +92,15 @@ the rest.
    this every `setOptions` on Linux reset every per-site field the call did
    not name. The object is shared with the widget's `initialSettings`, so a
    remount of the same widget (the renderer-gone key bump) starts from the
-   latest values rather than the creation ones.
+   latest values rather than the creation ones. *Confirmed* by the seam
+   scenario in CI run 36785447487: after `setOptions` and `setTextZoom` the
+   Android emulator held all seven fields it compares (JavaScript, incognito,
+   third-party cookies, desktop content mode, `supportZoom`, the media
+   gesture rule, `textZoom`), macOS held JavaScript, incognito and content
+   mode, and Linux held JavaScript, the one field its readback reports.
 
 ## Known open gaps
 
-1. The effect check (the seam test scenario above) has not yet run on a
-   device tier; the fix rests on source reading of the four native
-   `setSettings` implementations until it has.
-2. Popup webviews (`onCreateWindow`) have no controller wrapper and never
+1. Popup webviews (`onCreateWindow`) have no controller wrapper and never
    receive a settings update, so they are outside the class today; a future
    update path for them has to go through the same rule.

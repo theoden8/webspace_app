@@ -469,8 +469,8 @@ size change turned JavaScript back on for a JavaScript-off site, accepted
 third-party cookies, took a site out of incognito and dropped desktop mode
 ([BUG-022](../../../docs/bugs/022-partial-settings-reset-android.md)). Every
 update now sends the settings the webview was created with, changed only in
-the fields it owns; `settings_seam_test.dart` checks the effect on the device
-tiers. Popups (`WebViewFactory` popup path) still miss live updates.
+the fields it owns; `settings_seam_test.dart` checks the effect on the
+Android, macOS and Linux tiers. Popups (`WebViewFactory` popup path) still miss live updates.
 
 #### Scenario: Font size changes while a JavaScript-off site is loaded (Android)
 
@@ -754,7 +754,8 @@ stays
 
 By value over cost. Each item names the requirement it moves.
 
-1. **BUG-022** (A11Y-007). Done in `4b9aa7d`; confirm on the device tiers.
+1. **BUG-022** (A11Y-007). Done in `4b9aa7d`, confirmed on the Android,
+   macOS and Linux tiers.
 2. **Names and actions** (A11Y-005): tooltips on the 13 icon buttons, both
    FABs and the corner button; `Semantics(onTap:, selected:)` on the drawer
    tile and tab chip; the theme tooltip; the structural gate. Small, and it
