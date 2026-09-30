@@ -12,6 +12,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/container_proxy_ledger.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
@@ -559,7 +560,8 @@ String? containerIdFor({
 ///     `WKWebsiteDataStore.proxyConfigurations` on the per-container data
 ///     store, created by the WebSpace fork's `preWKWebViewConfiguration`
 ///     hook. The proxy ships with [`inapp.InAppWebViewSettings.proxySettings`]
-///     at WebView construction; this class is a no-op on those platforms.
+///     at WebView construction; the only call this class makes there is
+///     [releaseContainerProxy], which clears a container's proxy by name.
 class ProxyManager {
   static final ProxyManager _instance = ProxyManager._internal();
   factory ProxyManager() => _instance;
@@ -589,6 +591,30 @@ class ProxyManager {
 
   /// Tests only.
   static void setBindingForTest(ProxyBinding? value) => _binding = value;
+
+  /// Containers this process built a WebView on with a proxy (PROXY-029).
+  static final ContainerProxyLedger containerProxies = ContainerProxyLedger();
+
+  /// Called wherever a WebView is built with [proxy] on [containerId].
+  static void noteStoreProxy(String? containerId, inapp.ProxySettings? proxy) =>
+      containerProxies.noteBuild(containerId, proxy);
+
+  /// Clear [containerId]'s proxy through `ProxyController`, which hands its
+  /// WebViews back to the app-wide override or to no proxy. Throws if the
+  /// clear fails; the caller keeps the page blank rather than loading it
+  /// through the proxy the site gave up.
+  Future<void> releaseContainerProxy(String containerId) async {
+    await containerProxies.release(
+      containerId,
+      (id) => inapp.ProxyController.instance().clearProxyOverride(containerId: id),
+    );
+    LogService.instance.log(
+      'Proxy',
+      'Cleared container proxy for $containerId',
+      level: LogLevel.info,
+      sensitivity: LogSensitivity.sensitive,
+    );
+  }
 
   Future<void> setProxySettings(UserProxySettings settings) async {
     if (!PlatformInfo.isProxySupported) {
@@ -1505,12 +1531,18 @@ bool isEscapedPauseTimersAlert({
 /// first request leaves before the override lands; the same holds for a
 /// DEFAULT site while the override still names another site's proxy.
 /// `setController` issues the first load once the override is in (LEAK-003).
+///
+/// Every platform that binds a proxy per container defers too when the
+/// container still carries a proxy its site no longer names: the clear goes
+/// out from `setController` as well (PROXY-029).
 bool deferInitialLoadForProxy({
   required bool proxyIsGlobal,
   required bool effectiveNonDefault,
   required bool overrideActive,
+  required bool releasesContainerProxy,
 }) =>
-    proxyIsGlobal && (effectiveNonDefault || overrideActive);
+    releasesContainerProxy ||
+    (proxyIsGlobal && (effectiveNonDefault || overrideActive));
 
 bool deferInitialLoadForRestore({
   required bool hasPendingRestoreState,
@@ -2017,6 +2049,18 @@ class FileImportDocument {
   }
 }
 
+/// The container and proxy a WebView is built with ([WebViewFactory.storeBinding]).
+///
+/// [releasesContainerProxy]: the container still carries a proxy this
+/// process gave it and the site no longer names one, so it has to be
+/// cleared ([ProxyManager.releaseContainerProxy]) before the first load.
+typedef StoreBinding = ({
+  String? containerId,
+  inapp.ProxySettings? proxy,
+  bool proxyUnavailable,
+  bool proxyConfigured,
+  bool releasesContainerProxy,
+});
 
 /// Factory for creating webviews
 class WebViewFactory {
@@ -2285,12 +2329,21 @@ class WebViewFactory {
   /// The per-site store + proxy binding a WebView must carry, derived from
   /// [config] alone so a popup binds to the same container and proxy as the
   /// site that opened it.
-  static ({
-    String? containerId,
-    inapp.ProxySettings? proxy,
-    bool proxyUnavailable,
-    bool proxyConfigured,
-  }) _bindingFor(WebViewConfig config) {
+  static StoreBinding _bindingFor(WebViewConfig config) => storeBinding(
+        siteId: config.siteId,
+        archiveContainerId: config.archiveContainerId,
+        incognito: config.incognito,
+        proxySettings: config.proxySettings,
+      );
+
+  /// [_bindingFor] from the fields it reads, for a caller that has to act
+  /// on the binding before the WebView's config exists.
+  static StoreBinding storeBinding({
+    required String? siteId,
+    required String? archiveContainerId,
+    required bool incognito,
+    required UserProxySettings? proxySettings,
+  }) {
     // Container API binding. Stock flutter_inappwebview's `prepare()`
     // does session-bound ops (addJavascriptInterface,
     // addDocumentStartJavaScript, setAcceptThirdPartyCookies) BEFORE
@@ -2318,9 +2371,9 @@ class WebViewFactory {
     // profile and relies on the existing teardown: incognito ids are deleted
     // at startup and archive container ids at close.
     final containerId = containerIdFor(
-      siteId: config.siteId,
-      archiveContainerId: config.archiveContainerId,
-      incognito: config.incognito,
+      siteId: siteId,
+      archiveContainerId: archiveContainerId,
+      incognito: incognito,
     );
 
     // Per-site proxy delivery, on the platforms that bind it to the
@@ -2354,9 +2407,9 @@ class WebViewFactory {
     // What this site claims, resolved once: a per-site DEFAULT falls through
     // to the app-global outbound proxy, so a site the user has not customized
     // still inherits a global Tor / corporate proxy (PROXY-011).
-    final claimedProxy = config.proxySettings == null
+    final claimedProxy = proxySettings == null
         ? null
-        : resolveEffectiveProxy(config.proxySettings!, siteId: config.siteId);
+        : resolveEffectiveProxy(proxySettings, siteId: siteId);
     final effectiveProxy = bindsProxyPerSite ? claimedProxy : null;
     // Router mode wins over the site's own rule: under it every store points
     // at the relay and the per-site choice is made there. Not gated on the
@@ -2368,7 +2421,7 @@ class WebViewFactory {
     // real upstream itself. See ProxyRouterService.appleRelayEnabled.
     final relayProxy = PlatformInfo.isProxySupported
         ? routerRelayProxyFor(
-            siteId: config.siteId, ownsContainer: containerId != null)
+            siteId: siteId, ownsContainer: containerId != null)
         : null;
     final inappProxy = relayProxy ??
         (effectiveProxy != null && PlatformInfo.isProxySupported
@@ -2383,12 +2436,22 @@ class WebViewFactory {
     final proxyUnavailable = effectiveProxy != null &&
         effectiveProxy.type != ProxyType.DEFAULT &&
         inappProxy == null;
+    // The fork keeps a container's proxy until it is cleared by name: a
+    // WebView built naming none leaves the previous one in force (PROXY-029).
+    final releasesContainerProxy = ProxyManager.containerProxies.mustRelease(
+      bindsProxyPerSite: bindsProxyPerSite,
+      containerId: containerId,
+      siteNamesProxy: effectiveProxy != null,
+      boundProxy: inappProxy != null,
+      proxyUnavailable: proxyUnavailable,
+    );
     return (
       containerId: containerId,
       proxy: inappProxy,
       proxyUnavailable: proxyUnavailable,
       proxyConfigured:
           claimedProxy != null && claimedProxy.type != ProxyType.DEFAULT,
+      releasesContainerProxy: releasesContainerProxy,
     );
   }
 
@@ -2424,6 +2487,7 @@ class WebViewFactory {
     // Same fail-closed rule as the site webview: a proxy the site expects but
     // the platform cannot honor must not become a direct connection.
     if (binding.proxyUnavailable) return const SizedBox.shrink();
+    ProxyManager.noteStoreProxy(binding.containerId, binding.proxy);
     final page = _buildPageScripts(parent);
     final httpAuth = _httpAuthSessionFor(parent);
     return inapp.InAppWebView(
@@ -4159,6 +4223,7 @@ class WebViewFactory {
     final containerId = binding.containerId;
     final inappProxy = binding.proxy;
     final proxyUnavailable = binding.proxyUnavailable;
+    ProxyManager.noteStoreProxy(containerId, inappProxy);
     final fileImport = FileImportDocument.of(
       initialUrl: config.initialUrl,
       initialHtml: config.initialHtml,

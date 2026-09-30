@@ -4,7 +4,11 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart'
-    show WebViewFactory, answerProxyRouterChallenge, routerRelayProxyFor;
+    show
+        ProxyManager,
+        WebViewFactory,
+        answerProxyRouterChallenge,
+        routerRelayProxyFor;
 
 /// The real attribution probe (PROXY-015).
 ///
@@ -35,19 +39,20 @@ Future<void> _probeOne(String siteId, String probeUrl) async {
     if (!done.isCompleted) done.complete();
   }
 
+  final containerId = 'ws-$siteId';
+  // Apple has no process-wide rule to carry the probe, so the headless view
+  // names the relay itself with this site's credential -- the same thing its
+  // real WebView does. Null on Android, where the override already covers it.
+  final proxy = routerRelayProxyFor(siteId: siteId, ownsContainer: true);
+  ProxyManager.noteStoreProxy(containerId, proxy);
   final headless = inapp.HeadlessInAppWebView(
     initialUrlRequest: inapp.URLRequest(url: inapp.WebUri(probeUrl)),
     initialSettings: inapp.InAppWebViewSettings(
       // Bind to this site's container, so the probe travels the same
       // profile — and therefore the same proxy auth cache — its real
       // WebView will.
-      containerId: 'ws-$siteId',
-      // Apple has no process-wide rule to carry the probe, so the headless
-      // view names the relay itself with this site's credential -- the same
-      // thing its real WebView does. Null on Android, where the override
-      // already covers it.
-      proxySettings:
-          routerRelayProxyFor(siteId: siteId, ownsContainer: true),
+      containerId: containerId,
+      proxySettings: proxy,
       javaScriptEnabled: false,
       transparentBackground: true,
       useHybridComposition: WebViewFactory.hybridComposition,

@@ -1209,6 +1209,10 @@ class WebViewModel {
   /// (`deferInitialLoadForProxy`). One-shot: [setController] issues the load.
   bool _initialLoadDeferredForProxy = false;
 
+  /// Set by [getWebView] to the container whose proxy the site no longer
+  /// names (PROXY-029). One-shot: [_applyProxySettings] clears it.
+  String? _containerProxyToRelease;
+
   Future<void> setController() async {
     if (controller == null) {
       return;
@@ -1270,14 +1274,19 @@ class WebViewModel {
   /// Android: routes through the global `inapp.ProxyController`. Takes
   /// effect on next request without reload.
   ///
-  /// iOS / macOS: no-op — the per-site proxy is bound to the per-site
+  /// iOS / macOS: the per-site proxy is bound to the per-site
   /// `WKWebsiteDataStore` at WebView construction (via
   /// `inapp.InAppWebViewSettings.proxySettings`). To pick up a runtime
-  /// change, the WebView must be rebuilt; see [updateProxySettings].
+  /// change, the WebView must be rebuilt; see [updateProxySettings]. The one
+  /// thing construction cannot do is take a proxy off a container, so a
+  /// site that stopped naming one clears it here (PROXY-029).
   Future<bool> _applyProxySettings() async {
     final proxyManager = ProxyManager();
     try {
       await proxyManager.setProxySettings(proxySettings);
+      final release = _containerProxyToRelease;
+      _containerProxyToRelease = null;
+      if (release != null) await proxyManager.releaseContainerProxy(release);
       return true;
     } catch (e) {
       LogService.instance.log(
@@ -1457,10 +1466,20 @@ class WebViewModel {
         isAndroid: hostIsAndroid,
         isFileImport: currentUrl.startsWith('file://'),
       );
+      final storeBinding = WebViewFactory.storeBinding(
+        siteId: siteId,
+        archiveContainerId: archiveContainerId,
+        incognito: effectiveIncognito,
+        proxySettings: outboundProxySettings,
+      );
+      _containerProxyToRelease = storeBinding.releasesContainerProxy
+          ? storeBinding.containerId
+          : null;
       final bool deferForProxy = deferInitialLoadForProxy(
         proxyIsGlobal: hostIsAndroid || hostIsLinux,
         effectiveNonDefault: effectiveProxy.type != ProxyType.DEFAULT,
         overrideActive: ProxyManager.overrideActive,
+        releasesContainerProxy: storeBinding.releasesContainerProxy,
       );
       _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
       final iconSiteUrl = initUrl;
@@ -1932,8 +1951,10 @@ class WebViewModel {
             // the current entry must then be materialized with an explicit
             // reload. iOS/macOS already kicked off the initialUrlRequest load
             // and replace state in place via interactionState, so they skip
-            // this — the page is already on screen.
-            final materialize = deferRestoreLoad;
+            // this — the page is already on screen, unless the load waited
+            // for a container proxy to be cleared and nothing is.
+            final materialize =
+                deferRestoreLoad || storeBinding.releasesContainerProxy;
             final restoreUrl = currentUrl;
             unawaited(() async {
               // The override must land before the restored entry loads;
