@@ -25,16 +25,23 @@ reasonable, discoverable way to make their content accessible". For a
 browser that way is the web platform itself, so the exemption holds only
 while the app passes the platform through (A11Y-003).
 
+Google Play asks for no declaration at all. Its bar is a short list of
+criteria and an automated report on every test-track upload, set out under
+"Android's criteria" below.
+
 Sources: Apple's
 [overview](https://developer.apple.com/help/app-store-connect/manage-app-accessibility/overview-of-accessibility-nutrition-labels)
-and its nine per-feature evaluation criteria pages, linked from it.
+and its nine per-feature evaluation criteria pages, linked from it; Google's
+[core app quality guidelines](https://developer.android.com/docs/quality-guidelines/core-app-quality)
+and [accessibility testing guide](https://developer.android.com/guide/topics/ui/accessibility/testing).
 
 ## Status
 
 - **Status**: In Progress. Audit of master `5e1788f` on 2026-09-30; every
   label is currently answered No (A11Y-001). Line numbers below are at that
   commit.
-- **Platforms**: all. The declaration covers iPhone, iPad and Mac.
+- **Platforms**: all. The declaration covers iPhone, iPad and Mac; Android
+  is held to A11Y-014 to A11Y-016 and the criteria they cite.
 
 ---
 
@@ -105,10 +112,56 @@ needs a check on hardware before anything relies on it.
 | `prefers-contrast` | Increase Contrast (WebKit since Safari 14.1; device) | same | not established | not established |
 | Invert colours | Smart Invert applies (`accessibilityIgnoresInvertColors` is false) | n/a | n/a | n/a |
 | Captions | engine media controls (device) | same | `CaptioningController` applies the system caption style to text tracks (source) | none known |
-| Pinch zoom | a site's `user-scalable=no` is honoured (`ignoresViewportScaleLimits` false) | n/a | on, except desktop-mode sites (BUG-022) | the controller's zoom level only |
+| Pinch zoom | a site's `user-scalable=no` is honoured (`ignoresViewportScaleLimits` false) | n/a | on; desktop-mode sites lost it on every controller attach until BUG-022's fix | the controller's zoom level only |
 
 The app's own layers on top of that are A11Y-003 (what it must not change)
 and A11Y-007 and A11Y-008 (what it supplies).
+
+## Android's criteria
+
+Google Play has no counterpart to Apple's labels. A developer declares
+nothing; the only accessibility marks on a listing are tags Google assigns
+itself, which it had given to a handful of apps when they appeared
+([2022](https://www.xda-developers.com/google-play-store-a11y-tags-accessibility-apps/)).
+Play's accessibility policy governs apps that implement an
+`AccessibilityService`, and this app has none. What Google does set is:
+
+- **Core app quality**, three criteria: `Touch_Target_Size` (at least
+  48 dp), `Visual_Contrast` (4.5:1 for text under 18 pt, or under 14 pt
+  bold; 3:1 for larger text and for graphics) and `Content_Description`
+  (every element except plain text is described).
+- **The Play pre-launch report**, run on every upload to a test track. Its
+  accessibility warnings fall under content labelling, touch target size,
+  implementation (traversal order, element attributes) and low contrast.
+  Accessibility Scanner runs checks of the same kind on a device, from the
+  Accessibility Test Framework.
+- **Manual tests.** TalkBack: every element reachable by swiping, alerts read
+  aloud, the main workflows complete. Switch Access: an item is highlighted
+  only if it is actionable and only once, and every gesture is also a
+  selectable control. Voice Access.
+
+The criteria map onto A11Y-005, A11Y-010 and A11Y-014, the manual tests onto
+A11Y-004, A11Y-005 and A11Y-015, and A11Y-016 puts the report into the
+release. Against those, the Android build fails today on labels (A11Y-005),
+contrast (A11Y-010) and touch targets (A11Y-014).
+
+Each Android setting and where it stands, from Flutter 3.38.6's
+`AccessibilityBridge.java` and Chromium's `AwSettings.java`:
+
+| Setting | Chrome (Flutter) | Web content (WebView) | Requirement |
+|---|---|---|---|
+| TalkBack | semantics tree; `accessibleNavigation` once a service reads the node tree | the WebView's own node tree through the platform view (device) | A11Y-004, A11Y-005 |
+| Switch Access | a node is clickable only if its semantics has a tap action, so Switch Access cannot tap the drawer's site tile or the tab chip | WebView nodes (device) | A11Y-005 |
+| Voice Access | semantics labels | [flutter#40913](https://github.com/flutter/flutter/issues/40913), open since 2019: embedded platform views lack Voice Access support (device) | A11Y-004, A11Y-005 |
+| Font size, up to 200% on Android 14 | `SystemTextScaler` applies the platform's nonlinear curve | `textZoom = fontScale * 100`, the linear value WebView itself defaults to | A11Y-006, A11Y-007 |
+| Bold text | `boldText`; `Text` merges `FontWeight.bold` on its own | no path found in `AwSettings` or `web_contents_impl.cc` | none |
+| High contrast text | not delivered | not established | A11Y-010 |
+| Dark theme | `platformBrightness` | the activity theme | A11Y-008 |
+| Colour correction, colour inversion | system filters over the whole screen | same | A11Y-009 |
+| Remove animations | `disableAnimations` | `prefers-reduced-motion` | A11Y-011 |
+| Caption preferences | n/a | `CaptioningController` styles text tracks | A11Y-002 |
+| Time to take action | not delivered: the bridge never reads `getRecommendedTimeoutMillis` | n/a | A11Y-015 |
+| Magnification | system | system | none |
 
 ---
 
@@ -409,14 +462,15 @@ setting of any site.
   to a WPE setting. Treat Linux as unsupported until a device check says
   otherwise.
 
-Status: **the Android change path is unsafe.** `setTextZoom` sends a fresh
-`InAppWebViewSettings(textZoom:)`, whose other fields carry the plugin's
-defaults, and the plugin applies every one that differs. A font size change
-therefore turns JavaScript back on for a JavaScript-off site, accepts
-third-party cookies, takes a site out of incognito and drops desktop mode.
-That is [BUG-022](../../../docs/bugs/022-partial-settings-reset-android.md),
-and it blocks claiming Larger Text anywhere. Popups
-(`WebViewFactory` popup path) also miss live updates.
+Status: until `4b9aa7d` the Android change path was unsafe. `setTextZoom`
+sent a fresh `InAppWebViewSettings(textZoom:)`, whose other fields carry the
+plugin's defaults, and the engine applied every one that differed: a font
+size change turned JavaScript back on for a JavaScript-off site, accepted
+third-party cookies, took a site out of incognito and dropped desktop mode
+([BUG-022](../../../docs/bugs/022-partial-settings-reset-android.md)). Every
+update now sends the settings the webview was created with, changed only in
+the fields it owns; `settings_seam_test.dart` checks the effect on the device
+tiers. Popups (`WebViewFactory` popup path) still miss live updates.
 
 #### Scenario: Font size changes while a JavaScript-off site is loaded (Android)
 
@@ -609,7 +663,9 @@ every label answered Yes, on each device it is answered for:
 - Reduce Motion.
 
 Xcode's Accessibility Inspector audits a running iOS or macOS build for
-labels and contrast.
+labels and contrast. On Android, whatever the declaration says: TalkBack,
+Switch Access (group selection) and Voice Access through every common task,
+and the font size at its maximum (A11Y-016 covers the automated half).
 
 #### Scenario: Release with a claimed label
 
@@ -619,18 +675,94 @@ labels and contrast.
 
 ---
 
+### Requirement: A11Y-014 - Touch targets meet the platform floor
+
+Every tappable element of the chrome SHALL have a hit area of at least
+48x48 dp on Android (`Touch_Target_Size`, Flutter's
+`androidTapTargetGuideline`) and 44x44 pt on iOS (the Human Interface
+Guidelines, `iOSTapTargetGuideline`). The drawn glyph may stay smaller; the
+hit area may not.
+
+Status: `TapTargets.compact` is 32 (`lib/theme/design_tokens.dart`), and
+`test/design_render_matrix_test.dart` holds its widgets to that floor, which
+is below both platforms'. It sizes the `HintButton` (46 call sites), the
+proxy status indicator's check-again button and the tabs sheet's
+expand/collapse control. Smaller still: the drawer's site menu button (about
+24) and the tab counter (22x22). Flutter's tap target guidelines run in no
+test.
+
+Gate to add: `meetsGuideline(androidTapTargetGuideline)` and
+`meetsGuideline(iOSTapTargetGuideline)` in widget tests of the drawer, tab
+strip, app bar and settings screens, with `TapTargets.compact` raised to 48
+and the render matrix floor following it.
+
+#### Scenario: Pre-launch report
+
+**Given** a build uploaded to a Play test track
+**When** the pre-launch report runs
+**Then** it lists no touch target warning on a common-task screen
+
+---
+
+### Requirement: A11Y-015 - A timed message is never the only way to learn something
+
+A message that disappears on a timer SHALL NOT be the only place the app
+says how to do something. Flutter keeps a `SnackBar` that has an action on
+screen while `accessibleNavigation` is on (TalkBack, VoiceOver), but one
+without an action still times out, and Android's "Time to take action"
+setting (`AccessibilityManager.getRecommendedTimeoutMillis`) never reaches
+Flutter. A snack bar that teaches SHALL either carry an action or repeat
+what a labelled control or hint already says.
+
+Status: the fullscreen exit hint (FS-002, `_enterFullscreen` in `main.dart`)
+is a two-second `SnackBar` without an action. The app bar is hidden in
+fullscreen, so the exits it leaves are the top-edge handle and, when shown,
+the floating tabs button that opens the tab strip and its menu. Both are
+unlabelled (A11Y-005), so once the hint is gone nothing a screen reader
+reaches says what leaves fullscreen.
+
+#### Scenario: Leaving fullscreen with TalkBack
+
+**Given** TalkBack is on and a site is in fullscreen
+**When** the user explores the screen by touch
+**Then** a control labelled for leaving fullscreen is found and works
+
+---
+
+### Requirement: A11Y-016 - The pre-launch report is read every release
+
+Before a Play release, the accessibility section of the pre-launch report for
+that build SHALL be read, and every warning on a common-task screen SHALL be
+fixed or recorded here with the reason it stays. The report does not stop a
+release, which is why this requirement exists.
+
+Status: never recorded. Where it cannot be run (an F-Droid-only change, no
+test-track upload), Accessibility Scanner over the common tasks on one
+device stands in for it.
+
+#### Scenario: A release with a new warning
+
+**Given** the pre-launch report for a release build lists a low-contrast
+warning on the Add site screen
+**When** the release is prepared
+**Then** the warning is fixed, or this requirement names it and says why it
+stays
+
+---
+
 ## Order of work
 
 By value over cost. Each item names the requirement it moves.
 
-1. **BUG-022** (A11Y-007). A privacy regression that an accessibility setting
-   triggers; fix before anything is claimed.
+1. **BUG-022** (A11Y-007). Done in `4b9aa7d`; confirm on the device tiers.
 2. **Names and actions** (A11Y-005): tooltips on the 13 icon buttons, both
    FABs and the corner button; `Semantics(onTap:, selected:)` on the drawer
    tile and tab chip; the theme tooltip; the structural gate. Small, and it
    unblocks VoiceOver and Voice Control on iPhone.
-3. **Contrast** (A11Y-010): headers and greys to roles that pass, the test
-   pair, `highContrastTheme`.
+3. **Contrast and touch targets** (A11Y-010, A11Y-014): headers and greys to
+   roles that pass, the test pair, `highContrastTheme`; `TapTargets.compact`
+   to 48. These are two of Android's three quality criteria and most of what
+   the pre-launch report will list.
 4. **Selected site cue** (A11Y-009) and the statistics chips and bars.
 5. **Reduced motion helper** (A11Y-011), including the Mac channel.
 6. **Dark flash check** (A11Y-008). Then answer Dark Interface Yes.
