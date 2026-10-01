@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Mode plein écran",
   "siteSettingsFullscreenHint": "Passe automatiquement en plein écran lorsque ce site est sélectionné. Masque la barre d'application, la barre d'onglets et l'interface système pour une expérience immersive. Appuyez sur le bord de l'écran ou utilisez le geste de retour pour quitter le plein écran.",
   "siteSettingsFullscreenSubtitle": "Passer automatiquement en plein écran pour ce site",
+  "siteSettingsTabs": "Onglets",
+  "siteSettingsTabsHint": "Permet à ce site de garder plusieurs pages ouvertes à la fois, comme les onglets d'un navigateur. Un site fonctionne soit avec des onglets, soit comme une application : activer les onglets désactive le mode kiosque et le mode plein écran, et activer l'un de ces modes désactive les onglets. Les onglets déjà ouverts sont conservés pour le moment où les onglets seront réactivés.",
   "siteSettingsHtmlCaching": "Mise en cache HTML",
   "siteSettingsHtmlCachingHintTitle": "Mise en cache HTML",
   "siteSettingsHtmlCachingHint": "Affiche ce site à partir d'un instantané HTML mis en cache pour un premier affichage instantané au démarrage à froid, puis bascule vers la page en direct une fois l'analyse du cache stabilisée.\n\nDésactivé (par défaut) : le cache n'est consulté que lorsque l'appareil est hors ligne, de sorte qu'un démarrage à froid en ligne va toujours directement vers la version en direct et n'affiche jamais de contenu obsolète. Les instantanés sont tout de même enregistrés en arrière-plan pour que le repli hors ligne fonctionne au prochain lancement.\n\nActivé : échange un bref aperçu de contenu obsolète contre un premier affichage plus rapide à chaque démarrage à froid.",

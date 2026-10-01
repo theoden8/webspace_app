@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "전체 화면 모드",
   "siteSettingsFullscreenHint": "이 사이트가 선택되면 자동으로 전체 화면으로 전환합니다. 몰입형 경험을 위해 앱 바, 탭 스트립, 시스템 UI를 숨깁니다. 화면 가장자리를 탭하거나 뒤로 가기 제스처를 사용하여 전체 화면을 종료하세요.",
   "siteSettingsFullscreenSubtitle": "이 사이트에서 자동으로 전체 화면 진입",
+  "siteSettingsTabs": "탭",
+  "siteSettingsTabsHint": "브라우저 탭처럼 이 사이트에서 여러 페이지를 동시에 열어 둘 수 있게 합니다. 사이트는 탭을 쓰거나 앱처럼 실행되며 둘 중 하나만 가능합니다. 탭을 켜면 키오스크 모드와 전체 화면 모드가 꺼지고, 둘 중 하나를 켜면 탭이 꺼집니다. 이미 열린 탭은 탭을 다시 켤 때까지 보관됩니다.",
   "siteSettingsHtmlCaching": "HTML 캐싱",
   "siteSettingsHtmlCachingHintTitle": "HTML 캐싱",
   "siteSettingsHtmlCachingHint": "콜드 스타트 시 즉각적인 첫 렌더링을 위해 캐시된 HTML 스냅샷에서 이 사이트를 렌더링한 후, 캐시된 파싱이 안정되면 라이브 페이지로 전환합니다.\n\n꺼짐(기본값): 기기가 오프라인일 때만 캐시를 참조하므로 온라인 콜드 스타트는 항상 바로 라이브로 이동하고 오래된 콘텐츠를 표시하지 않습니다. 스냅샷은 여전히 백그라운드에서 저장되어 다음 실행 시 오프라인 대체가 작동합니다.\n\n켜짐: 모든 콜드 스타트에서 더 빠른 첫 렌더링을 위해 오래된 콘텐츠가 잠깐 보이는 것을 감수합니다.",

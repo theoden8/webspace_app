@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Režim celej obrazovky",
   "siteSettingsFullscreenHint": "Pri výbere tejto stránky automaticky prejde na celú obrazovku. Skryje panel aplikácie, panel kariet a systémové rozhranie pre pohlcujúci zážitok. Celú obrazovku opustíte klepnutím na okraj obrazovky alebo gestom späť.",
   "siteSettingsFullscreenSubtitle": "Automaticky prejsť na celú obrazovku pre túto stránku",
+  "siteSettingsTabs": "Karty",
+  "siteSettingsTabsHint": "Umožní tejto stránke mať otvorených niekoľko stránok naraz, ako karty v prehliadači. Stránka beží buď s kartami, alebo ako aplikácia: zapnutie kariet vypne režim kiosku a režim celej obrazovky a zapnutie ktoréhokoľvek z nich vypne karty. Už otvorené karty sa uchovajú pre chvíľu, keď budú karty znova zapnuté.",
   "siteSettingsHtmlCaching": "Vyrovnávacia pamäť HTML",
   "siteSettingsHtmlCachingHintTitle": "Vyrovnávacia pamäť HTML",
   "siteSettingsHtmlCachingHint": "Vykreslí túto stránku z uloženého HTML snímku pre okamžité prvé vykreslenie pri studenom štarte a potom po ustálení uloženého spracovania prejde na živú stránku.\n\nVypnuté (predvolené): vyrovnávacia pamäť sa použije len vtedy, keď je zariadenie offline, takže online studený štart vždy ide rovno na živú stránku a nikdy nezobrazí zastaraný obsah. Snímky sa naďalej ukladajú na pozadí, aby pri ďalšom spustení fungovalo offline núdzové riešenie.\n\nZapnuté: vymieňa krátky záblesk zastaraného obsahu za rýchlejšie prvé vykreslenie pri každom studenom štarte.",

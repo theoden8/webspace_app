@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Mod Skrin Sħiħ",
   "siteSettingsFullscreenHint": "Jidħol awtomatikament fl-iskrin sħiħ meta jingħażel dan is-sit. Jaħbi l-barra tal-app, l-istrixxa tat-tabs u l-UI tas-sistema għal esperjenza immersiva. Olqot it-tarf tal-iskrin jew uża l-ġest ta' lura biex toħroġ mill-iskrin sħiħ.",
   "siteSettingsFullscreenSubtitle": "Idħol awtomatikament fl-iskrin sħiħ għal dan is-sit",
+  "siteSettingsTabs": "It-tabs",
+  "siteSettingsTabsHint": "Jippermetti lil dan is-sit iżomm diversi paġni miftuħa fl-istess ħin, bħat-tabs ta' browser. Sit jaħdem jew bit-tabs jew bħala app: meta tixgħel it-tabs jintfew il-modalità kjosk u l-mod skrin sħiħ, u meta tixgħel xi waħda minnhom jintfew it-tabs. It-tabs li diġà huma miftuħa jinżammu għal meta t-tabs jerġgħu jinxtegħlu.",
   "siteSettingsHtmlCaching": "Caching tal-HTML",
   "siteSettingsHtmlCachingHintTitle": "Caching tal-HTML",
   "siteSettingsHtmlCachingHint": "Irrenderja dan is-sit minn snapshot tal-HTML fil-cache għal ewwel renderjar istantanju mat-tnedija kiesħa, imbagħad aqleb għall-paġna ħajja ladarba l-parsing fil-cache jissetilja.\n\nMitfi (default): il-cache jiġi kkonsultat biss meta t-tagħmir ikun offline, biex tnedija kiesħa online dejjem tmur direttament għall-ħajja u qatt ma turi kontenut antik. Is-snapshots xorta jiġu ssejvjati fl-isfond biex l-alternattiva offline taħdem fit-tnedija li jmiss.\n\nMixgħul: tibdel daqqa t'għajn momentanja ta' kontenut antik ma' ewwel renderjar aktar mgħaġġel ma' kull tnedija kiesħa.",

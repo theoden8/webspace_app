@@ -367,6 +367,42 @@ void main() {
       expect(WebViewModel.fromJson(legacy, null).kioskMode, isFalse);
     });
 
+    test('tabsEnabled defaults on and stays out of the JSON (TAB-013)', () {
+      final m = WebViewModel(initUrl: 'https://example.org/');
+      expect(m.tabsEnabled, isTrue);
+      expect(m.effectiveTabsEnabled, isTrue);
+      expect(m.toJson().containsKey('tabsEnabled'), isFalse);
+    });
+
+    test('tabsEnabled=false round-trips through JSON (TAB-013)', () {
+      final json =
+          WebViewModel(initUrl: 'https://example.org/', tabsEnabled: false)
+              .toJson();
+      expect(json['tabsEnabled'], isFalse);
+      expect(WebViewModel.fromJson(json, null).tabsEnabled, isFalse);
+    });
+
+    test('a wrong-typed tabsEnabled reads as absent (TAB-013)', () {
+      final json = WebViewModel(initUrl: 'https://example.org/').toJson()
+        ..['tabsEnabled'] = 'no';
+      expect(WebViewModel.fromJson(json, null).tabsEnabled, isTrue);
+    });
+
+    test('kiosk and full screen turn tabs off without forgetting them '
+        '(TAB-013)', () {
+      for (final m in [
+        WebViewModel(initUrl: 'https://example.org/', kioskMode: true),
+        WebViewModel(initUrl: 'https://example.org/', fullscreenMode: true),
+      ]) {
+        expect(m.effectiveTabsEnabled, isFalse);
+        expect(m.tabsEnabled, isTrue, reason: 'the stored choice is kept');
+        m
+          ..kioskMode = false
+          ..fullscreenMode = false;
+        expect(m.effectiveTabsEnabled, isTrue);
+      }
+    });
+
     test('archive-tier sites keep browser-mode links in the app (ARCH-006)', () {
       final m = WebViewModel(
         initUrl: 'https://example.org/',

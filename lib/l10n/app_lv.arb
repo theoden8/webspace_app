@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Pilnekrāna režīms",
   "siteSettingsFullscreenHint": "Automātiski ieiet pilnekrānā, kad šī vietne ir atlasīta. Slēpj lietotnes joslu, ciļņu joslu un sistēmas saskarni, lai nodrošinātu iegremdējošu pieredzi. Pieskarieties ekrāna malai vai izmantojiet atpakaļ žestu, lai izietu no pilnekrāna.",
   "siteSettingsFullscreenSubtitle": "Automātiski ieiet pilnekrānā šai vietnei",
+  "siteSettingsTabs": "Cilnes",
+  "siteSettingsTabsHint": "Ļauj šai vietnei vienlaikus turēt atvērtas vairākas lapas, kā pārlūkprogrammas cilnes. Vietne darbojas vai nu ar cilnēm, vai kā lietotne: ieslēdzot cilnes, tiek izslēgts kioska režīms un pilnekrāna režīms, bet ieslēdzot jebkuru no tiem, tiek izslēgtas cilnes. Jau atvērtās cilnes tiek saglabātas līdz brīdim, kad cilnes atkal tiks ieslēgtas.",
   "siteSettingsHtmlCaching": "HTML kešošana",
   "siteSettingsHtmlCachingHintTitle": "HTML kešošana",
   "siteSettingsHtmlCachingHint": "Renderēt šo vietni no kešota HTML momentuzņēmuma tūlītējai pirmajai attēlošanai aukstajā palaišanā, pēc tam pārslēgties uz tiešo lapu, tiklīdz kešotais parsējums nostabilizējas.\n\nIzslēgts (noklusējums): kešatmiņa tiek izmantota tikai tad, kad ierīce ir bezsaistē, tāpēc tiešsaistes aukstā palaišana vienmēr tieši dodas uz tiešo un nekad nerāda novecojušu saturu. Momentuzņēmumi joprojām tiek saglabāti fonā, lai bezsaistes rezerves variants darbotos nākamajā palaišanā.\n\nIeslēgts: apmaina momentānu novecojuša satura uzplaiksnījumu pret ātrāku pirmo attēlošanu katrā aukstajā palaišanā.",

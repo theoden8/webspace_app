@@ -463,6 +463,8 @@
   "siteSettingsFullscreenHintTitle": "Modus plenae schermatis",
   "siteSettingsFullscreenHint": "Automatice plenam schermatem init cum hic locus electus est. Celat tigillum applicationis, tigillum laminarum, et interfaciem systematis pro experientia immersiva. Marginem schermatis tange vel gestu retrogradiendi utere ad plenam schermatem relinquendam.",
   "siteSettingsFullscreenSubtitle": "Plenam schermatem pro hoc loco automatice inire",
+  "siteSettingsTabs": "Schedae",
+  "siteSettingsTabsHint": "Sinit hunc situm plures paginas simul apertas tenere, sicut schedas in navigatro. Situs aut cum schedis aut ut applicatio currit: schedis accensis, modus chioski et modus plenae schermatis extinguuntur, et utrolibet eorum accenso, schedae extinguuntur. Schedae iam apertae servantur donec schedae iterum accendantur.",
   "siteSettingsHtmlCaching": "Cella HTML",
   "siteSettingsHtmlCachingHintTitle": "Cella HTML",
   "siteSettingsHtmlCachingHint": "Hunc locum ex imagine HTML in cella servata pinge pro instanti primo pictura in frigido initio, deinde ad paginam vivam muta cum lectio in cella servata consedit.\n\nExstinctum (praedefinitum): cella solum consulitur cum instrumentum sine reti est, ita ut frigidum initium cum reti semper recta ad vivam eat et numquam contentum vetus ostendat. Imagines etiam in fundo servantur ut subsidium sine reti in proxima immissione fungatur.\n\nAccensum: momentaneum aspectum contenti veteris pro celeriore primo pictura in omni frigido initio commutat.",

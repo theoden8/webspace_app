@@ -2313,6 +2313,14 @@
   "@siteSettingsFullscreenSubtitle": {
     "description": "Subtitle for the full screen mode switch."
   },
+  "siteSettingsTabs": "Tabs",
+  "@siteSettingsTabs": {
+    "description": "Switch label in a site's Behaviour settings: whether this site can keep several pages open at once, like browser tabs."
+  },
+  "siteSettingsTabsHint": "Lets this site keep several pages open at once, like browser tabs. A site runs either with tabs or as an app: turning tabs on turns off Kiosk mode and Full screen mode, and turning either of those on turns tabs off. Tabs already open are kept for when tabs are back on.",
+  "@siteSettingsTabsHint": {
+    "description": "Hint dialog body for the per-site Tabs switch, opened from its info button. Explains that tabs let the site keep several pages open, that tabs and Kiosk mode / Full screen mode exclude each other (turning one on turns the other off), and that existing tabs are kept while tabs are off. 'Kiosk mode' and 'Full screen mode' are the names of the two switches just above it."
+  },
   "siteSettingsHtmlCaching": "HTML caching",
   "@siteSettingsHtmlCaching": {
     "description": "Switch label for HTML caching."

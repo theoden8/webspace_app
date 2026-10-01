@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Fullskjermmodus",
   "siteSettingsFullscreenHint": "Går automatisk i fullskjerm når dette nettstedet velges. Skjuler app-linjen, fanelinjen og system-UI for en oppslukende opplevelse. Trykk på kanten av skjermen eller bruk tilbake-bevegelsen for å gå ut av fullskjerm.",
   "siteSettingsFullscreenSubtitle": "Gå automatisk i fullskjerm for dette nettstedet",
+  "siteSettingsTabs": "Faner",
+  "siteSettingsTabsHint": "Lar dette nettstedet ha flere sider åpne samtidig, som faner i en nettleser. Et nettsted kjører enten med faner eller som en app: Når faner slås på, slås kioskmodus og fullskjermmodus av, og når en av dem slås på, slås faner av. Faner som allerede er åpne, beholdes til faner slås på igjen.",
   "siteSettingsHtmlCaching": "HTML-bufring",
   "siteSettingsHtmlCachingHintTitle": "HTML-bufring",
   "siteSettingsHtmlCachingHint": "Gjengi dette nettstedet fra et bufret HTML-øyeblikksbilde for umiddelbar første opptegning ved kald start, og bytt deretter til den live siden når den bufrede tolkningen er ferdig.\n\nAv (standard): hurtigbufferen brukes bare når enheten er frakoblet, så en kald start på nett går alltid rett til live og viser aldri utdatert innhold. Øyeblikksbilder lagres fortsatt i bakgrunnen slik at frakoblet reserve fungerer ved neste oppstart.\n\nPå: bytter et øyeblikks glimt av utdatert innhold mot en raskere første opptegning ved hver kald start.",

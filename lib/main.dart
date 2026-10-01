@@ -7488,14 +7488,25 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Tabs are experimental (TAB-012, DEVTOOLS-011): developer mode and the Site
   /// tabs switch. Read on every use, so the switch applies without a restart.
-  /// Off, every way into tabs is closed and a site shows its active tab alone.
-  bool get _tabsEnabled => ExperimentalFeaturesService.instance
+  bool get _tabsFeatureEnabled => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.siteTabs);
+
+  /// Whether [model] has tabs: the feature is on and the site is not run as an
+  /// app (TAB-013). Off, every way into its tabs is closed and it shows its
+  /// active tab alone.
+  bool _tabsEnabledFor(WebViewModel model) =>
+      _tabsFeatureEnabled && model.effectiveTabsEnabled;
+
+  bool _tabsEnabledAt(int? index) =>
+      index != null &&
+      index >= 0 &&
+      index < _webViewModels.length &&
+      _tabsEnabledFor(_webViewModels[index]);
 
   /// Open a new tab at the site's home page (TAB-005). The tab the user was on
   /// is kept: it parks, with its back stack captured.
   Future<void> _newTab(int index) async {
-    if (!_tabsEnabled || _isTabHandling) return;
+    if (!_tabsEnabledAt(index) || _isTabHandling) return;
     _isTabHandling = true;
     try {
       if (index < 0 || index >= _webViewModels.length) return;
@@ -7526,7 +7537,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// it (TAB-010). The copy opens parked, so the page on screen stays put and
   /// the copy costs a record plus a state file until it is first opened.
   Future<void> _duplicateTab(int index) async {
-    if (!_tabsEnabled || _isTabHandling) return;
+    if (!_tabsEnabledAt(index) || _isTabHandling) return;
     _isTabHandling = true;
     try {
       if (index < 0 || index >= _webViewModels.length) return;
@@ -7670,7 +7681,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// browser does with a tab opened from a link (TAB-007). A root tab falls
   /// through to NAV-001 and whatever the NAV-009 setting says.
   Future<bool> _closeChildTabOnBack() async {
-    if (!_tabsEnabled) return false;
+    if (!_tabsEnabledAt(_currentIndex)) return false;
     // A close already running owns the tab list; reporting the gesture as
     // spent here would swallow it for nothing.
     if (_isTabHandling) return false;
@@ -7692,9 +7703,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// Every site the tab list should show, in the order the drawer shows them.
+  /// A site without tabs is left out, so its stored ones cannot be opened
+  /// from another site's list.
   List<TabsSheetSite> _tabsSheetSites() => [
         for (final i in _getFilteredSiteIndices())
-          if (i >= 0 && i < _webViewModels.length)
+          if (_tabsEnabledAt(i))
             TabsSheetSite(
               index: i,
               model: _webViewModels[i],
@@ -7704,7 +7717,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       ];
 
   Future<void> _showTabsSheet() async {
-    if (_kioskLocked || !_tabsEnabled) return;
+    if (_kioskLocked || !_tabsEnabledAt(_currentIndex)) return;
     final sites = _tabsSheetSites();
     final at = sites.indexWhere((s) => s.index == _currentIndex);
     if (at < 0) return;
@@ -7726,7 +7739,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// this site; anything else keeps today's behaviour, and the sheet says why
   /// rather than silently offering nothing.
   Future<void> _showLinkLongPressMenu(int index, String url) async {
-    if (_kioskLocked || !_tabsEnabled) return;
+    if (_kioskLocked || !_tabsEnabledAt(index)) return;
     if (index < 0 || index >= _webViewModels.length) return;
     if (index != _currentIndex) return;
     final model = _webViewModels[index];
@@ -7948,7 +7961,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       actions: _kioskLocked ? const <Widget>[] : [
         // Tab count for the site on screen. Present whenever a site is shown,
         // even at one tab, because it is also how a new tab is opened.
-        if (currentModel != null && _tabsEnabled)
+        if (currentModel != null && _tabsEnabledAt(_currentIndex))
           _buildTabsButton(currentModel, loc),
         const DownloadButton(),
         IconButton(
@@ -8174,7 +8187,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         return IconButton(
                           icon: Icon(loading ? Icons.close : Icons.refresh),
                           tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
-                          onLongPress: _tabsEnabled
+                          onLongPress: _tabsEnabledAt(_currentIndex)
                               ? () {
                                   Navigator.pop(context);
                                   final index = _currentIndex;
@@ -8195,7 +8208,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   ),
                 ),
                 PopupMenuDivider(),
-                if (_tabsEnabled) ...[
+                if (_tabsEnabledAt(_currentIndex)) ...[
                   PopupMenuItem<String>(
                     value: "newTab",
                     child: Row(
@@ -8579,7 +8592,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           ),
           // Tab count, only once there is more than one: a site with a single
           // tab looks exactly as it did before tabs existed (TAB-008).
-          if (_tabsEnabled && siteModel.tabs.length > 1)
+          if (_tabsEnabledFor(siteModel) && siteModel.tabs.length > 1)
             _tabCountPill(siteModel, isActive, theme),
         ],
       ),
@@ -8751,7 +8764,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   return IconButton(
                     icon: Icon(loading ? Icons.close : Icons.refresh),
                     tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
-                    onLongPress: _tabsEnabled
+                    onLongPress: _tabsEnabledAt(_currentIndex)
                         ? () {
                             Navigator.pop(context);
                             final index = _currentIndex;
@@ -8772,7 +8785,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             ),
           ),
           PopupMenuDivider(),
-          if (_tabsEnabled) ...[
+          if (_tabsEnabledAt(_currentIndex)) ...[
             PopupMenuItem<String>(
               value: "newTab",
               child: Row(
@@ -10034,7 +10047,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         ),
                       ),
                     ),
-                    if (_tabsEnabled && _webViewModels[index].tabs.length > 1)
+                    if (_tabsEnabledAt(index) && _webViewModels[index].tabs.length > 1)
                       _tabCountPill(_webViewModels[index], isSelected, theme),
                   ],
                 )
@@ -10081,7 +10094,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         // Tab count rides the favicon's top corner: the tile
                         // has no spare row, and the permission badges already
                         // own the bottom edge.
-                        if (_tabsEnabled && _webViewModels[index].tabs.length > 1)
+                        if (_tabsEnabledAt(index) && _webViewModels[index].tabs.length > 1)
                           Positioned(
                             top: -2,
                             right: -2,

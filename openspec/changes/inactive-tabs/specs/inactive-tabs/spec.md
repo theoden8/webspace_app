@@ -380,3 +380,55 @@ turning tabs back on shows them again.
 - **WHEN** the user turns developer mode off
 - **THEN** GitHub shows its third tab with no tab count or count pill
 - **AND** after developer mode is back on, all four tabs are listed again
+
+---
+
+### Requirement: TAB-013 - A site has tabs or runs as an app
+
+Kiosk mode and Full screen mode make a site an app: one page, no browser
+chrome. Tabs make it a browser. A site SHALL be one or the other.
+
+Each site SHALL carry a `tabsEnabled` choice, on by default, written to the
+site's JSON only when off, and carried by settings backup and the site QR share
+like `kioskMode` and `fullscreenMode`. Tabs SHALL be in effect for a site only
+while TAB-012's gate is open, its `tabsEnabled` is on, and neither its
+`kioskMode` nor its `fullscreenMode` is on (`effectiveTabsEnabled`). While they
+are not in effect for a site, that site SHALL behave as TAB-012 describes for
+tabs off, every way into its tabs SHALL return before acting, and the tab
+list's "All sites" scope SHALL leave the site out. Other sites are unaffected.
+
+Full screen entered from the menu (FS-001) or by a shortcut launch (FS-008) is
+a state of the session, not the site's mode, and SHALL NOT turn tabs off.
+
+The Behaviour screen (BEHAV-005) SHALL show the effective value. Turning Tabs
+on SHALL turn Kiosk mode and Full screen mode off. Turning either of those on
+SHALL show Tabs off without changing the stored `tabsEnabled`, so turning it
+back off restores tabs. Turning Tabs off SHALL leave Kiosk mode and Full screen
+mode as they are. No way of turning a site's tabs off SHALL delete or rewrite
+them (TAB-012).
+
+#### Scenario: A new site has tabs
+
+- **GIVEN** developer mode and the Site tabs switch are on
+- **WHEN** the user adds a site
+- **THEN** its Tabs switch is on and the app bar shows its tab count
+
+#### Scenario: A full-screen site has no tabs
+
+- **GIVEN** developer mode and the Site tabs switch are on
+- **AND** GitHub has three tabs and Full screen mode on, and Mastodon has two tabs
+- **THEN** GitHub shows no tab count, no "New tab", no count pill, and a long press on a link opens no menu
+- **AND** Mastodon's "All sites" tab list does not list GitHub
+- **AND** Mastodon's tabs work as before
+
+#### Scenario: Turning tabs on turns the app modes off
+
+- **GIVEN** a site with Kiosk mode and Full screen mode on
+- **WHEN** the user turns Tabs on in its Behaviour screen
+- **THEN** Kiosk mode and Full screen mode are off
+
+#### Scenario: Leaving full screen mode gives tabs back
+
+- **GIVEN** a site with four tabs, Tabs on, and Full screen mode turned on
+- **WHEN** the user turns Full screen mode off
+- **THEN** Tabs reads on and all four tabs are listed again

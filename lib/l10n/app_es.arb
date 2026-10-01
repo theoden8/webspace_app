@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Modo de pantalla completa",
   "siteSettingsFullscreenHint": "Entra automáticamente en pantalla completa cuando se selecciona este sitio. Oculta la barra de la app, la barra de pestañas y la interfaz del sistema para una experiencia inmersiva. Toca el borde de la pantalla o usa el gesto de retroceso para salir de la pantalla completa.",
   "siteSettingsFullscreenSubtitle": "Entrar automáticamente en pantalla completa para este sitio",
+  "siteSettingsTabs": "Pestañas",
+  "siteSettingsTabsHint": "Permite que este sitio mantenga varias páginas abiertas a la vez, como las pestañas de un navegador. Un sitio funciona o bien con pestañas o bien como una aplicación: activar las pestañas desactiva el modo quiosco y el modo de pantalla completa, y activar cualquiera de ellos desactiva las pestañas. Las pestañas ya abiertas se conservan para cuando las pestañas vuelvan a estar activadas.",
   "siteSettingsHtmlCaching": "Caché de HTML",
   "siteSettingsHtmlCachingHintTitle": "Caché de HTML",
   "siteSettingsHtmlCachingHint": "Renderiza este sitio a partir de una instantánea HTML en caché para un primer pintado instantáneo en el arranque en frío y, después, cambia a la página en vivo una vez que el análisis en caché se estabiliza.\n\nDesactivado (predeterminado): la caché solo se consulta cuando el dispositivo está sin conexión, por lo que un arranque en frío con conexión siempre va directo a la versión en vivo y nunca muestra contenido obsoleto. Las instantáneas se siguen guardando en segundo plano para que el respaldo sin conexión funcione en el próximo lanzamiento.\n\nActivado: cambia un vistazo momentáneo de contenido obsoleto por un primer pintado más rápido en cada arranque en frío.",

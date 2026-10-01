@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
@@ -22,6 +23,7 @@ class SiteBehaviourValues {
     required this.fullscreenMode,
     required this.htmlCachingEnabled,
     required this.externalLinkMode,
+    this.tabsEnabled = true,
     this.routeOutboundLinks = false,
     this.outboundPreferences = const [],
   });
@@ -29,6 +31,7 @@ class SiteBehaviourValues {
   final bool alwaysOpenHome;
   final bool kioskMode;
   final bool fullscreenMode;
+  final bool tabsEnabled;
   final bool htmlCachingEnabled;
   final ExternalLinkMode externalLinkMode;
   final bool routeOutboundLinks;
@@ -38,6 +41,7 @@ class SiteBehaviourValues {
     bool? alwaysOpenHome,
     bool? kioskMode,
     bool? fullscreenMode,
+    bool? tabsEnabled,
     bool? htmlCachingEnabled,
     ExternalLinkMode? externalLinkMode,
     bool? routeOutboundLinks,
@@ -47,6 +51,7 @@ class SiteBehaviourValues {
         alwaysOpenHome: alwaysOpenHome ?? this.alwaysOpenHome,
         kioskMode: kioskMode ?? this.kioskMode,
         fullscreenMode: fullscreenMode ?? this.fullscreenMode,
+        tabsEnabled: tabsEnabled ?? this.tabsEnabled,
         htmlCachingEnabled: htmlCachingEnabled ?? this.htmlCachingEnabled,
         externalLinkMode: externalLinkMode ?? this.externalLinkMode,
         routeOutboundLinks: routeOutboundLinks ?? this.routeOutboundLinks,
@@ -57,6 +62,10 @@ class SiteBehaviourValues {
   /// home page whatever this stores. Mirrors `WebViewModel.toJson`'s `dropUrl`,
   /// which is what actually decides it.
   bool effectiveAlwaysOpenHome(bool incognito) => incognito || alwaysOpenHome;
+
+  /// Mirrors `WebViewModel.effectiveTabsEnabled` (TAB-013).
+  bool get effectiveTabsEnabled =>
+      tabsEnabled && !kioskMode && !fullscreenMode;
 
   /// Routing is an option of the in-app mode (LIR-014); mirrors
   /// `WebViewModel.effectiveRouteOutboundLinks`.
@@ -78,6 +87,7 @@ class SiteBehaviourScreen extends StatefulWidget {
     this.domainClaims,
     this.containersActive = true,
     this.routingTargets = const [],
+    this.tabsAvailable,
   });
 
   final String host;
@@ -102,6 +112,11 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// The sites a routing preference may name: this site's LIR-014 candidates
   /// other than itself.
   final List<WebViewModel> routingTargets;
+
+  /// Whether the Tabs row is shown: tabs are experimental (TAB-012), so the
+  /// row exists only while the app-wide switch lets them in. Null reads the
+  /// switch.
+  final bool? tabsAvailable;
 
   @override
   State<SiteBehaviourScreen> createState() => _SiteBehaviourScreenState();
@@ -176,6 +191,19 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         subtitle: loc.siteSettingsFullscreenSubtitle,
         value: _values.fullscreenMode,
         onChanged: (value) => _update(_values.copyWith(fullscreenMode: value)),
+      );
+
+  /// Either tabs or kiosk and full screen (TAB-013): turning tabs on turns
+  /// both off, and either of them on shows tabs off without forgetting the
+  /// stored choice.
+  Widget _tabs(AppLocalizations loc) => _tile(
+        title: loc.siteSettingsTabs,
+        hint: loc.siteSettingsTabsHint,
+        value: _values.effectiveTabsEnabled,
+        onChanged: (value) => _update(value
+            ? _values.copyWith(
+                tabsEnabled: true, kioskMode: false, fullscreenMode: false)
+            : _values.copyWith(tabsEnabled: false)),
       );
 
   Widget _htmlCaching(AppLocalizations loc) => _tile(
@@ -313,6 +341,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           _alwaysOpenHome(loc),
           _kioskMode(loc),
           _fullscreen(loc),
+          if (widget.tabsAvailable ??
+              ExperimentalFeaturesService.instance
+                  .isEnabled(ExperimentalFeature.siteTabs))
+            _tabs(loc),
           _htmlCaching(loc),
           _groupHeader(loc.linkHandlingScreenTitle),
           _externalLinks(loc),

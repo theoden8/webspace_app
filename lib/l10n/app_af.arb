@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Volskerm-modus",
   "siteSettingsFullscreenHint": "Betree outomaties volskerm wanneer hierdie webwerf gekies word. Versteek die app-balk, oortjiestrook en stelsel-UI vir 'n meeslepende ervaring. Tik op die rand van die skerm of gebruik die terug-gebaar om volskerm te verlaat.",
   "siteSettingsFullscreenSubtitle": "Betree outomaties volskerm vir hierdie webwerf",
+  "siteSettingsTabs": "Oortjies",
+  "siteSettingsTabsHint": "Laat hierdie werf toe om verskeie bladsye gelyktydig oop te hou, soos oortjies in 'n blaaier. 'n Werf loop óf met oortjies óf as 'n toepassing: om oortjies aan te skakel, skakel Kioskmodus en Volskerm-modus af, en om enigeen daarvan aan te skakel, skakel oortjies af. Oortjies wat reeds oop is, word bewaar vir wanneer oortjies weer aan is.",
   "siteSettingsHtmlCaching": "HTML-kasing",
   "siteSettingsHtmlCachingHintTitle": "HTML-kasing",
   "siteSettingsHtmlCachingHint": "Lewer hierdie webwerf vanuit 'n gekaste HTML-momentopname vir onmiddellike eerste skildering met 'n koue begin, en ruil dan na die lewendige bladsy sodra die gekaste ontleding gevestig het.\n\nAf (verstek): die kas word slegs geraadpleeg wanneer die toestel vanlyn is, sodat 'n aanlyn koue begin altyd reguit na lewendig gaan en nooit verouderde inhoud wys nie. Momentopnames word steeds in die agtergrond gestoor sodat die vanlyn-terugval by die volgende bekendstelling werk.\n\nAan: ruil 'n oomblik se glimp van verouderde inhoud vir 'n vinniger eerste skildering by elke koue begin.",
