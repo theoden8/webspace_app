@@ -230,6 +230,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 
 | Slug | One-liner (when not obvious) |
 |------|------|
+| accessibility | which of Apple's nine accessibility labels the app may claim per device (all No today, with what blocks each); Android's bar instead (core app quality touch targets, contrast, descriptions; the Play pre-launch report every release); which OS settings reach the chrome and web content on every platform; shims pass the engine's own accessibility media features through |
 | always-open-home | per-site: navigation URL reverts to `initUrl` on cold start and shortcut tap, cookies and other stored state survive; site switches and a transient background are not resets |
 | captcha-support | |
 | clearurls | tracking-param removal, per-site toggle |
