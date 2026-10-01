@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Modo de ecrã inteiro",
   "siteSettingsFullscreenHint": "Entra automaticamente em ecrã inteiro quando este site é selecionado. Oculta a barra de aplicação, a barra de separadores e a interface do sistema para uma experiência imersiva. Toque na extremidade do ecrã ou use o gesto de retroceder para sair do ecrã inteiro.",
   "siteSettingsFullscreenSubtitle": "Entrar automaticamente em ecrã inteiro para este site",
+  "siteSettingsTabs": "Separadores",
+  "siteSettingsTabsHint": "Permite que este site mantenha várias páginas abertas ao mesmo tempo, como os separadores de um navegador. Um site funciona ou com separadores ou como uma aplicação: ativar os separadores desativa o modo quiosque e o modo de ecrã inteiro, e ativar qualquer um destes desativa os separadores. Os separadores já abertos são guardados para quando os separadores voltarem a estar ativados.",
   "siteSettingsHtmlCaching": "Cache de HTML",
   "siteSettingsHtmlCachingHintTitle": "Cache de HTML",
   "siteSettingsHtmlCachingHint": "Renderiza este site a partir de um instantâneo HTML em cache para uma primeira pintura instantânea no arranque a frio e, depois, troca para a página em direto assim que a análise em cache estabiliza.\n\nDesativado (predefinição): a cache só é consultada quando o dispositivo está offline, pelo que um arranque a frio online vai sempre diretamente para a página em direto e nunca mostra conteúdo desatualizado. Os instantâneos continuam a ser guardados em segundo plano para que a alternativa offline funcione no arranque seguinte.\n\nAtivado: troca um vislumbre momentâneo de conteúdo desatualizado por uma primeira pintura mais rápida em cada arranque a frio.",

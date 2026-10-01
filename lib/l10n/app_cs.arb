@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Režim celé obrazovky",
   "siteSettingsFullscreenHint": "Po výběru této stránky automaticky přejde do režimu celé obrazovky. Skryje horní lištu, pruh karet a systémové rozhraní pro pohlcující zážitek. Celou obrazovku opustíte klepnutím na okraj obrazovky nebo gestem zpět.",
   "siteSettingsFullscreenSubtitle": "Automaticky přejít do celé obrazovky pro tuto stránku",
+  "siteSettingsTabs": "Panely",
+  "siteSettingsTabsHint": "Umožní tomuto webu mít otevřeno několik stránek najednou, jako panely v prohlížeči. Web běží buď s panely, nebo jako aplikace: zapnutí panelů vypne režim kiosku a režim celé obrazovky a zapnutí kteréhokoli z nich vypne panely. Již otevřené panely se uchovají pro chvíli, kdy budou panely znovu zapnuty.",
   "siteSettingsHtmlCaching": "Ukládání HTML do mezipaměti",
   "siteSettingsHtmlCachingHintTitle": "Ukládání HTML do mezipaměti",
   "siteSettingsHtmlCachingHint": "Vykreslí tuto stránku z uloženého snímku HTML pro okamžité první vykreslení při studeném startu a poté po ustálení uloženého rozboru přepne na živou stránku.\n\nVypnuto (výchozí): mezipaměť se použije pouze tehdy, když je zařízení offline, takže online studený start jde vždy rovnou na živou verzi a nikdy nezobrazí zastaralý obsah. Snímky se přesto ukládají na pozadí, aby offline záloha fungovala při příštím spuštění.\n\nZapnuto: vyměňuje krátký záblesk zastaralého obsahu za rychlejší první vykreslení při každém studeném startu.",

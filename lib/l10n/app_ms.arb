@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Mod Skrin Penuh",
   "siteSettingsFullscreenHint": "Memasuki skrin penuh secara automatik apabila tapak ini dipilih. Menyembunyikan bar aplikasi, jalur tab, dan UI sistem untuk pengalaman mendalam. Ketik tepi skrin atau guna gerak isyarat undur untuk keluar dari skrin penuh.",
   "siteSettingsFullscreenSubtitle": "Auto-masuk skrin penuh untuk tapak ini",
+  "siteSettingsTabs": "Tab",
+  "siteSettingsTabsHint": "Membenarkan tapak ini membuka beberapa halaman serentak, seperti tab dalam pelayar. Sesebuah tapak berjalan sama ada dengan tab atau sebagai apl: menghidupkan tab akan mematikan mod kiosk dan mod skrin penuh, dan menghidupkan mana-mana satu daripadanya akan mematikan tab. Tab yang sudah dibuka disimpan sehingga tab dihidupkan semula.",
   "siteSettingsHtmlCaching": "Cache HTML",
   "siteSettingsHtmlCachingHintTitle": "Cache HTML",
   "siteSettingsHtmlCachingHint": "Paparkan tapak ini daripada syot kilat HTML yang dicache untuk cat pertama serta-merta pada mula sejuk, kemudian tukar ke halaman langsung sebaik sahaja huraian cache stabil.\n\nMati (lalai): cache hanya dirujuk apabila peranti di luar talian, jadi mula sejuk dalam talian sentiasa terus ke langsung dan tidak pernah menunjukkan kandungan basi. Syot kilat masih disimpan di latar belakang supaya sandaran luar talian berfungsi pada pelancaran seterusnya.\n\nHidup: bertukar sekelibat kandungan basi untuk cat pertama yang lebih pantas pada setiap mula sejuk.",

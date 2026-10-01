@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Helskärmsläge",
   "siteSettingsFullscreenHint": "Går automatiskt in i helskärm när denna webbplats väljs. Döljer appraden, flikraden och systemgränssnittet för en uppslukande upplevelse. Tryck på kanten av skärmen eller använd bakåtgesten för att lämna helskärm.",
   "siteSettingsFullscreenSubtitle": "Gå automatiskt in i helskärm för denna webbplats",
+  "siteSettingsTabs": "Flikar",
+  "siteSettingsTabsHint": "Låter den här webbplatsen ha flera sidor öppna samtidigt, som flikar i en webbläsare. En webbplats körs antingen med flikar eller som en app: när flikar slås på stängs kioskläget och helskärmsläget av, och när något av dem slås på stängs flikarna av. Flikar som redan är öppna sparas tills flikar slås på igen.",
   "siteSettingsHtmlCaching": "HTML-cachning",
   "siteSettingsHtmlCachingHintTitle": "HTML-cachning",
   "siteSettingsHtmlCachingHint": "Rendera denna webbplats från en cachad HTML-ögonblicksbild för omedelbar första ritning vid kall start, och växla sedan till den live-sidan när den cachade tolkningen har stabiliserats.\n\nAv (standard): cachen konsulteras endast när enheten är offline, så en online kall start går alltid direkt till live och visar aldrig inaktuellt innehåll. Ögonblicksbilder sparas fortfarande i bakgrunden så att offline-reserven fungerar vid nästa start.\n\nPå: byter en kortvarig glimt av inaktuellt innehåll mot en snabbare första ritning vid varje kall start.",

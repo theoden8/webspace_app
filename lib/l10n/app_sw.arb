@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Hali ya Skrini Kamili",
   "siteSettingsFullscreenHint": "Huingia kiotomatiki katika skrini kamili tovuti hii inapochaguliwa. Huficha upau wa programu, ukanda wa vichupo, na kiolesura cha mfumo kwa uzoefu wa kuzama. Gusa ukingo wa skrini au tumia ishara ya kurudi nyuma ili kutoka katika skrini kamili.",
   "siteSettingsFullscreenSubtitle": "Ingia kiotomatiki katika skrini kamili kwa tovuti hii",
+  "siteSettingsTabs": "Vichupo",
+  "siteSettingsTabsHint": "Huruhusu tovuti hii kuweka kurasa kadhaa wazi kwa wakati mmoja, kama vichupo vya kivinjari. Tovuti huendeshwa ama kwa vichupo ama kama programu: kuwasha vichupo huzima hali ya kioski na hali ya skrini kamili, na kuwasha yoyote kati ya hizo huzima vichupo. Vichupo ambavyo tayari viko wazi huhifadhiwa hadi vichupo viwashwe tena.",
   "siteSettingsHtmlCaching": "Uhifadhi wa HTML kwenye akiba",
   "siteSettingsHtmlCachingHintTitle": "Uhifadhi wa HTML kwenye Akiba",
   "siteSettingsHtmlCachingHint": "Onyesha tovuti hii kutoka picha ya HTML iliyohifadhiwa kwa uchoraji wa kwanza wa papo hapo kwenye kuanzishwa baridi, kisha badilisha kwenda ukurasa hai mara uchanganuzi wa akiba unapotulia.\n\nImezimwa (chaguomsingi): akiba hurejelewa tu wakati kifaa kiko nje ya mtandao, hivyo kuanzishwa baridi kukiwa mtandaoni huenda moja kwa moja kwenye ukurasa hai na hakuonyeshi kamwe maudhui yaliyopitwa na wakati. Picha bado huhifadhiwa nyuma ili akiba ya nje ya mtandao ifanye kazi katika uzinduzi unaofuata.\n\nImewashwa: hubadilishana mwonekano wa muda mfupi wa maudhui yaliyopitwa na wakati kwa uchoraji wa kwanza wa haraka katika kila kuanzishwa baridi.",

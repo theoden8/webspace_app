@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Način punog zaslona",
   "siteSettingsFullscreenHint": "Automatski ulazi u puni zaslon kada je ova stranica odabrana. Skriva traku aplikacije, traku kartica i sistemsko sučelje za uronjeno iskustvo. Dodirnite rub zaslona ili upotrijebite gestu natrag za izlaz iz punog zaslona.",
   "siteSettingsFullscreenSubtitle": "Automatski uđi u puni zaslon za ovu stranicu",
+  "siteSettingsTabs": "Kartice",
+  "siteSettingsTabsHint": "Omogućuje ovom web-mjestu da drži više stranica otvorenih istodobno, kao kartice u pregledniku. Web-mjesto radi ili s karticama ili kao aplikacija: uključivanjem kartica isključuju se kiosk način rada i način punog zaslona, a uključivanjem bilo kojeg od njih isključuju se kartice. Već otvorene kartice čuvaju se dok kartice ponovno ne budu uključene.",
   "siteSettingsHtmlCaching": "HTML predmemoriranje",
   "siteSettingsHtmlCachingHintTitle": "HTML predmemoriranje",
   "siteSettingsHtmlCachingHint": "Prikaži ovu stranicu iz predmemorirane HTML snimke za trenutni prvi prikaz pri hladnom pokretanju, zatim prijeđi na stranicu uživo kada se predmemorirano raščlanjivanje slegne.\n\nIsključeno (zadano): predmemorija se konzultira samo kada je uređaj izvan mreže, pa hladno pokretanje na mreži uvijek ide ravno na uživo i nikad ne prikazuje zastarjeli sadržaj. Snimke se i dalje spremaju u pozadini kako bi izvanmrežna rezerva radila pri sljedećem pokretanju.\n\nUključeno: zamjenjuje trenutni bljesak zastarjelog sadržaja za brži prvi prikaz pri svakom hladnom pokretanju.",

@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Mod ecran complet",
   "siteSettingsFullscreenHint": "Intră automat pe ecran complet când acest site este selectat. Ascunde bara de aplicații, bara de file și interfața de sistem pentru o experiență imersivă. Atinge marginea ecranului sau folosește gestul de înapoi pentru a ieși din ecranul complet.",
   "siteSettingsFullscreenSubtitle": "Intră automat pe ecran complet pentru acest site",
+  "siteSettingsTabs": "File",
+  "siteSettingsTabsHint": "Permite acestui site să țină mai multe pagini deschise simultan, ca filele unui browser. Un site rulează fie cu file, fie ca aplicație: activarea filelor dezactivează modul chioșc și modul ecran complet, iar activarea oricăruia dintre ele dezactivează filele. Filele deja deschise sunt păstrate pentru momentul în care filele vor fi din nou activate.",
   "siteSettingsHtmlCaching": "Memorare HTML în cache",
   "siteSettingsHtmlCachingHintTitle": "Memorare HTML în cache",
   "siteSettingsHtmlCachingHint": "Randează acest site dintr-un instantaneu HTML din cache pentru o primă afișare instantanee la pornirea la rece, apoi comută la pagina live odată ce analiza din cache se stabilizează.\n\nDezactivat (implicit): cache-ul este consultat doar când dispozitivul este offline, astfel încât o pornire la rece online merge întotdeauna direct la live și nu afișează niciodată conținut învechit. Instantaneele sunt totuși salvate în fundal pentru ca rezerva offline să funcționeze la următoarea lansare.\n\nActivat: schimbă o sclipire momentană de conținut învechit pentru o primă afișare mai rapidă la fiecare pornire la rece.",

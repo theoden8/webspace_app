@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Mode Layar Penuh",
   "siteSettingsFullscreenHint": "Otomatis masuk ke layar penuh saat situs ini dipilih. Menyembunyikan bilah aplikasi, bilah tab, dan UI sistem untuk pengalaman yang imersif. Ketuk tepi layar atau gunakan gestur kembali untuk keluar dari layar penuh.",
   "siteSettingsFullscreenSubtitle": "Otomatis masuk layar penuh untuk situs ini",
+  "siteSettingsTabs": "Tab",
+  "siteSettingsTabsHint": "Memungkinkan situs ini membuka beberapa halaman sekaligus, seperti tab di browser. Sebuah situs berjalan dengan tab atau sebagai aplikasi: mengaktifkan tab akan menonaktifkan mode kios dan mode layar penuh, dan mengaktifkan salah satunya akan menonaktifkan tab. Tab yang sudah terbuka tetap disimpan hingga tab diaktifkan kembali.",
   "siteSettingsHtmlCaching": "Penyimpanan HTML",
   "siteSettingsHtmlCachingHintTitle": "Penyimpanan HTML",
   "siteSettingsHtmlCachingHint": "Render situs ini dari snapshot HTML tertembolok untuk tampilan pertama instan saat mulai dingin, lalu beralih ke halaman langsung setelah parse tertembolok selesai.\n\nNonaktif (default): tembolok hanya dikonsultasi saat perangkat luring, sehingga mulai dingin saat daring selalu langsung ke halaman langsung dan tidak pernah menampilkan konten usang. Snapshot tetap disimpan di latar belakang agar cadangan luring berfungsi pada peluncuran berikutnya.\n\nAktif: menukar sekilas konten usang demi tampilan pertama yang lebih cepat pada setiap mulai dingin.",

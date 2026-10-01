@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Celozaslonski način",
   "siteSettingsFullscreenHint": "Samodejno preklopi v celozaslonski način, ko je ta stran izbrana. Skrije vrstico aplikacije, trak zavihkov in sistemski vmesnik za poglobljeno izkušnjo. Tapnite rob zaslona ali uporabite potezo nazaj za izhod iz celozaslonskega načina.",
   "siteSettingsFullscreenSubtitle": "Samodejno preklopi v celozaslonski način za to stran",
+  "siteSettingsTabs": "Zavihki",
+  "siteSettingsTabsHint": "Temu spletnemu mestu omogoči, da ima hkrati odprtih več strani, kot zavihke v brskalniku. Spletno mesto deluje bodisi z zavihki bodisi kot aplikacija: vklop zavihkov izklopi način kioska in celozaslonski način, vklop katerega koli od njiju pa izklopi zavihke. Že odprti zavihki se ohranijo za čas, ko bodo zavihki znova vklopljeni.",
   "siteSettingsHtmlCaching": "Predpomnjenje HTML",
   "siteSettingsHtmlCachingHintTitle": "Predpomnjenje HTML",
   "siteSettingsHtmlCachingHint": "Izriše to stran iz predpomnjenega HTML posnetka za takojšen prvi izris ob hladnem zagonu, nato pa preklopi na živo stran, ko se predpomnjeno razčlenjevanje umiri.\n\nIzklopljeno (privzeto): predpomnilnik se uporabi le, ko je naprava brez povezave, tako da spletni hladni zagon vedno gre naravnost na živo in nikoli ne prikaže zastarele vsebine. Posnetki se kljub temu shranjujejo v ozadju, da nadomestilo brez povezave deluje ob naslednjem zagonu.\n\nVklopljeno: zamenja kratek pogled zastarele vsebine za hitrejši prvi izris ob vsakem hladnem zagonu.",

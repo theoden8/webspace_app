@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Full Screen Mode",
   "siteSettingsFullscreenHint": "Awtomatikong pumapasok sa full screen kapag napili ang site na ito. Itinatago ang app bar, tab strip, at system UI para sa isang immersive na karanasan. I-tap ang gilid ng screen o gamitin ang back gesture para lumabas sa full screen.",
   "siteSettingsFullscreenSubtitle": "Awtomatikong pumasok sa full screen para sa site na ito",
+  "siteSettingsTabs": "Mga tab",
+  "siteSettingsTabsHint": "Pinapayagan ang site na ito na panatilihing bukas ang ilang pahina nang sabay-sabay, tulad ng mga tab sa isang browser. Tumatakbo ang isang site nang may mga tab o bilang isang app: ang pag-on ng mga tab ay nag-o-off sa mode ng kiosk at full screen mode, at ang pag-on ng alinman sa mga iyon ay nag-o-off sa mga tab. Itinatabi ang mga tab na nakabukas na para sa kapag naka-on muli ang mga tab.",
   "siteSettingsHtmlCaching": "HTML caching",
   "siteSettingsHtmlCachingHintTitle": "HTML Caching",
   "siteSettingsHtmlCachingHint": "I-render ang site na ito mula sa isang naka-cache na HTML snapshot para sa instant na first paint sa cold start, pagkatapos ay lumipat sa live na pahina kapag tumahimik na ang naka-cache na parse.\n\nOff (default): kinokonsulta lang ang cache kapag offline ang device, kaya ang isang online na cold start ay laging tumutuloy sa live at hindi kailanman nagpapakita ng lumang nilalaman. Sine-save pa rin sa background ang mga snapshot upang gumana ang offline fallback sa susunod na paglulunsad.\n\nOn: ipinagpapalit ang isang sandaling sulyap sa lumang nilalaman para sa mas mabilis na first paint sa bawat cold start.",

@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Viso ekrano veiksena",
   "siteSettingsFullscreenHint": "Automatiškai pereina į visą ekraną, kai pasirenkama ši svetainė. Paslepia programos juostą, kortelių juostą ir sistemos sąsają, kad naršymas būtų įsitraukiantis. Norėdami išeiti iš viso ekrano, palieskite ekrano kraštą arba naudokite atgal gestą.",
   "siteSettingsFullscreenSubtitle": "Automatiškai pereiti į visą ekraną šiai svetainei",
+  "siteSettingsTabs": "Kortelės",
+  "siteSettingsTabsHint": "Leidžia šiai svetainei vienu metu laikyti atvertus kelis puslapius, kaip naršyklės korteles. Svetainė veikia arba su kortelėmis, arba kaip programa: įjungus korteles išjungiamas kiosko režimas ir viso ekrano veiksena, o įjungus bet kurį iš jų išjungiamos kortelės. Jau atvertos kortelės išsaugomos, kol kortelės vėl bus įjungtos.",
   "siteSettingsHtmlCaching": "HTML talpinimas podėlyje",
   "siteSettingsHtmlCachingHintTitle": "HTML talpinimas podėlyje",
   "siteSettingsHtmlCachingHint": "Atvaizduoti šią svetainę iš podėlyje saugomo HTML momentinio vaizdo, kad pirmasis vaizdas po šalto paleidimo pasirodytų akimirksniu, tada pakeisti į tiesioginį puslapį, kai podėlyje saugomas vaizdas nusistovi.\n\nIšjungta (numatytoji): podėlis naudojamas tik kai įrenginys neprijungtas prie tinklo, todėl šaltas paleidimas prisijungus visada eina tiesiai į tiesioginį turinį ir niekada nerodo pasenusio turinio. Momentiniai vaizdai vis tiek išsaugomi fone, kad kitą kartą paleidžiant veiktų atsarginis neprisijungus variantas.\n\nĮjungta: greitesnis pirmasis vaizdas kiekvieno šalto paleidimo metu mainais į trumpą pasenusio turinio žvilgsnį.",

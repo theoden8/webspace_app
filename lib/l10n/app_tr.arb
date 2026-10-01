@@ -461,6 +461,8 @@
   "siteSettingsFullscreenHintTitle": "Tam Ekran Modu",
   "siteSettingsFullscreenHint": "Bu site seçildiğinde otomatik olarak tam ekrana geçer. Sürükleyici bir deneyim için uygulama çubuğunu, sekme şeridini ve sistem arayüzünü gizler. Tam ekrandan çıkmak için ekranın kenarına dokunun veya geri hareketini kullanın.",
   "siteSettingsFullscreenSubtitle": "Bu site için otomatik tam ekrana geç",
+  "siteSettingsTabs": "Sekmeler",
+  "siteSettingsTabsHint": "Bu sitenin, tarayıcı sekmeleri gibi aynı anda birkaç sayfayı açık tutmasını sağlar. Bir site ya sekmelerle ya da uygulama olarak çalışır: sekmeleri açmak kiosk modunu ve tam ekran modunu kapatır, bunlardan herhangi birini açmak ise sekmeleri kapatır. Zaten açık olan sekmeler, sekmeler yeniden açılana kadar saklanır.",
   "siteSettingsHtmlCaching": "HTML önbellekleme",
   "siteSettingsHtmlCachingHintTitle": "HTML Önbellekleme",
   "siteSettingsHtmlCachingHint": "Soğuk başlangıçta anında ilk boyama için bu siteyi önbelleğe alınmış bir HTML anlık görüntüsünden işle, ardından önbelleğe alınmış ayrıştırma oturduğunda canlı sayfaya geç.\n\nKapalı (varsayılan): önbellek yalnızca cihaz çevrimdışıyken kullanılır, böylece çevrimiçi bir soğuk başlangıç her zaman doğrudan canlıya gider ve asla eski içerik göstermez. Anlık görüntüler yine de arka planda kaydedilir, böylece çevrimdışı yedek bir sonraki başlatmada çalışır.\n\nAçık: her soğuk başlangıçta daha hızlı bir ilk boyama için eski içeriğin bir an görünmesini takas eder.",
