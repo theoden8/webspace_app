@@ -8336,8 +8336,24 @@ class _WebSpacePageState extends State<WebSpacePage>
         onCloseTab: (i, id) => unawaited(_closeTab(i, id)),
         onCloseSubtree: (i, id) => unawaited(_closeTab(i, id, subtree: true)),
         onMoveTab: _moveTab,
+        onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet : null,
       ),
     );
+  }
+
+  /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
+  /// reorder the drawer grid and the tab strip make. Returns the sheet's sites
+  /// afresh, since reordering "All" renumbers them.
+  List<TabsSheetSite>? _moveSiteInTabsSheet(String siteId, String ontoSiteId) {
+    if (_isTabHandling || !_canReorderCurrentView) return null;
+    final order = _getFilteredSiteIndices();
+    int at(String id) => order.indexWhere((i) =>
+        i >= 0 && i < _webViewModels.length && _webViewModels[i].siteId == id);
+    final from = at(siteId);
+    final to = at(ontoSiteId);
+    if (from < 0 || to < 0 || from == to) return null;
+    _reorderSite(from, to);
+    return _tabsSheetSites();
   }
 
   /// A long press that landed on a link. In-domain links can become a tab of

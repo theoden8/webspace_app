@@ -540,3 +540,34 @@ the tab.
 - **GIVEN** GitHub tab A with child B
 - **WHEN** the user drags A over B's row
 - **THEN** no landing is shown and the drop changes nothing
+
+### Requirement: TAB-016 - Drag a site heading to reorder sites
+
+In the Tabs sheet's All sites view, a long press on a site's heading SHALL
+lift the site, and a drop on another site's heading SHALL put the site in that
+one's place: above it when dragged up, below it when dragged down, the rule the
+drawer grid and the tab strip follow. The move SHALL be the same reorder those
+make (`_reorderSite`), so all three show one order: a named webspace's
+`siteIds` order, or the global site order in "All". It SHALL be offered only
+where they offer it, and SHALL be refused while a tab is being opened,
+created or closed.
+
+While a drag is over a heading the sheet SHALL draw a line on the side the site
+would land. Reordering "All" renumbers sites, so the host SHALL hand the sheet
+its sites afresh, and every row SHALL then open, close and move tabs of the
+site it shows. A site's tabs SHALL move with its heading, and no tab, webview
+or active site SHALL change.
+
+#### Scenario: Move a site up
+
+- **GIVEN** the All sites view lists GitHub, Mastodon and Wikipedia
+- **WHEN** the user long-presses Wikipedia's heading and drops it on GitHub's
+- **THEN** the sites are listed Wikipedia, GitHub, Mastodon, each with its tabs
+- **AND** the drawer and the tab strip show the same order
+
+#### Scenario: The rows follow the new numbering
+
+- **GIVEN** the "All" webspace, GitHub on screen, and Wikipedia moved above it
+- **WHEN** the user taps one of GitHub's tabs
+- **THEN** that tab of GitHub opens, not a tab of the site now in GitHub's old
+  position

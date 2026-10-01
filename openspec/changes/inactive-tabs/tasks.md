@@ -62,6 +62,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 - [ ] 8.3 Call sites: guard with `_isTabHandling`; capture a moving active tab before applying the plan; apply renames and drops; re-bind the source owner through `_switchActiveTab(captureOutgoing: false)`; run 6.2 for any rebind; persist once; snackbar with "Switch" after a move.
 - [ ] 8.4 Strings: code plus `lib/l10n/app_en.arb` (descriptions for every key: action labels, "Top level", "Open in new tab as {site}", "Keep as tab", "Keep as tab as {site}", refusal reasons) in one commit, the 66 translations in the next.
 - [ ] 8.5 Widget tests in `test/tabs_sheet_test.dart`: menu visibility per engine and kiosk, picker contents, the moved subtree greyed, refusal messages.
+- [x] 8.6 All sites view: drag a site's heading onto another to reorder sites (TAB-016) through the drawer's `_reorderSite`; the host hands the sheet its sites afresh.
 
 ## 9. Hosted tabs and reattach: manual smoke
 

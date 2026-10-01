@@ -30,6 +30,7 @@ Future<void> pumpSheet(
   void Function(int, String)? onCloseTab,
   void Function(int, String)? onCloseSubtree,
   bool Function(int, String, TabDrop)? onMoveTab,
+  List<TabsSheetSite>? Function(String, String)? onMoveSite,
   Locale? locale,
   double width = 400,
 }) async {
@@ -52,6 +53,7 @@ Future<void> pumpSheet(
         onCloseTab: onCloseTab ?? (_, _) {},
         onCloseSubtree: onCloseSubtree ?? (_, _) {},
         onMoveTab: onMoveTab,
+        onMoveSite: onMoveSite,
       ),
     ),
   ));
@@ -197,6 +199,147 @@ void main() {
       expect(find.byWidgetPredicate((w) => w is LongPressDraggable),
           findsNothing);
       expect(find.byWidgetPredicate((w) => w is DragTarget), findsNothing);
+    });
+  });
+
+  group('TAB-016 — drag a site heading to reorder sites', () {
+    const gh = 'GitHub · 1 tab';
+    const md = 'Mastodon · 1 tab';
+    const wp = 'Wikipedia · 1 tab';
+
+    /// Three sites in the All sites view. The host fake reorders as the
+    /// drawer does and renumbers every site, as reordering "All" does.
+    Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
+        WidgetTester tester,
+        {bool refuse = false,
+        void Function(int, String)? onOpenTab}) async {
+      final models = [
+        siteWithChain('GitHub', ['https://github.com/']),
+        siteWithChain('Mastodon', ['https://mastodon.social/']),
+        siteWithChain('Wikipedia', ['https://en.wikipedia.org/']),
+      ];
+      final current = models.first;
+      List<TabsSheetSite> sites() => [
+            for (var i = 0; i < models.length; i++)
+              TabsSheetSite(
+                index: i,
+                model: models[i],
+                isCurrent: models[i] == current,
+                isLoaded: models[i] == current,
+              ),
+          ];
+      final moves = <(String, String)>[];
+      await pumpSheet(
+        tester,
+        sites(),
+        onOpenTab: onOpenTab,
+        onMoveSite: (id, onto) {
+          moves.add((id, onto));
+          if (refuse) return null;
+          final from = models.indexWhere((m) => m.siteId == id);
+          final to = models.indexWhere((m) => m.siteId == onto);
+          models.insert(to, models.removeAt(from));
+          return sites();
+        },
+      );
+      await tester.tap(find.text('All sites'));
+      await tester.pumpAndSettle();
+      return (models, moves);
+    }
+
+    // The site on screen also names the sheet; its heading is the last match.
+    Finder heading(String text) => find.text(text).last;
+
+    List<String> headingOrder(WidgetTester tester) {
+      final ys = {
+        for (final t in [gh, md, wp]) t: tester.getCenter(heading(t)).dy,
+      };
+      return [gh, md, wp]..sort((a, b) => ys[a]!.compareTo(ys[b]!));
+    }
+
+    Future<void> dragHeading(
+        WidgetTester tester, String from, String to) async {
+      final gesture = await tester.startGesture(tester.getCenter(heading(from)));
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      final end = tester.getCenter(heading(to));
+      await gesture.moveTo(end - const Offset(0, 1));
+      await tester.pump();
+      await gesture.moveTo(end);
+      await tester.pump();
+      await gesture.up();
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a site dropped on an earlier heading takes its place',
+        (tester) async {
+      final (models, moves) = await pumpSites(tester);
+      final wikipedia = models[2].siteId;
+      final github = models[0].siteId;
+      await dragHeading(tester, wp, gh);
+      expect(moves, [(wikipedia, github)]);
+      expect([for (final m in models) m.name],
+          ['Wikipedia', 'GitHub', 'Mastodon']);
+      expect(headingOrder(tester), [wp, gh, md]);
+    });
+
+    testWidgets('a site dropped on a later heading takes its place',
+        (tester) async {
+      final (models, _) = await pumpSites(tester);
+      await dragHeading(tester, gh, md);
+      expect([for (final m in models) m.name],
+          ['Mastodon', 'GitHub', 'Wikipedia']);
+      expect(headingOrder(tester), [md, gh, wp]);
+    });
+
+    testWidgets('a refused move leaves the headings where they were',
+        (tester) async {
+      final (_, moves) = await pumpSites(tester, refuse: true);
+      await dragHeading(tester, wp, gh);
+      expect(moves, hasLength(1));
+      expect(headingOrder(tester), [gh, md, wp]);
+    });
+
+    testWidgets('tabs open by the numbering the host hands back',
+        (tester) async {
+      final opened = <int>[];
+      await pumpSites(tester, onOpenTab: (i, _) => opened.add(i));
+      await dragHeading(tester, wp, gh);
+      await tester.tap(find.text('https://en.wikipedia.org/'));
+      await tester.pumpAndSettle();
+      expect(opened, [0]);
+    });
+
+    testWidgets('This site follows the site on screen to its new number',
+        (tester) async {
+      final opened = <int>[];
+      final (models, _) =
+          await pumpSites(tester, onOpenTab: (i, _) => opened.add(i));
+      await dragHeading(tester, wp, gh);
+      expect(models[1].name, 'GitHub');
+      await tester.tap(find.text('This site'));
+      await tester.pumpAndSettle();
+      expect(find.text('https://en.wikipedia.org/'), findsNothing);
+      await tester.tap(find.text('https://github.com/'));
+      await tester.pumpAndSettle();
+      expect(opened, [1]);
+    });
+
+    testWidgets('without a host reorder the headings are not draggable',
+        (tester) async {
+      final a = siteWithChain('GitHub', ['https://github.com/']);
+      final b = siteWithChain('Mastodon', ['https://mastodon.social/']);
+      await pumpSheet(tester, [
+        TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
+        TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: false),
+      ]);
+      await tester.tap(find.text('All sites'));
+      await tester.pumpAndSettle();
+      expect(
+          find.ancestor(
+              of: find.text(md),
+              matching:
+                  find.byWidgetPredicate((w) => w is LongPressDraggable)),
+          findsNothing);
     });
   });
 

@@ -177,4 +177,26 @@ void main() {
       );
     });
   });
+
+  group('TAB-016: a site heading in the Tabs sheet moves the site', () {
+    test('offered only where the drawer and the strip reorder', () {
+      expect(
+          count('onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet '
+              ': null'),
+          1);
+    });
+
+    test("the move is the drawer's reorder, not a copy of it", () {
+      final start =
+          source.indexOf('List<TabsSheetSite>? _moveSiteInTabsSheet(');
+      expect(start, isNot(-1));
+      final end = source.indexOf('\n  }\n', start);
+      final body = source.substring(start, end);
+      expect(body.contains('_reorderSite(from, to);'), isTrue);
+      // Reordering "All" renumbers every site, so the sheet gets them afresh.
+      expect(body.contains('return _tabsSheetSites();'), isTrue);
+      expect(body.contains('.insert('), isFalse);
+      expect(body.contains('.removeAt('), isFalse);
+    });
+  });
 }

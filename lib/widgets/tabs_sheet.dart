@@ -21,7 +21,6 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
-import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
@@ -59,6 +58,7 @@ class TabsSheet extends StatefulWidget {
     required this.onCloseTab,
     required this.onCloseSubtree,
     this.onMoveTab,
+    this.onMoveSite,
   });
 
   /// Every site the current webspace shows, in display order.
@@ -79,6 +79,12 @@ class TabsSheet extends StatefulWidget {
   /// the move was made. Null leaves the rows where they are.
   final bool Function(int siteIndex, String tabId, TabDrop drop)? onMoveTab;
 
+  /// A site's heading dropped on another's in the All sites view (TAB-016):
+  /// the site takes the other's place. Returns every site in its new order,
+  /// or null when the move was refused. Null leaves the headings in place.
+  final List<TabsSheetSite>? Function(String siteId, String ontoSiteId)?
+      onMoveSite;
+
   @override
   State<TabsSheet> createState() => _TabsSheetState();
 }
@@ -92,8 +98,24 @@ class _DraggedTab {
   final Set<String> subtree;
 }
 
+/// What a site heading's drag carries.
+class _DraggedSite {
+  const _DraggedSite(this.siteId);
+
+  final String siteId;
+}
+
 class _TabsSheetState extends State<TabsSheet> {
   bool _allSites = false;
+
+  /// [TabsSheet.sites] until a site moves; a move can renumber every site,
+  /// so the host hands back the whole list.
+  late List<TabsSheetSite> _sites = widget.sites;
+
+  late final String? _currentId = widget.currentIndex >= 0 &&
+          widget.currentIndex < widget.sites.length
+      ? widget.sites[widget.currentIndex].model.siteId
+      : null;
   final Set<String> _collapsed = <String>{};
   final ScrollController _scroll = ScrollController();
   final GlobalKey _listKey = GlobalKey();
@@ -112,10 +134,8 @@ class _TabsSheetState extends State<TabsSheet> {
     super.dispose();
   }
 
-  TabsSheetSite? get _site => widget.currentIndex >= 0 &&
-          widget.currentIndex < widget.sites.length
-      ? widget.sites[widget.currentIndex]
-      : null;
+  TabsSheetSite? get _site =>
+      _sites.where((s) => s.model.siteId == _currentId).firstOrNull;
 
   @override
   Widget build(BuildContext context) {
@@ -139,7 +159,7 @@ class _TabsSheetState extends State<TabsSheet> {
                   Spacing.lg, Spacing.xs, Spacing.sm, 0),
               child: _header(site, loc, theme),
             ),
-            if (widget.sites.length > 1) _scopeSwitch(loc, theme),
+            if (_sites.length > 1) _scopeSwitch(loc, theme),
             Flexible(
               child: ListView(
                 key: _listKey,
@@ -268,21 +288,93 @@ class _TabsSheetState extends State<TabsSheet> {
 
   List<Widget> _allSitesRows(AppLocalizations loc, ThemeData theme) {
     final out = <Widget>[];
-    for (final s in widget.sites) {
-      out.add(Padding(
+    for (final s in _sites) {
+      final label =
+          loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
+      final heading = Padding(
         padding: const EdgeInsets.fromLTRB(
             Spacing.sm, Spacing.md, Spacing.sm, Spacing.xs),
         child: Text(
-          loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length),
+          label,
           style: theme.textTheme.labelMedium
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-      ));
+      );
+      out.add(widget.onMoveSite == null
+          ? heading
+          : _siteDragAndDrop(s, heading, label, theme));
       out.addAll(_rowsFor(s, loc, theme));
     }
     return out;
+  }
+
+  /// A long press lifts a site's heading; a drop on another heading puts the
+  /// site in that one's place, as the drawer and the tab strip do (TAB-016).
+  Widget _siteDragAndDrop(
+      TabsSheetSite site, Widget heading, String label, ThemeData theme) {
+    final id = site.model.siteId;
+    final key = 'site:$id';
+    int position(String siteId) =>
+        _sites.indexWhere((s) => s.model.siteId == siteId);
+
+    return DragTarget<_DraggedSite>(
+      onWillAcceptWithDetails: (d) => d.data.siteId != id,
+      onMove: (_) {
+        if (_dropKey != key) {
+          setState(() {
+            _dropKey = key;
+            _dropZone = null;
+          });
+        }
+      },
+      onLeave: (_) {
+        if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
+      },
+      onAcceptWithDetails: (d) => _dropSite(d.data.siteId, id),
+      builder: (context, candidates, _) {
+        final from = candidates.isEmpty ? null : candidates.first?.siteId;
+        // The site lands in this one's place: above it coming from below,
+        // below it coming from above.
+        final above = from != null && position(from) > position(id);
+        return LongPressDraggable<_DraggedSite>(
+          data: _DraggedSite(id),
+          hitTestBehavior: HitTestBehavior.opaque,
+          dragAnchorStrategy: pointerDragAnchorStrategy,
+          onDragUpdate: (d) => _autoScrollAt(d.globalPosition),
+          onDragEnd: (_) => _stopAutoScroll(),
+          onDraggableCanceled: (_, _) => _stopAutoScroll(),
+          feedback: _feedback(label, theme),
+          childWhenDragging:
+              Opacity(opacity: TabRows.draggingOpacity, child: heading),
+          child: Stack(
+            children: [
+              heading,
+              if (from != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: above ? 0 : null,
+                  bottom: above ? null : 0,
+                  height: TabRows.dropLineWidth,
+                  child: IgnorePointer(
+                      child: ColoredBox(color: theme.colorScheme.primary)),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _dropSite(String siteId, String ontoSiteId) {
+    _stopAutoScroll();
+    final moved = widget.onMoveSite?.call(siteId, ontoSiteId);
+    setState(() {
+      _dropKey = _dropZone = null;
+      if (moved != null) _sites = moved;
+    });
   }
 
   List<Widget> _rowsFor(
@@ -504,7 +596,8 @@ class _TabsSheetState extends State<TabsSheet> {
           onDragUpdate: (d) => _autoScrollAt(d.globalPosition),
           onDragEnd: (_) => _stopAutoScroll(),
           onDraggableCanceled: (_, _) => _stopAutoScroll(),
-          feedback: _feedback(tab, theme),
+          feedback: _feedback(
+              tab.title?.isNotEmpty == true ? tab.title! : tab.url, theme),
           childWhenDragging:
               Opacity(opacity: TabRows.draggingOpacity, child: drawn),
           child: Stack(
@@ -582,7 +675,7 @@ class _TabsSheetState extends State<TabsSheet> {
     });
   }
 
-  Widget _feedback(SiteTab tab, ThemeData theme) => Transform.translate(
+  Widget _feedback(String label, ThemeData theme) => Transform.translate(
         // Above and beside the finger, so the row it names stays readable.
         offset: const Offset(-Spacing.lg, -Spacing.xl * 2),
         child: Material(
@@ -596,7 +689,7 @@ class _TabsSheetState extends State<TabsSheet> {
               padding: const EdgeInsets.symmetric(
                   horizontal: Spacing.md, vertical: Spacing.sm),
               child: Text(
-                tab.title?.isNotEmpty == true ? tab.title! : tab.url,
+                label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium,
