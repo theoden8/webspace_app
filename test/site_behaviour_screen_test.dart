@@ -13,6 +13,7 @@ SiteBehaviourValues _values({
   bool alwaysOpenHome = false,
   bool kioskMode = false,
   bool fullscreenMode = false,
+  bool tabsEnabled = true,
   bool htmlCaching = false,
   ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
   bool routeOutboundLinks = false,
@@ -22,6 +23,7 @@ SiteBehaviourValues _values({
       alwaysOpenHome: alwaysOpenHome,
       kioskMode: kioskMode,
       fullscreenMode: fullscreenMode,
+      tabsEnabled: tabsEnabled,
       htmlCachingEnabled: htmlCaching,
       externalLinkMode: externalLinkMode,
       routeOutboundLinks: routeOutboundLinks,
@@ -36,6 +38,7 @@ Future<void> _pump(
   ValueChanged<SiteBehaviourValues>? onChanged,
   bool containersActive = true,
   List<WebViewModel> routingTargets = const [],
+  bool tabsAvailable = false,
 }) async {
   // Tall surface so every row is laid out: the screen is one list and the
   // assertions below compare rows that sit at opposite ends of it.
@@ -54,6 +57,7 @@ Future<void> _pump(
       onChanged: onChanged ?? (_) {},
       containersActive: containersActive,
       routingTargets: routingTargets,
+      tabsAvailable: tabsAvailable,
     ),
   ));
   await tester.pumpAndSettle();
@@ -90,6 +94,14 @@ void main() {
         expect(other.effectiveRouteOutboundLinks, isFalse, reason: mode.name);
         expect(other.routeOutboundLinks, isTrue);
       }
+    });
+
+    test('kiosk and full screen turn tabs off without overwriting them', () {
+      expect(_values().effectiveTabsEnabled, isTrue);
+      expect(_values(kioskMode: true).effectiveTabsEnabled, isFalse);
+      expect(_values(fullscreenMode: true).effectiveTabsEnabled, isFalse);
+      expect(_values(tabsEnabled: false).effectiveTabsEnabled, isFalse);
+      expect(_values(fullscreenMode: true).tabsEnabled, isTrue);
     });
 
     test('incognito forces Always open Home without overwriting it', () {
@@ -210,6 +222,70 @@ void main() {
     expect(seen!.fullscreenMode, isTrue);
     // Unrelated fields ride along untouched: the caller applies one value.
     expect(seen!.kioskMode, isTrue);
+  });
+
+  group('Tabs (TAB-013)', () {
+    testWidgets('the row exists only while tabs are available',
+        (tester) async {
+      await _pump(tester, values: _values());
+      expect(find.text('Tabs'), findsNothing);
+      await _pump(tester, values: _values(), tabsAvailable: true);
+      expect(_switchTitled(tester, 'Tabs').value, isTrue);
+    });
+
+    testWidgets('turning tabs on turns kiosk and full screen off',
+        (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(kioskMode: true, fullscreenMode: true),
+        tabsAvailable: true,
+        onChanged: (v) => seen = v,
+      );
+      expect(_switchTitled(tester, 'Tabs').value, isFalse);
+      await tester.tap(find.text('Tabs'));
+      await tester.pumpAndSettle();
+      expect(seen!.tabsEnabled, isTrue);
+      expect(seen!.kioskMode, isFalse);
+      expect(seen!.fullscreenMode, isFalse);
+      expect(_switchTitled(tester, 'Tabs').value, isTrue);
+      expect(_switchTitled(tester, 'Kiosk mode').value, isFalse);
+      expect(_switchTitled(tester, 'Full screen mode').value, isFalse);
+    });
+
+    testWidgets('full screen shows tabs off and gives them back',
+        (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(),
+        tabsAvailable: true,
+        onChanged: (v) => seen = v,
+      );
+      await tester.tap(find.text('Full screen mode'));
+      await tester.pumpAndSettle();
+      expect(_switchTitled(tester, 'Tabs').value, isFalse);
+      expect(seen!.tabsEnabled, isTrue, reason: 'the stored choice is kept');
+      await tester.tap(find.text('Full screen mode'));
+      await tester.pumpAndSettle();
+      expect(_switchTitled(tester, 'Tabs').value, isTrue);
+    });
+
+    testWidgets('turning tabs off leaves kiosk and full screen alone',
+        (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(),
+        tabsAvailable: true,
+        onChanged: (v) => seen = v,
+      );
+      await tester.tap(find.text('Tabs'));
+      await tester.pumpAndSettle();
+      expect(seen!.tabsEnabled, isFalse);
+      expect(seen!.kioskMode, isFalse);
+      expect(seen!.fullscreenMode, isFalse);
+    });
   });
 
   testWidgets('the domain-claim editor renders in the link group',

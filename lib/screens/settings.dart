@@ -154,6 +154,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _routeOutboundLinks;
   late List<OutboundPreference> _outboundPreferences;
   late bool _fullscreenMode;
+  late bool _tabsEnabled;
   late bool _htmlCachingEnabled;
   late bool _notificationsEnabled;
   late bool _backgroundAudioEnabled;
@@ -257,6 +258,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'routeOutboundLinks': _routeOutboundLinks,
         'outboundPreferences': _outboundPreferences.join(','),
         'fullscreenMode': _fullscreenMode,
+        'tabsEnabled': _tabsEnabled,
         'htmlCachingEnabled': _htmlCachingEnabled,
         'notificationsEnabled': _notificationsEnabled,
         'backgroundAudioEnabled': _backgroundAudioEnabled,
@@ -496,6 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _routeOutboundLinks = m.routeOutboundLinks;
     _outboundPreferences = [...m.outboundPreferences];
     _fullscreenMode = m.fullscreenMode;
+    _tabsEnabled = m.tabsEnabled;
     _htmlCachingEnabled = m.htmlCachingEnabled;
     _notificationsEnabled = m.notificationsEnabled;
     _backgroundAudioEnabled = m.backgroundAudioEnabled;
@@ -647,6 +650,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       widget.webViewModel.routeOutboundLinks = _routeOutboundLinks;
       widget.webViewModel.outboundPreferences = [..._outboundPreferences];
       widget.webViewModel.fullscreenMode = _fullscreenMode;
+      widget.webViewModel.tabsEnabled = _tabsEnabled;
       widget.webViewModel.htmlCachingEnabled = _htmlCachingEnabled;
       widget.webViewModel.notificationsEnabled = _notificationsEnabled;
       widget.webViewModel.backgroundAudioEnabled = _backgroundAudioEnabled;
@@ -1008,6 +1012,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         alwaysOpenHome: _alwaysOpenHome,
         kioskMode: _kioskMode,
         fullscreenMode: _fullscreenMode,
+        tabsEnabled: _tabsEnabled,
         htmlCachingEnabled: _htmlCachingEnabled,
         externalLinkMode: _externalLinkMode,
         routeOutboundLinks: _routeOutboundLinks,
@@ -1081,6 +1086,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _alwaysOpenHome = values.alwaysOpenHome;
               _kioskMode = values.kioskMode;
               _fullscreenMode = values.fullscreenMode;
+              _tabsEnabled = values.tabsEnabled;
               _htmlCachingEnabled = values.htmlCachingEnabled;
               _externalLinkMode = values.externalLinkMode;
               _routeOutboundLinks = values.routeOutboundLinks;

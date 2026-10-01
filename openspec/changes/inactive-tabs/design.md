@@ -250,6 +250,9 @@ nobody trusts.
   new chrome. The drawer lays sites out as a grid of tiles, not rows, so the
   tree does not fit there; the "All sites" scope is the whole-app tree view.
 - A locked kiosk shell (KIOSK-002) hides the sheet and the link menu.
+- A site has tabs or runs as an app (TAB-013): a per-site `tabsEnabled`, on by
+  default, is in effect only while Kiosk mode and Full screen mode are off. The
+  gate is per site, so every surface above asks about the site it draws.
 
 ### D7. Per-site feature audit for tabs
 
@@ -257,7 +260,8 @@ nobody trusts.
 |---|---|
 | Incognito (INC-002/003) | Tabs exist in memory only; no state bytes, `tabs` omitted from JSON. Relaunch keeps one home tab. |
 | Always open Home (AOH-001) | Drops the tab list on serialise, exactly as it drops `currentUrl`: the site comes back with one tab at `initUrl`. Keeping parked tabs would write a banking-style site's deep URLs into plaintext preferences, which is the thing the toggle exists to avoid. One rule, not two. |
-| Kiosk (KIOSK-002) | Locked shell hides the Tabs sheet, the drawer tree and the link menu. Back on a child tab still follows D5. |
+| Kiosk (KIOSK-002) | A kiosk site has no tabs, locked or not (TAB-013); its stored tabs are kept for when Kiosk mode is off. The locked shell also hides the Tabs sheet and the link menu for every site. |
+| Full screen mode (FS-003) | A site with Full screen mode on has no tabs (TAB-013), as for kiosk. Full screen entered from the menu or a shortcut launch is session state and leaves tabs alone. |
 | Archive tier (ARCH-001/006) | `tabs` ride the archive's encrypted state; no state bytes are written (`persistsNavState` false); app-tier prefs are byte-identical whether archives hold tabs or not. |
 | Notifications / background audio | Only the active tab runs JS; a parked tab cannot fire a notification or play. Retention tiers unchanged. |
 | Memory pressure / LRU cap | Unchanged: the unit is the site's one webview. A parked tab is never in memory. |

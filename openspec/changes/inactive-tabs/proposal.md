@@ -35,6 +35,9 @@ costs a second renderer.
 - The **tree**: a per-site Tabs sheet (app bar square with the count, tap on
   the active site's chip) and the same tree under each site in the drawer;
   collapse, close, close subtree; closing a tab re-parents its children.
+- A site has tabs or runs as an app: a per-site Tabs switch, on by default,
+  is in effect only while Kiosk mode and Full screen mode are off, and turning
+  it on turns both off (TAB-013).
 - The per-site feature audit (ARCH-006 shape) for tabs: incognito tabs never
   reach disk, Always open Home reverts only the active tab, kiosk hides the
   tab UI, archive-tier tabs live under the archive key, the QR share never
@@ -67,9 +70,11 @@ LIR-018 to LIR-027 land after the tab model above (`tasks.md`). TAB-001, TAB-002
 
 ## Status
 
-The tab model (TAB-001 to TAB-012) is implemented and experimental: it needs
+The tab model (TAB-001 to TAB-013) is implemented and experimental: it needs
 developer mode and the Experimental group's Site tabs switch, which is off by
-default (TAB-012, DEVTOOLS-011). Hosted tabs and reattach
+default (TAB-012, DEVTOOLS-011). Inside that gate each site has its own Tabs
+switch, on by default and off in effect for kiosk and full-screen sites
+(TAB-013). Hosted tabs and reattach
 (LIR-018 to LIR-027) are specified and not implemented; `tasks.md` tracks them.
 The flow is also captured in a clickable prototype (a static HTML simulator of
 the phone, the site strip, the drawer tree, the Tabs sheet, the link menu, a
@@ -93,6 +98,7 @@ memory panel with OS-pressure and relaunch buttons, and an engine log).
   child-tab close rule.
 - `lazy-webview-loading`: the `IndexedStack` child for a site is additionally
   keyed by its active tab so a switch remounts the webview.
+- `site-behaviour`: the Tabs switch below Full screen mode (BEHAV-005).
 - `always-open-home`, `incognito-mode`, `kiosk-mode`, `archive`,
   `site-settings-qr`, `settings-backup`: one scenario each for what a tab does
   under that feature (see the audit table in `design.md`).

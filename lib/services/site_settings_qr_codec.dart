@@ -42,6 +42,7 @@ class SiteSettingsQrCodec {
     'incognito',
     'alwaysOpenHome',
     'kioskMode',
+    'tabsEnabled',
     'language',
     'zoomPercent',
     'clearUrlEnabled',

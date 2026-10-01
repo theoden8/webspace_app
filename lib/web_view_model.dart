@@ -514,6 +514,17 @@ class WebViewModel {
       tabs.single.id == kPrimaryTabId &&
       tabs.single.parentId == null;
 
+  /// The user's per-site Tabs choice (TAB-013). Read [effectiveTabsEnabled]
+  /// instead: a kiosk or full-screen site runs as one page whatever this
+  /// stores, and the stored value comes back when both are turned off.
+  bool tabsEnabled;
+
+  /// A site runs either as an app (kiosk, full screen) or with tabs, never
+  /// both (TAB-013). Turning tabs off this way keeps the tab list, as the
+  /// app-wide switch does (TAB-012).
+  bool get effectiveTabsEnabled =>
+      tabsEnabled && !kioskMode && !fullscreenMode;
+
   String name; // Custom name for the site
   List<Cookie> cookies;
   Widget? webview;
@@ -1098,6 +1109,7 @@ class WebViewModel {
     this.incognito = false,
     this.alwaysOpenHome = false,
     this.kioskMode = false,
+    this.tabsEnabled = true,
     this.language,
     this.zoomPercent = kDefaultZoomPercent,
     this.clearUrlEnabled = true,
@@ -2656,6 +2668,7 @@ class WebViewModel {
         'incognito': incognito,
         'alwaysOpenHome': alwaysOpenHome,
         'kioskMode': kioskMode,
+        if (!tabsEnabled) 'tabsEnabled': false,
         'language': language,
         if (zoomPercent != kDefaultZoomPercent) 'zoomPercent': zoomPercent,
         'clearUrlEnabled': clearUrlEnabled,
@@ -2803,6 +2816,7 @@ class WebViewModel {
       incognito: isIncognito,
       alwaysOpenHome: isAlwaysOpenHome,
       kioskMode: field<bool>('kioskMode') ?? false,
+      tabsEnabled: field<bool>('tabsEnabled') ?? true,
       language: sanitizedLanguageTag(json['language']),
       zoomPercent: clampZoomPercent(
           finite('zoomPercent')?.toInt() ?? kDefaultZoomPercent),

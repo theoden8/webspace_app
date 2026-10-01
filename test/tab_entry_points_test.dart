@@ -29,7 +29,8 @@ void main() {
   test('a long press on either refresh button duplicates the tab', () {
     final refresh = RegExp(
       r'tooltip: loading \? loc\.homeStopTooltip : loc\.homeRefreshTooltip,\s*'
-      r'onLongPress: _tabsEnabled\s*\?\s*\(\) \{[^}]*_duplicateTab\(',
+      r'onLongPress: _tabsEnabledAt\(_currentIndex\)\s*\?\s*\(\) \{[^}]*'
+      r'_duplicateTab\(',
     );
     expect(refresh.allMatches(source).length, 2);
   });
@@ -47,7 +48,7 @@ void main() {
     expect(body.contains('TabLifecycleEngine.insertAfter('), isTrue);
   });
 
-  group('TAB-012: tabs are experimental', () {
+  group('TAB-012 / TAB-013: tabs are experimental and per site', () {
     String firstStatement(String signature) {
       final start = source.indexOf(signature);
       expect(start, isNot(-1), reason: '$signature not found');
@@ -55,39 +56,65 @@ void main() {
       return source.substring(open + 1, source.indexOf(';', open));
     }
 
-    test('the gate is the Site tabs switch', () {
+    test('the gate is the Site tabs switch and the site\'s own Tabs', () {
       expect(
-        RegExp(r'bool get _tabsEnabled => ExperimentalFeaturesService\.instance'
-                r'\s*\.isEnabled\(ExperimentalFeature\.siteTabs\);')
+        RegExp(r'bool get _tabsFeatureEnabled => ExperimentalFeaturesService'
+                r'\.instance\s*\.isEnabled\(ExperimentalFeature\.siteTabs\);')
+            .hasMatch(source),
+        isTrue,
+      );
+      expect(
+        RegExp(r'bool _tabsEnabledFor\(WebViewModel model\) =>\s*'
+                r'_tabsFeatureEnabled && model\.effectiveTabsEnabled;')
+            .hasMatch(source),
+        isTrue,
+        reason: 'a kiosk or full-screen site has no tabs',
+      );
+      expect(
+        RegExp(r'bool _tabsEnabledAt\(int\? index\) =>[^;]*'
+                r'_tabsEnabledFor\(_webViewModels\[index\]\);')
+            .hasMatch(source),
+        isTrue,
+      );
+      expect(RegExp(r'\b_tabsEnabled\b').hasMatch(source), isFalse,
+          reason: 'an app-wide gate would let a kiosk site reach its tabs');
+    });
+
+    test('every way into tabs returns first when they are off', () {
+      for (final (signature, gate) in [
+        ('Future<void> _newTab(', '!_tabsEnabledAt(index)'),
+        ('Future<void> _duplicateTab(', '!_tabsEnabledAt(index)'),
+        ('Future<bool> _closeChildTabOnBack(', '!_tabsEnabledAt(_currentIndex)'),
+        ('Future<void> _showTabsSheet(', '!_tabsEnabledAt(_currentIndex)'),
+        ('Future<void> _showLinkLongPressMenu(', '!_tabsEnabledAt(index)'),
+      ]) {
+        expect(firstStatement(signature), contains(gate),
+            reason: '$signature must return before doing anything while '
+                'the site it acts on has no tabs');
+      }
+    });
+
+    test('the tab list leaves out sites without tabs', () {
+      expect(
+        RegExp(r'List<TabsSheetSite> _tabsSheetSites\(\) => \[\s*'
+                r'for \(final i in _getFilteredSiteIndices\(\)\)\s*'
+                r'if \(_tabsEnabledAt\(i\)\)')
             .hasMatch(source),
         isTrue,
       );
     });
 
-    test('every way into tabs returns first when they are off', () {
-      for (final signature in [
-        'Future<void> _newTab(',
-        'Future<void> _duplicateTab(',
-        'Future<bool> _closeChildTabOnBack(',
-        'Future<void> _showTabsSheet(',
-        'Future<void> _showLinkLongPressMenu(',
-      ]) {
-        expect(firstStatement(signature), contains('!_tabsEnabled'),
-            reason: '$signature must return before doing anything while '
-                'tabs are off');
-      }
-    });
-
     test('nothing tab-shaped is drawn while they are off', () {
       expect(
-        RegExp(r'if \(currentModel != null && _tabsEnabled\)\s*'
-                r'_buildTabsButton\(')
+        RegExp(r'if \(currentModel != null && '
+                r'_tabsEnabledAt\(_currentIndex\)\)\s*_buildTabsButton\(')
             .hasMatch(source),
         isTrue,
         reason: 'the tab count in the app bar',
       );
       final rows = RegExp(
-        r'if \(_tabsEnabled\) \.\.\.\[\s*PopupMenuItem<String>\(\s*'
+        r'if \(_tabsEnabledAt\(_currentIndex\)\) \.\.\.\[\s*'
+        r'PopupMenuItem<String>\(\s*'
         r'value: "newTab",',
       );
       expect(rows.allMatches(source).length, 2,
@@ -99,7 +126,8 @@ void main() {
       for (final m in pills) {
         final before = source.substring(0, m.start);
         final guard = before.substring(before.lastIndexOf('if ('));
-        expect(guard, startsWith('if (_tabsEnabled && '));
+        expect(guard,
+            matches(RegExp(r'^if \(_tabsEnabled(At\(index\)|For\(siteModel\)) && ')));
       }
     });
   });
