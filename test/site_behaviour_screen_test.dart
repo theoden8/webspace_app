@@ -96,12 +96,13 @@ void main() {
       }
     });
 
-    test('kiosk and full screen turn tabs off without overwriting them', () {
+    test('kiosk turns tabs off without overwriting them, full screen does '
+        'not', () {
       expect(_values().effectiveTabsEnabled, isTrue);
       expect(_values(kioskMode: true).effectiveTabsEnabled, isFalse);
-      expect(_values(fullscreenMode: true).effectiveTabsEnabled, isFalse);
+      expect(_values(kioskMode: true).tabsEnabled, isTrue);
+      expect(_values(fullscreenMode: true).effectiveTabsEnabled, isTrue);
       expect(_values(tabsEnabled: false).effectiveTabsEnabled, isFalse);
-      expect(_values(fullscreenMode: true).tabsEnabled, isTrue);
     });
 
     test('incognito forces Always open Home without overwriting it', () {
@@ -233,7 +234,7 @@ void main() {
       expect(_switchTitled(tester, 'Tabs').value, isTrue);
     });
 
-    testWidgets('turning tabs on turns kiosk and full screen off',
+    testWidgets('turning tabs on turns kiosk off and leaves full screen',
         (tester) async {
       SiteBehaviourValues? seen;
       await _pump(
@@ -247,14 +248,13 @@ void main() {
       await tester.pumpAndSettle();
       expect(seen!.tabsEnabled, isTrue);
       expect(seen!.kioskMode, isFalse);
-      expect(seen!.fullscreenMode, isFalse);
+      expect(seen!.fullscreenMode, isTrue);
       expect(_switchTitled(tester, 'Tabs').value, isTrue);
       expect(_switchTitled(tester, 'Kiosk mode').value, isFalse);
-      expect(_switchTitled(tester, 'Full screen mode').value, isFalse);
+      expect(_switchTitled(tester, 'Full screen mode').value, isTrue);
     });
 
-    testWidgets('full screen shows tabs off and gives them back',
-        (tester) async {
+    testWidgets('kiosk shows tabs off and gives them back', (tester) async {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
@@ -262,10 +262,17 @@ void main() {
         tabsAvailable: true,
         onChanged: (v) => seen = v,
       );
-      await tester.tap(find.text('Full screen mode'));
+      await tester.tap(find.text('Kiosk mode'));
       await tester.pumpAndSettle();
       expect(_switchTitled(tester, 'Tabs').value, isFalse);
       expect(seen!.tabsEnabled, isTrue, reason: 'the stored choice is kept');
+      await tester.tap(find.text('Kiosk mode'));
+      await tester.pumpAndSettle();
+      expect(_switchTitled(tester, 'Tabs').value, isTrue);
+    });
+
+    testWidgets('full screen leaves tabs on', (tester) async {
+      await _pump(tester, values: _values(), tabsAvailable: true);
       await tester.tap(find.text('Full screen mode'));
       await tester.pumpAndSettle();
       expect(_switchTitled(tester, 'Tabs').value, isTrue);

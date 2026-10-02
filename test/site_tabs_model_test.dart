@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -169,17 +171,6 @@ void main() {
       expect(back.currentUrl, 'https://en.wikipedia.org/');
     });
 
-    test('an always-open-home site serialises no tabs either', () {
-      final m = WebViewModel(initUrl: 'https://mastodon.social/');
-      m.alwaysOpenHome = true;
-      m.tabs = [...m.tabs, SiteTab(url: 'https://mastodon.social/@a/1')];
-      final json = m.toJson();
-      expect(json.containsKey('tabs'), isFalse);
-      final back = WebViewModel.fromJson(json, null);
-      expect(back.tabs, hasLength(1));
-      expect(back.currentUrl, 'https://mastodon.social/');
-    });
-
     test('a persisted tab list is ignored on rehydrate for an incognito site',
         () {
       // Defence in depth against JSON written by a build that did not strip.
@@ -197,5 +188,76 @@ void main() {
       expect(m.tabs, hasLength(1));
       expect(m.currentUrl, 'https://en.wikipedia.org/');
     });
+  });
+
+  group('TAB-014 — an always-open-home site lands at home on load', () {
+    tearDown(() {
+      DeveloperModeService.instance.debugSet(false);
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.siteTabs, false);
+    });
+
+    void tabsOn() {
+      DeveloperModeService.instance.debugSet(true);
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.siteTabs, true);
+    }
+
+    WebViewModel awayFromHome() {
+      final m = WebViewModel(initUrl: 'https://mastodon.social/');
+      m.alwaysOpenHome = true;
+      m.currentUrl = 'https://mastodon.social/@a/1';
+      m.tabs = [...m.tabs, SiteTab(url: 'https://mastodon.social/@b/2')];
+      return m;
+    }
+
+    test('its tabs reach disk, its currentUrl does not', () {
+      final json = awayFromHome().toJson();
+      expect(json['tabs'], hasLength(2));
+      expect(json.containsKey('currentUrl'), isFalse);
+      expect(json.containsKey('pageTitle'), isFalse);
+    });
+
+    test('with tabs it opens a new tab at home and keeps the others', () {
+      tabsOn();
+      final back = WebViewModel.fromJson(awayFromHome().toJson(), null);
+      expect(back.tabs, hasLength(3));
+      expect(back.currentUrl, 'https://mastodon.social/');
+      expect(back.activeTabId, isNot(kPrimaryTabId));
+      expect(back.tabs.map((t) => t.url), contains('https://mastodon.social/@a/1'));
+    });
+
+    test('with tabs, a site already at home opens no new tab', () {
+      tabsOn();
+      final m = awayFromHome()..currentUrl = 'https://mastodon.social';
+      final back = WebViewModel.fromJson(m.toJson(), null);
+      expect(back.tabs, hasLength(2));
+      expect(back.activeTabId, kPrimaryTabId);
+    });
+
+    test('reloading the landed site opens no second home tab', () {
+      tabsOn();
+      final once = WebViewModel.fromJson(awayFromHome().toJson(), null);
+      final twice = WebViewModel.fromJson(once.toJson(), null);
+      expect(twice.tabs, hasLength(3));
+      expect(twice.activeTabId, once.activeTabId);
+    });
+
+    test('without tabs the tab it was on is sent home, others are kept', () {
+      final back = WebViewModel.fromJson(awayFromHome().toJson(), null);
+      expect(back.tabs, hasLength(2));
+      expect(back.activeTabId, kPrimaryTabId);
+      expect(back.currentUrl, 'https://mastodon.social/');
+      expect(back.pageTitle, isNull);
+    });
+
+    test('a kiosk site has no tabs, so it is sent home in place', () {
+      tabsOn();
+      final m = awayFromHome()..kioskMode = true;
+      final back = WebViewModel.fromJson(m.toJson(), null);
+      expect(back.tabs, hasLength(2));
+      expect(back.currentUrl, 'https://mastodon.social/');
+    });
+
   });
 }

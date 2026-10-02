@@ -12,6 +12,7 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
@@ -515,15 +516,30 @@ class WebViewModel {
       tabs.single.parentId == null;
 
   /// The user's per-site Tabs choice (TAB-013). Read [effectiveTabsEnabled]
-  /// instead: a kiosk or full-screen site runs as one page whatever this
-  /// stores, and the stored value comes back when both are turned off.
+  /// instead: a kiosk site runs as one page whatever this stores, and the
+  /// stored value comes back when Kiosk mode is turned off.
   bool tabsEnabled;
 
-  /// A site runs either as an app (kiosk, full screen) or with tabs, never
-  /// both (TAB-013). Turning tabs off this way keeps the tab list, as the
-  /// app-wide switch does (TAB-012).
-  bool get effectiveTabsEnabled =>
-      tabsEnabled && !kioskMode && !fullscreenMode;
+  /// A kiosk site runs as one page, never with tabs (TAB-013). Turning tabs
+  /// off this way keeps the tab list, as the app-wide switch does (TAB-012).
+  bool get effectiveTabsEnabled => tabsEnabled && !kioskMode;
+
+  /// Put a site that has no webview yet on a tab at its home page, as Always
+  /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on
+  /// stays in the list; without, that tab is sent home, as before tabs.
+  void landAtHome({required bool tabsOn}) {
+    if (tabsOn) {
+      final landing =
+          TabLifecycleEngine.homeLanding(tabs, activeTabId, initUrl);
+      if (landing == null) return;
+      tabs = landing.tabs;
+      activeTabId = landing.activeTabId;
+      return;
+    }
+    if (currentUrl == initUrl) return;
+    currentUrl = initUrl;
+    pageTitle = null;
+  }
 
   String name; // Custom name for the site
   List<Cookie> cookies;
@@ -2640,16 +2656,16 @@ class WebViewModel {
     // session — issue #298) or alwaysOpenHome (URL-only ephemeral, cookies
     // persist) is set. Cookies are dropped only by incognito; alwaysOpenHome
     // banking-style sites keep their login state.
-    // The same flag drops the tab list, for the same reason it drops the one
-    // URL: a site whose navigation URL is not allowed to reach disk must not
-    // put five of them there instead. An incognito or always-home site comes
-    // back with a single tab at `initUrl` (TAB-009).
+    // Incognito also drops the tab list: nothing it visited may reach disk
+    // (TAB-009). Always open Home keeps it, because it lands a site on a tab at
+    // home without closing the others (TAB-014); `currentUrl` stays dropped so
+    // a build that predates tabs still opens the site at home.
     final dropUrl = incognito || alwaysOpenHome;
     return {
         'siteId': siteId,
         'initUrl': initUrl,
         if (!dropUrl) 'currentUrl': currentUrl,
-        if (!dropUrl && !tabsAreDefault)
+        if (!incognito && !tabsAreDefault)
           'tabs': [
             for (final t in tabs)
               {...t.toJson(), if (t.id == activeTabId) 'active': true},
@@ -2769,10 +2785,10 @@ class WebViewModel {
     // written by older builds that didn't strip on toJson.
     final dropUrl = isIncognito || isAlwaysOpenHome;
     final currentUrl = field<String>('currentUrl');
-    final rawTabs = dropUrl ? null : field<List<dynamic>>('tabs');
+    final rawTabs = isIncognito ? null : field<List<dynamic>>('tabs');
     final userAgent = field<String>('userAgent') ?? '';
     final proxy = json['proxySettings'];
-    return WebViewModel(
+    final model = WebViewModel(
       // Validate against path-safe format: a crafted backup could otherwise
       // set siteId to `../…` and escape the cache/import/storage keyspace.
       // null (missing or unsafe) auto-generates a fresh id.
@@ -2908,6 +2924,16 @@ class WebViewModel {
       stateSetterF: stateSetterF,
       isArchiveTier: isArchiveTier,
     )..pageTitle ??= dropUrl ? null : field<String>('pageTitle');
+    // Loading a site is a fresh entry to it, so an always-home site lands at
+    // home here (AOH-002, TAB-014), before anything can build its webview.
+    if (isAlwaysOpenHome && !isIncognito) {
+      model.landAtHome(
+        tabsOn: model.effectiveTabsEnabled &&
+            ExperimentalFeaturesService.instance
+                .isEnabled(ExperimentalFeature.siteTabs),
+      );
+    }
+    return model;
   }
 }
 

@@ -250,18 +250,18 @@ nobody trusts.
   new chrome. The drawer lays sites out as a grid of tiles, not rows, so the
   tree does not fit there; the "All sites" scope is the whole-app tree view.
 - A locked kiosk shell (KIOSK-002) hides the sheet and the link menu.
-- A site has tabs or runs as an app (TAB-013): a per-site `tabsEnabled`, on by
-  default, is in effect only while Kiosk mode and Full screen mode are off. The
-  gate is per site, so every surface above asks about the site it draws.
+- A kiosk site has no tabs (TAB-013): a per-site `tabsEnabled`, on by default,
+  is in effect only while Kiosk mode is off. The gate is per site, so every
+  surface above asks about the site it draws.
 
 ### D7. Per-site feature audit for tabs
 
 | Feature | Rule for tabs |
 |---|---|
 | Incognito (INC-002/003) | Tabs exist in memory only; no state bytes, `tabs` omitted from JSON. Relaunch keeps one home tab. |
-| Always open Home (AOH-001) | Drops the tab list on serialise, exactly as it drops `currentUrl`: the site comes back with one tab at `initUrl`. Keeping parked tabs would write a banking-style site's deep URLs into plaintext preferences, which is the thing the toggle exists to avoid. One rule, not two. |
+| Always open Home (AOH-001) | Drops `currentUrl` but keeps the tab list. A cold start or shortcut tap lands the site on a tab at home: the active one if it is there, else a parked one at home, else a new one; the tab it was on stays (TAB-014). Its tab URLs reach plaintext preferences like any other site's; incognito is the toggle for a site whose pages must not. |
 | Kiosk (KIOSK-002) | A kiosk site has no tabs, locked or not (TAB-013); its stored tabs are kept for when Kiosk mode is off. The locked shell also hides the Tabs sheet and the link menu for every site. |
-| Full screen mode (FS-003) | A site with Full screen mode on has no tabs (TAB-013), as for kiosk. Full screen entered from the menu or a shortcut launch is session state and leaves tabs alone. |
+| Full screen mode (FS-003) | Unchanged: full screen hides the shell, the site keeps its tabs. An offscreen site landed by a shortcut never changes the full-screen state (TAB-014). |
 | Archive tier (ARCH-001/006) | `tabs` ride the archive's encrypted state; no state bytes are written (`persistsNavState` false); app-tier prefs are byte-identical whether archives hold tabs or not. |
 | Notifications / background audio | Only the active tab runs JS; a parked tab cannot fire a notification or play. Retention tiers unchanged. |
 | Memory pressure / LRU cap | Unchanged: the unit is the site's one webview. A parked tab is never in memory. |
@@ -270,7 +270,7 @@ nobody trusts.
 | Site delete / `SiteTeardownEngine` | Removes every `webview_state/<siteId>.*.enc`. |
 | Nested screen (NESTED-010) | Unchanged. It is opened from the active tab and is not a tab. |
 | Legacy cookie engine (ISO-001) | Untouched: a tab switch never changes the site's domain, so no capture-nuke-restore runs. |
-| Home shortcut (HS-006) | Resets the active tab, as it resets `currentUrl` today. |
+| Home shortcut (HS-006) | A site with tabs lands by TAB-014: its last tab, or with Always open Home a tab at home. A site without tabs is reset in place, as before. |
 
 ## Hosted tabs and reattach (LIR-018 to LIR-027)
 
@@ -329,7 +329,7 @@ Any path that loads an owner URL into the owner's slot (home shortcut, the Alway
 
 The cost moves to the owner: deleting A no longer sweeps its hosted tabs' bytes by prefix, so the delete drops them explicitly (the engine returns the keys) and the startup orphan sweep, whose live set uses the same key function, is the backstop. `renameState(oldKey, newKey)` is still needed, but only when a moved tab's id collides in the destination tree, which is always the case for `kPrimaryTabId` (`main`), since every site's first tab has that id.
 
-**Record persistence** = the owner persists tabs (TAB-009: neither `incognito` nor `alwaysOpenHome`) and the host would persist its own URL (neither of the two either). Otherwise the tab lives for the session only. A host with Always open Home keeps its deep URLs off disk even inside another site's tree. **Bytes** are written only for a persisted record whose running identity has `persistsNavState`, so no file ever exists for a record that is never written.
+**Record persistence** = the owner persists tabs (TAB-009: not `incognito`). Otherwise the tab lives for the session only. A host is never incognito (D10), and Always open Home keeps a site's tab URLs on disk (TAB-014), so the host adds no condition. **Bytes** are written only for a persisted record whose running identity has `persistsNavState`, so no file ever exists for a record that is never written.
 
 Backup carries `hostSiteId` inside the tab record; state bytes and the QR share never carry tabs (TAB-009).
 
@@ -397,8 +397,8 @@ A saved state is a transcript of one identity's browsing: the back-forward list,
 |---|---|
 | Incognito owner | May own hosted tabs; records are session-only (TAB-009). |
 | Incognito host | Cannot host (D10). Turning incognito on closes its hosted tabs (D13). |
-| Always open Home owner | Tab list not persisted (TAB-009), hosted tabs included. Its reset binds an own tab first (D8). |
-| Always open Home host | May host; its hosted tabs are session-only (D12). |
+| Always open Home owner | Tab list persisted, hosted tabs included (TAB-009). Its landing binds an own tab first (D8, TAB-014). |
+| Always open Home host | May host; its hosted tabs persist with the owner's list (D12). |
 | Archive tier (ARCH-001/006) | Neither owns nor hosts. A move into an archive closes the relationships first. No new per-`siteId` residue. |
 | Kiosk (KIOSK-002) | Locked shell hides the tab UI, the link menu and Keep as tab. |
 | Notifications, background audio | Attribution follows the host; slot exemptions follow the owner. A parked tab runs no JS. |
