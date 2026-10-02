@@ -464,7 +464,7 @@
   "siteSettingsFullscreenHint": "ចូល full screen ស្វ័យប្រវត្តិពេលជ្រើសរើស site នេះ។ លាក់ app bar, tab strip, និង system UI ដើម្បីបទពិសោធន៍ immersive ។ ចុចបន្ទោបង្ហាញ ឬប្រើ back gesture ដើម្បីចេញ full screen។",
   "siteSettingsFullscreenSubtitle": "ចូល full screen ស្វ័យប្រវត្តិសម្រាប់ site នេះ",
   "siteSettingsTabs": "ផ្ទាំង",
-  "siteSettingsTabsHint": "អនុញ្ញាតឱ្យគេហទំព័រនេះបើកទំព័រច្រើនក្នុងពេលតែមួយ ដូចផ្ទាំងនៅក្នុងកម្មវិធីរុករក។ គេហទំព័រមួយដំណើរការជាមួយផ្ទាំង ឬជាកម្មវិធី៖ ការបើកផ្ទាំងនឹងបិទរបៀបឃីយ៉ុស្ក និងរបៀបពេញអេក្រង់ ហើយការបើករបៀបណាមួយក្នុងចំណោមនោះនឹងបិទផ្ទាំង។ ផ្ទាំងដែលបានបើករួចហើយត្រូវបានរក្សាទុក រហូតដល់ផ្ទាំងត្រូវបានបើកវិញ។",
+  "siteSettingsTabsHint": "អនុញ្ញាតឱ្យគេហទំព័រនេះបើកទំព័រច្រើនក្នុងពេលតែមួយ ដូចផ្ទាំងនៅក្នុងកម្មវិធីរុករក។ គេហទំព័រឃីយ៉ុស្កដំណើរការជាទំព័រតែមួយ ដូច្នេះការបើកផ្ទាំងនឹងបិទរបៀបឃីយ៉ុស្ក ហើយការបើករបៀបឃីយ៉ុស្កនឹងបិទផ្ទាំង។ នៅពេលបើក «បើកទំព័រដើមជានិច្ច» គេហទំព័របើកនៅក្នុងផ្ទាំងមួយនៅទំព័រដើមរបស់វា ហើយរក្សាផ្ទាំងផ្សេងទៀតរបស់អ្នក។ ផ្ទាំងដែលបានបើករួចហើយត្រូវបានរក្សាទុក ខណៈពេលដែលផ្ទាំងត្រូវបានបិទ។",
   "siteSettingsHtmlCaching": "HTML caching",
   "siteSettingsHtmlCachingHintTitle": "HTML Caching",
   "siteSettingsHtmlCachingHint": "Render site នេះពី snapshot HTML ដែលបាន cache សម្រាប់ការ paint ដំបូងភ្លាមៗ នៅ cold start ហើយប្ដូរទៅទំព័រ live ពេល cached parse settle ។\n\nបិទ (លំនាំដើម): cache ត្រូវបានពិគ្រោះតែពេល offline ដូច្នេះ cold start អ៊ីនធឺណែតចូលផ្ទាល់ live ហើយមិនដែលបង្ហាញមាតិកា stale ។ Snapshots ត្រូវបានរក្សាទុកក្នុង background ដូច្នេះ offline fallback ដំណើរការ launch ក្រោយ។\n\nបើក: ផ្លាស់ប្ដូរភ្ញែកតូចនៃមាតិកា stale ដើម្បី paint ដំបូងលឿននៅ cold start ។",
