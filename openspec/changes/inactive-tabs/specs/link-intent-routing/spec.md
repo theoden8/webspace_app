@@ -178,7 +178,7 @@ Keeping SHALL pop the nested screen, create a child of the tab the screen was op
 
 ### Requirement: LIR-022 - Hosted Tab Persistence And State Keys
 
-A hosted tab's record SHALL be persisted only when its owner persists its tab list (TAB-009) and its host would persist its own navigation URL (the host has neither `incognito` nor `alwaysOpenHome`). Otherwise the tab SHALL live for the session only, so a host's Always open Home keeps that host's deep URLs off disk even when another site owns the tab.
+A hosted tab's record SHALL be persisted only when its owner persists its tab list (TAB-009: the owner is not incognito). Otherwise the tab SHALL live for the session only. A host is never incognito (LIR-019), and its Always open Home keeps its tab URLs on disk as it does for its own tabs (TAB-009, TAB-014), so the host adds no condition.
 
 A tab's navigation-state key SHALL be `webViewStateKey(hostSiteId ?? ownerSiteId, tabId)`: bytes are keyed by the identity that produced them. Bytes SHALL be written only for a tab whose record is persisted and whose running identity has `persistsNavState`. Consequently:
 
@@ -202,12 +202,12 @@ Settings backup SHALL carry `hostSiteId` in the tab record and never state bytes
 - **THEN** that tab's bytes are gone
 - **AND** the tab itself stays in DuckDuckGo's tree with its URL
 
-#### Scenario: An Always open Home host keeps its URLs off disk
+#### Scenario: An incognito owner keeps hosted tabs off disk
 
-- **GIVEN** a banking site with Always open Home that hosts a tab owned by DuckDuckGo
+- **GIVEN** an incognito DuckDuckGo site that owns a tab hosted by GitHub
 - **WHEN** the app is killed and relaunched
-- **THEN** DuckDuckGo's persisted tab list does not contain that tab or its URL
-- **AND** no state file exists for it
+- **THEN** DuckDuckGo's persisted JSON carries no tab list
+- **AND** no state file exists for that tab
 
 #### Scenario: Deleting the owner leaves no hosted bytes behind
 

@@ -64,8 +64,7 @@ class SiteBehaviourValues {
   bool effectiveAlwaysOpenHome(bool incognito) => incognito || alwaysOpenHome;
 
   /// Mirrors `WebViewModel.effectiveTabsEnabled` (TAB-013).
-  bool get effectiveTabsEnabled =>
-      tabsEnabled && !kioskMode && !fullscreenMode;
+  bool get effectiveTabsEnabled => tabsEnabled && !kioskMode;
 
   /// Routing is an option of the in-app mode (LIR-014); mirrors
   /// `WebViewModel.effectiveRouteOutboundLinks`.
@@ -193,16 +192,14 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         onChanged: (value) => _update(_values.copyWith(fullscreenMode: value)),
       );
 
-  /// Either tabs or kiosk and full screen (TAB-013): turning tabs on turns
-  /// both off, and either of them on shows tabs off without forgetting the
-  /// stored choice.
+  /// Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode off,
+  /// and Kiosk mode on shows tabs off without forgetting the stored choice.
   Widget _tabs(AppLocalizations loc) => _tile(
         title: loc.siteSettingsTabs,
         hint: loc.siteSettingsTabsHint,
         value: _values.effectiveTabsEnabled,
         onChanged: (value) => _update(value
-            ? _values.copyWith(
-                tabsEnabled: true, kioskMode: false, fullscreenMode: false)
+            ? _values.copyWith(tabsEnabled: true, kioskMode: false)
             : _values.copyWith(tabsEnabled: false)),
       );
 

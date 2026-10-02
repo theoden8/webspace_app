@@ -307,6 +307,51 @@ class TabLifecycleEngine {
     if (!tabs.any((t) => t.id == parentId)) return TabBackAction.ignore;
     return TabBackAction.closeAndActivateParent;
   }
+
+  /// Whether [url] is the site's home page for TAB-014: [initUrl] up to an
+  /// https upgrade, host case, a trailing slash and the fragment, none of
+  /// which make it a different page.
+  static bool isHomeUrl(String url, String initUrl) {
+    final a = Uri.tryParse(url);
+    final b = Uri.tryParse(initUrl);
+    if (a == null || b == null) return url == initUrl;
+    String path(Uri u) {
+      final p = u.path;
+      if (p.isEmpty) return '/';
+      return p.length > 1 && p.endsWith('/') ? p.substring(0, p.length - 1) : p;
+    }
+
+    final schemes = {a.scheme.toLowerCase(), b.scheme.toLowerCase()};
+    final sameScheme = schemes.length == 1 ||
+        (schemes.length == 2 && schemes.containsAll(const ['http', 'https']));
+    return sameScheme &&
+        a.host.toLowerCase() == b.host.toLowerCase() &&
+        (a.hasPort ? a.port : null) == (b.hasPort ? b.port : null) &&
+        path(a) == path(b) &&
+        a.query == b.query;
+  }
+
+  /// Where a site with tabs lands when it is entered with Always open Home on
+  /// (TAB-014): a tab at its home page. Null when the active tab is already
+  /// there. Otherwise the most recently used parked tab at home, or failing
+  /// that a new root tab at [initUrl], appended. Either way the tab the site
+  /// was on is kept.
+  static ({List<SiteTab> tabs, String activeTabId})? homeLanding(
+    List<SiteTab> tabs,
+    String activeTabId,
+    String initUrl,
+  ) {
+    final active = tabs.where((t) => t.id == activeTabId).firstOrNull;
+    if (active != null && isHomeUrl(active.url, initUrl)) return null;
+    SiteTab? home;
+    for (final t in tabs) {
+      if (t.id == activeTabId || !isHomeUrl(t.url, initUrl)) continue;
+      if (home == null || t.lastActiveAt.isAfter(home.lastActiveAt)) home = t;
+    }
+    if (home != null) return (tabs: tabs, activeTabId: home.id);
+    final fresh = SiteTab(url: initUrl);
+    return (tabs: [...tabs, fresh], activeTabId: fresh.id);
+  }
 }
 
 extension _FirstOrNull<T> on Iterable<T> {

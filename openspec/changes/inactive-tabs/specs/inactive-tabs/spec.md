@@ -94,9 +94,11 @@ SHALL NOT change any site's active tab.
 ### Requirement: TAB-004 - Opening a site never creates a tab
 
 Tapping a site in the strip or drawer, a cold start, a home-shortcut tap and
-a share arrival SHALL resume the site's active tab and SHALL NOT create a tab.
-A tab SHALL be created only by "New tab" (TAB-005), "Open in new tab"
-(TAB-006) and "Duplicate tab" (TAB-010). Home (NAV-004) SHALL act on the active tab: `initUrl` with history
+a share arrival SHALL resume the site's active tab and SHALL NOT create a tab,
+except that a cold start or a home-shortcut tap lands a site with Always open
+Home on a tab at home (TAB-014). A tab SHALL be created only by "New tab"
+(TAB-005), "Open in new tab" (TAB-006), "Duplicate tab" (TAB-010) and that
+landing. Home (NAV-004) SHALL act on the active tab: `initUrl` with history
 cleared, no new tab.
 
 #### Scenario: Reopening a site resumes
@@ -253,14 +255,12 @@ kiosk shell (KIOSK-002) SHALL hide all of these.
 
 ### Requirement: TAB-009 - Tabs under per-site features
 
-Tabs SHALL follow the owning site's feature posture. The flag that drops a
-site's `currentUrl` from serialisation SHALL drop its tab list with it, for the
-same reason: a site whose one navigation URL is not allowed on disk must not
-put five of them there instead. So an incognito site's tabs never reach disk
-and it relaunches with one tab at `initUrl` (INC-002/003), and an Always open
-Home site does the same rather than keeping parked tabs — a deliberate
-narrowing of what that toggle preserves, taken because the alternative writes
-the deep URLs of a banking-style site into plaintext preferences (AOH-001). An
+Tabs SHALL follow the owning site's feature posture. Incognito drops a site's
+tab list from serialisation with its `currentUrl`: nothing it visited may reach
+disk, so it relaunches with one tab at `initUrl` (INC-002/003). Always open
+Home drops `currentUrl` but keeps the tab list, so the site lands on a tab at
+home without closing the others (TAB-014); its tab URLs reach plaintext
+preferences as any other site's do. An
 archive-tier site's
 tabs ride the archive's encrypted state with no state bytes on disk, and
 app-tier persistence is byte-identical whether or not archives hold tabs
@@ -277,10 +277,11 @@ app-tier persistence is byte-identical whether or not archives hold tabs
 
 #### Scenario: Always open Home relaunch
 
-- **GIVEN** a Mastodon site with Always open Home, active on a post, with one parked tab
+- **GIVEN** a Mastodon site with Always open Home and tabs, active on a post, with one parked tab
 - **WHEN** the app is cold-started
-- **THEN** Mastodon has one tab, showing `initUrl` with no history
-- **AND** neither the post nor the parked tab's URL appears in the persisted JSON
+- **THEN** Mastodon shows a new tab at `initUrl` with no history
+- **AND** the post and the parked tab are still listed
+- **AND** the persisted JSON carries the tab list but no site-level `currentUrl`
 
 ---
 
@@ -383,29 +384,26 @@ turning tabs back on shows them again.
 
 ---
 
-### Requirement: TAB-013 - A site has tabs or runs as an app
+### Requirement: TAB-013 - A kiosk site has no tabs
 
-Kiosk mode and Full screen mode make a site an app: one page, no browser
-chrome. Tabs make it a browser. A site SHALL be one or the other.
+Kiosk mode makes a site an app: one page, handed to someone through its
+shortcut. Tabs make it a browser. A site SHALL be one or the other. Full screen
+mode only hides the shell and SHALL NOT turn tabs off.
 
 Each site SHALL carry a `tabsEnabled` choice, on by default, written to the
 site's JSON only when off, and carried by settings backup and the site QR share
-like `kioskMode` and `fullscreenMode`. Tabs SHALL be in effect for a site only
-while TAB-012's gate is open, its `tabsEnabled` is on, and neither its
-`kioskMode` nor its `fullscreenMode` is on (`effectiveTabsEnabled`). While they
-are not in effect for a site, that site SHALL behave as TAB-012 describes for
-tabs off, every way into its tabs SHALL return before acting, and the tab
-list's "All sites" scope SHALL leave the site out. Other sites are unaffected.
-
-Full screen entered from the menu (FS-001) or by a shortcut launch (FS-008) is
-a state of the session, not the site's mode, and SHALL NOT turn tabs off.
+like `kioskMode`. Tabs SHALL be in effect for a site only while TAB-012's gate
+is open, its `tabsEnabled` is on, and its `kioskMode` is off
+(`effectiveTabsEnabled`). While they are not in effect for a site, that site
+SHALL behave as TAB-012 describes for tabs off, every way into its tabs SHALL
+return before acting, and the tab list's "All sites" scope SHALL leave the site
+out. Other sites are unaffected.
 
 The Behaviour screen (BEHAV-005) SHALL show the effective value. Turning Tabs
-on SHALL turn Kiosk mode and Full screen mode off. Turning either of those on
-SHALL show Tabs off without changing the stored `tabsEnabled`, so turning it
-back off restores tabs. Turning Tabs off SHALL leave Kiosk mode and Full screen
-mode as they are. No way of turning a site's tabs off SHALL delete or rewrite
-them (TAB-012).
+on SHALL turn Kiosk mode off. Turning Kiosk mode on SHALL show Tabs off without
+changing the stored `tabsEnabled`, so turning it back off restores tabs.
+Turning Tabs off SHALL leave Kiosk mode as it is. No way of turning a site's
+tabs off SHALL delete or rewrite them (TAB-012).
 
 #### Scenario: A new site has tabs
 
@@ -413,22 +411,80 @@ them (TAB-012).
 - **WHEN** the user adds a site
 - **THEN** its Tabs switch is on and the app bar shows its tab count
 
-#### Scenario: A full-screen site has no tabs
+#### Scenario: A kiosk site has no tabs
 
 - **GIVEN** developer mode and the Site tabs switch are on
-- **AND** GitHub has three tabs and Full screen mode on, and Mastodon has two tabs
+- **AND** GitHub has three tabs and Kiosk mode on, and Mastodon has two tabs
+- **WHEN** WebSpace is opened normally and GitHub is shown
 - **THEN** GitHub shows no tab count, no "New tab", no count pill, and a long press on a link opens no menu
 - **AND** Mastodon's "All sites" tab list does not list GitHub
 - **AND** Mastodon's tabs work as before
 
-#### Scenario: Turning tabs on turns the app modes off
+#### Scenario: Turning tabs on turns kiosk off
 
 - **GIVEN** a site with Kiosk mode and Full screen mode on
 - **WHEN** the user turns Tabs on in its Behaviour screen
-- **THEN** Kiosk mode and Full screen mode are off
+- **THEN** Kiosk mode is off and Full screen mode is still on
 
-#### Scenario: Leaving full screen mode gives tabs back
+#### Scenario: Leaving kiosk mode gives tabs back
 
-- **GIVEN** a site with four tabs, Tabs on, and Full screen mode turned on
-- **WHEN** the user turns Full screen mode off
+- **GIVEN** a site with four tabs, Tabs on, and Kiosk mode turned on
+- **WHEN** the user turns Kiosk mode off
 - **THEN** Tabs reads on and all four tabs are listed again
+
+#### Scenario: A full-screen site keeps its tabs
+
+- **GIVEN** developer mode and the Site tabs switch are on
+- **AND** a site with two tabs and Full screen mode on
+- **THEN** its Tabs switch reads on and its tabs are listed
+
+---
+
+### Requirement: TAB-014 - Where a site with tabs lands
+
+A cold start and a home-shortcut tap, warm or cold, are fresh entries to a
+site. For a site whose tabs are in effect (TAB-013), Always open Home SHALL
+decide where it lands:
+
+- **Off**: on the tab it was on, with that tab's history. A cold shortcut
+  launch SHALL NOT send it home as HS-006 does for a site without tabs.
+- **On** (incognito implies it, AOH-005): on a tab at home. When the active tab
+  is at `initUrl` the site SHALL stay on it and SHALL NOT open a tab. Otherwise
+  it SHALL switch to the most recently used parked tab at `initUrl`, or when
+  there is none open a new root tab there. The tab it was on SHALL be parked
+  with its state, as for "New tab" (TAB-005), never closed or sent home.
+
+A URL is at `initUrl` when it differs only by an http to https upgrade, host
+case, a trailing slash or a fragment. The same rule SHALL apply to every flagged
+site AOH-004 resets on a shortcut tap, and an offscreen site landed this way
+SHALL NOT change whether the app is in full screen. A cold start lands an Always
+open Home site when it is loaded, before any webview exists (AOH-002). A site
+whose tabs are not in effect keeps HS-006 and AOH-001 to AOH-004 as written:
+its active tab is sent home in place.
+
+#### Scenario: A shortcut resumes the last tab
+
+- **GIVEN** a GitHub site with tabs and Always open Home off, last on a pull request
+- **WHEN** the app is cold-launched from GitHub's shortcut
+- **THEN** GitHub shows the pull request with its history
+- **AND** no tab is created
+
+#### Scenario: Always open Home opens a tab at home
+
+- **GIVEN** a bank site with tabs and Always open Home on, last on an account page
+- **WHEN** the user taps its shortcut while the app is running
+- **THEN** the bank shows a new tab at `initUrl`
+- **AND** the account page is still listed as a parked tab with its history
+
+#### Scenario: Already home
+
+- **GIVEN** a bank site with tabs and Always open Home on, whose active tab is at `https://bank.example` and whose `initUrl` is `https://bank.example/`
+- **WHEN** the app is cold-started
+- **THEN** the bank stays on that tab and its tab count is unchanged
+
+#### Scenario: A home tab is reused
+
+- **GIVEN** a bank site with Always open Home on, active on an account page, with a parked tab at `initUrl`
+- **WHEN** the user taps its shortcut
+- **THEN** the parked home tab becomes active and no tab is created
+

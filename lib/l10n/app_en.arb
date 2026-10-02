@@ -2317,9 +2317,9 @@
   "@siteSettingsTabs": {
     "description": "Switch label in a site's Behaviour settings: whether this site can keep several pages open at once, like browser tabs."
   },
-  "siteSettingsTabsHint": "Lets this site keep several pages open at once, like browser tabs. A site runs either with tabs or as an app: turning tabs on turns off Kiosk mode and Full screen mode, and turning either of those on turns tabs off. Tabs already open are kept for when tabs are back on.",
+  "siteSettingsTabsHint": "Lets this site keep several pages open at once, like browser tabs. A kiosk site runs as one page, so turning tabs on turns Kiosk mode off, and turning Kiosk mode on turns tabs off. With Always open Home on, the site opens on a tab at its home page and keeps your other tabs. Tabs already open are kept while tabs are off.",
   "@siteSettingsTabsHint": {
-    "description": "Hint dialog body for the per-site Tabs switch, opened from its info button. Explains that tabs let the site keep several pages open, that tabs and Kiosk mode / Full screen mode exclude each other (turning one on turns the other off), and that existing tabs are kept while tabs are off. 'Kiosk mode' and 'Full screen mode' are the names of the two switches just above it."
+    "description": "Hint dialog body for the per-site Tabs switch, opened from its info button. Explains that tabs let the site keep several pages open, that tabs and Kiosk mode exclude each other (turning one on turns the other off), that with Always open Home on the site opens on a tab at its home page and keeps the other tabs, and that existing tabs are kept while tabs are off. 'Kiosk mode' and 'Always open Home' are the names of two switches on the same screen."
   },
   "siteSettingsHtmlCaching": "HTML caching",
   "@siteSettingsHtmlCaching": {

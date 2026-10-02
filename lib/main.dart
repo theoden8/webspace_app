@@ -2386,7 +2386,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     // KIOSK-001: re-derive the lock from the tapped target. A kiosk site locks
     // the shell; a non-kiosk site clears a lock left by a prior kiosk launch.
     _kioskLocked = _webViewModels[index].kioskMode;
-    _resetAlwaysOpenHomeOnShortcut(index);
+    await _resetAlwaysOpenHomeOnShortcut(index);
+    if (!mounted) return;
     if (index != _currentIndex) {
       await _setCurrentIndex(index);
       if (!mounted) return;
@@ -2430,7 +2431,9 @@ class _WebSpacePageState extends State<WebSpacePage>
         );
         if (ok != true || !mounted) return;
         await _rememberShortcutRemap(resolution.shortcutSiteId, model.siteId);
-        if (coldLaunch && model.currentUrl != model.initUrl) {
+        if (coldLaunch &&
+            !_tabsEnabledAt(resolution.index) &&
+            model.currentUrl != model.initUrl) {
           model.currentUrl = model.initUrl;
         }
         await _openShortcutIndex(resolution.index);
@@ -5433,7 +5436,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       final m = _webViewModels[indexToRestore];
       // KIOSK-001: a cold launch via a kiosk site's shortcut locks the shell.
       _kioskLocked = m.kioskMode;
-      if (m.currentUrl != m.initUrl) {
+      // A site with tabs lands by TAB-014 instead: on the tab it was on, or
+      // with Always open Home on a tab at home, which loading it arranged.
+      if (!_tabsEnabledAt(indexToRestore) && m.currentUrl != m.initUrl) {
         m.currentUrl = m.initUrl;
       }
       // Webspace-scoped reset: every flagged sibling in a webspace that
@@ -5441,7 +5446,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       // no-op on cold launch (fromJson already stripped currentUrl for
       // flagged sites) but kept here for defense in depth and parity
       // with the warm-launch path in `_handleShortcutIntent`.
-      _resetAlwaysOpenHomeOnShortcut(indexToRestore);
+      await _resetAlwaysOpenHomeOnShortcut(indexToRestore);
+      if (!mounted) return;
     }
 
     // Notification sites auto-load so they poll and fire notifications without
@@ -7355,7 +7361,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// sites already had `currentUrl` dropped during `fromJson`, so the
   /// pass is mostly a no-op there; on warm launch it is the only thing
   /// that resets siblings.
-  void _resetAlwaysOpenHomeOnShortcut(int launchedIndex) {
+  ///
+  /// A site with tabs is not sent home in place: it lands on a tab at home,
+  /// and the tab it was on stays in its list (TAB-014).
+  Future<void> _resetAlwaysOpenHomeOnShortcut(int launchedIndex) async {
     final indices = WebspaceSelectionEngine.indicesToResetOnShortcutLaunch(
       launchedIndex: launchedIndex,
       webspaces: _webspaces,
@@ -7365,8 +7374,13 @@ class _WebSpacePageState extends State<WebSpacePage>
         return m.alwaysOpenHome || m.incognito;
       },
     );
+    final withTabs = [
+      for (final i in indices)
+        if (_tabsEnabledAt(i)) _webViewModels[i],
+    ];
     for (final i in indices) {
       final m = _webViewModels[i];
+      if (withTabs.contains(m)) continue;
       if (m.currentUrl == m.initUrl && m.webview == null) continue;
       _evictCacheIfOnline(m.siteId);
       m.currentUrl = m.initUrl;
@@ -7380,6 +7394,41 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (i != _currentIndex) {
         _loadedIndices.remove(i);
       }
+    }
+    for (final m in withTabs) {
+      if (!mounted) return;
+      await _landOnHomeTab(m);
+    }
+  }
+
+  /// Land a site with tabs on a tab at its home page (TAB-014): the one it is
+  /// on when that is home, else a parked tab at home, else a new one. The tab
+  /// it leaves parks with its back stack, as for New tab.
+  Future<void> _landOnHomeTab(WebViewModel model) async {
+    final landing = TabLifecycleEngine.homeLanding(
+        model.tabs, model.activeTabId, model.initUrl);
+    if (landing == null) return;
+    if (_isTabHandling) {
+      LogService.instance.log(
+        'Tabs',
+        'Home landing for "${model.name}" skipped: a tab change is running',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return;
+    }
+    _isTabHandling = true;
+    try {
+      final index = _webViewModels.indexOf(model);
+      if (index < 0) return;
+      model.tabs = landing.tabs;
+      if (index == _currentIndex || _loadedIndices.contains(index)) {
+        await _switchActiveTab(model, landing.activeTabId);
+        return;
+      }
+      model.activeTabId = landing.activeTabId;
+      model.activeTab.lastActiveAt = DateTime.now();
+    } finally {
+      _isTabHandling = false;
     }
   }
 
@@ -7443,7 +7492,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     if (!mounted) return;
     setState(() {});
-    if (model.fullscreenMode) _enterFullscreen();
+    // Only the site on screen owns the shell. An offscreen switch (a shortcut
+    // landing a sibling at home) must not take the app into full screen.
+    if (model.fullscreenMode &&
+        _webViewModels.indexOf(model) == _currentIndex) {
+      _enterFullscreen();
+    }
     LogService.instance.log(
       'Tabs',
       'Bound "${model.name}" to tab $targetTabId (${model.tabs.length} tabs)',

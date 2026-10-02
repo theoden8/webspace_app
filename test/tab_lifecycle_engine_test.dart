@@ -253,4 +253,57 @@ void main() {
       expect(TabLifecycleEngine.descendants(tabs, 'e'), isEmpty);
     });
   });
+
+  group('home landing (TAB-014)', () {
+    const home = 'https://bank.test/';
+
+    test('the home page matches up to scheme upgrade, case, slash, fragment',
+        () {
+      for (final url in [
+        'https://bank.test/',
+        'https://bank.test',
+        'http://bank.test/',
+        'https://BANK.test/#top',
+      ]) {
+        expect(TabLifecycleEngine.isHomeUrl(url, home), isTrue, reason: url);
+      }
+      for (final url in [
+        'https://bank.test/account',
+        'https://bank.test/?next=1',
+        'https://other.test/',
+        'https://bank.test:8443/',
+        'ftp://bank.test/',
+      ]) {
+        expect(TabLifecycleEngine.isHomeUrl(url, home), isFalse, reason: url);
+      }
+    });
+
+    test('a site already at home stays on its tab', () {
+      final tabs = [tab('a', url: 'https://bank.test')];
+      expect(TabLifecycleEngine.homeLanding(tabs, 'a', home), isNull);
+    });
+
+    test('a site away from home gets a new root tab there, keeping its own',
+        () {
+      final tabs = [tab('a', url: 'https://bank.test/account/1')];
+      final r = TabLifecycleEngine.homeLanding(tabs, 'a', home)!;
+      expect(r.tabs, hasLength(2));
+      expect(r.tabs.first.url, 'https://bank.test/account/1');
+      final landed = r.tabs.firstWhere((t) => t.id == r.activeTabId);
+      expect(landed.url, home);
+      expect(landed.parentId, isNull);
+      expect(landed.id, isNot('a'));
+    });
+
+    test('a parked tab already at home is reused rather than duplicated', () {
+      final tabs = [
+        tab('old', url: home, activeAt: 1),
+        tab('a', url: 'https://bank.test/account/1', activeAt: 3),
+        tab('recent', url: 'https://bank.test/', activeAt: 2),
+      ];
+      final r = TabLifecycleEngine.homeLanding(tabs, 'a', home)!;
+      expect(ids(r.tabs), ['old', 'a', 'recent']);
+      expect(r.activeTabId, 'recent');
+    });
+  });
 }

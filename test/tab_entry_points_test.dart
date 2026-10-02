@@ -131,4 +131,35 @@ void main() {
       }
     });
   });
+
+  group('TAB-014: shortcut and reopen land a site with tabs', () {
+    String body(String signature) {
+      final start = source.indexOf(signature);
+      expect(start, isNot(-1), reason: '$signature not found');
+      return source.substring(start, source.indexOf('\n  }\n', start));
+    }
+
+    test('an always-home site with tabs lands on a home tab, not in place', () {
+      final reset = body('Future<void> _resetAlwaysOpenHomeOnShortcut(');
+      expect(reset, contains('if (_tabsEnabledAt(i)) _webViewModels[i]'));
+      expect(reset, contains('await _landOnHomeTab(m);'));
+      expect(body('Future<void> _landOnHomeTab('),
+          contains('TabLifecycleEngine.homeLanding('));
+    });
+
+    test('a cold shortcut launch leaves a site with tabs on its last tab', () {
+      // HS-006 sends the launched site home; with tabs, TAB-014 decides.
+      expect(
+        RegExp(r'if \(!_tabsEnabledAt\(indexToRestore\) && '
+                r'm\.currentUrl != m\.initUrl\)')
+            .hasMatch(source),
+        isTrue,
+      );
+      expect(
+        RegExp(r'coldLaunch &&\s*!_tabsEnabledAt\(resolution\.index\) &&')
+            .hasMatch(source),
+        isTrue,
+      );
+    });
+  });
 }

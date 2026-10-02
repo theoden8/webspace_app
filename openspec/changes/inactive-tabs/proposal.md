@@ -35,12 +35,14 @@ costs a second renderer.
 - The **tree**: a per-site Tabs sheet (app bar square with the count, tap on
   the active site's chip) and the same tree under each site in the drawer;
   collapse, close, close subtree; closing a tab re-parents its children.
-- A site has tabs or runs as an app: a per-site Tabs switch, on by default,
-  is in effect only while Kiosk mode and Full screen mode are off, and turning
-  it on turns both off (TAB-013).
+- A kiosk site has no tabs: a per-site Tabs switch, on by default, is in
+  effect only while Kiosk mode is off, and turning it on turns Kiosk mode off
+  (TAB-013).
+- A cold start or shortcut tap lands a site with tabs on its last tab, or with
+  Always open Home on a tab at home, keeping the others (TAB-014).
 - The per-site feature audit (ARCH-006 shape) for tabs: incognito tabs never
-  reach disk, Always open Home reverts only the active tab, kiosk hides the
-  tab UI, archive-tier tabs live under the archive key, the QR share never
+  reach disk, Always open Home lands on a tab at home and keeps the rest, kiosk
+  sites have no tabs, archive-tier tabs live under the archive key, the QR share never
   carries tabs, memory pressure and the LRU cap keep the site as their unit.
 
 ## Hosted tabs and reattach (specified, not implemented yet)
@@ -70,11 +72,10 @@ LIR-018 to LIR-027 land after the tab model above (`tasks.md`). TAB-001, TAB-002
 
 ## Status
 
-The tab model (TAB-001 to TAB-013) is implemented and experimental: it needs
+The tab model (TAB-001 to TAB-014) is implemented and experimental: it needs
 developer mode and the Experimental group's Site tabs switch, which is off by
 default (TAB-012, DEVTOOLS-011). Inside that gate each site has its own Tabs
-switch, on by default and off in effect for kiosk and full-screen sites
-(TAB-013). Hosted tabs and reattach
+switch, on by default and off in effect for kiosk sites (TAB-013). Hosted tabs and reattach
 (LIR-018 to LIR-027) are specified and not implemented; `tasks.md` tracks them.
 The flow is also captured in a clickable prototype (a static HTML simulator of
 the phone, the site strip, the drawer tree, the Tabs sheet, the link menu, a
