@@ -351,4 +351,33 @@ void main() {
     gate.end('tab1:1');
     expect(gate.begin('tab2:1'), isTrue);
   });
+
+  group('access per host (PASSKEY-001, PASSKEY-013)', () {
+    bool onScreen() => true;
+
+    test('Android asks Credential Manager through the bridge', () {
+      final access = PasskeyAccess.forHost(
+          enabled: true, isOnScreen: onScreen, android: true, apple: false);
+      expect(access?.backend, PasskeyBackend.credentialManager);
+    });
+
+    test('iOS and macOS leave WebAuthn to WebKit', () {
+      final access = PasskeyAccess.forHost(
+          enabled: true, isOnScreen: onScreen, android: false, apple: true);
+      expect(access?.backend, PasskeyBackend.webView);
+    });
+
+    test('off, or a host with neither, is no access', () {
+      for (final (android, apple) in [(true, false), (false, true), (false, false)]) {
+        expect(
+            PasskeyAccess.forHost(
+                enabled: false, isOnScreen: onScreen, android: android, apple: apple),
+            isNull);
+      }
+      expect(
+          PasskeyAccess.forHost(
+              enabled: true, isOnScreen: onScreen, android: false, apple: false),
+          isNull);
+    });
+  });
 }
