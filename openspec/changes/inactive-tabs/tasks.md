@@ -64,6 +64,10 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 - [ ] 8.5 Widget tests in `test/tabs_sheet_test.dart`: menu visibility per engine and kiosk, picker contents, the moved subtree greyed, refusal messages.
 - [x] 8.6 All sites view: drag a site's heading onto another to reorder sites (TAB-016) through the drawer's `_reorderSite`; the host hands the sheet its sites afresh.
 
+- [x] 8.7 This site view: the subtrees other sites' trees run as the site, under "In {site}" (TAB-017), not draggable from there; collapse kept per site and tab.
+- [x] 8.8 Container colours (TAB-018): `ContainerColors` tokens, `ContainerColorEngine` (least used, kept, app tier only), `ContainerMark` on every row and All sites heading, the dot in site info.
+- [x] 8.9 Tests: `subtreesRunningAs` and `ContainerColorEngine` in `test/link_tab_container_test.dart`, the palette in `test/design_tokens_validity_test.dart`, the sheet in `test/tabs_sheet_test.dart`.
+
 ## 9. Hosted tabs and reattach: manual smoke
 
 - [ ] 9.1 Android and iOS: long-press a GitHub result in DuckDuckGo, "Open in new tab as GitHub", switch to it: signed in; back at its start returns to the results tab.

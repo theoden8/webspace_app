@@ -42,6 +42,15 @@
 - [x] 6.5 Site info: `siteInfoContainerOf`, Tab of, Opened from.
 - [x] 6.6 Tests: the `routeToTab` group, `test/link_as_tab_entry_test.dart`, `test/site_info_sheet_test.dart`.
 
+## 6a. Link tabs follow their opener (LIR-034)
+
+- [x] 6a.1 `SiteTab.openerSiteId` and `homeUrl`, sanitised on read; `routeToTab` takes the source's `routeOutboundLinks`; `linkTabRunsAs` for a stored tab.
+- [x] 6a.2 Foreign tabs: `isForeignTab`, `navigationHomeUrl`, `navigationMatchesClaim`, `decideUserOpenedLink` anchored at the tab's home; `ownerRunTab` skips them; Home, the URL bar, web search scope and the long-press row read the tab's anchor.
+- [x] 6a.3 `_reconcileLinkTabs` after site settings, at startup and after an import, deferred through `TabHandlingGate` while a tab handler runs; the capture keeps the key it started under.
+- [x] 6a.4 The route hint names the container with tabs on (`siteSettingsRouteOutboundLinksTabsHint`).
+- [x] 6a.5 Tests: the `linkTabRunsAs` matrix, `test/link_tab_container_test.dart`, `test/tab_handling_gate_test.dart`, `test/link_tab_reconcile_entry_test.dart`.
+- [ ] 6a.6 Manual, Site tabs on: a `github.com` result from DuckDuckGo with routing on runs signed in; turn routing off, close settings: it reloads signed out; Home stays on `github.com`.
+
 ## 7. Strings
 
 - [x] 7.1 `webSearch*`, `tabsRunsAs` and the site info keys in `lib/l10n/app_en.arb`, then the 66 translations in their own commit.

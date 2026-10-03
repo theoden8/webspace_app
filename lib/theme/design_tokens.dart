@@ -114,6 +114,43 @@ abstract final class TabRows {
   static const double autoScrollStep = 8;
 }
 
+/// One colour per container (TAB-018): a tab row is marked with the colour of
+/// the container it runs in, so which container a tab uses is never a guess.
+/// Two sets, the same hues in order, each holding 3:1 against the surfaces of
+/// its brightness so the mark reads as a graphic.
+abstract final class ContainerColors {
+  /// Blue, turquoise, green, yellow, orange, red, pink, purple.
+  static const List<Color> light = [
+    Color(0xFF1565C0),
+    Color(0xFF00838F),
+    Color(0xFF2E7D32),
+    Color(0xFF8D6E00),
+    Color(0xFFE65100),
+    Color(0xFFC62828),
+    Color(0xFFAD1457),
+    Color(0xFF6A1B9A),
+  ];
+
+  static const List<Color> dark = [
+    Color(0xFF64B5F6),
+    Color(0xFF4DD0E1),
+    Color(0xFF81C784),
+    Color(0xFFFFD54F),
+    Color(0xFFFFB74D),
+    Color(0xFFE57373),
+    Color(0xFFF06292),
+    Color(0xFFBA68C8),
+  ];
+
+  /// The bar at the start of a tab row.
+  static const double markWidth = 3;
+
+  static Color of(int index, Brightness brightness) {
+    final set = brightness == Brightness.dark ? dark : light;
+    return set[index % set.length];
+  }
+}
+
 abstract final class TextSizes {
   /// The URL bar's editable text.
   static const double url = 14;

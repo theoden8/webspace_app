@@ -2230,6 +2230,10 @@
   "@siteSettingsRouteOutboundLinksHint": {
     "description": "Explanation behind the hint button of the 'Route links to my sites' switch. 'Claims' refers to the domain claims each site has (the hostnames that belong to it). 'Per-site containers' is the storage isolation that gives each site its own cookies."
   },
+  "siteSettingsRouteOutboundLinksTabsHint": "With tabs, a link into one of your sites opens as a tab. With this switch on it runs as that site, in its container; off, it runs as this site, in this one's. Changing the switch moves the tabs links opened from here into the other container and reloads them there.",
+  "@siteSettingsRouteOutboundLinksTabsHint": {
+    "description": "Second paragraph of the hint behind the 'Route links to my sites' switch, shown only when the site has tabs. Explains that the switch decides which site's container (cookies, sign-in, settings) a tab opened from a link runs in, and that flipping it moves such tabs and reloads them. 'Container' is the per-site storage that holds a site's cookies and sign-in."
+  },
   "siteSettingsRouteOutboundLinksNeedsContainers": "Needs per-site containers",
   "@siteSettingsRouteOutboundLinksNeedsContainers": {
     "description": "Subtitle under the disabled 'Route links to my sites' switch on devices whose web engine cannot give each site its own cookie storage (per-site containers)."
@@ -4733,6 +4737,16 @@
   "tabsSwitchAction": "Switch",
   "@tabsSwitchAction": {
     "description": "Action on the confirmation that opens the tab that was just created in the background."
+  },
+  "tabsInSite": "In {site}",
+  "@tabsInSite": {
+    "description": "Heading in a site's tab list over tabs that run as this site but sit in another site's list, because a link or a search in that other site opened them. {site} is the other site's name, for example 'In DuckDuckGo'.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "DuckDuckGo"
+      }
+    }
   },
   "tabsRunsAs": "as {site}",
   "@tabsRunsAs": {
