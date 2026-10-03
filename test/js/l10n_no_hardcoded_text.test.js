@@ -42,6 +42,8 @@ const migrated = new Set([
   'lib/screens/user_scripts.dart',
   'lib/screens/webspace_detail.dart',
   'lib/screens/webspaces_list.dart',
+  // A coloured bar, excluded from semantics: no text at all.
+  'lib/widgets/container_mark.dart',
   'lib/widgets/dispatch_picker_sheet.dart',
   'lib/widgets/download_button.dart',
   'lib/widgets/external_url_prompt.dart',

@@ -6,7 +6,10 @@
 /// under the tab it was opened from — and say which tabs hold a webview: the
 /// active tab of a loaded site does and draws at full strength, every other
 /// tab is stored and drawn faded (TAB-011). A long press drags a tab and its
-/// subtree to another place in the same site's tree (TAB-015).
+/// subtree to another place in the same site's tree (TAB-015). Each row is
+/// marked with the colour of the container it runs in (TAB-018), and a site's
+/// own list also shows the subtrees that run as it inside other sites' trees
+/// (TAB-017).
 ///
 /// The widget owns no state beyond which subtrees are collapsed and where a
 /// drag would land: the tab list
@@ -24,6 +27,7 @@ import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 
 /// One site as the sheet needs to see it. Keeps the sheet off `_currentIndex`
 /// arithmetic: the host resolves indices, the sheet names sites by index.
@@ -168,7 +172,10 @@ class _TabsSheetState extends State<TabsSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
                 children: _allSites
                     ? _allSitesRows(loc, theme)
-                    : _rowsFor(site, loc, theme),
+                    : [
+                        ..._rowsFor(site, loc, theme),
+                        ..._elsewhereRows(site, loc, theme),
+                      ],
               ),
             ),
             const Divider(height: Chrome.hairlineWidth),
@@ -291,21 +298,57 @@ class _TabsSheetState extends State<TabsSheet> {
     for (final s in _sites) {
       final label =
           loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
-      final heading = Padding(
-        padding: const EdgeInsets.fromLTRB(
-            Spacing.sm, Spacing.md, Spacing.sm, Spacing.xs),
-        child: Text(
-          label,
-          style: theme.textTheme.labelMedium
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      );
+      final heading = _heading(label, theme, site: s);
       out.add(widget.onMoveSite == null
           ? heading
           : _siteDragAndDrop(s, heading, label, theme));
       out.addAll(_rowsFor(s, loc, theme));
+    }
+    return out;
+  }
+
+  /// A heading over a site's rows, marked with the site's own container when
+  /// it heads that site's tree.
+  Widget _heading(String label, ThemeData theme, {TabsSheetSite? site}) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(
+            Spacing.sm, Spacing.md, Spacing.sm, Spacing.xs),
+        child: Row(
+          children: [
+            if (site != null) ...[
+              ContainerMark(site: site.model),
+              const SizedBox(width: Spacing.sm),
+            ],
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  /// TAB-017: the subtrees that run as [site] inside the trees of the other
+  /// sites in the list, each site's under a heading naming it. They stay in
+  /// that site's tree: a tap opens that site on the tab, a close closes it
+  /// there, and they are not dragged from here.
+  List<Widget> _elsewhereRows(
+      TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
+    final out = <Widget>[];
+    for (final other in _sites) {
+      if (other.model.siteId == site.model.siteId) continue;
+      final rows = TabLifecycleEngine.subtreesRunningAs(
+        other.model.tabs,
+        (t) => (other.model.hostOf(t) ?? other.model).siteId ==
+            site.model.siteId,
+      );
+      if (rows.isEmpty) continue;
+      out.add(_heading(loc.tabsInSite(other.model.getDisplayName()), theme));
+      out.addAll(_rowsOf(other, rows, loc, theme, draggable: false));
     }
     return out;
   }
@@ -379,39 +422,53 @@ class _TabsSheetState extends State<TabsSheet> {
 
   List<Widget> _rowsFor(
       TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
-    final rows = TabLifecycleEngine.treeOrder(site.model.tabs);
+    final out = _rowsOf(
+        site, TabLifecycleEngine.treeOrder(site.model.tabs), loc, theme,
+        draggable: widget.onMoveTab != null);
+    if (widget.onMoveTab != null) out.add(_endTarget(site, theme));
+    return out;
+  }
+
+  List<Widget> _rowsOf(TabsSheetSite site, List<TabRow> rows,
+      AppLocalizations loc, ThemeData theme,
+      {required bool draggable}) {
     final hidden = <String>{};
     final out = <Widget>[];
     for (final row in rows) {
       final parentId = row.tab.parentId;
       // A collapsed tab hides its whole subtree, so a descendant is hidden
-      // when any ancestor is.
-      if (parentId != null &&
-          (hidden.contains(parentId) || _collapsed.contains(parentId))) {
+      // when any ancestor is. A row at depth 0 is a root as shown, whatever
+      // it hangs from in its own tree.
+      if (row.depth > 0 &&
+          parentId != null &&
+          (hidden.contains(parentId) ||
+              _collapsed.contains(_keyOf(site, parentId)))) {
         hidden.add(row.tab.id);
         continue;
       }
-      out.add(_row(site, row, loc, theme));
+      out.add(_row(site, row, loc, theme, draggable: draggable));
     }
-    if (widget.onMoveTab != null) out.add(_endTarget(site, theme));
     return out;
   }
 
   Widget _row(TabsSheetSite site, TabRow row, AppLocalizations loc,
-      ThemeData theme) {
+      ThemeData theme,
+      {required bool draggable}) {
     final tab = row.tab;
-    // A hosted tab runs as another site (LIR-018): the row shows that site's
-    // icon and names it, since two rows with one URL can be two identities.
+    // A hosted tab runs as another site (LIR-018), a foreign one as its owner
+    // in another site's domain (LIR-034): the row shows the site it runs as
+    // and names it, since two rows with one URL can be two identities.
     final host = site.model.hostOf(tab);
     final identity = host ?? site.model;
     final domain = extractDomain(tab.url);
-    final secondLine = host == null
+    final secondLine = host == null && !site.model.isForeignTab(tab)
         ? domain
-        : '${loc.tabsRunsAs(host.getDisplayName())} · $domain';
+        : '${loc.tabsRunsAs(identity.getDisplayName())} · $domain';
     final isActive = tab.id == site.model.activeTabId;
     final isLoaded = isActive && site.isLoaded;
     final isOnScreen = isLoaded && site.isCurrent;
-    final collapsed = _collapsed.contains(tab.id);
+    final collapseKey = _keyOf(site, tab.id);
+    final collapsed = _collapsed.contains(collapseKey);
     final shape = BorderRadius.circular(Radii.lg);
     final rowBody = InkWell(
       onTap: () {
@@ -439,7 +496,9 @@ class _TabsSheetState extends State<TabsSheet> {
                           ? Icons.chevron_right
                           : Icons.keyboard_arrow_down),
                       onPressed: () => setState(() {
-                        if (!_collapsed.remove(tab.id)) _collapsed.add(tab.id);
+                        if (!_collapsed.remove(collapseKey)) {
+                          _collapsed.add(collapseKey);
+                        }
                       }),
                     ),
             ),
@@ -450,6 +509,8 @@ class _TabsSheetState extends State<TabsSheet> {
                 opacity: isLoaded ? 1 : TabRows.unloadedOpacity,
                 child: Row(
                   children: [
+                    ContainerMark(site: identity),
+                    const SizedBox(width: Spacing.xs),
                     UnifiedFaviconImage(
                       url: identity.initUrl,
                       size: IconSizes.inline,
@@ -530,7 +591,7 @@ class _TabsSheetState extends State<TabsSheet> {
             )
           : rowBody,
     );
-    if (widget.onMoveTab == null) return drawn;
+    if (!draggable || widget.onMoveTab == null) return drawn;
     return _dragAndDrop(site, row, drawn, theme);
   }
 
@@ -545,7 +606,7 @@ class _TabsSheetState extends State<TabsSheet> {
     final tab = row.tab;
     final key = _keyOf(site, tab.id);
     final rowKey = _rowKeys.putIfAbsent(key, GlobalKey.new);
-    final expanded = row.childCount > 0 && !_collapsed.contains(tab.id);
+    final expanded = row.childCount > 0 && !_collapsed.contains(key);
     final dragged = _DraggedTab(site.index, tab.id, {
       tab.id,
       ...TabLifecycleEngine.descendants(site.model.tabs, tab.id)
@@ -582,7 +643,7 @@ class _TabsSheetState extends State<TabsSheet> {
       onAcceptWithDetails: (d) {
         final zone = zoneAt(d.offset);
         _drop(d.data, TabDrop.onto(tab.id, zone, targetExpanded: expanded),
-            expand: zone == TabDropZone.into ? tab.id : null);
+            expand: zone == TabDropZone.into ? key : null);
       },
       builder: (context, candidates, _) {
         final zone = candidates.isNotEmpty && _dropKey == key ? _dropZone : null;

@@ -169,7 +169,8 @@ void main() {
 
     test('a hosted slot neither reads nor writes the HTML cache', () {
       expect(
-        RegExp(r'final htmlSource = webViewModel\.runsHostedTab\s*\?\s*HtmlSource\.none')
+        RegExp(r'final htmlSource = webViewModel\.runsHostedTab \|\|\s*'
+                r'webViewModel\.runsForeignTab\s*\?\s*HtmlSource\.none')
             .hasMatch(main),
         isTrue,
       );
@@ -190,7 +191,8 @@ void main() {
         'cookieSiteId: id.siteId',
         'proxySettings: id.outboundProxySettings',
         'userScripts: id.combineUserScripts(globalUserScripts)',
-        'initUrl: id.initUrl',
+        'initUrl: navHome',
+        'final String navHome = navigationHomeUrl;',
         'externalLinkMode: id.effectiveExternalLinkMode',
       ]) {
         expect(body, contains(field), reason: field);

@@ -295,9 +295,9 @@ Backups SHALL carry all four per-site fields and the app pref. A site's QR share
 
 ### Requirement: LIR-032 - A Link Into One Of The User's Sites Opens As Its Tab
 
-While the site on screen has tabs (TAB-012, TAB-013), a link that would open a nested screen (`blockOpenNested`) SHALL open as a tab instead when one of the user's sites can run it: a site whose navigation domain is the link's normalized domain and that may host in the tree of the site on screen (LIR-019), or that site itself. It SHALL open as a child of the tab it came from, run as that site, and take the slot. A nested page of one of the user's own sites is exactly what tabs replace, so the source's routing switch (LIR-013) SHALL NOT gate this; it still decides for a link no site of the user's can run as a tab (a site that cannot host, a claim outside a navigation domain) and for a site without tabs.
+While the site on screen has tabs (TAB-012, TAB-013), a link that would open a nested screen (`blockOpenNested`) SHALL open as a tab instead when one of the user's sites can run it: a site whose navigation domain is the link's normalized domain and that may host in the tree of the site on screen (LIR-019), or that site itself. It SHALL open as a child of the tab it came from and take the slot. A nested page of one of the user's own sites is exactly what tabs replace, so the source's routing switch (LIR-013) SHALL NOT decide whether the tab opens; it decides which container the tab runs in (LIR-034): on, as that site; off, as the source, inside the link's domain. Off, the source SHALL itself be able to run in the tree of the site on screen (LIR-019), or be that site. The switch still decides alone for a link no site of the user's can run as a tab (a site that cannot host, a claim outside a navigation domain) and for a site without tabs.
 
-The same gates as routing SHALL hold (LIR-014): the container engine, an effective user gesture, and no locked kiosk shell. The site SHALL be chosen as LIR-014 chooses: the source's outbound preferences first, then claim specificity. When several sites remain, the LIR-016 picker SHALL ask, and a pick opens the tab; its remember checkbox writes the preference as for routing. The source is the site the page on screen runs as (LIR-018), and a link to a site on the other side of an archive boundary is never a candidate.
+The same gates as routing SHALL hold (LIR-014): the container engine, an effective user gesture, and no locked kiosk shell. With the switch on, the site SHALL be chosen as LIR-014 chooses: the source's outbound preferences first, then claim specificity. When several sites remain, the LIR-016 picker SHALL ask, and a pick opens the tab; its remember checkbox writes the preference as for routing. With the switch off nothing is asked. The source is the site the page on screen runs as (LIR-018), and a link to a site on the other side of an archive boundary is never a candidate.
 
 A link tapped inside a nested screen that was opened from a tab SHALL go the same way: the nested screen closes and the tab opens under the tab it was opened from, once the screen is gone and before whatever its opener runs on close (the proxy return of LIR-015). A nested screen a share opened (LIR-011) came from no tab and SHALL keep loading such links in place.
 
@@ -305,10 +305,17 @@ A routed nested screen (LIR-015) SHALL open over, and on close bring back, the s
 
 #### Scenario: A GitHub result opens as GitHub's tab
 
-- **GIVEN** Site tabs are on, the user has DuckDuckGo and GitHub sites, and DuckDuckGo's routing switch is off
+- **GIVEN** Site tabs are on, the user has DuckDuckGo and GitHub sites, and DuckDuckGo's routing switch is on
 - **WHEN** the user taps a `github.com` result in DuckDuckGo
 - **THEN** a child tab of DuckDuckGo's current tab opens, running as GitHub and signed in
 - **AND** no nested screen opens
+
+#### Scenario: With routing off it opens as DuckDuckGo's tab
+
+- **GIVEN** the same sites, and DuckDuckGo's routing switch is off
+- **WHEN** the user taps a `github.com` result in DuckDuckGo
+- **THEN** a child tab of DuckDuckGo's current tab opens at the result, running as DuckDuckGo in DuckDuckGo's container, not signed in to GitHub
+- **AND** no nested screen opens, and nothing is asked even when two sites could run it
 
 #### Scenario: A site the user does not have stays nested
 
@@ -325,7 +332,7 @@ A routed nested screen (LIR-015) SHALL open over, and on close bring back, the s
 
 #### Scenario: Two sites that can run it ask
 
-- **GIVEN** Work GitHub and Personal GitHub both at `github.com`, and no preference in DuckDuckGo
+- **GIVEN** Work GitHub and Personal GitHub both at `github.com`, DuckDuckGo's routing switch on, and no preference in DuckDuckGo
 - **WHEN** the user taps a `github.com` link in DuckDuckGo
 - **THEN** the picker offers both, and the one picked runs the new tab
 
@@ -385,3 +392,59 @@ The URL bar of the site on screen SHALL search as well as open addresses, with t
 - **GIVEN** none of the user's sites searches
 - **WHEN** the user types `webview` in the URL bar and submits
 - **THEN** the web search sheet opens with `webview` in its field, offering search engines to add
+
+---
+
+### Requirement: LIR-034 - A Link Tab's Container Follows Its Opener
+
+A tab opened by LIR-032 SHALL record the site whose page opened it, its **opener** (the source: the site the page on screen ran as), and the link it was opened at, its **home**. For as long as the tab exists, the opener's routing switch (LIR-013) SHALL decide which container it runs in:
+
+- **on:** the site the link leads to, chosen as LIR-032 chooses (a preference of the opener's, then claims). When several sites remain, the tab SHALL keep the one it runs as when that is one of them, and run as the opener otherwise: a move asks nothing.
+- **off:** the opener.
+
+A tab that runs as its opener in the home's domain is a **foreign tab**. It SHALL navigate by the home's domain alone: Home (NAV-004), the URL bar's in-site check and the web search scope use the home, a link out of that domain leaves the tab as any cross-domain link does (a link back into the opener's own domain opening as the opener's child tab, S6), and it SHALL borrow none of the opener's claims (LIR-005). An owner URL (LIR-018) SHALL never load into a foreign tab: it moves to a tab the owner runs in its own domain, or to a new root tab at home.
+
+When an opener's switch changes, every tab it opened SHALL move to the container the switch now names, in every site's list, once the opener's settings close, and at startup and after an import for a list stored under the other setting. A moved tab's stored back stack (TAB-003) SHALL be deleted rather than restored in the other container; the tab on screen SHALL reload in its new container at once, a live slot in the background SHALL drop its webview, and a stored tab SHALL load in its new container when next opened. A move SHALL hold the hosted-tab rules: a tab that can no longer run as the site it moved to closes (LIR-023).
+
+A tab whose opener is deleted SHALL keep the container it runs in and follow nothing. Tabs nothing routes SHALL keep the container they were opened in: a search's results (LIR-030), a tab opened by hand, and "Open in new tab" on a link inside the page's own domain. A duplicate (TAB-010) and "Open in new tab" on a link inside a link tab's domain SHALL keep its opener and home.
+
+The move SHALL NOT race a tab change: it SHALL wait for an open, close, switch or move of tabs that is running, run once after it however often it was asked for, and rewrite every list in one step. Bytes a capture took across a move SHALL be dropped rather than saved under the tab's new container.
+
+#### Scenario: Turning routing off moves GitHub tabs into DuckDuckGo's container
+
+- **GIVEN** DuckDuckGo's routing switch is on, and a `github.com` link from DuckDuckGo opened as a tab running as GitHub, now on screen
+- **WHEN** the user turns DuckDuckGo's routing switch off and closes its settings
+- **THEN** the tab reloads at its page running as DuckDuckGo, not signed in to GitHub
+- **AND** the back stack it had as GitHub is deleted
+
+#### Scenario: Turning it back on moves it back
+
+- **GIVEN** that tab running as DuckDuckGo, stored
+- **WHEN** the user turns DuckDuckGo's routing switch on again and later opens the tab
+- **THEN** it loads running as GitHub, signed in
+
+#### Scenario: A foreign tab stays in its link's domain
+
+- **GIVEN** DuckDuckGo's routing switch is off, and a tab running as DuckDuckGo opened at `github.com/flutter`
+- **WHEN** the user taps Home
+- **THEN** the tab goes to `github.com/flutter`, not `duckduckgo.com`
+- **AND** a `duckduckgo.com` link tapped on it opens as a child tab DuckDuckGo runs in its own domain
+
+#### Scenario: A search keeps its container
+
+- **GIVEN** a search GitHub ran in DuckDuckGo, open as GitHub's hosted tab (LIR-030)
+- **WHEN** the user turns GitHub's routing switch off
+- **THEN** the search tab still runs as DuckDuckGo
+
+#### Scenario: A pick survives only while it is still a choice
+
+- **GIVEN** Work GitHub and Personal GitHub both at `github.com`, DuckDuckGo's routing switch on, and a link tab the user picked Personal GitHub for
+- **WHEN** DuckDuckGo's settings close with the switch still on
+- **THEN** the tab still runs as Personal GitHub, and nothing is asked
+
+#### Scenario: A move waits for a tab switch
+
+- **GIVEN** a tab switch in DuckDuckGo is capturing its outgoing tab
+- **WHEN** DuckDuckGo's settings close with its routing switch flipped
+- **THEN** the move runs once the switch has finished, once
+- **AND** no back stack is saved under the container a tab has just left

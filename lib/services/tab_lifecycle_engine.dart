@@ -181,6 +181,36 @@ class TabLifecycleEngine {
     return out;
   }
 
+  /// The rows of every subtree of [tabs] rooted at a tab [runsAs] accepts
+  /// whose parent it does not (TAB-017): what the list of the site those tabs
+  /// run as shows of another site's tree. Each subtree comes whole, whatever
+  /// its descendants run as, and its depth restarts at its root, so it reads
+  /// as a tree of its own.
+  static List<TabRow> subtreesRunningAs(
+    List<SiteTab> tabs,
+    bool Function(SiteTab tab) runsAs,
+  ) {
+    final byId = {for (final t in tabs) t.id: t};
+    final out = <TabRow>[];
+    int? rootDepth;
+    for (final row in treeOrder(tabs)) {
+      if (rootDepth != null && row.depth > rootDepth) {
+        out.add(TabRow(row.tab, row.depth - rootDepth,
+            childCount: row.childCount));
+        continue;
+      }
+      rootDepth = null;
+      // Depth 0 is a tab the tree shows without a parent: a root, an orphan,
+      // or one caught in a parent cycle.
+      if (runsAs(row.tab) &&
+          (row.depth == 0 || !runsAs(byId[row.tab.parentId]!))) {
+        rootDepth = row.depth;
+        out.add(TabRow(row.tab, 0, childCount: row.childCount));
+      }
+    }
+    return out;
+  }
+
   /// Every tab below [id], depth-first.
   static List<SiteTab> descendants(List<SiteTab> tabs, String id) {
     final childrenOf = <String, List<SiteTab>>{};
@@ -435,16 +465,24 @@ class TabLifecycleEngine {
       );
 
   /// The tab an owner URL may load into (LIR-018): [activeTabId] when the
-  /// owner runs it itself, else its nearest ancestor the owner runs, else null
-  /// (the caller opens a new root tab at the owner's home).
-  static String? ownerRunTab(List<SiteTab> tabs, String activeTabId) {
+  /// owner runs it itself inside its own domain, else its nearest such
+  /// ancestor, else null (the caller opens a new root tab at the owner's
+  /// home). [isForeign] marks a tab the owner runs in another domain
+  /// (LIR-034), which an owner URL must not load into either.
+  static String? ownerRunTab(
+    List<SiteTab> tabs,
+    String activeTabId, {
+    bool Function(SiteTab tab)? isForeign,
+  }) {
     final byId = {for (final t in tabs) t.id: t};
     final seen = <String>{};
     String? id = activeTabId;
     while (id != null && seen.add(id)) {
       final tab = byId[id];
       if (tab == null) return null;
-      if (tab.hostSiteId == null) return tab.id;
+      if (tab.hostSiteId == null && !(isForeign?.call(tab) ?? false)) {
+        return tab.id;
+      }
       id = tab.parentId;
     }
     return null;

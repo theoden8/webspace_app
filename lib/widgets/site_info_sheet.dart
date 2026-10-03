@@ -6,6 +6,7 @@ import 'package:webspace/services/outbound_http_types.dart'
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show gatewayLabel, libraryProblemLabel, routeLabel, savedProxyLabel;
 import 'package:webspace/widgets/proxy_status_indicator.dart';
@@ -35,6 +36,7 @@ class SiteInfo {
     this.siteId,
     this.tabOf,
     this.openedFrom,
+    this.containerColor,
   });
 
   /// The site the page runs as: its settings, identity and container.
@@ -53,6 +55,10 @@ class SiteInfo {
   /// it binds none.
   final String? containerId;
   final bool incognito;
+
+  /// The container's colour as a palette index (TAB-018), or null where the
+  /// page has no container of its own to mark.
+  final int? containerColor;
 
   /// The site's proxy as configured, or null where the platform binds no
   /// proxy to a site (PROXY-006), in which case the sheet says nothing
@@ -137,6 +143,19 @@ class SiteInfoSheet extends StatelessWidget {
               label: loc.siteInfoContainer,
               value: container,
               detail: info.containerId,
+              status: info.containerColor == null
+                  ? null
+                  : ExcludeSemantics(
+                      child: Container(
+                        width: Spacing.md,
+                        height: Spacing.md,
+                        decoration: BoxDecoration(
+                          color: ContainerColors.of(
+                              info.containerColor!, theme.brightness),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),

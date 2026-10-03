@@ -40,6 +40,9 @@ costs a second renderer.
   (TAB-013).
 - A cold start or shortcut tap lands a site with tabs on its last tab, or with
   Always open Home on a tab at home, keeping the others (TAB-014).
+- A site's Tabs sheet also lists the subtrees other sites' trees run as it
+  (TAB-017), and every row is marked with the colour of the container it runs
+  in (TAB-018).
 - The per-site feature audit (ARCH-006 shape) for tabs: incognito tabs never
   reach disk, Always open Home lands on a tab at home and keeps the rest, kiosk
   sites have no tabs, archive-tier tabs live under the archive key, the QR share never
@@ -72,7 +75,7 @@ LIR-018 to LIR-027 land after the tab model above (`tasks.md`). TAB-001, TAB-002
 
 ## Status
 
-The tab model (TAB-001 to TAB-014) is implemented and experimental: it needs
+The tab model (TAB-001 to TAB-018) is implemented and experimental: it needs
 developer mode and the Experimental group's Site tabs switch, which is off by
 default (TAB-012, DEVTOOLS-011). Inside that gate each site has its own Tabs
 switch, on by default and off in effect for kiosk sites (TAB-013). The

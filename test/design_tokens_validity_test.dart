@@ -166,6 +166,61 @@ void main() {
     expect(FloatingButton.padding, greaterThan(0));
   });
 
+  group('ContainerColors', () {
+    test('both sets carry the same number of opaque hues', () {
+      expect(ContainerColors.light.length, ContainerColors.dark.length);
+      expect(ContainerColors.light.length, greaterThanOrEqualTo(6),
+          reason: 'fewer colours than this and two sites a user switches '
+              'between share one too often to tell containers apart');
+      for (final c in [...ContainerColors.light, ...ContainerColors.dark]) {
+        expect(c.a, 1.0);
+      }
+    });
+
+    test('every mark reads as a graphic on the surfaces of its brightness', () {
+      // WCAG 1.4.11: 3:1 for a graphic that carries meaning. The sheet sits on
+      // the theme surface or the chrome bar, so both ends are checked.
+      const lightSurfaces = [Color(0xFFFFFFFF), Chrome.barLight];
+      const darkSurfaces = [Color(0xFF121212), Chrome.barDark];
+      for (final c in ContainerColors.light) {
+        for (final s in lightSurfaces) {
+          expect(_contrast(c, s), greaterThanOrEqualTo(3.0),
+              reason: '$c on $s');
+        }
+      }
+      for (final c in ContainerColors.dark) {
+        for (final s in darkSurfaces) {
+          expect(_contrast(c, s), greaterThanOrEqualTo(3.0),
+              reason: '$c on $s');
+        }
+      }
+    });
+
+    test('no two containers of one set look alike', () {
+      for (final set in [ContainerColors.light, ContainerColors.dark]) {
+        for (var i = 0; i < set.length; i++) {
+          for (var j = i + 1; j < set.length; j++) {
+            expect(_deltaE(set[i], set[j]), greaterThan(15),
+                reason: 'containers $i and $j are hard to tell apart');
+          }
+        }
+      }
+    });
+
+    test('of() picks the set by brightness and wraps an index past the end', () {
+      expect(ContainerColors.of(0, Brightness.light), ContainerColors.light[0]);
+      expect(ContainerColors.of(0, Brightness.dark), ContainerColors.dark[0]);
+      final n = ContainerColors.light.length;
+      expect(ContainerColors.of(n + 2, Brightness.light),
+          ContainerColors.light[2]);
+    });
+
+    test('the mark is a thin bar', () {
+      expect(ContainerColors.markWidth, greaterThan(0));
+      expect(ContainerColors.markWidth, lessThan(Spacing.md));
+    });
+  });
+
   test('security state is not signalled by colour alone', () {
     // WCAG 1.4.1. The padlock is 16px of solid colour; deuteranopia collapses
     // the green/grey pair, and a colour-only signal then reads as secure on a
