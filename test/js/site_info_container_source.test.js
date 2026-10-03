@@ -52,14 +52,16 @@ test('the factory binds through containerIdFor', () => {
 // The model reads the binding before it builds the webview, to know whether
 // the container's proxy has to be cleared first (PROXY-029). Read from other
 // inputs, it would clear, or fail to clear, a container the page never uses.
+// Both read the slot's running identity, which is the host for a hosted tab
+// (LIR-018).
 test('the model reads the binding from the inputs of the site webview config', () => {
   const early = callText(model, model.indexOf('WebViewFactory.storeBinding('));
   const config = callText(model, model.indexOf('webview = WebViewFactory.createWebView('));
   for (const input of [
-    'siteId: siteId,',
-    'archiveContainerId: archiveContainerId,',
-    'incognito: effectiveIncognito,',
-    'proxySettings: outboundProxySettings,',
+    'siteId: id.siteId,',
+    'archiveContainerId: id.archiveContainerId,',
+    'incognito: id.effectiveIncognito,',
+    'proxySettings: id.outboundProxySettings,',
   ]) {
     assert.ok(early.includes(input), `storeBinding call lacks ${input}`);
     assert.ok(config.includes(input), `site WebViewConfig lacks ${input}`);
@@ -84,14 +86,19 @@ test('site info is reached from the URL bar only, never a menu', () => {
 });
 
 test('the main sheet reads the inputs of the site webview config', () => {
+  // A hosted tab (LIR-018) binds its host's container, so both sides read
+  // the slot's running identity rather than the owning site.
   const config = callText(model, model.indexOf('webview = WebViewFactory.createWebView('));
-  assert.match(config, /archiveContainerId: archiveContainerId,/);
-  assert.match(config, /incognito: effectiveIncognito,/);
+  assert.match(config, /siteId: id\.siteId,/);
+  assert.match(config, /archiveContainerId: id\.archiveContainerId,/);
+  assert.match(config, /incognito: id\.effectiveIncognito,/);
+  assert.match(model, /final WebViewModel id = runningIdentity;/);
   const bar = callText(main, main.search(/\bUrlBar\(/));
+  assert.match(bar, /final id = model\.runningIdentity;/);
   const rule = callText(bar, bar.indexOf('containerIdFor('));
-  assert.match(rule, /siteId: model\.siteId/);
-  assert.match(rule, /archiveContainerId: model\.archiveContainerId/);
-  assert.match(rule, /incognito: model\.effectiveIncognito/);
+  assert.match(rule, /siteId: id\.siteId/);
+  assert.match(rule, /archiveContainerId: id\.archiveContainerId/);
+  assert.match(rule, /incognito: id\.effectiveIncognito/);
 });
 
 test('the nested sheet reads the inputs of the nested webview config', () => {

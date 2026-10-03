@@ -66,6 +66,9 @@ class SiteSettingsQrCodec {
     'liveLocationGranularity',
     'webRtcPolicy',
     'routeOutboundLinks',
+    // How to search the site: configuration, no site ids (LIR-031).
+    'searchAddress',
+    'searchesWeb',
   };
 
   /// Per-site keys deliberately stripped on share. Listed so the drift
@@ -96,6 +99,8 @@ class SiteSettingsQrCodec {
     // Each entry names a device-local siteId, which the receiver's sites
     // do not have (QR-003).
     'outboundPreferences',
+    'searchSites',
+    'searchDefault',
     // A scanned code must not make a site claim domains: claims decide
     // where other sites' links and shared URLs go.
     'domainClaims',

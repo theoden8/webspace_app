@@ -140,6 +140,101 @@ void main() {
     });
   });
 
+  group('move and drop (TAB-015, LIR-026)', () {
+    List<int> depths(List<SiteTab> tabs) =>
+        TabLifecycleEngine.treeOrder(tabs).map((r) => r.depth).toList();
+
+    test('re-parenting lands the tab directly under the new parent\'s subtree',
+        () {
+      final tabs = [tab('a'), tab('b'), tab('c')];
+      final out = TabLifecycleEngine.reparent(tabs, 'c', 'a')!;
+      expect(ids(out), ['a', 'c', 'b']);
+      expect(out.firstWhere((t) => t.id == 'c').parentId, 'a');
+    });
+
+    test('a tab cannot move under its own descendant', () {
+      final tabs = [tab('a'), tab('b', parent: 'a')];
+      expect(TabLifecycleEngine.reparent(tabs, 'a', 'b'), isNull);
+      expect(
+          TabLifecycleEngine.drop(
+              tabs, 'a', const TabDrop.onto('b', TabDropZone.into)),
+          isNull);
+      expect(TabLifecycleEngine.drop(tabs, 'a',
+          const TabDrop.onto('a', TabDropZone.before)), isNull);
+      expect(tabs.first.parentId, isNull, reason: 'a refusal changes nothing');
+    });
+
+    test('before a row makes a sibling in front of it', () {
+      final tabs = [tab('a'), tab('b'), tab('c')];
+      final out = TabLifecycleEngine.drop(
+          tabs, 'c', const TabDrop.onto('a', TabDropZone.before))!;
+      expect(ids(out), ['c', 'a', 'b']);
+    });
+
+    test('into a row makes the last child, and the subtree comes along', () {
+      final tabs = [tab('a'), tab('x', parent: 'a'), tab('b'),
+          tab('c', parent: 'b')];
+      final out = TabLifecycleEngine.drop(
+          tabs, 'b', const TabDrop.onto('a', TabDropZone.into))!;
+      expect(ids(out), ['a', 'x', 'b', 'c']);
+      expect(out.firstWhere((t) => t.id == 'b').parentId, 'a');
+      expect(out.firstWhere((t) => t.id == 'c').parentId, 'b');
+      expect(depths(out), [0, 1, 1, 2]);
+    });
+
+    test('below an expanded parent is its first child', () {
+      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c')];
+      final out = TabLifecycleEngine.drop(
+          tabs, 'c', const TabDrop.onto('a', TabDropZone.after))!;
+      expect(ids(out), ['a', 'c', 'b']);
+      expect(out.firstWhere((t) => t.id == 'c').parentId, 'a');
+      expect(depths(out), [0, 1, 1]);
+    });
+
+    test('below a collapsed parent is its sibling after the whole subtree', () {
+      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c'), tab('d')];
+      final out = TabLifecycleEngine.drop(tabs, 'd',
+          const TabDrop.onto('a', TabDropZone.after, targetExpanded: false))!;
+      expect(ids(out), ['a', 'b', 'd', 'c']);
+      expect(out.firstWhere((t) => t.id == 'd').parentId, isNull);
+    });
+
+    test('a child dropped just below its parent stays where it is', () {
+      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'a')];
+      final out = TabLifecycleEngine.drop(
+          tabs, 'b', const TabDrop.onto('a', TabDropZone.after))!;
+      expect(ids(out), ['a', 'b', 'c']);
+    });
+
+    test('past the last row the tab becomes the last root', () {
+      final tabs = [tab('a'), tab('b', parent: 'a'), tab('c')];
+      final out =
+          TabLifecycleEngine.drop(tabs, 'b', const TabDrop.toEnd())!;
+      expect(ids(out), ['a', 'c', 'b']);
+      expect(out.last.parentId, isNull);
+    });
+
+    test('a subtree that is not contiguous in the list is still passed', () {
+      final tabs = [tab('a'), tab('c'), tab('b', parent: 'a')];
+      final out = TabLifecycleEngine.reparent(tabs, 'c', 'a')!;
+      expect(ids(out), ['a', 'b', 'c']);
+      expect(TabLifecycleEngine.treeOrder(out).map((r) => r.tab.id),
+          ['a', 'b', 'c']);
+    });
+
+    test('hosts, urls and the active tab are left alone', () {
+      final hosted = SiteTab(id: 'h', url: 'https://duckduckgo.com/?q=x',
+          hostSiteId: 'ddg');
+      final tabs = [tab('a'), hosted];
+      final normalized = TabLifecycleEngine.normalize(tabs, 'h', 'https://x');
+      final out = TabLifecycleEngine.reparent(normalized.tabs, 'h', 'a')!;
+      final moved = out.firstWhere((t) => t.id == 'h');
+      expect(moved.hostSiteId, 'ddg');
+      expect(moved.url, 'https://duckduckgo.com/?q=x');
+      expect(identical(moved, hosted), isTrue);
+    });
+  });
+
   group('closeTab (TAB-007)', () {
     test('children move up to the closed tab\'s parent', () {
       final tabs = [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'b')];

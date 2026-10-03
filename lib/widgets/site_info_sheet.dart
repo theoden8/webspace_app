@@ -33,11 +33,21 @@ class SiteInfo {
     required this.incognito,
     this.proxy,
     this.siteId,
+    this.tabOf,
+    this.openedFrom,
   });
 
   /// The site the page runs as: its settings, identity and container.
   final String siteName;
   final String pageUrl;
+
+  /// The site whose tab list holds the page, when it runs as another site
+  /// (a hosted tab, LIR-018).
+  final String? tabOf;
+
+  /// The site on screen when this nested screen opened, when it runs as
+  /// another site (a routed link, LIR-015).
+  final String? openedFrom;
 
   /// The native container the webview binds, from `containerIdFor`; null when
   /// it binds none.
@@ -82,8 +92,10 @@ class SiteInfoSheet extends StatelessWidget {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
     final muted = theme.colorScheme.onSurfaceVariant;
+    final tabOf = info.tabOf;
+    final openedFrom = info.openedFrom;
     final container = switch (info.containerKind) {
-      SiteContainerKind.own => loc.siteInfoContainerOwn,
+      SiteContainerKind.own => loc.siteInfoContainerOf(info.siteName),
       SiteContainerKind.ephemeral => loc.siteInfoContainerEphemeral,
       SiteContainerKind.shared => loc.siteInfoContainerShared,
     };
@@ -103,6 +115,18 @@ class SiteInfoSheet extends StatelessWidget {
               label: loc.siteInfoSite,
               value: info.siteName,
             ),
+            if (tabOf != null && tabOf != info.siteName)
+              _InfoRow(
+                icon: Icons.tab_outlined,
+                label: loc.siteInfoTabOf,
+                value: tabOf,
+              ),
+            if (openedFrom != null && openedFrom != info.siteName)
+              _InfoRow(
+                icon: Icons.subdirectory_arrow_right,
+                label: loc.siteInfoOpenedFrom,
+                value: openedFrom,
+              ),
             _InfoRow(
               icon: Icons.link,
               label: loc.siteInfoPage,

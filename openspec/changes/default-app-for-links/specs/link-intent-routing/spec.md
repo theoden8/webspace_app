@@ -204,6 +204,8 @@ The engine SHALL emit:
 2. **In-domain share, target site has `incognito` or `alwaysOpenHome` set** — `DispatchOpenInMain(siteId, url, disposeBeforeLoad: true, wipeContainer: incognito, clearInMemoryCookies: incognito)`. The executor SHALL dispose the live webview, drop it from `_loadedIndices`, evict its in-memory HTML cache (online only), reset `currentUrl = initUrl`, wipe the container if `wipeContainer == true`, and clear in-memory cookies if `clearInMemoryCookies == true` — all BEFORE activating and calling `controller.loadUrl(url)`. The flags being engine-emitted (rather than computed at the call site) is the IP-leakage / session-leakage defence: a future caller cannot accidentally skip the disposal.
 3. **In-domain share, regular site** — `DispatchOpenInMain(siteId, url, disposeBeforeLoad: false, wipeContainer: false, clearInMemoryCookies: false)`. The executor activates and `controller.loadUrl(url)` (existing behaviour).
 
+A web search from the page menu (LIR-030) is not an inbound share: it takes none of the reset flags above.
+
 The engine SHALL also expose follow-up entry points for the LIR-010 picker: `openInChosen(inbound, site)`, `bindToSite(inbound, site)` (returns `DispatchBindAndOpen` with `claimAdditions` + an engine-computed `followUp`), and `createNew(inbound)` (returns `DispatchCreateSite` for option 3 or `DispatchUnsupported` if the URL has no host).
 
 #### Scenario: Cross-domain bind opens nested

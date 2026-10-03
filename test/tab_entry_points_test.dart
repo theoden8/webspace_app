@@ -52,8 +52,10 @@ void main() {
     String firstStatement(String signature) {
       final start = source.indexOf(signature);
       expect(start, isNot(-1), reason: '$signature not found');
-      final open = source.indexOf('{', start);
-      return source.substring(open + 1, source.indexOf(';', open));
+      // The body's brace, not a named-parameter list's.
+      final open = source.indexOf(RegExp(r'\)\s*(async\s*)?\{'), start);
+      final body = source.indexOf('{', open);
+      return source.substring(body + 1, source.indexOf(';', body));
     }
 
     test('the gate is the Site tabs switch and the site\'s own Tabs', () {
@@ -87,11 +89,24 @@ void main() {
         ('Future<bool> _closeChildTabOnBack(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showTabsSheet(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showLinkLongPressMenu(', '!_tabsEnabledAt(index)'),
+        ('Future<void> _openChildTab(', '!_tabsEnabledFor(owner)'),
+        ('bool _moveTab(', '!_tabsEnabledAt(index)'),
       ]) {
         expect(firstStatement(signature), contains(gate),
             reason: '$signature must return before doing anything while '
                 'the site it acts on has no tabs');
       }
+    });
+
+    test('a hosted tab returns links to its owner only while it has tabs',
+        () {
+      expect(
+        RegExp(r'webViewModel\.onReturnToOwner =\s*'
+                r'_tabsEnabledFor\(webViewModel\)\s*\?')
+            .hasMatch(source),
+        isTrue,
+        reason: 'an owner without tabs has no tree to take the child',
+      );
     });
 
     test('the tab list leaves out sites without tabs', () {
@@ -160,6 +175,28 @@ void main() {
             .hasMatch(source),
         isTrue,
       );
+    });
+  });
+
+  group('TAB-016: a site heading in the Tabs sheet moves the site', () {
+    test('offered only where the drawer and the strip reorder', () {
+      expect(
+          count('onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet '
+              ': null'),
+          1);
+    });
+
+    test("the move is the drawer's reorder, not a copy of it", () {
+      final start =
+          source.indexOf('List<TabsSheetSite>? _moveSiteInTabsSheet(');
+      expect(start, isNot(-1));
+      final end = source.indexOf('\n  }\n', start);
+      final body = source.substring(start, end);
+      expect(body.contains('_reorderSite(from, to);'), isTrue);
+      // Reordering "All" renumbers every site, so the sheet gets them afresh.
+      expect(body.contains('return _tabsSheetSites();'), isTrue);
+      expect(body.contains('.insert('), isFalse);
+      expect(body.contains('.removeAt('), isFalse);
     });
   });
 }

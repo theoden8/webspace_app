@@ -18,6 +18,10 @@ SiteBehaviourValues _values({
   ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
   bool routeOutboundLinks = false,
   List<OutboundPreference> outboundPreferences = const [],
+  String? searchAddress,
+  bool searchesWeb = false,
+  List<String> searchSites = const [],
+  String? searchDefault,
 }) =>
     SiteBehaviourValues(
       alwaysOpenHome: alwaysOpenHome,
@@ -28,6 +32,10 @@ SiteBehaviourValues _values({
       externalLinkMode: externalLinkMode,
       routeOutboundLinks: routeOutboundLinks,
       outboundPreferences: outboundPreferences,
+      searchAddress: searchAddress,
+      searchesWeb: searchesWeb,
+      searchSites: searchSites,
+      searchDefault: searchDefault,
     );
 
 Future<void> _pump(
@@ -39,6 +47,7 @@ Future<void> _pump(
   bool containersActive = true,
   List<WebViewModel> routingTargets = const [],
   bool tabsAvailable = false,
+  String? initUrl,
 }) async {
   // Tall surface so every row is laid out: the screen is one list and the
   // assertions below compare rows that sit at opposite ends of it.
@@ -58,6 +67,7 @@ Future<void> _pump(
       containersActive: containersActive,
       routingTargets: routingTargets,
       tabsAvailable: tabsAvailable,
+      initUrl: initUrl,
     ),
   ));
   await tester.pumpAndSettle();
@@ -462,6 +472,76 @@ void main() {
         matching: find.byType(IconButton),
       ));
       expect(add.onPressed, isNull);
+    });
+  });
+
+  group('BEHAV-005 search group', () {
+    final ddg = WebViewModel(
+        siteId: 'ddg', initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo');
+    final kagi =
+        WebViewModel(siteId: 'kagi', initUrl: 'https://kagi.com/', name: 'Kagi');
+
+    testWidgets('a known site shows its address and follows the app',
+        (tester) async {
+      await _pump(tester, values: _values(), initUrl: 'https://github.com/');
+      expect(find.text('https://github.com/search?q=%s'), findsOneWidget);
+      expect(find.text('App default'), findsOneWidget);
+      expect(find.text('All'), findsOneWidget);
+    });
+
+    testWidgets('saving a known engine\'s address unchanged stores nothing',
+        (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(),
+        initUrl: 'https://duckduckgo.com/',
+        onChanged: (v) => seen = v,
+      );
+      await tester.tap(find.text('https://duckduckgo.com/?q=%s'));
+      await tester.pumpAndSettle();
+      expect(_switchTitled(tester, 'Searches the whole web').value, isTrue);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(seen!.searchAddress, isNull);
+      expect(seen!.searchesWeb, isFalse);
+    });
+
+    testWidgets('Reset returns to the known address', (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(
+            searchAddress: 'https://github.com/search?type=code&q=%s'),
+        initUrl: 'https://github.com/',
+        onChanged: (v) => seen = v,
+      );
+      await tester.tap(find.text('https://github.com/search?type=code&q=%s'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reset'));
+      await tester.pumpAndSettle();
+      expect(seen!.searchAddress, isNull);
+      expect(find.text('https://github.com/search?q=%s'), findsOneWidget);
+    });
+
+    testWidgets('a list that drops the default clears it', (tester) async {
+      SiteBehaviourValues? seen;
+      await _pump(
+        tester,
+        values: _values(searchDefault: 'kagi'),
+        routingTargets: [ddg, kagi],
+        onChanged: (v) => seen = v,
+      );
+      expect(find.text('Kagi'), findsOneWidget);
+      await tester.tap(find.text('Search sites offered'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'DuckDuckGo'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(seen!.searchSites, ['ddg']);
+      expect(seen!.searchDefault, isNull);
+      expect(find.text('App default'), findsOneWidget);
     });
   });
 }

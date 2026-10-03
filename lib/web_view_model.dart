@@ -500,12 +500,50 @@ class WebViewModel {
   String? get pageTitle => activeTab.title;
   set pageTitle(String? value) => activeTab.title = value;
 
+  /// Resolves a siteId to its model, so a tab hosted by another site can find
+  /// that site (LIR-018). Set once by the page that owns the site list.
+  static WebViewModel? Function(String siteId)? siteLookup;
+
+  /// Set by the page: a link in a hosted tab that leads back into this site's
+  /// own domain opens as this site's child tab (S6 of the web search design).
+  void Function(String url)? onReturnToOwner;
+
+  /// The site [tab] runs as when that is not this one, or null.
+  WebViewModel? hostOf(SiteTab tab) {
+    final id = tab.hostSiteId;
+    return id == null ? null : siteLookup?.call(id);
+  }
+
+  /// The site this slot runs as (LIR-018): the host of the active tab, or
+  /// this site. The slot itself — the webview, controller, loading state and
+  /// the tab records — stays this site's.
+  WebViewModel get runningIdentity => hostOf(activeTab) ?? this;
+
+  bool get runsHostedTab => activeTab.hostSiteId != null;
+
+  /// The active tab names a host that is not there. The tab must close rather
+  /// than load its host's URL as this site (LIR-023).
+  bool get activeHostMissing => runsHostedTab && hostOf(activeTab) == null;
+
   /// Storage key for the active tab's `controller.saveState()` bytes. State is
   /// per tab, not per site: switching tabs captures under the outgoing tab's
-  /// key and restores from the incoming one's (TAB-003).
-  String get activeStateKey => webViewStateKey(siteId, activeTabId);
+  /// key and restores from the incoming one's (TAB-003). Keyed by the site the
+  /// tab runs as (LIR-022), so wiping that site drops them.
+  String get activeStateKey => stateKeyForTab(activeTabId);
 
-  String stateKeyForTab(String tabId) => webViewStateKey(siteId, tabId);
+  String stateKeyForTab(String tabId) {
+    final tab = tabs.where((t) => t.id == tabId).firstOrNull;
+    return webViewStateKey(tab?.hostSiteId ?? siteId, tabId);
+  }
+
+  /// Whether the active tab's back stack may be written (LIR-022): its record
+  /// persists with this site's tab list, and the site it runs as keeps state.
+  bool get activeTabPersistsNavState {
+    if (!persistsNavState) return false;
+    if (!runsHostedTab) return true;
+    final host = hostOf(activeTab);
+    return host != null && host.persistsNavState;
+  }
 
   /// Whether [tabs] is still exactly what a site that never opened a second
   /// tab carries. Serialisation omits the list while this holds, so on-disk
@@ -536,9 +574,26 @@ class WebViewModel {
       activeTabId = landing.activeTabId;
       return;
     }
+    bindOwnerRunTab();
     if (currentUrl == initUrl) return;
     currentUrl = initUrl;
     pageTitle = null;
+  }
+
+  /// LIR-018: before an owner URL loads, move a site with no live webview from
+  /// a hosted tab to one it runs itself: the nearest such ancestor, or a new
+  /// root tab at home. A live slot moves through a tab switch instead.
+  void bindOwnerRunTab() {
+    if (!runsHostedTab) return;
+    final id = TabLifecycleEngine.ownerRunTab(tabs, activeTabId);
+    if (id != null) {
+      activeTabId = id;
+    } else {
+      final tab = SiteTab(url: initUrl);
+      tabs = [...tabs, tab];
+      activeTabId = tab.id;
+    }
+    activeTab.lastActiveAt = DateTime.now();
   }
 
   String name; // Custom name for the site
@@ -772,6 +827,35 @@ class WebViewModel {
   /// This site's own routing rules, consulted before the global claims
   /// (LIR-014). At most one entry per claim.
   List<OutboundPreference> outboundPreferences;
+
+  /// How to search this site (LIR-028): an address with `%s` for the query.
+  /// Null means the address its host is known for, if any.
+  String? searchAddress;
+
+  /// Whether [searchAddress] searches the whole web rather than this site.
+  bool searchesWeb;
+
+  /// The search sites a search from this site offers; empty offers them all.
+  List<String> searchSites;
+
+  /// The search site a search from this site starts with; null falls back to
+  /// the app default.
+  String? searchDefault;
+
+  /// Drop the [searchSites] and [searchDefault] entries that name no
+  /// candidate (LIR-031). True when anything was dropped.
+  bool pruneSearchReferences(bool Function(String siteId) isCandidate) {
+    final kept = [
+      for (final id in searchSites)
+        if (isCandidate(id)) id,
+    ];
+    final def = searchDefault;
+    final dropDefault = def != null && !isCandidate(def);
+    if (kept.length == searchSites.length && !dropDefault) return false;
+    searchSites = kept;
+    if (dropDefault) searchDefault = null;
+    return true;
+  }
 
   /// View used by the resolver — always non-empty: returns the explicit
   /// `domainClaims` if the user has set them, otherwise the synthesized
@@ -1168,10 +1252,15 @@ class WebViewModel {
     this.domainClaims,
     this.routeOutboundLinks = false,
     List<OutboundPreference>? outboundPreferences,
+    this.searchAddress,
+    this.searchesWeb = false,
+    List<String>? searchSites,
+    this.searchDefault,
     this.stateSetterF,
     this.isArchiveTier = false,
   })  : userScripts = userScripts ?? [],
         outboundPreferences = outboundPreferences ?? [],
+        searchSites = searchSites ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
         siteId = siteId ?? _generateSiteId(),
@@ -1190,6 +1279,9 @@ class WebViewModel {
     );
     this.tabs = seeded.tabs;
     this.activeTabId = seeded.activeTabId;
+    for (final t in this.tabs) {
+      if (t.hostSiteId == this.siteId) t.hostSiteId = null;
+    }
   }
 
   /// This site's proxy as outbound seams should see it.
@@ -1271,11 +1363,12 @@ class WebViewModel {
     final c = controller;
     if (c == null) return;
     try {
+      final id = runningIdentity;
       await c.setOptions(
-        javascriptEnabled: javascriptEnabled,
-        userAgent: effectiveUserAgentOrNull,
-        thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
-        incognito: effectiveIncognito,
+        javascriptEnabled: id.javascriptEnabled,
+        userAgent: id.effectiveUserAgentOrNull,
+        thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
+        incognito: id.effectiveIncognito,
       );
       // Apply current theme preference
       await c.setThemePreference(_currentTheme);
@@ -1310,8 +1403,10 @@ class WebViewModel {
   /// site that stopped naming one clears it here (PROXY-029).
   Future<bool> _applyProxySettings() async {
     final proxyManager = ProxyManager();
+    // LIR-024: the process-global proxy follows the site the slot runs as.
+    final id = runningIdentity;
     try {
-      await proxyManager.setProxySettings(proxySettings);
+      await proxyManager.setProxySettings(id.proxySettings);
       final release = _containerProxyToRelease;
       _containerProxyToRelease = null;
       if (release != null) await proxyManager.releaseContainerProxy(release);
@@ -1333,7 +1428,7 @@ class WebViewModel {
       // load instead of leaking. `setProxySettings` throws on the effective
       // proxy, so a DEFAULT site inheriting an unusable global proxy blanks
       // too (LEAK-003).
-      if (resolveEffectiveProxy(proxySettings, siteId: siteId).type !=
+      if (resolveEffectiveProxy(id.proxySettings, siteId: id.siteId).type !=
           ProxyType.DEFAULT) {
         try {
           await controller?.stopLoading();
@@ -1430,16 +1525,31 @@ class WebViewModel {
     VoidCallback? onOpenProxySettings,
     OutboundLinkHandler? onOutboundLink,
   }) {
+    // LIR-018: a hosted tab runs as its host. Everything that decides the
+    // container, the posture and the navigation rules reads [id]; the slot's
+    // own state (webview, controller, loading, the tab record) stays here.
+    if (activeHostMissing) return const SizedBox.shrink();
+    final WebViewModel id = runningIdentity;
+    final bool hosted = !identical(id, this);
+    final String ownerDomain = getNormalizedDomain(initUrl);
+    // S6: in a hosted tab, a link back into this site's own domain returns to
+    // this site as a child tab instead of leaving by the host's rules.
+    bool returnsToOwner(String url) =>
+        hosted &&
+        onReturnToOwner != null &&
+        getNormalizedDomain(url) == ownerDomain;
+    void returnToOwner(String url) => onReturnToOwner?.call(url);
     // Fail closed while Tor is still bootstrapping (TOR-008), for explicit
     // Tor sites and for DEFAULT sites inheriting a global Tor (PROXY-011).
     // Constructing an InAppWebView here with a null proxy binds its
     // WKWebsiteDataStore to no proxy for the life of the widget, so a later
     // `Up` transition would silently leak — hence the widget-level gate
     // rather than a proxy substitution.
-    final effectiveProxy = resolveEffectiveProxy(proxySettings, siteId: siteId);
+    final effectiveProxy =
+        resolveEffectiveProxy(id.proxySettings, siteId: id.siteId);
     if (waitsForTor(
-      proxySettings,
-      siteId: siteId,
+      id.proxySettings,
+      siteId: id.siteId,
       torUp: TorService.instance.status.isUp,
     )) {
       // Do not cache the placeholder in `webview` — the next getWebView call
@@ -1449,10 +1559,11 @@ class WebViewModel {
     }
     if (webview == null) {
       // Use this.language directly to ensure we get the current value from WebViewModel
-      final effectiveLanguage = this.language;
+      final effectiveLanguage = id.language;
       LogService.instance.log(
         'WebView',
-        'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl)',
+        'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
+        '${hosted ? ', running as ${id.siteId}' : ''})',
         sensitivity: LogSensitivity.sensitive,
       );
       LogService.instance.log(
@@ -1495,10 +1606,10 @@ class WebViewModel {
         isFileImport: currentUrl.startsWith('file://'),
       );
       final storeBinding = WebViewFactory.storeBinding(
-        siteId: siteId,
-        archiveContainerId: archiveContainerId,
-        incognito: effectiveIncognito,
-        proxySettings: outboundProxySettings,
+        siteId: id.siteId,
+        archiveContainerId: id.archiveContainerId,
+        incognito: id.effectiveIncognito,
+        proxySettings: id.outboundProxySettings,
       );
       _containerProxyToRelease = storeBinding.releasesContainerProxy
           ? storeBinding.containerId
@@ -1510,68 +1621,69 @@ class WebViewModel {
         releasesContainerProxy: storeBinding.releasesContainerProxy,
       );
       _initialLoadDeferredForProxy = deferForProxy && !deferRestoreLoad;
-      final iconSiteUrl = initUrl;
+      final iconSiteUrl = id.initUrl;
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
-          siteId: siteId,
-          archiveContainerId: archiveContainerId,
+          siteId: id.siteId,
+          archiveContainerId: id.archiveContainerId,
           initialUrl: currentUrl,
-          javascriptEnabled: javascriptEnabled,
-          userAgent: effectiveUserAgentOrNull,
-          thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
-          httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled,
-          incognito: effectiveIncognito,
+          javascriptEnabled: id.javascriptEnabled,
+          userAgent: id.effectiveUserAgentOrNull,
+          thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
+          httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled,
+          incognito: id.effectiveIncognito,
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
           // there is no Flutter route-pop edge-swipe here, so opt into
           // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
           backForwardGestures: true,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
           language: effectiveLanguage, // Use WebViewModel's language, not parameter
-          zoomPercent: zoomPercent,
+          zoomPercent: id.zoomPercent,
           // Umbrella `trackingProtectionEnabled`: when on, the four
           // tracker-protection subordinates behave as ON regardless of
           // their per-site stored value. The stored values are still
           // respected when the umbrella is off so users can opt out of
           // individual paths under a custom posture.
-          clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
-          dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
-          dnsBlockLevel: effectiveDnsBlockLevel,
-          contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
-          disabledFilterLists: effectiveDisabledFilterLists,
-          localCdnEnabled:
-              effectiveLocalCdnEnabled || (trackingProtectionEnabled && !isArchiveTier),
-          contributesBlockStats: contributesBlockStats,
-          trackingProtectionEnabled: trackingProtectionEnabled,
-          letterboxEnabled: letterboxEnabled,
-          spoofWindowWidth: spoofWindowWidth,
-          spoofWindowHeight: spoofWindowHeight,
-          fingerprintResetNonce: fingerprintResetNonce,
+          clearUrlEnabled: id.clearUrlEnabled || id.trackingProtectionEnabled,
+          dnsBlockEnabled: id.dnsBlockEnabled || id.trackingProtectionEnabled,
+          dnsBlockLevel: id.effectiveDnsBlockLevel,
+          contentBlockEnabled:
+              id.contentBlockEnabled || id.trackingProtectionEnabled,
+          disabledFilterLists: id.effectiveDisabledFilterLists,
+          localCdnEnabled: id.effectiveLocalCdnEnabled ||
+              (id.trackingProtectionEnabled && !id.isArchiveTier),
+          contributesBlockStats: id.contributesBlockStats,
+          trackingProtectionEnabled: id.trackingProtectionEnabled,
+          letterboxEnabled: id.letterboxEnabled,
+          spoofWindowWidth: id.spoofWindowWidth,
+          spoofWindowHeight: id.spoofWindowHeight,
+          fingerprintResetNonce: id.fingerprintResetNonce,
           // The effective timezone is resolved from the spoofed coords and
           // persisted into `spoofTimezone` at settings-save time (Tracking
           // Protection's force-from-location is applied there too), so the
           // runtime just passes the stored value through — the polygon
           // dataset never loads on this path.
-          locationMode: locationMode,
-          spoofLatitude: spoofLatitude,
-          spoofLongitude: spoofLongitude,
-          spoofAccuracy: spoofAccuracy,
-          spoofTimezone: spoofTimezone,
-          spoofTimezoneFromLocation: spoofTimezoneFromLocation,
-          liveLocationGranularity: liveLocationGranularity,
-          webRtcPolicy: effectiveWebRtcPolicy,
+          locationMode: id.locationMode,
+          spoofLatitude: id.spoofLatitude,
+          spoofLongitude: id.spoofLongitude,
+          spoofAccuracy: id.spoofAccuracy,
+          spoofTimezone: id.spoofTimezone,
+          spoofTimezoneFromLocation: id.spoofTimezoneFromLocation,
+          liveLocationGranularity: id.liveLocationGranularity,
+          webRtcPolicy: id.effectiveWebRtcPolicy,
           // Per-site proxy. Honored at WebView construction on iOS 17+ /
           // macOS 14+ via the patched `preWKWebViewConfiguration` (see
           // PROXY-002 / PROXY-008). Android ignores this and routes
           // through the global `ProxyController` in `_applyProxySettings`.
-          proxySettings: outboundProxySettings,
-          notificationsEnabled: effectiveNotificationsEnabled,
+          proxySettings: id.outboundProxySettings,
+          notificationsEnabled: id.effectiveNotificationsEnabled,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-          userScripts: combineUserScripts(globalUserScripts),
+          userScripts: id.combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
           onUntrustedCertificate: onUntrustedCertificate,
           onHttpAuthRequest: onHttpAuthRequest,
-          httpAuthMemory: effectiveHttpAuthMemory,
+          httpAuthMemory: id.effectiveHttpAuthMemory,
           onExternalSchemeUrl: onExternalSchemeUrl,
           onLinkLongPress: onLinkLongPress,
           onProtectedMediaRequest: onProtectedMediaRequest == null
@@ -1580,12 +1692,12 @@ class WebViewModel {
                   // Archive-tier and Tracking Protection sites deny without
                   // prompting; otherwise a previously remembered Allow/Block
                   // decision short-circuits the popup.
-                  final remembered = effectiveProtectedContentAllowed;
+                  final remembered = id.effectiveProtectedContentAllowed;
                   if (remembered != null) return remembered;
                   // Coalesce a burst of requests onto one popup.
                   _protectedMediaDecisionInFlight ??= () async {
                     final granted = await onProtectedMediaRequest(origin);
-                    protectedContentAllowed = granted;
+                    id.protectedContentAllowed = granted;
                     await saveFunc();
                     return granted;
                   }();
@@ -1597,27 +1709,27 @@ class WebViewModel {
                 },
           onCameraDecision: onCameraDecision == null
               ? null
-              : (origin, isTopFrame) => resolveCameraRequest(
+              : (origin, isTopFrame) => id.resolveCameraRequest(
                     origin,
                     resolver: onCameraDecision,
                     isActive: isActive,
                     isTopFrame: isTopFrame,
                     saveFunc: saveFunc,
                   ),
-          currentCameraMode: () => effectiveCameraMode,
+          currentCameraMode: () => id.effectiveCameraMode,
           onMicrophoneDecision: onMicrophoneDecision == null
               ? null
-              : (origin, isTopFrame) => resolveMicrophoneRequest(
+              : (origin, isTopFrame) => id.resolveMicrophoneRequest(
                     origin,
                     resolver: onMicrophoneDecision,
                     isActive: isActive,
                     isTopFrame: isTopFrame,
                     saveFunc: saveFunc,
                   ),
-          currentMicrophoneMode: () => effectiveMicrophoneMode,
+          currentMicrophoneMode: () => id.effectiveMicrophoneMode,
           onScreenShareDecision: onScreenShareDecision == null
               ? null
-              : (origin) => resolveScreenShareRequest(
+              : (origin) => id.resolveScreenShareRequest(
                     origin,
                     resolver: onScreenShareDecision,
                     isActive: isActive,
@@ -1638,13 +1750,13 @@ class WebViewModel {
             );
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
               targetUrl: url,
-              initUrl: initUrl,
+              initUrl: id.initUrl,
               hasGesture: hasGesture,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
-              externalLinkMode: effectiveExternalLinkMode,
-              matchesSiteClaim: matchesSiteClaim,
+              externalLinkMode: id.effectiveExternalLinkMode,
+              matchesSiteClaim: id.matchesSiteClaim,
             );
             switch (result.gestureUpdate) {
               case GestureStateUpdate.record:
@@ -1655,6 +1767,13 @@ class WebViewModel {
                 break;
               case null:
                 break;
+            }
+            if (result.decision != NavigationDecision.allow &&
+                result.decision != NavigationDecision.blockSilent &&
+                result.decision != NavigationDecision.blockSuppressed &&
+                returnsToOwner(url)) {
+              returnToOwner(url);
+              return false;
             }
             switch (result.decision) {
               case NavigationDecision.allow:
@@ -1685,7 +1804,7 @@ class WebViewModel {
                   sensitivity: LogSensitivity.sensitive,
                 );
                 if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlFunc(url, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: effectiveWebRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory, passkeys: effectivePasskeysEnabled);
+                launchUrlFunc(url, homeTitle: id.name, siteId: id.siteId, archiveContainerId: id.archiveContainerId, incognito: id.effectiveIncognito, thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled, clearUrlEnabled: id.clearUrlEnabled, dnsBlockEnabled: id.dnsBlockEnabled, dnsBlockLevel: id.effectiveDnsBlockLevel, contentBlockEnabled: id.contentBlockEnabled, disabledFilterLists: id.effectiveDisabledFilterLists, localCdnEnabled: id.effectiveLocalCdnEnabled, contributesBlockStats: id.contributesBlockStats, trackingProtectionEnabled: id.trackingProtectionEnabled, letterboxEnabled: id.letterboxEnabled, spoofWindowWidth: id.spoofWindowWidth, spoofWindowHeight: id.spoofWindowHeight, fingerprintResetNonce: id.fingerprintResetNonce, language: id.language, zoomPercent: id.zoomPercent, locationMode: id.locationMode, spoofLatitude: id.spoofLatitude, spoofLongitude: id.spoofLongitude, spoofAccuracy: id.spoofAccuracy, spoofTimezone: id.spoofTimezone, spoofTimezoneFromLocation: id.spoofTimezoneFromLocation, liveLocationGranularity: id.liveLocationGranularity, webRtcPolicy: id.effectiveWebRtcPolicy, userAgent: id.effectiveUserAgentOrNull, javascriptEnabled: id.javascriptEnabled, userScripts: id.combineUserScripts(globalUserScripts), proxySettings: id.outboundProxySettings, notificationsEnabled: id.effectiveNotificationsEnabled, externalLinkMode: id.effectiveExternalLinkMode, blockedCookies: id.blockedCookies, cameraMode: id.effectiveCameraMode, virtualCameraSource: id.virtualCameraSource, microphoneMode: id.effectiveMicrophoneMode, virtualMicrophoneSource: id.virtualMicrophoneSource, screenShareMode: id.effectiveScreenShareMode, virtualScreenSource: id.virtualScreenSource, protectedContentAllowed: id.effectiveProtectedContentAllowed, httpAuthMemory: id.effectiveHttpAuthMemory, passkeys: id.effectivePasskeysEnabled);
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -1734,18 +1853,18 @@ class WebViewModel {
             // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
             // (e.g., server-side 302 from search engine redirect pages like
             // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
-            final initDomain = getNormalizedDomain(initUrl);
+            final initDomain = getNormalizedDomain(id.initUrl);
             final handled = NavigationDecisionEngine.handleOnUrlChanged(
               newUrl: url,
-              initUrl: initUrl,
+              initUrl: id.initUrl,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
               isCaptchaChallenge: (u) =>
-                  WebViewFactory.isCaptchaChallenge(u, siteUrl: initUrl),
+                  WebViewFactory.isCaptchaChallenge(u, siteUrl: id.initUrl),
               state: urlChangedState,
-              externalLinkMode: effectiveExternalLinkMode,
-              matchesSiteClaim: matchesSiteClaim,
+              externalLinkMode: id.effectiveExternalLinkMode,
+              matchesSiteClaim: id.matchesSiteClaim,
             );
             switch (handled.gestureUpdate) {
               case GestureStateUpdate.record:
@@ -1801,8 +1920,12 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchNestedUrl != null) {
+                    if (returnsToOwner(handled.launchNestedUrl!)) {
+                      returnToOwner(handled.launchNestedUrl!);
+                      return;
+                    }
                     if (onOutboundLink?.call(handled.launchNestedUrl!, NavigationDecision.blockOpenNested, handled.hadGesture) ?? false) return;
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: name, siteId: siteId, archiveContainerId: archiveContainerId, incognito: effectiveIncognito, thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled, clearUrlEnabled: clearUrlEnabled, dnsBlockEnabled: dnsBlockEnabled, dnsBlockLevel: effectiveDnsBlockLevel, contentBlockEnabled: contentBlockEnabled, disabledFilterLists: effectiveDisabledFilterLists, localCdnEnabled: effectiveLocalCdnEnabled, contributesBlockStats: contributesBlockStats, trackingProtectionEnabled: trackingProtectionEnabled, letterboxEnabled: letterboxEnabled, spoofWindowWidth: spoofWindowWidth, spoofWindowHeight: spoofWindowHeight, fingerprintResetNonce: fingerprintResetNonce, language: this.language, zoomPercent: zoomPercent, locationMode: locationMode, spoofLatitude: spoofLatitude, spoofLongitude: spoofLongitude, spoofAccuracy: spoofAccuracy, spoofTimezone: spoofTimezone, spoofTimezoneFromLocation: spoofTimezoneFromLocation, liveLocationGranularity: liveLocationGranularity, webRtcPolicy: effectiveWebRtcPolicy, userAgent: effectiveUserAgentOrNull, javascriptEnabled: javascriptEnabled, userScripts: combineUserScripts(globalUserScripts), proxySettings: outboundProxySettings, notificationsEnabled: effectiveNotificationsEnabled, externalLinkMode: effectiveExternalLinkMode, blockedCookies: blockedCookies, cameraMode: effectiveCameraMode, virtualCameraSource: virtualCameraSource, microphoneMode: effectiveMicrophoneMode, virtualMicrophoneSource: virtualMicrophoneSource, screenShareMode: effectiveScreenShareMode, virtualScreenSource: virtualScreenSource, protectedContentAllowed: effectiveProtectedContentAllowed, httpAuthMemory: effectiveHttpAuthMemory, passkeys: effectivePasskeysEnabled);
+                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: id.name, siteId: id.siteId, archiveContainerId: id.archiveContainerId, incognito: id.effectiveIncognito, thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled, clearUrlEnabled: id.clearUrlEnabled, dnsBlockEnabled: id.dnsBlockEnabled, dnsBlockLevel: id.effectiveDnsBlockLevel, contentBlockEnabled: id.contentBlockEnabled, disabledFilterLists: id.effectiveDisabledFilterLists, localCdnEnabled: id.effectiveLocalCdnEnabled, contributesBlockStats: id.contributesBlockStats, trackingProtectionEnabled: id.trackingProtectionEnabled, letterboxEnabled: id.letterboxEnabled, spoofWindowWidth: id.spoofWindowWidth, spoofWindowHeight: id.spoofWindowHeight, fingerprintResetNonce: id.fingerprintResetNonce, language: id.language, zoomPercent: id.zoomPercent, locationMode: id.locationMode, spoofLatitude: id.spoofLatitude, spoofLongitude: id.spoofLongitude, spoofAccuracy: id.spoofAccuracy, spoofTimezone: id.spoofTimezone, spoofTimezoneFromLocation: id.spoofTimezoneFromLocation, liveLocationGranularity: id.liveLocationGranularity, webRtcPolicy: id.effectiveWebRtcPolicy, userAgent: id.effectiveUserAgentOrNull, javascriptEnabled: id.javascriptEnabled, userScripts: id.combineUserScripts(globalUserScripts), proxySettings: id.outboundProxySettings, notificationsEnabled: id.effectiveNotificationsEnabled, externalLinkMode: id.effectiveExternalLinkMode, blockedCookies: id.blockedCookies, cameraMode: id.effectiveCameraMode, virtualCameraSource: id.virtualCameraSource, microphoneMode: id.effectiveMicrophoneMode, virtualMicrophoneSource: id.virtualMicrophoneSource, screenShareMode: id.effectiveScreenShareMode, virtualScreenSource: id.virtualScreenSource, protectedContentAllowed: id.effectiveProtectedContentAllowed, httpAuthMemory: id.effectiveHttpAuthMemory, passkeys: id.effectivePasskeysEnabled);
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -1812,6 +1935,10 @@ class WebViewModel {
                     sensitivity: LogSensitivity.sensitive,
                   );
                   if (handled.launchExternalUrl != null) {
+                    if (returnsToOwner(handled.launchExternalUrl!)) {
+                      returnToOwner(handled.launchExternalUrl!);
+                      return;
+                    }
                     if (onOutboundLink?.call(handled.launchExternalUrl!, NavigationDecision.blockOpenExternal, handled.hadGesture) ?? false) return;
                     launchUrlInSystemBrowser(handled.launchExternalUrl!);
                   }
@@ -1858,7 +1985,7 @@ class WebViewModel {
                 if (title != null && title.isNotEmpty) {
                   pageTitle = title;
                   // Auto-update name from page title if name is still the default domain
-                  if (name == extractDomain(initUrl)) {
+                  if (!hosted && name == extractDomain(initUrl)) {
                     name = title;
                   }
                 }
@@ -1883,17 +2010,18 @@ class WebViewModel {
           // legacy mode hits the global jar.
           cookieManager: cookieManager,
           containerCookieManager: containerCookieManager,
-          cookieSiteId: siteId,
+          cookieSiteId: id.siteId,
           onCookiesChanged: (newCookies) async {
-            // Remove blocked cookies from the webview cookie jar
-            if (blockedCookies.isNotEmpty) {
-              final blocked = newCookies.where((c) => isCookieBlocked(c.name, c.domain)).toList();
-              final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
+            // Remove blocked cookies from the webview cookie jar. The mirror
+            // and the block list are those of the site the slot runs as.
+            if (id.blockedCookies.isNotEmpty) {
+              final blocked = newCookies.where((c) => id.isCookieBlocked(c.name, c.domain)).toList();
+              final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : id.initUrl);
               for (final c in blocked) {
                 if (containerCookieManager != null) {
                   await containerCookieManager.deleteCookie(
                     controller: controller,
-                    siteId: siteId,
+                    siteId: id.siteId,
                     url: url,
                     name: c.name,
                     domain: c.domain,
@@ -1908,9 +2036,9 @@ class WebViewModel {
                   );
                 }
               }
-              cookies = newCookies.where((c) => !isCookieBlocked(c.name, c.domain)).toList();
+              id.cookies = newCookies.where((c) => !id.isCookieBlocked(c.name, c.domain)).toList();
             } else {
-              cookies = newCookies;
+              id.cookies = newCookies;
             }
             await saveFunc();
           },
@@ -1926,7 +2054,7 @@ class WebViewModel {
           initialHtml: initialHtml,
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
-          passkeys: hostIsAndroid && effectivePasskeysEnabled
+          passkeys: hostIsAndroid && id.effectivePasskeysEnabled
               ? PasskeyAccess(isOnScreen: isActive ?? () => true)
               : null,
           siteIcon: SiteIconTarget(
@@ -1934,7 +2062,7 @@ class WebViewModel {
             // Incognito and archive-tier icons stay in memory: an icon the
             // site served (an unread badge) is state it must not leave on disk.
             onIcon: (icon) => unawaited(SiteIconStore.instance
-                .offer(iconSiteUrl, icon, persist: !effectiveIncognito)),
+                .offer(iconSiteUrl, icon, persist: !id.effectiveIncognito)),
           ),
           onConsoleMessage: (message, level) {
             consoleLogs.add(ConsoleLogEntry(
@@ -2747,6 +2875,10 @@ class WebViewModel {
         if (outboundPreferences.isNotEmpty)
           'outboundPreferences':
               outboundPreferences.map((p) => p.toJson()).toList(),
+        if (searchAddress != null) 'searchAddress': searchAddress,
+        if (searchesWeb) 'searchesWeb': true,
+        if (searchSites.isNotEmpty) 'searchSites': searchSites,
+        if (searchDefault != null) 'searchDefault': searchDefault,
       };
   }
 
@@ -2921,6 +3053,13 @@ class WebViewModel {
             .map(OutboundPreference.fromJson)
             .whereType<OutboundPreference>(),
       ),
+      searchAddress: field<String>('searchAddress'),
+      searchesWeb: field<bool>('searchesWeb') ?? false,
+      searchSites: [
+        for (final id in field<List<dynamic>>('searchSites') ?? const [])
+          if (sanitizedSiteId(id) case final String safe) safe,
+      ],
+      searchDefault: sanitizedSiteId(json['searchDefault']),
       stateSetterF: stateSetterF,
       isArchiveTier: isArchiveTier,
     )..pageTitle ??= dropUrl ? null : field<String>('pageTitle');

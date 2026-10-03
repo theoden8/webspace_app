@@ -53,6 +53,8 @@ import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
+import 'package:webspace/widgets/web_search_sheet.dart';
+import 'package:webspace/services/web_search_engine.dart';
 
 const Map<String, Color> galleryAccents = {
   'blue': accentBlue,
@@ -103,6 +105,8 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: (c) => const _AddSiteCard()),
   GalleryCard(id: 'unproxied-block', label: 'Blocked navigation interstitial', fullBleed: true, builder: (c) => const _UnproxiedBlockCard()),
   GalleryCard(id: 'tabs-sheet', label: 'Tabs sheet', fullBleed: true, builder: (c) => const _TabsSheetCard()),
+  GalleryCard(id: 'web-search-sheet', label: 'Web search sheet', fullBleed: true, builder: (c) => const _WebSearchSheetCard()),
+  GalleryCard(id: 'web-search-empty', label: 'Web search sheet, no search sites', fullBleed: true, builder: (c) => const _WebSearchEmptyCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
@@ -548,7 +552,16 @@ class _UrlBarCard extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        UrlBar(currentUrl: 'https://codeberg.org/theoden8/webspace', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
+        UrlBar(
+          currentUrl: 'https://codeberg.org/theoden8/webspace',
+          onUrlSubmitted: (_) {},
+          onSiteInfo: () {},
+          searchSites: const [
+            UrlBarSearchSite('ddg', 'DuckDuckGo'),
+            UrlBarSearchSite('kagi', 'Kagi'),
+          ],
+          onSearch: (_, _) {},
+        ),
         const SizedBox(height: 16),
         UrlBar(currentUrl: 'http://example.org', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
         const SizedBox(height: 16),
@@ -578,6 +591,7 @@ class _SiteInfoCard extends StatelessWidget {
         child: SiteInfoSheet(
           info: SiteInfo(
             siteName: 'GitHub',
+            tabOf: 'DuckDuckGo',
             pageUrl: 'https://github.com/theoden8/webspace_app',
             containerId: 'ws-3f9c2a7e',
             incognito: false,
@@ -1106,6 +1120,80 @@ WebViewModel _siteWithTabs(
 /// The real TabsSheet over a page, as the app's modal presents it. Three sites
 /// cover every load state TAB-011 draws: GitHub is on screen, Mastodon is
 /// loaded in the background, Wikipedia holds no webview.
+class _WebSearchSheetCard extends StatelessWidget {
+  const _WebSearchSheetCard();
+
+  static SearchSite _site(String id, String name, String url) => SearchSite(
+        siteId: id,
+        name: name,
+        initUrl: url,
+        capability: WebSearchEngine.capabilityOf(initUrl: url),
+      );
+
+  @override
+  Widget build(BuildContext context) => _SearchSheetFrame(
+        title: 'GitHub',
+        sheet: WebSearchSheet(
+          identity: _site('gh', 'GitHub', 'https://github.com/'),
+          candidates: [
+            _site('ddg', 'DuckDuckGo', 'https://duckduckgo.com/'),
+            _site('kagi', 'Kagi', 'https://kagi.com/'),
+            _site('pplx', 'Perplexity', 'https://www.perplexity.ai/'),
+          ],
+        ),
+      );
+}
+
+class _WebSearchEmptyCard extends StatelessWidget {
+  const _WebSearchEmptyCard();
+
+  @override
+  Widget build(BuildContext context) => const _SearchSheetFrame(
+        title: 'Blog',
+        sheet: WebSearchSheet(
+          identity: SearchSite(
+            siteId: 'blog',
+            name: 'Blog',
+            initUrl: 'https://blog.example/',
+            capability: null,
+          ),
+          candidates: [],
+        ),
+      );
+}
+
+class _SearchSheetFrame extends StatelessWidget {
+  const _SearchSheetFrame({required this.title, required this.sheet});
+
+  final String title;
+  final Widget sheet;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Stack(
+        children: [
+          Positioned.fill(child: ColoredBox(color: theme.colorScheme.surfaceContainerHighest)),
+          const Positioned.fill(child: ColoredBox(color: Colors.black54)),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: BottomSheet(
+              enableDrag: false,
+              onClosing: _noop,
+              builder: (_) => Padding(
+                padding: const EdgeInsets.only(top: Spacing.lg),
+                child: sheet,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TabsSheetCard extends StatelessWidget {
   const _TabsSheetCard();
 
@@ -1163,6 +1251,7 @@ class _TabsSheetCard extends StatelessWidget {
                 currentIndex: 0,
                 onOpenTab: (_, _) {},
                 onNewTab: (_) {},
+                onWebSearch: () {},
                 onCloseTab: (_, _) {},
                 onCloseSubtree: (_, _) {},
               ),

@@ -45,6 +45,41 @@ class TabCloseResult {
   final bool activeChanged;
 }
 
+/// Where a dragged tab lands against the row it is dropped on (TAB-015).
+enum TabDropZone {
+  /// The row's sibling, just before it.
+  before,
+
+  /// The row's last child.
+  into,
+
+  /// Just below the row: its first child when its children are showing,
+  /// else its sibling after its whole subtree.
+  after,
+}
+
+/// A drop in the tab list: on a row, or past the last row.
+class TabDrop {
+  const TabDrop.onto(
+    String this.targetId,
+    this.zone, {
+    this.targetExpanded = true,
+  });
+
+  /// Past the last row: the tab becomes the last root.
+  const TabDrop.toEnd()
+      : targetId = null,
+        zone = TabDropZone.after,
+        targetExpanded = false;
+
+  final String? targetId;
+  final TabDropZone zone;
+
+  /// Whether the target's children are showing, which decides what "just
+  /// below it" means.
+  final bool targetExpanded;
+}
+
 /// What the system back gesture means at the start of the active tab's own
 /// history (NAV-001, TAB-007).
 enum TabBackAction {
@@ -196,6 +231,100 @@ class TabLifecycleEngine {
     return [...tabs.take(at), tab, ...tabs.skip(at)];
   }
 
+  /// Move [tabId] and everything under it (TAB-015, LIR-026): it becomes a
+  /// child of [newParentId], or a root when that is null, placed just before
+  /// its sibling [beforeId], just after its sibling [afterId]'s subtree, or
+  /// after the new parent's subtree when neither is given. Only `parentId`
+  /// and list positions change: no host, state key or active tab.
+  ///
+  /// Null when refused: an unknown tab, a parent or anchor inside the moved
+  /// subtree, or an anchor that is not a child of the new parent.
+  static List<SiteTab>? move(
+    List<SiteTab> tabs,
+    String tabId, {
+    required String? newParentId,
+    String? beforeId,
+    String? afterId,
+  }) {
+    final byId = {for (final t in tabs) t.id: t};
+    final moving = byId[tabId];
+    if (moving == null) return null;
+    final block = {tabId, ...descendants(tabs, tabId).map((t) => t.id)};
+    if (newParentId != null &&
+        (block.contains(newParentId) || !byId.containsKey(newParentId))) {
+      return null;
+    }
+    for (final anchor in [beforeId, afterId]) {
+      if (anchor == null) continue;
+      final a = byId[anchor];
+      if (a == null || block.contains(anchor) || a.parentId != newParentId) {
+        return null;
+      }
+    }
+    final moved = [for (final t in tabs) if (block.contains(t.id)) t];
+    final rest = [for (final t in tabs) if (!block.contains(t.id)) t];
+    // Siblings are ordered by list position alone, so a subtree need not be
+    // contiguous; landing after its last member puts the block after it.
+    int after(String id) {
+      final members = {id, ...descendants(rest, id).map((t) => t.id)};
+      var last = -1;
+      for (var i = 0; i < rest.length; i++) {
+        if (members.contains(rest[i].id)) last = i;
+      }
+      return last + 1;
+    }
+
+    final int at;
+    if (beforeId != null) {
+      at = rest.indexWhere((t) => t.id == beforeId);
+    } else if (afterId != null) {
+      at = after(afterId);
+    } else if (newParentId != null) {
+      at = after(newParentId);
+    } else {
+      at = rest.length;
+    }
+    moving.parentId = newParentId;
+    return [...rest.take(at), ...moved, ...rest.skip(at)];
+  }
+
+  /// "Move under..." (LIR-026): [tabId] and its subtree become the last
+  /// children of [newParentId], or the last root.
+  static List<SiteTab>? reparent(
+    List<SiteTab> tabs,
+    String tabId,
+    String? newParentId,
+  ) =>
+      move(tabs, tabId, newParentId: newParentId);
+
+  /// [tabId] dropped in the tab list (TAB-015). Null when refused, which is a
+  /// drop on the dragged tab or inside its own subtree.
+  static List<SiteTab>? drop(List<SiteTab> tabs, String tabId, TabDrop drop) {
+    final targetId = drop.targetId;
+    if (targetId == null) return move(tabs, tabId, newParentId: null);
+    if (targetId == tabId) return null;
+    final target = tabs.where((t) => t.id == targetId).firstOrNull;
+    if (target == null) return null;
+    switch (drop.zone) {
+      case TabDropZone.before:
+        return move(tabs, tabId,
+            newParentId: target.parentId, beforeId: targetId);
+      case TabDropZone.into:
+        return move(tabs, tabId, newParentId: targetId);
+      case TabDropZone.after:
+        if (drop.targetExpanded) {
+          final first =
+              tabs.where((t) => t.parentId == targetId).firstOrNull;
+          if (first != null) {
+            if (first.id == tabId) return [...tabs];
+            return move(tabs, tabId, newParentId: targetId, beforeId: first.id);
+          }
+        }
+        return move(tabs, tabId,
+            newParentId: target.parentId, afterId: targetId);
+    }
+  }
+
   /// Close one tab. Its children move up to its parent (TAB-007) so nothing is
   /// orphaned by a close, and the tab that takes over is its parent when it
   /// had one, else the most recently active survivor.
@@ -291,6 +420,36 @@ class TabLifecycleEngine {
     );
   }
 
+  /// Close every tab [shouldClose] names, with TAB-007's re-parenting. Used
+  /// for hosted tabs whose host is gone or may no longer host (LIR-023).
+  static TabCloseResult closeWhere(
+    List<SiteTab> tabs,
+    String activeTabId,
+    bool Function(SiteTab tab) shouldClose,
+  ) =>
+      _close(
+        tabs,
+        activeTabId,
+        {for (final t in tabs) if (shouldClose(t)) t.id},
+        reparent: true,
+      );
+
+  /// The tab an owner URL may load into (LIR-018): [activeTabId] when the
+  /// owner runs it itself, else its nearest ancestor the owner runs, else null
+  /// (the caller opens a new root tab at the owner's home).
+  static String? ownerRunTab(List<SiteTab> tabs, String activeTabId) {
+    final byId = {for (final t in tabs) t.id: t};
+    final seen = <String>{};
+    String? id = activeTabId;
+    while (id != null && seen.add(id)) {
+      final tab = byId[id];
+      if (tab == null) return null;
+      if (tab.hostSiteId == null) return tab.id;
+      id = tab.parentId;
+    }
+    return null;
+  }
+
   /// What a back gesture means once the active tab's own history is exhausted.
   ///
   /// A tab the user opened from another tab closes and hands back to its
@@ -332,20 +491,22 @@ class TabLifecycleEngine {
   }
 
   /// Where a site with tabs lands when it is entered with Always open Home on
-  /// (TAB-014): a tab at its home page. Null when the active tab is already
-  /// there. Otherwise the most recently used parked tab at home, or failing
-  /// that a new root tab at [initUrl], appended. Either way the tab the site
-  /// was on is kept.
+  /// (TAB-014): a tab at its home page that the site runs itself (LIR-018).
+  /// Null when the active tab is already there. Otherwise the most recently
+  /// used parked tab at home, or failing that a new root tab at [initUrl],
+  /// appended. Either way the tab the site was on is kept.
   static ({List<SiteTab> tabs, String activeTabId})? homeLanding(
     List<SiteTab> tabs,
     String activeTabId,
     String initUrl,
   ) {
+    bool ownHome(SiteTab t) =>
+        t.hostSiteId == null && isHomeUrl(t.url, initUrl);
     final active = tabs.where((t) => t.id == activeTabId).firstOrNull;
-    if (active != null && isHomeUrl(active.url, initUrl)) return null;
+    if (active != null && ownHome(active)) return null;
     SiteTab? home;
     for (final t in tabs) {
-      if (t.id == activeTabId || !isHomeUrl(t.url, initUrl)) continue;
+      if (t.id == activeTabId || !ownHome(t)) continue;
       if (home == null || t.lastActiveAt.isAfter(home.lastActiveAt)) home = t;
     }
     if (home != null) return (tabs: tabs, activeTabId: home.id);

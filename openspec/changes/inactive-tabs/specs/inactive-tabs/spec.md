@@ -97,8 +97,8 @@ Tapping a site in the strip or drawer, a cold start, a home-shortcut tap and
 a share arrival SHALL resume the site's active tab and SHALL NOT create a tab,
 except that a cold start or a home-shortcut tap lands a site with Always open
 Home on a tab at home (TAB-014). A tab SHALL be created only by "New tab"
-(TAB-005), "Open in new tab" (TAB-006), "Duplicate tab" (TAB-010) and that
-landing. Home (NAV-004) SHALL act on the active tab: `initUrl` with history
+(TAB-005), "Open in new tab" (TAB-006), "Duplicate tab" (TAB-010), a web search
+(LIR-030) and that landing. Home (NAV-004) SHALL act on the active tab: `initUrl` with history
 cleared, no new tab.
 
 #### Scenario: Reopening a site resumes
@@ -120,11 +120,14 @@ cleared, no new tab.
 ### Requirement: TAB-005 - New tab
 
 "New tab" SHALL create a root tab at the site's `initUrl`, make it active with
-an empty history, and park the previous active tab per TAB-003. It SHALL be
-reachable from the Tabs sheet header and from the overflow menu, meaning both
-of them: the app bar's, and the bottom bar's when the tab strip is shown. A
-long press on a strip chip is not an entry point: it already starts the drag
-that reorders sites.
+an empty history, and park the previous active tab per TAB-003. A web search
+(LIR-030) SHALL open its tab the same way at the search URL: as a child of the
+tab searched from when it lands in the same site's tree, including as a hosted
+tab (LIR-018), or as a root tab of the search site when it falls back to it.
+"New tab" SHALL be reachable from the Tabs sheet header and from the overflow
+menu, meaning both of them: the app bar's, and the bottom bar's when the tab
+strip is shown. A long press on a strip chip is not an entry point: it already
+starts the drag that reorders sites.
 
 #### Scenario: New tab from a deep page
 
@@ -142,9 +145,12 @@ A long-press on a link whose URL is inside the site's domain SHALL offer "Open
 in new tab", which creates a parked child tab (`parentId` = the current tab)
 without navigating, and shows a snackbar offering "Switch". No webview and no
 state bytes SHALL exist for the child until it is first activated. For a link
-outside the site's domain the row SHALL be shown disabled with the reason
-unless LIR-020 offers "Open in new tab as {site}" rows for it, and a tap on
-such a link SHALL keep opening the nested screen as today.
+outside the site's domain that one of the user's sites can run as a tab
+(LIR-032), the row SHALL be enabled, name that site ("as {site}"), and create
+the parked child running as it; when several can, it SHALL ask with the
+LIR-016 picker first. For any other link outside the domain the row SHALL be
+shown disabled with the reason, and a tap on such a link SHALL keep opening the
+nested screen as today.
 
 The menu's "Open" row SHALL route the link exactly as a tap on it would: in
 place when it is inside the site's domain, otherwise in the nested screen, or
@@ -488,3 +494,80 @@ its active tab is sent home in place.
 - **WHEN** the user taps its shortcut
 - **THEN** the parked home tab becomes active and no tab is created
 
+---
+
+### Requirement: TAB-015 - Drag to reorder and nest
+
+A long press on a row of the Tabs sheet SHALL lift that tab with its whole
+subtree, and a drop SHALL move them within the same site's tree through the
+pure engine operation `TabLifecycleEngine.drop(tabs, tabId, drop)`:
+
+- in the top quarter of another row, the tab SHALL become that row's sibling
+  just before it;
+- in the middle half, the tab SHALL become that row's last child;
+- in the bottom quarter, the tab SHALL become the row's first child when the
+  row's children are showing, and otherwise its sibling just after its whole
+  subtree;
+- past a site's last row, the tab SHALL become that site's last root.
+
+While a drag is over a row the sheet SHALL show where the tab would land: a
+line at the landing depth for a sibling or first child, an outline for a last
+child. A drop on the dragged tab, inside its own subtree, or on another site's
+row SHALL be refused and change nothing; moving a tab to another site is
+LIR-025's. A drop into a collapsed row SHALL expand it so the moved tab stays
+in view. Holding a drag near the list's top or bottom edge SHALL scroll it.
+
+A move SHALL change only `parentId` and list positions, as LIR-026's
+`reparent` does: no webview is rebuilt, and no host, URL, state key or active
+tab changes. The new tree SHALL be persisted. A tap on a row SHALL still open
+the tab.
+
+#### Scenario: Nest a tab
+
+- **GIVEN** GitHub tabs A, B and C, each a root
+- **WHEN** the user long-presses C and drops it on the middle of A's row
+- **THEN** C is A's child, listed under A and indented
+- **AND** no webview is rebuilt and the tab on screen is unchanged
+
+#### Scenario: Reorder siblings
+
+- **GIVEN** GitHub tabs A, B and C, each a root
+- **WHEN** the user drops C on the top edge of A's row
+- **THEN** the order is C, A, B, all still roots
+
+#### Scenario: A tab cannot land in its own subtree
+
+- **GIVEN** GitHub tab A with child B
+- **WHEN** the user drags A over B's row
+- **THEN** no landing is shown and the drop changes nothing
+
+### Requirement: TAB-016 - Drag a site heading to reorder sites
+
+In the Tabs sheet's All sites view, a long press on a site's heading SHALL
+lift the site, and a drop on another site's heading SHALL put the site in that
+one's place: above it when dragged up, below it when dragged down, the rule the
+drawer grid and the tab strip follow. The move SHALL be the same reorder those
+make (`_reorderSite`), so all three show one order: a named webspace's
+`siteIds` order, or the global site order in "All". It SHALL be offered only
+where they offer it, and SHALL be refused while a tab is being opened,
+created or closed.
+
+While a drag is over a heading the sheet SHALL draw a line on the side the site
+would land. Reordering "All" renumbers sites, so the host SHALL hand the sheet
+its sites afresh, and every row SHALL then open, close and move tabs of the
+site it shows. A site's tabs SHALL move with its heading, and no tab, webview
+or active site SHALL change.
+
+#### Scenario: Move a site up
+
+- **GIVEN** the All sites view lists GitHub, Mastodon and Wikipedia
+- **WHEN** the user long-presses Wikipedia's heading and drops it on GitHub's
+- **THEN** the sites are listed Wikipedia, GitHub, Mastodon, each with its tabs
+- **AND** the drawer and the tab strip show the same order
+
+#### Scenario: The rows follow the new numbering
+
+- **GIVEN** the "All" webspace, GitHub on screen, and Wikipedia moved above it
+- **WHEN** the user taps one of GitHub's tabs
+- **THEN** that tab of GitHub opens, not a tab of the site now in GitHub's old
+  position

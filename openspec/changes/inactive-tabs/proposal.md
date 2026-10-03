@@ -75,8 +75,11 @@ LIR-018 to LIR-027 land after the tab model above (`tasks.md`). TAB-001, TAB-002
 The tab model (TAB-001 to TAB-014) is implemented and experimental: it needs
 developer mode and the Experimental group's Site tabs switch, which is off by
 default (TAB-012, DEVTOOLS-011). Inside that gate each site has its own Tabs
-switch, on by default and off in effect for kiosk sites (TAB-013). Hosted tabs and reattach
-(LIR-018 to LIR-027) are specified and not implemented; `tasks.md` tracks them.
+switch, on by default and off in effect for kiosk sites (TAB-013). The
+hosted-tab core (LIR-018, LIR-019, LIR-022 to LIR-024) is implemented with web
+search (`web-search`), whose results from another site open as hosted tabs;
+opening one from a link or a nested screen (LIR-020, LIR-021) and reattach
+(LIR-025 to LIR-027) are specified and not implemented. `tasks.md` tracks them.
 The flow is also captured in a clickable prototype (a static HTML simulator of
 the phone, the site strip, the drawer tree, the Tabs sheet, the link menu, a
 memory panel with OS-pressure and relaunch buttons, and an engine log).

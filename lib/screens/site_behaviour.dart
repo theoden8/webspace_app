@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -26,6 +27,10 @@ class SiteBehaviourValues {
     this.tabsEnabled = true,
     this.routeOutboundLinks = false,
     this.outboundPreferences = const [],
+    this.searchAddress,
+    this.searchesWeb = false,
+    this.searchSites = const [],
+    this.searchDefault,
   });
 
   final bool alwaysOpenHome;
@@ -37,6 +42,14 @@ class SiteBehaviourValues {
   final bool routeOutboundLinks;
   final List<OutboundPreference> outboundPreferences;
 
+  /// LIR-028: how to search this site, and what a search from it offers.
+  final String? searchAddress;
+  final bool searchesWeb;
+  final List<String> searchSites;
+  final String? searchDefault;
+
+  static const Object _keep = Object();
+
   SiteBehaviourValues copyWith({
     bool? alwaysOpenHome,
     bool? kioskMode,
@@ -46,6 +59,10 @@ class SiteBehaviourValues {
     ExternalLinkMode? externalLinkMode,
     bool? routeOutboundLinks,
     List<OutboundPreference>? outboundPreferences,
+    Object? searchAddress = _keep,
+    bool? searchesWeb,
+    List<String>? searchSites,
+    Object? searchDefault = _keep,
   }) =>
       SiteBehaviourValues(
         alwaysOpenHome: alwaysOpenHome ?? this.alwaysOpenHome,
@@ -56,6 +73,14 @@ class SiteBehaviourValues {
         externalLinkMode: externalLinkMode ?? this.externalLinkMode,
         routeOutboundLinks: routeOutboundLinks ?? this.routeOutboundLinks,
         outboundPreferences: outboundPreferences ?? this.outboundPreferences,
+        searchAddress: identical(searchAddress, _keep)
+            ? this.searchAddress
+            : searchAddress as String?,
+        searchesWeb: searchesWeb ?? this.searchesWeb,
+        searchSites: searchSites ?? this.searchSites,
+        searchDefault: identical(searchDefault, _keep)
+            ? this.searchDefault
+            : searchDefault as String?,
       );
 
   /// Incognito drops the stored URL on every restart, so the site opens at its
@@ -87,6 +112,7 @@ class SiteBehaviourScreen extends StatefulWidget {
     this.containersActive = true,
     this.routingTargets = const [],
     this.tabsAvailable,
+    this.initUrl,
   });
 
   final String host;
@@ -116,6 +142,9 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// row exists only while the app-wide switch lets them in. Null reads the
   /// switch.
   final bool? tabsAvailable;
+
+  /// The site's home, which decides the search address it is known for.
+  final String? initUrl;
 
   @override
   State<SiteBehaviourScreen> createState() => _SiteBehaviourScreenState();
@@ -317,6 +346,151 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     );
   }
 
+  // --- Search (LIR-028, BEHAV-005) ------------------------------------------
+
+  /// The user's other sites that search the web, which a search from this
+  /// site may use.
+  List<WebViewModel> get _webSearchSites => [
+        for (final m in widget.routingTargets)
+          if (WebSearchEngine.capabilityOf(
+                initUrl: m.initUrl,
+                searchAddress: m.searchAddress,
+                searchesWeb: m.searchesWeb,
+              )?.kind ==
+              SearchKind.web)
+            m,
+      ];
+
+  String? _nameOf(String? siteId) => siteId == null
+      ? null
+      : widget.routingTargets
+          .where((m) => m.siteId == siteId)
+          .firstOrNull
+          ?.getDisplayName();
+
+  Widget _titleWithHint(String title, String hint) => Row(
+        children: [
+          Flexible(child: Text(title)),
+          HintButton(title: title, description: hint),
+        ],
+      );
+
+  /// What the site's host is known to search with, ignoring its own address.
+  SearchCapability? get _knownSearch => widget.initUrl == null
+      ? null
+      : WebSearchEngine.capabilityOf(initUrl: widget.initUrl!);
+
+  Widget _searchAddressRow(AppLocalizations loc) {
+    final effective = _values.searchAddress ?? _knownSearch?.template;
+    return ListTile(
+      title: _titleWithHint(loc.webSearchTemplateLabel, loc.webSearchAddressHint),
+      subtitle: Text(effective ?? loc.siteSettingsNotConfigured),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () => _editSearchAddress(effective),
+    );
+  }
+
+  Future<void> _editSearchAddress(String? current) async {
+    final known = _knownSearch;
+    final knownWeb = known?.kind == SearchKind.web;
+    final result = await showDialog<({String? address, bool web})>(
+      context: context,
+      builder: (ctx) => _SearchAddressDialog(
+        initial: current ?? '',
+        searchesWeb:
+            _values.searchAddress != null ? _values.searchesWeb : knownWeb,
+        canReset: _values.searchAddress != null,
+      ),
+    );
+    if (result == null) return;
+    // Saving the known address as it is keeps following the known one.
+    final isKnown = result.address != null &&
+        result.address == known?.template &&
+        result.web == knownWeb;
+    final address = isKnown ? null : result.address;
+    _update(_values.copyWith(
+      searchAddress: address,
+      searchesWeb: address == null ? false : result.web,
+    ));
+  }
+
+  Widget _searchDefaultRow(AppLocalizations loc) {
+    final name = _nameOf(_values.searchDefault);
+    return ListTile(
+      title:
+          _titleWithHint(loc.webSearchFromSiteTitle, loc.webSearchFromSiteHint),
+      subtitle: Text(name ?? loc.webSearchUseAppDefault),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () async {
+        const appDefault = '';
+        final picked = await showDialog<String>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(loc.webSearchFromSiteTitle),
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: RadioGroup<String>(
+                groupValue: _values.searchDefault ?? appDefault,
+                onChanged: (v) => Navigator.pop(ctx, v),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    RadioListTile<String>(
+                      value: appDefault,
+                      title: Text(loc.webSearchUseAppDefault),
+                    ),
+                    for (final m in _webSearchSites)
+                      RadioListTile<String>(
+                        value: m.siteId,
+                        title: Text(m.getDisplayName()),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+        if (picked == null) return;
+        _update(_values.copyWith(
+          searchDefault: picked == appDefault ? null : picked,
+        ));
+      },
+    );
+  }
+
+  Widget _searchOfferedRow(AppLocalizations loc) {
+    final names = [
+      for (final id in _values.searchSites) ?_nameOf(id),
+    ];
+    // Data, not copy: site names joined with punctuation (LOC-002).
+    final summary = names.join(', ');
+    return ListTile(
+      title: _titleWithHint(loc.webSearchOfferedTitle, loc.webSearchOfferedHint),
+      subtitle: Text(names.isEmpty ? loc.webSearchOfferedAll : summary),
+      trailing: const Icon(Icons.chevron_right, size: 18),
+      onTap: () async {
+        final picked = await showDialog<List<String>>(
+          context: context,
+          builder: (ctx) => _SearchSitesDialog(
+            sites: _webSearchSites,
+            selected: _values.searchSites,
+          ),
+        );
+        if (picked == null) return;
+        final def = _values.searchDefault;
+        _update(_values.copyWith(
+          searchSites: picked,
+          // A default the list no longer offers falls back to the app's.
+          searchDefault:
+              def != null && picked.isNotEmpty && !picked.contains(def)
+                  ? null
+                  : def,
+        ));
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -346,9 +520,163 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           _groupHeader(loc.linkHandlingScreenTitle),
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
+          _groupHeader(loc.webSearchGroup),
+          _searchAddressRow(loc),
+          _searchDefaultRow(loc),
+          _searchOfferedRow(loc),
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+}
+
+/// Edits a site's search address. Pops `(address: null)` to go back to the
+/// address the site's host is known for.
+class _SearchAddressDialog extends StatefulWidget {
+  const _SearchAddressDialog({
+    required this.initial,
+    required this.searchesWeb,
+    required this.canReset,
+  });
+
+  final String initial;
+  final bool searchesWeb;
+  final bool canReset;
+
+  @override
+  State<_SearchAddressDialog> createState() => _SearchAddressDialogState();
+}
+
+class _SearchAddressDialogState extends State<_SearchAddressDialog> {
+  late final TextEditingController _address =
+      TextEditingController(text: widget.initial);
+  late bool _web = widget.searchesWeb;
+
+  @override
+  void initState() {
+    super.initState();
+    _address.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _address.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    final text = _address.text.trim();
+    final valid = WebSearchEngine.isValidTemplate(text);
+    return AlertDialog(
+      title: Text(loc.webSearchTemplateLabel),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _address,
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            decoration: InputDecoration(
+              labelText: loc.webSearchTemplateLabel,
+              helperText: loc.webSearchTemplateHelper,
+              helperMaxLines: 3,
+              errorText:
+                  text.isEmpty || valid ? null : loc.webSearchTemplateInvalid,
+              errorMaxLines: 3,
+            ),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(loc.webSearchSearchesWeb),
+            value: _web,
+            onChanged: (v) => setState(() => _web = v),
+          ),
+        ],
+      ),
+      actions: [
+        if (widget.canReset)
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(context, (address: null, web: false)),
+            child: Text(loc.webSearchAddressReset),
+          ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(loc.commonCancel),
+        ),
+        TextButton(
+          onPressed: valid
+              ? () => Navigator.pop(context, (address: text, web: _web))
+              : null,
+          child: Text(loc.commonSave),
+        ),
+      ],
+    );
+  }
+}
+
+/// Picks the search sites a search from a site offers. None picked offers
+/// every one.
+class _SearchSitesDialog extends StatefulWidget {
+  const _SearchSitesDialog({required this.sites, required this.selected});
+
+  final List<WebViewModel> sites;
+  final List<String> selected;
+
+  @override
+  State<_SearchSitesDialog> createState() => _SearchSitesDialogState();
+}
+
+class _SearchSitesDialogState extends State<_SearchSitesDialog> {
+  late final Set<String> _picked = {...widget.selected};
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(loc.webSearchOfferedTitle),
+      contentPadding: const EdgeInsets.symmetric(vertical: 8),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: widget.sites.isEmpty
+            ? Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Text(loc.webSearchNoWebSites),
+              )
+            : ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final m in widget.sites)
+                    CheckboxListTile(
+                      value: _picked.contains(m.siteId),
+                      title: Text(m.getDisplayName()),
+                      onChanged: (v) => setState(() {
+                        if (v ?? false) {
+                          _picked.add(m.siteId);
+                        } else {
+                          _picked.remove(m.siteId);
+                        }
+                      }),
+                    ),
+                ],
+              ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(loc.commonCancel),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, [
+            for (final m in widget.sites)
+              if (_picked.contains(m.siteId)) m.siteId,
+          ]),
+          child: Text(loc.commonSave),
+        ),
+      ],
     );
   }
 }

@@ -1,11 +1,12 @@
 /// A tab of one site.
 ///
 /// Spec: `openspec/changes/inactive-tabs/specs/inactive-tabs/spec.md`
-/// (TAB-001..TAB-003).
+/// (TAB-001..TAB-003), and LIR-018 for hosted tabs.
 ///
-/// Every tab of a site renders inside that site's container and posture, and
-/// its [url] stays inside the site's own domain, so "which container does this
-/// tab use" has exactly one answer: the site's. A site holds one live webview,
+/// A tab renders inside the container and posture of the site it runs as: its
+/// owner, or the site named by [SiteTab.hostSiteId]. Its [url] stays inside
+/// that site's domain, so "which container does this tab use" has exactly one
+/// answer. A site holds one live webview,
 /// bound to its active tab; every other tab is parked — this record in
 /// SharedPreferences plus, when it has a back/forward stack worth keeping, one
 /// encrypted file under the key [webViewStateKey] names. No renderer, no
@@ -26,6 +27,10 @@ const String kPrimaryTabId = 'main';
 /// same path-safe shape as a siteId — minus `.`, which separates the two
 /// halves of a state key.
 final RegExp _kTabIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
+
+/// Same shape as `sanitizedSiteId` in `web_view_model.dart`, which this file
+/// cannot import without a cycle.
+final RegExp _kHostSiteIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
 
 String? sanitizedTabId(Object? raw) {
   if (raw is! String) return null;
@@ -52,6 +57,7 @@ class SiteTab {
     required this.url,
     this.title,
     this.parentId,
+    this.hostSiteId,
     DateTime? createdAt,
     DateTime? lastActiveAt,
   })  : id = id ?? generateTabId(),
@@ -71,6 +77,11 @@ class SiteTab {
   /// the site's domain, so a tab never has a parent in another container.
   String? parentId;
 
+  /// The site this tab runs as when it is not its owner (LIR-018): its
+  /// container, posture and navigation rules. Null means the owner. The owner
+  /// normalises its own id to null, so a value always names another site.
+  String? hostSiteId;
+
   final DateTime createdAt;
   DateTime lastActiveAt;
 
@@ -79,6 +90,7 @@ class SiteTab {
         'url': url,
         if (title != null) 'title': title,
         if (parentId != null) 'parentId': parentId,
+        if (hostSiteId != null) 'hostSiteId': hostSiteId,
         'createdAt': createdAt.millisecondsSinceEpoch,
         'lastActiveAt': lastActiveAt.millisecondsSinceEpoch,
       };
@@ -97,6 +109,10 @@ class SiteTab {
       url: url,
       title: json['title'] is String ? json['title'] as String : null,
       parentId: sanitizedTabId(json['parentId']),
+      hostSiteId: json['hostSiteId'] is String &&
+              _kHostSiteIdPattern.hasMatch(json['hostSiteId'] as String)
+          ? json['hostSiteId'] as String
+          : null,
       createdAt: _time(json['createdAt']),
       lastActiveAt: _time(json['lastActiveAt']),
     );
@@ -119,5 +135,7 @@ class SiteTab {
       : null;
 
   @override
-  String toString() => 'SiteTab($id, $url${parentId == null ? '' : ', parent=$parentId'})';
+  String toString() => 'SiteTab($id, $url'
+      '${parentId == null ? '' : ', parent=$parentId'}'
+      '${hostSiteId == null ? '' : ', host=$hostSiteId'})';
 }
