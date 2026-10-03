@@ -278,14 +278,18 @@ class LinkIntentDispatchEngine {
 
   /// A link [source] would nest, with Site tabs on: when one of the user's
   /// sites can run it as a tab ([hosts], already limited to the sites that
-  /// may host in the owner's tree), it opens as that site's tab instead of a
-  /// nested screen, whatever the source's routing switch says (LIR-032).
-  /// Null keeps today's path. [urlNavigationDomain] is the link's
-  /// `getNormalizedDomain`, which a host's navigation domain must equal.
+  /// may host in the owner's tree), it opens as a tab instead of a nested
+  /// screen (LIR-032). [routeOutboundLinks] is the source's routing switch,
+  /// and it decides the container (LIR-034): on, the tab runs as the site the
+  /// link leads to, asking when several can; off, as [source] itself, anchored
+  /// in the link's domain. Null keeps today's path. [urlNavigationDomain] is
+  /// the link's `getNormalizedDomain`, which a host's navigation domain must
+  /// equal.
   static DispatchAction? routeToTab({
     required Uri url,
     required String urlNavigationDomain,
     required bool tabsEnabled,
+    required bool routeOutboundLinks,
     required bool containersActive,
     required bool kioskLocked,
     required bool hadGesture,
@@ -299,14 +303,13 @@ class LinkIntentDispatchEngine {
     if (url.scheme != 'http' && url.scheme != 'https' || url.host.isEmpty) {
       return null;
     }
-    final able = [
-      for (final h in hosts())
-        if (h.siteId != source.siteId &&
-            h.navigationDomain == urlNavigationDomain)
-          h,
-    ];
+    final able = _tabHosts(urlNavigationDomain, source.siteId, hosts());
     if (able.isEmpty) return null;
-    DispatchAction pick(List<RoutableSite> sites) => sites.length == 1
+    if (!routeOutboundLinks) {
+      return DispatchOpenInTab(siteId: source.siteId, url: url.toString());
+    }
+    final sites = _tabHostChoice(url, source.siteId, sourcePrefs, able);
+    return sites.length == 1
         ? DispatchOpenInTab(siteId: sites.single.siteId, url: url.toString())
         : DispatchShowPicker(
             winnerSiteIds: [for (final s in sites) s.siteId],
@@ -315,16 +318,62 @@ class LinkIntentDispatchEngine {
             source: source.siteId,
             asTab: true,
           );
+  }
+
+  /// The site a tab opened from a link runs as now (LIR-034), for a tab whose
+  /// [opener]'s routing switch may have changed since: the site [routeToTab]
+  /// would open its [homeUrl] as. With routing off, or with no site of the
+  /// user's left that can run the link, that is the opener. When several
+  /// sites can, [current] is kept if it is one of them, since the user picked
+  /// it, else the tab stays with the opener rather than being put in one of
+  /// them silently.
+  static String linkTabRunsAs({
+    required Uri homeUrl,
+    required String homeNavigationDomain,
+    required bool routeOutboundLinks,
+    required bool containersActive,
+    required DispatchableSite opener,
+    required List<OutboundPreference> openerPrefs,
+    required List<DispatchableSite> Function() hosts,
+    required String current,
+  }) {
+    if (!routeOutboundLinks || !containersActive) return opener.siteId;
+    final able = _tabHosts(homeNavigationDomain, opener.siteId, hosts());
+    if (able.isEmpty) return opener.siteId;
+    final sites = _tabHostChoice(homeUrl, opener.siteId, openerPrefs, able);
+    if (sites.length == 1) return sites.single.siteId;
+    return sites.any((s) => s.siteId == current) ? current : opener.siteId;
+  }
+
+  static List<DispatchableSite> _tabHosts(
+    String navigationDomain,
+    String sourceSiteId,
+    List<DispatchableSite> hosts,
+  ) =>
+      [
+        for (final h in hosts)
+          if (h.siteId != sourceSiteId && h.navigationDomain == navigationDomain)
+            h,
+      ];
+
+  /// The sites a link is for, chosen as LIR-014 chooses: the source's
+  /// preferences first, then claim specificity. More than one means ask.
+  static List<RoutableSite> _tabHostChoice(
+    Uri url,
+    String sourceSiteId,
+    List<OutboundPreference> sourcePrefs,
+    List<DispatchableSite> able,
+  ) {
     final resolution =
-        LinkRoutingService.resolveOutbound(url, source.siteId, sourcePrefs, able);
+        LinkRoutingService.resolveOutbound(url, sourceSiteId, sourcePrefs, able);
     return switch (resolution) {
       OutboundByPreference(:final site) ||
       OutboundByClaims(match: RoutingSingle(:final site)) =>
-        pick([site]),
-      OutboundByClaims(match: RoutingAmbiguous(:final sites)) => pick(sites),
+        [site],
+      OutboundByClaims(match: RoutingAmbiguous(:final sites)) => sites,
       // A host with claims of its own that leave this host out still runs
       // its navigation domain.
-      OutboundByClaims(match: RoutingNone()) || OutboundSelfMatch() => pick(able),
+      OutboundByClaims(match: RoutingNone()) || OutboundSelfMatch() => able,
     };
   }
 

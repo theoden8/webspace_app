@@ -79,6 +79,8 @@ import 'package:webspace/services/site_lifecycle_engine.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/container_color_engine.dart';
+import 'package:webspace/services/tab_handling_gate.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -1490,6 +1492,10 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
       );
       if (!mounted) return;
+      // The routing switch may have flipped: link tabs follow it (LIR-034)
+      // before the hosts they now run as are checked.
+      await _reconcileLinkTabs();
+      if (!mounted) return;
       await _closeIneligibleHostedTabs();
       if (!mounted) return;
       await _saveWebViewModels();
@@ -2852,7 +2858,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       final url = WebSearchEngine.urlFor(
         option,
         request.query,
-        scopeHost: getNormalizedDomain(identity.initUrl),
+        scopeHost: getNormalizedDomain(owner.navigationHomeUrl),
       );
       if (url == null) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3170,21 +3176,36 @@ class _WebSpacePageState extends State<WebSpacePage>
   ) {
     final uri = Uri.tryParse(url);
     if (uri == null || !_webViewModels.contains(owner)) return null;
-    return LinkIntentDispatchEngine.routeToTab(
+    final action = LinkIntentDispatchEngine.routeToTab(
       url: uri,
       urlNavigationDomain: getNormalizedDomain(url),
       tabsEnabled: _tabsEnabledFor(owner),
+      routeOutboundLinks: source.effectiveRouteOutboundLinks,
       containersActive: _useContainers,
       kioskLocked: _kioskLocked,
       hadGesture: hadGesture,
       source: _SiteRouteAdapter(source),
       sourcePrefs: source.outboundPreferences,
-      hosts: () => [
+      hosts: () => _tabHostsIn(owner, source),
+    );
+    // LIR-034: routing off runs the tab as its opener, which must be able to
+    // run in this tree: the owner, or a site that may host here.
+    if (action is DispatchOpenInTab &&
+        action.siteId == source.siteId &&
+        !identical(source, owner) &&
+        !_mayHost(source, owner)) {
+      return null;
+    }
+    return action;
+  }
+
+  /// The sites that can run a link of [source]'s as a tab in [owner]'s tree.
+  List<_SiteRouteAdapter> _tabHostsIn(
+          WebViewModel owner, WebViewModel source) =>
+      [
         for (final m in _outboundCandidates(source))
           if (identical(m, owner) || _mayHost(m, owner)) _SiteRouteAdapter(m),
-      ],
-    );
-  }
+      ];
 
   /// Run [_tabRouteFor]'s action: a child of [parentTabId] in [owner]'s tree,
   /// or the picker when several sites can run the link.
@@ -3204,7 +3225,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     switch (action) {
       case DispatchOpenInTab(:final siteId):
         await _openChildTab(owner, url.toString(),
-            hostSiteId: siteId, parentTabId: parentTabId);
+            hostSiteId: siteId,
+            parentTabId: parentTabId,
+            openerSiteId: source.siteId,
+            homeUrl: url.toString());
       case DispatchShowPicker():
         await _showOutboundPicker(owner, source, action, url,
             parentTabId: parentTabId);
@@ -3290,10 +3314,15 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (action.asTab && parked) {
           await _openLinkInNewTab(
               _webViewModels.indexOf(owner), url.toString(),
-              hostSiteId: site.siteId);
+              hostSiteId: site.siteId,
+              openerSiteId: source.siteId,
+              homeUrl: url.toString());
         } else if (action.asTab) {
           await _openChildTab(owner, url.toString(),
-              hostSiteId: site.siteId, parentTabId: parentTabId);
+              hostSiteId: site.siteId,
+              parentTabId: parentTabId,
+              openerSiteId: source.siteId,
+              homeUrl: url.toString());
         } else {
           await _executeOpenNested(pick.action, source: owner);
         }
@@ -3372,8 +3401,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     final model = _webViewModels[index];
     await _maybeSwitchToAllForSite(model, index);
     if (!mounted) return;
-    if (model.runsHostedTab) {
-      // An owner URL never loads into a slot running as another site.
+    if (model.runsHostedTab || model.runsForeignTab) {
+      // An owner URL never loads into a slot running as another site, nor
+      // into a tab anchored in another domain (LIR-034).
       await _switchToOwnerRunTab(model);
       if (!mounted) return;
     }
@@ -3827,7 +3857,27 @@ class _WebSpacePageState extends State<WebSpacePage>
         perSiteProxies: _routerProxyTable(activeIndex: activeIndex));
   }
 
+  /// TAB-018: give every app-tier site without a container colour the least
+  /// used one. Only app-tier sites count, so what the app-tier list stores
+  /// never depends on an archive being open (ARCH-001).
+  void _assignContainerColors() {
+    final sites = [
+      for (final m in _webViewModels)
+        if (!m.isArchiveTier) m,
+    ];
+    if (sites.every((m) => m.containerColor != null)) return;
+    final given = ContainerColorEngine.assign(
+      [for (final m in sites) m.containerColor],
+      ContainerColors.light.length,
+    );
+    for (var i = 0; i < sites.length; i++) {
+      sites[i].containerColor = given[i];
+    }
+  }
+
   Future<void> _saveWebViewModels() async {
+    // A site added since the last save gets its colour before it is written.
+    _assignContainerColors();
     // Before the demo-mode bail: the refcount tracks runtime intent, not
     // persistence, and a demo session that pinned Tor up would keep it up.
     await _syncTorHolders();
@@ -5272,13 +5322,27 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Archive-tier (ARCH-006) and incognito sites never persist nav state,
     // and a hosted tab only when its host would keep it (LIR-022).
     if (!model.activeTabPersistsNavState) return false;
+    // The key is the one the bytes belong to, read before the capture: a tab
+    // switch or a container flip (LIR-034) landing while it runs would make
+    // the key read afterwards name another tab or another identity, and these
+    // bytes would be restored there.
+    final tabId = model.activeTabId;
+    final key = model.activeStateKey;
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
-    await _stateStorage.saveState(model.activeStateKey, bytes);
+    if (model.activeTabId != tabId || model.activeStateKey != key) {
+      LogService.instance.log(
+        'WebViewState',
+        'Dropped a capture for "${model.name}": its tab changed meanwhile',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      return false;
+    }
+    await _stateStorage.saveState(key, bytes);
     LogService.instance.log(
       'WebViewState',
       'Captured ${bytes.length} bytes for "${model.name}" '
-          '(state key: ${model.activeStateKey})',
+          '(state key: $key)',
       sensitivity: LogSensitivity.sensitive,
     );
     return true;
@@ -5607,6 +5671,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
       setState(() {
         _webViewModels.addAll(loadedWebViewModels);
+        _assignContainerColors();
       });
       _pruneOutboundPreferences();
       _pruneSearchReferences();
@@ -5728,6 +5793,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           : 'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
     );
     // Only once the engine is known: hosted tabs exist on containers only.
+    await _reconcileLinkTabs();
     await _closeIneligibleHostedTabs();
 
     await _activateProxyRouter();
@@ -7446,6 +7512,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       _selectedWebspaceId = plan.selectedWebspaceId;
     });
     _resolveWebspaceIndices();
+    await _reconcileLinkTabs();
+    if (!mounted) return;
     await _closeIneligibleHostedTabs();
     if (!mounted) return;
 
@@ -7891,8 +7959,12 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Re-entrancy guard for the tab handlers. Each of them awaits a capture and
   /// a disk read before it mutates `tabs`; a second tap arriving in that window
-  /// would capture the outgoing tab's stack twice and bind the wrong one.
-  bool _isTabHandling = false;
+  /// would capture the outgoing tab's stack twice and bind the wrong one. Work
+  /// that arrives while it is held and must not be dropped (LIR-034's
+  /// reconcile) waits on the gate and runs when it is released.
+  late final TabHandlingGate _tabGate = TabHandlingGate(scheduleMicrotask);
+  bool get _isTabHandling => _tabGate.busy;
+  set _isTabHandling(bool value) => _tabGate.busy = value;
 
   /// Move [model]'s webview from whatever tab it is on to [targetTabId].
   ///
@@ -7917,29 +7989,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final identityBefore = model.runningIdentity;
     model.activeTabId = targetTabId;
     model.activeTab.lastActiveAt = DateTime.now();
-    // LIR-024: on a process-global proxy the slot's new identity may need
-    // another proxy. The visible slot runs PROXY-008 first; a background slot
-    // stays unloaded and rebuilds under it on its next activation.
-    final slot = _webViewModels.indexOf(model);
-    if (!identical(identityBefore, model.runningIdentity) &&
-        slot >= 0 &&
-        ((hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-            hostIsLinux)) {
-      if (slot == _currentIndex) {
-        final mismatched = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
-          targetIndex: slot,
-          models: _slotIdentities(),
-          loadedIndices: _loadedIndices,
-          proxyIsGlobal: true,
-        );
-        for (final i in mismatched) {
-          await _unloadSiteForOtherReason(i);
-          if (!mounted) return;
-        }
-      } else {
-        _loadedIndices.remove(slot);
-      }
-    }
+    if (!await _applySlotIdentityChange(model, identityBefore)) return;
     // Queue before the dispose: `restoreState` only applies to a freshly
     // created controller, and `disposeWebView` is what makes the next build
     // create one. Nothing queued means the rebuild loads the tab's URL with an
@@ -7976,6 +8026,119 @@ class _WebSpacePageState extends State<WebSpacePage>
       sensitivity: LogSensitivity.sensitive,
     );
     await _saveWebViewModels();
+  }
+
+  /// LIR-024: on a process-global proxy the slot's new identity may need
+  /// another proxy. The visible slot runs PROXY-008 first; a background slot
+  /// stays unloaded and rebuilds under it on its next activation. False when
+  /// the page went away meanwhile.
+  Future<bool> _applySlotIdentityChange(
+    WebViewModel model,
+    WebViewModel identityBefore,
+  ) async {
+    final slot = _webViewModels.indexOf(model);
+    if (identical(identityBefore, model.runningIdentity) ||
+        slot < 0 ||
+        !((hostIsAndroid && !ProxyRouterService.instance.isActive) ||
+            hostIsLinux)) {
+      return mounted;
+    }
+    if (slot == _currentIndex) {
+      final mismatched = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: slot,
+        models: _slotIdentities(),
+        loadedIndices: _loadedIndices,
+        proxyIsGlobal: true,
+      );
+      for (final i in mismatched) {
+        await _unloadSiteForOtherReason(i);
+        if (!mounted) return false;
+      }
+    } else {
+      _loadedIndices.remove(slot);
+    }
+    return mounted;
+  }
+
+  /// LIR-034: every tab a link opened runs as its opener's routing switch says
+  /// now. A tab that changes container loses its saved back stack, which is a
+  /// transcript of the identity it leaves, and reloads its page in the new
+  /// one: the tab on screen at once, a slot in the background when it is next
+  /// shown. Runs after a site's settings close, at startup and after an
+  /// import. While a tab change is running it waits for it (TabHandlingGate),
+  /// since both rewrite tab lists across awaits.
+  Future<void> _reconcileLinkTabs() async {
+    if (_isTabHandling) {
+      _tabGate.deferUntilIdle(() {
+        if (mounted) unawaited(_reconcileLinkTabs());
+      });
+      return;
+    }
+    _isTabHandling = true;
+    try {
+      final identityBefore = <WebViewModel, WebViewModel>{};
+      final dropped = <String>[];
+      var changed = false;
+      // One synchronous pass over every tab list: nothing can interleave
+      // between reading what a tab runs as and rewriting it.
+      for (final owner in _webViewModels) {
+        for (final tab in owner.tabs) {
+          if (!tab.followsOpener) continue;
+          final opener = _modelForSiteId(tab.openerSiteId!);
+          if (opener == null) {
+            // The opener is gone: nothing decides for the tab any more, so it
+            // keeps the container it has (LIR-023 closes it if that is gone).
+            tab.openerSiteId = null;
+            changed = true;
+            continue;
+          }
+          final home = tab.homeUrl!;
+          final runsAs = LinkIntentDispatchEngine.linkTabRunsAs(
+            homeUrl: Uri.parse(home),
+            homeNavigationDomain: getNormalizedDomain(home),
+            routeOutboundLinks: opener.effectiveRouteOutboundLinks,
+            containersActive: _useContainers,
+            opener: _SiteRouteAdapter(opener),
+            openerPrefs: opener.outboundPreferences,
+            hosts: () => _tabHostsIn(owner, opener),
+            current: tab.hostSiteId ?? owner.siteId,
+          );
+          final host = runsAs == owner.siteId ? null : runsAs;
+          if (host == tab.hostSiteId) continue;
+          if (tab.id == owner.activeTabId) {
+            identityBefore.putIfAbsent(owner, () => owner.runningIdentity);
+            _navStateDebouncer.cancel(owner.siteId);
+          }
+          dropped.add(owner.stateKeyForTab(tab.id));
+          LogService.instance.log(
+            'Tabs',
+            'Tab ${tab.id} of "${owner.name}" now runs as '
+                '${host ?? owner.siteId} (opener ${opener.siteId})',
+            sensitivity: LogSensitivity.sensitive,
+          );
+          tab.hostSiteId = host;
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      for (final key in dropped) {
+        await _stateStorage.removeState(key);
+      }
+      if (!mounted) return;
+      for (final entry in identityBefore.entries) {
+        final model = entry.key;
+        if (!_webViewModels.contains(model)) continue;
+        if (identical(entry.value, model.runningIdentity)) continue;
+        if (!await _applySlotIdentityChange(model, entry.value)) return;
+        _evictCacheIfOnline(model.siteId);
+        model.disposeWebView();
+      }
+      if (!mounted) return;
+      setState(() {});
+      await _saveWebViewModels();
+    } finally {
+      _isTabHandling = false;
+    }
   }
 
   /// Show [tabId] of the site at [index]. Used by the tab list.
@@ -8020,7 +8183,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// LIR-018: before an owner URL loads into [model]'s slot, the slot moves to
   /// a tab [model] runs itself: the nearest such ancestor, or a new root tab.
   Future<void> _bindOwnerRunTab(WebViewModel model) async {
-    if (!model.runsHostedTab) return;
+    if (!model.runsHostedTab && !model.runsForeignTab) return;
     final index = _webViewModels.indexOf(model);
     if (_loadedIndices.contains(index)) {
       await _switchToOwnerRunTab(model);
@@ -8032,7 +8195,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// [_bindOwnerRunTab] for a slot that may be live: the hosted tab's back
   /// stack is captured and the webview rebuilt as [model].
   Future<void> _switchToOwnerRunTab(WebViewModel model) async {
-    var id = TabLifecycleEngine.ownerRunTab(model.tabs, model.activeTabId);
+    var id = TabLifecycleEngine.ownerRunTab(model.tabs, model.activeTabId,
+        isForeign: model.isForeignTab);
     if (id == null) {
       final tab = SiteTab(url: model.initUrl);
       model.tabs = [...model.tabs, tab];
@@ -8132,6 +8296,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     String url, {
     String? hostSiteId,
     String? parentTabId,
+    String? openerSiteId,
+    String? homeUrl,
   }) async {
     if (!_tabsEnabledFor(owner) || _isTabHandling) return;
     _isTabHandling = true;
@@ -8145,6 +8311,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         url: url,
         parentId: parent,
         hostSiteId: hostSiteId == owner.siteId ? null : hostSiteId,
+        openerSiteId: openerSiteId,
+        homeUrl: homeUrl,
       );
       owner.tabs = TabLifecycleEngine.insertChild(owner.tabs, tab);
       LogService.instance.log(
@@ -8174,6 +8342,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         title: source.title,
         parentId: source.parentId,
         hostSiteId: source.hostSiteId,
+        openerSiteId: source.openerSiteId,
+        homeUrl: source.homeUrl,
       );
       final copyKey = model.stateKeyForTab(copy.id);
       if (model.activeTabPersistsNavState) {
@@ -8224,6 +8394,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     int index,
     String url, {
     required String? hostSiteId,
+    String? openerSiteId,
+    String? homeUrl,
   }) async {
     if (index < 0 || index >= _webViewModels.length) return;
     final model = _webViewModels[index];
@@ -8231,6 +8403,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       url: url,
       parentId: model.activeTabId,
       hostSiteId: hostSiteId == model.siteId ? null : hostSiteId,
+      openerSiteId: openerSiteId,
+      homeUrl: homeUrl,
     );
     setState(() {
       model.tabs = TabLifecycleEngine.insertChild(model.tabs, tab);
@@ -8414,7 +8588,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (uri == null) return;
     final identity = model.runningIdentity;
     final inDomain =
-        getNormalizedDomain(url) == getNormalizedDomain(identity.initUrl);
+        getNormalizedDomain(url) == getNormalizedDomain(model.navigationHomeUrl);
     // A link into another of the user's sites becomes that site's tab, as a
     // tap would open it (LIR-032).
     final tabRoute = inDomain ? null : _tabRouteFor(model, identity, url, true);
@@ -8455,10 +8629,19 @@ class _WebSpacePageState extends State<WebSpacePage>
                 if (tabRoute is DispatchShowPicker) {
                   unawaited(_showOutboundPicker(
                       model, identity, tabRoute, uri, parked: true));
+                } else if (inDomain) {
+                  // A sibling of the tab on screen: same container, and when
+                  // that tab follows an opener's switch (LIR-034), so does it.
+                  final active = model.activeTab;
+                  unawaited(_openLinkInNewTab(index, url,
+                      hostSiteId: active.hostSiteId,
+                      openerSiteId: active.openerSiteId,
+                      homeUrl: active.homeUrl));
                 } else {
                   unawaited(_openLinkInNewTab(index, url,
-                      hostSiteId: tabHost?.siteId ??
-                          (inDomain ? model.activeTab.hostSiteId : null)));
+                      hostSiteId: tabHost?.siteId,
+                      openerSiteId: identity.siteId,
+                      homeUrl: url));
                 }
               },
             ),
@@ -8497,8 +8680,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     // link back into the owner's domain returns to the owner.
     final identity = model.runningIdentity;
     // Choosing Open is a user gesture, so routing (LIR-014) sees it as a tap.
-    final decision = identity.decideUserOpenedLink(url, isActive: active);
-    if (model.runsHostedTab &&
+    final decision = identity.decideUserOpenedLink(url,
+        isActive: active,
+        homeUrl: model.navigationHomeUrl,
+        matchesClaim: model.navigationMatchesClaim);
+    if ((model.runsHostedTab || model.runsForeignTab) &&
         decision != NavigationDecision.allow &&
         getNormalizedDomain(url) == getNormalizedDomain(model.initUrl)) {
       await _returnToOwner(model, url);
@@ -8536,7 +8722,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) return;
     final model = _webViewModels[_currentIndex!];
     _evictCacheIfOnline(model.siteId);
-    model.currentUrl = model.runningIdentity.initUrl;
+    model.currentUrl = model.navigationHomeUrl;
     model.disposeWebView();
     setState(() {});
     // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
@@ -9406,6 +9592,11 @@ class _WebSpacePageState extends State<WebSpacePage>
                     incognito: id.effectiveIncognito,
                   ),
                   incognito: id.effectiveIncognito,
+                  containerColor: _useContainers
+                      ? id.containerColor ??
+                          ContainerColorEngine.fallback(
+                              id.siteId, ContainerColors.light.length)
+                      : null,
                 ),
               );
             },
@@ -9418,7 +9609,8 @@ class _WebSpacePageState extends State<WebSpacePage>
               // typing a URL behaves identically to tapping an outbound
               // link.
               final identity = model.runningIdentity;
-              if (getNormalizedDomain(url) != getNormalizedDomain(identity.initUrl)) {
+              if (getNormalizedDomain(url) !=
+                  getNormalizedDomain(model.navigationHomeUrl)) {
                 await _launchNestedForModel(identity, url);
                 return;
               }
@@ -11033,7 +11225,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                                 : null;
                         // The HTML cache is a snapshot of the site's own page;
                         // a hosted tab neither reads nor writes it (LIR-018).
-                        final htmlSource = webViewModel.runsHostedTab
+                        final htmlSource = webViewModel.runsHostedTab ||
+                                webViewModel.runsForeignTab
                             ? HtmlSource.none
                             : htmlSourceFor(
                                 incognito: webViewModel.incognito,

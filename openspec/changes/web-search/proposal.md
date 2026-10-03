@@ -48,12 +48,17 @@ requirements.
   process-global proxy follows what a slot runs as). LIR-018 gains the
   return-to-owner rule.
 - **Links into the user's sites** (LIR-032). Where the site on screen has tabs, a link that
-  would open a nested screen opens as a tab of the site on screen, running as
-  the user's site that can take it, whatever the routing switch says; inside
+  would open a nested screen opens as a tab of the site on screen, whatever the
+  routing switch says; the switch decides the container it runs in; inside
   a nested screen opened from a tab, the screen closes and the tab opens under
   that tab. The long-press "Open in new tab" row offers the same, as "as
   {site}". A routed nested screen from a hosted tab brings back the slot, not
   the host's own.
+- **Link tabs follow their opener** (LIR-034). The site whose page opened a
+  link tab is recorded as its opener: with its routing switch on the tab runs
+  as the site the link leads to, off as the opener inside the link's domain.
+  Flipping the switch moves every tab the site opened to the other container
+  and reloads it there; searches and tabs opened by hand keep theirs.
 - **Site info** (NAV-011) names the site whose container it is, and adds "Tab
   of" for a hosted tab and "Opened from" for a nested screen that runs as
   another site.
@@ -82,7 +87,8 @@ Find and shared links are unchanged.
 - `link-intent-routing`: adds LIR-028 (search sites), LIR-029 (web search from
   the page menu), LIR-030 (where results land), LIR-031 (search references
   follow their sites), LIR-032 (a link into one of the user's sites opens
-  as its tab) and LIR-033 (search from the URL bar). LIR-011 names a search as not an inbound share.
+  as its tab), LIR-033 (search from the URL bar) and LIR-034 (a link tab's
+  container follows its opener). LIR-011 names a search as not an inbound share.
 - `navigation`: NAV-011 (in `site-info-sheet`) names the site in the Container
   row and adds the Tab of and Opened from rows.
 - `site-behaviour`: adds BEHAV-005 (the Search group).
