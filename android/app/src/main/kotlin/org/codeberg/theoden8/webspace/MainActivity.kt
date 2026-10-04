@@ -277,21 +277,13 @@ class MainActivity: FlutterActivity() {
     // its pin (HS-015); dropping the dynamic flag right after keeps the site
     // out of the launcher's long-press menu.
     private fun republish(shortcut: ShortcutInfoCompat) {
-        try {
-            ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
-            ShortcutManagerCompat.removeDynamicShortcuts(this, listOf(shortcut.id))
-        } catch (e: Exception) {
-            // requestPinShortcut reports whatever this could not repair.
-        }
+        ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
+        ShortcutManagerCompat.removeDynamicShortcuts(this, listOf(shortcut.id))
     }
 
     private fun isPinnedAndEnabled(id: String): Boolean =
-        try {
-            ShortcutManagerCompat.getShortcuts(this, ShortcutManagerCompat.FLAG_MATCH_PINNED)
-                .any { it.id == id && it.isEnabled }
-        } catch (e: Exception) {
-            false
-        }
+        ShortcutManagerCompat.getShortcuts(this, ShortcutManagerCompat.FLAG_MATCH_PINNED)
+            .any { it.id == id && it.isEnabled }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
