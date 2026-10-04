@@ -425,7 +425,10 @@ every platform), a site's icon SHALL come only from the site itself:
   (ICON-002 sources 1 and 2) SHALL NOT be asked, on any path that fetches an
   icon: the drawer, the add-site preview, the home shortcut export.
   `publicIconServicesAllowed` in `icon_service.dart` is the one gate, read on
-  every fetch. What is left is ICON-013's declared links and ICON-002's page
+  every fetch and again before each service is asked and when each answers,
+  so a fetch already running when the switch goes on neither shows nor keeps
+  a service's icon. The icon widget cancels a fetch it restarts rather than
+  letting the old one keep writing into it. What is left is ICON-013's declared links and ICON-002's page
   scrape and `/favicon.ico`, which go to the site's host through its proxy.
 - **Nothing resolved earlier.** A service URL resolved before the switch went
   on, in the icon service's memory or in `FaviconUrlCache` on disk, SHALL read
@@ -458,6 +461,13 @@ shows a smaller one, or the scrape's, or the placeholder.
 **When** the user turns Site icons only on
 **Then** the icon on screen is fetched again from the site
 **And** the Google URL kept on disk is not used
+
+#### Scenario: A fetch already running when the switch goes on
+
+**Given** Site icons only is off and a site's icon is being fetched
+**When** the user turns Site icons only on before the fetch ends
+**Then** no service is asked after that
+**And** no icon a service sends is shown, sent as the fetch's result, or kept
 
 #### Scenario: Android takes the declared links
 
