@@ -765,6 +765,8 @@
   "homeShortcutReassign": "دوبارہ تفویض کریں",
   "homeShortcutDisable": "غیر فعال کریں",
   "homeShortcutPickTitle": "شارٹ کٹ کا رخ کس سائٹ کی طرف کریں",
+  "homeShortcutReenabled": "\"{name}\" کا موجودہ ہوم اسکرین شارٹ کٹ دوبارہ فعال کر دیا گیا",
+  "homeShortcutPinFailed": "\"{name}\" کے لیے ہوم اسکرین شارٹ کٹ شامل نہیں کیا جا سکا",
   "appSettingsLanguageTitle": "ایپ کی زبان",
   "appSettingsLanguageSystem": "سسٹم ڈیفالٹ",
   "siteSettingsWindowWidth": "خانے کی چوڑائی",

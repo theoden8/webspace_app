@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Pārpiešķirt",
   "homeShortcutDisable": "Atspējot",
   "homeShortcutPickTitle": "Norādīt saīsni uz",
+  "homeShortcutReenabled": "Esošā sākumekrāna saīsne vietnei \"{name}\" ir atkal iespējota",
+  "homeShortcutPinFailed": "Neizdevās pievienot sākumekrāna saīsni vietnei \"{name}\"",
   "appSettingsLanguageTitle": "Lietotnes valoda",
   "appSettingsLanguageSystem": "Sistēmas noklusējums",
   "siteSettingsWindowWidth": "Lodziņa platums",

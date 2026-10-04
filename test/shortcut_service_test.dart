@@ -88,13 +88,13 @@ void main() {
       }
     });
 
-    test('pinShortcut is false off a shortcut host', () async {
-      final ok = await ShortcutService.pinShortcut(
+    test('pinShortcut fails off a shortcut host', () async {
+      final result = await ShortcutService.pinShortcut(
         siteId: 'a',
         label: 'A',
       );
       if (!isShortcutHost) {
-        expect(ok, isFalse);
+        expect(result, PinShortcutResult.failed);
         expect(calls, isEmpty);
       }
     });
@@ -139,12 +139,67 @@ void main() {
       // On a non-mobile host these all short-circuit before touching the
       // channel; this case really exercises mobile hosts. Still: the calls
       // must never throw a PlatformException out of the service.
-      expect(await ShortcutService.pinShortcut(siteId: 'a', label: 'A'), isFalse);
+      expect(await ShortcutService.pinShortcut(siteId: 'a', label: 'A'),
+          PinShortcutResult.failed);
       expect(await ShortcutService.getLaunch(), isNull);
       expect(await ShortcutService.getPinnedSiteIds(), isEmpty);
       expect(await ShortcutService.isAppIntentsSupported(), isFalse);
       await ShortcutService.syncSites(const []);
       await ShortcutService.removeShortcut('a');
+    });
+  });
+
+  group('PinShortcutResult.fromChannel', () {
+    test('true is a pin request (Android dialog, or Shortcuts.app opened)', () {
+      expect(PinShortcutResult.fromChannel(true), PinShortcutResult.requested);
+    });
+
+    test('alreadyPinned is a re-enabled tile with no dialog (HS-015)', () {
+      expect(PinShortcutResult.fromChannel('alreadyPinned'),
+          PinShortcutResult.alreadyPinned);
+    });
+
+    test('anything else is a failure', () {
+      for (final raw in [false, null, 'requested', 1]) {
+        expect(PinShortcutResult.fromChannel(raw), PinShortcutResult.failed,
+            reason: '$raw');
+      }
+    });
+  });
+
+  // HS-015: a device restore brings a pinned tile back disabled under the
+  // same id, and an imported backup brings the same siteId back. No test can
+  // stage a restore, so guard the two lines that keep such a tile from
+  // blocking a new pin.
+  group('MainActivity.kt — a disabled tile never blocks pinning (HS-015)', () {
+    final source = File(
+            'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/MainActivity.kt')
+        .readAsStringSync();
+
+    String body(String signature) {
+      final start = source.indexOf(signature);
+      expect(start, isNot(-1), reason: 'missing $signature');
+      final next = source.indexOf('\n    private fun ', start + 1);
+      return source.substring(start, next == -1 ? source.length : next);
+    }
+
+    test('pinShortcut republishes the id before requestPinShortcut', () {
+      final pin = body('private fun pinShortcut(');
+      final republish = pin.indexOf('republish(shortcut)');
+      final request = pin.indexOf('requestPinShortcut(');
+      expect(republish, isNot(-1),
+          reason: 'requestPinShortcut throws "already exists but disabled" '
+              'for a restored tile; republishing replaces it first.');
+      expect(request, greaterThan(republish));
+      expect(body('private fun republish('), contains('pushDynamicShortcut('));
+    });
+
+    test('getPinnedSiteIds leaves disabled tiles out', () {
+      final start = source.indexOf('"getPinnedSiteIds" ->');
+      final branch = source.substring(start, source.indexOf('else ->', start));
+      expect(branch, contains('it.isEnabled'),
+          reason: 'A disabled tile counted as pinned hides the Home Shortcut '
+              'menu item that would re-enable it.');
     });
   });
 

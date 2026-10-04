@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Ailneilltuo",
   "homeShortcutDisable": "Analluogi",
   "homeShortcutPickTitle": "Pwyntio'r llwybr byr at",
+  "homeShortcutReenabled": "Mae'r llwybr byr sgrin gartref presennol ar gyfer \"{name}\" wedi'i alluogi eto",
+  "homeShortcutPinFailed": "Methu ychwanegu llwybr byr sgrin gartref ar gyfer \"{name}\"",
   "appSettingsLanguageTitle": "App language",
   "appSettingsLanguageSystem": "System default",
   "siteSettingsWindowWidth": "Lled y blwch",

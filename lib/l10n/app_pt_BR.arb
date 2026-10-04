@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Reatribuir",
   "homeShortcutDisable": "Desativar",
   "homeShortcutPickTitle": "Apontar atalho para",
+  "homeShortcutReenabled": "O atalho existente na tela inicial para \"{name}\" foi reativado",
+  "homeShortcutPinFailed": "Não foi possível adicionar um atalho na tela inicial para \"{name}\"",
   "appSettingsLanguageTitle": "Idioma do app",
   "appSettingsLanguageSystem": "Padrão do sistema",
   "siteSettingsWindowWidth": "Largura da caixa",

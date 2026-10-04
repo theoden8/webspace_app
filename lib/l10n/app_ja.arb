@@ -765,6 +765,8 @@
   "homeShortcutReassign": "再割り当て",
   "homeShortcutDisable": "無効化",
   "homeShortcutPickTitle": "ショートカットの割り当て先",
+  "homeShortcutReenabled": "「{name}」の既存のホーム画面ショートカットを再度有効にしました",
+  "homeShortcutPinFailed": "「{name}」のホーム画面ショートカットを追加できませんでした",
   "appSettingsLanguageTitle": "アプリの言語",
   "appSettingsLanguageSystem": "システムの既定",
   "siteSettingsWindowWidth": "ボックスの幅",

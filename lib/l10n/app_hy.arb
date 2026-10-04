@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Վերանշանակել",
   "homeShortcutDisable": "Անջատել",
   "homeShortcutPickTitle": "Մատնանշել դյուրանցումը",
+  "homeShortcutReenabled": "«{name}»-ի գլխավոր էկրանի առկա դյուրանցումը կրկին միացված է",
+  "homeShortcutPinFailed": "Չհաջողվեց ավելացնել գլխավոր էկրանի դյուրանցում «{name}»-ի համար",
   "appSettingsLanguageTitle": "Հավելվածի լեզու",
   "appSettingsLanguageSystem": "Համակարգային լռելյայն",
   "siteSettingsWindowWidth": "Տուփի լայնություն",

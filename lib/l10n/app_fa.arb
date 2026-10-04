@@ -765,6 +765,8 @@
   "homeShortcutReassign": "انتساب مجدد",
   "homeShortcutDisable": "غیرفعال کردن",
   "homeShortcutPickTitle": "اشارهٔ میان‌بر به",
+  "homeShortcutReenabled": "میان‌بر موجود صفحهٔ خانه برای «{name}» دوباره فعال شد",
+  "homeShortcutPinFailed": "افزودن میان‌بر صفحهٔ خانه برای «{name}» ممکن نشد",
   "appSettingsLanguageTitle": "زبان برنامه",
   "appSettingsLanguageSystem": "پیش‌فرض سیستم",
   "siteSettingsWindowWidth": "عرض کادر",

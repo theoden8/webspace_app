@@ -198,7 +198,9 @@ class MainActivity: FlutterActivity() {
                             this,
                             ShortcutManagerCompat.FLAG_MATCH_PINNED
                         )
-                        val ids = pinned.mapNotNull { info ->
+                        // A disabled tile opens nothing, so it must not hide
+                        // the menu item that would bring it back (HS-015).
+                        val ids = pinned.filter { it.isEnabled }.mapNotNull { info ->
                             info.id.takeIf { it.startsWith("site_") }?.removePrefix("site_")
                         }
                         result.success(ids)
@@ -245,6 +247,12 @@ class MainActivity: FlutterActivity() {
                     .setIntent(intent)
                     .build()
 
+                republish(shortcut)
+                if (isPinnedAndEnabled(shortcut.id)) {
+                    runOnUiThread { result.success("alreadyPinned") }
+                    return@Thread
+                }
+
                 val success = ShortcutManagerCompat.requestPinShortcut(this, shortcut, null)
                 runOnUiThread {
                     if (success) {
@@ -260,6 +268,22 @@ class MainActivity: FlutterActivity() {
             }
         }.start()
     }
+
+    // requestPinShortcut throws when the id already exists disabled. A device
+    // restore leaves exactly that behind: the old pinned tile comes back
+    // disabled when Android can't vouch for this install (signature, version),
+    // invisible to getShortcuts, and an imported backup brings the same siteId
+    // back. Publishing the id replaces that copy with an enabled one and keeps
+    // its pin (HS-015); dropping the dynamic flag right after keeps the site
+    // out of the launcher's long-press menu.
+    private fun republish(shortcut: ShortcutInfoCompat) {
+        ShortcutManagerCompat.pushDynamicShortcut(this, shortcut)
+        ShortcutManagerCompat.removeDynamicShortcuts(this, listOf(shortcut.id))
+    }
+
+    private fun isPinnedAndEnabled(id: String): Boolean =
+        ShortcutManagerCompat.getShortcuts(this, ShortcutManagerCompat.FLAG_MATCH_PINNED)
+            .any { it.id == id && it.isEnabled }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)

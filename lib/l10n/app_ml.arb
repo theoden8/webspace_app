@@ -765,6 +765,8 @@
   "homeShortcutReassign": "വീണ്ടും അസൈൻ ചെയ്യുക",
   "homeShortcutDisable": "പ്രവർത്തനരഹിതമാക്കുക",
   "homeShortcutPickTitle": "കുറുക്കുവഴി ഇതിലേക്ക് ചൂണ്ടുക",
+  "homeShortcutReenabled": "\"{name}\" എന്നതിനായുള്ള നിലവിലുള്ള ഹോം സ്ക്രീൻ കുറുക്കുവഴി വീണ്ടും പ്രവർത്തനക്ഷമമാക്കി",
+  "homeShortcutPinFailed": "\"{name}\" എന്നതിനായി ഹോം സ്ക്രീൻ കുറുക്കുവഴി ചേർക്കാനായില്ല",
   "appSettingsLanguageTitle": "ആപ്പ് ഭാഷ",
   "appSettingsLanguageSystem": "സിസ്റ്റം സ്ഥിരസ്ഥിതി",
   "siteSettingsWindowWidth": "ബോക്സിന്റെ വീതി",

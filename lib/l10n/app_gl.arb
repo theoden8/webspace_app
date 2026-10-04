@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Reasignar",
   "homeShortcutDisable": "Desactivar",
   "homeShortcutPickTitle": "Apuntar o atallo a",
+  "homeShortcutReenabled": "Volveuse activar o atallo existente da pantalla de inicio para \"{name}\"",
+  "homeShortcutPinFailed": "Non se puido engadir un atallo á pantalla de inicio para \"{name}\"",
   "appSettingsLanguageTitle": "Idioma da aplicación",
   "appSettingsLanguageSystem": "Predeterminado do sistema",
   "siteSettingsWindowWidth": "Largura da caixa",

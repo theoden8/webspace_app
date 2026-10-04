@@ -767,6 +767,8 @@
   "homeShortcutReassign": "Reassignare",
   "homeShortcutDisable": "Impedire",
   "homeShortcutPickTitle": "Compendium spectare ad",
+  "homeShortcutReenabled": "Compendium schermatis domus exstans pro \"{name}\" iterum activatum est",
+  "homeShortcutPinFailed": "Compendium schermatis domus pro \"{name}\" addi non potuit",
   "siteSettingsWindowWidth": "Latitudo arcae",
   "siteSettingsWindowHeight": "Altitudo arcae",
   "siteSettingsWindowSizeHelper": "Paginam in arca media monstrat, magnitudinem scrinii ad craticulam fixam deorsum rotundans (sicut Tor Browser) ut multa instrumenta eandem magnitudinem nuntient, quod vestigium ex magnitudine scrinii minuit.",

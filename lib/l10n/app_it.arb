@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Riassegna",
   "homeShortcutDisable": "Disabilita",
   "homeShortcutPickTitle": "Fai puntare la scorciatoia a",
+  "homeShortcutReenabled": "La scorciatoia esistente nella schermata Home per \"{name}\" è stata riattivata",
+  "homeShortcutPinFailed": "Impossibile aggiungere una scorciatoia nella schermata Home per \"{name}\"",
   "appSettingsLanguageTitle": "Lingua dell'app",
   "appSettingsLanguageSystem": "Predefinita di sistema",
   "siteSettingsWindowWidth": "Larghezza del riquadro",

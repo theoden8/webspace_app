@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Endurúthluta",
   "homeShortcutDisable": "Gera óvirka",
   "homeShortcutPickTitle": "Benda flýtileið á",
+  "homeShortcutReenabled": "Núverandi heimaskjásflýtileið fyrir „{name}“ var virkjuð aftur",
+  "homeShortcutPinFailed": "Ekki tókst að bæta við heimaskjásflýtileið fyrir „{name}“",
   "appSettingsLanguageTitle": "Tungumál forrits",
   "appSettingsLanguageSystem": "Sjálfgefið kerfis",
   "siteSettingsWindowWidth": "Breidd kassa",

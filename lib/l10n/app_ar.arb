@@ -765,6 +765,8 @@
   "homeShortcutReassign": "إعادة التعيين",
   "homeShortcutDisable": "تعطيل",
   "homeShortcutPickTitle": "توجيه الاختصار إلى",
+  "homeShortcutReenabled": "تمت إعادة تفعيل اختصار الشاشة الرئيسية الحالي لـ \"{name}\"",
+  "homeShortcutPinFailed": "تعذّرت إضافة اختصار إلى الشاشة الرئيسية لـ \"{name}\"",
   "appSettingsLanguageTitle": "لغة التطبيق",
   "appSettingsLanguageSystem": "افتراضي النظام",
   "siteSettingsWindowWidth": "عرض الصندوق",

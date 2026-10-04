@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Priskirti iš naujo",
   "homeShortcutDisable": "Išjungti",
   "homeShortcutPickTitle": "Nukreipti nuorodą į",
+  "homeShortcutReenabled": "Esama pradžios ekrano nuoroda į „{name}“ vėl įjungta",
+  "homeShortcutPinFailed": "Nepavyko pridėti pradžios ekrano nuorodos į „{name}“",
   "appSettingsLanguageTitle": "Programos kalba",
   "appSettingsLanguageSystem": "Sistemos numatytoji",
   "siteSettingsWindowWidth": "Langelio plotis",

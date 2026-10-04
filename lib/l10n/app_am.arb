@@ -765,6 +765,8 @@
   "homeShortcutReassign": "እንደገና መድብ",
   "homeShortcutDisable": "አሰናክል",
   "homeShortcutPickTitle": "አቋራጭ ጠቁም ወደ",
+  "homeShortcutReenabled": "ለ\"{name}\" ያለው የመነሻ ማያ አቋራጭ እንደገና ነቅቷል",
+  "homeShortcutPinFailed": "ለ\"{name}\" የመነሻ ማያ አቋራጭ ማከል አልተቻለም",
   "appSettingsLanguageTitle": "የመተግበሪያ ቋንቋ",
   "appSettingsLanguageSystem": "የስርዓት ነባሪ",
   "siteSettingsWindowWidth": "የሳጥን ስፋት",

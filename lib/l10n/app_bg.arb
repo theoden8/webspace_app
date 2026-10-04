@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Преназначи",
   "homeShortcutDisable": "Изключи",
   "homeShortcutPickTitle": "Насочи прекия път към",
+  "homeShortcutReenabled": "Съществуващият пряк път на началния екран за „{name}“ е активиран отново",
+  "homeShortcutPinFailed": "Не можа да се добави пряк път на началния екран за „{name}“",
   "appSettingsLanguageTitle": "Език на приложението",
   "appSettingsLanguageSystem": "Системен по подразбиране",
   "siteSettingsWindowWidth": "Ширина на полето",

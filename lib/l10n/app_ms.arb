@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Tetapkan semula",
   "homeShortcutDisable": "Lumpuhkan",
   "homeShortcutPickTitle": "Tunjukkan pintasan ke",
+  "homeShortcutReenabled": "Pintasan skrin utama sedia ada untuk \"{name}\" telah didayakan semula",
+  "homeShortcutPinFailed": "Tidak dapat menambah pintasan skrin utama untuk \"{name}\"",
   "appSettingsLanguageTitle": "Bahasa aplikasi",
   "appSettingsLanguageSystem": "Lalai sistem",
   "siteSettingsWindowWidth": "Lebar kotak",

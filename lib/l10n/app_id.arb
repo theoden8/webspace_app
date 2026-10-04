@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Tetapkan ulang",
   "homeShortcutDisable": "Nonaktifkan",
   "homeShortcutPickTitle": "Arahkan pintasan ke",
+  "homeShortcutReenabled": "Pintasan layar beranda yang ada untuk \"{name}\" diaktifkan kembali",
+  "homeShortcutPinFailed": "Tidak dapat menambahkan pintasan layar beranda untuk \"{name}\"",
   "appSettingsLanguageTitle": "Bahasa aplikasi",
   "appSettingsLanguageSystem": "Default sistem",
   "siteSettingsWindowWidth": "Lebar kotak",

@@ -767,6 +767,8 @@
   "homeShortcutReassign": "Reassign",
   "homeShortcutDisable": "បិទ",
   "homeShortcutPickTitle": "ចង្អុល shortcut ទៅ",
+  "homeShortcutReenabled": "បានបើកផ្លូវកាត់អេក្រង់ដើមដែលមានស្រាប់សម្រាប់ \"{name}\" ឡើងវិញ",
+  "homeShortcutPinFailed": "មិនអាចបន្ថែមផ្លូវកាត់អេក្រង់ដើមសម្រាប់ \"{name}\" បានទេ",
   "siteSettingsWindowWidth": "ទទឹងប្រអប់",
   "siteSettingsWindowHeight": "កម្ពស់ប្រអប់",
   "siteSettingsWindowSizeHelper": "បង្ហាញទំព័រក្នុងប្រអប់ដែលដាក់កណ្ដាល ដោយបង្គត់ទំហំអេក្រង់ចុះក្រោមទៅក្រឡាចត្រង្គថេរ (ដូច Tor Browser) ដើម្បីឱ្យឧបករណ៍ជាច្រើនរាយការណ៍ទំហំដូចគ្នា ដែលកាត់បន្ថយការតាមដានស្នាមម្រាមដៃតាមទំហំអេក្រង់។",

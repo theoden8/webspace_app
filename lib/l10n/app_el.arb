@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Επανεκχώρηση",
   "homeShortcutDisable": "Απενεργοποίηση",
   "homeShortcutPickTitle": "Κατεύθυνση συντόμευσης σε",
+  "homeShortcutReenabled": "Η υπάρχουσα συντόμευση αρχικής οθόνης για το «{name}» ενεργοποιήθηκε ξανά",
+  "homeShortcutPinFailed": "Δεν ήταν δυνατή η προσθήκη συντόμευσης αρχικής οθόνης για το «{name}»",
   "appSettingsLanguageTitle": "Γλώσσα εφαρμογής",
   "appSettingsLanguageSystem": "Προεπιλογή συστήματος",
   "siteSettingsWindowWidth": "Πλάτος πλαισίου",

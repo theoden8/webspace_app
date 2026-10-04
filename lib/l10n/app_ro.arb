@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Reatribuie",
   "homeShortcutDisable": "Dezactivează",
   "homeShortcutPickTitle": "Îndreaptă scurtătura către",
+  "homeShortcutReenabled": "Scurtătura existentă de pe ecranul principal pentru \"{name}\" a fost reactivată",
+  "homeShortcutPinFailed": "Nu s-a putut adăuga o scurtătură pe ecranul principal pentru \"{name}\"",
   "appSettingsLanguageTitle": "Limba aplicației",
   "appSettingsLanguageSystem": "Implicit de sistem",
   "siteSettingsWindowWidth": "Lățimea casetei",

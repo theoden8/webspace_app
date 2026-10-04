@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Reasignar",
   "homeShortcutDisable": "Desactivar",
   "homeShortcutPickTitle": "Apuntar el acceso directo a",
+  "homeShortcutReenabled": "Se ha vuelto a activar el acceso directo existente de la pantalla de inicio para \"{name}\"",
+  "homeShortcutPinFailed": "No se pudo añadir un acceso directo a la pantalla de inicio para \"{name}\"",
   "appSettingsLanguageTitle": "Idioma de la app",
   "appSettingsLanguageSystem": "Predeterminado del sistema",
   "siteSettingsWindowWidth": "Ancho de la caja",

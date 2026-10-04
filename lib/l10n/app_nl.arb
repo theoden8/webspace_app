@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Opnieuw toewijzen",
   "homeShortcutDisable": "Uitschakelen",
   "homeShortcutPickTitle": "Snelkoppeling laten verwijzen naar",
+  "homeShortcutReenabled": "De bestaande startschermsnelkoppeling voor \"{name}\" is weer ingeschakeld",
+  "homeShortcutPinFailed": "Kan geen startschermsnelkoppeling voor \"{name}\" toevoegen",
   "appSettingsLanguageTitle": "App-taal",
   "appSettingsLanguageSystem": "Systeemstandaard",
   "siteSettingsWindowWidth": "Vakbreedte",

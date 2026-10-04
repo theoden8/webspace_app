@@ -765,6 +765,8 @@
   "homeShortcutReassign": "पुनः-असाइन गर्नुहोस्",
   "homeShortcutDisable": "असक्षम गर्नुहोस्",
   "homeShortcutPickTitle": "सर्टकट यसमा संकेत गर्नुहोस्",
+  "homeShortcutReenabled": "\"{name}\" को अवस्थित होम स्क्रिन सर्टकट फेरि सक्षम गरियो",
+  "homeShortcutPinFailed": "\"{name}\" का लागि होम स्क्रिन सर्टकट थप्न सकिएन",
   "appSettingsLanguageTitle": "एप भाषा",
   "appSettingsLanguageSystem": "सिस्टम पूर्वनिर्धारित",
   "siteSettingsWindowWidth": "बाकसको चौडाइ",

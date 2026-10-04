@@ -765,6 +765,8 @@
   "homeShortcutReassign": "重新指派",
   "homeShortcutDisable": "停用",
   "homeShortcutPickTitle": "將捷徑指向",
+  "homeShortcutReenabled": "已重新啟用「{name}」現有的主畫面捷徑",
+  "homeShortcutPinFailed": "無法為「{name}」新增主畫面捷徑",
   "appSettingsLanguageTitle": "應用程式語言",
   "appSettingsLanguageSystem": "系統預設",
   "siteSettingsWindowWidth": "方框寬度",

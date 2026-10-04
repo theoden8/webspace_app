@@ -1521,7 +1521,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             proxy: model.outboundProxySettings,
           );
       if (!mounted) return;
-      await ShortcutService.pinShortcut(
+      final pinned = await ShortcutService.pinShortcut(
         siteId: model.siteId,
         label: model.name,
         iconBytes: iconBytes,
@@ -1529,6 +1529,21 @@ class _WebSpacePageState extends State<WebSpacePage>
       // HS-011: remember this id's url now so a later delete+recreate can be
       // routed by domain. _refreshPinnedSiteIds also reconciles on resume.
       await _recordShortcutLedger(model.siteId, model.initUrl);
+      if (!mounted) return;
+      final loc = AppLocalizations.of(context);
+      switch (pinned) {
+        case PinShortcutResult.requested:
+          break;
+        case PinShortcutResult.alreadyPinned:
+          // No pin dialog backgrounds the app, so no resume refreshes the set.
+          await _refreshPinnedSiteIds();
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(loc.homeShortcutReenabled(model.name))));
+        case PinShortcutResult.failed:
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(loc.homeShortcutPinFailed(model.name))));
+      }
       return;
     }
     if ((hostIsIOS || hostIsMacOS) && _appIntentsSupported) {

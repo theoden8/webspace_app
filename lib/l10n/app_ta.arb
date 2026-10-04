@@ -765,6 +765,8 @@
   "homeShortcutReassign": "மறுஒதுக்கீடு செய்",
   "homeShortcutDisable": "முடக்கு",
   "homeShortcutPickTitle": "குறுக்குவழியை இதற்குச் சுட்டிக்காட்டு",
+  "homeShortcutReenabled": "\"{name}\" க்கான தற்போதைய முகப்புத்திரை குறுக்குவழி மீண்டும் இயக்கப்பட்டது",
+  "homeShortcutPinFailed": "\"{name}\" க்கான முகப்புத்திரை குறுக்குவழியைச் சேர்க்க முடியவில்லை",
   "appSettingsLanguageTitle": "செயலி மொழி",
   "appSettingsLanguageSystem": "கணினி இயல்புநிலை",
   "siteSettingsWindowWidth": "பெட்டியின் அகலம்",

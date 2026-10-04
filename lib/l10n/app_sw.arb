@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Kabidhi tena",
   "homeShortcutDisable": "Zima",
   "homeShortcutPickTitle": "Elekeza njia ya mkato kwa",
+  "homeShortcutReenabled": "Njia ya mkato iliyopo ya skrini ya mwanzo ya \"{name}\" imewashwa tena",
+  "homeShortcutPinFailed": "Imeshindwa kuongeza njia ya mkato ya skrini ya mwanzo ya \"{name}\"",
   "appSettingsLanguageTitle": "Lugha ya programu",
   "appSettingsLanguageSystem": "Chaguomsingi la mfumo",
   "siteSettingsWindowWidth": "Upana wa kisanduku",

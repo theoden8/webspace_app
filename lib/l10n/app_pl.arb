@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Przypisz ponownie",
   "homeShortcutDisable": "Wyłącz",
   "homeShortcutPickTitle": "Skieruj skrót na",
+  "homeShortcutReenabled": "Ponownie włączono istniejący skrót ekranu głównego dla „{name}”",
+  "homeShortcutPinFailed": "Nie udało się dodać skrótu ekranu głównego dla „{name}”",
   "appSettingsLanguageTitle": "Język aplikacji",
   "appSettingsLanguageSystem": "Domyślny systemowy",
   "siteSettingsWindowWidth": "Szerokość pola",

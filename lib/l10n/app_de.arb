@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Neu zuweisen",
   "homeShortcutDisable": "Deaktivieren",
   "homeShortcutPickTitle": "Verknüpfung verweisen auf",
+  "homeShortcutReenabled": "Die vorhandene Startbildschirm-Verknüpfung für \"{name}\" wurde wieder aktiviert",
+  "homeShortcutPinFailed": "Startbildschirm-Verknüpfung für \"{name}\" konnte nicht hinzugefügt werden",
   "appSettingsLanguageTitle": "App-Sprache",
   "appSettingsLanguageSystem": "Systemstandard",
   "siteSettingsWindowWidth": "Feldbreite",

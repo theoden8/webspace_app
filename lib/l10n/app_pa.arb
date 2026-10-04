@@ -765,6 +765,8 @@
   "homeShortcutReassign": "ਮੁੜ-ਸੌਂਪੋ",
   "homeShortcutDisable": "ਅਯੋਗ ਕਰੋ",
   "homeShortcutPickTitle": "ਸ਼ਾਰਟਕੱਟ ਇਸ ਵੱਲ ਸੇਧੋ",
+  "homeShortcutReenabled": "\"{name}\" ਲਈ ਮੌਜੂਦਾ ਹੋਮ ਸਕ੍ਰੀਨ ਸ਼ਾਰਟਕੱਟ ਮੁੜ ਚਾਲੂ ਕੀਤਾ ਗਿਆ",
+  "homeShortcutPinFailed": "\"{name}\" ਲਈ ਹੋਮ ਸਕ੍ਰੀਨ ਸ਼ਾਰਟਕੱਟ ਸ਼ਾਮਲ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ",
   "appSettingsLanguageTitle": "ਐਪ ਭਾਸ਼ਾ",
   "appSettingsLanguageSystem": "ਸਿਸਟਮ ਡਿਫਾਲਟ",
   "siteSettingsWindowWidth": "ਬਾਕਸ ਦੀ ਚੌੜਾਈ",

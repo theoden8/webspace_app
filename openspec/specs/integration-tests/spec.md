@@ -909,7 +909,9 @@ the launcher tiles that still reach it. The suite SHALL cover at least
 HS-002/HS-006 (cold launch), HS-004/HS-005 (menu gating, including the
 rebound-site case), HS-001/HS-012 (pin + ledger record), HS-011
 (orphan confirm / reroute / create, and the remembered rebind), and
-HS-013 (delete-time Keep/Reassign/Disable prompt).
+HS-013 (delete-time Keep/Reassign/Disable prompt), and HS-015 (a
+refused pin is reported; a pin that re-enabled a disabled tile is
+reported and hides the item).
 
 The platform channel SHALL be mocked, because a launcher pin dialog and
 a real pinned set are not reachable from in-process; the mock SHALL
@@ -955,6 +957,15 @@ and the frame classifier.
   site and present for the unpinned one (HS-005), and tapping it
   reaches `pinShortcut` on the channel with that site's id and label
   and records its url in the ledger (HS-001 / HS-012)
+
+#### Scenario: Pin outcomes other than a dialog are reported
+
+- **Given** the native pin first throws, then reports the site's
+  disabled tile re-enabled
+- **When** "Home Shortcut" is tapped each time
+- **Then** the first tap shows that the shortcut could not be added,
+  the second that the existing shortcut was re-enabled, and the menu
+  item is hidden afterwards without a resume (HS-015)
 
 #### Scenario: An orphaned tile's prompt outcome is what gets persisted
 

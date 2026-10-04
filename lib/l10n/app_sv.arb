@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Tilldela om",
   "homeShortcutDisable": "Inaktivera",
   "homeShortcutPickTitle": "Peka genväg mot",
+  "homeShortcutReenabled": "Den befintliga genvägen på startskärmen för \"{name}\" har aktiverats igen",
+  "homeShortcutPinFailed": "Det gick inte att lägga till en genväg på startskärmen för \"{name}\"",
   "appSettingsLanguageTitle": "Appspråk",
   "appSettingsLanguageSystem": "Systemstandard",
   "siteSettingsWindowWidth": "Rutbredd",

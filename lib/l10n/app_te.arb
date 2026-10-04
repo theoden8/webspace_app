@@ -765,6 +765,8 @@
   "homeShortcutReassign": "మళ్లీ కేటాయించు",
   "homeShortcutDisable": "నిలిపివేయి",
   "homeShortcutPickTitle": "షార్ట్‌కట్‌ను దీనికి సూచించు",
+  "homeShortcutReenabled": "\"{name}\" కోసం ఉన్న హోమ్ స్క్రీన్ షార్ట్‌కట్ మళ్లీ ప్రారంభించబడింది",
+  "homeShortcutPinFailed": "\"{name}\" కోసం హోమ్ స్క్రీన్ షార్ట్‌కట్‌ను జోడించడం సాధ్యం కాలేదు",
   "appSettingsLanguageTitle": "యాప్ భాష",
   "appSettingsLanguageSystem": "సిస్టమ్ డిఫాల్ట్",
   "siteSettingsWindowWidth": "పెట్టె వెడల్పు",

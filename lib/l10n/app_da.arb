@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Tildel igen",
   "homeShortcutDisable": "Deaktiver",
   "homeShortcutPickTitle": "Peg genvej på",
+  "homeShortcutReenabled": "Den eksisterende hjemmeskærmsgenvej til \"{name}\" er aktiveret igen",
+  "homeShortcutPinFailed": "Kunne ikke tilføje en hjemmeskærmsgenvej til \"{name}\"",
   "appSettingsLanguageTitle": "Appsprog",
   "appSettingsLanguageSystem": "Systemstandard",
   "siteSettingsWindowWidth": "Boksbredde",

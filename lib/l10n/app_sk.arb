@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Priradiť znova",
   "homeShortcutDisable": "Vypnúť",
   "homeShortcutPickTitle": "Nasmerovať skratku na",
+  "homeShortcutReenabled": "Existujúca skratka na domovskej obrazovke pre „{name}“ bola znova povolená",
+  "homeShortcutPinFailed": "Skratku na domovskej obrazovke pre „{name}“ sa nepodarilo pridať",
   "appSettingsLanguageTitle": "Jazyk aplikácie",
   "appSettingsLanguageSystem": "Predvolené systémom",
   "siteSettingsWindowWidth": "Šírka rámčeka",

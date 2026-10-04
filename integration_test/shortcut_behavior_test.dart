@@ -17,6 +17,8 @@
 //                    rebound to
 //   HS-001 / HS-012  tapping the item pins through the channel and records the
 //                    site's url in the ledger
+//   HS-015           a refused pin says so; a pin that re-enabled a disabled
+//                    tile says so and hides the item
 //   HS-011           orphaned tile with a domain match: cancel leaves no trace,
 //                    confirm opens and is remembered, the next tap is silent
 //   HS-011           orphaned tile with no match: reroute to an existing site,
@@ -75,6 +77,9 @@ void main() {
   // returns; reading it clears it, mirroring the native consume-on-read.
   String? pendingLaunch;
   var pinned = <String>{};
+  // What the native pin reports: a dialog opened, a disabled tile under the
+  // id was re-enabled (HS-015), or requestPinShortcut threw.
+  var pinOutcome = 'requested';
   final calls = <MethodCall>[];
 
   setUpAll(() async {
@@ -112,8 +117,11 @@ void main() {
             case 'getPinnedSiteIds':
               return pinned.toList();
             case 'pinShortcut':
+              if (pinOutcome == 'error') {
+                throw PlatformException(code: 'ERROR');
+              }
               pinned.add((call.arguments as Map)['siteId'] as String);
-              return true;
+              return pinOutcome == 'alreadyPinned' ? 'alreadyPinned' : true;
             case 'disableShortcut':
               pinned.remove((call.arguments as Map)['siteId'] as String);
               return null;
@@ -158,6 +166,7 @@ void main() {
       'shortcutSiteRemap': jsonEncode(remap),
     });
     pinned = {...pinnedTiles};
+    pinOutcome = 'requested';
     calls.clear();
     pendingLaunch = launch;
   }
@@ -497,6 +506,59 @@ void main() {
               (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] ==
               '$hostA/a.html',
           description: 'the pin to record the site url in the ledger',
+        );
+      });
+    },
+    skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  testWidgets(
+    'a refused pin says so; a re-enabled tile says so and hides the item '
+    '(HS-015)',
+    (tester) async {
+      seed(sites: [siteA(), siteB()], launch: 'ws-hs-a');
+      await withApp(tester, () async {
+        await pumpUntil(
+          tester,
+          () => siteIsMounted('ws-hs-a'),
+          description: 'the launched site to activate',
+        );
+
+        pinOutcome = 'error';
+        await openOverflowMenu(tester);
+        await tester.tap(find.text('Home Shortcut'));
+        await pumpUntil(
+          tester,
+          () => find
+              .text('Couldn\'t add a home screen shortcut for "Site A"')
+              .evaluate()
+              .isNotEmpty,
+          description: 'the refused pin to be reported',
+        );
+
+        // A device restore leaves the tile disabled under the same id, so
+        // getPinnedSiteIds omits it and the item is still offered.
+        pinOutcome = 'alreadyPinned';
+        await openOverflowMenu(tester);
+        expect(find.text('Home Shortcut'), findsOneWidget);
+        await tester.tap(find.text('Home Shortcut'));
+        await pumpUntil(
+          tester,
+          () => find
+              .text('Re-enabled the existing home screen shortcut for "Site A"')
+              .evaluate()
+              .isNotEmpty,
+          description: 'the re-enabled tile to be reported',
+        );
+
+        // No pin dialog backgrounded the app, so the item hides without a
+        // resume.
+        await openOverflowMenu(tester);
+        expect(
+          find.text('Home Shortcut'),
+          findsNothing,
+          reason: 'the re-enabled tile already reaches the site',
         );
       });
     },
