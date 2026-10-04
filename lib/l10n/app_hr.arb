@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Otvori bez usmjeravanja",
   "siteSettingsRouteOutboundLinks": "Usmjeravaj poveznice na moje stranice",
   "siteSettingsRouteOutboundLinksHint": "Kada je uključeno, poveznica koju ovdje dodirnete, a na koju pravo polaže neka druga vaša stranica, otvara se kao ta stranica, s vašom prijavom te njezinim kolačićima i postavkama. Natrag vas vraća ovamo. Kada na poveznicu pravo polaže više stranica, bit ćete upitani koju želite, a izbor se može zapamtiti za ovu stranicu. Poveznice na koje nijedna stranica ne polaže pravo otvaraju se kao i dosad. Potrebni su spremnici po stranici.",
-  "siteSettingsRouteOutboundLinksTabsHint": "S karticama se poveznica na jednu od vaših stranica otvara kao kartica. Kada je ovaj prekidač uključen, ona radi kao ta stranica, u njezinu spremniku; kada je isključen, radi kao ova stranica, u njezinu. Promjena prekidača premješta kartice koje su poveznice odavde otvorile u drugi spremnik i ondje ih ponovno učitava.",
+  "siteSettingsRouteOutboundLinksTabsHint": "S karticama se poveznica na jednu od vaših stranica otvara kao kartica. Kada je ovaj prekidač uključen, kartica radi kao ta stranica, s njezinom prijavom, proxyjem i ostalim postavkama; kada je isključen, radi kao ova stranica, s njezinim postavkama. Promjena prekidača ponovno učitava kartice koje su poveznice odavde otvorile kao stranicu koju prekidač sada bira.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Potrebni su spremnici po stranici",
   "outboundPreferencesTitle": "Postavke usmjeravanja",
   "outboundPreferencesCount": "{count, plural, one{{count} postavka} few{{count} postavke} other{{count} postavki}}",

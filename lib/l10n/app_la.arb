@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Sine itineratione aperire",
   "siteSettingsRouteOutboundLinks": "Nexus ad locos meos itinerare",
   "siteSettingsRouteOutboundLinksHint": "Cum activum est, nexus quem hic tangis et quem alius ex locis tuis sibi vindicat ut ille locus aperitur, iam ingressus, cum suis crustulis et institutionibus. Retro te huc reducit. Cum plures loci nexum sibi vindicant, rogaris quem adhibeas, et electionem pro hoc loco memoriae mandari iubere potes. Nexus quos nullus locus sibi vindicat ut nunc aperiuntur. Continentia per locum requiruntur.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Cum schedis, nexus ad unum e locis tuis ut scheda aperitur. Hoc commutatore accenso ut ille locus currit, in continente eius; exstincto, ut hic locus currit, in continente huius. Commutatore mutato, schedae quas nexus hinc aperuerunt in alterum continens transferuntur ibique iterum onerantur.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Cum schedis, nexus ad unum e locis tuis ut scheda aperitur. Hoc commutatore accenso scheda ut ille locus currit, cum eius introitu, procuratore ceterisque optionibus; exstincto, ut hic locus currit, cum huius optionibus. Commutatore mutato, schedae quas nexus hinc aperuerunt iterum onerantur ut locus quem nunc eligit.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Continentia per locum requiruntur",
   "outboundPreferencesTitle": "Praeferentiae itinerationis",
   "outboundPreferencesCount": "{count, plural, one{{count} praeferentia} other{{count} praeferentiae}}",

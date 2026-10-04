@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Atidaryti be maršrutizavimo",
   "siteSettingsRouteOutboundLinks": "Nukreipti nuorodas į mano svetaines",
   "siteSettingsRouteOutboundLinksHint": "Kai įjungta, čia paliesta nuoroda, į kurią pretenduoja kita jūsų svetainė, atidaroma kaip ta svetainė: prisijungus, su jos pačios slapukais ir nustatymais. Atgal grąžina jus čia. Kai į nuorodą pretenduoja kelios svetainės, jūsų paklausiama, kurią naudoti, ir pasirinkimą galima įsiminti šiai svetainei. Nuorodos, į kurias nepretenduoja jokia svetainė, atidaromos kaip dabar. Reikia atskirų konteinerių kiekvienai svetainei.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Su kortelėmis nuoroda į vieną iš jūsų svetainių atsidaro kaip kortelė. Kai šis jungiklis įjungtas, ji veikia kaip ta svetainė, jos konteineryje; išjungtas – kaip ši svetainė, šios konteineryje. Pakeitus jungiklį, iš čia nuorodomis atidarytos kortelės perkeliamos į kitą konteinerį ir ten įkeliamos iš naujo.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Su kortelėmis nuoroda į vieną iš jūsų svetainių atsidaro kaip kortelė. Kai šis jungiklis įjungtas, kortelė veikia kaip ta svetainė, su jos prisijungimu, įgaliotuoju serveriu ir kitais nustatymais; išjungtas – kaip ši svetainė, su šios nustatymais. Pakeitus jungiklį, iš čia nuorodomis atidarytos kortelės įkeliamos iš naujo kaip svetainė, kurią jungiklis dabar parenka.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Reikia konteinerių kiekvienai svetainei",
   "outboundPreferencesTitle": "Maršrutizavimo nuostatos",
   "outboundPreferencesCount": "{count, plural, one{{count} nuostata} few{{count} nuostatos} many{{count} nuostatos} other{{count} nuostatų}}",

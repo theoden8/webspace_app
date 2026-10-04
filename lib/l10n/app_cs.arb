@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Otevřít bez směrování",
   "siteSettingsRouteOutboundLinks": "Směrovat odkazy na mé stránky",
   "siteSettingsRouteOutboundLinksHint": "Když je zapnuto, odkaz, na který zde klepnete a který nárokuje jiná z vašich stránek, se otevře jako tato stránka, s vaším přihlášením a s jejími vlastními cookies a nastaveními. Zpět vás vrátí sem. Když odkaz nárokuje více stránek, budete dotázáni, kterou použít, a volbu si můžete nechat zapamatovat pro tuto stránku. Odkazy, které nenárokuje žádná stránka, se otevírají jako dosud. Vyžaduje kontejnery pro jednotlivé stránky.",
-  "siteSettingsRouteOutboundLinksTabsHint": "S panely se odkaz na jeden z vašich webů otevře jako panel. Se zapnutým přepínačem běží jako ten web, v jeho kontejneru; s vypnutým běží jako tento web, v kontejneru tohoto webu. Změna přepínače přesune panely otevřené odkazy odsud do druhého kontejneru a znovu je tam načte.",
+  "siteSettingsRouteOutboundLinksTabsHint": "S panely se odkaz na jeden z vašich webů otevře jako panel. Se zapnutým přepínačem běží panel jako ten web, s jeho přihlášením, proxy a dalším nastavením; s vypnutým běží jako tento web, s jeho nastavením. Změna přepínače znovu načte panely otevřené odkazy odsud jako web, který přepínač teď vybírá.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Vyžaduje kontejnery pro jednotlivé stránky",
   "outboundPreferencesTitle": "Předvolby směrování",
   "outboundPreferencesCount": "{count, plural, one{{count} předvolba} few{{count} předvolby} many{{count} předvolby} other{{count} předvoleb}}",

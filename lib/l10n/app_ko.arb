@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "라우팅 없이 열기",
   "siteSettingsRouteOutboundLinks": "링크를 내 사이트로 라우팅",
   "siteSettingsRouteOutboundLinksHint": "켜면 여기서 탭한 링크를 내 다른 사이트가 클레임하는 경우 해당 사이트로 열리며, 로그인된 상태로 그 사이트의 쿠키와 설정이 적용됩니다. 뒤로 가기를 누르면 여기로 돌아옵니다. 여러 사이트가 링크를 클레임하면 어느 사이트를 사용할지 묻고, 이 사이트에 대해 그 선택을 기억하게 할 수 있습니다. 어떤 사이트도 클레임하지 않은 링크는 지금처럼 열립니다. 사이트별 컨테이너가 필요합니다.",
-  "siteSettingsRouteOutboundLinksTabsHint": "탭을 사용하면 내 사이트 중 하나로 가는 링크가 탭으로 열립니다. 이 스위치가 켜져 있으면 그 탭은 해당 사이트로서 그 사이트의 컨테이너에서 실행되고, 꺼져 있으면 이 사이트로서 이 사이트의 컨테이너에서 실행됩니다. 스위치를 바꾸면 여기서 링크로 연 탭이 다른 컨테이너로 옮겨져 그곳에서 다시 로드됩니다.",
+  "siteSettingsRouteOutboundLinksTabsHint": "탭을 사용하면 내 사이트 중 하나로 가는 링크가 탭으로 열립니다. 이 스위치가 켜져 있으면 탭은 해당 사이트로서 그 사이트의 로그인, 프록시와 기타 설정으로 실행되고, 꺼져 있으면 이 사이트로서 이 사이트의 설정으로 실행됩니다. 스위치를 바꾸면 여기서 링크로 연 탭이 스위치가 지금 고르는 사이트로 다시 로드됩니다.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "사이트별 컨테이너 필요",
   "outboundPreferencesTitle": "라우팅 설정",
   "outboundPreferencesCount": "{count, plural, other{설정 {count}개}}",

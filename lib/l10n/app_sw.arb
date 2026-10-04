@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Fungua bila uelekezaji",
   "siteSettingsRouteOutboundLinks": "Elekeza viungo kwenye tovuti zangu",
   "siteSettingsRouteOutboundLinksHint": "Ikiwashwa, kiungo unachogusa hapa ambacho tovuti yako nyingine inakidai hufunguka kama tovuti hiyo: ukiwa tayari umeingia, pamoja na vidakuzi na mipangilio yake yenyewe. Kurudi nyuma kunakurejesha hapa. Tovuti kadhaa zinapodai kiungo kimoja, unaulizwa ni ipi, na chaguo linaweza kukumbukwa kwa tovuti hii. Viungo visivyodaiwa na tovuti yoyote hufunguka kama sasa. Inahitaji vyombo vya kila tovuti.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Ukiwa na vichupo, kiungo cha mojawapo ya tovuti zako hufunguka kama kichupo. Swichi hii ikiwa imewashwa, huendeshwa kama tovuti hiyo, ndani ya chombo chake; ikiwa imezimwa, huendeshwa kama tovuti hii, ndani ya chombo cha tovuti hii. Kubadilisha swichi huhamisha vichupo vilivyofunguliwa na viungo kutoka hapa hadi kwenye chombo kingine na kuvipakia upya huko.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Ukiwa na vichupo, kiungo cha mojawapo ya tovuti zako hufunguka kama kichupo. Swichi hii ikiwa imewashwa, kichupo huendeshwa kama tovuti hiyo, pamoja na kuingia, seva mbadala na mipangilio mingine yake; ikiwa imezimwa, huendeshwa kama tovuti hii, pamoja na mipangilio ya tovuti hii. Kubadilisha swichi hupakia upya vichupo vilivyofunguliwa na viungo kutoka hapa kama tovuti ambayo swichi inachagua sasa.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Inahitaji vyombo vya kila tovuti",
   "outboundPreferencesTitle": "Mapendeleo ya uelekezaji",
   "outboundPreferencesCount": "{count, plural, one{pendeleo {count}} other{mapendeleo {count}}}",

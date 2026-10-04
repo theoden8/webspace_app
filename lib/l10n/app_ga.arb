@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Oscail gan ródú",
   "siteSettingsRouteOutboundLinks": "Ródaigh naisc chuig mo shuíomhanna",
   "siteSettingsRouteOutboundLinksHint": "Nuair atá sé seo ar siúl, osclaítear nasc a thapálann tú anseo agus a éilíonn ceann eile de do shuíomhanna mar an suíomh sin, sínithe isteach, lena fhianáin agus a shocruithe féin. Tugann Ar Ais ar ais anseo thú. Nuair a éilíonn roinnt suíomhanna nasc, fiafraítear díot cé acu, agus is féidir an rogha a mheabhrú don suíomh seo. Osclaítear naisc nach n-éilíonn aon suíomh iad mar a osclaítear anois iad. Teastaíonn coimeádáin in aghaidh an tsuímh.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Le cluaisíní, osclaíonn nasc chuig ceann de do shuíomhanna mar chluaisín. Leis an lasc seo ar siúl ritheann sé mar an suíomh sin, ina choimeádán; as, ritheann sé mar an suíomh seo, i gcoimeádán an tsuímh seo. Má athraítear an lasc, bogtar na cluaisíní a d'oscail naisc as seo go dtí an coimeádán eile agus athlódáiltear ansin iad.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Le cluaisíní, osclaíonn nasc chuig ceann de do shuíomhanna mar chluaisín. Leis an lasc seo ar siúl ritheann an cluaisín mar an suíomh sin, lena logáil isteach, a sheachfhreastalaí agus a shocruithe eile; as, ritheann sé mar an suíomh seo, le socruithe an tsuímh seo. Má athraítear an lasc, athlódáiltear na cluaisíní a d'oscail naisc as seo mar an suíomh a roghnaíonn sé anois.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Teastaíonn coimeádáin in aghaidh an tsuímh",
   "outboundPreferencesTitle": "Roghanna ródaithe",
   "outboundPreferencesCount": "{count, plural, one{{count} rogha} two{{count} rogha} few{{count} rogha} many{{count} rogha} other{{count} rogha}}",

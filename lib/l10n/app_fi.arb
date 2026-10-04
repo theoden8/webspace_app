@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Avaa ilman reititystä",
   "siteSettingsRouteOutboundLinks": "Reititä linkit omiin sivustoihini",
   "siteSettingsRouteOutboundLinksHint": "Kun tämä on käytössä, täällä napauttamasi linkki, jota jokin toinen sivustoistasi vaatii, avautuu kyseisenä sivustona: sisäänkirjautuneena ja sen omilla evästeillä ja asetuksilla. Takaisin palauttaa sinut tänne. Kun useampi sivusto vaatii linkkiä, sinulta kysytään, mitä käytetään, ja valinnan voi tallentaa tälle sivustolle. Linkit, joita mikään sivusto ei vaadi, avautuvat kuten nyt. Edellyttää sivustokohtaisia säiliöitä.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Välilehdillä linkki johonkin sivustoistasi avautuu välilehdeksi. Kun tämä kytkin on päällä, se toimii sivustona, johon linkki vie, sen säiliössä; pois päältä se toimii tänä sivustona, tämän säiliössä. Kytkimen vaihtaminen siirtää täältä linkeillä avatut välilehdet toiseen säiliöön ja lataa ne siellä uudelleen.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Välilehdillä linkki johonkin sivustoistasi avautuu välilehdeksi. Kun tämä kytkin on päällä, välilehti toimii sivustona, johon linkki vie, sen kirjautumisella, välityspalvelimella ja muilla asetuksilla; pois päältä se toimii tänä sivustona, tämän asetuksilla. Kytkimen vaihtaminen lataa täältä linkeillä avatut välilehdet uudelleen sivustona, jonka kytkin nyt valitsee.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Edellyttää sivustokohtaisia säiliöitä",
   "outboundPreferencesTitle": "Reititysasetukset",
   "outboundPreferencesCount": "{count, plural, one{{count} asetus} other{{count} asetusta}}",

@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Abrir sem roteamento",
   "siteSettingsRouteOutboundLinks": "Rotear links para os meus sites",
   "siteSettingsRouteOutboundLinksHint": "Quando ativado, um link que você toca aqui e que é reivindicado por outro dos seus sites abre como esse site, com login feito e com os próprios cookies e configurações. Voltar retorna para cá. Quando vários sites reivindicam um link, o aplicativo pergunta qual usar, e a escolha pode ser lembrada para este site. Links que nenhum site reivindica abrem como hoje. Requer containers por site.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Com abas, um link para um dos seus sites abre como aba. Com esta chave ligada, ela é executada como aquele site, no container dele; desligada, é executada como este site, no container deste. Mudar a chave move as abas abertas por links daqui para o outro container e as recarrega lá.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Com abas, um link para um dos seus sites abre como aba. Com esta chave ligada, a aba é executada como aquele site, com o login, o proxy e as demais configurações dele; desligada, é executada como este site, com as configurações deste. Mudar a chave recarrega as abas abertas por links daqui como o site que ela agora escolhe.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Requer containers por site",
   "outboundPreferencesTitle": "Preferências de roteamento",
   "outboundPreferencesCount": "{count, plural, one{{count} preferência} many{{count} preferências} other{{count} preferências}}",

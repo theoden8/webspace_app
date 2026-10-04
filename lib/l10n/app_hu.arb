@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Megnyitás útválasztás nélkül",
   "siteSettingsRouteOutboundLinks": "Hivatkozások irányítása a webhelyeimre",
   "siteSettingsRouteOutboundLinksHint": "Ha be van kapcsolva, az itt megérintett hivatkozás, amelyet egy másik webhelye igényel, abban a webhelyben nyílik meg, bejelentkezve, annak saját sütijeivel és beállításaival. A Vissza ide hozza vissza. Ha egy hivatkozást több webhely is igényel, az alkalmazás megkérdezi, melyiket használja, és a választás megjegyezhető ehhez a webhelyhez. Azok a hivatkozások, amelyeket egyetlen webhely sem igényel, ugyanúgy nyílnak meg, mint eddig. Webhelyenkénti konténereket igényel.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Lapokkal az egyik webhelyére mutató hivatkozás lapként nyílik meg. Ha ez a kapcsoló be van kapcsolva, a lap az adott webhelyként fut, annak konténerében; kikapcsolva ezen webhelyként fut, ennek konténerében. A kapcsoló átállítása az innen hivatkozásokkal megnyitott lapokat a másik konténerbe helyezi át, és ott újratölti őket.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Lapokkal az egyik webhelyére mutató hivatkozás lapként nyílik meg. Ha ez a kapcsoló be van kapcsolva, a lap az adott webhelyként fut, annak bejelentkezésével, proxyjával és egyéb beállításaival; kikapcsolva ezen webhelyként fut, ennek beállításaival. A kapcsoló átállítása az innen hivatkozásokkal megnyitott lapokat a kapcsoló által most választott webhelyként tölti újra.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Webhelyenkénti konténereket igényel",
   "outboundPreferencesTitle": "Útválasztási beállítások",
   "outboundPreferencesCount": "{count, plural, one{{count} beállítás} other{{count} beállítás}}",

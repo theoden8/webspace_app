@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Åpne uten ruting",
   "siteSettingsRouteOutboundLinks": "Rut lenker til nettstedene mine",
   "siteSettingsRouteOutboundLinksHint": "Når dette er på og du trykker på en lenke her som et annet av nettstedene dine gjør krav på, åpnes den som det nettstedet: pålogget og med egne informasjonskapsler og innstillinger. Tilbake fører deg hit igjen. Når flere nettsteder gjør krav på en lenke, blir du spurt om hvilket, og valget kan huskes for dette nettstedet. Lenker som ingen nettsteder gjør krav på, åpnes som før. Krever containere per nettsted.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Med faner åpnes en lenke til et av nettstedene dine som en fane. Når denne bryteren er på, kjører den som det nettstedet, i dets container; av, kjører den som dette nettstedet, i dette nettstedets container. Når bryteren endres, flyttes fanene som lenker herfra har åpnet, til den andre containeren og lastes inn på nytt der.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Med faner åpnes en lenke til et av nettstedene dine som en fane. Når denne bryteren er på, kjører fanen som det nettstedet, med dets pålogging, mellomtjener og andre innstillinger; av, kjører den som dette nettstedet, med dette nettstedets innstillinger. Når bryteren endres, lastes fanene som lenker herfra har åpnet, inn på nytt som nettstedet bryteren nå velger.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Krever containere per nettsted",
   "outboundPreferencesTitle": "Rutingspreferanser",
   "outboundPreferencesCount": "{count, plural, one{{count} preferanse} other{{count} preferanser}}",

@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "不經路由直接開啟",
   "siteSettingsRouteOutboundLinks": "將連結路由至我的網站",
   "siteSettingsRouteOutboundLinksHint": "開啟後，在此點選的連結若由您的其他網站宣告，便會以該網站開啟：已登入，並使用其自己的 Cookie 與設定。按返回即可回到這裡。若有多個網站宣告同一連結，系統會詢問您要使用哪一個，並可為此網站記住您的選擇。沒有任何網站宣告的連結仍照現在的方式開啟。需要個別網站容器。",
-  "siteSettingsRouteOutboundLinksTabsHint": "使用分頁時，指向您某個網站的連結會以分頁開啟。此開關開啟時，分頁會以該網站的身分在其容器中執行；關閉時，則以此網站的身分在此網站的容器中執行。切換開關會將從這裡的連結開啟的分頁移到另一個容器，並在那裡重新載入。",
+  "siteSettingsRouteOutboundLinksTabsHint": "使用分頁時，指向您某個網站的連結會以分頁開啟。此開關開啟時，分頁會以該網站的身分執行，使用其登入、代理伺服器及其他設定；關閉時，則以此網站的身分執行，使用此網站的設定。切換開關會讓從這裡的連結開啟的分頁，以開關現在選擇的網站身分重新載入。",
   "siteSettingsRouteOutboundLinksNeedsContainers": "需要個別網站容器",
   "outboundPreferencesTitle": "路由偏好",
   "outboundPreferencesCount": "{count, plural, other{{count} 項偏好}}",

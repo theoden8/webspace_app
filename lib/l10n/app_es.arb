@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Abrir sin enrutamiento",
   "siteSettingsRouteOutboundLinks": "Enrutar enlaces a mis sitios",
   "siteSettingsRouteOutboundLinksHint": "Cuando está activado, un enlace que tocas aquí y que reclama otro de tus sitios se abre como ese sitio, con la sesión iniciada y con sus propias cookies y ajustes. Atrás te devuelve aquí. Cuando varios sitios reclaman un enlace, se te pregunta cuál usar y puedes hacer que se recuerde la elección para este sitio. Los enlaces que ningún sitio reclama se abren como hasta ahora. Requiere contenedores por sitio.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Con pestañas, un enlace a uno de tus sitios se abre como pestaña. Con este interruptor activado se ejecuta como ese sitio, en su contenedor; desactivado, se ejecuta como este sitio, en el de este. Cambiar el interruptor mueve las pestañas que abrieron enlaces desde aquí al otro contenedor y las vuelve a cargar allí.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Con pestañas, un enlace a uno de tus sitios se abre como pestaña. Con este interruptor activado, la pestaña se ejecuta como ese sitio, con su inicio de sesión, proxy y demás ajustes; desactivado, se ejecuta como este sitio, con los de este. Cambiar el interruptor vuelve a cargar las pestañas que abrieron enlaces desde aquí como el sitio que ahora elige.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Requiere contenedores por sitio",
   "outboundPreferencesTitle": "Preferencias de enrutamiento",
   "outboundPreferencesCount": "{count, plural, one{{count} preferencia} many{{count} de preferencias} other{{count} preferencias}}",

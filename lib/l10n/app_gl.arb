@@ -12,7 +12,7 @@
   "homeDispatchOpenWithoutRouting": "Abrir sen encamiñamento",
   "siteSettingsRouteOutboundLinks": "Encamiñar ligazóns aos meus sitios",
   "siteSettingsRouteOutboundLinksHint": "Cando está activado, unha ligazón que tocas aquí e que reclama outro dos teus sitios ábrese como ese sitio, coa sesión iniciada e coas súas propias cookies e axustes. Atrás tráete de volta aquí. Cando varios sitios reclaman unha ligazón, pregúntaseche cal, e podes facer que se lembre a elección para este sitio. As ligazóns que ningún sitio reclama ábrense coma ata agora. Require contedores por sitio.",
-  "siteSettingsRouteOutboundLinksTabsHint": "Con lapelas, unha ligazón a un dos teus sitios ábrese como lapela. Con este interruptor activado execútase como ese sitio, no seu contedor; desactivado, execútase como este sitio, no deste. Cambiar o interruptor move as lapelas que abriron ligazóns desde aquí ao outro contedor e vólveas cargar alí.",
+  "siteSettingsRouteOutboundLinksTabsHint": "Con lapelas, unha ligazón a un dos teus sitios ábrese como lapela. Con este interruptor activado, a lapela execútase como ese sitio, co seu inicio de sesión, proxy e demais axustes; desactivado, execútase como este sitio, cos deste. Cambiar o interruptor volve cargar as lapelas que abriron ligazóns desde aquí como o sitio que agora escolle.",
   "siteSettingsRouteOutboundLinksNeedsContainers": "Require contedores por sitio",
   "outboundPreferencesTitle": "Preferencias de encamiñamento",
   "outboundPreferencesCount": "{count, plural, one{{count} preferencia} other{{count} preferencias}}",
