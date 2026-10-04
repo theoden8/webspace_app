@@ -427,4 +427,50 @@ void main() {
       );
     });
   });
+
+  group('StartupRestoreEngine.shouldActivateAfterRestore (NAV-012)', () {
+    test('a plain launch with nothing opened yet still lands home', () {
+      expect(
+        StartupRestoreEngine.shouldActivateAfterRestore(
+          indexToRestore: null,
+          activatedDuringRestore: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('a site opened while the restore awaited is not closed again', () {
+      // The reported drop: GitHub tapped on the home grid during the proxy
+      // router's attribution pass, then the restore's closing activation of
+      // the plain launch's null target sent the user back home.
+      expect(
+        StartupRestoreEngine.shouldActivateAfterRestore(
+          indexToRestore: null,
+          activatedDuringRestore: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('a shortcut target is applied when nothing was opened', () {
+      expect(
+        StartupRestoreEngine.shouldActivateAfterRestore(
+          indexToRestore: 3,
+          activatedDuringRestore: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('a shortcut target is applied even after a tap during the restore',
+        () {
+      expect(
+        StartupRestoreEngine.shouldActivateAfterRestore(
+          indexToRestore: 0,
+          activatedDuringRestore: true,
+        ),
+        isTrue,
+      );
+    });
+  });
 }

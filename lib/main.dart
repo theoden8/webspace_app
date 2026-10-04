@@ -5597,6 +5597,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _needsMigrationResave = false;
 
   Future<void> _restoreAppState() async {
+    final activationVersionAtRestore = _setCurrentIndexVersion;
     // Debug-only startup phase timing (compiled out of release via kDebugMode).
     final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -5883,7 +5884,13 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     // Set current index (async for cookie restoration)
     final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
-    await _setCurrentIndex(indexToRestore);
+    if (StartupRestoreEngine.shouldActivateAfterRestore(
+      indexToRestore: indexToRestore,
+      activatedDuringRestore:
+          _setCurrentIndexVersion != activationVersionAtRestore,
+    )) {
+      await _setCurrentIndex(indexToRestore);
+    }
     if (swActivate != null) {
       LogService.instance.log('Startup',
           'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');

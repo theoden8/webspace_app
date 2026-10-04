@@ -147,6 +147,21 @@ class StartupRestoreEngine {
   }) {
     return perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut);
   }
+
+  /// Whether the restore's closing `_setCurrentIndex(indexToRestore)` should
+  /// still run (NAV-012).
+  ///
+  /// The home grid takes taps while the restore is still awaiting startup work
+  /// (the proxy router's attribution pass alone can take seconds), so a site
+  /// the user opened in that window would otherwise be closed again by a
+  /// plain launch's `null` target. A shortcut target still applies: it is the
+  /// site the app was launched to open.
+  static bool shouldActivateAfterRestore({
+    required int? indexToRestore,
+    required bool activatedDuringRestore,
+  }) {
+    return indexToRestore != null || !activatedDuringRestore;
+  }
 }
 
 /// Android-only `siteId -> url` ledger backing HS-011 routing. A pinned
