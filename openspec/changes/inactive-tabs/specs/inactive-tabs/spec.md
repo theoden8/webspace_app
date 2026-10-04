@@ -612,8 +612,9 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 ### Requirement: TAB-018 - Container colours
 
 Each site SHALL have a container colour, and every tab row SHALL begin with a
-mark in the colour of the container the tab runs in: the site it runs as,
-whichever tree holds it. The All sites view SHALL mark each site's heading with
+mark in the colour of the site the tab runs as, whichever tree holds it. A
+site has one container and one posture (LIR-018), so the mark names both: the
+sign-in the tab has and the settings it loads with. The All sites view SHALL mark each site's heading with
 its own colour, and site info SHALL show the colour beside the container it
 names (NAV-011), on the container engine only. The mark SHALL be decorative:
 the row names the site it runs as in words ("as {site}") whenever that is not

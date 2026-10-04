@@ -295,7 +295,7 @@ Backups SHALL carry all four per-site fields and the app pref. A site's QR share
 
 ### Requirement: LIR-032 - A Link Into One Of The User's Sites Opens As Its Tab
 
-While the site on screen has tabs (TAB-012, TAB-013), a link that would open a nested screen (`blockOpenNested`) SHALL open as a tab instead when one of the user's sites can run it: a site whose navigation domain is the link's normalized domain and that may host in the tree of the site on screen (LIR-019), or that site itself. It SHALL open as a child of the tab it came from and take the slot. A nested page of one of the user's own sites is exactly what tabs replace, so the source's routing switch (LIR-013) SHALL NOT decide whether the tab opens; it decides which container the tab runs in (LIR-034): on, as that site; off, as the source, inside the link's domain. Off, the source SHALL itself be able to run in the tree of the site on screen (LIR-019), or be that site. The switch still decides alone for a link no site of the user's can run as a tab (a site that cannot host, a claim outside a navigation domain) and for a site without tabs.
+While the site on screen has tabs (TAB-012, TAB-013), a link that would open a nested screen (`blockOpenNested`) SHALL open as a tab instead when one of the user's sites can run it: a site whose navigation domain is the link's normalized domain and that may host in the tree of the site on screen (LIR-019), or that site itself. It SHALL open as a child of the tab it came from and take the slot. A nested page of one of the user's own sites is exactly what tabs replace, so the source's routing switch (LIR-013) SHALL NOT decide whether the tab opens; it decides which site the tab runs as (LIR-034), and with it the container and every per-site setting that comes with a site (LIR-018): on, that site; off, the source, inside the link's domain. Off, the source SHALL itself be able to run in the tree of the site on screen (LIR-019), or be that site. The switch still decides alone for a link no site of the user's can run as a tab (a site that cannot host, a claim outside a navigation domain) and for a site without tabs.
 
 The same gates as routing SHALL hold (LIR-014): the container engine, an effective user gesture, and no locked kiosk shell. With the switch on, the site SHALL be chosen as LIR-014 chooses: the source's outbound preferences first, then claim specificity. When several sites remain, the LIR-016 picker SHALL ask, and a pick opens the tab; its remember checkbox writes the preference as for routing. With the switch off nothing is asked. The source is the site the page on screen runs as (LIR-018), and a link to a site on the other side of an archive boundary is never a candidate.
 
@@ -395,26 +395,26 @@ The URL bar of the site on screen SHALL search as well as open addresses, with t
 
 ---
 
-### Requirement: LIR-034 - A Link Tab's Container Follows Its Opener
+### Requirement: LIR-034 - What A Link Tab Runs As Follows Its Opener
 
-A tab opened by LIR-032 SHALL record the site whose page opened it, its **opener** (the source: the site the page on screen ran as), and the link it was opened at, its **home**. For as long as the tab exists, the opener's routing switch (LIR-013) SHALL decide which container it runs in:
+A tab opened by LIR-032 SHALL record the site whose page opened it, its **opener** (the source: the site the page on screen ran as), and the link it was opened at, its **home**. For as long as the tab exists, the opener's routing switch (LIR-013) SHALL decide which site it runs as, and so its whole posture as LIR-018 lists it: the container with its sign-in, the proxy, user agent, language, blockers, Tracking Protection, location, WebRTC policy, user scripts and every other per-site setting. What belongs to the slot (pause, retention, background audio, the kiosk and fullscreen shell) stays the owner's, as for any hosted tab.
 
 - **on:** the site the link leads to, chosen as LIR-032 chooses (a preference of the opener's, then claims). When several sites remain, the tab SHALL keep the one it runs as when that is one of them, and run as the opener otherwise: a move asks nothing.
 - **off:** the opener.
 
-A tab that runs as its opener in the home's domain is a **foreign tab**. It SHALL navigate by the home's domain alone: Home (NAV-004), the URL bar's in-site check and the web search scope use the home, a link out of that domain leaves the tab as any cross-domain link does (a link back into the opener's own domain opening as the opener's child tab, S6), and it SHALL borrow none of the opener's claims (LIR-005). An owner URL (LIR-018) SHALL never load into a foreign tab: it moves to a tab the owner runs in its own domain, or to a new root tab at home.
+A tab that runs as its opener in the home's domain is a **foreign tab**. It loads the link's pages with the opener's posture, user scripts included, as a nested screen of the opener's does (LIR-015). It SHALL navigate by the home's domain alone: Home (NAV-004), the URL bar's in-site check and the web search scope use the home, a link out of that domain leaves the tab as any cross-domain link does (a link back into the opener's own domain opening as the opener's child tab, S6), and it SHALL borrow none of the opener's claims (LIR-005). An owner URL (LIR-018) SHALL never load into a foreign tab: it moves to a tab the owner runs in its own domain, or to a new root tab at home.
 
-When an opener's switch changes, every tab it opened SHALL move to the container the switch now names, in every site's list, once the opener's settings close, and at startup and after an import for a list stored under the other setting. A moved tab's stored back stack (TAB-003) SHALL be deleted rather than restored in the other container; the tab on screen SHALL reload in its new container at once, a live slot in the background SHALL drop its webview, and a stored tab SHALL load in its new container when next opened. A move SHALL hold the hosted-tab rules: a tab that can no longer run as the site it moved to closes (LIR-023).
+When an opener's switch changes, every tab it opened SHALL move to the site the switch now names, in every site's list, once the opener's settings close, and at startup and after an import for a list stored under the other setting. A moved tab's stored back stack (TAB-003) SHALL be deleted rather than restored as the other site; the tab on screen SHALL reload as its new site at once, under that site's proxy (LIR-024), a live slot in the background SHALL drop its webview, and a stored tab SHALL load as its new site when next opened. A move SHALL hold the hosted-tab rules: a tab that can no longer run as the site it moved to closes (LIR-023).
 
-A tab whose opener is deleted SHALL keep the container it runs in and follow nothing. Tabs nothing routes SHALL keep the container they were opened in: a search's results (LIR-030), a tab opened by hand, and "Open in new tab" on a link inside the page's own domain. A duplicate (TAB-010) and "Open in new tab" on a link inside a link tab's domain SHALL keep its opener and home.
+A tab whose opener is deleted SHALL keep the site it runs as and follow nothing. Tabs nothing routes SHALL keep the site they were opened as: a search's results (LIR-030), a tab opened by hand, and "Open in new tab" on a link inside the page's own domain. A duplicate (TAB-010) and "Open in new tab" on a link inside a link tab's domain SHALL keep its opener and home.
 
-The move SHALL NOT race a tab change: it SHALL wait for an open, close, switch or move of tabs that is running, run once after it however often it was asked for, and rewrite every list in one step. Bytes a capture took across a move SHALL be dropped rather than saved under the tab's new container.
+The move SHALL NOT race a tab change: it SHALL wait for an open, close, switch or move of tabs that is running, run once after it however often it was asked for, and rewrite every list in one step. Bytes a capture took across a move SHALL be dropped rather than saved under the tab's new site.
 
-#### Scenario: Turning routing off moves GitHub tabs into DuckDuckGo's container
+#### Scenario: Turning routing off moves GitHub tabs to DuckDuckGo
 
 - **GIVEN** DuckDuckGo's routing switch is on, and a `github.com` link from DuckDuckGo opened as a tab running as GitHub, now on screen
 - **WHEN** the user turns DuckDuckGo's routing switch off and closes its settings
-- **THEN** the tab reloads at its page running as DuckDuckGo, not signed in to GitHub
+- **THEN** the tab reloads at its page running as DuckDuckGo, not signed in to GitHub, through DuckDuckGo's proxy and with DuckDuckGo's user agent and blockers
 - **AND** the back stack it had as GitHub is deleted
 
 #### Scenario: Turning it back on moves it back
@@ -430,7 +430,7 @@ The move SHALL NOT race a tab change: it SHALL wait for an open, close, switch o
 - **THEN** the tab goes to `github.com/flutter`, not `duckduckgo.com`
 - **AND** a `duckduckgo.com` link tapped on it opens as a child tab DuckDuckGo runs in its own domain
 
-#### Scenario: A search keeps its container
+#### Scenario: A search keeps the site it runs as
 
 - **GIVEN** a search GitHub ran in DuckDuckGo, open as GitHub's hosted tab (LIR-030)
 - **WHEN** the user turns GitHub's routing switch off
@@ -447,4 +447,4 @@ The move SHALL NOT race a tab change: it SHALL wait for an open, close, switch o
 - **GIVEN** a tab switch in DuckDuckGo is capturing its outgoing tab
 - **WHEN** DuckDuckGo's settings close with its routing switch flipped
 - **THEN** the move runs once the switch has finished, once
-- **AND** no back stack is saved under the container a tab has just left
+- **AND** no back stack is saved under the site a tab has just left

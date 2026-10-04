@@ -2246,9 +2246,9 @@
   "@siteSettingsRouteOutboundLinksHint": {
     "description": "Explanation behind the hint button of the 'Route links to my sites' switch. 'Claims' refers to the domain claims each site has (the hostnames that belong to it). 'Per-site containers' is the storage isolation that gives each site its own cookies."
   },
-  "siteSettingsRouteOutboundLinksTabsHint": "With tabs, a link into one of your sites opens as a tab. With this switch on it runs as that site, in its container; off, it runs as this site, in this one's. Changing the switch moves the tabs links opened from here into the other container and reloads them there.",
+  "siteSettingsRouteOutboundLinksTabsHint": "With tabs, a link into one of your sites opens as a tab. With this switch on, the tab runs as that site, with its sign-in, proxy and other settings; off, it runs as this site, with this one's. Changing the switch reloads the tabs opened from links here as the site it now picks.",
   "@siteSettingsRouteOutboundLinksTabsHint": {
-    "description": "Second paragraph of the hint behind the 'Route links to my sites' switch, shown only when the site has tabs. Explains that the switch decides which site's container (cookies, sign-in, settings) a tab opened from a link runs in, and that flipping it moves such tabs and reloads them. 'Container' is the per-site storage that holds a site's cookies and sign-in."
+    "description": "Second paragraph of the hint behind the 'Route links to my sites' switch, shown only when the site has tabs. Explains that the switch decides which of the user's sites a tab opened from a link runs as: the site the link leads to, or this one. Running as a site means using its sign-in (cookies), its proxy and every other per-site setting. Flipping the switch reloads such tabs as the other site."
   },
   "siteSettingsRouteOutboundLinksNeedsContainers": "Needs per-site containers",
   "@siteSettingsRouteOutboundLinksNeedsContainers": {
