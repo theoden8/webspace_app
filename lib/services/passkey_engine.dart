@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/web_view_model.dart' show getBaseDomain;
 
 enum PasskeyOp { create, get }
@@ -26,8 +27,10 @@ enum PasskeyBackend {
   /// The shim and this app's Credential Manager bridge (PASSKEY-003..009).
   credentialManager,
 
-  /// The WebView's own WebAuthn in FOR_BROWSER mode (PASSKEY-010). The
-  /// engine asserts the origin itself; only as good as the WebView build.
+  /// The WebView's own WebAuthn, which asserts the origin itself. On iOS
+  /// and macOS this is the path: WebKit asks AuthenticationServices in the
+  /// app's process (PASSKEY-013). On Android it is the FOR_BROWSER
+  /// comparison (PASSKEY-010), only as good as the WebView build.
   webView,
 }
 
@@ -37,6 +40,28 @@ class PasskeyAccess {
     required this.isOnScreen,
     this.backend = PasskeyBackend.credentialManager,
   });
+
+  /// The access a webview gets on this host when its site's effective
+  /// passkey setting is [enabled], or null for none. On iOS and macOS a
+  /// null is not neutral: WebKit's own WebAuthn stays up unless the block
+  /// shim hides it (PASSKEY-013).
+  static PasskeyAccess? forHost({
+    required bool enabled,
+    required bool Function() isOnScreen,
+    bool? android,
+    bool? apple,
+  }) {
+    if (!enabled) return null;
+    if (android ?? hostIsAndroid) return PasskeyAccess(isOnScreen: isOnScreen);
+    if (apple ?? hostIsApple) {
+      return PasskeyAccess(
+          isOnScreen: isOnScreen, backend: PasskeyBackend.webView);
+    }
+    return null;
+  }
+
+  /// iOS and macOS, where the WebView is WebKit with WebAuthn built in.
+  static bool get hostIsApple => hostIsIOS || hostIsMacOS;
 
   final PasskeyBackend backend;
 

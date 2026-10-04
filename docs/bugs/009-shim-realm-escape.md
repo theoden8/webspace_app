@@ -196,6 +196,14 @@ path — page/worker agreement in one flavour is not evidence for another.**
   browser tier can only model injection scope, not reproduce it — the native
   `forMainFrameOnly` / all-frames decision is what actually settles frames, so
   a real-device check is the honest gate there.
+- **The same frames reach WebKit's own WebAuthn on iOS and macOS.** With
+  passkeys off, the passkey block shim
+  ([passkey-support](../../openspec/specs/passkey-support/spec.md) PASSKEY-013)
+  is the only thing between a page and the system passkey sheet, and it is a
+  `UserScript` like the rest. A realm it misses is not a fingerprint
+  disagreement here but a policy escape (an archive-tier site reaching the
+  credential provider). Moot until the build holds the browser passkey
+  entitlement (PASSKEY-014), since WebKit refuses without it.
 - **A site can opt its workers out of the shim with one directive.** A CSP whose
   `worker-src` omits `blob:` refuses every wrapper. Since attempt 3 the installer
   detects that and hands the constructor the site's own script, so the workers

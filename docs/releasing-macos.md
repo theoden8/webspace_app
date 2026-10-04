@@ -129,6 +129,42 @@ and deletes it afterwards. Repository secrets:
   `pubspec.yaml` build number; under universal purchase the macOS track has
   its own history, so a macOS upload needs a number no macOS build has used.
 
+## Passkeys need an entitlement Apple grants
+
+WKWebView implements WebAuthn itself, and AuthenticationServices lets it
+answer any site only in an app holding
+`com.apple.developer.web-browser.public-key-credential` (PASSKEY-013,
+PASSKEY-014 in
+[openspec/specs/passkey-support/spec.md](../openspec/specs/passkey-support/spec.md)).
+It is a managed capability, so the committed entitlements leave it out until
+the team has it; with it named and no profile carrying it, the app does not
+launch. Until then passkeys do nothing on macOS: WebKit refuses every site.
+
+1. **Meet the criteria first.** Apple's list: the app declares the `http` and
+   `https` URL schemes in `Info.plist`, offers a URL field, search, or curated
+   bookmarks on launch, and navigates an opened http(s) URL straight to its
+   destination. `macos/Runner/Info.plist` declares only `webspace` today, and
+   `AppDelegate.application(_:open:)` ignores any other scheme, so both change
+   before the request, and declaring them makes the app a default-browser
+   candidate.
+2. **Request it.** The account holder files
+   <https://developer.apple.com/contact/request/macos-browsers-passkeys/>.
+   Apple adds it to the account as a managed capability.
+3. **Once granted:** enable it on the `org.codeberg.theoden8.webspace` App ID,
+   regenerate the Mac App Store profile, and add
+   `<key>com.apple.developer.web-browser.public-key-credential</key><true/>` to
+   `Release.entitlements`. Three things follow from `sign_macos.sh`:
+   - `adhoc` has to drop the key alongside the app group and keychain group,
+     both in `materialize_entitlements` and in `assert_grants_present`'s
+     ad-hoc exclusions, or the CI artifact is SIGKILLed at launch.
+   - `devid` embeds no profile today, and a restricted entitlement needs one:
+     it needs a Developer ID provisioning profile carrying the capability,
+     copied to `Contents/embedded.provisionprofile` as `mas` does.
+   - `mas` works unchanged once the profile carries it.
+4. **Check it.** A signed build registers and signs in at
+   <https://webauthn.io>; an archived site gets NotAllowedError from the block
+   shim.
+
 ## Known limits to state in the listing
 
 - The floor is macOS 11 (Big Sur). It rose from 10.15 when the embedded

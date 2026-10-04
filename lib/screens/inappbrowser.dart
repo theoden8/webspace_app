@@ -729,11 +729,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           return promptHttpAuth(context, request);
         },
         httpAuthMemory: widget.httpAuthMemory,
-        passkeys: hostIsAndroid && widget.passkeys
-            ? PasskeyAccess(
-                isOnScreen: () =>
-                    mounted && (ModalRoute.of(context)?.isCurrent ?? false))
-            : null,
+        passkeys: PasskeyAccess.forHost(
+          enabled: widget.passkeys,
+          isOnScreen: () =>
+              mounted && (ModalRoute.of(context)?.isCurrent ?? false),
+        ),
         onExternalSchemeUrl: (url, info) async {
           if (!mounted) return;
           await confirmAndLaunchExternalUrl(

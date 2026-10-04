@@ -241,6 +241,7 @@ Map<String, String> buildAllFixtures() {
   fixtures['microphone_stream/shim.js'] = buildMicrophoneStreamShim();
   fixtures['screen_share/shim.js'] = buildScreenShareShim();
   fixtures['passkey/shim.js'] = buildPasskeyShim();
+  fixtures['passkey/block_shim.js'] = buildPasskeyBlockShim();
 
   fixtures['media_session/shim.js'] = buildMediaSessionShim();
   fixtures['media_session/pause_media.js'] = buildMediaPauseJs();
