@@ -3885,6 +3885,24 @@
   "@homeShortcutPickTitle": {
     "description": "Title of the dialog listing existing sites to reassign an orphaned shortcut to."
   },
+  "homeShortcutReenabled": "Re-enabled the existing home screen shortcut for \"{name}\"",
+  "@homeShortcutReenabled": {
+    "description": "Snackbar after the user asks for a home screen shortcut for a site that already had one on the home screen in a disabled (greyed out) state, for example after restoring the phone from a backup. The app made that existing shortcut work again instead of adding a second one.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "homeShortcutPinFailed": "Couldn't add a home screen shortcut for \"{name}\"",
+  "@homeShortcutPinFailed": {
+    "description": "Snackbar shown when Android refused to add a home screen shortcut for a site.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "siteSettingsWindowWidth": "Box width",
   "@siteSettingsWindowWidth": {
     "description": "Label for the per-site letterbox content-box width input."

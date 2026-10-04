@@ -146,7 +146,7 @@ Sites in WebSpace are stable, so a home shortcut is a one-time setup per site. O
 **When** the user opens the overflow menu
 **Then** the "Home Shortcut" option is still shown (iOS cannot detect prior pinning)
 
-The Android pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` exposed through the platform channel as `getPinnedSiteIds`. The cached set is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
+The Android pinned-shortcut set is queried via `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)`, keeping only enabled shortcuts (a disabled tile opens nothing, so it does not count as pinned; see HS-015), exposed through the platform channel as `getPinnedSiteIds`. The cached set is refreshed on `initState` and on `AppLifecycleState.resumed`, which covers both the in-app pin flow (the launcher's pin dialog backgrounds the app) and out-of-app removal. On iOS the same channel method returns an empty list.
 
 For the menu-visibility check the pinned set is widened to its **effective** form (`ShortcutPinState.effectivePinnedSiteIds`): the pinned ids plus any site a pinned tile has been rebound to via the HS-011 remap. A site an orphaned tile now routes to is already reachable, so the "Home Shortcut" item is hidden for it too — otherwise the user could pin a second, redundant tile to the same site.
 
@@ -472,6 +472,41 @@ Because the OS gives no way to know whether a tile exists, the system tombstones
 **Given** the user deletes more sites than the tombstone cap
 **When** each deletion is recorded
 **Then** the oldest tombstones are evicted so the list never exceeds the cap
+
+---
+
+### Requirement: HS-015 - A Disabled Tile Never Blocks Pinning (Android)
+
+A pinned tile can exist in a disabled state under a site's shortcut id (`site_<siteId>`):
+
+- **Device restore.** Android backs up pinned tiles and restores them with the launcher layout. When it cannot vouch for the reinstalled app (signature mismatch, lower version, backup not allowed) it restores the tile disabled and hides it from the app's own `getShortcuts`. Settings import keeps each site's `siteId`, so the restored tile carries the same id as the imported site.
+- **Delete-time Disable (HS-013),** followed by an import that brings the same `siteId` back.
+
+`ShortcutManager.requestPinShortcut` throws `IllegalArgumentException` ("already exists but disabled") for such an id. The system SHALL therefore, before requesting the pin, publish the shortcut under its id (`pushDynamicShortcut`, then `removeDynamicShortcuts` so the site does not join the launcher's long-press menu). Publishing replaces a disabled copy, restore-blocked or not, with an enabled one and keeps its pinned flag. If the id is then pinned and enabled, the existing tile works again: the system SHALL NOT request a second tile, and SHALL tell the user the existing shortcut was re-enabled. If the pin still fails, the system SHALL say so rather than fail silently.
+
+#### Scenario: Tile restored disabled after a device backup
+
+**Given** the user restored the phone from a backup and the launcher brought back the site's tile greyed out
+**And** the user imported a settings backup, so the site has the tile's `siteId`
+**When** the user taps "Home Shortcut" for that site
+**Then** the greyed-out tile is enabled again and opens the site
+**And** no second tile is requested
+**And** a message says the existing home screen shortcut was re-enabled
+**And** the "Home Shortcut" item is hidden for the site from then on (HS-005)
+
+#### Scenario: Tile disabled at delete time, site re-imported
+
+**Given** the user deleted a site and chose Disable for its tile (HS-013)
+**And** later imported a backup that restores the site with the same `siteId`
+**When** the user opens the overflow menu for the site
+**Then** "Home Shortcut" is shown (a disabled tile does not count as pinned)
+**And** tapping it re-enables the existing tile
+
+#### Scenario: Pin refused
+
+**Given** the launcher does not support pinned shortcuts, or the pin request throws
+**When** the user taps "Home Shortcut"
+**Then** a message says the shortcut could not be added
 
 ---
 
