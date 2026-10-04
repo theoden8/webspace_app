@@ -9377,11 +9377,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   siteName: id.getDisplayName(),
                   tabOf: identical(id, model) ? null : model.getDisplayName(),
                   pageUrl: model.currentUrl,
-                  // The row probes the route on open, so it rides the Saved
-                  // proxies experiment with the rest of PROXY-031.
-                  proxy: PlatformInfo.isProxySupported &&
-                          ExperimentalFeaturesService.instance
-                              .isEnabled(ExperimentalFeature.proxyLibrary)
+                  proxy: PlatformInfo.isProxySupported
                       ? id.proxySettings
                       : null,
                   siteId: id.siteId,

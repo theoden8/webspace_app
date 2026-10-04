@@ -48,3 +48,13 @@
 - [x] 4.3 `test/proxy_library_screen_test.dart`: library screen and editors,
   pickers, Network screen, indicator debounce, site info sheet.
 - [x] 4.4 TOR-007 gate follows the shared picker.
+
+## 5. Graduate
+
+- [x] 5.1 Take the library out of developer mode and the Experimental group:
+  `ExperimentalFeature.proxyLibrary`, its `experimentalProxyLibrary` pref
+  (retired in the compat and prefs-history tests) and the pickers'
+  `offerLibrary` are gone; the site info sheet's Connection row follows
+  PROXY-006 alone. Tests: `test/proxy_library_screen_test.dart`,
+  `test/app_settings_experimental_test.dart`,
+  `test/experimental_features_service_test.dart`.

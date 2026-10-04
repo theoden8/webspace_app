@@ -91,8 +91,6 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   kExperimentalTextureRenderingKey: false,
   // DEVTOOLS-011 / TAB-012: the Site tabs switch. Off by default: tabs are new.
   kExperimentalSiteTabsKey: false,
-  // DEVTOOLS-011 / PROXY-030: the Saved proxies switch. Off by default: new.
-  kExperimentalProxyLibraryKey: false,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an
   // existing site via the dispatch picker, also append exactHost +

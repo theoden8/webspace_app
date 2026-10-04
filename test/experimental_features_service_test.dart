@@ -52,6 +52,14 @@ void main() {
             'this gate (DEVTOOLS-011)');
   });
 
+  test('Saved proxies graduated: they have no switch (PROXY-030)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.prefKey),
+        isNot(contains('experimentalProxyLibrary')),
+        reason: 'a graduated feature removes its switch and stops reading '
+            'this gate (DEVTOOLS-011)');
+  });
+
   test('the proxy router defaults on, so developer mode alone keeps it',
       () async {
     await ExperimentalFeaturesService.instance.initialize();

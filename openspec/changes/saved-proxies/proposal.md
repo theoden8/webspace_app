@@ -14,9 +14,10 @@ button inside one site's settings.
 
 ## What changes
 
-- **Experimental** (DEVTOOLS-011). Everything below is offered only with
-  developer mode and the new **Saved proxies** switch on, off by default. A
-  site already on the library keeps resolving with the switch off.
+- **Not experimental.** Everything below shipped first behind developer
+  mode and a **Saved proxies** switch (DEVTOOLS-011), off by default. It
+  graduated: the switch and its `experimentalProxyLibrary` pref are gone, and
+  it is offered with developer mode on or off.
 
 - **A proxy library** (PROXY-030). App Settings gets a "Saved proxies" screen
   with three lists: saved proxies, gateways (type and address) and
