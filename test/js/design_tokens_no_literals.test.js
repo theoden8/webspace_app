@@ -35,6 +35,7 @@ const MIGRATED = [
   'lib/widgets/web_search_sheet.dart',
   // Ambient layout state, no painting: nothing to tokenise.
   'lib/widgets/surface_nudge_scope.dart',
+  'lib/widgets/external_tor_tiles.dart',
   'lib/widgets/tor_status_card.dart',
   'lib/widgets/unproxied_block.dart',
   'lib/widgets/proxy_auth_section.dart',

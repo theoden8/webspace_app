@@ -47,6 +47,7 @@ import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
+import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/firefox_version_tile.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
@@ -71,6 +72,11 @@ class AppSettingsScreen extends StatefulWidget {
   /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
   /// the answer needs the container engine the app resolved at startup.
   final bool proxyRouterRunsHere;
+
+  /// Whether Tor sites can use a tor already running on this device, so the
+  /// Experimental group lists Tor (external) (TOR-025). Passed in so the
+  /// design gallery, which runs on web, can show it.
+  final bool externalTorRunsHere;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
   final VoidCallback onImportSettings;
@@ -155,6 +161,7 @@ class AppSettingsScreen extends StatefulWidget {
     super.key,
     required this.currentSettings,
     this.proxyRouterRunsHere = false,
+    this.externalTorRunsHere = false,
     this.siteNames = const {},
     required this.onSettingsChanged,
     required this.onExportSettings,
@@ -954,6 +961,8 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   Future<void> _setDeveloperMode(bool value) async {
     await DeveloperModeService.instance.setEnabled(value);
     notifyIconSourcesChanged();
+    // The external tor is an experiment, so developer mode decides it too.
+    await TorService.instance.runtimeChoiceChanged();
     if (!mounted) return;
     setState(() {
       _developerMode = value;
@@ -1667,6 +1676,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               gatewayId: _outboundProxy.gatewayId,
               library: ProxyLibrary.data,
               torAvailable: TorService.instance.isAvailable,
+              torExternal: TorService.instance.isExternal,
               onChanged: (choice) {
                 setState(() {
                   _outboundProxy.type = choice.type;
@@ -2448,6 +2458,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               value: _siteTabsSwitch,
               onChanged: (value) => _setSiteTabsSwitch(value),
             ),
+            if (widget.externalTorRunsHere)
+              ExternalTorTiles(onTorChanged: () {
+                if (mounted) setState(() {});
+              }),
             ListTile(
               leading: const Icon(Icons.hide_image_outlined),
               title: Row(

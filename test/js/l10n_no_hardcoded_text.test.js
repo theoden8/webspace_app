@@ -44,6 +44,7 @@ const migrated = new Set([
   'lib/screens/webspaces_list.dart',
   'lib/widgets/dispatch_picker_sheet.dart',
   'lib/widgets/download_button.dart',
+  'lib/widgets/external_tor_tiles.dart',
   'lib/widgets/external_url_prompt.dart',
   'lib/widgets/find_toolbar.dart',
   'lib/widgets/firefox_version_tile.dart',

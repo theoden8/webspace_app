@@ -55,6 +55,19 @@ class TorExitCountryEmpty implements Exception {
   String toString() => message;
 }
 
+/// Thrown by [TorRuntime.applyExitCountry] when the runtime cannot pin exits
+/// at all: an external tor started outside the app, reached over SOCKS with
+/// no control port (TOR-025). The pinned sites stay blocked rather than
+/// leave from a country nobody chose.
+class TorExitPinUnsupported implements Exception {
+  const TorExitPinUnsupported(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// How long tor gets to load a GeoIP table and take a pin. A control
 /// connection that dropped mid-command never answers, and every later pin
 /// change queues behind this one.
@@ -680,6 +693,12 @@ class TorEngine {
       // exit. Left unapplied so a Retry counts the exits again.
       _emit(TorErrored(e.message,
           failure: TorFailure(kind: TorFailureKind.exitPolicy, detail: e.message)));
+      return;
+    } on TorExitPinUnsupported catch (e) {
+      if (superseded()) return;
+      _emit(TorErrored(e.message,
+          failure: TorFailure(
+              kind: TorFailureKind.externalExitPin, detail: e.message)));
       return;
     } catch (e) {
       if (superseded()) return;

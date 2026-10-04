@@ -79,13 +79,17 @@ class SiteUnloadEngine {
       if (sharesDefaultSession == null) return const <int>{};
       if (!sharesDefaultSession(target)) return const <int>{};
     }
-    final targetEffective = resolveEffectiveProxy(target.proxySettings);
+    // With the site id, two Tor sites differ by their isolation tags, so
+    // one rule never carries both and puts them on one circuit (TOR-003).
+    final targetEffective =
+        resolveEffectiveProxy(target.proxySettings, siteId: target.siteId);
     final result = <int>{};
     for (final i in loadedIndices) {
       if (i == targetIndex) continue;
       if (i < 0 || i >= models.length) continue;
       if (!proxyIsGlobal && !sharesDefaultSession!(models[i])) continue;
-      final effective = resolveEffectiveProxy(models[i].proxySettings);
+      final effective = resolveEffectiveProxy(models[i].proxySettings,
+          siteId: models[i].siteId);
       if (!_proxyEquivalent(targetEffective, effective)) {
         result.add(i);
       }

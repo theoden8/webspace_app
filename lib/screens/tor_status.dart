@@ -6,6 +6,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -78,6 +79,8 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
     final theme = Theme.of(context);
     final using =
         summarizeTorHolders(TorService.instance.holders, widget.siteNames);
+    final external = TorService.instance.isExternal;
+    final externalAddress = ExternalTorSettings.address;
 
     return Scaffold(
       appBar: AppBar(title: Text(loc.torStatusTitle)),
@@ -108,26 +111,37 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
               title: Text(loc.torStateOtherSites(using.otherSites)),
             ),
           const Divider(),
-          ListTile(
-            leading: const Icon(Icons.flag_outlined),
-            title: _hinted(
-                loc.siteSettingsTorExitCountry, loc.torStateExitCountryHint),
-            subtitle: Text(_exitCountry(loc)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.alt_route),
-            title: _hinted(loc.torBridgesTitle, loc.torBridgesHint),
-            subtitle: Text(_bridges(loc)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const TorBridgeSettingsScreen(),
-                ),
-              );
-              if (mounted) setState(() {});
-            },
-          ),
+          // An external tor keeps its exits and bridges to itself: the app
+          // reaches it over SOCKS alone (TOR-025).
+          if (external)
+            ListTile(
+              leading: const Icon(Icons.lan_outlined),
+              title: _hinted(loc.appSettingsExperimentalExternalTor,
+                  loc.appSettingsExperimentalExternalTorHint),
+              subtitle: Text(externalAddress),
+            ),
+          if (!external)
+            ListTile(
+              leading: const Icon(Icons.flag_outlined),
+              title: _hinted(
+                  loc.siteSettingsTorExitCountry, loc.torStateExitCountryHint),
+              subtitle: Text(_exitCountry(loc)),
+            ),
+          if (!external)
+            ListTile(
+              leading: const Icon(Icons.alt_route),
+              title: _hinted(loc.torBridgesTitle, loc.torBridgesHint),
+              subtitle: Text(_bridges(loc)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TorBridgeSettingsScreen(),
+                  ),
+                );
+                if (mounted) setState(() {});
+              },
+            ),
           ListTile(
             leading: const Icon(Icons.call_split),
             title: _hinted(loc.torStateCircuits, loc.torStateCircuitsHint),

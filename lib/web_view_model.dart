@@ -1406,7 +1406,7 @@ class WebViewModel {
     // LIR-024: the process-global proxy follows the site the slot runs as.
     final id = runningIdentity;
     try {
-      await proxyManager.setProxySettings(id.proxySettings);
+      await proxyManager.setProxySettings(id.proxySettings, siteId: id.siteId);
       final release = _containerProxyToRelease;
       _containerProxyToRelease = null;
       if (release != null) await proxyManager.releaseContainerProxy(release);

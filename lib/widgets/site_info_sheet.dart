@@ -7,7 +7,12 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
-    show gatewayLabel, libraryProblemLabel, routeLabel, savedProxyLabel;
+    show
+        gatewayLabel,
+        libraryProblemLabel,
+        routeLabel,
+        savedProxyLabel,
+        torRouteLabel;
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 
 /// Where the page's cookies, logins and site data live.
@@ -173,7 +178,7 @@ Widget _connection(
       : libraryProblemLabel(loc, problem);
   final address = switch (route.type) {
     ProxyType.DEFAULT || ProxyType.SAVED || ProxyType.GATEWAY => null,
-    ProxyType.TOR => route.type.name,
+    ProxyType.TOR => torRouteLabel(loc),
     _ => routeLabel(route),
   };
   final String value;
