@@ -13,6 +13,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:socks5_proxy/exceptions.dart';
 import 'package:webspace/services/outbound_http_io.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -31,10 +33,14 @@ class _StallingSocks5 {
   final int replyCode;
   final _connectSeen = Completer<void>();
   final _release = Completer<void>();
+  final _clientGone = Completer<void>();
   final _clients = <Socket>[];
 
   int get port => _server.port;
   Future<void> get connectSeen => _connectSeen.future;
+
+  /// Completes when the client side of the connection hangs up.
+  Future<void> get clientGone => _clientGone.future;
   void release() => _release.complete();
 
   void _serve(Socket client) {
@@ -51,7 +57,15 @@ class _StallingSocks5 {
         await _release.future;
         client.add([5, replyCode, 0, 1, 0, 0, 0, 0, 0, 0]);
       }
-    }, onError: (_) {}, cancelOnError: true);
+    }, onDone: _noteGone, onError: (Object e) {
+      // A destroyed client can reach us as a reset rather than a FIN.
+      if (e is! SocketException) throw e;
+      _noteGone();
+    }, cancelOnError: true);
+  }
+
+  void _noteGone() {
+    if (!_clientGone.isCompleted) _clientGone.complete();
   }
 
   Future<void> close() async {
@@ -77,7 +91,13 @@ Future<List<Object>> _closeWhileConnecting(_StallingSocks5 proxy) async {
     final client = (result as OutboundClientReady).client;
     final request = client
         .get(Uri.parse('http://example.invalid/'))
-        .then<Object?>((r) => r, onError: (Object e) => e)
+        .then<Object?>((r) => r)
+        // Closing the client fails the request, and the request (not the
+        // zone) is where that failure has to land: the refused connect as
+        // itself, the granted one as a closed socket.
+        .catchError((Object e) => e,
+            test: (e) =>
+                e is SocksClientException || e is http.ClientException)
         .timeout(const Duration(seconds: 2), onTimeout: () => null);
     await proxy.connectSeen;
     client.close();
@@ -106,6 +126,8 @@ void main() {
       () async {
     final p = proxy = await _StallingSocks5.bind(0);
     expect(await _closeWhileConnecting(p), isEmpty);
+    // The socket that arrived after the cancel is not left open.
+    await p.clientGone.timeout(const Duration(seconds: 2));
   });
 
   test('a live client still reaches the origin through the proxy', () async {
