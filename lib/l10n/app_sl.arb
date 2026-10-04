@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Dodeli znova",
   "homeShortcutDisable": "Onemogoči",
   "homeShortcutPickTitle": "Usmeri bližnjico na",
+  "homeShortcutReenabled": "Obstoječa bližnjica na začetnem zaslonu za \"{name}\" je znova omogočena",
+  "homeShortcutPinFailed": "Bližnjice na začetnem zaslonu za \"{name}\" ni bilo mogoče dodati",
   "appSettingsLanguageTitle": "Jezik aplikacije",
   "appSettingsLanguageSystem": "Sistemsko privzeto",
   "siteSettingsWindowWidth": "Širina okvira",

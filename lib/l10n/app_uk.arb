@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Перепризначити",
   "homeShortcutDisable": "Вимкнути",
   "homeShortcutPickTitle": "Спрямувати ярлик на",
+  "homeShortcutReenabled": "Наявний ярлик на домашньому екрані для «{name}» знову ввімкнено",
+  "homeShortcutPinFailed": "Не вдалося додати ярлик на домашній екран для «{name}»",
   "appSettingsLanguageTitle": "Мова застосунку",
   "appSettingsLanguageSystem": "Системна типова",
   "siteSettingsWindowWidth": "Ширина блоку",

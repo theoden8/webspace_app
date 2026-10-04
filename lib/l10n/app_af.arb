@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Herwys",
   "homeShortcutDisable": "Deaktiveer",
   "homeShortcutPickTitle": "Wys kortpad na",
+  "homeShortcutReenabled": "Die bestaande tuisskerm-kortpad vir \"{name}\" is weer geaktiveer",
+  "homeShortcutPinFailed": "Kon nie 'n tuisskerm-kortpad vir \"{name}\" byvoeg nie",
   "appSettingsLanguageTitle": "App-taal",
   "appSettingsLanguageSystem": "Stelselverstek",
   "siteSettingsWindowWidth": "Blokwydte",

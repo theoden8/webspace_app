@@ -765,6 +765,8 @@
   "homeShortcutReassign": "재지정",
   "homeShortcutDisable": "비활성화",
   "homeShortcutPickTitle": "바로가기를 가리킬 대상",
+  "homeShortcutReenabled": "\"{name}\"의 기존 홈 화면 바로가기를 다시 사용하도록 설정했습니다",
+  "homeShortcutPinFailed": "\"{name}\"의 홈 화면 바로가기를 추가하지 못했습니다",
   "appSettingsLanguageTitle": "앱 언어",
   "appSettingsLanguageSystem": "시스템 기본값",
   "siteSettingsWindowWidth": "상자 너비",

@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Määritä uudelleen",
   "homeShortcutDisable": "Poista käytöstä",
   "homeShortcutPickTitle": "Osoita pikakuvake kohteeseen",
+  "homeShortcutReenabled": "Sivuston \"{name}\" nykyinen kotinäytön pikakuvake otettiin uudelleen käyttöön",
+  "homeShortcutPinFailed": "Kotinäytön pikakuvaketta sivustolle \"{name}\" ei voitu lisätä",
   "appSettingsLanguageTitle": "Sovelluksen kieli",
   "appSettingsLanguageSystem": "Järjestelmän oletus",
   "siteSettingsWindowWidth": "Laatikon leveys",

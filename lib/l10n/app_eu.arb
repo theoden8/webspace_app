@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Berresleitu",
   "homeShortcutDisable": "Desgaitu",
   "homeShortcutPickTitle": "Lasterbidea honi esleitu",
+  "homeShortcutReenabled": "\"{name}\" gunearen hasiera-pantailako lasterbidea berriro gaitu da",
+  "homeShortcutPinFailed": "Ezin izan da \"{name}\" gunearen hasiera-pantailako lasterbidea gehitu",
   "appSettingsLanguageTitle": "Aplikazioaren hizkuntza",
   "appSettingsLanguageSystem": "Sistemaren lehenetsia",
   "siteSettingsWindowWidth": "Kutxaren zabalera",

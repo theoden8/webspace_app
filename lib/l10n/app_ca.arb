@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Reassigna",
   "homeShortcutDisable": "Desactiva",
   "homeShortcutPickTitle": "Apunta la drecera a",
+  "homeShortcutReenabled": "S'ha tornat a activar la drecera existent de la pantalla d'inici per a \"{name}\"",
+  "homeShortcutPinFailed": "No s'ha pogut afegir una drecera a la pantalla d'inici per a \"{name}\"",
   "appSettingsLanguageTitle": "Idioma de l'app",
   "appSettingsLanguageSystem": "Predeterminat del sistema",
   "siteSettingsWindowWidth": "Amplada de la caixa",

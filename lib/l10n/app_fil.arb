@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Italaga muli",
   "homeShortcutDisable": "I-disable",
   "homeShortcutPickTitle": "Ituro ang shortcut sa",
+  "homeShortcutReenabled": "Muling pinagana ang kasalukuyang shortcut sa home screen para sa \"{name}\"",
+  "homeShortcutPinFailed": "Hindi maidagdag ang shortcut sa home screen para sa \"{name}\"",
   "appSettingsLanguageTitle": "Wika ng app",
   "appSettingsLanguageSystem": "Default ng system",
   "siteSettingsWindowWidth": "Lapad ng kahon",

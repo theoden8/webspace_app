@@ -765,6 +765,8 @@
   "homeShortcutReassign": "යළි පවරන්න",
   "homeShortcutDisable": "අක්‍රීය කරන්න",
   "homeShortcutPickTitle": "කෙටිමඟ යොමු කරන්න",
+  "homeShortcutReenabled": "\"{name}\" සඳහා පවතින මුල් තිර කෙටිමඟ නැවත සක්‍රිය කරන ලදී",
+  "homeShortcutPinFailed": "\"{name}\" සඳහා මුල් තිර කෙටිමඟක් එක් කළ නොහැකි විය",
   "appSettingsLanguageTitle": "යෙදුම් භාෂාව",
   "appSettingsLanguageSystem": "පද්ධති පෙරනිමිය",
   "siteSettingsWindowWidth": "කොටුවේ පළල",

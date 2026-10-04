@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Preusmjeri",
   "homeShortcutDisable": "Onemogući",
   "homeShortcutPickTitle": "Usmjeri prečicu na",
+  "homeShortcutReenabled": "Postojeća prečica na početnom ekranu za \"{name}\" je ponovo omogućena",
+  "homeShortcutPinFailed": "Nije moguće dodati prečicu na početni ekran za \"{name}\"",
   "appSettingsLanguageTitle": "Jezik aplikacije",
   "appSettingsLanguageSystem": "Sistemski zadano",
   "siteSettingsWindowWidth": "Širina okvira",

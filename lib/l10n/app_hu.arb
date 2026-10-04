@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Újrahozzárendelés",
   "homeShortcutDisable": "Letiltás",
   "homeShortcutPickTitle": "Parancsikon ráirányítása erre",
+  "homeShortcutReenabled": "A(z) „{name}” meglévő kezdőképernyő-parancsikonja újra engedélyezve",
+  "homeShortcutPinFailed": "Nem sikerült kezdőképernyő-parancsikont hozzáadni a következőhöz: „{name}”",
   "appSettingsLanguageTitle": "Alkalmazás nyelve",
   "appSettingsLanguageSystem": "Rendszer alapértelmezett",
   "siteSettingsWindowWidth": "Doboz szélessége",

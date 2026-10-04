@@ -765,6 +765,8 @@
   "homeShortcutReassign": "กำหนดใหม่",
   "homeShortcutDisable": "ปิดใช้งาน",
   "homeShortcutPickTitle": "ชี้ทางลัดไปยัง",
+  "homeShortcutReenabled": "เปิดใช้ทางลัดหน้าจอหลักที่มีอยู่ของ \"{name}\" อีกครั้งแล้ว",
+  "homeShortcutPinFailed": "ไม่สามารถเพิ่มทางลัดหน้าจอหลักสำหรับ \"{name}\" ได้",
   "appSettingsLanguageTitle": "ภาษาของแอป",
   "appSettingsLanguageSystem": "ค่าเริ่มต้นของระบบ",
   "siteSettingsWindowWidth": "ความกว้างกล่อง",

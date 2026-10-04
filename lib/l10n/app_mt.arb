@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Erġa' assenja",
   "homeShortcutDisable": "Diżattiva",
   "homeShortcutPickTitle": "Ipponta x-shortcut lejn",
+  "homeShortcutReenabled": "Ix-shortcut eżistenti tal-iskrin prinċipali għal \"{name}\" reġa' ġie attivat",
+  "homeShortcutPinFailed": "Ma setax jiżdied shortcut tal-iskrin prinċipali għal \"{name}\"",
   "appSettingsLanguageTitle": "Lingwa tal-app",
   "appSettingsLanguageSystem": "Default tas-sistema",
   "siteSettingsWindowWidth": "Wisa' tal-kaxxa",

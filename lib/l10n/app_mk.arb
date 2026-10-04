@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Преназначи",
   "homeShortcutDisable": "Оневозможи",
   "homeShortcutPickTitle": "Насочи ја кратенката кон",
+  "homeShortcutReenabled": "Постојната кратенка на почетниот екран за „{name}“ е повторно овозможена",
+  "homeShortcutPinFailed": "Не може да се додаде кратенка на почетниот екран за „{name}“",
   "appSettingsLanguageTitle": "Јазик на апликацијата",
   "appSettingsLanguageSystem": "Системски стандард",
   "siteSettingsWindowWidth": "Ширина на сандакот",

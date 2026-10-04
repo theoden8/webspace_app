@@ -765,6 +765,8 @@
   "homeShortcutReassign": "ಮರು-ನಿಯೋಜಿಸಿ",
   "homeShortcutDisable": "ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ",
   "homeShortcutPickTitle": "ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಇದಕ್ಕೆ ಸೂಚಿಸಿ",
+  "homeShortcutReenabled": "\"{name}\" ಗಾಗಿ ಇರುವ ಹೋಮ್ ಸ್ಕ್ರೀನ್ ಶಾರ್ಟ್‌ಕಟ್ ಅನ್ನು ಮತ್ತೆ ಸಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ",
+  "homeShortcutPinFailed": "\"{name}\" ಗಾಗಿ ಹೋಮ್ ಸ್ಕ್ರೀನ್ ಶಾರ್ಟ್‌ಕಟ್ ಸೇರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ",
   "appSettingsLanguageTitle": "ಅಪ್ಲಿಕೇಶನ್ ಭಾಷೆ",
   "appSettingsLanguageSystem": "ಸಿಸ್ಟಮ್ ಡೀಫಾಲ್ಟ್",
   "siteSettingsWindowWidth": "ಪೆಟ್ಟಿಗೆಯ ಅಗಲ",

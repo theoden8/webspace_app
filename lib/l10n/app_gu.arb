@@ -765,6 +765,8 @@
   "homeShortcutReassign": "ફરી સોંપો",
   "homeShortcutDisable": "અક્ષમ કરો",
   "homeShortcutPickTitle": "શોર્ટકટ નિર્દેશ કરો",
+  "homeShortcutReenabled": "\"{name}\" માટેનો હાલનો હોમ સ્ક્રીન શોર્ટકટ ફરી સક્ષમ કરવામાં આવ્યો",
+  "homeShortcutPinFailed": "\"{name}\" માટે હોમ સ્ક્રીન શોર્ટકટ ઉમેરી શકાયો નહીં",
   "appSettingsLanguageTitle": "એપ્લિકેશન ભાષા",
   "appSettingsLanguageSystem": "સિસ્ટમ ડિફૉલ્ટ",
   "siteSettingsWindowWidth": "બોક્સની પહોળાઈ",

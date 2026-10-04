@@ -767,6 +767,8 @@
   "homeShortcutReassign": "Ricakto",
   "homeShortcutDisable": "Çaktivizo",
   "homeShortcutPickTitle": "Trego shkurtoren te",
+  "homeShortcutReenabled": "Shkurtorja ekzistuese në ekranin bazë për \"{name}\" u aktivizua përsëri",
+  "homeShortcutPinFailed": "Nuk u shtua dot shkurtore në ekranin bazë për \"{name}\"",
   "siteSettingsWindowWidth": "Gjerësia e kutisë",
   "siteSettingsWindowHeight": "Lartësia e kutisë",
   "siteSettingsWindowSizeHelper": "E shfaq faqen në një kuti të qendërzuar dhe rrumbullakos përmasën e ekranit poshtë te një rrjetë fikse (si Tor Browser), që shumë pajisje të raportojnë të njëjtën përmasë, çka zvogëlon gjurmën e gishtave sipas përmasës së ekranit.",

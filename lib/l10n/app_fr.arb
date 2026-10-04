@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Réaffecter",
   "homeShortcutDisable": "Désactiver",
   "homeShortcutPickTitle": "Faire pointer le raccourci vers",
+  "homeShortcutReenabled": "Le raccourci existant de l'écran d'accueil pour « {name} » a été réactivé",
+  "homeShortcutPinFailed": "Impossible d'ajouter un raccourci à l'écran d'accueil pour « {name} »",
   "appSettingsLanguageTitle": "Langue de l'application",
   "appSettingsLanguageSystem": "Valeur par défaut du système",
   "siteSettingsWindowWidth": "Largeur du cadre",

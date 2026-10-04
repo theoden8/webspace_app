@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Athshann",
   "homeShortcutDisable": "Díchumasaigh",
   "homeShortcutPickTitle": "Dírigh an t-aicearra ar",
+  "homeShortcutReenabled": "Cumasaíodh arís an t-aicearra scáileáin bhaile atá ann cheana do \"{name}\"",
+  "homeShortcutPinFailed": "Níorbh fhéidir aicearra scáileáin bhaile a chur leis do \"{name}\"",
   "appSettingsLanguageTitle": "Teanga na hAipe",
   "appSettingsLanguageSystem": "Réamhshocrú an chórais",
   "siteSettingsWindowWidth": "Leithead an bhosca",

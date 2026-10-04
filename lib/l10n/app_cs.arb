@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Přiřadit znovu",
   "homeShortcutDisable": "Zakázat",
   "homeShortcutPickTitle": "Nasměrovat zástupce na",
+  "homeShortcutReenabled": "Stávající zástupce na ploše pro „{name}“ byl znovu povolen",
+  "homeShortcutPinFailed": "Zástupce na ploše pro „{name}“ se nepodařilo přidat",
   "appSettingsLanguageTitle": "Jazyk aplikace",
   "appSettingsLanguageSystem": "Výchozí systémový",
   "siteSettingsWindowWidth": "Šířka rámečku",

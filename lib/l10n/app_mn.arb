@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Дахин оноох",
   "homeShortcutDisable": "Идэвхгүй болгох",
   "homeShortcutPickTitle": "Товчлолыг дараах руу заах",
+  "homeShortcutReenabled": "\"{name}\"-н одоо байгаа нүүр дэлгэцийн товчлолыг дахин идэвхжүүллээ",
+  "homeShortcutPinFailed": "\"{name}\"-д нүүр дэлгэцийн товчлол нэмж чадсангүй",
   "appSettingsLanguageTitle": "Аппын хэл",
   "appSettingsLanguageSystem": "Системийн анхдагч",
   "siteSettingsWindowWidth": "Нүдний өргөн",

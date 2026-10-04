@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Tildel på nytt",
   "homeShortcutDisable": "Deaktiver",
   "homeShortcutPickTitle": "Pek snarvei mot",
+  "homeShortcutReenabled": "Den eksisterende hjemskjerm-snarveien for \"{name}\" er aktivert igjen",
+  "homeShortcutPinFailed": "Kunne ikke legge til en hjemskjerm-snarvei for \"{name}\"",
   "appSettingsLanguageTitle": "Appspråk",
   "appSettingsLanguageSystem": "Systemstandard",
   "siteSettingsWindowWidth": "Boksbredde",

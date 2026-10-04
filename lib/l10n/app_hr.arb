@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Ponovno dodijeli",
   "homeShortcutDisable": "Onemogući",
   "homeShortcutPickTitle": "Usmjeri prečac na",
+  "homeShortcutReenabled": "Postojeći prečac na početnom zaslonu za \"{name}\" ponovno je omogućen",
+  "homeShortcutPinFailed": "Nije moguće dodati prečac na početni zaslon za \"{name}\"",
   "appSettingsLanguageTitle": "Jezik aplikacije",
   "appSettingsLanguageSystem": "Sistemski zadano",
   "siteSettingsWindowWidth": "Širina okvira",

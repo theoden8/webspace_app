@@ -765,6 +765,8 @@
   "homeShortcutReassign": "ხელახლა მინიჭება",
   "homeShortcutDisable": "გათიშვა",
   "homeShortcutPickTitle": "ბმული მიემართოს",
+  "homeShortcutReenabled": "„{name}“-ის მთავარი ეკრანის არსებული ბმული ხელახლა ჩაირთო",
+  "homeShortcutPinFailed": "„{name}“-ისთვის მთავარი ეკრანის ბმულის დამატება ვერ მოხერხდა",
   "appSettingsLanguageTitle": "აპის ენა",
   "appSettingsLanguageSystem": "სისტემური ნაგულისხმევი",
   "siteSettingsWindowWidth": "ყუთის სიგანე",

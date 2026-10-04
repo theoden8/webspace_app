@@ -765,6 +765,8 @@
   "homeShortcutReassign": "Määra uuesti",
   "homeShortcutDisable": "Keela",
   "homeShortcutPickTitle": "Suuna otsetee saidile",
+  "homeShortcutReenabled": "„{name}“ olemasolev avakuva otsetee on uuesti lubatud",
+  "homeShortcutPinFailed": "„{name}“ avakuva otseteed ei õnnestunud lisada",
   "appSettingsLanguageTitle": "App language",
   "appSettingsLanguageSystem": "System default",
   "siteSettingsWindowWidth": "Kasti laius",
