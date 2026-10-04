@@ -239,18 +239,21 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
             fingerprint: fingerprintFromX509(cert),
           ),
         );
-        return ConnectionTask.fromSocket(
-          secure,
-          () async => (await secure).close().ignore(),
-        );
+        return ConnectionTask.fromSocket(secure, () => _abortConnect(secure));
       }
-      return ConnectionTask.fromSocket(
-        socket,
-        () async => (await socket).close().ignore(),
-      );
+      return ConnectionTask.fromSocket(socket, () => _abortConnect(socket));
     };
     return OutboundClientReady(IOClient(inner));
   }
+}
+
+/// `onCancel` for a SOCKS5 [ConnectionTask]. `HttpClient.close` already
+/// destroys a cancelled task's socket when it arrives; what this adds is that
+/// an abandoned connect cannot throw. Re-awaiting it rethrows a connect the
+/// proxy refused (Tor's `ttlExpired`), and `close()` on one it granted throws
+/// synchronously while the socket's sink is still bound.
+void _abortConnect(Future<Socket> socket) {
+  socket.then((s) => s.destroy(), onError: (Object _) {});
 }
 
 /// Whether [host] looks like an IPv4 / IPv6 literal — i.e. safe to pass
