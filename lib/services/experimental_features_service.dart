@@ -8,6 +8,7 @@ const String kExperimentalProxyRouterKey = 'experimentalProxyRouter';
 const String kExperimentalSiteIconsOnlyKey = 'experimentalSiteIconsOnly';
 const String kExperimentalTextureRenderingKey = 'experimentalTextureRendering';
 const String kExperimentalSiteTabsKey = 'experimentalSiteTabs';
+const String kExperimentalExternalTorKey = 'experimentalExternalTor';
 
 /// A feature that ships before it is finished (DEVTOOLS-011): reachable only
 /// with developer mode on and its own switch on in App Settings'
@@ -30,7 +31,12 @@ enum ExperimentalFeature {
 
   /// Several pages per site (inactive-tabs TAB-012). Off by default: it is
   /// new. With it off a site shows its one page, as before tabs existed.
-  siteTabs(kExperimentalSiteTabsKey, defaultOn: false);
+  siteTabs(kExperimentalSiteTabsKey, defaultOn: false),
+
+  /// Tor sites through a tor already running on the device, with per-site
+  /// SOCKS credentials (tor-proxy TOR-025). Off by default: it is new.
+  /// Applies without a relaunch through `TorService.runtimeChoiceChanged`.
+  externalTor(kExperimentalExternalTorKey, defaultOn: false);
 
   const ExperimentalFeature(this.prefKey, {required this.defaultOn});
 

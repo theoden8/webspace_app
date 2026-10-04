@@ -14,6 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
+import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
@@ -21,6 +22,7 @@ import 'package:webspace/services/tor_geoip_web.dart'
     if (dart.library.io) 'package:webspace/services/tor_geoip_io.dart';
 import 'package:webspace/services/tor_socks_probe_web.dart'
     if (dart.library.io) 'package:webspace/services/tor_socks_probe_io.dart';
+import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/proxy.dart';
 
 export 'package:webspace/services/tor_engine.dart'
@@ -286,22 +288,31 @@ class TorLogBridge {
   }
 }
 
-/// Process-wide handle on the embedded Tor runtime.
+/// Process-wide handle on Tor: the embedded runtime, or an external tor
+/// reached over SOCKS (TOR-025), whichever [wantsExternal] names now.
+///
+/// One engine per runtime, so the choice can move without a relaunch. Only
+/// the one named carries traffic, and only its status reaches [statusStream].
+/// The other is never stopped: the embedded tor runs at most once per
+/// process (TOR-020), so one that has run is left idle for the way back.
 class TorService {
-  TorService._(this._engine, {TorLogBridge? logs})
-      : _logs = logs ?? TorLogBridge() {
+  TorService._({
+    TorEngine? embedded,
+    TorEngine? external,
+    ExternalTorRuntime? externalRuntime,
+    TorLogBridge? logs,
+  })  : assert(embedded != null || external != null),
+        _embedded = embedded,
+        _externalEngine = external,
+        _externalRuntime = externalRuntime,
+        _logs = logs ?? TorLogBridge() {
+    _externalActive = _resolveExternal();
     _logs.start();
-    // Every transition, in the app log. The runtime is a black box to the
-    // user otherwise: "Starting" with no percentage and no phase is what a
-    // bootstrap looks like from outside, whether it is 3 seconds in or 60
-    // (TOR-018).
-    _statusTap = _engine.statusStream.listen((s) {
-      LogService.instance.log(
-        kTorLogTag,
-        'State: $s',
-        level: s is TorErrored ? LogLevel.error : LogLevel.info,
-      );
-    });
+    for (final engine in [embedded, external].nonNulls) {
+      _engineSubs.add(engine.statusStream.listen((s) {
+        if (identical(engine, _engine)) _forward(s);
+      }));
+    }
   }
 
   static TorService? _instance;
@@ -309,19 +320,45 @@ class TorService {
   /// The live singleton, created on first touch.
   static TorService get instance => _instance ??= _production();
 
+  /// Whether the external tor is wanted (TOR-025). Installed at startup from
+  /// the Experimental switch, and read again by [runtimeChoiceChanged].
+  static bool Function() wantsExternal = _never;
+
+  static bool _never() => false;
+
   static TorService _production() {
-    final service = TorService._(TorEngine(
-      runtime: MethodChannelTorRuntime(),
-      sessionSecret: newSessionSecret(),
-      // The engine reads bridges itself rather than waiting for a startup
-      // call to push them: nothing on a cold start opens the bridge
-      // screen, so a pushed-only configuration was simply absent on every
-      // relaunch (TOR-016).
-      bridgeLoader: () => TorBridgeSecureStorage().load(),
-      // Downloaded on the device, never shipped (LICENSE-002).
-      geoIpStore: createTorGeoIpStore(),
-      socksProbe: createTorSocksProbe(),
-    ));
+    final externalRuntime = externalTorRunsHere
+        ? ExternalTorRuntime(
+            address: () => ExternalTorSettings.address,
+            identify: createExternalTorIdentify() ??
+                (_, _) async => ExternalTorAnswer.unreachable,
+          )
+        : null;
+    final service = TorService._(
+      embedded: TorEngine(
+        runtime: MethodChannelTorRuntime(),
+        sessionSecret: newSessionSecret(),
+        // The engine reads bridges itself rather than waiting for a startup
+        // call to push them: nothing on a cold start opens the bridge
+        // screen, so a pushed-only configuration was simply absent on every
+        // relaunch (TOR-016).
+        bridgeLoader: () => TorBridgeSecureStorage().load(),
+        // Downloaded on the device, never shipped (LICENSE-002).
+        geoIpStore: createTorGeoIpStore(),
+        socksProbe: createTorSocksProbe(),
+      ),
+      // No bridge loader and no GeoIP store: an external tor keeps its own
+      // bridges and exits, and a pin it cannot take must not first download
+      // a GeoIP table through it (TOR-025).
+      external: externalRuntime == null
+          ? null
+          : TorEngine(
+              runtime: externalRuntime,
+              sessionSecret: newSessionSecret(),
+              socksProbe: createTorSocksProbe(),
+            ),
+      externalRuntime: externalRuntime,
+    );
     // Here rather than in a screen, so every way back into the foreground
     // reaches it, whatever is on screen (TOR-024). A unit test touching the
     // singleton with no binding has no lifecycle to watch.
@@ -331,37 +368,162 @@ class TorService {
     return service;
   }
 
-  /// Swap in an engine backed by a fake runtime. Tests only.
+  /// Swap in an engine backed by a fake runtime. Tests only. Pass
+  /// [external] when the engine's runtime is an [ExternalTorRuntime].
   @visibleForTesting
-  static void overrideEngine(TorEngine engine, {TorLogBridge? logs}) {
-    _instance?._statusTap?.cancel();
-    _instance = TorService._(engine, logs: logs);
+  static void overrideEngine(TorEngine engine,
+      {TorLogBridge? logs, ExternalTorRuntime? external}) {
+    _instance?._cancelSubs();
+    _instance = external == null
+        ? TorService._(embedded: engine, logs: logs)
+        : TorService._(external: engine, externalRuntime: external, logs: logs);
+  }
+
+  /// Both engines, with [wantsExternal] choosing between them. Tests only.
+  @visibleForTesting
+  static void overrideEngines({
+    required TorEngine embedded,
+    required TorEngine external,
+    required ExternalTorRuntime externalRuntime,
+    TorLogBridge? logs,
+  }) {
+    _instance?._cancelSubs();
+    _instance = TorService._(
+      embedded: embedded,
+      external: external,
+      externalRuntime: externalRuntime,
+      logs: logs,
+    );
   }
 
   @visibleForTesting
   static Future<void> reset() async {
-    await _instance?._statusTap?.cancel();
-    await _instance?._logs.dispose();
-    await _instance?._engine.dispose();
+    final service = _instance;
     _instance = null;
+    wantsExternal = _never;
+    if (service == null) return;
+    service._cancelSubs();
+    await service._logs.dispose();
+    await service._embedded?.dispose();
+    await service._externalEngine?.dispose();
+    await service._statuses.close();
   }
 
-  final TorEngine _engine;
+  final TorEngine? _embedded;
+  final TorEngine? _externalEngine;
+  final ExternalTorRuntime? _externalRuntime;
   final TorLogBridge _logs;
-  StreamSubscription<TorStatus>? _statusTap;
+  final List<StreamSubscription<TorStatus>> _engineSubs = [];
+  final StreamController<TorStatus> _statuses =
+      StreamController<TorStatus>.broadcast();
+  late bool _externalActive;
+
+  /// The last exit pin asked for, re-issued to an engine switched to.
+  (String?, bool)? _exitRequest;
+
+  TorEngine get _engine => _externalActive ? _externalEngine! : _embedded!;
+
+  bool _resolveExternal() {
+    if (_embedded == null) return true;
+    if (_externalEngine == null) return false;
+    return wantsExternal();
+  }
+
+  void _cancelSubs() {
+    for (final sub in _engineSubs) {
+      sub.cancel();
+    }
+    _engineSubs.clear();
+  }
+
+  // Every transition, in the app log. The runtime is a black box to the user
+  // otherwise: "Starting" with no percentage and no phase is what a
+  // bootstrap looks like from outside, whether it is 3 seconds in or 60
+  // (TOR-018).
+  void _forward(TorStatus s) {
+    LogService.instance.log(
+      kTorLogTag,
+      'State: $s',
+      level: s is TorErrored ? LogLevel.error : LogLevel.info,
+    );
+    if (!_statuses.isClosed) _statuses.add(s);
+  }
+
+  /// Whether Tor here is an external tor rather than the embedded one
+  /// (TOR-025). Exit countries, bridges and New circuits need the embedded
+  /// runtime's control port, so screens hide them when this is true.
+  bool get isExternal => _externalActive;
+
+  /// Move to the tor [wantsExternal] names now, without a relaunch
+  /// (TOR-025). The holders move with it and the last exit pin is asked of
+  /// it again; the engine left behind keeps running with nothing on it.
+  /// Its status, published first, is what rebinds every Tor-bound site.
+  ///
+  /// One move at a time: a call made during one is folded into a re-read
+  /// once it lands, so the last flip wins and no two moves split the
+  /// holders between engines.
+  Future<void> runtimeChoiceChanged() async {
+    if (_switching) {
+      _switchAgain = true;
+      return;
+    }
+    _switching = true;
+    try {
+      do {
+        _switchAgain = false;
+        await _switchTo(_resolveExternal());
+      } while (_switchAgain);
+    } finally {
+      _switching = false;
+    }
+  }
+
+  bool _switching = false;
+  bool _switchAgain = false;
+
+  Future<void> _switchTo(bool external) async {
+    if (external == _externalActive) return;
+    final from = _engine;
+    final holders = from.holders.toSet();
+    _externalActive = external;
+    LogService.instance.log(kTorLogTag,
+        'Switched to the ${external ? 'external' : 'built-in'} tor');
+    _forward(_engine.status);
+    await from.syncHolders(const <String>[]);
+    if (!_engine.isAvailable) return;
+    final pin = _exitRequest;
+    if (pin != null) {
+      unawaited(_engine.setExitCountry(pin.$1, mayFetchGeoIp: pin.$2));
+    }
+    await _engine.syncHolders(holders);
+    // An engine that was up before it was left may be up on a listener that
+    // has since gone (a tor quit, a suspension): asked as on a resume.
+    await _engine.revive();
+  }
+
+  /// Ask the external tor again after its address changed. Nothing to ask
+  /// while nothing has used it: the next start reads the address anyway.
+  Future<void> externalAddressChanged() async {
+    final runtime = _externalRuntime;
+    final engine = _externalEngine;
+    if (runtime == null || engine == null || engine.status is TorStopped) {
+      return;
+    }
+    await runtime.reconnect();
+  }
 
   /// Whether anything may offer or start Tor: this build has the runtime
-  /// (TOR-007). Every start path below re-checks it, so the answer does not
-  /// depend on the caller having asked first.
+  /// (TOR-007), or the external tor is chosen (TOR-025). Every start path
+  /// below re-checks it, so the answer does not depend on the caller having
+  /// asked first.
   bool get isAvailable => _engine.isAvailable;
-
 
   TorStatus get status => _engine.status;
 
   /// The reasons holding the runtime up: site ids, the app-wide tag, and the
   /// prefixed holders in `tor_holders.dart`.
   Set<String> get holders => _engine.holders;
-  Stream<TorStatus> get statusStream => _engine.statusStream;
+  Stream<TorStatus> get statusStream => _statuses.stream;
 
   /// `host:port` of the live SOCKS5 listener, or null when not up.
   String? get socksEndpoint {
@@ -390,14 +552,17 @@ class TorService {
     await _engine.revive();
   }
 
-  /// The bridge configuration currently in force, or queued for next start.
-  TorBridgeConfig get bridges => _engine.bridges;
+  /// The embedded tor's bridge configuration, in force or queued for its
+  /// next start. Bridges are only ever the embedded tor's: an external one
+  /// keeps its own.
+  TorBridgeConfig get bridges => (_embedded ?? _engine).bridges;
 
   /// Set the bridge configuration, returning whether a [restart] is needed
   /// for it to apply. Not gated on [isAvailable]: the user can configure
   /// bridges before anything has started Tor, and refusing the write would
   /// silently discard what they typed.
-  bool setBridges(TorBridgeConfig config) => _engine.setBridges(config);
+  bool setBridges(TorBridgeConfig config) =>
+      (_embedded ?? _engine).setBridges(config);
 
   /// Stop and re-start the runtime, keeping the holder set. Backs the Retry
   /// offered on a failure: [maybeStart] cannot serve that, because acquire
@@ -413,6 +578,7 @@ class TorService {
   /// mutually exclusive.
   Future<void> setExitCountry(String? exitNodes,
       {bool mayFetchGeoIp = true}) async {
+    _exitRequest = (exitNodes, mayFetchGeoIp);
     if (!isAvailable) return;
     await _engine.setExitCountry(exitNodes, mayFetchGeoIp: mayFetchGeoIp);
   }

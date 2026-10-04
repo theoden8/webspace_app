@@ -43,6 +43,16 @@ enum TorFailureKind {
   /// Bootstrap ran past its deadline without a terminal signal.
   bootstrapTimeout,
 
+  /// The tor the app was pointed at under Tor (external) did not answer as
+  /// tor: nothing listens at that address, or something that is not tor
+  /// does (TOR-025). Started and stopped outside the app, so Retry only
+  /// helps once the user has started it.
+  externalUnreachable,
+
+  /// An exit-country pin is in force and the runtime is an external tor,
+  /// whose exits this app has no control port to choose (TOR-025).
+  externalExitPin,
+
   /// Anything else: the thread died, or a message we have no pattern for.
   runtime,
 }

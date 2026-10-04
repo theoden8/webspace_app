@@ -1613,6 +1613,22 @@
   "@appSettingsExperimentalSiteTabsHint": {
     "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page."
   },
+  "appSettingsExperimentalExternalTor": "Tor (external)",
+  "@appSettingsExperimentalExternalTor": {
+    "description": "Title of the switch in App settings > Developer > Experimental that sends sites set to Tor through a Tor program already running on the device (for example the Orbot app, or the tor service on Linux) instead of one inside this app. While it is on, also the name of the Tor choice in proxy pickers and in the summaries that name a site's route, to tell it from the Tor built into the app. Tor is a product name; keep it."
+  },
+  "appSettingsExperimentalExternalTorHint": "Sends sites set to Tor through a tor already running on this device, such as Orbot, InviZible, Arti or the tor service; on macOS it replaces the built-in Tor. Each site gives that tor its own SOCKS username and password, so a tor with IsolateSOCKSAuth, which is on unless its SocksPort says NoIsolateSOCKSAuth, keeps each site on circuits of its own. Exit countries, bridges and new circuits are set in that tor.",
+  "@appSettingsExperimentalExternalTorHint": {
+    "description": "Explanation behind the hint button of the Tor (external) switch in App settings > Developer > Experimental. Orbot and InviZible are Android apps and Arti is Tor's Rust implementation; Tor, SOCKS, SocksPort, IsolateSOCKSAuth and NoIsolateSOCKSAuth are names from Tor's configuration and must stay as written. A circuit is Tor's path through the network."
+  },
+  "externalTorAddress": "Tor SOCKS address",
+  "@externalTorAddress": {
+    "description": "Title of the row, shown under the Tor (external) switch while it is on, that holds the host:port where the external Tor program listens for SOCKS connections. Also the title of the dialog that edits it. Tor and SOCKS are names; keep them."
+  },
+  "externalTorAddressHint": "Where that tor's SOCKS port listens, as host:port. Orbot, InviZible and the tor service use 127.0.0.1:9050, Arti and Tor Browser 127.0.0.1:9150. The app checks that tor answers there before any site uses it.",
+  "@externalTorAddressHint": {
+    "description": "Explanation behind the hint button of the Tor SOCKS address row. Keep the addresses 127.0.0.1:9050 and 127.0.0.1:9150 and the product names Orbot, InviZible, Arti and Tor Browser exactly as written."
+  },
   "appSettingsDeveloperModeAlreadyOn": "Developer mode is already on",
   "@appSettingsDeveloperModeAlreadyOn": {
     "description": "Shown when the user taps the version row while developer mode is already enabled"
@@ -4487,6 +4503,22 @@
   "torFailRuntimeBody": "Tor stopped for a reason the app does not recognise. The raw message is below and in Developer Tools.",
   "@torFailRuntimeBody": {
     "description": "Tor failure explanation for an unrecognised runtime failure."
+  },
+  "torFailExternalTitle": "External tor not answering",
+  "@torFailExternalTitle": {
+    "description": "Tor failure heading: the Tor program already running on the device, which the Tor (external) setting points at, did not answer at its address, or something other than Tor answered there."
+  },
+  "torFailExternalBody": "Nothing at the Tor SOCKS address answered as tor. Start Orbot, InviZible, Arti or the tor service, or correct the address in Developer settings, then try again.",
+  "@torFailExternalBody": {
+    "description": "Tor failure explanation when the external Tor program did not answer. 'Tor SOCKS address' is the name of the setting row; Orbot and InviZible are Android apps, Arti is Tor's Rust implementation; keep the names."
+  },
+  "torFailExternalPinTitle": "Exit country unavailable",
+  "@torFailExternalPinTitle": {
+    "description": "Tor failure heading: a site has an exit country set, and the Tor in use is one already running on the device, which this app cannot tell which country to leave from."
+  },
+  "torFailExternalPinBody": "A site here has an exit country, and the external tor chooses its own exits. Set the site's exit country back to any country, or set ExitNodes in that tor.",
+  "@torFailExternalPinBody": {
+    "description": "Tor failure explanation for an exit country that cannot be applied to an external Tor program. ExitNodes is a Tor configuration option name; keep it as written."
   },
   "torFailTransientNote": "Tor expects to recover from this on its own.",
   "@torFailTransientNote": {

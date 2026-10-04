@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 
@@ -91,6 +92,10 @@ final Map<String, Object> kExportedAppPrefs = <String, Object>{
   kExperimentalTextureRenderingKey: false,
   // DEVTOOLS-011 / TAB-012: the Site tabs switch. Off by default: tabs are new.
   kExperimentalSiteTabsKey: false,
+  // DEVTOOLS-011 / TOR-025: the Tor (external) switch, and that tor's SOCKS
+  // address. Off by default: new.
+  kExperimentalExternalTorKey: false,
+  kExternalTorAddressKey: kExternalTorDefaultAddress,
   'linkHandlingEnabled': true,
   // LIR-010 / discussion #439: when the user sends a shared link to an
   // existing site via the dispatch picker, also append exactHost +

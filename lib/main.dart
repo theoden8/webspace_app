@@ -131,6 +131,7 @@ import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
@@ -869,6 +870,13 @@ void main() async {
   // than plumbed, so it must be hydrated before the first frame.
   await DeveloperModeService.instance.initialize();
   await ExperimentalFeaturesService.instance.initialize();
+  // Before anything touches TorService.instance, which picks its tor from
+  // this on first use and on every runtimeChoiceChanged (TOR-025).
+  await ExternalTorSettings.initialize();
+  TorService.wantsExternal = () =>
+      externalTorRunsHere &&
+      ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.externalTor);
   // Before any webview exists, and only here: a process runs one composition
   // mode, so the Experimental switch applies from the next launch (PAUSE-032).
   WebViewFactory.hybridComposition = !ExperimentalFeaturesService.instance
@@ -1281,7 +1289,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       // real webview once getWebView is called again.
       if (m.webview != null) m.disposeWebView();
     }
-    if (anyTorSite) setState(() {});
+    if (!anyTorSite) return;
+    // Router mode encodes a Tor route against the endpoint it saw last
+    // (PROXY-016), so a new one, or none, has to reach the route table too.
+    unawaited(_refreshProxyRoutes());
+    setState(() {});
   }
 
   Future<void> _onPinRevoked(TrustedHostEntry entry) async {
@@ -6229,14 +6241,17 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!m.effectiveNotificationsEnabled) continue;
       others.add(m);
     }
+    // Outbound settings, so two Tor sites differ by their isolation tags.
     final conflict = ProxyConflictEngine.firstConflict(
-      targetProxy: target.proxySettings,
-      otherEnabledProxies: others.map((m) => m.proxySettings),
+      targetProxy: target.outboundProxySettings,
+      otherEnabledProxies: others.map((m) => m.outboundProxySettings),
       routerActive: ProxyRouterService.instance.isActive,
     );
     if (conflict == null) return null;
-    final blocker = _webViewModels.firstWhere(
-      (m) => identical(m.proxySettings, conflict),
+    final conflictFp = ProxyConflictEngine.fingerprint(conflict);
+    final blocker = others.firstWhere(
+      (m) =>
+          ProxyConflictEngine.fingerprint(m.outboundProxySettings) == conflictFp,
       orElse: () => target,
     );
     return blocker.name.isNotEmpty
@@ -7459,6 +7474,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     // The registry write above set the raw key; the service caches it.
     await DeveloperModeService.instance.reload();
     await ExperimentalFeaturesService.instance.reload();
+    await ExternalTorSettings.initialize();
+    await TorService.instance.externalAddressChanged();
+    await TorService.instance.runtimeChoiceChanged();
     // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
     // imported value so subsequent outbound calls pick up the new
     // address/username without an app restart.
@@ -8683,6 +8701,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     currentSettings: _themeSettings,
                     proxyRouterRunsHere: ProxyRouterService.canRunHere(
                         useContainers: _useContainers),
+                    externalTorRunsHere: externalTorRunsHere,
                     siteNames: _siteNames(),
                     onSettingsChanged: (AppThemeSettings newSettings) async {
                       setState(() {
@@ -11587,8 +11606,8 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
   Future<void> unload(int index) => state._unloadSiteForOtherReason(index);
 
   @override
-  Future<void> applyProxyOf(WebViewModel target) =>
-      ProxyManager().setProxySettings(target.proxySettings);
+  Future<void> applyProxyOf(WebViewModel target) => ProxyManager()
+      .setProxySettings(target.proxySettings, siteId: target.siteId);
 
   @override
   void reportProxyFailure(Object error) {

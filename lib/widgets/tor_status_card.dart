@@ -52,6 +52,10 @@ import 'package:webspace/widgets/hint_button.dart';
       (title: loc.torFailTimeoutTitle, body: loc.torFailTimeoutBody),
     TorFailureKind.runtime =>
       (title: loc.torFailRuntimeTitle, body: loc.torFailRuntimeBody),
+    TorFailureKind.externalUnreachable =>
+      (title: loc.torFailExternalTitle, body: loc.torFailExternalBody),
+    TorFailureKind.externalExitPin =>
+      (title: loc.torFailExternalPinTitle, body: loc.torFailExternalPinBody),
   };
 }
 
@@ -67,6 +71,8 @@ IconData torFailureIcon(TorFailureKind kind) => switch (kind) {
       TorFailureKind.controlChannel => Icons.bug_report_outlined,
       TorFailureKind.bootstrapTimeout => Icons.hourglass_empty_outlined,
       TorFailureKind.runtime => Icons.error_outline,
+      TorFailureKind.externalUnreachable => Icons.link_off_outlined,
+      TorFailureKind.externalExitPin => Icons.public_off_outlined,
     };
 
 /// Live Tor state for App Settings.
@@ -223,17 +229,21 @@ class _TorStatusCardState extends State<TorStatusCard> {
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
-        const SizedBox(height: Spacing.xs),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton.icon(
-            onPressed: _busy
-                ? null
-                : () => _run(TorService.instance.rebuildCircuits),
-            icon: const Icon(Icons.refresh, size: IconSizes.action),
-            label: Text(loc.torStatusRebuildCircuits),
+        // An external tor has no control port here to send NEWNYM to
+        // (TOR-025).
+        if (!TorService.instance.isExternal) ...[
+          const SizedBox(height: Spacing.xs),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () => _run(TorService.instance.rebuildCircuits),
+              icon: const Icon(Icons.refresh, size: IconSizes.action),
+              label: Text(loc.torStatusRebuildCircuits),
+            ),
           ),
-        ),
+        ],
       ],
     );
   }

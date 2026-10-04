@@ -624,7 +624,11 @@ class ProxyManager {
     );
   }
 
-  Future<void> setProxySettings(UserProxySettings settings) async {
+  /// [siteId] is the isolation tag a TOR proxy carries (TOR-003): without
+  /// it every Tor site would present the app-global credential, and the one
+  /// rule in force would put them all on one circuit.
+  Future<void> setProxySettings(UserProxySettings settings,
+      {String? siteId}) async {
     if (!PlatformInfo.isProxySupported) {
       LogService.instance.log(
         'Proxy',
@@ -668,9 +672,25 @@ class ProxyManager {
     // outbound proxy. This keeps webview traffic and Dart-side traffic
     // honoring the same proxy precedence: explicit per-site override wins,
     // otherwise the global applies, otherwise system/direct.
-    final effective = resolveEffectiveProxy(settings);
+    var effective = resolveEffectiveProxy(settings, siteId: siteId);
     final fellThrough = settings.type == ProxyType.DEFAULT &&
         effective.type != ProxyType.DEFAULT;
+    // TOR names no address of its own; the rule has to carry the endpoint
+    // the runtime serves and this site's credential, or the leftover manual
+    // address a TOR setting keeps (PROXY-010) would be dialled in clear.
+    if (effective.type == ProxyType.TOR) {
+      final expanded = expandTorProxy(effective);
+      if (expanded == null) {
+        LogService.instance.log(
+          'Proxy',
+          'Tor is not up; refusing to apply a proxy rule for a Tor site.',
+          level: LogLevel.error,
+          sensitivity: LogSensitivity.sensitive,
+        );
+        throw Exception('Tor is not up');
+      }
+      effective = expanded;
+    }
 
     if (effective.type == ProxyType.DEFAULT) {
       if (hostIsAndroid) await ProxyRelay.instance.stop();

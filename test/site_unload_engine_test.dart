@@ -77,6 +77,42 @@ void main() {
   });
 
   group('SiteUnloadEngine.indicesToUnloadForProxyMismatch', () {
+    test('two Tor sites never share the one process-wide rule (TOR-025)', () {
+      // Each Tor site's isolation is its own SOCKS credential. The one rule
+      // in force carries one credential, so a Tor site left loaded beside
+      // another would ride the other's circuit.
+      final models = [
+        _site('https://a.example.com',
+            proxy: UserProxySettings(type: ProxyType.TOR)),
+        _site('https://b.example.com',
+            proxy: UserProxySettings(type: ProxyType.TOR)),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+        proxyIsGlobal: true,
+      );
+      expect(result, {0});
+    });
+
+    test('sites inheriting a global Tor share the app-global circuit', () {
+      // PROXY-011: inheriting the app's Tor is not a request for a circuit
+      // of one's own, so these agree and stay loaded together.
+      GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.TOR));
+      final models = [
+        _site('https://a.example.com'),
+        _site('https://b.example.com'),
+      ];
+      final result = SiteUnloadEngine.indicesToUnloadForProxyMismatch(
+        targetIndex: 1,
+        models: models,
+        loadedIndices: {0, 1},
+        proxyIsGlobal: true,
+      );
+      expect(result, isEmpty);
+    });
+
     test('returns empty when proxy is per-site (iOS/macOS)', () {
       final models = [
         _site('https://a.example.com',

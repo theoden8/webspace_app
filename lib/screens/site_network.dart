@@ -237,6 +237,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         gatewayId: _values.gatewayId,
         library: _library,
         torAvailable: TorService.instance.isAvailable,
+        torExternal: TorService.instance.isExternal,
         onChanged: _pickProxy,
       ),
     );
@@ -368,7 +369,9 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         ),
       ),
       _proxyType(loc),
-      if (type == ProxyType.TOR) _torExitCountry(loc),
+      // An external tor picks its own exits (TOR-025).
+      if (type == ProxyType.TOR && !TorService.instance.isExternal)
+        _torExitCountry(loc),
       if (type == ProxyType.SAVED || type == ProxyType.GATEWAY)
         _libraryRoute(loc),
       // TOR supplies its own loopback address and stream-isolation auth, and

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
@@ -42,6 +43,14 @@ String libraryProblemLabel(AppLocalizations loc, LibraryProblem problem) =>
     };
 
 /// A route as data (LOC-002): the type name and the address.
+/// What a TOR route is called: TOR, or "Tor (external)" where this launch
+/// rides an external tor (TOR-025), so no picker or summary passes one off as
+/// the other. [external] defaults to the running service.
+String torRouteLabel(AppLocalizations loc, {bool? external}) =>
+    (external ?? TorService.instance.isExternal)
+        ? loc.appSettingsExperimentalExternalTor
+        : ProxyType.TOR.name;
+
 String routeLabel(UserProxySettings route) =>
     '${route.type.name} ${route.address ?? ''}'.trim();
 
@@ -91,6 +100,7 @@ class ProxyChoiceDropdown extends StatelessWidget {
     required this.gatewayId,
     required this.library,
     required this.torAvailable,
+    this.torExternal = false,
     required this.onChanged,
     this.gatewaysOnly = false,
   });
@@ -102,6 +112,10 @@ class ProxyChoiceDropdown extends StatelessWidget {
 
   /// TOR is only offerable where a Tor runtime exists (TOR-007).
   final bool torAvailable;
+
+  /// Whether the TOR entry is an external tor (TOR-025), which it is then
+  /// called.
+  final bool torExternal;
   final ValueChanged<ProxyChoice> onChanged;
 
   /// Offer gateways only: saved ones and the typed types.
@@ -155,7 +169,8 @@ class ProxyChoiceDropdown extends StatelessWidget {
     // A site that already carries TOR (say, from a backup taken on iOS and
     // imported on Android) keeps the option visible.
     if (!gatewaysOnly && (torAvailable || type == ProxyType.TOR)) {
-      add(_item(ProxyType.TOR.name, ProxyType.TOR.name));
+      add(_item(
+          ProxyType.TOR.name, torRouteLabel(loc, external: torExternal)));
     }
 
     return DropdownButton<String>(

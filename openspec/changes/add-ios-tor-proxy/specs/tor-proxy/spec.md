@@ -263,10 +263,12 @@ not forced to migrate.
 
 ### Requirement: TOR-007 - Platform gate
 
-`TorService` SHALL operate on iOS and macOS, and nowhere else.
-`TorService.isAvailable` SHALL be that platform check and nothing more,
-and SHALL be the single reader both the per-site and app-global proxy-type
-dropdowns consult; with it false the `TOR` option SHALL be absent from both.
+The embedded runtime SHALL operate on iOS and macOS, and nowhere else.
+Android, Linux and macOS can instead name a tor already running on the
+device (TOR-025). `TorService.isAvailable` SHALL be the platform check, or
+the external tor being chosen, and nothing more, and SHALL be
+the single reader both the per-site and app-global proxy-type dropdowns
+consult; with it false the `TOR` option SHALL be absent from both.
 Existing per-site SOCKS5 configuration (manual `host:port`, with or without
 credentials) SHALL remain available on every platform that supports proxies
 today, so Android users can still point at Orbot's SOCKS5 endpoint manually.
@@ -319,7 +321,7 @@ is no longer a supported floor — state it in the listing
 
 #### Scenario: Android does not offer Tor
 
-- **GIVEN** the app is running on Android
+- **GIVEN** the app is running on Android, with Tor (external) off (TOR-025)
 - **WHEN** the user opens a site's Network settings
 - **THEN** `TOR` is absent from the proxy-type dropdown
 - **AND** the manual proxy fields are rendered as before
@@ -1446,3 +1448,131 @@ next foreground found "The previous Tor is still running".
   bootstrapping
 - **WHEN** the bootstrap deadline fires on the next wake, long after it was due
 - **THEN** no bootstrap failure is reported and the window starts over
+
+---
+
+### Requirement: TOR-025 - An external tor, with per-site credentials
+
+A site set to `TOR` MAY ride a tor already running on the device instead of
+the embedded runtime: Orbot or InviZible on Android, the tor service or Arti
+on Linux and macOS, where on macOS it stands in for the built-in tor. Orbot
+(`TorConfig.kt`), InviZible (its shipped `tor.conf`) and the tor service
+listen on `127.0.0.1:9050` and Arti on `127.0.0.1:9150`, and none of them
+turns `IsolateSOCKSAuth` off by default. It is an experimental feature
+(DEVTOOLS-011): the **Tor (external)** switch, off by default, listed on
+Android, Linux and macOS and not on iOS, where no other app exposes a SOCKS
+port this one can dial. The tor's address, `externalTorAddress`
+(`host:port`, default `127.0.0.1:9050`), is a user-facing global pref in
+`kExportedAppPrefs`, edited under the switch while it is on.
+
+- **One tor at a time, switched in place.** `TorService` SHALL keep one
+  engine per runtime and route every Tor-bound connection through the one
+  the switch names (`TorService.wantsExternal`), so on macOS the switch
+  picks between the two and never runs traffic through both. Flipping the
+  switch, or developer mode, or importing settings that change either,
+  SHALL take effect without a relaunch (`runtimeChoiceChanged`): the
+  holders move to the tor now named, the exit pin last asked for is asked
+  of it, and its status is published, which rebinds every Tor-bound site
+  and re-installs the router's routes. The embedded tor runs at most once
+  per process (TOR-020), so switching away SHALL NOT stop it: it idles
+  with no holders, and switching back reuses it after the TOR-024 listener
+  check. Moves are serialised; a flip made during one is applied after it,
+  so the last flip wins and the holders are never split across engines.
+- **Same isolation as the embedded runtime.** Every Tor-bound connection
+  SHALL present the TOR-003 credential to the external tor: the site's tag
+  as the SOCKS username, a password derived from the per-launch secret.
+  Isolation then rests on that tor's `IsolateSOCKSAuth`, on by default and
+  off only where its `SocksPort` says `NoIsolateSOCKSAuth`; Arti isolates by
+  SOCKS credential too. The app cannot read that tor's configuration, so the
+  switch's hint SHALL state the condition rather than promise isolation.
+- **It is tor or it is nothing.** Before publishing `up` the runtime SHALL
+  send an HTTP request to the address and require tor's fixed refusal,
+  `HTTP/1.0 501 Tor is not an HTTP Proxy`, which C tor and Arti both send
+  from a SOCKS port. A malformed address, a closed port, or a listener that
+  answers anything else SHALL be `TorErrored` with kind
+  `externalUnreachable`, and every Tor site SHALL stay blocked (TOR-008).
+  Nothing in the probe leaves the device.
+- **Named for what it is.** While the external tor is chosen, every
+  picker and summary that names a `TOR` route (the proxy-type dropdowns, the
+  site's Network summary, the site info sheet) SHALL call it "Tor (external)",
+  never `TOR`, so it is never passed off as the built-in one. The stored
+  setting stays `ProxyType.TOR`: which tor serves it is the switch's choice,
+  not the site's.
+- **What needs a control port is not offered.** No exit-country picker, no
+  bridges row, no New circuits button. A site that already carries an exit
+  country (an import, or an earlier launch on the built-in tor) SHALL be
+  held behind kind `externalExitPin`, never sent out through exits nobody
+  chose, and no GeoIP table SHALL be fetched for it. Clearing the pin
+  releases it.
+- **The address can change under a running Tor.** Saving a new address
+  SHALL ask again and publish the new endpoint, which rebinds every
+  Tor-bound site, or the failure. While nothing uses Tor nothing is asked.
+- **Resume.** The TOR-024 greeting on return applies. A listener that no
+  longer answers is asked again rather than reopened, and a tor that stopped
+  while the app was away is `externalUnreachable`.
+- **One process-wide rule.** Where one proxy rule serves the whole process
+  (Android without the router, Linux), the rule SHALL carry the expanded
+  endpoint and the credential of the site it is applied for, resolved with
+  that site's id, never the leftover manual address a TOR setting keeps
+  (PROXY-010). Two Tor sites SHALL NOT stay loaded together under it, and
+  SHALL NOT both poll for notifications, since one rule carries one
+  credential (PROXY-008). Gated by
+  `test/js/process_wide_tor_isolation.test.js`.
+
+#### Scenario: Orbot gives each site its own credential
+
+- **GIVEN** Android with Tor (external) on and Orbot at `127.0.0.1:9050`
+- **WHEN** two sites set to `TOR` load
+- **THEN** each presents a different SOCKS username and password to Orbot
+- **AND** neither loads before `127.0.0.1:9050` has answered as tor
+
+#### Scenario: Nothing listening
+
+- **GIVEN** Tor (external) is on and no tor listens at its address
+- **WHEN** a site set to `TOR` opens
+- **THEN** the interstitial says the external tor is not answering and
+  offers Retry
+- **AND** the site is not loaded over the device IP
+
+#### Scenario: A SOCKS proxy that is not tor
+
+- **GIVEN** Tor (external) names a SOCKS5 proxy that is not tor
+- **WHEN** a site set to `TOR` opens
+- **THEN** Tor is not reported up and the site stays blocked
+
+#### Scenario: A pinned site on an external tor
+
+- **GIVEN** a site set to `TOR` with exit country Germany, imported onto
+  Linux with Tor (external) on
+- **WHEN** it opens
+- **THEN** it is held with "Exit country unavailable"
+- **AND** no GeoIP table is downloaded
+
+#### Scenario: Two Tor sites under one rule
+
+- **GIVEN** Android without the router, two sites set to `TOR`
+- **WHEN** the second is opened while the first is loaded
+- **THEN** the first is unloaded before the rule changes
+
+#### Scenario: macOS switches tor without a relaunch
+
+- **GIVEN** macOS with a site set to `TOR` riding the built-in tor
+- **WHEN** the user switches Tor (external) on
+- **THEN** the site is rebuilt on the external tor, without a relaunch
+- **AND** the built-in tor is not stopped
+- **WHEN** the user switches it off again
+- **THEN** the site rides the same built-in tor, which is not started a
+  second time
+
+#### Scenario: The picker says which tor
+
+- **GIVEN** macOS with Tor (external) switched on
+- **WHEN** the user opens a site's proxy-type dropdown
+- **THEN** the Tor entry reads "Tor (external)"
+- **AND** with the switch off it reads `TOR` again
+
+#### Scenario: Not on iOS
+
+- **GIVEN** an iOS build with developer mode on
+- **WHEN** the user opens App settings
+- **THEN** the Experimental group lists no Tor (external) switch

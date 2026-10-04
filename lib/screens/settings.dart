@@ -37,7 +37,7 @@ import 'package:webspace/screens/site_settings_qr.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
-    show gatewayLabel, libraryProblemLabel, savedProxyLabel;
+    show gatewayLabel, libraryProblemLabel, savedProxyLabel, torRouteLabel;
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 
@@ -1173,9 +1173,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           (v.proxyType == ProxyType.SAVED || v.proxyType == ProxyType.GATEWAY))
         _libraryName(loc, v)
       else if (proxied)
-        v.proxyType == ProxyType.TOR || address.isEmpty
-            ? v.proxyType.name
-            : '${v.proxyType.name} $address',
+        v.proxyType == ProxyType.TOR
+            ? torRouteLabel(loc)
+            : address.isEmpty
+                ? v.proxyType.name
+                : '${v.proxyType.name} $address',
       if (proxied && v.proxyType == ProxyType.TOR && exitCountry != null)
         exitCountry,
       if (webRtc == WebRtcPolicy.relayOnly)
