@@ -525,6 +525,29 @@ class WebViewModel {
   /// than load its host's URL as this site (LIR-023).
   bool get activeHostMissing => runsHostedTab && hostOf(activeTab) == null;
 
+  /// Whether [tab] runs outside the domain of the site it runs as (LIR-034):
+  /// a tab a link opened while its opener's routing was off, which runs as the
+  /// opener inside the link's domain. Its container and posture are the site
+  /// it runs as; the domain it navigates in is its [SiteTab.homeUrl]'s.
+  bool isForeignTab(SiteTab tab) {
+    final home = tab.homeUrl;
+    if (home == null) return false;
+    final identity = hostOf(tab) ?? this;
+    return getNormalizedDomain(home) != getNormalizedDomain(identity.initUrl);
+  }
+
+  bool get runsForeignTab => isForeignTab(activeTab);
+
+  /// Where the active tab's domain is anchored, and where Home (NAV-004) takes
+  /// it: a foreign tab's home, else the home page of the site it runs as.
+  String get navigationHomeUrl =>
+      runsForeignTab ? activeTab.homeUrl! : runningIdentity.initUrl;
+
+  /// The claims the active tab navigates by. A foreign tab borrows none from
+  /// the site it runs as: only the link's own domain stays in place.
+  bool navigationMatchesClaim(String url) =>
+      !runsForeignTab && runningIdentity.matchesSiteClaim(url);
+
   /// Storage key for the active tab's `controller.saveState()` bytes. State is
   /// per tab, not per site: switching tabs captures under the outgoing tab's
   /// key and restores from the incoming one's (TAB-003). Keyed by the site the
@@ -562,6 +585,11 @@ class WebViewModel {
   /// off this way keeps the tab list, as the app-wide switch does (TAB-012).
   bool get effectiveTabsEnabled => tabsEnabled && !kioskMode;
 
+  /// The colour this site's container is drawn in, as an index into the
+  /// container palette (TAB-018). Given once, when the site first needs one,
+  /// and kept; null until then.
+  int? containerColor;
+
   /// Put a site that has no webview yet on a tab at its home page, as Always
   /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on
   /// stays in the list; without, that tab is sent home, as before tabs.
@@ -584,8 +612,9 @@ class WebViewModel {
   /// a hosted tab to one it runs itself: the nearest such ancestor, or a new
   /// root tab at home. A live slot moves through a tab switch instead.
   void bindOwnerRunTab() {
-    if (!runsHostedTab) return;
-    final id = TabLifecycleEngine.ownerRunTab(tabs, activeTabId);
+    if (!runsHostedTab && !runsForeignTab) return;
+    final id = TabLifecycleEngine.ownerRunTab(tabs, activeTabId,
+        isForeign: isForeignTab);
     if (id != null) {
       activeTabId = id;
     } else {
@@ -889,18 +918,24 @@ class WebViewModel {
   /// the long-press menu: a programmatic `loadUrl` skips
   /// `shouldOverrideUrlLoading` on Android, so a cross-domain URL would
   /// otherwise load inside the site's container. [isActive] is whether the
-  /// site is still the one on screen.
-  NavigationDecision decideUserOpenedLink(String url,
-          {required bool isActive}) =>
+  /// site is still the one on screen. [homeUrl] and [matchesClaim] anchor a
+  /// tab that does not navigate in this site's own domain (LIR-034): the
+  /// slot's `navigationHomeUrl` and `navigationMatchesClaim`.
+  NavigationDecision decideUserOpenedLink(
+    String url, {
+    required bool isActive,
+    String? homeUrl,
+    bool Function(String url)? matchesClaim,
+  }) =>
       NavigationDecisionEngine.decideShouldOverrideUrlLoading(
         targetUrl: url,
-        initUrl: initUrl,
+        initUrl: homeUrl ?? initUrl,
         hasGesture: true,
         isSiteActive: isActive,
         lastSameDomainGestureTime: null,
         now: DateTime.now(),
         externalLinkMode: effectiveExternalLinkMode,
-        matchesSiteClaim: matchesSiteClaim,
+        matchesSiteClaim: matchesClaim ?? matchesSiteClaim,
       ).decision;
 
   /// Whether the webview is currently mid-navigation. Set true on
@@ -1210,6 +1245,7 @@ class WebViewModel {
     this.alwaysOpenHome = false,
     this.kioskMode = false,
     this.tabsEnabled = true,
+    this.containerColor,
     this.language,
     this.zoomPercent = kDefaultZoomPercent,
     this.clearUrlEnabled = true,
@@ -1532,10 +1568,15 @@ class WebViewModel {
     final WebViewModel id = runningIdentity;
     final bool hosted = !identical(id, this);
     final String ownerDomain = getNormalizedDomain(initUrl);
-    // S6: in a hosted tab, a link back into this site's own domain returns to
-    // this site as a child tab instead of leaving by the host's rules.
+    // LIR-034: a foreign tab runs as [id] but navigates in its link's domain.
+    final String navHome = navigationHomeUrl;
+    final bool Function(String) navClaim =
+        runsForeignTab ? (_) => false : id.matchesSiteClaim;
+    // S6: in a hosted or foreign tab, a link back into this site's own domain
+    // returns to this site as a child tab instead of leaving by the rules of
+    // the tab it came from.
     bool returnsToOwner(String url) =>
-        hosted &&
+        (hosted || runsForeignTab) &&
         onReturnToOwner != null &&
         getNormalizedDomain(url) == ownerDomain;
     void returnToOwner(String url) => onReturnToOwner?.call(url);
@@ -1750,13 +1791,13 @@ class WebViewModel {
             );
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
               targetUrl: url,
-              initUrl: id.initUrl,
+              initUrl: navHome,
               hasGesture: hasGesture,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
               externalLinkMode: id.effectiveExternalLinkMode,
-              matchesSiteClaim: id.matchesSiteClaim,
+              matchesSiteClaim: navClaim,
             );
             switch (result.gestureUpdate) {
               case GestureStateUpdate.record:
@@ -1853,18 +1894,18 @@ class WebViewModel {
             // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
             // (e.g., server-side 302 from search engine redirect pages like
             // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
-            final initDomain = getNormalizedDomain(id.initUrl);
+            final initDomain = getNormalizedDomain(navHome);
             final handled = NavigationDecisionEngine.handleOnUrlChanged(
               newUrl: url,
-              initUrl: id.initUrl,
+              initUrl: navHome,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: DateTime.now(),
               isCaptchaChallenge: (u) =>
-                  WebViewFactory.isCaptchaChallenge(u, siteUrl: id.initUrl),
+                  WebViewFactory.isCaptchaChallenge(u, siteUrl: navHome),
               state: urlChangedState,
               externalLinkMode: id.effectiveExternalLinkMode,
-              matchesSiteClaim: id.matchesSiteClaim,
+              matchesSiteClaim: navClaim,
             );
             switch (handled.gestureUpdate) {
               case GestureStateUpdate.record:
@@ -2814,6 +2855,7 @@ class WebViewModel {
         'alwaysOpenHome': alwaysOpenHome,
         'kioskMode': kioskMode,
         if (!tabsEnabled) 'tabsEnabled': false,
+        if (containerColor != null) 'containerColor': containerColor,
         'language': language,
         if (zoomPercent != kDefaultZoomPercent) 'zoomPercent': zoomPercent,
         'clearUrlEnabled': clearUrlEnabled,
@@ -2966,6 +3008,10 @@ class WebViewModel {
       alwaysOpenHome: isAlwaysOpenHome,
       kioskMode: field<bool>('kioskMode') ?? false,
       tabsEnabled: field<bool>('tabsEnabled') ?? true,
+      containerColor: switch (field<int>('containerColor')) {
+        final int i when i >= 0 => i,
+        _ => null,
+      },
       language: sanitizedLanguageTag(json['language']),
       zoomPercent: clampZoomPercent(
           finite('zoomPercent')?.toInt() ?? kDefaultZoomPercent),

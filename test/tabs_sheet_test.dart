@@ -6,6 +6,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 
 /// A site with [urls] as tabs. The first is the active one; every later tab is
@@ -574,6 +575,255 @@ void main() {
       ]);
       expect(strengthOf(tester, 'https://github.com/'), lessThan(1));
       expect(isHighlighted('https://github.com/'), isFalse);
+    });
+  });
+
+  group('TAB-017, TAB-018 — subtrees from other sites, container marks', () {
+    const ddgHome = 'https://duckduckgo.com/';
+    const hosted = 'https://duckduckgo.com/?q=hosted';
+    const below = 'https://github.com/below-hosted';
+    const foreign = 'https://duckduckgo.com/?q=foreign';
+    const ddgChild = 'https://duckduckgo.com/?q=own';
+
+    late WebViewModel gh;
+    late WebViewModel ddg;
+
+    setUp(() {
+      // GitHub's tree: its home, a tab a link opened as DuckDuckGo with a
+      // GitHub page opened below it, and one a link opened while GitHub's
+      // routing was off, which runs as GitHub in DuckDuckGo's domain.
+      gh = WebViewModel(
+        siteId: 'gh',
+        initUrl: 'https://github.com/',
+        name: 'GitHub',
+        containerColor: 0,
+        tabs: [
+          SiteTab.primary(url: 'https://github.com/'),
+          SiteTab(
+              id: 'h',
+              url: hosted,
+              parentId: kPrimaryTabId,
+              hostSiteId: 'ddg',
+              openerSiteId: 'gh',
+              homeUrl: hosted),
+          SiteTab(id: 'h1', url: below, parentId: 'h'),
+          SiteTab(
+              id: 'f',
+              url: foreign,
+              parentId: kPrimaryTabId,
+              openerSiteId: 'gh',
+              homeUrl: foreign),
+        ],
+      );
+      ddg = WebViewModel(
+        siteId: 'ddg',
+        initUrl: ddgHome,
+        name: 'DuckDuckGo',
+        containerColor: 1,
+        tabs: [
+          SiteTab.primary(url: ddgHome),
+          SiteTab(id: 'own', url: ddgChild, parentId: kPrimaryTabId),
+        ],
+      );
+      final byId = {'gh': gh, 'ddg': ddg};
+      WebViewModel.siteLookup = (id) => byId[id];
+    });
+    tearDown(() => WebViewModel.siteLookup = null);
+
+    /// DuckDuckGo on screen, GitHub after it.
+    List<TabsSheetSite> sites() => [
+          TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
+          TabsSheetSite(index: 0, model: gh, isCurrent: false, isLoaded: false),
+        ];
+
+    WebViewModel markedAs(WidgetTester tester, String text) => tester
+        .widget<ContainerMark>(find.descendant(
+          of: find
+              .ancestor(of: find.text(text).first, matching: find.byType(InkWell))
+              .first,
+          matching: find.byType(ContainerMark),
+        ))
+        .site;
+
+    bool draggable(String text) => find
+        .ancestor(
+          of: find.text(text).first,
+          matching: find.byWidgetPredicate((w) => w is LongPressDraggable),
+        )
+        .evaluate()
+        .isNotEmpty;
+
+    testWidgets('This site lists, under the other site, only what runs as it',
+        (tester) async {
+      await pumpSheet(tester, sites(), onMoveTab: (_, _, _) => true);
+      expect(find.text('In GitHub'), findsOneWidget);
+      expect(find.text(hosted), findsOneWidget);
+      expect(find.text(below), findsOneWidget,
+          reason: 'the subtree comes whole, whatever its tabs run as');
+      expect(find.text(foreign), findsNothing,
+          reason: 'a tab run as GitHub is not DuckDuckGo\'s');
+      expect(find.text('https://github.com/'), findsNothing);
+      expect(rowOrder(tester, [ddgHome, ddgChild, hosted, below]),
+          [ddgHome, ddgChild, hosted, below]);
+      expect(
+        tester.getTopLeft(find.text('In GitHub')).dy,
+        greaterThan(tester.getTopLeft(find.text(ddgChild)).dy),
+        reason: 'the site\'s own tree comes first',
+      );
+    });
+
+    testWidgets('a site nothing elsewhere runs as gets no extra heading',
+        (tester) async {
+      await pumpSheet(tester, [
+        TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
+        TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),
+      ]);
+      expect(find.textContaining('In '), findsNothing);
+    });
+
+    testWidgets('a tap opens the tab in the site whose tree holds it',
+        (tester) async {
+      final opened = <(int, String)>[];
+      await pumpSheet(tester, sites(), onOpenTab: (i, id) => opened.add((i, id)));
+      await tester.tap(find.text(hosted));
+      await tester.pump();
+      expect(opened, [(0, 'h')]);
+    });
+
+    testWidgets('rows from another site\'s tree are not dragged from here',
+        (tester) async {
+      final moves = <String>[];
+      await pumpSheet(tester, sites(), onMoveTab: (_, id, _) {
+        moves.add(id);
+        return true;
+      });
+      expect(draggable(ddgChild), isTrue);
+      expect(draggable(hosted), isFalse);
+      expect(draggable(below), isFalse);
+      await dragRow(tester, hosted, ddgHome);
+      expect(moves, isEmpty);
+    });
+
+    testWidgets('each row is marked with the container it runs in',
+        (tester) async {
+      await pumpSheet(tester, sites());
+      expect(markedAs(tester, ddgHome), same(ddg));
+      expect(markedAs(tester, hosted), same(ddg));
+      expect(markedAs(tester, below), same(gh));
+
+      await tester.tap(find.text('All sites'));
+      await tester.pump();
+      expect(markedAs(tester, foreign), same(gh),
+          reason: 'routing off: the tab runs in its opener\'s container');
+      expect(find.text('as GitHub · duckduckgo.com'), findsOneWidget,
+          reason: 'a foreign row names the site it runs as');
+      expect(find.text('as DuckDuckGo · duckduckgo.com'), findsWidgets);
+    });
+
+    testWidgets('a mark draws its site\'s colour for the theme brightness',
+        (tester) async {
+      await pumpSheet(tester, sites());
+      Color colourOf(String text) {
+        final mark = find.descendant(
+          of: find.ancestor(of: find.text(text).first, matching: find.byType(InkWell)).first,
+          matching: find.byType(ContainerMark),
+        );
+        final box = tester.widget<Container>(
+            find.descendant(of: mark, matching: find.byType(Container)));
+        return (box.decoration! as BoxDecoration).color!;
+      }
+
+      expect(colourOf(hosted), ContainerColors.of(1, Brightness.light));
+      expect(colourOf(below), ContainerColors.of(0, Brightness.light));
+      expect(containerColorOf(gh, Brightness.dark),
+          ContainerColors.of(0, Brightness.dark));
+    });
+
+    testWidgets('the marks say nothing to a screen reader', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpSheet(tester, sites());
+      for (final e in find.byType(ContainerMark).evaluate()) {
+        expect(
+          find.ancestor(of: find.byWidget(e.widget), matching: find.byType(ExcludeSemantics)),
+          findsNothing,
+          reason: 'the exclusion is the mark\'s own, below it',
+        );
+        expect(
+          find.descendant(of: find.byWidget(e.widget), matching: find.byType(ExcludeSemantics)),
+          findsOneWidget,
+        );
+      }
+      handle.dispose();
+    });
+
+    testWidgets('collapsing is per site, though tab ids repeat across sites',
+        (tester) async {
+      await pumpSheet(tester, sites());
+      await tester.tap(find.text('All sites'));
+      await tester.pump();
+      expect(find.text(ddgChild), findsOneWidget);
+      // Both sites' first tab is the primary tab, with the same id. Collapse
+      // GitHub's: DuckDuckGo's children stay.
+      final ghHome = find.ancestor(
+          of: find.text('https://github.com/'), matching: find.byType(InkWell));
+      await tester.tap(find.descendant(
+          of: ghHome.first, matching: find.byIcon(Icons.keyboard_arrow_down)));
+      await tester.pump();
+      expect(find.text(foreign), findsNothing);
+      expect(find.text(ddgChild), findsOneWidget);
+    });
+
+    testWidgets('collapsing a subtree from here collapses it in its own tree',
+        (tester) async {
+      await pumpSheet(tester, sites());
+      final row = find.ancestor(of: find.text(hosted), matching: find.byType(InkWell));
+      await tester.tap(find.descendant(
+          of: row.first, matching: find.byIcon(Icons.keyboard_arrow_down)));
+      await tester.pump();
+      expect(find.text(below), findsNothing);
+      expect(find.text('1 tab hidden'), findsOneWidget);
+      await tester.tap(find.text('All sites'));
+      await tester.pump();
+      expect(find.text(below), findsNothing);
+    });
+
+    testWidgets('a double tap on a row opens the tab once and pops only the '
+        'sheet', (tester) async {
+      final opened = <String>[];
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: TextButton(
+                onPressed: () => showModalBottomSheet<void>(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => TabsSheet(
+                    sites: sites(),
+                    currentIndex: 0,
+                    onOpenTab: (_, id) => opened.add(id),
+                    onNewTab: (_) {},
+                    onCloseTab: (_, _) {},
+                    onCloseSubtree: (_, _) {},
+                  ),
+                ),
+                child: const Text('open sheet'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open sheet'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(hosted));
+      await tester.pump(const Duration(milliseconds: 16));
+      await tester.tap(find.text(hosted), warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(opened, ['h']);
+      expect(find.text('open sheet'), findsOneWidget,
+          reason: 'the second tap must not pop the page under the sheet');
     });
   });
 }

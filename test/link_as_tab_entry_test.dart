@@ -35,13 +35,22 @@ void main() {
       'containersActive: _useContainers',
       'kioskLocked: _kioskLocked',
       'hadGesture: hadGesture',
-      '_outboundCandidates(source)',
-      'identical(m, owner) || _mayHost(m, owner)',
+      'hosts: () => _tabHostsIn(owner, source)',
     ]) {
       expect(body, contains(arg), reason: arg);
     }
-    expect(body, isNot(contains('routeOutboundLinks')),
-        reason: 'the routing switch does not gate a tab');
+    final hosts = bodyOf(main, 'List<_SiteRouteAdapter> _tabHostsIn(');
+    expect(hosts, contains('_outboundCandidates(source)'));
+    expect(hosts, contains('identical(m, owner) || _mayHost(m, owner)'));
+  });
+
+  test('the source\'s routing switch decides the container (LIR-034)', () {
+    final body = bodyOf(main, 'DispatchAction? _tabRouteFor(');
+    expect(body,
+        contains('routeOutboundLinks: source.effectiveRouteOutboundLinks'));
+    // Routing off runs the tab as the source, which must be able to run in
+    // the owner's tree.
+    expect(body, contains('!_mayHost(source, owner)'));
   });
 
   test('a routed screen opens over the slot on screen, not what it runs as',

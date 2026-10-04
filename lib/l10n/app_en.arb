@@ -2246,6 +2246,10 @@
   "@siteSettingsRouteOutboundLinksHint": {
     "description": "Explanation behind the hint button of the 'Route links to my sites' switch. 'Claims' refers to the domain claims each site has (the hostnames that belong to it). 'Per-site containers' is the storage isolation that gives each site its own cookies."
   },
+  "siteSettingsRouteOutboundLinksTabsHint": "With tabs, a link into one of your sites opens as a tab. With this switch on, the tab runs as that site, with its sign-in, proxy and other settings; off, it runs as this site, with this one's. Changing the switch reloads the tabs opened from links here as the site it now picks.",
+  "@siteSettingsRouteOutboundLinksTabsHint": {
+    "description": "Second paragraph of the hint behind the 'Route links to my sites' switch, shown only when the site has tabs. Explains that the switch decides which of the user's sites a tab opened from a link runs as: the site the link leads to, or this one. Running as a site means using its sign-in (cookies), its proxy and every other per-site setting. Flipping the switch reloads such tabs as the other site."
+  },
   "siteSettingsRouteOutboundLinksNeedsContainers": "Needs per-site containers",
   "@siteSettingsRouteOutboundLinksNeedsContainers": {
     "description": "Subtitle under the disabled 'Route links to my sites' switch on devices whose web engine cannot give each site its own cookie storage (per-site containers)."
@@ -4783,6 +4787,16 @@
   "tabsSwitchAction": "Switch",
   "@tabsSwitchAction": {
     "description": "Action on the confirmation that opens the tab that was just created in the background."
+  },
+  "tabsInSite": "In {site}",
+  "@tabsInSite": {
+    "description": "Heading in a site's tab list over tabs that run as this site but sit in another site's list, because a link or a search in that other site opened them. {site} is the other site's name, for example 'In DuckDuckGo'.",
+    "placeholders": {
+      "site": {
+        "type": "String",
+        "example": "DuckDuckGo"
+      }
+    }
   },
   "tabsRunsAs": "as {site}",
   "@tabsRunsAs": {

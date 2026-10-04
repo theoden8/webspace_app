@@ -571,3 +571,80 @@ or active site SHALL change.
 - **WHEN** the user taps one of GitHub's tabs
 - **THEN** that tab of GitHub opens, not a tab of the site now in GitHub's old
   position
+
+---
+
+### Requirement: TAB-017 - A site's tabs in other sites' trees
+
+The Tabs sheet's This site view SHALL list, after the site's own tree, the
+subtrees of other sites' trees that run as it: a link tab another site opened
+as it (LIR-032, LIR-034) or a search it ran for another site (LIR-030). Each
+other site's subtrees SHALL come under a heading naming that site ("In
+GitHub"), each subtree whole, whatever its own descendants run as, indented
+from its own root. A site nothing elsewhere runs as SHALL get no such heading.
+
+Those rows SHALL stay in the tree that holds them: a tap SHALL open that site
+on the tab, close and close-subtree SHALL close it there, collapsing it SHALL
+collapse it there too, and they SHALL NOT be dragged from this view. Tab ids
+repeat across sites, so what is collapsed SHALL be kept per site and tab.
+
+#### Scenario: The same subtree in both sites
+
+- **GIVEN** a `duckduckgo.com` link from GitHub opened as a tab running as DuckDuckGo, with a GitHub page opened below it
+- **WHEN** the user opens the Tabs sheet on DuckDuckGo
+- **THEN** after DuckDuckGo's own tabs, "In GitHub" lists that tab and the GitHub page below it
+- **AND** GitHub's own tree in the All sites view lists the same two
+
+#### Scenario: A tab run as its opener is not the other site's
+
+- **GIVEN** GitHub's routing switch is off, and a `duckduckgo.com` link from GitHub opened as a tab running as GitHub
+- **WHEN** the user opens the Tabs sheet on DuckDuckGo
+- **THEN** that tab is not listed
+
+#### Scenario: A tap opens the tree that holds the tab
+
+- **GIVEN** the sheet on DuckDuckGo listing a tab "In GitHub"
+- **WHEN** the user taps it
+- **THEN** GitHub comes on screen on that tab, running as DuckDuckGo
+
+---
+
+### Requirement: TAB-018 - Container colours
+
+Each site SHALL have a container colour, and every tab row SHALL begin with a
+mark in the colour of the site the tab runs as, whichever tree holds it. A
+site has one container and one posture (LIR-018), so the mark names both: the
+sign-in the tab has and the settings it loads with. The All sites view SHALL mark each site's heading with
+its own colour, and site info SHALL show the colour beside the container it
+names (NAV-011), on the container engine only. The mark SHALL be decorative:
+the row names the site it runs as in words ("as {site}") whenever that is not
+the site whose tree holds it, or the tab runs outside that site's domain
+(LIR-034), so colour is never the only signal.
+
+The palette SHALL hold the same hues for light and dark themes, each reading
+at 3:1 against the surfaces of its brightness and distinct from the others. A
+site SHALL be given a colour the first time it is loaded or saved without one,
+the least used among the user's sites, lowest first on a tie, and SHALL keep it:
+adding, removing or reordering sites changes no other site's colour. The
+colour SHALL be stored with the site and carried by a backup.
+
+Only app-tier sites SHALL be counted or given a colour, so nothing the app tier
+stores depends on an archive (ARCH-001). An archive's site SHALL draw a colour
+derived from its id while its archive is open, and store none.
+
+#### Scenario: Two containers, one page
+
+- **GIVEN** two tabs at the same `github.com` page, one running as Work GitHub and one as Personal GitHub
+- **THEN** their rows carry different marks, and each names the site it runs as
+
+#### Scenario: A flip changes the mark
+
+- **GIVEN** a link tab running as GitHub, marked in GitHub's colour (LIR-034)
+- **WHEN** its opener's routing switch is turned off
+- **THEN** its row is marked in the opener's colour and says it runs as the opener
+
+#### Scenario: A new site does not repaint the others
+
+- **GIVEN** five sites with their colours
+- **WHEN** the user adds a sixth and deletes the second
+- **THEN** the sixth gets the least used colour and the other four keep theirs

@@ -5,8 +5,10 @@
 ///
 /// A tab renders inside the container and posture of the site it runs as: its
 /// owner, or the site named by [SiteTab.hostSiteId]. Its [url] stays inside
-/// that site's domain, so "which container does this tab use" has exactly one
-/// answer. A site holds one live webview,
+/// that site's domain, except for a tab a link opened while its opener's
+/// routing was off (LIR-034), which stays inside the link's domain. Either
+/// way "which container does this tab use" has exactly one answer, the site
+/// it runs as. A site holds one live webview,
 /// bound to its active tab; every other tab is parked — this record in
 /// SharedPreferences plus, when it has a back/forward stack worth keeping, one
 /// encrypted file under the key [webViewStateKey] names. No renderer, no
@@ -58,6 +60,8 @@ class SiteTab {
     this.title,
     this.parentId,
     this.hostSiteId,
+    this.openerSiteId,
+    this.homeUrl,
     DateTime? createdAt,
     DateTime? lastActiveAt,
   })  : id = id ?? generateTabId(),
@@ -73,14 +77,28 @@ class SiteTab {
   String? title;
 
   /// The tab this one was opened from, or null for a root tab. Always another
-  /// tab of the same site: "open in new tab" is offered only for a link inside
-  /// the site's domain, so a tab never has a parent in another container.
+  /// tab of the same site's list, though it may run in another container.
   String? parentId;
 
   /// The site this tab runs as when it is not its owner (LIR-018): its
   /// container, posture and navigation rules. Null means the owner. The owner
   /// normalises its own id to null, so a value always names another site.
   String? hostSiteId;
+
+  /// The site whose page opened this tab from a link into one of the user's
+  /// sites (LIR-034), or null for a tab nothing routes: one the user opened
+  /// by hand, a search's results, a link inside the page's own domain. Its
+  /// routing switch decides the container: on, the tab runs as the site the
+  /// link leads to; off, as the opener. May name the owner.
+  String? openerSiteId;
+
+  /// The link such a tab was opened at. The tab navigates inside this URL's
+  /// domain whatever it runs as, which is what lets a flip of the opener's
+  /// switch move it between containers without moving it between domains.
+  String? homeUrl;
+
+  /// Whether the opener's routing switch decides this tab's container.
+  bool get followsOpener => openerSiteId != null && homeUrl != null;
 
   final DateTime createdAt;
   DateTime lastActiveAt;
@@ -91,6 +109,8 @@ class SiteTab {
         if (title != null) 'title': title,
         if (parentId != null) 'parentId': parentId,
         if (hostSiteId != null) 'hostSiteId': hostSiteId,
+        if (openerSiteId != null) 'openerSiteId': openerSiteId,
+        if (homeUrl != null) 'homeUrl': homeUrl,
         'createdAt': createdAt.millisecondsSinceEpoch,
         'lastActiveAt': lastActiveAt.millisecondsSinceEpoch,
       };
@@ -113,6 +133,11 @@ class SiteTab {
               _kHostSiteIdPattern.hasMatch(json['hostSiteId'] as String)
           ? json['hostSiteId'] as String
           : null,
+      openerSiteId: json['openerSiteId'] is String &&
+              _kHostSiteIdPattern.hasMatch(json['openerSiteId'] as String)
+          ? json['openerSiteId'] as String
+          : null,
+      homeUrl: _webUrl(json['homeUrl']),
       createdAt: _time(json['createdAt']),
       lastActiveAt: _time(json['lastActiveAt']),
     );
@@ -130,6 +155,15 @@ class SiteTab {
     return null;
   }
 
+  /// An http(s) URL with a host, or null: a home URL names the domain a tab
+  /// navigates in, so anything else would leave that domain undefined.
+  static String? _webUrl(Object? raw) {
+    if (raw is! String) return null;
+    final uri = Uri.tryParse(raw);
+    if (uri == null || uri.host.isEmpty) return null;
+    return uri.scheme == 'http' || uri.scheme == 'https' ? raw : null;
+  }
+
   static DateTime? _time(Object? raw) => raw is int
       ? DateTime.fromMillisecondsSinceEpoch(raw)
       : null;
@@ -137,5 +171,6 @@ class SiteTab {
   @override
   String toString() => 'SiteTab($id, $url'
       '${parentId == null ? '' : ', parent=$parentId'}'
-      '${hostSiteId == null ? '' : ', host=$hostSiteId'})';
+      '${hostSiteId == null ? '' : ', host=$hostSiteId'}'
+      '${openerSiteId == null ? '' : ', opener=$openerSiteId'})';
 }

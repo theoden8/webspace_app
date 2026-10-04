@@ -243,9 +243,19 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
 
   // --- Link handling -------------------------------------------------------
 
+  bool get _tabsAvailable =>
+      widget.tabsAvailable ??
+      ExperimentalFeaturesService.instance
+          .isEnabled(ExperimentalFeature.siteTabs);
+
+  /// With tabs, the switch also decides which container a link's tab runs in
+  /// (LIR-034), so the hint says so where that applies.
   Widget _routeOutboundLinks(AppLocalizations loc) => _tile(
         title: loc.siteSettingsRouteOutboundLinks,
-        hint: loc.siteSettingsRouteOutboundLinksHint,
+        hint: _tabsAvailable && _values.effectiveTabsEnabled
+            ? '${loc.siteSettingsRouteOutboundLinksHint}\n\n'
+                '${loc.siteSettingsRouteOutboundLinksTabsHint}'
+            : loc.siteSettingsRouteOutboundLinksHint,
         subtitle: widget.containersActive
             ? null
             : loc.siteSettingsRouteOutboundLinksNeedsContainers,
@@ -512,10 +522,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           _alwaysOpenHome(loc),
           _kioskMode(loc),
           _fullscreen(loc),
-          if (widget.tabsAvailable ??
-              ExperimentalFeaturesService.instance
-                  .isEnabled(ExperimentalFeature.siteTabs))
-            _tabs(loc),
+          if (_tabsAvailable) _tabs(loc),
           _htmlCaching(loc),
           _groupHeader(loc.linkHandlingScreenTitle),
           _externalLinks(loc),

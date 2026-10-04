@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -20,6 +21,7 @@ SiteInfo _info({
   bool incognito = false,
   String? tabOf,
   String? openedFrom,
+  int? containerColor,
 }) =>
     SiteInfo(
       siteName: 'GitHub',
@@ -28,6 +30,7 @@ SiteInfo _info({
       incognito: incognito,
       tabOf: tabOf,
       openedFrom: openedFrom,
+      containerColor: containerColor,
     );
 
 void main() {
@@ -132,6 +135,29 @@ void main() {
     testWidgets('the shared store says so', (tester) async {
       await tester.pumpWidget(_host(SiteInfoSheet(info: _info())));
       expect(find.text('Shared, cookies swapped per site'), findsOneWidget);
+    });
+
+    testWidgets('the container row carries its colour (TAB-018)',
+        (tester) async {
+      Iterable<Color?> dots() => tester
+          .widgetList<Container>(find.descendant(
+            of: find.byType(SiteInfoSheet),
+            matching: find.byType(Container),
+          ))
+          .map((c) => c.decoration)
+          .whereType<BoxDecoration>()
+          .where((d) => d.shape == BoxShape.circle)
+          .map((d) => d.color);
+
+      await tester.pumpWidget(_host(SiteInfoSheet(
+        info: _info(containerId: 'ws-gh', containerColor: 2),
+      )));
+      expect(dots(), [ContainerColors.of(2, Brightness.light)]);
+
+      await tester.pumpWidget(_host(SiteInfoSheet(
+        info: _info(containerId: 'ws-gh'),
+      )));
+      expect(dots(), isEmpty, reason: 'no colour where none was given');
     });
   });
 

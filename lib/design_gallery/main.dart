@@ -105,6 +105,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: (c) => const _AddSiteCard()),
   GalleryCard(id: 'unproxied-block', label: 'Blocked navigation interstitial', fullBleed: true, builder: (c) => const _UnproxiedBlockCard()),
   GalleryCard(id: 'tabs-sheet', label: 'Tabs sheet', fullBleed: true, builder: (c) => const _TabsSheetCard()),
+  GalleryCard(id: 'tabs-sheet-in-site', label: 'Tabs sheet, a site in other trees', fullBleed: true, builder: (c) => const _TabsSheetInSiteCard()),
   GalleryCard(id: 'web-search-sheet', label: 'Web search sheet', fullBleed: true, builder: (c) => const _WebSearchSheetCard()),
   GalleryCard(id: 'web-search-empty', label: 'Web search sheet, no search sites', fullBleed: true, builder: (c) => const _WebSearchEmptyCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
@@ -593,6 +594,7 @@ class _SiteInfoCard extends StatelessWidget {
             tabOf: 'DuckDuckGo',
             pageUrl: 'https://github.com/theoden8/webspace_app',
             containerId: 'ws-3f9c2a7e',
+            containerColor: 0,
             incognito: false,
             proxy: UserProxySettings(
               type: ProxyType.SAVED,
@@ -1109,16 +1111,15 @@ class _BrowserChromeCard extends StatelessWidget {
 
 /// A site whose tabs are [tabs], with [active] bound to its webview.
 WebViewModel _siteWithTabs(
-    String name, String initUrl, List<SiteTab> tabs, String active) {
-  final m = WebViewModel(initUrl: initUrl, name: name);
+    String name, String initUrl, List<SiteTab> tabs, String active,
+    {String? siteId, int? containerColor}) {
+  final m = WebViewModel(
+      initUrl: initUrl, name: name, siteId: siteId, containerColor: containerColor);
   m.tabs = tabs;
   m.activeTabId = active;
   return m;
 }
 
-/// The real TabsSheet over a page, as the app's modal presents it. Three sites
-/// cover every load state TAB-011 draws: GitHub is on screen, Mastodon is
-/// loaded in the background, Wikipedia holds no webview.
 class _WebSearchSheetCard extends StatelessWidget {
   const _WebSearchSheetCard();
 
@@ -1193,49 +1194,92 @@ class _SearchSheetFrame extends StatelessWidget {
   }
 }
 
+/// The sites the two Tabs sheet cards share, one set of models so a tab one
+/// site's tree holds shows in the other's list too (TAB-017). GitHub's
+/// routing is off: a Wikipedia link it opened runs as GitHub in Wikipedia's
+/// domain (LIR-034), while a search it ran in DuckDuckGo runs as DuckDuckGo
+/// (LIR-030). Each site has its colour (TAB-018).
+abstract final class _TabsDemo {
+  static final WebViewModel github = _siteWithTabs('GitHub', 'https://github.com/', [
+    SiteTab.primary(url: 'https://github.com/theoden8/webspace_app', title: 'theoden8/webspace_app'),
+    SiteTab(id: 'pulls', url: 'https://github.com/theoden8/webspace_app/pulls', title: 'Pull requests', parentId: kPrimaryTabId),
+    SiteTab(id: 'pr659', url: 'https://github.com/theoden8/webspace_app/pull/659', title: 'Let the routing switch pick the site #659', parentId: 'pulls'),
+    SiteTab(id: 'search', url: 'https://duckduckgo.com/?q=flutter+inappwebview', title: 'flutter inappwebview at DuckDuckGo', parentId: kPrimaryTabId, hostSiteId: 'ddg'),
+    SiteTab(id: 'result', url: 'https://github.com/pichillilorenzo/flutter_inappwebview', title: 'flutter_inappwebview', parentId: 'search'),
+    SiteTab(id: 'wiki', url: 'https://en.wikipedia.org/wiki/Tree_(data_structure)', title: 'Tree (data structure)', parentId: 'pr659', openerSiteId: 'gh', homeUrl: 'https://en.wikipedia.org/wiki/Tree_(data_structure)'),
+  ], 'pr659', siteId: 'gh', containerColor: 0);
+
+  static final WebViewModel mastodon = _siteWithTabs('Mastodon', 'https://mastodon.social/', [
+    SiteTab.primary(url: 'https://mastodon.social/home', title: 'Home'),
+    SiteTab(id: 'thread', url: 'https://mastodon.social/@flutter/113', title: 'Thread by @flutter', parentId: kPrimaryTabId),
+  ], 'thread', siteId: 'mastodon', containerColor: 6);
+
+  static final WebViewModel wikipedia = _siteWithTabs('Wikipedia', 'https://en.wikipedia.org/', [
+    SiteTab.primary(url: 'https://en.wikipedia.org/wiki/Tab_(interface)', title: 'Tab (interface)'),
+  ], kPrimaryTabId, siteId: 'wiki', containerColor: 2);
+
+  static final WebViewModel duckduckgo = _siteWithTabs('DuckDuckGo', 'https://duckduckgo.com/', [
+    SiteTab.primary(url: 'https://duckduckgo.com/?q=webview+containers', title: 'webview containers at DuckDuckGo'),
+    SiteTab(id: 'own', url: 'https://duckduckgo.com/?q=tab+trees', title: 'tab trees at DuckDuckGo', parentId: kPrimaryTabId),
+  ], kPrimaryTabId, siteId: 'ddg', containerColor: 4);
+
+  static final Map<String, WebViewModel> _byId = {
+    for (final m in [github, mastodon, wikipedia, duckduckgo]) m.siteId: m,
+  };
+
+  /// Hosted rows resolve the site they run as through this, as the app's do.
+  static void bindLookup() => WebViewModel.siteLookup = (id) => _byId[id];
+
+  static List<TabsSheetSite> sites({required WebViewModel current}) => [
+        for (final (i, m) in [github, mastodon, wikipedia, duckduckgo].indexed)
+          TabsSheetSite(
+            index: i,
+            model: m,
+            isCurrent: identical(m, current),
+            isLoaded: identical(m, current) || identical(m, mastodon),
+          ),
+      ];
+}
+
+/// The real TabsSheet over a page, as the app's modal presents it. GitHub is
+/// on screen, Mastodon is loaded in the background, the rest hold no webview
+/// (TAB-011); GitHub's tree runs tabs as three sites, each row marked with
+/// the colour of the one it runs as.
 class _TabsSheetCard extends StatelessWidget {
   const _TabsSheetCard();
 
-  static final List<TabsSheetSite> _sites = [
-    TabsSheetSite(
-      index: 0,
-      isCurrent: true,
-      isLoaded: true,
-      model: _siteWithTabs('GitHub', 'https://github.com/', [
-        SiteTab.primary(url: 'https://github.com/theoden8/webspace_app', title: 'theoden8/webspace_app'),
-        SiteTab(id: 'pulls', url: 'https://github.com/theoden8/webspace_app/pulls', title: 'Pull requests', parentId: kPrimaryTabId),
-        SiteTab(id: 'pr611', url: 'https://github.com/theoden8/webspace_app/pull/611', title: 'Add per-site tabs #611', parentId: 'pulls'),
-        SiteTab(id: 'pr630', url: 'https://github.com/theoden8/webspace_app/pull/630', title: 'Add a screenshot block #630', parentId: 'pulls'),
-        SiteTab(id: 'issues', url: 'https://github.com/theoden8/webspace_app/issues', title: 'Issues', parentId: kPrimaryTabId),
-        SiteTab(id: 'notif', url: 'https://github.com/notifications', title: 'Notifications'),
-      ], 'pr611'),
-    ),
-    TabsSheetSite(
-      index: 1,
-      isCurrent: false,
-      isLoaded: true,
-      model: _siteWithTabs('Mastodon', 'https://mastodon.social/', [
-        SiteTab.primary(url: 'https://mastodon.social/home', title: 'Home'),
-        SiteTab(id: 'thread', url: 'https://mastodon.social/@flutter/113', title: 'Thread by @flutter', parentId: kPrimaryTabId),
-        SiteTab(id: 'explore', url: 'https://mastodon.social/explore', title: 'Explore'),
-      ], 'thread'),
-    ),
-    TabsSheetSite(
-      index: 2,
-      isCurrent: false,
-      isLoaded: false,
-      model: _siteWithTabs('Wikipedia', 'https://en.wikipedia.org/', [
-        SiteTab.primary(url: 'https://en.wikipedia.org/wiki/Tab_(interface)', title: 'Tab (interface)'),
-        SiteTab(id: 'tree', url: 'https://en.wikipedia.org/wiki/Tree_(data_structure)', title: 'Tree (data structure)', parentId: kPrimaryTabId),
-      ], kPrimaryTabId),
-    ),
-  ];
+  @override
+  Widget build(BuildContext context) {
+    _TabsDemo.bindLookup();
+    return const _TabsSheetOver(title: 'GitHub', current: 0);
+  }
+}
+
+/// DuckDuckGo's Tabs sheet: its own tree, then the subtree GitHub's tree runs
+/// as DuckDuckGo, under "In GitHub" (TAB-017).
+class _TabsSheetInSiteCard extends StatelessWidget {
+  const _TabsSheetInSiteCard();
+
+  @override
+  Widget build(BuildContext context) {
+    _TabsDemo.bindLookup();
+    return const _TabsSheetOver(title: 'DuckDuckGo', current: 3);
+  }
+}
+
+class _TabsSheetOver extends StatelessWidget {
+  const _TabsSheetOver({required this.title, required this.current});
+
+  final String title;
+  final int current;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final sites = _TabsDemo.sites(
+        current: [_TabsDemo.github, _TabsDemo.mastodon, _TabsDemo.wikipedia, _TabsDemo.duckduckgo][current]);
     return Scaffold(
-      appBar: AppBar(title: const Text('GitHub')),
+      appBar: AppBar(title: Text(title)),
       body: Stack(
         children: [
           Positioned.fill(child: ColoredBox(color: theme.colorScheme.surfaceContainerHighest)),
@@ -1246,8 +1290,8 @@ class _TabsSheetCard extends StatelessWidget {
               enableDrag: false,
               onClosing: _noop,
               builder: (_) => TabsSheet(
-                sites: _sites,
-                currentIndex: 0,
+                sites: sites,
+                currentIndex: current,
                 onOpenTab: (_, _) {},
                 onNewTab: (_) {},
                 onWebSearch: () {},
