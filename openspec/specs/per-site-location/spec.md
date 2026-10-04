@@ -410,6 +410,16 @@ The per-site Timezone dropdown SHALL include a "From picked location" entry. The
 **Then** the cache file is deleted, in-memory state is cleared, and `isReady` returns false
 **And** any per-site setting with `spoofTimezoneFromLocation = true` falls through to system default
 
+#### Scenario: App Settings reports the dataset on disk, not in memory
+
+**Given** the dataset was downloaded in an earlier launch
+**And** nothing in this launch has loaded it (only per-site settings and the from-location startup refresh do)
+**When** the user opens App Settings
+**Then** the "Timezone polygons" row SHALL show the zone count stored at download, the last-updated timestamp, and the Refresh and Clear buttons
+**And** showing the row SHALL NOT load the polygons into memory; a dataset stored before the count was recorded is counted once on a background isolate
+**And** when the dataset file is absent the row SHALL read "Not downloaded" with no timestamp, whatever the stored timestamp says
+**And** the row SHALL follow a load, download or clear made while it is open
+
 ---
 
 ### Requirement: LOC-004 - WebRTC policy

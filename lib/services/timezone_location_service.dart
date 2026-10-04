@@ -20,6 +20,7 @@ const String _defaultUrl =
 const String _cacheFileName = 'tz_polygons.geojson';
 const String _urlPrefKey = 'tz_polygons_url';
 const String _lastUpdatedPrefKey = 'tz_polygons_last_updated';
+const String _zoneCountPrefKey = 'tz_polygons_zone_count';
 
 /// One zone's polygon set, prepared for fast point-in-polygon lookup.
 class _ZoneEntry {
@@ -56,6 +57,7 @@ class TimezoneLocationService {
 
   List<_ZoneEntry>? _zones;
   bool _loadAttempted = false;
+  Future<int>? _countingFromFile;
 
   /// True iff a polygon dataset is parsed and ready for lookups.
   bool get isReady => _zones != null && _zones!.isNotEmpty;
@@ -98,10 +100,45 @@ class TimezoneLocationService {
     return DateTime.tryParse(s);
   }
 
+  /// Whether a dataset file is on disk, loaded into memory or not.
+  Future<bool> hasCachedDataset() async {
+    try {
+      return await hostFileExists(await _cachePath());
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Zone count of the dataset on disk, or null when none is cached. Answers
+  /// without loading the dataset into memory, which only the lookup paths do.
+  Future<int?> cachedZoneCount() async {
+    if (!await hasCachedDataset()) return null;
+    final zones = _zones;
+    if (zones != null) return zones.length;
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getInt(_zoneCountPrefKey);
+    if (stored != null) return stored;
+    // Downloaded before the count was stored. The parse runs off-isolate and
+    // only the number comes back, so the polygons are not kept in memory.
+    final path = await _cachePath();
+    try {
+      final count =
+          await (_countingFromFile ??= compute(_readAndCountZones, path));
+      await prefs.setInt(_zoneCountPrefKey, count);
+      return count;
+    } catch (e) {
+      LogService.instance
+          .log('TZ', 'Failed to count tz cache: $e', level: LogLevel.error);
+      return 0;
+    } finally {
+      _countingFromFile = null;
+    }
+  }
+
   /// Load the cached dataset from disk if present. Idempotent — subsequent
-  /// calls return the already-loaded set. Called lazily on first lookup
-  /// and eagerly at app startup so the UI knows whether the dataset is
-  /// ready before the user opens settings.
+  /// calls return the already-loaded set. Called only by the paths that look
+  /// zones up (per-site settings, the post-paint startup refresh), so the
+  /// dataset is usually not in memory; status display uses [cachedZoneCount].
   Future<bool> loadFromCacheIfPresent() async {
     if (_zones != null) return true;
     if (_loadAttempted) return false;
@@ -115,6 +152,8 @@ class TimezoneLocationService {
       // the main isolate while the caller still awaits readiness, so
       // tz-from-location spoofing stays armed before any webview builds.
       _zones = await compute(_readAndParseZones, path);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_zoneCountPrefKey, _zones!.length);
       LogService.instance
           .log('TZ', 'Loaded ${_zones?.length ?? 0} zones from cache');
       _notifyListeners();
@@ -191,12 +230,14 @@ class TimezoneLocationService {
 
       // Write through to disk first so a parse failure leaves the file
       // recoverable (the user can edit it / re-download).
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_zoneCountPrefKey);
       await hostWriteFileText(await _cachePath(), body);
 
       _zones = await compute(_parseZones, body);
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
           _lastUpdatedPrefKey, DateTime.now().toIso8601String());
+      await prefs.setInt(_zoneCountPrefKey, _zones!.length);
       LogService.instance.log('TZ',
           'Downloaded and parsed ${_zones?.length ?? 0} zones from $url');
       _notifyListeners();
@@ -218,6 +259,7 @@ class TimezoneLocationService {
       await hostDeleteFile(await _cachePath());
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_lastUpdatedPrefKey);
+      await prefs.remove(_zoneCountPrefKey);
     } catch (e) {
       LogService.instance
           .log('TZ', 'Clear error: $e', level: LogLevel.error);
@@ -279,6 +321,8 @@ class TimezoneLocationService {
 /// the polygon build both stay off the main isolate.
 List<_ZoneEntry> _readAndParseZones(String path) =>
     _parseZones(hostReadFileTextSync(path));
+
+int _readAndCountZones(String path) => _readAndParseZones(path).length;
 
 /// Benchmark/test hook: parse a GeoJSON body synchronously on the calling
 /// isolate and return the zone count. Lets a `flutter test` profile the parse
