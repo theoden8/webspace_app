@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -339,6 +340,131 @@ void main() {
       expect(PasskeyEngine.errorForNative('BUSY'), PasskeyError.busy);
       expect(PasskeyEngine.errorForNative('INTERRUPTED').name, 'NotReadableError');
       expect(PasskeyEngine.errorForNative('whatever').name, 'NotReadableError');
+    });
+  });
+
+  group('a ceremony ends (PASSKEY-015)', () {
+    test('the page timeout is held to the bounds', () {
+      expect(PasskeyEngine.ceremonyTimeout(null), PasskeyEngine.defaultTimeout);
+      expect(PasskeyEngine.ceremonyTimeout('60000'), PasskeyEngine.defaultTimeout);
+      expect(PasskeyEngine.ceremonyTimeout(0), PasskeyEngine.defaultTimeout);
+      expect(PasskeyEngine.ceremonyTimeout(double.nan),
+          PasskeyEngine.defaultTimeout);
+      expect(PasskeyEngine.ceremonyTimeout(1000), PasskeyEngine.minTimeout);
+      expect(PasskeyEngine.ceremonyTimeout(60000), const Duration(minutes: 1));
+      expect(PasskeyEngine.ceremonyTimeout(3600000), PasskeyEngine.maxTimeout);
+      expect(PasskeyEngine.ceremonyTimeout(1e300), PasskeyEngine.maxTimeout);
+      expect(PasskeyEngine.ceremonyTimeout(double.infinity),
+          PasskeyEngine.defaultTimeout);
+    });
+
+    test('the plan carries the page timeout', () {
+      final c = planFor('create', {...createOptions(), 'timeout': 90000})
+          .ceremony!;
+      expect(c.timeout, const Duration(seconds: 90));
+      expect(planFor('get', getOptions()).ceremony!.timeout,
+          PasskeyEngine.defaultTimeout);
+    });
+
+    PasskeyCeremony ceremony({Duration timeout = PasskeyEngine.defaultTimeout}) {
+      final c = planFor('get', getOptions()).ceremony!;
+      return PasskeyCeremony(
+        op: c.op,
+        origin: c.origin,
+        rpId: c.rpId,
+        requestJson: c.requestJson,
+        clientDataJson: c.clientDataJson,
+        clientDataHash: c.clientDataHash,
+        timeout: timeout,
+      );
+    }
+
+    test('an unanswered request times out, is cancelled and frees the gate',
+        () async {
+      final gate = PasskeyCeremonyGate();
+      final logs = <String>[];
+      var cancelled = 0;
+      final out = await PasskeyEngine.runCeremony(
+        gate: gate,
+        key: 'wv1:https://login.example.com:1',
+        label: 'wv1#1',
+        ceremony: ceremony(timeout: const Duration(milliseconds: 20)),
+        send: () => Completer<String>().future,
+        cancel: () async => cancelled++,
+        log: logs.add,
+      );
+      expect(out, PasskeyError.notAllowed.toBridgeJson());
+      expect(cancelled, 1);
+      expect(gate.active, isNull);
+      expect(logs, [
+        'get wv1#1: sent to Credential Manager',
+        'get wv1#1: no answer in 0s, cancelled',
+      ]);
+    });
+
+    test('a native failure is logged by its code, the page sees the DOM name',
+        () async {
+      final gate = PasskeyCeremonyGate();
+      final logs = <String>[];
+      final out = await PasskeyEngine.runCeremony(
+        gate: gate,
+        key: 'k',
+        label: 'wv1#2',
+        ceremony: ceremony(),
+        send: () => Future.error(const PasskeyNativeFailure('NO_CREATE_OPTIONS')),
+        cancel: () async => fail('nothing to cancel'),
+        log: logs.add,
+      );
+      expect(out, PasskeyError.notAllowed.toBridgeJson());
+      expect(gate.active, isNull);
+      expect(logs.last, 'get wv1#2: NO_CREATE_OPTIONS, NotAllowedError');
+    });
+
+    test('a request while one is pending is refused and logged', () async {
+      final gate = PasskeyCeremonyGate()..begin('other');
+      final logs = <String>[];
+      var sent = false;
+      final out = await PasskeyEngine.runCeremony(
+        gate: gate,
+        key: 'k',
+        label: 'wv2#3',
+        ceremony: ceremony(),
+        send: () async {
+          sent = true;
+          return '';
+        },
+        cancel: () async {},
+        log: logs.add,
+      );
+      expect(out, PasskeyError.busy.toBridgeJson());
+      expect(sent, isFalse);
+      expect(gate.active, 'other');
+      expect(logs, ['get wv2#3: refused, another request is pending']);
+    });
+
+    test('an answer is completed, and no log line names the origin', () async {
+      final gate = PasskeyCeremonyGate();
+      final logs = <String>[];
+      final response = jsonEncode({
+        'id': 'cred-1',
+        'response': {
+          'authenticatorData': b64u(authDataFor('login.example.com', flags: 5)),
+          'signature': b64u([1, 2, 3]),
+        },
+      });
+      final out = await PasskeyEngine.runCeremony(
+        gate: gate,
+        key: 'wv1:https://login.example.com:4',
+        label: 'wv1#4',
+        ceremony: ceremony(),
+        send: () async => response,
+        cancel: () async {},
+        log: logs.add,
+      );
+      expect(out['ok'], isTrue);
+      expect(gate.active, isNull);
+      expect(logs.last, 'get wv1#4: ok');
+      expect(logs.any((l) => l.contains('example.com')), isFalse);
     });
   });
 

@@ -28,6 +28,9 @@ class PasskeyNativeStatus {
   final bool webViewSupport;
 
   bool get available => sdk >= 34 && feature && permission;
+
+  /// What decided [available], for the log.
+  String get describe => 'sdk=$sdk feature=$feature permission=$permission';
 }
 
 /// Dart side of `PasskeyPlugin.kt`. Android only; elsewhere every call
@@ -65,7 +68,7 @@ class PasskeyNative {
   }
 
   /// Run [ceremony] through Credential Manager. Returns the provider's JSON,
-  /// or throws [PasskeyError].
+  /// or throws [PasskeyNativeFailure].
   static Future<String> run(String key, PasskeyCeremony ceremony) async {
     try {
       final json = await _channel.invokeMethod<String>(
@@ -77,12 +80,12 @@ class PasskeyNative {
           'clientDataHash': ceremony.clientDataHash,
         },
       );
-      if (json == null) throw PasskeyError.unreadable;
+      if (json == null) throw const PasskeyNativeFailure('UNREADABLE');
       return json;
     } on PlatformException catch (e) {
-      throw PasskeyEngine.errorForNative(e.code);
+      throw PasskeyNativeFailure(e.code);
     } on MissingPluginException {
-      throw PasskeyError.unsupported;
+      throw const PasskeyNativeFailure('UNSUPPORTED');
     }
   }
 

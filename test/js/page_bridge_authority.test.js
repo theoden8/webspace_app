@@ -346,6 +346,24 @@ test('PASSKEY-004: the origin asserted to Credential Manager is the bridge\'s, n
     + 'another origin\'s frame in the page can abort it by guessing the id');
 });
 
+test('PASSKEY-015: a ceremony cannot hold the gate past its timeout or its page', () => {
+  const at = WEBVIEW.indexOf("handlerName: 'webauthnRequest'");
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+  assert.ok(body.includes('PasskeyEngine.runCeremony('),
+    'webauthnRequest must send through PasskeyEngine.runCeremony, which '
+    + 'cancels a request Credential Manager never answers; without it one '
+    + 'stalled request refuses every later one until the app restarts');
+  assert.ok(!body.includes('_passkeyGate.begin('),
+    'the gate is taken inside runCeremony, not beside it');
+
+  const load = WEBVIEW.indexOf('onLoadStart: (controller, url) async {');
+  assert.notEqual(load, -1, 'onLoadStart is gone');
+  const loadBody = WEBVIEW.slice(load, load + 1500);
+  assert.match(loadBody,
+    /_passkeyGate\.active[\s\S]*?startsWith\('\$\{_passkeyWebviewKey\(controller\)\}:'\)[\s\S]*?PasskeyNative\.cancel\(/,
+    'a main-frame load must cancel the ceremony its webview started, and only that one');
+});
+
 // --- the permission prompts ----------------------------------------------
 
 test('CAM-013 / MIC-013: camera / microphone prompts name an origin read from the webview', () => {
