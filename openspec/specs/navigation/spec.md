@@ -430,6 +430,36 @@ Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateSto
 
 ---
 
+### Requirement: NAV-012 - A Site Opened During Startup Stays Open
+
+The startup restore SHALL NOT close a site the user opened while it was still running. `_restoreAppState` records `_setCurrentIndexVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
+
+**Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `_setCurrentIndex(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_currentIndex` cleared the next memory-pressure event no longer protected it.
+
+#### Scenario: Opening a site during a slow startup
+
+**Given** the app was launched normally, not from a shortcut
+**And** the restore is still awaiting startup work
+**When** the user taps a site on the home grid
+**Then** the site opens
+**And** it is still open after the restore completes
+
+#### Scenario: A plain launch with no tap still lands home
+
+**Given** the app was launched normally
+**When** the restore completes without the user opening anything
+**Then** the webspace list is shown
+
+#### Scenario: A shortcut launch still opens its site
+
+**Given** the app was launched from a site's home shortcut
+**When** the restore completes
+**Then** the shortcut's site is active
+
+Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/startup_restore_keeps_user_activation.test.js` (the restore asks it, with the version captured before the first await).
+
+---
+
 ## Race Condition Guards
 
 ### Guard: RACE-002 - _isBackHandling Flag

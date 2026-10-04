@@ -2133,11 +2133,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     // -1 is `document.body` missing, which the classification above counts as
     // alive: the call returned, so the renderer answered. A document with no
     // body cannot be repainted by a surface nudge, so say which document
-    // answered. See BUG-001 gap #17.
+    // answered and where its body went: removed (bodies=0), moved off the root
+    // (parent is not HTML), or a root that is not <html> at all. See BUG-001
+    // gap #17.
     if (!gone && result.toString() == '-1') {
       final detail = await controller.evaluateJavascriptReturning(
-          "document.readyState + ' ' + (document.documentElement ? 'html' : "
-          "'no-html') + ' ' + location.protocol + '//' + location.host");
+          "(function(){var r=document.documentElement,"
+          "b=document.getElementsByTagName('body');"
+          "return document.readyState+' root='+(r?r.nodeName:'none')"
+          "+' roots='+document.children.length+' bodies='+b.length"
+          "+' bodyParent='+(b[0]&&b[0].parentNode?b[0].parentNode.nodeName:'-')"
+          "+' '+location.protocol+'//'+location.host;})()");
       if (!mounted) return;
       LogService.instance.log('SurfaceDiag',
           'trigger=$trigger site=${model.siteId} no body: ${detail ?? 'null'}');
@@ -5597,6 +5603,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _needsMigrationResave = false;
 
   Future<void> _restoreAppState() async {
+    final activationVersionAtRestore = _setCurrentIndexVersion;
     // Debug-only startup phase timing (compiled out of release via kDebugMode).
     final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -5883,7 +5890,13 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     // Set current index (async for cookie restoration)
     final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
-    await _setCurrentIndex(indexToRestore);
+    if (StartupRestoreEngine.shouldActivateAfterRestore(
+      indexToRestore: indexToRestore,
+      activatedDuringRestore:
+          _setCurrentIndexVersion != activationVersionAtRestore,
+    )) {
+      await _setCurrentIndex(indexToRestore);
+    }
     if (swActivate != null) {
       LogService.instance.log('Startup',
           'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');

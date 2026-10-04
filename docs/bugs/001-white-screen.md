@@ -1229,6 +1229,74 @@ about. The sampler now fills transparent window pixels from the
     nudge fires and the surface stays blank — that behavior is the bug, and it
     is currently unrepresentable.
 
+    **The discriminator ran (third device capture, 2026-10-04).** All six
+    taps, in order, on a GitHub repo page (`github.com/<owner>/<repo>`) that
+    went white right after a full navigation from the dashboard, with a
+    refresh between taps 4 and 5:
+
+    ```
+    06:47:07  manual mechanism=inset-1            probe=-1  no body: complete html https://github.com
+    06:47:12  manual mechanism=inset-16           probe=-1  no body: complete html https://github.com
+    06:47:14  manual mechanism=unpaint            probe=-1  no body: complete html https://github.com
+    06:47:17  manual mechanism=native-invalidate  (reached 1 view)  probe=-1  no body: ...
+    06:47:20  Refresh (cache cleared, reload, commit-settled nudge)
+    06:47:25  manual mechanism=native-visibility  (reached 1 view)  probe=-1  no body: ...
+    06:47:27  manual mechanism=recreate  -> new webview, onLoadStop, onPageCommitVisible,
+              HtmlCache saved 372622 bytes
+    06:47:31  manual mechanism=inset-1            probe=-1  no body: complete html https://github.com
+    ```
+
+    None restored the screen. `recreate` built a new WebView, a new platform
+    view and a new document, and landed on the same state, so neither H1 nor
+    H2 applies to this blank: both are about repainting a surface, and a
+    fresh surface showed the same thing. What every probe agreed on is gap
+    #17's shape: a live github.com document, `readyState` complete, a
+    document element present, and `document.body` null. That holds while
+    `getHtml()` (`getElementsByTagName('html')[0].outerHTML`) serialises 372
+    KB, ten times the page's head, so the content is still under an `<html>`
+    and only the body lookup fails. Same site as gap #17. The dashboard on
+    the same run probed `2565`, so it is specific to that page, and it
+    reproduced on every load of it in this session.
+
+    A headless Chromium experiment (no app shims, logged out) serves that page
+    with a body. A second one ruled out the early content-blocker CSS shim's
+    `(document.head || document.documentElement || document)` fallback, the
+    one path in the app that could make a `<style>` the document element:
+    Chromium has created `<html>` by the time a navigation commits, so the
+    `document` arm is not reached from `onLoadStart`. The cause is not
+    identified. The `-1` detail line now names the root element, how many
+    root and `<body>` elements exist, and the body's parent, which separates
+    a removed body, a body moved off the root, and a root that is not
+    `<html>`. The next capture of this site logs no content-blocker CSS for
+    GitHub at all (no `getEarlyCssScript` on create or on `onLoadStart`), and
+    its repo page did not go white. That proves nothing alone, but the
+    per-site content blocker is the first variable to toggle.
+
+    **What it changes.** For this class of blank, no repaint trigger is the
+    fix, and the menu's `recreate` cannot be either: the document is wrong,
+    not the surface. Gap #18's two hypotheses remain open for the 376 KB
+    capture they were written about.
+
+    **An upstream report of the 376 KB shape (2026-09-08).**
+    [flutter_inappwebview#2889](https://github.com/pichillilorenzo/flutter_inappwebview/issues/2889),
+    opened two days after this capture, describes it independently: Android,
+    hybrid composition, a page that renders on first load and stays blank
+    after any later load (a `reload()` or a navigation). The DOM is complete
+    while the surface is blank (`docH 787`, `readyState complete`, opacity 1).
+    The reporter ruled out Impeller on or off, hybrid composition versus the
+    SurfaceProducer backend, fresh platform views with new keys, and delays
+    between dispose and recreate. A brand-new platform view in the same
+    process is blank too, and only a process restart recovers. Their logcat
+    shows `FlutterRenderer: Width is zero. 0,0` once the second platform view
+    (id 1) is created. On their stack (plugin 6.1.5, Flutter 3.47.1), that
+    puts H1 in Flutter's platform-view layer, not in the nudge or the
+    WebView. If it is the same defect, three things follow: Attempt 13's
+    texture mode does not cover it (their SurfaceProducer run failed the
+    same way), the menu's `recreate` cannot recover it, and the next capture
+    should look in logcat for `Width is zero` and the platform-view id. It
+    does not match the 2026-10-04 capture above, where the document had no
+    body. Open, unlabelled, no replies as of 2026-10-04.
+
 - Identify the **new entry path**: what navigation/lifecycle event preceded the blank?
   Does it pass through `_setCurrentIndex` (Attempt 3) or `onControllerReady`
   (Attempt 4)? If neither, that path needs `_nudgeSurfaceRepaint`.
