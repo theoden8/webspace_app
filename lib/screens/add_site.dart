@@ -145,6 +145,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   int _currentQuality = 0;
   bool _isLoading = true;
   Stream<IconUpdate>? _iconStream;
+  StreamSubscription<IconUpdate>? _iconSub;
   StreamSubscription<String>? _invalidationSub;
   StreamSubscription<String?>? _siteIconSub;
   StreamSubscription<IconReload>? _reloadSub;
@@ -198,6 +199,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
   @override
   void dispose() {
+    _iconSub?.cancel();
     _invalidationSub?.cancel();
     _siteIconSub?.cancel();
     _reloadSub?.cancel();
@@ -217,6 +219,10 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   }
 
   void _resetAndLoad() {
+    // The previous fetch would keep writing into the reset state and persist
+    // its result on done, including an icon from a source no longer allowed.
+    _iconSub?.cancel();
+    _iconSub = null;
     _currentIconUrl = null;
     _svgContent = null;
     _currentQuality = 0;
@@ -267,7 +273,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
   void _startIconStream() {
     _iconStream = getFaviconUrlStream(widget.url, proxy: widget.proxy);
-    _iconStream!.listen(
+    _iconSub = _iconStream!.listen(
       (update) {
         if (mounted && update.quality > _currentQuality) {
           setState(() {

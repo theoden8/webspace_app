@@ -77,6 +77,38 @@ void main() {
     expect(hosts(), {'example.com'});
   });
 
+  test('the switch turned on while DuckDuckGo answers stops the fetch there',
+      () async {
+    outboundHttp = factory = FakeOutboundFactory((req) {
+      if (req.url.host == 'icons.duckduckgo.com') siteIconsOnly(true);
+      return http.Response('<html><head></head></html>', 200);
+    });
+    final updates = await getFaviconUrlStream(_site).toList();
+    expect(updates.where((u) => isPublicIconServiceUrl(u.url)), isEmpty);
+    expect(hosts(), isNot(contains('www.google.com')));
+  });
+
+  test('a service icon sent before the switch went on is not sent as final',
+      () async {
+    outboundHttp = factory = FakeOutboundFactory((req) {
+      if (req.url.host == 'example.com') siteIconsOnly(true);
+      return http.Response('<html><head></head></html>', 200);
+    });
+    final updates = await getFaviconUrlStream(_site).toList();
+    expect(
+        updates.where((u) => u.isFinal && isPublicIconServiceUrl(u.url)),
+        isEmpty);
+  });
+
+  test('getFaviconUrl drops a service answer that lands after the switch',
+      () async {
+    outboundHttp = factory = FakeOutboundFactory((req) {
+      if (req.url.host == 'example.com') siteIconsOnly(true);
+      return http.Response('<html><head></head></html>', 200);
+    });
+    expect(isPublicIconServiceUrl(await getFaviconUrl(_site) ?? ''), isFalse);
+  });
+
   test('a service URL kept on disk reads as absent under the switch',
       () async {
     SharedPreferences.setMockInitialValues({

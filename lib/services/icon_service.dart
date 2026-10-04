@@ -732,11 +732,13 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
     sensitivity: LogSensitivity.sensitive,
   );
 
-  // Phase 1 & 2: Public icon services (only for HTTPS + non-IP addresses)
+  // Phase 1 & 2: Public icon services (only for HTTPS + non-IP addresses).
+  // Site icons only can be turned on while a request is out, so the gate is
+  // read again before each phase and each result (ICON-014).
   if (usePublicServices) {
     // Phase 1: Quick sources (DuckDuckGo) - typically responds fast
     final ddgResult = await _tryDuckDuckGo(domain, effectiveProxy);
-    if (ddgResult != null) {
+    if (ddgResult != null && publicIconServicesAllowed) {
       bestUrl = ddgResult;
       bestQuality = 64;
       LogService.instance.log('Icon', 'Stream: Emitting DuckDuckGo icon (quality: 64)');
@@ -744,30 +746,37 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
     }
 
     // Phase 2: Google services in parallel (128px and 256px)
-    final googleResults = await Future.wait([
-      _tryGoogleFavicon(domain, 128, effectiveProxy),
-      _tryGoogleFavicon(domain, 256, effectiveProxy),
-    ]);
+    if (publicIconServicesAllowed) {
+      final googleResults = await Future.wait([
+        _tryGoogleFavicon(domain, 128, effectiveProxy),
+        _tryGoogleFavicon(domain, 256, effectiveProxy),
+      ]);
+      final allowed = publicIconServicesAllowed;
 
-    // Emit Google 128px if better
-    if (googleResults[0] != null && 128 > bestQuality) {
-      bestUrl = googleResults[0];
-      bestQuality = 128;
-      LogService.instance.log('Icon', 'Stream: Emitting Google 128px icon');
-      yield IconUpdate(googleResults[0]!, 128);
-    }
+      // Emit Google 128px if better
+      if (allowed && googleResults[0] != null && 128 > bestQuality) {
+        bestUrl = googleResults[0];
+        bestQuality = 128;
+        LogService.instance.log('Icon', 'Stream: Emitting Google 128px icon');
+        yield IconUpdate(googleResults[0]!, 128);
+      }
 
-    // Emit Google 256px if better
-    if (googleResults[1] != null && 256 > bestQuality) {
-      bestUrl = googleResults[1];
-      bestQuality = 256;
-      LogService.instance.log('Icon', 'Stream: Emitting Google 256px icon');
-      yield IconUpdate(googleResults[1]!, 256);
+      // Emit Google 256px if better
+      if (allowed && googleResults[1] != null && 256 > bestQuality) {
+        bestUrl = googleResults[1];
+        bestQuality = 256;
+        LogService.instance.log('Icon', 'Stream: Emitting Google 256px icon');
+        yield IconUpdate(googleResults[1]!, 256);
+      }
     }
   }
 
   // Phase 3: Favicon package (slowest but can find high-res site-specific icons)
   final faviconResult = await _tryFaviconPackage(url, effectiveProxy);
+  if (bestUrl != null && usableIconUrl(bestUrl) == null) {
+    bestUrl = null;
+    bestQuality = 0;
+  }
   if (faviconResult != null && faviconResult.quality > bestQuality) {
     bestUrl = faviconResult.url;
     bestQuality = faviconResult.quality;
@@ -829,7 +838,9 @@ Future<String?> _fetchFaviconUrlInternal(String url, UserProxySettings proxy) as
       onTimeout: () => List<_IconCandidate?>.filled(futures.length, null),
     );
 
-    candidates.addAll(results.whereType<_IconCandidate>());
+    candidates.addAll(results
+        .whereType<_IconCandidate>()
+        .where((c) => usableIconUrl(c.url) != null));
   } catch (e) {
     LogService.instance.log(
       'Icon',
