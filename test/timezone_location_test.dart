@@ -96,4 +96,55 @@ void main() {
       expect(TimezoneLocationService.instance.lookup(34.5, 139.5), isNull);
     });
   });
+
+  // The dataset is loaded only by the lookup paths, so its status is read from
+  // disk: a downloaded dataset that nothing has loaded yet is still downloaded.
+  group('cached dataset status', () {
+    late File file;
+
+    setUp(() async {
+      await TimezoneLocationService.instance.clear();
+      file = File('${(PathProviderPlatform.instance as _FakePathProvider)._dir.path}'
+          '/tz_polygons.geojson');
+    });
+
+    test('no file reads as no dataset, whatever the timestamp says', () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+          'tz_polygons_last_updated', '2026-08-23T21:41:17.000');
+      expect(await TimezoneLocationService.instance.hasCachedDataset(), isFalse);
+      expect(await TimezoneLocationService.instance.cachedZoneCount(), isNull);
+    });
+
+    test('a stored count is reported without loading the dataset', () async {
+      await file.writeAsString(_fixture);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('tz_polygons_zone_count', 2);
+      expect(await TimezoneLocationService.instance.hasCachedDataset(), isTrue);
+      expect(await TimezoneLocationService.instance.cachedZoneCount(), 2);
+      expect(TimezoneLocationService.instance.isReady, isFalse);
+      expect(TimezoneLocationService.instance.zoneCount, 0);
+    });
+
+    test('a dataset stored before the count is counted once, not loaded',
+        () async {
+      await file.writeAsString(_fixture);
+      expect(await TimezoneLocationService.instance.cachedZoneCount(), 2);
+      expect(TimezoneLocationService.instance.isReady, isFalse);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('tz_polygons_zone_count'), 2);
+    });
+
+    test('loading from cache stores the count; clear removes it', () async {
+      await file.writeAsString(_fixture);
+      expect(await TimezoneLocationService.instance.loadFromCacheIfPresent(),
+          isTrue);
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getInt('tz_polygons_zone_count'), 2);
+
+      await TimezoneLocationService.instance.clear();
+      expect(prefs.getInt('tz_polygons_zone_count'), isNull);
+      expect(await TimezoneLocationService.instance.cachedZoneCount(), isNull);
+    });
+  });
 }

@@ -235,8 +235,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   // Timezone polygon dataset state (per-site "From picked location" timezone option)
   bool _isDownloadingTimezones = false;
+  bool _timezonesCached = false;
   DateTime? _timezonesLastUpdated;
-  int _timezoneZoneCount = 0;
+  int? _timezoneZoneCount;
+  int _timezoneStateVersion = 0;
 
   // Global outbound proxy state. Mirrors the per-site proxy UI in
   // [lib/screens/settings.dart] but applies to *every* Dart-side outbound
@@ -321,15 +323,31 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _loadRulesLastUpdated();
     _loadBlocklistState();
     _loadLocalCdnState();
+    TimezoneLocationService.instance.addListener(_onTimezoneDatasetChanged);
     _loadTimezoneState();
   }
 
+  void _onTimezoneDatasetChanged() => _loadTimezoneState();
+
+  // Reads the dataset on disk, not the in-memory one: only the lookup paths
+  // load it, so a downloaded dataset is usually not in memory here.
   Future<void> _loadTimezoneState() async {
-    final lastUpdated = await TimezoneLocationService.instance.getLastUpdated();
-    if (!mounted) return;
+    final version = ++_timezoneStateVersion;
+    final service = TimezoneLocationService.instance;
+    final cached = await service.hasCachedDataset();
+    final lastUpdated = await service.getLastUpdated();
+    if (!mounted || version != _timezoneStateVersion) return;
     setState(() {
+      _timezonesCached = cached;
       _timezonesLastUpdated = lastUpdated;
-      _timezoneZoneCount = TimezoneLocationService.instance.zoneCount;
+      if (!cached) _timezoneZoneCount = null;
+    });
+    if (!cached) return;
+    final count = await service.cachedZoneCount();
+    if (!mounted || version != _timezoneStateVersion) return;
+    setState(() {
+      _timezonesCached = count != null;
+      _timezoneZoneCount = count;
     });
   }
 
@@ -340,30 +358,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     if (!mounted) return;
     _spinController.stop();
     _spinController.reset();
-    setState(() {
-      _isDownloadingTimezones = false;
-      _timezoneZoneCount = TimezoneLocationService.instance.zoneCount;
-    });
+    setState(() => _isDownloadingTimezones = false);
     final loc = AppLocalizations.of(context);
-    if (success) {
-      _timezonesLastUpdated =
-          await TimezoneLocationService.instance.getLastUpdated();
-      if (mounted) setState(() {});
-      rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
-          content: Text(loc.appSettingsTimezonesLoaded(_timezoneZoneCount))));
-    } else {
-      rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
-          content: Text(loc.appSettingsTimezonesDownloadFailed)));
-    }
-  }
-
-  Future<void> _clearTimezones() async {
-    await TimezoneLocationService.instance.clear();
-    if (!mounted) return;
-    setState(() {
-      _timezonesLastUpdated = null;
-      _timezoneZoneCount = 0;
-    });
+    rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
+        content: Text(success
+            ? loc.appSettingsTimezonesLoaded(
+                TimezoneLocationService.instance.zoneCount)
+            : loc.appSettingsTimezonesDownloadFailed)));
   }
 
   @override
@@ -373,6 +374,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _outboundProxyUsernameController.dispose();
     _outboundProxyPasswordController.dispose();
     _spinController.dispose();
+    TimezoneLocationService.instance.removeListener(_onTimezoneDatasetChanged);
     super.dispose();
   }
 
@@ -1809,10 +1811,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_timezoneZoneCount > 0
-                    ? loc.appSettingsZonesCount(_formatNumber(_timezoneZoneCount))
-                    : loc.appSettingsNotDownloaded),
-                if (_timezonesLastUpdated != null)
+                if (!_timezonesCached)
+                  Text(loc.appSettingsNotDownloaded)
+                else if (_timezoneZoneCount != null)
+                  Text(loc.appSettingsZonesCount(
+                      _formatNumber(_timezoneZoneCount!))),
+                if (_timezonesCached && _timezonesLastUpdated != null)
                   Builder(builder: (context) {
                     final updated = _timezonesLastUpdated!
                         .toLocal()
@@ -1833,17 +1837,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (_timezoneZoneCount > 0)
+                      if (_timezonesCached)
                         IconButton(
                           icon: const Icon(Icons.delete_outline),
                           tooltip: loc.appSettingsClearDataset,
-                          onPressed: _clearTimezones,
+                          onPressed: TimezoneLocationService.instance.clear,
                         ),
                       IconButton(
-                        icon: Icon(_timezoneZoneCount > 0
+                        icon: Icon(_timezonesCached
                             ? Icons.sync
                             : Icons.download),
-                        tooltip: _timezoneZoneCount > 0
+                        tooltip: _timezonesCached
                             ? loc.appSettingsRefreshDataset
                             : loc.appSettingsDownloadDataset,
                         onPressed: _downloadTimezones,
