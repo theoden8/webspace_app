@@ -252,6 +252,31 @@ void main() {
           reason: 'link routing is no longer experimental');
     });
 
+    testWidgets('Saved proxies have a row, not a switch (PROXY-030)',
+        (tester) async {
+      Finder savedProxies(Type tile) => find.ancestor(
+          of: find.text('Saved proxies'), matching: find.byType(tile));
+
+      DeveloperModeService.instance.debugSet(false);
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Saved proxies'), 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      expect(savedProxies(ListTile), findsOneWidget,
+          reason: 'the library is offered with developer mode off');
+
+      DeveloperModeService.instance.debugSet(true);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Experimental'), 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      expect(savedProxies(SwitchListTile), findsNothing,
+          reason: 'saved proxies are not experimental');
+    });
+
     testWidgets('offers Site tabs everywhere, off by default (TAB-012)',
         (tester) async {
       await tester.pumpWidget(host());

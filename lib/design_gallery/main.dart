@@ -321,7 +321,6 @@ class _SiteNetworkSavedCardState extends State<_SiteNetworkSavedCard> {
           credentialsId: 'cr-mail',
           webRtcPolicy: WebRtcPolicy.relayOnly,
         ),
-        offerLibrary: true,
         onChanged: (_) {},
         proxySupported: true,
         proxyAddressController: address,

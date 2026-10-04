@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -122,7 +121,6 @@ class SiteNetworkScreen extends StatefulWidget {
     this.trackingProtectionEnabled = false,
     this.appProxySet = false,
     this.library,
-    this.offerLibrary,
   });
 
   final String host;
@@ -158,10 +156,6 @@ class SiteNetworkScreen extends StatefulWidget {
 
   /// The proxy library the pickers offer. Defaults to [ProxyLibrary]'s.
   final ProxyLibraryData? library;
-
-  /// Whether the library is offered; defaults to the Saved proxies
-  /// experiment (DEVTOOLS-011).
-  final bool? offerLibrary;
 
   @override
   State<SiteNetworkScreen> createState() => _SiteNetworkScreenState();
@@ -243,9 +237,6 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         gatewayId: _values.gatewayId,
         library: _library,
         torAvailable: TorService.instance.isAvailable,
-        offerLibrary: widget.offerLibrary ??
-            ExperimentalFeaturesService.instance
-                .isEnabled(ExperimentalFeature.proxyLibrary),
         onChanged: _pickProxy,
       ),
     );

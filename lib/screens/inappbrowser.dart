@@ -25,7 +25,6 @@ import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -825,11 +824,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           incognito: widget.incognito,
         ),
         incognito: widget.incognito,
-        proxy: PlatformInfo.isProxySupported &&
-                ExperimentalFeaturesService.instance
-                    .isEnabled(ExperimentalFeature.proxyLibrary)
-            ? widget.proxySettings
-            : null,
+        proxy: PlatformInfo.isProxySupported ? widget.proxySettings : null,
         siteId: widget.siteId,
       ),
     );
