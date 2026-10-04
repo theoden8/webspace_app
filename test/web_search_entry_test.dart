@@ -36,7 +36,7 @@ void main() {
       expect(bodyOf(main, 'Future<void> _showTabsSheet('),
           contains('onWebSearch: () => unawaited(_webSearch()),'));
       expect(
-        RegExp(r'if \(!_tabsEnabledAt\(_currentIndex\)\)\s*'
+        RegExp(r'if \(_webSearchAvailable && !_tabsEnabledAt\(_currentIndex\)\)\s*'
                 r'PopupMenuItem<String>\(\s*value: "webSearch",')
             .allMatches(main)
             .length,
@@ -48,6 +48,25 @@ void main() {
             .allMatches(main)
             .length,
         2,
+      );
+    });
+
+    test('web search is behind the Site tabs switch (LIR-029)', () {
+      expect(main, contains('bool get _webSearchAvailable => _tabsFeatureEnabled;'));
+      for (final entry in [
+        'Future<void> _webSearch(',
+        'Future<void> _searchFromUrlBar(',
+      ]) {
+        expect(firstStatement(main, entry), contains('!_webSearchAvailable'),
+            reason: entry);
+      }
+      final settings = File('lib/screens/app_settings.dart').readAsStringSync();
+      expect(
+        RegExp(r'if \(_developerMode && _siteTabsSwitch\)\s*ListTile\(\s*'
+                r'leading: const Icon\(Icons\.travel_explore\)')
+            .hasMatch(settings),
+        isTrue,
+        reason: 'App Settings offers Default search only behind the gate',
       );
     });
 
@@ -96,7 +115,9 @@ void main() {
   group('URL bar search (LIR-033)', () {
     test('the URL bar searches through the page, not on its own', () {
       final bar = bodyOf(main, 'Widget? _buildInputBar(');
-      expect(bar, contains('hasUrlBar && !_kioskLocked ? _urlBarSearchFor(model) : null'));
+      expect(bar, contains('hasUrlBar && !_kioskLocked && _webSearchAvailable\n'
+          '        ? _urlBarSearchFor(model)\n'
+          '        : null'));
       expect(bar, contains('_searchFromUrlBar(model, query, siteId)'));
     });
 

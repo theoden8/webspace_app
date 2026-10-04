@@ -1609,9 +1609,9 @@
   "@appSettingsExperimentalSiteTabs": {
     "description": "Title of the switch in App settings > Developer > Experimental that turns on tabs inside a site: several pages of one site kept open at once, like browser tabs."
   },
-  "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on.",
+  "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on. It also turns on Web search, which runs a search in one of your search sites and opens the results as a tab.",
   "@appSettingsExperimentalSiteTabsHint": {
-    "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page."
+    "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page. 'Web search' is the name of the menu item that searches in one of the user's sites that is a search engine; the same switch turns it on."
   },
   "appSettingsExperimentalExternalTor": "Tor (external)",
   "@appSettingsExperimentalExternalTor": {

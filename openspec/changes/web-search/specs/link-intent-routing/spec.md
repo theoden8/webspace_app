@@ -76,6 +76,8 @@ A search URL SHALL be the address with every `%s` replaced by the trimmed query,
 
 ### Requirement: LIR-029 - Web Search From The Page Menu
 
+Web search SHALL be reachable only while the Site tabs gate is open (TAB-012, DEVTOOLS-011): developer mode on and the Experimental group's Site tabs switch on. A search's results are a hosted tab, the feature tabs exist for, so the two ship together. While the gate is closed no page menu, sheet or URL bar SHALL offer a search, App Settings SHALL NOT offer Default search, the Behaviour screen SHALL have no Search group (BEHAV-005), and the URL bar SHALL load what is typed as an address, as before LIR-033. Search settings already stored SHALL be kept for when the gate opens again. Every way into a search SHALL return before acting, not only hide its button. The gate SHALL be read when it is used, so flipping either switch takes effect without a restart.
+
 The Tabs sheet (TAB-008) SHALL offer "Web search" in its header, beside "New tab": a search opens a tab (LIR-030), so it sits with the other ways to make one. The label SHALL drop to its icon, with the label as its tooltip, when it would leave the sheet's title too little room, before "New tab" does, so the header fits a phone in every locale. While the site on screen has no tabs (TAB-012, TAB-013) there is no Tabs sheet for it, and both page overflow menus (the app bar's, and the bottom bar's when the tab strip is shown) SHALL offer "Web search" below Find instead; while it has tabs they SHALL NOT. Neither is reachable while the kiosk shell is locked (KIOSK-002). The URL bar searches too, under LIR-033. Find and shared links SHALL NOT change.
 
 "Web search" SHALL open a sheet for the site on screen. The site on screen is the slot's running identity (LIR-018): the host when a hosted tab is active, else the site. The sheet SHALL hold a query field, a scope and a row of search-site chips.
@@ -186,6 +188,14 @@ The **fallback** SHALL be LIR-010's "open in this site" for the search site with
 A results tab SHALL be a tab like any other: it parks with its back stack, reopens as the site it runs as, and is backed out of into the tab it was opened from (TAB-007).
 
 Inside a hosted results tab, a link the host's rules would not load in place (LIR-018: nested, routed, or sent to the browser) whose normalized domain is the owner's navigation domain SHALL instead open as a child tab of the hosted tab, run as the owner, and take the slot. This is the owner's own content coming back to it, so the host's external-link mode and routing do not apply to it. A redirect without a gesture that the host blocks stays blocked.
+
+#### Scenario: Search is gated with tabs
+
+- **GIVEN** developer mode is on and the Site tabs switch is off
+- **WHEN** the user opens the page menu, the URL bar and App Settings
+- **THEN** there is no Web search item, no magnifier and no Default search row
+- **AND** typing `flutter hot reload` in the URL bar and submitting loads it as an address
+- **AND** turning the Site tabs switch on brings all three back with the search sites chosen before
 
 #### Scenario: Own search opens a child tab (S1)
 

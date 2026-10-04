@@ -481,9 +481,18 @@ void main() {
     final kagi =
         WebViewModel(siteId: 'kagi', initUrl: 'https://kagi.com/', name: 'Kagi');
 
-    testWidgets('a known site shows its address and follows the app',
+    testWidgets('the group is offered only with the Site tabs switch (LIR-029)',
         (tester) async {
       await _pump(tester, values: _values(), initUrl: 'https://github.com/');
+      expect(find.text('Search'), findsNothing);
+      expect(find.text('Default search from this site'), findsNothing);
+      expect(find.text('Search sites offered'), findsNothing);
+    });
+
+    testWidgets('a known site shows its address and follows the app',
+        (tester) async {
+      await _pump(tester,
+          values: _values(), initUrl: 'https://github.com/', tabsAvailable: true);
       expect(find.text('https://github.com/search?q=%s'), findsOneWidget);
       expect(find.text('App default'), findsOneWidget);
       expect(find.text('All'), findsOneWidget);
@@ -494,6 +503,7 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
+        tabsAvailable: true,
         values: _values(),
         initUrl: 'https://duckduckgo.com/',
         onChanged: (v) => seen = v,
@@ -511,6 +521,7 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
+        tabsAvailable: true,
         values: _values(
             searchAddress: 'https://github.com/search?type=code&q=%s'),
         initUrl: 'https://github.com/',
@@ -528,6 +539,7 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
+        tabsAvailable: true,
         values: _values(searchDefault: 'kagi'),
         routingTargets: [ddg, kagi],
         onChanged: (v) => seen = v,
