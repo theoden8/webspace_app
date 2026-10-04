@@ -1277,6 +1277,26 @@ about. The sampler now fills transparent window pixels from the
     not the surface. Gap #18's two hypotheses remain open for the 376 KB
     capture they were written about.
 
+    **An upstream report of the 376 KB shape (2026-09-08).**
+    [flutter_inappwebview#2889](https://github.com/pichillilorenzo/flutter_inappwebview/issues/2889),
+    opened two days after this capture, describes it independently: Android,
+    hybrid composition, a page that renders on first load and stays blank
+    after any later load (a `reload()` or a navigation). The DOM is complete
+    while the surface is blank (`docH 787`, `readyState complete`, opacity 1).
+    The reporter ruled out Impeller on or off, hybrid composition versus the
+    SurfaceProducer backend, fresh platform views with new keys, and delays
+    between dispose and recreate. A brand-new platform view in the same
+    process is blank too, and only a process restart recovers. Their logcat
+    shows `FlutterRenderer: Width is zero. 0,0` once the second platform view
+    (id 1) is created. On their stack (plugin 6.1.5, Flutter 3.47.1), that
+    puts H1 in Flutter's platform-view layer, not in the nudge or the
+    WebView. If it is the same defect, three things follow: Attempt 13's
+    texture mode does not cover it (their SurfaceProducer run failed the
+    same way), the menu's `recreate` cannot recover it, and the next capture
+    should look in logcat for `Width is zero` and the platform-view id. It
+    does not match the 2026-10-04 capture above, where the document had no
+    body. Open, unlabelled, no replies as of 2026-10-04.
+
 - Identify the **new entry path**: what navigation/lifecycle event preceded the blank?
   Does it pass through `_setCurrentIndex` (Attempt 3) or `onControllerReady`
   (Attempt 4)? If neither, that path needs `_nudgeSurfaceRepaint`.
