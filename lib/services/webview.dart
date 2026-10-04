@@ -2487,6 +2487,13 @@ class WebViewFactory {
   /// One passkey ceremony at a time across every webview (PASSKEY-006).
   static final PasskeyCeremonyGate _passkeyGate = PasskeyCeremonyGate();
 
+  /// Numbers each passkey request for the log, which names no origin.
+  static int _passkeyRequests = 0;
+
+  /// The prefix of every gate key this webview's ceremonies hold.
+  static String _passkeyWebviewKey(inapp.InAppWebViewController controller) =>
+      'wv${identityHashCode(controller)}';
+
   /// Create a popup webview for handling window.open() calls.
   /// Used for Cloudflare challenges and other popups that require a real window.
   ///
@@ -3731,7 +3738,7 @@ class WebViewFactory {
     final passkeys = config.passkeys;
     if (passkeys != null &&
         passkeys.backend == PasskeyBackend.credentialManager) {
-      final webviewKey = 'wv${identityHashCode(controller)}';
+      final webviewKey = _passkeyWebviewKey(controller);
       controller.addJavaScriptHandler(
         handlerName: 'webauthnStatus',
         callback: (args) async =>
@@ -3743,7 +3750,11 @@ class WebViewFactory {
           final request = data.args.isNotEmpty && data.args.first is Map
               ? data.args.first as Map
               : const {};
-          if (!(await PasskeyNative.status()).available) {
+          final label = '$webviewKey#${++_passkeyRequests}';
+          final status = await PasskeyNative.status();
+          if (!status.available) {
+            LogService.instance.log('Passkey',
+                '$label refused: Credential Manager unavailable (${status.describe})');
             return PasskeyError.unsupported.toBridgeJson();
           }
           final plan = PasskeyEngine.plan(
@@ -3756,27 +3767,20 @@ class WebViewFactory {
           );
           final ceremony = plan.ceremony;
           if (ceremony == null) {
-            LogService.instance
-                .log('Passkey', 'refused before the provider: ${plan.error}');
+            LogService.instance.log(
+                'Passkey', '$label refused before the provider: ${plan.error}');
             return plan.error!.toBridgeJson();
           }
           final key = '$webviewKey:${ceremony.origin}:${request['requestId']}';
-          if (!_passkeyGate.begin(key)) {
-            return PasskeyError.busy.toBridgeJson();
-          }
-          try {
-            final json = await PasskeyNative.run(key, ceremony);
-            final result = PasskeyEngine.completeResponse(ceremony, json);
-            LogService.instance.log('Passkey',
-                '${ceremony.op.name} [$key]: ${result['ok'] == true ? 'ok' : result['name']}');
-            return result;
-          } on PasskeyError catch (e) {
-            LogService.instance
-                .log('Passkey', '${ceremony.op.name} [$key]: ${e.name}');
-            return e.toBridgeJson();
-          } finally {
-            _passkeyGate.end(key);
-          }
+          return PasskeyEngine.runCeremony(
+            gate: _passkeyGate,
+            key: key,
+            label: label,
+            ceremony: ceremony,
+            send: () => PasskeyNative.run(key, ceremony),
+            cancel: () => PasskeyNative.cancel(key),
+            log: (message) => LogService.instance.log('Passkey', message),
+          );
         },
       );
       // Keyed by the frame's origin as well as its request id, so a frame of
@@ -5258,6 +5262,14 @@ class WebViewFactory {
           'onLoadStart siteId=${config.siteId} url=$url',
           sensitivity: LogSensitivity.sensitive,
         );
+        // A passkey ceremony belongs to the document that started it, and a
+        // main-frame load replaces that document (PASSKEY-015).
+        final pendingPasskey = _passkeyGate.active;
+        if (pendingPasskey != null &&
+            pendingPasskey.startsWith('${_passkeyWebviewKey(controller)}:')) {
+          LogService.instance.log('Passkey', 'page left, request cancelled');
+          unawaited(PasskeyNative.cancel(pendingPasskey));
+        }
         if (iconEngine != null) {
           iconEngine.onLoadStarted(url?.toString()).forEach(siteIcon!.onIcon);
           _logSiteIcon('loadStart ${iconEngine.stateForLog}');

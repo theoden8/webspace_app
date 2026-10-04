@@ -13,6 +13,7 @@
 /// native plugin.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -126,6 +127,7 @@ class PasskeyCeremony {
     required this.requestJson,
     required this.clientDataJson,
     required this.clientDataHash,
+    this.timeout = PasskeyEngine.defaultTimeout,
   });
 
   final PasskeyOp op;
@@ -141,6 +143,22 @@ class PasskeyCeremony {
   /// [clientDataHash] and never sees these bytes.
   final String clientDataJson;
   final Uint8List clientDataHash;
+
+  /// How long Credential Manager has to answer (PASSKEY-015).
+  final Duration timeout;
+}
+
+/// A failure Credential Manager reported, by the plugin's stable code. The
+/// code is for the log; the page only ever sees [error] (PASSKEY-008).
+class PasskeyNativeFailure implements Exception {
+  const PasskeyNativeFailure(this.code);
+
+  final String code;
+
+  PasskeyError get error => PasskeyEngine.errorForNative(code);
+
+  @override
+  String toString() => 'PasskeyNativeFailure($code)';
 }
 
 class PasskeyPlan {
@@ -153,6 +171,13 @@ class PasskeyPlan {
 
 class PasskeyEngine {
   PasskeyEngine._();
+
+  /// Bounds on the page's `timeout` (PASSKEY-015). The floor leaves time to
+  /// unlock a provider's vault; the default and cap keep a request nothing
+  /// answers from holding the gate for long.
+  static const defaultTimeout = Duration(minutes: 5);
+  static const minTimeout = Duration(seconds: 30);
+  static const maxTimeout = Duration(minutes: 10);
 
   /// Decide whether the page's request may reach Credential Manager, and
   /// build it (PASSKEY-004..006).
@@ -253,7 +278,59 @@ class PasskeyEngine {
       clientDataJson: clientDataJson,
       clientDataHash: Uint8List.fromList(
           sha256.convert(utf8.encode(clientDataJson)).bytes),
+      timeout: ceremonyTimeout(request['timeout']),
     ));
+  }
+
+  /// The page's `timeout` in milliseconds, held to [minTimeout] and
+  /// [maxTimeout]; [defaultTimeout] when it is absent or not a number.
+  static Duration ceremonyTimeout(Object? ms) {
+    if (ms is! num || !ms.isFinite || ms <= 0) return defaultTimeout;
+    if (ms <= minTimeout.inMilliseconds) return minTimeout;
+    if (ms >= maxTimeout.inMilliseconds) return maxTimeout;
+    return Duration(milliseconds: ms.round());
+  }
+
+  /// Send [ceremony] under [gate] and wait at most its timeout for the
+  /// answer (PASSKEY-006, PASSKEY-015).
+  ///
+  /// Credential Manager can take a request and never answer, and while one
+  /// holds the gate no site can ask. Past its timeout a ceremony is
+  /// cancelled through [cancel] and rejects with NotAllowedError, as a
+  /// browser's does. [log] gets each step under [label], which carries no
+  /// origin (PASSKEY-009).
+  static Future<Map<String, Object?>> runCeremony({
+    required PasskeyCeremonyGate gate,
+    required String key,
+    required String label,
+    required PasskeyCeremony ceremony,
+    required Future<String> Function() send,
+    required Future<void> Function() cancel,
+    required void Function(String message) log,
+  }) async {
+    final op = ceremony.op.name;
+    if (!gate.begin(key)) {
+      log('$op $label: refused, another request is pending');
+      return PasskeyError.busy.toBridgeJson();
+    }
+    log('$op $label: sent to Credential Manager');
+    try {
+      final json = await send().timeout(ceremony.timeout);
+      final result = completeResponse(ceremony, json);
+      log(result['ok'] == true
+          ? '$op $label: ok'
+          : '$op $label: answer rejected, ${result['name']}');
+      return result;
+    } on TimeoutException {
+      log('$op $label: no answer in ${ceremony.timeout.inSeconds}s, cancelled');
+      await cancel();
+      return PasskeyError.notAllowed.toBridgeJson();
+    } on PasskeyNativeFailure catch (e) {
+      log('$op $label: ${e.code}, ${e.error.name}');
+      return e.error.toBridgeJson();
+    } finally {
+      gate.end(key);
+    }
   }
 
   /// RFC 6454 serialization, `scheme://host[:port]` with the default port

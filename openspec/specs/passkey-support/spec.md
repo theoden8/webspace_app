@@ -249,8 +249,13 @@ NotReadableError. Messages are fixed strings, never the provider's.
 
 ### Requirement: PASSKEY-009 — Nothing about the site reaches logcat
 
-The native plugin SHALL NOT log origins, rp ids or request bodies; Dart logs
-only the operation and the DOMException name.
+The native plugin SHALL NOT log origins, rp ids or request bodies. Dart logs
+a request by a number of its own, never its origin, and each step it takes
+(PASSKEY-015): why a device is unavailable (SDK level, the
+`android.software.credentials` feature, the origin permission), a refusal
+before the provider, the request going to Credential Manager, and the answer
+as the plugin's code and the DOMException name. The code tells a cancel from
+nowhere to save a passkey, which the page cannot (PASSKEY-008).
 
 #### Scenario: A ceremony completes
 
@@ -391,12 +396,41 @@ ad-hoc signed. Until then every site's request is refused by the OS.
 **When** a page on an https origin calls `navigator.credentials.create({publicKey})`
 **Then** WebKit rejects it and no system passkey sheet appears
 
+---
+
+### Requirement: PASSKEY-015 — A ceremony ends
+
+Credential Manager can take a request and never answer: no sheet, no error.
+While that request holds the gate (PASSKEY-006), every other site's request is
+refused. So a ceremony SHALL end without an answer in two ways, each of which
+cancels it through the plugin and frees the gate:
+
+- **Timeout.** The page's `timeout` in milliseconds, held to 30 seconds to 10
+  minutes, 5 minutes when absent. The floor leaves time to unlock a
+  provider's vault. Past it the page gets NotAllowedError, as from a browser.
+- **The page goes away.** A main-frame load in the webview that started the
+  ceremony cancels it; another webview's load does not.
+
+#### Scenario: Credential Manager never answers
+
+**Given** a page registers with `timeout: 60000` and Credential Manager neither shows a sheet nor answers
+**When** 60 seconds pass
+**Then** the page rejects with NotAllowedError
+**And** the plugin was told to cancel, and App Logs show the request going out and timing out
+**And** the next request from any site reaches Credential Manager
+
+#### Scenario: The user reloads while a request is pending
+
+**Given** a ceremony is pending for a webview
+**When** that webview starts a main-frame load
+**Then** the ceremony is cancelled and the gate is free
+
 ## Architecture
 
 | Piece | Where |
 |---|---|
 | Shim | `lib/services/passkey_shim.dart` (`test/js/passkey_shim.test.js`) |
-| Origin, rpId, clientDataJSON, response completion, error map | `lib/services/passkey_engine.dart` (`test/passkey_engine_test.dart`) |
+| Origin, rpId, clientDataJSON, response completion, error map, timeout and the ceremony runner | `lib/services/passkey_engine.dart` (`test/passkey_engine_test.dart`) |
 | Handlers `webauthnStatus` / `webauthnRequest` / `webauthnCancel` | `WebViewFactory._registerPageHandlers` in `lib/services/webview.dart` (`test/js/page_bridge_authority.test.js`) |
 | Channel `org.codeberg.theoden8.webspace/passkey` | `lib/services/passkey_native.dart`, `android/.../PasskeyPlugin.kt` (`PasskeyCeremoniesTest.kt`) |
 | Gate | `scripts/run_android_passkey_tests.sh`, `integration_test/passkey_test.dart`, `tool/passkey_gate/` |
