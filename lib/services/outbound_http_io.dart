@@ -239,18 +239,26 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
             fingerprint: fingerprintFromX509(cert),
           ),
         );
-        return ConnectionTask.fromSocket(
-          secure,
-          () async => (await secure).close().ignore(),
-        );
+        return _cancellableConnect(secure);
       }
-      return ConnectionTask.fromSocket(
-        socket,
-        () async => (await socket).close().ignore(),
-      );
+      return _cancellableConnect(socket);
     };
     return OutboundClientReady(IOClient(inner));
   }
+}
+
+/// A SOCKS5 connect cannot be aborted mid-handshake, so cancelling it only
+/// marks it, and a socket that arrives after the cancel is destroyed on
+/// arrival. Errors stay on the one future dart:io observes: an `onCancel` that
+/// awaited the connect again gave a refused connect (Tor's `ttlExpired`) a
+/// second, unobserved future to escape through.
+ConnectionTask<S> _cancellableConnect<S extends Socket>(Future<S> connect) {
+  var cancelled = false;
+  final socket = connect.then((s) {
+    if (cancelled) s.destroy();
+    return s;
+  });
+  return ConnectionTask.fromSocket(socket, () => cancelled = true);
 }
 
 /// Whether [host] looks like an IPv4 / IPv6 literal — i.e. safe to pass

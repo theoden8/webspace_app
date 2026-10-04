@@ -14,6 +14,13 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
 - Default to **no code comments**. Only add when the *why* is non-obvious (hidden constraint, workaround for a specific bug, surprising behavior). Never restate what the code does. Never reference the current task or PR.
 - Commit messages: short subject (<70 chars, imperative), 1-2 line body for the *why* if needed. No marketing prose, no bullet lists of every changed file, no "this commit also...".
 - Don't speculate. Read the code or docs before asserting an API/version/flag.
+- **No catch-alls.** Catch the types the call is known to throw (`on SocketException`,
+  `test: (e) => e is SocksClientException`), never `catch (_)`, `on Object` or
+  `onError: (_) {}`: those also swallow `Error`s, which are bugs, and leave nothing
+  to fail the test that would have caught them. When a failure already has an
+  owner (a future dart:io observes, a request that reports it), don't add a
+  second listener to silence it; restructure so there is one. The existing
+  `catch (_)` sites predate this rule; don't copy them.
 
 ## Shipping macOS
 
