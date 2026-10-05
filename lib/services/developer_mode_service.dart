@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/pref_read.dart';
 
+import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
 
 /// SharedPreferences key holding the developer-mode flag. Round-tripped
@@ -27,6 +28,7 @@ class DeveloperModeService {
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     _enabled = readPrefAs<bool>(prefs, kDeveloperModeKey) ?? false;
+    await BackgroundLog.instance.setRecording(_enabled);
   }
 
   /// Re-read the flag from disk. Called after a settings import, which
@@ -40,6 +42,9 @@ class DeveloperModeService {
     await prefs.setBool(kDeveloperModeKey, value);
     LogService.instance
         .log('DeveloperMode', value ? 'enabled' : 'disabled');
+    // DEVTOOLS-011: the background log exists only while developer mode is
+    // on; turning it off deletes what was recorded.
+    await BackgroundLog.instance.setRecording(value);
   }
 
   /// Test seam: set the in-memory flag without touching SharedPreferences.

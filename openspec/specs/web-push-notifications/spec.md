@@ -327,6 +327,13 @@ Because the wake-up chain (OS scheduler -> webview reload -> page JS -> `webNoti
 **And** the reload pass logs how many sites were reloaded versus skipped (unloaded / no controller)
 **And** the native bridge logs task receipt, dispatch reachability, completion, expiration, and timeout (iOS `NSLog`, Android `Log` under tag `WebspaceBgRefresh`)
 
+#### Scenario: The trace outlives the process that wrote it
+
+**Given** developer mode is on
+**When** a background refresh runs, in a process that later dies or in one Dart never started
+**Then** the trace lines above, and the native bridge's, are kept in the background log (DEVTOOLS-011)
+**And** the Background tab of Developer Tools shows them with the OS gates the refresh depends on, without logcat or Console.app
+
 #### Scenario: Developer can simulate a background refresh in the foreground
 
 **Given** the developer-tools App Logs tab is open for a site

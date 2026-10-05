@@ -247,7 +247,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | cookie-secure-storage | encrypted cookie persistence |
 | design-gallery | designer works in Dart on web; web-clean, token-validity, render-matrix and card gates |
 | desktop-mode | per-site UA → JS shim (userAgentData, maxTouchPoints, viewport rewrite) |
-| developer-tools | JS console, cookie inspector, HTML export, app logs |
+| developer-tools | JS console, cookie inspector, HTML export, app logs; in developer mode a background log that outlives the process (native refresh steps, wakes, unloaded notification sites, OS gates) with site names kept in memory only |
 | dns-blocklist | Hagezi list, severity levels, per-site toggle; per-site level is a mask over the app level (the levels do not nest, so each domain carries a bit per level) |
 | downloads | http/https/data/blob, streamed progress + save dialog |
 | external-scheme-handling | intent:// auto-resolves to http(s) fallback (silent route); prompt only when no web equivalent |

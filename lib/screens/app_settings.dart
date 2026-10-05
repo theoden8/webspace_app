@@ -2492,6 +2492,31 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               );
             },
           ),
+          if (_developerMode)
+            ListTile(
+              key: const Key('app-settings-background-log'),
+              leading: const Icon(Icons.bedtime_outlined),
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.appSettingsBackgroundLog)),
+                  HintButton(
+                    title: loc.appSettingsBackgroundLog,
+                    description: loc.appSettingsBackgroundLogHint,
+                  ),
+                ],
+              ),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DevToolsScreen(
+                      cookieManager: CookieManager(),
+                      startOnBackground: true,
+                    ),
+                  ),
+                );
+              },
+            ),
 
           const Divider(height: 32),
 

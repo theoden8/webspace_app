@@ -5041,5 +5041,42 @@
   "proxyLibraryCredentialsMismatch": "Credentials don't fit this gateway",
   "@proxyLibraryCredentialsMismatch": {
     "description": "Shown when saved credentials are paired with a gateway they do not list as one they work on. Such a site does not load until the pairing is fixed."
+  },
+  "appSettingsBackgroundLog": "Background log",
+  "@appSettingsBackgroundLog": {
+    "description": "Title of a developer-mode row in App Settings that opens the background log: a record of what the app did while it was not on screen (scheduled refreshes, wakes, notifications)."
+  },
+  "appSettingsBackgroundLogHint": "Records what happens while WebSpace is not on screen: leaving and returning, the background refresh the system schedules, each wake and the notifications it posts, including steps iOS and Android run before the app starts. Kept across restarts while developer mode is on; turning it off deletes the log. Entries that name a site, a page title or notification text stay in memory and never reach a file.",
+  "@appSettingsBackgroundLogHint": {
+    "description": "Explanation behind the hint button of the Background log row in App Settings. Says what the log records, that it persists across restarts only while developer mode is on, that turning developer mode off deletes it, and that entries naming sites stay in memory."
+  },
+  "devToolsTabBackground": "Background",
+  "@devToolsTabBackground": {
+    "description": "Tab label in Developer Tools for the background log (what the app did while it was not on screen). Shown only in developer mode."
+  },
+  "devToolsBackgroundSystemState": "System state",
+  "@devToolsBackgroundSystemState": {
+    "description": "Header of an expandable list in the Background tab of Developer Tools that shows operating-system settings that decide whether background refreshes and notifications can run (notification permission, background refresh, battery restrictions)."
+  },
+  "devToolsBackgroundEmpty": "No background events recorded yet",
+  "@devToolsBackgroundEmpty": {
+    "description": "Empty-state text in the Background tab of Developer Tools when nothing has been recorded while the app was in the background."
+  },
+  "devToolsBackgroundSensitiveShow": "Show entries that name sites (names, page titles, notification text)",
+  "@devToolsBackgroundSensitiveShow": {
+    "description": "Label next to a switch in the Background tab of Developer Tools. Turning it on also shows the log entries that name sites or carry page titles and notification text."
+  },
+  "devToolsBackgroundSensitiveShowing": "Showing entries that name sites. They are kept in memory only and reset on app restart.",
+  "@devToolsBackgroundSensitiveShowing": {
+    "description": "Label next to the switch in the Background tab of Developer Tools while entries that name sites are being shown."
+  },
+  "devToolsBackgroundCopySensitiveBody": "{count} of the entries shown name sites or carry page titles and notification text. The clipboard can sync off the device.",
+  "@devToolsBackgroundCopySensitiveBody": {
+    "description": "Body of the confirmation dialog before copying background-log entries that name sites. {count} is how many of the copied entries do.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

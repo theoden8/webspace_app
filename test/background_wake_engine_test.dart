@@ -161,7 +161,7 @@ void main() {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
       final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) Chat');
-      expect(await engine.wake(host), 1);
+      expect((await engine.wake(host)).posted, 1);
       expect(host.posts, ['Site a: (5) Chat']);
     });
 
@@ -170,7 +170,7 @@ void main() {
           postsOnLoad: true);
       final host = _Host({'a': page});
       final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) Chat');
-      expect(await engine.wake(host), 0);
+      expect((await engine.wake(host)).posted, 0);
     });
 
     test('one rise posts once across wakes', () async {
@@ -187,7 +187,7 @@ void main() {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');
       final host = _Host({'a': page});
       final engine = BackgroundWakeEngine();
-      expect(await engine.wake(host), 0);
+      expect((await engine.wake(host)).posted, 0);
       expect(engine.baseline('a'), 5);
     });
 
@@ -198,6 +198,59 @@ void main() {
       engine.forget({'a'});
       expect(engine.baseline('a'), 1);
       expect(engine.baseline('b'), isNull);
+    });
+  });
+
+  group('DEVTOOLS-011 the wake reports what each site did', () {
+    test('a load that finished, a page that never loaded, a webview gone',
+        () async {
+      final host = _Host({
+        'a': _Page(titleBefore: '(2) A', titleAfter: '(4) A', loadTicks: 4),
+        'b': _Page(titleBefore: null, titleAfter: null, loadTicks: 0),
+        'c': _Page(titleBefore: null, titleAfter: null)..gone = true,
+      });
+      final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) A');
+      final report = await engine.wake(host);
+      final byId = {for (final o in report.sites) o.site.siteId: o};
+      expect(byId['a']!.settle.kind, WakeSettleKind.loaded);
+      expect(byId['a']!.settle.after, isNotNull);
+      expect(byId['a']!.baseline, 2);
+      expect(byId['a']!.current, 4);
+      expect(byId['a']!.fallbackPosted, isTrue);
+      expect(byId['b']!.settle.kind, WakeSettleKind.neverLoaded);
+      expect(byId['c']!.settle.kind, WakeSettleKind.gone);
+      expect(report.posted, 1);
+    });
+
+    test('a page still loading at the deadline is reported as such', () async {
+      final host = _Host({
+        'a': _Page(titleBefore: null, titleAfter: null, loadTicks: 1000),
+      });
+      final report = await BackgroundWakeEngine().wake(host);
+      expect(report.sites.single.settle.kind, WakeSettleKind.timedOut);
+    });
+
+    test('no sites: an empty report, nothing reloaded', () async {
+      final host = _Host({});
+      final report = await BackgroundWakeEngine().wake(host);
+      expect(report.sites, isEmpty);
+      expect(host.events, isEmpty);
+    });
+
+    test('the normal line names no site; the sensitive line does', () async {
+      final host = _Host({
+        'secret-id': _Page(titleBefore: '(1) Inbox', titleAfter: '(3) Inbox'),
+      });
+      final engine = BackgroundWakeEngine()..noteBaseline('secret-id', '(1) Inbox');
+      final report = await engine.wake(host);
+      final line = describeWakeSite(report.sites.single, 1, 1);
+      expect(line.normal, contains('wake site 1/1'));
+      expect(line.normal, contains('unread 1 -> 3'));
+      expect(line.normal, contains('posted for it'));
+      expect(line.normal, isNot(contains('secret-id')));
+      expect(line.normal, isNot(contains('Site secret-id')));
+      expect(line.normal, isNot(contains('Inbox')));
+      expect(line.sensitive, contains('Site secret-id'));
     });
   });
 }

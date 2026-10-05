@@ -42,6 +42,7 @@ const migrated = new Set([
   'lib/screens/user_scripts.dart',
   'lib/screens/webspace_detail.dart',
   'lib/screens/webspaces_list.dart',
+  'lib/widgets/background_log_view.dart',
   // A coloured bar, excluded from semantics: no text at all.
   'lib/widgets/container_mark.dart',
   'lib/widgets/dispatch_picker_sheet.dart',
@@ -57,6 +58,7 @@ const migrated = new Set([
   'lib/widgets/proxy_choice_dropdown.dart',
   'lib/widgets/proxy_status_indicator.dart',
   'lib/widgets/level_slider.dart',
+  'lib/widgets/log_entry_line.dart',
   'lib/widgets/root_messenger.dart',
   'lib/widgets/site_info_sheet.dart',
   'lib/widgets/site_permission_badges.dart',

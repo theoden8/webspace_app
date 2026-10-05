@@ -52,6 +52,81 @@ bool postsUnreadFallback({
 }) =>
     !sitePosted && baseline != null && current != null && current > baseline;
 
+enum WakeSettleKind { loaded, neverLoaded, timedOut, gone }
+
+/// How a site's reload ended inside a wake.
+class WakeSettle {
+  final WakeSettleKind kind;
+
+  /// Time from the wake's start to the load finishing; [loaded] only.
+  final Duration? after;
+
+  const WakeSettle.loaded(Duration this.after) : kind = WakeSettleKind.loaded;
+  const WakeSettle.neverLoaded()
+      : kind = WakeSettleKind.neverLoaded,
+        after = null;
+  const WakeSettle.timedOut()
+      : kind = WakeSettleKind.timedOut,
+        after = null;
+  const WakeSettle.gone()
+      : kind = WakeSettleKind.gone,
+        after = null;
+
+  String describe() => switch (kind) {
+        WakeSettleKind.loaded =>
+          'loaded in ${(after!.inMilliseconds / 1000).toStringAsFixed(1)}s',
+        WakeSettleKind.neverLoaded => 'no load observed',
+        WakeSettleKind.timedOut => 'still loading at the deadline',
+        WakeSettleKind.gone => 'webview gone',
+      };
+}
+
+class WakeSiteOutcome {
+  final WakeSite site;
+  final WakeSettle settle;
+  final int? baseline;
+  final int? current;
+  final bool sitePosted;
+  final bool fallbackPosted;
+
+  const WakeSiteOutcome({
+    required this.site,
+    required this.settle,
+    required this.baseline,
+    required this.current,
+    required this.sitePosted,
+    required this.fallbackPosted,
+  });
+}
+
+class WakeReport {
+  final List<WakeSiteOutcome> sites;
+  final Duration elapsed;
+
+  const WakeReport({required this.sites, required this.elapsed});
+
+  int get posted => sites.where((s) => s.fallbackPosted).length;
+}
+
+/// Background-log lines for one site of a wake. [normal] names the site by
+/// its position only, so it can be kept on disk and exported; [sensitive]
+/// carries the name that position stands for.
+({String normal, String sensitive}) describeWakeSite(
+    WakeSiteOutcome o, int position, int count) {
+  String unread(int? v) => v == null ? '?' : '$v';
+  final verdict = o.fallbackPosted
+      ? 'posted for it'
+      : o.sitePosted
+          ? 'page posted itself'
+          : 'nothing posted';
+  return (
+    normal: 'wake site $position/$count: ${o.settle.describe()}, '
+        'unread ${unread(o.baseline)} -> ${unread(o.current)}, $verdict',
+    sensitive: 'wake site $position/$count is "${o.site.name}" '
+        '(siteId ${o.site.siteId})',
+  );
+}
+
 /// NOTIF-013 / NOTIF-014: a background wake (iOS `BGAppRefreshTask`, the
 /// Android `WorkManager`) reloads every notification site, keeps the
 /// wake open until those loads settle and their JS has had a moment to post,
@@ -96,55 +171,80 @@ class BackgroundWakeEngine {
   void forget(Set<String> liveSiteIds) =>
       _baselines.removeWhere((id, _) => !liveSiteIds.contains(id));
 
-  /// Runs one wake and returns how many fallback notifications it posted.
-  Future<int> wake(BackgroundWakeHost host) async {
+  /// Runs one wake and reports what each site did.
+  Future<WakeReport> wake(BackgroundWakeHost host) async {
     final sites = host.wakeSites();
-    if (sites.isEmpty) return 0;
     final started = host.now();
+    if (sites.isEmpty) {
+      return WakeReport(sites: const [], elapsed: Duration.zero);
+    }
     for (final s in sites) {
       await host.reload(s.siteId);
     }
-    await _awaitSettled(host, sites, started);
+    final settle = await _awaitSettled(host, sites, started);
     await host.delay(postGrace);
 
-    var posted = 0;
+    final outcomes = <WakeSiteOutcome>[];
     for (final s in sites) {
       final title = await host.title(s.siteId);
-      if (postsUnreadFallback(
-        baseline: _baselines[s.siteId],
-        current: unreadCountFromTitle(title),
-        sitePosted: host.postedSince(s.siteId, started),
-      )) {
+      final baseline = _baselines[s.siteId];
+      final current = unreadCountFromTitle(title);
+      final sitePosted = host.postedSince(s.siteId, started);
+      final fallback = postsUnreadFallback(
+        baseline: baseline,
+        current: current,
+        sitePosted: sitePosted,
+      );
+      if (fallback) {
         await host.post(siteId: s.siteId, siteName: s.name, body: title!);
-        posted++;
       }
+      outcomes.add(WakeSiteOutcome(
+        site: s,
+        settle: settle[s.siteId]!,
+        baseline: baseline,
+        current: current,
+        sitePosted: sitePosted,
+        fallbackPosted: fallback,
+      ));
       noteBaseline(s.siteId, title);
     }
-    return posted;
+    return WakeReport(sites: outcomes, elapsed: host.now().difference(started));
   }
 
   /// A reload is settled once its load has been seen to start and then stop,
   /// or once it never started within the first second (a reload the engine
   /// refused, or one that finished before the first poll).
-  Future<void> _awaitSettled(
+  Future<Map<String, WakeSettle>> _awaitSettled(
       BackgroundWakeHost host, List<WakeSite> sites, DateTime started) async {
     final seenLoading = <String>{};
+    final settledAt = <String, Duration>{};
     final deadline = started.add(settleDeadline);
     final startGrace = started.add(const Duration(seconds: 1));
     while (true) {
       var pending = false;
       final now = host.now();
+      final state = <String, WakeSettle>{};
       for (final s in sites) {
-        final loading = host.isLoading(s.siteId);
-        if (loading == null) continue;
-        if (loading) {
-          seenLoading.add(s.siteId);
+        final id = s.siteId;
+        final loading = host.isLoading(id);
+        if (loading == null) {
+          state[id] = const WakeSettle.gone();
+        } else if (loading) {
+          seenLoading.add(id);
+          settledAt.remove(id);
           pending = true;
-        } else if (!seenLoading.contains(s.siteId) && now.isBefore(startGrace)) {
+          state[id] = const WakeSettle.timedOut();
+        } else if (seenLoading.contains(id)) {
+          state[id] = WakeSettle.loaded(
+              settledAt.putIfAbsent(id, () => now.difference(started)));
+        } else if (now.isBefore(startGrace)) {
           pending = true;
+          state[id] = const WakeSettle.timedOut();
+        } else {
+          state[id] = const WakeSettle.neverLoaded();
         }
       }
-      if (!pending || !host.now().isBefore(deadline)) return;
+      if (!pending || !host.now().isBefore(deadline)) return state;
       await host.delay(poll);
     }
   }

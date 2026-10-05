@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'package:webspace/platform/host_platform.dart';
 
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter/services.dart';
+import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
 
 /// Dart-side bridge to the platform background-task plugins. Implements
@@ -55,19 +57,26 @@ class BackgroundTaskService {
     _channel.setMethodCallHandler((call) async {
       switch (call.method) {
         case 'onBackgroundRefresh':
-          LogService.instance.log(
-              'BackgroundTask', 'background refresh fired — reloading notif sites');
+          final lifecycle =
+              SchedulerBinding.instance.lifecycleState?.name ?? 'unknown';
+          BackgroundLog.instance.record('BackgroundTask',
+              'background refresh fired (app $lifecycle) — reloading notif sites');
+          final watch = Stopwatch()..start();
           try {
             final cb = onBackgroundRefresh;
             if (cb != null) {
               await cb();
             }
+            BackgroundLog.instance.record('BackgroundTask',
+                'background refresh handled in ${watch.elapsedMilliseconds}ms');
             await bgRefreshDidComplete(success: true);
           } catch (e, st) {
-            LogService.instance.log(
+            // The message can quote a page URL; only its type is kept on disk.
+            BackgroundLog.instance.record(
               'BackgroundTask',
-              'background refresh handler threw: $e\n$st',
+              'background refresh handler threw ${e.runtimeType}',
               level: LogLevel.error,
+              sensitive: 'background refresh handler threw: $e\n$st',
             );
             await bgRefreshDidComplete(success: false);
           }
@@ -84,7 +93,7 @@ class BackgroundTaskService {
       LogService.instance.log(
           'BackgroundTask', 'Started ~30s grace period for notification flush');
     } on PlatformException catch (e) {
-      LogService.instance.log(
+      BackgroundLog.instance.record(
         'BackgroundTask',
         'beginGracePeriod failed: ${e.message}',
         level: LogLevel.warning,
@@ -97,7 +106,7 @@ class BackgroundTaskService {
     try {
       await _channel.invokeMethod('endGracePeriod');
     } on PlatformException catch (e) {
-      LogService.instance.log(
+      BackgroundLog.instance.record(
         'BackgroundTask',
         'endGracePeriod failed: ${e.message}',
         level: LogLevel.warning,
@@ -110,7 +119,7 @@ class BackgroundTaskService {
     try {
       await _channel.invokeMethod('scheduleRefresh');
     } on PlatformException catch (e) {
-      LogService.instance.log(
+      BackgroundLog.instance.record(
         'BackgroundTask',
         'scheduleRefresh failed: ${e.message}',
         level: LogLevel.warning,
@@ -123,7 +132,7 @@ class BackgroundTaskService {
     try {
       await _channel.invokeMethod('cancelScheduledRefreshes');
     } on PlatformException catch (e) {
-      LogService.instance.log(
+      BackgroundLog.instance.record(
         'BackgroundTask',
         'cancelScheduledRefreshes failed: ${e.message}',
         level: LogLevel.warning,
@@ -137,7 +146,7 @@ class BackgroundTaskService {
       await _channel
           .invokeMethod('bgRefreshDidComplete', {'success': success});
     } on PlatformException catch (e) {
-      LogService.instance.log(
+      BackgroundLog.instance.record(
         'BackgroundTask',
         'bgRefreshDidComplete failed: ${e.message}',
         level: LogLevel.warning,
@@ -162,10 +171,10 @@ class BackgroundTaskService {
     try {
       await _channel
           .invokeMethod('setBackgroundAudioActive', {'active': active});
-      LogService.instance.log(
+      BackgroundLog.instance.record(
           'BackgroundTask', 'Background audio session active=$active');
     } on PlatformException catch (e) {
-      LogService.instance.log(
+      BackgroundLog.instance.record(
         'BackgroundTask',
         'setBackgroundAudioActive failed: ${e.message}',
         level: LogLevel.warning,
