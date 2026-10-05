@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "আগে একটি গেটওয়ে যোগ করুন।",
   "proxyLibraryGatewayMissing": "গেটওয়ে অনুপস্থিত",
   "proxyLibraryCredentialsMissing": "পরিচয়পত্র অনুপস্থিত",
-  "proxyLibraryCredentialsMismatch": "পরিচয়পত্র এই গেটওয়ের সঙ্গে মেলে না"
+  "proxyLibraryCredentialsMismatch": "পরিচয়পত্র এই গেটওয়ের সঙ্গে মেলে না",
+  "appSettingsBackgroundLog": "ব্যাকগ্রাউন্ড লগ",
+  "appSettingsBackgroundLogHint": "WebSpace স্ক্রিনে না থাকাকালীন যা ঘটে তা রেকর্ড করে: চলে যাওয়া ও ফিরে আসা, সিস্টেম যে ব্যাকগ্রাউন্ড রিফ্রেশ নির্ধারণ করে, প্রতিটি জাগরণ ও তার পোস্ট করা বিজ্ঞপ্তি, অ্যাপ শুরুর আগে iOS ও Android যে ধাপগুলো চালায় সেগুলো সহ। ডেভেলপার মোড চালু থাকা পর্যন্ত রিস্টার্টের পরেও রাখা হয়; বন্ধ করলে লগ মুছে যায়। যেসব এন্ট্রিতে কোনো সাইট, পৃষ্ঠার শিরোনাম বা বিজ্ঞপ্তির লেখা থাকে সেগুলো শুধু মেমরিতে থাকে এবং কখনো কোনো ফাইলে যায় না।",
+  "devToolsTabBackground": "ব্যাকগ্রাউন্ড",
+  "devToolsBackgroundSystemState": "সিস্টেমের অবস্থা",
+  "devToolsBackgroundEmpty": "এখনও কোনো ব্যাকগ্রাউন্ড ইভেন্ট রেকর্ড হয়নি",
+  "devToolsBackgroundSensitiveShow": "সাইটের নাম থাকা এন্ট্রি দেখান (নাম, পৃষ্ঠার শিরোনাম, বিজ্ঞপ্তির লেখা)",
+  "devToolsBackgroundSensitiveShowing": "সাইটের নাম থাকা এন্ট্রি দেখানো হচ্ছে। এগুলো শুধু মেমরিতে রাখা হয় এবং অ্যাপ রিস্টার্টে রিসেট হয়।",
+  "devToolsBackgroundCopySensitiveBody": "প্রদর্শিত এন্ট্রিগুলির মধ্যে {count}টিতে সাইটের নাম অথবা পৃষ্ঠার শিরোনাম ও বিজ্ঞপ্তির লেখা রয়েছে। ক্লিপবোর্ড ডিভাইসের বাইরে সিঙ্ক হতে পারে।"
 }

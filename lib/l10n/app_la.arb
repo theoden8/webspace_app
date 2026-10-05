@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Primum portam adde.",
   "proxyLibraryGatewayMissing": "Porta deest",
   "proxyLibraryCredentialsMissing": "Credentiales desunt",
-  "proxyLibraryCredentialsMismatch": "Credentiales huic portae non conveniunt"
+  "proxyLibraryCredentialsMismatch": "Credentiales huic portae non conveniunt",
+  "appSettingsBackgroundLog": "Acta in recessu",
+  "appSettingsBackgroundLogHint": "Notat quid fiat dum WebSpace in scrinio non est: exitum et reditum, renovationem in recessu quam systema ordinat, singulas excitationes et nuntios quos mittunt, etiam gradus quos iOS et Android agunt antequam applicatio incipit. Servatur per iteratas inceptiones dum modus fabri activus est; eo exstincto acta delentur. Inscriptiones quae locum, titulum paginae aut textum nuntii nominant in memoria tantum manent neque umquam ad fasciculum perveniunt.",
+  "devToolsTabBackground": "Recessus",
+  "devToolsBackgroundSystemState": "Status systematis",
+  "devToolsBackgroundEmpty": "Nulli eventus in recessu adhuc notati",
+  "devToolsBackgroundSensitiveShow": "Inscriptiones ostendere quae locos nominant (nomina, titulos paginarum, textum nuntiorum)",
+  "devToolsBackgroundSensitiveShowing": "Inscriptiones quae locos nominant ostenduntur. In memoria tantum servantur et reponuntur cum applicatio iterum incipit.",
+  "devToolsBackgroundCopySensitiveBody": "{count} ex inscriptionibus ostensis locos nominant aut titulos paginarum et textum nuntiorum continent. Tabula transcriptionis extra machinam synchronizari potest."
 }

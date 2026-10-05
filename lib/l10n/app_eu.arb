@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Gehitu atebide bat lehenik.",
   "proxyLibraryGatewayMissing": "Atebidea falta da",
   "proxyLibraryCredentialsMissing": "Kredentzialak falta dira",
-  "proxyLibraryCredentialsMismatch": "Kredentzialak ez datoz bat atebide honekin"
+  "proxyLibraryCredentialsMismatch": "Kredentzialak ez datoz bat atebide honekin",
+  "appSettingsBackgroundLog": "Atzeko planoko erregistroa",
+  "appSettingsBackgroundLogHint": "WebSpace pantailan ez dagoen bitartean gertatzen dena erregistratzen du: irtetea eta itzultzea, sistemak programatzen duen atzeko planoko freskatzea, esnatze bakoitza eta bidaltzen dituen jakinarazpenak, aplikazioa abiarazi aurretik iOSek eta Androidek egiten dituzten urratsak barne. Berrabiarazteetan zehar gordetzen da garatzaile modua aktibatuta dagoen bitartean; desaktibatzeak erregistroa ezabatzen du. Gune bat, orri-izenburu bat edo jakinarazpen-testua aipatzen duten sarrerak memorian geratzen dira eta ez dira inoiz fitxategi batera iristen.",
+  "devToolsTabBackground": "Atzeko planoa",
+  "devToolsBackgroundSystemState": "Sistemaren egoera",
+  "devToolsBackgroundEmpty": "Oraindik ez da atzeko planoko gertaerarik erregistratu",
+  "devToolsBackgroundSensitiveShow": "Erakutsi guneak aipatzen dituzten sarrerak (izenak, orri-izenburuak, jakinarazpen-testua)",
+  "devToolsBackgroundSensitiveShowing": "Guneak aipatzen dituzten sarrerak erakusten. Memorian soilik gordetzen dira eta aplikazioa berrabiaraztean berrezartzen dira.",
+  "devToolsBackgroundCopySensitiveBody": "Erakutsitako sarreretatik {count} sarrerak guneak aipatzen dituzte edo orri-izenburuak eta jakinarazpen-testua dituzte. Arbela gailutik kanpo sinkroniza daiteke."
 }

@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Voeg eers 'n deurgang by.",
   "proxyLibraryGatewayMissing": "Deurgang ontbreek",
   "proxyLibraryCredentialsMissing": "Geloofsbriewe ontbreek",
-  "proxyLibraryCredentialsMismatch": "Geloofsbriewe pas nie by hierdie deurgang nie"
+  "proxyLibraryCredentialsMismatch": "Geloofsbriewe pas nie by hierdie deurgang nie",
+  "appSettingsBackgroundLog": "Agtergrondlogboek",
+  "appSettingsBackgroundLogHint": "Teken aan wat gebeur terwyl WebSpace nie op die skerm is nie: weggaan en terugkeer, die agtergrondverversing wat die stelsel skeduleer, elke wekroep en die kennisgewings wat dit plaas, insluitend stappe wat iOS en Android uitvoer voordat die app begin. Bly oor herbegins behoue solank ontwikkelaarmodus aan is; as jy dit afskakel, word die logboek uitgevee. Inskrywings wat 'n werf, 'n bladsytitel of kennisgewingteks noem, bly in die geheue en bereik nooit 'n lêer nie.",
+  "devToolsTabBackground": "Agtergrond",
+  "devToolsBackgroundSystemState": "Stelseltoestand",
+  "devToolsBackgroundEmpty": "Nog geen agtergrondgebeure aangeteken nie",
+  "devToolsBackgroundSensitiveShow": "Wys inskrywings wat werwe noem (name, bladsytitels, kennisgewingteks)",
+  "devToolsBackgroundSensitiveShowing": "Wys inskrywings wat werwe noem. Hulle word net in die geheue gehou en by app-herbegin teruggestel.",
+  "devToolsBackgroundCopySensitiveBody": "{count} van die inskrywings wat gewys word, noem werwe of bevat bladsytitels en kennisgewingteks. Die knipbord kan van die toestel af sinkroniseer."
 }

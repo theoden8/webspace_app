@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "መጀመሪያ መተላለፊያ አክል።",
   "proxyLibraryGatewayMissing": "መተላለፊያው አልተገኘም",
   "proxyLibraryCredentialsMissing": "የመግቢያ መረጃዎቹ አልተገኙም",
-  "proxyLibraryCredentialsMismatch": "የመግቢያ መረጃዎቹ ለዚህ መተላለፊያ አይሆኑም"
+  "proxyLibraryCredentialsMismatch": "የመግቢያ መረጃዎቹ ለዚህ መተላለፊያ አይሆኑም",
+  "appSettingsBackgroundLog": "የዳራ ምዝግብ",
+  "appSettingsBackgroundLogHint": "WebSpace በማያ ገጹ ላይ በማይሆንበት ጊዜ የሚሆነውን ይመዘግባል፦ መውጣትና መመለስ፣ ስርዓቱ የሚያቅደው የዳራ ማደስ፣ እያንዳንዱ መቀስቀስና የሚለጥፋቸው ማሳወቂያዎች፣ መተግበሪያው ከመጀመሩ በፊት iOS እና Android የሚያከናውኗቸውን ደረጃዎች ጨምሮ። የገንቢ ሁነታ በበራበት ጊዜ ዳግም ከተጀመረ በኋላም ይቆያል፤ ማጥፋቱ ምዝግቡን ይሰርዛል። ጣቢያን፣ የገጽ ርዕስን ወይም የማሳወቂያ ጽሑፍን የሚጠቅሱ ግቤቶች በማህደረ ትውስታ ውስጥ ብቻ ይቆያሉ፣ ወደ ፋይልም አይደርሱም።",
+  "devToolsTabBackground": "ዳራ",
+  "devToolsBackgroundSystemState": "የስርዓት ሁኔታ",
+  "devToolsBackgroundEmpty": "እስካሁን ምንም የዳራ ክስተቶች አልተመዘገቡም",
+  "devToolsBackgroundSensitiveShow": "ጣቢያዎችን የሚጠቅሱ ግቤቶችን አሳይ (ስሞች፣ የገጽ ርዕሶች፣ የማሳወቂያ ጽሑፍ)",
+  "devToolsBackgroundSensitiveShowing": "ጣቢያዎችን የሚጠቅሱ ግቤቶች በማሳየት ላይ። በማህደረ ትውስታ ውስጥ ብቻ ይቀመጣሉ፣ መተግበሪያው እንደገና ሲጀምር ይጸዳሉ።",
+  "devToolsBackgroundCopySensitiveBody": "ከሚታዩት ግቤቶች ውስጥ {count} ጣቢያዎችን ይጠቅሳሉ ወይም የገጽ ርዕሶችንና የማሳወቂያ ጽሑፍን ይዘዋል። ቅንጥብ ሰሌዳው ከመሣሪያው ውጭ ሊመሳሰል ይችላል።"
 }

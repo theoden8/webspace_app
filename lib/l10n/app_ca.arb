@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Primer afegiu una passarel·la.",
   "proxyLibraryGatewayMissing": "Falta la passarel·la",
   "proxyLibraryCredentialsMissing": "Falten les credencials",
-  "proxyLibraryCredentialsMismatch": "Les credencials no corresponen a aquesta passarel·la"
+  "proxyLibraryCredentialsMismatch": "Les credencials no corresponen a aquesta passarel·la",
+  "appSettingsBackgroundLog": "Registre en segon pla",
+  "appSettingsBackgroundLogHint": "Registra què passa mentre WebSpace no és a la pantalla: sortir-ne i tornar-hi, l'actualització en segon pla que programa el sistema, cada despertada i les notificacions que publica, incloent-hi els passos que iOS i Android fan abans que s'iniciï l'app. Es conserva entre reinicis mentre el mode de desenvolupador està activat; desactivar-lo esborra el registre. Les entrades que anomenen un lloc, un títol de pàgina o text de notificació es queden a la memòria i mai no arriben a cap fitxer.",
+  "devToolsTabBackground": "Segon pla",
+  "devToolsBackgroundSystemState": "Estat del sistema",
+  "devToolsBackgroundEmpty": "Encara no s'ha registrat cap esdeveniment en segon pla",
+  "devToolsBackgroundSensitiveShow": "Mostra les entrades que anomenen llocs (noms, títols de pàgina, text de notificació)",
+  "devToolsBackgroundSensitiveShowing": "Mostrant entrades que anomenen llocs. Només es guarden a la memòria i es restableixen en reiniciar l'app.",
+  "devToolsBackgroundCopySensitiveBody": "{count} de les entrades mostrades anomenen llocs o contenen títols de pàgina i text de notificació. El porta-retalls es pot sincronitzar fora del dispositiu."
 }

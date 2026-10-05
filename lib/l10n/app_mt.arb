@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Żid gateway l-ewwel.",
   "proxyLibraryGatewayMissing": "Gateway nieqes",
   "proxyLibraryCredentialsMissing": "Kredenzjali neqsin",
-  "proxyLibraryCredentialsMismatch": "Il-kredenzjali ma jaqblux ma' dan il-gateway"
+  "proxyLibraryCredentialsMismatch": "Il-kredenzjali ma jaqblux ma' dan il-gateway",
+  "appSettingsBackgroundLog": "Log fl-isfond",
+  "appSettingsBackgroundLogHint": "Jirreġistra x'jiġri meta WebSpace ma jkunx fuq l-iskrin: il-ħruġ u r-ritorn, l-aġġornament fl-isfond li jiskeda s-sistema, kull qawmien u n-notifiki li jibgħat, inklużi l-passi li jħaddmu iOS u Android qabel ma tibda l-app. Jinżamm minn bidu mill-ġdid għall-ieħor sakemm il-modalità tal-iżviluppatur tkun mixgħula; meta titfiha, il-log jitħassar. L-entrati li jsemmu sit, titolu ta' paġna jew test ta' notifika jibqgħu fil-memorja biss u qatt ma jaslu f'fajl.",
+  "devToolsTabBackground": "Sfond",
+  "devToolsBackgroundSystemState": "Stat tas-sistema",
+  "devToolsBackgroundEmpty": "Għadu ma ġie rreġistrat ebda avveniment fl-isfond",
+  "devToolsBackgroundSensitiveShow": "Uri l-entrati li jsemmu siti (ismijiet, titoli ta' paġni, test tan-notifiki)",
+  "devToolsBackgroundSensitiveShowing": "Qed jintwerew entrati li jsemmu siti. Jinżammu fil-memorja biss u jirrisettjaw meta tinbeda mill-ġdid l-app.",
+  "devToolsBackgroundCopySensitiveBody": "{count} mill-entrati murija jsemmu siti jew fihom titoli ta' paġni u test tan-notifiki. Il-klipbord jista' jissinkronizza barra mill-apparat."
 }

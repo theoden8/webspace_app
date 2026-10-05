@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Adaugă mai întâi un server.",
   "proxyLibraryGatewayMissing": "Server lipsă",
   "proxyLibraryCredentialsMissing": "Date de autentificare lipsă",
-  "proxyLibraryCredentialsMismatch": "Datele de autentificare nu se potrivesc cu acest server"
+  "proxyLibraryCredentialsMismatch": "Datele de autentificare nu se potrivesc cu acest server",
+  "appSettingsBackgroundLog": "Jurnal în fundal",
+  "appSettingsBackgroundLogHint": "Înregistrează ce se întâmplă cât timp WebSpace nu este pe ecran: plecarea și revenirea, reîmprospătarea în fundal programată de sistem, fiecare trezire și notificările pe care le publică, inclusiv pașii pe care iOS și Android îi execută înainte de pornirea aplicației. Se păstrează după reporniri cât timp modul dezvoltator este activat; dezactivarea lui șterge jurnalul. Intrările care numesc un site, un titlu de pagină sau textul unei notificări rămân doar în memorie și nu ajung niciodată într-un fișier.",
+  "devToolsTabBackground": "Fundal",
+  "devToolsBackgroundSystemState": "Starea sistemului",
+  "devToolsBackgroundEmpty": "Niciun eveniment în fundal înregistrat încă",
+  "devToolsBackgroundSensitiveShow": "Afișează intrările care numesc site-uri (nume, titluri de pagină, textul notificărilor)",
+  "devToolsBackgroundSensitiveShowing": "Se afișează intrările care numesc site-uri. Sunt păstrate doar în memorie și se resetează la repornirea aplicației.",
+  "devToolsBackgroundCopySensitiveBody": "{count} dintre intrările afișate numesc site-uri sau conțin titluri de pagină și textul notificărilor. Clipboardul se poate sincroniza în afara dispozitivului."
 }

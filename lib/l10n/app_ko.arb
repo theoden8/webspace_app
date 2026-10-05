@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "먼저 게이트웨이를 추가하세요.",
   "proxyLibraryGatewayMissing": "게이트웨이를 찾을 수 없음",
   "proxyLibraryCredentialsMissing": "자격 증명을 찾을 수 없음",
-  "proxyLibraryCredentialsMismatch": "자격 증명이 이 게이트웨이와 맞지 않음"
+  "proxyLibraryCredentialsMismatch": "자격 증명이 이 게이트웨이와 맞지 않음",
+  "appSettingsBackgroundLog": "백그라운드 로그",
+  "appSettingsBackgroundLogHint": "WebSpace가 화면에 없을 때 일어나는 일을 기록합니다. 앱을 떠났다가 돌아오는 것, 시스템이 예약하는 백그라운드 새로고침, 각 깨우기와 그때 게시되는 알림, 그리고 앱이 시작되기 전에 iOS와 Android가 실행하는 단계도 포함합니다. 개발자 모드가 켜져 있는 동안 재시작 후에도 유지되며, 끄면 로그가 삭제됩니다. 사이트, 페이지 제목 또는 알림 텍스트가 들어 있는 항목은 메모리에만 남고 파일에는 절대 기록되지 않습니다.",
+  "devToolsTabBackground": "백그라운드",
+  "devToolsBackgroundSystemState": "시스템 상태",
+  "devToolsBackgroundEmpty": "아직 기록된 백그라운드 이벤트가 없습니다",
+  "devToolsBackgroundSensitiveShow": "사이트를 가리키는 항목 표시(이름, 페이지 제목, 알림 텍스트)",
+  "devToolsBackgroundSensitiveShowing": "사이트를 가리키는 항목을 표시 중입니다. 메모리에만 보관되며 앱 재시작 시 초기화됩니다.",
+  "devToolsBackgroundCopySensitiveBody": "표시된 항목 중 {count}개가 사이트를 가리키거나 페이지 제목과 알림 텍스트를 담고 있습니다. 클립보드는 기기 외부로 동기화될 수 있습니다."
 }

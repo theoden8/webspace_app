@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Ajoutez d'abord une passerelle.",
   "proxyLibraryGatewayMissing": "Passerelle introuvable",
   "proxyLibraryCredentialsMissing": "Identifiants introuvables",
-  "proxyLibraryCredentialsMismatch": "Ces identifiants ne conviennent pas à cette passerelle"
+  "proxyLibraryCredentialsMismatch": "Ces identifiants ne conviennent pas à cette passerelle",
+  "appSettingsBackgroundLog": "Journal d'arrière-plan",
+  "appSettingsBackgroundLogHint": "Enregistre ce qui se passe lorsque WebSpace n'est pas à l'écran : la sortie et le retour, l'actualisation en arrière-plan planifiée par le système, chaque réveil et les notifications qu'il publie, y compris les étapes qu'iOS et Android exécutent avant le démarrage de l'application. Conservé d'un redémarrage à l'autre tant que le mode développeur est activé ; le désactiver supprime le journal. Les entrées qui nomment un site, un titre de page ou un texte de notification restent en mémoire et n'atteignent jamais un fichier.",
+  "devToolsTabBackground": "Arrière-plan",
+  "devToolsBackgroundSystemState": "État du système",
+  "devToolsBackgroundEmpty": "Aucun événement en arrière-plan enregistré pour l'instant",
+  "devToolsBackgroundSensitiveShow": "Afficher les entrées qui nomment des sites (noms, titres de page, texte des notifications)",
+  "devToolsBackgroundSensitiveShowing": "Affichage des entrées qui nomment des sites. Elles sont conservées en mémoire uniquement et réinitialisées au redémarrage de l'application.",
+  "devToolsBackgroundCopySensitiveBody": "{count} des entrées affichées nomment des sites ou contiennent des titres de page et du texte de notification. Le presse-papiers peut se synchroniser en dehors de l'appareil."
 }

@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "先にゲートウェイを追加してください。",
   "proxyLibraryGatewayMissing": "ゲートウェイが見つかりません",
   "proxyLibraryCredentialsMissing": "認証情報が見つかりません",
-  "proxyLibraryCredentialsMismatch": "認証情報がこのゲートウェイに対応していません"
+  "proxyLibraryCredentialsMismatch": "認証情報がこのゲートウェイに対応していません",
+  "appSettingsBackgroundLog": "バックグラウンドログ",
+  "appSettingsBackgroundLogHint": "WebSpace が画面に表示されていない間に起きたことを記録します。アプリを離れて戻ること、システムがスケジュールするバックグラウンド更新、各ウェイクとそれが投稿する通知、さらにアプリの起動前に iOS と Android が実行する手順も含みます。開発者モードがオンの間は再起動後も保持され、オフにするとログは削除されます。サイト、ページタイトル、通知テキストを含むエントリはメモリ内にのみ保持され、ファイルに書き出されることはありません。",
+  "devToolsTabBackground": "バックグラウンド",
+  "devToolsBackgroundSystemState": "システムの状態",
+  "devToolsBackgroundEmpty": "バックグラウンドのイベントはまだ記録されていません",
+  "devToolsBackgroundSensitiveShow": "サイトを示すエントリを表示（名前、ページタイトル、通知テキスト）",
+  "devToolsBackgroundSensitiveShowing": "サイトを示すエントリを表示しています。メモリ内にのみ保持され、アプリ再起動時にリセットされます。",
+  "devToolsBackgroundCopySensitiveBody": "表示中のエントリのうち {count} 件がサイトを示すか、ページタイトルや通知テキストを含んでいます。クリップボードは端末外に同期されることがあります。"
 }

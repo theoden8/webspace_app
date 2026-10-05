@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Magdagdag muna ng gateway.",
   "proxyLibraryGatewayMissing": "Nawawalang gateway",
   "proxyLibraryCredentialsMissing": "Nawawalang kredensyal",
-  "proxyLibraryCredentialsMismatch": "Hindi tugma ang mga kredensyal sa gateway na ito"
+  "proxyLibraryCredentialsMismatch": "Hindi tugma ang mga kredensyal sa gateway na ito",
+  "appSettingsBackgroundLog": "Log sa background",
+  "appSettingsBackgroundLogHint": "Itinatala kung ano ang nangyayari habang wala sa screen ang WebSpace: pag-alis at pagbalik, ang background refresh na iniiskedyul ng system, bawat paggising at ang mga notification na ipinapadala nito, kasama ang mga hakbang na pinapatakbo ng iOS at Android bago magsimula ang app. Nananatili kahit mag-restart habang naka-on ang developer mode; kapag pinatay ito, nabubura ang log. Ang mga entry na nagbabanggit ng site, pamagat ng page, o teksto ng notification ay nananatili lamang sa memory at hindi kailanman napupunta sa file.",
+  "devToolsTabBackground": "Background",
+  "devToolsBackgroundSystemState": "Kalagayan ng system",
+  "devToolsBackgroundEmpty": "Wala pang naitalang background event",
+  "devToolsBackgroundSensitiveShow": "Ipakita ang mga entry na nagbabanggit ng site (pangalan, pamagat ng page, teksto ng notification)",
+  "devToolsBackgroundSensitiveShowing": "Ipinapakita ang mga entry na nagbabanggit ng site. Sa memory lang itinatago ang mga ito at nire-reset kapag nag-restart ang app.",
+  "devToolsBackgroundCopySensitiveBody": "{count} sa mga ipinapakitang entry ang nagbabanggit ng site o may pamagat ng page at teksto ng notification. Maaaring mag-sync ang clipboard sa labas ng device."
 }

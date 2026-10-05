@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Lisää ensin yhdyskäytävä.",
   "proxyLibraryGatewayMissing": "Puuttuva yhdyskäytävä",
   "proxyLibraryCredentialsMissing": "Puuttuvat tunnukset",
-  "proxyLibraryCredentialsMismatch": "Tunnukset eivät sovi tähän yhdyskäytävään"
+  "proxyLibraryCredentialsMismatch": "Tunnukset eivät sovi tähän yhdyskäytävään",
+  "appSettingsBackgroundLog": "Taustaloki",
+  "appSettingsBackgroundLogHint": "Tallentaa, mitä tapahtuu, kun WebSpace ei ole näytöllä: poistuminen ja palaaminen, järjestelmän ajoittama taustapäivitys, jokainen herätys ja sen lähettämät ilmoitukset, mukaan lukien vaiheet, jotka iOS ja Android suorittavat ennen sovelluksen käynnistymistä. Säilyy uudelleenkäynnistysten yli niin kauan kuin kehittäjätila on päällä; sen poistaminen käytöstä poistaa lokin. Merkinnät, jotka nimeävät sivuston, sivun otsikon tai ilmoitustekstin, pysyvät muistissa eivätkä koskaan päädy tiedostoon.",
+  "devToolsTabBackground": "Tausta",
+  "devToolsBackgroundSystemState": "Järjestelmän tila",
+  "devToolsBackgroundEmpty": "Taustatapahtumia ei ole vielä tallennettu",
+  "devToolsBackgroundSensitiveShow": "Näytä merkinnät, jotka nimeävät sivustoja (nimet, sivujen otsikot, ilmoitusteksti)",
+  "devToolsBackgroundSensitiveShowing": "Näytetään merkinnät, jotka nimeävät sivustoja. Ne säilytetään vain muistissa ja nollautuvat sovelluksen uudelleenkäynnistyksessä.",
+  "devToolsBackgroundCopySensitiveBody": "{count} näytetystä merkinnästä nimeää sivustoja tai sisältää sivujen otsikoita ja ilmoitustekstiä. Leikepöytä voi synkronoitua laitteen ulkopuolelle."
 }

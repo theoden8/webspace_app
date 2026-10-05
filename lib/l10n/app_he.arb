@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "הוסף קודם שער.",
   "proxyLibraryGatewayMissing": "שער חסר",
   "proxyLibraryCredentialsMissing": "פרטי כניסה חסרים",
-  "proxyLibraryCredentialsMismatch": "פרטי הכניסה אינם מתאימים לשער זה"
+  "proxyLibraryCredentialsMismatch": "פרטי הכניסה אינם מתאימים לשער זה",
+  "appSettingsBackgroundLog": "יומן רקע",
+  "appSettingsBackgroundLogHint": "מתעד מה קורה כש-WebSpace לא על המסך: יציאה וחזרה, הרענון ברקע שהמערכת מתזמנת, כל השכמה וההתראות שהיא מפרסמת, כולל שלבים ש-iOS ו-Android מריצים לפני שהאפליקציה עולה. נשמר גם אחרי הפעלה מחדש כל עוד מצב מפתחים פעיל; כיבויו מוחק את היומן. רשומות שמציינות אתר, כותרת דף או טקסט התראה נשארות בזיכרון ולעולם לא מגיעות לקובץ.",
+  "devToolsTabBackground": "רקע",
+  "devToolsBackgroundSystemState": "מצב המערכת",
+  "devToolsBackgroundEmpty": "עדיין לא תועדו אירועי רקע",
+  "devToolsBackgroundSensitiveShow": "הצגת רשומות שמציינות אתרים (שמות, כותרות דפים, טקסט התראות)",
+  "devToolsBackgroundSensitiveShowing": "מוצגות רשומות שמציינות אתרים. הן נשמרות בזיכרון בלבד ומתאפסות בהפעלה מחדש של האפליקציה.",
+  "devToolsBackgroundCopySensitiveBody": "{count} מהרשומות המוצגות מציינות אתרים או מכילות כותרות דפים וטקסט התראות. הלוח עשוי להסתנכרן אל מחוץ למכשיר."
 }

@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Cuir geata leis ar dtús.",
   "proxyLibraryGatewayMissing": "Geata ar iarraidh",
   "proxyLibraryCredentialsMissing": "Dintiúir ar iarraidh",
-  "proxyLibraryCredentialsMismatch": "Ní oireann na dintiúir don gheata seo"
+  "proxyLibraryCredentialsMismatch": "Ní oireann na dintiúir don gheata seo",
+  "appSettingsBackgroundLog": "Log cúlra",
+  "appSettingsBackgroundLogHint": "Taifeadann sé cad a tharlaíonn nuair nach bhfuil WebSpace ar an scáileán: imeacht agus filleadh, an athnuachan chúlra a sceidealaíonn an córas, gach dúiseacht agus na fógraí a phostálann sé, lena n-áirítear céimeanna a ritheann iOS agus Android sula dtosaíonn an aip. Coinnítear é thar atosuithe fad atá mód forbróra ar siúl; scriosann é a mhúchadh an log. Fanann iontrálacha a ainmníonn suíomh, teideal leathanaigh nó téacs fógra sa chuimhne agus ní shroicheann siad comhad riamh.",
+  "devToolsTabBackground": "Cúlra",
+  "devToolsBackgroundSystemState": "Staid an chórais",
+  "devToolsBackgroundEmpty": "Níor taifeadadh aon imeachtaí cúlra go fóill",
+  "devToolsBackgroundSensitiveShow": "Taispeáin iontrálacha a ainmníonn suíomhanna (ainmneacha, teidil leathanach, téacs fógraí)",
+  "devToolsBackgroundSensitiveShowing": "Iontrálacha a ainmníonn suíomhanna á dtaispeáint. Ní choinnítear iad ach sa chuimhne agus athshocraítear iad ar atosú na haipe.",
+  "devToolsBackgroundCopySensitiveBody": "Ainmníonn {count} de na hiontrálacha atá ar taispeáint suíomhanna nó tá teidil leathanach agus téacs fógraí iontu. Is féidir leis an ngearrthaisce sioncronú lasmuigh den ghléas."
 }

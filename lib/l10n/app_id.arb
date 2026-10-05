@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Tambahkan gerbang terlebih dahulu.",
   "proxyLibraryGatewayMissing": "Gerbang hilang",
   "proxyLibraryCredentialsMissing": "Kredensial hilang",
-  "proxyLibraryCredentialsMismatch": "Kredensial tidak cocok dengan gerbang ini"
+  "proxyLibraryCredentialsMismatch": "Kredensial tidak cocok dengan gerbang ini",
+  "appSettingsBackgroundLog": "Log latar belakang",
+  "appSettingsBackgroundLogHint": "Mencatat apa yang terjadi saat WebSpace tidak ada di layar: keluar dan kembali, penyegaran latar belakang yang dijadwalkan sistem, setiap bangun dan notifikasi yang dikirimkannya, termasuk langkah-langkah yang dijalankan iOS dan Android sebelum aplikasi dimulai. Disimpan melewati mulai ulang selama mode pengembang aktif; menonaktifkannya menghapus log. Entri yang menyebut situs, judul halaman, atau teks notifikasi tetap berada di memori dan tidak pernah sampai ke file.",
+  "devToolsTabBackground": "Latar belakang",
+  "devToolsBackgroundSystemState": "Status sistem",
+  "devToolsBackgroundEmpty": "Belum ada peristiwa latar belakang yang tercatat",
+  "devToolsBackgroundSensitiveShow": "Tampilkan entri yang menyebut situs (nama, judul halaman, teks notifikasi)",
+  "devToolsBackgroundSensitiveShowing": "Menampilkan entri yang menyebut situs. Entri ini hanya disimpan di memori dan disetel ulang saat aplikasi dimulai ulang.",
+  "devToolsBackgroundCopySensitiveBody": "{count} dari entri yang ditampilkan menyebut situs atau memuat judul halaman dan teks notifikasi. Papan klip dapat disinkronkan ke luar perangkat."
 }

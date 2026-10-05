@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "請先新增閘道。",
   "proxyLibraryGatewayMissing": "找不到閘道",
   "proxyLibraryCredentialsMissing": "找不到登入憑證",
-  "proxyLibraryCredentialsMismatch": "登入憑證不適用於此閘道"
+  "proxyLibraryCredentialsMismatch": "登入憑證不適用於此閘道",
+  "appSettingsBackgroundLog": "背景記錄",
+  "appSettingsBackgroundLogHint": "記錄 WebSpace 不在螢幕上時發生的事：離開與返回、系統排定的背景重新整理、每次喚醒及其發布的通知，包括 iOS 與 Android 在應用程式啟動前執行的步驟。開發者模式開啟期間會跨重新啟動保留；關閉開發者模式即刪除記錄。提及網站、網頁標題或通知文字的項目只保存在記憶體中，絕不會寫入檔案。",
+  "devToolsTabBackground": "背景",
+  "devToolsBackgroundSystemState": "系統狀態",
+  "devToolsBackgroundEmpty": "尚未記錄任何背景事件",
+  "devToolsBackgroundSensitiveShow": "顯示提及網站的項目（名稱、網頁標題、通知文字）",
+  "devToolsBackgroundSensitiveShowing": "正在顯示提及網站的項目。這些項目只保存在記憶體中，應用程式重新啟動時重設。",
+  "devToolsBackgroundCopySensitiveBody": "顯示的項目中有 {count} 項提及網站，或包含網頁標題與通知文字。剪貼簿可能會同步到裝置之外。"
 }

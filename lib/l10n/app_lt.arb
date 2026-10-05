@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Pirmiausia pridėkite šliuzą.",
   "proxyLibraryGatewayMissing": "Trūksta šliuzo",
   "proxyLibraryCredentialsMissing": "Trūksta prisijungimo duomenų",
-  "proxyLibraryCredentialsMismatch": "Prisijungimo duomenys netinka šiam šliuzui"
+  "proxyLibraryCredentialsMismatch": "Prisijungimo duomenys netinka šiam šliuzui",
+  "appSettingsBackgroundLog": "Fono žurnalas",
+  "appSettingsBackgroundLogHint": "Įrašo, kas vyksta, kai WebSpace nėra ekrane: išėjimą ir grįžimą, sistemos suplanuotą fono atnaujinimą, kiekvieną pažadinimą ir jo paskelbtus pranešimus, įskaitant veiksmus, kuriuos iOS ir Android atlieka prieš paleidžiant programą. Išsaugomas po paleidimų iš naujo, kol įjungtas kūrėjo režimas; jį išjungus žurnalas ištrinamas. Įrašai, kuriuose nurodoma svetainė, puslapio pavadinimas ar pranešimo tekstas, lieka tik atmintyje ir niekada nepatenka į failą.",
+  "devToolsTabBackground": "Fonas",
+  "devToolsBackgroundSystemState": "Sistemos būsena",
+  "devToolsBackgroundEmpty": "Fono įvykių dar neužregistruota",
+  "devToolsBackgroundSensitiveShow": "Rodyti įrašus, kuriuose nurodomos svetainės (pavadinimai, puslapių pavadinimai, pranešimų tekstas)",
+  "devToolsBackgroundSensitiveShowing": "Rodomi įrašai, kuriuose nurodomos svetainės. Jie laikomi tik atmintyje ir atstatomi iš naujo paleidus programą.",
+  "devToolsBackgroundCopySensitiveBody": "{count} iš rodomų įrašų nurodo svetaines arba turi puslapių pavadinimų ir pranešimų teksto. Iškarpinė gali būti sinchronizuojama už įrenginio ribų."
 }

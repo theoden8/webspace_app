@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "پہلے ایک گیٹ وے شامل کریں۔",
   "proxyLibraryGatewayMissing": "گیٹ وے موجود نہیں",
   "proxyLibraryCredentialsMissing": "اسناد موجود نہیں",
-  "proxyLibraryCredentialsMismatch": "اسناد اس گیٹ وے کے موافق نہیں"
+  "proxyLibraryCredentialsMismatch": "اسناد اس گیٹ وے کے موافق نہیں",
+  "appSettingsBackgroundLog": "پس منظر لاگ",
+  "appSettingsBackgroundLogHint": "جب WebSpace اسکرین پر نہ ہو تو کیا ہوتا ہے، یہ ریکارڈ کرتا ہے: باہر جانا اور واپس آنا، سسٹم کی طے کردہ پس منظر تازہ کاری، ہر بیداری اور اس کی بھیجی گئی اطلاعات، بشمول وہ مراحل جو ایپ شروع ہونے سے پہلے iOS اور Android چلاتے ہیں۔ جب تک ڈویلپر موڈ آن ہے، دوبارہ شروع کرنے کے بعد بھی محفوظ رہتا ہے؛ اسے بند کرنے سے لاگ حذف ہو جاتا ہے۔ وہ اندراجات جن میں کسی سائٹ، صفحے کے عنوان یا اطلاع کے متن کا ذکر ہو، صرف میموری میں رہتے ہیں اور کبھی کسی فائل تک نہیں پہنچتے۔",
+  "devToolsTabBackground": "پس منظر",
+  "devToolsBackgroundSystemState": "سسٹم کی حالت",
+  "devToolsBackgroundEmpty": "ابھی تک کوئی پس منظر واقعہ ریکارڈ نہیں ہوا",
+  "devToolsBackgroundSensitiveShow": "سائٹوں کے نام والے اندراجات دکھائیں (نام، صفحات کے عنوان، اطلاعات کا متن)",
+  "devToolsBackgroundSensitiveShowing": "سائٹوں کے نام والے اندراجات دکھائے جا رہے ہیں۔ یہ صرف میموری میں رکھے جاتے ہیں اور ایپ کے دوبارہ شروع ہونے پر ری سیٹ ہو جاتے ہیں۔",
+  "devToolsBackgroundCopySensitiveBody": "دکھائے گئے اندراجات میں سے {count} میں سائٹوں کے نام یا صفحات کے عنوان اور اطلاعات کا متن ہے۔ کلپ بورڈ ڈیوائس سے باہر مطابقت پذیر ہو سکتا ہے۔"
 }

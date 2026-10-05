@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Voeg eerst een gateway toe.",
   "proxyLibraryGatewayMissing": "Gateway ontbreekt",
   "proxyLibraryCredentialsMissing": "Inloggegevens ontbreken",
-  "proxyLibraryCredentialsMismatch": "Inloggegevens passen niet bij deze gateway"
+  "proxyLibraryCredentialsMismatch": "Inloggegevens passen niet bij deze gateway",
+  "appSettingsBackgroundLog": "Achtergrondlogboek",
+  "appSettingsBackgroundLogHint": "Legt vast wat er gebeurt terwijl WebSpace niet op het scherm staat: weggaan en terugkomen, de achtergrondvernieuwing die het systeem plant, elke keer dat de app wordt gewekt en de meldingen die daarbij worden geplaatst, inclusief stappen die iOS en Android uitvoeren voordat de app start. Blijft bewaard na herstarts zolang de ontwikkelaarsmodus aan staat; uitschakelen verwijdert het logboek. Vermeldingen die een site, een paginatitel of meldingstekst noemen, blijven in het geheugen en komen nooit in een bestand terecht.",
+  "devToolsTabBackground": "Achtergrond",
+  "devToolsBackgroundSystemState": "Systeemstatus",
+  "devToolsBackgroundEmpty": "Nog geen achtergrondgebeurtenissen vastgelegd",
+  "devToolsBackgroundSensitiveShow": "Vermeldingen tonen die sites noemen (namen, paginatitels, meldingstekst)",
+  "devToolsBackgroundSensitiveShowing": "Vermeldingen die sites noemen worden getoond. Ze worden alleen in het geheugen bewaard en gereset bij herstart van de app.",
+  "devToolsBackgroundCopySensitiveBody": "{count} van de getoonde items noemen sites of bevatten paginatitels en meldingstekst. Het klembord kan buiten het apparaat synchroniseren."
 }

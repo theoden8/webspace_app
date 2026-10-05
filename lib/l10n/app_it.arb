@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Aggiungi prima un gateway.",
   "proxyLibraryGatewayMissing": "Gateway mancante",
   "proxyLibraryCredentialsMissing": "Credenziali mancanti",
-  "proxyLibraryCredentialsMismatch": "Le credenziali non sono adatte a questo gateway"
+  "proxyLibraryCredentialsMismatch": "Le credenziali non sono adatte a questo gateway",
+  "appSettingsBackgroundLog": "Registro in secondo piano",
+  "appSettingsBackgroundLogHint": "Registra ciò che accade mentre WebSpace non è sullo schermo: l'uscita e il ritorno, l'aggiornamento in secondo piano pianificato dal sistema, ogni risveglio e le notifiche che pubblica, compresi i passaggi che iOS e Android eseguono prima dell'avvio dell'app. Viene conservato tra i riavvii finché la modalità sviluppatore è attiva; disattivarla elimina il registro. Le voci che nominano un sito, un titolo di pagina o il testo di una notifica restano in memoria e non finiscono mai in un file.",
+  "devToolsTabBackground": "Secondo piano",
+  "devToolsBackgroundSystemState": "Stato del sistema",
+  "devToolsBackgroundEmpty": "Nessun evento in secondo piano registrato finora",
+  "devToolsBackgroundSensitiveShow": "Mostra le voci che nominano siti (nomi, titoli di pagina, testo delle notifiche)",
+  "devToolsBackgroundSensitiveShowing": "Visualizzazione delle voci che nominano siti. Sono conservate solo in memoria e si reimpostano al riavvio dell'app.",
+  "devToolsBackgroundCopySensitiveBody": "{count} delle voci mostrate nominano siti o contengono titoli di pagina e testo delle notifiche. Gli appunti possono sincronizzarsi fuori dal dispositivo."
 }

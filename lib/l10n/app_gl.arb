@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Engade primeiro unha pasarela.",
   "proxyLibraryGatewayMissing": "Falta a pasarela",
   "proxyLibraryCredentialsMissing": "Faltan as credenciais",
-  "proxyLibraryCredentialsMismatch": "As credenciais non serven para esta pasarela"
+  "proxyLibraryCredentialsMismatch": "As credenciais non serven para esta pasarela",
+  "appSettingsBackgroundLog": "Rexistro en segundo plano",
+  "appSettingsBackgroundLogHint": "Rexistra o que ocorre mentres WebSpace non está na pantalla: saír e volver, a actualización en segundo plano que programa o sistema, cada espertar e as notificacións que publica, incluídos os pasos que iOS e Android executan antes de que se inicie a aplicación. Consérvase entre reinicios mentres o modo de desenvolvedor está activado; desactivalo borra o rexistro. As entradas que nomean un sitio, un título de páxina ou texto de notificación quedan na memoria e nunca chegan a un ficheiro.",
+  "devToolsTabBackground": "Segundo plano",
+  "devToolsBackgroundSystemState": "Estado do sistema",
+  "devToolsBackgroundEmpty": "Aínda non se rexistrou ningún evento en segundo plano",
+  "devToolsBackgroundSensitiveShow": "Amosar as entradas que nomean sitios (nomes, títulos de páxina, texto das notificacións)",
+  "devToolsBackgroundSensitiveShowing": "Amosando entradas que nomean sitios. Só se gardan na memoria e restablécense ao reiniciar a aplicación.",
+  "devToolsBackgroundCopySensitiveBody": "{count} das entradas amosadas nomean sitios ou conteñen títulos de páxina e texto de notificacións. O portapapeis pode sincronizarse fóra do dispositivo."
 }

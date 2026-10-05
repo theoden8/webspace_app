@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Lägg till en server först.",
   "proxyLibraryGatewayMissing": "Server saknas",
   "proxyLibraryCredentialsMissing": "Inloggningsuppgifter saknas",
-  "proxyLibraryCredentialsMismatch": "Inloggningsuppgifterna passar inte den här servern"
+  "proxyLibraryCredentialsMismatch": "Inloggningsuppgifterna passar inte den här servern",
+  "appSettingsBackgroundLog": "Bakgrundslogg",
+  "appSettingsBackgroundLogHint": "Registrerar vad som händer medan WebSpace inte visas på skärmen: när du lämnar och återvänder, bakgrundsuppdateringen som systemet schemalägger, varje väckning och aviseringarna den publicerar, inklusive steg som iOS och Android kör innan appen startar. Sparas mellan omstarter så länge utvecklarläget är på; stänger du av det raderas loggen. Poster som nämner en webbplats, en sidtitel eller aviseringstext stannar i minnet och hamnar aldrig i en fil.",
+  "devToolsTabBackground": "Bakgrund",
+  "devToolsBackgroundSystemState": "Systemstatus",
+  "devToolsBackgroundEmpty": "Inga bakgrundshändelser registrerade ännu",
+  "devToolsBackgroundSensitiveShow": "Visa poster som nämner webbplatser (namn, sidtitlar, aviseringstext)",
+  "devToolsBackgroundSensitiveShowing": "Visar poster som nämner webbplatser. De sparas bara i minnet och återställs vid omstart av appen.",
+  "devToolsBackgroundCopySensitiveBody": "{count} av posterna som visas nämner webbplatser eller innehåller sidtitlar och aviseringstext. Urklipp kan synkroniseras utanför enheten."
 }

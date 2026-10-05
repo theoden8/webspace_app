@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "आधी एक गेटवे जोडा.",
   "proxyLibraryGatewayMissing": "गेटवे सापडत नाही",
   "proxyLibraryCredentialsMissing": "ओळखपत्रे सापडत नाहीत",
-  "proxyLibraryCredentialsMismatch": "ओळखपत्रे या गेटवेशी जुळत नाहीत"
+  "proxyLibraryCredentialsMismatch": "ओळखपत्रे या गेटवेशी जुळत नाहीत",
+  "appSettingsBackgroundLog": "पार्श्वभूमी लॉग",
+  "appSettingsBackgroundLogHint": "WebSpace स्क्रीनवर नसताना काय घडते ते नोंदवते: बाहेर जाणे आणि परत येणे, सिस्टम ठरवत असलेले पार्श्वभूमी रिफ्रेश, प्रत्येक जागृती आणि ती पाठवत असलेल्या सूचना, अॅप सुरू होण्यापूर्वी iOS आणि Android चालवत असलेल्या पायऱ्यांसह. विकसक मोड चालू असेपर्यंत रीस्टार्टनंतरही जपले जाते; ते बंद केल्यास लॉग हटवला जातो. साइट, पृष्ठ शीर्षक किंवा सूचनेचा मजकूर असलेल्या नोंदी फक्त मेमरीत राहतात आणि कधीही फाइलपर्यंत पोहोचत नाहीत.",
+  "devToolsTabBackground": "पार्श्वभूमी",
+  "devToolsBackgroundSystemState": "सिस्टमची स्थिती",
+  "devToolsBackgroundEmpty": "अद्याप कोणत्याही पार्श्वभूमी घटना नोंदवल्या गेल्या नाहीत",
+  "devToolsBackgroundSensitiveShow": "साइटची नावे असलेल्या नोंदी दाखवा (नावे, पृष्ठ शीर्षके, सूचनेचा मजकूर)",
+  "devToolsBackgroundSensitiveShowing": "साइटची नावे असलेल्या नोंदी दाखवत आहे. त्या फक्त मेमरीत ठेवल्या जातात आणि अॅप रीस्टार्टवर रीसेट होतात.",
+  "devToolsBackgroundCopySensitiveBody": "दाखवलेल्या नोंदींपैकी {count} नोंदींमध्ये साइटची नावे किंवा पृष्ठ शीर्षके आणि सूचनेचा मजकूर आहे. क्लिपबोर्ड डिव्हाइसबाहेर सिंक होऊ शकतो."
 }

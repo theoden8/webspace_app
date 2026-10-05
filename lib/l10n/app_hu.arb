@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Előbb adjon hozzá egy átjárót.",
   "proxyLibraryGatewayMissing": "Hiányzó átjáró",
   "proxyLibraryCredentialsMissing": "Hiányzó hitelesítő adatok",
-  "proxyLibraryCredentialsMismatch": "A hitelesítő adatok nem illenek ehhez az átjáróhoz"
+  "proxyLibraryCredentialsMismatch": "A hitelesítő adatok nem illenek ehhez az átjáróhoz",
+  "appSettingsBackgroundLog": "Háttérnapló",
+  "appSettingsBackgroundLogHint": "Rögzíti, mi történik, amíg a WebSpace nincs a képernyőn: kilépés és visszatérés, a rendszer által ütemezett háttérfrissítés, minden ébresztés és az általa küldött értesítések, beleértve azokat a lépéseket is, amelyeket az iOS és az Android az alkalmazás indulása előtt futtat. Újraindítások után is megmarad, amíg a fejlesztői mód be van kapcsolva; kikapcsolása törli a naplót. Azok a bejegyzések, amelyek webhelyet, oldalcímet vagy értesítési szöveget neveznek meg, csak a memóriában maradnak, és soha nem kerülnek fájlba.",
+  "devToolsTabBackground": "Háttér",
+  "devToolsBackgroundSystemState": "Rendszerállapot",
+  "devToolsBackgroundEmpty": "Még nincsenek rögzített háttéresemények",
+  "devToolsBackgroundSensitiveShow": "Webhelyeket megnevező bejegyzések megjelenítése (nevek, oldalcímek, értesítési szöveg)",
+  "devToolsBackgroundSensitiveShowing": "Webhelyeket megnevező bejegyzések megjelenítése. Csak a memóriában tárolódnak, és az alkalmazás újraindításakor visszaállnak.",
+  "devToolsBackgroundCopySensitiveBody": "A megjelenített bejegyzések közül {count} webhelyeket nevez meg, vagy oldalcímeket és értesítési szöveget tartalmaz. A vágólap az eszközön kívülre is szinkronizálódhat."
 }
