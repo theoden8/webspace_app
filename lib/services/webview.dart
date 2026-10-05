@@ -14,6 +14,7 @@ import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/container_proxy_ledger.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
+import 'package:webspace/services/html_snapshot.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
@@ -1037,7 +1038,7 @@ class WebViewConfig {
   /// Callback when page HTML should be cached. Called on page load with (url, html).
   final Function(String url, String html)? onHtmlLoaded;
   /// Optional pre-gate for the [onHtmlLoaded] path. Returning `false`
-  /// makes `onLoadStop` skip the `controller.getHtml()` IPC entirely
+  /// makes `onLoadStop` skip the [htmlSnapshotScript] IPC entirely
   /// (not just the encrypt+write that follows). The IPC is the
   /// expensive, lifecycle-racing piece — the renderer has to walk and
   /// serialize the live DOM, and during a frame teardown that walk
@@ -5444,21 +5445,29 @@ class WebViewFactory {
         // current intent. (`reload()` itself does not bump
         // navigationGen on Android WebView.)
         //
-        // Skipped for offline runs via the `isOnline()` check — there's
-        // no live to fetch, so the cached page is the answer.
+        // Offline, the cached page is the answer until the network comes
+        // back: `awaitOnlineForLiveSwap` re-probes for a bounded window,
+        // because a snapshot rendered on return from the background settles
+        // before a per-app firewall lets the app back out, and a single
+        // probe there stranded the snapshot for good.
         //
-        // The `isOnline()` probe does a DNS lookup with up to a 3s
-        // timeout — long enough for the user to tap a link or trigger
-        // a back/forward gesture. Re-check `navigationGen` after the
-        // probe resolves so the live-reload doesn't clobber an
-        // in-flight history navigation that started during the probe.
+        // Each probe is a DNS lookup with up to a 3s timeout — long enough
+        // for the user to tap a link or trigger a back/forward gesture.
+        // `navigationGen` is re-checked after every probe so the
+        // live-reload doesn't clobber a navigation that started meanwhile.
         final firedLiveReload = pendingLiveReload && navigationGen == 0;
         if (firedLiveReload) {
           pendingLiveReload = false;
           final genAtSchedule = navigationGen;
-          ConnectivityService.instance.isOnline().then((online) {
-            if (!online) return;
-            if (navigationGen != genAtSchedule) return;
+          awaitOnlineForLiveSwap(
+            isOnline: ConnectivityService.instance.isOnline,
+            stillWanted: () => navigationGen == genAtSchedule,
+          ).then((online) {
+            if (!online) {
+              LogService.instance.log('WebView',
+                  'Cached snapshot kept: offline or navigated away');
+              return;
+            }
             try {
               config.onReloadIssued?.call();
               controller.reload();
@@ -5510,7 +5519,7 @@ class WebViewFactory {
         // the encrypt+write afterward, is the lifecycle-racing piece.
         //
         // Skip when we just fired the cached-then-live reload above:
-        // the reload IPC reaches the renderer before our `getHtml()`
+        // the reload IPC reaches the renderer before our snapshot
         // does, so the serialized DOM here is the partial mid-reload
         // markup (often a few-KB SPA shell) — and saving that clobbers
         // the previously-cached fully-rendered snapshot. On next launch
@@ -5524,9 +5533,11 @@ class WebViewFactory {
             && failedNavUrl == null
             && (config.shouldFetchHtml?.call() ?? true)) {
           try {
-            final html = await controller.getHtml();
+            final snapshot =
+                await controller.evaluateJavascript(source: htmlSnapshotScript);
+            final html = snapshot is String ? snapshot : null;
             if (html != null && html.isNotEmpty) {
-              // `urlStr` was captured at onLoadStop entry. `getHtml()` is
+              // `urlStr` was captured at onLoadStop entry. The snapshot is
               // an async IPC into the renderer; if the user kicked off a
               // back/forward gesture or a link tap during that round trip,
               // the markup we got back belongs to the *new* page, not
@@ -5534,7 +5545,7 @@ class WebViewFactory {
               // poisons the cache: next webview construction renders that
               // mismatched HTML at `baseUrl=currentUrl`, so the user sees
               // the wrong page when they swipe back into the cached entry.
-              // Re-read the URL post-getHtml and skip the save on
+              // Re-read the URL post-snapshot and skip the save on
               // mismatch — the next stable onLoadStop will write the
               // right pair.
               final liveUrl = (await controller.getUrl())?.toString();
@@ -5543,7 +5554,7 @@ class WebViewFactory {
               } else {
                 LogService.instance.log(
                   'WebView',
-                  'Skipping cache save: URL changed during getHtml() '
+                  'Skipping cache save: URL changed during snapshot '
                       '($urlStr -> $liveUrl)',
                   sensitivity: LogSensitivity.sensitive,
                 );

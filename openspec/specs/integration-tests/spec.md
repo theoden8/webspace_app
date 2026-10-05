@@ -1078,6 +1078,15 @@ macOS runner exercises the failure assertions for real.
 - **Then** exactly one live reload is issued — not a loop — and the live
   bytes replace the snapshot in the DOM
 
+#### Scenario: The network comes back after the snapshot settles
+
+- **Given** the same construction with `ConnectivityService` reporting
+  offline when the cached parse settles
+- **When** it reports online a moment later
+- **Then** exactly one live reload is issued (PAUSE-033): a snapshot
+  painted on return from the background is not stranded because the first
+  probe raced the firewall letting the app back out
+
 #### Scenario: A slow response is never reported as a failure
 
 - **Given** a route that sits on the request for several seconds

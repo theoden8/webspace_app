@@ -324,6 +324,53 @@ void main() {
         reason: 'a successful live swap reports no failure');
   }, timeout: const Timeout(Duration(minutes: 3)));
 
+  // OFFLINE-INTEG-006. Offline when the snapshot settles is not offline for
+  // good: a renderer recreated on return from the background paints its
+  // snapshot before a per-app firewall lets the app back out (PAUSE-033).
+  testWidgets('network back after the snapshot settles: still swapped once',
+      (tester) async {
+    ConnectivityService.onlineOverride = Future.value(false);
+
+    final observed = await mount(
+      tester,
+      initialUrl: url('/fast'),
+      initialHtml: _cachedSnapshot(),
+    );
+
+    final settled = await waitReal(
+      tester,
+      () => observed.signals
+          .any((s) => s.phase == MainFrameLoadPhase.settled),
+      label: 'cached parse settles',
+      timeout: const Duration(seconds: 20),
+    );
+    if (!settled) {
+      log('SKIP: engine never settled the cached parse, so the '
+          'cached-then-live swap was never reachable');
+      return;
+    }
+    expect(observed.reloadsIssued, 0,
+        reason: 'no swap while the probe reports offline');
+    ConnectivityService.onlineOverride = Future.value(true);
+
+    final reloaded = await waitReal(
+      tester,
+      () => observed.reloadsIssued > 0,
+      label: 'live-reload issued once online',
+      timeout: const Duration(seconds: 30),
+    );
+    expect(reloaded, isTrue,
+        reason: 'the snapshot must not be stranded once the network is back');
+    await waitReal(
+      tester,
+      () => observed.reloadsIssued > 1,
+      label: 'second live-reload (must not happen)',
+      timeout: const Duration(seconds: 6),
+    );
+    expect(observed.reloadsIssued, 1,
+        reason: 'the live swap is a one-shot, not a loop');
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
   // OFFLINE-INTEG-003. A slow link is not a broken link. The failure mode
   // this guards is the app treating a multi-second response as an error
   // (and, via PAUSE-022, re-issuing a load that was about to succeed).
