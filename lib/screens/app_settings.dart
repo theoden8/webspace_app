@@ -1613,25 +1613,26 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             trailing: const Icon(Icons.chevron_right),
             onTap: widget.onOpenLinkHandlingSettings,
           ),
-          ListTile(
-            leading: const Icon(Icons.travel_explore),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.webSearchDefaultTitle)),
-                HintButton(
-                  title: loc.webSearchDefaultTitle,
-                  description: loc.webSearchDefaultHint,
-                ),
-              ],
+          if (_developerMode && _siteTabsSwitch)
+            ListTile(
+              leading: const Icon(Icons.travel_explore),
+              title: Row(
+                children: [
+                  Flexible(child: Text(loc.webSearchDefaultTitle)),
+                  HintButton(
+                    title: loc.webSearchDefaultTitle,
+                    description: loc.webSearchDefaultHint,
+                  ),
+                ],
+              ),
+              subtitle: Text(widget.webSearchSites
+                      .where((s) => s.siteId == _webSearchDefault)
+                      .firstOrNull
+                      ?.name ??
+                  loc.appSettingsNotConfigured),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _pickWebSearchDefault,
             ),
-            subtitle: Text(widget.webSearchSites
-                    .where((s) => s.siteId == _webSearchDefault)
-                    .firstOrNull
-                    ?.name ??
-                loc.appSettingsNotConfigured),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _pickWebSearchDefault,
-          ),
           const Divider(height: 32),
           // Global outbound proxy section
           Padding(

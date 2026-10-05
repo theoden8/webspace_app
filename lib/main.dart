@@ -2806,7 +2806,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// and one of the user's search sites, and the results land by
   /// [WebSearchEngine.land].
   Future<void> _webSearch({String initialQuery = ''}) async {
-    if (_kioskLocked || _isWebSearchHandling) return;
+    if (!_webSearchAvailable || _kioskLocked || _isWebSearchHandling) return;
     final index = _currentIndex;
     if (index == null || index < 0 || index >= _webViewModels.length) return;
     _isWebSearchHandling = true;
@@ -2907,7 +2907,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     String query,
     String? siteId,
   ) async {
-    if (_kioskLocked || _isWebSearchHandling) return;
+    if (!_webSearchAvailable || _kioskLocked || _isWebSearchHandling) return;
     if (!_webViewModels.contains(owner)) return;
     final identity = owner.runningIdentity;
     final site = siteId == null ? null : _modelForSiteId(siteId);
@@ -8244,6 +8244,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool get _tabsFeatureEnabled => ExperimentalFeaturesService.instance
       .isEnabled(ExperimentalFeature.siteTabs);
 
+  /// Web search ships behind the same switch as tabs (LIR-029): a search's
+  /// results are a hosted tab, the feature tabs exist for.
+  bool get _webSearchAvailable => _tabsFeatureEnabled;
+
   /// Whether [model] has tabs: the feature is on and the site is not run as an
   /// app (TAB-013). Off, every way into its tabs is closed and it shows its
   /// active tab alone.
@@ -9124,7 +9128,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   ),
                 ),
                 // Where the site has tabs, web search lives in the Tabs sheet.
-                if (!_tabsEnabledAt(_currentIndex))
+                if (_webSearchAvailable && !_tabsEnabledAt(_currentIndex))
                   PopupMenuItem<String>(
                     value: "webSearch",
                     child: Row(
@@ -9549,8 +9553,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!hasUrlBar && !hasFindToolbar) {
       return null;
     }
-    final urlBarSearch =
-        hasUrlBar && !_kioskLocked ? _urlBarSearchFor(model) : null;
+    final urlBarSearch = hasUrlBar && !_kioskLocked && _webSearchAvailable
+        ? _urlBarSearchFor(model)
+        : null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -9741,7 +9746,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             ),
           ),
           // Where the site has tabs, web search lives in the Tabs sheet.
-          if (!_tabsEnabledAt(_currentIndex))
+          if (_webSearchAvailable && !_tabsEnabledAt(_currentIndex))
             PopupMenuItem<String>(
               value: "webSearch",
               child: Row(
