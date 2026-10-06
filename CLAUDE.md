@@ -22,6 +22,12 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
   second listener to silence it; restructure so there is one. The existing
   `catch (_)` sites predate this rule; don't copy them.
 
+## Subagents
+
+- Never spawn a subagent on a Fable model (`model: "fable"`, or a workflow
+  `agent()` call that picks one) unless the user has explicitly allowed it in
+  the current conversation. Omit `model` or pick another one instead.
+
 ## Shipping macOS
 
 macOS is a release target, not just a dev platform: signing happens after the
