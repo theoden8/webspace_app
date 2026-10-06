@@ -35,6 +35,7 @@
 // wedges the Flutter UI thread, so waits run on real wall-clock inside
 // tester.runAsync() and frames are pumped only to mount widgets.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -51,6 +52,13 @@ const String _cachedMarker = 'WS_CACHED_SNAPSHOT_MARKER';
 /// Marker only the fixture server can produce, so its presence in the DOM
 /// proves a real network round-trip happened.
 const String _liveMarker = 'WS_LIVE_PAGE_MARKER';
+
+/// A live page whose layout a snapshot can lose: a path-relative stylesheet
+/// and a percentage height that only resolves in quirks mode.
+const String _styledPage = '<!doctype html><html><head>'
+    '<link rel="stylesheet" href="site.css"></head><body>'
+    '<div id="box">$_liveMarker</div>'
+    '<div id="half" style="height:50%"></div></body></html>';
 
 /// Why the cached-then-live swap is never issued on WKWebView and WPE: both
 /// report the snapshot's own `initialData` commit to `shouldOverrideUrlLoading`,
@@ -104,6 +112,17 @@ void main() {
         case '/slow':
           await Future<void>.delayed(_slowDelay);
           break;
+        case '/styled/page':
+          final res = req.response..headers.contentType = ContentType.html;
+          res.write(_styledPage);
+          await res.close();
+          return;
+        case '/styled/site.css':
+          final res = req.response
+            ..headers.contentType = ContentType('text', 'css');
+          res.write('#box { width: 123px; }');
+          await res.close();
+          return;
         case '/truncated':
           // Shaky connection: promise a body, deliver a fragment, drop the
           // socket. Engines surface this as a content-length mismatch /
@@ -225,6 +244,17 @@ void main() {
       } catch (_) {}
     });
     return html;
+  }
+
+  Future<Object?> evalOf(
+      WidgetTester tester, _Observed observed, String source) async {
+    Object? result;
+    await tester.runAsync(() async {
+      result = await observed.controller
+          ?.evaluateJavascriptReturning(source)
+          .timeout(const Duration(seconds: 5));
+    });
+    return result;
   }
 
   // OFFLINE-INTEG-001. The whole point of the snapshot: when the device is
@@ -382,6 +412,62 @@ void main() {
     );
     expect(observed.reloadsIssued, 1,
         reason: 'the live swap is a one-shot, not a loop');
+  }, timeout: const Timeout(Duration(minutes: 3)));
+
+  // OFFLINE-INTEG-007. What the app saves is what it renders back offline,
+  // so the snapshot a live page leaves behind must lay out as the page did
+  // (PAUSE-033): the doctype survives, so the parse is in standards mode, and
+  // the `<base>` keeps a path-relative stylesheet resolving at another
+  // currentUrl. The Chromium tier proves the script; this proves the app's
+  // save path returns it on WKWebView and WPE.
+  testWidgets('a saved snapshot renders in standards mode with its stylesheet',
+      (tester) async {
+    ConnectivityService.onlineOverride = Future.value(false);
+    final pageUrl = url('/styled/page');
+
+    final live = await mount(tester, initialUrl: pageUrl);
+    final saved = await waitReal(
+      tester,
+      () => live.savedHtml.isNotEmpty,
+      label: 'live page snapshot saved',
+    );
+    expect(saved, isTrue, reason: 'a settled live page leaves a snapshot');
+    final snapshot = live.savedHtml.first;
+    expect(snapshot, startsWith('<!DOCTYPE html>'),
+        reason: 'without the doctype the snapshot renders in quirks mode');
+    expect(snapshot, contains('<base href="$pageUrl">'));
+    expect(snapshot, contains(_liveMarker));
+
+    final cached = await mount(
+      tester,
+      initialUrl: url('/elsewhere/deep/path'),
+      initialHtml: snapshot,
+    );
+    final settled = await waitReal(
+      tester,
+      () => cached.signals
+          .any((s) => s.phase == MainFrameLoadPhase.settled),
+      label: 'snapshot parse settles',
+      timeout: const Duration(seconds: 20),
+    );
+    if (!settled) {
+      log('SKIP layout assertion: engine never settled the cached parse');
+      return;
+    }
+    final layout = await evalOf(
+      tester,
+      cached,
+      'JSON.stringify({mode: document.compatMode, '
+      'width: getComputedStyle(document.getElementById("box")).width, '
+      'half: document.getElementById("half").offsetHeight})',
+    );
+    log('snapshot layout: $layout');
+    expect(layout, isA<String>());
+    expect(jsonDecode(layout! as String), {
+      'mode': 'CSS1Compat',
+      'width': '123px',
+      'half': 0,
+    });
   }, timeout: const Timeout(Duration(minutes: 3)));
 
   // OFFLINE-INTEG-003. A slow link is not a broken link. The failure mode

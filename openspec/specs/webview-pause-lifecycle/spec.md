@@ -1284,8 +1284,10 @@ inserted with `insertRule` and an adopted stylesheet, which then calls
 **When** its snapshot is rendered at the pushed URL
 **Then** it is in standards mode and every element has the computed style it
 had live
-(regression test: `test/browser/html_snapshot_real_engine.test.js`, which
-also pins that the plugin's `outerHTML` lays the same page out differently)
+(regression tests: `test/browser/html_snapshot_real_engine.test.js`, which
+also pins that the plugin's `outerHTML` lays the same page out differently;
+OFFLINE-INTEG-007 in `integration_test/offline_connection_test.dart`, which
+saves and renders through the app's own path on WKWebView and WPE)
 
 #### Scenario: The network comes back after the snapshot settles
 
