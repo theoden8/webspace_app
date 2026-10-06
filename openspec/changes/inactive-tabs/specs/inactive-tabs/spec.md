@@ -201,7 +201,8 @@ handler: it has no tab list of its own to add to.
 ### Requirement: TAB-007 - Back at the start of a child tab
 
 The system back gesture at the start of a child tab's history SHALL close the
-tab and activate its parent. On a root tab at history start the gesture SHALL
+tab and activate its parent, unless the Tabs sheet jumped to it and Back goes
+back where the jump came from (TAB-019). On a root tab at history start the gesture SHALL
 remain a no-op (NAV-001). Closing a tab SHALL re-parent its children to its
 parent.
 
@@ -576,15 +577,28 @@ or active site SHALL change.
 
 ### Requirement: TAB-017 - A site's tabs in other sites' trees
 
-The Tabs sheet's This site view SHALL list, after the site's own tree, the
-subtrees of other sites' trees that run as it: a link tab another site opened
-as it (LIR-032, LIR-034) or a search it ran for another site (LIR-030). It
-SHALL look in the tree of every site with tabs, whether or not the current
-webspace shows that site; the All sites view SHALL still head only the sites
-the webspace shows. Each
-other site's subtrees SHALL come under a heading naming that site ("In
-GitHub"), each subtree whole, whatever its own descendants run as, indented
-from its own root. A site nothing elsewhere runs as SHALL get no such heading.
+The Tabs sheet's This site view SHALL be the list of the site the tab on
+screen runs as: the slot's own site, or the site a hosted tab runs as
+(LIR-018), unless that site has no tabs, when it is the slot's. Its header,
+count and New tab SHALL be that site's.
+
+After that site's own tree, the view SHALL list the tree of every other site
+that holds a tab running as it: a link tab another site opened as it (LIR-032,
+LIR-034) or a search it ran for another site (LIR-030). It SHALL look in the
+tree of every site with tabs, whether or not the current webspace shows that
+site; the All sites view SHALL still head only the sites the webspace shows.
+Each other tree SHALL come under a heading naming its site ("In GitHub"),
+marked with that site's colour (TAB-018), in the order the drawer lists sites.
+
+Each other tree SHALL show, at their depth in the whole tree, the tabs that
+run as the site the list is for with their subtrees whole, whatever their own
+descendants run as, and the tabs above them. The rest of that tree SHALL be
+folded into one line saying how many tabs it holds ("3 more GitHub tabs"),
+which shows the whole tree when tapped. A site nothing elsewhere runs as SHALL
+get no such heading.
+
+The tab on screen SHALL be highlighted wherever it is listed, so a list opened
+on a tab of another site's tree is the same list, with the highlight moved.
 
 Those rows SHALL stay in the tree that holds them: a tap SHALL open that site
 on the tab, switching to All first when the current webspace does not show it
@@ -596,8 +610,15 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 
 - **GIVEN** a `duckduckgo.com` link from GitHub opened as a tab running as DuckDuckGo, with a GitHub page opened below it
 - **WHEN** the user opens the Tabs sheet on DuckDuckGo
-- **THEN** after DuckDuckGo's own tabs, "In GitHub" lists that tab and the GitHub page below it
-- **AND** GitHub's own tree in the All sites view lists the same two
+- **THEN** after DuckDuckGo's own tabs, "In GitHub" lists GitHub's home tab, that tab under it, and the GitHub page below that
+- **AND** GitHub's own tree in the All sites view lists the same three
+
+#### Scenario: The rest of the other tree is folded
+
+- **GIVEN** the sheet on DuckDuckGo listing GitHub's tree, where GitHub also holds a pull request tab opened from its home tab
+- **THEN** the pull request is not listed and "1 more GitHub tab" is
+- **WHEN** the user taps that line
+- **THEN** GitHub's whole tree is listed
 
 #### Scenario: A tab run as its opener is not the other site's
 
@@ -610,6 +631,13 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 - **GIVEN** the sheet on DuckDuckGo listing a tab "In GitHub"
 - **WHEN** the user taps it
 - **THEN** GitHub comes on screen on that tab, running as DuckDuckGo
+
+#### Scenario: The list follows the site the tab runs as
+
+- **GIVEN** GitHub on screen on a tab running as DuckDuckGo
+- **WHEN** the user opens the Tabs sheet
+- **THEN** it is headed "DuckDuckGo" and lists DuckDuckGo's own tabs first, then "In GitHub" with that tab highlighted
+- **AND** New tab opens a tab of DuckDuckGo
 
 #### Scenario: The other site is in another webspace
 
@@ -684,3 +712,47 @@ while its archive is open.
 - **GIVEN** five sites with their colours
 - **WHEN** the user adds a sixth and deletes the second
 - **THEN** the sixth gets the least used colour and the other four keep theirs
+
+---
+
+### Requirement: TAB-019 - The way back from a jump
+
+A tap in the Tabs sheet that brings another site's slot on screen is a jump,
+and the system SHALL remember where it came from: the site and tab on screen
+before, and the webspace selected. Jumps SHALL chain, so a jump from where
+another landed adds to the trail, at most twenty kept.
+
+While the screen is where the last jump landed, on the tab it opened:
+
+- The tab the jump came from SHALL be listed in the This site view, with its
+  tree if no other rule lists it (TAB-017), and marked "where you were".
+- Back at the start of the tab's history SHALL go back where the jump came
+  from instead of closing the tab (TAB-007), and so SHALL a tap on the marked
+  tab. Going back SHALL take that jump off the trail and put back the webspace
+  it left, when that webspace shows the site; neither tab SHALL close.
+
+Leaving that tab any other way SHALL drop the trail: another site from the
+drawer, the tab strip, a shortcut or a link, another tab of the same site, or
+a jump from somewhere else, which starts a new trail. The trail SHALL NOT be
+stored.
+
+#### Scenario: Back goes back
+
+- **GIVEN** DuckDuckGo on screen in a webspace "Search", and its Tabs sheet listing a tab "In GitHub"
+- **WHEN** the user taps that tab, then presses Back at the start of its history
+- **THEN** DuckDuckGo is on screen on the tab it was on, in "Search"
+- **AND** the GitHub tab is still listed
+
+#### Scenario: The list leads back
+
+- **GIVEN** the user jumped from DuckDuckGo's Tabs sheet to a tab in GitHub's tree
+- **WHEN** they open the Tabs sheet again
+- **THEN** DuckDuckGo's tab they came from says "where you were"
+- **WHEN** they tap it
+- **THEN** DuckDuckGo is on screen on it, and no tab says "where you were"
+
+#### Scenario: Another way out drops the trail
+
+- **GIVEN** the user jumped from DuckDuckGo's Tabs sheet to a child tab in GitHub's tree
+- **WHEN** they go to another site from the drawer, come back to GitHub on that tab, and press Back at the start of its history
+- **THEN** the tab closes as TAB-007 says

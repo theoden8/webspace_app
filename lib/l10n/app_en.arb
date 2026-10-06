@@ -4820,13 +4820,30 @@
   },
   "tabsInSite": "In {site}",
   "@tabsInSite": {
-    "description": "Heading in a site's tab list over tabs that run as this site but sit in another site's list, because a link or a search in that other site opened them. {site} is the other site's name, for example 'In DuckDuckGo'.",
+    "description": "Heading in a site's tab list over another site's tabs, listed there because some of them run as this site: a link or a search in that other site opened them. {site} is the other site's name, for example 'In DuckDuckGo'.",
     "placeholders": {
       "site": {
         "type": "String",
         "example": "DuckDuckGo"
       }
     }
+  },
+  "tabsMoreInSite": "{count, plural, =1{1 more {site} tab} other{{count} more {site} tabs}}",
+  "@tabsMoreInSite": {
+    "description": "Tappable line at the end of another site's tabs in a site's tab list. Only the tabs that run as this site, and the tabs above them, are shown; this says how many of the other site's tabs are folded away, and tapping it shows them all. {site} is the other site's name, for example '3 more GitHub tabs'.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "site": {
+        "type": "String",
+        "example": "GitHub"
+      }
+    }
+  },
+  "tabsWhereYouWere": "where you were",
+  "@tabsWhereYouWere": {
+    "description": "Added after a tab's web address in the tab list, on the tab the user was on before opening a tab of another site from this list. Tapping that tab, or pressing Back at the start of the new one, goes back to it. Lowercase unless the language requires otherwise."
   },
   "tabsRunsAs": "as {site}",
   "@tabsRunsAs": {

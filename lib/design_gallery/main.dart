@@ -52,6 +52,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/services/site_tab.dart';
+import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
@@ -109,6 +110,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'unproxied-block', label: 'Blocked navigation interstitial', fullBleed: true, builder: (c) => const _UnproxiedBlockCard()),
   GalleryCard(id: 'tabs-sheet', label: 'Tabs sheet', fullBleed: true, builder: (c) => const _TabsSheetCard()),
   GalleryCard(id: 'tabs-sheet-in-site', label: 'Tabs sheet, a site in other trees', fullBleed: true, builder: (c) => const _TabsSheetInSiteCard()),
+  GalleryCard(id: 'tabs-sheet-way-back', label: 'Tabs sheet, after a jump to another tree', fullBleed: true, builder: (c) => const _TabsSheetWayBackCard()),
   GalleryCard(id: 'web-search-sheet', label: 'Web search sheet', fullBleed: true, builder: (c) => const _WebSearchSheetCard()),
   GalleryCard(id: 'web-search-empty', label: 'Web search sheet, no search sites', fullBleed: true, builder: (c) => const _WebSearchEmptyCard()),
   GalleryCard(id: 'web-search-default', label: 'Default search picker, two sites with one name', builder: (c) => const _WebSearchDefaultCard()),
@@ -1345,8 +1347,8 @@ class _TabsSheetCard extends StatelessWidget {
   }
 }
 
-/// DuckDuckGo's Tabs sheet: its own tree, then the subtree GitHub's tree runs
-/// as DuckDuckGo, under "In GitHub" (TAB-017).
+/// DuckDuckGo's Tabs sheet: its own tree, then GitHub's, folded around the
+/// tab it runs as DuckDuckGo, under "In GitHub" (TAB-017).
 class _TabsSheetInSiteCard extends StatelessWidget {
   const _TabsSheetInSiteCard();
 
@@ -1357,17 +1359,45 @@ class _TabsSheetInSiteCard extends StatelessWidget {
   }
 }
 
+/// The same sheet once that tab was tapped: GitHub is on screen on it, so the
+/// list is still DuckDuckGo's, with the highlight in GitHub's tree and
+/// DuckDuckGo's tab marked as where the user was (TAB-019).
+class _TabsSheetWayBackCard extends StatelessWidget {
+  const _TabsSheetWayBackCard();
+
+  @override
+  Widget build(BuildContext context) {
+    _TabsDemo.bindLookup();
+    final github = _siteWithTabs('GitHub', 'https://github.com/',
+        _TabsDemo.github.tabs, 'search', siteId: 'gh', containerColor: 0);
+    return _TabsSheetOver(
+      title: 'GitHub',
+      current: 0,
+      sites: [
+        TabsSheetSite(index: 0, model: github, isCurrent: true, isLoaded: true),
+        for (final (i, m) in [_TabsDemo.mastodon, _TabsDemo.wikipedia, _TabsDemo.duckduckgo].indexed)
+          TabsSheetSite(index: i + 1, model: m, isCurrent: false, isLoaded: identical(m, _TabsDemo.duckduckgo)),
+      ],
+      wayBack: const TabReturn(
+          fromSiteId: 'ddg', fromTabId: kPrimaryTabId, toSiteId: 'gh', toTabId: 'search'),
+    );
+  }
+}
+
 class _TabsSheetOver extends StatelessWidget {
-  const _TabsSheetOver({required this.title, required this.current});
+  const _TabsSheetOver({required this.title, required this.current, this.sites, this.wayBack});
 
   final String title;
   final int current;
+  final List<TabsSheetSite>? sites;
+  final TabReturn? wayBack;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final sites = _TabsDemo.sites(
-        current: [_TabsDemo.github, _TabsDemo.mastodon, _TabsDemo.wikipedia, _TabsDemo.duckduckgo][current]);
+    final sites = this.sites ??
+        _TabsDemo.sites(
+            current: [_TabsDemo.github, _TabsDemo.mastodon, _TabsDemo.wikipedia, _TabsDemo.duckduckgo][current]);
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Stack(
@@ -1387,6 +1417,7 @@ class _TabsSheetOver extends StatelessWidget {
                 onWebSearch: () {},
                 onCloseTab: (_, _) {},
                 onCloseSubtree: (_, _) {},
+                wayBack: wayBack,
               ),
             ),
           ),

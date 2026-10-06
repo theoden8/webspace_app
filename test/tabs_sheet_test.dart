@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
+import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
@@ -32,6 +33,7 @@ Future<void> pumpSheet(
   void Function(int, String)? onCloseSubtree,
   bool Function(int, String, TabDrop)? onMoveTab,
   List<TabsSheetSite>? Function(String, String)? onMoveSite,
+  TabReturn? wayBack,
   Locale? locale,
   double width = 400,
 }) async {
@@ -55,6 +57,7 @@ Future<void> pumpSheet(
         onCloseSubtree: onCloseSubtree ?? (_, _) {},
         onMoveTab: onMoveTab,
         onMoveSite: onMoveSite,
+        wayBack: wayBack,
       ),
     ),
   ));
@@ -653,23 +656,80 @@ void main() {
         .evaluate()
         .isNotEmpty;
 
-    testWidgets('This site lists, under the other site, only what runs as it',
+    testWidgets('This site lists the other site\'s tree around what runs as it',
         (tester) async {
       await pumpSheet(tester, sites(), onMoveTab: (_, _, _) => true);
       expect(find.text('In GitHub'), findsOneWidget);
       expect(find.text(hosted), findsOneWidget);
       expect(find.text(below), findsOneWidget,
           reason: 'the subtree comes whole, whatever its tabs run as');
+      expect(find.text('https://github.com/'), findsOneWidget,
+          reason: 'the tabs above it are the way to it');
       expect(find.text(foreign), findsNothing,
-          reason: 'a tab run as GitHub is not DuckDuckGo\'s');
-      expect(find.text('https://github.com/'), findsNothing);
-      expect(rowOrder(tester, [ddgHome, ddgChild, hosted, below]),
-          [ddgHome, ddgChild, hosted, below]);
+          reason: 'a branch with nothing run as DuckDuckGo is folded');
+      expect(find.text('1 more GitHub tab'), findsOneWidget);
+      expect(
+          rowOrder(tester, [ddgHome, ddgChild, 'https://github.com/', hosted, below]),
+          [ddgHome, ddgChild, 'https://github.com/', hosted, below]);
       expect(
         tester.getTopLeft(find.text('In GitHub')).dy,
         greaterThan(tester.getTopLeft(find.text(ddgChild)).dy),
         reason: 'the site\'s own tree comes first',
       );
+    });
+
+    testWidgets('the folded part of a tree opens on a tap', (tester) async {
+      await pumpSheet(tester, sites());
+      await tester.tap(find.text('1 more GitHub tab'));
+      await tester.pump();
+      expect(find.text(foreign), findsOneWidget);
+      expect(find.text('1 more GitHub tab'), findsNothing);
+    });
+
+    testWidgets('on a tab GitHub runs as DuckDuckGo, the list is DuckDuckGo\'s',
+        (tester) async {
+      gh.activeTabId = 'h';
+      final newTabs = <int>[];
+      await pumpSheet(tester, [
+        TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
+        TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: true),
+      ], onNewTab: newTabs.add);
+      expect(find.text('DuckDuckGo · 2 tabs'), findsOneWidget);
+      expect(
+          rowOrder(tester, [ddgHome, ddgChild, 'https://github.com/', hosted]),
+          [ddgHome, ddgChild, 'https://github.com/', hosted],
+          reason: 'the same list as on DuckDuckGo, so nothing moves on a jump');
+      expect(isHighlighted(hosted), isTrue,
+          reason: 'the highlight is the tab on screen, in whichever tree');
+      expect(isHighlighted(ddgHome), isFalse);
+      await tester.tap(find.text('New tab'));
+      await tester.pump();
+      expect(newTabs, [1], reason: 'a new tab of the site the list is for');
+    });
+
+    testWidgets('where the user was is marked and its tree listed',
+        (tester) async {
+      final wiki = WebViewModel(
+        siteId: 'wiki',
+        initUrl: 'https://wikipedia.org/',
+        name: 'Wikipedia',
+        tabs: [
+          SiteTab.primary(url: 'https://wikipedia.org/'),
+          SiteTab(id: 'w', url: 'https://wikipedia.org/w', parentId: kPrimaryTabId),
+          SiteTab(id: 'x', url: 'https://wikipedia.org/x', parentId: kPrimaryTabId),
+        ],
+      );
+      WebViewModel.siteLookup = (id) => {'gh': gh, 'ddg': ddg, 'wiki': wiki}[id];
+      await pumpSheet(tester, [
+        ...sites(),
+        TabsSheetSite(index: 2, model: wiki, isCurrent: false, isLoaded: true),
+      ], wayBack: const TabReturn(
+          fromSiteId: 'wiki', fromTabId: 'w', toSiteId: 'ddg', toTabId: kPrimaryTabId));
+      expect(find.text('In Wikipedia'), findsOneWidget,
+          reason: 'nothing there runs as DuckDuckGo, but the way back is there');
+      expect(find.text('wikipedia.org · where you were'), findsOneWidget);
+      expect(find.text('https://wikipedia.org/x'), findsNothing);
+      expect(find.text('1 more Wikipedia tab'), findsOneWidget);
     });
 
     testWidgets('a site the webspace hides still lists what runs as this one',

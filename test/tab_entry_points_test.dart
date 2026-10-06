@@ -87,6 +87,7 @@ void main() {
         ('Future<void> _newTab(', '!_tabsEnabledAt(index)'),
         ('Future<void> _duplicateTab(', '!_tabsEnabledAt(index)'),
         ('Future<bool> _closeChildTabOnBack(', '!_tabsEnabledAt(_currentIndex)'),
+        ('Future<bool> _returnFromJumpOnBack(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showTabsSheet(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showLinkLongPressMenu(', '!_tabsEnabledAt(index)'),
         ('Future<void> _openChildTab(', '!_tabsEnabledFor(owner)'),
@@ -107,6 +108,24 @@ void main() {
         isTrue,
         reason: 'an owner without tabs has no tree to take the child',
       );
+    });
+
+    test('Back at the start of a tab tries the way back before closing it '
+        '(TAB-019, TAB-007)', () {
+      expect(RegExp(r'await _backAtTabStart\(\)').allMatches(source),
+          hasLength(2),
+          reason: 'Android\'s canGoBack path and the attempt-then-compare '
+              'path of every other host');
+      expect(
+          RegExp(r'(?<!Future<bool> )_closeChildTabOnBack\(\)')
+              .allMatches(source),
+          hasLength(1),
+          reason: 'closing is reached only through the funnel');
+      final funnel = source.substring(
+          source.indexOf('Future<bool> _backAtTabStart('),
+          source.indexOf('Future<bool> _returnFromJumpOnBack('));
+      expect(funnel.indexOf('_returnFromJumpOnBack()'),
+          lessThan(funnel.indexOf('_closeChildTabOnBack()')));
     });
 
     test('the tab list leaves out sites without tabs', () {

@@ -84,6 +84,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/tab_handling_gate.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
+import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_unload_engine.dart';
@@ -4929,6 +4930,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Also handles domain conflict detection for per-site cookie isolation.
   Future<void> _setCurrentIndex(int? index) async {
     final version = ++_setCurrentIndexVersion;
+    // Another site by any way leaves the Tabs sheet's way back behind
+    // (TAB-019); a jump the sheet makes puts its own back once it lands.
+    if (index != _currentIndex) _tabReturns = const [];
 
     if (index == null || index < 0 || index >= _webViewModels.length) {
       final leaving = _currentIndex != null &&
@@ -7849,7 +7853,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               action == BackGestureAction.openDrawer) &&
           controller != null &&
           !drawerOpen) {
-        if (await _closeChildTabOnBack()) return;
+        if (await _backAtTabStart()) return;
         if (!mounted) return;
       }
       switch (action) {
@@ -7899,7 +7903,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             // Same rule as the Android branch above, reached the only way
             // Apple can reach it: the URL did not move, so the tab is at the
             // start of its own history.
-            if (await _closeChildTabOnBack()) return;
+            if (await _backAtTabStart()) return;
             if (!mounted) return;
           }
           final next = decideAfterAttemptedGoBack(
@@ -8112,6 +8116,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// that arrives while it is held and must not be dropped (LIR-034's
   /// reconcile) waits on the gate and runs when it is released.
   late final TabHandlingGate _tabGate = TabHandlingGate(scheduleMicrotask);
+
+  /// Jumps the Tabs sheet made between sites' slots, the way Back takes
+  /// (TAB-019). Any other way to another site drops it.
+  List<TabReturn> _tabReturns = const [];
   bool get _isTabHandling => _tabGate.busy;
   set _isTabHandling(bool value) => _tabGate.busy = value;
 
@@ -8291,16 +8299,34 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  /// Show [tabId] of the site at [index]. Used by the tab list.
+  /// Show [tabId] of the site at [index]. Used by the tab list, and by Back
+  /// going back along the trail of jumps it made (TAB-019).
   Future<void> _openTab(int index, String tabId) async {
     if (_isTabHandling) return;
     _isTabHandling = true;
     try {
       if (index < 0 || index >= _webViewModels.length) return;
       final model = _webViewModels[index];
+      final from = _currentIndex != null && _currentIndex! < _webViewModels.length
+          ? _webViewModels[_currentIndex!]
+          : null;
+      final back = from == null
+          ? null
+          : TabReturnEngine.wayBack(_tabReturns, from.siteId, from.activeTabId);
+      final trail = from == null
+          ? const <TabReturn>[]
+          : TabReturnEngine.afterOpen(
+              _tabReturns,
+              fromSiteId: from.siteId,
+              fromTabId: from.activeTabId,
+              toSiteId: model.siteId,
+              toTabId: tabId,
+              webspaceId: _selectedWebspaceId,
+            );
       if (index == _currentIndex) {
         if (model.activeTabId == tabId) return;
         await _switchActiveTab(model, tabId);
+        _tabReturns = trail;
         return;
       }
       // The site is not on screen. When it has no webview either, moving the
@@ -8317,16 +8343,37 @@ class _WebSpacePageState extends State<WebSpacePage>
           unawaited(_saveWebViewModels());
         }
       }
-      // An "In {site}" row can belong to a site this webspace hides.
-      await _maybeSwitchToAllForSite(model, index);
+      // An "In {site}" row can belong to a site this webspace hides. Going
+      // back puts back the webspace the jump left, if it shows the site.
+      if (back != null && back.leadsBackTo(model.siteId, tabId)) {
+        await _returnToWebspace(back.webspaceId, model, index);
+      } else {
+        await _maybeSwitchToAllForSite(model, index);
+      }
       if (!mounted) return;
       await _setCurrentIndex(index);
       if (!mounted) return;
+      _tabReturns = trail;
       setState(() {});
       await _saveCurrentIndex();
     } finally {
       _isTabHandling = false;
     }
+  }
+
+  /// TAB-019: the way back from a jump restores the webspace the jump left
+  /// when that still shows [model]; otherwise WEBSPACE-012 decides.
+  Future<void> _returnToWebspace(
+      String? webspaceId, WebViewModel model, int index) async {
+    final ws = _webspaces.where((w) => w.id == webspaceId).firstOrNull;
+    if (ws == null ||
+        webspaceId == _selectedWebspaceId ||
+        !(ws.isAll || ws.siteIndices.contains(index))) {
+      await _maybeSwitchToAllForSite(model, index);
+      return;
+    }
+    setState(() => _selectedWebspaceId = webspaceId);
+    await _saveSelectedWebspaceId();
   }
 
   /// S6: a link from a hosted tab back into [model]'s own domain opens as
@@ -8657,6 +8704,40 @@ class _WebSpacePageState extends State<WebSpacePage>
     return true;
   }
 
+  /// A back gesture that ran out of page history is spent on the tabs before
+  /// NAV-001 / NAV-009 get it: back where a jump from the Tabs sheet came
+  /// from (TAB-019), else closing a tab opened from another (TAB-007).
+  Future<bool> _backAtTabStart() async {
+    if (await _returnFromJumpOnBack()) return true;
+    if (!mounted) return false;
+    return _closeChildTabOnBack();
+  }
+
+  /// TAB-019: at the start of a tab the Tabs sheet jumped to, Back goes to
+  /// the tab the jump came from. Neither tab closes.
+  Future<bool> _returnFromJumpOnBack() async {
+    if (!_tabsEnabledAt(_currentIndex) || _isTabHandling) return false;
+    final model = _webViewModels[_currentIndex!];
+    final back =
+        TabReturnEngine.wayBack(_tabReturns, model.siteId, model.activeTabId);
+    if (back == null) return false;
+    final index = _webViewModels.indexWhere((m) => m.siteId == back.fromSiteId);
+    if (index < 0 ||
+        !_webViewModels[index].tabs.any((t) => t.id == back.fromTabId)) {
+      // Where the jump came from is gone, so the gesture does what it would
+      // have done without one.
+      _tabReturns = const [];
+      return false;
+    }
+    LogService.instance.log(
+      'Navigation',
+      'Back gesture: at the start of a tab opened from the Tabs sheet; '
+          'back where it was opened from',
+    );
+    await _openTab(index, back.fromTabId);
+    return true;
+  }
+
   /// A back gesture that ran out of page history. Returns true when it was
   /// spent closing a tab the user had opened from another one, which is what a
   /// browser does with a tab opened from a link (TAB-007). A root tab falls
@@ -8723,6 +8804,9 @@ class _WebSpacePageState extends State<WebSpacePage>
         onCloseSubtree: (i, id) => unawaited(_closeTab(i, id, subtree: true)),
         onMoveTab: _moveTab,
         onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet : null,
+        wayBack: TabReturnEngine.wayBack(_tabReturns,
+            _webViewModels[_currentIndex!].siteId,
+            _webViewModels[_currentIndex!].activeTabId),
       ),
     );
   }
