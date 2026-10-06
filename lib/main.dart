@@ -70,6 +70,7 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
+import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_teardown_engine.dart';
@@ -690,6 +691,7 @@ void main() async {
       () => _runTimed('firefoxUa', FirefoxUserAgentService.instance.initialize),
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', LocalCdnService.instance.initialize),
+      () => _runTimed('searchList', SiteSearchListService.instance.initialize),
       () => _runTimed('blockStats', BlockStatsService.instance.initialize),
       if (hostIsAndroid)
         () => _runTimed('swBlock', blockServiceWorkerNetwork),
@@ -773,6 +775,7 @@ void main() async {
       ['IPFire Location Database (Tor exit-country data)'],
       'assets/licenses/ipfire_location.txt'
     ),
+    (['Kagi Bangs (site search list data)'], 'assets/licenses/kagi_bangs.txt'),
   ];
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {
@@ -2827,11 +2830,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         siteId: m.siteId,
         name: m.getDisplayName(),
         initUrl: m.initUrl,
-        capability: WebSearchEngine.capabilityOf(
-          initUrl: m.initUrl,
-          searchAddress: m.searchAddress,
-          searchesWeb: m.searchesWeb,
-        ),
+        capability: m.searchCapability,
       );
 
   /// Web search (LIR-029) from the site on screen: the sheet asks for a query
@@ -2866,6 +2865,13 @@ class _WebSpacePageState extends State<WebSpacePage>
               : appDefault,
           canAddSites: !owner.isArchiveTier,
           initialQuery: initialQuery,
+          containerColors: {
+            if (_useContainers)
+              for (final m in {..._outboundCandidates(owner), identity})
+                m.siteId: m.containerColor ??
+                    ContainerColorEngine.fallback(
+                        m.siteId, kContainerPaletteSize),
+          },
         ),
       );
       if (!mounted || request == null) return;
@@ -3900,7 +3906,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (sites.every((m) => m.containerColor != null)) return;
     final given = ContainerColorEngine.assign(
       [for (final m in sites) m.containerColor],
-      ContainerColors.light.length,
+      kContainerPaletteSize,
     );
     for (var i = 0; i < sites.length; i++) {
       sites[i].containerColor = given[i];
@@ -4401,6 +4407,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     model.isArchiveTier = false;
     model.archiveContainerId = null;
     model.cookies = capturedCookies;
+    // TAB-018: back with the colour it kept in the archive, unless an
+    // app-tier site took that colour meanwhile.
+    model.containerColor = ContainerColorEngine.release(
+      [model.containerColor],
+      kContainerPaletteSize,
+      held: [
+        for (final m in _webViewModels)
+          if (!m.isArchiveTier && !identical(m, model)) m.containerColor,
+      ],
+    ).single;
     _pruneOutboundPreferences();
     _pruneSearchReferences();
 
@@ -7610,6 +7626,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       _webspaces.clear();
       _loadedIndices.clear(); // Clear lazy loading state
       _webViewModels.addAll(plan.sites);
+      _assignContainerColors();
       _webspaces.addAll(plan.webspaces);
 
       _themeSettings = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
@@ -9151,9 +9168,16 @@ class _WebSpacePageState extends State<WebSpacePage>
                     webSearchSites: [
                       for (final m in _webViewModels)
                         if (!m.isArchiveTier &&
-                            _searchSiteOf(m).capability?.kind ==
-                                SearchKind.web)
-                          (siteId: m.siteId, name: m.getDisplayName()),
+                            m.searchCapability?.kind == SearchKind.web)
+                          (
+                            siteId: m.siteId,
+                            name: m.getDisplayName(),
+                            containerColor: _useContainers
+                                ? m.containerColor ??
+                                    ContainerColorEngine.fallback(
+                                        m.siteId, kContainerPaletteSize)
+                                : null,
+                          ),
                     ],
                     globalUserScripts: _globalUserScripts,
                     onGlobalUserScriptsChanged: (scripts) {
@@ -9747,7 +9771,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   containerColor: _useContainers
                       ? id.containerColor ??
                           ContainerColorEngine.fallback(
-                              id.siteId, ContainerColors.light.length)
+                              id.siteId, kContainerPaletteSize)
                       : null,
                 ),
               );

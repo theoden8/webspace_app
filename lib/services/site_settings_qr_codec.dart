@@ -101,6 +101,12 @@ class SiteSettingsQrCodec {
     'outboundPreferences',
     'searchSites',
     'searchDefault',
+    // Learned from the site's own pages; the receiver's copy learns it the
+    // same way (LIR-035).
+    'discoveredSearchAddress',
+    'discoveredSearchesWeb',
+    // A scanned site is a new container, which gets its own colour (TAB-018).
+    'containerColor',
     // A scanned code must not make a site claim domains: claims decide
     // where other sites' links and shared URLs go.
     'domainClaims',

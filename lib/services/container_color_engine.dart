@@ -7,6 +7,10 @@
 /// and persists the result.
 library;
 
+/// How many container colours there are; `ContainerColors` holds one per
+/// index for each brightness.
+const int kContainerPaletteSize = 8;
+
 abstract final class ContainerColorEngine {
   /// The palette index for each entry of [current] that has none: the least
   /// used index so far, lowest first on a tie, counting every index already
@@ -31,6 +35,36 @@ abstract final class ContainerColorEngine {
       }
       counts[best]++;
       out.add(best);
+    }
+    return out;
+  }
+
+  /// [incoming] with each colour some other site already holds replaced by
+  /// null, so [assign] then gives that site the least used one. For sites
+  /// that bring a colour from elsewhere (a backup, an archive): it was chosen
+  /// around other sites than these. The colours of [held], then of the
+  /// entries before it, count as held. Once every colour is held a site keeps
+  /// its own, since a new one would be shared too.
+  static List<int?> release(
+    List<int?> incoming,
+    int paletteSize, {
+    Iterable<int?> held = const [],
+  }) {
+    assert(paletteSize > 0);
+    bool valid(int? i) => i != null && i >= 0 && i < paletteSize;
+    final taken = {
+      for (final i in held)
+        if (valid(i)) i!,
+    };
+    final out = <int?>[];
+    for (final i in incoming) {
+      if (!valid(i)) {
+        out.add(null);
+      } else if (taken.length >= paletteSize || taken.add(i!)) {
+        out.add(i);
+      } else {
+        out.add(null);
+      }
     }
     return out;
   }

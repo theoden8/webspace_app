@@ -24,6 +24,7 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
+import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
@@ -1092,6 +1093,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           containersActive: widget.useContainers,
           routingTargets: widget.routingTargets,
           initUrl: widget.webViewModel.initUrl,
+          discoveredSearchAddress:
+              widget.webViewModel.discoveredSearchAddress,
+          discoveredSearchesWeb: widget.webViewModel.discoveredSearchesWeb,
+          listedSearchAddress: SiteSearchListService.instance
+              .addressFor(widget.webViewModel.initUrl),
           // Writes straight to the model, like it did inline: domain claims
           // are not part of the dirty snapshot and are saved as they are
           // edited.

@@ -45,6 +45,8 @@ const migrated = new Set([
   'lib/widgets/background_log_view.dart',
   // A coloured bar, excluded from semantics: no text at all.
   'lib/widgets/container_mark.dart',
+  'lib/widgets/search_site_picker.dart',
+  'lib/widgets/site_search_list_tile.dart',
   'lib/widgets/dispatch_picker_sheet.dart',
   'lib/widgets/download_button.dart',
   'lib/widgets/external_tor_tiles.dart',

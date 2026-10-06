@@ -49,6 +49,8 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/firefox_version_tile.dart';
+import 'package:webspace/widgets/search_site_picker.dart';
+import 'package:webspace/widgets/site_search_list_tile.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 import 'package:webspace/widgets/level_slider.dart';
@@ -129,8 +131,9 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onLinkHandlingEnabledChanged;
   final VoidCallback onOpenLinkHandlingSettings;
 
-  /// The user's web search sites outside every archive (LIR-029).
-  final List<({String siteId, String name})> webSearchSites;
+  /// The user's web search sites outside every archive (LIR-029), each with
+  /// its container's colour, null on the legacy engine.
+  final List<PickableSearchSite> webSearchSites;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired after the global outbound proxy is updated. Parent should
@@ -333,6 +336,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   }
 
   void _onTimezoneDatasetChanged() => _loadTimezoneState();
+
 
   // Reads the dataset on disk, not the in-memory one: only the lookup paths
   // load it, so a downloaded dataset is usually not in memory here.
@@ -1061,6 +1065,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   String _webSearchDefault = '';
 
+  String? get _webSearchDefaultName {
+    final site = widget.webSearchSites
+        .where((s) => s.siteId == _webSearchDefault)
+        .firstOrNull;
+    if (site == null) return null;
+    return searchSiteSummaryName(site.name, site.siteId,
+        widget.webSearchSites.map((s) => s.name));
+  }
+
   Future<void> _loadWebSearchDefault() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
@@ -1074,37 +1087,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     final loc = AppLocalizations.of(context);
     final picked = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.webSearchDefaultTitle),
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: widget.webSearchSites.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(loc.webSearchNoWebSites),
-                )
-              : RadioGroup<String>(
-                  groupValue: _webSearchDefault,
-                  onChanged: (v) => Navigator.pop(ctx, v),
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      for (final site in widget.webSearchSites)
-                        RadioListTile<String>(
-                          value: site.siteId,
-                          title: Text(site.name),
-                        ),
-                    ],
-                  ),
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(loc.commonCancel),
-          ),
-        ],
+      builder: (ctx) => SearchSiteChoiceDialog(
+        title: loc.webSearchDefaultTitle,
+        sites: widget.webSearchSites,
+        selected: _webSearchDefault,
+        emptyText: loc.webSearchNoWebSites,
+        cancelLabel: loc.commonCancel,
       ),
     );
     if (picked == null) return;
@@ -1625,14 +1613,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                   ),
                 ],
               ),
-              subtitle: Text(widget.webSearchSites
-                      .where((s) => s.siteId == _webSearchDefault)
-                      .firstOrNull
-                      ?.name ??
+              subtitle: Text(_webSearchDefaultName ??
                   loc.appSettingsNotConfigured),
               trailing: const Icon(Icons.chevron_right),
               onTap: _pickWebSearchDefault,
             ),
+          if (_developerMode && _siteTabsSwitch)
+            SiteSearchListTile(formatCount: _formatNumber),
           const Divider(height: 32),
           // Global outbound proxy section
           Padding(

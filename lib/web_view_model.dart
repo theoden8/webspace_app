@@ -23,6 +23,8 @@ import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/services/opensearch_engine.dart'
+    show DiscoveredSearch, SiteSearchTarget;
 import 'package:webspace/services/camera_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
@@ -36,6 +38,8 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
+import 'package:webspace/services/site_search_list_service.dart';
+import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/camera.dart';
@@ -864,6 +868,36 @@ class WebViewModel {
   /// Whether [searchAddress] searches the whole web rather than this site.
   bool searchesWeb;
 
+  /// The search address this site's own pages declared (LIR-035), used only
+  /// while it has no [searchAddress] and its host is not a known one.
+  String? discoveredSearchAddress;
+
+  /// Whether [discoveredSearchAddress] searches the whole web: the pages were
+  /// a SearXNG instance's.
+  bool discoveredSearchesWeb;
+
+  /// How this site searches, if it does (LIR-028).
+  SearchCapability? get searchCapability => WebSearchEngine.capabilityOf(
+        initUrl: initUrl,
+        searchAddress: searchAddress,
+        searchesWeb: searchesWeb,
+        discoveredAddress: discoveredSearchAddress,
+        discoveredWeb: discoveredSearchesWeb,
+        listedAddress: SiteSearchListService.instance.addressFor(initUrl),
+      );
+
+  /// Take [found] as what this site's pages declared. True when it changed
+  /// anything, for the caller to persist.
+  bool offerDiscoveredSearch(DiscoveredSearch found) {
+    if (discoveredSearchAddress == found.address &&
+        discoveredSearchesWeb == found.web) {
+      return false;
+    }
+    discoveredSearchAddress = found.address;
+    discoveredSearchesWeb = found.web;
+    return true;
+  }
+
   /// The search sites a search from this site offers; empty offers them all.
   List<String> searchSites;
 
@@ -1290,6 +1324,8 @@ class WebViewModel {
     List<OutboundPreference>? outboundPreferences,
     this.searchAddress,
     this.searchesWeb = false,
+    this.discoveredSearchAddress,
+    this.discoveredSearchesWeb = false,
     List<String>? searchSites,
     this.searchDefault,
     this.stateSetterF,
@@ -2106,6 +2142,20 @@ class WebViewModel {
             onIcon: (icon) => unawaited(SiteIconStore.instance
                 .offer(iconSiteUrl, icon, persist: !id.effectiveIncognito)),
           ),
+          siteSearch: WebSearchEngine.discovers(
+                  initUrl: id.initUrl, searchAddress: id.searchAddress)
+              ? SiteSearchTarget(
+                  siteUrl: id.initUrl,
+                  // Search ships behind the Site tabs switch (LIR-029).
+                  enabled: () => ExperimentalFeaturesService.instance
+                      .isEnabled(ExperimentalFeature.siteTabs),
+                  onSearch: (found) {
+                    if (!id.offerDiscoveredSearch(found)) return;
+                    stateSetterF?.call();
+                    unawaited(saveFunc());
+                  },
+                )
+              : null,
           onConsoleMessage: (message, level) {
             consoleLogs.add(ConsoleLogEntry(
               timestamp: DateTime.now(),
@@ -2920,6 +2970,10 @@ class WebViewModel {
               outboundPreferences.map((p) => p.toJson()).toList(),
         if (searchAddress != null) 'searchAddress': searchAddress,
         if (searchesWeb) 'searchesWeb': true,
+        // Learned from the site's pages, so incognito keeps it in memory.
+        if (!incognito && discoveredSearchAddress != null)
+          'discoveredSearchAddress': discoveredSearchAddress,
+        if (!incognito && discoveredSearchesWeb) 'discoveredSearchesWeb': true,
         if (searchSites.isNotEmpty) 'searchSites': searchSites,
         if (searchDefault != null) 'searchDefault': searchDefault,
       };
@@ -3102,6 +3156,8 @@ class WebViewModel {
       ),
       searchAddress: field<String>('searchAddress'),
       searchesWeb: field<bool>('searchesWeb') ?? false,
+      discoveredSearchAddress: field<String>('discoveredSearchAddress'),
+      discoveredSearchesWeb: field<bool>('discoveredSearchesWeb') ?? false,
       searchSites: [
         for (final id in field<List<dynamic>>('searchSites') ?? const [])
           if (sanitizedSiteId(id) case final String safe) safe,

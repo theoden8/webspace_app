@@ -3521,6 +3521,36 @@
   "@webSearchDefaultHint": {
     "description": "Explanation behind the hint button of the Default search row in App Settings. 'Page menu' is the three-dot menu of a site."
   },
+  "webSearchSiteListTitle": "Site search list",
+  "@webSearchSiteListTitle": {
+    "description": "Title of the App Settings row that downloads a list of how thousands of websites search themselves, so a site the user adds can search itself without setup."
+  },
+  "webSearchSiteListHint": "Kagi's community list of how thousands of websites search themselves (MIT licence). With it, a site the app does not otherwise know can search itself from Web search without you typing an address. It is fetched only when you tap Download, through the app-wide proxy, and kept on this device until you clear it. A listed address only ever searches its own site, never the rest of the web.",
+  "@webSearchSiteListHint": {
+    "description": "Explanation behind the hint button of the Site search list row in App Settings. Kagi is the name of a search company; keep it as is."
+  },
+  "webSearchSiteListCount": "{count} sites",
+  "@webSearchSiteListCount": {
+    "description": "Subtitle of the Site search list row once downloaded: how many websites the list has a search address for. The number is already formatted.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "webSearchSiteListLoaded": "Site search list ready: {count} sites",
+  "@webSearchSiteListLoaded": {
+    "description": "Snackbar after the site search list downloads. The number is already formatted.",
+    "placeholders": {
+      "count": {
+        "type": "String"
+      }
+    }
+  },
+  "webSearchSiteListFailed": "Could not download the site search list",
+  "@webSearchSiteListFailed": {
+    "description": "Snackbar when downloading the site search list fails."
+  },
   "webSearchNoWebSites": "None of your sites searches the web yet. Add a search engine, such as DuckDuckGo, as a site.",
   "@webSearchNoWebSites": {
     "description": "Shown instead of a list when the user has no site that is a web search engine."

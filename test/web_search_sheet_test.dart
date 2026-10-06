@@ -27,6 +27,7 @@ void main() {
     String? declaredDefault,
     String? appDefault,
     bool canAddSites = true,
+    Map<String, int> containerColors = const {},
   }) async {
     final results = <WebSearchRequest?>[];
     await tester.pumpWidget(MaterialApp(
@@ -46,6 +47,7 @@ void main() {
                   declaredDefault: declaredDefault,
                   appDefault: appDefault,
                   canAddSites: canAddSites,
+                  containerColors: containerColors,
                 ),
               ));
             },
@@ -130,6 +132,31 @@ void main() {
     await tester.pumpAndSettle();
     expect(results.single!.option, isNull);
     expect(results.single!.add!.home, 'https://search.brave.com/');
+  });
+
+  testWidgets('an engine the user has is never offered to add again',
+      (tester) async {
+    // DuckDuckGo is the user's, but this site's list leaves it out, so no
+    // chip exists and the empty state shows.
+    await openSheet(tester,
+        identity: blog, candidates: [blog, ddg], declared: ['gone']);
+    expect(find.text('None of your sites can run this search. Add one:'),
+        findsOneWidget);
+    expect(find.widgetWithText(ChoiceChip, 'DuckDuckGo'), findsNothing);
+    expect(find.widgetWithText(ChoiceChip, 'Brave Search'), findsOneWidget);
+  });
+
+  testWidgets('chips carry their container colour (TAB-018)', (tester) async {
+    await openSheet(tester,
+        identity: ddg,
+        candidates: [ddg, kagi],
+        containerColors: {'ddg': 3});
+    final ddgChip = tester.widget<ChoiceChip>(
+        find.widgetWithText(ChoiceChip, 'DuckDuckGo'));
+    expect(ddgChip.avatar, isNotNull);
+    final kagiChip =
+        tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Kagi'));
+    expect(kagiChip.avatar, isNull, reason: 'no colour given, no dot');
   });
 
   testWidgets('inside an archive no engine is added (S15)', (tester) async {

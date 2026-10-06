@@ -638,11 +638,22 @@ at 3:1 against the surfaces of its brightness and distinct from the others. A
 site SHALL be given a colour the first time it is loaded or saved without one,
 the least used among the user's sites, lowest first on a tie, and SHALL keep it:
 adding, removing or reordering sites changes no other site's colour. The
-colour SHALL be stored with the site and carried by a backup.
+colour SHALL be stored with the site and carried by a backup, never by a QR
+share: a scanned site is a new container and gets a colour of its own.
+
+A site that comes back with a colour chosen elsewhere SHALL keep it unless
+another site already holds it while some colour is still free; then it SHALL
+be given the least used one. Two cases bring one back: a backup restore, where
+the sites before it in the backup hold their colours (a duplicate the import
+re-mints, or a hand-edited backup, would otherwise share one), and a site moved
+out of an archive, where the app-tier sites hold theirs. Once every colour is
+held, a site keeps its own, since a new one would be shared too.
 
 Only app-tier sites SHALL be counted or given a colour, so nothing the app tier
-stores depends on an archive (ARCH-001). An archive's site SHALL draw a colour
-derived from its id while its archive is open, and store none.
+stores depends on an archive (ARCH-001). A site moved into an archive SHALL keep
+its colour inside the archive's own state, so it comes back with it; a site
+created inside an archive has none and SHALL draw a colour derived from its id
+while its archive is open.
 
 #### Scenario: Two containers, one page
 
@@ -654,6 +665,19 @@ derived from its id while its archive is open, and store none.
 - **GIVEN** a link tab running as GitHub, marked in GitHub's colour (LIR-034)
 - **WHEN** its opener's routing switch is turned off
 - **THEN** its row is marked in the opener's colour and says it runs as the opener
+
+#### Scenario: A restored backup does not share colours
+
+- **GIVEN** a backup in which two sites are both stored as blue, and a third as green
+- **WHEN** it is imported
+- **THEN** the first keeps blue, the third keeps green, and the second gets the least used colour
+
+#### Scenario: A site back from an archive keeps its colour unless taken
+
+- **GIVEN** a red site moved into an archive, and a new app-tier site given red meanwhile
+- **WHEN** the archived site is moved out
+- **THEN** it gets the least used colour, and the new site stays red
+- **AND** had nobody taken red, it would have come back red
 
 #### Scenario: A new site does not repaint the others
 
