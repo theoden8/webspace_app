@@ -14,7 +14,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 - [x] 2.1 `SiteTab.hostSiteId` (`String?`): `toJson` omits null; `fromJson` sanitises like `parentId`; `TabLifecycleEngine.normalize` stores a host equal to the owner as null. *The owner-equal normalisation is in the `WebViewModel` constructor.*
 - [x] 2.2 `WebViewModel.stateKeyForTab(tab)` = `webViewStateKey(tab.hostSiteId ?? siteId, tab.id)`; `activeStateKey` follows it. `_liveStateKeys` builds the orphan sweep's live set with it.
 - [ ] 2.3 `WebViewStateStorage.renameState(oldKey, newKey)` on the interface, `SecureWebViewStateStorage` (a file rename: the AES-GCM blob binds no associated data to its name today; if it ever does, rename becomes load and re-save) and `InMemoryWebViewStateStorage`; a missing source is a no-op; an existing destination is overwritten.
-- [x] 2.4 Persistence (LIR-022): `toJson` writes a hosted tab with the owner's list, which an incognito owner never writes; the capture gate writes bytes only for a persisted record whose identity has `persistsNavState`.
+- [x] 2.4 Persistence (LIR-022): `toJson` writes a hosted tab with the owner's list, an incognito owner's included (INC-008); the capture gate writes bytes only for a persisted record whose identity has `persistsNavState`.
 - [ ] 2.5 Tests: model round-trip with and without a host; normalisation; host-keyed keys; session-only records for an incognito owner; `renameState` on both storages; orphan sweep keeps host-keyed live keys. *Done except `renameState`, which waits for 2.3.*
 
 ## 3. Hosted tabs: running as the host

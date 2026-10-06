@@ -46,8 +46,9 @@ costs a second renderer.
   container it runs in (TAB-018). A tap there that brings another site's slot
   on screen can be undone by Back or by the tab marked "where you were"
   (TAB-019).
-- The per-site feature audit (ARCH-006 shape) for tabs: incognito tabs never
-  reach disk, Always open Home lands on a tab at home and keeps the rest, kiosk
+- The per-site feature audit (ARCH-006 shape) for tabs: an incognito site keeps
+  its tab list across a restart and loses its container and every back stack
+  (INC-008), Always open Home lands on a tab at home and keeps the rest, kiosk
   sites have no tabs, archive-tier tabs live under the archive key, the QR share never
   carries tabs, memory pressure and the LRU cap keep the site as their unit.
 

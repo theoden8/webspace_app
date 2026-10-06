@@ -262,12 +262,12 @@ kiosk shell (KIOSK-002) SHALL hide all of these.
 
 ### Requirement: TAB-009 - Tabs under per-site features
 
-Tabs SHALL follow the owning site's feature posture. Incognito drops a site's
-tab list from serialisation with its `currentUrl`: nothing it visited may reach
-disk, so it relaunches with one tab at `initUrl` (INC-002/003). Always open
-Home drops `currentUrl` but keeps the tab list, so the site lands on a tab at
-home without closing the others (TAB-014); its tab URLs reach plaintext
-preferences as any other site's do. An
+Tabs SHALL follow the owning site's feature posture. Incognito and Always
+open Home both drop `currentUrl` but keep the tab list, so the site lands on a
+tab at home without closing the others (TAB-014); their tab URLs reach
+plaintext preferences as any other site's do. What a restart wipes for an
+incognito site is its container and every tab's back stack (INC-002, INC-005,
+INC-008). An
 archive-tier site's
 tabs ride the archive's encrypted state with no state bytes on disk, and
 app-tier persistence is byte-identical whether or not archives hold tabs
@@ -279,8 +279,8 @@ app-tier persistence is byte-identical whether or not archives hold tabs
 
 - **GIVEN** an incognito Wikipedia site with two parked tabs
 - **WHEN** the app is killed and relaunched
-- **THEN** Wikipedia has one tab, at `initUrl`
-- **AND** no `webview_state/<siteId>.*.enc` file exists
+- **THEN** both parked tabs are still listed, and Wikipedia lands on a tab at `initUrl`
+- **AND** its container was wiped, and no `webview_state/<siteId>.*.enc` file exists
 
 #### Scenario: Always open Home relaunch
 
