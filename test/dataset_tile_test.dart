@@ -40,23 +40,26 @@ class _ClearableDataset extends _Dataset implements ClearableDataset {
   }
 }
 
-Widget _host(DownloadableDataset dataset,
-        {Widget Function(DownloadableDataset, VoidCallback?)? below}) =>
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: ListView(children: [
-          DatasetTile<DownloadableDataset>(
-            create: () => dataset,
-            icon: Icons.public,
-            title: 'Polygons',
-            hint: 'What the polygons are for.',
-            below: below,
-          ),
-        ]),
-      ),
-    );
+Widget _host(
+  DownloadableDataset dataset, {
+  Widget Function(DownloadableDataset, VoidCallback?)? below,
+}) => MaterialApp(
+  localizationsDelegates: AppLocalizations.localizationsDelegates,
+  supportedLocales: AppLocalizations.supportedLocales,
+  home: Scaffold(
+    body: ListView(
+      children: [
+        DatasetTile<DownloadableDataset>(
+          create: () => dataset,
+          icon: Icons.public,
+          title: 'Polygons',
+          hint: 'What the polygons are for.',
+          below: below,
+        ),
+      ],
+    ),
+  ),
+);
 
 void main() {
   testWidgets('names what is on disk and when it was fetched', (tester) async {
@@ -71,20 +74,29 @@ void main() {
     expect(find.byTooltip('Refresh dataset'), findsOneWidget);
   });
 
-  testWidgets('a download in flight shows a spinner, then its message',
-      (tester) async {
+  testWidgets('a download in flight shows a spinner, then its message', (
+    tester,
+  ) async {
     final dataset = _Dataset();
     final handed = <VoidCallback?>[];
-    await tester.pumpWidget(_host(dataset, below: (_, download) {
-      handed.add(download);
-      return const SizedBox.shrink();
-    }));
+    await tester.pumpWidget(
+      _host(
+        dataset,
+        below: (_, download) {
+          handed.add(download);
+          return const SizedBox.shrink();
+        },
+      ),
+    );
 
     await tester.tap(find.byTooltip('Download dataset'));
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(handed.last, isNull,
-        reason: 'controls under the row cannot start a second download');
+    expect(
+      handed.last,
+      isNull,
+      reason: 'controls under the row cannot start a second download',
+    );
 
     await tester.tap(find.byType(ListTile));
     expect(dataset.downloads, 1);
@@ -96,8 +108,9 @@ void main() {
     expect(handed.last, isNotNull);
   });
 
-  testWidgets('only a clearable dataset with data offers to clear it',
-      (tester) async {
+  testWidgets('only a clearable dataset with data offers to clear it', (
+    tester,
+  ) async {
     await tester.pumpWidget(_host(_Dataset()..ready = true));
     expect(find.byTooltip('Clear dataset'), findsNothing);
 
@@ -115,8 +128,9 @@ void main() {
     expect(find.byTooltip('Download dataset'), findsOneWidget);
   });
 
-  testWidgets('the Firefox row keeps its auto-update choice in prefs',
-      (tester) async {
+  testWidgets('the Firefox row keeps its auto-update choice in prefs', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({kFirefoxUaAutoRefreshKey: true});
     final firefox = FirefoxVersionDataset();
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
@@ -130,12 +144,13 @@ void main() {
 
   // A title, a hint button, a date, a switch under it and a button beside it:
   // narrow screens and large text scales are where a Row runs out of width.
-  testWidgets('lays out without overflow across widths and text scales',
-      (tester) async {
+  testWidgets('lays out without overflow across widths and text scales', (
+    tester,
+  ) async {
     final complaints = <String>[];
     final previousOnError = FlutterError.onError;
-    FlutterError.onError =
-        (details) => complaints.add('${details.exception}'.split('\n').first);
+    FlutterError.onError = (details) =>
+        complaints.add('${details.exception}'.split('\n').first);
     addTearDown(() => FlutterError.onError = previousOnError);
 
     for (final width in <double>[200, 240, 280, 320, 360, 412, 480, 800]) {
@@ -147,15 +162,19 @@ void main() {
           ..ready = true
           ..line = 'Firefox 152'
           ..lastUpdated = DateTime(2026, 8, 20, 10, 44, 3);
-        await tester.pumpWidget(MediaQuery(
-          data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-          child: _host(dataset,
+        await tester.pumpWidget(
+          MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: _host(
+              dataset,
               below: (_, _) => SwitchListTile(
-                    title: const Text('Check weekly'),
-                    value: true,
-                    onChanged: (_) {},
-                  )),
-        ));
+                title: const Text('Check weekly'),
+                value: true,
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        );
         await tester.pumpAndSettle();
         expect(complaints, isEmpty, reason: 'width $width, text scale $scale');
       }

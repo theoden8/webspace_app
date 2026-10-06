@@ -34,9 +34,8 @@ String formatTimestamp(DateTime when) =>
     when.toLocal().toString().split('.').first;
 
 /// `950`, `1K`, `297.8K`.
-String compactCount(int n) => n >= 1000
-    ? '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K'
-    : '$n';
+String compactCount(int n) =>
+    n >= 1000 ? '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K' : '$n';
 
 /// The App Settings row for one [DownloadableDataset]: what is on disk, when
 /// it was fetched, and the buttons to fetch, refresh or delete it.
@@ -111,8 +110,10 @@ class _DatasetTileState<D extends DownloadableDataset>
               children: [
                 if (status != null) Text(status),
                 if (updated != null)
-                  Text(loc.appSettingsUpdatedAt(formatTimestamp(updated)),
-                      style: const TextStyle(fontSize: 12)),
+                  Text(
+                    loc.appSettingsUpdatedAt(formatTimestamp(updated)),
+                    style: const TextStyle(fontSize: 12),
+                  ),
               ],
             ),
       trailing: _busy

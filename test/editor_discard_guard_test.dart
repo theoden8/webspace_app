@@ -15,14 +15,17 @@ void main() {
   late Future<Object?> result;
 
   Future<void> open(WidgetTester tester, Widget editor) async {
-    await tester.pumpWidget(MaterialApp(
-      navigatorKey: navigator,
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: const Scaffold(),
-    ));
-    result = navigator.currentState!
-        .push<Object?>(MaterialPageRoute(builder: (_) => editor));
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(),
+      ),
+    );
+    result = navigator.currentState!.push<Object?>(
+      MaterialPageRoute(builder: (_) => editor),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -44,8 +47,9 @@ void main() {
       expect(isOpen<UserScriptEditScreen>(), isFalse);
     });
 
-    testWidgets('an unsaved edit asks first, and Keep editing keeps it',
-        (tester) async {
+    testWidgets('an unsaved edit asks first, and Keep editing keeps it', (
+      tester,
+    ) async {
       await open(tester, const UserScriptEditScreen());
       await tester.enterText(find.byType(TextField).first, 'Half-written');
       await tester.pump();
@@ -64,11 +68,13 @@ void main() {
       expect(await result, isNull, reason: 'discarding saves nothing');
     });
 
-    testWidgets('an edit to the injection time alone is guarded',
-        (tester) async {
+    testWidgets('an edit to the injection time alone is guarded', (
+      tester,
+    ) async {
       await open(tester, UserScriptEditScreen(script: script));
       await tester.tap(
-          find.byType(DropdownButtonFormField<UserScriptInjectionTime>));
+        find.byType(DropdownButtonFormField<UserScriptInjectionTime>),
+      );
       await tester.pumpAndSettle();
       await tester.tap(find.text('Document start').last);
       await tester.pumpAndSettle();
@@ -80,10 +86,10 @@ void main() {
 
   group('webspace editor', () {
     Widget editor() => WebspaceDetailScreen(
-          webspace: Webspace(name: 'Work'),
-          allSites: const [],
-          onSave: (_) {},
-        );
+      webspace: Webspace(name: 'Work'),
+      allSites: const [],
+      onSave: (_) {},
+    );
 
     testWidgets('back leaves an untouched editor at once', (tester) async {
       await open(tester, editor());
@@ -91,8 +97,9 @@ void main() {
       expect(isOpen<WebspaceDetailScreen>(), isFalse);
     });
 
-    testWidgets('a renamed webspace asks before the name is dropped',
-        (tester) async {
+    testWidgets('a renamed webspace asks before the name is dropped', (
+      tester,
+    ) async {
       await open(tester, editor());
       await tester.enterText(find.byType(TextField), 'Home');
       await tester.pump();

@@ -30,24 +30,24 @@ mixin DirtyGuard<W extends StatefulWidget> on State<W> {
   /// Text fields must rebuild the screen as they change, so the answer is
   /// current when back is pressed.
   Widget guardPop({required Widget child}) => PopScope(
-        canPop: !isDirty,
-        onPopInvokedWithResult: (didPop, _) async {
-          if (didPop) return;
-          await _asking.run(() async {
-            final loc = AppLocalizations.of(context);
-            final discard = await confirm(
-              context,
-              title: loc.siteSettingsDiscardDialogTitle,
-              body: loc.siteSettingsDiscardDialogBody,
-              cancelLabel: loc.siteSettingsDiscardKeepEditing,
-              confirmLabel: loc.siteSettingsDiscardConfirm,
-              destructive: true,
-            );
-            if (discard) await popClean();
-          });
-        },
-        child: child,
-      );
+    canPop: !isDirty,
+    onPopInvokedWithResult: (didPop, _) async {
+      if (didPop) return;
+      await _asking.run(() async {
+        final loc = AppLocalizations.of(context);
+        final discard = await confirm(
+          context,
+          title: loc.siteSettingsDiscardDialogTitle,
+          body: loc.siteSettingsDiscardDialogBody,
+          cancelLabel: loc.siteSettingsDiscardKeepEditing,
+          confirmLabel: loc.siteSettingsDiscardConfirm,
+          destructive: true,
+        );
+        if (discard) await popClean();
+      });
+    },
+    child: child,
+  );
 
   /// Leaves without asking, as a save does; false when the screen was gone
   /// or covered first. The pop waits a frame so the rebuild commits the

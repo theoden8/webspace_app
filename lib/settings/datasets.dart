@@ -28,13 +28,18 @@ abstract class _LoadedDataset extends ChangeNotifier
   int _generation = 0;
   bool _disposed = false;
 
-  /// Reads the state; returns false when [isCurrent] went stale meanwhile.
+  /// Reads the state, writing it only while [isCurrent] still holds.
   Future<void> load(bool Function() isCurrent);
 
   Future<void> _reload() async {
     final generation = ++_generation;
     await load(() => !_disposed && generation == _generation);
-    if (!_disposed && generation == _generation) notifyListeners();
+    if (generation == _generation) _notify();
+  }
+
+  /// A download can outlive the row that started it.
+  void _notify() {
+    if (!_disposed) notifyListeners();
   }
 
   @override
@@ -82,8 +87,8 @@ class TimezoneDataset extends _LoadedDataset implements ClearableDataset {
   @override
   Future<String> download(AppLocalizations loc) async =>
       await _service.download()
-          ? loc.appSettingsTimezonesLoaded(_service.zoneCount)
-          : loc.appSettingsTimezonesDownloadFailed;
+      ? loc.appSettingsTimezonesLoaded(_service.zoneCount)
+      : loc.appSettingsTimezonesDownloadFailed;
 
   @override
   Future<String?> clear(AppLocalizations loc) async {
@@ -141,7 +146,7 @@ class DnsBlocklistDataset extends _LoadedDataset {
 
   void pick(int level) {
     _picked = level;
-    notifyListeners();
+    _notify();
   }
 
   @override
@@ -160,8 +165,10 @@ class DnsBlocklistDataset extends _LoadedDataset {
 
   @override
   String? status(AppLocalizations loc) => _level > 0
-      ? loc.appSettingsDnsBlockLevelDomains(dnsBlockLevelNames[_level],
-          compactCount(_service.domainCount))
+      ? loc.appSettingsDnsBlockLevelDomains(
+          dnsBlockLevelNames[_level],
+          compactCount(_service.domainCount),
+        )
       : loc.appSettingsNotConfigured;
 
   @override
@@ -177,7 +184,8 @@ class DnsBlocklistDataset extends _LoadedDataset {
     return level == 0
         ? loc.appSettingsDnsBlocklistDisabled
         : loc.appSettingsDnsBlocklistUpdated(
-            compactCount(_service.domainCount));
+            compactCount(_service.domainCount),
+          );
   }
 }
 
@@ -218,7 +226,7 @@ class LocalCdnDataset extends _LoadedDataset implements ClearableDataset {
     final downloaded = await _service.downloadPopularResources(
       onProgress: (completed, total) {
         _progress = '$completed/$total';
-        notifyListeners();
+        _notify();
       },
     );
     _progress = null;
@@ -235,8 +243,7 @@ class LocalCdnDataset extends _LoadedDataset implements ClearableDataset {
 }
 
 /// The downloaded site search list (LIR-036), fetched only from its row.
-class SiteSearchListDataset extends ChangeNotifier
-    implements ClearableDataset {
+class SiteSearchListDataset extends ChangeNotifier implements ClearableDataset {
   SiteSearchListDataset() {
     _service.addListener(notifyListeners);
   }
@@ -257,8 +264,8 @@ class SiteSearchListDataset extends ChangeNotifier
   @override
   Future<String> download(AppLocalizations loc) async =>
       await _service.download()
-          ? loc.webSearchSiteListLoaded(compactCount(_service.siteCount))
-          : loc.webSearchSiteListFailed;
+      ? loc.webSearchSiteListLoaded(compactCount(_service.siteCount))
+      : loc.webSearchSiteListFailed;
 
   @override
   Future<String?> clear(AppLocalizations loc) async {
@@ -284,7 +291,7 @@ class FirefoxVersionDataset extends _LoadedDataset {
 
   Future<void> setAutoRefresh(bool value) async {
     _autoRefresh = value;
-    notifyListeners();
+    _notify();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(kFirefoxUaAutoRefreshKey, value);
   }
@@ -310,7 +317,7 @@ class FirefoxVersionDataset extends _LoadedDataset {
   @override
   Future<String> download(AppLocalizations loc) async {
     final result = await _service.refresh();
-    notifyListeners();
+    _notify();
     final version = _service.majorVersion;
     return switch (result) {
       FirefoxVersionRefreshResult.updated =>

@@ -14,91 +14,90 @@ import 'package:webspace/settings/user_script.dart';
 
 extension ExternalLinkModeLabel on ExternalLinkMode {
   String label(AppLocalizations loc) => switch (this) {
-        ExternalLinkMode.inApp => loc.siteSettingsExternalLinksInApp,
-        ExternalLinkMode.browser => loc.siteSettingsExternalLinksBrowser,
-        ExternalLinkMode.block => loc.siteSettingsExternalLinksBlock,
-      };
+    ExternalLinkMode.inApp => loc.siteSettingsExternalLinksInApp,
+    ExternalLinkMode.browser => loc.siteSettingsExternalLinksBrowser,
+    ExternalLinkMode.block => loc.siteSettingsExternalLinksBlock,
+  };
 
   /// How a site summary names the mode; null for the default, which a
   /// summary leaves out.
   String? summary(AppLocalizations loc) => switch (this) {
-        ExternalLinkMode.inApp => null,
-        ExternalLinkMode.browser => loc.siteSettingsExternalLinksInBrowser,
-        ExternalLinkMode.block => loc.siteSettingsExternalLinksBlockedSummary,
-      };
+    ExternalLinkMode.inApp => null,
+    ExternalLinkMode.browser => loc.siteSettingsExternalLinksInBrowser,
+    ExternalLinkMode.block => loc.siteSettingsExternalLinksBlockedSummary,
+  };
 }
 
 extension WebRtcPolicyLabel on WebRtcPolicy {
   String label(AppLocalizations loc) => switch (this) {
-        WebRtcPolicy.defaultPolicy => loc.siteSettingsWebRtcDefault,
-        WebRtcPolicy.relayOnly => loc.siteSettingsWebRtcRelayOnly,
-        WebRtcPolicy.disabled => loc.siteSettingsWebRtcDisabled,
-      };
+    WebRtcPolicy.defaultPolicy => loc.siteSettingsWebRtcDefault,
+    WebRtcPolicy.relayOnly => loc.siteSettingsWebRtcRelayOnly,
+    WebRtcPolicy.disabled => loc.siteSettingsWebRtcDisabled,
+  };
 
   String? summary(AppLocalizations loc) => switch (this) {
-        WebRtcPolicy.defaultPolicy => null,
-        WebRtcPolicy.relayOnly ||
-        WebRtcPolicy.disabled =>
-          loc.networkSummaryWebRtc(label(loc)),
-      };
+    WebRtcPolicy.defaultPolicy => null,
+    WebRtcPolicy.relayOnly ||
+    WebRtcPolicy.disabled => loc.networkSummaryWebRtc(label(loc)),
+  };
 }
 
 extension CameraAccessModeLabel on CameraAccessMode {
   String label(AppLocalizations loc) => switch (this) {
-        CameraAccessMode.ask => loc.siteSettingsCameraAccessAsk,
-        CameraAccessMode.real => loc.siteSettingsCameraAccessAllow,
-        CameraAccessMode.virtual => loc.siteSettingsCameraAccessVirtual,
-        CameraAccessMode.block => loc.siteSettingsCameraAccessBlock,
-      };
+    CameraAccessMode.ask => loc.siteSettingsCameraAccessAsk,
+    CameraAccessMode.real => loc.siteSettingsCameraAccessAllow,
+    CameraAccessMode.virtual => loc.siteSettingsCameraAccessVirtual,
+    CameraAccessMode.block => loc.siteSettingsCameraAccessBlock,
+  };
 }
 
 extension MicrophoneAccessModeLabel on MicrophoneAccessMode {
   String label(AppLocalizations loc) => switch (this) {
-        MicrophoneAccessMode.ask => loc.siteSettingsMicrophoneAccessAsk,
-        MicrophoneAccessMode.real => loc.siteSettingsMicrophoneAccessAllow,
-        MicrophoneAccessMode.virtual => loc.siteSettingsMicrophoneAccessVirtual,
-        MicrophoneAccessMode.block => loc.siteSettingsMicrophoneAccessBlock,
-      };
+    MicrophoneAccessMode.ask => loc.siteSettingsMicrophoneAccessAsk,
+    MicrophoneAccessMode.real => loc.siteSettingsMicrophoneAccessAllow,
+    MicrophoneAccessMode.virtual => loc.siteSettingsMicrophoneAccessVirtual,
+    MicrophoneAccessMode.block => loc.siteSettingsMicrophoneAccessBlock,
+  };
 }
 
 extension ScreenShareModeLabel on ScreenShareMode {
   String label(AppLocalizations loc) => switch (this) {
-        ScreenShareMode.ask => loc.siteSettingsScreenShareAsk,
-        ScreenShareMode.virtual => loc.siteSettingsScreenShareVirtual,
-        ScreenShareMode.block => loc.siteSettingsScreenShareBlock,
-      };
+    ScreenShareMode.ask => loc.siteSettingsScreenShareAsk,
+    ScreenShareMode.virtual => loc.siteSettingsScreenShareVirtual,
+    ScreenShareMode.block => loc.siteSettingsScreenShareBlock,
+  };
 }
 
 extension LocationModeLabel on LocationMode {
   String label(AppLocalizations loc) => switch (this) {
-        LocationMode.live => loc.siteSettingsLocationLive,
-        LocationMode.spoof => loc.siteSettingsLocationStatic,
-        LocationMode.off => loc.siteSettingsLocationOff,
-      };
+    LocationMode.live => loc.siteSettingsLocationLive,
+    LocationMode.spoof => loc.siteSettingsLocationStatic,
+    LocationMode.off => loc.siteSettingsLocationOff,
+  };
 }
 
 extension LocationGranularityLabel on LocationGranularity {
   String label(AppLocalizations loc) => switch (this) {
-        LocationGranularity.gps => loc.siteSettingsLocationProviderGps,
-        LocationGranularity.approximate => loc.siteSettingsLocationApproximate,
-        LocationGranularity.gsm => loc.siteSettingsLocationProviderGsm,
-      };
+    LocationGranularity.gps => loc.siteSettingsLocationProviderGps,
+    LocationGranularity.approximate => loc.siteSettingsLocationApproximate,
+    LocationGranularity.gsm => loc.siteSettingsLocationProviderGsm,
+  };
 
   String description(AppLocalizations loc) => switch (this) {
-        LocationGranularity.gps => loc.siteSettingsLocationGranularityGps,
-        LocationGranularity.approximate =>
-          loc.siteSettingsLocationGranularityApproximate,
-        LocationGranularity.gsm => loc.siteSettingsLocationGranularityGsm,
-      };
+    LocationGranularity.gps => loc.siteSettingsLocationGranularityGps,
+    LocationGranularity.approximate =>
+      loc.siteSettingsLocationGranularityApproximate,
+    LocationGranularity.gsm => loc.siteSettingsLocationGranularityGsm,
+  };
 }
 
 extension SitePermissionStateLabel on SitePermissionState {
   String label(AppLocalizations loc) => switch (this) {
-        SitePermissionState.ask => loc.permissionStateAsk,
-        SitePermissionState.allowed => loc.permissionStateAllowed,
-        SitePermissionState.simulated => loc.permissionStateSimulated,
-        SitePermissionState.blocked => loc.permissionStateBlocked,
-      };
+    SitePermissionState.ask => loc.permissionStateAsk,
+    SitePermissionState.allowed => loc.permissionStateAllowed,
+    SitePermissionState.simulated => loc.permissionStateSimulated,
+    SitePermissionState.blocked => loc.permissionStateBlocked,
+  };
 }
 
 extension ScopedSwitchLabel on Scoped<bool> {
@@ -115,8 +114,7 @@ String _onOff(AppLocalizations loc, bool on) =>
 
 extension UserScriptInjectionTimeLabel on UserScriptInjectionTime {
   String label(AppLocalizations loc) => switch (this) {
-        UserScriptInjectionTime.atDocumentStart =>
-          loc.userScriptsAtDocumentStart,
-        UserScriptInjectionTime.atDocumentEnd => loc.userScriptsAtDocumentEnd,
-      };
+    UserScriptInjectionTime.atDocumentStart => loc.userScriptsAtDocumentStart,
+    UserScriptInjectionTime.atDocumentEnd => loc.userScriptsAtDocumentEnd,
+  };
 }

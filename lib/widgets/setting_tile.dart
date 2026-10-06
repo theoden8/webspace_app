@@ -251,39 +251,44 @@ class ChoiceTile<T extends Object> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SettingTile(
-        title: title,
-        hint: hint,
-        hintTitle: hintTitle,
-        subtitle: subtitle,
-        lock: lock,
-        control: Trailing(ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: maxWidth),
-          child: DropdownButton<T>(
-            value: value,
-            isExpanded: true,
-            menuWidth: menuWidth,
-            onChanged: (next) {
-              if (next != null && next != value) onChanged(next);
-            },
-            selectedItemBuilder: (context) => [
-              for (final v in values)
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: Text(label(v),
-                      maxLines: 1, overflow: TextOverflow.ellipsis),
+    title: title,
+    hint: hint,
+    hintTitle: hintTitle,
+    subtitle: subtitle,
+    lock: lock,
+    control: Trailing(
+      ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: maxWidth),
+        child: DropdownButton<T>(
+          value: value,
+          isExpanded: true,
+          menuWidth: menuWidth,
+          onChanged: (next) {
+            if (next != null && next != value) onChanged(next);
+          },
+          selectedItemBuilder: (context) => [
+            for (final v in values)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Text(
+                  label(v),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-            ],
-            items: [
-              for (final v in values)
-                DropdownMenuItem(
-                  value: v,
-                  enabled: offered?.call(v) ?? true,
-                  child: Text(label(v)),
-                ),
-            ],
-          ),
-        )),
-      );
+              ),
+          ],
+          items: [
+            for (final v in values)
+              DropdownMenuItem(
+                value: v,
+                enabled: offered?.call(v) ?? true,
+                child: Text(label(v)),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 /// The names of what is on, the first two and a count of the rest; [none]

@@ -41,17 +41,20 @@ enum TrackingProtectionForce {
 /// disk outside the archive's keyspace. Each fold keeps the stored value for
 /// when the site leaves the archive.
 abstract final class ArchiveFold {
-  static CameraAccessMode camera(CameraAccessMode stored,
-          {required bool archived}) =>
-      archived ? CameraAccessMode.block : stored;
+  static CameraAccessMode camera(
+    CameraAccessMode stored, {
+    required bool archived,
+  }) => archived ? CameraAccessMode.block : stored;
 
-  static MicrophoneAccessMode microphone(MicrophoneAccessMode stored,
-          {required bool archived}) =>
-      archived ? MicrophoneAccessMode.block : stored;
+  static MicrophoneAccessMode microphone(
+    MicrophoneAccessMode stored, {
+    required bool archived,
+  }) => archived ? MicrophoneAccessMode.block : stored;
 
-  static ScreenShareMode screenShare(ScreenShareMode stored,
-          {required bool archived}) =>
-      archived ? ScreenShareMode.block : stored;
+  static ScreenShareMode screenShare(
+    ScreenShareMode stored, {
+    required bool archived,
+  }) => archived ? ScreenShareMode.block : stored;
 
   static bool notifications(bool stored, {required bool archived}) =>
       stored && !archived;
@@ -70,11 +73,12 @@ abstract final class ArchiveFold {
 
   /// Launching the system browser crosses the archive's isolation boundary;
   /// blocking crosses nothing and stays.
-  static ExternalLinkMode externalLinks(ExternalLinkMode stored,
-          {required bool archived}) =>
-      archived && stored == ExternalLinkMode.browser
-          ? ExternalLinkMode.inApp
-          : stored;
+  static ExternalLinkMode externalLinks(
+    ExternalLinkMode stored, {
+    required bool archived,
+  }) => archived && stored == ExternalLinkMode.browser
+      ? ExternalLinkMode.inApp
+      : stored;
 }
 
 /// Protected content (Widevine/EME): denied without a prompt on an
@@ -84,24 +88,20 @@ bool? resolveProtectedContent(
   bool? stored, {
   required bool archived,
   required bool trackingProtection,
-}) =>
-    archived || trackingProtection ? false : stored;
+}) => archived || trackingProtection ? false : stored;
 
 /// A kiosk site runs as one page, never with tabs (TAB-013).
-bool resolveTabs({required bool tabs, required bool kiosk}) =>
-    tabs && !kiosk;
+bool resolveTabs({required bool tabs, required bool kiosk}) => tabs && !kiosk;
 
 /// Routing is an option of the in-app mode (LIR-014).
 bool resolveRouteOutboundLinks({
   required bool route,
   required ExternalLinkMode mode,
-}) =>
-    route && mode == ExternalLinkMode.inApp;
+}) => route && mode == ExternalLinkMode.inApp;
 
 /// Incognito drops the stored URL on every restart, so the site opens at its
 /// home page whatever Always open Home stores.
 bool resolveAlwaysOpenHome({
   required bool alwaysOpenHome,
   required bool incognito,
-}) =>
-    alwaysOpenHome || incognito;
+}) => alwaysOpenHome || incognito;

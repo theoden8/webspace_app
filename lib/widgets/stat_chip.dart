@@ -14,24 +14,30 @@ class StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(
-            vertical: Spacing.sm - 2, horizontal: Spacing.xs),
-        decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(Radii.md),
-          border: Border.all(color: color.withAlpha(50)),
+    padding: const EdgeInsets.symmetric(
+      vertical: Spacing.sm - 2,
+      horizontal: Spacing.xs,
+    ),
+    decoration: BoxDecoration(
+      color: color.withAlpha(20),
+      borderRadius: BorderRadius.circular(Radii.md),
+      border: Border.all(color: color.withAlpha(50)),
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(value,
-                style: TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.bold, color: color)),
-            Text(label,
-                style: TextStyle(fontSize: 9, color: color.withAlpha(180))),
-          ],
-        ),
-      );
+        Text(label, style: TextStyle(fontSize: 9, color: color.withAlpha(180))),
+      ],
+    ),
+  );
 }
 
 /// The four DNS counters, as the site's privacy screen and the developer
@@ -50,8 +56,11 @@ class DnsStatChips extends StatelessWidget {
       StatChip('${stats.total}', loc.devToolsDnsTotal, Colors.blue),
       StatChip('${stats.allowed}', loc.devToolsDnsAllowed, Colors.green),
       StatChip('${stats.blocked}', loc.devToolsDnsBlocked, Colors.red),
-      StatChip(rate, loc.devToolsDnsBlockRate,
-          stats.blockRate > 0 ? Colors.orange : Colors.grey),
+      StatChip(
+        rate,
+        loc.devToolsDnsBlockRate,
+        stats.blockRate > 0 ? Colors.orange : Colors.grey,
+      ),
     ];
     return Padding(
       padding: padding,

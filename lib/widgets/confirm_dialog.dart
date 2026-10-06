@@ -30,7 +30,8 @@ Future<bool> confirm(
           onPressed: () => Navigator.pop(ctx, true),
           style: destructive
               ? TextButton.styleFrom(
-                  foregroundColor: Theme.of(ctx).colorScheme.error)
+                  foregroundColor: Theme.of(ctx).colorScheme.error,
+                )
               : null,
           child: Text(confirmLabel),
         ),
