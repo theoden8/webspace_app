@@ -24,20 +24,6 @@ void main() {
     mockSecureStorage.clear();
   });
 
-  group('extractDomainFromUrl', () {
-    test('should extract domain from full URL', () {
-      expect(extractDomainFromUrl('https://example.com'), equals('example.com'));
-      expect(extractDomainFromUrl('https://example.com/path'), equals('example.com'));
-      expect(extractDomainFromUrl('https://sub.example.com/path?query=1'), equals('sub.example.com'));
-      expect(extractDomainFromUrl('http://example.com:8080/path'), equals('example.com'));
-    });
-
-    test('should return original string for invalid URLs', () {
-      expect(extractDomainFromUrl('not a url'), equals('not a url'));
-      expect(extractDomainFromUrl(''), equals(''));
-    });
-  });
-
   group('CookieSecureStorage', () {
     test('should save cookies to secure storage keyed by domain', () async {
       // Note: With COOKIE-006, only isSecure=true cookies go to secure storage

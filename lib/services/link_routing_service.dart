@@ -1,6 +1,6 @@
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/outbound_preference.dart';
-import 'package:webspace/web_view_model.dart' show extractDomain, getBaseDomain;
+import 'package:webspace/services/url_host.dart';
 
 export 'package:webspace/services/domain_claim.dart' show DomainClaim, DomainClaimKind;
 

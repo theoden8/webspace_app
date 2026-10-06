@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:webspace/services/log_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -58,13 +59,15 @@ class IoTorGeoIpStore implements TorGeoIpStore {
   Future<TorGeoIpTable?> _download(UserProxySettings via) async {
     for (var pass = 0; pass < kTorGeoIpPasses; pass++) {
       for (final url in kTorGeoIpUrls) {
-        final result = outboundHttp.clientFor(_freshCircuit(via));
-        if (result is OutboundClientBlocked) {
-          LogService.instance.log(_logTag, 'Download blocked: ${result.reason}',
-              level: LogLevel.warning);
-          return null;
+        final http.Client client;
+        switch (outboundHttp.clientFor(_freshCircuit(via))) {
+          case OutboundClientBlocked(:final reason):
+            LogService.instance.log(_logTag, 'Download blocked: $reason',
+                level: LogLevel.warning);
+            return null;
+          case OutboundClientReady(client: final ready):
+            client = ready;
         }
-        final client = (result as OutboundClientReady).client;
         final host = Uri.parse(url).host;
         try {
           final response =
@@ -89,7 +92,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
               _logTag, 'Fetched ${bytes.length} bytes from $host',
               level: LogLevel.info);
           return table;
-        } catch (e) {
+        } on Exception catch (e) {
           LogService.instance.log(_logTag, '$host failed: $e',
               level: LogLevel.warning);
         } finally {
@@ -134,7 +137,10 @@ class IoTorGeoIpStore implements TorGeoIpStore {
       if (entry.path == file.path) continue;
       try {
         await entry.delete();
-      } catch (_) {}
+      } on FileSystemException catch (e) {
+        LogService.instance.log(_logTag, 'Could not drop an old table: $e',
+            level: LogLevel.warning);
+      }
     }
     return TorGeoIpTable(
         file.path, DateTime.fromMillisecondsSinceEpoch(

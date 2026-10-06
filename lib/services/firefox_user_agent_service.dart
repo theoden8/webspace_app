@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/pref_read.dart';
 
@@ -11,7 +10,6 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/utils/concurrency.dart';
 
 /// Upper bound on a plausible scraped Firefox major version. An HTML error
@@ -197,21 +195,21 @@ class FirefoxUserAgentService {
   }
 
   Future<int?> _scrapeMajorVersion() async {
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log('FirefoxUA', 'Skipped: ${clientResult.reason}',
-          level: LogLevel.warning);
-      return null;
+    for (final (url, parse) in [
+      (_sourceVersionUrl, parseFirefoxVersionDisplay),
+      (_productDetailsUrl, parseFirefoxProductDetails),
+    ]) {
+      switch (await fetchViaAppProxy(Uri.parse(url), tag: 'FirefoxUA')) {
+        case FetchRefused():
+          return null;
+        case FetchFailed():
+          continue;
+        case Fetched(:final response):
+          final major = parse(response.body);
+          if (major != null) return major;
+      }
     }
-    final client = (clientResult as OutboundClientReady).client;
-    try {
-      return await _fetchVersion(
-              client, _sourceVersionUrl, parseFirefoxVersionDisplay) ??
-          await _fetchVersion(
-              client, _productDetailsUrl, parseFirefoxProductDetails);
-    } finally {
-      client.close();
-    }
+    return null;
   }
 
   /// Reset in-memory state to the bundled default. Tests only — the singleton
@@ -221,23 +219,5 @@ class FirefoxUserAgentService {
     _major = kDefaultFirefoxMajorVersion;
     _lastChecked = null;
     _refreshes = SingleFlight();
-  }
-
-  Future<int?> _fetchVersion(
-      http.Client client, String url, int? Function(String) parse) async {
-    try {
-      final resp =
-          await client.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) {
-        LogService.instance.log('FirefoxUA', 'HTTP ${resp.statusCode} from $url',
-            level: LogLevel.warning);
-        return null;
-      }
-      return parse(resp.body);
-    } catch (e) {
-      LogService.instance
-          .log('FirefoxUA', 'fetch $url failed: $e', level: LogLevel.warning);
-      return null;
-    }
   }
 }

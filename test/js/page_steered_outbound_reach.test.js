@@ -10,8 +10,8 @@
 // So this gate does not test the guard. It tests that every outbound seam has
 // been classified: either it routes page-chosen URLs through
 // `classifyOutboundTarget`, or it is listed here with the reason it does not
-// need to. A new `outboundHttp.clientFor` in neither list fails, which puts
-// the decision in front of whoever adds it.
+// need to. A new `outboundHttp.clientFor` or `fetchViaAppProxy` caller in
+// neither list fails, which puts the decision in front of whoever adds it.
 //
 // Cross-links:
 //   docs/bugs/012-page-steered-outbound-reach.md
@@ -22,7 +22,7 @@ const assert = require('node:assert');
 const path = require('node:path');
 const { read, dartFiles } = require('./helpers/source');
 
-const SEAM = 'outboundHttp.clientFor';
+const SEAMS = ['outboundHttp.clientFor', 'fetchViaAppProxy('];
 const GATE = 'classifyOutboundTarget';
 
 // Seams that take a URL a loaded page chose. Each MUST call the gate.
@@ -57,6 +57,9 @@ const EXEMPT = {
   'lib/services/tor_geoip_io.dart':
     'tor\'s GeoIP table from the Tor Project URLs fixed in kTorGeoIpUrls, '
     + 'through Tor.',
+  'lib/services/outbound_http.dart':
+    'fetchViaAppProxy itself, for downloads the app configures; each of its '
+    + 'callers is classified here on its own.',
   'lib/services/proxy_test_service.dart':
     'The probe target is the site\'s own home URL (typed by the user, not '
     + 'chosen by a loaded page) or the fixed example.com fallback, and '
@@ -74,7 +77,7 @@ const EXEMPT = {
 };
 
 const seams = dartFiles('lib').filter((f) =>
-  read(f).includes(SEAM));
+  SEAMS.some((seam) => read(f).includes(seam)));
 
 test('every outbound seam is classified', () => {
   const classified = new Set([...GUARDED, ...Object.keys(EXEMPT)]);
@@ -87,7 +90,7 @@ test('every outbound seam is classified', () => {
 test('every classified seam still makes an outbound call', () => {
   // A stale entry is worse than none: it reads as a decision that was made.
   const stale = [...GUARDED, ...Object.keys(EXEMPT)].filter((f) => !seams.includes(f));
-  assert.deepEqual(stale, [], `no longer calls ${SEAM} — drop the entry`);
+  assert.deepEqual(stale, [], `no longer calls ${SEAMS.join(' or ')} — drop the entry`);
 });
 
 for (const file of GUARDED) {

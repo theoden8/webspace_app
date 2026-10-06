@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/keystore.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/utils/concurrency.dart';
 
 /// Saved HTTP authentication credentials (HTTPAUTH-004, HTTPAUTH-005).
@@ -72,7 +73,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
   @override
   Future<HttpAuthCredential?> lookup(
     String siteId,
-    String host,
+    Host host,
     String realm,
   ) async {
     for (final saved in (await _store.read())[siteId] ?? const <_Saved>[]) {
@@ -84,7 +85,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
   @override
   Future<void> save(
     String siteId,
-    String host,
+    Host host,
     String realm,
     HttpAuthCredential credential,
   ) {
@@ -96,7 +97,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
   }
 
   @override
-  Future<void> remove(String siteId, String host, String realm) {
+  Future<void> remove(String siteId, Host host, String realm) {
     return _mutate((draft) {
       draft[siteId]?.removeWhere((e) => e.covers(host, realm));
     });

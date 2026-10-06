@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/download_client.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -87,7 +86,7 @@ class DownloadEngine {
         }
       }
     }
-    return createDirectDownloadClient();
+    return hostDirectDownloadClient();
   }
 
   /// RFC 6265 `Cookie:` header value from an ordered list of name/value

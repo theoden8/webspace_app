@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -349,16 +350,18 @@ class MediaSessionService {
       );
       return null;
     }
-    final result = outboundHttp.clientFor(effective);
-    if (result is OutboundClientBlocked) {
-      LogService.instance.log(
-        'MediaSession',
-        'Artwork fetch skipped: ${result.reason}',
-        level: LogLevel.warning,
-      );
-      return null;
+    final http.Client client;
+    switch (outboundHttp.clientFor(effective)) {
+      case OutboundClientBlocked(:final reason):
+        LogService.instance.log(
+          'MediaSession',
+          'Artwork fetch skipped: $reason',
+          level: LogLevel.warning,
+        );
+        return null;
+      case OutboundClientReady(client: final ready):
+        client = ready;
     }
-    final client = (result as OutboundClientReady).client;
     const cap = 1536 * 1024; // 1.5 MB
     const timeout = Duration(seconds: 5);
     try {

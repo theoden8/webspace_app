@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/host_storage.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'log_service.dart';
 
 /// Default download URL: the latest `timezones-now` GeoJSON zip from
@@ -170,27 +170,26 @@ class TimezoneLocationService {
   /// large (tens of megabytes); callers should show progress UI.
   Future<bool> download({Duration timeout = const Duration(minutes: 5)}) async {
     final url = await getUrl();
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-          'TZ', 'Skipped download: ${clientResult.reason}',
-          level: LogLevel.warning);
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      LogService.instance.log('TZ', 'Not a URL: $url', level: LogLevel.error);
       return false;
     }
-    final client = (clientResult as OutboundClientReady).client;
+    LogService.instance.log('TZ', 'Downloading $url');
+    final fetched = await fetchViaAppProxy(
+      uri,
+      tag: 'TZ',
+      timeout: timeout,
+      headers: const {
+        'User-Agent': 'Webspace (+https://github.com/theoden8/webspace_app)'
+      },
+    );
+    final response = switch (fetched) {
+      Fetched(:final response) => response,
+      FetchRefused() || FetchFailed() => null,
+    };
+    if (response == null) return false;
     try {
-      LogService.instance.log('TZ', 'Downloading $url');
-      final response = await client.get(
-        Uri.parse(url),
-        headers: const {'User-Agent': 'Webspace (+https://github.com/theoden8/webspace_app)'},
-      ).timeout(timeout);
-      if (response.statusCode != 200) {
-        LogService.instance.log(
-            'TZ', 'Download failed: HTTP ${response.statusCode}',
-            level: LogLevel.error);
-        return false;
-      }
-
       String body;
       if (url.toLowerCase().endsWith('.zip')) {
         // timezone-boundary-builder release zips name the inner file
@@ -242,12 +241,10 @@ class TimezoneLocationService {
           'Downloaded and parsed ${_zones?.length ?? 0} zones from $url');
       _notifyListeners();
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance
           .log('TZ', 'Download error: $e', level: LogLevel.error);
       return false;
-    } finally {
-      client.close();
     }
   }
 

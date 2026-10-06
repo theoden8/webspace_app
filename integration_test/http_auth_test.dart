@@ -22,6 +22,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'bare_site.dart';
@@ -232,7 +233,7 @@ void main() {
     const siteId = 'http-auth-saved';
     await HttpAuthSecureStorage.instance.save(
       siteId,
-      '127.0.0.1',
+      Host('127.0.0.1'),
       _realmFor('/a/'),
       const HttpAuthCredential(username: _user, password: _password),
     );
@@ -360,7 +361,7 @@ void main() {
     late HttpAuthCredential? saved;
     await tester.runAsync(() async {
       saved = await HttpAuthSecureStorage.instance
-          .lookup(siteId, '127.0.0.1', _realmFor('/b/'));
+          .lookup(siteId, Host('127.0.0.1'), _realmFor('/b/'));
     });
     expect(saved?.username, _user);
     expect(saved?.password, _password);

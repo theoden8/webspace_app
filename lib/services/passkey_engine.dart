@@ -19,7 +19,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/web_view_model.dart' show getBaseDomain;
+import 'package:webspace/services/url_host.dart';
 
 enum PasskeyOp { create, get }
 

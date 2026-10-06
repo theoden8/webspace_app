@@ -5,10 +5,10 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/host_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_search_list_engine.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 
 const String _cacheFileName = 'site_search_list.json';
 const String _lastUpdatedPrefKey = 'site_search_list_last_updated';
@@ -86,25 +86,14 @@ class SiteSearchListService {
   /// Download the list and keep its reduction. True on success; a failure
   /// leaves the stored list as it was.
   Future<bool> download({Duration timeout = const Duration(minutes: 2)}) async {
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-          'SearchList', 'Skipped download: ${clientResult.reason}',
-          level: LogLevel.warning);
-      return false;
-    }
-    final client = (clientResult as OutboundClientReady).client;
+    final fetched = await fetchViaAppProxy(Uri.parse(kSiteSearchListUrl),
+        tag: 'SearchList', timeout: timeout, maxBytes: _maxDownloadBytes);
+    final response = switch (fetched) {
+      Fetched(:final response) => response,
+      FetchRefused() || FetchFailed() => null,
+    };
+    if (response == null) return false;
     try {
-      final response = await client
-          .get(Uri.parse(kSiteSearchListUrl))
-          .timeout(timeout);
-      if (response.statusCode != 200) {
-        LogService.instance.log(
-            'SearchList', 'Download failed: HTTP ${response.statusCode}',
-            level: LogLevel.error);
-        return false;
-      }
-      if (response.bodyBytes.length > _maxDownloadBytes) return false;
       final table = await compute(_reduce, response.body);
       if (table.isEmpty) {
         LogService.instance.log('SearchList', 'Download held no usable entry',
@@ -122,13 +111,11 @@ class SiteSearchListService {
       _notify();
       return true;
     } on Exception catch (e) {
-      // A timeout, the proxy's or the socket's own failure, or a body that is
-      // not JSON. Errors are bugs and still reach the caller.
+      // A body that is not JSON, or the store's own failure. Errors are bugs
+      // and still reach the caller.
       LogService.instance
           .log('SearchList', 'Download error: $e', level: LogLevel.error);
       return false;
-    } finally {
-      client.close();
     }
   }
 

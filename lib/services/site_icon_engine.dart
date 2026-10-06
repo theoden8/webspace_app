@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:webspace/services/url_host.dart';
+
 /// Smallest icon edge (px) that is preferred over the fetched favicon
 /// candidates (ICON-010). A 16px `favicon.ico` frame reads worse in the
 /// drawer than the 128-256px public-service icons it would displace.
@@ -56,16 +58,7 @@ class SiteIconTarget {
 /// The host a page must be on for its icon to count as the site's, with a
 /// leading `www.` folded so `example.com` and `www.example.com` agree. Null
 /// for anything that is not an http(s) URL with a host.
-String? siteIconHost(String? url) {
-  if (url == null) return null;
-  final uri = Uri.tryParse(url);
-  if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
-    return null;
-  }
-  final host = uri.host.toLowerCase();
-  if (host.isEmpty) return null;
-  return host.startsWith('www.') ? host.substring(4) : host;
-}
+Host? siteIconHost(String? url) => Host.ofWebUrl(url)?.withoutWww;
 
 /// An icon link the top document declared, as the watcher reports it.
 class SiteIconLink {
@@ -205,7 +198,7 @@ List<String> siteIconCandidates(List<SiteIconLink> links, String documentUrl) {
 class SiteIconEngine {
   SiteIconEngine(String siteUrl) : _siteHost = siteIconHost(siteUrl);
 
-  final String? _siteHost;
+  final Host? _siteHost;
   bool _loading = false;
   bool _onSite = false;
   bool _iconLinksChanged = false;

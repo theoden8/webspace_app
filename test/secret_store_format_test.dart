@@ -25,6 +25,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_bridges.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
@@ -210,7 +211,7 @@ void main() {
     test('saved sign-ins', () async {
       final keychain = MockFlutterSecureStorage();
       final store = HttpAuthSecureStorage(secureStorage: keychain);
-      await store.save('s1', 'h.example', 'r',
+      await store.save('s1', Host('h.example'), 'r',
           const HttpAuthCredential(username: 'u', password: 'p'));
       expect(keychain.storage['http_auth_credentials'],
           '{"s1":[{"host":"h.example","realm":"r","username":"u","password":"p"}]}');

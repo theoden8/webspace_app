@@ -27,7 +27,12 @@ Future<bool> torSocksAnswers(String host, int port) async {
     } finally {
       socket.destroy();
     }
-  } catch (_) {
+  } on SocketException {
+    return false;
+  } on TimeoutException {
+    return false;
+  } on StateError {
+    // `first` on a stream the listener closed without a byte.
     return false;
   }
 }

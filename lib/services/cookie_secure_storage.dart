@@ -2,18 +2,11 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/demo_data.dart' show isDemoMode;
 import 'package:webspace/utils/concurrency.dart';
-
-/// Extracts the domain from a URL string.
-/// Returns the host portion of the URL (e.g., "github.com" from "https://github.com/user/repo").
-/// If the input is already a plain domain (no scheme), returns it as-is.
-String extractDomainFromUrl(String url) {
-  final host = Uri.tryParse(url)?.host ?? '';
-  return host.isEmpty ? url : host;
-}
 
 /// Service for securely storing cookies using Flutter Secure Storage.
 /// Supports migration from SharedPreferences for backward compatibility.
@@ -135,7 +128,7 @@ class CookieSecureStorage {
   Future<void> saveCookiesForUrl(String url, List<Cookie> cookies) {
     if (isDemoMode) return Future.value(); // Don't persist in demo mode
     return _writes.run(() async {
-      final domain = extractDomainFromUrl(url);
+      final domain = extractDomain(url);
       final existingCookies = await loadCookies();
       existingCookies[domain] = cookies;
       await _saveCookiesUnlocked(existingCookies);
@@ -240,7 +233,7 @@ class CookieSecureStorage {
     if (json is! Map) return result;
     for (final MapEntry(:key, :value) in json.entries) {
       if (key is! String || value is! List) continue;
-      _mergeByName(result, extractDomainFromUrl(key), _cookieList(value));
+      _mergeByName(result, extractDomain(key), _cookieList(value));
     }
     return result;
   }
@@ -296,7 +289,7 @@ class CookieSecureStorage {
       }
       if (json case {'initUrl': final String initUrl, 'cookies': final List<Object?> cookies}
           when cookies.isNotEmpty) {
-        _mergeByName(result, extractDomainFromUrl(initUrl), _cookieList(cookies));
+        _mergeByName(result, extractDomain(initUrl), _cookieList(cookies));
       }
     }
     return result;

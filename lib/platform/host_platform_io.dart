@@ -1,9 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io' as io;
-
 import 'dart:typed_data';
 
-import 'package:path_provider/path_provider.dart' as pp;
+import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 
 bool get hostIsAndroid => io.Platform.isAndroid;
 bool get hostIsIOS => io.Platform.isIOS;
@@ -20,29 +21,29 @@ String get hostOperatingSystemVersion => io.Platform.operatingSystemVersion;
 Future<void> hostWriteBytes(String path, List<int> bytes) =>
     io.File(path).writeAsBytes(bytes);
 
+/// [host]'s numeric addresses. Throws [io.SocketException] when the name
+/// does not resolve, which a caller judging the destination reads as "no
+/// answer" rather than "public".
+Future<List<String>?> hostLookupAddresses(String host) async =>
+    [for (final address in await io.InternetAddress.lookup(host)) address.address];
+
 /// True when [host] resolves. Used as a cheap online check.
 Future<bool> hostCanResolve(String host,
     {Duration timeout = const Duration(seconds: 3)}) async {
   try {
-    final result = await io.InternetAddress.lookup(host).timeout(timeout);
-    return result.isNotEmpty && result.first.rawAddress.isNotEmpty;
-  } catch (_) {
+    final addresses = await hostLookupAddresses(host).timeout(timeout);
+    return addresses != null && addresses.isNotEmpty;
+  } on io.SocketException {
+    return false;
+  } on TimeoutException {
     return false;
   }
 }
 
-/// Read a cache file from the app documents directory, or null when absent.
-Future<String?> hostReadDocumentText(String name) async {
-  final dir = await pp.getApplicationDocumentsDirectory();
-  final file = io.File('${dir.path}/$name');
-  if (!await file.exists()) return null;
-  return file.readAsString();
-}
-
-Future<void> hostWriteDocumentText(String name, String contents) async {
-  final dir = await pp.getApplicationDocumentsDirectory();
-  await io.File('${dir.path}/$name').writeAsString(contents);
-}
+/// Direct (unproxied) client for downloads, with gzip auto-decompression
+/// disabled so the server's Content-Length survives to the caller.
+http.Client hostDirectDownloadClient() =>
+    IOClient(io.HttpClient()..autoUncompress = false);
 
 /// Read an absolute path chosen by the OS file picker.
 Future<Uint8List> hostReadFileBytes(String path) => io.File(path).readAsBytes();
@@ -72,10 +73,6 @@ Future<void> hostDeleteDirectory(String path) async {
   final dir = io.Directory(path);
   if (await dir.exists()) await dir.delete(recursive: true);
 }
-
-/// Absolute path of the app documents directory.
-Future<String> hostDocumentsPath() async =>
-    (await pp.getApplicationDocumentsDirectory()).path;
 
 /// The platform's gzip / zlib decoders, as plain converters so callers keep
 /// their own bounded-inflation guards.

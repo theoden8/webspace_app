@@ -10,7 +10,7 @@ import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart'
     show NavigationDecision;
 import 'package:webspace/services/outbound_preference.dart';
-import 'package:webspace/web_view_model.dart' show getBaseDomain, getNormalizedDomain;
+import 'package:webspace/services/url_host.dart';
 
 /// What the OS handed us. `webspace://open?url=...` URLs are unwrapped to
 /// `InboundUrl` before dispatch; `text/html` shares (Android) and HTML

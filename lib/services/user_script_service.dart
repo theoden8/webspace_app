@@ -114,11 +114,13 @@ Future<({String? source, String? error})> fetchUserScriptSource(
       classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
       await _resolvedTargetAllowed(candidate, effective);
   if (!await allowed(url)) return (source: null, error: 'blocked URL');
-  final clientResult = outboundHttp.clientFor(effective);
-  if (clientResult is OutboundClientBlocked) {
-    return (source: null, error: clientResult.reason);
+  final http.Client client;
+  switch (outboundHttp.clientFor(effective)) {
+    case OutboundClientBlocked(:final reason):
+      return (source: null, error: reason);
+    case OutboundClientReady(client: final ready):
+      client = ready;
   }
-  final client = (clientResult as OutboundClientReady).client;
   try {
     final response = await _getWithCheckedRedirects(
       client,
@@ -359,17 +361,19 @@ class UserScriptService {
           'Fetching external script: $url',
           sensitivity: LogSensitivity.sensitive,
         );
-        final clientResult = outboundHttp.clientFor(
+        final http.Client client;
+        switch (outboundHttp.clientFor(
           resolveEffectiveProxy(_proxy),
-        );
-        if (clientResult is OutboundClientBlocked) {
-          LogService.instance.log(
-            'UserScript',
-            'Blocked external script fetch: ${clientResult.reason}',
-          );
-          return false;
+        )) {
+          case OutboundClientBlocked(:final reason):
+            LogService.instance.log(
+              'UserScript',
+              'Blocked external script fetch: $reason',
+            );
+            return false;
+          case OutboundClientReady(client: final ready):
+            client = ready;
         }
-        final client = (clientResult as OutboundClientReady).client;
         try {
           final response = await _getWithCheckedRedirects(
             client,
@@ -444,15 +448,17 @@ class UserScriptService {
           );
           return {'status': 403};
         }
-        final clientResult = outboundHttp.clientFor(effective);
-        if (clientResult is OutboundClientBlocked) {
-          LogService.instance.log(
-            'UserScript',
-            'Blocked resource fetch: ${clientResult.reason}',
-          );
-          return {'status': 403};
+        final http.Client client;
+        switch (outboundHttp.clientFor(effective)) {
+          case OutboundClientBlocked(:final reason):
+            LogService.instance.log(
+              'UserScript',
+              'Blocked resource fetch: $reason',
+            );
+            return {'status': 403};
+          case OutboundClientReady(client: final ready):
+            client = ready;
         }
-        final client = (clientResult as OutboundClientReady).client;
         try {
           final response = await _getWithCheckedRedirects(
             client,

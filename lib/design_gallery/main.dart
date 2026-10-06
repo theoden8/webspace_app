@@ -25,6 +25,7 @@ import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
@@ -957,9 +958,9 @@ class _SiteNetworkCardState extends State<_SiteNetworkCard> {
   late final Future<void> _seeded = () async {
     const c = HttpAuthCredential(username: 'alice', password: 's3cret');
     await HttpAuthSecureStorage.instance
-        .save(model.siteId, 'nas.example.com', 'Files', c);
+        .save(model.siteId, Host('nas.example.com'), 'Files', c);
     await HttpAuthSecureStorage.instance
-        .save(model.siteId, 'nas.example.com', 'Admin', c);
+        .save(model.siteId, Host('nas.example.com'), 'Admin', c);
   }();
 
   @override

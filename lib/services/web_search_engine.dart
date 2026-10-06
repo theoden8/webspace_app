@@ -5,7 +5,7 @@
 /// user does not have, except as an offer to add one.
 library;
 
-import 'package:webspace/web_view_model.dart' show getNormalizedDomain;
+import 'package:webspace/services/url_host.dart';
 
 /// The token a search address carries where the query goes.
 const String kSearchQueryToken = '%s';

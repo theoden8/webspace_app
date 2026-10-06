@@ -12,7 +12,9 @@
 
 import 'dart:typed_data';
 
-class AdblockEngine {
+import 'package:webspace/services/adblock_engine.dart' show AdblockEngineApi;
+
+class AdblockEngine implements AdblockEngineApi {
   AdblockEngine._();
 
   static AdblockEngine? load(String rulesText, {bool enableUboResources = true}) => null;
@@ -28,32 +30,40 @@ class AdblockEngine {
   Never _unavailable() =>
       throw UnsupportedError('the adblock engine is unavailable on web');
 
-  /// Engine library version string, for diagnostics.
+  @override
   String get version => _unavailable();
 
+  @override
   Uint8List? serialize() => _unavailable();
 
+  @override
   bool shouldBlock(String url,
           {String sourceUrl = '', String requestType = 'other'}) =>
       _unavailable();
 
+  @override
   List<String> hiddenClassIdSelectors(Set<String> classes, Set<String> ids,
           {Set<String> exceptions = const <String>{}}) =>
       _unavailable();
 
+  @override
   String? redirectFor(String url,
           {String sourceUrl = '', String requestType = 'other'}) =>
       _unavailable();
 
+  @override
   String? rewrittenUrl(String url,
           {String sourceUrl = '', String requestType = 'other'}) =>
       _unavailable();
 
+  @override
   String? cspFor(String url,
           {String sourceUrl = '', String requestType = 'other'}) =>
       _unavailable();
 
+  @override
   Map<String, dynamic>? cosmeticResources(String url) => _unavailable();
 
+  @override
   void dispose() {}
 }

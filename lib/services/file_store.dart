@@ -15,7 +15,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'file_store_web.dart' if (dart.library.io) 'file_store_io.dart' as impl;
+import 'package:webspace/platform/host_storage.dart' as impl
+    show createFileStore;
 
 abstract class FileStore {
   /// Create the directory if it does not exist.

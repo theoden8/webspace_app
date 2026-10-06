@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/host_storage.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/host_lookup.dart';
@@ -454,37 +454,12 @@ class LocalCdnService {
     if (!_initialized) return null;
     if (_cache.containsKey(cacheKey)) return _getResourceByKey(cacheKey);
 
-    final url = _cdnjsUrl(cacheKey);
-
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-        'LocalCDN',
-        'Skipped download for $cacheKey: ${clientResult.reason}',
-        level: LogLevel.warning,
-      );
-      return null;
-    }
-    final client = (clientResult as OutboundClientReady).client;
-
-    try {
-      final response = await client.get(Uri.parse(url)).timeout(
-        const Duration(seconds: 15),
-      );
-      if (response.statusCode != 200) {
-        LogService.instance.log('LocalCDN',
-            'Download failed: HTTP ${response.statusCode} for $cacheKey');
-        return null;
-      }
-
-      return await _saveToCache(cacheKey, response.bodyBytes);
-    } catch (e) {
-      LogService.instance.log('LocalCDN',
-          'Download error for $cacheKey: $e', level: LogLevel.error);
-      return null;
-    } finally {
-      client.close();
-    }
+    final fetched = await fetchViaAppProxy(Uri.parse(_cdnjsUrl(cacheKey)),
+        tag: 'LocalCDN');
+    return switch (fetched) {
+      Fetched(:final response) => _saveToCache(cacheKey, response.bodyBytes),
+      FetchRefused() || FetchFailed() => null,
+    };
   }
 
   /// Save bytes to cache and update index.

@@ -14,14 +14,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
+import 'package:webspace/platform/host_storage.dart'
+    show createExternalTorIdentify, createTorGeoIpStore, createTorSocksProbe;
+
 import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
-import 'package:webspace/services/tor_geoip_web.dart'
-    if (dart.library.io) 'package:webspace/services/tor_geoip_io.dart';
-import 'package:webspace/services/tor_socks_probe_web.dart'
-    if (dart.library.io) 'package:webspace/services/tor_socks_probe_io.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/proxy.dart';
 

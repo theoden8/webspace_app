@@ -11,9 +11,9 @@
 /// in, and a non-null [HttpAuthCredential] out to `PROCEED`.
 library;
 
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/http_auth_memory.dart';
 import 'package:webspace/utils/concurrency.dart';
-import 'package:webspace/web_view_model.dart' show getBaseDomain;
 
 export 'package:webspace/settings/http_auth_memory.dart';
 
@@ -45,14 +45,14 @@ class HttpAuthCredential {
 /// no port and no scheme (`AwHttpAuthHandler` forwards only host and realm),
 /// so anything finer would never match there.
 abstract class HttpAuthCredentialStore {
-  Future<HttpAuthCredential?> lookup(String siteId, String host, String realm);
+  Future<HttpAuthCredential?> lookup(String siteId, Host host, String realm);
   Future<void> save(
     String siteId,
-    String host,
+    Host host,
     String realm,
     HttpAuthCredential credential,
   );
-  Future<void> remove(String siteId, String host, String realm);
+  Future<void> remove(String siteId, Host host, String realm);
 }
 
 /// The platform's challenge, reduced to what the policy reads.
@@ -149,33 +149,24 @@ class HttpAuthSession {
   /// reopens with it even when it was not saved. Never the password.
   final Map<String, String> _lastUsername = {};
 
-  static String _normalizeHost(String host) {
-    var h = host.trim().toLowerCase();
-    if (h.startsWith('[') && h.endsWith(']')) {
-      h = h.substring(1, h.length - 1);
-    }
-    if (h.endsWith('.')) h = h.substring(0, h.length - 1);
-    return h;
-  }
-
   /// Whether [host] shares [siteUrl]'s base domain, the unit the app
   /// already isolates cookies and keeps navigations in-webview by. A private
   /// suffix (`github.io`) is not a base domain, so a page on one
   /// `github.io` subdomain cannot raise a prompt for another.
   static bool isSiteHost(String host, String? siteUrl) {
     if (siteUrl == null) return false;
-    final siteHost = _normalizeHost(Uri.tryParse(siteUrl)?.host ?? '');
-    final h = _normalizeHost(host);
+    final siteHost = Host(Uri.tryParse(siteUrl)?.host ?? '');
+    final h = Host(host);
     if (siteHost.isEmpty || h.isEmpty) return false;
     return getBaseDomain(h) == getBaseDomain(siteHost);
   }
 
   /// The storage key for a challenge's protection space.
-  static ({String host, String realm}) protectionSpace(
+  static ({Host host, String realm}) protectionSpace(
     String host,
     String? realm,
   ) =>
-      (host: _normalizeHost(host), realm: realm ?? '');
+      (host: Host(host), realm: realm ?? '');
 
   /// The credential to answer [challenge] with, or null to leave it to the
   /// platform (which cancels and renders the server's `401` body).
@@ -193,7 +184,7 @@ class HttpAuthSession {
 
   Future<HttpAuthCredential?> _resolve(
     HttpAuthChallengeInfo challenge,
-    ({String host, String realm}) space,
+    ({Host host, String realm}) space,
     String key,
   ) async {
     final owner = siteId;

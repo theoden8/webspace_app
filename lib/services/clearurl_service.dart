@@ -1,11 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/platform/host_storage.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A parsed ClearURLs provider that matches URLs and strips tracking parameters.
@@ -68,46 +67,24 @@ class ClearUrlService {
   /// malformed and cannot be honored, this returns false without making the
   /// request — falling back to direct would leak the device IP.
   Future<bool> downloadRules() async {
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-        'ClearURLs',
-        'Skipped download: ${clientResult.reason}',
-        level: LogLevel.warning,
-      );
-      return false;
-    }
-    final client = (clientResult as OutboundClientReady).client;
+    final response = switch (
+        await fetchViaAppProxy(Uri.parse(_rulesUrl), tag: 'ClearURLs')) {
+      Fetched(:final response) => response,
+      FetchRefused() || FetchFailed() => null,
+    };
+    if (response == null) return false;
     try {
-      final response = await client.get(Uri.parse(_rulesUrl)).timeout(
-        const Duration(seconds: 15),
-      );
-
-      if (response.statusCode != 200) {
-        LogService.instance.log('ClearURLs', 'Download failed: HTTP ${response.statusCode}', level: LogLevel.error);
-        return false;
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-
-      // Save to disk
+      final json = jsonDecode(response.body);
+      if (json is! Map<String, dynamic>) return false;
       await hostWriteDocumentText(_rulesFileName, response.body);
-
-      // Save timestamp
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
-
-      // Parse
       _parseRules(json);
-
       LogService.instance.log('ClearURLs', 'Downloaded and parsed ${_providers.length} providers', level: LogLevel.info);
-
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log('ClearURLs', 'Download error: $e', level: LogLevel.error);
       return false;
-    } finally {
-      client.close();
     }
   }
 

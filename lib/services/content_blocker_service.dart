@@ -16,7 +16,6 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/procedural_action_backfill.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -741,34 +740,20 @@ class ContentBlockerService {
         orElse: () => throw Exception('List not found: $id'));
     if (list.isLocal) return false;
 
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-        'ContentBlocker',
-        'Skipped download of ${list.name}: ${clientResult.reason}',
-        level: LogLevel.warning,
-      );
-      return false;
-    }
-    final client = (clientResult as OutboundClientReady).client;
-
+    final response = switch (await _fetch(list.url)) {
+      Fetched(:final response) => response,
+      FetchRefused() || FetchFailed() => null,
+    };
+    if (response == null) return false;
     try {
-      final response = await client
-          .get(Uri.parse(list.url))
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode != 200) {
-        LogService.instance.log('ContentBlocker', 'Download failed for ${list.name}: HTTP ${response.statusCode}', level: LogLevel.error);
-        return false;
-      }
-
       final body = await expandFilterListIncludes(
-          response.body, list.url, _preparserEnv, (subUrl) async {
-        final sub = await client
-            .get(Uri.parse(subUrl))
-            .timeout(const Duration(seconds: 30));
-        return sub.statusCode == 200 ? sub.body : null;
-      });
+          response.body,
+          list.url,
+          _preparserEnv,
+          (subUrl) async => switch (await _fetch(subUrl)) {
+                Fetched(:final response) => response.body,
+                FetchRefused() || FetchFailed() => null,
+              });
       await _store.writeText(_cacheName(id), body);
 
       // adblock-rust counts rules at parse time inside the engine — we
@@ -787,12 +772,19 @@ class ContentBlockerService {
       LogService.instance.log('ContentBlocker', 'Downloaded ${list.name}: ~${list.ruleCount} rules', level: LogLevel.info);
 
       return true;
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log('ContentBlocker', 'Error downloading ${list.name}: $e', level: LogLevel.error);
       return false;
-    } finally {
-      client.close();
     }
+  }
+
+  /// A filter list or one it includes. Lists name their own URLs, so one
+  /// that does not parse is a failed fetch rather than a throw.
+  static Future<AppProxyFetch> _fetch(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return Future.value(const FetchFailed('not a URL'));
+    return fetchViaAppProxy(uri,
+        tag: 'ContentBlocker', timeout: const Duration(seconds: 30));
   }
 
   /// Download all enabled lists. Returns number of successful downloads.
@@ -857,22 +849,10 @@ class ContentBlockerService {
   /// Empty when it cannot be fetched; the plan then reports those keys as
   /// unresolved instead of failing the import.
   Future<Map<String, UboAsset>> fetchUboAssetRegistry() async {
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is! OutboundClientReady) return const {};
-    final client = clientResult.client;
-    try {
-      final response = await client
-          .get(Uri.parse(kUboAssetRegistryUrl))
-          .timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) return const {};
-      return parseUboAssetRegistry(response.body);
-    } catch (e) {
-      LogService.instance.log('ContentBlocker',
-          'uBO asset registry fetch failed: $e', level: LogLevel.warning);
-      return const {};
-    } finally {
-      client.close();
-    }
+    return switch (await _fetch(kUboAssetRegistryUrl)) {
+      Fetched(:final response) => parseUboAssetRegistry(response.body),
+      FetchRefused() || FetchFailed() => const {},
+    };
   }
 
   /// Applies the list half of a uBO import: enables the selected lists the
