@@ -207,6 +207,9 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                // A second mount in one test would otherwise reuse the
+                // first platform view and never load its own initial data.
+                key: UniqueKey(),
                 initialUrl: initialUrl,
                 initialHtml: initialHtml,
                 // Keep the surface to the network path under test: no
