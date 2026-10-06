@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Öppnades i en ny flik",
   "tabsSwitchAction": "Växla",
   "tabsInSite": "I {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 flik till i {site}} other{{count} flikar till i {site}}}",
+  "tabsWhereYouWere": "där du var",
   "tabsRunsAs": "som {site}",
   "tabsLinkOutsideSite": "{host} tillhör en annan webbplats och öppnas därför ovanpå denna i stället för i en flik",
   "httpAuthTitle": "Logga in",

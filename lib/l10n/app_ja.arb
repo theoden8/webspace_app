@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "新しいタブで開きました",
   "tabsSwitchAction": "切り替え",
   "tabsInSite": "{site} 内",
+  "tabsMoreInSite": "{count, plural, =1{{site} 内のほかのタブ 1 個} other{{site} 内のほかのタブ {count} 個}}",
+  "tabsWhereYouWere": "元の場所",
   "tabsRunsAs": "{site} として",
   "tabsLinkOutsideSite": "{host} は別のサイトに属するため、タブではなくこのサイトの上に開きます",
   "httpAuthTitle": "サインイン",

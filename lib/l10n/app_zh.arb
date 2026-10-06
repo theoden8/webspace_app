@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "已在新分頁中開啟",
   "tabsSwitchAction": "切換",
   "tabsInSite": "在 {site} 中",
+  "tabsMoreInSite": "{count, plural, =1{{site} 中還有 1 個分頁} other{{site} 中還有 {count} 個分頁}}",
+  "tabsWhereYouWere": "先前所在處",
   "tabsRunsAs": "以 {site} 身分",
   "tabsLinkOutsideSite": "{host} 屬於另一個網站，因此會覆蓋在此網站上開啟，而不是在分頁中開啟",
   "httpAuthTitle": "登入",

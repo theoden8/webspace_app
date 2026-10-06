@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Avati uuel kaardil",
   "tabsSwitchAction": "Vaheta",
   "tabsInSite": "Saidil {site}",
+  "tabsMoreInSite": "{count, plural, =1{Veel 1 kaart saidil {site}} other{Veel {count} kaarti saidil {site}}}",
+  "tabsWhereYouWere": "kus sa olid",
   "tabsRunsAs": "saidina {site}",
   "tabsLinkOutsideSite": "{host} kuulub teisele saidile, seega avaneb see selle peal, mitte kaardil",
   "httpAuthTitle": "Sisselogimine",

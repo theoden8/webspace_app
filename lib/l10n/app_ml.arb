@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "പുതിയ ടാബിൽ തുറന്നു",
   "tabsSwitchAction": "മാറുക",
   "tabsInSite": "{site} സൈറ്റിൽ",
+  "tabsMoreInSite": "{count, plural, one{{site} സൈറ്റിൽ {count} ടാബ് കൂടി} other{{site} സൈറ്റിൽ {count} ടാബുകൾ കൂടി}}",
+  "tabsWhereYouWere": "നിങ്ങൾ ഉണ്ടായിരുന്നിടം",
   "tabsRunsAs": "{site} ആയി",
   "tabsLinkOutsideSite": "{host} മറ്റൊരു സൈറ്റിന്റേതാണ്, അതിനാൽ അത് ടാബിൽ അല്ല, ഇതിന് മുകളിൽ തുറക്കുന്നു",
   "httpAuthTitle": "സൈൻ ഇൻ",

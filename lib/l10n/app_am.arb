@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "በአዲስ ትር ተከፍቷል",
   "tabsSwitchAction": "ቀይር",
   "tabsInSite": "በ{site} ውስጥ",
+  "tabsMoreInSite": "{count, plural, =1{በ{site} ውስጥ 1 ተጨማሪ ትር} other{በ{site} ውስጥ {count} ተጨማሪ ትሮች}}",
+  "tabsWhereYouWere": "የነበሩበት",
   "tabsRunsAs": "እንደ {site}",
   "tabsLinkOutsideSite": "{host} የሌላ ጣቢያ ነው፤ ስለዚህ በትር ውስጥ ሳይሆን በዚህ ላይ ይከፈታል",
   "httpAuthTitle": "መግቢያ",

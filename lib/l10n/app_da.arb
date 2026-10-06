@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Åbnet i et nyt faneblad",
   "tabsSwitchAction": "Skift",
   "tabsInSite": "I {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 faneblad mere i {site}} other{{count} faneblade mere i {site}}}",
+  "tabsWhereYouWere": "hvor du var",
   "tabsRunsAs": "som {site}",
   "tabsLinkOutsideSite": "{host} hører til et andet websted og åbnes derfor oven på dette i stedet for i et faneblad",
   "httpAuthTitle": "Log ind",

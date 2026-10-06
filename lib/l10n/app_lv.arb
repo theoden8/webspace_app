@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Atvērts jaunā cilnē",
   "tabsSwitchAction": "Pārslēgties",
   "tabsInSite": "Vietnē {site}",
+  "tabsMoreInSite": "{count, plural, zero{Vēl {count} cilņu vietnē {site}} one{Vēl {count} cilne vietnē {site}} other{Vēl {count} cilnes vietnē {site}}}",
+  "tabsWhereYouWere": "kur bijāt",
   "tabsRunsAs": "kā {site}",
   "tabsLinkOutsideSite": "{host} pieder citai vietnei, tāpēc tas tiek atvērts virs šīs, nevis cilnē",
   "httpAuthTitle": "Pierakstīšanās",

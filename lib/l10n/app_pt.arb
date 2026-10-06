@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Aberto num novo separador",
   "tabsSwitchAction": "Mudar",
   "tabsInSite": "Em {site}",
+  "tabsMoreInSite": "{count, plural, =1{Mais 1 separador em {site}} other{Mais {count} separadores em {site}}}",
+  "tabsWhereYouWere": "onde estava",
   "tabsRunsAs": "como {site}",
   "tabsLinkOutsideSite": "{host} pertence a outro site, por isso abre por cima deste em vez de num separador",
   "httpAuthTitle": "Iniciar sessão",

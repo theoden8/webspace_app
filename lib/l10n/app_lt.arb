@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Atverta naujoje kortelėje",
   "tabsSwitchAction": "Pereiti",
   "tabsInSite": "Svetainėje {site}",
+  "tabsMoreInSite": "{count, plural, one{Dar {count} kortelė svetainėje {site}} few{Dar {count} kortelės svetainėje {site}} other{Dar {count} kortelių svetainėje {site}}}",
+  "tabsWhereYouWere": "kur buvote",
   "tabsRunsAs": "kaip {site}",
   "tabsLinkOutsideSite": "{host} priklauso kitai svetainei, todėl atveriamas ne kortelėje, o virš šios",
   "httpAuthTitle": "Prisijungimas",

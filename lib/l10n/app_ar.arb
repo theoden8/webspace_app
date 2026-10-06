@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "فُتح في لسان جديد",
   "tabsSwitchAction": "تبديل",
   "tabsInSite": "في {site}",
+  "tabsMoreInSite": "{count, plural, =1{لسان واحد آخر في {site}} zero{لا ألسنة أخرى في {site}} two{لسانان آخران في {site}} few{{count} ألسنة أخرى في {site}} many{{count} لسانًا آخر في {site}} other{{count} لسان آخر في {site}}}",
+  "tabsWhereYouWere": "حيث كنت",
   "tabsRunsAs": "بصفة {site}",
   "tabsLinkOutsideSite": "{host} يتبع موقعًا آخر، لذا يُفتح فوق هذا الموقع بدل أن يُفتح في لسان",
   "httpAuthTitle": "تسجيل الدخول",

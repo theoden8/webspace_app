@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "გაიხსნა ახალ ჩანართში",
   "tabsSwitchAction": "გადასვლა",
   "tabsInSite": "{site} საიტში",
+  "tabsMoreInSite": "{count, plural, =1{კიდევ 1 ჩანართი {site} საიტში} other{კიდევ {count} ჩანართი {site} საიტში}}",
+  "tabsWhereYouWere": "სადაც იყავით",
   "tabsRunsAs": "როგორც {site}",
   "tabsLinkOutsideSite": "{host} სხვა საიტს ეკუთვნის, ამიტომ ჩანართის ნაცვლად ამ საიტის თავზე იხსნება",
   "httpAuthTitle": "შესვლა",

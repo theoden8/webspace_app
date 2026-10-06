@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Obert en una pestanya nova",
   "tabsSwitchAction": "Ves-hi",
   "tabsInSite": "A {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 pestanya més a {site}} other{{count} pestanyes més a {site}}}",
+  "tabsWhereYouWere": "on éreu",
   "tabsRunsAs": "com a {site}",
   "tabsLinkOutsideSite": "{host} pertany a un altre lloc, per això s'obre damunt d'aquest en comptes d'en una pestanya",
   "httpAuthTitle": "Inici de sessió",

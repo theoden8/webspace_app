@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Deschis într-o filă nouă",
   "tabsSwitchAction": "Comută",
   "tabsInSite": "În {site}",
+  "tabsMoreInSite": "{count, plural, =1{Încă 1 filă în {site}} few{Încă {count} file în {site}} other{Încă {count} de file în {site}}}",
+  "tabsWhereYouWere": "unde erai",
   "tabsRunsAs": "ca {site}",
   "tabsLinkOutsideSite": "{host} aparține altui site, așa că se deschide peste acesta, nu într-o filă",
   "httpAuthTitle": "Autentificare",

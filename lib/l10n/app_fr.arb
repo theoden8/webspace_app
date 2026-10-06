@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Ouvert dans un nouvel onglet",
   "tabsSwitchAction": "Basculer",
   "tabsInSite": "Dans {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 autre onglet dans {site}} other{{count} autres onglets dans {site}}}",
+  "tabsWhereYouWere": "là où vous étiez",
   "tabsRunsAs": "en tant que {site}",
   "tabsLinkOutsideSite": "{host} appartient à un autre site, il s'ouvre donc par-dessus celui-ci plutôt que dans un onglet",
   "httpAuthTitle": "Connexion",

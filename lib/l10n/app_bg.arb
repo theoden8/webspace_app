@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Отворено в нов раздел",
   "tabsSwitchAction": "Превключване",
   "tabsInSite": "В {site}",
+  "tabsMoreInSite": "{count, plural, =1{Още 1 раздел в {site}} other{Още {count} раздела в {site}}}",
+  "tabsWhereYouWere": "където бяхте",
   "tabsRunsAs": "като {site}",
   "tabsLinkOutsideSite": "{host} принадлежи на друг сайт, затова се отваря върху този, а не в раздел",
   "httpAuthTitle": "Вход",
