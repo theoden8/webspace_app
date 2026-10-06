@@ -33,7 +33,7 @@ void main() {
 
   group('web search (LIR-029 to LIR-031)', () {
     test('the Tabs sheet offers Web search; the menus only with tabs off', () {
-      expect(bodyOf(main, 'Future<void> _showTabsSheet('),
+      expect(bodyOf(main, 'Future<void> _presentTabsSheet('),
           contains('onWebSearch: () => unawaited(_webSearch()),'));
       expect(
         RegExp(r'if \(_webSearchAvailable && !_tabsEnabledAt\(_currentIndex\)\)\s*'
@@ -208,7 +208,7 @@ void main() {
 
     test('an owner URL never loads into a hosted slot', () {
       expect(bodyOf(main, 'Future<void> _executeOpenInMain('),
-          contains('await _switchToOwnerRunTab(model);'));
+          contains('await _withTabGate(() => _switchToOwnerRunTab(model));'));
       expect(count(main, '_bindOwnerRunTab('), greaterThanOrEqualTo(4));
     });
 
