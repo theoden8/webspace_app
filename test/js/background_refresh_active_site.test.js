@@ -53,6 +53,8 @@ test('the backgrounded branch runs the wake that waits for the pages', () => {
     '_backgroundWake must await the engine, or it returns before the pages settle');
   const service = fs.readFileSync(
     path.join(repoRoot, 'lib/services/background_task_service.dart'), 'utf8');
-  assert.match(service, /await cb\(\);\s*\n\s*}\s*\n\s*await bgRefreshDidComplete\(success: true\);/,
+  // Only a background-log line may sit between the two: it is recorded while
+  // the OS task is still open, so it lands before iOS can suspend the app.
+  assert.match(service, /await cb\(\);\s*\n\s*}\s*\n(?:\s*BackgroundLog\.instance\.record\([^;]*\);\s*\n)?\s*await bgRefreshDidComplete\(success: true\);/,
     'the OS task must be completed only after the Dart handler has returned');
 });

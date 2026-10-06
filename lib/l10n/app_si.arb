@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "පළමුව ද්වාරයක් එක් කරන්න.",
   "proxyLibraryGatewayMissing": "ද්වාරය නැත",
   "proxyLibraryCredentialsMissing": "අක්තපත්‍ර නැත",
-  "proxyLibraryCredentialsMismatch": "අක්තපත්‍ර මෙම ද්වාරයට නොගැළපේ"
+  "proxyLibraryCredentialsMismatch": "අක්තපත්‍ර මෙම ද්වාරයට නොගැළපේ",
+  "appSettingsBackgroundLog": "පසුබිම් ලොගය",
+  "appSettingsBackgroundLogHint": "WebSpace තිරයේ නොමැති අතරතුර සිදුවන දේ සටහන් කරයි: පිටවීම සහ ආපසු පැමිණීම, පද්ධතිය කාලසටහන් කරන පසුබිම් නැවුම් කිරීම, සෑම අවදි කිරීමක්ම සහ එය පළ කරන දැනුම්දීම්, යෙදුම ආරම්භ වීමට පෙර iOS සහ Android ධාවනය කරන පියවර ද ඇතුළුව. සංවර්ධක ප්‍රකාරය සක්‍රිය ව ඇති තාක් යළි ආරම්භ කිරීම් හරහා රැඳේ; එය අක්‍රිය කිරීමෙන් ලොගය මකා දමයි. අඩවියක්, පිටු මාතෘකාවක් හෝ දැනුම්දීම් පෙළක් නම් කරන ඇතුළත් කිරීම් මතකයේ පමණක් රැඳෙන අතර කිසිදා ගොනුවකට නොයයි.",
+  "devToolsTabBackground": "පසුබිම",
+  "devToolsBackgroundSystemState": "පද්ධති තත්ත්වය",
+  "devToolsBackgroundEmpty": "තවම පසුබිම් සිදුවීම් කිසිවක් සටහන් කර නැත",
+  "devToolsBackgroundSensitiveShow": "අඩවි නම් කරන ඇතුළත් කිරීම් පෙන්වන්න (නම්, පිටු මාතෘකා, දැනුම්දීම් පෙළ)",
+  "devToolsBackgroundSensitiveShowing": "අඩවි නම් කරන ඇතුළත් කිරීම් පෙන්වමින්. ඒවා මතකයේ පමණක් තබා ගන්නා අතර යෙදුම යළි ආරම්භයේ යළි සකසයි.",
+  "devToolsBackgroundCopySensitiveBody": "පෙන්වා ඇති ඇතුළත් කිරීම් අතරින් {count}ක් අඩවි නම් කරයි හෝ පිටු මාතෘකා සහ දැනුම්දීම් පෙළ දරයි. පසුරු පුවරුව උපාංගයෙන් පිටතට සමමුහුර්ත විය හැක."
 }

@@ -57,14 +57,53 @@ class BackgroundTaskAndroidPlugin(
                     NotificationRefreshDispatcher.complete(success)
                     result.success(null)
                 }
+                "setBackgroundLogEnabled" -> {
+                    val args = call.arguments as? Map<*, *>
+                    BackgroundLogFile.setEnabled(context, args?.get("enabled") == true)
+                    result.success(null)
+                }
+                "appendBackgroundLog" -> {
+                    val args = call.arguments as? Map<*, *> ?: emptyMap<String, Any>()
+                    val t = (args["t"] as? Number)?.toLong()
+                    val message = args["message"] as? String
+                    if (t != null && message != null) {
+                        BackgroundLogFile.append(
+                            context,
+                            t,
+                            args["level"] as? String ?: "info",
+                            args["tag"] as? String ?: "Dart",
+                            message,
+                        )
+                    }
+                    result.success(null)
+                }
+                "readBackgroundLog" -> BackgroundLogFile.read(context) { lines ->
+                    if (lines == null) {
+                        result.error("READ_FAILED", "background log unreadable", null)
+                    } else {
+                        result.success(lines)
+                    }
+                }
+                "clearBackgroundLog" -> {
+                    BackgroundLogFile.clear(context)
+                    result.success(null)
+                }
+                "backgroundSystemState" ->
+                    BackgroundLogFile.systemState(context, UNIQUE_NAME) { result.success(it) }
                 else -> result.notImplemented()
             }
         }
         NotificationRefreshDispatcher.bind(channel)
+        BackgroundLogFile.record(context, "Flutter engine attached; refreshes can reach Dart")
     }
 
     fun dispose() {
         NotificationRefreshDispatcher.unbind(channel)
+        BackgroundLogFile.record(
+            context,
+            "Flutter engine detached; refreshes find no engine until the app is opened",
+            "warning",
+        )
     }
 
     private fun schedule() {
@@ -88,11 +127,17 @@ class BackgroundTaskAndroidPlugin(
             request,
         )
         Log.i(TAG, "scheduled periodic refresh ($UNIQUE_NAME, ${REFRESH_INTERVAL_MINUTES}min)")
+        BackgroundLogFile.record(
+            context,
+            "periodic refresh enqueued (every ${REFRESH_INTERVAL_MINUTES}min, " +
+                "first run in ${REFRESH_INTERVAL_MINUTES}min, network required)",
+        )
     }
 
     private fun cancel() {
         WorkManager.getInstance(context).cancelUniqueWork(UNIQUE_NAME)
         Log.i(TAG, "cancelled periodic refresh ($UNIQUE_NAME)")
+        BackgroundLogFile.record(context, "periodic refresh cancelled")
     }
 
     companion object {

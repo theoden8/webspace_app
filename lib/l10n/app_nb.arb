@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Legg til en server først.",
   "proxyLibraryGatewayMissing": "Server mangler",
   "proxyLibraryCredentialsMissing": "Pålogging mangler",
-  "proxyLibraryCredentialsMismatch": "Påloggingen passer ikke til denne serveren"
+  "proxyLibraryCredentialsMismatch": "Påloggingen passer ikke til denne serveren",
+  "appSettingsBackgroundLog": "Bakgrunnslogg",
+  "appSettingsBackgroundLogHint": "Registrerer hva som skjer mens WebSpace ikke er på skjermen: å forlate og komme tilbake, bakgrunnsoppdateringen systemet planlegger, hver oppvåkning og varslene den publiserer, inkludert trinn iOS og Android kjører før appen starter. Beholdes på tvers av omstarter så lenge utviklermodus er på; slår du den av, slettes loggen. Oppføringer som nevner et nettsted, en sidetittel eller varseltekst, blir værende i minnet og havner aldri i en fil.",
+  "devToolsTabBackground": "Bakgrunn",
+  "devToolsBackgroundSystemState": "Systemtilstand",
+  "devToolsBackgroundEmpty": "Ingen bakgrunnshendelser registrert ennå",
+  "devToolsBackgroundSensitiveShow": "Vis oppføringer som nevner nettsteder (navn, sidetitler, varseltekst)",
+  "devToolsBackgroundSensitiveShowing": "Viser oppføringer som nevner nettsteder. De lagres bare i minnet og tilbakestilles ved omstart av appen.",
+  "devToolsBackgroundCopySensitiveBody": "{count} av oppføringene som vises nevner nettsteder eller inneholder sidetitler og varseltekst. Utklippstavlen kan synkroniseres utenfor enheten."
 }

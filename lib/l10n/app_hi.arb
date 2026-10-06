@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "पहले एक गेटवे जोड़ें।",
   "proxyLibraryGatewayMissing": "गेटवे नहीं मिला",
   "proxyLibraryCredentialsMissing": "प्रमाण-पत्र नहीं मिले",
-  "proxyLibraryCredentialsMismatch": "प्रमाण-पत्र इस गेटवे के लिए उपयुक्त नहीं हैं"
+  "proxyLibraryCredentialsMismatch": "प्रमाण-पत्र इस गेटवे के लिए उपयुक्त नहीं हैं",
+  "appSettingsBackgroundLog": "बैकग्राउंड लॉग",
+  "appSettingsBackgroundLogHint": "जब WebSpace स्क्रीन पर नहीं होता तब क्या होता है, यह दर्ज करता है: बाहर जाना और लौटना, सिस्टम द्वारा निर्धारित बैकग्राउंड रीफ़्रेश, हर जागरण और उसकी भेजी सूचनाएँ, ऐप शुरू होने से पहले iOS और Android जो चरण चलाते हैं उन सहित। डेवलपर मोड चालू रहने तक रीस्टार्ट के बाद भी बना रहता है; इसे बंद करने से लॉग हट जाता है। जिन प्रविष्टियों में किसी साइट, पेज शीर्षक या सूचना के पाठ का उल्लेख होता है वे केवल मेमोरी में रहती हैं और कभी किसी फ़ाइल तक नहीं पहुँचतीं।",
+  "devToolsTabBackground": "बैकग्राउंड",
+  "devToolsBackgroundSystemState": "सिस्टम की स्थिति",
+  "devToolsBackgroundEmpty": "अभी तक कोई बैकग्राउंड इवेंट दर्ज नहीं हुआ",
+  "devToolsBackgroundSensitiveShow": "साइटों के नाम वाली प्रविष्टियाँ दिखाएँ (नाम, पेज शीर्षक, सूचना का पाठ)",
+  "devToolsBackgroundSensitiveShowing": "साइटों के नाम वाली प्रविष्टियाँ दिखाई जा रही हैं। ये केवल मेमोरी में रखी जाती हैं और ऐप पुनः आरंभ पर रीसेट हो जाती हैं।",
+  "devToolsBackgroundCopySensitiveBody": "दिखाई गई प्रविष्टियों में से {count} में साइटों के नाम या पेज शीर्षक और सूचना का पाठ है। क्लिपबोर्ड डिवाइस के बाहर सिंक हो सकता है।"
 }

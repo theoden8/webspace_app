@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Shtoni fillimisht një server.",
   "proxyLibraryGatewayMissing": "Serveri mungon",
   "proxyLibraryCredentialsMissing": "Kredencialet mungojnë",
-  "proxyLibraryCredentialsMismatch": "Kredencialet nuk përshtaten me këtë server"
+  "proxyLibraryCredentialsMismatch": "Kredencialet nuk përshtaten me këtë server",
+  "appSettingsBackgroundLog": "Regjistri në sfond",
+  "appSettingsBackgroundLogHint": "Regjistron çfarë ndodh ndërsa WebSpace nuk është në ekran: largimin dhe kthimin, rifreskimin në sfond që planifikon sistemi, çdo zgjim dhe njoftimet që ai poston, përfshirë hapat që iOS dhe Android kryejnë para se të niset aplikacioni. Ruhet edhe pas rinisjeve për sa kohë që modaliteti i zhvilluesit është aktiv; çaktivizimi i tij e fshin regjistrin. Hyrjet që përmendin një sajt, një titull faqeje ose tekst njoftimi mbeten vetëm në kujtesë dhe nuk arrijnë kurrë në një skedar.",
+  "devToolsTabBackground": "Sfondi",
+  "devToolsBackgroundSystemState": "Gjendja e sistemit",
+  "devToolsBackgroundEmpty": "Ende nuk është regjistruar asnjë ngjarje në sfond",
+  "devToolsBackgroundSensitiveShow": "Shfaq hyrjet që përmendin sajte (emra, tituj faqesh, tekst njoftimesh)",
+  "devToolsBackgroundSensitiveShowing": "Po shfaqen hyrjet që përmendin sajte. Ruhen vetëm në kujtesë dhe rivendosen në rinisjen e aplikacionit.",
+  "devToolsBackgroundCopySensitiveBody": "{count} nga hyrjet e shfaqura përmendin sajte ose përmbajnë tituj faqesh dhe tekst njoftimesh. Kujtesa e fragmenteve mund të sinkronizohet jashtë pajisjes."
 }

@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Adicione um servidor primeiro.",
   "proxyLibraryGatewayMissing": "Servidor ausente",
   "proxyLibraryCredentialsMissing": "Credenciais ausentes",
-  "proxyLibraryCredentialsMismatch": "As credenciais não servem para este servidor"
+  "proxyLibraryCredentialsMismatch": "As credenciais não servem para este servidor",
+  "appSettingsBackgroundLog": "Log em segundo plano",
+  "appSettingsBackgroundLogHint": "Registra o que acontece enquanto o WebSpace não está na tela: sair e voltar, a atualização em segundo plano que o sistema agenda, cada despertar e as notificações que ele publica, incluindo as etapas que o iOS e o Android executam antes de o app iniciar. É mantido entre reinicializações enquanto o modo desenvolvedor está ativado; desativá-lo apaga o log. Entradas que nomeiam um site, um título de página ou texto de notificação ficam só na memória e nunca chegam a um arquivo.",
+  "devToolsTabBackground": "Segundo plano",
+  "devToolsBackgroundSystemState": "Estado do sistema",
+  "devToolsBackgroundEmpty": "Nenhum evento em segundo plano registrado ainda",
+  "devToolsBackgroundSensitiveShow": "Mostrar entradas que nomeiam sites (nomes, títulos de página, texto de notificações)",
+  "devToolsBackgroundSensitiveShowing": "Mostrando entradas que nomeiam sites. Elas ficam só na memória e são redefinidas ao reiniciar o app.",
+  "devToolsBackgroundCopySensitiveBody": "{count} das entradas exibidas nomeiam sites ou contêm títulos de página e texto de notificações. A área de transferência pode sincronizar fora do dispositivo."
 }

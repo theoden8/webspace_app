@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Primero añade una puerta de enlace.",
   "proxyLibraryGatewayMissing": "Falta la puerta de enlace",
   "proxyLibraryCredentialsMissing": "Faltan las credenciales",
-  "proxyLibraryCredentialsMismatch": "Las credenciales no sirven para esta puerta de enlace"
+  "proxyLibraryCredentialsMismatch": "Las credenciales no sirven para esta puerta de enlace",
+  "appSettingsBackgroundLog": "Registro en segundo plano",
+  "appSettingsBackgroundLogHint": "Registra lo que ocurre mientras WebSpace no está en pantalla: salir y volver, la actualización en segundo plano que programa el sistema, cada activación y las notificaciones que publica, incluidos los pasos que iOS y Android ejecutan antes de que se inicie la app. Se conserva entre reinicios mientras el modo de desarrollador está activado; desactivarlo borra el registro. Las entradas que nombran un sitio, un título de página o texto de notificación se quedan en memoria y nunca llegan a un archivo.",
+  "devToolsTabBackground": "Segundo plano",
+  "devToolsBackgroundSystemState": "Estado del sistema",
+  "devToolsBackgroundEmpty": "Aún no se han registrado eventos en segundo plano",
+  "devToolsBackgroundSensitiveShow": "Mostrar entradas que nombran sitios (nombres, títulos de página, texto de notificaciones)",
+  "devToolsBackgroundSensitiveShowing": "Mostrando entradas que nombran sitios. Solo se guardan en memoria y se restablecen al reiniciar la app.",
+  "devToolsBackgroundCopySensitiveBody": "{count} de las entradas mostradas nombran sitios o contienen títulos de página y texto de notificaciones. El portapapeles puede sincronizarse fuera del dispositivo."
 }

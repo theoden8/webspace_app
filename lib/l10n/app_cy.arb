@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Ychwanegwch borth yn gyntaf.",
   "proxyLibraryGatewayMissing": "Porth ar goll",
   "proxyLibraryCredentialsMissing": "Manylion mewngofnodi ar goll",
-  "proxyLibraryCredentialsMismatch": "Nid yw'r manylion mewngofnodi yn addas i'r porth hwn"
+  "proxyLibraryCredentialsMismatch": "Nid yw'r manylion mewngofnodi yn addas i'r porth hwn",
+  "appSettingsBackgroundLog": "Log cefndir",
+  "appSettingsBackgroundLogHint": "Yn cofnodi'r hyn sy'n digwydd tra nad yw WebSpace ar y sgrin: gadael a dychwelyd, yr adnewyddu cefndir y mae'r system yn ei drefnu, pob deffro a'r hysbysiadau y mae'n eu postio, gan gynnwys camau y mae iOS ac Android yn eu rhedeg cyn i'r ap gychwyn. Caiff ei gadw ar draws ailgychwyniadau tra bo modd datblygwr ymlaen; mae ei ddiffodd yn dileu'r log. Mae cofnodion sy'n enwi gwefan, teitl tudalen neu destun hysbysiad yn aros yn y cof a byth yn cyrraedd ffeil.",
+  "devToolsTabBackground": "Cefndir",
+  "devToolsBackgroundSystemState": "Cyflwr y system",
+  "devToolsBackgroundEmpty": "Dim digwyddiadau cefndir wedi'u cofnodi eto",
+  "devToolsBackgroundSensitiveShow": "Dangos cofnodion sy'n enwi gwefannau (enwau, teitlau tudalennau, testun hysbysiadau)",
+  "devToolsBackgroundSensitiveShowing": "Yn dangos cofnodion sy'n enwi gwefannau. Dim ond yn y cof y cânt eu cadw ac maent yn ailosod ar ailgychwyn yr ap.",
+  "devToolsBackgroundCopySensitiveBody": "Mae {count} o'r cofnodion a ddangosir yn enwi gwefannau neu'n cynnwys teitlau tudalennau a thestun hysbysiadau. Gall y clipfwrdd gydweddu oddi ar y ddyfais."
 }

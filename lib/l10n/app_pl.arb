@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Najpierw dodaj bramę.",
   "proxyLibraryGatewayMissing": "Brak bramy",
   "proxyLibraryCredentialsMissing": "Brak danych logowania",
-  "proxyLibraryCredentialsMismatch": "Dane logowania nie pasują do tej bramy"
+  "proxyLibraryCredentialsMismatch": "Dane logowania nie pasują do tej bramy",
+  "appSettingsBackgroundLog": "Dziennik w tle",
+  "appSettingsBackgroundLogHint": "Rejestruje, co się dzieje, gdy WebSpace nie jest na ekranie: wyjście i powrót, odświeżanie w tle planowane przez system, każde wybudzenie i wysłane przez nie powiadomienia, w tym kroki, które iOS i Android wykonują przed uruchomieniem aplikacji. Zachowywany między ponownymi uruchomieniami, dopóki tryb programisty jest włączony; jego wyłączenie usuwa dziennik. Wpisy, które wymieniają witrynę, tytuł strony lub treść powiadomienia, pozostają w pamięci i nigdy nie trafiają do pliku.",
+  "devToolsTabBackground": "Tło",
+  "devToolsBackgroundSystemState": "Stan systemu",
+  "devToolsBackgroundEmpty": "Nie zarejestrowano jeszcze żadnych zdarzeń w tle",
+  "devToolsBackgroundSensitiveShow": "Pokaż wpisy wymieniające witryny (nazwy, tytuły stron, treść powiadomień)",
+  "devToolsBackgroundSensitiveShowing": "Wyświetlanie wpisów wymieniających witryny. Są przechowywane tylko w pamięci i resetują się po ponownym uruchomieniu aplikacji.",
+  "devToolsBackgroundCopySensitiveBody": "{count} z wyświetlonych wpisów wymienia witryny lub zawiera tytuły stron i treść powiadomień. Schowek może synchronizować się poza urządzeniem."
 }

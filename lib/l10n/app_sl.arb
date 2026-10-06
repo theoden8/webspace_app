@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Najprej dodajte prehod.",
   "proxyLibraryGatewayMissing": "Prehod manjka",
   "proxyLibraryCredentialsMissing": "Poverilnice manjkajo",
-  "proxyLibraryCredentialsMismatch": "Poverilnice ne ustrezajo temu prehodu"
+  "proxyLibraryCredentialsMismatch": "Poverilnice ne ustrezajo temu prehodu",
+  "appSettingsBackgroundLog": "Dnevnik v ozadju",
+  "appSettingsBackgroundLogHint": "Beleži, kaj se dogaja, ko WebSpace ni na zaslonu: odhod in vrnitev, osveževanje v ozadju, ki ga načrtuje sistem, vsako bujenje in obvestila, ki jih objavi, vključno s koraki, ki jih iOS in Android izvedeta pred zagonom aplikacije. Ohrani se tudi po ponovnih zagonih, dokler je vklopljen razvijalski način; njegov izklop izbriše dnevnik. Vnosi, ki imenujejo spletno mesto, naslov strani ali besedilo obvestila, ostanejo v pomnilniku in nikoli ne pridejo v datoteko.",
+  "devToolsTabBackground": "Ozadje",
+  "devToolsBackgroundSystemState": "Stanje sistema",
+  "devToolsBackgroundEmpty": "Dogodkov v ozadju še ni zabeleženih",
+  "devToolsBackgroundSensitiveShow": "Pokaži vnose, ki imenujejo spletna mesta (imena, naslove strani, besedilo obvestil)",
+  "devToolsBackgroundSensitiveShowing": "Prikazani so vnosi, ki imenujejo spletna mesta. Hranijo se le v pomnilniku in se ponastavijo ob ponovnem zagonu aplikacije.",
+  "devToolsBackgroundCopySensitiveBody": "{count} prikazanih vnosov imenuje spletna mesta ali vsebuje naslove strani in besedilo obvestil. Odložišče se lahko sinhronizira zunaj naprave."
 }

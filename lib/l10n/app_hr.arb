@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Najprije dodajte pristupnik.",
   "proxyLibraryGatewayMissing": "Nedostaje pristupnik",
   "proxyLibraryCredentialsMissing": "Nedostaju vjerodajnice",
-  "proxyLibraryCredentialsMismatch": "Vjerodajnice ne odgovaraju ovom pristupniku"
+  "proxyLibraryCredentialsMismatch": "Vjerodajnice ne odgovaraju ovom pristupniku",
+  "appSettingsBackgroundLog": "Zapisnik u pozadini",
+  "appSettingsBackgroundLogHint": "Bilježi što se događa dok WebSpace nije na zaslonu: odlazak i povratak, osvježavanje u pozadini koje sustav zakazuje, svako buđenje i obavijesti koje objavi, uključujući korake koje iOS i Android izvode prije pokretanja aplikacije. Čuva se i nakon ponovnog pokretanja dok je razvojni način uključen; njegovo isključivanje briše zapisnik. Unosi koji imenuju web-mjesto, naslov stranice ili tekst obavijesti ostaju u memoriji i nikad ne dospiju u datoteku.",
+  "devToolsTabBackground": "Pozadina",
+  "devToolsBackgroundSystemState": "Stanje sustava",
+  "devToolsBackgroundEmpty": "Još nema zabilježenih događaja u pozadini",
+  "devToolsBackgroundSensitiveShow": "Prikaži unose koji imenuju web-mjesta (nazive, naslove stranica, tekst obavijesti)",
+  "devToolsBackgroundSensitiveShowing": "Prikazuju se unosi koji imenuju web-mjesta. Čuvaju se samo u memoriji i resetiraju pri ponovnom pokretanju aplikacije.",
+  "devToolsBackgroundCopySensitiveBody": "{count} prikazanih unosa imenuje web-mjesta ili sadrži naslove stranica i tekst obavijesti. Međuspremnik se može sinkronizirati izvan uređaja."
 }

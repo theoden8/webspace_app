@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "પહેલા ગેટવે ઉમેરો.",
   "proxyLibraryGatewayMissing": "ખૂટતો ગેટવે",
   "proxyLibraryCredentialsMissing": "ખૂટતા ઓળખપત્રો",
-  "proxyLibraryCredentialsMismatch": "ઓળખપત્રો આ ગેટવે સાથે મેળ ખાતા નથી"
+  "proxyLibraryCredentialsMismatch": "ઓળખપત્રો આ ગેટવે સાથે મેળ ખાતા નથી",
+  "appSettingsBackgroundLog": "બેકગ્રાઉન્ડ લોગ",
+  "appSettingsBackgroundLogHint": "WebSpace સ્ક્રીન પર ન હોય ત્યારે શું થાય છે તે નોંધે છે: બહાર જવું અને પાછા આવવું, સિસ્ટમ જે બેકગ્રાઉન્ડ રિફ્રેશ નક્કી કરે છે, દરેક જાગૃતિ અને તે મોકલે તે સૂચનાઓ, એપ શરૂ થાય તે પહેલાં iOS અને Android જે પગલાં ચલાવે છે તે સહિત. ડેવલપર મોડ ચાલુ હોય ત્યાં સુધી રીસ્ટાર્ટ પછી પણ સાચવવામાં આવે છે; તેને બંધ કરવાથી લોગ કાઢી નખાય છે. જે એન્ટ્રીઓમાં સાઇટ, પેજનું શીર્ષક અથવા સૂચનાનું લખાણ હોય તે ફક્ત મેમરીમાં રહે છે અને ક્યારેય ફાઇલ સુધી પહોંચતી નથી.",
+  "devToolsTabBackground": "બેકગ્રાઉન્ડ",
+  "devToolsBackgroundSystemState": "સિસ્ટમની સ્થિતિ",
+  "devToolsBackgroundEmpty": "હજી સુધી કોઈ બેકગ્રાઉન્ડ ઇવેન્ટ નોંધાઈ નથી",
+  "devToolsBackgroundSensitiveShow": "સાઇટના નામ ધરાવતી એન્ટ્રીઓ બતાવો (નામ, પેજ શીર્ષકો, સૂચનાનું લખાણ)",
+  "devToolsBackgroundSensitiveShowing": "સાઇટના નામ ધરાવતી એન્ટ્રીઓ બતાવી રહ્યું છે. તે ફક્ત મેમરીમાં રખાય છે અને એપ્લિકેશન રીસ્ટાર્ટ પર રીસેટ થાય છે.",
+  "devToolsBackgroundCopySensitiveBody": "બતાવેલી એન્ટ્રીઓમાંથી {count} એન્ટ્રીમાં સાઇટના નામ અથવા પેજ શીર્ષકો અને સૂચનાનું લખાણ છે. ક્લિપબોર્ડ ઉપકરણની બહાર સિંક થઈ શકે છે."
 }

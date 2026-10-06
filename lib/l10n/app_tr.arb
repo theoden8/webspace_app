@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Önce bir ağ geçidi ekleyin.",
   "proxyLibraryGatewayMissing": "Ağ geçidi bulunamadı",
   "proxyLibraryCredentialsMissing": "Kimlik bilgileri bulunamadı",
-  "proxyLibraryCredentialsMismatch": "Kimlik bilgileri bu ağ geçidine uymuyor"
+  "proxyLibraryCredentialsMismatch": "Kimlik bilgileri bu ağ geçidine uymuyor",
+  "appSettingsBackgroundLog": "Arka plan günlüğü",
+  "appSettingsBackgroundLogHint": "WebSpace ekranda değilken olanları kaydeder: uygulamadan çıkma ve geri dönme, sistemin planladığı arka plan yenilemesi, her uyandırma ve yayınladığı bildirimler; uygulama başlamadan önce iOS ve Android'in çalıştırdığı adımlar da dahil. Geliştirici modu açık olduğu sürece yeniden başlatmalarda korunur; kapatmak günlüğü siler. Bir siteyi, sayfa başlığını veya bildirim metnini adlandıran girdiler yalnızca bellekte kalır ve asla bir dosyaya ulaşmaz.",
+  "devToolsTabBackground": "Arka plan",
+  "devToolsBackgroundSystemState": "Sistem durumu",
+  "devToolsBackgroundEmpty": "Henüz kaydedilmiş arka plan olayı yok",
+  "devToolsBackgroundSensitiveShow": "Siteleri adlandıran girdileri göster (adlar, sayfa başlıkları, bildirim metni)",
+  "devToolsBackgroundSensitiveShowing": "Siteleri adlandıran girdiler gösteriliyor. Yalnızca bellekte tutulur ve uygulama yeniden başlatıldığında sıfırlanır.",
+  "devToolsBackgroundCopySensitiveBody": "Gösterilen girdilerin {count} tanesi siteleri adlandırıyor veya sayfa başlıkları ve bildirim metni içeriyor. Pano cihaz dışına eşitlenebilir."
 }

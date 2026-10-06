@@ -2,8 +2,16 @@ import 'dart:convert';
 import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
+
+/// Who asked for a notification, for the background log: a page through the
+/// polyfill, the background wake on a silent site's behalf (NOTIF-014), or the
+/// developer-tools test button.
+enum NotificationOrigin { page, unreadFallback, test }
 
 /// The OS-side identity of one posted notification. Android collapses on the
 /// `(tag, id)` pair and iOS/macOS on the identifier, so this pair decides
@@ -174,15 +182,18 @@ class NotificationService {
     String body = '',
     String? tag,
     String? siteUrl,
+    NotificationOrigin origin = NotificationOrigin.page,
   }) async {
     if (!_initialized) await init();
     await _ensurePermission();
+    final app = SchedulerBinding.instance.lifecycleState?.name ?? 'unknown';
     if (_permissionGranted != true) {
-      LogService.instance.log(
+      BackgroundLog.instance.record(
         'Notification',
-        'Skipped "$title" — OS notification permission denied',
+        'notification dropped (${origin.name}, app $app): '
+            'OS notification permission denied',
         level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
+        sensitive: 'Skipped "$title" for siteId $siteId',
       );
       return;
     }
@@ -216,13 +227,24 @@ class NotificationService {
 
     final payload = jsonEncode({'siteId': siteId});
 
-    await _plugin.show(id: target.id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
+    try {
+      await _plugin.show(id: target.id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
+    } on PlatformException catch (e) {
+      BackgroundLog.instance.record(
+        'Notification',
+        'notification failed (${origin.name}, app $app): ${e.code}',
+        level: LogLevel.error,
+        sensitive: 'notification "$title" for siteId $siteId failed: ${e.message}',
+      );
+      rethrow;
+    }
     _lastPostedAt[siteId] = DateTime.now();
     onPosted?.call(siteId);
-    LogService.instance.log(
+    BackgroundLog.instance.record(
       'Notification',
-      'Showed notification: "$title" for siteId: $siteId',
-      sensitivity: LogSensitivity.sensitive,
+      'notification posted (${origin.name}, '
+          '${tag == null || tag.isEmpty ? 'untagged' : 'tagged'}, app $app)',
+      sensitive: 'Showed notification: "$title" for siteId: $siteId',
     );
   }
 
@@ -249,8 +271,9 @@ class NotificationService {
     }
     final changed = _permissionGranted != granted;
     _permissionGranted = granted;
-    LogService.instance.log(
-        'Notification', 'OS permission: ${granted ? "granted" : "denied"}');
+    BackgroundLog.instance.record(
+        'Notification', 'OS permission: ${granted ? "granted" : "denied"}',
+        level: granted ? LogLevel.info : LogLevel.warning);
     if (changed) _notifyPermissionListeners();
     return granted;
   }

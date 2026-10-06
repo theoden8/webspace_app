@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "أضف بوابة أولًا.",
   "proxyLibraryGatewayMissing": "بوابة مفقودة",
   "proxyLibraryCredentialsMissing": "بيانات اعتماد مفقودة",
-  "proxyLibraryCredentialsMismatch": "بيانات الاعتماد لا تناسب هذه البوابة"
+  "proxyLibraryCredentialsMismatch": "بيانات الاعتماد لا تناسب هذه البوابة",
+  "appSettingsBackgroundLog": "سجل الخلفية",
+  "appSettingsBackgroundLogHint": "يسجّل ما يحدث عندما لا يكون WebSpace على الشاشة: المغادرة والعودة، والتحديث في الخلفية الذي يجدوله النظام، وكل إيقاظ والإشعارات التي ينشرها، بما في ذلك الخطوات التي ينفّذها iOS وAndroid قبل بدء التطبيق. يُحفظ عبر عمليات إعادة التشغيل ما دام وضع المطور مفعّلًا؛ وإيقافه يحذف السجل. الإدخالات التي تذكر موقعًا أو عنوان صفحة أو نص إشعار تبقى في الذاكرة ولا تصل إلى أي ملف أبدًا.",
+  "devToolsTabBackground": "الخلفية",
+  "devToolsBackgroundSystemState": "حالة النظام",
+  "devToolsBackgroundEmpty": "لم تُسجَّل أي أحداث في الخلفية بعد",
+  "devToolsBackgroundSensitiveShow": "إظهار الإدخالات التي تذكر مواقع (الأسماء، عناوين الصفحات، نص الإشعارات)",
+  "devToolsBackgroundSensitiveShowing": "يتم عرض الإدخالات التي تذكر مواقع. تُحفظ في الذاكرة فقط وتُمسح عند إعادة تشغيل التطبيق.",
+  "devToolsBackgroundCopySensitiveBody": "{count} من الإدخالات المعروضة تذكر مواقع أو تحمل عناوين صفحات ونص إشعارات. قد تتم مزامنة الحافظة خارج الجهاز."
 }

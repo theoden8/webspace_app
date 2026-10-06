@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "เพิ่มเกตเวย์ก่อน",
   "proxyLibraryGatewayMissing": "ไม่พบเกตเวย์",
   "proxyLibraryCredentialsMissing": "ไม่พบข้อมูลรับรอง",
-  "proxyLibraryCredentialsMismatch": "ข้อมูลรับรองใช้กับเกตเวย์นี้ไม่ได้"
+  "proxyLibraryCredentialsMismatch": "ข้อมูลรับรองใช้กับเกตเวย์นี้ไม่ได้",
+  "appSettingsBackgroundLog": "บันทึกเบื้องหลัง",
+  "appSettingsBackgroundLogHint": "บันทึกสิ่งที่เกิดขึ้นขณะที่ WebSpace ไม่ได้อยู่บนหน้าจอ: การออกจากแอปและกลับมา การรีเฟรชเบื้องหลังที่ระบบตั้งเวลาไว้ การปลุกแต่ละครั้งและการแจ้งเตือนที่โพสต์ รวมถึงขั้นตอนที่ iOS และ Android ทำก่อนแอปจะเริ่มทำงาน เก็บไว้ข้ามการรีสตาร์ทตราบใดที่เปิดโหมดนักพัฒนาอยู่ การปิดโหมดนี้จะลบบันทึก รายการที่ระบุชื่อไซต์ ชื่อหน้า หรือข้อความแจ้งเตือนจะอยู่ในหน่วยความจำเท่านั้นและไม่ถูกเขียนลงไฟล์เลย",
+  "devToolsTabBackground": "เบื้องหลัง",
+  "devToolsBackgroundSystemState": "สถานะระบบ",
+  "devToolsBackgroundEmpty": "ยังไม่มีเหตุการณ์เบื้องหลังที่บันทึกไว้",
+  "devToolsBackgroundSensitiveShow": "แสดงรายการที่ระบุชื่อไซต์ (ชื่อ ชื่อหน้า ข้อความแจ้งเตือน)",
+  "devToolsBackgroundSensitiveShowing": "กำลังแสดงรายการที่ระบุชื่อไซต์ รายการเหล่านี้เก็บไว้ในหน่วยความจำเท่านั้นและจะรีเซ็ตเมื่อรีสตาร์ทแอป",
+  "devToolsBackgroundCopySensitiveBody": "รายการที่แสดง {count} รายการระบุชื่อไซต์หรือมีชื่อหน้าและข้อความแจ้งเตือน คลิปบอร์ดอาจซิงก์ออกนอกอุปกรณ์"
 }

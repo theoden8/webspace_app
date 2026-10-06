@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Tilføj først en gateway.",
   "proxyLibraryGatewayMissing": "Manglende gateway",
   "proxyLibraryCredentialsMissing": "Manglende loginoplysninger",
-  "proxyLibraryCredentialsMismatch": "Loginoplysningerne passer ikke til denne gateway"
+  "proxyLibraryCredentialsMismatch": "Loginoplysningerne passer ikke til denne gateway",
+  "appSettingsBackgroundLog": "Baggrundslog",
+  "appSettingsBackgroundLogHint": "Registrerer, hvad der sker, mens WebSpace ikke er på skærmen: når du forlader og vender tilbage, den baggrundsopdatering, systemet planlægger, hver opvågning og de notifikationer, den sender, inklusive trin, som iOS og Android kører, før appen starter. Bevares på tværs af genstarter, så længe udviklertilstand er slået til; slår du den fra, slettes loggen. Poster, der nævner et websted, en sidetitel eller notifikationstekst, bliver i hukommelsen og når aldrig en fil.",
+  "devToolsTabBackground": "Baggrund",
+  "devToolsBackgroundSystemState": "Systemtilstand",
+  "devToolsBackgroundEmpty": "Ingen baggrundshændelser registreret endnu",
+  "devToolsBackgroundSensitiveShow": "Vis poster, der nævner websteder (navne, sidetitler, notifikationstekst)",
+  "devToolsBackgroundSensitiveShowing": "Viser poster, der nævner websteder. De gemmes kun i hukommelsen og nulstilles ved genstart af appen.",
+  "devToolsBackgroundCopySensitiveBody": "{count} af de viste poster nævner websteder eller indeholder sidetitler og notifikationstekst. Udklipsholderen kan synkronisere uden for enheden."
 }

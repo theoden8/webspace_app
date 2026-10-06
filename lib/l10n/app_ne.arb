@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "पहिले एउटा गेटवे थप्नुहोस्।",
   "proxyLibraryGatewayMissing": "गेटवे भेटिएन",
   "proxyLibraryCredentialsMissing": "प्रमाणहरू भेटिएनन्",
-  "proxyLibraryCredentialsMismatch": "प्रमाणहरू यो गेटवेसँग मेल खाँदैनन्"
+  "proxyLibraryCredentialsMismatch": "प्रमाणहरू यो गेटवेसँग मेल खाँदैनन्",
+  "appSettingsBackgroundLog": "पृष्ठभूमि लग",
+  "appSettingsBackgroundLogHint": "WebSpace स्क्रिनमा नभएका बेला के हुन्छ भनेर रेकर्ड गर्छ: बाहिर जानु र फर्कनु, प्रणालीले तालिका बनाउने पृष्ठभूमि रिफ्रेस, हरेक जगाइ र यसले पठाउने सूचनाहरू, एप सुरु हुनुअघि iOS र Android ले चलाउने चरणहरू सहित। विकासकर्ता मोड अन रहेसम्म पुनः सुरु गरेपछि पनि राखिन्छ; यसलाई बन्द गर्दा लग मेटिन्छ। साइट, पृष्ठ शीर्षक वा सूचनाको पाठ उल्लेख गर्ने प्रविष्टिहरू मेमोरीमा मात्र रहन्छन् र कहिल्यै फाइलमा पुग्दैनन्।",
+  "devToolsTabBackground": "पृष्ठभूमि",
+  "devToolsBackgroundSystemState": "प्रणालीको अवस्था",
+  "devToolsBackgroundEmpty": "अहिलेसम्म कुनै पृष्ठभूमि घटना रेकर्ड भएको छैन",
+  "devToolsBackgroundSensitiveShow": "साइटहरूको नाम भएका प्रविष्टिहरू देखाउनुहोस् (नाम, पृष्ठ शीर्षक, सूचनाको पाठ)",
+  "devToolsBackgroundSensitiveShowing": "साइटहरूको नाम भएका प्रविष्टिहरू देखाउँदै। यिनीहरू मेमोरीमा मात्र राखिन्छन् र एप पुनः सुरु हुँदा रिसेट हुन्छन्।",
+  "devToolsBackgroundCopySensitiveBody": "देखाइएका प्रविष्टिहरूमध्ये {count} मा साइटहरूको नाम वा पृष्ठ शीर्षक र सूचनाको पाठ छन्। क्लिपबोर्ड यन्त्रबाहिर सिंक हुन सक्छ।"
 }

@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Ongeza lango kwanza.",
   "proxyLibraryGatewayMissing": "Lango halipo",
   "proxyLibraryCredentialsMissing": "Vitambulisho havipo",
-  "proxyLibraryCredentialsMismatch": "Vitambulisho havilingani na lango hili"
+  "proxyLibraryCredentialsMismatch": "Vitambulisho havilingani na lango hili",
+  "appSettingsBackgroundLog": "Kumbukumbu za chinichini",
+  "appSettingsBackgroundLogHint": "Hurekodi kinachotokea wakati WebSpace haipo kwenye skrini: kuondoka na kurudi, uonyeshaji upya wa chinichini unaopangwa na mfumo, kila kuamshwa na arifa zinazochapishwa, ikijumuisha hatua ambazo iOS na Android huendesha kabla programu haijaanza. Huhifadhiwa hata baada ya kuanzisha upya mradi hali ya msanidi imewashwa; kuizima kunafuta kumbukumbu. Maingizo yanayotaja tovuti, kichwa cha ukurasa au maandishi ya arifa hubaki kwenye kumbukumbu ya muda tu na kamwe hayafiki kwenye faili.",
+  "devToolsTabBackground": "Chinichini",
+  "devToolsBackgroundSystemState": "Hali ya mfumo",
+  "devToolsBackgroundEmpty": "Bado hakuna matukio ya chinichini yaliyorekodiwa",
+  "devToolsBackgroundSensitiveShow": "Onyesha maingizo yanayotaja tovuti (majina, vichwa vya kurasa, maandishi ya arifa)",
+  "devToolsBackgroundSensitiveShowing": "Inaonyesha maingizo yanayotaja tovuti. Huhifadhiwa kwenye kumbukumbu ya muda tu na hujirekebisha programu inapoanzishwa upya.",
+  "devToolsBackgroundCopySensitiveBody": "Maingizo {count} kati ya yanayoonyeshwa yanataja tovuti au yana vichwa vya kurasa na maandishi ya arifa. Ubao wa kunakili unaweza kusawazishwa nje ya kifaa."
 }

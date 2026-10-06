@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Lisa kõigepealt lüüs.",
   "proxyLibraryGatewayMissing": "Lüüs puudub",
   "proxyLibraryCredentialsMissing": "Sisselogimisandmed puuduvad",
-  "proxyLibraryCredentialsMismatch": "Sisselogimisandmed ei sobi selle lüüsiga"
+  "proxyLibraryCredentialsMismatch": "Sisselogimisandmed ei sobi selle lüüsiga",
+  "appSettingsBackgroundLog": "Taustalogi",
+  "appSettingsBackgroundLogHint": "Salvestab, mis juhtub, kui WebSpace pole ekraanil: lahkumine ja naasmine, süsteemi ajastatud taustvärskendus, iga äratus ja selle postitatud teavitused, sealhulgas sammud, mida iOS ja Android enne rakenduse käivitumist teevad. Säilib taaskäivituste üle seni, kuni arendajarežiim on sees; selle väljalülitamine kustutab logi. Kirjed, mis nimetavad saiti, lehe pealkirja või teavituse teksti, jäävad mällu ega jõua kunagi faili.",
+  "devToolsTabBackground": "Taust",
+  "devToolsBackgroundSystemState": "Süsteemi olek",
+  "devToolsBackgroundEmpty": "Taustasündmusi pole veel salvestatud",
+  "devToolsBackgroundSensitiveShow": "Näita kirjeid, mis nimetavad saite (nimed, lehtede pealkirjad, teavituste tekst)",
+  "devToolsBackgroundSensitiveShowing": "Näidatakse kirjeid, mis nimetavad saite. Neid hoitakse ainult mälus ja need lähtestuvad rakenduse taaskäivitusel.",
+  "devToolsBackgroundCopySensitiveBody": "{count} kuvatud kirjet nimetavad saite või sisaldavad lehtede pealkirju ja teavituste teksti. Lõikelaud võib sünkroonida seadmest välja."
 }

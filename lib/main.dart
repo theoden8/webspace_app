@@ -104,6 +104,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/shortcut_service.dart';
+import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/background_task_service.dart';
 import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/media_session_service.dart';
@@ -871,6 +872,14 @@ void main() async {
   // Gate for diagnostic-only affordances; read directly by the menus rather
   // than plumbed, so it must be hydrated before the first frame.
   await DeveloperModeService.instance.initialize();
+  // A process the OS started for a background task reports a lifecycle other
+  // than resumed here, which is how the background log tells a cold wake from
+  // a launch the user made.
+  BackgroundLog.instance.record(
+    'Lifecycle',
+    'process started (app '
+        '${WidgetsBinding.instance.lifecycleState?.name ?? 'state not reported yet'})',
+  );
   await ExperimentalFeaturesService.instance.initialize();
   // Before anything touches TorService.instance, which picks its tor from
   // this on first use and on every runtimeChoiceChanged (TOR-025).
@@ -1393,6 +1402,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (_loadedIndices.contains(i)) {
         model.disposeWebView();
         _loadedIndices.remove(i);
+        _noteNotificationSiteUnloaded(model, 'certificate trust revoked');
         changed = true;
       }
       wipedSiteIds.add(model.siteId);
@@ -1765,7 +1775,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           // cookie capture (when not in container mode) runs too;
           // _captureStateForRestore inside that helper is what
           // updates the lifecycleState to savedForRestore.
-          await _unloadSiteForOtherReason(victim);
+          await _unloadSiteForOtherReason(victim, reason: 'memory pressure');
           // The pin in force follows the loaded sites (TOR-014). Left for
           // the next activation, the pin of a site evicted here was cleared
           // at whatever moment that came, often after a long suspension had
@@ -1864,7 +1874,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       final loadedBgAudio =
           loadedWith((m) => m.effectiveBackgroundAudioEnabled);
       final loadedNotif = loadedWith((m) => m.effectiveNotificationsEnabled);
-      LogService.instance.log(
+      _backgroundedAt = DateTime.now();
+      BackgroundLog.instance.record(
         'Lifecycle',
         'App background: jsPause=${pausePlan.jsPauseIndex != null} '
             'capture=${pausePlan.captureStateIndex != null} '
@@ -1934,6 +1945,17 @@ class _WebSpacePageState extends State<WebSpacePage>
       // controls on screen (BGAUDIO-009).
       unawaited(allMediaStopped.then((_) => _updateBackgroundAudioSession()));
     } else if (state == AppLifecycleState.resumed) {
+      final since = _backgroundedAt;
+      if (since != null) {
+        _backgroundedAt = null;
+        final counts = _notificationSiteCounts();
+        BackgroundLog.instance.record(
+          'Lifecycle',
+          'App resumed after ${DateTime.now().difference(since).inSeconds}s '
+              'in background: notif sites ${counts.enabled} enabled, '
+              '${counts.loaded} loaded',
+        );
+      }
       if (_maskBackground) {
         setState(() => _maskBackground = false);
       }
@@ -1966,6 +1988,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   bool _isResuming = false;
+
+  /// When the app last went to `paused`, for the background log's resume line.
+  DateTime? _backgroundedAt;
 
   // Warm-start blank-surface repaint window (PAUSE-020 / BUG-001 Attempt 8).
   // On Android the hybrid-composition webview SurfaceView can re-attach a frame
@@ -3746,7 +3771,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           level: LogLevel.warning,
           sensitivity: LogSensitivity.sensitive,
         );
-        await _unloadSiteForOtherReason(i);
+        await _unloadSiteForOtherReason(i, reason: 'Tor exit-country mismatch');
       }
       if (exitMismatch.isNotEmpty && mounted) setState(() {});
     }
@@ -5018,7 +5043,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         level: LogLevel.warning,
         sensitivity: LogSensitivity.sensitive,
       );
-      await _unloadSiteForOtherReason(i);
+      await _unloadSiteForOtherReason(i, reason: 'proxy mismatch');
       if (version != _setCurrentIndexVersion) return;
     }
 
@@ -5053,7 +5078,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           level: LogLevel.warning,
           sensitivity: LogSensitivity.sensitive,
         );
-        await _unloadSiteForOtherReason(i);
+        await _unloadSiteForOtherReason(i, reason: 'Tor exit-country mismatch');
         if (version != _setCurrentIndexVersion) return;
       }
       // Only once the disagreeing siblings are gone: SETCONF takes effect
@@ -5088,7 +5113,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         'LRU cap (>$kMaxLoadedSites) — unloading site $i: "${_webViewModels[i].name}"',
         sensitivity: LogSensitivity.sensitive,
       );
-      await _unloadSiteForOtherReason(i);
+      await _unloadSiteForOtherReason(i, reason: 'loaded-site cap');
       if (version != _setCurrentIndexVersion) return;
     }
 
@@ -5280,20 +5305,22 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// memory state storage so re-activation can restore the back/
   /// forward stack and (Apple) form data via `restoreState`. Skipped
   /// for incognito sites (state is meant to be ephemeral).
-  Future<void> _unloadSiteForOtherReason(int index) async {
+  Future<void> _unloadSiteForOtherReason(int index,
+      {required String reason}) async {
     if (index < 0 || index >= _webViewModels.length) return;
     final model = _webViewModels[index];
     await _captureStateForRestore(model);
     if (_useContainers) {
       model.disposeWebView();
       _loadedIndices.remove(index);
-      return;
+    } else {
+      await _cookieIsolation.unloadSiteForDomainSwitch(
+        index: index,
+        models: _webViewModels,
+        loadedIndices: _loadedIndices,
+      );
     }
-    await _cookieIsolation.unloadSiteForDomainSwitch(
-      index: index,
-      models: _webViewModels,
-      loadedIndices: _loadedIndices,
-    );
+    _noteNotificationSiteUnloaded(model, reason);
   }
 
   /// Capture [model]'s navigation state to encrypted on-disk storage.
@@ -6097,6 +6124,20 @@ class _WebSpacePageState extends State<WebSpacePage>
             ? _refreshNotificationSites(excludeActive: true)
             : _backgroundWake();
     BackgroundTaskService.instance.initialize();
+    BackgroundLog.instance.appState = () {
+      final counts = _notificationSiteCounts();
+      final permission = NotificationService.instance.permissionGranted;
+      return [
+        MapEntry('app.lifecycle',
+            WidgetsBinding.instance.lifecycleState?.name ?? 'unknown'),
+        MapEntry('app.notificationSitesEnabled', '${counts.enabled}'),
+        MapEntry('app.notificationSitesLoaded', '${counts.loaded}'),
+        MapEntry('app.notificationSitesWithWebview', '${counts.live}'),
+        MapEntry('app.notificationPermission',
+            permission == null ? 'not asked yet' : (permission ? 'granted' : 'denied')),
+        MapEntry('app.isolation', _useContainers ? 'containers' : 'legacy'),
+      ];
+    };
     // BGAUDIO-006: wire the Android media-notification transport channel.
     MediaSessionService.instance.initialize();
     unawaited(_updateBackgroundRefreshSchedule());
@@ -6332,25 +6373,56 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// pending request for the same identifier / unique-work name.
   Future<void> _updateBackgroundRefreshSchedule() async {
     if (!hostIsIOS && !hostIsAndroid) return;
-    int enabled = 0;
-    int loaded = 0;
-    for (int i = 0; i < _webViewModels.length; i++) {
-      final m = _webViewModels[i];
-      if (!m.effectiveNotificationsEnabled) continue;
-      enabled++;
-      if (_loadedIndices.contains(i)) loaded++;
-    }
-    final any = loaded > 0;
-    LogService.instance.log(
+    final counts = _notificationSiteCounts();
+    final any = counts.loaded > 0;
+    // A site with notifications on that is not loaded is one no wake will
+    // reload, and with none loaded nothing wakes the app at all.
+    BackgroundLog.instance.record(
       'BackgroundTask',
       '${any ? "schedule" : "cancel"} refresh — '
-          'notif sites: $enabled enabled, $loaded loaded',
+          'notif sites: ${counts.enabled} enabled, ${counts.loaded} loaded'
+          '${counts.loaded < counts.enabled ? ' (unloaded ones are not woken)' : ''}',
+      level: counts.loaded < counts.enabled ? LogLevel.warning : LogLevel.info,
     );
     if (any) {
       await BackgroundTaskService.instance.scheduleNextRefresh();
     } else {
       await BackgroundTaskService.instance.cancelScheduledRefreshes();
     }
+  }
+
+  /// What the background log reports instead of names: sites with
+  /// notifications on, how many of them are loaded, and how many have a live
+  /// webview a wake can reload.
+  ({int enabled, int loaded, int live}) _notificationSiteCounts() {
+    var enabled = 0;
+    var loaded = 0;
+    var live = 0;
+    for (var i = 0; i < _webViewModels.length; i++) {
+      final m = _webViewModels[i];
+      if (!m.effectiveNotificationsEnabled) continue;
+      enabled++;
+      if (!_loadedIndices.contains(i)) continue;
+      loaded++;
+      if (m.controller != null) live++;
+    }
+    return (enabled: enabled, loaded: loaded, live: live);
+  }
+
+  /// A notification site that leaves `_loadedIndices` is reloaded by no wake
+  /// and stays out until it is opened or the app restarts; say so in the
+  /// background log (DEVTOOLS-011). Call after the removal.
+  void _noteNotificationSiteUnloaded(WebViewModel m, String reason) {
+    if (!m.effectiveNotificationsEnabled) return;
+    final counts = _notificationSiteCounts();
+    BackgroundLog.instance.record(
+      'SiteUnload',
+      'notification site unloaded ($reason); '
+          '${counts.loaded} of ${counts.enabled} still loaded',
+      level: LogLevel.warning,
+      sensitive: 'unloaded notification site "${m.name}" '
+          '(siteId ${m.siteId}): $reason',
+    );
   }
 
   /// BGAUDIO-003: keep the iOS `.playback` audio session in sync with
@@ -6410,7 +6482,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         // Controller may have been disposed mid-iteration.
       }
     }
-    LogService.instance.log(
+    BackgroundLog.instance.record(
       'BackgroundTask',
       'refresh notif sites (excludeActive=$excludeActive): '
           'reloaded=$reloaded, skipped(unloaded)=$skippedUnloaded, '
@@ -6423,14 +6495,27 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// NOTIF-013/014: what an OS background wake runs. Returns once the
   /// reloaded pages have settled, which is what ends the OS task.
   Future<void> _backgroundWake() async {
+    final counts = _notificationSiteCounts();
+    BackgroundLog.instance.record(
+      'BackgroundTask',
+      'background wake: notif sites ${counts.enabled} enabled, '
+          '${counts.loaded} loaded, ${counts.live} with a live webview',
+      level: counts.live < counts.enabled ? LogLevel.warning : LogLevel.info,
+    );
     // A wake resumes the process without the app coming back to the
     // foreground, so the resume check tor's listener needs has not run yet
     // (TOR-024), and a Tor notification site would reload through a dead one.
     await TorService.instance.revive();
-    final posted = await _wakeEngine.wake(_WakeHost(this));
-    LogService.instance.log(
+    final report = await _wakeEngine.wake(_WakeHost(this));
+    for (var i = 0; i < report.sites.length; i++) {
+      final line = describeWakeSite(report.sites[i], i + 1, report.sites.length);
+      BackgroundLog.instance
+          .record('BackgroundTask', line.normal, sensitive: line.sensitive);
+    }
+    BackgroundLog.instance.record(
       'BackgroundTask',
-      'background wake done: unread fallback posts=$posted',
+      'background wake done: unread fallback posts=${report.posted}, '
+          'took ${(report.elapsed.inMilliseconds / 1000).toStringAsFixed(1)}s',
     );
   }
 
@@ -7220,6 +7305,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           if (curIndex < 0) continue; // deleted during the capture await
           model.disposeWebView();
           _loadedIndices.remove(curIndex);
+          _noteNotificationSiteUnloaded(model, 'webspace switch');
           LogService.instance.log(
             'WebspaceSwitch',
             'Unloaded site $curIndex: "${model.name}"',
@@ -7541,6 +7627,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     await writeExportedAppPrefs(prefsToWrite, prefs);
     // The registry write above set the raw key; the service caches it.
     await DeveloperModeService.instance.reload();
+    final importedCounts = _notificationSiteCounts();
+    if (importedCounts.enabled > 0) {
+      BackgroundLog.instance.record(
+        'SiteUnload',
+        'settings import: ${importedCounts.enabled} notification sites, '
+            '${importedCounts.loaded} loaded until opened or the next launch',
+        level: LogLevel.warning,
+      );
+    }
     await ExperimentalFeaturesService.instance.reload();
     await ExternalTorSettings.initialize();
     await TorService.instance.externalAddressChanged();
@@ -7909,6 +8004,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // it or recreate the disposed webview.
       if (i != _currentIndex) {
         _loadedIndices.remove(i);
+        _noteNotificationSiteUnloaded(m, 'home reset by a shortcut launch');
       }
     }
     for (final m in withTabs) {
@@ -8051,11 +8147,12 @@ class _WebSpacePageState extends State<WebSpacePage>
         proxyIsGlobal: true,
       );
       for (final i in mismatched) {
-        await _unloadSiteForOtherReason(i);
+        await _unloadSiteForOtherReason(i, reason: 'proxy mismatch');
         if (!mounted) return false;
       }
     } else {
       _loadedIndices.remove(slot);
+      _noteNotificationSiteUnloaded(model, 'identity change');
     }
     return mounted;
   }
@@ -11801,7 +11898,8 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
       );
 
   @override
-  Future<void> unload(int index) => state._unloadSiteForOtherReason(index);
+  Future<void> unload(int index) =>
+      state._unloadSiteForOtherReason(index, reason: 'proxy mismatch');
 
   @override
   Future<void> applyProxyOf(WebViewModel target) => ProxyManager()
@@ -11939,6 +12037,7 @@ class _WakeHost implements BackgroundWakeHost {
         body: body,
         // One fallback per site at a time: a later rise replaces it.
         tag: 'webspace-unread',
+        origin: NotificationOrigin.unreadFallback,
       );
 
   @override

@@ -374,6 +374,52 @@ Diagnostics accumulate. A blank-screen repaint action (`webview-pause-lifecycle`
 
 ---
 
+### Requirement: DEVTOOLS-011 - Background Log
+
+The app SHALL keep a **background log** while developer mode (DEVTOOLS-010) is on: a record of what happened while the app was not on screen, readable on the device itself, so a user whose notifications never arrived can see where the chain stopped without logcat or Console.app.
+
+The App Logs ring (DEVTOOLS-004) cannot answer that question. It lives in memory, so the process the OS killed in the background takes its lines with it, and the steps that matter most run in native code before any Dart exists: an Android `NotificationRefreshWorker` that finds no Flutter engine, an iOS `BGAppRefreshTask` that expires. The background log is written to a file the native plugins append to themselves, and Dart appends its own background lines to the same file.
+
+- **What it records.** App lifecycle transitions (backgrounded with the notification/background-audio inputs, resumed with the time away, the process start and, on iOS, the launch state); every schedule/cancel decision with the enabled and loaded notification-site counts; every OS refresh (iOS task receipt, expiration, supersession and completion; Android enqueue, cancel, worker run, engine reachability, completion or timeout, a worker stopped early with its stop reason; engine attach/detach); every wake with a per-site outcome (load settled or not, unread baseline and current count, whether the page or the wake posted, NOTIF-013/014); every notification posted, dropped for a denied permission, or failed; and every notification site unloaded, with the reason (memory pressure, proxy or Tor exit-country mismatch, the loaded-site cap, a webspace switch, a home reset, a settings import), since an unloaded site is woken by nothing.
+- **System state.** The tab SHALL show the OS gates a refresh and a notification depend on, read when it opens: on iOS the Background App Refresh status, Low Power Mode, notification authorization and alert setting, and the pending refresh requests; on Android notification enablement, the `POST_NOTIFICATIONS` grant, the channel importance, battery-optimisation exemption, power-save and idle mode, the standby bucket, background restriction, and the refresh work's state, attempts and next run time; on every platform the counts of notification sites enabled, loaded and with a live webview.
+- **Sensitive separation.** Each entry has a normal line that names sites only by position and count, and MAY have a sensitive companion carrying the site name, `siteId`, page title or notification text. The companion SHALL live only in memory, SHALL NOT reach the native file, an export, or the clipboard without the DEVTOOLS-004 confirmation, and SHALL be shown only while the tab's switch is on (reset per launch). The native side SHALL have no site data to record: its only path in from Dart is the append of normal lines.
+- **Lifetime.** Recording SHALL run only while developer mode is on, and turning developer mode off SHALL delete the log. The native file exists only while recording, so a process the OS starts for a background task records exactly when developer mode is on. The file SHALL be capped (newest 1000 lines, a few days of ordinary use) and compacted atomically.
+- **Single owner (BUG-007).** Every read, append, compaction and delete of the native file SHALL run on one serial executor (Android) or dispatch queue (iOS). Gated by `test/js/background_log_native.test.js`.
+- **Archive (ARCH-001, ARCH-006).** The log adds no SharedPreferences or secure-storage key, and archive-tier sites never have notifications on (`effectiveNotificationsEnabled`), so they are never woken, posted for, or named.
+
+#### Scenario: A wake that found no engine is on record after the process died
+
+**Given** developer mode is on and the app was backgrounded with a notification site loaded
+**And** Android later killed the process
+**When** the periodic refresh fires
+**Then** the worker's run and "no Flutter engine in this process; refresh skipped" are appended to the native file
+**And** the next time the user opens Developer Tools, the Background tab shows both lines
+
+#### Scenario: An unloaded notification site is named as the reason nothing wakes
+
+**Given** developer mode is on and one notification site is loaded
+**When** a memory-pressure event unloads it and the app is then backgrounded
+**Then** the log shows a warning that a notification site was unloaded for memory pressure, with 0 of 1 still loaded
+**And** the schedule line shows the refresh cancelled with 1 enabled and 0 loaded
+
+#### Scenario: Site names stay behind the switch and off disk
+
+**Given** a wake posted for a site named "Mail"
+**When** the user opens the Background tab
+**Then** the wake's per-site line reads "wake site 1/1: ..." with no name
+**When** the user turns on the switch
+**Then** the companion line naming "Mail" appears beneath it, marked sensitive
+**And** the native file, an export, and a copy without confirmation carry no "Mail"
+
+#### Scenario: Turning developer mode off deletes the log
+
+**Given** the background log holds entries
+**When** the user turns developer mode off
+**Then** the native file and the in-memory entries are deleted
+**And** nothing more is recorded until developer mode is on again
+
+---
+
 ### Requirement: DEVTOOLS-007 - Console Eval
 
 The app SHALL provide a JavaScript evaluation input in the Console tab, allowing users to execute arbitrary JS in the context of the current page and see results inline, like a standard browser console.
@@ -417,6 +463,9 @@ The app SHALL provide a JavaScript evaluation input in the Console tab, allowing
 |------|------|
 | `lib/services/log_service.dart` | LogService singleton, LogEntry, LogLevel enum |
 | `lib/screens/dev_tools.dart` | DevToolsScreen plus DevToolsHost abstraction (WebViewModelDevToolsHost, NestedDevToolsHost). Tabs/actions are gated on `host != null` (Console, Share HTML, Save Icon) and `host.blockedCookies != null` (Cookies, DNS, Scripts). |
+| `lib/services/background_log.dart` | DEVTOOLS-011 `BackgroundLog`: records background lines (normal to the native file, sensitive companions in memory), merges the native file with this process, exposes the system-state rows. |
+| `lib/widgets/background_log_view.dart` | The Background tab: system state, the log, the sensitive switch, Refresh / Export / Copy / Clear. |
+| `android/.../BackgroundLogFile.kt`, `ios/Runner/BackgroundTaskPlugin.swift` (`BackgroundLogFile`) | Native background-log file, single-owner executor / queue, and the system-state query. |
 | `lib/services/icon_png_export.dart` | Resolves a site favicon, fetches it via the proxy-aware icon client, and normalizes any source (PNG/ICO/JPEG/SVG) to PNG bytes (`exportIconAsPng`). |
 | `lib/screens/inappbrowser.dart` | InAppWebViewScreen owns a NestedDevToolsHost: forwards onConsoleMessage / onUrlChanged / onControllerCreated and exposes a "Developer Tools" entry in the popup menu. |
 
@@ -463,4 +512,5 @@ class ConsoleLogEntry {
 8. **Filtered copy**: on each tab, enter a search query, tap Copy, and verify clipboard contains only the matching entries (not all). On the DNS tab also select the "Blocked" chip and confirm the allowed lookups stay off the clipboard
 8a. **Sensitive copy**: on the App Logs tab turn on "Show sensitive entries", tap Copy, cancel the dialog and verify the clipboard is untouched; tap Copy again, confirm, and verify the sensitive lines are in the paste. Then tap Export and verify the written file has none of them
 9. Go back, open App Settings -> App Logs: verify it works without a site loaded (share and scripts icons should not appear)
+9a. **Background log**: with developer mode on, App Settings -> Background log opens Developer Tools on the Background tab. Background the app, wait for a refresh (or use Simulate background refresh on a site's App Logs tab), reopen and verify the lines and the System state rows. Turn on the switch and verify site names appear only then; Export and verify the file has none. Turn developer mode off and on and verify the log is empty
 10. **Developer mode**: App Settings -> About -> tap Version seven times; verify the countdown starts on the third tap, each message replaces the last, and the seventh confirms. Verify a Developer mode switch appears in the Developer section, and that the page overflow menu now carries Repaint Screen on Android. Turn the switch off and verify the entry goes away

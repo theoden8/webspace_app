@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Vispirms pievienojiet vārteju.",
   "proxyLibraryGatewayMissing": "Trūkst vārtejas",
   "proxyLibraryCredentialsMissing": "Trūkst pieteikšanās datu",
-  "proxyLibraryCredentialsMismatch": "Pieteikšanās dati neatbilst šai vārtejai"
+  "proxyLibraryCredentialsMismatch": "Pieteikšanās dati neatbilst šai vārtejai",
+  "appSettingsBackgroundLog": "Fona žurnāls",
+  "appSettingsBackgroundLogHint": "Ieraksta, kas notiek, kamēr WebSpace nav ekrānā: iziešana un atgriešanās, sistēmas ieplānotā fona atsvaidzināšana, katra pamodināšana un tās publicētie paziņojumi, ieskaitot darbības, ko iOS un Android veic pirms lietotnes palaišanas. Saglabājas pēc restartēšanas, kamēr ir ieslēgts izstrādātāja režīms; tā izslēgšana dzēš žurnālu. Ieraksti, kuros minēta vietne, lapas virsraksts vai paziņojuma teksts, paliek tikai atmiņā un nekad nenonāk failā.",
+  "devToolsTabBackground": "Fons",
+  "devToolsBackgroundSystemState": "Sistēmas stāvoklis",
+  "devToolsBackgroundEmpty": "Vēl nav reģistrēts neviens fona notikums",
+  "devToolsBackgroundSensitiveShow": "Rādīt ierakstus, kuros minētas vietnes (nosaukumi, lapu virsraksti, paziņojumu teksts)",
+  "devToolsBackgroundSensitiveShowing": "Tiek rādīti ieraksti, kuros minētas vietnes. Tie tiek glabāti tikai atmiņā un atiestatās pēc lietotnes restartēšanas.",
+  "devToolsBackgroundCopySensitiveBody": "{count} no parādītajiem ierakstiem min vietnes vai satur lapu virsrakstus un paziņojumu tekstu. Starpliktuve var sinhronizēties ārpus ierīces."
 }

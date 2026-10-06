@@ -17,9 +17,12 @@ import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/widgets/background_log_view.dart';
+import 'package:webspace/widgets/log_entry_line.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
 
@@ -172,6 +175,9 @@ class DevToolsScreen extends StatefulWidget {
   /// the top-level (per-site) launch; null for nested webviews.
   final VoidAsyncCallback? onSimulateBackgroundRefresh;
 
+  /// Open on the Background tab (DEVTOOLS-011) when developer mode shows it.
+  final bool startOnBackground;
+
   const DevToolsScreen({
     super.key,
     this.host,
@@ -180,6 +186,7 @@ class DevToolsScreen extends StatefulWidget {
     this.onSave,
     this.globalUserScripts = const [],
     this.onSimulateBackgroundRefresh,
+    this.startOnBackground = false,
   });
 
   @override
@@ -225,8 +232,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   bool get _hasSiteState => widget.host?.blockedCookies != null;
 
   bool get _hasDnsBlocklist => DnsBlockService.instance.hasBlocklist;
+
+  /// Read once: a tab that appears or vanishes under an open TabController
+  /// would leave its length wrong.
+  final bool _hasBackgroundTab = DeveloperModeService.instance.enabled;
+
   int get _tabCount {
     var n = 1; // App Logs is always present.
+    if (_hasBackgroundTab) n += 1;
     if (_hasHost) n += 1; // Console
     if (_hasSiteState) {
       n += 1; // Cookies
@@ -308,6 +321,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (ContentBlockerService.instance.usingRustEngine)
         Tab(icon: const Icon(Icons.speed, size: 18), text: loc.devToolsTabAbp),
       Tab(icon: const Icon(Icons.list_alt, size: 18), text: loc.devToolsTabLogs),
+      if (_hasBackgroundTab)
+        Tab(
+            icon: const Icon(Icons.bedtime_outlined, size: 18),
+            text: loc.devToolsTabBackground),
     ];
   }
 
@@ -333,6 +350,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final loc = AppLocalizations.of(context);
     return DefaultTabController(
       length: _tabCount,
+      initialIndex:
+          widget.startOnBackground && _hasBackgroundTab ? _tabCount - 1 : 0,
       child: Scaffold(
         appBar: AppBar(
           title: Text(loc.devToolsTitle),
@@ -402,6 +421,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   if (ContentBlockerService.instance.usingRustEngine)
                     _buildAbpTab(),
                   _buildAppLogsTab(),
+                  if (_hasBackgroundTab)
+                    BackgroundLogView(searchQuery: _searchQuery),
                 ],
               ),
             ),
@@ -1685,6 +1706,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       siteId: siteId,
       title: loc.devToolsTestNotificationTitle,
       body: loc.devToolsTestNotificationBody,
+      origin: NotificationOrigin.test,
     );
     if (!mounted) return;
     setState(() {});
@@ -1844,68 +1866,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  Widget _buildLogEntry(LogEntry entry) {
-    Color color;
-    switch (entry.level) {
-      case LogLevel.warning:
-        color = Colors.amber;
-        break;
-      case LogLevel.error:
-        color = Colors.red;
-        break;
-      case LogLevel.info:
-        color = Colors.blue;
-        break;
-      default:
-        color = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white;
-    }
-    final isSensitive = entry.sensitivity == LogSensitivity.sensitive;
-    final prefix = isSensitive ? '[SENSITIVE] ' : '';
-    final line =
-        '[${_formatTime(entry.timestamp)}] $prefix[${entry.tag}] ${entry.message}';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 1.0),
-      decoration: isSensitive
-          ? BoxDecoration(
-              border: Border(
-                left: BorderSide(color: Colors.deepOrange.shade400, width: 3),
-              ),
-            )
-          : null,
-      child: SelectableText(
-        line,
-        style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: color),
-      ),
-    );
-  }
+  Widget _buildLogEntry(LogEntry entry) =>
+      LogEntryLine(entry: entry, time: _formatTime(entry.timestamp));
 
-  Future<void> _exportLogs() async {
-    final text = LogService.instance.export();
-    if (text.isEmpty) return;
-
-    final bytes = utf8.encode(text);
-    final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
-    final fileName = 'webspace_logs_$timestamp.txt';
-
-    final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
-    if (!mounted) return;
-    final outputPath = await FilePicker.saveFile(
-      dialogTitle: AppLocalizations.of(context).devToolsExportLogsDialogTitle,
-      fileName: fileName,
-      bytes: isMobile ? bytes : null,
-    );
-
-    if (outputPath != null && !isMobile) {
-      final filePath = outputPath.endsWith('.txt') ? outputPath : '$outputPath.txt';
-      await hostWriteFileText(filePath, text);
-    }
-
-    if (mounted && outputPath != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).devToolsLogsExported)),
-      );
-    }
-  }
+  Future<void> _exportLogs() =>
+      saveLogText(context, LogService.instance.export(),
+          fileNamePrefix: 'webspace_logs');
 
   // ── Helpers ──
 

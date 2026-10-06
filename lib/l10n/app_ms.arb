@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Tambah get laluan dahulu.",
   "proxyLibraryGatewayMissing": "Get laluan tidak ditemui",
   "proxyLibraryCredentialsMissing": "Kelayakan tidak ditemui",
-  "proxyLibraryCredentialsMismatch": "Kelayakan tidak sepadan dengan get laluan ini"
+  "proxyLibraryCredentialsMismatch": "Kelayakan tidak sepadan dengan get laluan ini",
+  "appSettingsBackgroundLog": "Log latar belakang",
+  "appSettingsBackgroundLogHint": "Merekodkan apa yang berlaku semasa WebSpace tiada pada skrin: keluar dan kembali, segar semula latar belakang yang dijadualkan oleh sistem, setiap bangkitan dan pemberitahuan yang disiarkannya, termasuk langkah yang dijalankan oleh iOS dan Android sebelum aplikasi bermula. Disimpan merentas mula semula selagi mod pembangun dihidupkan; mematikannya memadamkan log. Entri yang menamakan tapak, tajuk halaman atau teks pemberitahuan kekal dalam memori dan tidak pernah sampai ke fail.",
+  "devToolsTabBackground": "Latar belakang",
+  "devToolsBackgroundSystemState": "Keadaan sistem",
+  "devToolsBackgroundEmpty": "Belum ada peristiwa latar belakang direkodkan",
+  "devToolsBackgroundSensitiveShow": "Tunjukkan entri yang menamakan tapak (nama, tajuk halaman, teks pemberitahuan)",
+  "devToolsBackgroundSensitiveShowing": "Memaparkan entri yang menamakan tapak. Ia hanya disimpan dalam memori dan diset semula apabila aplikasi dimulakan semula.",
+  "devToolsBackgroundCopySensitiveBody": "{count} daripada entri yang dipaparkan menamakan tapak atau mengandungi tajuk halaman dan teks pemberitahuan. Papan keratan boleh disegerakkan ke luar peranti."
 }

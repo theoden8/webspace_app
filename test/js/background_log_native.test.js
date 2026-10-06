@@ -1,0 +1,140 @@
+// Background log native-store gate (DEVTOOLS-011, BUG-007).
+//
+// The native half of the background log is a file touched from the platform
+// thread (channel calls), the WorkManager coroutine / BGTaskScheduler queue
+// and iOS expiration handlers. It is safe only while one serial executor owns
+// every read, append, compaction and delete: a file operation that runs
+// outside it races a compaction rename and loses or duplicates lines, the
+// partial-synchronisation shape BUG-007 keeps finding.
+//
+// No Android or iOS runtime runs in these tiers, so this is structural (like
+// native_bgtask_completion_funnel): every file operation must sit lexically
+// inside the executor block, or in a helper only ever called from inside one.
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const repoRoot = path.resolve(__dirname, '..', '..');
+const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+
+const ktRel =
+  'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundLogFile.kt';
+const swiftRel = 'ios/Runner/BackgroundTaskPlugin.swift';
+
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+    .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
+}
+
+// [start, end) of the brace block opening at or after `from`.
+function blockAt(src, from) {
+  const open = src.indexOf('{', from);
+  let depth = 0;
+  for (let i = open; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}' && --depth === 0) return [open, i + 1];
+  }
+  throw new Error('unbalanced braces');
+}
+
+function blocksAfter(src, opener) {
+  const out = [];
+  for (let i = src.indexOf(opener); i !== -1; i = src.indexOf(opener, i + 1)) {
+    out.push(blockAt(src, i + opener.length - 1));
+  }
+  return out;
+}
+
+const inside = (ranges, i) => ranges.some(([a, b]) => i > a && i < b);
+
+function offences(src, { executor, ops, helpers, skip = [] }) {
+  const owned = blocksAfter(src, executor);
+  assert.ok(owned.length > 0, `no ${executor} blocks found`);
+  const helperBodies = helpers.map((h) => blockAt(src, src.indexOf(h.decl)));
+  const out = [];
+  for (const m of src.matchAll(ops)) {
+    if (skip.some((s) => src.slice(m.index - 80, m.index + 1).includes(s))) continue;
+    if (inside(owned, m.index) || inside(helperBodies, m.index)) continue;
+    const line = src.slice(0, m.index).split('\n').length;
+    out.push(`line ${line}: ${m[0]}`);
+  }
+  for (const h of helpers) {
+    const declAt = src.indexOf(h.decl);
+    for (const m of src.matchAll(h.call)) {
+      if (m.index >= declAt && m.index < declAt + h.decl.length) continue;
+      if (!inside(owned, m.index)) {
+        out.push(`${h.decl.trim()} called outside ${executor}`);
+      }
+    }
+  }
+  return out;
+}
+
+test('Android: every file operation runs on the one executor', () => {
+  const src = stripComments(read(ktRel));
+  assert.equal((src.match(/Executors\.newSingleThreadExecutor/g) || []).length, 1,
+    `${ktRel} must own exactly one single-thread executor`);
+  assert.ok(!/\bsynchronized\s*\(|@Volatile/.test(src),
+    `${ktRel} must not mix a lock into the single-owner design`);
+  assert.deepEqual(offences(src, {
+    executor: 'io.execute {',
+    ops: /\bFile\(|FileOutputStream\(|\.readLines\(|\.writeText\(|\.createNewFile\(|\.renameTo\(|\.delete\(\)/g,
+    helpers: [{ decl: 'private fun compact(', call: /\bcompact\(/g }],
+  }), []);
+});
+
+test('iOS: every file operation runs on the one serial queue', () => {
+  const all = stripComments(read(swiftRel));
+  const start = all.indexOf('final class BackgroundLogFile');
+  assert.notEqual(start, -1, `${swiftRel} must define BackgroundLogFile`);
+  const [a, b] = blockAt(all, start);
+  const src = all.slice(a, b);
+  assert.equal((src.match(/DispatchQueue\(label:/g) || []).length, 1,
+    'BackgroundLogFile must own exactly one serial queue');
+  assert.deepEqual(offences(src, {
+    executor: 'queue.async {',
+    ops: /FileManager\.default|FileHandle\(|String\(contentsOf:|\.write\(to:|\.removeItem\(|\.createFile\(/g,
+    helpers: [{ decl: 'private static func compact(', call: /\.compact\(/g }],
+    // The path is computed once at init; nothing touches the file there.
+    skip: ['private let url: URL? ='],
+  }), []);
+});
+
+test('only the background-log owners name the file', () => {
+  // A second writer elsewhere would be outside the executor by construction.
+  const owners = new Set([ktRel, swiftRel]);
+  const hits = [];
+  const walk = (rel) => {
+    for (const e of fs.readdirSync(path.join(repoRoot, rel), { withFileTypes: true })) {
+      const child = `${rel}/${e.name}`;
+      if (e.isDirectory()) walk(child);
+      else if (/\.(kt|swift|dart)$/.test(e.name) &&
+          read(child).includes('background_log.jsonl') && !owners.has(child)) {
+        hits.push(child);
+      }
+    }
+  };
+  for (const root of ['android/app/src', 'ios/Runner', 'macos/Runner', 'lib']) walk(root);
+  assert.deepEqual(hits, []);
+});
+
+test('the native file takes only what Dart appends and its own lines', () => {
+  // Sensitive separation: the native side has no site data, so the only way a
+  // site name could reach the file is a native record() fed from a channel
+  // argument. The single channel path in is appendBackgroundLog.
+  for (const rel of [
+    'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundTaskAndroidPlugin.kt',
+    'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/NotificationRefreshWorker.kt',
+    swiftRel,
+    'ios/Runner/AppDelegate.swift',
+  ]) {
+    const src = stripComments(read(rel));
+    for (const m of src.matchAll(/BackgroundLogFile(?:\.shared)?\.record\(([\s\S]*?)\)\s*\n/g)) {
+      assert.ok(!/call\.arguments|args\[|args\?\./.test(m[1]),
+        `${rel}: a native record() is fed from a channel argument: ${m[1].trim()}`);
+    }
+  }
+});

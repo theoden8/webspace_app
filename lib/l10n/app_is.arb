@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Bættu fyrst við gátt.",
   "proxyLibraryGatewayMissing": "Gátt vantar",
   "proxyLibraryCredentialsMissing": "Auðkenni vantar",
-  "proxyLibraryCredentialsMismatch": "Auðkennin passa ekki við þessa gátt"
+  "proxyLibraryCredentialsMismatch": "Auðkennin passa ekki við þessa gátt",
+  "appSettingsBackgroundLog": "Bakgrunnsannáll",
+  "appSettingsBackgroundLogHint": "Skráir hvað gerist á meðan WebSpace er ekki á skjánum: þegar farið er og snúið aftur, bakgrunnsuppfærsluna sem kerfið tímasetur, hverja vakningu og tilkynningarnar sem hún birtir, þar á meðal skref sem iOS og Android keyra áður en forritið ræsist. Varðveitist milli endurræsinga meðan þróunarhamur er virkur; ef slökkt er á honum er annálnum eytt. Færslur sem nefna vefsvæði, síðutitil eða tilkynningartexta haldast í minni og fara aldrei í skrá.",
+  "devToolsTabBackground": "Bakgrunnur",
+  "devToolsBackgroundSystemState": "Staða kerfis",
+  "devToolsBackgroundEmpty": "Engir bakgrunnsatburðir skráðir enn",
+  "devToolsBackgroundSensitiveShow": "Sýna færslur sem nefna vefsvæði (heiti, síðutitlar, tilkynningartexti)",
+  "devToolsBackgroundSensitiveShowing": "Sýni færslur sem nefna vefsvæði. Þær eru aðeins geymdar í minni og endurstillast við endurræsingu forrits.",
+  "devToolsBackgroundCopySensitiveBody": "{count} af sýndum færslum nefna vefsvæði eða innihalda síðutitla og tilkynningartexta. Klippiborðið getur samstillst út fyrir tækið."
 }

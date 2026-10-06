@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Najprv pridajte bránu.",
   "proxyLibraryGatewayMissing": "Chýbajúca brána",
   "proxyLibraryCredentialsMissing": "Chýbajúce prihlasovacie údaje",
-  "proxyLibraryCredentialsMismatch": "Prihlasovacie údaje nepatria k tejto bráne"
+  "proxyLibraryCredentialsMismatch": "Prihlasovacie údaje nepatria k tejto bráne",
+  "appSettingsBackgroundLog": "Protokol na pozadí",
+  "appSettingsBackgroundLogHint": "Zaznamenáva, čo sa deje, keď WebSpace nie je na obrazovke: odchod a návrat, obnovenie na pozadí naplánované systémom, každé prebudenie a upozornenia, ktoré odošle, vrátane krokov, ktoré iOS a Android vykonajú pred spustením aplikácie. Uchováva sa aj po reštarte, kým je zapnutý režim pre vývojárov; jeho vypnutie protokol vymaže. Záznamy, ktoré menujú stránku, názov stránky alebo text upozornenia, zostávajú len v pamäti a nikdy sa nedostanú do súboru.",
+  "devToolsTabBackground": "Pozadie",
+  "devToolsBackgroundSystemState": "Stav systému",
+  "devToolsBackgroundEmpty": "Zatiaľ neboli zaznamenané žiadne udalosti na pozadí",
+  "devToolsBackgroundSensitiveShow": "Zobraziť záznamy, ktoré menujú stránky (názvy, titulky stránok, text upozornení)",
+  "devToolsBackgroundSensitiveShowing": "Zobrazujú sa záznamy, ktoré menujú stránky. Uchovávajú sa len v pamäti a pri reštarte aplikácie sa vynulujú.",
+  "devToolsBackgroundCopySensitiveBody": "{count} zobrazených záznamov menuje stránky alebo obsahuje titulky stránok a text upozornení. Schránka sa môže synchronizovať mimo zariadenia."
 }

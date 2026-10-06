@@ -1042,5 +1042,13 @@
   "proxyLibraryNoGateways": "Fügen Sie zuerst ein Gateway hinzu.",
   "proxyLibraryGatewayMissing": "Gateway fehlt",
   "proxyLibraryCredentialsMissing": "Zugangsdaten fehlen",
-  "proxyLibraryCredentialsMismatch": "Zugangsdaten passen nicht zu diesem Gateway"
+  "proxyLibraryCredentialsMismatch": "Zugangsdaten passen nicht zu diesem Gateway",
+  "appSettingsBackgroundLog": "Hintergrundprotokoll",
+  "appSettingsBackgroundLogHint": "Zeichnet auf, was geschieht, während WebSpace nicht auf dem Bildschirm ist: Verlassen und Zurückkehren, die vom System geplante Hintergrundaktualisierung, jedes Aufwecken und die dabei gesendeten Benachrichtigungen, einschließlich der Schritte, die iOS und Android ausführen, bevor die App startet. Bleibt über Neustarts erhalten, solange der Entwicklermodus aktiv ist; das Ausschalten löscht das Protokoll. Einträge, die eine Website, einen Seitentitel oder Benachrichtigungstext nennen, bleiben im Arbeitsspeicher und gelangen nie in eine Datei.",
+  "devToolsTabBackground": "Hintergrund",
+  "devToolsBackgroundSystemState": "Systemzustand",
+  "devToolsBackgroundEmpty": "Noch keine Hintergrundereignisse aufgezeichnet",
+  "devToolsBackgroundSensitiveShow": "Einträge anzeigen, die Websites nennen (Namen, Seitentitel, Benachrichtigungstext)",
+  "devToolsBackgroundSensitiveShowing": "Einträge, die Websites nennen, werden angezeigt. Sie liegen nur im Arbeitsspeicher und werden beim App-Neustart zurückgesetzt.",
+  "devToolsBackgroundCopySensitiveBody": "{count} der angezeigten Einträge nennen Websites oder enthalten Seitentitel und Benachrichtigungstext. Die Zwischenablage kann außerhalb des Geräts synchronisiert werden."
 }

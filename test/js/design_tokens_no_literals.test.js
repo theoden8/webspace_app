@@ -44,6 +44,8 @@ const MIGRATED = [
   'lib/widgets/proxy_choice_dropdown.dart',
   'lib/widgets/proxy_status_indicator.dart',
   'lib/screens/saved_proxies.dart',
+  'lib/widgets/background_log_view.dart',
+  'lib/widgets/log_entry_line.dart',
 ];
 
 const PENDING = [
