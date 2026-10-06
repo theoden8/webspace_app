@@ -34,6 +34,7 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
@@ -50,6 +51,7 @@ import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -504,7 +506,8 @@ class WebViewModel {
 
   /// A kiosk site runs as one page, never with tabs (TAB-013). Turning tabs
   /// off this way keeps the tab list, as the app-wide switch does (TAB-012).
-  bool get effectiveTabsEnabled => tabsEnabled && !kioskMode;
+  bool get effectiveTabsEnabled =>
+      resolveTabs(tabs: tabsEnabled, kiosk: kioskMode);
 
   /// The colour this site's container is drawn in, as an index into the
   /// container palette (TAB-018). Given once, when the site first needs one,
@@ -608,10 +611,11 @@ class WebViewModel {
   /// betray that an archive exists: a per-site level pins a downloaded level
   /// file, and a per-site list selection rewrites the shared engine cache
   /// blob. Archive sites run the app-wide posture instead.
-  int? get effectiveDnsBlockLevel => isArchiveTier ? null : dnsBlockLevel;
+  int? get effectiveDnsBlockLevel =>
+      ArchiveFold.dnsBlockLevel(dnsBlockLevel, archived: isArchiveTier);
 
-  Set<String> get effectiveDisabledFilterLists =>
-      isArchiveTier ? const <String>{} : disabledFilterLists;
+  Set<String> get effectiveDisabledFilterLists => ArchiveFold.disabledFilterLists(
+      disabledFilterLists, archived: isArchiveTier);
   /// Umbrella per-site Enhanced Tracking Protection: when true, applies
   /// the anti-fingerprinting JS shim (Canvas/WebGL/audio/fonts/screen/
   /// hardware/timing) AND forces clearUrlEnabled, dnsBlockEnabled, and
@@ -932,21 +936,21 @@ class WebViewModel {
   /// polling or `flutter_local_notifications` delivery regardless of
   /// stored value.
   bool get effectiveNotificationsEnabled =>
-      isArchiveTier ? false : notificationsEnabled;
+      ArchiveFold.notifications(notificationsEnabled, archived: isArchiveTier);
 
   /// Effective background-audio enable. Archive-tier sites never opt out
   /// of lifecycle pausing: audibly playing while the app looks idle (and
   /// surfacing in the OS now-playing UI) would reveal an open archive
   /// (ARCH-006).
-  bool get effectiveBackgroundAudioEnabled =>
-      isArchiveTier ? false : backgroundAudioEnabled;
+  bool get effectiveBackgroundAudioEnabled => ArchiveFold.backgroundAudio(
+      backgroundAudioEnabled, archived: isArchiveTier);
 
   /// Effective HTML-cache enable. Archive-tier sites never write the
   /// encrypted-at-rest HTML cache (the cache file path is keyed by
   /// `siteId`, so its existence would correlate to specific archive
   /// sites on disk inspection — ARCH-006).
   bool get effectiveHtmlCachingEnabled =>
-      isArchiveTier ? false : htmlCachingEnabled;
+      ArchiveFold.htmlCaching(htmlCachingEnabled, archived: isArchiveTier);
 
   /// Whether this site's block events roll into the app-wide protection
   /// report. Archive-tier sites never do: the report's counters live in
@@ -975,7 +979,8 @@ class WebViewModel {
   /// browsing state on disk, contradicting the spec's "nothing survives a
   /// session beyond cookies." The stored value is preserved for when the
   /// site is moved back out of the archive.
-  bool get effectiveIncognito => isArchiveTier ? true : incognito;
+  bool get effectiveIncognito =>
+      ArchiveFold.incognito(incognito, archived: isArchiveTier);
 
   /// What the site may do with sign-ins typed into the HTTP authentication
   /// prompt (HTTPAUTH-004). Archive-tier sites neither read nor save: the
@@ -992,16 +997,21 @@ class WebViewModel {
   /// list-based subordinates it already forces on, except that this one is
   /// forced *off* rather than on.
   bool get effectiveThirdPartyCookiesEnabled =>
-      trackingProtectionEnabled ? false : thirdPartyCookiesEnabled;
+      _forcedByTrackingProtection(
+          TrackingProtectionForce.thirdPartyCookies, thirdPartyCookiesEnabled);
 
   /// Effective HTTPS upgrade decision. Tracking Protection forces it on
   /// (ETP-030); otherwise the site's own override, or the app-wide default
   /// when it has none. Unlike ETP-002's subordinates this is NOT off when the
   /// umbrella is off: turning the umbrella off to make a site work must not be
   /// what moves a login page to cleartext.
-  bool get effectiveHttpsUpgradeEnabled => trackingProtectionEnabled
-      ? true
-      : (httpsUpgradeEnabled ?? WebViewFactory.httpsUpgradeEnabled);
+  bool get effectiveHttpsUpgradeEnabled => _forcedByTrackingProtection(
+      TrackingProtectionForce.httpsUpgrade,
+      Scoped.fromStored(httpsUpgradeEnabled)
+          .resolve(WebViewFactory.httpsUpgradeEnabled));
+
+  bool _forcedByTrackingProtection(TrackingProtectionForce force, bool stored) =>
+      force.resolve(stored, trackingProtection: trackingProtectionEnabled);
 
   /// Tracking Protection on a proxied site never runs direct WebRTC
   /// (ETP-031). "Proxied" follows the same ladder as the webview's own
@@ -1022,10 +1032,10 @@ class WebViewModel {
   /// fingerprint randomization and data clears. Both deny without
   /// prompting (false, never null = never "ask"); the stored value is
   /// preserved for when the umbrella is turned off.
-  bool? get effectiveProtectedContentAllowed =>
-      (isArchiveTier || trackingProtectionEnabled)
-          ? false
-          : protectedContentAllowed;
+  bool? get effectiveProtectedContentAllowed => resolveProtectedContent(
+      protectedContentAllowed,
+      archived: isArchiveTier,
+      trackingProtection: trackingProtectionEnabled);
 
   /// Effective camera-access mode. Archive-tier sites are forced to
   /// [CameraAccessMode.block] regardless of stored value: the permission
@@ -1037,7 +1047,7 @@ class WebViewModel {
   /// user-picked file (virtual), so it is not a silent tracking vector the
   /// umbrella needs to close.
   CameraAccessMode get effectiveCameraMode =>
-      isArchiveTier ? CameraAccessMode.block : cameraMode;
+      ArchiveFold.camera(cameraMode, archived: isArchiveTier);
 
   /// Effective microphone-access mode. Archive-tier sites are forced to
   /// [MicrophoneAccessMode.block] regardless of stored value: the permission
@@ -1045,7 +1055,7 @@ class WebViewModel {
   /// archive sites. Blocked without prompting; the stored value and any
   /// picked clip are preserved for when the site leaves the archive.
   MicrophoneAccessMode get effectiveMicrophoneMode =>
-      isArchiveTier ? MicrophoneAccessMode.block : microphoneMode;
+      ArchiveFold.microphone(microphoneMode, archived: isArchiveTier);
 
   /// Effective screen-sharing mode. Archive-tier sites are forced to
   /// [ScreenShareMode.block] regardless of stored value: the permission popup
@@ -1053,7 +1063,7 @@ class WebViewModel {
   /// sites. Blocked without prompting; the stored value and any picked source
   /// are preserved for when the site leaves the archive.
   ScreenShareMode get effectiveScreenShareMode =>
-      isArchiveTier ? ScreenShareMode.block : screenShareMode;
+      ArchiveFold.screenShare(screenShareMode, archived: isArchiveTier);
 
   /// Passkeys (PASSKEY-001): every site but an archive-tier one. The system
   /// passkey sheet is OS-level UI naming the relying party, and a created
@@ -1066,24 +1076,24 @@ class WebViewModel {
   /// boundary (ARCH-006), so a stored [ExternalLinkMode.browser] keeps links
   /// in-app there. Blocking crosses nothing and stays in force.
   ExternalLinkMode get effectiveExternalLinkMode =>
-      isArchiveTier && externalLinkMode == ExternalLinkMode.browser
-          ? ExternalLinkMode.inApp
-          : externalLinkMode;
+      ArchiveFold.externalLinks(externalLinkMode, archived: isArchiveTier);
 
   /// Outbound routing is an option of the in-app mode (LIR-014): in any
   /// other mode the switch is hidden and its stored value inert.
-  bool get effectiveRouteOutboundLinks =>
-      routeOutboundLinks && externalLinkMode == ExternalLinkMode.inApp;
+  bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
+      route: routeOutboundLinks, mode: externalLinkMode);
 
   /// Everything a webview that runs as this site applies (CLAUDE.md, "Per-site
   /// settings MUST apply to nested webviews"). The archive tier's overrides
   /// come from the `effective*` getters above; Tracking Protection's forced
-  /// subordinates are applied here and nowhere else (ETP-002). Read at the
-  /// moment a surface is built, so a link opened later carries the decisions
-  /// made since. [globalUserScripts] is the app's list, of which the site opts
-  /// into some.
+  /// subordinates are applied here, by the rules in site_overrides.dart
+  /// (ETP-002). Read at the moment a surface is built, so a link opened later
+  /// carries the decisions made since. [globalUserScripts] is the app's list,
+  /// of which the site opts into some.
   SitePosture sitePosture({required List<UserScriptConfig> globalUserScripts}) {
     final tp = trackingProtectionEnabled;
+    bool forced(TrackingProtectionForce force, bool stored) =>
+        _forcedByTrackingProtection(force, stored);
     return SitePosture(
       siteId: siteId,
       container: (
@@ -1095,10 +1105,11 @@ class WebViewModel {
         passkeys: effectivePasskeysEnabled,
       ),
       blocking: (
-        clearUrls: clearUrlEnabled || tp,
-        dns: dnsBlockEnabled || tp,
+        clearUrls: forced(TrackingProtectionForce.clearUrls, clearUrlEnabled),
+        dns: forced(TrackingProtectionForce.dnsBlock, dnsBlockEnabled),
         dnsLevel: effectiveDnsBlockLevel,
-        contentBlock: contentBlockEnabled || tp,
+        contentBlock:
+            forced(TrackingProtectionForce.contentBlock, contentBlockEnabled),
         httpsUpgrade: effectiveHttpsUpgradeEnabled,
         contributesStats: contributesBlockStats,
         blockedCookies: blockedCookies,

@@ -110,7 +110,8 @@ class SitePrivacyValues {
 
   /// The archive drops the per-site level, which would pin a level file on
   /// disk outside its keyspace.
-  int? get effectiveDnsBlockLevel => archived ? null : dnsBlockLevel.stored;
+  int? get effectiveDnsBlockLevel =>
+      ArchiveFold.dnsBlockLevel(dnsBlockLevel.stored, archived: archived);
 
   /// The app-wide switch covers every site (SCREENBLOCK-002).
   bool get effectiveBlockScreenshots =>
@@ -353,7 +354,8 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
     final available =
         ContentBlockerService.instance.lists.where((l) => l.enabled).toList();
     if (available.isEmpty) return const SizedBox.shrink();
-    final off = _values.archived ? const <String>{} : _values.disabledFilterLists;
+    final off = ArchiveFold.disabledFilterLists(_values.disabledFilterLists,
+        archived: _values.archived);
     final onCount = available.where((l) => !off.contains(l.id)).length;
     return SettingTile(
       contentPadding: _nested,

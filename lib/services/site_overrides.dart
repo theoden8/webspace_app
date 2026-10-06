@@ -1,7 +1,7 @@
 /// The per-site override rules: what a site runs with, as a pure function of
-/// what it stores and what overrides it. The settings screens show these, and
-/// what they show must be what the webview runs with, so each rule lives here
-/// once rather than as a mirror beside every reader.
+/// what it stores and what overrides it. WebViewModel's `effective*` getters
+/// and the settings screens both read them, so what a screen shows is what
+/// the webview runs with, and each rule is stated once.
 library;
 
 import 'package:webspace/settings/camera.dart';
@@ -70,6 +70,16 @@ abstract final class ArchiveFold {
 
   static bool incognito(bool stored, {required bool archived}) =>
       stored || archived;
+
+  /// Both blocker masks leave a trace outside the archive's keyspace: a
+  /// per-site level pins a downloaded level file, a per-site list selection
+  /// rewrites the shared engine cache. Archive sites run the app-wide ones.
+  static int? dnsBlockLevel(int? stored, {required bool archived}) =>
+      archived ? null : stored;
+
+  static Set<String> disabledFilterLists(Set<String> stored,
+          {required bool archived}) =>
+      archived ? const <String>{} : stored;
 
   /// Launching the system browser crosses the archive's isolation boundary;
   /// blocking crosses nothing and stays.

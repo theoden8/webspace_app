@@ -353,9 +353,22 @@ A settings row has three places text can go and they are not interchangeable.
 - **Title** — what the setting is.
 - **Subtitle** — what it is set to, or a status that moves: a value, a count,
   `Not configured`, `System`, `Forced off by Tracking Protection`. Often absent.
-- **`HintButton`** ([lib/widgets/hint_button.dart](lib/widgets/hint_button.dart)) —
-  what it does, what it costs, when to want it. Sits next to the title, opens a
-  dialog, and costs one icon of layout however long the text is.
+- **Hint** — what it does, what it costs, when to want it. A `HintButton`
+  beside the title opens it as a dialog, at one icon of layout however long the
+  text is.
+
+Build the row from [lib/widgets/setting_tile.dart](lib/widgets/setting_tile.dart):
+`SettingTile(title:, hint:, subtitle:, control:, lock:)`, or `HintedTitle` where
+a row is not a list tile. `hint` is required (pass `null` for none), `control`
+is `Toggle`/`Opens`/`Trailing`, and a row another setting decides takes a
+sealed `Lock` (Tracking Protection, archive, app-wide, not downloaded,
+platform), which disables it and puts the reason in the subtitle. A mode picker
+is an `EnumTile` labelled by a `switch` extension in
+[lib/settings/setting_labels.dart](lib/settings/setting_labels.dart); a
+per-site value that may follow the app-wide one is a `Scoped<T>`
+(`FollowApp`/`Own`). Yes/no dialogs go through `confirm()`, and a screen with a
+Save action mixes in `DirtyGuard` (a record snapshot), which
+`test/js/site_settings_dirty_snapshot.test.js` enforces.
 
 Explanation goes in the hint, never the subtitle. A sentence that is one tidy
 line of English is four wrapped lines of Malay under a switch, and nothing
@@ -370,8 +383,9 @@ overflows, so no render test sees it — the list just goes ragged.
   (`<setting>Subtitle` → `<setting>Hint`) across all `lib/l10n/app_*.arb`,
   keeping every translation. Delete it instead only when an existing hint on
   the same row already says it.
-- The `HintButton`'s `title` is the row's own title, and the label beside it is
-  `Flexible` (gated by `test/js/settings_title_row_overflow.test.js`).
+- The hint dialog's title is the row's own title, and `HintedTitle` keeps the
+  label `Flexible`. A bare `HintButton` is allowed only where it shares no row
+  with a label (`test/js/settings_title_row_overflow.test.js` lists them).
 
 ## Adding user-facing strings (localization)
 
@@ -439,9 +453,10 @@ When adding a notification-related code path, prefer extending `NotificationServ
 DNS blocklist, content blocker, LocalCDN need a downloaded blob.
 
 - **Per-site strength**: both blockers are also adjustable per site, as masks over the app-wide configuration — `WebViewModel.dnsBlockLevel` (null = follow the app level) and `disabledFilterLists`. A mask can only relax: a level's list is fetched on demand and falls back to the app level until it lands, and a filter list not enabled app-wide is not in the engine at all. **The Hagezi levels do not nest** (21,921 of 297,756 domains drop out of a higher level), so each domain carries a bit per level that names it rather than a single "lowest level"; anything else makes the app-wide level's behaviour depend on which per-site levels were downloaded. See [dns_level_mask_engine.dart](lib/services/dns_level_mask_engine.dart) and [filter_list_mask.dart](lib/services/filter_list_mask.dart).
-- **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnBlockerNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, `_notConfiguredWarnIcon` renders next to the tile title and the "Not configured" subtitle turns amber (also on the Tracking Protection tile when a forced dep is unconfigured).
-- **LocalCDN**: still hard-gated (`onChanged: ... hasCache ? (v) => ... : null` grays the switch) — it can't serve anything without a cache and its `value` is forced off.
-- See [lib/screens/settings.dart](lib/screens/settings.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.
+- **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, its row sets `SettingTile.missingData`: a warning icon beside the title and an amber "Not configured" subtitle (also on the Tracking Protection card when a forced dep is unconfigured).
+- **LocalCDN**: still hard-gated by a `NotDownloadedLock` — it can't serve anything without a cache, so the switch is greyed and its `value` forced off.
+- See [lib/screens/site_privacy.dart](lib/screens/site_privacy.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.
+- **App Settings rows for the data**: each dataset is a `DownloadableDataset` adapter in [lib/settings/datasets.dart](lib/settings/datasets.dart) rendered by one `DatasetTile`, which owns the busy state, the date line, the buttons and the SnackBar. A new downloaded dataset is a new adapter, not a new row.
 
 ## Per-site settings MUST apply to nested webviews
 
@@ -461,7 +476,9 @@ When you add a per-site field:
 2. A field in the matching `SitePosture` group, resolved in
    `WebViewModel.sitePosture` ([lib/web_view_model.dart](lib/web_view_model.dart)).
    An archive-tier or Tracking Protection override is applied there, through
-   an `effective*` getter, never at a consumer.
+   an `effective*` getter, never at a consumer. The rule itself lives in
+   [lib/services/site_overrides.dart](lib/services/site_overrides.dart), which
+   the settings screens also read, so a screen shows what the webview runs.
 3. Its consumer reads `config.posture.<group>.<field>` (the factory in
    [webview.dart](lib/services/webview.dart)) or `widget.posture` (the nested
    screen).

@@ -8,6 +8,8 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 
+import 'helpers/localized.dart';
+
 class _Dataset extends ChangeNotifier implements DownloadableDataset {
   @override
   bool ready = false;
@@ -43,10 +45,8 @@ class _ClearableDataset extends _Dataset implements ClearableDataset {
 Widget _host(
   DownloadableDataset dataset, {
   Widget Function(DownloadableDataset, VoidCallback?)? below,
-}) => MaterialApp(
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-  home: Scaffold(
+}) => localizedApp(
+  Scaffold(
     body: ListView(
       children: [
         DatasetTile<DownloadableDataset>(
