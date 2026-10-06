@@ -117,6 +117,7 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
           text: BackgroundLog.format(
             visible,
             includeSensitive: includeSensitive,
+            state: _state,
           ),
         ),
       );
@@ -131,10 +132,11 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
 
   Future<void> _export() async {
     final entries = await _log.entries(includeSensitive: false);
+    final state = await _log.systemState();
     if (!mounted) return;
     await saveLogText(
       context,
-      BackgroundLog.format(entries),
+      BackgroundLog.format(entries, state: state),
       fileNamePrefix: 'webspace_background_log',
     );
   }

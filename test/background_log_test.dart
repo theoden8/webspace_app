@@ -134,6 +134,10 @@ void main() {
       expect(BackgroundLog.format(all), isNot(contains('Mail')));
       expect(BackgroundLog.format(all), contains('normal line'));
       expect(BackgroundLog.format(all, includeSensitive: true), contains('Mail'));
+      final withState = BackgroundLog.format(all,
+          state: const [MapEntry('ios.lowPowerMode', 'true')]);
+      expect(withState, startsWith('System state:\n  ios.lowPowerMode: true\n'));
+      expect(withState, contains('normal line'));
     });
   });
 
