@@ -167,8 +167,9 @@ class DevToolsScreen extends StatefulWidget {
   final VoidAsyncCallback? onSave;
   final List<UserScriptConfig> globalUserScripts;
 
-  /// When non-null, the App Logs tab shows a diagnostics row that triggers
-  /// the same notification-site reload the OS background task would run.
+  /// When non-null and developer mode is on, the App Logs tab shows a
+  /// diagnostics row that triggers the same wake the OS background task
+  /// would run, plus a test notification for the host's site.
   /// Lets the wake-up chain (reload -> page JS -> webNotification handler ->
   /// NotificationService.show) be exercised in the foreground without
   /// waiting on iOS BGAppRefreshTask / Android WorkManager. Wired only from
@@ -233,13 +234,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   bool get _hasDnsBlocklist => DnsBlockService.instance.hasBlocklist;
 
-  /// Read once: a tab that appears or vanishes under an open TabController
-  /// would leave its length wrong.
-  final bool _hasBackgroundTab = DeveloperModeService.instance.enabled;
+  /// Gates the Background tab and the notification diagnostics row. Read
+  /// once: a tab that appears or vanishes under an open TabController would
+  /// leave its length wrong.
+  final bool _developerMode = DeveloperModeService.instance.enabled;
 
   int get _tabCount {
     var n = 1; // App Logs is always present.
-    if (_hasBackgroundTab) n += 1;
+    if (_developerMode) n += 1;
     if (_hasHost) n += 1; // Console
     if (_hasSiteState) {
       n += 1; // Cookies
@@ -321,7 +323,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (ContentBlockerService.instance.usingRustEngine)
         Tab(icon: const Icon(Icons.speed, size: 18), text: loc.devToolsTabAbp),
       Tab(icon: const Icon(Icons.list_alt, size: 18), text: loc.devToolsTabLogs),
-      if (_hasBackgroundTab)
+      if (_developerMode)
         Tab(
             icon: const Icon(Icons.bedtime_outlined, size: 18),
             text: loc.devToolsTabBackground),
@@ -351,7 +353,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     return DefaultTabController(
       length: _tabCount,
       initialIndex:
-          widget.startOnBackground && _hasBackgroundTab ? _tabCount - 1 : 0,
+          widget.startOnBackground && _developerMode ? _tabCount - 1 : 0,
       child: Scaffold(
         appBar: AppBar(
           title: Text(loc.devToolsTitle),
@@ -421,7 +423,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   if (ContentBlockerService.instance.usingRustEngine)
                     _buildAbpTab(),
                   _buildAppLogsTab(),
-                  if (_hasBackgroundTab)
+                  if (_developerMode)
                     BackgroundLogView(searchQuery: _searchQuery),
                 ],
               ),
@@ -1668,7 +1670,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         _buildLogActions(filtered),
         _buildLogFilters(),
         _buildSensitiveToggle(),
-        if (widget.onSimulateBackgroundRefresh != null)
+        if (_developerMode && widget.onSimulateBackgroundRefresh != null)
           _buildNotificationDiagnostics(),
         Expanded(
           child: filtered.isEmpty

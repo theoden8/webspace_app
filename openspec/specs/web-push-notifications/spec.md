@@ -320,6 +320,8 @@ The system SHALL request OS-level notification permission before displaying the 
 
 Because the wake-up chain (OS scheduler -> webview reload -> page JS -> `webNotification` handler -> `NotificationService.show` -> OS delivery) spans three layers that each fail silently, the system SHALL make the chain observable and foreground-triggerable so a regression can be localized without waiting on the OS background scheduler.
 
+The two foreground triggers below are developer affordances: they SHALL appear only while developer mode (`developer-tools` DEVTOOLS-010) is on, the same flag that keeps the background log (DEVTOOLS-011), so the controls and the record of what they did come and go together.
+
 #### Scenario: Every hop logs a trace line
 
 **Given** a background refresh runs (real OS task or simulated)
@@ -336,17 +338,23 @@ Because the wake-up chain (OS scheduler -> webview reload -> page JS -> `webNoti
 
 #### Scenario: Developer can simulate a background refresh in the foreground
 
-**Given** the developer-tools App Logs tab is open for a site
+**Given** developer mode is on and the developer-tools App Logs tab is open for a site
 **When** the developer taps "Simulate background refresh"
 **Then** the same wake the OS background task would run (NOTIF-013/014) executes immediately
 **And** the resulting trace is visible in the App Logs tab
 
 #### Scenario: Developer can verify OS notification delivery directly
 
-**Given** the developer-tools App Logs tab is open for a site
+**Given** developer mode is on and the developer-tools App Logs tab is open for a site
 **When** the developer taps "Send test notification"
 **Then** `NotificationService.show` posts a local notification for that `siteId`
 **And** the OS permission gate and delivery are exercised independently of any page JS
+
+#### Scenario: The triggers are hidden outside developer mode
+
+**Given** developer mode is off
+**When** the user opens the developer-tools App Logs tab for a site
+**Then** neither "Simulate background refresh" nor "Send test notification" is shown
 
 ### Requirement: NOTIF-009 - Notification Replacement Semantics
 
