@@ -152,6 +152,13 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 **Then** "Work" indices become [0]
 **And** "Personal" indices become [2] (shifted from [3])
 
+#### Scenario: Deleting an earlier site keeps the active and loaded sites
+
+**Given** sites [A, B, C, D] with A and C loaded and C active
+**When** A is deleted from the drawer
+**Then** C stays loaded and active at index 1 (`_loadedIndices` and `_currentIndex` follow it)
+**And** neither D nor an empty slot is shown in C's place
+
 ---
 
 ### Requirement: WEBSPACE-011 - Reorder Sites by Dragging

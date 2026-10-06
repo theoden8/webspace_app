@@ -10150,10 +10150,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       _loadedIndices
         ..clear()
         ..addAll(patch.newLoadedIndices);
+      if (!patch.wasCurrentIndex) _currentIndex = patch.newCurrentIndex;
       // Webspace membership is siteId-keyed: drop the deleted siteId
       // from each webspace and let `_resolveWebspaceIndices` rebuild
       // the positional view. The legacy index-shift patch from
-      // SiteLifecycleEngine is now only used for `_loadedIndices`.
+      // SiteLifecycleEngine is now only used for the positional indices.
       for (final webspace in _webspaces) {
         webspace.siteIds.remove(deletedSiteId);
       }
