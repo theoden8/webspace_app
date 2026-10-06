@@ -302,7 +302,7 @@ b3_site_id="ws-$run_tag-b3"
 # can repaint behind it.
 all_repaint_triggers="route-return,metrics-resume,memory-pressure,resume,manual"
 all_repaint_triggers="$all_repaint_triggers,activate,fullscreen-toggle,fullscreen-exit"
-all_repaint_triggers="$all_repaint_triggers,back,tab-overlay-hide,tab-overlay-show"
+all_repaint_triggers="$all_repaint_triggers,back,tab-overlay-hide,tab-overlay-show,system-bars"
 all_repaint_triggers="$all_repaint_triggers,controller-attach,reload,commit-settled"
 
 site_json() { # $1 = page basename, $2 = siteId, $3 = extra site fields (optional)

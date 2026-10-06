@@ -235,6 +235,37 @@ The system SHALL render the webview into the display cutout (notch) region on th
 
 ---
 
+### Requirement: FS-011 - App Controls Reachable Under Revealed System Bars
+
+The system SHALL keep the tab strip and the tab-bar button usable while the user has swiped the system bars in during full screen. When full screen shows any of the app's own controls (the tab strip kept in full screen, FS-007, or the tab-bar button and the strip it reveals, FS-009), a bar the user reveals SHALL be one the layout insets around, and the system SHALL hide the bars again after a short delay. A full screen that shows none of the app's controls, including a locked kiosk session (KIOSK-002), keeps the bars transient.
+
+**Rationale:** Android's sticky immersive mode shows swiped-in bars as transient overlays and keeps reporting them hidden to the app: no insets arrive and the system UI visibility listener does not fire. Nothing the app keeps at the bottom edge can then move out from under the navigation bar, so the strip under it takes no taps until the bar times out (github #672). The non-sticky immersive mode makes the reveal real: the insets arrive, the strip's bottom `SafeArea` lifts it above the bar, and the platform reports the change so the app can hide the bars again. See [BUG-023](../../../docs/bugs/023-system-bar-covers-fullscreen-controls.md).
+
+#### Scenario: Navigation bar swiped in over a kept tab strip
+
+**Given** "Keep Tab Strip in Full Screen" is enabled
+**And** the user is in full screen mode
+**When** the user swipes the navigation bar in
+**Then** the tab strip moves above the navigation bar and its tabs and menu stay tappable
+**And** the navigation bar's buttons stay tappable
+**And** about 3 seconds later the bars are hidden again and the strip returns to the bottom edge
+
+#### Scenario: Tab-bar button in full screen
+
+**Given** the tab strip presentation is set to Button
+**And** the user is in full screen mode
+**When** the user swipes the system bars in
+**Then** the button, and the strip if it was revealed, inset around the bars instead of sitting under them
+
+#### Scenario: Full screen without app controls
+
+**Given** "Keep Tab Strip in Full Screen" is disabled and the tab strip presentation is not Button
+**And** the user is in full screen mode
+**When** the user swipes the system bars in
+**Then** the bars overlay the content transiently and hide on their own, as before
+
+---
+
 ### Requirement: FS-009 - Tab Strip Presentation (Hidden / Pinned / Button)
 
 The site tab strip's presentation SHALL be a single mutually-exclusive choice, not independent toggles, because the floating button is simply the on-demand presentation of the same strip:
@@ -347,9 +378,11 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 
 ### System UI
 
-- Enter: `SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky)`
-- Exit: `SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge)`
-- Re-applied on app resume via `_resumeAfterLifecyclePause()`
+- Enter: `_applyFullscreenSystemUi()`, the one place full screen sets its mode. It asks for `_fullscreenSystemUiMode`, from the pure `fullscreenSystemUiMode` (`lib/services/fullscreen_system_ui.dart`): `immersive` when `tabStripInFullscreen` or `tabBarButton` is on and the session is not kiosk-locked, `immersiveSticky` otherwise (FS-011). On iOS every mode but `edgeToEdge` hides the status bar and home indicator alike.
+- Revealed bars (FS-011): `_onSystemUiChange`, registered with `SystemChrome.setSystemUIChangeCallback` on Android (the only embedder that implements the listener), runs only under `immersive`; it nudges the surface (`system-bars`, the body resizes) and, when the overlays are visible, re-applies the mode after `kRevealedSystemBarsHideDelay` (3s). Sticky bars never reach it: Android keeps reporting them hidden.
+- Exit: `SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge)`, cancelling a pending re-hide
+- Re-applied on app resume via `_resumeAfterLifecyclePause()`, by `_enterFullscreen()` when already in full screen (a shortcut launch can change the kiosk lock, an import the tab strip prefs), and when either tab strip pref changes in full screen
+- Gate: `test/js/fullscreen_system_ui_funnel.test.js` fails a `setEnabledSystemUIMode` call that names an immersive mode itself instead of going through `_fullscreenSystemUiMode`
 
 ### Site Switching
 
@@ -395,3 +428,5 @@ The back gesture/button is NOT consumed by fullscreen — it retains its normal 
 12. Verify: full screen is exited
 13. In full screen, background the app and resume
 14. Verify: immersive mode is re-applied
+15. Enable "Keep Tab Strip in Full Screen", enter full screen, swipe the navigation bar in
+16. Verify: the tab strip sits above the navigation bar and both take taps; the bars hide again after about 3 seconds

@@ -35,6 +35,7 @@ import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
+import 'package:webspace/services/fullscreen_system_ui.dart';
 import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -1065,6 +1066,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _isOpeningSiteSettings = false;
   bool _isFindVisible = false;
   bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
+  Timer? _revealedBarsHideTimer;
   // Toggled by _nudgeSurfaceRepaint to apply a transient 1px inset that
   // forces Android hybrid-composition platform views to recomposite after
   // the activity is recreated (shortcut/resume). Always false in steady state.
@@ -1282,6 +1284,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     _lastTorStatus = TorService.instance.status;
     _torStatusSub =
         TorService.instance.statusStream.listen(_onTorStatusChanged);
+    // Only Android's embedder implements the listener; elsewhere registering
+    // it throws MissingPluginException.
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      SystemChrome.setSystemUIChangeCallback(_onSystemUiChange);
+    }
   }
 
   void _onTorStatusChanged(TorStatus s) {
@@ -1677,6 +1684,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     _navStateDebouncer.dispose();
     _untrustSub?.cancel();
     _torStatusSub?.cancel();
+    _revealedBarsHideTimer?.cancel();
+    SystemChrome.setSystemUIChangeCallback(null);
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -2137,9 +2146,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       unawaited(_probeRendererAndRecover(_webViewModels[probeIdx], trigger: 'resume'));
     }
     // Re-apply fullscreen system UI mode after resume
-    if (_isFullscreen) {
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    }
+    if (_isFullscreen) _applyFullscreenSystemUi();
   }
 
   /// Probe a just-resumed / just-activated webview's renderer and recreate it
@@ -7075,11 +7082,16 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _enterFullscreen() {
-    if (_isFullscreen) return;
+    if (_isFullscreen) {
+      // The mode depends on the kiosk lock and the tab strip prefs, which a
+      // shortcut launch or an import can change while already full screen.
+      _applyFullscreenSystemUi();
+      return;
+    }
     setState(() {
       _isFullscreen = true;
     });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    _applyFullscreenSystemUi();
     // Removing the app bar / changing the bottom bar resizes the webview; on
     // Android the hybrid-composition SurfaceView can come back with a 1px dark
     // seam at the bottom edge until it recomposites. github #421-followup
@@ -7100,12 +7112,36 @@ class _WebSpacePageState extends State<WebSpacePage>
     // relaunch the app normally (which clears the lock).
     if (_kioskLocked) return;
     if (!_isFullscreen) return;
+    _revealedBarsHideTimer?.cancel();
     setState(() {
       _isFullscreen = false;
       _tabBarOverlayVisible = false;
     });
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _nudgeSurfaceRepaint('fullscreen-exit');
+  }
+
+  SystemUiMode get _fullscreenSystemUiMode => fullscreenSystemUiMode(
+        tabStripInFullscreen: _tabStripInFullscreen,
+        tabBarButton: _tabBarButton,
+        kioskLocked: _kioskLocked,
+      );
+
+  void _applyFullscreenSystemUi() {
+    SystemChrome.setEnabledSystemUIMode(_fullscreenSystemUiMode);
+  }
+
+  /// Under `immersive` (FS-011) a bar the user swipes in stays until the app
+  /// hides it; the body and the tab strip inset around it meanwhile.
+  Future<void> _onSystemUiChange(bool systemOverlaysAreVisible) async {
+    _revealedBarsHideTimer?.cancel();
+    if (!mounted || !_isFullscreen) return;
+    if (_fullscreenSystemUiMode != SystemUiMode.immersive) return;
+    _nudgeSurfaceRepaint('system-bars');
+    if (!systemOverlaysAreVisible) return;
+    _revealedBarsHideTimer = Timer(kRevealedSystemBarsHideDelay, () {
+      if (mounted && _isFullscreen) _applyFullscreenSystemUi();
+    });
   }
 
   void _toggleFullscreen() {
@@ -9042,6 +9078,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         _tabStripInFullscreen = value;
                       });
                       _saveTabStripInFullscreen();
+                      if (_isFullscreen) _applyFullscreenSystemUi();
                     },
                     fullscreenOnShortcut: _fullscreenOnShortcut,
                     onFullscreenOnShortcutChanged: (value) {
@@ -9067,6 +9104,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         if (!value) _tabBarOverlayVisible = false;
                       });
                       _saveTabBarButton();
+                      if (_isFullscreen) _applyFullscreenSystemUi();
                     },
                     tabMaxWidth: _tabMaxWidth,
                     onTabMaxWidthChanged: (value) {
@@ -11198,11 +11236,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     final hasTabStrip = _tabStripShown;
     return SafeArea(
       // Out of fullscreen the AppBar absorbs the top inset, so top stays false.
-      // In fullscreen there is no AppBar, and immersiveSticky does not reliably
-      // hide the status/navigation bars on Android 15 (edge-to-edge enforced) —
-      // when they remain, edge-to-edge content lands behind them and the site's
-      // top/bottom controls become untappable. Inset the body on both edges so
-      // it stays clear of any bars that persist; when they are truly hidden the
+      // In fullscreen there is no AppBar, and the immersive modes do not
+      // reliably hide the status/navigation bars on Android 15 (edge-to-edge
+      // enforced) — when they remain, edge-to-edge content lands behind them
+      // and the site's top/bottom controls become untappable. Inset the body on
+      // both edges so it stays clear of any bars that persist, or that the user
+      // revealed under `immersive` (FS-011); when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
       top: _isFullscreen,
       bottom: !hasTabStrip && inputBar == null,
