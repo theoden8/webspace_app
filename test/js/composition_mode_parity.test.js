@@ -75,7 +75,7 @@ test('every InAppWebViewSettings built in lib/ carries the composition mode', ()
       }
     }
   }
-  assert.ok(count >= 4, `scan found only ${count} settings objects; the parser broke`);
+  assert.ok(count >= 3, `scan found only ${count} settings objects; the parser broke`);
   assert.deepEqual(missing, [],
     'these settings objects omit useHybridComposition, so the Dart default ' +
     '(true) would reach a webview created in texture mode');

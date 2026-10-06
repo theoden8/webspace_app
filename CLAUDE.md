@@ -428,7 +428,7 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 - **Auto-load + retention priority**: notification sites are added to `_loadedIndices` on startup and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
 - **iOS background contract** (NOTIF-005-I): `BackgroundTaskService` calls `UIApplication.beginBackgroundTask` on app-pause for a ~30s grace window and registers a `BGAppRefreshTask` (`org.codeberg.theoden8.webspace.notification-refresh`) that reloads notif sites opportunistically. Native bridge: [`ios/Runner/BackgroundTaskPlugin.swift`](ios/Runner/BackgroundTaskPlugin.swift).
 - **A wake ends when its pages have loaded** (NOTIF-013): returning from `onBackgroundRefresh` completes the OS task, so `_backgroundWake` awaits `BackgroundWakeEngine`, which waits for the reloads to settle. A reload shows what arrived but a site need not notify for it, so a site that stayed silent while its title's unread count rose gets one post on its behalf (NOTIF-014). iOS has no way to run a page between wakes: no foreground service, no Web Push in WKWebView apps, and keep-awake tricks fail App Store review.
-- **A wake checks every notification site** (NOTIF-016), not only loaded ones with a webview: in a process the OS launched for the wake there is no webview at all. `BackgroundWakeEngine.plan` decides from `wakeCandidateFor` (live: reload; else `WebViewFactory.openHeadlessCheck` with `WebViewModel.headlessCheckConfig`, held to `getWebView` by `test/js/headless_check_config_parity.test.js`; else skip with a `WakeSkip` reason). A new per-site field goes into `headlessCheckConfig` too. Lineage: [BUG-024](docs/bugs/024-background-notifications-never-arrive.md).
+- **A wake checks every notification site** (NOTIF-016), not only loaded ones with a webview: in a process the OS launched for the wake there is no webview at all. `BackgroundWakeEngine.plan` decides from `wakeCandidateFor` (live: reload; else `WebViewFactory.openHeadlessCheck` with `WebViewModel.headlessCheckConfig`, held to `getWebView` by `test/js/headless_check_config_parity.test.js`; else skip with a `WakeSkip` reason). Lineage: [BUG-024](docs/bugs/024-background-notifications-never-arrive.md).
 - **Android background contract** (NOTIF-005-A): same `BackgroundTaskService` — Android side uses `WorkManager` `PeriodicWorkRequest` (15-min minimum, 15-min initial delay so the first period is not due at enqueue time, unique-work `webspace-notification-refresh`) and no foreground service: apps that notify from the background are woken by a push channel rather than staying resident, and `FOREGROUND_SERVICE_SPECIAL_USE` is intractable for Play review. A keep-alive `specialUse` service was built and withdrawn for this reason: a foreground service for notifications is off limits (NOTIF-015, gated by `test/js/notification_no_foreground_service.test.js`). When no Flutter engine is reachable the worker starts one with no activity (`WorkerFlutterEngine`, plugins from `EnginePlugins`, `main` told by `--background-wake` to build no site webview), waits for Dart's `backgroundRefreshReady`, and destroys it after; `MainActivity.provideFlutterEngine` stops it first if the app is opened. Native bridge: [`android/app/src/main/kotlin/.../BackgroundTaskAndroidPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundTaskAndroidPlugin.kt) + [`NotificationRefreshWorker.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/NotificationRefreshWorker.kt). One-time background-limits info dialog shows on first toggle on either platform. The CI lifecycle tier runs the worker through `NotificationRefreshDebugReceiver` (`android/app/src/debug/`, debug builds only) — `cmd jobscheduler run -f` cannot drive periodic work, since WorkManager refuses a `WorkSpec` executed before its next run time.
 - **Test delivery the way sites deliver** (NOTIF-012): a fixture that posts on page load proves only that a reload happened. Scenario P in the lifecycle tier serves a page whose unread count lives on the server and which posts only when the server sends it something; it checks the live path with the site behind a plain one, then records a message while the app sits in the background past the freezer, drives the wake, and requires the wake's fallback post.
 
@@ -445,16 +445,32 @@ DNS blocklist, content blocker, LocalCDN need a downloaded blob.
 
 ## Per-site settings MUST apply to nested webviews
 
-Cross-domain navs open a new `InAppWebViewScreen` via `launchUrl` in [lib/main.dart](lib/main.dart) with its own `WebViewConfig` — that config MUST carry every per-site field (cookie isolation, language, geo/tz, WebRTC, user scripts, content blocker, ClearURLs, DNS blocklist, desktop mode, …), or a hostile outbound link silently bypasses the user's privacy posture.
+Every webview that runs as a site (its own, the nested `InAppWebViewScreen` a
+cross-domain link opens, a popup either spawns, the headless check a
+background wake opens) is built from one `SitePosture`
+([lib/services/site_posture.dart](lib/services/site_posture.dart)), resolved by
+`WebViewModel.sitePosture` and handed whole through `LaunchUrlFunc` →
+`launchUrl` → `InAppWebViewScreen` → `WebViewConfig`. Every field is required
+with no default, so a field the chain forgets does not compile, and a hostile
+outbound link cannot drop the site's posture. Spec: NESTED-010; history:
+[BUG-024](docs/bugs/024-nested-posture-drift.md).
 
 When you add a per-site field:
 
 1. `WebViewModel.toJson`/`fromJson`.
-2. `WebViewConfig` in `WebViewModel.getWebView` ([lib/web_view_model.dart](lib/web_view_model.dart)).
-3. `launchUrl` signature in [lib/main.dart](lib/main.dart).
-4. `InAppWebViewScreen` ctor in [lib/screens/inappbrowser.dart](lib/screens/inappbrowser.dart) + its `WebViewConfig`.
-5. `launchUrlFunc` typedef + both call sites in [lib/web_view_model.dart](lib/web_view_model.dart).
-6. `WebViewModel.headlessCheckConfig`, the background wake's headless check (gated by `test/js/headless_check_config_parity.test.js`).
+2. A field in the matching `SitePosture` group, resolved in
+   `WebViewModel.sitePosture` ([lib/web_view_model.dart](lib/web_view_model.dart)).
+   An archive-tier or Tracking Protection override is applied there, through
+   an `effective*` getter, never at a consumer.
+3. Its consumer reads `config.posture.<group>.<field>` (the factory in
+   [webview.dart](lib/services/webview.dart)) or `widget.posture` (the nested
+   screen).
+
+A nested screen differs from the site's own webview only where
+`SitePosture.forNested()` says so. Wiring that belongs to a surface rather than
+the site (callbacks, `backForwardGestures`, the slot's `backgroundAudioEnabled`,
+the site icon and search targets) stays a `WebViewConfig` field the owning
+surface sets.
 
 If the field controls JS in `initialUserScripts`, set `forMainFrameOnly: false` (iOS default is main-frame-only) so the shim reaches cross-origin iframes.
 

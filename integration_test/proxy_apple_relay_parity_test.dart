@@ -30,6 +30,7 @@ import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -138,24 +139,22 @@ void main() {
     expect(ProxyRouterService.instance.isActive, isTrue);
     log('relay on ${ProxyRouterService.instance.host}:$port');
 
-    Widget pane(String siteId, int dest) => SizedBox(
-          width: 200,
-          height: 90,
-          child: WebViewFactory.createWebView(
-            config: WebViewConfig(
-              siteId: siteId,
-              initialUrl: 'http://${syntheticOrigin(dest)}/$siteId',
-              clearUrlEnabled: false,
-              dnsBlockEnabled: false,
-              contentBlockEnabled: false,
-              trackingProtectionEnabled: false,
-              localCdnEnabled: false,
-            ),
-            onControllerCreated: (_) {},
+    Widget pane(String siteId, int dest) {
+      final url = 'http://${syntheticOrigin(dest)}/$siteId';
+      return SizedBox(
+        width: 200,
+        height: 90,
+        child: WebViewFactory.createWebView(
+          config: WebViewConfig(
+            posture: barePosture(url, siteId: siteId),
+            initialUrl: url,
           ),
-        );
+          onControllerCreated: (_) {},
+        ),
+      );
+    }
 
-    // No proxySettings on either config: under router mode the site's own rule
+    // Neither posture names a proxy: under router mode the site's own rule
     // is made at the relay, and every store points at the relay instead.
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(

@@ -81,7 +81,7 @@ the origin change.
 
 **Given** site "Acme" is set to `real`
 **When** a link on it opens a nested webview on another domain and that page requests audio
-**Then** the nested screen starts from `ask` (`nestedSeedMode` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
+**Then** the nested screen starts from `ask` (`SitePosture.forNested` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
 **And** the popup names the nested page's origin before the microphone opens
 
 ### Requirement: MIC-006 — Archive-tier sites deny silently

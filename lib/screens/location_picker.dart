@@ -12,6 +12,7 @@ import '../services/current_location_service.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/location.dart';
 
 /// Full-screen picker for [LocationPickerResult] (lat/lng + accuracy).
 ///
@@ -33,7 +34,7 @@ class LocationPickerScreen extends StatefulWidget {
     super.key,
     this.initialLatitude,
     this.initialLongitude,
-    this.initialAccuracy = 50.0,
+    this.initialAccuracy = kDefaultSpoofAccuracy,
   });
 
   @override
@@ -244,13 +245,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                 );
                 return;
               }
-              final acc = double.tryParse(_accController.text.trim()) ?? 50.0;
+              final acc = double.tryParse(_accController.text.trim()) ??
+                  kDefaultSpoofAccuracy;
               Navigator.pop(
                 context,
                 LocationPickerResult(
                   latitude: p.latitude,
                   longitude: p.longitude,
-                  accuracy: acc > 0 ? acc : 50.0,
+                  accuracy: acc > 0 ? acc : kDefaultSpoofAccuracy,
                 ),
               );
             },

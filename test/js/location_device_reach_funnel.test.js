@@ -39,7 +39,7 @@ test('LOC-REACH-001: the getRealLocation bridge is registered only for live site
   // reformatting does not break the test but removing the guard does.
   const at = registrations[0].index;
   const before = WEBVIEW_CODE.slice(0, at);
-  const guard = before.lastIndexOf('config.locationMode == LocationMode.live');
+  const guard = before.lastIndexOf('config.posture.location.mode == LocationMode.live');
   assert.notEqual(guard, -1,
     'getRealLocation must be registered behind a LocationMode.live check');
   const between = WEBVIEW_CODE.slice(guard, at);

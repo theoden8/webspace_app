@@ -28,6 +28,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
 import 'package:webspace/services/webview.dart';
+import 'bare_site.dart';
 
 const _gate = bool.fromEnvironment('PASSKEY_GATE');
 const _phase = String.fromEnvironment('PASSKEY_GATE_PHASE', defaultValue: 'main');
@@ -130,13 +131,8 @@ void main() {
 
   WebViewConfig config(String siteId, PasskeyBackend backend) => WebViewConfig(
         key: ValueKey('passkey-$siteId'),
-        siteId: siteId,
+        posture: barePosture(_rp, siteId: siteId),
         initialUrl: _rp,
-        clearUrlEnabled: false,
-        dnsBlockEnabled: false,
-        contentBlockEnabled: false,
-        trackingProtectionEnabled: false,
-        localCdnEnabled: false,
         passkeys: PasskeyAccess(isOnScreen: () => true, backend: backend),
       );
 

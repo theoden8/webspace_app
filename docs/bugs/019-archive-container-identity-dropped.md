@@ -1,16 +1,21 @@
 # BUG-019 — An archived site's webview binds a container named after its cleartext id
 
-Status: **open, narrowed.** Every webview that runs as an archived site now
-receives the opaque id, and the close sweeps any `ws-<siteId>` a path bound
-without it. The class stays open because nothing forces a future
-`WebViewConfig` to carry the id, beyond the two gates below.
+Status: **closed.** Every webview that runs as a site binds through
+`WebViewFactory.storeBinding(SitePosture)`, and a `SitePosture` cannot be built
+without the opaque id: it is a required field of the posture's container group,
+filled only by `WebViewModel.sitePosture` (attempt 4). The close still sweeps
+any `ws-<siteId>` an earlier build left behind.
 
 **Spec:** [archive](../../openspec/specs/archive/spec.md) ARCH-006, ARCH-007
 (the delta in `openspec/changes/archive-nested-container/`),
 [nested-url-blocking](../../openspec/specs/nested-url-blocking/spec.md) NESTED-010
-**Tests:** `test/js/nested_webview_posture_parity.test.js`
-(`archiveContainerId` is `POSTURE`), `test/js/archive_container_identity.test.js`,
-`test/nested_webview_field_parity_test.dart` (the chain carries it)
+**Tests:** `test/site_posture_test.dart` (an archive-tier posture carries the
+opaque id; only the resolver builds a posture),
+`test/js/archive_container_identity.test.js` (the close-time sweep),
+`test/js/site_info_container_source.test.js` (the binding and the info sheet
+read the same posture)
+**Related:** [BUG-024](024-nested-posture-drift.md), the class this is one
+instance of
 **Security review:** [2026-09-10](../security/2026-09-10-review.md) SEC-002, SEC-014
 
 ## Symptom
@@ -64,11 +69,20 @@ named profile.
    site. The sweep covers profiles left by earlier builds and by any path
    that repeats the mistake. *Why partial:* see below.
 
+4. **2026-10-06, 1c04a939 and 1a2905e7 (branch `refactor/site-posture`),
+   BUG-024 attempt 6.** *What:* the per-site chain became one `SitePosture`
+   value, required by `WebViewConfig`, `InAppWebViewScreen` and `launchUrl`,
+   with `archiveContainerId` in its container group; `storeBinding` and the
+   router identity read the binding from it. *Why:* gap 1 below said nothing
+   forced a future `WebViewConfig` to carry the id; now one cannot be built
+   without it, and nothing but `WebViewModel.sitePosture` fills it in. *Why
+   it closes the class:* the id is no longer a field a surface threads, so no
+   surface can leave it out.
+
 ## Known open gaps
 
-1. A new surface that builds a `WebViewConfig` for a site is gated only if it
-   goes through the nested chain. A third constructor of `WebViewConfig`
-   would need adding to the posture gate by hand.
+1. ~~A new surface that builds a `WebViewConfig` for a site is gated only if
+   it goes through the nested chain.~~ Closed by attempt 4.
 2. The close-time sweep skips an id an app-tier site also holds. A leaked
    `ws-<siteId>` for such a site is indistinguishable from that site's own
-   container and is left alone.
+   container and is left alone. Only an older build can have left one.

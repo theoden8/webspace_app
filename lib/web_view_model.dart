@@ -34,6 +34,7 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
@@ -42,6 +43,7 @@ import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
+import 'package:webspace/settings/blocked_cookie.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/screen_share.dart';
@@ -55,6 +57,7 @@ import 'package:webspace/widgets/external_url_prompt.dart' show launchUrlInSyste
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 
+export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
@@ -367,47 +370,6 @@ String getNormalizedDomain(String url) {
   return secondLevel;
 }
 
-/// A cookie blocked by name + domain, per-site.
-/// When a cookie matches, it is deleted from the webview after each page load
-/// and skipped during cookie restore.
-class BlockedCookie {
-  final String name;
-  final String domain;
-
-  const BlockedCookie({required this.name, required this.domain});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is BlockedCookie && name == other.name && domain == other.domain;
-
-  @override
-  int get hashCode => Object.hash(name, domain);
-
-  Map<String, dynamic> toJson() => {'name': name, 'domain': domain};
-
-  factory BlockedCookie.fromJson(Map<String, dynamic> json) =>
-      BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
-}
-
-/// True if (name, domain) matches one of [blocked]. Domain match is
-/// bidirectional-suffix so a block on `example.com` also covers
-/// `.a.example.com` and vice versa. Free function so the nested webview
-/// screen, which has no [WebViewModel], applies the same rule.
-bool matchesBlockedCookie(
-  Set<BlockedCookie> blocked,
-  String name,
-  String? domain,
-) {
-  if (blocked.isEmpty) return false;
-  return blocked.any((b) =>
-      b.name == name &&
-      (domain != null &&
-          (b.domain == domain ||
-              domain.endsWith('.${b.domain}') ||
-              b.domain.endsWith('.$domain'))));
-}
-
 /// The host's hook into a site's own navigation: called with a link the
 /// navigation engine decided to nest, send to the system browser (outbound
 /// routing, LIR-014) or block (NESTED-009, so the host can say so). True
@@ -416,58 +378,13 @@ bool matchesBlockedCookie(
 typedef OutboundLinkHandler = bool Function(
     String url, NavigationDecision decision, bool hadGesture);
 
-/// Opens [url] in a nested `InAppWebViewScreen` carrying the opening site's
-/// posture. Implemented by `_WebSpacePageState.launchUrl`.
-///
-/// Every per-site field the parent webview applies has to appear here, or an
-/// outbound link silently escapes it — see CLAUDE.md, "Per-site settings MUST
-/// apply to nested webviews", for the five call sites a new field touches.
+/// Opens [url] in a nested `InAppWebViewScreen` that runs as the opening
+/// site, under [posture] (see [SitePosture], which a new per-site field joins
+/// rather than this signature). Implemented by `_WebSpacePageState.launchUrl`.
 typedef LaunchUrlFunc = void Function(
-  String url, {
+  String url,
+  SitePosture posture, {
   String? homeTitle,
-  required String? siteId,
-  String? archiveContainerId,
-  required bool incognito,
-  required bool thirdPartyCookiesEnabled,
-  required bool httpsUpgradeEnabled,
-  required bool clearUrlEnabled,
-  required bool dnsBlockEnabled,
-  int? dnsBlockLevel,
-  required bool contentBlockEnabled,
-  Set<String> disabledFilterLists,
-  required bool localCdnEnabled,
-  required bool contributesBlockStats,
-  required bool trackingProtectionEnabled,
-  bool letterboxEnabled,
-  int? spoofWindowWidth,
-  int? spoofWindowHeight,
-  String? fingerprintResetNonce,
-  required String? language,
-  required int zoomPercent,
-  LocationMode locationMode,
-  double? spoofLatitude,
-  double? spoofLongitude,
-  double spoofAccuracy,
-  String? spoofTimezone,
-  bool spoofTimezoneFromLocation,
-  LocationGranularity liveLocationGranularity,
-  WebRtcPolicy webRtcPolicy,
-  String? userAgent,
-  bool javascriptEnabled,
-  required List<UserScriptConfig> userScripts,
-  UserProxySettings? proxySettings,
-  bool notificationsEnabled,
-  ExternalLinkMode externalLinkMode,
-  Set<BlockedCookie> blockedCookies,
-  CameraAccessMode cameraMode,
-  VirtualCameraSource? virtualCameraSource,
-  MicrophoneAccessMode microphoneMode,
-  VirtualMicrophoneSource? virtualMicrophoneSource,
-  ScreenShareMode screenShareMode,
-  VirtualScreenSource? virtualScreenSource,
-  bool? protectedContentAllowed,
-  HttpAuthMemory httpAuthMemory,
-  bool passkeys,
 });
 
 /// Interpret a renderer-health probe result. The probe reads
@@ -795,14 +712,16 @@ class WebViewModel {
   /// Coordinate accuracy in meters reported to the spoofed Position.
   double spoofAccuracy;
   /// IANA timezone name to expose via [Intl.DateTimeFormat] and
-  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone.
+  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone. Holds
+  /// the effective zone, a "From picked location" one included, so every
+  /// webview applies this and nothing else.
   String? spoofTimezone;
-  /// When true, the effective spoof timezone is derived from
-  /// (spoofLatitude, spoofLongitude) at shim-build time via
-  /// [TimezoneLocationService]. [spoofTimezone] is ignored in that case
-  /// (it stays null; the field is mutually exclusive). Resolution happens
-  /// in `webview.dart`, not here, because it depends on a separately-
-  /// loadable polygon dataset that may not be present.
+  /// The user picked "From picked location" rather than a zone. The zone is
+  /// resolved from the coordinates where the polygon dataset is loaded (at
+  /// settings save, and for a site saved before that on startup; Tracking
+  /// Protection forces it when coordinates are set, see
+  /// `derivesTimezoneFromLocation`) and stored in [spoofTimezone]. A UI and
+  /// re-resolution marker only: no webview reads it.
   bool spoofTimezoneFromLocation;
   /// Granularity applied to the real GPS fix surfaced by
   /// [LocationMode.live]. [LocationGranularity.gps] (default) reports
@@ -1022,11 +941,6 @@ class WebViewModel {
   bool get effectiveBackgroundAudioEnabled =>
       isArchiveTier ? false : backgroundAudioEnabled;
 
-  /// Effective LocalCDN cache write enable. Archive-tier sites never
-  /// write the per-site CDN cache to disk regardless of stored value.
-  bool get effectiveLocalCdnEnabled =>
-      isArchiveTier ? false : localCdnEnabled;
-
   /// Effective HTML-cache enable. Archive-tier sites never write the
   /// encrypted-at-rest HTML cache (the cache file path is keyed by
   /// `siteId`, so its existence would correlate to specific archive
@@ -1161,6 +1075,74 @@ class WebViewModel {
   bool get effectiveRouteOutboundLinks =>
       routeOutboundLinks && externalLinkMode == ExternalLinkMode.inApp;
 
+  /// Everything a webview that runs as this site applies (CLAUDE.md, "Per-site
+  /// settings MUST apply to nested webviews"). The archive tier's overrides
+  /// come from the `effective*` getters above; Tracking Protection's forced
+  /// subordinates are applied here and nowhere else (ETP-002). Read at the
+  /// moment a surface is built, so a link opened later carries the decisions
+  /// made since. [globalUserScripts] is the app's list, of which the site opts
+  /// into some.
+  SitePosture sitePosture({required List<UserScriptConfig> globalUserScripts}) {
+    final tp = trackingProtectionEnabled;
+    return SitePosture(
+      siteId: siteId,
+      container: (
+        archiveContainerId: archiveContainerId,
+        incognito: effectiveIncognito,
+        proxy: outboundProxySettings,
+        thirdPartyCookies: effectiveThirdPartyCookiesEnabled,
+        httpAuthMemory: effectiveHttpAuthMemory,
+        passkeys: effectivePasskeysEnabled,
+      ),
+      blocking: (
+        clearUrls: clearUrlEnabled || tp,
+        dns: dnsBlockEnabled || tp,
+        dnsLevel: effectiveDnsBlockLevel,
+        contentBlock: contentBlockEnabled || tp,
+        httpsUpgrade: effectiveHttpsUpgradeEnabled,
+        contributesStats: contributesBlockStats,
+        blockedCookies: blockedCookies,
+      ),
+      fingerprint: (
+        trackingProtection: tp,
+        letterbox: letterboxEnabled,
+        windowWidth: spoofWindowWidth,
+        windowHeight: spoofWindowHeight,
+        resetNonce: fingerprintResetNonce,
+      ),
+      location: (
+        mode: locationMode,
+        latitude: spoofLatitude,
+        longitude: spoofLongitude,
+        accuracy: spoofAccuracy,
+        timezone: spoofTimezone,
+        granularity: liveLocationGranularity,
+        webRtc: effectiveWebRtcPolicy,
+      ),
+      media: (
+        camera: (mode: effectiveCameraMode, source: virtualCameraSource),
+        microphone: (
+          mode: effectiveMicrophoneMode,
+          source: virtualMicrophoneSource,
+        ),
+        screenShare: (
+          mode: effectiveScreenShareMode,
+          source: virtualScreenSource,
+        ),
+        protectedContent: effectiveProtectedContentAllowed,
+      ),
+      page: (
+        javascript: javascriptEnabled,
+        userAgent: effectiveUserAgentOrNull,
+        language: language,
+        zoomPercent: zoomPercent,
+        userScripts: combineUserScripts(globalUserScripts),
+        externalLinks: effectiveExternalLinkMode,
+        notifications: effectiveNotificationsEnabled,
+      ),
+    );
+  }
+
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
@@ -1232,8 +1214,7 @@ class WebViewModel {
       : renderUserAgentPreset(
           uaPreset!, FirefoxUserAgentService.instance.versionString);
 
-  /// [effectiveUserAgent] in the null-for-unset form `WebViewConfig` and
-  /// `launchUrlFunc` expect.
+  /// [effectiveUserAgent] in the null-for-unset form the webview expects.
   String? get effectiveUserAgentOrNull {
     final ua = effectiveUserAgent;
     return ua.isEmpty ? null : ua;
@@ -1309,7 +1290,7 @@ class WebViewModel {
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
     this.spoofLongitude,
-    this.spoofAccuracy = 50.0,
+    this.spoofAccuracy = kDefaultSpoofAccuracy,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
     this.liveLocationGranularity = LocationGranularity.gps,
@@ -1563,54 +1544,16 @@ class WebViewModel {
     await _applyProxySettings();
   }
 
-  /// The site's posture for a headless check in a background wake
-  /// (NOTIF-016): every field of [getWebView]'s config that reaches the
-  /// network or the page, for this site as itself, at its home page. The UI
-  /// callbacks are left out, since nothing is on screen. Gated against
-  /// [getWebView] by `test/js/headless_check_config_parity.test.js`.
+  /// The site as itself, at its home page, for a headless check in a
+  /// background wake (NOTIF-016). Built from the same [sitePosture] as
+  /// [getWebView]'s config, so every per-site field reaches the check; the UI
+  /// callbacks are left out, since nothing is on screen.
   WebViewConfig headlessCheckConfig({
-    List<UserScriptConfig> globalUserScripts = const [],
+    required List<UserScriptConfig> globalUserScripts,
   }) =>
       WebViewConfig(
-        siteId: siteId,
-        archiveContainerId: archiveContainerId,
+        posture: sitePosture(globalUserScripts: globalUserScripts),
         initialUrl: initUrl,
-        javascriptEnabled: javascriptEnabled,
-        userAgent: effectiveUserAgentOrNull,
-        thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
-        httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled,
-        incognito: effectiveIncognito,
-        language: language,
-        zoomPercent: zoomPercent,
-        clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
-        dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
-        dnsBlockLevel: effectiveDnsBlockLevel,
-        contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
-        disabledFilterLists: effectiveDisabledFilterLists,
-        localCdnEnabled: effectiveLocalCdnEnabled ||
-            (trackingProtectionEnabled && !isArchiveTier),
-        contributesBlockStats: contributesBlockStats,
-        trackingProtectionEnabled: trackingProtectionEnabled,
-        letterboxEnabled: letterboxEnabled,
-        spoofWindowWidth: spoofWindowWidth,
-        spoofWindowHeight: spoofWindowHeight,
-        fingerprintResetNonce: fingerprintResetNonce,
-        locationMode: locationMode,
-        spoofLatitude: spoofLatitude,
-        spoofLongitude: spoofLongitude,
-        spoofAccuracy: spoofAccuracy,
-        spoofTimezone: spoofTimezone,
-        spoofTimezoneFromLocation: spoofTimezoneFromLocation,
-        liveLocationGranularity: liveLocationGranularity,
-        webRtcPolicy: effectiveWebRtcPolicy,
-        proxySettings: outboundProxySettings,
-        notificationsEnabled: effectiveNotificationsEnabled,
-        backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-        userScripts: combineUserScripts(globalUserScripts),
-        httpAuthMemory: effectiveHttpAuthMemory,
-        currentCameraMode: () => effectiveCameraMode,
-        currentMicrophoneMode: () => effectiveMicrophoneMode,
-        cookieSiteId: siteId,
       );
 
   Widget getWebView(
@@ -1619,7 +1562,6 @@ class WebViewModel {
     ContainerCookieManager? containerCookieManager,
     Function saveFunc, {
     Future<void> Function(int windowId, String url)? onWindowRequested,
-    String? language,
     Function(String url, String html)? onHtmlLoaded,
     bool Function()? shouldFetchHtml,
     String? initialHtml,
@@ -1685,17 +1627,11 @@ class WebViewModel {
       return const TorBootstrapPlaceholder();
     }
     if (webview == null) {
-      // Use this.language directly to ensure we get the current value from WebViewModel
-      final effectiveLanguage = id.language;
       LogService.instance.log(
         'WebView',
         'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
         '${hosted ? ', running as ${id.siteId}' : ''})',
         sensitivity: LogSensitivity.sensitive,
-      );
-      LogService.instance.log(
-        'WebView',
-        'Language: $effectiveLanguage (param: $language)',
       );
       LogService.instance.log(
         'WebView',
@@ -1732,12 +1668,8 @@ class WebViewModel {
         isAndroid: hostIsAndroid,
         isFileImport: currentUrl.startsWith('file://'),
       );
-      final storeBinding = WebViewFactory.storeBinding(
-        siteId: id.siteId,
-        archiveContainerId: id.archiveContainerId,
-        incognito: id.effectiveIncognito,
-        proxySettings: id.outboundProxySettings,
-      );
+      final posture = id.sitePosture(globalUserScripts: globalUserScripts);
+      final storeBinding = WebViewFactory.storeBinding(posture);
       _containerProxyToRelease = storeBinding.releasesContainerProxy
           ? storeBinding.containerId
           : null;
@@ -1752,65 +1684,17 @@ class WebViewModel {
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
-          siteId: id.siteId,
-          archiveContainerId: id.archiveContainerId,
+          posture: posture,
           initialUrl: currentUrl,
-          javascriptEnabled: id.javascriptEnabled,
-          userAgent: id.effectiveUserAgentOrNull,
-          thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
-          httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled,
-          incognito: id.effectiveIncognito,
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
           // there is no Flutter route-pop edge-swipe here, so opt into
           // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
           backForwardGestures: true,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
-          language: effectiveLanguage, // Use WebViewModel's language, not parameter
-          zoomPercent: id.zoomPercent,
-          // Umbrella `trackingProtectionEnabled`: when on, the four
-          // tracker-protection subordinates behave as ON regardless of
-          // their per-site stored value. The stored values are still
-          // respected when the umbrella is off so users can opt out of
-          // individual paths under a custom posture.
-          clearUrlEnabled: id.clearUrlEnabled || id.trackingProtectionEnabled,
-          dnsBlockEnabled: id.dnsBlockEnabled || id.trackingProtectionEnabled,
-          dnsBlockLevel: id.effectiveDnsBlockLevel,
-          contentBlockEnabled:
-              id.contentBlockEnabled || id.trackingProtectionEnabled,
-          disabledFilterLists: id.effectiveDisabledFilterLists,
-          localCdnEnabled: id.effectiveLocalCdnEnabled ||
-              (id.trackingProtectionEnabled && !id.isArchiveTier),
-          contributesBlockStats: id.contributesBlockStats,
-          trackingProtectionEnabled: id.trackingProtectionEnabled,
-          letterboxEnabled: id.letterboxEnabled,
-          spoofWindowWidth: id.spoofWindowWidth,
-          spoofWindowHeight: id.spoofWindowHeight,
-          fingerprintResetNonce: id.fingerprintResetNonce,
-          // The effective timezone is resolved from the spoofed coords and
-          // persisted into `spoofTimezone` at settings-save time (Tracking
-          // Protection's force-from-location is applied there too), so the
-          // runtime just passes the stored value through — the polygon
-          // dataset never loads on this path.
-          locationMode: id.locationMode,
-          spoofLatitude: id.spoofLatitude,
-          spoofLongitude: id.spoofLongitude,
-          spoofAccuracy: id.spoofAccuracy,
-          spoofTimezone: id.spoofTimezone,
-          spoofTimezoneFromLocation: id.spoofTimezoneFromLocation,
-          liveLocationGranularity: id.liveLocationGranularity,
-          webRtcPolicy: id.effectiveWebRtcPolicy,
-          // Per-site proxy. Honored at WebView construction on iOS 17+ /
-          // macOS 14+ via the patched `preWKWebViewConfiguration` (see
-          // PROXY-002 / PROXY-008). Android ignores this and routes
-          // through the global `ProxyController` in `_applyProxySettings`.
-          proxySettings: id.outboundProxySettings,
-          notificationsEnabled: id.effectiveNotificationsEnabled,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-          userScripts: id.combineUserScripts(globalUserScripts),
           onConfirmScriptFetch: onConfirmScriptFetch,
           onUntrustedCertificate: onUntrustedCertificate,
           onHttpAuthRequest: onHttpAuthRequest,
-          httpAuthMemory: id.effectiveHttpAuthMemory,
           onExternalSchemeUrl: onExternalSchemeUrl,
           onLinkLongPress: onLinkLongPress,
           onProtectedMediaRequest: onProtectedMediaRequest == null
@@ -1930,7 +1814,11 @@ class WebViewModel {
                   sensitivity: LogSensitivity.sensitive,
                 );
                 if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlFunc(url, homeTitle: id.name, siteId: id.siteId, archiveContainerId: id.archiveContainerId, incognito: id.effectiveIncognito, thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled, clearUrlEnabled: id.clearUrlEnabled, dnsBlockEnabled: id.dnsBlockEnabled, dnsBlockLevel: id.effectiveDnsBlockLevel, contentBlockEnabled: id.contentBlockEnabled, disabledFilterLists: id.effectiveDisabledFilterLists, localCdnEnabled: id.effectiveLocalCdnEnabled, contributesBlockStats: id.contributesBlockStats, trackingProtectionEnabled: id.trackingProtectionEnabled, letterboxEnabled: id.letterboxEnabled, spoofWindowWidth: id.spoofWindowWidth, spoofWindowHeight: id.spoofWindowHeight, fingerprintResetNonce: id.fingerprintResetNonce, language: id.language, zoomPercent: id.zoomPercent, locationMode: id.locationMode, spoofLatitude: id.spoofLatitude, spoofLongitude: id.spoofLongitude, spoofAccuracy: id.spoofAccuracy, spoofTimezone: id.spoofTimezone, spoofTimezoneFromLocation: id.spoofTimezoneFromLocation, liveLocationGranularity: id.liveLocationGranularity, webRtcPolicy: id.effectiveWebRtcPolicy, userAgent: id.effectiveUserAgentOrNull, javascriptEnabled: id.javascriptEnabled, userScripts: id.combineUserScripts(globalUserScripts), proxySettings: id.outboundProxySettings, notificationsEnabled: id.effectiveNotificationsEnabled, externalLinkMode: id.effectiveExternalLinkMode, blockedCookies: id.blockedCookies, cameraMode: id.effectiveCameraMode, virtualCameraSource: id.virtualCameraSource, microphoneMode: id.effectiveMicrophoneMode, virtualMicrophoneSource: id.virtualMicrophoneSource, screenShareMode: id.effectiveScreenShareMode, virtualScreenSource: id.virtualScreenSource, protectedContentAllowed: id.effectiveProtectedContentAllowed, httpAuthMemory: id.effectiveHttpAuthMemory, passkeys: id.effectivePasskeysEnabled);
+                launchUrlFunc(
+                  url,
+                  id.sitePosture(globalUserScripts: globalUserScripts),
+                  homeTitle: id.name,
+                );
                 return false;
               case NavigationDecision.blockOpenExternal:
                 LogService.instance.log(
@@ -2051,7 +1939,11 @@ class WebViewModel {
                       return;
                     }
                     if (onOutboundLink?.call(handled.launchNestedUrl!, NavigationDecision.blockOpenNested, handled.hadGesture) ?? false) return;
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: id.name, siteId: id.siteId, archiveContainerId: id.archiveContainerId, incognito: id.effectiveIncognito, thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled, clearUrlEnabled: id.clearUrlEnabled, dnsBlockEnabled: id.dnsBlockEnabled, dnsBlockLevel: id.effectiveDnsBlockLevel, contentBlockEnabled: id.contentBlockEnabled, disabledFilterLists: id.effectiveDisabledFilterLists, localCdnEnabled: id.effectiveLocalCdnEnabled, contributesBlockStats: id.contributesBlockStats, trackingProtectionEnabled: id.trackingProtectionEnabled, letterboxEnabled: id.letterboxEnabled, spoofWindowWidth: id.spoofWindowWidth, spoofWindowHeight: id.spoofWindowHeight, fingerprintResetNonce: id.fingerprintResetNonce, language: id.language, zoomPercent: id.zoomPercent, locationMode: id.locationMode, spoofLatitude: id.spoofLatitude, spoofLongitude: id.spoofLongitude, spoofAccuracy: id.spoofAccuracy, spoofTimezone: id.spoofTimezone, spoofTimezoneFromLocation: id.spoofTimezoneFromLocation, liveLocationGranularity: id.liveLocationGranularity, webRtcPolicy: id.effectiveWebRtcPolicy, userAgent: id.effectiveUserAgentOrNull, javascriptEnabled: id.javascriptEnabled, userScripts: id.combineUserScripts(globalUserScripts), proxySettings: id.outboundProxySettings, notificationsEnabled: id.effectiveNotificationsEnabled, externalLinkMode: id.effectiveExternalLinkMode, blockedCookies: id.blockedCookies, cameraMode: id.effectiveCameraMode, virtualCameraSource: id.virtualCameraSource, microphoneMode: id.effectiveMicrophoneMode, virtualMicrophoneSource: id.virtualMicrophoneSource, screenShareMode: id.effectiveScreenShareMode, virtualScreenSource: id.virtualScreenSource, protectedContentAllowed: id.effectiveProtectedContentAllowed, httpAuthMemory: id.effectiveHttpAuthMemory, passkeys: id.effectivePasskeysEnabled);
+                    launchUrlFunc(
+                      handled.launchNestedUrl!,
+                      id.sitePosture(globalUserScripts: globalUserScripts),
+                      homeTitle: id.name,
+                    );
                   }
                   return;
                 case NavigationDecision.blockOpenExternal:
@@ -2136,7 +2028,6 @@ class WebViewModel {
           // legacy mode hits the global jar.
           cookieManager: cookieManager,
           containerCookieManager: containerCookieManager,
-          cookieSiteId: id.siteId,
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar. The mirror
             // and the block list are those of the site the slot runs as.
@@ -2181,7 +2072,7 @@ class WebViewModel {
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
           passkeys: PasskeyAccess.forHost(
-            enabled: id.effectivePasskeysEnabled,
+            enabled: posture.container.passkeys,
             isOnScreen: isActive ?? () => true,
           ),
           siteIcon: SiteIconTarget(
@@ -2336,7 +2227,7 @@ class WebViewModel {
   }) {
     if (webview == null) {
       // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, containerCookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts, onOutboundLink: onOutboundLink);
+      webview = getWebView(launchUrlFunc, cookieManager, containerCookieManager, saveFunc, globalUserScripts: globalUserScripts, onOutboundLink: onOutboundLink);
     }
     if (controller != null) {
       setController();
@@ -3175,7 +3066,8 @@ class WebViewModel {
       ),
       spoofLatitude: finite('spoofLatitude')?.toDouble(),
       spoofLongitude: finite('spoofLongitude')?.toDouble(),
-      spoofAccuracy: finite('spoofAccuracy')?.toDouble() ?? 50.0,
+      spoofAccuracy:
+          finite('spoofAccuracy')?.toDouble() ?? kDefaultSpoofAccuracy,
       spoofTimezone: field<String>('spoofTimezone'),
       spoofTimezoneFromLocation:
           field<bool>('spoofTimezoneFromLocation') ?? false,

@@ -25,6 +25,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'socks5_fixture.dart';
 
@@ -116,14 +117,9 @@ void main() {
               key: key,
               child: WebViewFactory.createWebView(
                 config: WebViewConfig(
-                  siteId: siteId,
+                  posture: barePosture(url,
+                      siteId: siteId, proxy: proxySettings),
                   initialUrl: url,
-                  proxySettings: proxySettings,
-                  clearUrlEnabled: false,
-                  dnsBlockEnabled: false,
-                  contentBlockEnabled: false,
-                  trackingProtectionEnabled: false,
-                  localCdnEnabled: false,
                 ),
                 onControllerCreated: (c) => controller = c,
               ),

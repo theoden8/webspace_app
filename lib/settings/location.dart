@@ -10,6 +10,9 @@
 ///   change as the device moves.
 enum LocationMode { off, spoof, live }
 
+/// Accuracy in meters a spoofed Position reports until the user sets one.
+const double kDefaultSpoofAccuracy = 50.0;
+
 /// Granularity of the fix surfaced by [LocationMode.live]. Three tiers
 /// trade off precision for permission posture and OS resource use:
 ///

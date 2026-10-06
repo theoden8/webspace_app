@@ -418,8 +418,9 @@ load is still in flight
   `lib/screens/block_stats.dart`. Tests: `test/block_stats_engine_test.dart`,
   `test/block_stats_service_test.dart`, `test/block_stats_detail_test.dart`,
   `test/block_stats_detail_storage_test.dart`, `test/block_stats_screen_test.dart`.
-  Structural gate for STATS-007: `test/js/nested_webview_posture_parity.test.js`
-  (`contributesBlockStats` is POSTURE); for the STATS-002 lifecycle flush:
+  STATS-007 holds by construction: `contributesBlockStats` is part of the
+  `SitePosture` every webview of the site, nested included, is built from
+  (`test/site_posture_test.dart`); for the STATS-002 lifecycle flush:
   `test/js/block_stats_flush_lifecycle.test.js`.
 - **Why the flush is not on `paused` alone.** `paused` is the Android/iOS
   backgrounding signal; desktop delivers `inactive`/`hidden`/`detached` instead, and

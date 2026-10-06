@@ -101,7 +101,7 @@ class LocationSpoofService {
 
     final lat = spoofLatitude ?? 0.0;
     final lng = spoofLongitude ?? 0.0;
-    final acc = spoofAccuracy > 0 ? spoofAccuracy : 50.0;
+    final acc = spoofAccuracy > 0 ? spoofAccuracy : kDefaultSpoofAccuracy;
     final tzJson = hasTimezone ? jsonEncode(spoofTimezone) : 'null';
     final wrtcJson = switch (webRtcPolicy) {
       WebRtcPolicy.relayOnly => '"relay"',

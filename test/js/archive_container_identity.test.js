@@ -2,8 +2,9 @@
 //
 // An archive-tier site binds `ws-<archiveContainerId>`, never `ws-<siteId>`:
 // the opaque id is what keeps the archived site's name off the disk. Every
-// webview that runs as the site has to be told that id, including the nested
-// screen, and the close sweeps any `ws-<siteId>` a path bound without it.
+// webview that runs as the site is told that id by the SitePosture it is built
+// from, which the compiler holds each surface to; what is left to check here is
+// that the close sweeps any `ws-<siteId>` an earlier build bound without it.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -14,28 +15,6 @@ const { blockAfter } = require('./helpers/dart_blocks');
 const root = path.resolve(__dirname, '..', '..');
 const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const main = read('lib/main.dart');
-const nested = read('lib/screens/inappbrowser.dart');
-
-function callText(text, from) {
-  const open = text.indexOf('(', from);
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    if (text[i] === '(') depth++;
-    else if (text[i] === ')' && --depth === 0) return text.slice(open + 1, i);
-  }
-  assert.fail(`unbalanced parentheses at offset ${from}`);
-}
-
-test('the nested webview binds by the opaque id', () => {
-  const config = callText(nested, nested.indexOf('config: WebViewConfig('));
-  assert.match(config, /archiveContainerId: widget\.archiveContainerId,/);
-});
-
-test('an existing site opens nested with its own opaque id', () => {
-  const at = main.indexOf('_launchNestedForModel(WebViewModel model, String url) =>');
-  const funnel = callText(main, main.indexOf('launchUrl(', at));
-  assert.match(funnel, /archiveContainerId: model\.archiveContainerId,/);
-});
 
 test('the close sweeps ws-<siteId> for the archive, never an app-tier site', () => {
   const close = blockAfter(main, '  Future<void> _closeArchive(ArchiveHandle handle) async {', null, 'lib/main.dart');

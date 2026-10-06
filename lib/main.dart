@@ -73,6 +73,7 @@ import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
+import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/site_teardown_engine.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
@@ -140,7 +141,6 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/microphone.dart';
@@ -3528,10 +3528,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// The one place a nested screen opens for an existing site from this
-  /// widget. Mirrors the `launchUrlFunc` call in `WebViewModel.getWebView`
-  /// so a share, deep link or URL-bar submission carries the same per-site
-  /// posture as a tapped link (NESTED-010); the parity test holds every
-  /// call of `launchUrl` in this file to the whole chain.
+  /// widget. Resolves the posture the way `WebViewModel.getWebView`'s own
+  /// launches do, so a share, deep link or URL-bar submission carries the same
+  /// per-site posture as a tapped link (NESTED-010).
   ///
   /// [opensFromTab] is false for a screen a share opened, which came from no
   /// tab and so has none to hand a link to (LIR-032).
@@ -3542,51 +3541,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   }) =>
       launchUrl(
         url,
+        model.sitePosture(globalUserScripts: _globalUserScripts),
         opensFromTab: opensFromTab,
         homeTitle: model.name,
-        siteId: model.siteId,
-        archiveContainerId: model.archiveContainerId,
-        incognito: model.effectiveIncognito,
-        thirdPartyCookiesEnabled: model.effectiveThirdPartyCookiesEnabled,
-        httpsUpgradeEnabled: model.effectiveHttpsUpgradeEnabled,
-        clearUrlEnabled: model.clearUrlEnabled,
-        dnsBlockEnabled: model.dnsBlockEnabled,
-        dnsBlockLevel: model.effectiveDnsBlockLevel,
-        contentBlockEnabled: model.contentBlockEnabled,
-        disabledFilterLists: model.effectiveDisabledFilterLists,
-        localCdnEnabled: model.effectiveLocalCdnEnabled,
-        contributesBlockStats: model.contributesBlockStats,
-        trackingProtectionEnabled: model.trackingProtectionEnabled,
-        letterboxEnabled: model.letterboxEnabled,
-        spoofWindowWidth: model.spoofWindowWidth,
-        spoofWindowHeight: model.spoofWindowHeight,
-        fingerprintResetNonce: model.fingerprintResetNonce,
-        language: model.language,
-        zoomPercent: model.zoomPercent,
-        locationMode: model.locationMode,
-        spoofLatitude: model.spoofLatitude,
-        spoofLongitude: model.spoofLongitude,
-        spoofAccuracy: model.spoofAccuracy,
-        spoofTimezone: model.spoofTimezone,
-        spoofTimezoneFromLocation: model.spoofTimezoneFromLocation,
-        liveLocationGranularity: model.liveLocationGranularity,
-        webRtcPolicy: model.effectiveWebRtcPolicy,
-        userAgent: model.effectiveUserAgentOrNull,
-        javascriptEnabled: model.javascriptEnabled,
-        userScripts: model.combineUserScripts(_globalUserScripts),
-        proxySettings: model.outboundProxySettings,
-        notificationsEnabled: model.effectiveNotificationsEnabled,
-        externalLinkMode: model.effectiveExternalLinkMode,
-        blockedCookies: model.blockedCookies,
-        cameraMode: model.effectiveCameraMode,
-        virtualCameraSource: model.virtualCameraSource,
-        microphoneMode: model.effectiveMicrophoneMode,
-        virtualMicrophoneSource: model.virtualMicrophoneSource,
-        screenShareMode: model.effectiveScreenShareMode,
-        virtualScreenSource: model.virtualScreenSource,
-        protectedContentAllowed: model.effectiveProtectedContentAllowed,
-        httpAuthMemory: model.effectiveHttpAuthMemory,
-        passkeys: model.effectivePasskeysEnabled,
       );
 
   /// LIR-009 + LIR-010 option 3: create a brand-new site rooted at the
@@ -6677,52 +6634,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     unawaited(_refreshNotificationSites(excludeActive: true));
   }
 
-  Future<void> launchUrl(String url, {
+  Future<void> launchUrl(
+    String url,
+    SitePosture posture, {
     bool opensFromTab = true,
     String? homeTitle,
-    required String? siteId,
-    String? archiveContainerId,
-    required bool incognito,
-    required bool thirdPartyCookiesEnabled,
-    required bool httpsUpgradeEnabled,
-    required bool clearUrlEnabled,
-    required bool dnsBlockEnabled,
-    int? dnsBlockLevel,
-    required bool contentBlockEnabled,
-    Set<String> disabledFilterLists = const <String>{},
-    required bool localCdnEnabled,
-    required bool contributesBlockStats,
-    required bool trackingProtectionEnabled,
-    bool letterboxEnabled = false,
-    int? spoofWindowWidth,
-    int? spoofWindowHeight,
-    String? fingerprintResetNonce,
-    required String? language,
-    required int zoomPercent,
-    LocationMode locationMode = LocationMode.off,
-    double? spoofLatitude,
-    double? spoofLongitude,
-    double spoofAccuracy = 50.0,
-    String? spoofTimezone,
-    bool spoofTimezoneFromLocation = false,
-    LocationGranularity liveLocationGranularity = LocationGranularity.gps,
-    WebRtcPolicy webRtcPolicy = WebRtcPolicy.defaultPolicy,
-    String? userAgent,
-    bool javascriptEnabled = true,
-    required List<UserScriptConfig> userScripts,
-    UserProxySettings? proxySettings,
-    bool notificationsEnabled = false,
-    ExternalLinkMode externalLinkMode = ExternalLinkMode.inApp,
-    Set<BlockedCookie> blockedCookies = const {},
-    CameraAccessMode cameraMode = CameraAccessMode.ask,
-    VirtualCameraSource? virtualCameraSource,
-    MicrophoneAccessMode microphoneMode = MicrophoneAccessMode.ask,
-    VirtualMicrophoneSource? virtualMicrophoneSource,
-    ScreenShareMode screenShareMode = ScreenShareMode.ask,
-    VirtualScreenSource? virtualScreenSource,
-    bool? protectedContentAllowed,
-    HttpAuthMemory httpAuthMemory = HttpAuthMemory.off,
-    bool passkeys = false,
   }) async {
     // LIR-032: the screen opens over the tab on screen, and a link in it into
     // one of the user's sites goes back there as a tab. The tab opens once the
@@ -6734,7 +6650,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         : null;
     final parentTabId = owner?.activeTabId;
     final openedFrom = owner?.runningIdentity.getDisplayName();
-    final nestedSite = siteId == null ? null : _modelForSiteId(siteId);
+    final nestedSite = _modelForSiteId(posture.siteId);
     Future<void> Function()? handOff;
     await Navigator.push(
       context,
@@ -6752,39 +6668,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                   return true;
                 },
           homeTitle: homeTitle,
-          siteId: siteId,
-          archiveContainerId: archiveContainerId,
-          incognito: incognito,
-          thirdPartyCookiesEnabled: thirdPartyCookiesEnabled,
-          httpsUpgradeEnabled: httpsUpgradeEnabled,
-          clearUrlEnabled: clearUrlEnabled,
-          dnsBlockEnabled: dnsBlockEnabled,
-          dnsBlockLevel: dnsBlockLevel,
-          contentBlockEnabled: contentBlockEnabled,
-          disabledFilterLists: disabledFilterLists,
-          localCdnEnabled: localCdnEnabled,
-          contributesBlockStats: contributesBlockStats,
-          trackingProtectionEnabled: trackingProtectionEnabled,
-          letterboxEnabled: letterboxEnabled,
-          spoofWindowWidth: spoofWindowWidth,
-          spoofWindowHeight: spoofWindowHeight,
-          fingerprintResetNonce: fingerprintResetNonce,
-          language: language,
-          zoomPercent: zoomPercent,
+          posture: posture,
           showUrlBar: _showUrlBar,
-          locationMode: locationMode,
-          spoofLatitude: spoofLatitude,
-          spoofLongitude: spoofLongitude,
-          spoofAccuracy: spoofAccuracy,
-          spoofTimezone: spoofTimezone,
-          spoofTimezoneFromLocation: spoofTimezoneFromLocation,
-          liveLocationGranularity: liveLocationGranularity,
-          webRtcPolicy: webRtcPolicy,
-          userAgent: userAgent,
-          javascriptEnabled: javascriptEnabled,
-          userScripts: userScripts,
           onConfirmScriptFetch: _confirmScriptFetch,
-          onOpenProxySettings: () => _openSiteSettingsById(siteId),
+          onOpenProxySettings: () => _openSiteSettingsById(posture.siteId),
           onProtectedMediaRequest: _promptProtectedMedia,
           onCameraDecision: _resolveCameraDecision,
           onMicrophoneDecision: _resolveMicrophoneDecision,
@@ -6796,21 +6683,8 @@ class _WebSpacePageState extends State<WebSpacePage>
             });
             await _saveShowUrlBar();
           },
-          proxySettings: proxySettings,
-          notificationsEnabled: notificationsEnabled,
-          externalLinkMode: externalLinkMode,
-          blockedCookies: blockedCookies,
           cookieManager: _cookieManager,
           containerCookieManager: _containerCookieManager,
-          cameraMode: cameraMode,
-          virtualCameraSource: virtualCameraSource,
-          microphoneMode: microphoneMode,
-          virtualMicrophoneSource: virtualMicrophoneSource,
-          screenShareMode: screenShareMode,
-          virtualScreenSource: virtualScreenSource,
-          protectedContentAllowed: protectedContentAllowed,
-          httpAuthMemory: httpAuthMemory,
-          passkeys: passkeys,
         ),
       ),
     );
@@ -11651,7 +11525,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                                       _openSiteSettingsById(webViewModel.siteId),
                                   onOutboundLink:
                                       _outboundLinkHookFor(webViewModel),
-                                  language: webViewModel.language,
                                   globalUserScripts: _globalUserScripts,
                                   // file:// imports are user data (only copy on device), not
                                   // a re-fetchable snapshot — the canonical bytes live in
@@ -12297,12 +12170,9 @@ class _WakeHost implements BackgroundWakeHost {
           models[i],
           loaded: _state._loadedIndices.contains(i),
           hasWebview: models[i].controller != null,
-          proxyBindable: !WebViewFactory.storeBinding(
-            siteId: models[i].siteId,
-            archiveContainerId: models[i].archiveContainerId,
-            incognito: models[i].effectiveIncognito,
-            proxySettings: models[i].outboundProxySettings,
-          ).proxyUnavailable,
+          proxyBindable: !WebViewFactory.storeBinding(models[i]
+                  .sitePosture(globalUserScripts: _state._globalUserScripts))
+              .proxyUnavailable,
           env: env,
         ),
     ];

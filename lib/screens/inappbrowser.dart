@@ -12,11 +12,11 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
+import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/repaint_log_throttle.dart';
 import 'package:webspace/services/repaint_suppression.dart';
-import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
@@ -27,20 +27,12 @@ import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
-import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
-import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart'
-    show
-        BlockedCookie,
-        extractDomain,
-        matchesBlockedCookie,
-        rendererProbeIndicatesGone;
+    show extractDomain, matchesBlockedCookie, rendererProbeIndicatesGone;
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -59,49 +51,12 @@ const String kNestedWebViewSlotKey = 'nested-webview-slot';
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
-  final String? siteId;
-  /// The opaque container an archive-tier site binds instead of
-  /// `ws-<siteId>` (ARCH-007). Without it this screen would bind, on
-  /// Android, a persistent profile named after the archived site's cleartext
-  /// id, which the archive's close does not tear down.
-  final String? archiveContainerId;
-  final bool incognito;
-  final bool thirdPartyCookiesEnabled;
-  final bool httpsUpgradeEnabled;
-  final bool clearUrlEnabled;
-  final bool dnsBlockEnabled;
-  final int? dnsBlockLevel;
-  final Set<String> disabledFilterLists;
-  final bool contentBlockEnabled;
-  final bool localCdnEnabled;
-  /// Mirrors the parent site's `contributesBlockStats` so a nested webview
-  /// for an archive-tier site never rolls its blocks into the app-wide
-  /// protection report (ARCH-006).
-  final bool contributesBlockStats;
-  final bool trackingProtectionEnabled;
-  final bool letterboxEnabled;
-  final int? spoofWindowWidth;
-  final int? spoofWindowHeight;
-  final String? fingerprintResetNonce;
-  final String? language;
-  final int zoomPercent;
+
+  /// The opening site's posture, as a nested screen starts from it
+  /// ([SitePosture.forNested]). A nested screen has no persisted model, so
+  /// the decisions it seeds (capture, DRM) live in this screen's memory only.
+  final SitePosture posture;
   final bool showUrlBar;
-  final LocationMode locationMode;
-  final double? spoofLatitude;
-  final double? spoofLongitude;
-  final double spoofAccuracy;
-  final String? spoofTimezone;
-  final bool spoofTimezoneFromLocation;
-  final LocationGranularity liveLocationGranularity;
-  final WebRtcPolicy webRtcPolicy;
-  /// Pre-combined per-site + opted-in global user scripts to inject. Carried
-  /// over from the parent webview so cosmetic/privacy/custom scripts keep
-  /// working when the user follows an outbound link into a nested screen.
-  final List<UserScriptConfig> userScripts;
-  // Per-site posture that must not silently revert on the untrusted nested
-  // surface: a custom/desktop UA and a JS-disabled hardening choice.
-  final String? userAgent;
-  final bool javascriptEnabled;
   final Future<bool> Function(String url)? onConfirmScriptFetch;
   /// Opens the parent site's own proxy settings, for the blocked-navigation
   /// interstitial (LEAK-010). A nested screen has no persisted model of its
@@ -119,113 +74,34 @@ class InAppWebViewScreen extends StatefulWidget {
   final String? openedFrom;
   /// Protected-content (Widevine/EME) permission popup, forwarded from the
   /// parent so a DRM site followed through an outbound link prompts the
-  /// same way. The decision is remembered in-memory for this screen only
-  /// (nested screens have no persisted `WebViewModel`).
+  /// same way.
   final Future<bool> Function(String origin)? onProtectedMediaRequest;
-  /// Web camera-access resolver, forwarded from the parent so a site
-  /// followed through an outbound link (e.g. a bank's QR-scan verification
-  /// page) prompts the same way — including the "use image or video"
-  /// virtual-camera path. Called with the origin and this screen's
-  /// in-memory current mode; the decision is remembered in-memory for this
-  /// screen only (nested screens have no persisted `WebViewModel`).
+  /// Capture resolvers, forwarded from the parent so a site followed through
+  /// an outbound link prompts the same way, virtual sources included. Each is
+  /// called with this screen's in-memory current mode, so a grant the user
+  /// gave the parent site is never inherited across the origin change.
   final Future<CameraDecision> Function(String origin, CameraAccessMode current)?
       onCameraDecision;
-  /// Web microphone-access resolver, forwarded from the parent so a site
-  /// followed through an outbound link prompts the same way — including the
-  /// "use audio file" virtual-microphone path. Called with the origin and
-  /// this screen's in-memory current mode; the decision is remembered
-  /// in-memory for this screen only (nested screens have no persisted
-  /// `WebViewModel`).
   final Future<MicrophoneDecision> Function(
       String origin, MicrophoneAccessMode current)? onMicrophoneDecision;
-  /// Screen-sharing resolver, forwarded from the parent so a site followed
-  /// through an outbound link prompts the same way — including the "use a
-  /// media file" simulated-surface path. Called with the origin and this
-  /// screen's in-memory current mode; the decision is remembered in-memory for
-  /// this screen only (nested screens have no persisted `WebViewModel`), so a
-  /// grant the user gave the parent site is never inherited across the origin
-  /// change.
   final Future<ScreenShareDecision> Function(
       String origin, ScreenShareMode current)? onScreenShareDecision;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
   final Future<void> Function(bool show)? onShowUrlBarChanged;
-  /// Per-site proxy of the parent site that opened this nested browser.
-  /// Forwarded into the nested [WebViewConfig] so cross-domain links from
-  /// a proxied site stay proxied. Resolves through the global outbound
-  /// proxy when type is DEFAULT.
-  final UserProxySettings proxySettings;
-  final bool notificationsEnabled;
 
-  /// Inherited from the site that opened this nested webview. In the
-  /// browser mode a cross-domain link leaves WebSpace for the system browser,
-  /// in the block mode it goes nowhere; in the in-app mode it navigates in
-  /// place (NESTED-009). Cross-domain is judged against the page currently
-  /// shown in this nested webview.
-  final ExternalLinkMode externalLinkMode;
-
-  /// Cookies the opening site blocks. Deleted from the jar after every load
-  /// here too — the nested webview shares the parent's container, so a
-  /// blocked cookie re-set through an outbound link would come back.
-  final Set<BlockedCookie> blockedCookies;
-
-  /// Cookie readers for the [blockedCookies] sweep, forwarded from the host
-  /// so the read routes through whichever engine is live. Exactly one is
-  /// non-null; both are ignored when [blockedCookies] is empty.
+  /// Cookie readers for the blocked-cookie sweep, forwarded from the host so
+  /// the read routes through whichever engine is live. Exactly one is
+  /// non-null; both are ignored when the site blocks no cookies.
   final CookieManager? cookieManager;
   final ContainerCookieManager? containerCookieManager;
 
-  /// Opening site's effective camera / microphone / protected-content
-  /// decisions. Seed this screen's in-memory state so a mode the user (or an
-  /// archive/ETP override) already settled is not silently re-asked, and so
-  /// a forced block stays blocked one hop out.
-  final CameraAccessMode cameraMode;
-  final VirtualCameraSource? virtualCameraSource;
-  final MicrophoneAccessMode microphoneMode;
-  final VirtualMicrophoneSource? virtualMicrophoneSource;
-  final ScreenShareMode screenShareMode;
-  final VirtualScreenSource? virtualScreenSource;
-  final bool? protectedContentAllowed;
-  final HttpAuthMemory httpAuthMemory;
-  /// The parent site's effective passkey setting (PASSKEY-001), so an
-  /// archive-tier site's nested page gets none either.
-  final bool passkeys;
-
   InAppWebViewScreen({
     required this.url,
+    required SitePosture posture,
     this.homeTitle,
-    this.siteId,
-    this.archiveContainerId,
-    required this.incognito,
-    required this.thirdPartyCookiesEnabled,
-    required this.httpsUpgradeEnabled,
-    required this.clearUrlEnabled,
-    required this.dnsBlockEnabled,
-    this.dnsBlockLevel,
-    this.disabledFilterLists = const <String>{},
-    required this.contentBlockEnabled,
-    required this.localCdnEnabled,
-    this.contributesBlockStats = true,
-    required this.trackingProtectionEnabled,
-    this.letterboxEnabled = false,
-    this.spoofWindowWidth,
-    this.spoofWindowHeight,
-    this.fingerprintResetNonce,
-    required this.language,
-    this.zoomPercent = 100,
     this.showUrlBar = false,
-    this.locationMode = LocationMode.off,
-    this.spoofLatitude,
-    this.spoofLongitude,
-    this.spoofAccuracy = 50.0,
-    this.spoofTimezone,
-    this.spoofTimezoneFromLocation = false,
-    this.liveLocationGranularity = LocationGranularity.gps,
-    this.webRtcPolicy = WebRtcPolicy.defaultPolicy,
-    this.userScripts = const [],
-    this.userAgent,
-    this.javascriptEnabled = true,
     this.onConfirmScriptFetch,
     this.onOpenProxySettings,
     this.onOpenAsTab,
@@ -235,23 +111,9 @@ class InAppWebViewScreen extends StatefulWidget {
     this.onMicrophoneDecision,
     this.onScreenShareDecision,
     this.onShowUrlBarChanged,
-    UserProxySettings? proxySettings,
-    this.notificationsEnabled = false,
-    this.externalLinkMode = ExternalLinkMode.inApp,
-    this.blockedCookies = const {},
     this.cookieManager,
     this.containerCookieManager,
-    this.cameraMode = CameraAccessMode.ask,
-    this.virtualCameraSource,
-    this.microphoneMode = MicrophoneAccessMode.ask,
-    this.virtualMicrophoneSource,
-    this.screenShareMode = ScreenShareMode.ask,
-    this.virtualScreenSource,
-    this.protectedContentAllowed,
-    this.httpAuthMemory = HttpAuthMemory.off,
-    this.passkeys = false,
-  }) : proxySettings = proxySettings ??
-            UserProxySettings(type: ProxyType.DEFAULT);
+  }) : posture = posture.forNested();
 
   @override
   _InAppWebViewScreenState createState() => _InAppWebViewScreenState();
@@ -272,24 +134,24 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool? _protectedContentAllowed;
   Future<bool>? _protectedMediaInFlight;
 
-  /// In-memory camera-access decision for this nested screen. Starts
-  /// unresolved (`ask`); once the popup / file-pick settles it holds the
-  /// chosen mode and, for virtual, the picked source for the life of this
+  /// In-memory camera-access decision for this nested screen, seeded from
+  /// the opening site's posture; once the popup / file-pick settles it holds
+  /// the chosen mode and, for virtual, the picked source for the life of this
   /// screen. Resolution runs through the same [CameraDecisionEngine] as the
   /// parent — only the storage differs (in-memory, no persistence).
-  CameraAccessMode _cameraMode = CameraAccessMode.ask;
+  late CameraAccessMode _cameraMode;
   VirtualCameraSource? _cameraSource;
   final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
 
   /// In-memory microphone-access decision for this nested screen, same
   /// contract as the camera one above.
-  MicrophoneAccessMode _microphoneMode = MicrophoneAccessMode.ask;
+  late MicrophoneAccessMode _microphoneMode;
   VirtualMicrophoneSource? _microphoneSource;
   final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
 
   /// In-memory screen-sharing decision for this nested screen, same contract
   /// as the camera one above.
-  ScreenShareMode _screenShareMode = ScreenShareMode.ask;
+  late ScreenShareMode _screenShareMode;
   VirtualScreenSource? _screenShareSource;
   final ScreenShareDecisionEngine _screenShareEngine =
       ScreenShareDecisionEngine();
@@ -387,18 +249,17 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     title = widget.homeTitle;
     _currentUrl = widget.url;
     _showUrlBar = widget.showUrlBar;
-    _cameraMode = nestedSeedMode(widget.cameraMode,
-        real: CameraAccessMode.real, ask: CameraAccessMode.ask);
-    _cameraSource = widget.virtualCameraSource;
-    _microphoneMode = nestedSeedMode(widget.microphoneMode,
-        real: MicrophoneAccessMode.real, ask: MicrophoneAccessMode.ask);
-    _microphoneSource = widget.virtualMicrophoneSource;
-    _screenShareMode = widget.screenShareMode;
-    _screenShareSource = widget.virtualScreenSource;
-    _protectedContentAllowed = widget.protectedContentAllowed;
+    final media = widget.posture.media;
+    _cameraMode = media.camera.mode;
+    _cameraSource = media.camera.source;
+    _microphoneMode = media.microphone.mode;
+    _microphoneSource = media.microphone.source;
+    _screenShareMode = media.screenShare.mode;
+    _screenShareSource = media.screenShare.source;
+    _protectedContentAllowed = media.protectedContent;
     _devToolsHost = NestedDevToolsHost(
       name: widget.homeTitle ?? extractDomain(widget.url),
-      siteId: widget.siteId,
+      siteId: widget.posture.siteId,
       currentUrl: widget.url,
     );
     final bool isMobile = hostIsIOS || hostIsAndroid;
@@ -409,8 +270,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     // lifetime, so a later Up transition would leak — the nested twin of the
     // gate in WebViewModel.getWebView.
     if (waitsForTor(
-      widget.proxySettings,
-      siteId: widget.siteId,
+      widget.posture.container.proxy,
+      siteId: widget.posture.siteId,
       torUp: TorService.instance.status.isUp,
     )) {
       _torStatusSub = TorService.instance.statusStream.listen((s) {
@@ -418,7 +279,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           setState(() => _webView = _createNestedInappWebView());
         }
       });
-      TorService.instance.maybeStart('$kTorNestedHolderPrefix${widget.siteId}');
+      TorService.instance
+          .maybeStart('$kTorNestedHolderPrefix${widget.posture.siteId}');
     } else {
       _webView = _createNestedInappWebView();
     }
@@ -428,10 +290,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// closes over is either on [widget] or on `this`; no locals from
   /// `initState`.
   Widget _createNestedInappWebView() {
+    final p = widget.posture;
+    final blockedCookies = p.blocking.blockedCookies;
     return WebViewFactory.createWebView(
       config: WebViewConfig(
-        siteId: widget.siteId,
-        archiveContainerId: widget.archiveContainerId,
+        posture: p,
         initialUrl: widget.url,
         // BUG-002 gap #1: the OS can kill this nested webview's renderer
         // (memory reclaim while backgrounded, or a page-induced crash),
@@ -442,59 +305,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // the WebView has pixels, and the 15s commit window can close before
         // a slow renderer produces any (BUG-001 gap #18).
         onPageCommitVisible: () => _nudgeSurfaceRepaint('page-commit-visible'),
-        incognito: widget.incognito,
-        javascriptEnabled: widget.javascriptEnabled,
-        userAgent: widget.userAgent,
-        // Mirror parent: when umbrella protection is on, the five
-        // tracker-protection subordinates behave as forced regardless of
-        // their stored value. Third-party cookies is the one forced *off*.
-        thirdPartyCookiesEnabled: widget.thirdPartyCookiesEnabled &&
-            !widget.trackingProtectionEnabled,
-        // ETP-030 forces it on, and unlike the subordinates above the parent
-        // already resolved the app-wide default into this flag.
-        httpsUpgradeEnabled:
-            widget.httpsUpgradeEnabled || widget.trackingProtectionEnabled,
-        clearUrlEnabled: widget.clearUrlEnabled || widget.trackingProtectionEnabled,
-        dnsBlockEnabled: widget.dnsBlockEnabled || widget.trackingProtectionEnabled,
-        dnsBlockLevel: widget.dnsBlockLevel,
-        disabledFilterLists: widget.disabledFilterLists,
-        contentBlockEnabled: widget.contentBlockEnabled || widget.trackingProtectionEnabled,
-        localCdnEnabled: widget.localCdnEnabled || widget.trackingProtectionEnabled,
-        contributesBlockStats: widget.contributesBlockStats,
-        trackingProtectionEnabled: widget.trackingProtectionEnabled,
-        letterboxEnabled: widget.letterboxEnabled,
-        spoofWindowWidth: widget.spoofWindowWidth,
-        spoofWindowHeight: widget.spoofWindowHeight,
-        fingerprintResetNonce: widget.fingerprintResetNonce,
-        language: widget.language,
-        zoomPercent: widget.zoomPercent,
-        // Geolocation mode is independent of the umbrella. Static
-        // spoof coords still force the timezone to "From picked
-        // location" so Date/Intl match the spoofed geo. With no coords
-        // the umbrella leaves the timezone alone.
-        locationMode: widget.locationMode,
-        spoofLatitude: widget.spoofLatitude,
-        spoofLongitude: widget.spoofLongitude,
-        spoofAccuracy: widget.spoofAccuracy,
-        spoofTimezone: (widget.trackingProtectionEnabled &&
-                widget.spoofLatitude != null &&
-                widget.spoofLongitude != null)
-            ? null
-            : widget.spoofTimezone,
-        spoofTimezoneFromLocation: (widget.trackingProtectionEnabled &&
-                widget.spoofLatitude != null &&
-                widget.spoofLongitude != null)
-            ? true
-            : widget.spoofTimezoneFromLocation,
-        liveLocationGranularity: widget.liveLocationGranularity,
-        webRtcPolicy: resolveWebRtcPolicy(
-          stored: widget.webRtcPolicy,
-          trackingProtectionEnabled: widget.trackingProtectionEnabled,
-          proxied: resolveEffectiveProxy(widget.proxySettings).type !=
-              ProxyType.DEFAULT,
-        ),
-        proxySettings: widget.proxySettings,
-        userScripts: widget.userScripts,
         onConfirmScriptFetch: widget.onConfirmScriptFetch,
         onUnproxiedNavigationBlocked: (blocked) {
           if (!mounted) return;
@@ -503,11 +313,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         onProtectedMediaRequest: widget.onProtectedMediaRequest == null
             ? null
             : (origin) async {
-                // ETP-023: DRM provisions a durable Widevine device
-                // identifier, so the umbrella denies without prompting.
-                if (widget.trackingProtectionEnabled) {
-                  return false;
-                }
                 if (_protectedContentAllowed != null) {
                   return _protectedContentAllowed!;
                 }
@@ -582,29 +387,23 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   // Nested screens have no persisted model.
                   save: () async {},
                 ),
-        notificationsEnabled: widget.notificationsEnabled,
         // Only wired when the opening site actually blocks cookies: an
         // always-on reader would add a jar round-trip to every load here.
-        cookieManager:
-            widget.blockedCookies.isEmpty ? null : widget.cookieManager,
-        containerCookieManager: widget.blockedCookies.isEmpty
-            ? null
-            : widget.containerCookieManager,
-        cookieSiteId: widget.siteId,
-        onCookiesChanged: widget.blockedCookies.isEmpty
+        cookieManager: blockedCookies.isEmpty ? null : widget.cookieManager,
+        containerCookieManager:
+            blockedCookies.isEmpty ? null : widget.containerCookieManager,
+        onCookiesChanged: blockedCookies.isEmpty
             ? null
             : (cookies) async {
                 final url = Uri.parse(_currentUrl);
                 for (final c in cookies) {
-                  if (!matchesBlockedCookie(
-                      widget.blockedCookies, c.name, c.domain)) {
+                  if (!matchesBlockedCookie(blockedCookies, c.name, c.domain)) {
                     continue;
                   }
-                  if (widget.containerCookieManager != null &&
-                      widget.siteId != null) {
+                  if (widget.containerCookieManager != null) {
                     await widget.containerCookieManager!.deleteCookie(
                       controller: _controller,
-                      siteId: widget.siteId!,
+                      siteId: p.siteId,
                       url: url,
                       name: c.name,
                       domain: c.domain,
@@ -678,7 +477,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             isSiteActive: mounted,
             lastSameDomainGestureTime: _lastSameDomainGestureTime,
             now: DateTime.now(),
-            externalLinkMode: widget.externalLinkMode,
+            externalLinkMode: p.page.externalLinks,
           );
           switch (result.gestureUpdate) {
             case GestureStateUpdate.record:
@@ -727,9 +526,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           if (!mounted) return null;
           return promptHttpAuth(context, request);
         },
-        httpAuthMemory: widget.httpAuthMemory,
         passkeys: PasskeyAccess.forHost(
-          enabled: widget.passkeys,
+          enabled: p.container.passkeys,
           isOnScreen: () =>
               mounted && (ModalRoute.of(context)?.isCurrent ?? false),
         ),
@@ -789,8 +587,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _commitWindowTimer?.cancel();
     _repaintLogFlushTimer?.cancel();
     _torStatusSub?.cancel();
-    if (widget.proxySettings.type == ProxyType.TOR) {
-      TorService.instance.release('$kTorNestedHolderPrefix${widget.siteId}');
+    if (widget.posture.container.proxy.type == ProxyType.TOR) {
+      TorService.instance
+          .release('$kTorNestedHolderPrefix${widget.posture.siteId}');
     }
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
@@ -812,6 +611,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// routing picked (LIR-015); the sheet says which, and which container it
   /// binds, by the rule the factory bound it with.
   void _showSiteInfo() {
+    final p = widget.posture;
     showSiteInfoSheet(
       context,
       SiteInfo(
@@ -819,13 +619,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         openedFrom: widget.openedFrom,
         pageUrl: _currentUrl,
         containerId: containerIdFor(
-          siteId: widget.siteId,
-          archiveContainerId: widget.archiveContainerId,
-          incognito: widget.incognito,
+          siteId: p.siteId,
+          archiveContainerId: p.container.archiveContainerId,
+          incognito: p.container.incognito,
         ),
-        incognito: widget.incognito,
-        proxy: PlatformInfo.isProxySupported ? widget.proxySettings : null,
-        siteId: widget.siteId,
+        incognito: p.container.incognito,
+        proxy: PlatformInfo.isProxySupported ? p.container.proxy : null,
+        siteId: p.siteId,
       ),
     );
   }
@@ -945,7 +745,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         _armCommitLatch();
         _nudgeSurfaceRepaint('resume-reissue');
         try {
-          await controller.loadUrl(plan.url!, language: widget.language);
+          await controller.loadUrl(plan.url!, language: widget.posture.page.language);
         } catch (_) {
           // Controller may have been disposed while the retry was in flight.
         }
@@ -964,7 +764,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     if (!mounted) return;
     LogService.instance.log(
       'WebView',
-      'Nested renderer gone (siteId: ${widget.siteId}, didCrash: $didCrash) — recreating',
+      'Nested renderer gone (siteId: ${widget.posture.siteId}, didCrash: $didCrash) — recreating',
       level: LogLevel.warning,
     );
     setState(() {
@@ -1382,7 +1182,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 currentUrl: _currentUrl,
                 onSiteInfo: _showSiteInfo,
                 onUrlSubmitted: (url) {
-                  _controller?.loadUrl(url, language: widget.language);
+                  _controller?.loadUrl(url, language: widget.posture.page.language);
                 },
               ),
             ),

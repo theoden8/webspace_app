@@ -52,11 +52,27 @@ for (const file of dartFiles(path.join(repoRoot, 'lib'))) {
 test('the gate sees the builders it guards', () => {
   const where = builds.map((b) => b.rel);
   assert.ok(
-    where.filter((r) => r === 'lib/services/webview.dart').length >= 2,
-    'the site and popup builders in webview.dart pass proxySettings; if they '
-      + 'stopped, update this gate rather than letting it pass on nothing',
+    where.includes('lib/services/webview.dart'),
+    'the builder the site and popup webviews share passes proxySettings; if '
+      + 'it stopped, update this gate rather than letting it pass on nothing',
   );
   assert.ok(where.includes('lib/services/proxy_router_probe.dart'));
+});
+
+// The site and popup builders share `_siteSettings`, which is handed the
+// binding: each caller records the proxy it hands over.
+test('every caller of the shared builder records its proxy', () => {
+  const webview = fs.readFileSync(
+    path.join(repoRoot, 'lib/services/webview.dart'), 'utf8');
+  const calls = [...webview.matchAll(/_siteSettings\(\s*binding,/g)];
+  assert.ok(calls.length >= 2, 'expected the site and popup webviews to share the builder');
+  for (const call of calls) {
+    const fn = webview.lastIndexOf('\n  static ', call.index);
+    assert.match(webview.slice(fn, call.index),
+      /ProxyManager\.noteStoreProxy\(\s*(binding\.)?containerId,\s*(binding\.proxy|inappProxy)\)/,
+      'a webview built through _siteSettings must record its container proxy '
+        + '(PROXY-029)');
+  }
 });
 
 test('every proxySettings handed to a WebView is recorded', () => {

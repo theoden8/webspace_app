@@ -77,7 +77,7 @@ void main() {
 
   test('the tab opens after the screen is gone, before its opener\'s close',
       () {
-    final body = bodyOf(main, 'Future<void> launchUrl(String url, {');
+    final body = bodyOf(main, 'Future<void> launchUrl(\n');
     final push = body.indexOf('await Navigator.push(');
     final run = body.indexOf('if (run != null && mounted) await run();');
     expect(push, isNot(-1));

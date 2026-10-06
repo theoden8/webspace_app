@@ -212,7 +212,7 @@ void main() {
       expect(
         flat,
         contains('if (LocationSpoofService.affectsWorkerScope('
-            'effectiveSpoofTimezone)) { workerScopeShims.add(locationShim); }'),
+            'location.timezone)) { workerScopeShims.add(locationShim); }'),
         reason: 'an unguarded add puts the blob wrapper on every site, which '
             'WORK-006 forbids',
       );

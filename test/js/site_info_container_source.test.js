@@ -1,7 +1,7 @@
 // Site info sheet gate (NAV-011).
 //
 // The sheet names the container a page's webview binds. It is only true if it
-// is computed by the rule the factory binds by, from the inputs that webview's
+// is computed by the rule the factory binds by, from the posture that webview's
 // WebViewConfig was given. A sheet built from other inputs (the raw
 // `incognito` where the config reads `effectiveIncognito`, or the siteId where
 // an archive site binds its archiveContainerId) names a container the page
@@ -32,40 +32,29 @@ function callText(text, from) {
 }
 
 test('the factory binds through containerIdFor', () => {
-  const forConfig = callText(
-    webview,
-    webview.indexOf('=> storeBinding(', webview.indexOf('StoreBinding _bindingFor(WebViewConfig config)')),
-  );
-  assert.match(forConfig, /siteId: config\.siteId,/);
-  assert.match(forConfig, /archiveContainerId: config\.archiveContainerId,/);
-  assert.match(forConfig, /incognito: config\.incognito,/);
-  assert.match(forConfig, /proxySettings: config\.proxySettings,/);
-  const create = blockAfter(webview, 'static StoreBinding storeBinding({', '}) {', 'webview.dart');
+  assert.match(webview,
+    /static StoreBinding _bindingFor\(WebViewConfig config\) =>\s*storeBinding\(config\.posture\);/);
+  const create = blockAfter(webview, 'static StoreBinding storeBinding(SitePosture posture) {',
+    null, 'webview.dart');
   const at = create.indexOf('final containerId = containerIdFor(');
   assert.notEqual(at, -1, 'the binding must follow the rule the sheet reports');
   const args = callText(create, at);
   assert.match(args, /siteId: siteId/);
-  assert.match(args, /archiveContainerId: archiveContainerId/);
-  assert.match(args, /incognito: incognito/);
+  assert.match(create, /final siteId = posture\.siteId;/);
+  assert.match(args, /archiveContainerId: posture\.container\.archiveContainerId/);
+  assert.match(args, /incognito: posture\.container\.incognito/);
 });
 
 // The model reads the binding before it builds the webview, to know whether
-// the container's proxy has to be cleared first (PROXY-029). Read from other
-// inputs, it would clear, or fail to clear, a container the page never uses.
-// Both read the slot's running identity, which is the host for a hosted tab
-// (LIR-018).
-test('the model reads the binding from the inputs of the site webview config', () => {
-  const early = callText(model, model.indexOf('WebViewFactory.storeBinding('));
+// the container's proxy has to be cleared first (PROXY-029). Read from another
+// posture, it would clear, or fail to clear, a container the page never uses.
+// The posture is the slot's running identity's, which is the host for a hosted
+// tab (LIR-018).
+test('the model reads the binding from the posture of the site webview config', () => {
+  assert.match(model, /final posture = id\.sitePosture\(globalUserScripts: globalUserScripts\);/);
+  assert.match(callText(model, model.indexOf('WebViewFactory.storeBinding(')), /^posture$/);
   const config = callText(model, model.indexOf('webview = WebViewFactory.createWebView('));
-  for (const input of [
-    'siteId: id.siteId,',
-    'archiveContainerId: id.archiveContainerId,',
-    'incognito: id.effectiveIncognito,',
-    'proxySettings: id.outboundProxySettings,',
-  ]) {
-    assert.ok(early.includes(input), `storeBinding call lacks ${input}`);
-    assert.ok(config.includes(input), `site WebViewConfig lacks ${input}`);
-  }
+  assert.match(config, /posture: posture,/);
 });
 
 test('every URL bar offers site info', () => {
@@ -85,14 +74,14 @@ test('site info is reached from the URL bar only, never a menu', () => {
   }
 });
 
-test('the main sheet reads the inputs of the site webview config', () => {
+test('the main sheet reads the inputs of the site webview posture', () => {
   // A hosted tab (LIR-018) binds its host's container, so both sides read
   // the slot's running identity rather than the owning site.
-  const config = callText(model, model.indexOf('webview = WebViewFactory.createWebView('));
-  assert.match(config, /siteId: id\.siteId,/);
-  assert.match(config, /archiveContainerId: id\.archiveContainerId,/);
-  assert.match(config, /incognito: id\.effectiveIncognito,/);
   assert.match(model, /final WebViewModel id = runningIdentity;/);
+  const resolver = blockAfter(model, 'SitePosture sitePosture({', '}) {', 'web_view_model.dart');
+  assert.match(resolver, /siteId: siteId,/);
+  assert.match(resolver, /archiveContainerId: archiveContainerId,/);
+  assert.match(resolver, /incognito: effectiveIncognito,/);
   const bar = callText(main, main.search(/\bUrlBar\(/));
   assert.match(bar, /final id = model\.runningIdentity;/);
   const rule = callText(bar, bar.indexOf('containerIdFor('));
@@ -101,15 +90,15 @@ test('the main sheet reads the inputs of the site webview config', () => {
   assert.match(rule, /incognito: id\.effectiveIncognito/);
 });
 
-test('the nested sheet reads the inputs of the nested webview config', () => {
-  const config = callText(nested, nested.indexOf('config: WebViewConfig('));
-  assert.match(config, /siteId: widget\.siteId,/);
-  assert.match(config, /incognito: widget\.incognito,/);
-  assert.match(config, /archiveContainerId: widget\.archiveContainerId,/);
+test('the nested sheet reads the posture of the nested webview config', () => {
+  const build = blockAfter(nested, '  Widget _createNestedInappWebView() {', null, 'inappbrowser.dart');
+  assert.match(build, /final p = widget\.posture;/);
+  assert.match(callText(build, build.indexOf('config: WebViewConfig(')), /posture: p,/);
   const show = blockAfter(nested, '  void _showSiteInfo() {', null, 'inappbrowser.dart');
+  assert.match(show, /final p = widget\.posture;/);
   const rule = callText(show, show.indexOf('containerIdFor('));
-  assert.match(rule, /siteId: widget\.siteId/);
-  assert.match(rule, /archiveContainerId: widget\.archiveContainerId/,
+  assert.match(rule, /siteId: p\.siteId/);
+  assert.match(rule, /archiveContainerId: p\.container\.archiveContainerId/,
     'an archived site\'s nested screen binds its opaque container (ARCH-007)');
-  assert.match(rule, /incognito: widget\.incognito/);
+  assert.match(rule, /incognito: p\.container\.incognito/);
 });

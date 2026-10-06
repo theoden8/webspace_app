@@ -24,6 +24,7 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
+import 'bare_site.dart';
 
 import 'fixture_server.dart';
 import 'secure_storage_fake.dart';
@@ -221,15 +222,9 @@ void main() {
   }) =>
       WebViewConfig(
         key: ValueKey('http-auth-$siteId'),
-        siteId: siteId,
+        posture: barePosture(url, siteId: siteId),
         initialUrl: url,
-        httpAuthMemory: HttpAuthMemory.readWrite,
         onHttpAuthRequest: prompt,
-        clearUrlEnabled: false,
-        dnsBlockEnabled: false,
-        contentBlockEnabled: false,
-        trackingProtectionEnabled: false,
-        localCdnEnabled: false,
       );
 
   testWidgets('a saved sign-in answers the challenge without a prompt',

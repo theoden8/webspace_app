@@ -41,6 +41,7 @@ import 'package:webspace/services/tor_geoip_io.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
 final bool torRequired = Platform.environment['WEBSPACE_TOR_NETWORK'] == '1';
@@ -1033,14 +1034,9 @@ void main() {
                 key: key,
                 child: WebViewFactory.createWebView(
                   config: WebViewConfig(
-                    siteId: site,
+                    posture: barePosture(whereFrom.toString(),
+                        siteId: site, proxy: proxy),
                     initialUrl: whereFrom.toString(),
-                    proxySettings: proxy,
-                    clearUrlEnabled: false,
-                    dnsBlockEnabled: false,
-                    contentBlockEnabled: false,
-                    trackingProtectionEnabled: false,
-                    localCdnEnabled: false,
                   ),
                   onControllerCreated: (c) => controller = c,
                 ),

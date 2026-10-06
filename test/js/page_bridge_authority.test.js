@@ -107,7 +107,7 @@ test('HTTPS-004: the https upgrade comes after the routing decision', () => {
 // must be one the engine produced from the navigation's own URL, never one a
 // page supplied.
 test('HTTPS-004: the upgraded URL is the engine\'s, not the page\'s', () => {
-  assert.match(NAV, /onNavigation\(url, enabled: config\.httpsUpgradeEnabled\)/,
+  assert.match(NAV, /onNavigation\(url, enabled: config\.posture\.blocking\.httpsUpgrade\)/,
     'the engine must be asked about the navigation URL itself, and about the ' +
     'site\'s own setting');
   const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
@@ -138,12 +138,13 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
     '_buildPageScripts(parent)',   // the same shims as the site webview
     '_bindingFor(parent)',         // the same container + proxy
     '_registerPageHandlers(',      // the Dart side those shims call
-    'parent.userAgent',
-    'parent.incognito',
   ]) {
     assert.ok(body.includes(wiring),
       `createPopupWebView no longer carries ${wiring}`);
   }
+  assert.match(body, /initialSettings: _siteSettings\(\s*binding,\s*parent\.posture,/,
+    'the popup must take its native settings from the parent posture, '
+    + 'through the builder the site webview uses');
   assert.ok(WEBVIEW.includes('_popupParentConfigs[windowId] = config;'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
@@ -240,7 +241,7 @@ test('ICON-013: page icon fetches go through the guarded fetch only', () => {
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf(';\n', WEBVIEW.indexOf('SiteIconFetcher(', at)));
   assert.ok(body.includes('fetchPageIconBytes('),
     'page icon links are page-chosen URLs: fetch them through the guarded path');
-  assert.ok(body.includes('proxy: config.proxySettings'),
+  assert.ok(body.includes('proxy: config.posture.container.proxy'),
     "a page icon must go through the site's proxy");
   assert.ok(body.includes('_pageIconRequestAllowed(config, target, documentUrl)'),
     "the site's blockers must see every page icon request");
@@ -290,7 +291,7 @@ test('LIR-035: only the site\'s top document declares its search', () => {
     'a subframe can call the handler; its search is not the site\'s');
   assert.ok(handler.includes('_pageIconRequestAllowed('),
     'the description is fetched through the site\'s blockers');
-  assert.ok(handler.includes('proxy: config.proxySettings'),
+  assert.ok(handler.includes('proxy: config.posture.container.proxy'),
     'the description is fetched through the site\'s proxy');
 });
 
@@ -300,7 +301,10 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
   const at = WEBVIEW.indexOf('static Widget createPopupWebView({');
   assert.notEqual(at, -1, 'createPopupWebView is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
-  assert.ok(body.includes('useShouldOverrideUrlLoading: true'),
+  const settings = blockAfter(WEBVIEW, 'static inapp.InAppWebViewSettings _siteSettings(', '}) {',
+    'webview.dart');
+  assert.ok(body.includes('initialSettings: _siteSettings(')
+      && settings.includes('..useShouldOverrideUrlLoading = true'),
     'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
   assert.match(body,
     /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*_onSiteNavigationPolicy\(parent, navigationAction,\s*allowCaptcha: true\)/,
@@ -330,10 +334,12 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
   assert.notEqual(at, -1, 'openHeadlessCheck is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
   assert.match(body,
-    /_onSiteNavigationPolicy\(config, navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: config\.httpsUpgradeEnabled\)/,
+    /_onSiteNavigationPolicy\(config, navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
     'a headless check must run the on-site navigation gate without the captcha exception');
+  assert.match(body, /initialSettings: _siteSettings\(\s*binding,\s*posture,/,
+    'a headless check takes its native settings from the site posture, '
+    + 'through the builder the site webview uses');
   for (const check of [
-    'useShouldOverrideUrlLoading = true',
     'if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);',
     '_registerPageHandlers(',
     'onCreateWindow: (_, _) async => false,',

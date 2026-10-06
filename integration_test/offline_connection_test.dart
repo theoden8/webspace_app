@@ -44,6 +44,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'bare_site.dart';
 import 'fixture_server.dart';
 
 /// Marker baked into the snapshot handed to the webview as `initialHtml`.
@@ -210,15 +211,11 @@ void main() {
                 // A second mount in one test would otherwise reuse the
                 // first platform view and never load its own initial data.
                 key: UniqueKey(),
+                // Keep the surface to the network path under test: no
+                // blocker lists, no ETP shim.
+                posture: barePosture(initialUrl, siteId: 'offline-connection'),
                 initialUrl: initialUrl,
                 initialHtml: initialHtml,
-                // Keep the surface to the network path under test: no
-                // blocker lists, no ETP shim, no CDN rewriting.
-                clearUrlEnabled: false,
-                dnsBlockEnabled: false,
-                contentBlockEnabled: false,
-                trackingProtectionEnabled: false,
-                localCdnEnabled: false,
                 onReloadIssued: () => observed.reloadsIssued++,
                 onLoadingChanged: observed.loadingStates.add,
                 onMainFrameLoad: observed.signals.add,

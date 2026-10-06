@@ -25,6 +25,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
+import 'bare_site.dart';
 import 'fixture_server.dart';
 
 // Cell width in CSS px, and the box the webview is mounted in. The cell
@@ -135,15 +136,12 @@ void main() {
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
                 key: mountKey,
-                initialUrl: '$base$_kRulerPath',
-                zoomPercent: zoomPercent,
                 // Keep the surface to the zoom path: no blocker lists, no
-                // ETP shim (which also spoofs screen.*), no CDN rewriting.
-                clearUrlEnabled: false,
-                dnsBlockEnabled: false,
-                contentBlockEnabled: false,
-                trackingProtectionEnabled: false,
-                localCdnEnabled: false,
+                // ETP shim (which also spoofs screen.*).
+                posture: barePosture('$base$_kRulerPath',
+                    siteId: 'page-zoom',
+                    adjust: (site) => site.zoomPercent = zoomPercent),
+                initialUrl: '$base$_kRulerPath',
               ),
               onControllerCreated: (c) => controller = c,
             ),

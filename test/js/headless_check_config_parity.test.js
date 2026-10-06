@@ -61,6 +61,11 @@ const UI_ONLY = new Set([
   'siteIcon',
   'siteSearch',
   'onConsoleMessage',
+  // Read only by the capture handlers the decision callbacks install.
+  'currentCameraMode',
+  'currentMicrophoneMode',
+  // The slot's background audio (BGAUDIO-006); nothing plays in a check.
+  'backgroundAudioEnabled',
 ]);
 
 /// The top-level named arguments of the first `WebViewConfig(` call after

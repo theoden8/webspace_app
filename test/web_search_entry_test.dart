@@ -229,11 +229,10 @@ void main() {
       final start = model.indexOf('  Widget getWebView(');
       final body = model.substring(
           start, model.indexOf('  WebViewController? getController('));
+      expect(count(body, 'id.sitePosture(globalUserScripts: globalUserScripts)'),
+          3, reason: 'the webview and both nested launches run as the identity');
       for (final field in [
-        'siteId: id.siteId',
-        'cookieSiteId: id.siteId',
-        'proxySettings: id.outboundProxySettings',
-        'userScripts: id.combineUserScripts(globalUserScripts)',
+        'posture: posture,',
         'initUrl: navHome',
         'final String navHome = navigationHomeUrl;',
         'externalLinkMode: id.effectiveExternalLinkMode',

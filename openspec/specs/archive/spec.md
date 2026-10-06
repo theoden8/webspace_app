@@ -305,7 +305,7 @@ The override matrix:
 | Passkeys ([passkey-support](../passkey-support/spec.md) PASSKEY-001, PASSKEY-013) | never offered | `effectivePasskeysEnabled` is false, so no bridge shim or handler is installed, and on iOS and macOS the block shim hides WebKit's own WebAuthn: the system passkey sheet is OS-level UI naming the relying party, and a passkey the site created would live in the credential provider, outside the archive's keyspace. |
 | Search address from the site's pages ([link-intent-routing](../../changes/web-search/specs/link-intent-routing/spec.md) LIR-035) | archive state only | Stored as a site field, which for an archive site is written only into the archive. The description is fetched through the site's proxy and blockers and nothing is cached on disk. |
 | Container colour (TAB-018) | archive state only | Kept inside the archive so the site comes back with it; never counted by the app tier, so no app-tier colour depends on an archive. |
-| Nested webviews (`InAppWebViewScreen`) | inherit the effective values | The two `launchUrlFunc` call sites pass `effectiveNotificationsEnabled` / `effectiveCameraMode` / `effectiveMicrophoneMode` / `effectiveProtectedContentAllowed` / `effectiveIncognito`, not the stored fields. Passing a raw value let an archive site post OS notifications naming itself from a nested webview, and those persist in the shade after the archive is closed. |
+| Nested webviews (`InAppWebViewScreen`) | inherit the effective values | Every surface is built from the `SitePosture` that `WebViewModel.sitePosture` resolves through `effectiveNotificationsEnabled` / `effectiveCameraMode` / `effectiveMicrophoneMode` / `effectiveProtectedContentAllowed` / `effectiveIncognito`, not the stored fields (`test/js/effective_getter_boundary.test.js`). Passing a raw value let an archive site post OS notifications naming itself from a nested webview, and those persist in the shade after the archive is closed. |
 | Logging that mentions any per-`siteId` identifier | `LogSensitivity.sensitive` | The tier-aware [`LogService`](../../../lib/services/log_service.dart) routes sensitive entries to a memory-only ring; they never reach disk, `debugPrint`, exports, or `adb logcat` / Console.app. Any new log call that includes a `siteId`, container name, cookie hostname, URL, or page title MUST be tagged sensitive (audit per #354 already covers every existing call site in `lib/`). The archive runtime flow (`_materialiseArchive`, `_openArchive`, `_closeArchive`, `_moveSiteToArchive`, `_promptRestoreArchive`) adds no log calls at all — strongest possible posture. |
 
 Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site checklist gains an explicit "archive-tier compatibility" item.
@@ -337,7 +337,7 @@ cookies normally
 
 **Given** an archive-tier site whose stored `notificationsEnabled` is `true`
 **When** it opens an outbound link in an `InAppWebViewScreen`
-**Then** the nested `WebViewConfig.notificationsEnabled` is `false`
+**Then** the nested `WebViewConfig.posture.page.notifications` is `false`
 **And** the `webNotification` JavaScript handler is not registered, so
 nothing reaches `NotificationService`
 
@@ -530,7 +530,7 @@ class Archive {
 
 `_WebSpacePageState` gains a separate `List<WebViewModel> _archiveWebViewModels` and `List<Webspace> _archiveWebspaces`. These are parallel to `_webViewModels` / `_webspaces` and never merged in persistence or export paths. The UI's switcher concatenates the two for display (app-tier first, archive-tier appended in archive-open order). When an archive closes, only its slice of the archive-tier collections is removed; the app-tier slice is byte-untouched (see ARCH-001).
 
-The archive-tier flag is a single boolean on `WebViewModel` (`isArchiveTier`), defaulted to false and never serialized. It's set when the archive's plaintext is materialized into `WebViewModel` instances on open. The override matrix in ARCH-006 reads this flag in `WebViewModel.toWebViewConfig` (and in the per-site settings sheet builder) to clamp the per-site fields.
+The archive-tier flag is a single boolean on `WebViewModel` (`isArchiveTier`), defaulted to false and never serialized. It's set when the archive's plaintext is materialized into `WebViewModel` instances on open. The override matrix in ARCH-006 reads this flag in the `effective*` getters that `WebViewModel.sitePosture` resolves every webview's posture through (and in the per-site settings sheet builder) to clamp the per-site fields.
 
 ### Container lifecycle
 
@@ -631,7 +631,7 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 ### Modified
 
 - `pubspec.yaml` — adds `cryptography: ^2.7.0`
-- `lib/web_view_model.dart` — `isArchiveTier` flag (runtime-only, never serialized) + override matrix in `toWebViewConfig`
+- `lib/web_view_model.dart` — `isArchiveTier` flag (runtime-only, never serialized) + override matrix in the `effective*` getters, applied by `sitePosture`
 - `lib/services/cookie_secure_storage.dart` — archive-aware variants
 - `lib/services/container_isolation_engine.dart` — `ensureArchiveContainer` / `tearDownArchiveContainers`
 - `lib/main.dart` — `_archiveWebViewModels` / `_archiveWebspaces` parallel collections, runtime integration, background-snapshot mask

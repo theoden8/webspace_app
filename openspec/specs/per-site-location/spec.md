@@ -371,7 +371,7 @@ This is a UI affordance only — when `spoofTimezone` is `null` the JS shim is n
 
 The per-site model SHALL expose a boolean field `spoofTimezoneFromLocation`. When true AND coordinates are set AND a polygon dataset is loaded, the effective spoof timezone is the IANA zone whose polygon contains `(spoofLatitude, spoofLongitude)`. `spoofTimezone` is ignored in that case (the two fields are mutually exclusive in the UI).
 
-If the polygon dataset is absent, or the coordinates fall in a region not covered by the dataset (e.g. open ocean in the no-oceans variant), the lookup SHALL fall through to no-timezone-spoof (system default) rather than failing the whole shim. The lookup happens once at shim build time in `webview.dart`, not on every JS call, so a slow polygon test does not affect page perf after the initial page load.
+If the polygon dataset is absent, or the coordinates fall in a region not covered by the dataset (e.g. open ocean in the no-oceans variant), the lookup SHALL fall through to no-timezone-spoof (system default) rather than failing the whole shim. The lookup happens where the dataset is loaded, at settings save (and on startup for a site saved before that), and the resolved zone is stored in `spoofTimezone`; every webview applies that stored zone, so the dataset never loads on the webview-build path and a slow polygon test never touches page load.
 
 The polygon dataset SHALL be downloadable on demand via App Settings → Location picker → "Timezone polygons" → Download. Default source is the `evansiroky/timezone-boundary-builder` GitHub release (zipped GeoJSON, ~7–15 MB compressed). The download URL is user-configurable so users can swap in a smaller community dataset, a self-hosted mirror, or a pre-extracted GeoJSON file. The dataset is not bundled with the app — it is opt-in. The state (loaded zone count, last-updated timestamp, configured URL) round-trips across app launches in app private storage.
 
@@ -594,7 +594,7 @@ This is a manual user action that fills inputs the user can still edit. It does 
 
 ### Requirement: LOC-007 - Settings apply to nested webviews
 
-Every per-site field on `WebViewModel` that controls privacy behavior (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, `spoofTimezone`, `spoofTimezoneFromLocation`, `liveLocationGranularity`, `webRtcPolicy`) SHALL propagate to every `InAppWebViewScreen` spawned by cross-domain navigation from the parent site via `launchUrl` in `lib/main.dart`. The JS shim SHALL be injected into cross-origin iframes as well as the top frame by setting `forMainFrameOnly: false` on the `inapp.UserScript`.
+Every per-site field on `WebViewModel` that controls privacy behavior (`locationMode`, `spoofLatitude`, `spoofLongitude`, `spoofAccuracy`, the resolved `spoofTimezone`, `liveLocationGranularity`, the effective `webRtcPolicy`) SHALL propagate to every `InAppWebViewScreen` spawned by cross-domain navigation from the parent site, through the `SitePosture` location group (NESTED-010). `spoofTimezoneFromLocation` is a UI marker the resolution reads and no webview does. The JS shim SHALL be injected into cross-origin iframes as well as the top frame by setting `forMainFrameOnly: false` on the `inapp.UserScript`.
 
 When the parent's mode is `live`, nested webviews SHALL inherit the live behavior — including the `getRealLocation` JS handler registration in `webview.dart`'s `onWebViewCreated` — so that a nested browser opened from the parent site continues to read fresh device coords through the shim, not platform-default geolocation.
 
@@ -606,6 +606,12 @@ Otherwise a site could defeat the spoof by linking to a detection page (e.g. bro
 **When** the user follows a cross-domain link from Acme that opens a nested `InAppWebViewScreen` at browserleaks.com/webrtc
 **Then** the nested webview reports the spoofed coordinates
 **And** `RTCPeerConnection` is neutered in the nested webview too
+
+#### Scenario: Nested browser keeps the resolved zone under Tracking Protection
+
+**Given** site "Acme" has Tracking Protection on, picked coordinates in Paris, and `spoofTimezone = 'Europe/Paris'` resolved at save
+**When** the user follows a cross-domain link from Acme into a nested `InAppWebViewScreen`
+**Then** `Intl.DateTimeFormat().resolvedOptions().timeZone` in the nested page is `Europe/Paris`, not the device's zone (BUG-024)
 
 #### Scenario: Iframe sees the spoof
 

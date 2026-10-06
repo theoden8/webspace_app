@@ -53,6 +53,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 
 /// One field's trip across the channel.
 class _Field {
@@ -142,26 +143,25 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
-                siteId: siteId,
+                posture: barePosture(
+                  'about:blank',
+                  siteId: siteId,
+                  proxy: UserProxySettings(
+                    type: ProxyType.SOCKS5,
+                    address: proxyAddress,
+                  ),
+                  adjust: (site) => site
+                    ..userAgent = sentUserAgent
+                    ..javascriptEnabled = javascriptEnabled
+                    ..incognito = incognito
+                    // Native default is true, so `false` is the value that
+                    // can tell a parsed field from a skipped one.
+                    ..thirdPartyCookiesEnabled = false,
+                ),
                 // No network: the seam is about what crossed the channel, and
                 // a destination would only add a way for this to fail for an
                 // unrelated reason.
                 initialUrl: 'about:blank',
-                userAgent: sentUserAgent,
-                javascriptEnabled: javascriptEnabled,
-                incognito: incognito,
-                // Native default is true, so `false` is the value that can
-                // tell a parsed field from a skipped one.
-                thirdPartyCookiesEnabled: false,
-                proxySettings: UserProxySettings(
-                  type: ProxyType.SOCKS5,
-                  address: proxyAddress,
-                ),
-                clearUrlEnabled: false,
-                dnsBlockEnabled: false,
-                contentBlockEnabled: false,
-                trackingProtectionEnabled: false,
-                localCdnEnabled: false,
               ),
               onControllerCreated: (c) => controller = c,
             ),

@@ -220,11 +220,16 @@ Implementation: `lib/services/target_blank_rewrite.dart`
 ### Requirement: NESTED-010 - The Nested Screen Carries the Whole Per-Site Posture
 
 Every per-site field the parent webview applies SHALL reach
-`InAppWebViewScreen`. `LaunchUrlFunc`
-([lib/web_view_model.dart](../../../lib/web_view_model.dart)) is the single
-declaration of that chain; a field is threaded when it appears there, in
-`_WebSpacePageState.launchUrl`, in the `InAppWebViewScreen` constructor, and
-is read as `widget.<field>` inside the nested `WebViewConfig`.
+`InAppWebViewScreen`. The posture travels as one `SitePosture`
+([lib/services/site_posture.dart](../../../lib/services/site_posture.dart)),
+resolved by `WebViewModel.sitePosture` when the link opens and passed whole
+through `LaunchUrlFunc`, `_WebSpacePageState.launchUrl` and the
+`InAppWebViewScreen` constructor into the nested `WebViewConfig`. Its fields are
+required with no default, so the chain cannot drop one, and the nested screen
+SHALL NOT re-derive a value the resolver already resolved (the umbrella's
+forcing, the archive overrides, the timezone). The one difference the nested
+screen has is `SitePosture.forNested()`: a `real` capture grant is asked again
+(CAM-005 / MIC-005). History: [BUG-024](../../../docs/bugs/024-nested-posture-drift.md).
 
 A dropped field is not a cosmetic gap. `shouldOverrideUrlLoading` is null
 unless the nested screen has a reason to build one, and null means allow — so
@@ -247,13 +252,13 @@ outbound link would otherwise come back. The sweep and its cookie reader are
 wired only when the set is non-empty, so a site with no blocked cookies pays
 no extra jar round-trip.
 
-The camera / microphone / protected-content values passed SHALL be the
-`effective*` getters, so an archive-tier or Tracking-Protection forced block
-stays blocked one hop out (ARCH-006, ETP-023).
+The camera / microphone / protected-content values the posture carries are
+the `effective*` getters, so an archive-tier or Tracking-Protection forced
+block stays blocked one hop out (ARCH-006, ETP-023).
 
-Regression gate: `test/nested_webview_field_parity_test.dart` reads the
-typedef's parameters and fails when any one of them stops appearing in
-`launchUrl`, in the constructor, or as a `widget.` read.
+Regression gate: the compiler, for the chain; `test/site_posture_test.dart`
+holds the nested posture equal to the root's but for the capture grants, and
+fails if anything but the resolver builds a posture.
 
 #### Scenario: A gesture-less redirect in a nested webview is blocked
 
@@ -270,6 +275,14 @@ with `initUrl` = the nested page's current URL
 **When** a page in the nested webview sets it
 **Then** the nested screen deletes it from the shared container after the
 load, exactly as the parent does
+
+#### Scenario: A spoofed timezone survives the hop
+
+**Given** a site with Tracking Protection on, picked coordinates, and the zone
+those coordinates resolve to stored in `spoofTimezone`
+**When** it opens an outbound link in a nested webview
+**Then** the nested page reports that zone, the same one the site's own
+webview reports (BUG-024)
 
 #### Scenario: A forced camera block survives the hop
 
@@ -453,8 +466,8 @@ CLAUDE.md now forbids. Direct engine tests live in
 - `OnUrlChangedHandled.launchExternalUrl` carries the URL for the caller to launch
 
 #### `lib/screens/inappbrowser.dart`
-- `externalLinkMode` ctor field; nested `WebViewConfig.shouldOverrideUrlLoading` (always set) delegates to `NavigationDecisionEngine.decideShouldOverrideUrlLoading` against the page currently shown, routes `blockOpenExternal` to `launchUrlInSystemBrowser`, and shows the blocked message for a tapped `blockOutbound`
-- `blockedCookies` + the forwarded cookie managers drive a post-load sweep; `cameraMode` / `virtualCameraSource` / `microphoneMode` / `virtualMicrophoneSource` / `protectedContentAllowed` seed the screen's in-memory decisions (NESTED-010)
+- `posture.page.externalLinks` (from the `SitePosture` it is built with); nested `WebViewConfig.shouldOverrideUrlLoading` (always set) delegates to `NavigationDecisionEngine.decideShouldOverrideUrlLoading` against the page currently shown, routes `blockOpenExternal` to `launchUrlInSystemBrowser`, and shows the blocked message for a tapped `blockOutbound`
+- `posture.blocking.blockedCookies` + the forwarded cookie managers drive a post-load sweep; `posture.media` seeds the screen's in-memory capture and protected-content decisions (NESTED-010)
 
 ---
 

@@ -35,6 +35,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'bare_site.dart';
 import 'fixture_server.dart';
 
 class _Icon {
@@ -192,13 +193,10 @@ void main() {
           child: WebViewFactory.createWebView(
             config: WebViewConfig(
               key: key,
+              posture: barePosture(url,
+                  siteId: 'site-icon',
+                  adjust: (site) => site.httpsUpgradeEnabled = false),
               initialUrl: url,
-              httpsUpgradeEnabled: false,
-              clearUrlEnabled: false,
-              dnsBlockEnabled: false,
-              contentBlockEnabled: false,
-              trackingProtectionEnabled: false,
-              localCdnEnabled: false,
               siteIcon: SiteIconTarget(
                 siteUrl: url,
                 onIcon: (icon) {

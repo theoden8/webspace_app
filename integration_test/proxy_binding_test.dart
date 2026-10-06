@@ -16,6 +16,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -95,7 +96,7 @@ void main() {
 
   Future<void> mount(
     WidgetTester tester, {
-    required String? siteId,
+    required String siteId,
     required int dest,
     required String path,
     UserProxySettings? proxySettings,
@@ -104,6 +105,7 @@ void main() {
     // InAppWebView element, which keeps the platform view it already had and
     // never issues the new initial load.
     final key = ValueKey('webview-${generation++}');
+    final url = 'http://${syntheticOrigin(dest)}$path';
     controller = null;
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -115,14 +117,9 @@ void main() {
               key: key,
               child: WebViewFactory.createWebView(
                 config: WebViewConfig(
-                  siteId: siteId,
-                  initialUrl: 'http://${syntheticOrigin(dest)}$path',
-                  proxySettings: proxySettings,
-                  clearUrlEnabled: false,
-                  dnsBlockEnabled: false,
-                  contentBlockEnabled: false,
-                  trackingProtectionEnabled: false,
-                  localCdnEnabled: false,
+                  posture: barePosture(url,
+                      siteId: siteId, proxy: proxySettings),
+                  initialUrl: url,
                 ),
                 onControllerCreated: (c) => controller = c,
               ),

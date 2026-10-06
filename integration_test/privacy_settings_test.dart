@@ -32,6 +32,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
+import 'bare_site.dart';
 import 'fixture_server.dart';
 
 class _Req {
@@ -109,8 +110,16 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                posture: barePosture(
+                  url(path),
+                  siteId: 'privacy-settings',
+                  adjust: (site) => site
+                    ..clearUrlEnabled = true
+                    ..dnsBlockEnabled = true
+                    ..contentBlockEnabled = true
+                    ..trackingProtectionEnabled = trackingProtection,
+                ),
                 initialUrl: url(path),
-                trackingProtectionEnabled: trackingProtection,
               ),
               onControllerCreated: (c) {
                 if (!ctrl.isCompleted) ctrl.complete(c);
