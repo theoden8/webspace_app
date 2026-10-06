@@ -111,4 +111,42 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(log, ['handler body', 'handler released', 'reconcile']);
   });
+
+  test('idle completes on the next release, and at once when free', () async {
+    final real = TabHandlingGate(scheduleMicrotask);
+    await real.idle();
+    real.busy = true;
+    var released = false;
+    final waiting = real.idle().then((_) => released = true);
+    await Future<void>.delayed(Duration.zero);
+    expect(released, isFalse);
+    real.busy = false;
+    await waiting;
+    expect(released, isTrue);
+  });
+
+  test('waiters that loop on busy take the gate one at a time', () async {
+    final real = TabHandlingGate(scheduleMicrotask);
+    final log = <String>[];
+    Future<void> exclusive(String name) async {
+      while (real.busy) {
+        await real.idle();
+      }
+      real.busy = true;
+      try {
+        log.add('$name in');
+        await Future<void>.delayed(Duration.zero);
+        log.add('$name out');
+      } finally {
+        real.busy = false;
+      }
+    }
+
+    real.busy = true;
+    final a = exclusive('a');
+    final b = exclusive('b');
+    real.busy = false;
+    await Future.wait([a, b]);
+    expect(log, ['a in', 'a out', 'b in', 'b out']);
+  });
 }

@@ -5,6 +5,7 @@ import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/widgets/tabs_sheet.dart';
 
 import 'helpers/real_app.dart';
 
@@ -271,5 +272,56 @@ void main() {
         reason: 'GitHub is not in Search (WEBSPACE-012)');
     expect(prefs.getInt('currentIndex'), 0, reason: 'GitHub is on screen');
     expect(appSite('GitHub').activeTabId, tab.id);
+  });
+
+  group('races (UI race conditions)', () {
+    testWidgets('a double tap on Tabs opens one list', (tester) async {
+      await pumpRealApp(tester, sites: [github, ddg]);
+      await openWebspace(tester, 'All');
+      await openSiteFromDrawer(tester, 'GitHub');
+      await attachWebViews(tester);
+      // Two presses in one frame: the second lands while the first is still
+      // closing the keyboard, before any sheet is up to take the tap.
+      final button = tester.widget<IconButton>(find.ancestor(
+          of: find.byTooltip('Tabs'), matching: find.byType(IconButton)));
+      button.onPressed!();
+      button.onPressed!();
+      await settleRealApp(tester);
+      expect(find.byType(TabsSheet, skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('Back twice after a jump goes back once and closes nothing',
+        (tester) async {
+      final hosted = await onDuckDuckGoWithItsList(tester);
+      await tester.tap(find.text('https://duckduckgo.com/?q=webspace'));
+      await settleRealApp(tester);
+      await attachWebViews(tester);
+      final prefs = await SharedPreferences.getInstance();
+      await tester.binding.handlePopRoute();
+      await tester.binding.handlePopRoute();
+      await settleRealApp(tester);
+      expect(prefs.getInt('currentIndex'), 1);
+      expect(appSite('GitHub').tabs.map((t) => t.id), contains(hosted.id));
+      expect(appSite('DuckDuckGo').tabs, hasLength(1),
+          reason: 'the second Back found DuckDuckGo at its root: a no-op');
+    });
+
+    testWidgets('an address submitted twice opens one tab', (tester) async {
+      github.routeOutboundLinks = true;
+      await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
+      await openWebspace(tester, 'All');
+      await openSiteFromDrawer(tester, 'GitHub');
+      await attachWebViews(tester);
+      await tester.enterText(find.byType(TextField).first, 'https://duckduckgo.com/?q=a');
+      await tester.testTextInput.receiveAction(TextInputAction.go);
+      await tester.enterText(find.byType(TextField).first, 'https://duckduckgo.com/?q=a');
+      await tester.testTextInput.receiveAction(TextInputAction.go);
+      await settleRealApp(tester);
+      expect(
+          appSite('GitHub')
+              .tabs
+              .where((t) => t.url == 'https://duckduckgo.com/?q=a'),
+          hasLength(1));
+    });
   });
 }

@@ -145,6 +145,30 @@ void main() {
           reason: 'the page\'s own links take the same step');
     });
 
+    test('work that cannot be dropped waits for the tab gate', () {
+      String body(String signature) {
+        final start = source.indexOf(signature);
+        expect(start, isNot(-1), reason: signature);
+        return source.substring(start, source.indexOf('\n  }\n', start));
+      }
+
+      expect(
+        RegExp(r'while \(_isTabHandling\) \{\s*await _tabGate\.idle\(\);\s*\}\s*'
+                r'_isTabHandling = true;')
+            .hasMatch(body('Future<T> _withTabGate<T>(')),
+        isTrue,
+      );
+      expect(source, contains('_withTabGate(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
+      expect(body('Future<void> _openLinkInNewTab('), contains('await _withTabGate('),
+          reason: 'a background insert must not be lost to a close in flight');
+      expect(body('Future<void> _executeOpenInMain('),
+          contains('await _withTabGate(() => _switchToOwnerRunTab(model));'));
+      expect(body('Future<void> _openTypedAddress('), contains('await _withTabGate('));
+      expect(body('Future<void> _dismissKeyboard('), contains('.timeout('),
+          reason: 'a stuck page must not keep the list from opening');
+      expect(body('Future<void> _showTabsSheet('), contains('_isShowingTabsSheet'));
+    });
+
     test('the tab list leaves out sites without tabs', () {
       final start = source.indexOf('List<TabsSheetSite> _tabsSheetSites() {');
       expect(start, isNot(-1));

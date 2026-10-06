@@ -3444,7 +3444,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (model.runsHostedTab || model.runsForeignTab) {
       // An owner URL never loads into a slot running as another site, nor
       // into a tab anchored in another domain (LIR-034).
-      await _switchToOwnerRunTab(model);
+      await _withTabGate(() => _switchToOwnerRunTab(model));
       if (!mounted) return;
     }
     if (a.disposeBeforeLoad) {
@@ -8118,6 +8118,21 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// reconcile) waits on the gate and runs when it is released.
   late final TabHandlingGate _tabGate = TabHandlingGate(scheduleMicrotask);
 
+  /// Run [body] holding the tab gate, once whatever tab handler holds it now
+  /// lets go: for work that cannot be dropped like a second tap, and that its
+  /// caller needs done before going on. Never called with the gate held.
+  Future<T> _withTabGate<T>(Future<T> Function() body) async {
+    while (_isTabHandling) {
+      await _tabGate.idle();
+    }
+    _isTabHandling = true;
+    try {
+      return await body();
+    } finally {
+      _isTabHandling = false;
+    }
+  }
+
   /// Jumps the Tabs sheet made between sites' slots, the way Back takes
   /// (TAB-019). Any other way to another site drops it.
   List<TabReturn> _tabReturns = const [];
@@ -8421,7 +8436,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// missing) or may no longer host, re-binding an owner whose active tab
   /// closed. Runs at startup, after an import, before a delete, after a
   /// site's settings change and after a move across the archive boundary.
-  Future<void> _closeIneligibleHostedTabs({String? goneSiteId}) async {
+  Future<void> _closeIneligibleHostedTabs({String? goneSiteId}) =>
+      _withTabGate(() => _closeIneligibleHostedTabsHeld(goneSiteId));
+
+  Future<void> _closeIneligibleHostedTabsHeld(String? goneSiteId) async {
     for (var i = 0; i < _webViewModels.length; i++) {
       final model = _webViewModels[i];
       if (!model.tabs.any((t) => t.hostSiteId != null)) continue;
@@ -8605,16 +8623,22 @@ class _WebSpacePageState extends State<WebSpacePage>
   }) async {
     if (index < 0 || index >= _webViewModels.length) return;
     final model = _webViewModels[index];
-    final tab = SiteTab(
-      url: url,
-      parentId: model.activeTabId,
-      hostSiteId: hostSiteId == model.siteId ? null : hostSiteId,
-      openerSiteId: openerSiteId,
-      homeUrl: homeUrl,
-    );
-    setState(() {
-      model.tabs = TabLifecycleEngine.insertChild(model.tabs, tab);
+    // A tab handler in flight may write back a list read before this insert.
+    final tab = await _withTabGate(() async {
+      if (!mounted || !_webViewModels.contains(model)) return null;
+      final tab = SiteTab(
+        url: url,
+        parentId: model.activeTabId,
+        hostSiteId: hostSiteId == model.siteId ? null : hostSiteId,
+        openerSiteId: openerSiteId,
+        homeUrl: homeUrl,
+      );
+      setState(() {
+        model.tabs = TabLifecycleEngine.insertChild(model.tabs, tab);
+      });
+      return tab;
     });
+    if (tab == null) return;
     LogService.instance.log(
       'Tabs',
       'Opened a background tab under ${model.activeTabId} in "${model.name}"',
@@ -8628,7 +8652,11 @@ class _WebSpacePageState extends State<WebSpacePage>
         content: Text(loc.tabsOpenedInNewTab),
         action: SnackBarAction(
           label: loc.tabsSwitchAction,
-          onPressed: () => unawaited(_openTab(index, tab.id)),
+          // Sites may have moved or gone by the time this is tapped.
+          onPressed: () {
+            final at = _webViewModels.indexOf(model);
+            if (at >= 0) unawaited(_openTab(at, tab.id));
+          },
         ),
       ),
     );
@@ -8791,9 +8819,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// keyboard stays up while the URL bar or an input in the page has focus.
   Future<void> _dismissKeyboard() async {
     FocusManager.instance.primaryFocus?.unfocus();
-    await getController()?.evaluateJavascript(
-        'document.activeElement && document.activeElement.blur && '
-        'document.activeElement.blur();');
+    // A page that is stuck must not keep the list from opening.
+    await getController()
+        ?.evaluateJavascript(
+            'document.activeElement && document.activeElement.blur && '
+            'document.activeElement.blur();')
+        .timeout(const Duration(milliseconds: 300), onTimeout: () {});
     await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
   }
 
@@ -9897,6 +9928,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// (LIR-032, LIR-034), outbound routing (LIR-014), the site's external link
   /// mode and the way back to the owner (S6) all apply to it.
   Future<void> _openTypedAddress(WebViewModel model, String url) async {
+    // Decide on the tab the switch in flight lands on, not the one it leaves.
+    while (_isTabHandling) {
+      await _tabGate.idle();
+    }
+    if (!mounted || !_webViewModels.contains(model)) return;
     final identity = model.runningIdentity;
     final decision = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
       targetUrl: url,
@@ -9927,15 +9963,17 @@ class _WebSpacePageState extends State<WebSpacePage>
           await launchUrlInSystemBrowser(url);
         }
       case NavigationStep.loadHere:
-        final controller = model.getController(launchUrl, _cookieManager,
-            _containerCookieManager, _saveWebViewModels,
-            globalUserScripts: _globalUserScripts,
-            onOutboundLink: _outboundLinkHookFor(model));
-        if (controller == null) return;
-        await controller.loadUrl(url, language: identity.language);
-        if (!mounted) return;
-        setState(() => model.currentUrl = url);
-        await _saveWebViewModels();
+        await _withTabGate(() async {
+          final controller = model.getController(launchUrl, _cookieManager,
+              _containerCookieManager, _saveWebViewModels,
+              globalUserScripts: _globalUserScripts,
+              onOutboundLink: _outboundLinkHookFor(model));
+          if (controller == null) return;
+          await controller.loadUrl(url, language: identity.language);
+          if (!mounted) return;
+          setState(() => model.currentUrl = url);
+          await _saveWebViewModels();
+        });
     }
   }
 
