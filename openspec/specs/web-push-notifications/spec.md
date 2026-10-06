@@ -625,6 +625,11 @@ send its traffic somewhere the user did not ask for:
   sub-resources would otherwise load unfiltered, so its load never starts;
 - it is an imported page, with nothing to fetch.
 
+A post made while the app is off screen reads the OS notification
+permission and never asks for it: a prompt needs the app on screen, and on
+Android the request goes through the activity, which the worker's own engine
+does not have, so asking threw and ended the wake before its first post.
+
 When the app returns to the foreground during a wake, its open headless
 checks are closed at once and no further one opens: on Android the site the
 user opens next moves the one process-wide proxy, and a check still loading

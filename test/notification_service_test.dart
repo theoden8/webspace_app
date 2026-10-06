@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui' show AppLifecycleState;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -27,6 +28,24 @@ void main() {
       // platform plugin; the important contract is the type shape.
       final value = NotificationService.instance.permissionGranted;
       expect(value, anyOf(isNull, isA<bool>()));
+    });
+  });
+
+  group('NOTIF-016 a post off screen never prompts', () {
+    test('only an app on screen may ask for the permission', () {
+      expect(NotificationService.mayPromptForPermission(AppLifecycleState.resumed),
+          isTrue);
+      for (final s in [
+        null,
+        AppLifecycleState.inactive,
+        AppLifecycleState.hidden,
+        AppLifecycleState.paused,
+        AppLifecycleState.detached,
+      ]) {
+        expect(NotificationService.mayPromptForPermission(s), isFalse,
+            reason: 'a wake engine has no activity to prompt from ($s); '
+                'the request throws and the wake ends without posting');
+      }
     });
   });
 

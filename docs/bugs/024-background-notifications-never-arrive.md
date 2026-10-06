@@ -82,7 +82,10 @@ what it finds.**
    activity, whose startup builds no site webview, and destroys it after.
    Unread baselines persist (`WakeBaselineStore`), except incognito ones. The
    refresh is scheduled while any site has notifications on, not only while
-   one is loaded. *Why*: in a process iOS launched for the task no frame is
+   one is loaded. A post made off screen reads the notification permission
+   instead of requesting it: CI's Scenario P2 caught the request throwing in
+   the worker's engine, which has no activity to prompt from, so the wake
+   ended at its first fallback post. *Why*: in a process iOS launched for the task no frame is
    drawn, so no webview is ever built, and on Android the reclaimed process
    was the common case. *Why partial*: see the open gaps.
 
