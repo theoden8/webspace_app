@@ -104,7 +104,9 @@ Future<void> openTabsSheet(WidgetTester tester) async {
 }
 
 /// A tap on a link to [url] in the page on screen, as the platform reports
-/// it: a main-frame navigation with a user gesture.
+/// it: a main-frame navigation with a user gesture. Android reads the gesture
+/// from `hasGesture`, Apple hosts from the navigation type, so both are set
+/// or the tap reads as script-driven on a macOS runner.
 Future<void> tapLink(WidgetTester tester, String url) async {
   final views = find.byType(inapp.InAppWebView).evaluate().toList();
   expect(views, hasLength(1), reason: 'one page on screen to tap in');
@@ -116,6 +118,7 @@ Future<void> tapLink(WidgetTester tester, String url) async {
         request: inapp.URLRequest(url: inapp.WebUri(url)),
         isForMainFrame: true,
         hasGesture: true,
+        navigationType: inapp.NavigationType.LINK_ACTIVATED,
       ),
     );
   });
