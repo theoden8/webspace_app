@@ -54,6 +54,9 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
+import 'package:webspace/widgets/search_site_picker.dart';
+import 'package:webspace/widgets/site_search_list_tile.dart';
+import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 
 const Map<String, Color> galleryAccents = {
@@ -108,6 +111,9 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'tabs-sheet-in-site', label: 'Tabs sheet, a site in other trees', fullBleed: true, builder: (c) => const _TabsSheetInSiteCard()),
   GalleryCard(id: 'web-search-sheet', label: 'Web search sheet', fullBleed: true, builder: (c) => const _WebSearchSheetCard()),
   GalleryCard(id: 'web-search-empty', label: 'Web search sheet, no search sites', fullBleed: true, builder: (c) => const _WebSearchEmptyCard()),
+  GalleryCard(id: 'web-search-default', label: 'Default search picker, two sites with one name', builder: (c) => const _WebSearchDefaultCard()),
+  GalleryCard(id: 'site-search-list', label: 'Site search list row', builder: (c) => const _SiteSearchListCard()),
+  GalleryCard(id: 'site-behaviour-search', label: 'Site behaviour, search learned from a SearXNG page', fullBleed: true, builder: (c) => const _SiteBehaviourSearchCard()),
   GalleryCard(id: 'color-roles', label: 'Color roles', builder: (c) => const _ColorRolesCard()),
   GalleryCard(id: 'type-scale', label: 'Type scale', builder: (c) => const _TypeScaleCard()),
   GalleryCard(id: 'radius-scale', label: 'Corner radii', builder: (c) => const _RadiusScaleCard()),
@@ -1140,7 +1146,91 @@ class _WebSearchSheetCard extends StatelessWidget {
             _site('kagi', 'Kagi', 'https://kagi.com/'),
             _site('pplx', 'Perplexity', 'https://www.perplexity.ai/'),
           ],
+          containerColors: const {'gh': 0, 'ddg': 6, 'kagi': 2, 'pplx': 4},
         ),
+      );
+}
+
+/// Default search with a work and a personal DuckDuckGo: the name alone
+/// cannot tell them apart, the id and its container colour can (LIR-029).
+class _WebSearchDefaultCard extends StatelessWidget {
+  const _WebSearchDefaultCard();
+
+  @override
+  Widget build(BuildContext context) => const SearchSiteChoiceDialog(
+        title: 'Default search',
+        selected: 'ddg-work',
+        cancelLabel: 'Cancel',
+        sites: [
+          (siteId: 'ddg-work', name: 'DuckDuckGo', containerColor: 0),
+          (siteId: 'ddg-home', name: 'DuckDuckGo', containerColor: 6),
+          (siteId: 'kagi', name: 'Kagi', containerColor: 2),
+          (siteId: 'searx-lan', name: 'SearXNG', containerColor: 4),
+        ],
+      );
+}
+
+/// The site search list row once downloaded (LIR-036), on a list of the size
+/// Kagi's reduces to.
+class _SiteSearchListCard extends StatefulWidget {
+  const _SiteSearchListCard();
+
+  @override
+  State<_SiteSearchListCard> createState() => _SiteSearchListCardState();
+}
+
+class _SiteSearchListCardState extends State<_SiteSearchListCard> {
+  @override
+  void initState() {
+    super.initState();
+    SiteSearchListService.instance.setInMemory(
+      {for (var i = 0; i < 7392; i++) 'site$i.example': 'https://site$i.example/?q=%s'},
+      updated: DateTime(2026, 10, 6, 14, 2),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => SiteSearchListTile(
+        formatCount: (n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}K' : '$n',
+      );
+}
+
+/// A SearXNG instance whose pages declared its search (LIR-035): the Behaviour
+/// screen shows the address it learned and that it searches the whole web, and
+/// its pickers tell the two DuckDuckGo sites apart.
+class _SiteBehaviourSearchCard extends StatelessWidget {
+  const _SiteBehaviourSearchCard();
+
+  @override
+  Widget build(BuildContext context) => SiteBehaviourScreen(
+        host: 'searx.lan',
+        incognito: false,
+        values: const SiteBehaviourValues(
+          alwaysOpenHome: false,
+          kioskMode: false,
+          fullscreenMode: false,
+          htmlCachingEnabled: false,
+          externalLinkMode: ExternalLinkMode.inApp,
+          routeOutboundLinks: false,
+          searchSites: ['ddg-work', 'ddg-home'],
+        ),
+        onChanged: (_) {},
+        tabsAvailable: true,
+        initUrl: 'https://searx.lan/',
+        discoveredSearchAddress: 'https://searx.lan/search?q=%s',
+        discoveredSearchesWeb: true,
+        routingTargets: [
+          WebViewModel(
+              siteId: 'ddg-work',
+              initUrl: 'https://duckduckgo.com/',
+              name: 'DuckDuckGo',
+              containerColor: 0),
+          WebViewModel(
+              siteId: 'ddg-home',
+              initUrl: 'https://duckduckgo.com/',
+              name: 'DuckDuckGo',
+              containerColor: 6),
+        ],
       );
 }
 

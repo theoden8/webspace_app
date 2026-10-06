@@ -313,6 +313,11 @@ void main() {
 
       expect(dotOf('ddg-work'), ContainerColors.of(2, Brightness.light));
       expect(dotOf('ddg-home'), ContainerColors.of(5, Brightness.light));
+
+      await tester.tap(find.text('ddg-home'));
+      await tester.pumpAndSettle();
+      expect(find.text('DuckDuckGo (ddg-home)'), findsOneWidget,
+          reason: 'the row names which DuckDuckGo it is');
     });
 
     testWidgets('the site search list waits for the user (LIR-036)',

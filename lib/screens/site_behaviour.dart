@@ -10,6 +10,7 @@ import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart' show SiteIdLine;
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/search_site_picker.dart';
 
 /// Everything the behaviour screen may change, in one value so the caller can
 /// apply a whole edit in a single `setState`.
@@ -378,22 +379,24 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           if (m.searchCapability?.kind == SearchKind.web) m,
       ];
 
-  /// Two search sites can share a name, never an id (LIR-029).
-  Widget _idLine(WebViewModel site) => SiteIdLine(
-        siteId: site.siteId,
-        colorIndex: widget.containersActive
-            ? site.containerColor ??
-                ContainerColorEngine.fallback(
-                    site.siteId, kContainerPaletteSize)
-            : null,
-      );
+  /// [site]'s container colour, none on the legacy engine (TAB-018).
+  int? _colorIndexOf(WebViewModel site) => widget.containersActive
+      ? site.containerColor ??
+          ContainerColorEngine.fallback(site.siteId, kContainerPaletteSize)
+      : null;
 
-  String? _nameOf(String? siteId) => siteId == null
-      ? null
-      : widget.routingTargets
-          .where((m) => m.siteId == siteId)
-          .firstOrNull
-          ?.getDisplayName();
+  /// Two search sites can share a name, never an id (LIR-029).
+  Widget _idLine(WebViewModel site) =>
+      SiteIdLine(siteId: site.siteId, colorIndex: _colorIndexOf(site));
+
+  String? _nameOf(String? siteId) {
+    final site = siteId == null
+        ? null
+        : widget.routingTargets.where((m) => m.siteId == siteId).firstOrNull;
+    if (site == null) return null;
+    return searchSiteSummaryName(site.getDisplayName(), site.siteId,
+        _webSearchSites.map((m) => m.getDisplayName()));
+  }
 
   Widget _titleWithHint(String title, String hint) => Row(
         children: [
@@ -459,31 +462,18 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         const appDefault = '';
         final picked = await showDialog<String>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: Text(loc.webSearchFromSiteTitle),
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: RadioGroup<String>(
-                groupValue: _values.searchDefault ?? appDefault,
-                onChanged: (v) => Navigator.pop(ctx, v),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    RadioListTile<String>(
-                      value: appDefault,
-                      title: Text(loc.webSearchUseAppDefault),
-                    ),
-                    for (final m in _webSearchSites)
-                      RadioListTile<String>(
-                        value: m.siteId,
-                        title: Text(m.getDisplayName()),
-                        subtitle: _idLine(m),
-                      ),
-                  ],
+          builder: (ctx) => SearchSiteChoiceDialog(
+            title: loc.webSearchFromSiteTitle,
+            noneLabel: loc.webSearchUseAppDefault,
+            selected: _values.searchDefault ?? appDefault,
+            sites: [
+              for (final m in _webSearchSites)
+                (
+                  siteId: m.siteId,
+                  name: m.getDisplayName(),
+                  containerColor: _colorIndexOf(m),
                 ),
-              ),
-            ),
+            ],
           ),
         );
         if (picked == null) return;

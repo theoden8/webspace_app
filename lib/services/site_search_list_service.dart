@@ -49,6 +49,13 @@ class SiteSearchListService {
     }
   }
 
+  /// Hold [table] as the list without storing it: demo and gallery data.
+  void setInMemory(Map<String, String> table, {DateTime? updated}) {
+    _table = Map.unmodifiable(table);
+    _lastUpdated = updated;
+    _notify();
+  }
+
   /// The address the list names for the site at [initUrl], or null.
   String? addressFor(String initUrl) => listedAddressFor(_table, initUrl);
 

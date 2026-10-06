@@ -569,7 +569,12 @@ void main() {
           name: 'DuckDuckGo')
         ..containerColor = 6;
       await _pump(tester,
-          tabsAvailable: true, values: _values(), routingTargets: [work, home]);
+          tabsAvailable: true,
+          values: _values(searchSites: ['ddg-work', 'ddg-home']),
+          routingTargets: [work, home]);
+      expect(find.text('DuckDuckGo (ddg-work), DuckDuckGo (ddg-home)'),
+          findsOneWidget,
+          reason: 'the summary names each site so the two read apart');
       await tester.tap(find.text('Default search from this site'));
       await tester.pumpAndSettle();
       expect(find.text('ddg-work'), findsOneWidget);

@@ -68,10 +68,14 @@ void main() {
         isTrue,
         reason: 'App Settings offers Default search only behind the gate',
       );
-      expect(settings,
-          contains('if (_developerMode && _siteTabsSwitch) _searchListTile(loc),'),
-          reason: 'and the site search list download (LIR-036)');
-      expect('_searchListTile('.allMatches(settings).length, 2,
+      expect(
+        RegExp(r'if \(_developerMode && _siteTabsSwitch\)\s*'
+                r'SiteSearchListTile\(')
+            .hasMatch(settings),
+        isTrue,
+        reason: 'and the site search list download (LIR-036)',
+      );
+      expect('SiteSearchListTile('.allMatches(settings).length, 1,
           reason: 'built in one place, behind the gate');
     });
 

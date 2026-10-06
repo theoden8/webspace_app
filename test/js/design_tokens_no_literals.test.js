@@ -30,6 +30,8 @@ const MIGRATED = [
   'lib/screens/site_network.dart',
   'lib/screens/tor_status.dart',
   'lib/widgets/container_mark.dart',
+  'lib/widgets/search_site_picker.dart',
+  'lib/widgets/site_search_list_tile.dart',
   'lib/widgets/tab_bar_corner_button.dart',
   'lib/widgets/tabs_sheet.dart',
   'lib/widgets/tor_bootstrap.dart',
