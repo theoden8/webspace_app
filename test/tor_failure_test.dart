@@ -9,6 +9,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'helpers/fake_tor_runtime.dart';
 
 void main() {
@@ -171,7 +172,7 @@ void _authTests() {
     tearDown(() async => engine.dispose());
 
     Future<void> bringUp() async {
-      await engine.acquire('holder');
+      await engine.acquire(TorSiteHolder('holder'));
       runtime.emit(const TorUp('127.0.0.1', 9999));
       await Future<void>.delayed(Duration.zero);
     }
@@ -197,11 +198,11 @@ void _authTests() {
       await bringUp();
       final first = engine.socksFor('site-a')!.password;
       final other = TorEngine(runtime: FakeTorRuntime(), sessionSecret: 'other');
-      await other.acquire('holder');
+      await other.acquire(TorSiteHolder('holder'));
       // Not up, so socksFor is null: assert via a fresh engine that reaches up.
       await other.dispose();
       final second = TorEngine(runtime: runtime, sessionSecret: 'other');
-      await second.acquire('h2');
+      await second.acquire(TorSiteHolder('h2'));
       runtime.emit(const TorUp('127.0.0.1', 9999));
       await Future<void>.delayed(Duration.zero);
       expect(second.socksFor('site-a')!.password, isNot(first),

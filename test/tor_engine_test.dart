@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'helpers/fake_tor_runtime.dart';
 
 /// In-memory [TorGeoIpStore]: one kept table at most, and a download the
@@ -62,7 +63,7 @@ void main() {
       final e = build();
       expect(e.status, isA<TorStopped>());
 
-      await e.acquire('site-a');
+      await e.acquire(TorSiteHolder('site-a'));
       expect(runtime.startCalls, 1);
       expect(e.status, isA<TorStarting>());
 
@@ -74,25 +75,25 @@ void main() {
 
     test('a second holder does not restart a running runtime', () async {
       final e = build();
-      await e.acquire('site-a');
+      await e.acquire(TorSiteHolder('site-a'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
-      await e.acquire('site-b');
+      await e.acquire(TorSiteHolder('site-b'));
       expect(runtime.startCalls, 1, reason: 'still one start');
-      expect(e.holders, {'site-a', 'site-b'});
+      expect(e.holders, {TorSiteHolder('site-a'), TorSiteHolder('site-b')});
       await e.dispose();
     });
 
     test('acquiring the same reason twice counts once', () async {
       final e = build();
-      await e.acquire('site-a');
-      await e.acquire('site-a');
-      expect(e.holders, {'site-a'});
+      await e.acquire(TorSiteHolder('site-a'));
+      await e.acquire(TorSiteHolder('site-a'));
+      expect(e.holders, {TorSiteHolder('site-a')});
 
       // One release must therefore fully release it, not leave a phantom
       // holder pinning the runtime up forever.
-      e.release('site-a');
+      e.release(TorSiteHolder('site-a'));
       expect(e.holders, isEmpty);
       await e.dispose();
     });
@@ -100,13 +101,13 @@ void main() {
     test('releasing the last holder never stops the runtime', () {
       fakeAsync((async) {
         final e = build(debounce: const Duration(seconds: 60));
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
         expect(e.status, isA<TorUp>());
 
-        e.release('site-a');
+        e.release(TorSiteHolder('site-a'));
         async.elapse(const Duration(seconds: 59));
         expect(e.status, isA<TorUp>(), reason: 'still up during debounce');
         expect(runtime.stopCalls, 0);
@@ -123,14 +124,14 @@ void main() {
     test('reacquiring during the debounce cancels the shutdown', () {
       fakeAsync((async) {
         final e = build(debounce: const Duration(seconds: 60));
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
 
-        e.release('site-a');
+        e.release(TorSiteHolder('site-a'));
         async.elapse(const Duration(seconds: 30));
-        e.acquire('site-b');
+        e.acquire(TorSiteHolder('site-b'));
         async.flushMicrotasks();
 
         async.elapse(const Duration(seconds: 120));
@@ -142,11 +143,11 @@ void main() {
 
     test('syncHolders reconciles the whole set', () async {
       final e = build();
-      await e.syncHolders({'a', 'b'});
-      expect(e.holders, {'a', 'b'});
+      await e.syncHolders({TorSiteHolder('a'), TorSiteHolder('b')});
+      expect(e.holders, {TorSiteHolder('a'), TorSiteHolder('b')});
 
-      await e.syncHolders({'b', 'c'});
-      expect(e.holders, {'b', 'c'});
+      await e.syncHolders({TorSiteHolder('b'), TorSiteHolder('c')});
+      expect(e.holders, {TorSiteHolder('b'), TorSiteHolder('c')});
       expect(runtime.startCalls, 1, reason: 'never dropped to zero');
       await e.dispose();
     });
@@ -154,7 +155,7 @@ void main() {
     test('an unavailable runtime is never started', () async {
       runtime = FakeTorRuntime(isAvailable: false);
       final e = build();
-      await e.acquire('site-a');
+      await e.acquire(TorSiteHolder('site-a'));
       expect(runtime.startCalls, 0);
       expect(e.holders, isEmpty);
       expect(e.status, isA<TorStopped>());
@@ -164,7 +165,7 @@ void main() {
     test('a start that throws surfaces as an error, not a hang', () async {
       runtime.startError = StateError('no tor for you');
       final e = build();
-      await e.acquire('site-a');
+      await e.acquire(TorSiteHolder('site-a'));
       expect(e.status, isA<TorErrored>());
       await e.dispose();
     });
@@ -174,7 +175,7 @@ void main() {
     test('bootstrap that never completes errors out, tor left running', () {
       fakeAsync((async) {
         final e = build(timeout: const Duration(seconds: 90));
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.emit(const TorBootstrapping(40));
         async.flushMicrotasks();
@@ -196,7 +197,7 @@ void main() {
       // reported a bootstrap failure against a tor that was working.
       fakeAsync((async) {
         final e = build(timeout: const Duration(seconds: 90));
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
@@ -216,7 +217,7 @@ void main() {
     test('reaching up cancels the timeout', () {
       fakeAsync((async) {
         final e = build(timeout: const Duration(seconds: 90));
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
@@ -230,7 +231,7 @@ void main() {
   group('TOR-003 stream isolation', () {
     test('distinct sites get distinct SOCKS usernames on one endpoint', () async {
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -247,7 +248,7 @@ void main() {
 
     test('app-global traffic never borrows a site tag', () async {
       final e = build();
-      await e.acquire(kTorAppGlobalTag);
+      await e.acquire(const TorAppWideHolder());
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -269,7 +270,7 @@ void main() {
       // to the site it came from. Derivation details live in
       // test/tor_failure_test.dart.
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -283,7 +284,7 @@ void main() {
       // Nothing may hardcode Tor's default port: the embedded runtime picks
       // its own, and 9050 may belong to some other app on the device.
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(41337);
       await pumpEventQueue();
 
@@ -298,7 +299,7 @@ void main() {
       final e = build();
       expect(e.socksFor('a1'), isNull, reason: 'stopped');
 
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       expect(e.socksFor('a1'), isNull, reason: 'starting');
 
       runtime.emit(const TorBootstrapping(50));
@@ -313,7 +314,7 @@ void main() {
 
     test('an errored runtime yields nothing', () async {
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNotNull);
@@ -331,7 +332,7 @@ void main() {
       // longer say anything about this: releasing the last one leaves tor
       // running, so the engine's own teardown is the only shutdown left.
       final e = build(debounce: const Duration(seconds: 60));
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       await pumpEventQueue();
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
@@ -350,7 +351,7 @@ void main() {
     await e.rebuildCircuits();
     expect(runtime.rebuildCalls, 0);
 
-    await e.acquire('a1');
+    await e.acquire(TorSiteHolder('a1'));
     runtime.bootstrapTo(9999);
     await pumpEventQueue();
     await e.rebuildCircuits();
@@ -361,7 +362,7 @@ void main() {
   group('TOR-014 exit-country pin', () {
     test('a pin set while up reaches the runtime', () async {
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -375,7 +376,7 @@ void main() {
       // SETCONF needs a live control port; a pin requested earlier must be
       // deferred rather than dropped, or the user gets no pin at all.
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       await e.setExitCountry('{nl}');
       expect(runtime.appliedExitNodes, isEmpty, reason: 'no control port yet');
 
@@ -388,7 +389,7 @@ void main() {
 
     test('re-setting the same pin does not re-issue SETCONF', () async {
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -400,7 +401,7 @@ void main() {
 
     test('clearing the pin resets it rather than leaving it set', () async {
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -415,7 +416,7 @@ void main() {
       // Reporting an unapplied pin as live would tell the user traffic is
       // leaving from a country it is not.
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -430,7 +431,7 @@ void main() {
       // TOR-014. The pin is in force and tor builds no circuit under it; the
       // card has to name the country as the problem, not the control port.
       final e = build();
-      await e.acquire('a1');
+      await e.acquire(TorSiteHolder('a1'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 
@@ -458,7 +459,7 @@ void main() {
       // SETCONF that carried it belonged to the run that failed.
       fakeAsync((async) {
         final e = build(debounce: const Duration(seconds: 60));
-        e.acquire('a1');
+        e.acquire(TorSiteHolder('a1'));
         async.flushMicrotasks();
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
@@ -500,7 +501,7 @@ void main() {
 
     Future<TorEngine> upWith(FakeGeoIpStore store, {DateTime? now}) async {
       final e = build(geoIpStore: store, clock: () => now ?? fetchedAt);
-      await e.acquire('site-a');
+      await e.acquire(TorSiteHolder('site-a'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
       return e;
@@ -675,7 +676,7 @@ void main() {
       fakeAsync((async) {
         final store = FakeGeoIpStore()..kept = table;
         final e = build(geoIpStore: store, clock: () => fetchedAt);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
 
@@ -698,7 +699,7 @@ void main() {
       // the moment the change is asked for, not once tor answers.
       fakeAsync((async) {
         final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
 
@@ -717,7 +718,7 @@ void main() {
       // re-sent it and waited again.
       fakeAsync((async) {
         final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
         e.setExitCountry('{br}');
@@ -784,7 +785,7 @@ void main() {
     test('a listener that still answers is left alone', () {
       fakeAsync((async) {
         final e = build(socksProbe: probe);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(41337);
         async.flushMicrotasks();
@@ -802,7 +803,7 @@ void main() {
         final e = build(socksProbe: probe);
         final seen = <TorStatus>[];
         e.statusStream.listen(seen.add);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(41337);
         async.flushMicrotasks();
@@ -828,7 +829,7 @@ void main() {
     test('a reopen that fails is reported, and Retry tries it again', () {
       fakeAsync((async) {
         final e = build(socksProbe: probe);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(41337);
         async.flushMicrotasks();
@@ -856,7 +857,7 @@ void main() {
         final e = build(socksProbe: probe);
         final seen = <TorStatus>[];
         e.statusStream.listen(seen.add);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.emit(const TorBootstrapping(40));
         async.flushMicrotasks();
@@ -877,7 +878,7 @@ void main() {
     test('an exit pin in force stays in force across a reopen', () {
       fakeAsync((async) {
         final e = build(socksProbe: probe);
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(41337);
         async.flushMicrotasks();
@@ -901,7 +902,7 @@ void main() {
           timeout: const Duration(seconds: 90),
           clock: () => now,
         );
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.emit(const TorBootstrapping(10));
         async.flushMicrotasks();
@@ -921,7 +922,7 @@ void main() {
     test('without a probe nothing is asked', () {
       fakeAsync((async) {
         final e = build();
-        e.acquire('site-a');
+        e.acquire(TorSiteHolder('site-a'));
         async.flushMicrotasks();
         runtime.bootstrapTo(41337);
         async.flushMicrotasks();

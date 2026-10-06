@@ -21,9 +21,11 @@ import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/proxy.dart';
 
+export 'package:webspace/services/tor_holders.dart';
 export 'package:webspace/services/tor_engine.dart'
     show
         TorStatus,
@@ -488,7 +490,7 @@ class TorService {
     LogService.instance.log(kTorLogTag,
         'Switched to the ${external ? 'external' : 'built-in'} tor');
     _forward(_engine.status);
-    await from.syncHolders(const <String>[]);
+    await from.syncHolders(const <TorHolder>[]);
     if (!_engine.isAvailable) return;
     final pin = _exitRequest;
     if (pin != null) {
@@ -519,9 +521,8 @@ class TorService {
 
   TorStatus get status => _engine.status;
 
-  /// The reasons holding the runtime up: site ids, the app-wide tag, and the
-  /// prefixed holders in `tor_holders.dart`.
-  Set<String> get holders => _engine.holders;
+  /// What holds the runtime up.
+  Set<TorHolder> get holders => _engine.holders;
   Stream<TorStatus> get statusStream => _statuses.stream;
 
   /// `host:port` of the live SOCKS5 listener, or null when not up.
@@ -530,16 +531,16 @@ class TorService {
     return s is TorUp ? '${s.host}:${s.port}' : null;
   }
 
-  Future<void> maybeStart(String reason) async {
+  Future<void> maybeStart(TorHolder holder) async {
     if (!isAvailable) return;
-    await _engine.acquire(reason);
+    await _engine.acquire(holder);
   }
 
-  void release(String reason) => _engine.release(reason);
+  void release(TorHolder holder) => _engine.release(holder);
 
-  Future<void> syncHolders(Iterable<String> reasons) async {
+  Future<void> syncHolders(Iterable<TorHolder> holders) async {
     if (!isAvailable) return;
-    await _engine.syncHolders(reasons);
+    await _engine.syncHolders(holders);
   }
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();

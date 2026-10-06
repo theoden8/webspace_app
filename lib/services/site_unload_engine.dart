@@ -183,7 +183,7 @@ class SiteUnloadEngine {
       if (!contends(models[i])) continue;
       final effective = resolveEffectiveProxy(models[i].proxySettings,
           siteId: models[i].siteId);
-      if (!_proxyEquivalent(targetEffective, effective)) {
+      if (targetEffective.routeKey != effective.routeKey) {
         result.add(i);
       }
     }
@@ -346,12 +346,5 @@ class SiteUnloadEngine {
     return candidates.length <= overflow
         ? candidates
         : candidates.sublist(0, overflow);
-  }
-
-  static bool _proxyEquivalent(UserProxySettings a, UserProxySettings b) {
-    return a.type == b.type &&
-        a.address == b.address &&
-        a.username == b.username &&
-        a.password == b.password;
   }
 }

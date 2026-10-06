@@ -163,7 +163,7 @@ void main() {
     // Hold a refcount: the engine drops non-stopped statuses when nothing
     // holds it (the resurrection guard), so without this the emit below is
     // silently discarded and every assertion reads the wrong state.
-    await TorService.instance.maybeStart('ui-test');
+    await TorService.instance.maybeStart(TorSiteHolder('ui-test'));
     await t.pumpWidget(host(child, size));
     await settle(t);
 

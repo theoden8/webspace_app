@@ -57,7 +57,7 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
       oldService.removeListener(_changed);
       _service.addListener(_changed);
     }
-    if (!_sameProxy(old.proxy, widget.proxy)) _ensureFresh();
+    if (old.proxy.routeKey != widget.proxy.routeKey) _ensureFresh();
   }
 
   @override
@@ -66,12 +66,6 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
     _service.removeListener(_changed);
     super.dispose();
   }
-
-  static bool _sameProxy(UserProxySettings a, UserProxySettings b) =>
-      a.type == b.type &&
-      a.address == b.address &&
-      a.username == b.username &&
-      a.password == b.password;
 
   void _changed() {
     if (mounted) setState(() {});

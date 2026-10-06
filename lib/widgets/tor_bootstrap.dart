@@ -19,7 +19,6 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
-import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/tor_status_card.dart'
@@ -59,8 +58,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       setState(() => _status = s);
     });
     // Kick a start attempt if nothing else has. Idempotent under refcount.
-    TorService.instance
-        .maybeStart('$kTorInterstitialHolderPrefix${identityHashCode(this)}');
+    TorService.instance.maybeStart(TorInterstitialHolder(this));
   }
 
   @override
@@ -70,8 +68,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     // symmetric with the acquire above. The site itself still holds its own
     // refcount via _syncTorHolders, so the runtime does not shut down just
     // because the placeholder went away.
-    TorService.instance
-        .release('$kTorInterstitialHolderPrefix${identityHashCode(this)}');
+    TorService.instance.release(TorInterstitialHolder(this));
     super.dispose();
   }
 

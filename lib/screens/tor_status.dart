@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
-import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';

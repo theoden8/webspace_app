@@ -41,8 +41,8 @@ class ProxyHealthService extends ChangeNotifier {
 
   final ProxyProbe _probe;
   final DateTime Function() _now;
-  final Map<_ProxyKey, ProxyHealth> _results = {};
-  final SingleFlight<_ProxyKey, ProxyHealth> _probes = SingleFlight();
+  final Map<ProxyRouteKey, ProxyHealth> _results = {};
+  final SingleFlight<ProxyRouteKey, ProxyHealth> _probes = SingleFlight();
 
   static Future<ProxyTestResult> _defaultProbe(UserProxySettings settings) =>
       testProxyConnection(settings, target: kDefaultProxyTestTarget);
@@ -54,7 +54,7 @@ class ProxyHealthService extends ChangeNotifier {
       settings.type != ProxyType.DEFAULT && settings.type != ProxyType.SAVED;
 
   ProxyHealth? statusOf(UserProxySettings settings) {
-    final key = _keyOf(settings);
+    final key = settings.routeKey;
     if (_probes.isRunning(key)) {
       return const ProxyHealth(ProxyHealthState.checking);
     }
@@ -62,7 +62,7 @@ class ProxyHealthService extends ChangeNotifier {
   }
 
   bool isFresh(UserProxySettings settings) {
-    final checkedAt = _results[_keyOf(settings)]?.checkedAt;
+    final checkedAt = _results[settings.routeKey]?.checkedAt;
     return checkedAt != null && _now().difference(checkedAt) < freshFor;
   }
 
@@ -73,7 +73,7 @@ class ProxyHealthService extends ChangeNotifier {
   /// where they point, and an unresolved DEFAULT would test the app-wide
   /// proxy instead.
   Future<ProxyHealth> check(UserProxySettings settings, {bool force = false}) {
-    final key = _keyOf(settings);
+    final key = settings.routeKey;
     final starting = !_probes.isRunning(key);
     if (starting && !force && isFresh(settings)) {
       return Future.value(_results[key]!);
@@ -114,10 +114,3 @@ class ProxyHealthService extends ChangeNotifier {
     }
   }
 }
-
-/// A proxy's identity for caching. The password is part of it, so fixing a
-/// rejected password is not answered from the rejection.
-typedef _ProxyKey = (ProxyType, String?, String?, String?);
-
-_ProxyKey _keyOf(UserProxySettings s) =>
-    (s.type, s.address, s.username, s.password);

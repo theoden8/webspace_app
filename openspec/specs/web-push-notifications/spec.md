@@ -201,7 +201,7 @@ On iOS, the OS suspends apps within seconds of backgrounding. The system SHALL:
 
 On Android, the system SHALL mirror the iOS opportunistic-refresh strategy: schedule a `WorkManager` periodic refresh that wakes the app every 15 minutes (system minimum) and runs the same wake as iOS (NOTIF-013, NOTIF-014). The system SHALL NOT use a foreground service to keep notification sites running (NOTIF-015). Apps that notify from the background are woken by a push channel (FCM, APNs) rather than staying resident, and a resident `specialUse` service also carries the Play review cost of `FOREGROUND_SERVICE_SPECIAL_USE`. So a site's page JS runs while the app is visible and in the short grace before Android freezes the process; after that, the wake is what reaches the user.
 
-The `ProxyController` is a process-wide singleton, so concurrent background-poll sites with different proxy configurations remain unsupported even under the refresh model — proxies thrash when reloads run back-to-back.
+The `ProxyController` is a process-wide singleton, so concurrent background-poll sites with different proxy configurations remain unsupported even under the refresh model — proxies thrash when reloads run back-to-back. Two sites conflict when their effective proxies differ, compared the way PROXY-008 compares them: a site left on DEFAULT by the app-wide proxy it inherits (PROXY-009), a proxy-library reference by the proxy it names (PROXY-030).
 
 The request SHALL carry an initial delay of one interval. WorkManager treats the first period of a `PeriodicWorkRequest` as due at enqueue time (`WorkSpec.calculateNextRunTime` returns `lastEnqueueTime` while `periodCount == 0`), so without the delay the refresh fires seconds after the first notification site is loaded and reloads the page the user just opened — the native refresh path does not exclude the active site, and `reloadAndRepaint` drops its painted frame. Nothing is lost by waiting: while a site is loaded its page JS is running and fires notifications live through the polyfill; the refresh only matters once the app has been backgrounded for a while.
 
@@ -253,6 +253,14 @@ The worker used to return `Result.success()` here without checking any site, so 
 **Then** the `backgroundPoll` toggle is disabled (greyed out)
 **And** explanatory text reads: "Cannot enable: Site A polls with a different proxy. Android applies one proxy at a time process-wide."
 **And** the user can disable Site A's `backgroundPoll` first to free up the slot
+
+#### Scenario: Proxies conflict by the route they take
+
+**Given** the platform is Android and the app-wide proxy is HTTP proxy P1
+**And** Site A has `backgroundPoll` set to `true` with P1 set on the site itself
+**When** the user opens the settings of Site B, which is left on DEFAULT
+**Then** Site B's `backgroundPoll` toggle is not disabled for a proxy conflict
+**And** two sites naming different saved proxies do conflict, although both are stored as SAVED
 
 #### Scenario: Foreground polling still works for proxy-conflicted sites
 

@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/proxy_conflict_engine.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/proxy_library.dart';
 
 UserProxySettings _default() => UserProxySettings(type: ProxyType.DEFAULT);
 UserProxySettings _socks(String addr, {String? user, String? pwd}) =>
@@ -59,7 +61,8 @@ void main() {
       expect(
         ProxyConflictEngine.firstConflict(
           targetProxy: _socks('a:1'),
-          otherEnabledProxies: const [],
+          others: const [],
+          proxyOf: (p) => p,
         ),
         isNull,
       );
@@ -97,7 +100,8 @@ void main() {
 
       final conflict = ProxyConflictEngine.firstConflict(
         targetProxy: _http('proxy:8080'),
-        otherEnabledProxies: [blocker],
+        others: [blocker],
+        proxyOf: (p) => p,
       );
       expect(conflict, isNotNull);
       expect(conflict!.type, ProxyType.SOCKS5);
@@ -145,7 +149,8 @@ void main() {
       final second = _http('b:2');
       final conflict = ProxyConflictEngine.firstConflict(
         targetProxy: _default(),
-        otherEnabledProxies: [first, second],
+        others: [first, second],
+        proxyOf: (p) => p,
       );
       expect(identical(conflict, first), isTrue);
     });
@@ -185,10 +190,55 @@ void main() {
       expect(
         ProxyConflictEngine.firstConflict(
           targetProxy: target,
-          otherEnabledProxies: others,
+          others: others,
+          proxyOf: (p) => p,
           routerActive: true,
         ),
         isNull,
+      );
+    });
+  });
+
+  // The engine used to compare the settings as configured while PROXY-008's
+  // unload rule compared them resolved, so the two disagreed on which sites
+  // share the process-wide override.
+  group('compares the route each site takes', () {
+    tearDown(() {
+      GlobalOutboundProxy.resetForTest();
+      ProxyLibrary.resetForTest();
+    });
+
+    test('a DEFAULT site shares the route of the proxy it inherits', () {
+      GlobalOutboundProxy.setForTest(_http('10.0.0.1:3128'));
+      expect(
+        ProxyConflictEngine.canEnable(
+          targetProxy: _default(),
+          otherEnabledProxies: [_http('10.0.0.1:3128')],
+        ),
+        isTrue,
+      );
+    });
+
+    test('sites naming different saved proxies conflict', () {
+      ProxyLibrary.setInMemory(ProxyLibraryData(proxies: [
+        SavedProxy(id: 'p1', name: 'one', settings: _socks('a:1')),
+        SavedProxy(id: 'p2', name: 'two', settings: _socks('b:2')),
+      ]));
+      UserProxySettings saved(String id) =>
+          UserProxySettings(type: ProxyType.SAVED, savedProxyId: id);
+      expect(
+        ProxyConflictEngine.canEnable(
+          targetProxy: saved('p1'),
+          otherEnabledProxies: [saved('p2')],
+        ),
+        isFalse,
+      );
+      expect(
+        ProxyConflictEngine.canEnable(
+          targetProxy: saved('p1'),
+          otherEnabledProxies: [_socks('a:1')],
+        ),
+        isTrue,
       );
     });
   });

@@ -406,7 +406,7 @@ void main() {
 
   tearDownAll(() async {
     await sub.cancel();
-    TorService.instance.release('integration');
+    TorService.instance.release(TorSiteHolder('integration'));
   });
 
   /// Poll until [done] or [budget] runs out. A plain `await for` on the
@@ -441,7 +441,7 @@ void main() {
       return;
     }
 
-    await TorService.instance.maybeStart('integration');
+    await TorService.instance.maybeStart(TorSiteHolder('integration'));
 
     // The plugin answering at all. A build where it never registered lands
     // here as an error naming the missing runtime rather than as a hang.

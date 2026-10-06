@@ -114,7 +114,7 @@ void main() {
         LogService.instance.entries.where((e) => e.tag == 'Tor').toList();
 
     test('every transition is logged, with its phase', () async {
-      await TorService.instance.maybeStart('site:a');
+      await TorService.instance.maybeStart(TorSiteHolder('site:a'));
       runtime.emit(const TorBootstrapping(45,
           tag: 'loading_descriptors', summary: 'Loading relay descriptors'));
       runtime.emit(const TorUp('127.0.0.1', 41337));
@@ -127,7 +127,7 @@ void main() {
     });
 
     test('a failure is logged at error level', () async {
-      await TorService.instance.maybeStart('site:a');
+      await TorService.instance.maybeStart(TorSiteHolder('site:a'));
       runtime.emit(TorErrored('Tor did not finish bootstrapping in time.'));
       await pumpEventQueue();
 
@@ -139,7 +139,7 @@ void main() {
 
     test('status lines are not sensitive, so they show without the toggle',
         () async {
-      await TorService.instance.maybeStart('site:a');
+      await TorService.instance.maybeStart(TorSiteHolder('site:a'));
       await pumpEventQueue();
       expect(torEntries(), isNotEmpty);
       expect(LogService.instance.sensitiveEntries, isEmpty);

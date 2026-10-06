@@ -16,6 +16,14 @@
 /// renumbering silently rewrites every user's stored proxy.
 enum ProxyType { DEFAULT, HTTP, HTTPS, SOCKS5, TOR, SAVED, GATEWAY }
 
+/// A route's identity: settings with equal keys put traffic on one route.
+typedef ProxyRouteKey = ({
+  ProxyType type,
+  String? address,
+  String? username,
+  String? password,
+});
+
 class UserProxySettings {
   ProxyType type;
   String? address;
@@ -61,6 +69,18 @@ class UserProxySettings {
     this.gatewayId,
     this.credentialsId,
   });
+
+  /// Which route these settings name, for telling two apart (PROXY-008).
+  ///
+  /// DEFAULT is "no proxy" whatever stale fields it kept from an earlier
+  /// type. Anything else is its whole tuple, credentials included: the
+  /// platform tells routes apart by them, Tor sites differ by the isolation
+  /// tag in [username], and fixing a rejected password is a new route.
+  /// Compare effective settings (`resolveEffectiveProxy`): until resolved, a
+  /// DEFAULT or a library reference does not say where traffic goes.
+  ProxyRouteKey get routeKey => type == ProxyType.DEFAULT
+      ? (type: type, address: null, username: null, password: null)
+      : (type: type, address: address, username: username, password: password);
 
   /// The pin as tor's `ExitNodes` value, or null when unpinned or invalid.
   ///

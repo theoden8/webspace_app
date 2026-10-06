@@ -3660,10 +3660,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// here, and computing a delta at each of those call sites is how a
   /// deleted site ends up pinning the runtime up forever.
   Future<void> _syncTorHolders() async {
-    final holders = <String>{
+    final holders = <TorHolder>{
       for (final m in _webViewModels)
-        if (m.proxySettings.type == ProxyType.TOR) m.siteId,
-      if (GlobalOutboundProxy.current.type == ProxyType.TOR) kTorAppGlobalTag,
+        if (m.proxySettings.type == ProxyType.TOR) TorSiteHolder(m.siteId),
+      if (GlobalOutboundProxy.current.type == ProxyType.TOR)
+        const TorAppWideHolder(),
     };
     await TorService.instance.syncHolders(holders);
     // Clearing a site's pin in settings never re-activates it, so without
@@ -6227,18 +6228,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       others.add(m);
     }
     // Outbound settings, so two Tor sites differ by their isolation tags.
-    final conflict = ProxyConflictEngine.firstConflict(
+    final blocker = ProxyConflictEngine.firstConflict(
       targetProxy: target.outboundProxySettings,
-      otherEnabledProxies: others.map((m) => m.outboundProxySettings),
+      others: others,
+      proxyOf: (m) => m.outboundProxySettings,
       routerActive: ProxyRouterService.instance.isActive,
     );
-    if (conflict == null) return null;
-    final conflictFp = ProxyConflictEngine.fingerprint(conflict);
-    final blocker = others.firstWhere(
-      (m) =>
-          ProxyConflictEngine.fingerprint(m.outboundProxySettings) == conflictFp,
-      orElse: () => target,
-    );
+    if (blocker == null) return null;
     return blocker.name.isNotEmpty
         ? blocker.name
         : (blocker.initUrl.isNotEmpty ? blocker.initUrl : 'Another site');

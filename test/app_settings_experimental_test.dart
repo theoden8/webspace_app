@@ -186,7 +186,7 @@ void main() {
     testWidgets('the card appears once something starts Tor', (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await TorService.instance.maybeStart('site-a');
+      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
       runtime.emit(const TorUp('127.0.0.1', 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);
@@ -198,7 +198,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host(siteNames: const {'site-a': 'Mail'}));
       await tester.pumpAndSettle();
-      await TorService.instance.syncHolders({'site-a'});
+      await TorService.instance.syncHolders({TorSiteHolder('site-a')});
       runtime.emit(const TorUp('127.0.0.1', 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);

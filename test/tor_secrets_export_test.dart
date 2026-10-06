@@ -52,7 +52,7 @@ void main() {
   });
 
   test('Tor secrets never appear in exports (TOR-009)', () async {
-    await TorService.instance.syncHolders({'tor-site'});
+    await TorService.instance.syncHolders({TorSiteHolder('tor-site')});
     runtime.emit(const TorUp('127.0.0.1', socksPort));
     await Future<void>.delayed(Duration.zero);
 

@@ -14,6 +14,7 @@ import 'package:crypto/crypto.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_failure.dart';
 import 'package:webspace/services/tor_geoip.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/concurrency.dart';
 
@@ -293,7 +294,7 @@ class TorEngine {
   final Duration _idleDebounce;
   final Duration _bootstrapTimeout;
 
-  final Set<String> _holders = <String>{};
+  final Set<TorHolder> _holders = <TorHolder>{};
   final StreamController<TorStatus> _statuses =
       StreamController<TorStatus>.broadcast();
   StreamSubscription<TorStatus>? _sub;
@@ -365,15 +366,15 @@ class TorEngine {
   TorStatus get status => _status;
   Stream<TorStatus> get statusStream => _statuses.stream;
 
-  /// Reason strings currently pinning the runtime up. Diagnostics only.
-  Set<String> get holders => Set.unmodifiable(_holders);
+  /// What currently pins the runtime up.
+  Set<TorHolder> get holders => Set.unmodifiable(_holders);
 
-  /// Register [reason] as needing Tor, starting the runtime on the 0 -> 1
+  /// Register [holder] as needing Tor, starting the runtime on the 0 -> 1
   /// transition and canceling any pending idle shutdown (TOR-002).
-  Future<void> acquire(String reason) async {
+  Future<void> acquire(TorHolder holder) async {
     if (!_runtime.isAvailable) return;
     final wasEmpty = _holders.isEmpty;
-    if (!_holders.add(reason)) return;
+    if (!_holders.add(holder)) return;
     _idleTimer?.cancel();
     _idleTimer = null;
     if (!wasEmpty) return;
@@ -391,7 +392,7 @@ class TorEngine {
     }
   }
 
-  /// Drop [reason]'s claim.
+  /// Drop [holder]'s claim.
   ///
   /// The runtime is not stopped. tor runs at most once per process — the
   /// second `tor_run_main` dies in `threadpool_new` and never bootstraps
@@ -404,8 +405,8 @@ class TorEngine {
   /// runtime from re-arming a bootstrap timeout mid-flight, and
   /// [_onRuntimeStatus] reads it to tell "nobody wants Tor" from "Tor was
   /// never wanted".
-  void release(String reason) {
-    if (!_holders.remove(reason)) return;
+  void release(TorHolder holder) {
+    if (!_holders.remove(holder)) return;
     if (_holders.isNotEmpty) return;
     _idleTimer?.cancel();
     _idleTimer = Timer(_idleDebounce, () {
@@ -416,8 +417,8 @@ class TorEngine {
   /// Replace the whole holder set in one shot. Used by the startup scan and
   /// after bulk edits (settings import, site deletion) where computing the
   /// delta at the call site would just be a worse version of this.
-  Future<void> syncHolders(Iterable<String> reasons) async {
-    final next = reasons.toSet();
+  Future<void> syncHolders(Iterable<TorHolder> holders) async {
+    final next = holders.toSet();
     for (final gone in _holders.difference(next).toList()) {
       release(gone);
     }
@@ -724,17 +725,21 @@ class TorEngine {
   /// used as it is and refreshed behind it, for the next pin to pick up.
   Future<String?> _geoIpTable(TorGeoIpStore store, TorUp up) async {
     final via = _socksAt(up, kTorGeoIpTag);
-    final kept = await store.newest().catchError((Object _) => null);
+    final kept = await _orNull(store.newest());
     if (kept != null) {
       if (_mayFetchGeoIp && kept.isStale(_clock())) {
-        unawaited(store.download(via).catchError((Object _) => null));
+        unawaited(_orNull(store.download(via)));
       }
       return kept.path;
     }
     if (!_mayFetchGeoIp) return null;
-    final fetched = await store.download(via).catchError((Object _) => null);
-    return fetched?.path;
+    return (await _orNull(store.download(via)))?.path;
   }
+
+  /// The store's disk failures read as "no table"; errors are bugs and are
+  /// not swallowed.
+  static Future<TorGeoIpTable?> _orNull(Future<TorGeoIpTable?> table) =>
+      table.catchError((Object _) => null, test: (e) => e is Exception);
 
   /// Materialize the SOCKS5 settings [reason] should dial (TOR-003).
   ///

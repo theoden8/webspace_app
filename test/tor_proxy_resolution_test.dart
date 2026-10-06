@@ -213,8 +213,8 @@ void main() {
       expect(TorService.instance.isAvailable, isFalse);
       expect(TorService.instance.status, isA<TorStopped>());
       expect(TorService.instance.socksEndpoint, isNull);
-      await TorService.instance.maybeStart('site-a');
-      await TorService.instance.syncHolders({'site-a', 'site-b'});
+      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
+      await TorService.instance.syncHolders({TorSiteHolder('site-a'), TorSiteHolder('site-b')});
       expect(TorService.instance.socksFor(siteId: 'site-a'), isNull);
     });
 
