@@ -22,8 +22,9 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.ExecutionException
 import java.util.concurrent.Executors
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 /**
  * Native half of the background log (DEVTOOLS-011): JSON lines under
@@ -170,8 +171,12 @@ internal object BackgroundLogFile {
                 if (am != null) row("backgroundRestricted", am.isBackgroundRestricted)
             }
             try {
-                val infos = WorkManager.getInstance(app)
-                    .getWorkInfosForUniqueWork(uniqueWorkName).get()
+                // The Flow, not the ListenableFuture overload: Guava's future
+                // type is not on this module's compile classpath.
+                val infos = runBlocking {
+                    WorkManager.getInstance(app)
+                        .getWorkInfosForUniqueWorkFlow(uniqueWorkName).first()
+                }
                 if (infos.isEmpty()) {
                     row("refreshWork", "not enqueued")
                 }
@@ -184,8 +189,6 @@ internal object BackgroundLogFile {
                         row("refreshWorkLastStopReason", info.stopReason)
                     }
                 }
-            } catch (e: ExecutionException) {
-                row("refreshWork", "query failed: ${e.cause}")
             } catch (e: InterruptedException) {
                 row("refreshWork", "query interrupted")
             }
