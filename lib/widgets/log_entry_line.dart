@@ -18,14 +18,17 @@ class LogEntryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Light shades for a dark background, deep ones for a light one: plain
+    // amber on a light theme is close to unreadable.
+    final dark = Theme.of(context).brightness == Brightness.dark;
     final Color color;
     switch (entry.level) {
       case LogLevel.warning:
-        color = Colors.amber;
+        color = dark ? Colors.amber : Colors.orange.shade900;
       case LogLevel.error:
-        color = Colors.red;
+        color = dark ? Colors.red.shade300 : Colors.red.shade800;
       case LogLevel.info:
-        color = Colors.blue;
+        color = dark ? Colors.lightBlue.shade200 : Colors.blue.shade800;
       case LogLevel.debug:
         color = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white;
     }

@@ -70,9 +70,11 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
     final q = widget.searchQuery.toLowerCase();
     if (q.isEmpty) return _entries;
     return _entries
-        .where((e) =>
-            e.message.toLowerCase().contains(q) ||
-            e.tag.toLowerCase().contains(q))
+        .where(
+          (e) =>
+              e.message.toLowerCase().contains(q) ||
+              e.tag.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -83,8 +85,9 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
     if (_isCopying) return;
     final loc = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final sensitive =
-        visible.where((e) => e.sensitivity == LogSensitivity.sensitive).length;
+    final sensitive = visible
+        .where((e) => e.sensitivity == LogSensitivity.sensitive)
+        .length;
     var includeSensitive = false;
     _isCopying = true;
     try {
@@ -109,9 +112,14 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
         if (confirmed != true || !mounted) return;
         includeSensitive = true;
       }
-      await Clipboard.setData(ClipboardData(
-        text: BackgroundLog.format(visible, includeSensitive: includeSensitive),
-      ));
+      await Clipboard.setData(
+        ClipboardData(
+          text: BackgroundLog.format(
+            visible,
+            includeSensitive: includeSensitive,
+          ),
+        ),
+      );
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(content: Text(loc.devToolsLogsCopied(visible.length))),
@@ -124,8 +132,11 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
   Future<void> _export() async {
     final entries = await _log.entries(includeSensitive: false);
     if (!mounted) return;
-    await saveLogText(context, BackgroundLog.format(entries),
-        fileNamePrefix: 'webspace_background_log');
+    await saveLogText(
+      context,
+      BackgroundLog.format(entries),
+      fileNamePrefix: 'webspace_background_log',
+    );
   }
 
   Future<void> _clear() async {
@@ -137,95 +148,119 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final visible = _visible;
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-          child: Wrap(
-            spacing: 4,
-            children: [
-              TextButton.icon(
-                key: const Key('background-log-refresh'),
-                onPressed: () => _load(withState: true),
-                icon: const Icon(Icons.refresh, size: 18),
-                label: Text(loc.devToolsRefresh),
-              ),
-              TextButton.icon(
-                onPressed: _entries.isEmpty ? null : _export,
-                icon: const Icon(Icons.save, size: 18),
-                label: Text(loc.devToolsExport),
-              ),
-              TextButton.icon(
-                key: const Key('background-log-copy'),
-                onPressed: visible.isEmpty ? null : () => _copy(visible),
-                icon: const Icon(Icons.copy, size: 18),
-                label: Text(loc.devToolsCopy),
-              ),
-              TextButton.icon(
-                onPressed: _entries.isEmpty ? null : _clear,
-                icon: const Icon(Icons.delete_outline, size: 18),
-                label: Text(loc.devToolsClear),
-              ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12.0),
-          child: Row(
-            children: [
-              Switch(
-                key: const Key('background-log-sensitive'),
-                value: _showSensitive,
-                onChanged: (v) {
-                  setState(() => _showSensitive = v);
-                  unawaited(_load());
-                },
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  _showSensitive
-                      ? loc.devToolsBackgroundSensitiveShowing
-                      : loc.devToolsBackgroundSensitiveShow,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-            ],
-          ),
-        ),
-        if (_state.isNotEmpty)
-          ExpansionTile(
-            title: Text(loc.devToolsBackgroundSystemState),
-            initiallyExpanded: true,
-            dense: true,
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (final row in _state) _stateRow(row),
-            ],
-          ),
-        Expanded(
-          child: !_loaded
-              ? const Center(child: CircularProgressIndicator())
-              : visible.isEmpty
-                  ? Center(
-                      child: Text(widget.searchQuery.isEmpty
-                          ? loc.devToolsBackgroundEmpty
-                          : loc.devToolsNoMatches),
-                    )
-                  : ListView.builder(
-                      reverse: widget.searchQuery.isEmpty,
-                      itemCount: visible.length,
-                      itemBuilder: (context, index) {
-                        final entry = visible[visible.length - 1 - index];
-                        return LogEntryLine(
-                          entry: entry,
-                          time: BackgroundLog.formatTimestamp(entry.timestamp),
-                        );
-                      },
+    return LayoutBuilder(
+      builder: (context, constraints) => Column(
+        children: [
+          // The controls and the system state share at most this much of
+          // the tab and scroll inside it: on a short or landscape screen
+          // they would otherwise leave the log no height at all.
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: constraints.maxHeight * 0.45,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8.0,
+                      vertical: 4.0,
                     ),
-        ),
-      ],
+                    child: Wrap(
+                      spacing: 4,
+                      children: [
+                        TextButton.icon(
+                          key: const Key('background-log-refresh'),
+                          onPressed: () => _load(withState: true),
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: Text(loc.devToolsRefresh),
+                        ),
+                        TextButton.icon(
+                          onPressed: _entries.isEmpty ? null : _export,
+                          icon: const Icon(Icons.save, size: 18),
+                          label: Text(loc.devToolsExport),
+                        ),
+                        TextButton.icon(
+                          key: const Key('background-log-copy'),
+                          onPressed: visible.isEmpty
+                              ? null
+                              : () => _copy(visible),
+                          icon: const Icon(Icons.copy, size: 18),
+                          label: Text(loc.devToolsCopy),
+                        ),
+                        TextButton.icon(
+                          onPressed: _entries.isEmpty ? null : _clear,
+                          icon: const Icon(Icons.delete_outline, size: 18),
+                          label: Text(loc.devToolsClear),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    child: Row(
+                      children: [
+                        Switch(
+                          key: const Key('background-log-sensitive'),
+                          value: _showSensitive,
+                          onChanged: (v) {
+                            setState(() => _showSensitive = v);
+                            unawaited(_load());
+                          },
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            _showSensitive
+                                ? loc.devToolsBackgroundSensitiveShowing
+                                : loc.devToolsBackgroundSensitiveShow,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_state.isNotEmpty)
+                    ExpansionTile(
+                      title: Text(loc.devToolsBackgroundSystemState),
+                      initiallyExpanded: true,
+                      dense: true,
+                      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                      children: [for (final row in _state) _stateRow(row)],
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: !_loaded
+                ? const Center(child: CircularProgressIndicator())
+                : visible.isEmpty
+                ? Center(
+                    child: Text(
+                      widget.searchQuery.isEmpty
+                          ? loc.devToolsBackgroundEmpty
+                          : loc.devToolsNoMatches,
+                    ),
+                  )
+                : ListView.builder(
+                    reverse: widget.searchQuery.isEmpty,
+                    itemCount: visible.length,
+                    itemBuilder: (context, index) {
+                      final entry = visible[visible.length - 1 - index];
+                      return LogEntryLine(
+                        entry: entry,
+                        time: BackgroundLog.formatShortTimestamp(
+                          entry.timestamp,
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

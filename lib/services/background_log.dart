@@ -247,9 +247,13 @@ class BackgroundLog extends ChangeNotifier {
   }
 
   /// The background log spans days, so its lines carry the date.
-  static String formatTimestamp(DateTime t) {
+  static String formatTimestamp(DateTime t) =>
+      '${t.year}-${formatShortTimestamp(t)}';
+
+  /// On screen the year is width a phone line cannot spare.
+  static String formatShortTimestamp(DateTime t) {
     String two(int v) => v.toString().padLeft(2, '0');
-    return '${t.year}-${two(t.month)}-${two(t.day)} '
+    return '${two(t.month)}-${two(t.day)} '
         '${two(t.hour)}:${two(t.minute)}:${two(t.second)}';
   }
 

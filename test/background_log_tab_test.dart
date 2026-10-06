@@ -114,6 +114,21 @@ void main() {
     expect(clipboard.last, contains('"Mail"'));
   });
 
+  testWidgets('a landscape phone still has room for the log', (tester) async {
+    tester.view.physicalSize = const Size(800, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    DeveloperModeService.instance.debugSet(true);
+    await BackgroundLog.instance.setRecording(true);
+    BackgroundLog.instance.appState = () => [
+          for (var i = 0; i < 20; i++) MapEntry('app.row$i', 'value'),
+        ];
+    BackgroundLog.instance.record('BackgroundTask', 'the newest line');
+    await pump(tester, startOnBackground: true);
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('the newest line'), findsOneWidget);
+  });
+
   testWidgets('nothing is recorded while developer mode is off', (tester) async {
     DeveloperModeService.instance.debugSet(true);
     await BackgroundLog.instance.setRecording(false);
