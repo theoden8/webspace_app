@@ -71,7 +71,7 @@ The system SHALL navigate to the correct site when launched via a home screen sh
 
 ### Requirement: HS-003 - Shortcut Icon
 
-The system SHALL use the site's favicon as the shortcut icon when available, falling back to the app icon. The favicon is rasterized to a PNG on the Dart side (`exportIconAsPng`) before it crosses to native, because Android's `BitmapFactory` cannot decode SVG; this covers PNG, ICO, and SVG favicons uniformly.
+The system SHALL use the icon the drawer shows for the site as the shortcut icon when available (custom icon, then the site's page icon, then the fetched favicon; `displayedSiteIconAsPng`), falling back to the app icon. The favicon is rasterized to a PNG on the Dart side (`exportIconAsPng`) before it crosses to native, because Android's `BitmapFactory` cannot decode SVG; this covers PNG, ICO, and SVG favicons uniformly.
 
 #### Scenario: Site has a raster favicon
 

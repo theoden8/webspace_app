@@ -6,12 +6,29 @@ import 'package:image/image.dart' as img;
 
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/settings/proxy.dart';
 
 bool _isSvgUrl(String url) {
   final lower = url.toLowerCase();
   return lower.endsWith('.svg') || lower.contains('.svg?');
 }
+
+/// The icon the drawer shows for [siteUrl], as PNG bytes: the user's
+/// [customIcon], else the page icon the site's webview produced (ICON-009/013),
+/// else the fetched favicon. Every export of a site's icon goes through here
+/// so it never saves a different icon from the one on screen.
+Future<Uint8List?> displayedSiteIconAsPng(
+  String siteUrl, {
+  Uint8List? customIcon,
+  String? resolvedIconUrl,
+  UserProxySettings? proxy,
+  SiteIconStore? siteIcons,
+}) async =>
+    customIcon ??
+    (siteIcons ?? SiteIconStore.instance).get(siteUrl) ??
+    await exportIconAsPng(siteUrl,
+        resolvedIconUrl: resolvedIconUrl, proxy: proxy);
 
 /// Resolve, fetch, and normalize a site's favicon to PNG bytes.
 ///
