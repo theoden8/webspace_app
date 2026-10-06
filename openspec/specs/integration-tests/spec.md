@@ -1078,6 +1078,31 @@ macOS runner exercises the failure assertions for real.
 - **Then** exactly one live reload is issued — not a loop — and the live
   bytes replace the snapshot in the DOM
 
+#### Scenario: The network comes back after the snapshot settles
+
+- **Given** the same construction with `ConnectivityService` reporting
+  offline when the cached parse settles
+- **When** it reports online a moment later
+- **Then** exactly one live reload is issued (PAUSE-033): a snapshot
+  painted on return from the background is not stranded because the first
+  probe raced the firewall letting the app back out
+- **And** where the engine reports the snapshot's own commit to
+  `shouldOverrideUrlLoading` (WKWebView, WPE) the swap is never issued at
+  all, so this scenario and the online one above log `SKIP` naming that
+  rather than fail; they assert on an engine that does not (Android)
+
+#### Scenario: A saved snapshot lays out as the live page did
+
+- **Given** a live page with a doctype, a path-relative stylesheet and a
+  percentage height that only resolves in quirks mode
+- **When** the page settles and the factory saves its snapshot, and the
+  snapshot is then rendered as `initialHtml` at a different URL
+- **Then** the saved bytes start with the doctype and carry a `<base>` at
+  the page's URL, and the rendered snapshot is in standards mode with the
+  stylesheet applied (PAUSE-033). Strict on every engine: the snapshot is
+  the app's own script evaluated through the plugin, which the Chromium
+  tier cannot reach
+
 #### Scenario: A slow response is never reported as a failure
 
 - **Given** a route that sits on the request for several seconds

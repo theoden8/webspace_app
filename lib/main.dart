@@ -4755,7 +4755,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// async eviction loses the race and the rebuilt webview boots with the
   /// stale snapshot anyway. The eviction also bumps the
   /// [HtmlCacheService] generation, so any `saveHtml` for the same siteId
-  /// already in flight (e.g. the previous `controller.getHtml()` IPC
+  /// already in flight (e.g. the previous snapshot IPC
   /// resolving after dispose) is rejected at write time and cannot
   /// resurrect the stale bytes the call site just dropped.
   ///
@@ -11273,7 +11273,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                                       : (url, html) {
                                           HtmlCacheService.instance.saveHtml(webViewModel.siteId, html, url);
                                         },
-                                  // Skip the per-onLoadStop getHtml() IPC into chromium when
+                                  // Skip the per-onLoadStop snapshot IPC into chromium when
                                   // a save would be debounced anyway. Drops the storm of
                                   // renderer-DOM-serializations that fired on every SPA pseudo-
                                   // navigation (8+ Saved events per page on LinkedIn) — each one

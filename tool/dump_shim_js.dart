@@ -28,6 +28,7 @@ import 'package:webspace/services/passkey_shim.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
+import 'package:webspace/services/html_snapshot.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
@@ -59,6 +60,8 @@ Map<String, String> buildAllFixtures() {
     suggestedFilename: 'hello.txt',
     taskId: 'task-fixture',
   );
+
+  fixtures['html_snapshot/snapshot.js'] = htmlSnapshotScript;
 
   fixtures['desktop_mode/linux.js'] =
       buildDesktopModeShim(firefoxLinuxDesktopUserAgent);

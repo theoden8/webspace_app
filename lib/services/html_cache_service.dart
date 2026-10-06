@@ -270,7 +270,7 @@ class HtmlCacheService {
   /// Minimum interval between successful saves for a given siteId.
   /// onLoadStop fires multiple times per page (initial commit, SPA
   /// pseudo-navigations, BFCache restorations) and each save reads the
-  /// live DOM via `controller.getHtml()` — an IPC into the chromium
+  /// live DOM via `htmlSnapshotScript` — an IPC into the chromium
   /// renderer that races frame-lifecycle teardown if the page is
   /// transitioning. Debouncing collapses the storm of saves into one
   /// per page-settled window, dropping the per-onLoadStop renderer
@@ -288,7 +288,7 @@ class HtmlCacheService {
   /// committing the encrypted bytes — a save that started against
   /// generation N drops if an eviction has bumped it to N+1 in flight.
   /// Closes the race where the disposed webview's `onLoadStop`
-  /// `getHtml()` IPC resolves after the user pressed Home and writes
+  /// snapshot IPC resolves after the user pressed Home and writes
   /// the stale snapshot back over the freshly-evicted entry.
   final Map<String, int> _evictionGen = {};
 
@@ -315,10 +315,10 @@ class HtmlCacheService {
 
   /// Returns true if a save for [siteId] should proceed right now.
   /// False means the caller should skip the save (and, in particular,
-  /// skip the upstream `controller.getHtml()` IPC into the renderer
+  /// skip the upstream snapshot IPC into the renderer
   /// that produces the HTML payload).
   ///
-  /// Callers pattern: gate the `getHtml()` call itself on this, not
+  /// Callers pattern: gate the snapshot call itself on this, not
   /// just the save — the IPC is the expensive part.
   bool shouldSave(String siteId) {
     final last = _lastSaveAt[siteId];

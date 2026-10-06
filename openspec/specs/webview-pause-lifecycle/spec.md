@@ -1241,6 +1241,63 @@ nudges stay in both modes.
 **Then** every webview is created with `useHybridComposition: true`
 **And** the switch keeps its position for when developer mode comes back on
 
+### Requirement: PAUSE-033 — A Snapshot Rendered On Return Lays Out As The Page Did
+
+A webview rebuilt on return from the background (PAUSE-013, or a site
+unloaded under memory pressure) renders the site's `HtmlCacheService`
+snapshot whenever the last connectivity probe failed, and a per-app
+firewall that cut the app off in the background (CalyxOS/Datura, Android
+background restrictions) makes that common: the probe races the firewall
+letting the app back out. The snapshot SHALL therefore lay out the way the
+live page did, and SHALL be swapped for the live page once the network is
+back rather than only if it was back at the first probe.
+
+- The snapshot SHALL be captured by `htmlSnapshotScript`
+  ([lib/services/html_snapshot.dart](../../../lib/services/html_snapshot.dart)),
+  never by the plugin's `getHtml()`. It carries the document's doctype, so a
+  standards-mode page does not come back in quirks mode; writes out
+  `<style>` rules that only exist in the CSSOM (`insertRule` into an empty
+  element, `document.adoptedStyleSheets`); and pins a `<base>` to the URL the
+  document was served from (the navigation timing entry), since the snapshot
+  renders at `currentUrl`, which a `pushState` moves. A page's own
+  `<base href>` is kept. The copy is edited in a document with no browsing
+  context, so capturing runs no page code (custom-element constructors) and
+  fetches nothing (cloned `<img>` and media elements).
+- The capture SHALL NOT fall back to fetching the page outside the webview.
+  `getHtml()` fetches it with Dart's `HttpClient` when the site has
+  JavaScript off, which bypasses the site's proxy and container.
+- When the one-shot live reload finds the network down, it SHALL re-probe
+  at the delays in `liveSwapProbeDelays` (about 37s in all) and reload on
+  the first probe that finds it up, unless a navigation started meanwhile.
+  It remains one reload, never a loop.
+- Known gap: WKWebView (iOS, macOS) and WPE (Linux) report the snapshot's
+  own `initialData` commit to `shouldOverrideUrlLoading`, which bumps the
+  factory's navigation generation before the parse settles, and the swap
+  only fires while it is 0. On those engines the snapshot is never swapped
+  for the live page, network or not; only Android swaps today.
+
+#### Scenario: A standards-mode page with CSS-in-JS styles
+
+**Given** a page with `<!doctype html>`, a path-relative stylesheet, rules
+inserted with `insertRule` and an adopted stylesheet, which then calls
+`pushState`
+**When** its snapshot is rendered at the pushed URL
+**Then** it is in standards mode and every element has the computed style it
+had live
+(regression tests: `test/browser/html_snapshot_real_engine.test.js`, which
+also pins that the plugin's `outerHTML` lays the same page out differently;
+OFFLINE-INTEG-007 in `integration_test/offline_connection_test.dart`, which
+saves and renders through the app's own path on WKWebView and WPE)
+
+#### Scenario: The network comes back after the snapshot settles
+
+**Given** the snapshot settled while the connectivity probe reported offline
+**When** a later probe in `liveSwapProbeDelays` reports online
+**Then** the webview reloads to the live page exactly once
+(regression tests: `test/html_snapshot_test.dart`; OFFLINE-INTEG-006 in
+`integration_test/offline_connection_test.dart`, which logs `SKIP` on the
+desktop engines for the gap above)
+
 ## Implementation
 
 ### API Surface
