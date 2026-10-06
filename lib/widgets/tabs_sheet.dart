@@ -37,6 +37,7 @@ class TabsSheetSite {
     required this.model,
     required this.isCurrent,
     required this.isLoaded,
+    this.inView = true,
   });
 
   final int index;
@@ -49,6 +50,11 @@ class TabsSheetSite {
   /// that (lazy loading, the LRU cap, memory pressure), not the tab list; when
   /// it does, the webview is its active tab's and every other tab is stored.
   final bool isLoaded;
+
+  /// Whether the current webspace shows this site. One it does not show gets
+  /// no heading or rows of its own; it is listed so that the tabs in its tree
+  /// that run as the site on screen are (TAB-017).
+  final bool inView;
 }
 
 class TabsSheet extends StatefulWidget {
@@ -65,7 +71,8 @@ class TabsSheet extends StatefulWidget {
     this.onMoveSite,
   });
 
-  /// Every site the current webspace shows, in display order.
+  /// Every site with tabs: those the current webspace shows, in display
+  /// order, then the rest.
   final List<TabsSheetSite> sites;
 
   /// Index into [sites] of the site whose tabs open first.
@@ -141,6 +148,11 @@ class _TabsSheetState extends State<TabsSheet> {
   TabsSheetSite? get _site =>
       _sites.where((s) => s.model.siteId == _currentId).firstOrNull;
 
+  List<TabsSheetSite> get _shown => [
+        for (final s in _sites)
+          if (s.inView) s,
+      ];
+
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -163,7 +175,7 @@ class _TabsSheetState extends State<TabsSheet> {
                   Spacing.lg, Spacing.xs, Spacing.sm, 0),
               child: _header(site, loc, theme),
             ),
-            if (_sites.length > 1) _scopeSwitch(loc, theme),
+            if (_shown.length > 1) _scopeSwitch(loc, theme),
             Flexible(
               child: ListView(
                 key: _listKey,
@@ -295,7 +307,7 @@ class _TabsSheetState extends State<TabsSheet> {
 
   List<Widget> _allSitesRows(AppLocalizations loc, ThemeData theme) {
     final out = <Widget>[];
-    for (final s in _sites) {
+    for (final s in _shown) {
       final label =
           loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
       final heading = _heading(label, theme, site: s);
@@ -333,9 +345,9 @@ class _TabsSheetState extends State<TabsSheet> {
       );
 
   /// TAB-017: the subtrees that run as [site] inside the trees of the other
-  /// sites in the list, each site's under a heading naming it. They stay in
-  /// that site's tree: a tap opens that site on the tab, a close closes it
-  /// there, and they are not dragged from here.
+  /// sites in the list, in the current webspace or not, each site's under a
+  /// heading naming it. They stay in that site's tree: a tap opens that site
+  /// on the tab, a close closes it there, and they are not dragged from here.
   List<Widget> _elsewhereRows(
       TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
     final out = <Widget>[];
@@ -360,7 +372,7 @@ class _TabsSheetState extends State<TabsSheet> {
     final id = site.model.siteId;
     final key = 'site:$id';
     int position(String siteId) =>
-        _sites.indexWhere((s) => s.model.siteId == siteId);
+        _shown.indexWhere((s) => s.model.siteId == siteId);
 
     return DragTarget<_DraggedSite>(
       onWillAcceptWithDetails: (d) => d.data.siteId != id,
