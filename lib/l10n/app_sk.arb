@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Otvorené na novej karte",
   "tabsSwitchAction": "Prepnúť",
   "tabsInSite": "Na stránke {site}",
+  "tabsMoreInSite": "{count, plural, =1{Ďalšia 1 karta na stránke {site}} few{Ďalšie {count} karty na stránke {site}} other{Ďalších {count} kariet na stránke {site}}}",
+  "tabsWhereYouWere": "kde ste boli",
   "tabsRunsAs": "ako {site}",
   "tabsLinkOutsideSite": "{host} patrí inej stránke, preto sa otvorí nad touto namiesto na karte",
   "httpAuthTitle": "Prihlásenie",

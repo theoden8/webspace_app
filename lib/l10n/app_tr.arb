@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Yeni sekmede açıldı",
   "tabsSwitchAction": "Geç",
   "tabsInSite": "{site} içinde",
+  "tabsMoreInSite": "{count, plural, =1{{site} içinde 1 sekme daha} other{{site} içinde {count} sekme daha}}",
+  "tabsWhereYouWere": "bulunduğunuz yer",
   "tabsRunsAs": "{site} olarak",
   "tabsLinkOutsideSite": "{host} başka bir siteye ait, bu yüzden sekmede değil bunun üzerinde açılır",
   "httpAuthTitle": "Oturum açın",

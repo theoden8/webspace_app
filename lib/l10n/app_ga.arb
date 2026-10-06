@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Osclaíodh i gcluaisín nua",
   "tabsSwitchAction": "Athraigh",
   "tabsInSite": "In {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 chluaisín eile in {site}} two{{count} chluaisín eile in {site}} few{{count} chluaisín eile in {site}} many{{count} gcluaisín eile in {site}} other{{count} cluaisín eile in {site}}}",
+  "tabsWhereYouWere": "an áit a raibh tú",
   "tabsRunsAs": "mar {site}",
   "tabsLinkOutsideSite": "Baineann {host} le suíomh eile, mar sin osclaítear é os cionn an chinn seo seachas i gcluaisín",
   "httpAuthTitle": "Síniú isteach",

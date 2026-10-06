@@ -1845,10 +1845,9 @@ class WebViewModel {
               case null:
                 break;
             }
-            if (result.decision != NavigationDecision.allow &&
-                result.decision != NavigationDecision.blockSilent &&
-                result.decision != NavigationDecision.blockSuppressed &&
-                returnsToOwner(url)) {
+            if (NavigationDecisionEngine.stepFor(result.decision,
+                    returnsToOwner: returnsToOwner(url)) ==
+                NavigationStep.returnToOwner) {
               returnToOwner(url);
               return false;
             }
@@ -2876,16 +2875,17 @@ class WebViewModel {
     // session — issue #298) or alwaysOpenHome (URL-only ephemeral, cookies
     // persist) is set. Cookies are dropped only by incognito; alwaysOpenHome
     // banking-style sites keep their login state.
-    // Incognito also drops the tab list: nothing it visited may reach disk
-    // (TAB-009). Always open Home keeps it, because it lands a site on a tab at
-    // home without closing the others (TAB-014); `currentUrl` stays dropped so
-    // a build that predates tabs still opens the site at home.
+    // Both keep the tab list (TAB-009): the site lands on a tab at home
+    // without closing the others (TAB-014), and what incognito wipes on a
+    // restart is its container and every tab's back stack (INC-002, INC-005).
+    // `currentUrl` stays dropped so a build that predates tabs still opens the
+    // site at home.
     final dropUrl = incognito || alwaysOpenHome;
     return {
         'siteId': siteId,
         'initUrl': initUrl,
         if (!dropUrl) 'currentUrl': currentUrl,
-        if (!incognito && !tabsAreDefault)
+        if (!tabsAreDefault)
           'tabs': [
             for (final t in tabs)
               {...t.toJson(), if (t.id == activeTabId) 'active': true},
@@ -3014,7 +3014,7 @@ class WebViewModel {
     // written by older builds that didn't strip on toJson.
     final dropUrl = isIncognito || isAlwaysOpenHome;
     final currentUrl = field<String>('currentUrl');
-    final rawTabs = isIncognito ? null : field<List<dynamic>>('tabs');
+    final rawTabs = field<List<dynamic>>('tabs');
     final userAgent = field<String>('userAgent') ?? '';
     final proxy = json['proxySettings'];
     final model = WebViewModel(

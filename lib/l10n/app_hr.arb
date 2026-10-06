@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Otvoreno u novoj kartici",
   "tabsSwitchAction": "Prijeđi",
   "tabsInSite": "Na stranici {site}",
+  "tabsMoreInSite": "{count, plural, one{Još {count} kartica na stranici {site}} few{Još {count} kartice na stranici {site}} other{Još {count} kartica na stranici {site}}}",
+  "tabsWhereYouWere": "gdje ste bili",
   "tabsRunsAs": "kao {site}",
   "tabsLinkOutsideSite": "{host} pripada drugoj stranici pa se otvara preko ove, a ne u kartici",
   "httpAuthTitle": "Prijava",

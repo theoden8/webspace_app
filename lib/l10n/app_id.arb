@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Dibuka di tab baru",
   "tabsSwitchAction": "Beralih",
   "tabsInSite": "Di {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 tab lagi di {site}} other{{count} tab lagi di {site}}}",
+  "tabsWhereYouWere": "tempat Anda tadi",
   "tabsRunsAs": "sebagai {site}",
   "tabsLinkOutsideSite": "{host} milik situs lain, jadi terbuka di atas situs ini, bukan sebagai tab",
   "httpAuthTitle": "Masuk",

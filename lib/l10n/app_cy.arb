@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Wedi'i agor mewn tab newydd",
   "tabsSwitchAction": "Newid",
   "tabsInSite": "Yn {site}",
+  "tabsMoreInSite": "{count, plural, zero{{count} tab arall yn {site}} one{{count} tab arall yn {site}} two{{count} dab arall yn {site}} few{{count} tab arall yn {site}} many{{count} thab arall yn {site}} other{{count} tab arall yn {site}}}",
+  "tabsWhereYouWere": "lle'r oeddech chi",
   "tabsRunsAs": "fel {site}",
   "tabsLinkOutsideSite": "Mae {host} yn perthyn i wefan arall, felly mae'n agor ar ben hon yn lle mewn tab",
   "httpAuthTitle": "Mewngofnodi",

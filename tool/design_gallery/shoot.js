@@ -24,6 +24,7 @@ const CARDS = [
   { id: 'unproxied-block', width: 400, height: 740 },
   { id: 'tabs-sheet', width: 400, height: 740 },
   { id: 'tabs-sheet-in-site', width: 400, height: 740 },
+  { id: 'tabs-sheet-way-back', width: 400, height: 740 },
   { id: 'web-search-sheet', width: 400, height: 520 },
   { id: 'web-search-empty', width: 400, height: 520 },
   { id: 'web-search-default', width: 400, height: 520 },

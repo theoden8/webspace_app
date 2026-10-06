@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Dibuka dalam tab baharu",
   "tabsSwitchAction": "Tukar",
   "tabsInSite": "Di {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 lagi tab di {site}} other{{count} lagi tab di {site}}}",
+  "tabsWhereYouWere": "tempat anda tadi",
   "tabsRunsAs": "sebagai {site}",
   "tabsLinkOutsideSite": "{host} milik tapak lain, jadi ia dibuka di atas tapak ini dan bukan dalam tab",
   "httpAuthTitle": "Log masuk",

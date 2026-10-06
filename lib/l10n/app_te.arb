@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "కొత్త ట్యాబ్‌లో తెరవబడింది",
   "tabsSwitchAction": "మారు",
   "tabsInSite": "{site} సైట్‌లో",
+  "tabsMoreInSite": "{count, plural, =1{{site} సైట్‌లో మరో 1 ట్యాబ్} other{{site} సైట్‌లో మరో {count} ట్యాబ్‌లు}}",
+  "tabsWhereYouWere": "మీరు ఉన్న చోటు",
   "tabsRunsAs": "{site} గా",
   "tabsLinkOutsideSite": "{host} వేరే సైట్‌కు చెందినది, కాబట్టి అది ట్యాబ్‌లో కాకుండా దీని పైన తెరవబడుతుంది",
   "httpAuthTitle": "సైన్ ఇన్",

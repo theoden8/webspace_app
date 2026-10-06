@@ -7,9 +7,11 @@
 /// active tab of a loaded site does and draws at full strength, every other
 /// tab is stored and drawn faded (TAB-011). A long press drags a tab and its
 /// subtree to another place in the same site's tree (TAB-015). Each row is
-/// marked with the colour of the container it runs in (TAB-018), and a site's
-/// own list also shows the subtrees that run as it inside other sites' trees
-/// (TAB-017).
+/// marked with the colour of the container it runs in (TAB-018). The This
+/// site list is the list of the site the tab on screen runs as, and it also
+/// shows every other site's tree that holds a tab running as it (TAB-017), so
+/// a tab in another tree and the way back to the one before are both a tap
+/// away (TAB-019).
 ///
 /// The widget owns no state beyond which subtrees are collapsed and where a
 /// drag would land: the tab list
@@ -25,6 +27,8 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/services/tab_lifecycle_engine.dart';
+import 'package:webspace/services/tab_list_engine.dart';
+import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
@@ -69,6 +73,7 @@ class TabsSheet extends StatefulWidget {
     required this.onCloseSubtree,
     this.onMoveTab,
     this.onMoveSite,
+    this.wayBack,
   });
 
   /// Every site with tabs: those the current webspace shows, in display
@@ -95,6 +100,10 @@ class TabsSheet extends StatefulWidget {
   /// or null when the move was refused. Null leaves the headings in place.
   final List<TabsSheetSite>? Function(String siteId, String ontoSiteId)?
       onMoveSite;
+
+  /// The jump Back would undo from the tab on screen (TAB-019): the tab it
+  /// came from is marked as where the user was, and its tree is listed.
+  final TabReturn? wayBack;
 
   @override
   State<TabsSheet> createState() => _TabsSheetState();
@@ -128,6 +137,10 @@ class _TabsSheetState extends State<TabsSheet> {
       ? widget.sites[widget.currentIndex].model.siteId
       : null;
   final Set<String> _collapsed = <String>{};
+
+  /// Other sites' trees shown whole rather than folded around the tabs that
+  /// run as the site the list is for.
+  final Set<String> _unfolded = <String>{};
   final ScrollController _scroll = ScrollController();
   final GlobalKey _listKey = GlobalKey();
   final Map<String, GlobalKey> _rowKeys = {};
@@ -148,6 +161,16 @@ class _TabsSheetState extends State<TabsSheet> {
   TabsSheetSite? get _site =>
       _sites.where((s) => s.model.siteId == _currentId).firstOrNull;
 
+  /// The site whose list This site is: the one the tab on screen runs as,
+  /// which is the slot's own site unless it runs a hosted tab (LIR-018). A
+  /// site without tabs has no list, so the slot's stands in.
+  TabsSheetSite? get _subject {
+    final site = _site;
+    if (site == null) return null;
+    final id = site.model.runningIdentity.siteId;
+    return _sites.where((s) => s.model.siteId == id).firstOrNull ?? site;
+  }
+
   List<TabsSheetSite> get _shown => [
         for (final s in _sites)
           if (s.inView) s,
@@ -157,7 +180,7 @@ class _TabsSheetState extends State<TabsSheet> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final site = _site;
+    final site = _subject;
     if (site == null) return const SizedBox.shrink();
     return SafeArea(
       top: false,
@@ -186,7 +209,7 @@ class _TabsSheetState extends State<TabsSheet> {
                     ? _allSitesRows(loc, theme)
                     : [
                         ..._rowsFor(site, loc, theme),
-                        ..._elsewhereRows(site, loc, theme),
+                        ..._otherTrees(site, loc, theme),
                       ],
               ),
             ),
@@ -344,26 +367,72 @@ class _TabsSheetState extends State<TabsSheet> {
         ),
       );
 
-  /// TAB-017: the subtrees that run as [site] inside the trees of the other
-  /// sites in the list, in the current webspace or not, each site's under a
-  /// heading naming it. They stay in that site's tree: a tap opens that site
-  /// on the tab, a close closes it there, and they are not dragged from here.
-  List<Widget> _elsewhereRows(
+  /// TAB-017: after [site]'s own tree, every other site's tree, in the
+  /// current webspace or not, that holds a tab running as a site on the
+  /// branch through the tab on screen, folded around those tabs and in branch
+  /// order ([TabListEngine]); and the tree holding where the user was
+  /// (TAB-019), so the way back is listed too. The rows stay in that site's
+  /// tree: a tap opens that site on the tab, a close closes it there, and
+  /// they are not dragged from here.
+  List<Widget> _otherTrees(
       TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
+    final slot = _site!;
+    final back = widget.wayBack;
+    final listed = TabListEngine.otherTrees(
+      containers:
+          TabListEngine.branchContainers(_treeOf(slot), slot.model.activeTabId),
+      selected: slot.model.runningIdentity.siteId,
+      others: [
+        for (final other in _sites)
+          if (other.model.siteId != site.model.siteId) _treeOf(other),
+      ],
+      keep: (siteId, t) => back?.leadsBackTo(siteId, t.id) ?? false,
+    );
     final out = <Widget>[];
-    for (final other in _sites) {
-      if (other.model.siteId == site.model.siteId) continue;
-      final rows = TabLifecycleEngine.subtreesRunningAs(
-        other.model.tabs,
-        (t) => (other.model.hostOf(t) ?? other.model).siteId ==
-            site.model.siteId,
-      );
-      if (rows.isEmpty) continue;
-      out.add(_heading(loc.tabsInSite(other.model.getDisplayName()), theme));
+    for (final tree in listed) {
+      final other = _sites.firstWhere((s) => s.model.siteId == tree.siteId);
+      final rows = _unfolded.contains(tree.siteId)
+          ? TabLifecycleEngine.treeOrder(other.model.tabs)
+          : tree.rows;
+      out.add(_heading(loc.tabsInSite(other.model.getDisplayName()), theme,
+          site: other));
       out.addAll(_rowsOf(other, rows, loc, theme, draggable: false));
+      final folded = other.model.tabs.length - rows.length;
+      if (folded > 0) out.add(_foldRow(other, folded, loc, theme));
     }
     return out;
   }
+
+  TabTree _treeOf(TabsSheetSite s) => TabTree(s.model.siteId, s.model.tabs,
+      (t) => (s.model.hostOf(t) ?? s.model).siteId);
+
+  /// The rest of another site's tree, folded away; a tap shows it whole.
+  Widget _foldRow(TabsSheetSite other, int count, AppLocalizations loc,
+          ThemeData theme) =>
+      InkWell(
+        onTap: () => setState(() => _unfolded.add(other.model.siteId)),
+        borderRadius: BorderRadius.circular(Radii.lg),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: TapTargets.compact,
+                child: Icon(Icons.keyboard_arrow_down, size: IconSizes.inline),
+              ),
+              Expanded(
+                child: Text(
+                  loc.tabsMoreInSite(count, other.model.getDisplayName()),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge
+                      ?.copyWith(color: theme.colorScheme.primary),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
 
   /// A long press lifts a site's heading; a drop on another heading puts the
   /// site in that one's place, as the drawer and the tab strip do (TAB-016).
@@ -473,9 +542,13 @@ class _TabsSheetState extends State<TabsSheet> {
     final host = site.model.hostOf(tab);
     final identity = host ?? site.model;
     final domain = extractDomain(tab.url);
-    final secondLine = host == null && !site.model.isForeignTab(tab)
+    final runsAs = host == null && !site.model.isForeignTab(tab)
         ? domain
         : '${loc.tabsRunsAs(identity.getDisplayName())} · $domain';
+    final secondLine =
+        widget.wayBack?.leadsBackTo(site.model.siteId, tab.id) ?? false
+            ? '$runsAs · ${loc.tabsWhereYouWere}'
+            : runsAs;
     final isActive = tab.id == site.model.activeTabId;
     final isLoaded = isActive && site.isLoaded;
     final isOnScreen = isLoaded && site.isCurrent;

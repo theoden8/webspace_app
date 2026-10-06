@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "U hap në një skedë të re",
   "tabsSwitchAction": "Kalo",
   "tabsInSite": "Në {site}",
+  "tabsMoreInSite": "{count, plural, =1{Edhe 1 skedë në {site}} other{Edhe {count} skeda në {site}}}",
+  "tabsWhereYouWere": "ku ishit",
   "tabsRunsAs": "si {site}",
   "tabsLinkOutsideSite": "{host} i përket një faqeje tjetër, prandaj hapet mbi këtë në vend të një skede",
   "httpAuthTitle": "Hyrje",

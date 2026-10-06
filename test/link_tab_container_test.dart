@@ -271,16 +271,16 @@ void main() {
     });
   });
 
-  group('TabLifecycleEngine.subtreesRunningAs (TAB-017)', () {
+  group('TabLifecycleEngine.rowsAround (TAB-017)', () {
     // GitHub's tree:
     //   p                       (GitHub)
-    //   ├─ a   ddg              root of one subtree
+    //   ├─ a   ddg              kept, with its whole subtree
     //   │  ├─ a1 ddg
-    //   │  │  └─ a11 gh          kept: it is below a ddg root
+    //   │  │  └─ a11 gh
     //   │  └─ a2 gh
-    //   ├─ b   gh
-    //   │  └─ b1 ddg            root of a second subtree
-    //   └─ c   other
+    //   ├─ b   gh               shown: on the way down to b1
+    //   │  └─ b1 ddg            kept
+    //   └─ c   other            folded away
     List<SiteTab> tree() => [
           SiteTab.primary(url: 'https://github.com/'),
           SiteTab(id: 'a', url: ddgLink, parentId: kPrimaryTabId, hostSiteId: 'ddg'),
@@ -293,47 +293,66 @@ void main() {
         ];
 
     bool asDdg(SiteTab t) => t.hostSiteId == 'ddg';
+    List<String> ids(List<TabRow> rows) =>
+        [for (final r in rows) '${r.tab.id}:${r.depth}'];
 
-    test('each subtree comes whole, with its depth restarted at its root', () {
-      final rows = TabLifecycleEngine.subtreesRunningAs(tree(), asDdg);
-      expect(rows.map((r) => '${r.tab.id}:${r.depth}'),
-          ['a:0', 'a1:1', 'a11:2', 'a2:1', 'b1:0']);
-      expect(rows.first.childCount, 2);
+    test('a kept tab comes with its subtree and the tabs above it', () {
+      expect(ids(TabLifecycleEngine.rowsAround(tree(), asDdg)),
+          ['$kPrimaryTabId:0', 'a:1', 'a1:2', 'a11:3', 'a2:2', 'b:1', 'b1:2']);
     });
 
-    test('a site nothing runs as gets no rows', () {
-      expect(
-        TabLifecycleEngine.subtreesRunningAs(tree(), (t) => t.hostSiteId == 'zz'),
-        isEmpty,
-      );
+    test('what holds nothing kept is folded away', () {
+      expect(ids(TabLifecycleEngine.rowsAround(tree(), (t) => t.id == 'b1')),
+          ['$kPrimaryTabId:0', 'b:1', 'b1:2']);
+      expect(TabLifecycleEngine.rowsAround(tree(), (t) => t.hostSiteId == 'zz'),
+          isEmpty);
     });
 
-    test('a root of the whole tree is a subtree root', () {
-      final rows = TabLifecycleEngine.subtreesRunningAs(
-          tree(), (t) => t.hostSiteId == null);
-      expect(rows.first.tab.id, kPrimaryTabId);
-      expect(rows, hasLength(tree().length),
-          reason: 'the whole tree hangs off it');
+    test('depths and child counts are the whole tree\'s', () {
+      final rows = TabLifecycleEngine.rowsAround(tree(), asDdg);
+      final whole = {
+        for (final r in TabLifecycleEngine.treeOrder(tree())) r.tab.id: r,
+      };
+      for (final r in rows) {
+        expect(r.depth, whole[r.tab.id]!.depth, reason: r.tab.id);
+        expect(r.childCount, whole[r.tab.id]!.childCount, reason: r.tab.id);
+      }
     });
 
-    test('an orphan and a parent cycle still show up', () {
+    test('the rows are the tree\'s own, in its order', () {
+      final order = TabLifecycleEngine.treeOrder(tree()).map((r) => r.tab.id);
+      final shown =
+          TabLifecycleEngine.rowsAround(tree(), asDdg).map((r) => r.tab.id).toList();
+      expect(order.where(shown.contains).toList(), shown);
+    });
+
+    test('every row shown has its parent shown', () {
+      for (final keep in <bool Function(SiteTab)>[
+        asDdg,
+        (t) => t.id == 'a11',
+        (t) => t.id == 'c',
+      ]) {
+        final shown = {
+          for (final r in TabLifecycleEngine.rowsAround(tree(), keep)) r.tab.id,
+        };
+        for (final t in tree()) {
+          if (!shown.contains(t.id) || t.parentId == null) continue;
+          expect(shown, contains(t.parentId), reason: t.id);
+        }
+      }
+    });
+
+    test('an orphan and a parent cycle show up when kept', () {
       final tabs = [
         SiteTab(id: 'o', url: ddgLink, parentId: 'gone', hostSiteId: 'ddg'),
         SiteTab(id: 's', url: ddgLink, parentId: 's', hostSiteId: 'ddg'),
         SiteTab(id: 'x', url: ddgLink, parentId: 'y', hostSiteId: 'ddg'),
         SiteTab(id: 'y', url: ddgLink, parentId: 'x', hostSiteId: 'ddg'),
+        SiteTab(id: 'n', url: 'https://github.com/n', parentId: 'gone'),
       ];
-      final rows = TabLifecycleEngine.subtreesRunningAs(tabs, asDdg);
+      final rows = TabLifecycleEngine.rowsAround(tabs, asDdg);
       expect(rows.map((r) => r.tab.id).toSet(), {'o', 's', 'x', 'y'});
       expect(rows.every((r) => r.depth == 0), isTrue);
-    });
-
-    test('the subtree rows are the tree\'s own rows, nothing reordered', () {
-      final order = TabLifecycleEngine.treeOrder(tree()).map((r) => r.tab.id);
-      final sub = TabLifecycleEngine.subtreesRunningAs(tree(), asDdg)
-          .map((r) => r.tab.id)
-          .toList();
-      expect(order.where(sub.contains).toList(), sub);
     });
   });
 

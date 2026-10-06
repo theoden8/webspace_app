@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Geopend in een nieuw tabblad",
   "tabsSwitchAction": "Wisselen",
   "tabsInSite": "In {site}",
+  "tabsMoreInSite": "{count, plural, =1{Nog 1 tabblad in {site}} other{Nog {count} tabbladen in {site}}}",
+  "tabsWhereYouWere": "waar je was",
   "tabsRunsAs": "als {site}",
   "tabsLinkOutsideSite": "{host} hoort bij een andere site en wordt daarom boven op deze geopend in plaats van in een tabblad",
   "httpAuthTitle": "Inloggen",

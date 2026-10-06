@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Otwarto w nowej karcie",
   "tabsSwitchAction": "Przełącz",
   "tabsInSite": "W witrynie {site}",
+  "tabsMoreInSite": "{count, plural, =1{Jeszcze 1 karta w witrynie {site}} few{Jeszcze {count} karty w witrynie {site}} many{Jeszcze {count} kart w witrynie {site}} other{Jeszcze {count} karty w witrynie {site}}}",
+  "tabsWhereYouWere": "poprzednia karta",
   "tabsRunsAs": "jako {site}",
   "tabsLinkOutsideSite": "{host} należy do innej strony, więc otworzy się na wierzchu tej, a nie w karcie",
   "httpAuthTitle": "Logowanie",

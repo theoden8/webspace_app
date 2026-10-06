@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "In einem neuen Tab geöffnet",
   "tabsSwitchAction": "Wechseln",
   "tabsInSite": "In {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 weiterer Tab in {site}} other{{count} weitere Tabs in {site}}}",
+  "tabsWhereYouWere": "wo Sie waren",
   "tabsRunsAs": "als {site}",
   "tabsLinkOutsideSite": "{host} gehört zu einer anderen Website und wird daher über dieser geöffnet statt in einem Tab",
   "httpAuthTitle": "Anmelden",

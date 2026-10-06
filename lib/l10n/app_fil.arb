@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Binuksan sa bagong tab",
   "tabsSwitchAction": "Lumipat",
   "tabsInSite": "Sa {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 pang tab sa {site}} other{{count} pang tab sa {site}}}",
+  "tabsWhereYouWere": "kung saan ka galing",
   "tabsRunsAs": "bilang {site}",
   "tabsLinkOutsideSite": "Pag-aari ng ibang site ang {host}, kaya bumubukas ito sa ibabaw nito sa halip na sa isang tab",
   "httpAuthTitle": "Mag-sign in",

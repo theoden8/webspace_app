@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Abriuse nunha lapela nova",
   "tabsSwitchAction": "Cambiar",
   "tabsInSite": "En {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 lapela máis en {site}} other{{count} lapelas máis en {site}}}",
+  "tabsWhereYouWere": "onde estabas",
   "tabsRunsAs": "como {site}",
   "tabsLinkOutsideSite": "{host} pertence a outro sitio, así que se abre enriba deste en lugar de nunha lapela",
   "httpAuthTitle": "Iniciar sesión",

@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Imefunguliwa katika kichupo kipya",
   "tabsSwitchAction": "Nenda",
   "tabsInSite": "Ndani ya {site}",
+  "tabsMoreInSite": "{count, plural, =1{Kichupo 1 zaidi ndani ya {site}} other{Vichupo {count} zaidi ndani ya {site}}}",
+  "tabsWhereYouWere": "ulipokuwa",
   "tabsRunsAs": "kama {site}",
   "tabsLinkOutsideSite": "{host} ni ya tovuti nyingine, kwa hivyo hufunguliwa juu ya hii badala ya katika kichupo",
   "httpAuthTitle": "Ingia",

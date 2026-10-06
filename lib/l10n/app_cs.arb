@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Otevřeno v novém panelu",
   "tabsSwitchAction": "Přepnout",
   "tabsInSite": "Ve webu {site}",
+  "tabsMoreInSite": "{count, plural, =1{Další 1 panel ve webu {site}} few{Další {count} panely ve webu {site}} many{Dalšího {count} panelu ve webu {site}} other{Dalších {count} panelů ve webu {site}}}",
+  "tabsWhereYouWere": "kde jste byli",
   "tabsRunsAs": "jako {site}",
   "tabsLinkOutsideSite": "{host} patří jinému webu, proto se otevře přes tento web, a ne v panelu",
   "httpAuthTitle": "Přihlášení",

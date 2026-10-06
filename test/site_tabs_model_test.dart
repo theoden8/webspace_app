@@ -157,23 +157,25 @@ void main() {
   });
 
   group('TAB-009 — tabs under per-site features', () {
-    test('an incognito site serialises no tabs and comes back with one', () {
+    test('an incognito site keeps its tab list, not its URL or cookies', () {
       final m = WebViewModel(initUrl: 'https://en.wikipedia.org/');
       m.incognito = true;
       m.tabs = [...m.tabs, SiteTab(url: 'https://en.wikipedia.org/wiki/Tab')];
       m.currentUrl = 'https://en.wikipedia.org/wiki/Web_browser';
 
       final json = m.toJson();
-      expect(json.containsKey('tabs'), isFalse);
+      expect(json['tabs'], hasLength(2),
+          reason: 'a restart wipes the container, not the tree (TAB-009)');
       expect(json.containsKey('currentUrl'), isFalse);
+      expect(json['cookies'], isEmpty);
       final back = WebViewModel.fromJson(json, null);
-      expect(back.tabs, hasLength(1));
-      expect(back.currentUrl, 'https://en.wikipedia.org/');
+      expect(back.tabs.map((t) => t.url),
+          ['https://en.wikipedia.org/wiki/Web_browser', 'https://en.wikipedia.org/wiki/Tab']);
+      expect(back.activeTabPersistsNavState, isFalse,
+          reason: 'its back stacks stay off disk (INC-002)');
     });
 
-    test('a persisted tab list is ignored on rehydrate for an incognito site',
-        () {
-      // Defence in depth against JSON written by a build that did not strip.
+    test('an incognito site\'s tab list comes back on rehydrate', () {
       final json = WebViewModel(
         siteId: 'abc123',
         initUrl: 'https://en.wikipedia.org/',
@@ -182,11 +184,11 @@ void main() {
         ..['incognito'] = true
         ..['tabs'] = [
           {'id': 'main', 'url': 'https://en.wikipedia.org/'},
-          {'id': 'tb', 'url': 'https://en.wikipedia.org/wiki/Secret', 'active': true},
+          {'id': 'tb', 'url': 'https://en.wikipedia.org/wiki/Tab', 'active': true},
         ];
       final m = WebViewModel.fromJson(json, null);
-      expect(m.tabs, hasLength(1));
-      expect(m.currentUrl, 'https://en.wikipedia.org/');
+      expect(m.tabs.map((t) => t.id), ['main', 'tb']);
+      expect(m.activeTabId, 'tb');
     });
   });
 

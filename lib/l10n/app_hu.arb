@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Megnyitva egy új lapon",
   "tabsSwitchAction": "Váltás",
   "tabsInSite": "{site} webhelyen",
+  "tabsMoreInSite": "{count, plural, =1{Még 1 lap {site} webhelyen} other{Még {count} lap {site} webhelyen}}",
+  "tabsWhereYouWere": "ahol volt",
   "tabsRunsAs": "{site}-ként",
   "tabsLinkOutsideSite": "A(z) {host} másik webhelyhez tartozik, ezért nem lapon, hanem e fölött nyílik meg",
   "httpAuthTitle": "Bejelentkezés",

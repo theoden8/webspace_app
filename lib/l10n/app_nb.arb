@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Åpnet i ny fane",
   "tabsSwitchAction": "Bytt",
   "tabsInSite": "I {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 fane til i {site}} other{{count} faner til i {site}}}",
+  "tabsWhereYouWere": "der du var",
   "tabsRunsAs": "som {site}",
   "tabsLinkOutsideSite": "{host} tilhører et annet nettsted, så den åpnes over dette i stedet for i en fane",
   "httpAuthTitle": "Logg på",

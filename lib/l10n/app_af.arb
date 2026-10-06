@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "In 'n nuwe oortjie oopgemaak",
   "tabsSwitchAction": "Wissel",
   "tabsInSite": "In {site}",
+  "tabsMoreInSite": "{count, plural, =1{Nog 1 oortjie in {site}} other{Nog {count} oortjies in {site}}}",
+  "tabsWhereYouWere": "waar jy was",
   "tabsRunsAs": "as {site}",
   "tabsLinkOutsideSite": "{host} behoort aan 'n ander webwerf en open dus bo-op hierdie een in plaas van in 'n oortjie",
   "httpAuthTitle": "Meld aan",

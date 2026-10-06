@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Άνοιξε σε νέα καρτέλα",
   "tabsSwitchAction": "Μετάβαση",
   "tabsInSite": "Στο {site}",
+  "tabsMoreInSite": "{count, plural, =1{1 ακόμη καρτέλα στο {site}} other{{count} ακόμη καρτέλες στο {site}}}",
+  "tabsWhereYouWere": "εκεί που ήσασταν",
   "tabsRunsAs": "ως {site}",
   "tabsLinkOutsideSite": "Το {host} ανήκει σε άλλον ιστότοπο, γι' αυτό ανοίγει πάνω από αυτόν και όχι σε καρτέλα",
   "httpAuthTitle": "Σύνδεση",

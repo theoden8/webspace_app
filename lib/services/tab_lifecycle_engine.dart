@@ -181,34 +181,40 @@ class TabLifecycleEngine {
     return out;
   }
 
-  /// The rows of every subtree of [tabs] rooted at a tab [runsAs] accepts
-  /// whose parent it does not (TAB-017): what the list of the site those tabs
-  /// run as shows of another site's tree. Each subtree comes whole, whatever
-  /// its descendants run as, and its depth restarts at its root, so it reads
-  /// as a tree of its own.
-  static List<TabRow> subtreesRunningAs(
+  /// The rows of [tabs] a site's list shows of another site's tree (TAB-017):
+  /// every tab [keep] accepts with its whole subtree, and the tabs on the way
+  /// down to it, each at its depth in the whole tree. The rest of the tree
+  /// holds nothing kept; the caller counts it from the lengths.
+  static List<TabRow> rowsAround(
     List<SiteTab> tabs,
-    bool Function(SiteTab tab) runsAs,
+    bool Function(SiteTab tab) keep,
   ) {
-    final byId = {for (final t in tabs) t.id: t};
-    final out = <TabRow>[];
-    int? rootDepth;
-    for (final row in treeOrder(tabs)) {
-      if (rootDepth != null && row.depth > rootDepth) {
-        out.add(TabRow(row.tab, row.depth - rootDepth,
-            childCount: row.childCount));
-        continue;
+    final rows = treeOrder(tabs);
+    final shown = List<bool>.filled(rows.length, false);
+    // Tree order is depth-first, so the rows above one that are still open
+    // (the path) are its ancestors, and everything below a kept row until
+    // the depth climbs back to it is its subtree.
+    final path = <int>[];
+    int? keptDepth;
+    for (var i = 0; i < rows.length; i++) {
+      final depth = rows[i].depth;
+      while (path.isNotEmpty && rows[path.last].depth >= depth) {
+        path.removeLast();
       }
-      rootDepth = null;
-      // Depth 0 is a tab the tree shows without a parent: a root, an orphan,
-      // or one caught in a parent cycle.
-      if (runsAs(row.tab) &&
-          (row.depth == 0 || !runsAs(byId[row.tab.parentId]!))) {
-        rootDepth = row.depth;
-        out.add(TabRow(row.tab, 0, childCount: row.childCount));
+      if (keptDepth != null && depth <= keptDepth) keptDepth = null;
+      if (keptDepth != null || keep(rows[i].tab)) {
+        keptDepth ??= depth;
+        shown[i] = true;
+        for (final p in path) {
+          shown[p] = true;
+        }
       }
+      path.add(i);
     }
-    return out;
+    return [
+      for (var i = 0; i < rows.length; i++)
+        if (shown[i]) rows[i],
+    ];
   }
 
   /// Every tab below [id], depth-first.

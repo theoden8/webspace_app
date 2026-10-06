@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Opnað í nýjum flipa",
   "tabsSwitchAction": "Skipta",
   "tabsInSite": "Í {site}",
+  "tabsMoreInSite": "{count, plural, one{{count} flipi í viðbót í {site}} other{{count} flipar í viðbót í {site}}}",
+  "tabsWhereYouWere": "þar sem þú varst",
   "tabsRunsAs": "sem {site}",
   "tabsLinkOutsideSite": "{host} tilheyrir öðru vefsvæði og opnast því ofan á þessu en ekki í flipa",
   "httpAuthTitle": "Innskráning",

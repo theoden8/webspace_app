@@ -14,7 +14,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 - [x] 2.1 `SiteTab.hostSiteId` (`String?`): `toJson` omits null; `fromJson` sanitises like `parentId`; `TabLifecycleEngine.normalize` stores a host equal to the owner as null. *The owner-equal normalisation is in the `WebViewModel` constructor.*
 - [x] 2.2 `WebViewModel.stateKeyForTab(tab)` = `webViewStateKey(tab.hostSiteId ?? siteId, tab.id)`; `activeStateKey` follows it. `_liveStateKeys` builds the orphan sweep's live set with it.
 - [ ] 2.3 `WebViewStateStorage.renameState(oldKey, newKey)` on the interface, `SecureWebViewStateStorage` (a file rename: the AES-GCM blob binds no associated data to its name today; if it ever does, rename becomes load and re-save) and `InMemoryWebViewStateStorage`; a missing source is a no-op; an existing destination is overwritten.
-- [x] 2.4 Persistence (LIR-022): `toJson` writes a hosted tab with the owner's list, which an incognito owner never writes; the capture gate writes bytes only for a persisted record whose identity has `persistsNavState`.
+- [x] 2.4 Persistence (LIR-022): `toJson` writes a hosted tab with the owner's list, an incognito owner's included (INC-008); the capture gate writes bytes only for a persisted record whose identity has `persistsNavState`.
 - [ ] 2.5 Tests: model round-trip with and without a host; normalisation; host-keyed keys; session-only records for an incognito owner; `renameState` on both storages; orphan sweep keeps host-keyed live keys. *Done except `renameState`, which waits for 2.3.*
 
 ## 3. Hosted tabs: running as the host
@@ -67,6 +67,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 - [x] 8.7 This site view: the subtrees other sites' trees run as the site, under "In {site}" (TAB-017), not draggable from there; collapse kept per site and tab.
 - [x] 8.8 Container colours (TAB-018): `ContainerColors` tokens, `ContainerColorEngine` (least used, kept, app tier only), `ContainerMark` on every row and All sites heading, the dot in site info.
 - [x] 8.9 TAB-017 across webspaces: the sheet gets every site with tabs, flagged in or out of the current webspace, and a tap on a hidden site's row switches to All. Covered end to end by `test/tabs_sheet_app_test.dart`, which pumps the shipped app and taps a link through the webview's own callback.
+- [x] 8.10 This site is the list of the site the tab on screen runs as, with other sites' trees whole and folded around what runs as it (TAB-017); the way back from a jump, by Back or the "where you were" tab (TAB-019). `TabLifecycleEngine.rowsAround`, `TabReturnEngine`, real-app round trips in `test/tabs_sheet_app_test.dart`.
 - [x] 8.9 Tests: `subtreesRunningAs` and `ContainerColorEngine` in `test/link_tab_container_test.dart`, the palette in `test/design_tokens_validity_test.dart`, the sheet in `test/tabs_sheet_test.dart`.
 - [x] 8.10 Restored colours (TAB-018): `ContainerColorEngine.release`, applied by `planSettingsImport` and `_moveSiteOutOfArchive`; a moved-in site keeps its colour in the archive; `containerColor` excluded from the QR share and added to the backup superset. Tests in `test/link_tab_container_test.dart`.
 

@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Infetaħ f'tab ġdid",
   "tabsSwitchAction": "Aqleb",
   "tabsInSite": "Fi {site}",
+  "tabsMoreInSite": "{count, plural, one{Tab ieħor fi {site}} two{Żewġ tabs oħra fi {site}} few{{count} tabs oħra fi {site}} many{{count} tabs oħra fi {site}} other{{count} tabs oħra fi {site}}}",
+  "tabsWhereYouWere": "fejn kont",
   "tabsRunsAs": "bħala {site}",
   "tabsLinkOutsideSite": "{host} jappartjeni għal sit ieħor, għalhekk jinfetaħ fuq dan minflok f'tab",
   "httpAuthTitle": "Idħol",

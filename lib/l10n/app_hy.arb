@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Բացվեց նոր ներդիրում",
   "tabsSwitchAction": "Անցնել",
   "tabsInSite": "{site} կայքում",
+  "tabsMoreInSite": "{count, plural, =1{Եվս 1 ներդիր {site} կայքում} other{Եվս {count} ներդիր {site} կայքում}}",
+  "tabsWhereYouWere": "որտեղ էիք",
   "tabsRunsAs": "որպես {site}",
   "tabsLinkOutsideSite": "{host}-ը պատկանում է այլ կայքի, ուստի բացվում է այս կայքի վրա, ոչ թե ներդիրում",
   "httpAuthTitle": "Մուտք",

@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "در زبانهٔ جدید باز شد",
   "tabsSwitchAction": "رفتن",
   "tabsInSite": "در {site}",
+  "tabsMoreInSite": "{count, plural, =1{۱ زبانهٔ دیگر در {site}} other{{count} زبانهٔ دیگر در {site}}}",
+  "tabsWhereYouWere": "جایی که بودید",
   "tabsRunsAs": "به‌عنوان {site}",
   "tabsLinkOutsideSite": "{host} به سایت دیگری تعلق دارد، بنابراین به‌جای زبانه، روی این سایت باز می‌شود",
   "httpAuthTitle": "ورود",

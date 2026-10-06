@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "නව ටැබ් එකක විවෘත කළා",
   "tabsSwitchAction": "මාරු වන්න",
   "tabsInSite": "{site} අඩවියේ",
+  "tabsMoreInSite": "{count, plural, =1{{site} අඩවියේ තවත් ටැබ් 1ක්} other{{site} අඩවියේ තවත් ටැබ් {count}ක්}}",
+  "tabsWhereYouWere": "ඔබ සිටි තැන",
   "tabsRunsAs": "{site} ලෙස",
   "tabsLinkOutsideSite": "{host} වෙනත් අඩවියකට අයත් නිසා එය ටැබ් එකක වෙනුවට මෙයට උඩින් විවෘත වේ",
   "httpAuthTitle": "පිවිසුම",

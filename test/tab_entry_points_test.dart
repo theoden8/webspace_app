@@ -87,6 +87,7 @@ void main() {
         ('Future<void> _newTab(', '!_tabsEnabledAt(index)'),
         ('Future<void> _duplicateTab(', '!_tabsEnabledAt(index)'),
         ('Future<bool> _closeChildTabOnBack(', '!_tabsEnabledAt(_currentIndex)'),
+        ('Future<bool> _returnFromJumpOnBack(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showTabsSheet(', '!_tabsEnabledAt(_currentIndex)'),
         ('Future<void> _showLinkLongPressMenu(', '!_tabsEnabledAt(index)'),
         ('Future<void> _openChildTab(', '!_tabsEnabledFor(owner)'),
@@ -107,6 +108,65 @@ void main() {
         isTrue,
         reason: 'an owner without tabs has no tree to take the child',
       );
+    });
+
+    test('Back at the start of a tab tries the way back before closing it '
+        '(TAB-019, TAB-007)', () {
+      expect(RegExp(r'await _backAtTabStart\(\)').allMatches(source),
+          hasLength(2),
+          reason: 'Android\'s canGoBack path and the attempt-then-compare '
+              'path of every other host');
+      expect(
+          RegExp(r'(?<!Future<bool> )_closeChildTabOnBack\(\)')
+              .allMatches(source),
+          hasLength(1),
+          reason: 'closing is reached only through the funnel');
+      final funnel = source.substring(
+          source.indexOf('Future<bool> _backAtTabStart('),
+          source.indexOf('Future<bool> _returnFromJumpOnBack('));
+      expect(funnel.indexOf('_returnFromJumpOnBack()'),
+          lessThan(funnel.indexOf('_closeChildTabOnBack()')));
+    });
+
+    test('a typed address takes the same steps as a tapped link (LIR-032)',
+        () {
+      expect(RegExp(r'onUrlSubmitted:').allMatches(source), hasLength(1));
+      expect(source, contains('onUrlSubmitted: (url) => _openTypedAddress(model, url),'));
+      final start = source.indexOf('Future<void> _openTypedAddress(');
+      final body = source.substring(start, source.indexOf('\n  }\n', start));
+      expect(body, contains('NavigationDecisionEngine.decideShouldOverrideUrlLoading('));
+      expect(body, contains('NavigationDecisionEngine.stepFor('));
+      final route = body.indexOf('_routeOutboundLink(model, url, decision, true)');
+      expect(route, isNot(-1));
+      expect(body.indexOf('_launchNestedForModel('), greaterThan(route),
+          reason: 'a nested screen only for what routing leaves');
+      expect(File('lib/web_view_model.dart').readAsStringSync(),
+          contains('NavigationDecisionEngine.stepFor('),
+          reason: 'the page\'s own links take the same step');
+    });
+
+    test('work that cannot be dropped waits for the tab gate', () {
+      String body(String signature) {
+        final start = source.indexOf(signature);
+        expect(start, isNot(-1), reason: signature);
+        return source.substring(start, source.indexOf('\n  }\n', start));
+      }
+
+      expect(
+        RegExp(r'while \(_isTabHandling\) \{\s*await _tabGate\.idle\(\);\s*\}\s*'
+                r'_isTabHandling = true;')
+            .hasMatch(body('Future<T> _withTabGate<T>(')),
+        isTrue,
+      );
+      expect(source, contains('_withTabGate(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
+      expect(body('Future<void> _openLinkInNewTab('), contains('await _withTabGate('),
+          reason: 'a background insert must not be lost to a close in flight');
+      expect(body('Future<void> _executeOpenInMain('),
+          contains('await _withTabGate(() => _switchToOwnerRunTab(model));'));
+      expect(body('Future<void> _openTypedAddress('), contains('await _withTabGate('));
+      expect(body('Future<void> _dismissKeyboard('), contains('.timeout('),
+          reason: 'a stuck page must not keep the list from opening');
+      expect(body('Future<void> _showTabsSheet('), contains('_isShowingTabsSheet'));
     });
 
     test('the tab list leaves out sites without tabs', () {

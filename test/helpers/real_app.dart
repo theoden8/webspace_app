@@ -127,7 +127,40 @@ Future<void> tapLink(WidgetTester tester, String url) async {
   await settleRealApp(tester);
 }
 
+/// Hand every webview the app has built a controller, as the platform does
+/// once a webview exists. The page treats a site without one as still
+/// loading, so Back, for one, is not spent on its tabs until this runs.
+Future<void> attachWebViews(WidgetTester tester) async {
+  for (final e in find.byType(inapp.InAppWebView).evaluate()) {
+    final view = e.widget as inapp.InAppWebView;
+    if (!_attached.add(view)) continue;
+    await tester.runAsync(() async {
+      view.platform.params.onWebViewCreated?.call(_FakeWebViewController());
+    });
+  }
+  await settleRealApp(tester);
+}
+
+final Set<inapp.InAppWebView> _attached = Set.identity();
+
+/// The system back gesture, as Android delivers it to the app.
+Future<void> pressBack(WidgetTester tester) async {
+  await tester.binding.handlePopRoute();
+  await settleRealApp(tester);
+}
+
+/// A webview with no page in it: nothing to go back to, nothing loading,
+/// and every other call answered with nothing.
 class _FakeWebViewController implements inapp.InAppWebViewController {
   @override
-  dynamic noSuchMethod(Invocation invocation) => null;
+  Future<bool> canGoBack() async => false;
+
+  @override
+  Future<bool> isLoading() async => false;
+
+  // A completed Future<Null> passes for every Future<T?> the page awaits.
+  // ignore: prefer_void_to_null
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      invocation.isMethod ? Future<Null>.value() : null;
 }

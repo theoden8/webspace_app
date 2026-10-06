@@ -501,4 +501,31 @@ void main() {
       expect(r.decision, NavigationDecision.allow);
     });
   });
+
+  group('stepFor: what every way of opening a URL does next', () {
+    test('a decision to stay loads here, and a dropped one does nothing', () {
+      for (final back in [false, true]) {
+        expect(NavigationDecisionEngine.stepFor(NavigationDecision.allow,
+            returnsToOwner: back), NavigationStep.loadHere);
+        expect(NavigationDecisionEngine.stepFor(NavigationDecision.blockSilent,
+            returnsToOwner: back), NavigationStep.drop);
+        expect(NavigationDecisionEngine.stepFor(
+            NavigationDecision.blockSuppressed,
+            returnsToOwner: back), NavigationStep.drop);
+      }
+    });
+
+    test('anything leaving goes back to the owner first, then to routing', () {
+      for (final d in [
+        NavigationDecision.blockOpenNested,
+        NavigationDecision.blockOpenExternal,
+        NavigationDecision.blockOutbound,
+      ]) {
+        expect(NavigationDecisionEngine.stepFor(d, returnsToOwner: true),
+            NavigationStep.returnToOwner, reason: '$d');
+        expect(NavigationDecisionEngine.stepFor(d, returnsToOwner: false),
+            NavigationStep.route, reason: '$d');
+      }
+    });
+  });
 }

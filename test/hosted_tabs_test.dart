@@ -84,7 +84,7 @@ void main() {
       expect(m.stateKeyForTab('t1'), 'ddg.t1');
     });
 
-    test('an incognito owner keeps its hosted tabs off disk', () {
+    test('an incognito owner keeps its hosted tabs, not their back stacks', () {
       add(WebViewModel(siteId: 'ddg', initUrl: 'https://duckduckgo.com/'));
       final m = add(WebViewModel(
         siteId: 'gh',
@@ -96,7 +96,7 @@ void main() {
         ],
         activeTabId: 't1',
       ));
-      expect(m.toJson(), isNot(contains('tabs')));
+      expect(m.toJson()['tabs'], hasLength(2));
       expect(m.activeTabPersistsNavState, isFalse);
     });
 

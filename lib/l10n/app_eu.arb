@@ -1000,6 +1000,8 @@
   "tabsOpenedInNewTab": "Fitxa berrian ireki da",
   "tabsSwitchAction": "Aldatu",
   "tabsInSite": "{site} gunean",
+  "tabsMoreInSite": "{count, plural, =1{Fitxa 1 gehiago {site} gunean} other{{count} fitxa gehiago {site} gunean}}",
+  "tabsWhereYouWere": "zinen tokia",
   "tabsRunsAs": "{site} gisa",
   "tabsLinkOutsideSite": "{host} beste gune batena da, beraz honen gainean irekitzen da, ez fitxa batean",
   "httpAuthTitle": "Saio-hasiera",
