@@ -55,7 +55,13 @@ Only ONE webview per second-level domain SHALL be active at a time.
 
 ### Requirement: ISO-002 - Cookie Capture on Unload
 
-The system SHALL capture cookies before unloading a webview due to domain conflict.
+The system SHALL capture cookies before unloading a webview, whatever the
+reason it is unloaded (domain conflict, webspace switch, proxy or Tor
+exit-country mismatch, the loaded-site cap, memory pressure, a home reset).
+Every activation empties the shared jar after saving it for the loaded sites
+only, so a site unloaded without the capture loses what it set since its own
+activation. All unloads go through `SiteUnloadEngine.unload`. Lineage:
+[BUG-025](../../../docs/bugs/025-legacy-unload-drops-session.md).
 
 #### Scenario: Capture cookies before switch
 
@@ -63,6 +69,13 @@ The system SHALL capture cookies before unloading a webview due to domain confli
 **When** Site A is unloaded due to domain conflict
 **Then** Site A's current cookies are captured from CookieManager
 **And** cookies are persisted to secure storage by siteId
+
+#### Scenario: Capture cookies before a webspace switch unload
+
+**Given** Site A was activated, and the user then signed in on it
+**When** the user switches to a webspace without A, which unloads it
+**And** then activates another site
+**Then** A's sign-in cookies are in secure storage under A's siteId
 
 ### Requirement: ISO-003 - Cookie Restoration on Load
 
@@ -600,7 +613,7 @@ IndexedStack(
 
 ### Modified
 - `lib/web_view_model.dart` - siteId, domain functions, captureCookies(), disposeWebView()
-- `lib/main.dart` - Domain conflict detection, async _setCurrentIndex(), _unloadSiteForDomainSwitch()
+- `lib/main.dart` - Domain conflict detection, async _setCurrentIndex(), _unloadSite()
 - `lib/services/webview.dart` - deleteAllCookies() method on CookieManager
 - `lib/services/cookie_secure_storage.dart` - loadCookiesForSite(), saveCookiesForSite(), removeOrphanedCookies()
 

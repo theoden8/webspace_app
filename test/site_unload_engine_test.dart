@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
@@ -8,9 +11,75 @@ import 'package:webspace/web_view_model.dart';
 WebViewModel _site(String url, {UserProxySettings? proxy}) =>
     WebViewModel(initUrl: url, proxySettings: proxy);
 
+/// A page under containers: no shared jar. The legacy path is exercised
+/// against the real jar engine in cookie_isolation_integration_test.dart.
+class _ContainerPage implements SiteUnloadHost {
+  _ContainerPage(this.models) : loadedIndices = {for (var i = 0; i < models.length; i++) i};
+
+  @override
+  final List<WebViewModel> models;
+  @override
+  final Set<int> loadedIndices;
+  @override
+  CookieIsolationEngine? get sharedJar => null;
+
+  final List<WebViewModel> captured = [];
+  final List<(WebViewModel, UnloadReason)> noted = [];
+
+  /// Runs during the capture await, as a concurrent handler would.
+  void Function()? duringCapture;
+
+  @override
+  Future<void> captureNavState(WebViewModel model) async {
+    captured.add(model);
+    duringCapture?.call();
+  }
+
+  @override
+  void noteUnloaded(WebViewModel model, UnloadReason reason) =>
+      noted.add((model, reason));
+}
+
 void main() {
   setUp(() {
     GlobalOutboundProxy.resetForTest();
+  });
+
+  group('SiteUnloadEngine.unload', () {
+    for (final reason in UnloadReason.values) {
+      test('${reason.name} unloads, logs, and keeps the back stack '
+          'unless the site is going home', () async {
+        final a = _site('https://a.example.com');
+        final page = _ContainerPage([a, _site('https://b.example.com')]);
+
+        await SiteUnloadEngine.unload(page, 0, reason);
+
+        expect(page.loadedIndices, {1});
+        expect(page.noted, [(a, reason)]);
+        expect(page.captured, reason == UnloadReason.homeReset ? isEmpty : [a]);
+      });
+    }
+
+    test('unloads the site it was asked for after the list shifts', () async {
+      final a = _site('https://a.example.com');
+      final b = _site('https://b.example.com');
+      final page = _ContainerPage([a, b]);
+      page.duringCapture = () => page.models.removeAt(0);
+
+      await SiteUnloadEngine.unload(page, 1, UnloadReason.loadedSiteCap);
+
+      expect(page.noted.single.$1, b);
+      expect(page.loadedIndices, isNot(contains(0)),
+          reason: 'b moved to index 0 while its state was captured');
+    });
+
+    test('every unload in the page goes through the funnel', () {
+      final main = File('lib/main.dart').readAsStringSync();
+      expect(main, isNot(contains('_cookieIsolation.unloadSiteForDomainSwitch(')));
+      final select = main.substring(main.indexOf('void _selectWebspace('));
+      expect(select.substring(0, select.indexOf('\n  }\n')),
+          contains('await _unloadSite(index, UnloadReason.webspaceSwitch);'));
+    });
   });
 
   group('SiteUnloadEngine.indicesToUnloadOnWebspaceSwitch', () {
@@ -92,7 +161,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -109,7 +178,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -125,7 +194,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: false,
+        topology: const PerSessionProxy(),
       );
       expect(result, isEmpty);
     });
@@ -152,8 +221,7 @@ void main() {
         targetIndex: 0,
         models: models,
         loadedIndices: {0, 1, 2},
-        proxyIsGlobal: false,
-        sharesDefaultSession: (_) => true,
+        topology: RoutedProxy((_) => true),
       );
       expect(result, {1, 2},
           reason: 'both disagree with the activated site and share its '
@@ -172,9 +240,8 @@ void main() {
         targetIndex: 0,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: false,
         // Only index 0 lives in the default profile.
-        sharesDefaultSession: (m) => m == models[0],
+        topology: RoutedProxy((m) => m == models[0]),
       );
       expect(result, isEmpty,
           reason: 'the container-bound site has its own session and its own '
@@ -193,33 +260,9 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: false,
-        sharesDefaultSession: (m) => m == models[0],
+        topology: RoutedProxy((m) => m == models[0]),
       );
       expect(result, isEmpty);
-    });
-
-    test('the shared-session rule never widens the global one', () {
-      // Off router mode the predicate must not narrow anything: Android
-      // without MULTI_PROFILE and Linux still evict every mismatched
-      // sibling, container profile or not.
-      final models = [
-        _site('https://a.example.com',
-            proxy:
-                UserProxySettings(type: ProxyType.SOCKS5, address: 'p1:9050')),
-        _site('https://b.example.com',
-            proxy: UserProxySettings(type: ProxyType.HTTP, address: 'p2:8080')),
-      ];
-      expect(
-        SiteUnloadEngine.indicesToUnloadForProxyMismatch(
-          targetIndex: 0,
-          models: models,
-          loadedIndices: {0, 1},
-          proxyIsGlobal: true,
-          sharesDefaultSession: (_) => false,
-        ),
-        {1},
-      );
     });
 
     test('router mode keeps two same-domain sites with different proxies loaded',
@@ -243,8 +286,8 @@ void main() {
             targetIndex: target,
             models: models,
             loadedIndices: {0, 1, 2},
-            // What main.dart passes once ProxyRouterService is active.
-            proxyIsGlobal: false,
+            // Every site here owns its container profile.
+            topology: RoutedProxy((_) => false),
           ),
           isEmpty,
           reason: 'activating site $target must not evict its siblings',
@@ -268,7 +311,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1, 2},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0, 2});
     });
@@ -282,7 +325,7 @@ void main() {
         targetIndex: 0,
         models: models,
         loadedIndices: {0},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -298,7 +341,7 @@ void main() {
         targetIndex: 0,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -319,7 +362,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -340,7 +383,7 @@ void main() {
         targetIndex: 0,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -364,7 +407,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -385,7 +428,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -401,7 +444,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -417,7 +460,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -433,7 +476,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -457,7 +500,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -481,7 +524,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -505,7 +548,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -527,7 +570,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {0});
     });
@@ -549,7 +592,7 @@ void main() {
         targetIndex: 1,
         models: models,
         loadedIndices: {0, 1, 2},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, {2});
     });
@@ -566,7 +609,7 @@ void main() {
         targetIndex: 0,
         models: models,
         loadedIndices: {0, 99, -1},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -576,7 +619,7 @@ void main() {
         targetIndex: 5,
         models: const [],
         loadedIndices: const {},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });
@@ -590,7 +633,7 @@ void main() {
         targetIndex: -1,
         models: models,
         loadedIndices: {0},
-        proxyIsGlobal: true,
+        topology: const ProcessGlobalProxy(),
       );
       expect(result, isEmpty);
     });

@@ -203,7 +203,7 @@ void main() {
               WebViewModel(initUrl: 'https://example.com/', proxySettings: p),
           ],
           loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
-          proxyIsGlobal: true,
+          topology: const ProcessGlobalProxy(),
         );
 
     test('sites on one saved proxy load together', () {

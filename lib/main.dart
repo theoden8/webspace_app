@@ -1060,8 +1060,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// `_restoreAppState`. When true, the app uses native per-site
   /// containers (Android `MULTI_PROFILE`, iOS 17+, macOS 14+);
   /// same-base-domain sites can be loaded concurrently and the
-  /// capture-nuke-restore cycle in [_restoreCookiesForSite] /
-  /// [_unloadSiteForDomainSwitch] / preDelete cleanup is skipped. When
+  /// capture-nuke-restore cycle in [_restoreCookiesForSite], the legacy
+  /// jar capture in [_unloadSite] and preDelete cleanup are skipped. When
   /// false (legacy Android, older Apple, Linux/desktop) the app falls
   /// through to the existing [CookieIsolationEngine].
   bool _useContainers = false;
@@ -1772,11 +1772,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           // process. Re-activation hydrates from storage via the
           // model's _pendingRestoreState hook.
           //
-          // Routes through _unloadSiteForOtherReason so the legacy
-          // cookie capture (when not in container mode) runs too;
-          // _captureStateForRestore inside that helper is what
-          // updates the lifecycleState to savedForRestore.
-          await _unloadSiteForOtherReason(victim, reason: 'memory pressure');
+          // The funnel's state capture is what flips lifecycleState to
+          // savedForRestore.
+          await _unloadSite(victim, UnloadReason.memoryPressure);
           // The pin in force follows the loaded sites (TOR-014). Left for
           // the next activation, the pin of a site evicted here was cleared
           // at whatever moment that came, often after a long suspension had
@@ -3401,12 +3399,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     if (a.disposeBeforeLoad) {
       _evictCacheIfOnline(model.siteId);
-      model.disposeWebView();
       // Re-resolve by identity: `_loadedIndices` is positional and the site
       // list may have shifted (a lower-indexed delete) across the await, so
       // the captured `index` could now name a different site.
       final idx = _webViewModels.indexOf(model);
-      if (idx >= 0) _loadedIndices.remove(idx);
+      if (_loadedIndices.contains(idx)) {
+        await _unloadSite(idx, UnloadReason.homeReset);
+        if (!mounted) return;
+      } else {
+        model.disposeWebView();
+      }
       model.currentUrl = model.initUrl;
     }
     if (a.wipeContainer) {
@@ -3687,7 +3689,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           level: LogLevel.warning,
           sensitivity: LogSensitivity.sensitive,
         );
-        await _unloadSiteForOtherReason(i, reason: 'Tor exit-country mismatch');
+        await _unloadSite(i, UnloadReason.torExitMismatch);
       }
       if (exitMismatch.isNotEmpty && mounted) setState(() {});
     }
@@ -3719,6 +3721,17 @@ class _WebSpacePageState extends State<WebSpacePage>
         for (var i = 0; i < _webViewModels.length; i++)
           i == except ? _webViewModels[i] : _webViewModels[i].runningIdentity,
       ];
+
+  /// How a proxy is scoped on this host right now (PROXY-008, PROXY-013).
+  /// Linux has no router. A site without a container profile runs in the
+  /// default one, so under the router it still shares a cached credential.
+  ProxyTopology get _proxyTopology {
+    if (hostIsLinux) return const ProcessGlobalProxy();
+    if (ProxyRouterService.instance.isActive) {
+      return RoutedProxy((m) => !_ownsContainerProfile(m));
+    }
+    return hostIsAndroid ? const ProcessGlobalProxy() : const PerSessionProxy();
+  }
 
   /// Whether [model] gets a container profile, and so a Chromium network
   /// session, of its own.
@@ -4906,7 +4919,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           level: LogLevel.warning,
           sensitivity: LogSensitivity.sensitive,
         );
-        await _unloadSiteForDomainSwitch(conflictIndex);
+        await _unloadSite(conflictIndex, UnloadReason.domainConflict);
         if (version != _setCurrentIndexVersion) return;
       }
     }
@@ -4920,24 +4933,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       targetIndex: index,
       models: _slotIdentities(),
       loadedIndices: _loadedIndices,
-      // Both Android and Linux drive a process-global, last-write-wins
-      // proxy (ProxyController fanned across sessions); a mismatched-proxy
-      // sibling left loaded would route its next request through the wrong
-      // proxy. iOS/macOS bind per-session, so no unload needed there.
-      //
-      // Under router mode the Android rule is no longer per-site: it
-      // points at the loopback router permanently and the router fans
-      // traffic out per credential, so mismatched sites can stay loaded
-      // together (PROXY-013). Linux has no equivalent and keeps the unload.
-      proxyIsGlobal: (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-          hostIsLinux,
-      // What buys that concurrency is the per-site container profile. A
-      // site without one runs in the default profile, whose single cached
-      // proxy credential every other such site presents too, so the group
-      // stays serialised exactly as PROXY-008 had it.
-      sharesDefaultSession: ProxyRouterService.instance.isActive
-          ? (m) => !_ownsContainerProfile(m)
-          : null,
+      topology: _proxyTopology,
     );
     for (final i in proxyMismatch) {
       LogService.instance.log(
@@ -4946,17 +4942,17 @@ class _WebSpacePageState extends State<WebSpacePage>
         level: LogLevel.warning,
         sensitivity: LogSensitivity.sensitive,
       );
-      await _unloadSiteForOtherReason(i, reason: 'proxy mismatch');
+      await _unloadSite(i, UnloadReason.proxyMismatch);
       if (version != _setCurrentIndexVersion) return;
     }
 
     // Repoint the shared-profile route before this site can issue a
     // request, not after: the identity is shared, so until this lands the
     // relay still holds the previous shared-profile site's upstream.
-    if (ProxyRouterService.instance.isActive &&
-        index >= 0 &&
-        index < _webViewModels.length &&
-        !_ownsContainerProfile(_webViewModels[index])) {
+    if (_proxyTopology case RoutedProxy(:final sharesDefaultSession)
+        when index >= 0 &&
+            index < _webViewModels.length &&
+            sharesDefaultSession(_webViewModels[index])) {
       await _refreshProxyRoutes(activeIndex: index);
       if (version != _setCurrentIndexVersion) return;
     }
@@ -4981,7 +4977,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           level: LogLevel.warning,
           sensitivity: LogSensitivity.sensitive,
         );
-        await _unloadSiteForOtherReason(i, reason: 'Tor exit-country mismatch');
+        await _unloadSite(i, UnloadReason.torExitMismatch);
         if (version != _setCurrentIndexVersion) return;
       }
       // Only once the disagreeing siblings are gone: SETCONF takes effect
@@ -5016,7 +5012,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         'LRU cap (>$kMaxLoadedSites) — unloading site $i: "${_webViewModels[i].name}"',
         sensitivity: LogSensitivity.sensitive,
       );
-      await _unloadSiteForOtherReason(i, reason: 'loaded-site cap');
+      await _unloadSite(i, UnloadReason.loadedSiteCap);
       if (version != _setCurrentIndexVersion) return;
     }
 
@@ -5185,57 +5181,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  /// Unloads a site due to domain conflict with another site. Delegates to
-  /// the isolation engine so the orchestration is shared with tests.
-  Future<void> _unloadSiteForDomainSwitch(int index) async {
-    await _cookieIsolation.unloadSiteForDomainSwitch(
-      index: index,
-      models: _webViewModels,
-      loadedIndices: _loadedIndices,
-    );
-  }
+  /// Unloads the site at [index] (PAUSE-007, ISO-002); see
+  /// [SiteUnloadEngine.unload].
+  Future<void> _unloadSite(int index, UnloadReason reason) =>
+      SiteUnloadEngine.unload(_UnloadHost(this), index, reason);
 
-  /// Unloads a site for non-domain-conflict reasons (proxy mismatch,
-  /// LRU cap, memory pressure). Under container mode the per-site
-  /// container partitions cookies/localStorage/IDB/etc., so disposing
-  /// the webview is enough. Under legacy mode, the cookie jar is
-  /// shared, so we run the same capture-then-dispose cycle the engine
-  /// uses for domain conflicts — otherwise the soon-to-run capture-
-  /// nuke-restore on activation of the target would wipe the unloaded
-  /// site's session out of the jar.
-  ///
-  /// Before disposing, captures `controller.saveState()` to the in-
-  /// memory state storage so re-activation can restore the back/
-  /// forward stack and (Apple) form data via `restoreState`. Skipped
-  /// for incognito sites (state is meant to be ephemeral).
-  Future<void> _unloadSiteForOtherReason(int index,
-      {required String reason}) async {
-    if (index < 0 || index >= _webViewModels.length) return;
-    final model = _webViewModels[index];
-    await _captureStateForRestore(model);
-    if (_useContainers) {
-      model.disposeWebView();
-      _loadedIndices.remove(index);
-    } else {
-      await _cookieIsolation.unloadSiteForDomainSwitch(
-        index: index,
-        models: _webViewModels,
-        loadedIndices: _loadedIndices,
-      );
-    }
-    _noteNotificationSiteUnloaded(model, reason);
-  }
-
-  /// Capture [model]'s navigation state to encrypted on-disk storage.
-  /// Returns true if bytes were captured and persisted. No-op for
-  /// incognito sites or when there's nothing to save.
-  ///
-  /// Does NOT mutate `model.lifecycleState` — callers that are
-  /// disposing the webview should do that themselves (typically
-  /// flipping to [SiteLifecycleState.savedForRestore]); callers that
-  /// are *only* opportunistically persisting (go-home,
-  /// app-background) should leave the state at [SiteLifecycleState.resident]
-  /// since the webview is still in memory.
   /// Every navigation-state key that should survive a sweep, for the sites in
   /// [siteIds]. State is per tab, so a site contributes one key per tab it
   /// still has: closing a tab makes its file an orphan, and deleting a site
@@ -5248,6 +5198,16 @@ class _WebSpacePageState extends State<WebSpacePage>
             for (final t in m.tabs) m.stateKeyForTab(t.id),
       };
 
+  /// Capture [model]'s navigation state to encrypted on-disk storage.
+  /// Returns true if bytes were captured and persisted. No-op for
+  /// incognito sites or when there's nothing to save.
+  ///
+  /// Does NOT mutate `model.lifecycleState` — callers that are
+  /// disposing the webview should do that themselves (typically
+  /// flipping to [SiteLifecycleState.savedForRestore]); callers that
+  /// are *only* opportunistically persisting (go-home,
+  /// app-background) should leave the state at [SiteLifecycleState.resident]
+  /// since the webview is still in memory.
   Future<bool> _captureStateBytes(WebViewModel model) async {
     // Archive-tier (ARCH-006) and incognito sites never persist nav state,
     // and a hosted tab only when its host would keep it (LIR-022).
@@ -7035,27 +6995,21 @@ class _WebSpacePageState extends State<WebSpacePage>
           newWebspaceIndices: newIndices,
         );
 
-        for (final index in indicesToUnload) {
-          if (index < 0 || index >= _webViewModels.length) continue;
-          // Capture the model by identity before the await: this loop's guard
-          // tracks `_selectWebspaceVersion`, which a concurrent `_deleteSite`
-          // does NOT bump (it bumps `_setCurrentIndexVersion`), so a delete
-          // could shift positions under us and make `_webViewModels[index]`
-          // a different site after the capture await.
-          final model = _webViewModels[index];
-          // Capture state before dispose so re-activation can
-          // restore the back/forward stack and (Apple) form data.
-          // Skipped for incognito sites inside the helper.
-          await _captureStateForRestore(model);
+        // By identity: this loop's guard tracks `_selectWebspaceVersion`,
+        // which a concurrent `_deleteSite` does not bump, so a delete can
+        // shift positions between unloads.
+        final leaving = [
+          for (final i in indicesToUnload)
+            if (i >= 0 && i < _webViewModels.length) _webViewModels[i],
+        ];
+        for (final model in leaving) {
+          final index = _webViewModels.indexOf(model);
+          if (index < 0) continue;
+          await _unloadSite(index, UnloadReason.webspaceSwitch);
           if (!mounted || version != _selectWebspaceVersion) return;
-          final curIndex = _webViewModels.indexOf(model);
-          if (curIndex < 0) continue; // deleted during the capture await
-          model.disposeWebView();
-          _loadedIndices.remove(curIndex);
-          _noteNotificationSiteUnloaded(model, 'webspace switch');
           LogService.instance.log(
             'WebspaceSwitch',
-            'Unloaded site $curIndex: "${model.name}"',
+            'Unloaded site "${model.name}"',
             sensitivity: LogSensitivity.sensitive,
           );
         }
@@ -7706,16 +7660,17 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _bindOwnerRunTab(m);
       if (!mounted) return;
       m.currentUrl = m.initUrl;
-      m.disposeWebView();
       // Keep the active site in _loadedIndices (mirrors
       // _resetAlwaysOpenHomeForAppClose / _goHome) so the IndexedStack still
       // has a child to rebuild at initUrl. Dropping it black-screens a warm
       // shortcut re-tap of the already-current site: _openShortcutIndex skips
       // _setCurrentIndex when index == _currentIndex, so nothing would re-add
       // it or recreate the disposed webview.
-      if (i != _currentIndex) {
-        _loadedIndices.remove(i);
-        _noteNotificationSiteUnloaded(m, 'home reset by a shortcut launch');
+      if (i == _currentIndex) {
+        m.disposeWebView();
+      } else {
+        await _unloadSite(i, UnloadReason.homeReset);
+        if (!mounted) return;
       }
     }
     for (final m in withTabs) {
@@ -7843,10 +7798,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     WebViewModel identityBefore,
   ) async {
     final slot = _webViewModels.indexOf(model);
+    final topology = _proxyTopology;
     if (identical(identityBefore, model.runningIdentity) ||
         slot < 0 ||
-        !((hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-            hostIsLinux)) {
+        topology is! ProcessGlobalProxy) {
       return mounted;
     }
     if (slot == _currentIndex) {
@@ -7854,10 +7809,10 @@ class _WebSpacePageState extends State<WebSpacePage>
         targetIndex: slot,
         models: _slotIdentities(),
         loadedIndices: _loadedIndices,
-        proxyIsGlobal: true,
+        topology: topology,
       );
       for (final i in mismatched) {
-        await _unloadSiteForOtherReason(i, reason: 'proxy mismatch');
+        await _unloadSite(i, UnloadReason.proxyMismatch);
         if (!mounted) return false;
       }
     } else {
@@ -11549,17 +11504,12 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
         models: state._slotIdentities(
             except: state._webViewModels.indexOf(target)),
         loadedIndices: state._loadedIndices,
-        proxyIsGlobal:
-            (hostIsAndroid && !ProxyRouterService.instance.isActive) ||
-                hostIsLinux,
-        sharesDefaultSession: ProxyRouterService.instance.isActive
-            ? (m) => !state._ownsContainerProfile(m)
-            : null,
+        topology: state._proxyTopology,
       );
 
   @override
   Future<void> unload(int index) =>
-      state._unloadSiteForOtherReason(index, reason: 'proxy mismatch');
+      state._unloadSite(index, UnloadReason.proxyMismatch);
 
   @override
   Future<void> applyProxyOf(WebViewModel target) => ProxyManager()
@@ -11583,6 +11533,30 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
 
   @override
   Future<void> activate(int index) => state._setCurrentIndex(index);
+}
+
+class _UnloadHost implements SiteUnloadHost {
+  const _UnloadHost(this.state);
+
+  final _WebSpacePageState state;
+
+  @override
+  List<WebViewModel> get models => state._webViewModels;
+
+  @override
+  Set<int> get loadedIndices => state._loadedIndices;
+
+  @override
+  CookieIsolationEngine? get sharedJar =>
+      state._useContainers ? null : state._cookieIsolation;
+
+  @override
+  Future<void> captureNavState(WebViewModel model) =>
+      state._captureStateForRestore(model);
+
+  @override
+  void noteUnloaded(WebViewModel model, UnloadReason reason) =>
+      state._noteNotificationSiteUnloaded(model, reason.label);
 }
 
 class _OrphanSweepTargets implements OrphanSweepTargets {

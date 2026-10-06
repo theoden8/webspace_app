@@ -2,8 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
+
+import 'helpers/site_list_state.dart';
 
 /// In-memory cookie jar that models RFC 6265 domain-match semantics so the
 /// sibling-subdomain scenarios the real fix addresses can actually be
@@ -234,7 +237,7 @@ class MockCookieSecureStorage implements CookieSecureStorage {
 /// Test harness for cookie isolation. Delegates cookie-jar management to
 /// the REAL [CookieIsolationEngine] — the tests exercise production code,
 /// not duplicated harness code.
-class CookieIsolationTestHarness {
+class CookieIsolationTestHarness with SiteListState implements SiteUnloadHost {
   final MockCookieManager cookieManager;
   final MockCookieSecureStorage storage = MockCookieSecureStorage();
   late final CookieIsolationEngine engine = CookieIsolationEngine(
@@ -244,9 +247,25 @@ class CookieIsolationTestHarness {
 
   CookieIsolationTestHarness({MockCookieManager? cookieManager})
       : cookieManager = cookieManager ?? MockCookieManager();
-  final List<WebViewModel> sites = [];
-  final Set<int> loadedIndices = {};
-  int? currentIndex;
+
+  @override
+  List<WebViewModel> get models => sites;
+
+  @override
+  CookieIsolationEngine get sharedJar => engine;
+
+  final List<WebViewModel> navStateCaptured = [];
+
+  @override
+  Future<void> captureNavState(WebViewModel model) async =>
+      navStateCaptured.add(model);
+
+  @override
+  void noteUnloaded(WebViewModel model, UnloadReason reason) {}
+
+  /// Mirrors `_unloadSite` in main.dart.
+  Future<void> unload(int index, UnloadReason reason) =>
+      SiteUnloadEngine.unload(this, index, reason);
 
   /// Monotonic counter mirroring `_setCurrentIndexVersion` in
   /// `_WebSpacePageState`. Every `switchToSite` call bumps it; the engine
@@ -275,11 +294,7 @@ class CookieIsolationTestHarness {
       loadedIndices: loadedIndices,
     );
     if (conflictIndex != null) {
-      await engine.unloadSiteForDomainSwitch(
-        index: conflictIndex,
-        models: sites,
-        loadedIndices: loadedIndices,
-      );
+      await unload(conflictIndex, UnloadReason.domainConflict);
       if (v != version) return;
     }
 
@@ -306,19 +321,7 @@ class CookieIsolationTestHarness {
       loadedIndices: loadedIndices,
     );
 
-    sites.removeAt(index);
-    loadedIndices.remove(index);
-    loadedIndices.removeWhere((i) => i >= sites.length);
-    final shifted = loadedIndices.map((i) => i > index ? i - 1 : i).toSet();
-    loadedIndices
-      ..clear()
-      ..addAll(shifted);
-
-    if (currentIndex == index) {
-      currentIndex = null;
-    } else if (currentIndex != null && currentIndex! > index) {
-      currentIndex = currentIndex! - 1;
-    }
+    removeSiteAt(index);
 
     await storage.removeOrphanedCookies(
       sites.map((s) => s.siteId).toSet(),
@@ -359,13 +362,7 @@ class CookieIsolationTestHarness {
   Future<void> simulateSitePurgedFromPriorSession(int index) async {
     final model = sites[index];
     await storage.saveCookiesForSite(model.siteId, const []);
-    sites.removeAt(index);
-    loadedIndices.remove(index);
-    loadedIndices.removeWhere((i) => i >= sites.length);
-    final shifted = loadedIndices.map((i) => i > index ? i - 1 : i).toSet();
-    loadedIndices
-      ..clear()
-      ..addAll(shifted);
+    removeSiteAt(index);
   }
 
   /// Simulate a site receiving cookies (e.g., after login).
@@ -702,6 +699,43 @@ void main() {
     });
   });
 
+  group('Unload (ISO-002)', () {
+    // Every activation empties the shared jar after saving it for the
+    // loaded sites only, so an unloaded site keeps what it set since its own
+    // activation only if its unload captured the jar first. The webspace
+    // switch once unloaded without that capture.
+    for (final reason in UnloadReason.values) {
+      test('a ${reason.label} unload keeps the session the site just set',
+          () async {
+        final harness = CookieIsolationTestHarness();
+        harness.addSite('https://github.com', name: 'GitHub');
+        harness.addSite('https://example.com', name: 'Example');
+        await harness.switchToSite(0);
+        await harness.simulateLogin(0, [
+          Cookie(name: 'session', value: 'fresh', domain: 'github.com'),
+        ]);
+
+        await harness.unload(0, reason);
+        expect(harness.loadedIndices, isNot(contains(0)));
+        await harness.switchToSite(1);
+
+        final saved =
+            await harness.storage.loadCookiesForSite(harness.sites[0].siteId);
+        expect(saved.map((c) => c.value), contains('fresh'));
+      });
+    }
+
+    test('a domain-conflict unload keeps the back stack (PAUSE-007)',
+        () async {
+      final harness = CookieIsolationTestHarness();
+      harness.addSite('https://github.com/personal', name: 'Personal');
+      harness.addSite('https://github.com/work', name: 'Work');
+      await harness.switchToSite(0);
+      await harness.switchToSite(1);
+      expect(harness.navStateCaptured, [harness.sites[0]]);
+    });
+  });
+
   group('Site Deletion Cookie Cleanup', () {
     late CookieIsolationTestHarness harness;
 
@@ -735,6 +769,21 @@ void main() {
       // Secure storage should be cleared for this siteId
       var stored = await harness.storage.loadCookiesForSite(siteId);
       expect(stored, isEmpty);
+    });
+
+    test('deleting a site keeps a loaded site after it loaded at its new index', () async {
+      harness.addSite('https://github.com', name: 'A');
+      harness.addSite('https://example.com', name: 'B');
+      harness.addSite('https://gitlab.com', name: 'C');
+      await harness.switchToSite(0);
+      await harness.switchToSite(2);
+      final c = harness.sites[2];
+
+      await harness.deleteSite(0);
+
+      expect(harness.sites.indexOf(c), 1);
+      expect(harness.loadedIndices, {1});
+      expect(harness.currentIndex, 1);
     });
 
     test('deleting one of multiple same-domain sites preserves surviving site live session', () async {

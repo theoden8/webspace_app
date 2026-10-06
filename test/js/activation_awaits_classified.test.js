@@ -35,10 +35,9 @@ const CLASSIFIED = {
     'Bounded and non-fatal: SiteTeardownEngine runs it under a budget (NAV-010).',
   '_stateStorage.loadState':
     'A secure-storage read on the device. No socket, nothing to reclaim.',
-  '_unloadSiteForDomainSwitch':
-    'Legacy engine only: cookie capture from the in-process cookie store.',
-  '_unloadSiteForOtherReason':
-    'A WebKit/WebView saveState on the main thread, then a dispose.',
+  '_unloadSite':
+    'A WebKit/WebView saveState on the main thread, then a dispose; under the '
+    + 'legacy engine a cookie capture from the in-process cookie store first.',
   '_refreshProxyRoutes':
     'Android router mode: rewrites the in-process relay\'s route table.',
   '_webViewModels[].clearWebViewCache':
@@ -95,7 +94,7 @@ test('the activation path never waits on Tor', () => {
 test('the pin follows a memory-pressure eviction', () => {
   const pressure = blockAfter(main, 'Future<void> _handleMemoryPressure() async {',
     null, mainRel);
-  const unload = pressure.search(/await _unloadSiteForOtherReason\(victim[,)]/);
+  const unload = pressure.search(/await _unloadSite\(victim,/);
   assert.notEqual(unload, -1, 'memory pressure must still evict through the helper');
   assert.ok(pressure.indexOf('_syncTorExitPin(', unload) > unload,
     'the pin of an evicted site must be recomputed when it goes, not at the '

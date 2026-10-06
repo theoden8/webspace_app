@@ -232,7 +232,7 @@ production):
     `{}` under container mode (sites are isolated and stay loaded);
     delegates to `WebspaceSelectionEngine` in legacy mode.
   - `indicesToUnloadForProxyMismatch({targetIndex, models, loadedIndices,
-    proxyIsGlobal})` — on Android (process-global proxy), returns the
+    topology})` — on Android (process-global proxy), returns the
     loaded sites whose effective proxy differs from the activating
     site's. Their next request would silently route through the new
     proxy (last-write-wins on `inapp.ProxyController`), so they are

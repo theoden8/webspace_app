@@ -3,6 +3,8 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/site_list_state.dart';
+
 /// In-memory model of the native Profile API with **per-profile cookie
 /// storage**, so the central spec claim — sites in different profiles do
 /// not see each other's cookies — can actually be asserted, not just
@@ -137,14 +139,16 @@ class SimWebView {
 /// bind. Delegates the real work to [ContainerIsolationEngine] so tests
 /// exercise production code rather than a parallel implementation —
 /// same DRY rule as [CookieIsolationTestHarness].
-class ContainerIsolationTestHarness {
+class ContainerIsolationTestHarness with SiteListState {
   final MockContainerNative native = MockContainerNative();
   late final ContainerIsolationEngine engine =
       ContainerIsolationEngine(containerNative: native);
-  final List<WebViewModel> sites = [];
-  final Set<int> loadedIndices = {};
-  final Map<int, SimWebView> webViews = {};
-  int? currentIndex;
+  final Map<String, SimWebView> _webViewsBySiteId = {};
+
+  Map<int, SimWebView> get webViews => {
+        for (var i = 0; i < sites.length; i++)
+          i: ?_webViewsBySiteId[sites[i].siteId],
+      };
 
   void addSite(String url, {String? name}) {
     sites.add(WebViewModel(initUrl: url, name: name));
@@ -170,7 +174,8 @@ class ContainerIsolationTestHarness {
     // Construct the simulated webview the first time the site is
     // visited; reuse on later activations (the lazy-load behavior in
     // _WebSpacePageState).
-    webViews.putIfAbsent(index, () => SimWebView(target.siteId, native));
+    _webViewsBySiteId.putIfAbsent(
+        target.siteId, () => SimWebView(target.siteId, native));
     await engine.bindForSite(target.siteId);
   }
 
@@ -179,29 +184,9 @@ class ContainerIsolationTestHarness {
   /// blob owned by the site), shift indices.
   Future<void> deleteSite(int index) async {
     final deleted = sites[index];
-    webViews.remove(index);
+    _webViewsBySiteId.remove(deleted.siteId);
     await engine.onSiteDeleted(deleted.siteId);
-
-    sites.removeAt(index);
-    loadedIndices.remove(index);
-    loadedIndices.removeWhere((i) => i >= sites.length);
-    final shifted = loadedIndices.map((i) => i > index ? i - 1 : i).toSet();
-    loadedIndices
-      ..clear()
-      ..addAll(shifted);
-    final shiftedWebViews = <int, SimWebView>{};
-    webViews.forEach((i, sim) {
-      shiftedWebViews[i > index ? i - 1 : i] = sim;
-    });
-    webViews
-      ..clear()
-      ..addAll(shiftedWebViews);
-
-    if (currentIndex == index) {
-      currentIndex = null;
-    } else if (currentIndex != null && currentIndex! > index) {
-      currentIndex = currentIndex! - 1;
-    }
+    removeSiteAt(index);
   }
 
   /// Mirrors the startup GC in `_restoreAppState`: sweep profiles that
@@ -387,6 +372,23 @@ void main() {
       expect(h.native.cookiesByContainer.containsKey('ws-$aSiteId'), isFalse);
       expect(h.native.containers[bSiteId], 'ws-$bSiteId');
       expect(h.native.cookiesByContainer['ws-$bSiteId'], {'session': 'bob'});
+    });
+
+    test('a loaded site after the deleted one stays loaded at its new index',
+        () async {
+      final h = ContainerIsolationTestHarness();
+      h.addSite('https://github.com/personal');
+      h.addSite('https://github.com/work');
+      h.addSite('https://example.com');
+      await h.switchToSite(0);
+      await h.switchToSite(2);
+      await h.webViews[2]!.setCookie('session', 'carol');
+
+      await h.deleteSite(0);
+
+      expect(h.loadedIndices, {1});
+      expect(h.currentIndex, 1);
+      expect(await h.webViews[1]!.getCookie('session'), 'carol');
     });
 
     test('re-adding a deleted site starts with an empty profile', () async {

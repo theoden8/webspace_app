@@ -36,7 +36,7 @@ function unloadsBeforePin(fn, label) {
     `${label} changes the pin without asking which loaded sites disagree with it`);
   assert.ok(conflict < pin,
     `${label} computes the disagreeing sites only after the pin is in force`);
-  const unload = fn.indexOf('_unloadSiteForOtherReason(', conflict);
+  const unload = fn.indexOf('_unloadSite(', conflict);
   assert.ok(unload !== -1 && unload < pin,
     `${label} does not unload the disagreeing sites before the pin changes`);
 }

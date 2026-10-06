@@ -6,7 +6,7 @@
 // the credential it presents, so evicting a mismatched sibling buys nothing and
 // costs the cold start the feature exists to remove.
 //
-// A call site that hardcodes `proxyIsGlobal: true` therefore silently
+// A call site that hardcodes a process-global topology therefore silently
 // reserialises the app on whatever path it sits on. One arrived that way with
 // the "Open in site" nested-open fix (SEC-004), reachable from a share intent.
 // Cheaper to gate structurally than to notice a site cold-starting.
@@ -63,30 +63,38 @@ test('there is at least one call site to check', () => {
   assert.ok(callSites().length > 0, 'the eviction is called from somewhere');
 });
 
-test('no call site hardcodes a global proxy on Android', () => {
+/** The ProxyTopology a call passes, or null. */
+function topologyOf(args) {
+  const value = /topology:\s*([\s\S]*?)(?:,\s*\w+:|,?\s*$)/.exec(args);
+  return value ? value[1].trim() : null;
+}
+
+test('no call site hardcodes the topology', () => {
   for (const { file, args } of callSites()) {
-    const value = /proxyIsGlobal:\s*([\s\S]*?)(?:,\s*\w+:|,?\s*$)/.exec(args);
-    assert.ok(value, `${file}: call passes no proxyIsGlobal`);
-    const expr = value[1];
-    if (!/hostIsAndroid/.test(expr)) {
-      // A call that never claims Android is global cannot reserialise it.
-      continue;
-    }
-    assert.match(
+    const expr = topologyOf(args);
+    assert.ok(expr, `${file}: call passes no topology`);
+    assert.doesNotMatch(
       expr,
-      /ProxyRouterService\.instance\.isActive/,
-      `${file}: proxyIsGlobal claims Android without asking whether router `
-        + 'mode is running, which evicts siblings PROXY-013 keeps loaded',
+      /ProxyTopology|PerSessionProxy|ProcessGlobalProxy|RoutedProxy/,
+      `${file}: topology ${expr} is hardcoded rather than read from `
+        + '_proxyTopology, which asks whether router mode is running',
     );
   }
+});
+
+test('the page derives its topology from the router state', () => {
+  const main = fs.readFileSync(path.join(repoRoot, 'lib/main.dart'), 'utf8');
+  const getter = /ProxyTopology get _proxyTopology \{([\s\S]*?)\n  \}/.exec(main);
+  assert.ok(getter, 'lib/main.dart must define _proxyTopology');
+  assert.match(getter[1], /ProxyRouterService\.instance\.isActive/,
+    'Android is process-global only while the router is off (PROXY-013)');
 });
 
 test('the guard is not vacuous', () => {
   // The shape that regressed: Android and Linux both global, unconditionally.
   const regressed = 'targetIndex: index, models: m, loadedIndices: l, '
-    + 'proxyIsGlobal: hostIsAndroid || hostIsLinux,';
-  const value = /proxyIsGlobal:\s*([\s\S]*?)(?:,\s*\w+:|,?\s*$)/.exec(regressed);
-  assert.ok(value);
-  assert.match(value[1], /hostIsAndroid/);
-  assert.doesNotMatch(value[1], /ProxyRouterService\.instance\.isActive/);
+    + 'topology: const ProcessGlobalProxy(),';
+  const expr = topologyOf(regressed);
+  assert.ok(expr);
+  assert.match(expr, /ProcessGlobalProxy/);
 });

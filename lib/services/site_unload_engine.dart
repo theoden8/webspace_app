@@ -1,3 +1,4 @@
+import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
@@ -8,6 +9,82 @@ import 'package:webspace/web_view_model.dart';
 /// container mode lets sites stay resident across webspace switches; without
 /// it, a heavy user could accumulate dozens of live native webviews.
 const int kMaxLoadedSites = 20;
+
+/// Why a loaded site leaves the loaded set, short of being deleted. The label
+/// is what the background log names (DEVTOOLS-011).
+enum UnloadReason {
+  domainConflict('domain conflict'),
+  proxyMismatch('proxy mismatch'),
+  torExitMismatch('Tor exit-country mismatch'),
+  loadedSiteCap('loaded-site cap'),
+  memoryPressure('memory pressure'),
+  webspaceSwitch('webspace switch'),
+
+  /// An always-open-home or incognito site sent back to its home page: by a
+  /// shortcut launch, or before a link opens in it (LIR-011).
+  homeReset('home reset');
+
+  const UnloadReason(this.label);
+
+  final String label;
+
+  /// Whether the back stack is saved for the next activation (PAUSE-007).
+  bool get keepsNavState => switch (this) {
+        UnloadReason.domainConflict ||
+        UnloadReason.proxyMismatch ||
+        UnloadReason.torExitMismatch ||
+        UnloadReason.loadedSiteCap ||
+        UnloadReason.memoryPressure ||
+        UnloadReason.webspaceSwitch =>
+          true,
+        // It goes back to its home page, which is the point (always-open-home).
+        UnloadReason.homeReset => false,
+      };
+}
+
+/// What [SiteUnloadEngine.unload] reads and writes on the page.
+abstract interface class SiteUnloadHost {
+  List<WebViewModel> get models;
+  Set<int> get loadedIndices;
+
+  /// The legacy engine, whose sites share one cookie jar; null under
+  /// containers, where each site's jar is its own.
+  CookieIsolationEngine? get sharedJar;
+
+  /// Saves [model]'s back stack for its next activation.
+  Future<void> captureNavState(WebViewModel model);
+
+  void noteUnloaded(WebViewModel model, UnloadReason reason);
+}
+
+/// How the host scopes a proxy, which decides who contends for it when a
+/// site with another proxy activates (PROXY-008, PROXY-013).
+sealed class ProxyTopology {
+  const ProxyTopology();
+}
+
+/// iOS and macOS bind a proxy per session: nothing contends.
+final class PerSessionProxy extends ProxyTopology {
+  const PerSessionProxy();
+}
+
+/// Android without the router, and Linux: one process-global,
+/// last-write-wins override (`ProxyController` fanned across sessions).
+/// Every loaded site contends.
+final class ProcessGlobalProxy extends ProxyTopology {
+  const ProcessGlobalProxy();
+}
+
+/// Router mode (PROXY-013): the process-wide rule names the loopback relay
+/// and each site presents its own credential, bought by its container
+/// profile. A site with no profile runs in the default one, whose single
+/// cached credential every other such site presents too, so exactly that
+/// group still contends.
+final class RoutedProxy extends ProxyTopology {
+  const RoutedProxy(this.sharesDefaultSession);
+
+  final bool Function(WebViewModel model) sharesDefaultSession;
+}
 
 /// Pure-Dart unload policy engine.
 ///
@@ -28,6 +105,36 @@ const int kMaxLoadedSites = 20;
 ///      order: lowest priority (highest enum index) first, LRU within each
 ///      tier.
 class SiteUnloadEngine {
+  /// The one way a loaded site is unloaded. Under the legacy engine the
+  /// shared jar is captured first whatever the [reason] (ISO-002): the next
+  /// activation empties it after attributing it to the loaded sites only, so
+  /// a site unloaded without the capture loses what it set since its own
+  /// activation.
+  static Future<void> unload(
+    SiteUnloadHost host,
+    int index,
+    UnloadReason reason,
+  ) async {
+    if (index < 0 || index >= host.models.length) return;
+    final model = host.models[index];
+    if (reason.keepsNavState) await host.captureNavState(model);
+    // A lower-indexed delete can shift the list across the capture.
+    final at = host.models.indexOf(model);
+    if (at < 0) return;
+    final jar = host.sharedJar;
+    if (jar == null) {
+      model.disposeWebView();
+      host.loadedIndices.remove(at);
+    } else {
+      await jar.unloadSiteForDomainSwitch(
+        index: at,
+        models: host.models,
+        loadedIndices: host.loadedIndices,
+      );
+    }
+    host.noteUnloaded(model, reason);
+  }
+
   /// Webspace-switch unload set. Returns the indices to dispose.
   static Set<int> indicesToUnloadOnWebspaceSwitch({
     required bool useContainers,
@@ -44,29 +151,26 @@ class SiteUnloadEngine {
   }
 
   /// Sites that must be unloaded because activating [targetIndex] would
-  /// repoint a process-global proxy override out from under them.
-  ///
-  /// [sharesDefaultSession] narrows the rule for Android's router mode
-  /// (PROXY-013), where [proxyIsGlobal] is false because the process-wide
-  /// rule names the relay rather than any site's proxy. Concurrency there
-  /// is bought by the per-site container profile, and a site that has no
-  /// container profile did not buy it: it runs in the default profile,
-  /// whose one cached proxy credential every other such site also uses.
-  /// Passing the predicate keeps PROXY-008's eviction alive for exactly
-  /// that group, so at most one of its proxies is ever in force. Leave it
-  /// null off router mode.
+  /// repoint a proxy they share out from under them: every mismatched
+  /// sibling that contends for it under [topology], so at most one proxy is
+  /// ever in force for a contending group.
   static Set<int> indicesToUnloadForProxyMismatch({
     required int targetIndex,
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
-    required bool proxyIsGlobal,
-    bool Function(WebViewModel model)? sharesDefaultSession,
+    required ProxyTopology topology,
   }) {
     if (targetIndex < 0 || targetIndex >= models.length) return const <int>{};
     final target = models[targetIndex];
-    if (!proxyIsGlobal) {
-      if (sharesDefaultSession == null) return const <int>{};
-      if (!sharesDefaultSession(target)) return const <int>{};
+    final bool Function(WebViewModel model) contends;
+    switch (topology) {
+      case PerSessionProxy():
+        return const <int>{};
+      case ProcessGlobalProxy():
+        contends = (_) => true;
+      case RoutedProxy(:final sharesDefaultSession):
+        if (!sharesDefaultSession(target)) return const <int>{};
+        contends = sharesDefaultSession;
     }
     // With the site id, two Tor sites differ by their isolation tags, so
     // one rule never carries both and puts them on one circuit (TOR-003).
@@ -76,7 +180,7 @@ class SiteUnloadEngine {
     for (final i in loadedIndices) {
       if (i == targetIndex) continue;
       if (i < 0 || i >= models.length) continue;
-      if (!proxyIsGlobal && !sharesDefaultSession!(models[i])) continue;
+      if (!contends(models[i])) continue;
       final effective = resolveEffectiveProxy(models[i].proxySettings,
           siteId: models[i].siteId);
       if (!_proxyEquivalent(targetEffective, effective)) {

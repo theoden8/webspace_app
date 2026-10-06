@@ -286,7 +286,7 @@ The system SHALL capture `controller.saveState()` bytes before disposing any non
 - Webspace switch unload in legacy mode
 - Memory pressure cascade `cacheCleared → savedForRestore`
 
-Site deletion is the only path that does NOT save state — it removes the entry from `WebViewStateStorage` instead, since the site is being thrown away entirely.
+Every unload goes through `SiteUnloadEngine.unload`, whose `UnloadReason` decides the capture. Two paths do NOT save state: site deletion, which removes the entry from `WebViewStateStorage` instead since the site is being thrown away entirely, and a home reset of an always-open-home or incognito site, which is sent back to its home page on purpose (see always-open-home).
 
 #### Scenario: Webspace switch in legacy mode preserves restorable state
 
