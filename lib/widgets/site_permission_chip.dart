@@ -1,19 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_permission_state.dart';
-
-/// Localized one-word label for [state].
-String sitePermissionStateLabel(
-  AppLocalizations loc,
-  SitePermissionState state,
-) =>
-    switch (state) {
-      SitePermissionState.ask => loc.permissionStateAsk,
-      SitePermissionState.allowed => loc.permissionStateAllowed,
-      SitePermissionState.simulated => loc.permissionStateSimulated,
-      SitePermissionState.blocked => loc.permissionStateBlocked,
-    };
 
 /// The trailing state marker on a permission row.
 ///
@@ -35,7 +24,7 @@ class SitePermissionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final loc = AppLocalizations.of(context);
-    final label = sitePermissionStateLabel(loc, state);
+    final label = state.label(loc);
 
     Color? background;
     Color foreground;

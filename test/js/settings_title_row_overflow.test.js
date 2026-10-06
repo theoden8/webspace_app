@@ -1,8 +1,9 @@
-// A ListTile title of `Row([Text, HintButton])` overflows on the right as soon
-// as the title text needs more room than the row has - narrow windows, long
-// translations, large text scales. The fix is always the same: let the label
-// flex so it wraps instead of overflowing. This gate keeps the pattern from
-// creeping back one tile at a time.
+// A title row of `Row([Text, HintButton])` overflows on the right as soon as
+// the label needs more room than the row has. `HintedTitle`
+// (lib/widgets/setting_tile.dart) builds that row with the label flexed, so
+// the gate only has to hold every title row to it: a HintButton is built there
+// and nowhere else, apart from the placements below, none of which shares a
+// row with a label.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -12,51 +13,34 @@ const path = require('node:path');
 const repoRoot = path.resolve(__dirname, '..', '..');
 const scanRoots = ['lib/main.dart', 'lib/screens', 'lib/widgets'];
 
-// How far past `children: [` we still consider ourselves inside the same row.
-const ROW_WINDOW = 600;
+const ALLOWED = {
+  'lib/widgets/hint_button.dart': 'the widget',
+  'lib/widgets/setting_tile.dart': 'HintedTitle itself',
+  'lib/screens/saved_proxies.dart': 'an AppBar action',
+  'lib/screens/tor_bridge_settings.dart': 'an AppBar action',
+  'lib/widgets/proxy_test_tile.dart': 'beside the Test button, in a Wrap',
+};
 
-function discoverDartFiles(roots) {
-  const out = [];
-  const walk = (abs, rel) => {
-    for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
-      const childAbs = path.join(abs, e.name);
-      const childRel = `${rel}/${e.name}`;
-      if (e.isDirectory()) walk(childAbs, childRel);
-      else if (e.isFile() && e.name.endsWith('.dart')) out.push(childRel);
-    }
-  };
-  for (const root of roots) {
-    const abs = path.join(repoRoot, root);
-    if (!fs.existsSync(abs)) continue;
-    if (fs.statSync(abs).isDirectory()) walk(abs, root);
-    else if (root.endsWith('.dart')) out.push(root);
-  }
-  return out;
+function dartFiles(rel) {
+  const abs = path.join(repoRoot, rel);
+  if (!fs.existsSync(abs)) return [];
+  if (!fs.statSync(abs).isDirectory()) return [rel];
+  return fs.readdirSync(abs, { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? dartFiles(`${rel}/${e.name}`)
+      : e.name.endsWith('.dart') ? [`${rel}/${e.name}`] : []);
 }
 
-function findRigidTitles(rel, source) {
-  const hits = [];
-  const opener = /children:\s*\[\s*\n\s*(\w+)\(/g;
-  for (const m of source.matchAll(opener)) {
-    if (m[1] !== 'Text' && m[1] !== 'SelectableText') continue;
-    const row = source.slice(m.index, m.index + ROW_WINDOW);
-    if (!row.includes('HintButton(')) continue;
-    const line = (source.slice(0, m.index).match(/\n/g) || []).length + 1;
-    hits.push(`  ${rel}:${line}: ${m[1]}( sits next to a HintButton unflexed`);
-  }
-  return hits;
-}
+test('a title row gets its hint button through HintedTitle', () => {
+  const offenders = scanRoots.flatMap(dartFiles).filter((rel) =>
+    !(rel in ALLOWED)
+    && /\bHintButton\(/.test(fs.readFileSync(path.join(repoRoot, rel), 'utf8')));
+  assert.deepEqual(offenders, [],
+    'Build the title as HintedTitle(title, hint: ...) or a SettingTile, which '
+      + 'flex the label so it wraps instead of overflowing the row.');
+});
 
-test('a label sharing a row with a HintButton can flex', () => {
-  const violations = [];
-  for (const rel of discoverDartFiles(scanRoots)) {
-    const abs = path.join(repoRoot, rel);
-    violations.push(...findRigidTitles(rel, fs.readFileSync(abs, 'utf8')));
-  }
-  assert.deepEqual(
-    violations,
-    [],
-    'Wrap each label in Flexible(child: ...) so it wraps instead of '
-      + `overflowing the row:\n${violations.join('\n')}`,
-  );
+test('every allowed placement still builds a HintButton', () => {
+  const stale = Object.keys(ALLOWED).filter((rel) =>
+    !/\bHintButton\(/.test(fs.readFileSync(path.join(repoRoot, rel), 'utf8')));
+  assert.deepEqual(stale, [], 'drop these from ALLOWED');
 });

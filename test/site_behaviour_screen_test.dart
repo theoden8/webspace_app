@@ -11,6 +11,7 @@ import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 SiteBehaviourValues _values({
+  bool archived = false,
   bool alwaysOpenHome = false,
   bool kioskMode = false,
   bool fullscreenMode = false,
@@ -25,6 +26,7 @@ SiteBehaviourValues _values({
   String? searchDefault,
 }) =>
     SiteBehaviourValues(
+      archived: archived,
       alwaysOpenHome: alwaysOpenHome,
       kioskMode: kioskMode,
       fullscreenMode: fullscreenMode,

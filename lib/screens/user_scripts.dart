@@ -4,8 +4,11 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/user_script.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/dirty_guard.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// Screen for managing user scripts.
 ///
@@ -190,29 +193,15 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     required bool isGlobal,
   }) async {
     final loc = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.userScriptsDeleteDialogTitle),
-        content: Text(
-          isGlobal
-              ? loc.userScriptsDeleteGlobalBody(script.name)
-              : loc.userScriptsDeleteBody(script.name),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text(loc.commonDelete),
-          ),
-        ],
-      ),
+    return confirm(
+      context,
+      title: loc.userScriptsDeleteDialogTitle,
+      body: isGlobal
+          ? loc.userScriptsDeleteGlobalBody(script.name)
+          : loc.userScriptsDeleteBody(script.name),
+      confirmLabel: loc.commonDelete,
+      destructive: true,
     );
-    return confirmed == true;
   }
 
   Future<void> _showSiteScriptActions(int index) async {
@@ -281,24 +270,14 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   Future<void> _makeGlobal(int index) async {
     final loc = AppLocalizations.of(context);
     final script = _scripts[index];
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.userScriptsMakeGlobal),
-        content: Text(loc.userScriptsMakeGlobalBody(script.name)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.userScriptsMakeGlobal),
-          ),
-        ],
-      ),
+    final confirmed = await confirm(
+      context,
+      title: loc.userScriptsMakeGlobal,
+      body: loc.userScriptsMakeGlobalBody(script.name),
+      confirmLabel: loc.userScriptsMakeGlobal,
+      destructive: false,
     );
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       setState(() {
         final promoted = _scripts.removeAt(index);
         _globalScripts.add(promoted);
@@ -540,7 +519,8 @@ class UserScriptEditScreen extends StatefulWidget {
   State<UserScriptEditScreen> createState() => _UserScriptEditScreenState();
 }
 
-class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
+class _UserScriptEditScreenState extends State<UserScriptEditScreen>
+    with DirtyGuard<UserScriptEditScreen> {
   late TextEditingController _nameController;
   late TextEditingController _sourceController;
   late TextEditingController _urlController;
@@ -569,7 +549,24 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     _enabled = widget.script?.enabled ?? true;
     _urlSource = widget.script?.urlSource;
     _originalUrl = widget.script?.url;
+    markClean();
+    for (final c in [_nameController, _sourceController, _urlController]) {
+      c.addListener(_changed);
+    }
   }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Record snapshot() => (
+        name: _nameController.text,
+        source: _sourceController.text,
+        url: _urlController.text,
+        injectionTime: _injectionTime,
+        bypassSitePolicy: _bypassSitePolicy,
+      );
 
   @override
   void dispose() {
@@ -673,7 +670,8 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
     final loc = AppLocalizations.of(context);
     final isEditing = widget.script != null;
     const urlHint = 'https://cdn.jsdelivr.net/npm/package/lib.min.js';
-    return Scaffold(
+    return guardPop(
+        child: Scaffold(
       appBar: AppBar(
         title: Text(
           isEditing ? loc.userScriptsEditTitle : loc.userScriptsNewTitle,
@@ -741,14 +739,8 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
               border: const OutlineInputBorder(),
             ),
             items: [
-              DropdownMenuItem(
-                value: UserScriptInjectionTime.atDocumentStart,
-                child: Text(loc.userScriptsAtDocumentStart),
-              ),
-              DropdownMenuItem(
-                value: UserScriptInjectionTime.atDocumentEnd,
-                child: Text(loc.userScriptsAtDocumentEnd),
-              ),
+              for (final time in UserScriptInjectionTime.values)
+                DropdownMenuItem(value: time, child: Text(time.label(loc))),
             ],
             onChanged: (value) {
               if (value != null) setState(() => _injectionTime = value);
@@ -757,15 +749,8 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.userScriptsBypassSitePolicyLabel)),
-                HintButton(
-                  title: loc.userScriptsBypassSitePolicyLabel,
-                  description: loc.userScriptsBypassSitePolicyHint,
-                ),
-              ],
-            ),
+            title: HintedTitle(loc.userScriptsBypassSitePolicyLabel,
+              hint: loc.userScriptsBypassSitePolicyHint),
             value: _bypassSitePolicy,
             onChanged: (v) => setState(() => _bypassSitePolicy = v),
           ),
@@ -800,6 +785,6 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen> {
           ],
         ],
       ),
-    );
+    ));
   }
 }

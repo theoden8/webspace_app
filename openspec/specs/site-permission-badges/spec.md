@@ -122,6 +122,13 @@ grant on any platform.
 **Then** no badge is drawn, because the effective values are `block` / `block` / `block` / off / `false` / off
 **And** the stored modes are unchanged for when the site leaves the archive
 
+#### Scenario: The Permissions row and screen agree with the badges
+
+**Given** the same archive-tier site
+**When** its settings open
+**Then** the Permissions row lists none of those grants
+**And** on the Permissions screen each of those capabilities reads Blocked, dimmed and locked, saying the archive fixes it
+
 ### Requirement: PERMBADGE-002 — Real Device Access Reads Differently From Simulated
 
 A badge for a grant that hands the site a real device or capability

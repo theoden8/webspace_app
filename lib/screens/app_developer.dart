@@ -11,7 +11,7 @@ import 'package:webspace/services/icon_service.dart'
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/external_tor_tiles.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 
 /// Turns developer mode on or off, with everything it decides.
@@ -155,16 +155,9 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
       body: ListView(
         children: [
           SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsDeveloperMode)),
-                HintButton(
-                  title: loc.appSettingsDeveloperMode,
-                  description: loc.appSettingsDeveloperModeHint,
-                ),
-              ],
-            ),
             secondary: const Icon(Icons.developer_mode),
+            title: HintedTitle(loc.appSettingsDeveloperMode,
+                hint: loc.appSettingsDeveloperModeHint),
             value: !_turningOff,
             onChanged: _turningOff
                 ? null
@@ -172,112 +165,63 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
                     if (!value) _turnOff();
                   },
           ),
-          SettingsGroupHeader(loc.devToolsTabLogs),
+          SettingsSection(loc.devToolsTabLogs),
           ListTile(
             leading: const Icon(Icons.article_outlined),
             title: Text(loc.appSettingsAppLogs),
             subtitle: Text(loc.appSettingsAppLogsSubtitle),
             onTap: () => guardedOpen(() => openAppLogs(context)),
           ),
-          ListTile(
+          SettingTile(
             key: const Key('app-settings-background-log'),
             leading: const Icon(Icons.bedtime_outlined),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsBackgroundLog)),
-                HintButton(
-                  title: loc.appSettingsBackgroundLog,
-                  description: loc.appSettingsBackgroundLogHint,
-                ),
-              ],
-            ),
-            onTap: () => guardedOpen(
-                () => openAppLogs(context, startOnBackground: true)),
+            title: loc.appSettingsBackgroundLog,
+            hint: loc.appSettingsBackgroundLogHint,
+            control: Trailing(null,
+                onTap: () => guardedOpen(
+                    () => openAppLogs(context, startOnBackground: true))),
           ),
           // Site tabs run on every platform, so the group always has a row.
-          SettingsGroupHeader(
+          SettingsSection(
             loc.appSettingsExperimental,
             hint: loc.appSettingsExperimentalHint,
           ),
           if (widget.proxyRouterRunsHere)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(
-                      child: Text(loc.appSettingsExperimentalProxyRouter)),
-                  HintButton(
-                    title: loc.appSettingsExperimentalProxyRouter,
-                    description: loc.appSettingsExperimentalProxyRouterHint,
-                  ),
-                ],
-              ),
-              secondary: const Icon(Icons.hub_outlined),
-              value: _proxyRouterSwitch,
-              onChanged: (value) => _setProxyRouterSwitch(value),
+            SettingTile(
+              leading: const Icon(Icons.hub_outlined),
+              title: loc.appSettingsExperimentalProxyRouter,
+              hint: loc.appSettingsExperimentalProxyRouterHint,
+              control: Toggle(_proxyRouterSwitch, _setProxyRouterSwitch),
             ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(
-                    child: Text(loc.appSettingsExperimentalSiteIconsOnly)),
-                HintButton(
-                  title: loc.appSettingsExperimentalSiteIconsOnly,
-                  description: loc.appSettingsExperimentalSiteIconsOnlyHint,
-                ),
-              ],
-            ),
-            secondary: const Icon(Icons.image_outlined),
-            value: _siteIconsOnlySwitch,
-            onChanged: (value) => _setSiteIconsOnlySwitch(value),
+          SettingTile(
+            leading: const Icon(Icons.image_outlined),
+            title: loc.appSettingsExperimentalSiteIconsOnly,
+            hint: loc.appSettingsExperimentalSiteIconsOnlyHint,
+            control: Toggle(_siteIconsOnlySwitch, _setSiteIconsOnlySwitch),
           ),
           if (hostIsAndroid)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(
-                      child: Text(
-                          loc.appSettingsExperimentalTextureRendering)),
-                  HintButton(
-                    title: loc.appSettingsExperimentalTextureRendering,
-                    description:
-                        loc.appSettingsExperimentalTextureRenderingHint,
-                  ),
-                ],
-              ),
-              secondary: const Icon(Icons.layers_outlined),
-              value: _textureRenderingSwitch,
-              onChanged: (value) => _setTextureRenderingSwitch(value),
+            SettingTile(
+              leading: const Icon(Icons.layers_outlined),
+              title: loc.appSettingsExperimentalTextureRendering,
+              hint: loc.appSettingsExperimentalTextureRenderingHint,
+              control:
+                  Toggle(_textureRenderingSwitch, _setTextureRenderingSwitch),
             ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsExperimentalSiteTabs)),
-                HintButton(
-                  title: loc.appSettingsExperimentalSiteTabs,
-                  description: loc.appSettingsExperimentalSiteTabsHint,
-                ),
-              ],
-            ),
-            secondary: const Icon(Icons.tab_outlined),
-            value: _siteTabsSwitch,
-            onChanged: (value) => _setSiteTabsSwitch(value),
+          SettingTile(
+            leading: const Icon(Icons.tab_outlined),
+            title: loc.appSettingsExperimentalSiteTabs,
+            hint: loc.appSettingsExperimentalSiteTabsHint,
+            control: Toggle(_siteTabsSwitch, _setSiteTabsSwitch),
           ),
           if (widget.externalTorRunsHere)
             ExternalTorTiles(onTorChanged: () {
               if (mounted) setState(() {});
             }),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.hide_image_outlined),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsResetIconCache)),
-                HintButton(
-                  title: loc.appSettingsResetIconCache,
-                  description: loc.appSettingsResetIconCacheHint,
-                ),
-              ],
-            ),
-            onTap: _resetIconCache,
+            title: loc.appSettingsResetIconCache,
+            hint: loc.appSettingsResetIconCacheHint,
+            control: Trailing(null, onTap: _resetIconCache),
           ),
           const SizedBox(height: 24),
         ],

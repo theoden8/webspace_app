@@ -245,6 +245,13 @@ upgrades is the same silent bypass that checklist exists to prevent.
 **When** it navigates to an http URL
 **Then** the navigation is not upgraded
 
+#### Scenario: A site override goes back to following the app
+
+**Given** a site whose own HTTPS upgrade value is on while the app-wide one is off
+**When** the user picks "App default (Off)" on the site's Privacy screen
+**Then** the site stores no value of its own (`httpsUpgradeEnabled` null)
+**And** it follows the app-wide value from then on, whichever way that changes
+
 #### Scenario: The global default survives a backup round-trip
 
 **Given** `httpsUpgradeEnabled` is false app-wide

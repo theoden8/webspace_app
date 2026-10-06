@@ -1,9 +1,10 @@
 # BUG-006 — Site settings silently drop unsaved changes on leave
 
-Status: closed (structural gate `test/js/site_settings_dirty_snapshot.test.js`
-subsumes per-field fixes: a form field loaded in `_loadFromModel`, or a member
-written into a form object in place, but missing from `_currentSnapshot` now
-fails CI instead of shipping)
+Status: closed (one `DirtyGuard` mixin, `lib/widgets/dirty_guard.dart`, guards
+every editor; `test/js/site_settings_dirty_snapshot.test.js` fails CI when a
+form field loaded in `_loadFromModel`, or a member written into a form object
+in place, is missing from the settings screen's `snapshot()` record, and when a
+screen with a Save action does not mix the guard in)
 
 **Spec:** [openspec/specs/site-editing/spec.md](../../openspec/specs/site-editing/spec.md) — EDIT-009
 
@@ -69,6 +70,20 @@ except fields fully derived from an already-registered field.**
    Regression test: `test/site_settings_network_row_test.dart` ("pinning a
    Tor exit country guards the leave").
 
+6. **2026-10-06 — `refactor/settings-primitives`.** The symptom through a
+   path with no guard at all: the user script editor and the webspace editor
+   each have a Save action and popped on back, dropping whatever had been
+   typed. The three guards that did exist (site settings, App Settings'
+   outbound proxy, the proxy library editors) were three copies of the
+   snapshot-map diff with three dialogs. All five now mix in `DirtyGuard`,
+   whose snapshot is a record (field-by-field `==` from the compiler, with
+   `ValueList`/`ValueSet` for collections, where a joined string stood in
+   before), and the gate gained a third rule: every `lib/screens` file with a
+   `_save`/`_saveSettings` method mixes the guard in. *Why partial*: the
+   record still lists the settings screen's fields by hand, so the per-field
+   rule stays; the editor rule keys off the method name. Regression test:
+   `test/editor_discard_guard_test.dart`.
+
 ## Known open gaps
 
 - The member rule matches `_field.member = ...` statements only. A form
@@ -79,9 +94,12 @@ except fields fully derived from an already-registered field.**
   elsewhere (inline initializer only, never loaded from the model) would
   escape it — though such a field also wouldn't reflect persisted state, so
   it would be broken in a more visible way first.
-- Sub-screens reached from settings (user scripts, domain claims, QR
-  import, saved sign-ins) apply their changes immediately via callbacks
+- Sub-screens reached from settings (the user script list, domain claims,
+  QR import, saved sign-ins) apply their changes immediately via callbacks
   rather than through the Save flow; they are outside this mechanism by
-  design and do not silently drop anything. The four "Site" screens
+  design and do not silently drop anything. The user script *editor* is not
+  one of them: it has a Save action and is guarded (attempt 6).
+- The editor rule finds editors by a `_save`/`_saveSettings` method; an
+  editor whose save action is named otherwise escapes it. The four "Site" screens
   (behaviour, network, privacy, permissions) are not in that set: they
   report into the settings screen's fields, which the snapshot reads.

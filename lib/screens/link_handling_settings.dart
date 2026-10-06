@@ -3,7 +3,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/web_view_model.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// Global "Link handling" screen (LIR-008): master toggle + routing
 /// overview + manual test entry. Tapping a site row opens [onOpenSiteEditor]
@@ -68,28 +68,14 @@ class _LinkHandlingSettingsScreenState
       body: ListView(
         children: [
           SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.linkHandlingMasterToggleTitle)),
-                HintButton(
-                  title: loc.linkHandlingMasterToggleTitle,
-                  description: loc.linkHandlingMasterToggleHint,
-                ),
-              ],
-            ),
+            title: HintedTitle(loc.linkHandlingMasterToggleTitle,
+              hint: loc.linkHandlingMasterToggleHint),
             value: widget.enabled,
             onChanged: widget.onEnabledChanged,
           ),
           SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.linkHandlingClaimDomainsToggleTitle)),
-                HintButton(
-                  title: loc.linkHandlingClaimDomainsToggleTitle,
-                  description: loc.linkHandlingClaimDomainsToggleHint,
-                ),
-              ],
-            ),
+            title: HintedTitle(loc.linkHandlingClaimDomainsToggleTitle,
+              hint: loc.linkHandlingClaimDomainsToggleHint),
             value: widget.claimDomains,
             onChanged: widget.enabled ? widget.onClaimDomainsChanged : null,
           ),
@@ -384,14 +370,11 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
           child: Row(
             children: [
               Expanded(
-                child: Text(
+                child: HintedTitle(
                   loc.linkHandlingDomainClaimsTitle,
+                  hint: loc.linkHandlingDomainClaimsHint,
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
-              ),
-              HintButton(
-                title: loc.linkHandlingDomainClaimsTitle,
-                description: loc.linkHandlingDomainClaimsHint,
               ),
               IconButton(
                 icon: const Icon(Icons.add),

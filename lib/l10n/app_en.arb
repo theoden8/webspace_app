@@ -1045,22 +1045,6 @@
   "@appSettingsOutboundProxyUpdated": {
     "description": "Snackbar shown after the outbound proxy is saved"
   },
-  "appSettingsDiscardChangesTitle": "Discard changes?",
-  "@appSettingsDiscardChangesTitle": {
-    "description": "Title of the discard-proxy-changes confirmation dialog"
-  },
-  "appSettingsDiscardProxyBody": "You have unsaved proxy changes. Discard them?",
-  "@appSettingsDiscardProxyBody": {
-    "description": "Body of the discard-proxy-changes confirmation dialog"
-  },
-  "appSettingsKeepEditing": "Keep editing",
-  "@appSettingsKeepEditing": {
-    "description": "Button to dismiss the discard dialog and continue editing"
-  },
-  "appSettingsDiscard": "Discard",
-  "@appSettingsDiscard": {
-    "description": "Button to discard unsaved proxy changes"
-  },
   "appSettingsLocationPicker": "Location picker",
   "@appSettingsLocationPicker": {
     "description": "Subsection label for the location picker tile provider"
@@ -1097,15 +1081,15 @@
   },
   "appSettingsClearDataset": "Clear dataset",
   "@appSettingsClearDataset": {
-    "description": "Tooltip to delete the downloaded timezone dataset"
+    "description": "Tooltip on the button that deletes a downloaded dataset in App settings (timezone polygons, LocalCDN cache, site search list)"
   },
   "appSettingsRefreshDataset": "Refresh dataset",
   "@appSettingsRefreshDataset": {
-    "description": "Tooltip to re-download the timezone dataset"
+    "description": "Tooltip on the button that downloads a dataset again in App settings (timezone polygons, ClearURLs rules, DNS blocklist, Firefox version, LocalCDN, site search list)"
   },
   "appSettingsDownloadDataset": "Download dataset",
   "@appSettingsDownloadDataset": {
-    "description": "Tooltip to download the timezone dataset"
+    "description": "Tooltip on the button that downloads a dataset for the first time in App settings (timezone polygons, ClearURLs rules, DNS blocklist, LocalCDN, site search list)"
   },
   "appSettingsTimezonesLoaded": "Loaded {count} timezone zones",
   "@appSettingsTimezonesLoaded": {
@@ -1189,14 +1173,6 @@
   "@appSettingsClearUrlsRules": {
     "description": "Title for the ClearURLs rules entry"
   },
-  "appSettingsUpdateRules": "Update rules",
-  "@appSettingsUpdateRules": {
-    "description": "Tooltip to re-download the ClearURLs rules"
-  },
-  "appSettingsDownloadRules": "Download rules",
-  "@appSettingsDownloadRules": {
-    "description": "Tooltip to download the ClearURLs rules"
-  },
   "appSettingsClearUrlsUpdated": "ClearURLs rules updated",
   "@appSettingsClearUrlsUpdated": {
     "description": "Snackbar after ClearURLs rules download succeeds"
@@ -1229,19 +1205,6 @@
         "type": "int"
       }
     }
-  },
-  "appSettingsFirefoxVersionChecked": "Checked: {date}",
-  "@appSettingsFirefoxVersionChecked": {
-    "description": "Label showing when the Firefox version was last checked against Firefox source",
-    "placeholders": {
-      "date": {
-        "type": "String"
-      }
-    }
-  },
-  "appSettingsUpdateFirefoxVersion": "Update Firefox version",
-  "@appSettingsUpdateFirefoxVersion": {
-    "description": "Tooltip on the button that fetches the latest Firefox version over the network"
   },
   "appSettingsFirefoxVersionUpdated": "Updated to Firefox {version}",
   "@appSettingsFirefoxVersionUpdated": {
@@ -1285,14 +1248,6 @@
       }
     }
   },
-  "appSettingsDownloadBlocklist": "Download blocklist",
-  "@appSettingsDownloadBlocklist": {
-    "description": "Tooltip to download the DNS blocklist"
-  },
-  "appSettingsRefreshBlocklist": "Refresh blocklist",
-  "@appSettingsRefreshBlocklist": {
-    "description": "Tooltip to refresh the DNS blocklist"
-  },
   "appSettingsDnsBlocklistDisabled": "DNS blocklist disabled",
   "@appSettingsDnsBlocklistDisabled": {
     "description": "Snackbar when the DNS blocklist level is set to off"
@@ -1334,18 +1289,6 @@
         "type": "String"
       }
     }
-  },
-  "appSettingsUpdateResources": "Update resources",
-  "@appSettingsUpdateResources": {
-    "description": "Tooltip to update LocalCDN resources"
-  },
-  "appSettingsDownloadResources": "Download resources",
-  "@appSettingsDownloadResources": {
-    "description": "Tooltip to download LocalCDN resources"
-  },
-  "appSettingsClearCache": "Clear cache",
-  "@appSettingsClearCache": {
-    "description": "Tooltip to clear the LocalCDN cache"
   },
   "appSettingsLocalCdnDownloaded": "Downloaded {count} resources",
   "@appSettingsLocalCdnDownloaded": {
@@ -2139,9 +2082,9 @@
   "@siteSettingsAlwaysOpenHomeForced": {
     "description": "Subtitle shown when Always open Home is forced on because Incognito is enabled."
   },
-  "siteSettingsAlwaysOpenHomeSubtitle": "Reset URL on app restart and home-screen shortcut (cookies persist)",
-  "@siteSettingsAlwaysOpenHomeSubtitle": {
-    "description": "Subtitle explaining Always open Home behavior."
+  "siteSettingsAlwaysOpenHomeHint": "Reset URL on app restart and home-screen shortcut (cookies persist)",
+  "@siteSettingsAlwaysOpenHomeHint": {
+    "description": "Explanation behind the hint button of the Always open Home row: what returns to the home page and what is kept."
   },
   "siteSettingsKioskMode": "Kiosk mode",
   "@siteSettingsKioskMode": {
@@ -2657,18 +2600,6 @@
   "siteSettingsWebRtcNoDirect": "Direct connections blocked by Tracking Protection behind a proxy",
   "@siteSettingsWebRtcNoDirect": {
     "description": "Subtitle under the WebRTC policy dropdown while the site has Tracking Protection on and its traffic goes through a proxy. In that state the 'Default' option is greyed out and 'Default' behaves as 'Relay only': WebRTC may not connect directly, because a direct connection would reveal the device's real IP address around the proxy. 'Tracking Protection' is the name of a setting; 'proxy' is a network proxy server."
-  },
-  "siteSettingsDnsStatTotal": "Total",
-  "@siteSettingsDnsStatTotal": {
-    "description": "Label for the total DNS lookups stat chip."
-  },
-  "siteSettingsDnsStatAllowed": "Allowed",
-  "@siteSettingsDnsStatAllowed": {
-    "description": "Label for the allowed DNS lookups stat chip."
-  },
-  "siteSettingsDnsStatBlocked": "Blocked",
-  "@siteSettingsDnsStatBlocked": {
-    "description": "Label for the blocked DNS lookups stat chip."
   },
   "siteSettingsClearSiteData": "Clear Site Data",
   "@siteSettingsClearSiteData": {
@@ -4205,6 +4136,27 @@
   "siteSettingsForcedOffByTrackingProtection": "Forced off by Tracking Protection",
   "@siteSettingsForcedOffByTrackingProtection": {
     "description": "Subtitle on a setting that Tracking Protection turns off and locks while it is on. The inverse of the 'Forced on by Tracking Protection' subtitle."
+  },
+  "settingOn": "On",
+  "@settingOn": {
+    "description": "Choice on a per-site row that follows or overrides an app-wide switch: the setting is on for this site. One word."
+  },
+  "settingOff": "Off",
+  "@settingOff": {
+    "description": "Choice on a per-site row that follows or overrides an app-wide switch: the setting is off for this site. One word."
+  },
+  "settingFollowsApp": "App default ({value})",
+  "@settingFollowsApp": {
+    "description": "Choice on a per-site row meaning the site follows the App Settings value instead of its own. {value} is that value, the translation of On or Off.",
+    "placeholders": {
+      "value": {
+        "type": "String"
+      }
+    }
+  },
+  "settingLockedByArchive": "Fixed for sites in an archive",
+  "@settingLockedByArchive": {
+    "description": "Subtitle of a per-site setting that cannot be changed while the site is in an archived webspace, because the archive decides it (for example camera blocked, incognito on)."
   },
   "privacyGroupScreenCapture": "Screen capture",
   "@privacyGroupScreenCapture": {

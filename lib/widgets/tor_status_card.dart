@@ -19,7 +19,7 @@ import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// User-facing heading and remedy for a failure kind.
 ///
@@ -159,18 +159,8 @@ class _TorStatusCardState extends State<TorStatusCard> {
               ),
               const SizedBox(width: Spacing.sm),
               Expanded(
-                child: Row(
-                  children: [
-                    Flexible(
-                      child: Text(loc.torStatusTitle,
-                          style: theme.textTheme.labelLarge),
-                    ),
-                    HintButton(
-                      title: loc.torStatusTitle,
-                      description: loc.torStatusHint,
-                    ),
-                  ],
-                ),
+                child: HintedTitle(loc.torStatusTitle,
+                    hint: loc.torStatusHint, style: theme.textTheme.labelLarge),
               ),
               if (widget.onTap != null)
                 Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),

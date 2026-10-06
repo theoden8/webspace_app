@@ -1,14 +1,14 @@
 // Dirty-snapshot registration gate (EDIT-009 / BUG-006). The site settings
-// screen decides "warn before discarding unsaved changes?" by diffing the
-// form against a hand-enumerated snapshot map (_currentSnapshot). A form
-// field that is loaded in _loadFromModel but never registered in the
-// snapshot is invisible to the diff: editing only that field lets the pop
-// through silently and the change is dropped — exactly how kiosk mode
-// (#454) regressed after the warning shipped. This gate makes the next
-// forgotten field fail CI instead of shipping.
+// screen decides "warn before discarding unsaved changes?" by comparing the
+// form against a hand-enumerated snapshot record (DirtyGuard.snapshot). A
+// form field that is loaded in _loadFromModel but never put in the record is
+// invisible to the comparison: editing only that field lets the pop through
+// silently and the change is dropped — exactly how kiosk mode (#454)
+// regressed after the warning shipped. The record makes the comparison
+// exact; this gate makes the next forgotten field fail CI instead of shipping.
 //
 // Rule: every instance field assigned in _loadFromModel() must be
-// referenced in _currentSnapshot(), unless it is fully derived from a
+// referenced in snapshot(), unless it is fully derived from a
 // field that already is (allowlist below, each entry justified). A form
 // object edited in place (`_proxySettings.type = ...`) is registered member
 // by member: the object being in the snapshot says nothing about a member
@@ -32,21 +32,28 @@ const DERIVED = {
   _liveGpsApproximate: '_liveLocationGranularity',
 };
 
-function extractBody(src, headerRe, label) {
+function extractBody(src, headerRe, label, [open, close] = ['{', '}']) {
   const m = headerRe.exec(src);
   assert.ok(m, `${label} not found in ${SETTINGS}`);
-  const open = src.indexOf('{', m.index);
-  assert.ok(open >= 0, `${label}: no opening brace`);
+  const start = src.indexOf(open, m.index + m[0].length - 1);
+  assert.ok(start >= 0, `${label}: no opening ${open}`);
   let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') {
+  for (let i = start; i < src.length; i++) {
+    if (src[i] === open) depth++;
+    else if (src[i] === close) {
       depth--;
-      if (depth === 0) return src.slice(open + 1, i);
+      if (depth === 0) return src.slice(start + 1, i);
     }
   }
-  assert.fail(`${label}: unbalanced braces`);
+  assert.fail(`${label}: unbalanced ${open}${close}`);
 }
+
+const snapshotBody = (src) => extractBody(
+  src,
+  /Record\s+snapshot\s*\(\s*\)\s*=>\s*\(/,
+  'snapshot',
+  ['(', ')'],
+);
 
 test('settings form fields loaded from the model are all dirty-tracked', () => {
   const src = fs.readFileSync(path.join(repoRoot, SETTINGS), 'utf8');
@@ -56,11 +63,7 @@ test('settings form fields loaded from the model are all dirty-tracked', () => {
     /void\s+_loadFromModel\s*\(\s*\)\s*\{/,
     '_loadFromModel',
   );
-  const snapshotBody = extractBody(
-    src,
-    /Map<String,\s*Object\?>\s+_currentSnapshot\s*\(\s*\)\s*(?:=>)?\s*\{/,
-    '_currentSnapshot',
-  );
+  const snapshot = snapshotBody(src);
 
   // Assignment targets: `_field = ...` or `_field.member = ...` at the
   // start of a statement line. `=(?!=)` keeps `==` comparisons on the RHS
@@ -79,29 +82,25 @@ test('settings form fields loaded from the model are all dirty-tracked', () => {
   for (const f of fields) {
     if (f in DERIVED) {
       assert.ok(
-        new RegExp(`\\b${DERIVED[f]}\\b`).test(snapshotBody),
-        `${f} is allowlisted as derived from ${DERIVED[f]}, but ${DERIVED[f]} is not in _currentSnapshot`,
+        new RegExp(`\\b${DERIVED[f]}\\b`).test(snapshot),
+        `${f} is allowlisted as derived from ${DERIVED[f]}, but ${DERIVED[f]} is not in snapshot()`,
       );
       continue;
     }
-    if (!new RegExp(`\\b${f}\\b`).test(snapshotBody)) missing.push(f);
+    if (!new RegExp(`\\b${f}\\b`).test(snapshot)) missing.push(f);
   }
   assert.deepEqual(
     missing,
     [],
-    `form fields loaded in _loadFromModel but absent from _currentSnapshot ` +
+    `form fields loaded in _loadFromModel but absent from snapshot() ` +
       `(unsaved edits to them are silently dropped on back — BUG-006): ${missing.join(', ')}. ` +
-      `Register each in _currentSnapshot, or add it to DERIVED here with a justification.`,
+      `Register each in snapshot(), or add it to DERIVED here with a justification.`,
   );
 });
 
 test('form objects edited in place are dirty-tracked member by member', () => {
   const src = fs.readFileSync(path.join(repoRoot, SETTINGS), 'utf8');
-  const snapshotBody = extractBody(
-    src,
-    /Map<String,\s*Object\?>\s+_currentSnapshot\s*\(\s*\)\s*(?:=>)?\s*\{/,
-    '_currentSnapshot',
-  );
+  const snapshot = snapshotBody(src);
 
   const members = new Set();
   for (const m of src.matchAll(/^\s*(_[A-Za-z0-9_]+\.[A-Za-z0-9_]+)\s*=(?!=)/gm)) {
@@ -113,13 +112,29 @@ test('form objects edited in place are dirty-tracked member by member', () => {
   );
 
   const missing = [...members].filter(
-    (member) => !new RegExp(`${member.replace('.', '\\.')}\\b`).test(snapshotBody),
+    (member) => !new RegExp(`${member.replace('.', '\\.')}\\b`).test(snapshot),
   );
   assert.deepEqual(
     missing,
     [],
-    `members written in place but absent from _currentSnapshot (an edit to ` +
+    `members written in place but absent from snapshot() (an edit to ` +
       `only that member is dropped on back without a prompt — BUG-006): ` +
-      `${missing.join(', ')}. Register each in _currentSnapshot.`,
+      `${missing.join(', ')}. Register each in snapshot().`,
   );
+});
+
+// The same symptom through a screen with no guard at all: the user script and
+// webspace editors had a Save action and popped on back, dropping the edit.
+test('every screen with a Save action guards its edits', () => {
+  const dir = path.join(repoRoot, 'lib', 'screens');
+  const editors = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.dart'))
+    .map((f) => [`lib/screens/${f}`, fs.readFileSync(path.join(dir, f), 'utf8')])
+    .filter(([, src]) => /\b(?:void|Future<void>)\s+_save(?:Settings)?\s*\(/.test(src));
+  assert.ok(editors.length >= 4, `found only ${editors.length} editors; the scan broke`);
+  const unguarded = editors
+    .filter(([, src]) => !/\bwith\s+DirtyGuard</.test(src))
+    .map(([rel]) => rel);
+  assert.deepEqual(unguarded, [],
+    'mix in DirtyGuard (lib/widgets/dirty_guard.dart) and wrap the screen in guardPop');
 });

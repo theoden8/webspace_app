@@ -5,7 +5,9 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/webview.dart' show PlatformInfo;
+import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
@@ -245,5 +247,24 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('Discard changes?'), findsOneWidget);
+  });
+
+  testWidgets('an archived site lists no grant the archive holds off',
+      (tester) async {
+    final model = WebViewModel(initUrl: 'https://example.com/')
+      ..isArchiveTier = true
+      ..cameraMode = CameraAccessMode.real
+      ..microphoneMode = MicrophoneAccessMode.real;
+    await _pump(tester, model);
+    final row = find.ancestor(
+      of: find.text('Permissions'),
+      matching: find.byType(ListTile),
+    );
+    final summary = (tester.widget<ListTile>(row).subtitle! as Text).data!;
+    expect(summary, isNot(contains('Camera access')),
+        reason: 'the drawer shows no camera badge for it either');
+    expect(summary, isNot(contains('Microphone access')));
+    expect(model.cameraMode, CameraAccessMode.real,
+        reason: 'the stored grant survives for when it leaves the archive');
   });
 }

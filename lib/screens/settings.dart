@@ -7,8 +7,9 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/scoped.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_permission_state.dart';
-import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/location.dart';
@@ -40,7 +41,10 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show gatewayLabel, libraryProblemLabel, savedProxyLabel, torRouteLabel;
 import 'package:webspace/widgets/proxy_test_tile.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/root_messenger.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -130,7 +134,8 @@ class SettingsScreen extends StatefulWidget {
   _SettingsScreenState createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with DirtyGuard<SettingsScreen> {
   late UserProxySettings _proxySettings;
   late TextEditingController _userAgentController;
   late TextEditingController _proxyAddressController;
@@ -187,14 +192,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   LocationGranularity _liveLocationGranularity = LocationGranularity.gps;
   late WebRtcPolicy _webRtcPolicy;
 
-  /// Snapshot of every form field captured after [_loadFromModel] (and again
-  /// after a successful save). [_isDirty] compares the live form against
-  /// this map to decide whether to prompt before pop. Text-controller
-  /// listeners poke setState on every keystroke so [PopScope.canPop] gets
-  /// re-evaluated.
-  late Map<String, Object?> _initialSnapshot;
-
-
   @override
   void initState() {
     super.initState();
@@ -206,7 +203,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _longitudeController = TextEditingController();
     _accuracyController = TextEditingController();
     _loadFromModel();
-    _initialSnapshot = _currentSnapshot();
+    markClean();
     _userAgentController.addListener(_onAnyFieldChanged);
     _proxyAddressController.addListener(_onAnyFieldChanged);
     _proxyUsernameController.addListener(_onAnyFieldChanged);
@@ -228,100 +225,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() {});
   }
 
-  /// Pick the image / looped video served in [CameraAccessMode.virtual].
-  /// On error shows a SnackBar and leaves the current source untouched.
-
-  /// Pick the clip looped in [MicrophoneAccessMode.virtual]. On error shows a
-  /// SnackBar and leaves the current source untouched.
-
-  Map<String, Object?> _currentSnapshot() => {
-        'proxyType': _proxySettings.type,
-        'torExitCountry': _proxySettings.torExitCountry,
-        'savedProxyId': _proxySettings.savedProxyId,
-        'gatewayId': _proxySettings.gatewayId,
-        'credentialsId': _proxySettings.credentialsId,
-        'proxyAddress': _proxyAddressController.text,
-        'proxyUsername': _proxyUsernameController.text,
-        'proxyPassword': _proxyPasswordController.text,
-        'userAgent': _userAgentController.text,
-        'javascriptEnabled': _javascriptEnabled,
-        'thirdPartyCookiesEnabled': _thirdPartyCookiesEnabled,
-        'httpsUpgradeEnabled': _httpsUpgradeEnabled,
-        'incognito': _incognito,
-        'alwaysOpenHome': _alwaysOpenHome,
-        'kioskMode': _kioskMode,
-        'clearUrlEnabled': _clearUrlEnabled,
-        'dnsBlockEnabled': _dnsBlockEnabled,
-        'dnsBlockLevel': _dnsBlockLevel,
-        'contentBlockEnabled': _contentBlockEnabled,
-        'disabledFilterLists': (_disabledFilterLists.toList()..sort()).join(','),
-        'trackingProtectionEnabled': _trackingProtectionEnabled,
-        'letterboxEnabled': _letterboxEnabled,
-        'blockScreenshots': _blockScreenshots,
-        'localCdnEnabled': _localCdnEnabled,
-        'externalLinkMode': _externalLinkMode,
-        'routeOutboundLinks': _routeOutboundLinks,
-        'outboundPreferences': _outboundPreferences.join(','),
-        'searchAddress': _searchAddress,
-        'searchesWeb': _searchesWeb,
-        'searchSites': _searchSites.join(','),
-        'searchDefault': _searchDefault,
-        'fullscreenMode': _fullscreenMode,
-        'tabsEnabled': _tabsEnabled,
-        'htmlCachingEnabled': _htmlCachingEnabled,
-        'notificationsEnabled': _notificationsEnabled,
-        'backgroundAudioEnabled': _backgroundAudioEnabled,
-        'protectedContentAllowed': _protectedContentAllowed,
-        'cameraMode': _cameraMode,
-        'virtualCameraSource': _virtualCameraSource?.dataUrl,
-        'microphoneMode': _microphoneMode,
-        'virtualMicrophoneSource': _virtualMicrophoneSource?.dataUrl,
-        'screenShareMode': _screenShareMode,
-        'virtualScreenSource': _virtualScreenSource?.dataUrl,
-        'selectedLanguage': _selectedLanguage,
-        'zoomPercent': _zoomPercent,
-        'latitude': _latitudeController.text,
-        'longitude': _longitudeController.text,
-        'accuracy': _accuracyController.text,
-        'spoofTimezone': _spoofTimezone,
-        'spoofTimezoneFromLocation': _spoofTimezoneFromLocation,
-        'isLiveLocation': _isLiveLocation,
-        'liveLocationGranularity': _liveLocationGranularity,
-        'webRtcPolicy': _webRtcPolicy,
-      };
-
-  bool _isDirty() {
-    final cur = _currentSnapshot();
-    for (final key in _initialSnapshot.keys) {
-      if (cur[key] != _initialSnapshot[key]) return true;
-    }
-    return false;
-  }
-
-  Future<bool> _confirmDiscard() async {
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.siteSettingsDiscardDialogTitle),
-        content: Text(loc.siteSettingsDiscardDialogBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.siteSettingsDiscardKeepEditing),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              loc.siteSettingsDiscardConfirm,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
+  @override
+  Record snapshot() => (
+        proxyType: _proxySettings.type,
+        torExitCountry: _proxySettings.torExitCountry,
+        savedProxyId: _proxySettings.savedProxyId,
+        gatewayId: _proxySettings.gatewayId,
+        credentialsId: _proxySettings.credentialsId,
+        proxyAddress: _proxyAddressController.text,
+        proxyUsername: _proxyUsernameController.text,
+        proxyPassword: _proxyPasswordController.text,
+        userAgent: _userAgentController.text,
+        javascriptEnabled: _javascriptEnabled,
+        thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
+        httpsUpgradeEnabled: _httpsUpgradeEnabled,
+        incognito: _incognito,
+        alwaysOpenHome: _alwaysOpenHome,
+        kioskMode: _kioskMode,
+        clearUrlEnabled: _clearUrlEnabled,
+        dnsBlockEnabled: _dnsBlockEnabled,
+        dnsBlockLevel: _dnsBlockLevel,
+        contentBlockEnabled: _contentBlockEnabled,
+        disabledFilterLists: ValueSet(_disabledFilterLists),
+        trackingProtectionEnabled: _trackingProtectionEnabled,
+        letterboxEnabled: _letterboxEnabled,
+        blockScreenshots: _blockScreenshots,
+        localCdnEnabled: _localCdnEnabled,
+        externalLinkMode: _externalLinkMode,
+        routeOutboundLinks: _routeOutboundLinks,
+        outboundPreferences: ValueList(_outboundPreferences),
+        searchAddress: _searchAddress,
+        searchesWeb: _searchesWeb,
+        searchSites: ValueList(_searchSites),
+        searchDefault: _searchDefault,
+        fullscreenMode: _fullscreenMode,
+        tabsEnabled: _tabsEnabled,
+        htmlCachingEnabled: _htmlCachingEnabled,
+        notificationsEnabled: _notificationsEnabled,
+        backgroundAudioEnabled: _backgroundAudioEnabled,
+        protectedContentAllowed: _protectedContentAllowed,
+        cameraMode: _cameraMode,
+        virtualCameraSource: _virtualCameraSource?.dataUrl,
+        microphoneMode: _microphoneMode,
+        virtualMicrophoneSource: _virtualMicrophoneSource?.dataUrl,
+        screenShareMode: _screenShareMode,
+        virtualScreenSource: _virtualScreenSource?.dataUrl,
+        selectedLanguage: _selectedLanguage,
+        zoomPercent: _zoomPercent,
+        latitude: _latitudeController.text,
+        longitude: _longitudeController.text,
+        accuracy: _accuracyController.text,
+        spoofTimezone: _spoofTimezone,
+        spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
+        isLiveLocation: _isLiveLocation,
+        liveLocationGranularity: _liveLocationGranularity,
+        webRtcPolicy: _webRtcPolicy,
+      );
 
   void _onPermissionChanged() {
     if (mounted) setState(() {});
@@ -741,20 +700,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Update current URL to ensure reload
       widget.webViewModel.currentUrl = currentUrl;
 
-      // Mark the form clean so the PopScope guard (canPop: !_isDirty()) lets
-      // this pop through without prompting for discard. Wait one frame so
-      // the rebuild commits the new canPop value before we call pop.
-      setState(() {
-        _initialSnapshot = _currentSnapshot();
-      });
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-
       // Pop first so the Settings route leaves the tree before the parent
       // rebuilds. Notifying the parent inline would mark the Navigator dirty
       // while it is locked during the pop, tripping the '!_debugLocked'
       // assertion in NavigatorState.build.
-      Navigator.pop(context);
+      if (!await popClean()) return;
 
       rootScaffoldMessengerKey.currentState?.showSnackBar(
         SnackBar(content: Text(loc.siteSettingsSavedSnack)),
@@ -790,24 +740,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
     return true;
   }
-
-  /// Build the geolocation section. A SegmentedButton at the top (Off /
-  /// Static / Live) is always visible so all three modes are reachable
-  /// regardless of current state — the previous trailing-button layout
-  /// hid Live once coords were set, leaving no way to switch from
-  /// static-coords mode to live without clearing coords first.
-  ///
-  /// Below the selector a detail row shows whatever's relevant for the
-  /// active mode: nothing for Off, coords + edit/clear for Static,
-  /// "tracking device GPS" for Live.
-  ///
-  /// `locationMode` is derived from this state at save time, not stored
-  /// explicitly here. See [_saveSettings].
-
-
-  /// Render a timezone dropdown entry. The `null` (System default) entry is
-  /// enriched with the device's current timezone abbreviation/offset and the
-  /// current local time, so the user can see what "default" actually entails.
 
   /// Location mode as the permission screen sees it. The settings screen
   /// stores the live flag and the coordinates separately, exactly as
@@ -848,27 +780,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
       double.tryParse(_latitudeController.text.trim()) != null &&
       double.tryParse(_longitudeController.text.trim()) != null;
 
-  /// Label above a group of leaf settings. The four screens below the "Site"
-  /// heading (behaviour, network, privacy, permissions) carry their own
-  /// structure; what is left on this screen is flat controls, and a header is
-  /// all they need to stop reading as one list of unrelated things.
-  Widget _sectionHeader(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      );
-
   /// One row where seven controls used to be scattered down the screen. The
   /// subtitle names what the site actually holds, so the common question is
   /// answered without opening it.
+  /// What the site runs with, not what it stores: an archived site's
+  /// grants are held off underneath (ARCH-006), as the drawer badges show.
   Widget _buildPermissionsRow() {
     final loc = AppLocalizations.of(context);
+    final v = _permissionValues;
     final entries = <(SitePermissionState, String, IconData)>[
       (
         locationPermissionState(_effectiveLocationMode),
@@ -876,31 +795,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
         Icons.location_on_outlined
       ),
       (
-        cameraPermissionState(_cameraMode),
+        cameraPermissionState(v.effectiveCameraMode),
         loc.siteSettingsCameraAccess,
         Icons.videocam_outlined
       ),
       (
-        microphonePermissionState(_microphoneMode),
+        microphonePermissionState(v.effectiveMicrophoneMode),
         loc.siteSettingsMicrophoneAccess,
         Icons.mic_none
       ),
       (
-        screenSharePermissionState(_screenShareMode),
+        screenSharePermissionState(v.effectiveScreenShareMode),
         loc.siteSettingsScreenShare,
         Icons.screen_share_outlined
       ),
       if (widget.useContainers)
         (
-          notificationPermissionState(_notificationsEnabled),
+          notificationPermissionState(v.effectiveNotifications),
           loc.siteSettingsNotifications,
           Icons.notifications_none
         ),
       if (hostIsAndroid)
         (
-          _trackingProtectionEnabled
-              ? SitePermissionState.blocked
-              : protectedContentPermissionState(_protectedContentAllowed),
+          protectedContentPermissionState(v.effectiveProtectedContent(
+              trackingProtection: _trackingProtectionEnabled)),
           loc.siteSettingsProtectedContent,
           Icons.shield_outlined
         ),
@@ -911,50 +829,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
             e.$1 == SitePermissionState.allowed ||
             e.$1 == SitePermissionState.simulated)
         .toList();
-
-    // Built as data before it reaches Text(): the separator and the overflow
-    // count are punctuation and numbers, not translatable copy (LOC-002).
-    final String summary;
-    if (held.isEmpty) {
-      summary = loc.permissionsSummaryNothingGranted;
-    } else {
-      const separator = ' · ';
-      final shown = held
-          .take(2)
-          .map((e) => '${e.$2}: ${sitePermissionStateLabel(loc, e.$1)}')
-          .join(separator);
-      final overflow = held.length - 2;
-      summary = overflow > 0
-          ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
-          : shown;
-    }
-
-    return ListTile(
+    final scheme = Theme.of(context).colorScheme;
+    return SummaryNavRow(
       // A key, not a shield: the Privacy row directly above leads with a
       // shield, and two shields side by side read as one thing.
       leading: const Icon(Icons.key_outlined),
-      title: Text(loc.permissionsTitle),
-      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final entry in held)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: Icon(
-                entry.$3,
-                size: 16,
-                color: opensRealDevice(entry.$1)
-                    ? Theme.of(context).colorScheme.error
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          const Icon(Icons.chevron_right, size: 18),
-        ],
+      title: loc.permissionsTitle,
+      summary: summariseSettings(
+        loc,
+        [for (final e in held) '${e.$2}: ${e.$1.label(loc)}'],
+        none: loc.permissionsSummaryNothingGranted,
       ),
+      marks: [
+        for (final e in held)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 1),
+            child: Icon(e.$3,
+                size: 16,
+                color: opensRealDevice(e.$1)
+                    ? scheme.error
+                    : scheme.onSurfaceVariant),
+          ),
+      ],
       onTap: _openPermissions,
     );
   }
+
+  bool get _archived => widget.webViewModel.isArchiveTier;
+
+  SitePermissionValues get _permissionValues => SitePermissionValues(
+        archived: _archived,
+        cameraMode: _cameraMode,
+        virtualCameraSource: _virtualCameraSource,
+        microphoneMode: _microphoneMode,
+        virtualMicrophoneSource: _virtualMicrophoneSource,
+        screenShareMode: _screenShareMode,
+        virtualScreenSource: _virtualScreenSource,
+        notificationsEnabled: _notificationsEnabled,
+        backgroundAudioEnabled: _backgroundAudioEnabled,
+        protectedContentAllowed: _protectedContentAllowed,
+        locationMode: _effectiveLocationMode,
+        liveLocationGranularity: _liveLocationGranularity,
+        hasStaticCoordinates: _hasStaticCoordinates,
+        spoofTimezone: _spoofTimezone,
+        spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
+      );
 
   Future<void> _openPermissions() async {
     await Navigator.push<void>(
@@ -965,22 +884,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           trackingProtectionEnabled: _trackingProtectionEnabled,
           notificationsBlockedBySite: widget.notificationsBlockedBySite,
           showNotifications: widget.useContainers,
-          values: SitePermissionValues(
-            cameraMode: _cameraMode,
-            virtualCameraSource: _virtualCameraSource,
-            microphoneMode: _microphoneMode,
-            virtualMicrophoneSource: _virtualMicrophoneSource,
-            screenShareMode: _screenShareMode,
-            virtualScreenSource: _virtualScreenSource,
-            notificationsEnabled: _notificationsEnabled,
-            backgroundAudioEnabled: _backgroundAudioEnabled,
-            protectedContentAllowed: _protectedContentAllowed,
-            locationMode: _effectiveLocationMode,
-            liveLocationGranularity: _liveLocationGranularity,
-            hasStaticCoordinates: _hasStaticCoordinates,
-            spoofTimezone: _spoofTimezone,
-            spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
-          ),
+          values: _permissionValues,
           timezonePreview: _timezonePreview,
           coordinatesPreview: _coordinatesPreview,
           onOpenLocationPicker: _openLocationPicker,
@@ -1026,6 +930,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   SiteBehaviourValues get _behaviourValues => SiteBehaviourValues(
+        archived: _archived,
         alwaysOpenHome: _alwaysOpenHome,
         kioskMode: _kioskMode,
         fullscreenMode: _fullscreenMode,
@@ -1046,38 +951,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildBehaviourRow() {
     final loc = AppLocalizations.of(context);
     final v = _behaviourValues;
-    final on = <String>[
-      if (v.effectiveAlwaysOpenHome(_incognito)) loc.siteSettingsAlwaysOpenHome,
-      if (v.kioskMode) loc.siteSettingsKioskMode,
-      if (v.fullscreenMode) loc.siteSettingsFullscreen,
-      if (v.htmlCachingEnabled) loc.siteSettingsHtmlCaching,
-      if (v.effectiveRouteOutboundLinks)
-        loc.siteSettingsRouteOutboundLinks,
-      if (v.externalLinkMode == ExternalLinkMode.browser)
-        loc.siteSettingsExternalLinksInBrowser,
-      if (v.externalLinkMode == ExternalLinkMode.block)
-        loc.siteSettingsExternalLinksBlockedSummary,
-    ];
-
-    // Built as data before it reaches Text(): the separator and the count are
-    // punctuation and numbers, not translatable copy (LOC-002).
-    final String summary;
-    if (on.isEmpty) {
-      summary = loc.behaviourSummaryNothingOn;
-    } else {
-      const separator = ' · ';
-      final shown = on.take(2).join(separator);
-      final overflow = on.length - 2;
-      summary = overflow > 0
-          ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
-          : shown;
-    }
-
-    return ListTile(
+    return SummaryNavRow(
       leading: const Icon(Icons.tune),
-      title: Text(loc.behaviourTitle),
-      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
-      trailing: const Icon(Icons.chevron_right, size: 18),
+      title: loc.behaviourTitle,
+      summary: summariseSettings(
+        loc,
+        [
+          if (v.effectiveAlwaysOpenHome(_privacyValues.effectiveIncognito))
+            loc.siteSettingsAlwaysOpenHome,
+          if (v.kioskMode) loc.siteSettingsKioskMode,
+          if (v.fullscreenMode) loc.siteSettingsFullscreen,
+          if (v.effectiveHtmlCaching) loc.siteSettingsHtmlCaching,
+          if (v.effectiveRouteOutboundLinks) loc.siteSettingsRouteOutboundLinks,
+          ?v.effectiveExternalLinkMode.summary(loc),
+        ],
+        none: loc.behaviourSummaryNothingOn,
+      ),
       onTap: _openBehaviour,
     );
   }
@@ -1088,7 +977,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       MaterialPageRoute(
         builder: (_) => SiteBehaviourScreen(
           host: widget.webViewModel.currentUrl,
-          incognito: _incognito,
+          incognito: _privacyValues.effectiveIncognito,
           values: _behaviourValues,
           containersActive: widget.useContainers,
           routingTargets: widget.routingTargets,
@@ -1167,8 +1056,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ? null
         : (torExitCountryFor(pin)?.label ?? pin.toUpperCase());
 
-    // Built as data before it reaches Text(): a proxy type, an address, a
-    // country, the separator and the count are not translatable copy
+    // A proxy type, an address and a country are data, not translatable copy
     // (LOC-002).
     final on = <String>[
       if (inheritsAppProxy) loc.networkSummaryAppProxy,
@@ -1186,28 +1074,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 : '${v.proxyType.name} $address',
       if (proxied && v.proxyType == ProxyType.TOR && exitCountry != null)
         exitCountry,
-      if (webRtc == WebRtcPolicy.relayOnly)
-        loc.networkSummaryWebRtc(loc.siteSettingsWebRtcRelayOnly),
-      if (webRtc == WebRtcPolicy.disabled)
-        loc.networkSummaryWebRtc(loc.siteSettingsWebRtcDisabled),
+      ?webRtc.summary(loc),
     ];
-    final String summary;
-    if (on.isEmpty) {
-      summary = loc.networkSummaryDefault;
-    } else {
-      const separator = ' \u00b7 ';
-      final shown = on.take(2).join(separator);
-      final overflow = on.length - 2;
-      summary = overflow > 0
-          ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
-          : shown;
-    }
-
-    return ListTile(
+    return SummaryNavRow(
       leading: const Icon(Icons.lan_outlined),
-      title: Text(loc.networkTitle),
-      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
-      trailing: const Icon(Icons.chevron_right, size: 18),
+      title: loc.networkTitle,
+      summary: summariseSettings(
+        loc,
+        on,
+        none: loc.networkSummaryDefault,
+      ),
       onTap: _openNetwork,
     );
   }
@@ -1259,15 +1135,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   SitePrivacyValues get _privacyValues => SitePrivacyValues(
+        archived: _archived,
         trackingProtectionEnabled: _trackingProtectionEnabled,
         clearUrlEnabled: _clearUrlEnabled,
         dnsBlockEnabled: _dnsBlockEnabled,
-        dnsBlockLevel: _dnsBlockLevel,
+        dnsBlockLevel: Scoped.fromStored(_dnsBlockLevel),
         contentBlockEnabled: _contentBlockEnabled,
         disabledFilterLists: _disabledFilterLists,
         localCdnEnabled: _localCdnEnabled,
         thirdPartyCookiesEnabled: _thirdPartyCookiesEnabled,
-        httpsUpgradeEnabled: _httpsUpgradeEnabled,
+        httpsUpgrade: Scoped.fromStored(_httpsUpgradeEnabled),
         letterboxEnabled: _letterboxEnabled,
         incognito: _incognito,
         blockScreenshots: _blockScreenshots,
@@ -1279,43 +1156,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildPrivacyRow() {
     final loc = AppLocalizations.of(context);
     final v = _privacyValues;
-
-    // Built as data before it reaches Text(): the separator and the count are
-    // punctuation and numbers, not translatable copy (LOC-002).
-    final String summary;
-    if (v.trackingProtectionEnabled) {
-      summary = loc.privacySummaryProtectionOn;
-    } else {
-      final on = <String>[
-        if (v.clearUrlEnabled) loc.siteSettingsClearUrls,
-        if (v.dnsBlockEnabled) loc.siteSettingsDnsBlocklist,
-        if (v.contentBlockEnabled) loc.siteSettingsContentBlocker,
-        if (hostIsAndroid && v.localCdnEnabled) loc.siteSettingsLocalCdn,
-        if (v.incognito) loc.siteSettingsIncognito,
-        if (ScreenCaptureGuard.isSupported && v.blockScreenshots)
-          loc.siteSettingsBlockScreenshots,
-      ];
-      if (on.isEmpty) {
-        summary = loc.privacySummaryNothingOn;
-      } else {
-        const separator = ' \u00b7 ';
-        final shown = on.take(2).join(separator);
-        final overflow = on.length - 2;
-        summary = overflow > 0
-            ? '$shown$separator${loc.permissionsSummaryMore(overflow)}'
-            : shown;
-      }
-    }
-
-    return ListTile(
-      leading: Icon(
+    return SummaryNavRow(
+      leading: Icon(v.trackingProtectionEnabled
+          ? Icons.verified_user
+          : Icons.verified_user_outlined),
+      title: loc.privacyTitle,
+      summary: summariseSettings(
+        loc,
         v.trackingProtectionEnabled
-            ? Icons.verified_user
-            : Icons.verified_user_outlined,
+            ? [loc.privacySummaryProtectionOn]
+            : [
+                if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
+                if (v.effectiveDnsBlock) loc.siteSettingsDnsBlocklist,
+                if (v.effectiveContentBlock) loc.siteSettingsContentBlocker,
+                if (hostIsAndroid && v.effectiveLocalCdn) loc.siteSettingsLocalCdn,
+                if (v.effectiveIncognito) loc.siteSettingsIncognito,
+                if (ScreenCaptureGuard.isSupported && v.effectiveBlockScreenshots)
+                  loc.siteSettingsBlockScreenshots,
+              ],
+        none: loc.privacySummaryNothingOn,
       ),
-      title: Text(loc.privacyTitle),
-      subtitle: Text(summary, style: const TextStyle(fontSize: 12.5)),
-      trailing: const Icon(Icons.chevron_right, size: 18),
       onTap: _openPrivacy,
     );
   }
@@ -1333,12 +1193,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _trackingProtectionEnabled = values.trackingProtectionEnabled;
               _clearUrlEnabled = values.clearUrlEnabled;
               _dnsBlockEnabled = values.dnsBlockEnabled;
-              _dnsBlockLevel = values.dnsBlockLevel;
+              _dnsBlockLevel = values.dnsBlockLevel.stored;
               _contentBlockEnabled = values.contentBlockEnabled;
               _disabledFilterLists = values.disabledFilterLists;
               _localCdnEnabled = values.localCdnEnabled;
               _thirdPartyCookiesEnabled = values.thirdPartyCookiesEnabled;
-              _httpsUpgradeEnabled = values.httpsUpgradeEnabled;
+              _httpsUpgradeEnabled = values.httpsUpgrade.stored;
               _letterboxEnabled = values.letterboxEnabled;
               _incognito = values.incognito;
               _blockScreenshots = values.blockScreenshots;
@@ -1353,33 +1213,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    return PopScope(
-      canPop: !_isDirty(),
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final navigator = Navigator.of(context);
-        final discard = await _confirmDiscard();
-        if (discard != true || !mounted) return;
-        setState(() {
-          _initialSnapshot = _currentSnapshot();
-        });
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted) return;
-        navigator.pop();
-      },
+    return guardPop(
       child: Scaffold(
       appBar: AppBar(title: Text(loc.siteSettingsTitle)),
       body: ListView(
         children: [
-          _sectionHeader(loc.siteSettingsSectionContent),
-          SwitchListTile(
-            title: Text(loc.siteSettingsJavascriptEnabled),
-            value: _javascriptEnabled,
-            onChanged: (bool value) {
-              setState(() {
-                _javascriptEnabled = value;
-              });
-            },
+          SettingsSection(loc.siteSettingsSectionContent),
+          SettingTile(
+            title: loc.siteSettingsJavascriptEnabled,
+            hint: null,
+            control: Toggle(_javascriptEnabled,
+                (value) => setState(() => _javascriptEnabled = value)),
           ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
@@ -1554,7 +1398,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               );
             },
           ),
-          _sectionHeader(loc.siteSettingsSectionSite),
+          SettingsSection(loc.siteSettingsSectionSite),
           _buildBehaviourRow(),
           _buildNetworkRow(),
           _buildPrivacyRow(),
@@ -1578,25 +1422,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   label: Text(label, style: TextStyle(color: Colors.red)),
                   style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red)),
                   onPressed: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        title: Text(label),
-                        content: Text(dialogBody),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, false),
-                            child: Text(loc.commonCancel),
-                          ),
-                          TextButton(
-                            onPressed: () => Navigator.pop(context, true),
-                            child: Text(loc.siteSettingsClearConfirm,
-                                style: const TextStyle(color: Colors.red)),
-                          ),
-                        ],
-                      ),
+                    final confirmed = await confirm(
+                      context,
+                      title: label,
+                      body: dialogBody,
+                      confirmLabel: loc.siteSettingsClearConfirm,
+                      destructive: true,
                     );
-                    if (confirmed == true) {
+                    if (confirmed) {
                       widget.onClearCookies!();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -1675,10 +1508,3 @@ Future<void> maybeShowBackgroundNotificationLimitsDialog(
   );
   await prefs.setBool(_kBgNotifInfoShownPrefKey, true);
 }
-
-
-/// Provider tier shown by the live-mode segment picker. GPS and GSM are
-/// the two OS-level provider strategies; the "Approximate" switch
-/// rendered under GPS modulates whether the JS shim snaps the result,
-/// so it is not a separate provider — see [LocationGranularity].
-

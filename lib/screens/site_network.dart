@@ -9,10 +9,12 @@ import 'package:webspace/settings/location.dart'
     show WebRtcPolicy, resolveWebRtcPolicy;
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// Everything the network screen may change through a switch or a picker, in
 /// one value so the caller can apply a whole edit in a single `setState`.
@@ -197,41 +199,22 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     widget.onChanged(next);
   }
 
-  Widget _groupHeader(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      );
-
   // --- Proxy ---------------------------------------------------------------
 
   Widget _proxyType(AppLocalizations loc) {
     final type = _values.proxyType;
-    return ListTile(
-      title: Row(
-        children: [
-          Flexible(child: Text(loc.siteSettingsProxyType)),
-          HintButton(
-            title: loc.siteSettingsProxyType,
-            description: loc.siteSettingsProxyCoverageHint,
-          ),
-        ],
-      ),
+    return SettingTile(
+      title: loc.siteSettingsProxyType,
+      hint: loc.siteSettingsProxyCoverageHint,
       // What a configured proxy actually covers here, which is not the same
       // claim as "a proxy is configured" (LEAK-010). Absent on DEFAULT, where
       // the row claims nothing.
       subtitle: type == ProxyType.DEFAULT
           ? null
-          : Text(ProxyManager.binding == ProxyBinding.perSite
+          : (ProxyManager.binding == ProxyBinding.perSite
               ? loc.siteSettingsProxyCoverageFirstOnly
               : loc.siteSettingsProxyCoverageAll),
-      trailing: ProxyChoiceDropdown(
+      control: Trailing(ProxyChoiceDropdown(
         type: type,
         savedProxyId: _values.savedProxyId,
         gatewayId: _values.gatewayId,
@@ -239,7 +222,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         torAvailable: TorService.instance.isAvailable,
         torExternal: TorService.instance.isExternal,
         onChanged: _pickProxy,
-      ),
+      )),
     );
   }
 
@@ -311,19 +294,11 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         (pinned == null || pinned.trim().isEmpty
             ? loc.siteSettingsTorExitCountryAny
             : pinned.toUpperCase());
-    return ListTile(
-      title: Row(
-        children: [
-          Flexible(child: Text(loc.siteSettingsTorExitCountry)),
-          HintButton(
-            title: loc.siteSettingsTorExitCountry,
-            description: loc.siteSettingsTorExitCountryHint,
-          ),
-        ],
-      ),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: _pickTorExitCountry,
+    return SettingTile(
+      title: loc.siteSettingsTorExitCountry,
+      hint: loc.siteSettingsTorExitCountryHint,
+      subtitle: subtitle,
+      control: Opens(_pickTorExitCountry),
     );
   }
 
@@ -357,17 +332,8 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
   List<Widget> _proxyGroup(AppLocalizations loc) {
     final type = _values.proxyType;
     return [
-      _groupHeader(loc.networkGroupProxy),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-        child: Text(
-          loc.siteSettingsProxyShared,
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
+      SettingsSection(loc.networkGroupProxy),
+      SettingsNote(loc.siteSettingsProxyShared),
       _proxyType(loc),
       // An external tor picks its own exits (TOR-025).
       if (type == ProxyType.TOR && !TorService.instance.isExternal)
@@ -409,39 +375,18 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
       trackingProtectionEnabled: widget.trackingProtectionEnabled,
       proxied: proxied,
     );
-    return ListTile(
-      title: Row(
-        children: [
-          Flexible(child: Text(loc.siteSettingsWebRtcPolicy)),
-          HintButton(
-            title: loc.siteSettingsWebRtcHintTitle,
-            description: loc.siteSettingsWebRtcHintBody,
-          ),
-        ],
-      ),
-      subtitle: noDirect ? Text(loc.siteSettingsWebRtcNoDirect) : null,
-      trailing: DropdownButton<WebRtcPolicy>(
-        value: shown,
-        onChanged: (next) {
-          // Re-picking the forced value would store it, and turning the
-          // umbrella off later would then keep it instead of Default.
-          if (next != null && next != shown) {
-            _update(_values.copyWith(webRtcPolicy: next));
-          }
-        },
-        items: [
-          DropdownMenuItem(
-              value: WebRtcPolicy.defaultPolicy,
-              enabled: !noDirect,
-              child: Text(loc.siteSettingsWebRtcDefault)),
-          DropdownMenuItem(
-              value: WebRtcPolicy.relayOnly,
-              child: Text(loc.siteSettingsWebRtcRelayOnly)),
-          DropdownMenuItem(
-              value: WebRtcPolicy.disabled,
-              child: Text(loc.siteSettingsWebRtcDisabled)),
-        ],
-      ),
+    // Shows the forced value; re-picking it is not a change, so turning the
+    // umbrella off later restores Default rather than a stored copy of it.
+    return EnumTile(
+      title: loc.siteSettingsWebRtcPolicy,
+      hintTitle: loc.siteSettingsWebRtcHintTitle,
+      hint: loc.siteSettingsWebRtcHintBody,
+      subtitle: noDirect ? loc.siteSettingsWebRtcNoDirect : null,
+      values: WebRtcPolicy.values,
+      label: (p) => p.label(loc),
+      value: shown,
+      offered: (p) => !noDirect || p != WebRtcPolicy.defaultPolicy,
+      onChanged: (p) => _update(_values.copyWith(webRtcPolicy: p)),
     );
   }
 
@@ -452,18 +397,9 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
       appBar: AppBar(title: Text(loc.networkTitle)),
       body: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text(
-              widget.host,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
+          SettingsNote.host(widget.host),
           if (widget.proxySupported) ..._proxyGroup(loc),
-          _groupHeader(loc.networkGroupConnection),
+          SettingsSection(loc.networkGroupConnection),
           _webRtc(loc),
           if (widget.showSavedSignIns) SavedSignInsTile(siteId: widget.siteId),
           const SizedBox(height: 24),
@@ -508,23 +444,13 @@ class _SavedSignInsTileState extends State<SavedSignInsTile> {
 
   Future<void> _forget() async {
     final loc = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.siteSettingsSavedSignInsClearTitle),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.siteSettingsClearConfirm),
-          ),
-        ],
-      ),
+    final confirmed = await confirm(
+      context,
+      title: loc.siteSettingsSavedSignInsClearTitle,
+      confirmLabel: loc.siteSettingsClearConfirm,
+      destructive: true,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     await _storage.removeSite(widget.siteId);
     await _load();
   }
@@ -533,25 +459,18 @@ class _SavedSignInsTileState extends State<SavedSignInsTile> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final count = _count;
-    return ListTile(
-      title: Row(
-        children: [
-          Flexible(child: Text(loc.siteSettingsSavedSignIns)),
-          HintButton(
-            title: loc.siteSettingsSavedSignIns,
-            description: loc.siteSettingsSavedSignInsHint,
-          ),
-        ],
-      ),
+    return SettingTile(
+      title: loc.siteSettingsSavedSignIns,
+      hint: loc.siteSettingsSavedSignInsHint,
       subtitle: count == null
           ? null
-          : Text(count == 0
+          : (count == 0
               ? loc.siteSettingsSavedSignInsNone
               : loc.siteSettingsSavedSignInsCount(count)),
-      trailing: TextButton(
+      control: Trailing(TextButton(
         onPressed: (count ?? 0) > 0 ? _forget : null,
         child: Text(loc.siteSettingsClearConfirm),
-      ),
+      )),
     );
   }
 }

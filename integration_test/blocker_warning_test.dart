@@ -34,6 +34,7 @@ import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/stat_chip.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -193,17 +194,18 @@ void main() {
     await pump(tester, DevToolsScreen(cookieManager: CookieManager()));
 
     // host == null and engine active: the ABP tab is first and selected.
-    String chip(String label, String value) => '$label $value';
-    for (final expected in [
-      chip('blocked', '5'),
-      chip('allowed', '1'),
-      chip('consulted', '6'),
+    for (final (label, value) in [
+      ('blocked', '5'),
+      ('allowed', '1'),
+      ('consulted', '6'),
     ]) {
       expect(
-          find.byWidgetPredicate((w) =>
-              w is RichText && w.text.toPlainText() == expected),
+          find.descendant(
+              of: find.byWidgetPredicate(
+                  (w) => w is StatChip && w.label == label),
+              matching: find.text(value)),
           findsOneWidget,
-          reason: 'ABP tab should render "$expected"');
+          reason: 'ABP tab should show $value over "$label"');
     }
     // The native drain produced one untimed sample row for the host.
     expect(find.text('ads.example.net'), findsOneWidget);

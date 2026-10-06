@@ -8,8 +8,7 @@ import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
-import 'package:webspace/theme/design_tokens.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
 /// Tor as one runtime shared by the whole app (TOR-004): what state it is
@@ -43,23 +42,6 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
     super.dispose();
   }
 
-  Widget _groupHeader(ThemeData theme, String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(
-            Spacing.lg, Spacing.lg, Spacing.lg, Spacing.xs),
-        child: Text(
-          title,
-          style: theme.textTheme.titleSmall
-              ?.copyWith(color: theme.colorScheme.primary),
-        ),
-      );
-
-  Widget _hinted(String title, String hint) => Row(
-        children: [
-          Flexible(child: Text(title)),
-          HintButton(title: title, description: hint),
-        ],
-      );
-
   String _exitCountry(AppLocalizations loc) {
     final nodes = TorService.instance.exitNodes;
     if (nodes == null || nodes.isEmpty) return loc.siteSettingsTorExitCountryAny;
@@ -76,7 +58,6 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final theme = Theme.of(context);
     final using =
         summarizeTorHolders(TorService.instance.holders, widget.siteNames);
     final external = TorService.instance.isExternal;
@@ -88,7 +69,7 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
         children: [
           const TorStatusCard(),
           const Divider(),
-          _groupHeader(theme, loc.torStateUsedBy),
+          SettingsSection(loc.torStateUsedBy),
           if (using.isEmpty)
             ListTile(
               leading: const Icon(Icons.power_settings_new),
@@ -114,38 +95,39 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
           // An external tor keeps its exits and bridges to itself: the app
           // reaches it over SOCKS alone (TOR-025).
           if (external)
-            ListTile(
+            SettingTile(
               leading: const Icon(Icons.lan_outlined),
-              title: _hinted(loc.appSettingsExperimentalExternalTor,
-                  loc.appSettingsExperimentalExternalTorHint),
-              subtitle: Text(externalAddress),
+              title: loc.appSettingsExperimentalExternalTor,
+              hint: loc.appSettingsExperimentalExternalTorHint,
+              subtitle: externalAddress,
             ),
           if (!external)
-            ListTile(
+            SettingTile(
               leading: const Icon(Icons.flag_outlined),
-              title: _hinted(
-                  loc.siteSettingsTorExitCountry, loc.torStateExitCountryHint),
-              subtitle: Text(_exitCountry(loc)),
+              title: loc.siteSettingsTorExitCountry,
+              hint: loc.torStateExitCountryHint,
+              subtitle: _exitCountry(loc),
             ),
           if (!external)
-            ListTile(
+            SettingTile(
               leading: const Icon(Icons.alt_route),
-              title: _hinted(loc.torBridgesTitle, loc.torBridgesHint),
-              subtitle: Text(_bridges(loc)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () async {
+              title: loc.torBridgesTitle,
+              hint: loc.torBridgesHint,
+              subtitle: _bridges(loc),
+              control: Opens(() async {
                 await Navigator.of(context).push(
                   MaterialPageRoute<void>(
                     builder: (_) => const TorBridgeSettingsScreen(),
                   ),
                 );
                 if (mounted) setState(() {});
-              },
+              }),
             ),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.call_split),
-            title: _hinted(loc.torStateCircuits, loc.torStateCircuitsHint),
-            subtitle: Text(loc.torStateCircuitsPerSite),
+            title: loc.torStateCircuits,
+            hint: loc.torStateCircuitsHint,
+            subtitle: loc.torStateCircuitsPerSite,
           ),
         ],
       ),

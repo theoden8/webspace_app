@@ -6,7 +6,7 @@ import 'package:webspace/services/outbound_http_types.dart'
     show splitProxyAddress;
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/external_tor.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// The Tor (external) switch of the Experimental group and, while it is on,
 /// the SOCKS address of the tor it names (TOR-025).
@@ -54,15 +54,8 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
       mainAxisSize: MainAxisSize.min,
       children: [
         SwitchListTile(
-          title: Row(
-            children: [
-              Flexible(child: Text(loc.appSettingsExperimentalExternalTor)),
-              HintButton(
-                title: loc.appSettingsExperimentalExternalTor,
-                description: loc.appSettingsExperimentalExternalTorHint,
-              ),
-            ],
-          ),
+          title: HintedTitle(loc.appSettingsExperimentalExternalTor,
+            hint: loc.appSettingsExperimentalExternalTorHint),
           secondary: const Icon(Icons.security_outlined),
           value: _switch,
           onChanged: _setSwitch,
@@ -70,15 +63,8 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
         if (_switch)
           ListTile(
             leading: const Icon(Icons.lan_outlined),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.externalTorAddress)),
-                HintButton(
-                  title: loc.externalTorAddress,
-                  description: loc.externalTorAddressHint,
-                ),
-              ],
-            ),
+            title: HintedTitle(loc.externalTorAddress,
+              hint: loc.externalTorAddressHint),
             subtitle: Text(_address),
             trailing: const Icon(Icons.edit_outlined),
             onTap: _editAddress,

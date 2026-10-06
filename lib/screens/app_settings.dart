@@ -19,6 +19,7 @@ import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 
 /// App Settings: an index of categories, each a screen of its own, like the
@@ -415,9 +416,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     return summariseSettings(
       loc,
       [
-        if (tabStripMode(
+        if (TabStrip.of(
                 showTabStrip: _showTabStrip, tabBarButton: _tabBarButton) !=
-            0)
+            TabStrip.hidden)
           loc.appSettingsSiteTabStrip,
         if (_fullscreenOnShortcut) loc.appSettingsFullscreenOnShortcut,
         if (backOpensMenuOffered && _backOpensMenu)
@@ -437,28 +438,28 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       ),
       body: ListView(
         children: [
-          SettingsGroupHeader(loc.appSettingsGroupApp),
-          SettingsCategoryRow(
-            icon: Icons.palette_outlined,
+          SettingsSection(loc.appSettingsGroupApp),
+          SummaryNavRow(
+            leading: const Icon(Icons.palette_outlined),
             title: loc.appSettingsAppearance,
             summary: _appearanceSummary(loc),
             onTap: _openAppearance,
           ),
-          SettingsCategoryRow(
-            icon: Icons.tune,
+          SummaryNavRow(
+            leading: const Icon(Icons.tune),
             title: loc.appSettingsBehaviour,
             summary: _behaviourSummary(loc),
             onTap: _openBehaviour,
           ),
-          SettingsGroupHeader(loc.appSettingsGroupSites),
-          SettingsCategoryRow(
-            icon: Icons.lan_outlined,
+          SettingsSection(loc.appSettingsGroupSites),
+          SummaryNavRow(
+            leading: const Icon(Icons.lan_outlined),
             title: loc.appSettingsNetwork,
             summary: appNetworkSummary(loc),
             onTap: _openNetwork,
           ),
-          SettingsCategoryRow(
-            icon: Icons.verified_user_outlined,
+          SummaryNavRow(
+            leading: const Icon(Icons.verified_user_outlined),
             title: loc.appSettingsPrivacy,
             summary: summariseSettings(
               loc,
@@ -471,25 +472,26 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             ),
             onTap: _openPrivacy,
           ),
-          SettingsCategoryRow(
-            icon: Icons.code,
+          SummaryNavRow(
+            leading: const Icon(Icons.code),
             title: loc.appSettingsUserScripts,
             summary: widget.globalUserScripts.isEmpty
                 ? loc.appSettingsNoGlobalScripts
                 : loc.appSettingsScriptsDefined(widget.globalUserScripts.length),
             onTap: _openUserScripts,
           ),
-          SettingsGroupHeader(loc.appSettingsData),
-          SettingsCategoryRow(
-            icon: Icons.settings_backup_restore,
+          SettingsSection(loc.appSettingsData),
+          SummaryNavRow(
+            leading: const Icon(Icons.settings_backup_restore),
             title: loc.appSettingsBackupAndArchives,
+            summary: null,
             onTap: _openBackup,
           ),
-          SettingsGroupHeader(loc.appSettingsAbout),
+          SettingsSection(loc.appSettingsAbout),
           // Next to the version row whose taps turn it on.
           if (_developerMode)
-            SettingsCategoryRow(
-              icon: Icons.developer_mode,
+            SummaryNavRow(
+              leading: const Icon(Icons.developer_mode),
               title: loc.appSettingsDeveloper,
               summary: summariseSettings(
                 loc,

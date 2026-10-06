@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// Lists every (host, port, sha256) the user has approved via the
 /// "Untrusted certificate" prompt. Each entry has an "Untrust" action
@@ -39,26 +40,14 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
 
   Future<void> _untrust(TrustedHostEntry entry) async {
     final loc = AppLocalizations.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.trustedCertRevokeDialogTitle),
-        content: Text(
-          loc.trustedCertRevokeDialogBody(entry.host, entry.port),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.trustedCertRevokeConfirm),
-          ),
-        ],
-      ),
+    final ok = await confirm(
+      context,
+      title: loc.trustedCertRevokeDialogTitle,
+      body: loc.trustedCertRevokeDialogBody(entry.host, entry.port),
+      confirmLabel: loc.trustedCertRevokeConfirm,
+      destructive: true,
     );
-    if (ok != true) return;
+    if (!ok) return;
     await TrustedHostsService.instance.untrust(
       host: entry.host,
       port: entry.port,
@@ -71,24 +60,14 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
 
   Future<void> _confirmClearAll() async {
     final loc = AppLocalizations.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.trustedCertRevokeAllDialogTitle),
-        content: Text(loc.trustedCertRevokeAllDialogBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.trustedCertRevokeAllConfirm),
-          ),
-        ],
-      ),
+    final ok = await confirm(
+      context,
+      title: loc.trustedCertRevokeAllDialogTitle,
+      body: loc.trustedCertRevokeAllDialogBody,
+      confirmLabel: loc.trustedCertRevokeAllConfirm,
+      destructive: true,
     );
-    if (ok != true) return;
+    if (!ok) return;
     await TrustedHostsService.instance.clear();
     if (!mounted) return;
     setState(() {

@@ -72,14 +72,15 @@ void main() {
           reason: 'App Settings offers search rows only behind the gate');
       expect(gate![1], contains('leading: const Icon(Icons.travel_explore)'),
           reason: 'Default search');
-      expect(gate[1], contains('SiteSearchListTile('),
+      expect(gate[1], contains('create: SiteSearchListDataset.new'),
           reason: 'and the site search list download (LIR-036)');
-      expect('SiteSearchListTile('.allMatches(settings).length, 1,
+      expect('SiteSearchListDataset.new'.allMatches(settings).length, 1,
           reason: 'built in one place, behind the gate');
       for (final other in Directory('lib/screens').listSync()) {
         if (other.path.endsWith('app_behaviour.dart')) continue;
         if (other is! File || !other.path.endsWith('.dart')) continue;
-        expect(other.readAsStringSync(), isNot(contains('SiteSearchListTile(')),
+        expect(other.readAsStringSync(),
+            isNot(contains('SiteSearchListDataset.new')),
             reason: '${other.path} builds the site search list outside the '
                 'gate');
       }

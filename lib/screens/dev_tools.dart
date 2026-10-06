@@ -22,7 +22,9 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/background_log_view.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/log_entry_line.dart';
+import 'package:webspace/widgets/stat_chip.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
 
@@ -1344,7 +1346,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
     return Column(
       children: [
-        _buildDnsStats(stats),
+        DnsStatChips(stats, padding: const EdgeInsets.fromLTRB(12, 8, 12, 4)),
         _buildDnsFilters(stats),
         _buildDnsActions(entries),
         Expanded(
@@ -1361,49 +1363,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDnsStats(DnsStats stats) {
-    final loc = AppLocalizations.of(context);
-    final blockRate = '${stats.blockRate.toStringAsFixed(1)}%';
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-      child: Row(
-        children: [
-          _buildDnsStatCard(loc.devToolsDnsTotal, stats.total.toString(), Colors.blue),
-          const SizedBox(width: 8),
-          _buildDnsStatCard(loc.devToolsDnsAllowed, stats.allowed.toString(), Colors.green),
-          const SizedBox(width: 8),
-          _buildDnsStatCard(loc.devToolsDnsBlocked, stats.blocked.toString(), Colors.red),
-          const SizedBox(width: 8),
-          _buildDnsStatCard(loc.devToolsDnsBlockRate, blockRate,
-              stats.blockRate > 0 ? Colors.orange : Colors.grey),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDnsStatCard(String label, String value, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-        decoration: BoxDecoration(
-          color: color.withAlpha(20),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withAlpha(60)),
-        ),
-        child: Column(
-          children: [
-            Text(value,
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: color)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: TextStyle(fontSize: 10, color: color.withAlpha(180))),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1543,19 +1502,25 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             spacing: 8,
             runSpacing: 4,
             children: [
-              _abpStatChip(loc.devToolsAbpEngine, svc.usingRustEngine ? loc.devToolsAbpActive : loc.devToolsAbpOff,
+              StatChip(
+                  svc.usingRustEngine
+                      ? loc.devToolsAbpActive
+                      : loc.devToolsAbpOff,
+                  loc.devToolsAbpEngine,
                   svc.usingRustEngine ? Colors.green : Colors.grey),
-              _abpStatChip(loc.devToolsAbpRecording,
-                  timingOn ? loc.devToolsAbpOn : loc.devToolsAbpOff,
+              StatChip(timingOn ? loc.devToolsAbpOn : loc.devToolsAbpOff,
+                  loc.devToolsAbpRecording,
                   timingOn ? Colors.green : Colors.orange),
-              _abpStatChip(loc.devToolsAbpConsulted, consulted.toString(), Colors.blueGrey),
-              _abpStatChip(
-                  loc.devToolsAbpAvg, avgValue, Colors.blueGrey),
-              _abpStatChip(loc.devToolsAbpMax, maxValue,
+              StatChip('$consulted', loc.devToolsAbpConsulted,
+                  Colors.blueGrey),
+              StatChip(avgValue, loc.devToolsAbpAvg, Colors.blueGrey),
+              StatChip(maxValue, loc.devToolsAbpMax,
                   maxMicros > 1000 ? Colors.orange : Colors.blueGrey),
-              _abpStatChip(loc.devToolsAbpBlocked, blockedCount.toString(), Colors.red),
-              _abpStatChip(loc.devToolsAbpAllowed, allowedCount.toString(), Colors.green),
-              _abpStatChip('uBO', svc.useUboResources ? loc.devToolsAbpOn : loc.devToolsAbpOff,
+              StatChip('$blockedCount', loc.devToolsAbpBlocked, Colors.red),
+              StatChip('$allowedCount', loc.devToolsAbpAllowed, Colors.green),
+              StatChip(
+                  svc.useUboResources ? loc.devToolsAbpOn : loc.devToolsAbpOff,
+                  'uBO',
                   svc.useUboResources ? Colors.green : Colors.grey),
             ],
           ),
@@ -1603,31 +1568,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 ),
         ),
       ],
-    );
-  }
-
-  Widget _abpStatChip(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withAlpha(36),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: RichText(
-        text: TextSpan(
-          style: Theme.of(context).textTheme.bodySmall,
-          children: [
-            TextSpan(
-              text: '$label ',
-              style: TextStyle(color: color),
-            ),
-            TextSpan(
-              text: value,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1786,24 +1726,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     _isCopyingLogs = true;
     try {
       if (sensitive > 0) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(loc.devToolsLogsCopySensitiveTitle),
-            content: Text(loc.devToolsLogsCopySensitiveBody(sensitive)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(loc.commonCancel),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(loc.devToolsCopy),
-              ),
-            ],
-          ),
+        final confirmed = await confirm(
+          context,
+          title: loc.devToolsLogsCopySensitiveTitle,
+          body: loc.devToolsLogsCopySensitiveBody(sensitive),
+          confirmLabel: loc.devToolsCopy,
+          destructive: false,
         );
-        if (confirmed != true || !mounted) return;
+        if (!confirmed || !mounted) return;
         includeSensitive = true;
       }
       await Clipboard.setData(ClipboardData(

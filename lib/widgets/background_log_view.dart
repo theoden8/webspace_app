@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/log_entry_line.dart';
 
 /// DEVTOOLS-011: the Background tab of Developer Tools. Shows what the
@@ -92,24 +93,14 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
     _isCopying = true;
     try {
       if (sensitive > 0) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(loc.devToolsLogsCopySensitiveTitle),
-            content: Text(loc.devToolsBackgroundCopySensitiveBody(sensitive)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(loc.commonCancel),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(loc.devToolsCopy),
-              ),
-            ],
-          ),
+        final confirmed = await confirm(
+          context,
+          title: loc.devToolsLogsCopySensitiveTitle,
+          body: loc.devToolsBackgroundCopySensitiveBody(sensitive),
+          confirmLabel: loc.devToolsCopy,
+          destructive: false,
         );
-        if (confirmed != true || !mounted) return;
+        if (!confirmed || !mounted) return;
         includeSensitive = true;
       }
       await Clipboard.setData(

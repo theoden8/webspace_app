@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/notification_service.dart';
+import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/virtual_camera_service.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/services/virtual_microphone_service.dart';
@@ -12,7 +13,9 @@ import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_permission_state.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/widgets/virtual_source_preview.dart';
 
@@ -26,6 +29,7 @@ import 'package:webspace/widgets/virtual_source_preview.dart';
 /// unsaved edits get dropped (BUG-006).
 class SitePermissionValues {
   const SitePermissionValues({
+    required this.archived,
     required this.cameraMode,
     required this.virtualCameraSource,
     required this.microphoneMode,
@@ -42,6 +46,9 @@ class SitePermissionValues {
     required this.spoofTimezoneFromLocation,
   });
 
+  /// Not edited here: an archive-tier site is held to the archive's posture
+  /// for every capability ARCH-006 folds.
+  final bool archived;
   final CameraAccessMode cameraMode;
   final VirtualCameraSource? virtualCameraSource;
   final MicrophoneAccessMode microphoneMode;
@@ -89,6 +96,7 @@ class SitePermissionValues {
     bool? spoofTimezoneFromLocation,
   }) =>
       SitePermissionValues(
+        archived: archived,
         cameraMode: cameraMode ?? this.cameraMode,
         virtualCameraSource: clearVirtualCameraSource
             ? null
@@ -116,6 +124,23 @@ class SitePermissionValues {
         spoofTimezoneFromLocation:
             spoofTimezoneFromLocation ?? this.spoofTimezoneFromLocation,
       );
+
+  /// What the site runs with, which is what the screen and the settings row
+  /// show; the stored values survive underneath for when it leaves the
+  /// archive.
+  CameraAccessMode get effectiveCameraMode =>
+      ArchiveFold.camera(cameraMode, archived: archived);
+  MicrophoneAccessMode get effectiveMicrophoneMode =>
+      ArchiveFold.microphone(microphoneMode, archived: archived);
+  ScreenShareMode get effectiveScreenShareMode =>
+      ArchiveFold.screenShare(screenShareMode, archived: archived);
+  bool get effectiveNotifications =>
+      ArchiveFold.notifications(notificationsEnabled, archived: archived);
+  bool get effectiveBackgroundAudio =>
+      ArchiveFold.backgroundAudio(backgroundAudioEnabled, archived: archived);
+  bool? effectiveProtectedContent({required bool trackingProtection}) =>
+      resolveProtectedContent(protectedContentAllowed,
+          archived: archived, trackingProtection: trackingProtection);
 }
 
 /// One capability, as the screen renders it. Building rows and sheets from a
@@ -252,56 +277,48 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     widget.onChanged(next);
   }
 
-  Future<void> _pickCameraSource() async {
-    final result = await VirtualCameraService.pickSource();
+  /// Runs [pick]; a picked source goes to [apply], a rejected file is named in
+  /// a SnackBar, and a cancelled pick changes nothing.
+  Future<void> _pickSource<S>(
+    Future<VirtualMediaPickResult<S>> Function() pick, {
+    required void Function(S source) apply,
+    required String tooLarge,
+    required String failed,
+  }) async {
+    final result = await pick();
     if (!mounted) return;
-    if (result.source != null) {
-      _update(_values.copyWith(virtualCameraSource: result.source));
-      return;
+    final source = result.source;
+    final error = result.error;
+    if (source != null) {
+      apply(source);
+    } else if (error != null) {
+      _snack(switch (error) {
+        VirtualMediaPickError.tooLarge => tooLarge,
+        VirtualMediaPickError.type || VirtualMediaPickError.read => failed,
+      });
     }
-    if (result.error == null) return; // user cancelled
-    final loc = AppLocalizations.of(context);
-    _snack(switch (result.error!) {
-      VirtualMediaPickError.tooLarge => loc.homeCameraSourceTooLarge,
-      VirtualMediaPickError.type ||
-      VirtualMediaPickError.read =>
-        loc.homeCameraSourceError,
-    });
   }
 
-  Future<void> _pickMicrophoneSource() async {
-    final result = await VirtualMicrophoneService.pickSource();
-    if (!mounted) return;
-    if (result.source != null) {
-      _update(_values.copyWith(virtualMicrophoneSource: result.source));
-      return;
-    }
-    if (result.error == null) return;
-    final loc = AppLocalizations.of(context);
-    _snack(switch (result.error!) {
-      VirtualMediaPickError.tooLarge => loc.homeMicrophoneSourceTooLarge,
-      VirtualMediaPickError.type ||
-      VirtualMediaPickError.read =>
-        loc.homeMicrophoneSourceError,
-    });
-  }
+  Future<void> _pickCameraSource(AppLocalizations loc) => _pickSource(
+        VirtualCameraService.pickSource,
+        apply: (s) => _update(_values.copyWith(virtualCameraSource: s)),
+        tooLarge: loc.homeCameraSourceTooLarge,
+        failed: loc.homeCameraSourceError,
+      );
 
-  Future<void> _pickScreenShareSource() async {
-    final result = await VirtualScreenService.pickSource();
-    if (!mounted) return;
-    if (result.source != null) {
-      _update(_values.copyWith(virtualScreenSource: result.source));
-      return;
-    }
-    if (result.error == null) return;
-    final loc = AppLocalizations.of(context);
-    _snack(switch (result.error!) {
-      VirtualMediaPickError.tooLarge => loc.homeScreenShareSourceTooLarge,
-      VirtualMediaPickError.type ||
-      VirtualMediaPickError.read =>
-        loc.homeScreenShareSourceError,
-    });
-  }
+  Future<void> _pickMicrophoneSource(AppLocalizations loc) => _pickSource(
+        VirtualMicrophoneService.pickSource,
+        apply: (s) => _update(_values.copyWith(virtualMicrophoneSource: s)),
+        tooLarge: loc.homeMicrophoneSourceTooLarge,
+        failed: loc.homeMicrophoneSourceError,
+      );
+
+  Future<void> _pickScreenShareSource(AppLocalizations loc) => _pickSource(
+        VirtualScreenService.pickSource,
+        apply: (s) => _update(_values.copyWith(virtualScreenSource: s)),
+        tooLarge: loc.homeScreenShareSourceTooLarge,
+        failed: loc.homeScreenShareSourceError,
+      );
 
   void _snack(String message) {
     ScaffoldMessenger.of(context)
@@ -310,48 +327,78 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
 
   // --- Capability descriptors ---------------------------------------------
 
+  String? _archiveReason(AppLocalizations loc) =>
+      _values.archived ? loc.settingLockedByArchive : null;
+
+  /// One option per mode, listed in the order the states read.
+  static List<_Option> _optionsOf<T extends Enum>(
+    List<T> modes, {
+    required SitePermissionState Function(T mode) state,
+    required String Function(T mode) label,
+    required void Function(T mode) select,
+    List<_Option> unavailable = const [],
+  }) =>
+      [
+        for (final m in modes)
+          _Option(state: state(m), label: label(m), onSelect: () => select(m)),
+        ...unavailable,
+      ]..sort((a, b) => a.state.index.compareTo(b.state.index));
+
+  Future<void> _selectCamera(AppLocalizations loc, CameraAccessMode m) async {
+    _update(_values.copyWith(cameraMode: m));
+    if (m == CameraAccessMode.virtual && _values.virtualCameraSource == null) {
+      await _pickCameraSource(loc);
+    }
+  }
+
+  Future<void> _selectMicrophone(
+      AppLocalizations loc, MicrophoneAccessMode m) async {
+    _update(_values.copyWith(microphoneMode: m));
+    if (m == MicrophoneAccessMode.virtual &&
+        _values.virtualMicrophoneSource == null) {
+      await _pickMicrophoneSource(loc);
+    }
+  }
+
+  Future<void> _selectScreenShare(
+      AppLocalizations loc, ScreenShareMode m) async {
+    _update(_values.copyWith(screenShareMode: m));
+    if (m == ScreenShareMode.virtual && _values.virtualScreenSource == null) {
+      await _pickScreenShareSource(loc);
+    }
+  }
+
+  Future<void> _pickCoordinates() async {
+    if (await widget.onOpenLocationPicker()) {
+      _update(_values.copyWith(hasStaticCoordinates: true));
+    }
+  }
+
+  Future<void> _selectLocation(LocationMode m) async {
+    _update(_values.copyWith(locationMode: m));
+    if (m == LocationMode.spoof && !_values.hasStaticCoordinates) {
+      await _pickCoordinates();
+    }
+  }
+
   _Capability _camera(AppLocalizations loc) => _Capability(
-        icon: _values.cameraMode == CameraAccessMode.real
+        icon: _values.effectiveCameraMode == CameraAccessMode.real
             ? Icons.videocam
             : Icons.videocam_outlined,
         title: loc.siteSettingsCameraAccess,
         hint: loc.siteSettingsCameraAccessHint,
-        state: cameraPermissionState(_values.cameraMode),
+        state: cameraPermissionState(_values.effectiveCameraMode),
+        lockedReason: _archiveReason(loc),
         qualifier: _values.cameraMode == CameraAccessMode.virtual
             ? (_values.virtualCameraSource?.fileName ??
                 loc.siteSettingsCameraAccessNoSource)
             : null,
-        options: [
-          _Option(
-            state: SitePermissionState.ask,
-            label: loc.siteSettingsCameraAccessAsk,
-            onSelect: () =>
-                _update(_values.copyWith(cameraMode: CameraAccessMode.ask)),
-          ),
-          _Option(
-            state: SitePermissionState.allowed,
-            label: loc.siteSettingsCameraAccessAllow,
-            onSelect: () =>
-                _update(_values.copyWith(cameraMode: CameraAccessMode.real)),
-          ),
-          _Option(
-            state: SitePermissionState.simulated,
-            label: loc.siteSettingsCameraAccessVirtual,
-            onSelect: () async {
-              _update(
-                  _values.copyWith(cameraMode: CameraAccessMode.virtual));
-              if (_values.virtualCameraSource == null) {
-                await _pickCameraSource();
-              }
-            },
-          ),
-          _Option(
-            state: SitePermissionState.blocked,
-            label: loc.siteSettingsCameraAccessBlock,
-            onSelect: () =>
-                _update(_values.copyWith(cameraMode: CameraAccessMode.block)),
-          ),
-        ],
+        options: _optionsOf(
+          CameraAccessMode.values,
+          state: cameraPermissionState,
+          label: (m) => m.label(loc),
+          select: (m) => _selectCamera(loc, m),
+        ),
         detail: (context, setSheetState) {
           if (_values.cameraMode != CameraAccessMode.virtual) {
             return const SizedBox.shrink();
@@ -363,7 +410,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             actionLabel: loc.siteSettingsCameraAccessChooseSource,
             icon: Icons.photo_library_outlined,
             onPick: () async {
-              await _pickCameraSource();
+              await _pickCameraSource(loc);
               setSheetState(() {});
             },
             preview: _values.virtualCameraSource == null
@@ -377,42 +424,18 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         icon: Icons.mic_none,
         title: loc.siteSettingsMicrophoneAccess,
         hint: loc.siteSettingsMicrophoneAccessHint,
-        state: microphonePermissionState(_values.microphoneMode),
+        state: microphonePermissionState(_values.effectiveMicrophoneMode),
+        lockedReason: _archiveReason(loc),
         qualifier: _values.microphoneMode == MicrophoneAccessMode.virtual
             ? (_values.virtualMicrophoneSource?.fileName ??
                 loc.siteSettingsMicrophoneAccessNoSource)
             : null,
-        options: [
-          _Option(
-            state: SitePermissionState.ask,
-            label: loc.siteSettingsMicrophoneAccessAsk,
-            onSelect: () => _update(
-                _values.copyWith(microphoneMode: MicrophoneAccessMode.ask)),
-          ),
-          _Option(
-            state: SitePermissionState.allowed,
-            label: loc.siteSettingsMicrophoneAccessAllow,
-            onSelect: () => _update(
-                _values.copyWith(microphoneMode: MicrophoneAccessMode.real)),
-          ),
-          _Option(
-            state: SitePermissionState.simulated,
-            label: loc.siteSettingsMicrophoneAccessVirtual,
-            onSelect: () async {
-              _update(_values.copyWith(
-                  microphoneMode: MicrophoneAccessMode.virtual));
-              if (_values.virtualMicrophoneSource == null) {
-                await _pickMicrophoneSource();
-              }
-            },
-          ),
-          _Option(
-            state: SitePermissionState.blocked,
-            label: loc.siteSettingsMicrophoneAccessBlock,
-            onSelect: () => _update(
-                _values.copyWith(microphoneMode: MicrophoneAccessMode.block)),
-          ),
-        ],
+        options: _optionsOf(
+          MicrophoneAccessMode.values,
+          state: microphonePermissionState,
+          label: (m) => m.label(loc),
+          select: (m) => _selectMicrophone(loc, m),
+        ),
         detail: (context, setSheetState) {
           if (_values.microphoneMode != MicrophoneAccessMode.virtual) {
             return const SizedBox.shrink();
@@ -424,7 +447,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             actionLabel: loc.siteSettingsMicrophoneAccessChooseSource,
             icon: Icons.audiotrack_outlined,
             onPick: () async {
-              await _pickMicrophoneSource();
+              await _pickMicrophoneSource(loc);
               setSheetState(() {});
             },
           );
@@ -435,46 +458,30 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         icon: Icons.screen_share_outlined,
         title: loc.siteSettingsScreenShare,
         hint: loc.siteSettingsScreenShareHint,
-        state: screenSharePermissionState(_values.screenShareMode),
+        state: screenSharePermissionState(_values.effectiveScreenShareMode),
+        lockedReason: _archiveReason(loc),
         qualifier: _values.screenShareMode == ScreenShareMode.virtual
             ? (_values.virtualScreenSource?.fileName ??
                 loc.siteSettingsScreenShareNoSource)
             : null,
-        options: [
-          _Option(
-            state: SitePermissionState.ask,
-            label: loc.siteSettingsScreenShareAsk,
-            onSelect: () =>
-                _update(_values.copyWith(screenShareMode: ScreenShareMode.ask)),
-          ),
+        options: _optionsOf(
+          ScreenShareMode.values,
+          state: screenSharePermissionState,
+          label: (m) => m.label(loc),
+          select: (m) => _selectScreenShare(loc, m),
           // Shown, not omitted, for the same reason as the microphone's: the
           // unavailable row is where "no site is ever handed the real screen"
           // becomes visible.
-          _Option(
-            state: SitePermissionState.allowed,
-            label: loc.permissionStateAllowed,
-            onSelect: () {},
-            enabled: false,
-            unavailableReason: loc.permissionScreenShareNeverReal,
-          ),
-          _Option(
-            state: SitePermissionState.simulated,
-            label: loc.siteSettingsScreenShareVirtual,
-            onSelect: () async {
-              _update(
-                  _values.copyWith(screenShareMode: ScreenShareMode.virtual));
-              if (_values.virtualScreenSource == null) {
-                await _pickScreenShareSource();
-              }
-            },
-          ),
-          _Option(
-            state: SitePermissionState.blocked,
-            label: loc.siteSettingsScreenShareBlock,
-            onSelect: () => _update(
-                _values.copyWith(screenShareMode: ScreenShareMode.block)),
-          ),
-        ],
+          unavailable: [
+            _Option(
+              state: SitePermissionState.allowed,
+              label: loc.permissionStateAllowed,
+              onSelect: () {},
+              enabled: false,
+              unavailableReason: loc.permissionScreenShareNeverReal,
+            ),
+          ],
+        ),
         detail: (context, setSheetState) {
           if (_values.screenShareMode != ScreenShareMode.virtual) {
             return const SizedBox.shrink();
@@ -486,7 +493,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             actionLabel: loc.siteSettingsScreenShareChooseSource,
             icon: Icons.photo_library_outlined,
             onPick: () async {
-              await _pickScreenShareSource();
+              await _pickScreenShareSource(loc);
               setSheetState(() {});
             },
             preview: _values.virtualScreenSource == null
@@ -500,133 +507,85 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         },
       );
 
-  _Capability _location(AppLocalizations loc) {
-    final granularityText = switch (_values.liveLocationGranularity) {
-      LocationGranularity.gps => loc.siteSettingsLocationGranularityGps,
-      LocationGranularity.approximate =>
-        loc.siteSettingsLocationGranularityApproximate,
-      LocationGranularity.gsm => loc.siteSettingsLocationGranularityGsm,
-    };
-    return _Capability(
-      icon: _values.locationMode == LocationMode.live
-          ? Icons.my_location
-          : Icons.location_on_outlined,
-      title: loc.siteSettingsGeolocation,
-      hint: loc.siteSettingsGeolocationHint,
-      state: locationPermissionState(_values.locationMode),
-      qualifier: switch (_values.locationMode) {
-        LocationMode.live => granularityText,
-        LocationMode.spoof => _values.hasStaticCoordinates
-            ? widget.coordinatesPreview()
-            : loc.siteSettingsLocationNoneSet,
-        LocationMode.off => null,
-      },
-      options: [
-        _Option(
-          state: SitePermissionState.allowed,
-          label: loc.siteSettingsLocationLive,
-          onSelect: () =>
-              _update(_values.copyWith(locationMode: LocationMode.live)),
+  _Capability _location(AppLocalizations loc) => _Capability(
+        icon: _values.locationMode == LocationMode.live
+            ? Icons.my_location
+            : Icons.location_on_outlined,
+        title: loc.siteSettingsGeolocation,
+        hint: loc.siteSettingsGeolocationHint,
+        state: locationPermissionState(_values.locationMode),
+        qualifier: switch (_values.locationMode) {
+          LocationMode.live => _values.liveLocationGranularity.description(loc),
+          LocationMode.spoof => _values.hasStaticCoordinates
+              ? widget.coordinatesPreview()
+              : loc.siteSettingsLocationNoneSet,
+          LocationMode.off => null,
+        },
+        options: _optionsOf(
+          LocationMode.values,
+          state: locationPermissionState,
+          label: (m) => m.label(loc),
+          select: _selectLocation,
         ),
-        _Option(
-          state: SitePermissionState.simulated,
-          label: loc.siteSettingsLocationStatic,
-          onSelect: () async {
-            _update(_values.copyWith(locationMode: LocationMode.spoof));
-            if (!_values.hasStaticCoordinates) {
-              final picked = await widget.onOpenLocationPicker();
-              if (picked) {
-                _update(_values.copyWith(hasStaticCoordinates: true));
-              }
-            }
-          },
+        detail: (context, setSheetState) => switch (_values.locationMode) {
+          LocationMode.live => _granularityPicker(loc, setSheetState),
+          LocationMode.spoof => _coordinatesDetail(loc, setSheetState),
+          LocationMode.off => const SizedBox.shrink(),
+        },
+        footer: (context, setSheetState) => _timezoneField(loc, setSheetState),
+      );
+
+  /// The three granularity tiers are one enum, so they are one control.
+  Widget _granularityPicker(AppLocalizations loc, StateSetter setSheetState) =>
+      Padding(
+        padding: const EdgeInsets.only(left: 32, top: 4, bottom: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final tier in LocationGranularity.values)
+              RadioListTile<LocationGranularity>(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                value: tier,
+                groupValue: _values.liveLocationGranularity,
+                title: Text(tier.label(loc)),
+                subtitle: Text(tier.description(loc),
+                    style: const TextStyle(fontSize: 11)),
+                onChanged: (v) {
+                  if (v == null) return;
+                  _update(_values.copyWith(liveLocationGranularity: v));
+                  setSheetState(() {});
+                },
+              ),
+          ],
         ),
-        _Option(
-          state: SitePermissionState.blocked,
-          label: loc.siteSettingsLocationOff,
-          onSelect: () =>
-              _update(_values.copyWith(locationMode: LocationMode.off)),
-        ),
-      ],
-      detail: (context, setSheetState) {
-        if (_values.locationMode == LocationMode.live) {
-          // The three granularity tiers are one enum, so they are one control.
-          // The settings screen spelled them as a GPS/GSM segmented button
-          // plus an "Approximate" switch that silently overlapped it.
-          return Padding(
-            padding: const EdgeInsets.only(left: 32, top: 4, bottom: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (final tier in LocationGranularity.values)
-                  RadioListTile<LocationGranularity>(
-                    contentPadding: EdgeInsets.zero,
-                    dense: true,
-                    value: tier,
-                    groupValue: _values.liveLocationGranularity,
-                    title: Text(switch (tier) {
-                      LocationGranularity.gps =>
-                        loc.siteSettingsLocationProviderGps,
-                      LocationGranularity.approximate =>
-                        loc.siteSettingsLocationApproximate,
-                      LocationGranularity.gsm =>
-                        loc.siteSettingsLocationProviderGsm,
-                    }),
-                    subtitle: Text(
-                      switch (tier) {
-                        LocationGranularity.gps =>
-                          loc.siteSettingsLocationGranularityGps,
-                        LocationGranularity.approximate =>
-                          loc.siteSettingsLocationGranularityApproximate,
-                        LocationGranularity.gsm =>
-                          loc.siteSettingsLocationGranularityGsm,
-                      },
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                    onChanged: (v) {
-                      if (v == null) return;
-                      _update(_values.copyWith(liveLocationGranularity: v));
-                      setSheetState(() {});
-                    },
-                  ),
-              ],
+      );
+
+  Widget _coordinatesDetail(AppLocalizations loc, StateSetter setSheetState) =>
+      Padding(
+        padding: const EdgeInsets.only(left: 32, top: 8, bottom: 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                (_values.hasStaticCoordinates
+                        ? widget.coordinatesPreview()
+                        : null) ??
+                    loc.siteSettingsLocationNoneSet,
+                style: const TextStyle(fontSize: 12),
+              ),
             ),
-          );
-        }
-        if (_values.locationMode == LocationMode.spoof) {
-          return Padding(
-            padding: const EdgeInsets.only(left: 32, top: 8, bottom: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    (_values.hasStaticCoordinates
-                            ? widget.coordinatesPreview()
-                            : null) ??
-                        loc.siteSettingsLocationNoneSet,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.map_outlined, size: 18),
-                  label: Text(loc.siteSettingsLocationPick),
-                  onPressed: () async {
-                    final picked = await widget.onOpenLocationPicker();
-                    if (picked) {
-                      _update(_values.copyWith(hasStaticCoordinates: true));
-                    }
-                    setSheetState(() {});
-                  },
-                ),
-              ],
+            OutlinedButton.icon(
+              icon: const Icon(Icons.map_outlined, size: 18),
+              label: Text(loc.siteSettingsLocationPick),
+              onPressed: () async {
+                await _pickCoordinates();
+                setSheetState(() {});
+              },
             ),
-          );
-        }
-        return const SizedBox.shrink();
-      },
-      footer: (context, setSheetState) => _timezoneField(loc, setSheetState),
-    );
-  }
+          ],
+        ),
+      );
 
   /// Sentinel for the "From picked location" entry. Not a real IANA name;
   /// translated to and from `spoofTimezoneFromLocation` when read and written.
@@ -724,12 +683,12 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         icon: Icons.shield_outlined,
         title: loc.siteSettingsProtectedContent,
         hint: loc.siteSettingsProtectedContentHint,
-        state: widget.trackingProtectionEnabled
-            ? SitePermissionState.blocked
-            : protectedContentPermissionState(_values.protectedContentAllowed),
-        lockedReason: widget.trackingProtectionEnabled
-            ? loc.siteSettingsProtectedContentBlockedByEtp
-            : null,
+        state: protectedContentPermissionState(_values.effectiveProtectedContent(
+            trackingProtection: widget.trackingProtectionEnabled)),
+        lockedReason: _archiveReason(loc) ??
+            (widget.trackingProtectionEnabled
+                ? loc.siteSettingsProtectedContentBlockedByEtp
+                : null),
         options: [
           _Option(
             state: SitePermissionState.ask,
@@ -765,12 +724,12 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       icon: Icons.notifications_none,
       title: loc.siteSettingsNotifications,
       hint: loc.siteSettingsNotificationsHint,
-      state: notificationPermissionState(_values.notificationsEnabled),
+      state: notificationPermissionState(_values.effectiveNotifications),
       qualifier: permissionDenied
           ? loc.siteSettingsNotificationsDenied(settingsPath)
           : null,
-      lockedReason:
-          blocked ? loc.siteSettingsNotificationsBlockedByProxy(blockedBy) : null,
+      lockedReason: _archiveReason(loc) ??
+          (blocked ? loc.siteSettingsNotificationsBlockedByProxy(blockedBy) : null),
       options: [
         _Option(
           state: SitePermissionState.allowed,
@@ -827,18 +786,6 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
                 child: preview,
               ),
           ],
-        ),
-      );
-
-  Widget _groupHeader(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.primary,
-          ),
         ),
       );
 
@@ -960,52 +907,33 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       appBar: AppBar(title: Text(loc.permissionsTitle)),
       body: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text(
-              widget.host,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
+          SettingsNote.host(widget.host),
           const Divider(height: 1),
-          _groupHeader(loc.permissionsGroupDeviceAccess),
+          SettingsSection(loc.permissionsGroupDeviceAccess),
           _row(_camera(loc)),
           _row(_microphone(loc)),
           _row(_screenShare(loc)),
           _row(_location(loc)),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: Text(
-              loc.permissionsRealDeviceNote,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          _groupHeader(loc.permissionsGroupBackground),
+          SettingsNote(loc.permissionsRealDeviceNote),
+          SettingsSection(loc.permissionsGroupBackground),
           if (widget.showNotifications) _row(_notifications(loc)),
-          SwitchListTile(
-            secondary: const Icon(Icons.music_note_outlined),
-            title: Text(loc.siteSettingsBackgroundAudio,
-                style: const TextStyle(fontSize: 15.5)),
-            subtitle: Text(loc.permissionsBackgroundAudioNotAGrant,
-                style: const TextStyle(fontSize: 12.5)),
-            value: _values.backgroundAudioEnabled,
-            onChanged: (value) async {
+          SettingTile(
+            leading: const Icon(Icons.music_note_outlined),
+            title: loc.siteSettingsBackgroundAudio,
+            hint: null,
+            subtitle: loc.permissionsBackgroundAudioNotAGrant,
+            lock: _values.archived ? const ArchiveLock() : null,
+            control: Toggle(_values.effectiveBackgroundAudio, (value) async {
               _update(_values.copyWith(backgroundAudioEnabled: value));
               // Android shows a media notification with transport controls for
               // background audio; on Android 13+ that needs POST_NOTIFICATIONS.
               if (value && hostIsAndroid) {
                 await NotificationService.instance.requestPermission();
               }
-            },
+            }),
           ),
           if (hostIsAndroid) ...[
-            _groupHeader(loc.permissionsGroupMedia),
+            SettingsSection(loc.permissionsGroupMedia),
             _row(_protectedContent(loc)),
           ],
           const SizedBox(height: 24),

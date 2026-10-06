@@ -456,4 +456,30 @@ void main() {
       expect(find.text('Icon cache cleared'), findsOneWidget);
     });
   });
+
+  // The hint is the only place the auto-update explanation is reachable, so
+  // it has to carry both halves (DM-004).
+  testWidgets('the Firefox version hint explains manual and automatic updates',
+      (tester) async {
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await openCategory(tester, 'Privacy');
+    final row = find.ancestor(
+        of: find.text('Firefox version'), matching: find.byType(ListTile));
+    await tester.scrollUntilVisible(find.text('Firefox version'), 400,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+        find.descendant(of: row, matching: find.byIcon(Icons.info_outline)));
+    await tester.pumpAndSettle();
+
+    final loc = AppLocalizations.of(tester.element(row));
+    final dialog = tester
+        .widgetList<Text>(find.descendant(
+            of: find.byType(AlertDialog), matching: find.byType(Text)))
+        .map((t) => t.data ?? '')
+        .join('\n');
+    expect(dialog, contains(loc.appSettingsFirefoxVersionHint));
+    expect(dialog, contains(loc.appSettingsFirefoxAutoUpdateHint));
+  });
 }

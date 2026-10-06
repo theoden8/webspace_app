@@ -4,9 +4,12 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
+import 'package:webspace/services/webview.dart' show WebViewFactory;
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/widgets/level_slider.dart';
 
 SitePrivacyValues _values({
+  bool archived = false,
   bool trackingProtection = false,
   bool clearUrl = false,
   bool dnsBlock = false,
@@ -19,10 +22,11 @@ SitePrivacyValues _values({
   bool blockScreenshots = false,
 }) =>
     SitePrivacyValues(
+      archived: archived,
       trackingProtectionEnabled: trackingProtection,
       clearUrlEnabled: clearUrl,
       dnsBlockEnabled: dnsBlock,
-      dnsBlockLevel: dnsBlockLevel,
+      dnsBlockLevel: Scoped.fromStored(dnsBlockLevel),
       contentBlockEnabled: contentBlock,
       localCdnEnabled: localCdn,
       thirdPartyCookiesEnabled: thirdPartyCookies,
@@ -68,6 +72,7 @@ void main() {
   group('SitePrivacyValues', () {
     test('the umbrella forces the four list-based subordinates on', () {
       const v = SitePrivacyValues(
+        archived: false,
         trackingProtectionEnabled: true,
         clearUrlEnabled: false,
         dnsBlockEnabled: false,
@@ -85,6 +90,7 @@ void main() {
 
     test('the umbrella forces third-party cookies off (ETP-024)', () {
       const stored = SitePrivacyValues(
+        archived: false,
         trackingProtectionEnabled: false,
         clearUrlEnabled: false,
         dnsBlockEnabled: false,
@@ -250,11 +256,62 @@ void main() {
         onChanged: (v) => seen = v,
       );
       slider(tester).onChanged!(3);
-      expect(seen!.dnsBlockLevel, 3);
+      expect(seen!.dnsBlockLevel, const Own(3));
       await tester.pumpAndSettle();
       slider(tester).onChanged!(0);
-      expect(seen!.dnsBlockLevel, isNull);
+      expect(seen!.dnsBlockLevel, const FollowApp<int>());
+      expect(seen!.dnsBlockLevel.stored, isNull);
     });
+  });
+
+  group('HTTPS upgrade follows App Settings until overridden (HTTPS-005)', () {
+    tearDown(() => WebViewFactory.httpsUpgradeEnabled = true);
+
+    DropdownButton<Scoped<bool>> dropdown(WidgetTester tester) =>
+        tester.widget(find.byType(DropdownButton<Scoped<bool>>));
+
+    testWidgets('a site override can go back to following the app',
+        (tester) async {
+      WebViewFactory.httpsUpgradeEnabled = false;
+      SitePrivacyValues? seen;
+      await _pump(
+        tester,
+        values: _values().copyWith(httpsUpgrade: const Own(true)),
+        onChanged: (v) => seen = v,
+      );
+      expect(dropdown(tester).value, const Own(true));
+      expect(dropdown(tester).items!.map((i) => i.value),
+          [const FollowApp<bool>(), const Own(true), const Own(false)]);
+
+      await tester.tap(find.byType(DropdownButton<Scoped<bool>>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('App default (Off)').last);
+      await tester.pumpAndSettle();
+
+      expect(seen!.httpsUpgrade, const FollowApp<bool>());
+      expect(seen!.httpsUpgrade.stored, isNull, reason: 'stored as null');
+      expect(seen!.effectiveHttpsUpgrade, isFalse);
+    });
+
+    testWidgets('Tracking Protection shows it forced on and locks it',
+        (tester) async {
+      await _pump(tester,
+          values: _values(trackingProtection: true)
+              .copyWith(httpsUpgrade: const Own(false)));
+      expect(dropdown(tester).value, const Own(true));
+      final row = find.ancestor(
+          of: find.text('HTTPS upgrade'), matching: find.byType(ListTile));
+      expect(tester.widget<ListTile>(row).enabled, isFalse);
+    });
+  });
+
+  testWidgets('an archived site shows the posture the archive holds it to',
+      (tester) async {
+    await _pump(tester, values: _values(archived: true));
+    final incognito = _switchTitled(tester, 'Incognito mode');
+    expect(incognito.value, isTrue, reason: 'ARCH-006: always incognito');
+    expect(incognito.onChanged, isNull);
+    expect(find.text('Fixed for sites in an archive'), findsOneWidget);
   });
 
   testWidgets('toggling a row reports the whole value back', (tester) async {

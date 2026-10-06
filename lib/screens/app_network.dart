@@ -12,10 +12,11 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
@@ -88,7 +89,7 @@ class AppNetworkScreen extends StatefulWidget {
 }
 
 class _AppNetworkScreenState extends State<AppNetworkScreen>
-    with SettingsOpenGuard {
+    with SettingsOpenGuard, DirtyGuard<AppNetworkScreen> {
   // Global outbound proxy state. Mirrors the per-site proxy UI in
   // [lib/screens/site_network.dart] but applies to *every* Dart-side outbound
   // call (DNS blocklist downloads, ClearURLs rules, content blocker rules,
@@ -99,13 +100,6 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
   late TextEditingController _outboundProxyAddressController;
   late TextEditingController _outboundProxyUsernameController;
   late TextEditingController _outboundProxyPasswordController;
-  /// Snapshot of the outbound proxy fields at last persisted state. Most
-  /// of App Settings auto-applies on change, but the proxy text fields only
-  /// flush via `onEditingComplete` / `onFieldSubmitted`, so a user who
-  /// types a partial value and pops via the system back gesture would
-  /// silently lose the edit. [_isOutboundProxyDirty] drives the PopScope
-  /// guard so we prompt instead.
-  late Map<String, Object?> _initialOutboundProxy;
 
   @override
   void initState() {
@@ -128,7 +122,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     _outboundProxyPasswordController = TextEditingController(
       text: _outboundProxy.password ?? '',
     );
-    _initialOutboundProxy = _currentOutboundProxySnapshot();
+    markClean();
     _outboundProxyAddressController.addListener(_onProxyFieldChanged);
     _outboundProxyUsernameController.addListener(_onProxyFieldChanged);
     _outboundProxyPasswordController.addListener(_onProxyFieldChanged);
@@ -223,7 +217,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     if (mounted) {
       setState(() {
         _outboundProxy = settings;
-        _initialOutboundProxy = _currentOutboundProxySnapshot();
+        markClean();
       });
     }
     // Force every loaded webview to be rebuilt so the new global proxy
@@ -276,23 +270,19 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     if (mounted) setState(() {});
   }
 
-  Map<String, Object?> _currentOutboundProxySnapshot() => {
-        'type': _outboundProxy.type,
-        'savedProxyId': _outboundProxy.savedProxyId,
-        'gatewayId': _outboundProxy.gatewayId,
-        'credentialsId': _outboundProxy.credentialsId,
-        'address': _outboundProxyAddressController.text,
-        'username': _outboundProxyUsernameController.text,
-        'password': _outboundProxyPasswordController.text,
-      };
-
-  bool _isOutboundProxyDirty() {
-    final cur = _currentOutboundProxySnapshot();
-    for (final key in _initialOutboundProxy.keys) {
-      if (cur[key] != _initialOutboundProxy[key]) return true;
-    }
-    return false;
-  }
+  /// The rest of App Settings applies on change, but the proxy text fields
+  /// only flush on editing complete, so a back gesture mid-edit would drop
+  /// them.
+  @override
+  Record snapshot() => (
+        type: _outboundProxy.type,
+        savedProxyId: _outboundProxy.savedProxyId,
+        gatewayId: _outboundProxy.gatewayId,
+        credentialsId: _outboundProxy.credentialsId,
+        address: _outboundProxyAddressController.text,
+        username: _outboundProxyUsernameController.text,
+        password: _outboundProxyPasswordController.text,
+      );
 
   Future<void> _openSavedProxies() async {
     await Navigator.push<void>(
@@ -309,80 +299,24 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     if (mounted) setState(() {});
   }
 
-  /// Set while the discard prompt is up, so a second back press does not
-  /// stack a second prompt over it.
-  bool _confirmingDiscard = false;
-
-  Future<bool> _confirmDiscardProxy() async {
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.appSettingsDiscardChangesTitle),
-        content: Text(loc.appSettingsDiscardProxyBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.appSettingsKeepEditing),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              loc.appSettingsDiscard,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    return PopScope(
-      canPop: !_isOutboundProxyDirty(),
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop || _confirmingDiscard) return;
-        final navigator = Navigator.of(context);
-        _confirmingDiscard = true;
-        final bool discard;
-        try {
-          discard = await _confirmDiscardProxy();
-        } finally {
-          _confirmingDiscard = false;
-        }
-        if (discard != true || !mounted) return;
-        setState(() {
-          _initialOutboundProxy = _currentOutboundProxySnapshot();
-        });
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted || ModalRoute.isCurrentOf(context) != true) return;
-        navigator.pop();
-      },
+    return guardPop(
       child: Scaffold(
         appBar: AppBar(title: Text(loc.appSettingsNetwork)),
         body: ListView(
           children: [
-            SettingsGroupHeader(
+            SettingsSection(
               loc.appSettingsOutboundProxy,
               hint: loc.appSettingsOutboundProxyHint,
             ),
-            ListTile(
+            SettingTile(
               leading: const Icon(Icons.vpn_lock_outlined),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.savedProxiesTitle)),
-                  HintButton(
-                    title: loc.savedProxiesTitle,
-                    description: loc.savedProxiesHint,
-                  ),
-                ],
-              ),
-              subtitle: Text(loc.savedProxiesCount(ProxyLibrary.data.length)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => guardedOpen(_openSavedProxies),
+              title: loc.savedProxiesTitle,
+              hint: loc.savedProxiesHint,
+              subtitle: loc.savedProxiesCount(ProxyLibrary.data.length),
+              control: Opens(() => guardedOpen(_openSavedProxies)),
             ),
             ListTile(
               title: Text(loc.appSettingsProxyType),
@@ -479,26 +413,18 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
             // Apple platforms, but the rare "inspect-imported-pins-on-
             // iOS" case doesn't justify an always-empty settings tile.
             if (hostIsAndroid || hostIsLinux) ...[
-              SettingsGroupHeader(loc.appSettingsGroupCertificates),
-              ListTile(
+              SettingsSection(loc.appSettingsGroupCertificates),
+              SettingTile(
                 leading: const Icon(Icons.lock_outline),
-                title: Row(
-                  children: [
-                    Flexible(child: Text(loc.appSettingsTrustedCertificates)),
-                    HintButton(
-                      title: loc.appSettingsTrustedCertificates,
-                      description: loc.appSettingsTrustedCertificatesHint,
-                    ),
-                  ],
-                ),
-                subtitle: Text(loc.appSettingsTrustedCertificatesSubtitle),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => guardedOpen(() => Navigator.push<void>(
+                title: loc.appSettingsTrustedCertificates,
+                hint: loc.appSettingsTrustedCertificatesHint,
+                subtitle: loc.appSettingsTrustedCertificatesSubtitle,
+                control: Opens(() => guardedOpen(() => Navigator.push<void>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const TrustedCertificatesScreen(),
                       ),
-                    )),
+                    ))),
               ),
             ],
             const SizedBox(height: 24),

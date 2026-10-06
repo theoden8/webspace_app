@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 String _categoryLabel(AppLocalizations loc, BlockCategory category) {
   switch (category) {
@@ -108,24 +109,14 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
 
   Future<void> _confirmReset() async {
     final loc = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.blockStatsReset),
-        content: Text(loc.blockStatsResetConfirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.blockStatsReset),
-          ),
-        ],
-      ),
+    final confirmed = await confirm(
+      context,
+      title: loc.blockStatsReset,
+      body: loc.blockStatsResetConfirm,
+      confirmLabel: loc.blockStatsReset,
+      destructive: true,
     );
-    if (confirmed != true) return;
+    if (!confirmed) return;
     await _service.reset();
     if (!mounted) return;
     setState(() {});

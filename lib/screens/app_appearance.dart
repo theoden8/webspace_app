@@ -5,6 +5,7 @@ import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 
 const Map<AccentColor, Color> _accentColors = {
@@ -107,21 +108,21 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
       appBar: AppBar(title: Text(loc.appSettingsAppearance)),
       body: ListView(
         children: [
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.language),
-            title: Text(loc.appSettingsLanguageTitle),
-            subtitle: Text(_localeOverride.isEmpty
+            title: loc.appSettingsLanguageTitle,
+            hint: null,
+            subtitle: _localeOverride.isEmpty
                 ? loc.appSettingsLanguageSystem
-                : languageLabelForTag(_localeOverride)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => guardedOpen(_pickAppLanguage),
+                : languageLabelForTag(_localeOverride),
+            control: Opens(() => guardedOpen(_pickAppLanguage)),
           ),
-          SettingsGroupHeader(loc.appSettingsTheme),
+          SettingsSection(loc.appSettingsTheme),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildThemeModeRow(loc),
+            child: _buildThemeModeRow(),
           ),
-          SettingsGroupHeader(loc.appSettingsAccentColor),
+          SettingsSection(loc.appSettingsAccentColor),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: _buildAccentColorGrid(),
@@ -132,37 +133,25 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
     );
   }
 
-  Widget _buildThemeModeRow(AppLocalizations loc) {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildThemeModeChip(
+  Widget _buildThemeModeRow() => Row(
+        spacing: 8,
+        children: [
+          for (final mode in const [
             ThemeMode.light,
-            themeModeLabel(loc, ThemeMode.light),
-            Icons.wb_sunny,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildThemeModeChip(
             ThemeMode.dark,
-            themeModeLabel(loc, ThemeMode.dark),
-            Icons.nights_stay,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildThemeModeChip(
             ThemeMode.system,
-            themeModeLabel(loc, ThemeMode.system),
-            Icons.brightness_auto,
-          ),
-        ),
-      ],
-    );
-  }
+          ])
+            Expanded(child: _buildThemeModeChip(mode)),
+        ],
+      );
 
-  Widget _buildThemeModeChip(ThemeMode mode, String label, IconData icon) {
+  Widget _buildThemeModeChip(ThemeMode mode) {
+    final label = themeModeLabel(AppLocalizations.of(context), mode);
+    final icon = switch (mode) {
+      ThemeMode.light => Icons.wb_sunny,
+      ThemeMode.dark => Icons.nights_stay,
+      ThemeMode.system => Icons.brightness_auto,
+    };
     final isSelected = _settings.themeMode == mode;
     final accentColor = Theme.of(context).colorScheme.secondary;
 

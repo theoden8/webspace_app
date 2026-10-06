@@ -63,7 +63,8 @@ import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
-import 'package:webspace/widgets/site_search_list_tile.dart';
+import 'package:webspace/settings/datasets.dart';
+import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 
@@ -1016,6 +1017,7 @@ class _SiteBehaviourCard extends StatelessWidget {
       host: 'duckduckgo.com',
       incognito: false,
       values: const SiteBehaviourValues(
+        archived: false,
         alwaysOpenHome: false,
         kioskMode: false,
         fullscreenMode: false,
@@ -1257,9 +1259,15 @@ class _SiteSearchListCardState extends State<_SiteSearchListCard> {
   }
 
   @override
-  Widget build(BuildContext context) => SiteSearchListTile(
-        formatCount: (n) => n >= 1000 ? '${(n / 1000).toStringAsFixed(1)}K' : '$n',
-      );
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return DatasetTile(
+      create: SiteSearchListDataset.new,
+      icon: Icons.manage_search,
+      title: loc.webSearchSiteListTitle,
+      hint: loc.webSearchSiteListHint,
+    );
+  }
 }
 
 /// A SearXNG instance whose pages declared its search (LIR-035): the Behaviour
@@ -1273,6 +1281,7 @@ class _SiteBehaviourSearchCard extends StatelessWidget {
         host: 'searx.lan',
         incognito: false,
         values: const SiteBehaviourValues(
+          archived: false,
           alwaysOpenHome: false,
           kioskMode: false,
           fullscreenMode: false,

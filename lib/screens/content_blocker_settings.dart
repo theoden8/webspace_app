@@ -8,7 +8,8 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/dataset_tile.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 
 /// The app-wide filter lists every site's content blocker draws on: which are
@@ -51,7 +52,7 @@ class _ContentBlockerSettingsScreenState
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(loc.appSettingsFilterListRules(
-                  list.name, formatSettingsCount(list.ruleCount)))),
+                  list.name, compactCount(list.ruleCount)))),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -388,7 +389,7 @@ class _ContentBlockerSettingsScreenState
               subtitle: Text(
                 list.lastUpdated != null
                     ? loc.appSettingsRulesCount(
-                        formatSettingsCount(list.ruleCount))
+                        compactCount(list.ruleCount))
                     : loc.appSettingsNotDownloaded,
               ),
               trailing: Row(
@@ -472,29 +473,17 @@ class _ContentBlockerSettingsScreenState
           // body. Some ad/tracker sites detect the missing API surface
           // and break (white page, infinite spinner), so default on.
           // Greyed out on platforms that don't ship the engine library.
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsUboRedirectStubs)),
-                HintButton(
-                  title: loc.appSettingsUboRedirectStubs,
-                  description: loc.appSettingsUboRedirectStubsSubtitle,
-                ),
-              ],
-            ),
-            subtitle:
-                !ContentBlockerService.instance.rustEngineSupportedOnPlatform
-                    ? Text(loc.appSettingsUboRedirectStubsUnavailable)
-                    : null,
-            value: ContentBlockerService.instance.useUboResources,
-            onChanged: ContentBlockerService.instance
-                    .rustEngineSupportedOnPlatform
-                ? (value) async {
-                    await ContentBlockerService.instance
-                        .setUseUboResources(value);
-                    if (mounted) setState(() {});
-                  }
-                : null,
+          SettingTile(
+            title: loc.appSettingsUboRedirectStubs,
+            hint: loc.appSettingsUboRedirectStubsSubtitle,
+            lock: ContentBlockerService.instance.rustEngineSupportedOnPlatform
+                ? null
+                : PlatformLock(loc.appSettingsUboRedirectStubsUnavailable),
+            control: Toggle(ContentBlockerService.instance.useUboResources,
+                (value) async {
+              await ContentBlockerService.instance.setUseUboResources(value);
+              if (mounted) setState(() {});
+            }),
           ),
           const SizedBox(height: 24),
         ],
