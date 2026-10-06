@@ -37,6 +37,31 @@ void main() {
     expect(find.text('https://duckduckgo.com/?q=webspace'), findsOneWidget);
   });
 
+  testWidgets('the other way: a GitHub tab under a DuckDuckGo one is in '
+      'GitHub\'s list with its parent', (tester) async {
+    ddg.routeOutboundLinks = true;
+    await pumpRealApp(tester, sites: [github, ddg]);
+    await openWebspace(tester, 'All');
+    await openSiteFromDrawer(tester, 'DuckDuckGo');
+    await tapLink(tester, 'https://github.com/theoden8/webspace_app');
+
+    final link = appSite('DuckDuckGo').tabs.last;
+    expect(link.hostSiteId, github.siteId);
+    expect(link.parentId, appSite('DuckDuckGo').tabs.first.id);
+
+    await openSiteFromDrawer(tester, 'GitHub');
+    await openTabsSheet(tester);
+    expect(find.text('In DuckDuckGo'), findsOneWidget);
+    expect(find.text('https://duckduckgo.com'), findsOneWidget,
+        reason: 'the DuckDuckGo tab the GitHub one was opened from');
+    expect(find.text('https://github.com/theoden8/webspace_app'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.text('https://github.com/theoden8/webspace_app')).dx,
+      greaterThan(tester.getTopLeft(find.text('https://duckduckgo.com')).dx),
+      reason: 'listed under its parent, not beside it',
+    );
+  });
+
   testWidgets('with GitHub\'s routing off the tab is GitHub\'s own',
       (tester) async {
     await pumpRealApp(tester, sites: [github, ddg]);

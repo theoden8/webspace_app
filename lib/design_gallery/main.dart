@@ -1313,6 +1313,7 @@ abstract final class _TabsDemo {
   static final WebViewModel duckduckgo = _siteWithTabs('DuckDuckGo', 'https://duckduckgo.com/', [
     SiteTab.primary(url: 'https://duckduckgo.com/?q=webview+containers', title: 'webview containers at DuckDuckGo'),
     SiteTab(id: 'own', url: 'https://duckduckgo.com/?q=tab+trees', title: 'tab trees at DuckDuckGo', parentId: kPrimaryTabId),
+    SiteTab(id: 'issue', url: 'https://github.com/theoden8/webspace_app/issues/422', title: 'Web search #422', parentId: 'own', hostSiteId: 'gh', openerSiteId: 'ddg', homeUrl: 'https://github.com/theoden8/webspace_app/issues/422'),
   ], kPrimaryTabId, siteId: 'ddg', containerColor: 4);
 
   static final Map<String, WebViewModel> _byId = {
@@ -1336,7 +1337,8 @@ abstract final class _TabsDemo {
 /// The real TabsSheet over a page, as the app's modal presents it. GitHub is
 /// on screen, Mastodon is loaded in the background, the rest hold no webview
 /// (TAB-011); GitHub's tree runs tabs as three sites, each row marked with
-/// the colour of the one it runs as.
+/// the colour of the one it runs as, and DuckDuckGo's tree holds a GitHub tab
+/// under one of its own, listed with it under "In DuckDuckGo" (TAB-017).
 class _TabsSheetCard extends StatelessWidget {
   const _TabsSheetCard();
 
