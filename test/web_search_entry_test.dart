@@ -68,6 +68,11 @@ void main() {
         isTrue,
         reason: 'App Settings offers Default search only behind the gate',
       );
+      expect(settings,
+          contains('if (_developerMode && _siteTabsSwitch) _searchListTile(loc),'),
+          reason: 'and the site search list download (LIR-036)');
+      expect('_searchListTile('.allMatches(settings).length, 2,
+          reason: 'built in one place, behind the gate');
     });
 
     test('a locked kiosk shell has no web search (KIOSK-002)', () {

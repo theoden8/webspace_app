@@ -352,15 +352,18 @@ class WebSearchEngine {
   }
 
   /// How a site searches: its own address when it has one, else what its
-  /// host is known for, else what its page declared (LIR-035), else not at
-  /// all. A custom or discovered address that searches the web is assumed to
-  /// honour `site:`, as SearXNG and the big engines do.
+  /// host is known for, else what its page declared (LIR-035), else what the
+  /// downloaded site search list names (LIR-036), else not at all. A custom
+  /// or discovered address that searches the web is assumed to honour
+  /// `site:`, as SearXNG and the big engines do; a listed one only ever
+  /// searches its own site.
   static SearchCapability? capabilityOf({
     required String initUrl,
     String? searchAddress,
     bool searchesWeb = false,
     String? discoveredAddress,
     bool discoveredWeb = false,
+    String? listedAddress,
   }) {
     final custom = searchAddress?.trim();
     if (custom != null && custom.isNotEmpty) {
@@ -381,11 +384,19 @@ class WebSearchEngine {
       );
     }
     final found = discoveredAddress?.trim();
-    if (found == null || !acceptsDiscovered(found, initUrl)) return null;
+    if (found != null && acceptsDiscovered(found, initUrl)) {
+      return SearchCapability(
+        template: found,
+        kind: discoveredWeb ? SearchKind.web : SearchKind.site,
+        siteOperator: discoveredWeb,
+      );
+    }
+    final listed = listedAddress?.trim();
+    if (listed == null || !acceptsDiscovered(listed, initUrl)) return null;
     return SearchCapability(
-      template: found,
-      kind: discoveredWeb ? SearchKind.web : SearchKind.site,
-      siteOperator: discoveredWeb,
+      template: listed,
+      kind: SearchKind.site,
+      siteOperator: false,
     );
   }
 

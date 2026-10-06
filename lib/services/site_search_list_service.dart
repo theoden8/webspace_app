@@ -1,0 +1,139 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/site_search_list_engine.dart';
+import 'package:webspace/settings/global_outbound_proxy.dart';
+
+const String _cacheFileName = 'site_search_list.json';
+const String _lastUpdatedPrefKey = 'site_search_list_last_updated';
+
+/// Largest download read. The list is about 2 MB today.
+const int _maxDownloadBytes = 16 * 1024 * 1024;
+
+/// The site search list (LIR-036): downloaded only when the user asks, through
+/// the app-wide proxy, reduced to one address per site and kept in app
+/// private storage until cleared. Same opt-in pattern as the timezone dataset
+/// and the blocklists.
+class SiteSearchListService {
+  static SiteSearchListService? _instance;
+  static SiteSearchListService get instance =>
+      _instance ??= SiteSearchListService._();
+
+  SiteSearchListService._();
+
+  @visibleForTesting
+  static void resetForTest() => _instance = null;
+
+  Map<String, String> _table = const {};
+  DateTime? _lastUpdated;
+
+  /// Sites the loaded list has an address for; 0 when none is loaded.
+  int get siteCount => _table.length;
+
+  bool get isLoaded => _table.isNotEmpty;
+
+  DateTime? get lastUpdated => _lastUpdated;
+
+  final List<VoidCallback> _listeners = [];
+  void addListener(VoidCallback l) => _listeners.add(l);
+  void removeListener(VoidCallback l) => _listeners.remove(l);
+  void _notify() {
+    for (final l in List<VoidCallback>.from(_listeners)) {
+      l();
+    }
+  }
+
+  /// The address the list names for the site at [initUrl], or null.
+  String? addressFor(String initUrl) => listedAddressFor(_table, initUrl);
+
+  /// Load the stored list, if any. Called at startup; nothing is fetched.
+  Future<void> initialize() async {
+    final text = await hostReadDocumentText(_cacheFileName);
+    if (text == null) return;
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(text);
+    } on FormatException catch (e) {
+      LogService.instance.log('SearchList', 'Stored list unreadable: $e',
+          level: LogLevel.warning);
+      return;
+    }
+    if (decoded is! Map) return;
+    _table = {
+      for (final e in decoded.entries)
+        if (e.key is String && e.value is String)
+          e.key as String: e.value as String,
+    };
+    final prefs = await SharedPreferences.getInstance();
+    _lastUpdated =
+        DateTime.tryParse(prefs.getString(_lastUpdatedPrefKey) ?? '');
+    _notify();
+  }
+
+  /// Download the list and keep its reduction. True on success; a failure
+  /// leaves the stored list as it was.
+  Future<bool> download({Duration timeout = const Duration(minutes: 2)}) async {
+    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
+    if (clientResult is OutboundClientBlocked) {
+      LogService.instance.log(
+          'SearchList', 'Skipped download: ${clientResult.reason}',
+          level: LogLevel.warning);
+      return false;
+    }
+    final client = (clientResult as OutboundClientReady).client;
+    try {
+      final response = await client
+          .get(Uri.parse(kSiteSearchListUrl))
+          .timeout(timeout);
+      if (response.statusCode != 200) {
+        LogService.instance.log(
+            'SearchList', 'Download failed: HTTP ${response.statusCode}',
+            level: LogLevel.error);
+        return false;
+      }
+      if (response.bodyBytes.length > _maxDownloadBytes) return false;
+      final table = await compute(_reduce, response.body);
+      if (table.isEmpty) {
+        LogService.instance.log('SearchList', 'Download held no usable entry',
+            level: LogLevel.error);
+        return false;
+      }
+      await hostWriteDocumentText(_cacheFileName, jsonEncode(table));
+      final now = DateTime.now();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_lastUpdatedPrefKey, now.toIso8601String());
+      _table = table;
+      _lastUpdated = now;
+      LogService.instance
+          .log('SearchList', 'Downloaded ${table.length} site searches');
+      _notify();
+      return true;
+    } on Exception catch (e) {
+      // A timeout, the proxy's or the socket's own failure, or a body that is
+      // not JSON. Errors are bugs and still reach the caller.
+      LogService.instance
+          .log('SearchList', 'Download error: $e', level: LogLevel.error);
+      return false;
+    } finally {
+      client.close();
+    }
+  }
+
+  /// Drop the stored list and forget every address it gave.
+  Future<void> clear() async {
+    _table = const {};
+    _lastUpdated = null;
+    await hostDeleteFile('${await hostDocumentsPath()}/$_cacheFileName');
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_lastUpdatedPrefKey);
+    _notify();
+  }
+}
+
+Map<String, String> _reduce(String body) => siteSearchTable(jsonDecode(body));

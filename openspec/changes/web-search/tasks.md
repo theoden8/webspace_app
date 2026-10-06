@@ -80,4 +80,6 @@
 - [x] 10.5 `SiteIdLine` under each site in Default search and the Behaviour pickers, a colour dot on each sheet chip.
 - [x] 10.6 Tests: `test/opensearch_engine_test.dart`, `test/js/search_link_watcher.test.js`, the LIR-035 structural check in `test/js/page_bridge_authority.test.js`, the table and discovery groups in `test/web_search_engine_test.dart`, sheet, Behaviour and App Settings widget tests.
 - [ ] 10.7 Manual, Site tabs on: add a SearXNG instance, open it once; it appears in Default search and as a chip for The web, and searching from GitHub through it with `site:` lands in a hosted tab.
+- [x] 10.8 Site search list (LIR-036): `site_search_list_engine.dart` (reduction, lookup), `SiteSearchListService` (download through the app-wide proxy, stored reduction, clear), the App Settings row behind the search gate, `assets/licenses/kagi_bangs.txt`; `webSearchSiteList*` strings in `app_en.arb`, then the 66 translations. Tests: `test/site_search_list_test.dart`, the row in `test/app_settings_experimental_test.dart`, the gate in `test/web_search_entry_test.dart`.
+- [ ] 10.9 Manual, Site tabs on: download the site search list, add `https://www.imdb.com/`, search it from its own sheet.
 

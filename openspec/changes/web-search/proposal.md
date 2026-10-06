@@ -30,6 +30,10 @@ requirements.
   engines, fetched through the site's own proxy and blockers. A SearXNG
   instance, recognised by the generator its pages carry, becomes a web search;
   any other page can only make its site search itself.
+- **Site search list** (LIR-036). App Settings can download Kagi's MIT list of
+  bangs, reduced to one search address per site, so thousands of sites search
+  themselves without setup. Fetched only on request; a listed address only
+  ever searches its own site.
 - **The sheet** (LIR-029). "Web search" in the Tabs sheet header, beside New
   tab (in both page menus, below Find, only for a site without tabs), opens a
   sheet with a query, a scope (The web, or the site on screen) and a chip per

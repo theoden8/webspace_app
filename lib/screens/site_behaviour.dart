@@ -117,6 +117,7 @@ class SiteBehaviourScreen extends StatefulWidget {
     this.initUrl,
     this.discoveredSearchAddress,
     this.discoveredSearchesWeb = false,
+    this.listedSearchAddress,
   });
 
   final String host;
@@ -154,6 +155,9 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// has no address of its own and its host is not a known one.
   final String? discoveredSearchAddress;
   final bool discoveredSearchesWeb;
+
+  /// The address the downloaded site search list names for it (LIR-036).
+  final String? listedSearchAddress;
 
   @override
   State<SiteBehaviourScreen> createState() => _SiteBehaviourScreenState();
@@ -399,13 +403,15 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
       );
 
   /// What the site searches with without an address of its own: what its
-  /// host is known for, else what its pages declared.
+  /// host is known for, else what its pages declared, else what the site
+  /// search list names.
   SearchCapability? get _knownSearch => widget.initUrl == null
       ? null
       : WebSearchEngine.capabilityOf(
           initUrl: widget.initUrl!,
           discoveredAddress: widget.discoveredSearchAddress,
           discoveredWeb: widget.discoveredSearchesWeb,
+          listedAddress: widget.listedSearchAddress,
         );
 
   Widget _searchAddressRow(AppLocalizations loc) {

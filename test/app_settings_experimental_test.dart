@@ -315,6 +315,27 @@ void main() {
       expect(dotOf('ddg-home'), ContainerColors.of(5, Brightness.light));
     });
 
+    testWidgets('the site search list waits for the user (LIR-036)',
+        (tester) async {
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.siteTabs, true);
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      final row = find.text('Site search list');
+      await tester.scrollUntilVisible(row, 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      final tile = find.ancestor(of: row, matching: find.byType(ListTile));
+      expect(
+          find.descendant(of: tile, matching: find.text('Not downloaded')),
+          findsOneWidget);
+      expect(
+          find.descendant(
+              of: tile, matching: find.byTooltip('Download dataset')),
+          findsOneWidget,
+          reason: 'nothing is fetched until the user asks');
+    });
+
     testWidgets('offers Site tabs everywhere, off by default (TAB-012)',
         (tester) async {
       await tester.pumpWidget(host());

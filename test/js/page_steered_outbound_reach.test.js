@@ -53,6 +53,8 @@ const EXEMPT = {
     'The LocalCDN bundle, fixed in the app.',
   'lib/services/timezone_location_service.dart':
     'A fixed timezone API endpoint.',
+  'lib/services/site_search_list_service.dart':
+    'One fixed URL, Kagi\'s bang list (LIR-036), fetched only from its App Settings button.',
   'lib/services/tor_geoip_io.dart':
     'tor\'s GeoIP table from the Tor Project URLs fixed in kTorGeoIpUrls, '
     + 'through Tor.',

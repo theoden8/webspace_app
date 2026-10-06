@@ -4,7 +4,7 @@
 
 A search engine SHALL be one of the user's sites, never a bare address setting: a search runs in that site's container, with its sign-in, proxy, blockers and every other per-site setting.
 
-A site SHALL be a **search site** when it has a search address, an http(s) URL with a host and at least one `%s` where the query goes. The address SHALL be the site's `searchAddress` when set and valid, else the one its host is known for, else the one its pages declared (LIR-035), else none. A `searchAddress` that is not a valid address SHALL make the site search nothing rather than fall back to the known one, so a user who typed an address never gets a different engine silently.
+A site SHALL be a **search site** when it has a search address, an http(s) URL with a host and at least one `%s` where the query goes. The address SHALL be the site's `searchAddress` when set and valid, else the one its host is known for, else the one its pages declared (LIR-035), else the one the downloaded site search list names (LIR-036), else none. A `searchAddress` that is not a valid address SHALL make the site search nothing rather than fall back to the known one, so a user who typed an address never gets a different engine silently.
 
 A search site SHALL be of one of two kinds:
 
@@ -519,3 +519,30 @@ A site with no `searchAddress` and a host LIR-028 does not know SHALL learn its 
 - **GIVEN** a SearXNG site that has a discovered address
 - **WHEN** the user sets its search address to `https://searx.lan/search?categories=it&q=%s`
 - **THEN** searches use the user's address
+
+---
+
+### Requirement: LIR-036 - The Site Search List
+
+The user MAY download a list of how thousands of websites search themselves, so a site they add can search itself without setup: Kagi's community list of bangs (`github.com/kagisearch/bangs`, `data/bangs.json`, MIT), whose licence text is bundled under LICENSE-003.
+
+- **Download.** App Settings SHALL offer a "Site search list" row while web search is reachable (LIR-029), below Default search: its subtitle the number of sites listed and when it was downloaded, or "Not downloaded"; Download, then Refresh and Clear. The list SHALL be fetched only from that button, never automatically, through the app-wide proxy, and kept in app private storage until cleared. A failed download SHALL leave the list it had. Neither the list nor its timestamp SHALL ride a backup: they are downloaded data, not configuration.
+- **Reduction.** The download SHALL be reduced to one address per site, keyed by host without `www.`, and only the reduction stored. A bang counts only when its address is absolute http(s), carries the query once as the whole value of a query parameter, names no other site (`site:`, `sites=`), takes the query as it is (no format flag but plain encoding) and lies in its own domain. Among a site's bangs, the one named after the site (its trigger or an alias equal to the domain's first label: `imdb`, `archive`, `amazon`) SHALL win, then the one with fewest parameters, then the shortest trigger: a short trigger is as often a narrower search (`prel` on archive.org searches one collection).
+- **Use.** A site SHALL take the list's address for its host, else for its domain (`m.imdb.com` as `imdb.com`), only when it has no `searchAddress`, its host is not known, and its pages declared none (LIR-035). A listed address SHALL make the site a site search, offered only for searching itself, and SHALL be used only inside the site's own domain: the list is third-party data and never decides which engine searches the web. The Behaviour screen's Search address row (BEHAV-005) SHALL show it as the site's effective address.
+
+#### Scenario: A site with search needs no setup once the list is down
+
+- **GIVEN** the user downloaded the site search list and has a site at `https://www.imdb.com/`
+- **THEN** it is a site search with the address `https://www.imdb.com/find?s=all&q=%s`
+- **AND** the search sheet on IMDb opens on its own search
+
+#### Scenario: The site's own word wins
+
+- **GIVEN** the list names `https://github.com/search?type=Users&q=%s` for GitHub
+- **THEN** GitHub still searches with `https://github.com/search?q=%s` from LIR-028
+
+#### Scenario: Nothing is fetched until asked
+
+- **GIVEN** web search is on and the list was never downloaded
+- **THEN** no request goes to `raw.githubusercontent.com`, and no site takes an address from the list
+

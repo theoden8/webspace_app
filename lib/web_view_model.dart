@@ -38,6 +38,7 @@ import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/user_agent_preset.dart';
+import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/outbound_http_types.dart';
@@ -882,6 +883,7 @@ class WebViewModel {
         searchesWeb: searchesWeb,
         discoveredAddress: discoveredSearchAddress,
         discoveredWeb: discoveredSearchesWeb,
+        listedAddress: SiteSearchListService.instance.addressFor(initUrl),
       );
 
   /// Take [found] as what this site's pages declared. True when it changed

@@ -28,7 +28,9 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/icon_service.dart'
     show notifyIconSourcesChanged;
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/theme/design_tokens.dart' show IconSizes;
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
@@ -332,10 +334,32 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _loadBlocklistState();
     _loadLocalCdnState();
     TimezoneLocationService.instance.addListener(_onTimezoneDatasetChanged);
+    SiteSearchListService.instance.addListener(_onSearchListChanged);
     _loadTimezoneState();
   }
 
   void _onTimezoneDatasetChanged() => _loadTimezoneState();
+
+  void _onSearchListChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool _isDownloadingSearchList = false;
+
+  /// LIR-036: fetched only from this button, through the app-wide proxy.
+  Future<void> _downloadSearchList() async {
+    if (_isDownloadingSearchList) return;
+    setState(() => _isDownloadingSearchList = true);
+    final ok = await SiteSearchListService.instance.download();
+    if (!mounted) return;
+    setState(() => _isDownloadingSearchList = false);
+    final loc = AppLocalizations.of(context);
+    rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
+        content: Text(ok
+            ? loc.webSearchSiteListLoaded(
+                _formatNumber(SiteSearchListService.instance.siteCount))
+            : loc.webSearchSiteListFailed)));
+  }
 
   // Reads the dataset on disk, not the in-memory one: only the lookup paths
   // load it, so a downloaded dataset is usually not in memory here.
@@ -383,6 +407,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     _outboundProxyPasswordController.dispose();
     _spinController.dispose();
     TimezoneLocationService.instance.removeListener(_onTimezoneDatasetChanged);
+    SiteSearchListService.instance.removeListener(_onSearchListChanged);
     super.dispose();
   }
 
@@ -1122,6 +1147,59 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     setState(() => _webSearchDefault = picked);
   }
 
+  Widget _searchListTile(AppLocalizations loc) {
+    final list = SiteSearchListService.instance;
+    final updated = list.lastUpdated;
+    return ListTile(
+      leading: const Icon(Icons.manage_search),
+      title: Row(
+        children: [
+          Flexible(child: Text(loc.webSearchSiteListTitle)),
+          HintButton(
+            title: loc.webSearchSiteListTitle,
+            description: loc.webSearchSiteListHint,
+          ),
+        ],
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(list.isLoaded
+              ? loc.webSearchSiteListCount(_formatNumber(list.siteCount))
+              : loc.appSettingsNotDownloaded),
+          if (list.isLoaded && updated != null)
+            Builder(builder: (context) {
+              final when = updated.toLocal().toString().split('.')[0];
+              return Text(loc.appSettingsUpdatedAt(when));
+            }),
+        ],
+      ),
+      trailing: _isDownloadingSearchList
+          ? const SizedBox.square(
+              dimension: IconSizes.floating,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (list.isLoaded)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    tooltip: loc.appSettingsClearDataset,
+                    onPressed: list.clear,
+                  ),
+                IconButton(
+                  icon: Icon(list.isLoaded ? Icons.sync : Icons.download),
+                  tooltip: list.isLoaded
+                      ? loc.appSettingsRefreshDataset
+                      : loc.appSettingsDownloadDataset,
+                  onPressed: _downloadSearchList,
+                ),
+              ],
+            ),
+    );
+  }
+
   Future<void> _loadFirefoxAutoRefresh() async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
@@ -1641,6 +1719,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               trailing: const Icon(Icons.chevron_right),
               onTap: _pickWebSearchDefault,
             ),
+          if (_developerMode && _siteTabsSwitch) _searchListTile(loc),
           const Divider(height: 32),
           // Global outbound proxy section
           Padding(

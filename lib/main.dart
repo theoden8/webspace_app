@@ -70,6 +70,7 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
+import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_teardown_engine.dart';
@@ -690,6 +691,7 @@ void main() async {
       () => _runTimed('firefoxUa', FirefoxUserAgentService.instance.initialize),
       () => _runTimed('adblock', ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', LocalCdnService.instance.initialize),
+      () => _runTimed('searchList', SiteSearchListService.instance.initialize),
       () => _runTimed('blockStats', BlockStatsService.instance.initialize),
       if (hostIsAndroid)
         () => _runTimed('swBlock', blockServiceWorkerNetwork),
@@ -773,6 +775,7 @@ void main() async {
       ['IPFire Location Database (Tor exit-country data)'],
       'assets/licenses/ipfire_location.txt'
     ),
+    (['Kagi Bangs (site search list data)'], 'assets/licenses/kagi_bangs.txt'),
   ];
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {
