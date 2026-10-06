@@ -127,7 +127,7 @@ The service SHALL return the correct MIME type for cached resources based on fil
 
 Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls whether LocalCDN is applied. The umbrella `trackingProtectionEnabled` (see [tracking-protection/spec.md](../tracking-protection/spec.md), ETP-002) forces this effectively-on whenever the umbrella is true; the stored field is honoured only when the umbrella is off.
 
-**Known gap.** No native path reads the per-site value: the Android interceptor serves the app-wide cache to every site, and the per-site value was threaded into `WebViewConfig` without a reader until the `SitePosture` change dropped it. The stored field, its UI and its backup round-trip remain; the "LocalCDN disabled for a site" scenario below does not hold today ([BUG-024](../../../docs/bugs/024-nested-posture-drift.md), open gap 1).
+The effective value (`WebViewModel.effectiveLocalCdnEnabled`: forced on by the umbrella, never on for an archive-tier site, ARCH-006) rides the site's `SitePosture` into the Android interceptor when it attaches, and the interceptor serves the app-wide cache only to a site whose value is on. Every surface the site runs on, nested screens and popups included, carries the same value.
 
 #### Scenario: LocalCDN enabled (default)
 
@@ -138,7 +138,14 @@ Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls
 #### Scenario: LocalCDN disabled for a site
 
 - **Given** a site with `localCdnEnabled` set to `false` and `trackingProtectionEnabled` set to `false`
-- **When** the webview intercepts a CDN request
+- **When** the webview intercepts a CDN request whose resource is cached
+- **Then** the request passes through to the CDN normally
+- **And** a site with `localCdnEnabled` set to `true` loading the same resource is served the cached copy
+
+#### Scenario: Archive-tier site
+
+- **Given** an archive-tier site with `localCdnEnabled` set to `true`
+- **When** its webview intercepts a CDN request
 - **Then** the request passes through to the CDN normally
 
 #### Scenario: LocalCDN forced on by tracking protection

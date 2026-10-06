@@ -704,6 +704,13 @@ class WebViewModel {
   bool get effectiveBackgroundAudioEnabled => ArchiveFold.backgroundAudio(
       backgroundAudioEnabled, archived: isArchiveTier);
 
+  /// Forced on by Tracking Protection (ETP-002), but the archive fold comes
+  /// last: an archive-tier site never uses LocalCDN (ARCH-006).
+  bool get effectiveLocalCdnEnabled => ArchiveFold.localCdn(
+      _forcedByTrackingProtection(
+          TrackingProtectionForce.localCdn, localCdnEnabled),
+      archived: isArchiveTier);
+
   /// Effective HTML-cache enable. Archive-tier sites never write the
   /// encrypted-at-rest HTML cache (the cache file path is keyed by
   /// `siteId`, so its existence would correlate to specific archive
@@ -869,6 +876,7 @@ class WebViewModel {
         dnsLevel: effectiveDnsBlockLevel,
         contentBlock:
             forced(TrackingProtectionForce.contentBlock, contentBlockEnabled),
+        localCdn: effectiveLocalCdnEnabled,
         httpsUpgrade: effectiveHttpsUpgradeEnabled,
         contributesStats: contributesBlockStats,
         blockedCookies: blockedCookies,

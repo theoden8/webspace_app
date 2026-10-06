@@ -39,6 +39,8 @@ typedef SiteBlocking = ({
   // Null follows the app-wide level.
   int? dnsLevel,
   bool contentBlock,
+  // Serve CDN sub-resources from the app-wide cache (Android only).
+  bool localCdn,
   bool httpsUpgrade,
   // Whether block events roll into the app-wide report (STATS-001).
   bool contributesStats,

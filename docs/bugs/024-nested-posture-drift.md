@@ -103,10 +103,14 @@ site resolves, whichever surface builds it.
 
 ## Known open gaps
 
-1. Per-site LocalCDN is stored, shown and forced by the umbrella, but the
-   native interceptor serves the app-wide cache to every site and nothing
-   tells it a site opted out (LCDN-007's "disabled for a site" scenario does
-   not hold). Not a posture drift; recorded here because this work found it.
+1. **Closed 2026-10-06.** Per-site LocalCDN was stored, shown and forced by
+   the umbrella, but the native interceptor served the app-wide cache to
+   every site and nothing told it a site opted out. It now rides the posture
+   (`blocking.localCdn`, from `effectiveLocalCdnEnabled`) into
+   `attachToWebViews`, which keeps it per site beside the DNS level and moves
+   an attached interceptor's `@Volatile localCdnEnabled`. Gated by
+   `LocalCdnPerSiteTest.kt` (JVM) and `integration_test/localcdn_per_site_test.dart`
+   (emulator, cache vs network at the effect level).
 2. The site's own webview reads a few values live from the model instead of
    its posture, because they change in place (a move into or out of an
    archive, a capture popup answered): the external-link mode, blocked

@@ -99,8 +99,9 @@ class SitePrivacyValues {
       _forced(TrackingProtectionForce.dnsBlock, dnsBlockEnabled);
   bool get effectiveContentBlock =>
       _forced(TrackingProtectionForce.contentBlock, contentBlockEnabled);
-  bool get effectiveLocalCdn => _forced(TrackingProtectionForce.localCdn,
-      ArchiveFold.localCdn(localCdnEnabled, archived: archived));
+  bool get effectiveLocalCdn => ArchiveFold.localCdn(
+      _forced(TrackingProtectionForce.localCdn, localCdnEnabled),
+      archived: archived);
   bool get effectiveThirdPartyCookies => _forced(
       TrackingProtectionForce.thirdPartyCookies, thirdPartyCookiesEnabled);
   bool get effectiveHttpsUpgrade => _forced(TrackingProtectionForce.httpsUpgrade,

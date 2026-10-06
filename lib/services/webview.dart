@@ -2689,9 +2689,12 @@ class WebViewFactory {
         headlessId: headless.id,
         siteId: posture.siteId,
         dnsLevel: config.effectiveDnsLevel,
+        localCdn: posture.blocking.localCdn,
       );
       if (!attached &&
-          (posture.blocking.dns || posture.blocking.contentBlock)) {
+          (posture.blocking.dns ||
+              posture.blocking.contentBlock ||
+              posture.blocking.localCdn)) {
         await check.dispose();
         return (null, WakeSkip.blockersNotAttached);
       }
@@ -4903,7 +4906,9 @@ class WebViewFactory {
             sensitivity: LogSensitivity.sensitive,
           );
           Future.microtask(() => WebInterceptNative.attachToWebViews(
-              siteId: config.posture.siteId, dnsLevel: config.effectiveDnsLevel));
+              siteId: config.posture.siteId,
+              dnsLevel: config.effectiveDnsLevel,
+              localCdn: config.posture.blocking.localCdn));
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {

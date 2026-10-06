@@ -173,18 +173,21 @@ class WebInterceptPlugin(
                 "attachToWebViews" -> {
                     val siteId = call.argument<String>("siteId")
                     val dnsLevel = call.argument<Int>("dnsLevel")
-                    val count = attachToAllWebViews(siteId, dnsLevel)
+                    val localCdn = call.argument<Boolean>("localCdn")
+                    val count = attachToAllWebViews(siteId, dnsLevel, localCdn)
                     result.success(count)
                 }
                 "attachToHeadless" -> {
                     val headlessId = call.argument<String>("headlessId")
                     val siteId = call.argument<String>("siteId")
                     val dnsLevel = call.argument<Int>("dnsLevel")
+                    val localCdn = call.argument<Boolean>("localCdn")
                     val webView = headlessId?.let { headlessWebView(it) }
                     if (webView == null || siteId == null) {
                         result.success(false)
                     } else {
                         if (dnsLevel != null) siteDnsLevel[siteId] = dnsLevel
+                        if (localCdn != null) siteLocalCdn[siteId] = localCdn
                         siteIdMap[webView] = siteId
                         attachInterceptor(webView, siteId)
                         result.success(true)
@@ -316,9 +319,11 @@ class WebInterceptPlugin(
 
     private fun attachToAllWebViews(
         newSiteId: String?,
-        dnsLevel: Int? = null
+        dnsLevel: Int? = null,
+        localCdn: Boolean? = null
     ): Int {
         if (newSiteId != null && dnsLevel != null) siteDnsLevel[newSiteId] = dnsLevel
+        if (newSiteId != null && localCdn != null) siteLocalCdn[newSiteId] = localCdn
         val webViews = collectWebViews()
         val alreadyAttached = webViews.count {
             it.contentBlockerHandler is FastSubresourceInterceptor
@@ -364,6 +369,7 @@ class WebInterceptPlugin(
                 // Already attached: the settings edit only moves the level.
                 // The host cache holds masks, not decisions, so it survives.
                 existing.dnsLevel = levelFor(siteId)
+                existing.localCdnEnabled = localCdnFor(siteId)
                 continue
             }
             attachInterceptor(webView, siteId)
@@ -378,8 +384,12 @@ class WebInterceptPlugin(
     private fun levelFor(siteId: String) =
         siteDnsLevel[siteId] ?: DnsHostBlocklist.MAX_LEVEL
 
+    /// Unknown sites keep the pre-per-site behaviour: serve the cache.
+    private fun localCdnFor(siteId: String) = siteLocalCdn[siteId] ?: true
+
     private fun attachInterceptor(webView: InAppWebView, siteId: String) {
         val level = levelFor(siteId)
+        val cdn = localCdnFor(siteId)
         // Always attach the interceptor. The kill-switch
         // (localCdnDisabled) governs only the LocalCDN
         // FileInputStream serve path inside checkUrl — it does
@@ -389,6 +399,7 @@ class WebInterceptPlugin(
         webView.contentBlockerHandler = FastSubresourceInterceptor(
             dnsBlocklist = dnsBlocklist,
             dnsLevel = level,
+            localCdnEnabled = cdn,
             cdnPatterns = cdnPatterns,
             cdnCacheIndex = cdnCacheIndex,
             localCdnDisabled = localCdnDisabled,
@@ -399,7 +410,7 @@ class WebInterceptPlugin(
             onLog = { tag, message -> log(tag, message) }
         )
         log("WebIntercept",
-            "Attached interceptor: siteId=$siteId dnsLevel=$level " +
+            "Attached interceptor: siteId=$siteId dnsLevel=$level localCdn=$cdn " +
             "dns=${dnsBlocklist.size} " +
             "cdnPatterns=${cdnPatterns.size} " +
             "cdnCache=${cdnCacheIndex.size} " +
@@ -435,6 +446,10 @@ class WebInterceptPlugin(
     /// attach so an interceptor created by a call that names no level still
     /// gets the site's own posture.
     private val siteDnsLevel = HashMap<String, Int>()
+
+    /// Last per-site LocalCDN decision Dart reported (LCDN-007), read on every
+    /// attach like [siteDnsLevel]. Main thread only.
+    private val siteLocalCdn = HashMap<String, Boolean>()
 
     /// Exponential backoff: 50, 100, 200, 400, 800 ms. The platform-
     /// view materialisation lag is usually 1-2 frames; this gives us
@@ -533,6 +548,7 @@ class WebInterceptPlugin(
 class FastSubresourceInterceptor(
     private val dnsBlocklist: DnsHostBlocklist,
     dnsLevel: Int = DnsHostBlocklist.MAX_LEVEL,
+    localCdnEnabled: Boolean = true,
     private val cdnPatterns: MutableList<Regex>,
     private val cdnCacheIndex: MutableMap<String, String>,
     private val localCdnDisabled: AtomicBoolean,
@@ -548,6 +564,11 @@ class FastSubresourceInterceptor(
     /// are reading it.
     @Volatile
     var dnsLevel: Int = dnsLevel
+
+    /// Whether this site serves CDN sub-resources from the app-wide cache
+    /// (LCDN-007). Volatile for the same reason as [dnsLevel].
+    @Volatile
+    var localCdnEnabled: Boolean = localCdnEnabled
 
     private var checkCount = 0
     private var loggedNoCache = false
@@ -719,12 +740,14 @@ class FastSubresourceInterceptor(
                 "text/plain", "utf-8", ByteArrayInputStream(EMPTY_BODY))
         }
 
-        // 3. LocalCDN — gated by the diagnostic kill-switch. Builds a
-        // WebResourceResponse with a FileInputStream that chromium's IO
-        // thread reads async; if the request lifecycle ends before
-        // chromium consumes the stream, that's the candidate origin
-        // for the System WebView dangling-raw_ptr crash on
-        // Chrome_IOThread (`partition_alloc_support.cc:770`).
+        // 3. LocalCDN.
+        return localCdnResponse(url)
+    }
+
+    /// The cached copy of a CDN sub-resource, or null to let the request
+    /// through: the plugin's kill switch is off-for-everyone, [localCdnEnabled]
+    /// is this site's own choice (LCDN-007).
+    internal fun localCdnResponse(url: String): WebResourceResponse? {
         if (localCdnDisabled.get()) {
             if (!loggedLocalCdnDisabled) {
                 loggedLocalCdnDisabled = true
@@ -733,16 +756,16 @@ class FastSubresourceInterceptor(
             }
             return null
         }
-        if (cdnPatterns.isNotEmpty() && cdnCacheIndex.isNotEmpty()) {
-            val response = tryServeCdn(url)
-            if (response != null) return response
-        } else if (!loggedNoCache) {
-            loggedNoCache = true
-            onLog("WebIntercept",
-                "LocalCDN inert: patterns=${cdnPatterns.size} cache=${cdnCacheIndex.size}")
+        if (!localCdnEnabled) return null
+        if (cdnPatterns.isEmpty() || cdnCacheIndex.isEmpty()) {
+            if (!loggedNoCache) {
+                loggedNoCache = true
+                onLog("WebIntercept",
+                    "LocalCDN inert: patterns=${cdnPatterns.size} cache=${cdnCacheIndex.size}")
+            }
+            return null
         }
-
-        return null
+        return tryServeCdn(url)
     }
 
     private fun putHostDecision(host: String, mask: Int) {

@@ -260,15 +260,17 @@ class WebInterceptNative {
   /// running, which is where [attachToWebViews] looks. True once attached.
   static Future<bool> attachToHeadless({
     required String headlessId,
-    String? siteId,
-    int? dnsLevel,
+    required String siteId,
+    required int dnsLevel,
+    required bool localCdn,
   }) async {
     if (!isSupported) return false;
     try {
       final attached = await _channel.invokeMethod<bool>('attachToHeadless', {
         'headlessId': headlessId,
-        if (siteId != null) 'siteId': siteId,
-        if (dnsLevel != null) 'dnsLevel': dnsLevel,
+        'siteId': siteId,
+        'dnsLevel': dnsLevel,
+        'localCdn': localCdn,
       });
       return attached ?? false;
     } on PlatformException catch (e) {
@@ -284,18 +286,24 @@ class WebInterceptNative {
   /// [dnsLevel] is the severity level this site blocks at (0 = the site has
   /// DNS blocking off). The interceptor applies it per request, which is the
   /// only place Android sub-resources learn about a site's DNS posture — the
-  /// blocklist itself is app-wide.
-  static Future<int> attachToWebViews({String? siteId, int? dnsLevel}) async {
+  /// blocklist itself is app-wide. [localCdn] is whether this site's
+  /// sub-resources may be served from the app-wide LocalCDN cache (LCDN-007).
+  static Future<int> attachToWebViews({
+    String? siteId,
+    int? dnsLevel,
+    bool? localCdn,
+  }) async {
     if (!isSupported) return 0;
     try {
       final count = await _channel.invokeMethod('attachToWebViews', {
-        if (siteId != null) 'siteId': siteId,
-        if (dnsLevel != null) 'dnsLevel': dnsLevel,
+        'siteId': ?siteId,
+        'dnsLevel': ?dnsLevel,
+        'localCdn': ?localCdn,
       });
       LogService.instance.log(
         'WebIntercept',
         'Attached native interceptor to $count webviews '
-        '(siteId: $siteId, dnsLevel: $dnsLevel)',
+        '(siteId: $siteId, dnsLevel: $dnsLevel, localCdn: $localCdn)',
         sensitivity: LogSensitivity.sensitive,
       );
       return count as int;

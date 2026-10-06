@@ -27,6 +27,7 @@ const OVERRIDDEN = [
   'protectedContentAllowed',
   'externalLinkMode',
   'dnsBlockLevel',
+  'localCdnEnabled',
   'thirdPartyCookiesEnabled',
   'httpsUpgradeEnabled',
   'webRtcPolicy',

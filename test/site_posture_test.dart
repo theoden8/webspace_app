@@ -33,6 +33,7 @@ WebViewModel _site({required bool tp, required bool archived}) {
     dnsBlockEnabled: false,
     dnsBlockLevel: 2,
     contentBlockEnabled: false,
+    localCdnEnabled: false,
     thirdPartyCookiesEnabled: true,
     httpsUpgradeEnabled: false,
     incognito: false,
@@ -72,6 +73,7 @@ void main() {
           expect(b.clearUrls, tp, reason: cell);
           expect(b.dns, tp, reason: cell);
           expect(b.contentBlock, tp, reason: cell);
+          expect(b.localCdn, tp && !archived, reason: cell);
           expect(b.httpsUpgrade, tp, reason: cell);
           expect(b.dnsLevel, archived ? isNull : 2, reason: cell);
           expect(b.contributesStats, !archived, reason: cell);
@@ -136,6 +138,14 @@ void main() {
         );
       }
     }
+  });
+
+  test('LocalCDN follows the site\'s own choice without TP (LCDN-007)', () {
+    final on = _site(tp: false, archived: false)..localCdnEnabled = true;
+    expect(_posture(on).blocking.localCdn, isTrue);
+    expect(_posture(on).forNested().blocking.localCdn, isTrue);
+    final archivedOn = _site(tp: false, archived: true)..localCdnEnabled = true;
+    expect(_posture(archivedOn).blocking.localCdn, isFalse);
   });
 
   group('a nested screen runs under the opening site\'s posture', () {
