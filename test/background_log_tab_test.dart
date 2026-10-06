@@ -129,6 +129,32 @@ void main() {
     expect(find.textContaining('the newest line'), findsOneWidget);
   });
 
+  testWidgets('notification diagnostics follow the same developer-mode flag',
+      (tester) async {
+    Future<void> pumpWithWake() async {
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: DevToolsScreen(
+          key: UniqueKey(),
+          cookieManager: _StubCookieManager(),
+          onSimulateBackgroundRefresh: () async {},
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    DeveloperModeService.instance.debugSet(false);
+    await pumpWithWake();
+    expect(find.text('Simulate background refresh'), findsNothing);
+    expect(find.text('Send test notification'), findsNothing);
+
+    DeveloperModeService.instance.debugSet(true);
+    await pumpWithWake();
+    expect(find.text('Simulate background refresh'), findsOneWidget);
+    expect(find.text('Send test notification'), findsOneWidget);
+  });
+
   testWidgets('nothing is recorded while developer mode is off', (tester) async {
     DeveloperModeService.instance.debugSet(true);
     await BackgroundLog.instance.setRecording(false);
