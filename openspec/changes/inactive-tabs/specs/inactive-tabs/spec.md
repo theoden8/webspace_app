@@ -600,6 +600,7 @@ get no such heading.
 The tab on screen SHALL be highlighted wherever it is listed, so a list opened
 on a tab of another site's tree is the same list, with the highlight moved.
 
+Every row of another tree SHALL open on a tap, whatever site it runs as.
 Those rows SHALL stay in the tree that holds them: a tap SHALL open that site
 on the tab, switching to All first when the current webspace does not show it
 (WEBSPACE-012), close and close-subtree SHALL close it there, collapsing it SHALL
@@ -631,6 +632,13 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 - **GIVEN** the sheet on DuckDuckGo listing a tab "In GitHub"
 - **WHEN** the user taps it
 - **THEN** GitHub comes on screen on that tab, running as DuckDuckGo
+
+#### Scenario: The other site's own tabs open too
+
+- **GIVEN** the sheet on DuckDuckGo listing GitHub's tree, with GitHub's home tab above the tab that runs as DuckDuckGo
+- **WHEN** the user taps GitHub's home tab
+- **THEN** GitHub comes on screen on it, running as GitHub
+- **AND** GitHub's Tabs sheet lists DuckDuckGo's tab as where the user was (TAB-019)
 
 #### Scenario: The list follows the site the tab runs as
 

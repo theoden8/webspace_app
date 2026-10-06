@@ -120,6 +120,25 @@ void main() {
         reason: 'Back went back instead of closing the tab (TAB-007)');
   });
 
+  testWidgets('GitHub\'s own tab opens from DuckDuckGo\'s list, and its list '
+      'leads back', (tester) async {
+    await onDuckDuckGoWithItsList(tester);
+    await tester.tap(find.text('https://github.com'));
+    await settleRealApp(tester);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt('currentIndex'), 0);
+    expect(appSite('GitHub').activeTabId, github.tabs.first.id);
+
+    await openTabsSheet(tester);
+    expect(find.text('GitHub · 2 tabs'), findsOneWidget,
+        reason: 'GitHub\'s own tab runs as GitHub, so the list is GitHub\'s');
+    expect(find.text('In DuckDuckGo'), findsOneWidget,
+        reason: 'nothing there runs as GitHub, but the way back is there');
+    await tester.tap(find.text('duckduckgo.com · where you were'));
+    await settleRealApp(tester);
+    expect(prefs.getInt('currentIndex'), 1, reason: 'back on DuckDuckGo');
+  });
+
   testWidgets('a way to GitHub other than the list leaves the way back behind',
       (tester) async {
     final hosted = await onDuckDuckGoWithItsList(tester);

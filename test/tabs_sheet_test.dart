@@ -790,6 +790,24 @@ void main() {
       expect(opened, [(0, 'h')]);
     });
 
+    testWidgets('the other site\'s own tabs open from here too', (tester) async {
+      final opened = <(int, String)>[];
+      void open(int i, String id) => opened.add((i, id));
+      // A tap pops the sheet, so each tab gets a sheet of its own.
+      await pumpSheet(tester, sites(), onOpenTab: open);
+      await tester.tap(find.text('https://github.com/'));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      await pumpSheet(tester, sites(), onOpenTab: open);
+      await tester.tap(find.text('1 more GitHub tab'));
+      await tester.pump();
+      await tester.tap(find.text(foreign));
+      await tester.pump();
+      expect(opened, [(0, kPrimaryTabId), (0, 'f')],
+          reason: 'a switcher over the whole tree, not only what runs as '
+              'DuckDuckGo');
+    });
+
     testWidgets('rows from another site\'s tree are not dragged from here',
         (tester) async {
       final moves = <String>[];
