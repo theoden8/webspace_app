@@ -8,12 +8,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter } = require('./helpers/source');
 
-const root = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const main = read('lib/main.dart');
 
 test('the close sweeps ws-<siteId> for the archive, never an app-tier site', () => {

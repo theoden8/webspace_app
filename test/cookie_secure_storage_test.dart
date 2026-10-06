@@ -1,9 +1,6 @@
-import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/webview.dart';
@@ -618,7 +615,9 @@ void main() {
     });
 
     test('secure cookies NOT stored in SharedPreferences even if secure storage fails', () async {
-      final failingSecureStorage = FailingMockSecureStorage();
+      final failingSecureStorage = MockFlutterSecureStorage()
+        ..throwOnRead = true
+        ..throwOnWrite = true;
       final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
       SharedPreferences.setMockInitialValues({});
 
@@ -696,127 +695,3 @@ void main() {
   });
 }
 
-/// Mock that always fails to simulate secure storage unavailability
-class FailingMockSecureStorage implements FlutterSecureStorage {
-  @override
-  Future<void> write({
-    required String key,
-    required String? value,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    throw Exception('Secure storage unavailable');
-  }
-
-  @override
-  Future<String?> read({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    throw Exception('Secure storage unavailable');
-  }
-
-  @override
-  Future<void> delete({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    throw Exception('Secure storage unavailable');
-  }
-
-  @override
-  Future<bool> containsKey({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    throw Exception('Secure storage unavailable');
-  }
-
-  @override
-  Future<Map<String, String>> readAll({
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    throw Exception('Secure storage unavailable');
-  }
-
-  @override
-  Future<void> deleteAll({
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    throw Exception('Secure storage unavailable');
-  }
-
-  @override
-  IOSOptions get iOptions => throw UnimplementedError();
-
-  @override
-  AndroidOptions get aOptions => throw UnimplementedError();
-
-  @override
-  LinuxOptions get lOptions => throw UnimplementedError();
-
-  @override
-  WebOptions get webOptions => throw UnimplementedError();
-
-  @override
-  AppleOptions get mOptions => throw UnimplementedError();
-
-  @override
-  WindowsOptions get wOptions => throw UnimplementedError();
-
-  @override
-  Map<String, List<ValueChanged<String?>>> get getListeners => {};
-
-  @override
-  void registerListener({
-    required String key,
-    required ValueChanged<String?> listener,
-  }) {}
-
-  @override
-  void unregisterListener({
-    required String key,
-    required ValueChanged<String?> listener,
-  }) {}
-
-  @override
-  void unregisterAllListeners() {}
-
-  @override
-  void unregisterAllListenersForKey({required String key}) {}
-
-  @override
-  Future<bool?> isCupertinoProtectedDataAvailable() async => false;
-
-  @override
-  Stream<bool>? get onCupertinoProtectedDataAvailabilityChanged => null;
-}

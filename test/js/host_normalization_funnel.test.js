@@ -9,57 +9,16 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, methodBody } = require('./helpers/source');
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const SERVICE = 'lib/services/content_blocker_service.dart';
 
 // ContentBlockerService methods that hand a URL to the Rust engine.
 const ENTRY_POINTS = ['isBlocked', 'redirectFor', 'rewrittenUrl', 'cspFor'];
 
-/** Body of the `name(...)` declaration, brace-matched. Anchored on a
- *  two-space-indented return type so a call site cannot be mistaken for it. */
-function methodBody(src, name) {
-  const decl = new RegExp(`^  [\\w<>?,\\[\\] ]+\\s${name}\\s*\\(`, 'm').exec(src);
-  assert.ok(decl, `${name} declaration not found in content_blocker_service.dart`);
-
-  // Step over the parameter list first: Dart named/optional parameters are
-  // themselves brace-delimited, so the first `{` after the declaration is not
-  // the body.
-  const lparen = src.indexOf('(', decl.index);
-  let parens = 0;
-  let afterParams = -1;
-  for (let i = lparen; i < src.length; i++) {
-    if (src[i] === '(') parens++;
-    else if (src[i] === ')') {
-      parens--;
-      if (parens === 0) {
-        afterParams = i + 1;
-        break;
-      }
-    }
-  }
-  assert.ok(afterParams !== -1, `${name} has an unbalanced parameter list`);
-
-  const open = src.indexOf('{', afterParams);
-  assert.ok(open !== -1, `${name} has no body`);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}') {
-      depth--;
-      if (depth === 0) return src.slice(open, i + 1);
-    }
-  }
-  throw new Error(`unbalanced braces in ${name}`);
-}
-
 test('every filter-engine entry point strips the root dot from url and sourceUrl', () => {
-  const src = read('lib/services/content_blocker_service.dart');
-
   for (const name of ENTRY_POINTS) {
-    const body = methodBody(src, name);
+    const body = methodBody(name, { file: SERVICE });
 
     // Either the argument is wrapped at the call, or the parameter was
     // normalized into a local first — both funnel through stripRootDot.

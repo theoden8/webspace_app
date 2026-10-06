@@ -16,6 +16,7 @@ import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 Uint8List png(int width, [int? height]) => Uint8List.fromList(
     img.encodePng(img.Image(width: width, height: height ?? width)));
@@ -142,10 +143,10 @@ void main() {
 
   group('fetchPageIconBytes', () {
     final direct = UserProxySettings(type: ProxyType.DEFAULT);
-    late FakeOutboundFactory factory;
+    late FakeOutbound factory;
 
     void serve(http.Response Function(http.Request request) responder) {
-      factory = FakeOutboundFactory(responder);
+      factory = FakeOutbound(responder: responder);
       outboundHttp = factory;
     }
 

@@ -8,26 +8,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/timezone_location_service.dart';
-
-class _FakePathProvider extends PathProviderPlatform
-    with MockPlatformInterfaceMixin {
-  final Directory dir;
-  _FakePathProvider(this.dir);
-  @override
-  Future<String?> getApplicationDocumentsPath() async => dir.path;
-  @override
-  Future<String?> getApplicationSupportPath() async => dir.path;
-  @override
-  Future<String?> getTemporaryPath() async => dir.path;
-}
+import 'helpers/fake_path_provider.dart';
 
 const _fixture = '''
 {
@@ -81,7 +68,7 @@ void main() {
 
   setUp(() async {
     docs = await Directory.systemTemp.createTemp('webspace_tz_row_');
-    PathProviderPlatform.instance = _FakePathProvider(docs);
+    useFakePathProvider(docs);
     dataset = File('${docs.path}/tz_polygons.geojson');
     PackageInfo.setMockInitialValues(
       appName: 'WebSpace',

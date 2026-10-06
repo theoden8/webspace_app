@@ -9,16 +9,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const GATE = 'lib/services/pull_to_refresh_gate.dart';
 // The surfaces that own a refresh controller: the main webview and the nested
 // cross-domain one.
 const SURFACES = ['lib/web_view_model.dart', 'lib/screens/inappbrowser.dart'];
-
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
 
 test('the gate disables the control on a second pointer', () => {
   const src = read(GATE);

@@ -34,6 +34,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 class _Req {
   _Req(this.path, this.xrw);
@@ -82,16 +83,7 @@ void main() {
   String url(String path) => 'http://127.0.0.1:$port$path';
   int countFor(String path) => requests.where((r) => r.path == path).length;
 
-  Future<void> waitReal(WidgetTester tester, bool Function() done,
-      {Duration timeout = const Duration(seconds: 30)}) async {
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        if (done()) return;
-      }
-    });
-  }
+  const waitReal = RealWait(interval: Duration(milliseconds: 300));
 
   // Mount one webview through the real factory and wait (wall-clock) for its
   // initial request to reach the loopback server. Frames are pumped only to

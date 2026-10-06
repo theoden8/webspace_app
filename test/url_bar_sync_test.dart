@@ -2,14 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'helpers/localized.dart';
 
-Widget _host(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+Widget _host(Widget child) => localizedApp(Scaffold(body: child));
 
 String _shown(WidgetTester tester) =>
     tester.widget<TextField>(find.byType(TextField)).controller!.text;

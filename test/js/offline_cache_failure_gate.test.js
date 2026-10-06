@@ -14,14 +14,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const src = fs.readFileSync(
-  path.join(repoRoot, 'lib/services/webview.dart'),
-  'utf8',
-);
+const src = read('lib/services/webview.dart');
 
 test('a failed main-frame navigation is recorded', () => {
   assert.match(

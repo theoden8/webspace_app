@@ -20,10 +20,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
+const { read, dartFiles, code } = require('./helpers/source');
 
 /// Ops whose target jar the plugin resolves from `webViewController:`.
 const SCOPED_OPS = [
@@ -33,36 +30,12 @@ const SCOPED_OPS = [
   'deleteCookie(',
 ];
 
-function dartSources(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...dartSources(full));
-    else if (entry.name.endsWith('.dart')) out.push(full);
-  }
-  return out;
-}
-
-/// Strip `//` comments so a semicolon or an op name inside prose can't end or
-/// fake a statement. Block comments are left alone: none of the call sites
-/// this gate reads sit inside one.
-function stripLineComments(source) {
-  return source
-    .split('\n')
-    .map((line) => {
-      const i = line.indexOf('//');
-      return i === -1 ? line : line.slice(0, i);
-    })
-    .join('\n');
-}
-
 /// Every statement that reaches the plugin singleton directly, as
 /// `<text from the instance() call to the statement's semicolon>`.
 function singletonStatements() {
   const out = [];
-  for (const file of dartSources(path.join(repoRoot, 'lib'))) {
-    const rel = path.relative(repoRoot, file);
-    const source = stripLineComments(fs.readFileSync(file, 'utf8'));
+  for (const rel of dartFiles()) {
+    const source = code(read(rel));
     const marker = 'CookieManager.instance()';
     let at = source.indexOf(marker);
     while (at !== -1) {
@@ -105,10 +78,7 @@ test('the HTTP download path reads cookies through the downloading WebView', () 
   // scoped to the WebView that raised onDownloadStartRequest. The controller
   // has to reach the handler for that to be possible at all, so assert both
   // halves.
-  const webview = fs.readFileSync(
-    path.join(repoRoot, 'lib/services/webview.dart'),
-    'utf8',
-  );
+  const webview = read('lib/services/webview.dart');
 
   assert.match(
     webview,
@@ -117,9 +87,9 @@ test('the HTTP download path reads cookies through the downloading WebView', () 
   );
 
   const body = webview.slice(webview.indexOf('_handleHttpDownload(\n'));
-  const read = body.slice(body.indexOf('CookieManager.instance()'));
+  const cookieRead = body.slice(body.indexOf('CookieManager.instance()'));
   assert.match(
-    read.slice(0, read.indexOf(';')),
+    cookieRead.slice(0, cookieRead.indexOf(';')),
     /webViewController: controller/,
     'the download cookie read must be scoped to the downloading WebView',
   );

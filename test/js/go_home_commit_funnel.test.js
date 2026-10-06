@@ -15,13 +15,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'lib/main.dart';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const src = read(rel);
 
 const setCurrentIndex = blockAfter(
   src, 'Future<void> _setCurrentIndex(int? index) async {', null, rel);

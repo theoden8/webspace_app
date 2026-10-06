@@ -16,10 +16,8 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const { makeDom, readFixture } = require('./helpers/load_shim');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter, dartFiles, code } = require('./helpers/source');
 
 const SHIM = readFixture('passkey/block_shim.js');
 
@@ -209,9 +207,7 @@ test('a second injection does not wrap twice', async () => {
 // The shim only protects a webview it is installed in, so where it goes is
 // call-site wiring rather than a unit: checked on the source.
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const readDart = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8')
-  .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+const readDart = (rel) => code(read(rel));
 
 test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in every frame', () => {
   const pageScripts = blockAfter(readDart('lib/services/webview.dart'),
@@ -233,16 +229,8 @@ test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in 
 });
 
 test('PASSKEY-001: webviews get their passkey access from one rule', () => {
-  const offenders = [];
-  const walk = (dir) => {
-    for (const e of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-      const rel = path.join(dir, e.name);
-      if (e.isDirectory()) walk(rel);
-      else if (e.name.endsWith('.dart') && rel !== path.join('lib', 'services', 'passkey_engine.dart')
-          && /\bPasskeyAccess\(/.test(readDart(rel))) offenders.push(rel);
-    }
-  };
-  walk('lib');
+  const offenders = dartFiles().filter((rel) => rel !== 'lib/services/passkey_engine.dart'
+    && /\bPasskeyAccess\(/.test(readDart(rel)));
   assert.deepEqual(offenders, [],
     'build PasskeyAccess through PasskeyAccess.forHost: a hand-built one skips the per-host '
     + 'backend, and on iOS/macOS a site with passkeys off must get null so it is blocked');

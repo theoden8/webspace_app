@@ -16,7 +16,7 @@ import 'package:webspace/services/tor_failure.dart';
 // Reuses the engine test's fake rather than a third copy of the same
 // contract: one fake drifting from another is how a test starts passing
 // against behaviour the real runtime does not have.
-import 'tor_engine_test.dart' show FakeTorRuntime;
+import 'helpers/fake_tor_runtime.dart';
 
 // A real-shaped obfs4 line (address and keys are invented).
 const _obfs4 =

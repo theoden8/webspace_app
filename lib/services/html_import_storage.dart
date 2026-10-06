@@ -5,6 +5,15 @@ import 'package:webspace/services/log_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:encrypt/encrypt.dart' as encrypt;
 
+/// The site an imported HTML file becomes, named after the file without its
+/// extension. Three slashes (empty authority): `file://name.html` parses the
+/// name as the host, and Chromium rejects that as ERR_INVALID_URL whenever
+/// the stored HTML is unavailable.
+({String url, String name}) importedFileSite(String fileName) => (
+      url: 'file:///$fileName',
+      name: fileName.replaceAll(RegExp(r'\.html?$', caseSensitive: false), ''),
+    );
+
 /// Persistent AES-encrypted storage for user-imported HTML files.
 ///
 /// Distinct from [HtmlCacheService]: imports are the only copy of the

@@ -10,22 +10,6 @@ import 'package:webspace/services/file_store_io.dart';
 
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
 
-/// A device whose keychain is unusable: Linux without a secret service, an
-/// Android Keystore that fails to unlock. The store must degrade, not throw.
-class _FailingSecureStorage extends MockFlutterSecureStorage {
-  @override
-  Future<String?> read({
-    required String key,
-    AppleOptions? iOptions,
-    AndroidOptions? aOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    AppleOptions? mOptions,
-    WindowsOptions? wOptions,
-  }) async =>
-      throw Exception('no secret service');
-}
-
 void main() {
   late Directory tempDir;
   late MockFlutterSecureStorage keychain;
@@ -136,7 +120,7 @@ void main() {
   });
 
   test('no keychain means no detail on disk, and no exception', () async {
-    final store = newStore(secureStorage: _FailingSecureStorage());
+    final store = newStore(secureStorage: MockFlutterSecureStorage()..throwOnRead = true);
 
     await store.write(payloadFor('ads.example', 'site-a'));
 

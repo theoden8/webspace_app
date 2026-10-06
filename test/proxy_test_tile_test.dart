@@ -6,51 +6,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
+import 'helpers/fake_outbound.dart';
+import 'helpers/localized.dart';
 
-class _Factory implements OutboundHttpFactory {
-  _Factory(this._build);
-
-  final OutboundClient Function(UserProxySettings) _build;
-  int calls = 0;
-  UserProxySettings? lastRequested;
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    calls++;
-    lastRequested = settings;
-    return _build(settings);
-  }
-}
-
-class _Client extends http.BaseClient {
-  _Client(this._respond);
-  final Future<http.StreamedResponse> Function() _respond;
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) => _respond();
-}
-
-http.StreamedResponse _ok(int status) => http.StreamedResponse(
-      Stream<List<int>>.fromIterable([
-        [111, 107]
-      ]),
-      status,
-    );
-
-Widget _host(UserProxySettings Function() settings) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: ProxyTestTile(
-          settings: settings,
-          target: Uri.parse('https://example.org/'),
-        ),
-      ),
-    );
+Widget _host(UserProxySettings Function() settings) => localizedApp(Scaffold(
+  body: ProxyTestTile(
+    settings: settings,
+    target: Uri.parse('https://example.org/'),
+  ),
+));
 
 UserProxySettings _socks5({String? username, String? password}) =>
     UserProxySettings(
@@ -65,7 +32,7 @@ void main() {
 
   testWidgets('a working proxy reports the host and status it reached',
       (tester) async {
-    outboundHttp = _Factory((_) => OutboundClientReady(_Client(() async => _ok(200))));
+    outboundHttp = FakeOutbound(responder: (_) => http.Response('ok', 200));
 
     await tester.pumpWidget(_host(_socks5));
     await tester.tap(find.text('Test connection'));
@@ -77,7 +44,7 @@ void main() {
 
   testWidgets('a rejected credential is named as such, not as unreachable',
       (tester) async {
-    outboundHttp = _Factory((_) => OutboundClientReady(_Client(() async => _ok(407))));
+    outboundHttp = FakeOutbound(responder: (_) => http.Response('ok', 407));
 
     await tester.pumpWidget(_host(() => _socks5(username: 'u', password: 'bad')));
     await tester.tap(find.text('Test connection'));
@@ -88,8 +55,8 @@ void main() {
 
   testWidgets('a blocked seam reports the reason it was blocked',
       (tester) async {
-    outboundHttp = _Factory(
-        (_) => const OutboundClientBlocked('Tor is not bootstrapped yet.'));
+    outboundHttp = FakeOutbound(
+        blockWhen: (_) => true, blockReason: 'Tor is not bootstrapped yet.');
 
     await tester.pumpWidget(_host(() => UserProxySettings(type: ProxyType.TOR)));
     await tester.tap(find.text('Test connection'));
@@ -101,8 +68,8 @@ void main() {
 
   testWidgets('a second tap while one test is in flight starts nothing',
       (tester) async {
-    final gate = Completer<http.StreamedResponse>();
-    final factory = _Factory((_) => OutboundClientReady(_Client(() => gate.future)));
+    final gate = Completer<http.Response>();
+    final factory = FakeOutbound(responder: (_) => gate.future);
     outboundHttp = factory;
 
     await tester.pumpWidget(_host(_socks5));
@@ -112,9 +79,9 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await tester.tap(find.text('Test connection'), warnIfMissed: false);
     await tester.pump();
-    expect(factory.calls, 1);
+    expect(factory.queries, hasLength(1));
 
-    gate.complete(_ok(200));
+    gate.complete(http.Response('ok', 200));
     await tester.pumpAndSettle();
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
@@ -122,8 +89,7 @@ void main() {
   testWidgets('the test uses what the form holds now, not what it held at build',
       (tester) async {
     var address = 'first.example:1080';
-    final factory =
-        _Factory((_) => OutboundClientReady(_Client(() async => _ok(200))));
+    final factory = FakeOutbound(responder: (_) => http.Response('ok', 200));
     outboundHttp = factory;
 
     await tester.pumpWidget(_host(() => UserProxySettings(
@@ -134,6 +100,6 @@ void main() {
     await tester.tap(find.text('Test connection'));
     await tester.pumpAndSettle();
 
-    expect(factory.lastRequested!.address, 'second.example:1080');
+    expect(factory.lastQuery!.address, 'second.example:1080');
   });
 }

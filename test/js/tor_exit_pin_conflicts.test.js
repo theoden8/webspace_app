@@ -9,24 +9,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'lib/main.dart';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-
-function body(signature) {
-  const start = src.indexOf(signature);
-  assert.notEqual(start, -1, `${rel} lost ${signature}`);
-  const open = src.indexOf('{', start);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    if (src[i] === '}' && --depth === 0) return src.slice(open, i + 1);
-  }
-  throw new Error(`unterminated ${signature}`);
-}
+const src = read(rel);
 
 function unloadsBeforePin(fn, label) {
   const pin = fn.indexOf('_syncTorExitPin(');
@@ -42,9 +28,9 @@ function unloadsBeforePin(fn, label) {
 }
 
 test('activating a site unloads the siblings its pin disagrees with first', () => {
-  unloadsBeforePin(body('Future<void> _setCurrentIndex('), '_setCurrentIndex');
+  unloadsBeforePin(blockAfter(src, 'Future<void> _setCurrentIndex(', undefined, rel), '_setCurrentIndex');
 });
 
 test('saving settings unloads the sites the new pin disagrees with first', () => {
-  unloadsBeforePin(body('Future<void> _syncTorHolders()'), '_syncTorHolders');
+  unloadsBeforePin(blockAfter(src, 'Future<void> _syncTorHolders()', undefined, rel), '_syncTorHolders');
 });

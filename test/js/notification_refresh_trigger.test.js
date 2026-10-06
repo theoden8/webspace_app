@@ -18,11 +18,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const { read, exists } = require('./helpers/source');
 
 const pluginRel =
   'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundTaskAndroidPlugin.kt';
@@ -51,11 +47,10 @@ test('the initial delay is one full interval', () => {
 });
 
 test('the debug refresh receiver lives only in the debug source set', () => {
-  assert.ok(fs.existsSync(path.join(repoRoot, receiverRel)),
+  assert.ok(exists(receiverRel),
     `${receiverRel} must exist — it is how CI runs the worker on demand`);
-  const mainDir = path.join(repoRoot,
-    'android/app/src/main/kotlin/org/codeberg/theoden8/webspace');
-  assert.ok(!fs.existsSync(path.join(mainDir, 'NotificationRefreshDebugReceiver.kt')),
+  assert.ok(!exists(
+    'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/NotificationRefreshDebugReceiver.kt'),
     'the debug trigger must not be compiled into shippable builds');
   assert.match(read(manifestRel), /NotificationRefreshDebugReceiver/,
     `${manifestRel} must declare the receiver`);

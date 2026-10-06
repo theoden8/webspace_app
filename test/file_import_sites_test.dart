@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/webview.dart';
 
 /// Tests for the file-import-sites feature.
@@ -10,12 +11,7 @@ import 'package:webspace/services/webview.dart';
 
 void main() {
   group('Filename to site name', () {
-    // Mirrors the logic in _importHtmlFile:
-    // nameWithoutExt = fileName.replaceAll(RegExp(r'\.(html?|htm)$', caseSensitive: false), '');
-    String nameFromFile(String fileName) {
-      return fileName.replaceAll(
-          RegExp(r'\.(html?|htm)$', caseSensitive: false), '');
-    }
+    String nameFromFile(String fileName) => importedFileSite(fileName).name;
 
     test('strips .html extension', () {
       expect(nameFromFile('my-page.html'), 'my-page');
@@ -82,8 +78,7 @@ void main() {
     });
 
     test('url for imported file uses file:/// scheme (three slashes)', () {
-      final fileName = 'report.html';
-      final url = 'file:///$fileName';
+      final url = importedFileSite('report.html').url;
 
       // Three-slash form: empty authority, real path. The two-slash
       // form `file://report.html` parses with `report.html` as the

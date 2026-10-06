@@ -12,27 +12,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const openspecRoot = path.join(repoRoot, 'openspec');
-
-function markdownFiles(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...markdownFiles(full));
-    else if (entry.name.endsWith('.md')) out.push(full);
-  }
-  return out;
-}
+const { read, exists, files } = require('./helpers/source');
 
 test('OpenSpec cross-document links all resolve', () => {
   const dangling = [];
   let checked = 0;
-  for (const file of markdownFiles(openspecRoot)) {
-    const source = fs.readFileSync(file, 'utf8');
+  for (const file of files('openspec', /\.md$/)) {
+    const source = read(file);
     // Document-to-document links only. Links from a spec into source files
     // are a separate, wider problem: several use the wrong depth and a few
     // name files that no longer exist. Widening this guard to cover them
@@ -40,9 +27,8 @@ test('OpenSpec cross-document links all resolve', () => {
     // here would just enshrine the rot.
     for (const match of source.matchAll(/\]\((\.\.?\/[^)\s#]+\.md)(?:#[^)\s]*)?\)/g)) {
       checked += 1;
-      const target = path.resolve(path.dirname(file), match[1]);
-      if (!fs.existsSync(target)) {
-        dangling.push(`${path.relative(repoRoot, file)} -> ${match[1]}`);
+      if (!exists(path.join(path.dirname(file), match[1]))) {
+        dangling.push(`${file} -> ${match[1]}`);
       }
     }
   }

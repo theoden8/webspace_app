@@ -15,25 +15,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const libRoot = path.join(repoRoot, 'lib');
+const { read, dartFiles, escapeRe } = require('./helpers/source');
 
 // How far below the assignment the re-point may sit. Enough for a comment
 // explaining why, not enough to be somewhere else entirely.
 const WINDOW = 10;
-
-function dartFiles(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...dartFiles(full));
-    else if (entry.name.endsWith('.dart')) out.push(full);
-  }
-  return out;
-}
 
 // `Patched.prototype = Real.prototype` — taking another constructor's
 // prototype object. `X.prototype = {}` / `Object.create(...)` build a fresh
@@ -41,20 +27,15 @@ function dartFiles(dir) {
 const TAKES_NATIVE_PROTOTYPE =
   /(^|[^\w$.])([A-Za-z_$][\w$]*)\.prototype\s*=\s*[A-Za-z_$][\w$.]*\.prototype\s*;/;
 
-function escapeRe(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 const offenders = [];
 const sites = [];
 
-for (const file of dartFiles(libRoot)) {
-  const lines = fs.readFileSync(file, 'utf8').split('\n');
+for (const rel of dartFiles()) {
+  const lines = read(rel).split('\n');
   lines.forEach((line, i) => {
     const m = TAKES_NATIVE_PROTOTYPE.exec(line);
     if (!m) return;
     const wrapper = m[2];
-    const rel = path.relative(repoRoot, file);
     sites.push(`${rel}:${i + 1} (${wrapper})`);
     const after = lines.slice(i, i + 1 + WINDOW).join('\n');
     const repoint = new RegExp(
@@ -100,15 +81,15 @@ test('the re-point is guarded so it cannot silence the rest of the payload', () 
   // (a frozen prototype, a non-configurable `constructor`) would take every
   // later shim with it.
   const unguarded = [];
-  for (const file of dartFiles(libRoot)) {
-    const lines = fs.readFileSync(file, 'utf8').split('\n');
+  for (const rel of dartFiles()) {
+    const lines = read(rel).split('\n');
     lines.forEach((line, i) => {
       if (!/defineProperty\(\s*[A-Za-z_$][\w$]*\.prototype\s*,\s*['"]constructor['"]/.test(line)) {
         return;
       }
       const around = lines.slice(Math.max(0, i - 2), i + 1).join('\n');
       if (!/try\s*\{/.test(around)) {
-        unguarded.push(`${path.relative(repoRoot, file)}:${i + 1}`);
+        unguarded.push(`${rel}:${i + 1}`);
       }
     });
   }

@@ -11,12 +11,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'lib/main.dart';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const src = read(rel);
 
 const assignment = src.match(
   /BackgroundTaskService\.instance\.onBackgroundRefresh\s*=([\s\S]*?);\n/);
@@ -47,8 +45,7 @@ test('the backgrounded branch runs the wake that waits for the pages', () => {
   assert.ok(wake, `${rel} must define _backgroundWake`);
   assert.match(wake[1], /await _wakeEngine\.wake\(/,
     '_backgroundWake must await the engine, or it returns before the pages settle');
-  const service = fs.readFileSync(
-    path.join(repoRoot, 'lib/services/background_task_service.dart'), 'utf8');
+  const service = read('lib/services/background_task_service.dart');
   // Only a background-log line may sit between the two: it is recorded while
   // the OS task is still open, so it lands before iOS can suspend the app.
   assert.match(service, /await cb\(\);\s*\n\s*}\s*\n(?:\s*BackgroundLog\.instance\.record\([^;]*\);\s*\n)?\s*await bgRefreshDidComplete\(success: true\);/,

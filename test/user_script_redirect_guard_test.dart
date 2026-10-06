@@ -15,13 +15,14 @@ import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 
 import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 /// Serves one redirect per URL in [chain], then [terminal] for anything else.
-FakeOutboundFactory redirectingFactory(
+FakeOutbound redirectingFactory(
   Map<String, String> chain, {
   http.Response Function(http.Request request)? terminal,
 }) =>
-    FakeOutboundFactory((req) {
+    FakeOutbound(responder: (req) {
       final next = chain[req.url.toString()];
       if (next != null) {
         return http.Response('', 302, headers: {'location': next});
@@ -104,7 +105,7 @@ void main() {
     });
 
     test('an endless redirect chain is cut off', () async {
-      final factory = FakeOutboundFactory((_) => http.Response('', 302,
+      final factory = FakeOutbound(responder: (_) => http.Response('', 302,
           headers: {'location': 'https://loop.example/next'}));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();

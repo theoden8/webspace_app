@@ -2,24 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/web_view_model.dart';
-
-/// Records the JS a deactivation posts into the page. Extends [Fake] so any
-/// other controller call throws: stopping capture must touch nothing else.
-class _RecordingController extends Fake implements WebViewController {
-  final List<String> evaluated = [];
-
-  @override
-  Future<void> evaluateJavascript(String source) async {
-    evaluated.add(source);
-  }
-}
-
-class _ThrowingController extends Fake implements WebViewController {
-  @override
-  Future<void> evaluateJavascript(String source) async {
-    throw StateError('controller disposed');
-  }
-}
+import 'helpers/fake_webview_controller.dart';
 
 WebViewModel _model(
   WebViewController? controller, {
@@ -41,14 +24,14 @@ WebViewModel _model(
 void main() {
   group('stopRealCapture (CAM-012)', () {
     test('posts the shim hook into the page', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _model(c).stopRealCapture();
       expect(c.evaluated, hasLength(1));
       expect(c.evaluated.single, contains('__wsStopRealCapture'));
     });
 
     test('guards on the hook so a page without the shim is a no-op', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _model(c).stopRealCapture();
       // The shim returns early on a platform with no mediaDevices, so the
       // hook can legitimately be absent; an unguarded call would throw a
@@ -61,20 +44,20 @@ void main() {
     });
 
     test('a disposed controller is swallowed', () async {
-      await _model(_ThrowingController()).stopRealCapture();
+      await _model(FakeWebViewController(evaluateError: StateError('controller disposed'))).stopRealCapture();
     });
 
     test('notification sites still stop capture', () async {
       // pauseWebView() early-returns for these, which is exactly why the stop
       // is a separate call: their JS keeps running in the background, so a
       // capture would too.
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _model(c, notificationsEnabled: true).stopRealCapture();
       expect(c.evaluated, hasLength(1));
     });
 
     test('background-audio sites still stop capture', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _model(c, backgroundAudioEnabled: true).stopRealCapture();
       expect(c.evaluated, hasLength(1));
     });
@@ -84,7 +67,7 @@ void main() {
       // Dart does not branch on the mode: the page may hold a device track
       // from before the mode changed, and only the shim knows which tracks
       // are synthetic.
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _model(c, cameraMode: CameraAccessMode.virtual)
           .stopRealCapture();
       expect(c.evaluated, hasLength(1));

@@ -13,12 +13,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'ios/Runner/MediaSessionPlugin.swift';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const src = read(rel);
 // Comments explain why the forbidden shapes are forbidden, so match on code.
 const code = src
   .split('\n')

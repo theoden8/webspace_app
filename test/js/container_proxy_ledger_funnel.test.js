@@ -11,39 +11,15 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-
-function dartFiles(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...dartFiles(full));
-    else if (entry.name.endsWith('.dart')) out.push(full);
-  }
-  return out;
-}
-
-function argsAt(text, open) {
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    const c = text[i];
-    if (c === '(') depth++;
-    else if (c === ')' && --depth === 0) return text.slice(open + 1, i);
-  }
-  return null;
-}
+const { read, dartFiles, code, callArgs } = require('./helpers/source');
 
 const builds = [];
-for (const file of dartFiles(path.join(repoRoot, 'lib'))) {
-  const text = fs.readFileSync(file, 'utf8').replace(/^\s*\/\/.*$/gm, '');
-  const rel = path.relative(repoRoot, file);
+for (const rel of dartFiles()) {
+  const text = code(read(rel));
   const re = /InAppWebViewSettings\s*\(/g;
   let m;
   while ((m = re.exec(text)) !== null) {
-    const args = argsAt(text, text.indexOf('(', m.index));
+    const args = callArgs(text, m.index, rel);
     const proxy = args && /\bproxySettings:\s*([^,\n]+)/.exec(args);
     if (proxy) builds.push({ rel, text, value: proxy[1].trim() });
   }
@@ -62,8 +38,7 @@ test('the gate sees the builders it guards', () => {
 // The site and popup builders share `_siteSettings`, which is handed the
 // binding: each caller records the proxy it hands over.
 test('every caller of the shared builder records its proxy', () => {
-  const webview = fs.readFileSync(
-    path.join(repoRoot, 'lib/services/webview.dart'), 'utf8');
+  const webview = read('lib/services/webview.dart');
   const calls = [...webview.matchAll(/_siteSettings\(\s*binding,/g)];
   assert.ok(calls.length >= 2, 'expected the site and popup webviews to share the builder');
   for (const call of calls) {

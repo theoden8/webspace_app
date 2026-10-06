@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/log_service.dart';
@@ -9,16 +8,8 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
-
-/// The Copy button on each Developer Tools tab must copy exactly the entries
-/// the tab is showing (DEVTOOLS-003/004): the level chips, the search query
-/// and the DNS blocked/allowed chips all narrow what lands on the clipboard.
-/// Sensitive log entries are the one exception — they reach the clipboard
-/// only through the confirmation dialog.
-class _StubCookieManager implements CookieManager {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+import 'helpers/mock_cookie_manager.dart';
+import 'helpers/localized.dart';
 
 class _StubHost implements DevToolsHost {
   @override
@@ -78,11 +69,7 @@ void main() {
   });
 
   Future<void> pumpDevTools(WidgetTester tester, {DevToolsHost? host}) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DevToolsScreen(host: host, cookieManager: _StubCookieManager()),
-    ));
+    await pumpLocalized(tester, DevToolsScreen(host: host, cookieManager: MockCookieManager()));
     await tester.pumpAndSettle();
   }
 

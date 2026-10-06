@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/screens/add_site.dart' show addSitePreviewMayResolveLocally;
@@ -16,35 +15,15 @@ import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'helpers/fake_outbound.dart';
 
-/// Records every call to [clientFor] and serves a configurable response.
-/// Lets tests assert the *exact* [UserProxySettings] each call site asks
-/// for, including the per-site → global resolution.
-class RecordingFactory implements OutboundHttpFactory {
-  final List<UserProxySettings> queries = [];
-  final http.Response Function(http.Request request) responder;
-  final bool blockOn;
-  final ProxyType blockType;
-
-  RecordingFactory({
-    http.Response Function(http.Request)? responder,
-    this.blockOn = true,
-    this.blockType = ProxyType.SOCKS5,
-  }) : responder = responder ?? ((_) => http.Response('', 200));
-
-  /// Last [UserProxySettings] passed to [clientFor], or null if no calls.
-  UserProxySettings? get lastQuery =>
-      queries.isEmpty ? null : queries.last;
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    queries.add(settings);
-    if (blockOn && settings.type == blockType) {
-      return const OutboundClientBlocked('blocked by test fake');
-    }
-    return OutboundClientReady(MockClient((req) async => responder(req)));
-  }
-}
+/// SOCKS5 is the type Dart HTTP cannot honour, so the fake refuses it the
+/// way the real factory does on platforms without a SOCKS client.
+FakeOutbound _socks5Blocked({http.Response Function(http.Request)? responder}) =>
+    FakeOutbound(
+      responder: responder,
+      blockWhen: (s) => s.type == ProxyType.SOCKS5,
+    );
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -66,7 +45,7 @@ void main() {
 
   group('icon_service threads per-site proxy', () {
     test('explicit per-site HTTP proxy is used for verification', () async {
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final perSite = UserProxySettings(
@@ -91,7 +70,7 @@ void main() {
         type: ProxyType.HTTP,
         address: '192.168.1.10:3128',
       ));
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final perSiteDefault = UserProxySettings(type: ProxyType.DEFAULT);
@@ -107,7 +86,7 @@ void main() {
         type: ProxyType.HTTP,
         address: '127.0.0.1:9999',
       ));
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       await getSvgContent('https://example.com/icon.svg');
@@ -119,7 +98,7 @@ void main() {
       // Simulate the factory rejecting SOCKS5 (e.g. malformed address) and
       // verify icon_service treats the Blocked result as "skip the request"
       // rather than falling back to a direct http.Client.
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final perSite = UserProxySettings(
@@ -144,7 +123,7 @@ void main() {
       // a configured proxy would yield a confusing connection error (e.g.
       // SOCKS5 returning `serverError` for chrome://). icon_service must
       // bail before ever asking the outbound factory for a client.
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final schemes = ['chrome://flags', 'about:blank', 'file:///tmp/x.html'];
@@ -163,7 +142,7 @@ void main() {
         type: ProxyType.HTTP,
         address: '10.0.0.1:8080',
       ));
-      final fake = RecordingFactory(
+      final fake = _socks5Blocked(
         responder: (_) => http.Response('{"providers":{}}', 200),
       );
       outboundHttp = fake;
@@ -186,9 +165,9 @@ void main() {
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       ));
-      // RecordingFactory blocks SOCKS5 by default — simulates a malformed
+      // _socks5Blocked refuses SOCKS5 — simulates a malformed
       // proxy config the real factory would also block on.
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final ok = await ClearUrlService.instance.downloadRules();
@@ -203,7 +182,7 @@ void main() {
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       ));
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final ok = await DnsBlockService.instance.downloadList(1);
@@ -235,7 +214,7 @@ void main() {
         );
 
     testWidgets('per-site proxy reaches the factory', (tester) async {
-      final fake = RecordingFactory(
+      final fake = _socks5Blocked(
         responder: (_) => http.Response('', 404),
       );
       outboundHttp = fake;
@@ -258,7 +237,7 @@ void main() {
         type: ProxyType.HTTP,
         address: '192.168.1.10:3128',
       ));
-      final fake = RecordingFactory(
+      final fake = _socks5Blocked(
         responder: (_) => http.Response('', 404),
       );
       outboundHttp = fake;
@@ -274,7 +253,7 @@ void main() {
 
     testWidgets('Blocked client renders the fallback, never a direct fetch',
         (tester) async {
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       await tester.pumpWidget(faviconUnder(
@@ -294,7 +273,7 @@ void main() {
         type: ProxyType.HTTP,
         address: '10.0.0.9:3128',
       ));
-      final fake = RecordingFactory(
+      final fake = _socks5Blocked(
         responder: (_) => http.Response('', 500),
       );
       outboundHttp = fake;
@@ -311,7 +290,7 @@ void main() {
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       ));
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       expect(await TimezoneLocationService.instance.download(), isFalse);
@@ -321,7 +300,7 @@ void main() {
 
   group('user script editor URL-source download', () {
     test('per-site proxy reaches the factory', () async {
-      final fake = RecordingFactory(
+      final fake = _socks5Blocked(
         responder: (_) => http.Response('LIB();', 200),
       );
       outboundHttp = fake;
@@ -336,7 +315,7 @@ void main() {
     });
 
     test('Blocked client surfaces the reason and downloads nothing', () async {
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final result = await fetchUserScriptSource(
@@ -371,10 +350,10 @@ void main() {
   group('DownloadEngine respects per-site proxy', () {
     test('Blocked proxy: fetch throws DownloadException, no network',
         () async {
-      // RecordingFactory rejects SOCKS5 — stand-in for the real factory's
+      // _socks5Blocked rejects SOCKS5 — stand-in for the real factory's
       // malformed-config Blocked path. Verifies DownloadEngine doesn't
       // fall back to a direct connection.
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       final engine = DownloadEngine(
@@ -395,7 +374,7 @@ void main() {
         type: ProxyType.HTTP,
         address: '10.0.0.5:3128',
       ));
-      final fake = RecordingFactory();
+      final fake = _socks5Blocked();
       outboundHttp = fake;
 
       // Constructing the engine with DEFAULT proxy should not trigger a

@@ -12,6 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'helpers/fake_tor_runtime.dart';
 
 /// In-memory [TorGeoIpStore]: one kept table at most, and a download the
 /// test answers by completing [nextDownload].
@@ -31,94 +32,6 @@ class FakeGeoIpStore implements TorGeoIpStore {
     if (table != null) kept = table;
     return table;
   }
-}
-
-class FakeTorRuntime implements TorRuntime {
-  FakeTorRuntime({this.isAvailable = true});
-
-  @override
-  final bool isAvailable;
-
-  final _controller = StreamController<TorStatus>.broadcast();
-  int startCalls = 0;
-  int stopCalls = 0;
-  int rebuildCalls = 0;
-  Object? startError;
-  final appliedExitNodes = <String?>[];
-  Object? exitCountryError;
-
-  @override
-  Stream<TorStatus> get events => _controller.stream;
-
-  @override
-  Future<void> start() async {
-    startCalls++;
-    if (startError != null) throw startError!;
-  }
-
-  @override
-  Future<void> stop() async => stopCalls++;
-
-  @override
-  Future<void> rebuildCircuits() async => rebuildCalls++;
-
-  final appliedGeoIpFiles = <String?>[];
-
-  /// Set to model a control connection that dropped: the call never returns.
-  bool exitCountryHangs = false;
-
-  /// Every call that reached the runtime, answered or not.
-  int applyCalls = 0;
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {
-    applyCalls++;
-    if (exitCountryHangs) return Completer<void>().future;
-    if (exitCountryError != null) throw exitCountryError!;
-    appliedExitNodes.add(exitNodes);
-    appliedGeoIpFiles.add(geoipFile);
-  }
-
-  /// Push a status the way the native event channel would.
-  void push(TorStatus s) => _controller.add(s);
-
-  /// Drive a full successful bootstrap.
-  void bootstrapTo(int port) {
-    push(const TorBootstrapping(10));
-    push(const TorBootstrapping(80));
-    push(TorUp('127.0.0.1', port));
-  }
-
-  int transportPort = 47000;
-  final startedTransports = <String>[];
-  List<(String, String)> torrcOptions = const [];
-  Object? transportError;
-
-  @override
-  Future<int> startTransport(String transport) async {
-    if (transportError != null) throw transportError!;
-    startedTransports.add(transport);
-    return transportPort;
-  }
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {
-    torrcOptions = options;
-  }
-
-  int reopenCalls = 0;
-  int reopenPort = 45000;
-  Object? reopenError;
-
-  /// Models the plugin: a fresh listener, published as `up` on its own port.
-  @override
-  Future<void> reopenListeners() async {
-    reopenCalls++;
-    if (reopenError != null) throw reopenError!;
-    push(TorUp('127.0.0.1', reopenPort));
-  }
-
-  void dispose() => _controller.close();
 }
 
 void main() {
@@ -263,7 +176,7 @@ void main() {
         final e = build(timeout: const Duration(seconds: 90));
         e.acquire('site-a');
         async.flushMicrotasks();
-        runtime.push(const TorBootstrapping(40));
+        runtime.emit(const TorBootstrapping(40));
         async.flushMicrotasks();
 
         async.elapse(const Duration(seconds: 89));
@@ -388,11 +301,11 @@ void main() {
       await e.acquire('a1');
       expect(e.socksFor('a1'), isNull, reason: 'starting');
 
-      runtime.push(const TorBootstrapping(50));
+      runtime.emit(const TorBootstrapping(50));
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNull, reason: 'mid-bootstrap');
 
-      runtime.push(TorUp('127.0.0.1', 9999));
+      runtime.emit(TorUp('127.0.0.1', 9999));
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNotNull);
       await e.dispose();
@@ -405,7 +318,7 @@ void main() {
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNotNull);
 
-      runtime.push(TorErrored('control port died'));
+      runtime.emit(TorErrored('control port died'));
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNull,
           reason: 'an error must not keep serving a stale endpoint');
@@ -425,7 +338,7 @@ void main() {
       expect(e.status, isA<TorUp>());
 
       await e.dispose();
-      runtime.push(TorErrored('control port died'));
+      runtime.emit(TorErrored('control port died'));
       await pumpEventQueue();
       expect(e.status, isA<TorUp>(),
           reason: 'a disposed engine no longer tracks the runtime');
@@ -556,7 +469,7 @@ void main() {
         // A Retry is a no-op on a live runtime, so drive the case it is
         // actually for: tor reported a failure, and whatever comes back is a
         // runtime whose ExitNodes nobody has set.
-        runtime.push(TorErrored('control port died'));
+        runtime.emit(TorErrored('control port died'));
         async.flushMicrotasks();
 
         e.restart();
@@ -945,7 +858,7 @@ void main() {
         e.statusStream.listen(seen.add);
         e.acquire('site-a');
         async.flushMicrotasks();
-        runtime.push(const TorBootstrapping(40));
+        runtime.emit(const TorBootstrapping(40));
         async.flushMicrotasks();
 
         e.revive();
@@ -953,7 +866,7 @@ void main() {
         expect(asked, isEmpty, reason: 'there is no listener to ask yet');
 
         dead.add(41337);
-        runtime.push(TorUp('127.0.0.1', 41337));
+        runtime.emit(TorUp('127.0.0.1', 41337));
         async.flushMicrotasks();
         expect(asked, [41337]);
         expect(seen.whereType<TorUp>().map((s) => s.port), [45000],
@@ -990,7 +903,7 @@ void main() {
         );
         e.acquire('site-a');
         async.flushMicrotasks();
-        runtime.push(const TorBootstrapping(10));
+        runtime.emit(const TorBootstrapping(10));
         async.flushMicrotasks();
 
         // Suspended for a quarter of an hour; the timer fires on the wake.

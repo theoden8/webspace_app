@@ -27,14 +27,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-
-function read(rel) {
-  return fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-}
+const { read } = require('./helpers/source');
 
 const webview = read('lib/services/webview.dart');
 const shim = read('test/js_fixtures/screen_share/shim.js');

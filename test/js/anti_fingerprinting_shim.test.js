@@ -13,15 +13,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const fixturesRoot = path.join(repoRoot, 'test', 'js_fixtures');
-
-function readFixture(rel) {
-  return fs.readFileSync(path.join(fixturesRoot, rel), 'utf8');
-}
+const { readFixture } = require('./helpers/load_shim');
 
 // Stubs for browser APIs jsdom omits. Each stub records every call onto
 // `window.__calls` so tests can assert the wrapper actually invoked the

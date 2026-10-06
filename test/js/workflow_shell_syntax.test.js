@@ -17,9 +17,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const WORKFLOW = path.join('.github', 'workflows', 'build-and-test.yml');
+const WORKFLOW = '.github/workflows/build-and-test.yml';
 
 // Pull out every `bash -c '` ... `'` block: the body runs from the line after
 // the opener to the line whose only non-whitespace character is the closing
@@ -41,7 +41,7 @@ function extractSingleQuotedShellBlocks(text) {
   return blocks;
 }
 
-const workflowText = fs.readFileSync(path.join(repoRoot, WORKFLOW), 'utf8');
+const workflowText = read(WORKFLOW);
 const blocks = extractSingleQuotedShellBlocks(workflowText);
 
 test('the workflow embeds at least one single-quoted shell block', () => {
@@ -83,7 +83,7 @@ for (const block of blocks) {
 // silently, and a marker left in a merged commit could silence master
 // forever. So the guardrails are gated rather than trusted.
 test('every heavy job is gated on the plan job', () => {
-  const text = fs.readFileSync(path.join(repoRoot, WORKFLOW), 'utf8');
+  const text = read(WORKFLOW);
   for (const [job, output] of [
     ['validate', 'validate'],
     ['design-web', 'design'],
@@ -107,7 +107,7 @@ test('every heavy job is gated on the plan job', () => {
 });
 
 test('the ci-only marker is honoured on pull requests only', () => {
-  const text = fs.readFileSync(path.join(repoRoot, WORKFLOW), 'utf8');
+  const text = read(WORKFLOW);
   const plan = text.slice(text.indexOf('\n  plan:\n'), text.indexOf('\n  validate:\n'));
   assert.match(
     plan,
@@ -131,7 +131,7 @@ test('the ci-only marker is honoured on pull requests only', () => {
 // PASSKEY-012 runs inside the Android job rather than a job of its own, so no
 // plan token guards it and nothing above would notice the step going missing.
 test('the Android job runs the passkey gate', () => {
-  const text = fs.readFileSync(path.join(repoRoot, WORKFLOW), 'utf8');
+  const text = read(WORKFLOW);
   const start = text.indexOf('\n  build-android:\n');
   assert.notEqual(start, -1, 'build-android job not found');
   const rest = text.slice(start + 1);

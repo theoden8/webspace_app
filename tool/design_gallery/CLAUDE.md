@@ -225,10 +225,10 @@ directly, and both the app and the gallery read them:
 - [lib/theme/accent_theme.dart](../../lib/theme/accent_theme.dart) — everything
   derived from the user's accent.
 
-Migrated widgets must not reintroduce raw literals; the gate is
+UI files must not reintroduce raw literals; the gate is
 [test/js/design_tokens_no_literals.test.js](../../test/js/design_tokens_no_literals.test.js),
-which also forces every new file under `lib/widgets` or `lib/screens` to be
-classified as migrated or pending. The corner-radii card renders `Radii.scale`
+which scans every file under `lib/main.dart`, `lib/widgets` and `lib/screens`
+except its shrinking EXEMPT list, so a new file needs no edit there. The corner-radii card renders `Radii.scale`
 rather than a copy of it, so it cannot drift from the app.
 
 ## Adding a card

@@ -15,19 +15,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const { read, dartFiles, code } = require('./helpers/source');
 
 const WEBVIEW = read('lib/services/webview.dart');
 
-// Strip line comments so prose describing a call does not count as one.
-const stripComments = (src) =>
-  src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
-
-const WEBVIEW_CODE = stripComments(WEBVIEW);
+// Comments blanked so prose describing a call does not count as one.
+const WEBVIEW_CODE = code(WEBVIEW);
 
 test('LOC-REACH-001: the getRealLocation bridge is registered only for live sites', () => {
   const registrations = [...WEBVIEW_CODE.matchAll(/handlerName:\s*'getRealLocation'/g)];
@@ -55,20 +48,9 @@ test('LOC-REACH-002: the platform location service has exactly two call sites', 
     'lib/services/webview.dart',
     'lib/screens/location_picker.dart',
   ]);
-  const searchRoots = ['lib'];
-  const found = new Set();
-  const walk = (dir) => {
-    for (const entry of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-      const rel = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(rel);
-      else if (entry.name.endsWith('.dart')
-        && stripComments(read(rel)).includes('CurrentLocationService.getCurrentLocation')) {
-        found.add(rel);
-      }
-    }
-  };
-  searchRoots.forEach(walk);
-  assert.deepEqual([...found].sort(), [...expected].sort());
+  const found = dartFiles()
+    .filter((rel) => code(read(rel)).includes('CurrentLocationService.getCurrentLocation'));
+  assert.deepEqual(found, [...expected].sort());
 });
 
 test('LOC-REACH-003: the Android geolocation prompt is never granted', () => {

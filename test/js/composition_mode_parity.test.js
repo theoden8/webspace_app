@@ -10,25 +10,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const lib = path.join(repoRoot, 'lib');
-
-function dartFiles(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === 'gen') continue;
-      out.push(...dartFiles(full));
-    } else if (entry.name.endsWith('.dart')) {
-      out.push(full);
-    }
-  }
-  return out;
-}
+const { read, dartFiles } = require('./helpers/source');
 
 // The argument list of each `InAppWebViewSettings(` call, or the cascade that
 // follows one, up to the end of its statement.
@@ -66,12 +48,12 @@ function settingsSites(src) {
 test('every InAppWebViewSettings built in lib/ carries the composition mode', () => {
   const missing = [];
   let count = 0;
-  for (const file of dartFiles(lib)) {
-    const src = fs.readFileSync(file, 'utf8');
+  for (const file of dartFiles()) {
+    const src = read(file);
     for (const site of settingsSites(src)) {
       count++;
       if (!/useHybridComposition\s*(:|=)\s*WebViewFactory\.hybridComposition/.test(site.text)) {
-        missing.push(`${path.relative(repoRoot, file)}:${site.line}`);
+        missing.push(`${file}:${site.line}`);
       }
     }
   }
@@ -83,12 +65,12 @@ test('every InAppWebViewSettings built in lib/ carries the composition mode', ()
 
 test('the mode is set once, at launch', () => {
   const assignments = [];
-  for (const file of dartFiles(lib)) {
-    const src = fs.readFileSync(file, 'utf8');
+  for (const file of dartFiles()) {
+    const src = read(file);
     const re = /WebViewFactory\.hybridComposition\s*=[^=]/g;
     let m;
     while ((m = re.exec(src)) !== null) {
-      assignments.push(`${path.relative(repoRoot, file)}:${src.slice(0, m.index).split('\n').length}`);
+      assignments.push(`${file}:${src.slice(0, m.index).split('\n').length}`);
     }
   }
   assert.equal(assignments.length, 1,
@@ -99,14 +81,13 @@ test('the mode is set once, at launch', () => {
 });
 
 test('hybrid composition is the default, texture mode an experiment', () => {
-  const webview = fs.readFileSync(path.join(lib, 'services', 'webview.dart'), 'utf8');
+  const webview = read('lib/services/webview.dart');
   assert.match(webview, /static bool hybridComposition = true;/);
-  const main = fs.readFileSync(path.join(lib, 'main.dart'), 'utf8');
+  const main = read('lib/main.dart');
   assert.match(main,
     /WebViewFactory\.hybridComposition = !ExperimentalFeaturesService\.instance\s*\.isEnabled\(ExperimentalFeature\.textureRendering\);/,
     'texture mode must be reachable only through the DEVTOOLS-011 gate');
-  const experimental = fs.readFileSync(
-    path.join(lib, 'services', 'experimental_features_service.dart'), 'utf8');
+  const experimental = read('lib/services/experimental_features_service.dart');
   assert.match(experimental,
     /textureRendering\(kExperimentalTextureRenderingKey, defaultOn: false\)/);
 });

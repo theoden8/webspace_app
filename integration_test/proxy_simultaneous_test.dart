@@ -20,6 +20,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'socks5_fixture.dart';
+import 'helpers/ui.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -116,28 +117,7 @@ void main() {
     return true;
   }
 
-  /// Wall-clock wait: a live compositing platform view blocks `pump()`.
-  Future<bool> waitReal(
-    WidgetTester tester,
-    bool Function() done, {
-    required String label,
-    Duration timeout = const Duration(seconds: 25),
-  }) async {
-    var ok = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        if (done()) {
-          ok = true;
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      ok = done();
-    });
-    log('$label -> ${ok ? "ok" : "timeout"}');
-    return ok;
-  }
+  final waitReal = RealWait(log: log, timeout: Duration(seconds: 25));
 
   /// Which fixture, if any, was asked to reach [target]. Reported by index
   /// rather than as a boolean so a load arriving at a sibling's proxy is

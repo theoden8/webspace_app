@@ -16,15 +16,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const mainRel = 'lib/main.dart';
-const main = fs.readFileSync(path.join(repoRoot, mainRel), 'utf8');
+const main = read(mainRel);
 const engineRel = 'lib/services/tor_engine.dart';
-const engine = fs.readFileSync(path.join(repoRoot, engineRel), 'utf8');
+const engine = read(engineRel);
 
 const setCurrentIndex = blockAfter(
   main, 'Future<void> _setCurrentIndex(int? index) async {', null, mainRel);

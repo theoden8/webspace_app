@@ -9,7 +9,6 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
@@ -18,6 +17,7 @@ import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_moat_client.dart';
+import 'helpers/mock_secure_storage.dart';
 
 const _obfs4 =
     'obfs4 192.0.2.10:9443 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
@@ -34,45 +34,14 @@ const _jpegB64 =
 /// The screen collapses to the switch alone when bridges are off — nothing
 /// below it is in force — so every test that reaches the transport picker,
 /// the paste field or the Moat button starts from bridges on.
-_FakeStore _enabledStore() {
-  final s = _FakeStore();
-  s.store['tor_bridges'] = jsonEncode({
+MockFlutterSecureStorage _enabledStore() {
+  final s = MockFlutterSecureStorage();
+  s.storage['tor_bridges'] = jsonEncode({
     'enabled': true,
     'transport': 'obfs4',
     'lines': <String>[],
   });
   return s;
-}
-
-class _FakeStore implements FlutterSecureStorage {
-  final Map<String, String> store = {};
-
-  @override
-  Future<String?> read({required String key, AppleOptions? iOptions,
-      AndroidOptions? aOptions, LinuxOptions? lOptions, WebOptions? webOptions,
-      AppleOptions? mOptions, WindowsOptions? wOptions}) async => store[key];
-
-  @override
-  Future<void> write({required String key, required String? value,
-      AppleOptions? iOptions, AndroidOptions? aOptions, LinuxOptions? lOptions,
-      WebOptions? webOptions, AppleOptions? mOptions,
-      WindowsOptions? wOptions}) async {
-    if (value == null) {
-      store.remove(key);
-    } else {
-      store[key] = value;
-    }
-  }
-
-  @override
-  Future<void> delete({required String key, AppleOptions? iOptions,
-      AndroidOptions? aOptions, LinuxOptions? lOptions, WebOptions? webOptions,
-      AppleOptions? mOptions, WindowsOptions? wOptions}) async {
-    store.remove(key);
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
 class _FakeHttp extends http.BaseClient {
@@ -155,7 +124,7 @@ void main() {
     await t.pumpAndSettle();
 
     expect(find.text(_obfs4), findsOneWidget);
-    expect(backing.store['tor_bridges'], contains('192.0.2.10:9443'),
+    expect(backing.storage['tor_bridges'], contains('192.0.2.10:9443'),
         reason: 'persisted to the keystore, not just held in the widget');
   });
 
@@ -208,13 +177,13 @@ void main() {
 
     expect(find.text(_obfs4), findsOneWidget);
     expect(find.textContaining('Bridges added: 1'), findsOneWidget);
-    expect(backing.store['tor_bridges'], contains('192.0.2.10:9443'));
+    expect(backing.storage['tor_bridges'], contains('192.0.2.10:9443'));
   });
 
   testWidgets('a built-in-line transport says so rather than looking unset',
       (t) async {
-    final backing = _FakeStore();
-    backing.store['tor_bridges'] = jsonEncode({
+    final backing = MockFlutterSecureStorage();
+    backing.storage['tor_bridges'] = jsonEncode({
       'enabled': true,
       'transport': 'snowflake',
       'lines': <String>[],
@@ -235,7 +204,7 @@ void main() {
     // force. Rendering them anyway reads as a set of live settings that
     // silently do nothing.
     await t.pumpWidget(host(TorBridgeSettingsScreen(
-      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+      storage: TorBridgeSecureStorage(secureStorage: MockFlutterSecureStorage()),
     )));
     await t.pumpAndSettle();
 
@@ -249,7 +218,7 @@ void main() {
 
   testWidgets('turning the switch on reveals the configuration', (t) async {
     await t.pumpWidget(host(TorBridgeSettingsScreen(
-      storage: TorBridgeSecureStorage(secureStorage: _FakeStore()),
+      storage: TorBridgeSecureStorage(secureStorage: MockFlutterSecureStorage()),
     )));
     await t.pumpAndSettle();
 
@@ -267,8 +236,8 @@ void main() {
     // answer: they are not allocated per user. Offering the button there
     // offers a request that cannot succeed.
     for (final transport in ['snowflake', 'meek_lite']) {
-      final backing = _FakeStore();
-      backing.store['tor_bridges'] = jsonEncode({
+      final backing = MockFlutterSecureStorage();
+      backing.storage['tor_bridges'] = jsonEncode({
         'enabled': true,
         'transport': transport,
         'lines': <String>[],

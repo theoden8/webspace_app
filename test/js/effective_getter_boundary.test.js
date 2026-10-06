@@ -11,12 +11,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter } = require('./helpers/source');
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
 const MODEL = 'lib/web_view_model.dart';
 
 // Fields whose model getter applies an override. Keep in step with the

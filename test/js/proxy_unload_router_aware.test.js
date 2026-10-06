@@ -13,54 +13,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, callSites } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-
-function dartSources(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...dartSources(p));
-    else if (entry.name.endsWith('.dart')) out.push(p);
-  }
-  return out;
-}
-
-/** Each `indicesToUnloadForProxyMismatch(...)` call, as `{file, args}`. */
-function callSites() {
-  const calls = [];
-  for (const file of dartSources(path.join(repoRoot, 'lib'))) {
-    const src = fs.readFileSync(file, 'utf8');
-    let from = 0;
-    for (;;) {
-      const at = src.indexOf('indicesToUnloadForProxyMismatch(', from);
-      if (at === -1) break;
-      from = at + 1;
-      // The declaration itself is not a call.
-      if (/static\s+Set<int>\s*$/.test(src.slice(Math.max(0, at - 40), at))) {
-        continue;
-      }
-      let i = src.indexOf('(', at);
-      let depth = 0;
-      for (let j = i; j < src.length; j++) {
-        if (src[j] === '(') depth++;
-        else if (src[j] === ')' && --depth === 0) {
-          calls.push({
-            file: path.relative(repoRoot, file),
-            args: src.slice(i + 1, j),
-          });
-          break;
-        }
-      }
-    }
-  }
-  return calls;
-}
+const calls = () => callSites('indicesToUnloadForProxyMismatch');
 
 test('there is at least one call site to check', () => {
-  assert.ok(callSites().length > 0, 'the eviction is called from somewhere');
+  assert.ok(calls().length > 0, 'the eviction is called from somewhere');
 });
 
 /** The ProxyTopology a call passes, or null. */
@@ -70,7 +28,7 @@ function topologyOf(args) {
 }
 
 test('no call site hardcodes the topology', () => {
-  for (const { file, args } of callSites()) {
+  for (const { file, args } of calls()) {
     const expr = topologyOf(args);
     assert.ok(expr, `${file}: call passes no topology`);
     assert.doesNotMatch(
@@ -83,7 +41,7 @@ test('no call site hardcodes the topology', () => {
 });
 
 test('the page derives its topology from the router state', () => {
-  const main = fs.readFileSync(path.join(repoRoot, 'lib/main.dart'), 'utf8');
+  const main = read('lib/main.dart');
   const getter = /ProxyTopology get _proxyTopology \{([\s\S]*?)\n  \}/.exec(main);
   assert.ok(getter, 'lib/main.dart must define _proxyTopology');
   assert.match(getter[1], /ProxyRouterService\.instance\.isActive/,

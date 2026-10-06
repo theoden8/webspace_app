@@ -12,19 +12,10 @@
 # `proxy_router_attribution_test.dart` stands up two upstreams and fails
 # if only one is ever reached, which is exactly what a shared auth cache
 # would produce.
-#
-# Single entry point for the same reason as the white-screen tier:
-# reactivecircus/android-emulator-runner executes each script line as a
-# separate `sh -c`, so a variable assignment does not survive to the next
-# line.
 set -euo pipefail
+. "$(dirname "$0")/lib/android_tier.sh"
 
-device_id="${1:-$(adb devices | grep -w 'device' | head -1 | awk '{print $1}' || true)}"
-if [ -z "$device_id" ]; then
-  echo "ERROR: no connected Android device/emulator found" >&2
-  adb devices >&2
-  exit 1
-fi
+pick_device "${1:-}"
 
 # Record the System WebView version. Router mode needs MULTI_PROFILE, and an
 # emulator image ships whatever WebView was current when the image was cut, so
@@ -36,9 +27,5 @@ fi
 # rather than inferring it from a green tick.
 bash "$(dirname "$0")/print_android_webview_version.sh" "$device_id"
 
-# Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
-# layer (same rationale as the white-screen tier).
-exec timeout -k 30s 20m fvm flutter test \
-  integration_test/proxy_router_test.dart \
-  integration_test/proxy_router_attribution_test.dart \
-  -d "$device_id" --flavor fdebug
+run_tier integration_test/proxy_router_test.dart \
+  integration_test/proxy_router_attribution_test.dart 20

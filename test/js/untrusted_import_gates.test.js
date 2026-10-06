@@ -15,11 +15,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const ROOT = path.resolve(__dirname, '..', '..');
-const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const { read } = require('./helpers/source');
 
 test('QR-supplied site settings are reviewed before the site is created', () => {
   const src = read('lib/main.dart');

@@ -10,7 +10,7 @@ import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 
-import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 Map<String, dynamic> backupJson({
   List<String>? selected,
@@ -231,7 +231,7 @@ void main() {
     });
 
     test('the registry is fetched through the outbound seam', () async {
-      outboundHttp = FakeOutboundFactory((req) => req.url.toString() ==
+      outboundHttp = FakeOutbound(responder: (req) => req.url.toString() ==
               kUboAssetRegistryUrl
           ? http.Response(
               jsonEncode({
@@ -246,7 +246,7 @@ void main() {
       final fetched = await service.fetchUboAssetRegistry();
       expect(fetched['easylist']?.url, 'https://e.example/easylist.txt');
 
-      outboundHttp = FakeOutboundFactory((_) => http.Response('', 500));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('', 500));
       expect(await service.fetchUboAssetRegistry(), isEmpty);
     });
   });

@@ -22,8 +22,7 @@ import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/webspace_model.dart';
 
-import 'cookie_isolation_integration_test.dart'
-    show MockCookieManager, MockCookieSecureStorage;
+import 'helpers/mock_cookie_manager.dart';
 import 'helpers/mock_secure_storage.dart';
 
 /// Active-state byte-identity regression tests (ARCH-001).

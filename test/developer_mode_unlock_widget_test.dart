@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
+import 'helpers/localized.dart';
 
 /// The seven-tap gesture end to end through the real settings screen
 /// (`developer-tools` DEVTOOLS-010). `developer_unlock_engine_test.dart` covers
@@ -14,37 +14,33 @@ import 'package:webspace/services/developer_unlock_engine.dart';
 /// exists, that taps reach the engine, and that the seventh flips the service
 /// the Repaint Screen menu entry reads (`webview-pause-lifecycle` PAUSE-028).
 void main() {
-  Widget host() => MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: AppSettingsScreen(
-          currentSettings: AppThemeSettings(),
-          onSettingsChanged: (_) {},
-          onExportSettings: () {},
-          onImportSettings: () {},
-          showTabStrip: false,
-          onShowTabStripChanged: (_) {},
-          tabStripInFullscreen: false,
-          onTabStripInFullscreenChanged: (_) {},
-          fullscreenOnShortcut: false,
-          onFullscreenOnShortcutChanged: (_) {},
-          backOpensMenu: false,
-          onBackOpensMenuChanged: (_) {},
-          httpsUpgradeEnabled: true,
-          onHttpsUpgradeEnabledChanged: (_) {},
-          tabBarButton: false,
-          onTabBarButtonChanged: (_) {},
-          tabMaxWidth: 140,
-          onTabMaxWidthChanged: (_) {},
-          showStatsBanner: false,
-          onShowStatsBannerChanged: (_) {},
-          localeOverride: '',
-          onLocaleOverrideChanged: (_) {},
-          linkHandlingEnabled: true,
-          onLinkHandlingEnabledChanged: (_) {},
-          onOpenLinkHandlingSettings: () {},
-        ),
-      );
+  Widget host() => localizedApp(AppSettingsScreen(
+    currentSettings: AppThemeSettings(),
+    onSettingsChanged: (_) {},
+    onExportSettings: () {},
+    onImportSettings: () {},
+    showTabStrip: false,
+    onShowTabStripChanged: (_) {},
+    tabStripInFullscreen: false,
+    onTabStripInFullscreenChanged: (_) {},
+    fullscreenOnShortcut: false,
+    onFullscreenOnShortcutChanged: (_) {},
+    backOpensMenu: false,
+    onBackOpensMenuChanged: (_) {},
+    httpsUpgradeEnabled: true,
+    onHttpsUpgradeEnabledChanged: (_) {},
+    tabBarButton: false,
+    onTabBarButtonChanged: (_) {},
+    tabMaxWidth: 140,
+    onTabMaxWidthChanged: (_) {},
+    showStatsBanner: false,
+    onShowStatsBannerChanged: (_) {},
+    localeOverride: '',
+    onLocaleOverrideChanged: (_) {},
+    linkHandlingEnabled: true,
+    onLinkHandlingEnabledChanged: (_) {},
+    onOpenLinkHandlingSettings: () {},
+  ));
 
   /// The version row sits at the bottom of a long list.
   Future<Finder> versionRow(WidgetTester tester) async {

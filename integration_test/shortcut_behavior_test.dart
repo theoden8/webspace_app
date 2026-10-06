@@ -50,6 +50,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 const _kShortcutChannel = MethodChannel(
   'org.codeberg.theoden8.webspace/shortcuts',
@@ -189,15 +190,6 @@ void main() {
     )) {
       // ignore: avoid_print
       print('  [${e.tag}/${e.level.name}] ${e.message}');
-    }
-  }
-
-  // pumpAndSettle deadlocks once a webview is live (see
-  // lazy_webview_loading_test), so every wait polls in fixed slices instead.
-  Future<void> pumpFor(WidgetTester tester, Duration total) async {
-    final deadline = DateTime.now().add(total);
-    while (DateTime.now().isBefore(deadline)) {
-      await tester.pump(const Duration(milliseconds: 100));
     }
   }
 

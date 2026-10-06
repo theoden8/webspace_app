@@ -2,7 +2,6 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -10,26 +9,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
-import 'package:webspace/settings/proxy.dart';
-
-/// Serves a fixed body for the source-file URL and the product-details URL,
-/// letting a test simulate either source succeeding/failing independently.
-class _FakeFactory implements OutboundHttpFactory {
-  final http.Response Function(Uri url) responder;
-  _FakeFactory(this.responder);
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) =>
-      OutboundClientReady(MockClient((req) async => responder(req.url)));
-}
-
-/// Models a misconfigured proxy: every request blocks rather than leaking a
-/// direct connection.
-class _BlockedFactory implements OutboundHttpFactory {
-  @override
-  OutboundClient clientFor(UserProxySettings settings) =>
-      const OutboundClientBlocked('blocked by test fake');
-}
+import 'helpers/fake_outbound.dart';
 
 const _sourceUrl = 'raw.githubusercontent.com';
 const _detailsUrl = 'product-details.mozilla.org';
@@ -176,7 +156,8 @@ void main() {
 
   group('refresh', () {
     test('adopts a newer version scraped from the source file', () async {
-      outboundHttp = _FakeFactory((url) {
+      outboundHttp = FakeOutbound(responder: (req) {
+        final url = req.url;
         if (url.host.contains(_sourceUrl)) return http.Response('160.0\n', 200);
         return http.Response('', 404);
       });
@@ -190,7 +171,8 @@ void main() {
     });
 
     test('falls back to product-details when source file 404s', () async {
-      outboundHttp = _FakeFactory((url) {
+      outboundHttp = FakeOutbound(responder: (req) {
+        final url = req.url;
         if (url.host.contains(_detailsUrl)) {
           return http.Response('{"LATEST_FIREFOX_VERSION":"162.0.1"}', 200);
         }
@@ -201,26 +183,26 @@ void main() {
     });
 
     test('reports unchanged when scrape is not newer', () async {
-      outboundHttp = _FakeFactory((_) => http.Response('120.0', 200));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('120.0', 200));
       expect(await svc.refresh(), FirefoxVersionRefreshResult.unchanged);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
 
     test('reports failed when both sources fail', () async {
-      outboundHttp = _FakeFactory((_) => http.Response('', 500));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('', 500));
       expect(await svc.refresh(), FirefoxVersionRefreshResult.failed);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
 
     test('fails on garbage that parses out of range', () async {
       outboundHttp =
-          _FakeFactory((_) => http.Response('<!doctype html>500000', 200));
+          FakeOutbound(responder: (_) => http.Response('<!doctype html>500000', 200));
       expect(await svc.refresh(), FirefoxVersionRefreshResult.failed);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
 
     test('blocked outbound proxy fails without leaking direct', () async {
-      outboundHttp = _BlockedFactory();
+      outboundHttp = FakeOutbound(blockWhen: (_) => true);
       expect(await svc.refresh(), FirefoxVersionRefreshResult.failed);
       expect(svc.majorVersion, kDefaultFirefoxMajorVersion);
     });
@@ -229,7 +211,7 @@ void main() {
   group('maybeAutoRefresh', () {
     test('no network when the opt-in pref is off (default)', () async {
       var hits = 0;
-      outboundHttp = _FakeFactory((_) {
+      outboundHttp = FakeOutbound(responder: (_) {
         hits++;
         return http.Response('160.0', 200);
       });
@@ -241,7 +223,7 @@ void main() {
     test('refreshes when opted in and never checked', () async {
       SharedPreferences.setMockInitialValues(
           {kFirefoxUaAutoRefreshKey: true});
-      outboundHttp = _FakeFactory((_) => http.Response('160.0', 200));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('160.0', 200));
       await svc.maybeAutoRefresh();
       expect(svc.majorVersion, 160);
     });
@@ -254,7 +236,7 @@ void main() {
       });
       await svc.initialize();
       var hits = 0;
-      outboundHttp = _FakeFactory((_) {
+      outboundHttp = FakeOutbound(responder: (_) {
         hits++;
         return http.Response('160.0', 200);
       });
@@ -270,7 +252,7 @@ void main() {
             .toIso8601String(),
       });
       await svc.initialize();
-      outboundHttp = _FakeFactory((_) => http.Response('160.0', 200));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('160.0', 200));
       await svc.maybeAutoRefresh();
       expect(svc.majorVersion, 160);
     });

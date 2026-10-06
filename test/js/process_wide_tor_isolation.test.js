@@ -10,55 +10,20 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-
-function dartFiles(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...dartFiles(full));
-    else if (entry.name.endsWith('.dart')) out.push(full);
-  }
-  return out;
-}
-
-function read(rel) {
-  return fs
-    .readFileSync(path.join(repoRoot, rel), 'utf8')
-    .replace(/^\s*\/\/.*$/gm, '');
-}
-
-/// The text enclosed by the first [opener] at or after [from], balanced.
-function enclosedAt(text, from, opener) {
-  const open = text.indexOf(opener, from);
-  if (open < 0) return null;
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    const c = text[i];
-    if (c === '(' || c === '[' || c === '{') depth++;
-    else if (c === ')' || c === ']' || c === '}') {
-      depth--;
-      if (depth === 0) return text.slice(open + 1, i);
-    }
-  }
-  return null;
-}
+const { read, dartFiles, code, enclosed } = require('./helpers/source');
 
 test('every setProxySettings call names the site it applies for', () => {
   const missing = [];
   let seen = 0;
-  for (const file of dartFiles(path.join(repoRoot, 'lib'))) {
-    const text = fs.readFileSync(file, 'utf8').replace(/^\s*\/\/.*$/gm, '');
+  for (const rel of dartFiles()) {
+    const text = code(read(rel));
     const re = /\.setProxySettings\s*\(/g;
     let m;
     while ((m = re.exec(text)) !== null) {
       seen++;
-      const args = enclosedAt(text, m.index, '(');
+      const args = enclosed(text, m.index, '(').body;
       if (!/\bsiteId\s*:/.test(args)) {
-        missing.push(`${path.relative(repoRoot, file)}: setProxySettings(${args})`);
+        missing.push(`${rel}: setProxySettings(${args})`);
       }
     }
   }
@@ -67,10 +32,10 @@ test('every setProxySettings call names the site it applies for', () => {
 });
 
 test('the process-wide rule expands TOR with the site id before applying', () => {
-  const text = read('lib/services/webview.dart');
+  const text = code(read('lib/services/webview.dart'));
   const at = text.search(/Future<void>\s+setProxySettings\s*\(/);
   assert.ok(at >= 0, 'ProxyManager.setProxySettings not found');
-  const body = enclosedAt(text, text.indexOf(')', at), '{');
+  const body = enclosed(text, text.indexOf(')', at), '{').body;
   assert.match(body, /resolveEffectiveProxy\(\s*settings\s*,\s*siteId:\s*siteId\s*\)/);
   const expand = body.search(/expandTorProxy\(/);
   const override = body.search(/\.setProxyOverride\(/);
@@ -79,9 +44,9 @@ test('the process-wide rule expands TOR with the site id before applying', () =>
 });
 
 test('the mismatch unload compares Tor sites by their own tags', () => {
-  const text = read('lib/services/site_unload_engine.dart');
+  const text = code(read('lib/services/site_unload_engine.dart'));
   const at = text.indexOf('indicesToUnloadForProxyMismatch(');
-  const body = enclosedAt(text, text.indexOf(')', at), '{');
+  const body = enclosed(text, text.indexOf(')', at), '{').body;
   const calls = body.match(/resolveEffectiveProxy\(([^;]*?)\)\s*;/gs) || [];
   assert.ok(calls.length >= 2, 'expected the target and each loaded site');
   for (const call of calls) {

@@ -19,28 +19,13 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const source = require('./helpers/source');
 
-const { blockAfter } = require('./helpers/dart_blocks');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const readRaw = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-// Strip line comments so prose describing a call does not count as one.
-const stripComments = (src) =>
-  src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
-const read = (rel) => stripComments(readRaw(rel));
+const { blockAfter, dartFiles } = source;
+// Comments blanked so prose describing a call does not count as one.
+const read = (rel) => source.code(source.read(rel));
 
 const WEBVIEW = read('lib/services/webview.dart');
-
-const dartFiles = (dir, out = []) => {
-  for (const e of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-    const rel = path.join(dir, e.name);
-    if (e.isDirectory()) dartFiles(rel, out);
-    else if (e.name.endsWith('.dart')) out.push(rel);
-  }
-  return out;
-};
 
 // --- the navigation decision ---------------------------------------------
 
@@ -574,7 +559,7 @@ test('LEAK-002: the media-session artwork fetch goes through the outbound seam',
   // The web half survives as a stub that returns null without a request, so
   // it is exempt as a definition — but nothing may call the name.
   const callers = dartFiles('lib')
-    .filter((f) => !f.startsWith(path.join('lib', 'platform', 'host_platform_')))
+    .filter((f) => !f.startsWith('lib/platform/host_platform_'))
     .filter((f) => read(f).includes('hostFetchBounded('));
   assert.deepEqual(callers, [],
     'hostFetchBounded is a direct (unproxied) client; every Dart outbound '

@@ -15,7 +15,7 @@ import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 
-import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 const _site = 'https://github.com/';
 const _fetched = 'https://github.githubassets.com/favicons/favicon.png';
@@ -26,15 +26,15 @@ Uint8List _png(int size) =>
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late FakeOutboundFactory factory;
+  late FakeOutbound factory;
   late SiteIconStore store;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     GlobalOutboundProxy.resetForTest();
     clearFaviconCache();
-    factory = FakeOutboundFactory(
-        (_) => http.Response.bytes(_png(16), 200));
+    factory =
+        FakeOutbound(responder: (_) => http.Response.bytes(_png(16), 200));
     outboundHttp = factory;
     store = SiteIconStore(store: MemoryFileStore());
     await store.initialize();

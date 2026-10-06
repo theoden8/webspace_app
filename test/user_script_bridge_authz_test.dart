@@ -24,6 +24,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 
 import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 void main() {
   setUp(stubHostLookup);
@@ -91,7 +92,7 @@ void main() {
     test(
       '__wsFetch reaches a non-whitelisted host with no user prompt',
       () async {
-        final factory = FakeOutboundFactory(
+        final factory = FakeOutbound(responder: 
           (_) => http.Response('SECRET', 200),
         );
         outboundHttp = factory;
@@ -117,7 +118,7 @@ void main() {
     );
 
     test('the script handler gates the same URL behind confirmation', () async {
-      final factory = FakeOutboundFactory((_) => http.Response('CODE;', 200));
+      final factory = FakeOutbound(responder: (_) => http.Response('CODE;', 200));
       outboundHttp = factory;
       final asked = <String>[];
       final ctrl = FakeUserScriptController();
@@ -154,7 +155,7 @@ void main() {
 
     for (final url in hostile) {
       test('refuses $url with 403 and issues no request', () async {
-        final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+        final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
         outboundHttp = factory;
         final ctrl = FakeUserScriptController();
         serviceWith(oneScript).registerHandlers(ctrl);
@@ -173,7 +174,7 @@ void main() {
     // the connection, and the answer goes through the same ranges.
     test('a hostname that resolves onto loopback is refused', () async {
       stubHostLookup({'localtest.me': const ['127.0.0.1']});
-      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
@@ -194,7 +195,7 @@ void main() {
 
     test('a hostname resolving into the LAN is refused', () async {
       stubHostLookup({'nas.example': const ['192.168.1.10']});
-      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
@@ -215,7 +216,7 @@ void main() {
       stubHostLookup({
         'mixed.example': const ['93.184.216.34', '10.1.2.3'],
       });
-      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
@@ -231,7 +232,7 @@ void main() {
     test('a redirect onto a name that resolves onto loopback is refused',
         () async {
       stubHostLookup({'localtest.me': const ['127.0.0.1']});
-      final factory = FakeOutboundFactory(
+      final factory = FakeOutbound(responder: 
         (req) => req.url.host == 'cdn.example'
             ? http.Response('', 302,
                 headers: {'location': 'http://localtest.me/admin'})
@@ -256,7 +257,7 @@ void main() {
     test('a rebinding host is refused before the confirmation prompt',
         () async {
       stubHostLookup({'cdn.evil.example': const ['127.0.0.1']});
-      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
       var prompted = false;
@@ -282,7 +283,7 @@ void main() {
     test('the resolve check does not apply under a remote-DNS proxy',
         () async {
       stubHostLookup({'onion-gw.example': const ['127.0.0.1']});
-      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
       UserScriptService(
@@ -307,7 +308,7 @@ void main() {
     // the source it is handed, so whoever can reach the bridge gets
     // CSP-exempt execution.
     test('evaluates whatever source the caller supplies', () async {
-      outboundHttp = FakeOutboundFactory((_) => http.Response('x', 200));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('x', 200));
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
 

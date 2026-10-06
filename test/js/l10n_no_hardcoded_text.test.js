@@ -1,96 +1,19 @@
 // Localization invariant LOC-002, ported from the former Dart
 // test/l10n_no_hardcoded_text_test.dart so it runs in the Node checks job. A
-// migrated UI file must never pass a raw string literal into a user-facing
-// display sink; every readable string goes through AppLocalizations.
+// UI file must never pass a raw string literal into a user-facing display
+// sink; every readable string goes through AppLocalizations.
 //
-// Migration is phased: `migrated` is enforced and only grows; `pending`
-// files are exempt until migrated. Every UI file under the scanned roots
-// MUST be in exactly one list so a new screen can't slip past unclassified.
+// Every Dart file under the scanned roots is enforced, so a new screen is
+// covered without an edit here. `exempt` names files not yet routed through
+// AppLocalizations; it only shrinks.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, exists, dartFiles, code, lineAt } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
+const exempt = new Set([]);
 
-const migrated = new Set([
-  // Platform-split favicon rendering: no user-facing strings at all.
-  'lib/screens/favicon_image.dart',
-  'lib/screens/favicon_image_io.dart',
-  'lib/screens/favicon_image_web.dart',
-  'lib/screens/site_behaviour.dart',
-  'lib/screens/site_network.dart',
-  'lib/screens/saved_proxies.dart',
-  'lib/screens/site_permissions.dart',
-  'lib/screens/site_privacy.dart',
-  'lib/widgets/site_permission_chip.dart',
-  'lib/main.dart',
-  'lib/screens/add_site.dart',
-  'lib/screens/app_settings.dart',
-  'lib/screens/app_appearance.dart',
-  'lib/screens/app_backup.dart',
-  'lib/screens/app_behaviour.dart',
-  'lib/screens/app_developer.dart',
-  'lib/screens/app_network.dart',
-  'lib/screens/app_privacy.dart',
-  'lib/screens/content_blocker_settings.dart',
-  'lib/screens/block_stats.dart',
-  'lib/screens/dev_tools.dart',
-  'lib/screens/inappbrowser.dart',
-  'lib/screens/link_handling_settings.dart',
-  'lib/screens/location_picker.dart',
-  'lib/screens/settings.dart',
-  'lib/screens/tor_bridge_settings.dart',
-  'lib/screens/tor_status.dart',
-  'lib/screens/site_settings_qr.dart',
-  'lib/screens/site_settings_qr_scanner.dart',
-  'lib/screens/trusted_certificates.dart',
-  'lib/screens/user_scripts.dart',
-  'lib/screens/webspace_detail.dart',
-  'lib/screens/webspaces_list.dart',
-  'lib/widgets/background_log_view.dart',
-  // A coloured bar, excluded from semantics: no text at all.
-  'lib/widgets/container_mark.dart',
-  'lib/widgets/search_site_picker.dart',
-  'lib/widgets/site_search_list_tile.dart',
-  'lib/widgets/dispatch_picker_sheet.dart',
-  'lib/widgets/download_button.dart',
-  'lib/widgets/external_tor_tiles.dart',
-  'lib/widgets/external_url_prompt.dart',
-  'lib/widgets/find_toolbar.dart',
-  'lib/widgets/firefox_version_tile.dart',
-  'lib/widgets/hint_button.dart',
-  'lib/widgets/http_auth_prompt.dart',
-  'lib/widgets/proxy_auth_section.dart',
-  'lib/widgets/proxy_test_tile.dart',
-  'lib/widgets/proxy_choice_dropdown.dart',
-  'lib/widgets/proxy_status_indicator.dart',
-  'lib/widgets/level_slider.dart',
-  'lib/widgets/log_entry_line.dart',
-  'lib/widgets/root_messenger.dart',
-  'lib/widgets/settings_rows.dart',
-  'lib/widgets/site_info_sheet.dart',
-  'lib/widgets/site_permission_badges.dart',
-  'lib/widgets/stats_banner.dart',
-  // Ambient layout state for the repaint nudge: no user-facing strings.
-  'lib/widgets/surface_nudge_scope.dart',
-  'lib/widgets/tab_bar_corner_button.dart',
-  'lib/widgets/tabs_sheet.dart',
-  'lib/widgets/tor_bootstrap.dart',
-  'lib/widgets/tor_status_card.dart',
-  'lib/widgets/unproxied_block.dart',
-  'lib/widgets/untrusted_cert_prompt.dart',
-  'lib/widgets/url_bar.dart',
-  'lib/widgets/virtual_source_preview.dart',
-  'lib/widgets/web_search_sheet.dart',
-]);
-
-// Known not-yet-migrated. Shrinks as files move to `migrated`; goal is empty.
-const pending = new Set([]);
-
-// Roots scanned for user-facing widgets. Service/model files render no UI.
-const scanRoots = ['lib/main.dart', 'lib/screens', 'lib/widgets'];
+const scanned = ['lib/main.dart', ...dartFiles('lib/screens'), ...dartFiles('lib/widgets')];
 
 // Display sinks that put a string directly on screen. A quoted literal
 // opening immediately inside any of these is unkeyed text.
@@ -99,49 +22,12 @@ const sinkPatterns = [
   /\b(?:tooltip|hintText|labelText|helperText|errorText|counterText|prefixText|suffixText|semanticLabel)\s*:\s*['"]/g,
 ];
 
-function discoverDartFiles(roots) {
-  const out = new Set();
-  const walk = (abs, rel) => {
-    for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
-      const childAbs = path.join(abs, e.name);
-      const childRel = `${rel}/${e.name}`;
-      if (e.isDirectory()) walk(childAbs, childRel);
-      else if (e.isFile() && e.name.endsWith('.dart')) out.add(childRel);
-    }
-  };
-  for (const root of roots) {
-    const abs = path.join(repoRoot, root);
-    if (!fs.existsSync(abs)) continue;
-    const st = fs.statSync(abs);
-    if (st.isFile()) {
-      if (root.endsWith('.dart')) out.add(root);
-    } else if (st.isDirectory()) {
-      walk(abs, root);
-    }
-  }
-  return out;
-}
-
-// Naive comment stripping: block comments then line comments (truncate at the
-// first `//`). Good enough for the migrated files, which are the only inputs;
-// matches the former Dart test's behaviour.
-function stripComments(source) {
-  const noBlock = source.replace(/\/\*[\s\S]*?\*\//g, '');
-  return noBlock
-    .split('\n')
-    .map((l) => {
-      const idx = l.indexOf('//');
-      return idx >= 0 ? l.slice(0, idx) : l;
-    })
-    .join('\n');
-}
-
 function findHardcodedDisplayText(rel, source) {
-  const stripped = stripComments(source);
+  const stripped = code(source);
   const hits = [];
   for (const p of sinkPatterns) {
     for (const m of stripped.matchAll(p)) {
-      const line = (stripped.slice(0, m.index).match(/\n/g) || []).length + 1;
+      const line = lineAt(stripped, m.index);
       const snippet = stripped.slice(m.index, m.index + 60).split('\n')[0].trim();
       hits.push(`  ${rel}:${line}: ${snippet}`);
     }
@@ -150,40 +36,18 @@ function findHardcodedDisplayText(rel, source) {
   return hits;
 }
 
-const setDiff = (a, b) => [...a].filter((x) => !b.has(x));
-
-test('every scanned UI file is classified as migrated or pending', () => {
-  const discovered = discoverDartFiles(scanRoots);
-  const classified = new Set([...migrated, ...pending]);
-
-  assert.deepEqual(
-    setDiff(discovered, classified),
-    [],
-    'New UI file(s) are not classified. Add each to `migrated` (after routing every string through '
-      + 'AppLocalizations) or `pending` in test/js/l10n_no_hardcoded_text.test.js.',
-  );
-  assert.deepEqual(
-    setDiff(classified, discovered),
-    [],
-    'Classified file(s) no longer exist; drop them from the lists.',
-  );
-  assert.deepEqual(
-    [...migrated].filter((f) => pending.has(f)),
-    [],
-    'A file is listed as both migrated and pending.',
-  );
+test('exempt files still exist', () => {
+  assert.deepEqual([...exempt].filter((f) => !exists(f)), [],
+    'Exempt file(s) no longer exist; drop them from `exempt`.');
 });
 
-test('migrated files contain no hardcoded user-facing text', () => {
-  const violations = [];
-  for (const rel of migrated) {
-    const abs = path.join(repoRoot, rel);
-    assert.ok(fs.existsSync(abs), `Missing migrated file: ${rel}`);
-    violations.push(...findHardcodedDisplayText(rel, fs.readFileSync(abs, 'utf8')));
-  }
+test('UI files contain no hardcoded user-facing text', () => {
+  const violations = scanned
+    .filter((rel) => !exempt.has(rel))
+    .flatMap((rel) => findHardcodedDisplayText(rel, read(rel)));
   assert.deepEqual(
     violations,
     [],
-    `Hardcoded user-facing string(s) found in migrated files. Route each through AppLocalizations:\n${violations.join('\n')}`,
+    `Hardcoded user-facing string(s) found. Route each through AppLocalizations:\n${violations.join('\n')}`,
   );
 });

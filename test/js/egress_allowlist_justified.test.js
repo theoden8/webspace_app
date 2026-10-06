@@ -12,15 +12,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const allowlistPath = path.join(repoRoot, 'scripts', 'egress_allowlist.txt');
-const workflowPath = path.join(
-  repoRoot, '.github', 'workflows', 'build-and-test.yml');
-
-const lines = fs.readFileSync(allowlistPath, 'utf8').split('\n');
+const ALLOWLIST = 'scripts/egress_allowlist.txt';
+const lines = read(ALLOWLIST).split('\n');
 
 const entries = lines
   .map((text, i) => ({ text, line: i + 1 }))
@@ -32,7 +27,7 @@ test('every allowlist entry is one of the three known forms', () => {
     assert.match(
       entry,
       /^(dns|host|ip):\S+$/,
-      `${allowlistPath}:${line}: ${JSON.stringify(entry)} is not `
+      `${ALLOWLIST}:${line}: ${JSON.stringify(entry)} is not `
         + 'dns:<suffix>, host:<suffix> or ip:<addr|cidr>',
     );
   }
@@ -43,7 +38,7 @@ test('every allowlist entry says why that destination may be contacted', () => {
     const comment = text.includes('#') ? text.split('#').slice(1).join('#') : '';
     assert.ok(
       comment.trim().length >= 10,
-      `${allowlistPath}:${line}: ${JSON.stringify(text.trim())} has no `
+      `${ALLOWLIST}:${line}: ${JSON.stringify(text.trim())} has no `
         + 'justification. Name the code path that makes the request and why '
         + 'it may leave the runner (LEAK-007), or delete the entry.',
     );
@@ -51,7 +46,7 @@ test('every allowlist entry says why that destination may be contacted', () => {
 });
 
 test('the Linux integration job still arms the guard', () => {
-  const workflow = fs.readFileSync(workflowPath, 'utf8');
+  const workflow = read('.github/workflows/build-and-test.yml');
   for (const needle of [
     'scripts/egress_guard_arm.sh',
     'scripts/egress_guard_disarm.sh',

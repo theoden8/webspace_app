@@ -12,11 +12,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const { read, methodBody } = require('./helpers/source');
 
 const webviewRel = 'lib/services/webview.dart';
 const probeRel = 'lib/services/proxy_router_probe.dart';
@@ -24,25 +20,6 @@ const mainRel = 'lib/main.dart';
 const webview = read(webviewRel);
 const probe = read(probeRel);
 const main = read(mainRel);
-
-/** Source of one function, from its signature to its closing brace.
- *
- * The terminator is a line that is exactly `}`: a named-parameter list
- * closes with `}) {` at column 0, so anything looser cuts the body off at
- * the signature and every assertion below passes vacuously. */
-function body(source, signature) {
-  const at = source.indexOf(signature);
-  assert.notStrictEqual(at, -1, `${signature} should still exist`);
-  const end = source.indexOf('\n}\n', at);
-  assert.notStrictEqual(end, -1, `${signature} should terminate`);
-  const text = source.slice(at, end);
-  assert.ok(
-    text.split('\n').length > 5,
-    `${signature}: body reads as ${text.split('\n').length} lines, so the `
-      + 'terminator matched too early and these assertions mean nothing',
-  );
-  return text;
-}
 
 test('the relay rule is consulted when a WebView is built', () => {
   assert.match(
@@ -64,7 +41,7 @@ test('the relay rule is consulted when a WebView is built', () => {
 test('the relay rule is not gated on the site having a proxy', () => {
   // A store left unproxied cannot answer the PROXY-015 probe, and one
   // unproven site stands router mode down for every site.
-  const fn = body(webview, 'inapp.ProxySettings? routerRelayProxyFor(');
+  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
   assert.doesNotMatch(
     fn,
     /proxySettings\s*==\s*null|effectiveProxy/,
@@ -74,7 +51,7 @@ test('the relay rule is not gated on the site having a proxy', () => {
 });
 
 test('the relay rule rides the named binding, not a platform test', () => {
-  const fn = body(webview, 'inapp.ProxySettings? routerRelayProxyFor(');
+  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
   assert.match(
     fn,
     /ProxyManager\.binding != ProxyBinding\.perSite/,
@@ -92,7 +69,7 @@ test('the relay rule rides the named binding, not a platform test', () => {
 });
 
 test('a webview with no site id is not routed', () => {
-  const fn = body(webview, 'inapp.ProxySettings? routerRelayProxyFor(');
+  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
   assert.match(
     fn,
     /siteId == null \|\| siteId\.isEmpty/,
@@ -102,7 +79,7 @@ test('a webview with no site id is not routed', () => {
 });
 
 test('the credential rides the fields, never only the URL', () => {
-  const fn = body(webview, 'inapp.ProxySettings? routerRelayProxyFor(');
+  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
   assert.match(
     fn,
     /username: router\.usernameFor\(identity\)/,

@@ -18,13 +18,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const { JSDOM } = require('jsdom');
+const { read } = require('./helpers/source');
 
-const PROBE_HTML = path.resolve(
-  __dirname, '..', 'fixtures', 'abp_rule_probe.html');
-const HTML = fs.readFileSync(PROBE_HTML, 'utf8');
+const HTML = read('test/fixtures/abp_rule_probe.html');
 
 // Build the probe page in jsdom with a stubbed bridge. `url` defaults
 // to a file:// origin to mirror the real-world scenario that surfaced

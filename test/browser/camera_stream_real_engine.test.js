@@ -15,8 +15,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const http = require('node:http');
 const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { startBlankServer } = require('./helpers/blank_server');
 
 const SHIM = readFixture('camera_stream/shim.js');
 const JSQR = fs.readFileSync(
@@ -27,16 +27,6 @@ const QR_PAYLOAD = 'WEBSPACE-CAM-OK-42';
 
 const browser = setupBrowser();
 
-function startServer() {
-  return new Promise((resolve) => {
-    const server = http.createServer((_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<!doctype html><html><head></head><body></body></html>');
-    });
-    server.listen(0, '127.0.0.1', () => resolve(server));
-  });
-}
-
 test('virtual camera stream carries a decodable QR under real Chromium', async (t) => {
   if (!requireBrowser(browser, t)) return;
 
@@ -44,7 +34,7 @@ test('virtual camera stream carries a decodable QR under real Chromium', async (
     margin: 2,
     width: 400,
   });
-  const server = await startServer();
+  const server = await startBlankServer();
   const { port } = server.address();
   const page = await browser.browser.newPage();
 
@@ -217,7 +207,7 @@ test('a video virtual source plays and loops under real Chromium', async (t) => 
   if (!requireBrowser(browser, t)) return;
 
   const { b64, colours } = readClipFixture();
-  const server = await startServer();
+  const server = await startBlankServer();
   const { port } = server.address();
   const page = await browser.browser.newPage();
   try {

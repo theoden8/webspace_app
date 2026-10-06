@@ -23,10 +23,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const {
   setupBrowser, requireBrowser, readFixture,
 } = require('./helpers/launch');
+const { startBlankServer } = require('./helpers/blank_server');
 
 const LINUX = readFixture('desktop_mode/linux.js');
 const FULL_COMBO = readFixture('location_spoof/full_combo.js');
@@ -141,7 +141,7 @@ test('anti_fingerprinting: the shim adds no navigator property Chromium lacks',
       }
       return seen.sort();
     };
-    const server = await startSecureOriginServer();
+    const server = await startBlankServer();
     try {
       for (const url of ['about:blank',
                          `http://127.0.0.1:${server.address().port}/`]) {
@@ -174,7 +174,7 @@ test('anti_fingerprinting: deviceMemory and getBattery are still spoofed here',
     // both, so skipping them where they are absent must not have skipped
     // them where they are present.
     if (!requireBrowser(browser, t)) return;
-    const server = await startSecureOriginServer();
+    const server = await startBlankServer();
     const page = await browser.browser.newPage();
     try {
       await page.evaluateOnNewDocument(AF_ALPHA);
@@ -217,7 +217,7 @@ test('anti_fingerprinting: navigator.connection is corrected, not extended',
       }
       return seen.sort();
     };
-    const server = await startSecureOriginServer();
+    const server = await startBlankServer();
     const url = `http://127.0.0.1:${server.address().port}/`;
     const clean = await browser.browser.newPage();
     const shimmed = await browser.browser.newPage();
@@ -484,21 +484,11 @@ test('blob_url_capture: capture still works after the toString hardening',
 // so this section serves its page from 127.0.0.1 (a Chromium secure-origin
 // exception) instead of reusing withShim().
 
-function startSecureOriginServer() {
-  return new Promise((resolve) => {
-    const server = http.createServer((_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<!doctype html><html><head></head><body></body></html>');
-    });
-    server.listen(0, '127.0.0.1', () => resolve(server));
-  });
-}
-
 // Runs `fn(page)` with the camera shim installed and the bridge answering
 // `virtual` with a 1x1 image, so a stream can actually be served.
 async function withCameraShim(t, fn) {
   if (!requireBrowser(browser, t)) return;
-  const server = await startSecureOriginServer();
+  const server = await startBlankServer();
   const page = await browser.browser.newPage();
   try {
     await page.evaluateOnNewDocument(() => {
@@ -661,7 +651,7 @@ function makeWavDataUrl(seconds = 0.1, rate = 8000) {
 
 async function withMicrophoneShim(t, fn) {
   if (!requireBrowser(browser, t)) return;
-  const server = await startSecureOriginServer();
+  const server = await startBlankServer();
   const page = await browser.browser.newPage();
   const dataUrl = makeWavDataUrl();
   try {

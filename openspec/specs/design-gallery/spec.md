@@ -153,19 +153,20 @@ Values that belong to the design system live in `lib/theme/design_tokens.dart`
 (anything accent-derived), so a designer has one file to edit rather than a
 literal buried in a widget.
 
-#### Scenario: A migrated widget reintroduces a literal
+#### Scenario: A converted UI file reintroduces a literal
 
-- **GIVEN** a file listed as MIGRATED in
-  `test/js/design_tokens_no_literals.test.js`
+- **GIVEN** a file under `lib/main.dart`, `lib/widgets/` or `lib/screens/`
+  not listed in EXEMPT in `test/js/design_tokens_no_literals.test.js`
 - **WHEN** it gains a raw `Color(0x…)`, `BorderRadius.circular(n)` or
   `Duration(milliseconds: n)`
 - **THEN** the guard fails, naming the token that replaces it
 
-#### Scenario: A new UI file is neither migrated nor pending
+#### Scenario: A new UI file is covered without an edit
 
 - **GIVEN** a new file under `lib/widgets/` or `lib/screens/`
-- **WHEN** it appears in neither list
-- **THEN** the guard fails, so the classification cannot go stale silently
+- **WHEN** it gains a raw design literal
+- **THEN** the guard fails, because only EXEMPT files are skipped and that
+  list only shrinks
 
 ### Requirement: DESIGN-005 — Token values stay internally consistent
 

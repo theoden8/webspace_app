@@ -7,6 +7,7 @@ import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
+import 'helpers/localized.dart';
 
 WebViewModel site({
   LocationMode locationMode = LocationMode.off,
@@ -163,11 +164,8 @@ void main() {
   });
 
   group('SitePermissionBadges widget (PERMBADGE-002)', () {
-    Widget harness(WebViewModel model) => MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: SitePermissionBadges(model: model)),
-        );
+    Widget harness(WebViewModel model) =>
+        localizedApp(Scaffold(body: SitePermissionBadges(model: model)));
 
     testWidgets('renders nothing for a site without grants', (tester) async {
       await tester.pumpWidget(harness(site()));
@@ -227,11 +225,8 @@ void main() {
   });
 
   group('SitePermissionBadges in a tile (PERMBADGE-005)', () {
-    Widget boxed(Widget strip) => MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(body: Center(child: strip)),
-        );
+    Widget boxed(Widget strip) =>
+        localizedApp(Scaffold(body: Center(child: strip)));
 
     int rows(WidgetTester tester) => tester
         .widgetList<Icon>(find.byType(Icon))

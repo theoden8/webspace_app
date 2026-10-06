@@ -46,6 +46,7 @@ import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 /// Marker baked into the snapshot handed to the webview as `initialHtml`.
 const String _cachedMarker = 'WS_CACHED_SNAPSHOT_MARKER';
@@ -167,29 +168,7 @@ void main() {
   String url(String path) => 'http://127.0.0.1:$port$path';
   int countFor(String path) => requests.where((p) => p == path).length;
 
-  /// Wall-clock wait that never pumps a frame — a live, compositing
-  /// platform view blocks `tester.pump()` on a headless runner.
-  Future<bool> waitReal(
-    WidgetTester tester,
-    bool Function() done, {
-    required String label,
-    Duration timeout = const Duration(seconds: 30),
-  }) async {
-    var ok = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        if (done()) {
-          ok = true;
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      ok = done();
-    });
-    log('$label -> ${ok ? "ok" : "timeout"}');
-    return ok;
-  }
+  final waitReal = RealWait(log: log);
 
   /// Mount one webview through the real factory. Frames are pumped only
   /// to get the platform view on screen; the load itself is awaited by

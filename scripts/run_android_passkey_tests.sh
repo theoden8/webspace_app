@@ -16,13 +16,9 @@
 # Single entry point for the usual reason: the emulator runner executes each
 # script line as its own `sh -c`.
 set -uo pipefail
+. "$(dirname "$0")/lib/android_tier.sh"
 
-device_id="${1:-$(adb devices | grep -w 'device' | head -1 | awk '{print $1}' || true)}"
-if [ -z "$device_id" ]; then
-  echo "ERROR: no connected Android device/emulator found" >&2
-  adb devices >&2
-  exit 1
-fi
+pick_device "${1:-}"
 
 APP_ID=org.codeberg.theoden8.webspace.debug
 PROVIDER_ID=org.codeberg.theoden8.webspace.testprovider

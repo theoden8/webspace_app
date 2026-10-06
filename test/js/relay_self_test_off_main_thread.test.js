@@ -15,25 +15,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/proxy/ProxyRelay.kt';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const src = read(rel);
 
-function selfConnectsBody() {
-  const start = src.indexOf('private fun selfConnects(');
-  assert.notStrictEqual(start, -1, 'selfConnects should still exist');
-  // Balance braces from the opening one so the body is exact.
-  let i = src.indexOf('{', start);
-  let depth = 0;
-  for (let j = i; j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) return src.slice(start, j + 1);
-  }
-  throw new Error('unbalanced selfConnects body');
-}
+const selfConnectsBody = () => blockAfter(src, 'private fun selfConnects(', undefined, rel);
 
 test('the probe connects on a thread it spawns', () => {
   const body = selfConnectsBody();

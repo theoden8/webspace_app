@@ -12,15 +12,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter, callArgs } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const modelRel = 'lib/web_view_model.dart';
 const mainRel = 'lib/main.dart';
-const model = fs.readFileSync(path.join(repoRoot, modelRel), 'utf8');
-const main = fs.readFileSync(path.join(repoRoot, mainRel), 'utf8');
+const model = read(modelRel);
+const main = read(mainRel);
 
 const getWebView = blockAfter(model, '  Widget getWebView(', '}) {', modelRel);
 const getController = blockAfter(
@@ -31,17 +28,6 @@ function previousLine(text, index) {
   lines.pop();
   while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
   return lines.length ? lines[lines.length - 1] : '';
-}
-
-// The argument list of the call whose `(` is the first at or after [from].
-function callText(text, from) {
-  const open = text.indexOf('(', from);
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    if (text[i] === '(') depth++;
-    else if (text[i] === ')' && --depth === 0) return text.slice(open + 1, i);
-  }
-  assert.fail(`unbalanced parentheses at offset ${from}`);
 }
 
 test('every launch in getWebView asks the outbound hook first', () => {
@@ -83,7 +69,7 @@ test('every site webview main.dart builds carries the hook', () => {
   const calls = [...main.matchAll(/\.(getWebView|getController)\(\s*launchUrl\b/g)];
   assert.ok(calls.length > 0, 'expected site webview builds in main.dart');
   for (const m of calls) {
-    const call = callText(main, m.index);
+    const call = callArgs(main, m.index);
     assert.match(call, /onOutboundLink:\s*_outboundLinkHookFor\(/,
       `${m[1]} at offset ${m.index} builds a webview without the outbound hook`);
   }
@@ -150,7 +136,7 @@ test('every point that can orphan a preference prunes it (LIR-017)', () => {
     'a move out of an archive must prune after the tier flip');
   const importRel = 'lib/services/settings_import_engine.dart';
   const plan = blockAfter(
-    fs.readFileSync(path.join(repoRoot, importRel), 'utf8'),
+    read(importRel),
     'SettingsImportPlan planSettingsImport(', '}) {', importRel);
   assert.match(plan, /OutboundPreferenceGc\.pruneAll/,
     'an import must prune inside the plan (BACKUP-013)');

@@ -12,16 +12,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
+const { read } = require('./helpers/source');
 
 // Files that host an Android webview back path and so must have the funnel.
 const GUARDED = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
 
 function linesOf(rel) {
-  return fs.readFileSync(path.join(repoRoot, rel), 'utf8').split('\n');
+  return read(rel).split('\n');
 }
 
 // The `before` lines above and `after` lines below line `i`, joined.

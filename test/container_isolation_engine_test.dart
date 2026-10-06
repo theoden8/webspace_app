@@ -5,7 +5,7 @@ import 'package:webspace/services/container_native.dart';
 /// In-memory model of the native container API: a set of containers
 /// keyed by siteId, with `bindContainerToWebView` simulated as a
 /// binding registry. Mirrors the [MockCookieManager] pattern in
-/// [test/cookie_isolation_integration_test.dart] — the engine is
+/// [test/helpers/mock_cookie_manager.dart] — the engine is
 /// unaware it is talking to a fake.
 class MockContainerNative implements ContainerNative {
   bool supported;

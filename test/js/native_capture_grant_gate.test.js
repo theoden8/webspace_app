@@ -27,42 +27,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter, code } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const SRC = 'lib/services/webview.dart';
-const src = fs.readFileSync(path.join(repoRoot, SRC), 'utf8');
-
-// Prose in the comment block above the handler names every symbol asserted
-// below, so the checks have to run against code alone.
-function stripComments(text) {
-  let out = '';
-  let str = null;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    const c2 = text[i + 1];
-    if (str) {
-      out += c;
-      if (c === '\\') { out += (c2 ?? ''); i++; continue; }
-      if (c === str) str = null;
-      continue;
-    }
-    if (c === '/' && c2 === '/') {
-      while (i < text.length && text[i] !== '\n') i++;
-      out += '\n';
-      continue;
-    }
-    if (c === '"' || c === "'") { str = c; out += c; continue; }
-    out += c;
-  }
-  return out;
-}
+const src = read(SRC);
 
 // The handler body, comments removed. `onPermissionRequest:` opens with a
 // ternary guard, so the block starts at the `async {` of the callback.
-const handler = stripComments(
+const handler = code(
   blockAfter(src, 'onPermissionRequest: ((', '(controller, request) async {', SRC));
 
 // The microphone branch: from the `wantsMicrophone` test to the end of the

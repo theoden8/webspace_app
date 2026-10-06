@@ -8,11 +8,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repo = path.resolve(__dirname, '..', '..');
-const read = (p) => fs.readFileSync(path.join(repo, p), 'utf8');
+const { read } = require('./helpers/source');
 
 const INFO_PLIST = 'macos/Runner/Info.plist';
 const PBXPROJ = 'macos/Runner.xcodeproj/project.pbxproj';

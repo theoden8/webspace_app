@@ -1,48 +1,20 @@
 // The Tor screen behind the App settings card (TOR-004): the runtime's state,
 // what is holding it up, and the settings that apply to every site at once.
 
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
-
-class _Runtime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-  void emit(TorStatus s) => _events.add(s);
-
-  @override
-  bool get isAvailable => true;
-  @override
-  Stream<TorStatus> get events => _events.stream;
-  @override
-  Future<void> start() async {}
-  @override
-  Future<void> stop() async {}
-  @override
-  Future<void> rebuildCircuits() async {}
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-  @override
-  Future<int> startTransport(String transport) async => 0;
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-  @override
-  Future<void> reopenListeners() async {}
-}
+import 'helpers/fake_tor_runtime.dart';
+import 'helpers/localized.dart';
 
 void main() {
-  late _Runtime runtime;
+  late FakeTorRuntime runtime;
 
-  Widget host() => const MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: TorStatusScreen(siteNames: {'a1': 'Mail', 'b2': 'Bank'}),
-      );
+  Widget host() => localizedApp(const TorStatusScreen(siteNames: {'a1': 'Mail', 'b2': 'Bank'}));
 
   Future<void> drain(WidgetTester t) async {
     await t.pumpWidget(const SizedBox.shrink());
@@ -53,7 +25,7 @@ void main() {
   // events in its constructor, and a stream delivers in the zone that called
   // listen, so an engine built in setUp never sees an emit the test makes.
   void install() {
-    runtime = _Runtime();
+    runtime = FakeTorRuntime();
     TorService.overrideEngine(TorEngine(runtime: runtime, sessionSecret: 's'));
   }
 

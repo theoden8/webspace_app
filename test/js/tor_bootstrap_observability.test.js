@@ -10,32 +10,20 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, exists, code, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const swiftRel = 'ios/Runner/TorControllerPlugin.swift';
 const dartRel = 'lib/services/tor_service.dart';
-const swift = fs.readFileSync(path.join(repoRoot, swiftRel), 'utf8');
-const dart = fs.readFileSync(path.join(repoRoot, dartRel), 'utf8');
+const swift = read(swiftRel);
+const dart = read(dartRel);
 
 /// Code only. The comments below name the very calls this file forbids, so
 /// a scan over the raw source would fail on the explanation of the rule.
-const swiftCode = swift.replace(/^\s*\/\/.*$/gm, '');
+const swiftCode = code(swift);
 
-/// The body of a `func <name>` in Swift source, brace-matched. Used to say
-/// "this call may only appear here", which is the shape of two rules below.
-function functionBody(src, name) {
-  const at = src.indexOf(`func ${name}(`);
-  assert.ok(at >= 0, `${swiftRel} must declare ${name}`);
-  let open = src.indexOf('{', at);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}' && --depth === 0) return src.slice(open, i + 1);
-  }
-  throw new Error(`unbalanced braces in ${name}`);
-}
+/// The body of a `func <name>` in Swift source. Used to say "this call may
+/// only appear here", which is the shape of two rules below.
+const functionBody = (src, name) => blockAfter(src, `func ${name}(`, undefined, swiftRel);
 
 test('the plugin forwards tor\'s bootstrap phase, not just the percentage', () => {
   assert.match(swift, /arguments\?\["TAG"\]/,
@@ -99,7 +87,6 @@ test('the event subscription stays as narrow as it needs to be', () => {
   assert.match(swiftCode, /case "CIRCUIT_ESTABLISHED":/,
     `${swiftRel} must handle CIRCUIT_ESTABLISHED in the status observer`);
 });
-
 
 test('tor\'s own output is filed as sensitive', () => {
   // A notice-level line can name a bridge. Sensitive entries stay in the
@@ -281,8 +268,8 @@ test('macOS carries the same pinned runtime as iOS', () => {
   // The macOS runtime is what integration_test/tor_test.dart drives, so a
   // version skew between the two platforms would mean testing something
   // other than what iOS ships. Same pods, same pins, one floor.
-  const iosPods = fs.readFileSync(path.join(repoRoot, 'ios/Podfile'), 'utf8');
-  const macPods = fs.readFileSync(path.join(repoRoot, 'macos/Podfile'), 'utf8');
+  const iosPods = read('ios/Podfile');
+  const macPods = read('macos/Podfile');
   for (const pod of ['Tor', 'IPtProxy']) {
     const pin = new RegExp(`pod '${pod}', '([0-9.]+)'`);
     const ios = iosPods.match(pin);
@@ -298,8 +285,7 @@ test('macOS carries the same pinned runtime as iOS', () => {
   // than the target it lands in.
   assert.match(macPods, /platform :osx, '11\.0'/,
     'macos/Podfile must declare the floor the Tor pod needs');
-  const macPbx = fs.readFileSync(
-    path.join(repoRoot, 'macos/Runner.xcodeproj/project.pbxproj'), 'utf8');
+  const macPbx = read('macos/Runner.xcodeproj/project.pbxproj');
   assert.ok(!/MACOSX_DEPLOYMENT_TARGET = 10\.15/.test(macPbx),
     'a target still sits below the Podfile floor');
 
@@ -321,8 +307,7 @@ test('one plugin source, built by both Apple targets', () => {
     'macos/Runner.xcodeproj': /path = \.\.\/ios\/Runner\/TorControllerPlugin\.swift/,
   };
   for (const [project, expected] of Object.entries(refs)) {
-    const pbx = fs.readFileSync(
-      path.join(repoRoot, project, 'project.pbxproj'), 'utf8');
+    const pbx = read(`${project}/project.pbxproj`);
     assert.match(pbx, expected, `${project} must reference the one source`);
     // Twice: the PBXBuildFile that defines it, and the Sources phase that
     // lists it. Matching once would pass on a file that is defined and then
@@ -334,7 +319,7 @@ test('one plugin source, built by both Apple targets', () => {
   }
   for (const copy of ['darwin/TorControllerPlugin.swift',
                       'macos/Runner/TorControllerPlugin.swift']) {
-    assert.ok(!fs.existsSync(path.join(repoRoot, copy)),
+    assert.ok(!exists(copy),
       `${copy} is a second copy of the plugin, which will drift`);
   }
   assert.match(swift, /#if canImport\(FlutterMacOS\)/,
@@ -345,8 +330,7 @@ test('the interstitial shows what is happening, not a mute bar', () => {
   // Starting Tor is tens of seconds of nothing. A bar with no words leaves
   // the user guessing and leaves a bug report empty, which is how a device
   // where tor never opened its control port went unexplained (BUG-013).
-  const widget = fs.readFileSync(
-    path.join(repoRoot, 'lib/widgets/tor_bootstrap.dart'), 'utf8');
+  const widget = read('lib/widgets/tor_bootstrap.dart');
   assert.match(widget, /class _TorLogTail/,
     'the interstitial must render the recent Tor log lines');
   assert.match(widget, /animation: LogService\.instance/,
@@ -366,8 +350,7 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
   // tool/swift_typecheck answers that in seconds against stub modules; it
   // is only worth anything while something actually runs it.
   const checkRel = 'tool/swift_typecheck/check.sh';
-  const workflow = fs.readFileSync(
-    path.join(repoRoot, '.github/workflows/build-and-test.yml'), 'utf8');
+  const workflow = read('.github/workflows/build-and-test.yml');
   const apple = workflow.slice(workflow.indexOf('\n  build-apple:'));
   assert.ok(apple.includes(checkRel),
     `the build-apple job must run ${checkRel}`);
@@ -375,7 +358,7 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
   assert.ok(steps.indexOf(checkRel) < steps.indexOf('Build IPA'),
     `${checkRel} must run before the build it front-runs`);
   assert.ok(
-    fs.readFileSync(path.join(repoRoot, 'scripts/test_all.sh'), 'utf8')
+    read('scripts/test_all.sh')
       .includes(checkRel),
     `${checkRel} must also run in the local suite`);
 
@@ -383,11 +366,11 @@ test('the plugin type-checks somewhere cheaper than a device build', () => {
   // against a pod that is no longer installed, and says nothing about it.
   // The stubs name the version they came from; a pod bump has to land in
   // both places or this fails.
-  const iosPods = fs.readFileSync(path.join(repoRoot, 'ios/Podfile'), 'utf8');
+  const iosPods = read('ios/Podfile');
   for (const pod of ['Tor', 'IPtProxy']) {
     const version = iosPods.match(new RegExp(`pod '${pod}', '([0-9.]+)'`))[1];
     const stubRel = `tool/swift_typecheck/stub_${pod}.swift`;
-    const stub = fs.readFileSync(path.join(repoRoot, stubRel), 'utf8');
+    const stub = read(stubRel);
     assert.ok(stub.includes(`${pod} ${version}`),
       `${stubRel} is transcribed from a header other than ${pod} ${version}; `
       + 're-read the pinned one rather than adjusting the stub');
@@ -403,8 +386,7 @@ test('the macOS Runner inherits the pods\' linker flags', () => {
   // The macOS link then failed on the Go runtime's res_9_ninit / res_9_nsearch
   // / res_9_nclose. iOS was spared only because its project sets no value at
   // all.
-  const pbx = fs.readFileSync(
-    path.join(repoRoot, 'macos/Runner.xcodeproj/project.pbxproj'), 'utf8');
+  const pbx = read('macos/Runner.xcodeproj/project.pbxproj');
   const assignments = pbx.match(/OTHER_LDFLAGS = [^;]*;/g) || [];
   assert.ok(assignments.length > 0,
     'macos/Runner.xcodeproj must set OTHER_LDFLAGS; a missing one inherits, '
@@ -417,7 +399,7 @@ test('the macOS Runner inherits the pods\' linker flags', () => {
   // Both hooks rewrite the same setting, so both have to survive a value
   // that is present but empty.
   for (const rel of ['ios/Podfile', 'macos/Podfile']) {
-    const podfile = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    const podfile = read(rel);
     assert.match(podfile, /ldflags = nil if ldflags\.respond_to\?\(:empty\?\) && ldflags\.empty\?/,
       `${rel} must treat an empty OTHER_LDFLAGS as unset`);
     assert.match(podfile, /ldflags\.unshift\('\$\(inherited\)'\) unless ldflags\.include\?\('\$\(inherited\)'\)/,
@@ -463,8 +445,7 @@ test('the Tor scenario cannot be starved by the tier loop', () => {
   // the tier it sits at is a branch's call. What must hold either way is
   // that the loop cannot eat its budget and its verdict still reaches the
   // tail of the log.
-  const workflow = fs.readFileSync(
-    path.join(repoRoot, '.github/workflows/build-and-test.yml'), 'utf8');
+  const workflow = read('.github/workflows/build-and-test.yml');
   const apple = workflow.slice(workflow.indexOf('\n  build-apple:'));
   const own = apple.indexOf('flutter test integration_test/tor_test.dart');
   const loop = apple.indexOf('for t in integration_test/*_test.dart');
@@ -501,8 +482,7 @@ test('both Apple targets register the plugin where the engine exists', () => {
   // quietly when the window is not up yet -- and under `flutter test -d
   // macos` it is not. The tier's first run answered every Tor call with
   // MissingPluginException. It now registers beside RegisterGeneratedPlugins.
-  const mac = fs.readFileSync(
-    path.join(repoRoot, 'macos/Runner/MainFlutterWindow.swift'), 'utf8');
+  const mac = read('macos/Runner/MainFlutterWindow.swift');
   const generated = mac.indexOf('RegisterGeneratedPlugins(');
   const tor = mac.indexOf('TorControllerPlugin(');
   assert.ok(generated > 0 && tor > generated,
@@ -511,16 +491,14 @@ test('both Apple targets register the plugin where the engine exists', () => {
   assert.match(mac, /private var torControllerPlugin/,
     'the window must hold the plugin; a released one stops answering');
 
-  const delegate = fs.readFileSync(
-    path.join(repoRoot, 'macos/Runner/AppDelegate.swift'), 'utf8');
+  const delegate = read('macos/Runner/AppDelegate.swift');
   assert.ok(!delegate.includes('TorControllerPlugin'),
     'macos/Runner/AppDelegate.swift must not register it a second time, '
     + 'behind a window lookup that can silently skip');
 
   // iOS keeps its own: there the delegate owns a window by the time
   // didFinishLaunching returns, and it is the shipping path.
-  const ios = fs.readFileSync(
-    path.join(repoRoot, 'ios/Runner/AppDelegate.swift'), 'utf8');
+  const ios = read('ios/Runner/AppDelegate.swift');
   assert.match(ios, /torControllerPlugin = TorControllerPlugin\(/,
     'iOS must still register the plugin');
 });
@@ -540,7 +518,7 @@ test('nothing reaches Tor.framework\'s asserts', () => {
     `${swiftRel}: the parse must reject a half-written file, not just a missing one`);
 
   for (const rel of ['ios/Podfile', 'macos/Podfile']) {
-    const podfile = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    const podfile = read(rel);
     assert.match(podfile, /next unless target\.name == 'Tor'/,
       `${rel} must single out the Tor pod`);
     assert.match(podfile, /NS_BLOCK_ASSERTIONS=1/,

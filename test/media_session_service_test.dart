@@ -3,32 +3,13 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-
-/// Models the outbound seam: records the [UserProxySettings] each call asks
-/// for, and can refuse a client the way the real factory refuses a proxy it
-/// cannot honor.
-class _RecordingOutbound implements OutboundHttpFactory {
-  final List<UserProxySettings> queries = [];
-  http.Response Function(http.Request request) responder = (_) =>
-      http.Response('', 404);
-  bool block = false;
-
-  UserProxySettings? get lastQuery => queries.isEmpty ? null : queries.last;
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    queries.add(settings);
-    if (block) return const OutboundClientBlocked('blocked by test fake');
-    return OutboundClientReady(MockClient((req) async => responder(req)));
-  }
-}
+import 'helpers/fake_outbound.dart';
 
 /// BGAUDIO-006 channel contract. The shim tier proves the page reports its
 /// playback state; the emulator tier proves the notification reaches the
@@ -272,10 +253,10 @@ void main() {
   });
 
   group('artwork', () {
-    late _RecordingOutbound fake;
+    late FakeOutbound fake;
 
     setUp(() {
-      fake = _RecordingOutbound();
+      fake = FakeOutbound(responder: (_) => http.Response('', 404));
       outboundHttp = fake;
       GlobalOutboundProxy.resetForTest();
       _stubLookup();

@@ -13,7 +13,7 @@ import 'helpers/site_list_state.dart';
 /// profile see nothing.
 ///
 /// Mirrors the [MockCookieManager] pattern in
-/// [test/cookie_isolation_integration_test.dart] — modeling the engine's
+/// [test/helpers/mock_cookie_manager.dart] — modeling the engine's
 /// actual contract end-to-end, not stubbing it.
 class MockContainerNative implements ContainerNative {
   bool supported;

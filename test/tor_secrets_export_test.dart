@@ -15,7 +15,6 @@
 // The needle is proved live before it is looked for: an absence test whose
 // secret was never in play passes against an app that leaks a different one.
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -28,49 +27,16 @@ import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-
-class _Runtime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-
-  @override
-  bool get isAvailable => true;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-  Future<void> dispose() => _events.close();
-}
+import 'helpers/fake_tor_runtime.dart';
 
 void main() {
   const sessionSecret = 'tor-session-needle-9b2e';
   const socksPort = 41337;
 
-  late _Runtime runtime;
+  late FakeTorRuntime runtime;
 
   setUp(() async {
-    runtime = _Runtime();
+    runtime = FakeTorRuntime();
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: sessionSecret),
     );

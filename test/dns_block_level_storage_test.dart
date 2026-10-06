@@ -5,13 +5,12 @@
 // from the pure-engine tests.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/proxy.dart';
+import 'helpers/fake_outbound.dart';
 
 /// `looksLikeDomainList` rejects anything under 1000 entries, so a plausible
 /// body has to be that big. [extra] are the domains the test actually asserts
@@ -27,30 +26,16 @@ String _body(int level, List<String> extra) {
   return buf.toString();
 }
 
-/// Serves each level's list off any mirror, so the test doesn't depend on
-/// which mirror the service reaches for first.
-class _MirrorFactory implements OutboundHttpFactory {
-  _MirrorFactory(this.bodies);
-
-  /// Level -> body. A level absent here 404s, standing in for a list the
-  /// mirrors don't have.
-  final Map<int, String> bodies;
-  final List<String> requested = [];
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) =>
-      OutboundClientReady(MockClient((req) async {
-        requested.add(req.url.toString());
-        for (final entry in bodies.entries) {
-          for (final url in dnsMirrorUrlsForLevel(entry.key)) {
-            if (req.url.toString() == url) {
-              return http.Response(entry.value, 200);
-            }
-          }
+/// Serves each level's body from its mirror URLs. A level absent here 404s,
+/// standing in for a list the mirrors don't have.
+FakeOutbound _mirror(Map<int, String> bodies) => FakeOutbound(responder: (req) {
+      for (final entry in bodies.entries) {
+        if (dnsMirrorUrlsForLevel(entry.key).contains(req.url.toString())) {
+          return http.Response(entry.value, 200);
         }
-        return http.Response('not found', 404);
-      }));
-}
+      }
+      return http.Response('not found', 404);
+    });
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -82,7 +67,7 @@ void main() {
   group('download and fold (DNS-019, DNS-021)', () {
     test('the app-wide download writes one file and records the level',
         () async {
-      outboundHttp = _MirrorFactory({3: _body(3, ['pro-only.example'])});
+      outboundHttp = _mirror({3: _body(3, ['pro-only.example'])});
 
       expect(await service.downloadList(3), isTrue);
 
@@ -100,7 +85,7 @@ void main() {
 
     test('a second level folds in without duplicating a shared domain',
         () async {
-      outboundHttp = _MirrorFactory({
+      outboundHttp = _mirror({
         3: _body(3, ['shared.example', 'pro-only.example']),
         1: _body(1, ['shared.example', 'light-only.example']),
       });
@@ -123,7 +108,7 @@ void main() {
     });
 
     test('folding a level already held costs no request', () async {
-      final factory = _MirrorFactory({3: _body(3, ['a.example'])});
+      final factory = _mirror({3: _body(3, ['a.example'])});
       outboundHttp = factory;
       await service.downloadList(3);
       final before = service.domainCount;
@@ -138,7 +123,7 @@ void main() {
 
     test('a level the mirrors do not have leaves the partition alone',
         () async {
-      outboundHttp = _MirrorFactory({3: _body(3, ['pro-only.example'])});
+      outboundHttp = _mirror({3: _body(3, ['pro-only.example'])});
       await service.downloadList(3);
       final before = service.domainCount;
 
@@ -151,12 +136,12 @@ void main() {
 
     test('an implausible body never overwrites a working partition',
         () async {
-      outboundHttp = _MirrorFactory({3: _body(3, ['pro-only.example'])});
+      outboundHttp = _mirror({3: _body(3, ['pro-only.example'])});
       await service.downloadList(3);
       final before = service.domainCount;
 
       // Every mirror answers 200 with an error page.
-      outboundHttp = _MirrorFactory({1: '<!DOCTYPE html>\n<html>oops</html>'});
+      outboundHttp = _mirror({1: '<!DOCTYPE html>\n<html>oops</html>'});
       expect(await service.downloadLevel(1), isFalse);
 
       expect(service.downloadedLevels, {3});
@@ -165,7 +150,7 @@ void main() {
     });
 
     test('re-downloading a level drops what left its list', () async {
-      outboundHttp = _MirrorFactory({
+      outboundHttp = _mirror({
         3: _body(3, ['stays.example', 'delisted.example']),
       });
       await service.downloadList(3);
@@ -174,7 +159,7 @@ void main() {
       service.resetForTest();
       service.store = store;
       await service.initialize();
-      outboundHttp = _MirrorFactory({3: _body(3, ['stays.example'])});
+      outboundHttp = _mirror({3: _body(3, ['stays.example'])});
       await service.downloadList(3);
 
       expect(service.isHostBlockedAtLevel('stays.example', 3), isTrue);
@@ -184,7 +169,7 @@ void main() {
 
   group('reload from disk (DNS-019)', () {
     test('a cold start reproduces every level exactly', () async {
-      outboundHttp = _MirrorFactory({
+      outboundHttp = _mirror({
         3: _body(3, ['shared.example', 'pro-only.example']),
         1: _body(1, ['shared.example', 'light-only.example']),
       });
@@ -219,7 +204,7 @@ void main() {
     });
 
     test('the file carries each domain once', () async {
-      outboundHttp = _MirrorFactory({
+      outboundHttp = _mirror({
         3: _body(3, ['shared.example']),
         1: _body(1, ['shared.example']),
       });
@@ -239,7 +224,7 @@ void main() {
       // and decimal disagree. Every smaller mask reads the same either way,
       // so a test using only adjacent low levels cannot see a radix drift —
       // and the Kotlin reader parses this marker with toIntOrNull(16).
-      outboundHttp = _MirrorFactory({
+      outboundHttp = _mirror({
         4: _body(4, ['proplus-only.example', 'both.example']),
         2: _body(2, ['normal-only.example', 'both.example']),
       });
@@ -315,7 +300,7 @@ void main() {
 
   group('prune and clear (DNS-021)', () {
     test('pruning clears a level and the domains only it named', () async {
-      outboundHttp = _MirrorFactory({
+      outboundHttp = _mirror({
         3: _body(3, ['shared.example', 'pro-only.example']),
         1: _body(1, ['shared.example', 'light-only.example']),
       });
@@ -339,7 +324,7 @@ void main() {
     });
 
     test('pruning nothing rewrites nothing', () async {
-      outboundHttp = _MirrorFactory({3: _body(3, ['a.example'])});
+      outboundHttp = _mirror({3: _body(3, ['a.example'])});
       await service.downloadList(3);
       final before = await store.readText('dns_blocklist_levels.txt');
 
@@ -350,7 +335,7 @@ void main() {
 
     test('setting the app level to Off clears the file and the prefs',
         () async {
-      outboundHttp = _MirrorFactory({3: _body(3, ['a.example'])});
+      outboundHttp = _mirror({3: _body(3, ['a.example'])});
       await service.downloadList(3);
 
       expect(await service.downloadList(0), isTrue);
@@ -370,7 +355,7 @@ void main() {
     });
 
     test('an imported level drops the cache and keeps the intent', () async {
-      outboundHttp = _MirrorFactory({3: _body(3, ['a.example'])});
+      outboundHttp = _mirror({3: _body(3, ['a.example'])});
       await service.downloadList(3);
 
       await service.applyImportedLevel(5);

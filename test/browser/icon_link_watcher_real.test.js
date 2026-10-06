@@ -21,10 +21,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const {
   setupBrowser, requireBrowser, readFixture,
 } = require('./helpers/launch');
+const { listen, originOf } = require('./helpers/blank_server');
 
 const SHIM = readFixture('icon_link_watcher/shim.js');
 const PNG = Buffer.from(
@@ -73,7 +73,7 @@ const iconRequests = [];
 const iconRequestTimes = [];
 
 test.before(async () => {
-  server = http.createServer((req, res) => {
+  server = await listen((req, res) => {
     const path = req.url.split('?')[0];
     if (PAGES[path]) {
       res.writeHead(200, { 'Content-Type': 'text/html' });
@@ -90,8 +90,7 @@ test.before(async () => {
     res.writeHead(404);
     res.end();
   });
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  origin = `http://127.0.0.1:${server.address().port}`;
+  origin = originOf(server);
 });
 
 test.after(() => new Promise((resolve) => server.close(resolve)));

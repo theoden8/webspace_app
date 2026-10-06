@@ -14,7 +14,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -24,6 +23,7 @@ import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'helpers/localized.dart';
 
 /// Narrow is a small phone in portrait; wide is a tablet pane. Both are real
 /// places this chrome renders.
@@ -93,11 +93,8 @@ Widget _host({
   required double width,
   required double textScale,
 }) {
-  return MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    theme: ThemeData(colorScheme: buildAccentColorScheme(accentBlue, brightness)),
-    home: MediaQuery(
+  return localizedApp(
+    MediaQuery(
       data: MediaQueryData(
         size: Size(width, 800),
         textScaler: TextScaler.linear(textScale),
@@ -108,6 +105,7 @@ Widget _host({
         ),
       ),
     ),
+    theme: ThemeData(colorScheme: buildAccentColorScheme(accentBlue, brightness)),
   );
 }
 

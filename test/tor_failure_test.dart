@@ -5,11 +5,11 @@
 // matter as much as the positive ones: several signatures overlap, and the
 // wrong precedence tells a user with a wrong clock that they are censored.
 
-import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/tor_engine.dart';
+import 'helpers/fake_tor_runtime.dart';
 
 void main() {
   _authTests();
@@ -160,11 +160,11 @@ void main() {
 // circuit. These pin the derived form.
 void _authTests() {
   group('SOCKS auth per reason', () {
-    late _Runtime runtime;
+    late FakeTorRuntime runtime;
     late TorEngine engine;
 
     setUp(() {
-      runtime = _Runtime();
+      runtime = FakeTorRuntime();
       engine = TorEngine(runtime: runtime, sessionSecret: 'launch-secret');
     });
 
@@ -196,7 +196,7 @@ void _authTests() {
     test('a new launch secret changes every password', () async {
       await bringUp();
       final first = engine.socksFor('site-a')!.password;
-      final other = TorEngine(runtime: _Runtime(), sessionSecret: 'other');
+      final other = TorEngine(runtime: FakeTorRuntime(), sessionSecret: 'other');
       await other.acquire('holder');
       // Not up, so socksFor is null: assert via a fresh engine that reaches up.
       await other.dispose();
@@ -216,35 +216,3 @@ void _authTests() {
   });
 }
 
-class _Runtime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-
-  @override
-  bool get isAvailable => true;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-}

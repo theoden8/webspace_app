@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/webview.dart';
-
-class _StubCookieManager implements CookieManager {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+import 'helpers/mock_cookie_manager.dart';
+import 'helpers/localized.dart';
 
 /// DEVTOOLS-011: the Background tab exists only in developer mode, shows what
 /// the background log kept, and keeps entries that name sites behind the
@@ -41,13 +36,9 @@ void main() {
   });
 
   Future<void> pump(WidgetTester tester, {bool startOnBackground = false}) async {
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: DevToolsScreen(
-        cookieManager: _StubCookieManager(),
-        startOnBackground: startOnBackground,
-      ),
+    await pumpLocalized(tester, DevToolsScreen(
+      cookieManager: MockCookieManager(),
+      startOnBackground: startOnBackground,
     ));
     await tester.pumpAndSettle();
   }
@@ -136,14 +127,10 @@ void main() {
   testWidgets('notification diagnostics follow the same developer-mode flag',
       (tester) async {
     Future<void> pumpWithWake() async {
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: DevToolsScreen(
-          key: UniqueKey(),
-          cookieManager: _StubCookieManager(),
-          onSimulateBackgroundRefresh: () async {},
-        ),
+      await pumpLocalized(tester, DevToolsScreen(
+        key: UniqueKey(),
+        cookieManager: MockCookieManager(),
+        onSimulateBackgroundRefresh: () async {},
       ));
       await tester.pumpAndSettle();
     }

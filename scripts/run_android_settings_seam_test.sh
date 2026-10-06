@@ -10,18 +10,10 @@
 # Separate from the router tier on purpose: a router failure and a dropped
 # field are different findings, and sharing one script's wall-clock cap would
 # let a hung router arm swallow this one.
-#
-# Single entry point for the same reason as the other emulator tiers:
-# reactivecircus/android-emulator-runner executes each script line as a
-# separate `sh -c`, so a variable assignment does not survive to the next line.
 set -euo pipefail
+. "$(dirname "$0")/lib/android_tier.sh"
 
-device_id="${1:-$(adb devices | grep -w 'device' | head -1 | awk '{print $1}' || true)}"
-if [ -z "$device_id" ]; then
-  echo "ERROR: no connected Android device/emulator found" >&2
-  adb devices >&2
-  exit 1
-fi
+pick_device "${1:-}"
 
 # Record the System WebView version. The containerId half of the comparison
 # only runs where the image's WebView reports MULTI_PROFILE, and an emulator
@@ -31,8 +23,4 @@ fi
 # without inferring it from a green tick.
 bash "$(dirname "$0")/print_android_webview_version.sh" "$device_id"
 
-# Hard wall-clock cap: a webview mount can deadlock below the Dart timeout
-# layer (same rationale as the white-screen tier).
-exec timeout -k 30s 12m fvm flutter test \
-  integration_test/settings_seam_test.dart \
-  -d "$device_id" --flavor fdebug
+run_tier integration_test/settings_seam_test.dart 12

@@ -5,7 +5,6 @@
 // nothing. The status card under the proxy block reports a runtime something
 // uses, so it stays out of the list until something does (TOR-004).
 
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -31,31 +30,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
-
-/// A runtime that exists, so App settings has Tor to report on.
-class _PresentRuntime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-  void emit(TorStatus s) => _events.add(s);
-
-  @override
-  bool get isAvailable => true;
-  @override
-  Stream<TorStatus> get events => _events.stream;
-  @override
-  Future<void> start() async {}
-  @override
-  Future<void> stop() async {}
-  @override
-  Future<void> rebuildCircuits() async {}
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-  @override
-  Future<int> startTransport(String transport) async => 0;
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-  @override
-  Future<void> reopenListeners() async {}
-}
+import 'helpers/fake_tor_runtime.dart';
 
 final Uint8List _png64 =
     Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
@@ -172,10 +147,10 @@ void main() {
   });
 
   group('Tor in App settings (TOR-004, TOR-007)', () {
-    late _PresentRuntime runtime;
+    late FakeTorRuntime runtime;
 
     setUp(() {
-      runtime = _PresentRuntime();
+      runtime = FakeTorRuntime();
       TorService.overrideEngine(
           TorEngine(runtime: runtime, sessionSecret: 's'));
       DeveloperModeService.instance.debugSet(false);
@@ -251,7 +226,7 @@ void main() {
     testWidgets('never offers Tor, even where the runtime exists',
         (tester) async {
       TorService.overrideEngine(
-          TorEngine(runtime: _PresentRuntime(), sessionSecret: 's'));
+          TorEngine(runtime: FakeTorRuntime(), sessionSecret: 's'));
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, 'Developer');

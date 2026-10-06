@@ -2,18 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/timezone_location_service.dart';
-
-class _FakePathProvider extends PathProviderPlatform with MockPlatformInterfaceMixin {
-  final Directory _dir;
-  _FakePathProvider(this._dir);
-  @override
-  Future<String?> getApplicationDocumentsPath() async => _dir.path;
-  @override
-  Future<String?> getTemporaryPath() async => _dir.path;
-}
+import 'helpers/fake_path_provider.dart';
 
 /// Minimal GeoJSON FeatureCollection used as a fixture for the parser.
 /// Two zones: a square covering "Asia/Tokyo" around (35.68, 139.65) and a
@@ -53,7 +44,7 @@ void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
     final tmp = await Directory.systemTemp.createTemp('webspace_tz_test_');
-    PathProviderPlatform.instance = _FakePathProvider(tmp);
+    useFakePathProvider(tmp);
   });
 
   group('TimezoneLocationService', () {
@@ -67,7 +58,7 @@ void main() {
     test('parses GeoJSON cache from disk and resolves polygons', () async {
       // Write a fixture into the cache file path the service expects.
       final dir = Directory(
-          (PathProviderPlatform.instance as _FakePathProvider)._dir.path);
+          (PathProviderPlatform.instance as FakePathProvider).dir.path);
       final file = File('${dir.path}/tz_polygons.geojson');
       await file.writeAsString(_fixture);
 
@@ -104,7 +95,7 @@ void main() {
 
     setUp(() async {
       await TimezoneLocationService.instance.clear();
-      file = File('${(PathProviderPlatform.instance as _FakePathProvider)._dir.path}'
+      file = File('${(PathProviderPlatform.instance as FakePathProvider).dir.path}'
           '/tz_polygons.geojson');
     });
 

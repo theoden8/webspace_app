@@ -9,45 +9,31 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, files } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const androidSrc = path.join(repoRoot, 'android', 'app', 'src');
-
-function walk(dir, pred, out = []) {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) walk(p, pred, out);
-    else if (pred(p)) out.push(p);
-  }
-  return out;
-}
-
-const manifests = walk(androidSrc, (p) => path.basename(p) === 'AndroidManifest.xml');
-const kotlin = walk(androidSrc, (p) => /\.(kt|java)$/.test(p));
-const rel = (p) => path.relative(repoRoot, p);
+const manifests = files('android/app/src', /^AndroidManifest\.xml$/);
+const kotlin = files('android/app/src', /\.(kt|java)$/);
 
 test('the manifests are found', () => {
-  assert.ok(manifests.some((p) => rel(p) === 'android/app/src/main/AndroidManifest.xml'));
+  assert.ok(manifests.includes('android/app/src/main/AndroidManifest.xml'));
   assert.ok(kotlin.length > 0);
 });
 
 test('no foreground-service permission but media playback', () => {
   for (const m of manifests) {
-    const perms = fs.readFileSync(m, 'utf8').match(/android\.permission\.FOREGROUND_SERVICE_[A-Z_]+/g) ?? [];
+    const perms = read(m).match(/android\.permission\.FOREGROUND_SERVICE_[A-Z_]+/g) ?? [];
     for (const p of perms) {
       assert.equal(p, 'android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK',
-        `${rel(m)} declares ${p}; a foreground service may not keep notification sites running (NOTIF-015)`);
+        `${m} declares ${p}; a foreground service may not keep notification sites running (NOTIF-015)`);
     }
   }
 });
 
 test('the only foreground service is media playback', () => {
   const services = manifests.flatMap((m) =>
-    (fs.readFileSync(m, 'utf8').match(/<service\b[\s\S]*?(?:\/>|<\/service>)/g) ?? [])
+    (read(m).match(/<service\b[\s\S]*?(?:\/>|<\/service>)/g) ?? [])
       .filter((s) => /foregroundServiceType=/.test(s))
-      .map((s) => ({ m: rel(m), s })));
+      .map((s) => ({ m, s })));
   assert.equal(services.length, 1,
     `expected one foreground service, found: ${services.map((x) => x.m).join(', ')}`);
   assert.match(services[0].s, /android:name="\.MediaPlaybackService"/);
@@ -56,15 +42,14 @@ test('the only foreground service is media playback', () => {
 
 test('only MediaPlaybackService enters the foreground', () => {
   const callers = kotlin
-    .filter((p) => /\bstartForeground(Service)?\(/.test(fs.readFileSync(p, 'utf8')))
-    .map(rel);
+    .filter((p) => /\bstartForeground(Service)?\(/.test(read(p)));
   assert.deepEqual(callers,
     ['android/app/src/main/kotlin/org/codeberg/theoden8/webspace/MediaPlaybackService.kt'],
     'startForeground outside MediaPlaybackService would keep the process out of the freezer (NOTIF-015)');
 });
 
 test('iOS holds no background mode that would keep a page alive', () => {
-  const plist = fs.readFileSync(path.join(repoRoot, 'ios', 'Runner', 'Info.plist'), 'utf8');
+  const plist = read('ios/Runner/Info.plist');
   const block = /<key>UIBackgroundModes<\/key>\s*<array>([\s\S]*?)<\/array>/.exec(plist);
   assert.ok(block);
   const modes = [...block[1].matchAll(/<string>([^<]+)<\/string>/g)].map((m) => m[1]).sort();

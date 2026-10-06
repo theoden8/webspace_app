@@ -9,27 +9,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter, callArgs } = require('./helpers/source');
 
-const root = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(root, rel), 'utf8');
 const webview = read('lib/services/webview.dart');
 const model = read('lib/web_view_model.dart');
 const main = read('lib/main.dart');
 const nested = read('lib/screens/inappbrowser.dart');
-
-// The argument list of the call whose `(` is the first at or after [from].
-function callText(text, from) {
-  const open = text.indexOf('(', from);
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    if (text[i] === '(') depth++;
-    else if (text[i] === ')' && --depth === 0) return text.slice(open + 1, i);
-  }
-  assert.fail(`unbalanced parentheses at offset ${from}`);
-}
 
 test('the factory binds through containerIdFor', () => {
   assert.match(webview,
@@ -38,7 +23,7 @@ test('the factory binds through containerIdFor', () => {
     null, 'webview.dart');
   const at = create.indexOf('final containerId = containerIdFor(');
   assert.notEqual(at, -1, 'the binding must follow the rule the sheet reports');
-  const args = callText(create, at);
+  const args = callArgs(create, at);
   assert.match(args, /siteId: siteId/);
   assert.match(create, /final siteId = posture\.siteId;/);
   assert.match(args, /archiveContainerId: posture\.container\.archiveContainerId/);
@@ -52,8 +37,8 @@ test('the factory binds through containerIdFor', () => {
 // tab (LIR-018).
 test('the model reads the binding from the posture of the site webview config', () => {
   assert.match(model, /final posture = id\.sitePosture\(globalUserScripts: globalUserScripts\);/);
-  assert.match(callText(model, model.indexOf('WebViewFactory.storeBinding(')), /^posture$/);
-  const config = callText(model, model.indexOf('webview = WebViewFactory.createWebView('));
+  assert.match(callArgs(model, model.indexOf('WebViewFactory.storeBinding(')), /^posture$/);
+  const config = callArgs(model, model.indexOf('webview = WebViewFactory.createWebView('));
   assert.match(config, /posture: posture,/);
 });
 
@@ -62,7 +47,7 @@ test('every URL bar offers site info', () => {
     const calls = [...src.matchAll(/\bUrlBar\(/g)];
     assert.ok(calls.length > 0, `${rel} has no URL bar`);
     for (const m of calls) {
-      assert.match(callText(src, m.index), /onSiteInfo:/, `a URL bar in ${rel} has no info button`);
+      assert.match(callArgs(src, m.index), /onSiteInfo:/, `a URL bar in ${rel} has no info button`);
     }
   }
 });
@@ -82,9 +67,9 @@ test('the main sheet reads the inputs of the site webview posture', () => {
   assert.match(resolver, /siteId: siteId,/);
   assert.match(resolver, /archiveContainerId: archiveContainerId,/);
   assert.match(resolver, /incognito: effectiveIncognito,/);
-  const bar = callText(main, main.search(/\bUrlBar\(/));
+  const bar = callArgs(main, main.search(/\bUrlBar\(/));
   assert.match(bar, /final id = model\.runningIdentity;/);
-  const rule = callText(bar, bar.indexOf('containerIdFor('));
+  const rule = callArgs(bar, bar.indexOf('containerIdFor('));
   assert.match(rule, /siteId: id\.siteId/);
   assert.match(rule, /archiveContainerId: id\.archiveContainerId/);
   assert.match(rule, /incognito: id\.effectiveIncognito/);
@@ -93,10 +78,10 @@ test('the main sheet reads the inputs of the site webview posture', () => {
 test('the nested sheet reads the posture of the nested webview config', () => {
   const build = blockAfter(nested, '  Widget _createNestedInappWebView() {', null, 'inappbrowser.dart');
   assert.match(build, /final p = widget\.posture;/);
-  assert.match(callText(build, build.indexOf('config: WebViewConfig(')), /posture: p,/);
+  assert.match(callArgs(build, build.indexOf('config: WebViewConfig(')), /posture: p,/);
   const show = blockAfter(nested, '  void _showSiteInfo() {', null, 'inappbrowser.dart');
   assert.match(show, /final p = widget\.posture;/);
-  const rule = callText(show, show.indexOf('containerIdFor('));
+  const rule = callArgs(show, show.indexOf('containerIdFor('));
   assert.match(rule, /siteId: p\.siteId/);
   assert.match(rule, /archiveContainerId: p\.container\.archiveContainerId/,
     'an archived site\'s nested screen binds its opaque container (ARCH-007)');

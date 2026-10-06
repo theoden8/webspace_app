@@ -20,10 +20,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
+const { read, dartFiles } = require('./helpers/source');
 
 /// The one place allowed to call it unconditionally: the legacy engine, which
 /// only ever runs when containers are unsupported, plus the wrapper's own
@@ -37,22 +34,11 @@ const EXEMPT_FILES = new Set([
 /// `if (!useContainers)` branch.
 const FUNNEL_METHOD = 'clearLegacyGlobalCookieJar';
 
-function dartSources(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...dartSources(full));
-    else if (entry.name.endsWith('.dart')) out.push(full);
-  }
-  return out;
-}
-
-function callSites() {
+function globalClears() {
   const sites = [];
-  for (const file of dartSources(path.join(repoRoot, 'lib'))) {
-    const rel = path.relative(repoRoot, file);
+  for (const rel of dartFiles()) {
     if (EXEMPT_FILES.has(rel)) continue;
-    const lines = fs.readFileSync(file, 'utf8').split('\n');
+    const lines = read(rel).split('\n');
     lines.forEach((line, i) => {
       // `deleteAllCookiesForUrl` is URL-scoped and therefore not this class.
       if (!/\.deleteAllCookies\(\)/.test(line)) return;
@@ -63,7 +49,7 @@ function callSites() {
 }
 
 test('every unscoped global cookie clear is gated on the engine selection', () => {
-  const ungated = callSites().filter(({ context }) => {
+  const ungated = globalClears().filter(({ context }) => {
     const window = context.join('\n');
     return !window.includes('_useContainers') && !window.includes(FUNNEL_METHOD);
   });
@@ -79,17 +65,14 @@ test('every unscoped global cookie clear is gated on the engine selection', () =
 test('the sweep funnel is still routed through the engine', () => {
   // Guards the other half: the funnel method must stay behind the engine's
   // container check rather than being called directly from the host.
-  const engine = fs.readFileSync(
-    path.join(repoRoot, 'lib/services/orphan_sweep_engine.dart'),
-    'utf8',
-  );
+  const engine = read('lib/services/orphan_sweep_engine.dart');
   assert.match(
     engine,
     /if \(!useContainers\) \{\s*await targets\.clearLegacyGlobalCookieJar\(\);/,
     'OrphanSweepEngine must only clear the legacy jar when containers are off',
   );
 
-  const main = fs.readFileSync(path.join(repoRoot, 'lib/main.dart'), 'utf8');
+  const main = read('lib/main.dart');
   const directCalls = main.match(/clearLegacyGlobalCookieJar\(\)/g) ?? [];
   assert.equal(
     directCalls.length,

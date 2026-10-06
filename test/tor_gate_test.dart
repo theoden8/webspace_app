@@ -3,7 +3,6 @@
 // engine: those answer the narrower "does this build have a tor to talk to",
 // which the engine's own tests exercise against a fake.
 
-import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,54 +10,13 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
-
-/// A runtime that records what the engine asked it to do, so a test
-/// can tell "refused at the gate" from "asked and got nothing".
-class _Runtime implements TorRuntime {
-  _Runtime({this.isAvailable = true});
-
-  final _events = StreamController<TorStatus>.broadcast();
-  int startCalls = 0;
-  int stopCalls = 0;
-  final applied = <String?>[];
-
-  @override
-  final bool isAvailable;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async => startCalls++;
-
-  @override
-  Future<void> stop() async => stopCalls++;
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async =>
-      applied.add(exitNodes);
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-  Future<void> dispose() => _events.close();
-}
+import 'helpers/fake_tor_runtime.dart';
 
 void main() {
-  late _Runtime runtime;
+  late FakeTorRuntime runtime;
 
   void install({bool available = true}) {
-    runtime = _Runtime(isAvailable: available);
+    runtime = FakeTorRuntime(isAvailable: available);
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: 'secret'),
     );
@@ -110,7 +68,7 @@ void main() {
 
     test('never reaches tor with an exit pin', () async {
       await TorService.instance.setExitCountry('{de}');
-      expect(runtime.applied, isEmpty);
+      expect(runtime.appliedExitNodes, isEmpty);
     });
 
     test('socksFor fails closed rather than falling back to direct', () {

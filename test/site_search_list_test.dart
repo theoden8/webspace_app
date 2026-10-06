@@ -3,16 +3,14 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_search_list_engine.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
-import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
+import 'helpers/fake_outbound.dart';
+import 'helpers/fake_path_provider.dart';
 
 // Entries as Kagi's bangs.json has them (2026-10-06), several per site where
 // the list has several.
@@ -39,30 +37,6 @@ const _bangs = [
   'not an entry',
   {'t': 'x', 'd': 42, 'u': 'https://x.example/?q={{{s}}}'},
 ];
-
-class _FakePathProvider extends PathProviderPlatform
-    with MockPlatformInterfaceMixin {
-  final Directory dir;
-  _FakePathProvider(this.dir);
-  @override
-  Future<String?> getApplicationDocumentsPath() async => dir.path;
-}
-
-class _FakeOutbound implements OutboundHttpFactory {
-  http.Response Function(http.Request) responder =
-      (_) => http.Response(jsonEncode(_bangs), 200);
-  bool block = false;
-  final List<Uri> fetched = [];
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    if (block) return const OutboundClientBlocked('blocked by test fake');
-    return OutboundClientReady(MockClient((req) async {
-      fetched.add(req.url);
-      return responder(req);
-    }));
-  }
-}
 
 void main() {
   group('siteSearchTable (LIR-036)', () {
@@ -155,14 +129,15 @@ void main() {
 
   group('SiteSearchListService', () {
     late Directory docs;
-    late _FakeOutbound outbound;
+    late FakeOutbound outbound;
 
     setUp(() async {
       docs = await Directory.systemTemp.createTemp('webspace_search_list_');
-      PathProviderPlatform.instance = _FakePathProvider(docs);
+      useFakePathProvider(docs);
       SharedPreferences.setMockInitialValues({});
       SiteSearchListService.resetForTest();
-      outbound = _FakeOutbound();
+      outbound = FakeOutbound(
+          responder: (_) => http.Response(jsonEncode(_bangs), 200));
       outboundHttp = outbound;
     });
 
@@ -177,12 +152,12 @@ void main() {
       expect(SiteSearchListService.instance.isLoaded, isFalse);
       expect(SiteSearchListService.instance.addressFor('https://www.imdb.com/'),
           isNull);
-      expect(outbound.fetched, isEmpty);
+      expect(outbound.requested, isEmpty);
     });
 
     test('a download is kept across launches until cleared', () async {
       expect(await SiteSearchListService.instance.download(), isTrue);
-      expect(outbound.fetched.single.toString(), kSiteSearchListUrl);
+      expect(outbound.requested.single.toString(), kSiteSearchListUrl);
       expect(SiteSearchListService.instance.siteCount, 7);
       expect(SiteSearchListService.instance.lastUpdated, isNotNull);
 
@@ -215,7 +190,7 @@ void main() {
     test('a proxy that cannot be honoured fetches nothing', () async {
       outbound.block = true;
       expect(await SiteSearchListService.instance.download(), isFalse);
-      expect(outbound.fetched, isEmpty);
+      expect(outbound.requested, isEmpty);
     });
   });
 }

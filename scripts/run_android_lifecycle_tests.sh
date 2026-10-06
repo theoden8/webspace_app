@@ -17,6 +17,7 @@
 # whose Dart entrypoint is the *test* main, so this tier always rebuilds
 # and installs the default-entrypoint debug APK before driving it.
 set -euo pipefail
+. "$(dirname "$0")/lib/android_tier.sh"
 
 # Hard wall-clock cap, like the sibling script: a webview mount can
 # deadlock below every polling deadline. Scenario P spends a fixed
@@ -28,12 +29,7 @@ fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
-device_id="${1:-$(adb devices | grep -w 'device' | head -1 | awk '{print $1}' || true)}"
-if [ -z "$device_id" ]; then
-  echo "ERROR: no connected Android device/emulator found" >&2
-  adb devices >&2
-  exit 1
-fi
+pick_device "${1:-}"
 export ANDROID_SERIAL="$device_id"
 
 # `initWith(debug)` -- so the diag seed, the reload extra and the repaint

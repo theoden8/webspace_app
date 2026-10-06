@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/l10n/gen/app_localizations_en.dart';
 import 'package:webspace/widgets/firefox_version_tile.dart';
+import 'helpers/localized.dart';
 
 final AppLocalizationsEn en = AppLocalizationsEn();
 
@@ -13,18 +13,14 @@ Future<void> pumpTile(
   VoidCallback? onUpdate,
   ValueChanged<bool>? onAutoUpdateChanged,
 }) async {
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Scaffold(
-      body: FirefoxVersionTile(
-        majorVersion: 152,
-        lastChecked: DateTime(2026, 8, 20, 10, 44, 3),
-        isUpdating: isUpdating,
-        autoUpdate: autoUpdate,
-        onUpdate: onUpdate ?? () {},
-        onAutoUpdateChanged: onAutoUpdateChanged ?? (_) {},
-      ),
+  await pumpLocalized(tester, Scaffold(
+    body: FirefoxVersionTile(
+      majorVersion: 152,
+      lastChecked: DateTime(2026, 8, 20, 10, 44, 3),
+      isUpdating: isUpdating,
+      autoUpdate: autoUpdate,
+      onUpdate: onUpdate ?? () {},
+      onAutoUpdateChanged: onAutoUpdateChanged ?? (_) {},
     ),
   ));
   // A running check animates forever, so settling would time out.
@@ -107,23 +103,19 @@ void main() {
           tester.view.devicePixelRatio = 1.0;
           tester.view.physicalSize = Size(width, 800);
           addTearDown(tester.view.reset);
-          await tester.pumpWidget(MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: MediaQuery(
-              data: MediaQueryData(textScaler: TextScaler.linear(scale)),
-              child: Scaffold(
-                body: ListView(children: [
-                  FirefoxVersionTile(
-                    majorVersion: 152,
-                    lastChecked: DateTime(2026, 8, 20, 10, 44, 3),
-                    isUpdating: false,
-                    autoUpdate: true,
-                    onUpdate: () {},
-                    onAutoUpdateChanged: (_) {},
-                  ),
-                ]),
-              ),
+          await pumpLocalized(tester, MediaQuery(
+            data: MediaQueryData(textScaler: TextScaler.linear(scale)),
+            child: Scaffold(
+              body: ListView(children: [
+                FirefoxVersionTile(
+                  majorVersion: 152,
+                  lastChecked: DateTime(2026, 8, 20, 10, 44, 3),
+                  isUpdating: false,
+                  autoUpdate: true,
+                  onUpdate: () {},
+                  onAutoUpdateChanged: (_) {},
+                ),
+              ]),
             ),
           ));
           await tester.pumpAndSettle();

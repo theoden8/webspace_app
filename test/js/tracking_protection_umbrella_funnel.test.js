@@ -11,11 +11,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const { read } = require('./helpers/source');
 
 // Forced OFF while the umbrella is on. The one subordinate that inverts:
 // third-party cookies are the oldest cross-site tracking channel, so the

@@ -1,17 +1,17 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// In-memory [FlutterSecureStorage] stand-in for tests.
-///
-/// Mirrors the original definition in `cookie_secure_storage_test.dart`
-/// (now re-exported from here so other tests — e.g.
-/// `proxy_password_secure_storage_test.dart` — can share a single
-/// implementation rather than duplicate the ~150 lines of interface
-/// boilerplate.)
+/// In-memory [FlutterSecureStorage]. [throwOnRead] fails `read`,
+/// `readAll` and `containsKey`; [throwOnWrite] fails `write`, `delete` and
+/// `deleteAll`, modelling a keystore that is locked or absent.
 class MockFlutterSecureStorage implements FlutterSecureStorage {
-  final Map<String, String> _storage = {};
+  final Map<String, String> storage = {};
+  bool throwOnRead = false;
+  bool throwOnWrite = false;
+
+  void _fail(bool when) {
+    if (when) throw Exception('secure storage unavailable');
+  }
 
   @override
   Future<void> write({
@@ -24,10 +24,11 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
+    _fail(throwOnWrite);
     if (value == null) {
-      _storage.remove(key);
+      storage.remove(key);
     } else {
-      _storage[key] = value;
+      storage[key] = value;
     }
   }
 
@@ -41,7 +42,8 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    return _storage[key];
+    _fail(throwOnRead);
+    return storage[key];
   }
 
   @override
@@ -54,7 +56,8 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _storage.remove(key);
+    _fail(throwOnWrite);
+    storage.remove(key);
   }
 
   @override
@@ -67,7 +70,8 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    return _storage.containsKey(key);
+    _fail(throwOnRead);
+    return storage.containsKey(key);
   }
 
   @override
@@ -79,7 +83,8 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    return Map<String, String>.from(_storage);
+    _fail(throwOnRead);
+    return Map<String, String>.from(storage);
   }
 
   @override
@@ -91,30 +96,29 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _storage.clear();
+    _fail(throwOnWrite);
+    storage.clear();
   }
 
-  // Helper methods for testing
-  void clear() => _storage.clear();
-  Map<String, String> get storage => Map.unmodifiable(_storage);
+  void clear() => storage.clear();
 
   @override
-  IOSOptions get iOptions => throw UnimplementedError();
+  IOSOptions get iOptions => IOSOptions.defaultOptions;
 
   @override
-  AndroidOptions get aOptions => throw UnimplementedError();
+  AndroidOptions get aOptions => AndroidOptions.defaultOptions;
 
   @override
-  LinuxOptions get lOptions => throw UnimplementedError();
+  LinuxOptions get lOptions => LinuxOptions.defaultOptions;
 
   @override
-  WebOptions get webOptions => throw UnimplementedError();
+  WebOptions get webOptions => WebOptions.defaultOptions;
 
   @override
-  AppleOptions get mOptions => throw UnimplementedError();
+  AppleOptions get mOptions => MacOsOptions.defaultOptions;
 
   @override
-  WindowsOptions get wOptions => throw UnimplementedError();
+  WindowsOptions get wOptions => WindowsOptions.defaultOptions;
 
   @override
   Map<String, List<ValueChanged<String?>>> get getListeners => {};
@@ -123,27 +127,19 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
   void registerListener({
     required String key,
     required ValueChanged<String?> listener,
-  }) {
-    // No-op for testing
-  }
+  }) {}
 
   @override
   void unregisterListener({
     required String key,
     required ValueChanged<String?> listener,
-  }) {
-    // No-op for testing
-  }
+  }) {}
 
   @override
-  void unregisterAllListeners() {
-    // No-op for testing
-  }
+  void unregisterAllListeners() {}
 
   @override
-  void unregisterAllListenersForKey({required String key}) {
-    // No-op for testing
-  }
+  void unregisterAllListenersForKey({required String key}) {}
 
   @override
   Future<bool?> isCupertinoProtectedDataAvailable() async => true;

@@ -18,12 +18,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, dartFiles } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'lib/services/proxy_router_service.dart';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const src = read(rel);
 
 /** Source of one `static bool <name>(...)` declaration, up to its `;`. */
 function declaration(source, name) {
@@ -70,21 +68,10 @@ test('only the settings row may ask with the experiment assumed on', () => {
   // lists the switch. Anything that activates the relay must go through
   // isSupported instead.
   assert.match(declaration(src, 'canRunHere'), /experimentEnabled: true/);
-  const libDir = path.join(repoRoot, 'lib');
-  const callers = [];
-  const walk = (dir) => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const p = path.join(dir, e.name);
-      if (e.isDirectory()) walk(p);
-      else if (e.name.endsWith('.dart')
-        && fs.readFileSync(p, 'utf8').includes('ProxyRouterService.canRunHere(')) {
-        callers.push(path.relative(repoRoot, p));
-      }
-    }
-  };
-  walk(libDir);
+  const callers = dartFiles()
+    .filter((f) => read(f).includes('ProxyRouterService.canRunHere('));
   assert.deepStrictEqual(callers, ['lib/main.dart']);
-  const main = fs.readFileSync(path.join(repoRoot, 'lib/main.dart'), 'utf8');
+  const main = read('lib/main.dart');
   const uses = [...main.matchAll(/ProxyRouterService\.canRunHere\(/g)];
   assert.strictEqual(uses.length, 1);
   assert.match(main.slice(uses[0].index - 40, uses[0].index),

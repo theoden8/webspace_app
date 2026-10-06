@@ -1,22 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
+import 'helpers/localized.dart';
 
 Future<Future<HttpAuthPromptResult?>> _open(
   WidgetTester tester,
   HttpAuthPromptRequest request,
 ) async {
   late Future<HttpAuthPromptResult?> result;
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Builder(
-      builder: (context) => TextButton(
-        onPressed: () => result = promptHttpAuth(context, request),
-        child: const SizedBox.square(dimension: 40),
-      ),
+  await pumpLocalized(tester, Builder(
+    builder: (context) => TextButton(
+      onPressed: () => result = promptHttpAuth(context, request),
+      child: const SizedBox.square(dimension: 40),
     ),
   ));
   await tester.tap(find.byType(TextButton));

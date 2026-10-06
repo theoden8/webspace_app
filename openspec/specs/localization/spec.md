@@ -61,12 +61,12 @@ generated localization code SHALL NOT be committed.
 
 ### Requirement: LOC-002 - No unkeyed user-facing text
 
-A migrated UI file SHALL NOT pass a raw string literal into a user-facing
-display sink; all on-screen text SHALL resolve through `AppLocalizations`.
+A UI file SHALL NOT pass a raw string literal into a user-facing display
+sink; all on-screen text SHALL resolve through `AppLocalizations`.
 
-#### Scenario: Hardcoded literal in a migrated file fails the build
+#### Scenario: Hardcoded literal in a UI file fails the build
 
-- **Given** a file listed in `migrated` in `test/js/l10n_no_hardcoded_text.test.js`
+- **Given** a file under `lib/main.dart`, `lib/screens/` or `lib/widgets/` not listed in `exempt` in `test/js/l10n_no_hardcoded_text.test.js`
 - **When** it contains a literal opening a display sink (`Text(`, `SelectableText(`, `Tooltip(`, or `tooltip:`/`hintText:`/`labelText:`/`helperText:`/`errorText:`/`counterText:`/`prefixText:`/`suffixText:`/`semanticLabel:`)
 - **Then** the guard test fails, naming the file and line
 - **And** pure-data display (e.g. `host:port`) is extracted to a local variable so no literal sits inside a display widget
@@ -74,8 +74,8 @@ display sink; all on-screen text SHALL resolve through `AppLocalizations`.
 #### Scenario: New UI file cannot slip past the guard
 
 - **Given** a new `.dart` file under `lib/main.dart`, `lib/screens/`, or `lib/widgets/`
-- **When** it is in neither the `migrated` nor `pending` list
-- **Then** the guard test fails, requiring it be classified
+- **When** it is added, with no edit to the guard
+- **Then** the guard scans it like every other UI file
 
 ### Requirement: LOC-003 - Translation coverage gate
 
@@ -143,10 +143,10 @@ only growing.
 
 #### Scenario: Migrating a file
 
-- **Given** a file in `pending`
+- **Given** a file in `exempt`
 - **When** all its strings are routed through `AppLocalizations` and keys added to `app_en.arb`
-- **Then** it is moved from `pending` to `migrated`
-- **And** the migration is complete when `pending` is empty
+- **Then** it is removed from `exempt`
+- **And** the migration is complete when `exempt` is empty
 
 ### Requirement: LOC-006 - MaterialApp wiring
 

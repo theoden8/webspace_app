@@ -19,10 +19,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
 const path = require('node:path');
+const { read, dartFiles } = require('./helpers/source');
 
-const ROOT = path.resolve(__dirname, '..', '..');
 const SEAM = 'outboundHttp.clientFor';
 const GATE = 'classifyOutboundTarget';
 
@@ -74,17 +73,8 @@ const EXEMPT = {
     'Vendored favicon resolution, reached from icon_service; same gap.',
 };
 
-function dartFiles(dir, out = []) {
-  for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-    const rel = path.posix.join(dir, entry.name);
-    if (entry.isDirectory()) dartFiles(rel, out);
-    else if (entry.name.endsWith('.dart')) out.push(rel);
-  }
-  return out;
-}
-
 const seams = dartFiles('lib').filter((f) =>
-  fs.readFileSync(path.join(ROOT, f), 'utf8').includes(SEAM));
+  read(f).includes(SEAM));
 
 test('every outbound seam is classified', () => {
   const classified = new Set([...GUARDED, ...Object.keys(EXEMPT)]);
@@ -102,7 +92,7 @@ test('every classified seam still makes an outbound call', () => {
 
 for (const file of GUARDED) {
   test(`${file} judges the destination, not the URL string`, () => {
-    const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const src = read(file);
     assert.ok(src.includes(GATE),
       `${file} takes a page-chosen URL, so it must resolve it before it `
       + `connects. Removing the ${GATE} call reopens BUG-012 on this path.`);
@@ -121,7 +111,7 @@ test('every exemption states a reason', () => {
 test('the private-range table lives in exactly one file', () => {
   const marker = 'a == 169 && b == 254';
   const homes = dartFiles('lib').filter((f) =>
-    fs.readFileSync(path.join(ROOT, f), 'utf8').includes(marker));
+    read(f).includes(marker));
   assert.deepEqual(homes, ['lib/services/host_resolution.dart'],
     'do not copy the range table — import isPrivateOrLoopbackHost');
 });

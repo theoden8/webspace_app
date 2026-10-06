@@ -19,10 +19,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const {
   setupBrowser, requireBrowser, readFixture,
 } = require('./helpers/launch');
+const { startBlankServer, originOf } = require('./helpers/blank_server');
 
 const LINUX = readFixture('desktop_mode/linux.js');
 const MACOS = readFixture('desktop_mode/macos.js');
@@ -39,18 +39,10 @@ const browser = setupBrowser();
 const VIEWPORT_CONTENT = 'width=device-width, initial-scale=1';
 let host = null;
 test.before(async () => {
-  await new Promise((resolve) => {
-    const s = http.createServer((req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`<!doctype html><html><head>` +
-        `<meta name="viewport" content="${VIEWPORT_CONTENT}">` +
-        `</head><body></body></html>`);
-    });
-    s.listen(0, '127.0.0.1', () => {
-      host = { url: `http://127.0.0.1:${s.address().port}/`, server: s };
-      resolve();
-    });
-  });
+  const server = await startBlankServer(`<!doctype html><html><head>` +
+    `<meta name="viewport" content="${VIEWPORT_CONTENT}">` +
+    `</head><body></body></html>`, 'text/html; charset=utf-8');
+  host = { url: `${originOf(server)}/`, server };
 });
 test.after(async () => {
   if (host) await new Promise((r) => host.server.close(r));

@@ -11,6 +11,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import '../main.dart' show extractDomain;
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, IconReload, iconReloads, reloadAllIcons, usableIconUrl;
+import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
 import '../settings/proxy.dart';
@@ -565,17 +566,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
 
       if (!mounted) return;
 
-      // Use filename (without extension) as the site name
-      final fileName = file.name;
-      final nameWithoutExt = fileName.replaceAll(RegExp(r'\.(html?|htm)$', caseSensitive: false), '');
-
-      // Three slashes (empty authority) — `file://name.html` would parse
-      // with `name.html` as the host and chromium then rejects it as
-      // ERR_INVALID_URL whenever the cached HTML is unavailable
-      // (incognito, post-upgrade cache wipe, etc).
+      final site = importedFileSite(file.name);
       Navigator.pop(context, {
-        'url': 'file:///$fileName',
-        'name': nameWithoutExt,
+        'url': site.url,
+        'name': site.name,
         'htmlContent': htmlContent,
       });
     } catch (e) {

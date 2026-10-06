@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
+import 'helpers/localized.dart';
 
 SearchSite site(String id, String name, String url) => SearchSite(
       siteId: id,
@@ -30,29 +30,25 @@ void main() {
     Map<String, int> containerColors = const {},
   }) async {
     final results = <WebSearchRequest?>[];
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              results.add(await showModalBottomSheet<WebSearchRequest>(
-                context: context,
-                isScrollControlled: true,
-                builder: (_) => WebSearchSheet(
-                  identity: identity,
-                  candidates: candidates,
-                  declared: declared,
-                  declaredDefault: declaredDefault,
-                  appDefault: appDefault,
-                  canAddSites: canAddSites,
-                  containerColors: containerColors,
-                ),
-              ));
-            },
-            child: const Text('open'),
-          ),
+    await pumpLocalized(tester, Scaffold(
+      body: Builder(
+        builder: (context) => TextButton(
+          onPressed: () async {
+            results.add(await showModalBottomSheet<WebSearchRequest>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => WebSearchSheet(
+                identity: identity,
+                candidates: candidates,
+                declared: declared,
+                declaredDefault: declaredDefault,
+                appDefault: appDefault,
+                canAddSites: canAddSites,
+                containerColors: containerColors,
+              ),
+            ));
+          },
+          child: const Text('open'),
         ),
       ),
     ));

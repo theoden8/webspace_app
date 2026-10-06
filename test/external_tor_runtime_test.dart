@@ -13,6 +13,7 @@ import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/tor_socks_probe_io.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'helpers/fake_tor_runtime.dart';
 
 class _Answers {
   _Answers(this.answer);
@@ -24,38 +25,6 @@ class _Answers {
     asked.add('$host:$port');
     return answer;
   }
-}
-
-/// The embedded runtime as the engine sees it: one start, which comes up.
-class _Embedded implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-  int startCalls = 0;
-  int stopCalls = 0;
-  final applied = <String?>[];
-
-  @override
-  bool get isAvailable => true;
-  @override
-  Stream<TorStatus> get events => _events.stream;
-  @override
-  Future<void> start() async {
-    startCalls++;
-    _events.add(const TorUp('127.0.0.1', 39999));
-  }
-
-  @override
-  Future<void> stop() async => stopCalls++;
-  @override
-  Future<void> rebuildCircuits() async {}
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async =>
-      applied.add(exitNodes);
-  @override
-  Future<int> startTransport(String transport) async => 0;
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-  @override
-  Future<void> reopenListeners() async {}
 }
 
 Future<void> _settle() async {
@@ -209,12 +178,13 @@ void main() {
   });
 
   group('switching tor without a relaunch', () {
-    late _Embedded embeddedRuntime;
+    late FakeTorRuntime embeddedRuntime;
     late TorEngine embedded;
     late bool wantExternal;
 
     setUp(() {
-      embeddedRuntime = _Embedded();
+      embeddedRuntime = FakeTorRuntime(
+          onStart: (r) => r.emit(const TorUp('127.0.0.1', 39999)));
       embedded = TorEngine(runtime: embeddedRuntime, sessionSecret: 'e');
       wantExternal = false;
       TorService.wantsExternal = () => wantExternal;
@@ -272,7 +242,7 @@ void main() {
       await tor.syncHolders({'site-a'});
       await tor.setExitCountry('{de}');
       await _settle();
-      expect(embeddedRuntime.applied, ['{de}']);
+      expect(embeddedRuntime.appliedExitNodes, ['{de}']);
 
       wantExternal = true;
       await tor.runtimeChoiceChanged();

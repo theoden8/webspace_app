@@ -10,7 +10,7 @@ import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/filter_list_preparser.dart';
 import 'package:webspace/services/outbound_http.dart';
 
-import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 final androidEnv =
     preparserEnv(android: true, ios: false, macos: false, linux: false);
@@ -201,7 +201,7 @@ void main() {
     tearDown(resetOutboundHttp);
 
     test('a downloaded list carries its sublists into the rule set', () async {
-      outboundHttp = FakeOutboundFactory((req) {
+      outboundHttp = FakeOutbound(responder: (req) {
         switch (req.url.toString()) {
           case 'https://lists.example/f/filters.txt':
             return http.Response('||main.example^\n!#include more.txt\n', 200);
@@ -219,7 +219,7 @@ void main() {
     });
 
     test('a failed sublist fails the download and caches nothing', () async {
-      outboundHttp = FakeOutboundFactory((req) =>
+      outboundHttp = FakeOutbound(responder: (req) =>
           req.url.path.endsWith('filters.txt')
               ? http.Response('||main.example^\n!#include gone.txt\n', 200)
               : http.Response('', 404));

@@ -13,8 +13,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { startBlankServer } = require('./helpers/blank_server');
 
 const SHIM = readFixture('screen_share/shim.js');
 
@@ -23,16 +23,6 @@ const SHIM = readFixture('screen_share/shim.js');
 const SURFACE_RGB = [0, 128, 255];
 
 const browser = setupBrowser();
-
-function startServer(html) {
-  return new Promise((resolve) => {
-    const server = http.createServer((_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end(html ?? '<!doctype html><html><head></head><body></body></html>');
-    });
-    server.listen(0, '127.0.0.1', () => resolve(server));
-  });
-}
 
 // Installs the bridge stub + the dumped shim before any document loads.
 async function armPage(page, decisionFactory) {
@@ -100,7 +90,7 @@ const SAMPLE_STREAM = `
 test('a virtual grant serves the picked surface under real Chromium',
   async (t) => {
     if (!requireBrowser(browser, t)) return;
-    const server = await startServer();
+    const server = await startBlankServer();
     const { port } = server.address();
     const page = await browser.browser.newPage();
     try {
@@ -166,7 +156,7 @@ test("the engine's own getDisplayMedia is unreachable once the shim is in",
     // The point of the tier: Chromium HAS a getDisplayMedia, and a `block`
     // decision must reject rather than fall through to it. Under jsdom this
     // could only be checked against a stub.
-    const server = await startServer();
+    const server = await startBlankServer();
     const { port } = server.address();
     const page = await browser.browser.newPage();
     try {
@@ -198,10 +188,10 @@ test('a cross-origin iframe cannot obtain the surface (SHARE-005)',
     // receives it. This proves the second layer: even injected everywhere,
     // the shim refuses a frame — and refuses it without touching the bridge,
     // so the frame cannot raise a popup in the host site's name either.
-    const frameServer = await startServer(
+    const frameServer = await startBlankServer(
       '<!doctype html><html><head></head><body>frame</body></html>');
     const framePort = frameServer.address().port;
-    const server = await startServer(
+    const server = await startBlankServer(
       `<!doctype html><html><head></head><body>`
       + `<iframe src="http://localhost:${framePort}/"></iframe></body></html>`);
     const { port } = server.address();
@@ -254,7 +244,7 @@ test('the shim does not answer a page it was never asked to serve', async (t) =>
   if (!requireBrowser(browser, t)) return;
   // getUserMedia is another shim's business. Installing the screen-share shim
   // must not disturb it, or a camera request would start resolving here.
-  const server = await startServer();
+  const server = await startBlankServer();
   const { port } = server.address();
   const page = await browser.browser.newPage();
   try {
