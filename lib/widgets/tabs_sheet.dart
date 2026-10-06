@@ -26,8 +26,8 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
-import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
+import 'package:webspace/services/tab_list_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
@@ -367,27 +367,33 @@ class _TabsSheetState extends State<TabsSheet> {
         ),
       );
 
-  /// TAB-017: after [site]'s own tree, the tree of every other site in the
-  /// list that holds a tab running as [site], in the current webspace or
-  /// not, under a heading naming it; and the tree holding where the user
-  /// was (TAB-019), so the way back is listed too. Each is folded to those
-  /// tabs, their subtrees and the tabs above them until unfolded. The rows
-  /// stay in that site's tree: a tap opens that site on the tab, a close
-  /// closes it there, and they are not dragged from here.
+  /// TAB-017: after [site]'s own tree, every other site's tree, in the
+  /// current webspace or not, that holds a tab running as a site on the
+  /// branch through the tab on screen, folded around those tabs and in branch
+  /// order ([TabListEngine]); and the tree holding where the user was
+  /// (TAB-019), so the way back is listed too. The rows stay in that site's
+  /// tree: a tap opens that site on the tab, a close closes it there, and
+  /// they are not dragged from here.
   List<Widget> _otherTrees(
       TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
-    final out = <Widget>[];
+    final slot = _site!;
     final back = widget.wayBack;
-    for (final other in _sites) {
-      if (other.model.siteId == site.model.siteId) continue;
-      bool keep(SiteTab t) =>
-          (other.model.hostOf(t) ?? other.model).siteId == site.model.siteId ||
-          (back?.leadsBackTo(other.model.siteId, t.id) ?? false);
-      final kept = TabLifecycleEngine.rowsAround(other.model.tabs, keep);
-      if (kept.isEmpty) continue;
-      final unfolded = _unfolded.contains(other.model.siteId);
-      final rows =
-          unfolded ? TabLifecycleEngine.treeOrder(other.model.tabs) : kept;
+    final listed = TabListEngine.otherTrees(
+      containers:
+          TabListEngine.branchContainers(_treeOf(slot), slot.model.activeTabId),
+      selected: slot.model.runningIdentity.siteId,
+      others: [
+        for (final other in _sites)
+          if (other.model.siteId != site.model.siteId) _treeOf(other),
+      ],
+      keep: (siteId, t) => back?.leadsBackTo(siteId, t.id) ?? false,
+    );
+    final out = <Widget>[];
+    for (final tree in listed) {
+      final other = _sites.firstWhere((s) => s.model.siteId == tree.siteId);
+      final rows = _unfolded.contains(tree.siteId)
+          ? TabLifecycleEngine.treeOrder(other.model.tabs)
+          : tree.rows;
       out.add(_heading(loc.tabsInSite(other.model.getDisplayName()), theme,
           site: other));
       out.addAll(_rowsOf(other, rows, loc, theme, draggable: false));
@@ -396,6 +402,9 @@ class _TabsSheetState extends State<TabsSheet> {
     }
     return out;
   }
+
+  TabTree _treeOf(TabsSheetSite s) => TabTree(s.model.siteId, s.model.tabs,
+      (t) => (s.model.hostOf(t) ?? s.model).siteId);
 
   /// The rest of another site's tree, folded away; a tap shows it whole.
   Widget _foldRow(TabsSheetSite other, int count, AppLocalizations loc,

@@ -582,20 +582,25 @@ screen runs as: the slot's own site, or the site a hosted tab runs as
 (LIR-018), unless that site has no tabs, when it is the slot's. Its header,
 count and New tab SHALL be that site's.
 
-After that site's own tree, the view SHALL list the tree of every other site
-that holds a tab running as it: a link tab another site opened as it (LIR-032,
-LIR-034) or a search it ran for another site (LIR-030). It SHALL look in the
-tree of every site with tabs, whether or not the current webspace shows that
-site; the All sites view SHALL still head only the sites the webspace shows.
-Each other tree SHALL come under a heading naming its site ("In GitHub"),
-marked with that site's colour (TAB-018), in the order the drawer lists sites.
+After that site's own tree, the view SHALL list the trees of other sites
+that hold the containers of the current branch: the sites that the tab on
+screen, the tabs above it up to its root, and every tab opened below it run
+as. A tab in another tree runs as another site when a link or a search opened
+it there (LIR-030, LIR-032, LIR-034). It SHALL look in the tree of every site
+with tabs, whether or not the current webspace shows that site; the All sites
+view SHALL still head only the sites the webspace shows. Each other tree
+SHALL come under a heading naming its site ("In GitHub"), marked with that
+site's colour (TAB-018), ordered by the first container of the branch it
+holds, from the root down, then in the order the drawer lists sites.
 
-Each other tree SHALL show, at their depth in the whole tree, the tabs that
-run as the site the list is for with their subtrees whole, whatever their own
-descendants run as, and the tabs above them. The rest of that tree SHALL be
-folded into one line saying how many tabs it holds ("3 more GitHub tabs"),
-which shows the whole tree when tapped. A site nothing elsewhere runs as SHALL
-get no such heading.
+Each other tree SHALL show, at their depth in the whole tree, its tabs that
+run as one of those containers with their subtrees whole, whatever their own
+descendants run as, and the tabs above them; together these are its
+branches. When the other trees hold more than five branches in all, only the
+container of the tab on screen SHALL be followed. The rest of each tree SHALL
+be folded into one line saying how many tabs it holds ("3 more GitHub tabs"),
+which shows the whole tree when tapped. A branch whose containers no other
+tree holds SHALL bring no such heading.
 
 The tab on screen SHALL be highlighted wherever it is listed, so a list opened
 on a tab of another site's tree is the same list, with the highlight moved.
@@ -614,9 +619,21 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 - **THEN** after DuckDuckGo's own tabs, "In GitHub" lists GitHub's home tab, that tab under it, and the GitHub page below that
 - **AND** GitHub's own tree in the All sites view lists the same three
 
+#### Scenario: Every container on the branch
+
+- **GIVEN** DuckDuckGo's tree holds a GitHub tab opened from its search tab, with a Hugging Face tab opened below that, and GitHub is on screen on that tab
+- **WHEN** the user opens the Tabs sheet
+- **THEN** after GitHub's own tabs it lists the other trees holding DuckDuckGo tabs, then those holding GitHub tabs, then those holding Hugging Face tabs
+
+#### Scenario: Too many branches
+
+- **GIVEN** the same branch, and other trees holding six branches of DuckDuckGo, GitHub and Hugging Face tabs between them
+- **WHEN** the user opens the Tabs sheet
+- **THEN** only the other trees holding GitHub tabs are listed, folded around those
+
 #### Scenario: The rest of the other tree is folded
 
-- **GIVEN** the sheet on DuckDuckGo listing GitHub's tree, where GitHub also holds a pull request tab opened from its home tab
+- **GIVEN** the sheet on DuckDuckGo, whose own tabs all run as DuckDuckGo, listing GitHub's tree, where GitHub also holds a pull request tab opened from its home tab
 - **THEN** the pull request is not listed and "1 more GitHub tab" is
 - **WHEN** the user taps that line
 - **THEN** GitHub's whole tree is listed

@@ -772,13 +772,29 @@ void main() {
       expect(find.textContaining('GitHub'), findsNothing);
     });
 
-    testWidgets('a site nothing elsewhere runs as gets no extra heading',
+    testWidgets('a branch nothing elsewhere runs as gets no extra heading',
         (tester) async {
+      // GitHub on the tab it opened in DuckDuckGo's domain while its routing
+      // was off: that tab and its root both run as GitHub.
+      gh.activeTabId = 'f';
       await pumpSheet(tester, [
         TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),
       ]);
       expect(find.textContaining('In '), findsNothing);
+    });
+
+    testWidgets('a site run below the tab on screen brings its tree in',
+        (tester) async {
+      // GitHub on its home tab: everything below it is on the branch,
+      // including the tab that runs as DuckDuckGo.
+      await pumpSheet(tester, [
+        TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
+        TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),
+      ]);
+      expect(find.text('In DuckDuckGo'), findsOneWidget);
+      expect(find.text(ddgHome), findsOneWidget);
+      expect(find.text(ddgChild), findsOneWidget);
     });
 
     testWidgets('a tap opens the tab in the site whose tree holds it',
