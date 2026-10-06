@@ -76,18 +76,4 @@ class WebspaceSelectionEngine {
     }
     return {for (final i in candidates) if (flag(i)) i};
   }
-
-  /// Strips out-of-bounds `siteIndices` from every webspace in place. Used
-  /// after reorderings or imports where indices may have drifted. No-op for
-  /// webspaces whose indices are already in-bounds.
-  static void cleanupWebspaceIndices({
-    required List<Webspace> webspaces,
-    required int siteCount,
-  }) {
-    for (final ws in webspaces) {
-      ws.siteIndices = ws.siteIndices
-          .where((i) => i >= 0 && i < siteCount)
-          .toList();
-    }
-  }
 }

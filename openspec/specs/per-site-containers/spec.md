@@ -335,10 +335,11 @@ under this policy, two backstops apply:
    webspaces.
 2. **OS memory pressure**
    (`WidgetsBindingObserver.didHaveMemoryPressure`). Each event
-   evicts one site via
-   [`SiteUnloadEngine.indexToEvictForMemoryPressure`](../../../lib/services/site_unload_engine.dart).
-   The OS controls the curve: if pressure persists, the callback
-   fires again and the next victim is picked. One-per-event matches
+   promotes one site one lifecycle tier deeper via
+   [`SiteLifecyclePromotionEngine.pickPromotionTarget`](../../../lib/services/site_lifecycle_promotion_engine.dart)
+   (see webview-pause-lifecycle). The OS controls the curve: if
+   pressure persists, the callback fires again and the next site is
+   picked. One-per-event matches
    the OS signaling cadence and avoids over-evicting on transient
    pressure (e.g. another foregrounded app spike). Mirrors
    Flutter's own `ImageCache` reactivity pattern.

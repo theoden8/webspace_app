@@ -36,28 +36,21 @@ void main() {
       expect(bodyOf(main, 'Future<void> _presentTabsSheet('),
           contains('onWebSearch: () => unawaited(_webSearch()),'));
       expect(
-        RegExp(r'if \(_webSearchAvailable && !_tabsEnabledAt\(_currentIndex\)\)\s*'
-                r'PopupMenuItem<String>\(\s*value: "webSearch",')
-            .allMatches(main)
-            .length,
-        2,
-        reason: 'both overflow menus, and only while tabs are off',
+        main,
+        matches(RegExp(r'SiteMenuAction\.webSearch =>\s*'
+            r'_tabsFeatureEnabled && !_tabsEnabledAt\(_currentIndex\)\s*\?')),
+        reason: 'the overflow menus offer it only while tabs are off',
       );
-      expect(
-        RegExp(r"case 'webSearch':\s*await _webSearch\(\);")
-            .allMatches(main)
-            .length,
-        2,
-      );
+      expect(main,
+          matches(RegExp(r'case SiteMenuAction\.webSearch:\s*await _webSearch\(\);')));
     });
 
     test('web search is behind the Site tabs switch (LIR-029)', () {
-      expect(main, contains('bool get _webSearchAvailable => _tabsFeatureEnabled;'));
       for (final entry in [
         'Future<void> _webSearch(',
         'Future<void> _searchFromUrlBar(',
       ]) {
-        expect(firstStatement(main, entry), contains('!_webSearchAvailable'),
+        expect(firstStatement(main, entry), contains('!_tabsFeatureEnabled'),
             reason: entry);
       }
       final settings = File('lib/screens/app_behaviour.dart').readAsStringSync();
@@ -137,7 +130,7 @@ void main() {
   group('URL bar search (LIR-033)', () {
     test('the URL bar searches through the page, not on its own', () {
       final bar = bodyOf(main, 'Widget? _buildInputBar(');
-      expect(bar, contains('hasUrlBar && !_kioskLocked && _webSearchAvailable\n'
+      expect(bar, contains('hasUrlBar && !_kioskLocked && _tabsFeatureEnabled\n'
           '        ? _urlBarSearchFor(model)\n'
           '        : null'));
       expect(bar, contains('_searchFromUrlBar(model, query, siteId)'));
@@ -221,7 +214,7 @@ void main() {
 
     test('an owner URL never loads into a hosted slot', () {
       expect(bodyOf(main, 'Future<void> _executeOpenInMain('),
-          contains('await _withTabGate(() => _switchToOwnerRunTab(model));'));
+          contains('await _tabGate.runWhenIdle(() => _switchToOwnerRunTab(model));'));
       expect(count(main, '_bindOwnerRunTab('), greaterThanOrEqualTo(4));
     });
 

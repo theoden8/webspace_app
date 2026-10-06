@@ -295,7 +295,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 
 **Given** the user triggers the back gesture twice in quick succession
 **When** the second invocation arrives while the first is still awaiting `goBack()` / URL diff
-**Then** the second invocation drops (guarded by `_isBackHandling`)
+**Then** the second invocation drops (guarded by `_backGuard`)
 **And** at most one `goBack()` per gesture is dispatched
 
 ---
@@ -462,11 +462,11 @@ Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/s
 
 ## Race Condition Guards
 
-### Guard: RACE-002 - _isBackHandling Flag
+### Guard: RACE-002 - _backGuard
 
 **Problem:** The PopScope `onPopInvokedWithResult` handler is async. Rapid back gestures could invoke it concurrently, causing double navigation or drawer flash.
 
-**Solution:** Boolean `_isBackHandling` flag drops concurrent invocations. Cleared in a `finally` block to guarantee cleanup.
+**Solution:** A `ReentryGuard` (`_backGuard`) drops concurrent invocations. Its `run` releases it in its own `finally`, so no exit path leaves it held.
 
 ### Guard: RACE-003 - _setCurrentIndexVersion Counter
 
@@ -503,7 +503,7 @@ on iOS/macOS and while the kiosk shell is locked.
 System back gesture received
   │
   ├─ didPop? ──────────────────── return (system handled it)
-  ├─ _isBackHandling? ─────────── return (drop concurrent)
+  ├─ _backGuard.busy? ────────── return (drop concurrent)
   │
   ├─ Drawer open?
   │   ├─ openMenu && opened by this gesture && Android ─── close drawer + exit app
@@ -561,7 +561,7 @@ Home button pressed
   offered at all. Tests: [test/back_gesture_engine_test.dart](../../../test/back_gesture_engine_test.dart)
 
 #### `lib/main.dart`
-- `_isBackHandling` — boolean guard for PopScope handler
+- `_backGuard` — `ReentryGuard` for the PopScope handler
 - `_backAtHistoryStart` — NAV-009 setting, mirrored from the `backOpensMenu` pref
   on load and import, and pinned to `ignore` where `_backAtHistoryStartOffered`
   is false (iOS/macOS)

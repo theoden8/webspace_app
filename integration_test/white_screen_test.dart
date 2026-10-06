@@ -336,13 +336,13 @@ void main() {
         await tester.pump();
         return;
       }
-      if (find.byType(PopupMenuItem<String>).evaluate().isNotEmpty) {
+      if (find.byType(PopupMenuItem<app.SiteMenuAction>).evaluate().isNotEmpty) {
         // Menu is open without the action: dismiss and reopen next pass.
         await tester.tapAt(const Offset(5, 5));
       } else {
         final menuButton = find.descendant(
             of: find.byType(AppBar),
-            matching: find.byType(PopupMenuButton<String>));
+            matching: find.byType(PopupMenuButton<app.SiteMenuAction>));
         if (menuButton.evaluate().isNotEmpty) {
           await tester.tap(menuButton.first);
         }

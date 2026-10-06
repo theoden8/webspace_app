@@ -798,7 +798,7 @@ sleep 20
 fg_beacons_after="$(beacon_hits)"
 if [ "$fg_beacons_after" -gt "$fg_beacons_before" ]; then
   echo "FAIL: the refresh tick reloaded the site the user is looking at"        "(page loads $fg_beacons_before -> $fg_beacons_after)" >&2
-  echo "  This is the v0.3.1 behaviour: _refreshNotificationSites must pass"        "excludeActive when the app is resumed." >&2
+  echo "  This is the v0.3.1 behaviour: _refreshNotificationSites must skip"        "the active site (ForegroundPollEngine) when the app is resumed." >&2
   echo "  WebspaceBgRefresh logcat:" >&2
   bg_log | tail -10 | sed 's/^/    /' >&2
   dump_bg_diagnostics foreground-refresh-reloaded-active

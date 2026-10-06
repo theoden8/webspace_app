@@ -416,8 +416,10 @@ The boundaries:
 
 **Given** the user deletes a site
 **When** the delete flow completes
-**Then** `removeOrphanedCookies` runs with the updated active siteId set
-**And** `removeOrphanedCaches` runs with the updated active siteId set
+**Then** `OrphanSweepEngine` runs every store against the updated site set
+  (the non-incognito one for session stores such as cookies and HTML cache,
+  per incognito-mode INC-006)
+**And** the shared cookie jar is not cleared
 **And** any encrypted-storage or HTML-cache entries not referenced by a
   surviving site are removed
 
@@ -536,10 +538,11 @@ activation through the same path and MUST NOT nuke afterwards.
 ### Orphan GC
 
 Per-siteId encrypted storage and HTML cache accumulate entries for deleted
-sites. `CookieSecureStorage.removeOrphanedCookies(activeSiteIds)` and
-`HtmlCacheService.removeOrphanedCaches(activeSiteIds)` sweep entries whose
-siteId is not in the active set. These run:
-- On app startup (in `_restoreAppState`)
+sites. `OrphanSweepEngine` sweeps every per-site store, including
+`CookieSecureStorage` and `HtmlCacheService`, for entries whose siteId is
+not live. It runs:
+- After the first paint of a launch (`sweepOrphanStorage`), followed by the
+  legacy global jar clear
 - On site deletion (in `_deleteSite`)
 - On settings import (in backup restore)
 

@@ -333,10 +333,11 @@ sensitive secret:
 4. **Migrate legacy plaintext** with the same idempotent pre-pass: read
    prefs, move secret to secure storage, rewrite prefs without it. Use
    `ProxyPasswordSecureStorage.migrateLegacyPassword` as the template.
-5. **Wire orphan cleanup** alongside the existing
-   `_cookieSecureStorage.removeOrphanedCookies` and
-   `_proxyPasswordStorage.removeOrphaned` calls in main.dart (three
-   sites: startup GC, post-import GC, post-delete GC).
+5. **Wire orphan cleanup** by adding the store to `OrphanStore` in
+   `lib/services/orphan_sweep_engine.dart` as `configuration` scope.
+   `_OrphanSweepTargets` in main.dart does not compile until it sweeps
+   the store, and startup, post-import and post-delete all run the
+   engine.
 6. **Surface the strip-from-export contract in the import UI** so the
    user knows to re-enter the secret after restoring from a backup. The
    per-site / global proxy snackbar in `_importSettings` is the model.

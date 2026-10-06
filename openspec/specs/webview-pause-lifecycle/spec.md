@@ -209,13 +209,13 @@ The load ordering differs by platform because the restore APIs differ. On iOS/ma
 **Given** the user is on webspace `Work` with sites {A, B, active=A} and webspace `Personal` has loaded site C
 **When** `didHaveMemoryPressure` fires
 **Then** site C (out-of-active-webspace) is promoted before site B (in-active-webspace) at every tier transition
-**Because** within a tier, the picker partitions by `preferKeepIndices` (which is the active webspace) and exhausts out-of-keep first
+**Because** within a tier, the picker orders by `SiteRetentionPriority`, which ranks the active webspace's sites (`webspace`) above other loaded sites (`loaded`), and exhausts the lower tier first
 
 #### Scenario: Concurrent didHaveMemoryPressure events do not double-promote
 
 **Given** a memory pressure event is mid-flight (capturing state, awaiting `saveState()`)
 **When** the OS fires `didHaveMemoryPressure` again before the first handler completes
-**Then** the second invocation drops out at the `_isHandlingMemoryPressure` guard
+**Then** the second invocation drops out at the `_memoryPressureGuard` guard
 **And** no site is double-promoted
 **Because** the OS will fire again if pressure persists, and the next picker run sees the updated state map
 
@@ -250,7 +250,7 @@ The proactive pass runs at the tail of `_setCurrentIndex` (after the LRU evictio
 **And** all 11 are at the `resident` tier
 **When** activation runs the proactive cache-clear pass with threshold 10
 **Then** the LRU oldest *out-of-active-webspace* site (one of the `Personal` sites) is promoted first
-**Because** `preferKeepIndices` (= active webspace) is exhausted last within the same tier — same priority as the reactive memory-pressure cascade
+**Because** the active webspace's sites (`SiteRetentionPriority.webspace`) are exhausted last within the same tier — same priority as the reactive memory-pressure cascade
 
 #### Scenario: Already-cacheCleared sites don't count toward threshold
 
@@ -267,7 +267,7 @@ The proactive pass runs at the tail of `_setCurrentIndex` (after the LRU evictio
 **Then** the memory-pressure handler enters and reads the current state map (which may already show the in-flight target as still `resident` until the await resumes)
 **And** the handler picks a different victim (the next-oldest, since the in-flight target is in `_activationInFlightIndex` and therefore in protected)
 **And** both transitions complete without double-promoting any single site
-**Because** `_isHandlingMemoryPressure` and `_activationInFlightIndex` together ensure: (1) no concurrent memory-pressure invocations; (2) the current activation target is hard-protected from external promotion.
+**Because** `_memoryPressureGuard` and `_activationInFlightIndex` together ensure: (1) no concurrent memory-pressure invocations; (2) the current activation target is hard-protected from external promotion.
 
 #### Scenario: Activation race protects newly-cleared candidate
 
@@ -450,17 +450,17 @@ Sites that enter `_loadedIndices` without going through `_setCurrentIndex` — n
 
 Concurrent paths that may capture state for the same site SHALL coexist without corruption:
 
-- Two `_handleMemoryPressure` events firing rapidly: dropped via `_isHandlingMemoryPressure` flag (the first runs to completion, the next event picks up the new state).
+- Two `_handleMemoryPressure` events firing rapidly: dropped via `_memoryPressureGuard` (the first runs to completion, the next event picks up the new state).
 - App-background `unawaited(_captureStateBytes)` racing with `_setCurrentIndex`: each path operates on per-site state independently; storage writes are last-writer-wins per siteId, both produce valid bytes.
 - Navigation-debounced capture firing while a dispose/pause path captures the same site: both go through `_captureStateBytes`; writes are last-writer-wins per siteId and both produce valid bytes. The debounce callback re-checks `mounted` and model identity (`_webViewModels.contains(model)`, not an index) before capturing, so a site deleted or a list reordered during the window is a no-op.
-- Re-activation of a `savedForRestore` site mid-fetch: the in-flight target is in `_activationInFlightIndex` (set sync before any await in `_setCurrentIndex`, cleared in finally); memory pressure includes that index in `protectedIndices`, so the picker excludes it.
+- Re-activation of a `savedForRestore` site mid-fetch: the in-flight target is in `_activationInFlightIndex` (set sync before any await in `_setCurrentIndex`, cleared in finally); `_siteRetentionPriority` ranks that index `activating`, so the picker excludes it.
 - Storage initialization concurrency: `if (!_initialized) await initialize()` may run twice on a cold race, but each invocation produces the same key from `FlutterSecureStorage` (existing key on read, generated once on first miss); the second call's redundant writes are no-ops.
 
 #### Scenario: Concurrent didHaveMemoryPressure events do not double-capture
 
 **Given** a memory pressure cascade is mid-flight (capturing state, awaiting `saveState()` on the target site)
 **When** the OS fires `didHaveMemoryPressure` again before the first handler completes
-**Then** the second invocation drops out at the `_isHandlingMemoryPressure` guard
+**Then** the second invocation drops out at the `_memoryPressureGuard` guard
 **And** no site is double-captured
 
 #### Scenario: HTML cache and state storage cover orthogonal concerns

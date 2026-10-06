@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_retention_priority.dart';
 
 void main() {
   group('SiteLifecyclePromotionEngine.nextState', () {
@@ -32,6 +33,7 @@ void main() {
       final result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: const {},
         states: const {},
+        priorityOf: tiers(),
       );
       expect(result, isNull);
     });
@@ -48,6 +50,7 @@ void main() {
           1: SiteLifecycleState.resident,
           2: SiteLifecycleState.resident,
         },
+        priorityOf: tiers(),
       );
       expect(result, 0);
     });
@@ -60,6 +63,7 @@ void main() {
       final result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: const {},
+        priorityOf: tiers(),
       );
       expect(result, 0);
     });
@@ -81,6 +85,7 @@ void main() {
           1: SiteLifecycleState.cacheCleared,
           2: SiteLifecycleState.resident,
         },
+        priorityOf: tiers(),
       );
       expect(result, 2);
     });
@@ -95,6 +100,7 @@ void main() {
           0: SiteLifecycleState.cacheCleared,
           1: SiteLifecycleState.cacheCleared,
         },
+        priorityOf: tiers(),
       );
       expect(result, 0);
     });
@@ -109,7 +115,7 @@ void main() {
           0: SiteLifecycleState.resident,
           1: SiteLifecycleState.resident,
         },
-        protectedIndices: {0},
+        priorityOf: tiers(active: {0}),
       );
       expect(result, 1);
     });
@@ -124,7 +130,7 @@ void main() {
           0: SiteLifecycleState.resident,
           1: SiteLifecycleState.resident,
         },
-        protectedIndices: {0, 1},
+        priorityOf: tiers(active: {0, 1}),
       );
       expect(result, isNull);
     });
@@ -139,7 +145,7 @@ void main() {
           0: SiteLifecycleState.resident,
           1: SiteLifecycleState.resident,
         },
-        preferKeepIndices: {0},
+        priorityOf: tiers(keep: {0}),
       );
       // out-of-keep wins within tier, even though newer.
       expect(result, 1);
@@ -157,7 +163,7 @@ void main() {
           0: SiteLifecycleState.cacheCleared,
           1: SiteLifecycleState.resident,
         },
-        preferKeepIndices: {1},
+        priorityOf: tiers(keep: {1}),
       );
       expect(result, 1);
     });
@@ -174,6 +180,7 @@ void main() {
           0: SiteLifecycleState.savedForRestore,
           1: SiteLifecycleState.resident,
         },
+        priorityOf: tiers(),
       );
       expect(result, 1);
     });
@@ -210,8 +217,7 @@ void main() {
       var result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: states,
-        protectedIndices: protected,
-        preferKeepIndices: preferKeep,
+        priorityOf: tiers(active: protected, keep: preferKeep),
       );
       expect(result, 0);
       states[0] = SiteLifecycleState.cacheCleared;
@@ -219,8 +225,7 @@ void main() {
       result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: states,
-        protectedIndices: protected,
-        preferKeepIndices: preferKeep,
+        priorityOf: tiers(active: protected, keep: preferKeep),
       );
       expect(result, 1);
       states[1] = SiteLifecycleState.cacheCleared;
@@ -228,8 +233,7 @@ void main() {
       result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: states,
-        protectedIndices: protected,
-        preferKeepIndices: preferKeep,
+        priorityOf: tiers(active: protected, keep: preferKeep),
       );
       expect(result, 2);
       states[2] = SiteLifecycleState.cacheCleared;
@@ -239,8 +243,7 @@ void main() {
       result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: states,
-        protectedIndices: protected,
-        preferKeepIndices: preferKeep,
+        priorityOf: tiers(active: protected, keep: preferKeep),
       );
       expect(result, 0);
       states[0] = SiteLifecycleState.savedForRestore;
@@ -252,8 +255,7 @@ void main() {
       result = SiteLifecyclePromotionEngine.pickPromotionTarget(
         loadedIndices: loaded,
         states: states,
-        protectedIndices: protected,
-        preferKeepIndices: preferKeep,
+        priorityOf: tiers(active: protected, keep: preferKeep),
       );
       expect(result, 1);
     });
@@ -273,6 +275,7 @@ void main() {
           2: SiteLifecycleState.resident,
         },
         maxResidentSites: 3,
+        priorityOf: tiers(),
       );
       expect(result, isEmpty);
     });
@@ -289,6 +292,7 @@ void main() {
           1: SiteLifecycleState.resident,
         },
         maxResidentSites: 5,
+        priorityOf: tiers(),
       );
       expect(result, isEmpty);
     });
@@ -309,6 +313,7 @@ void main() {
           4: SiteLifecycleState.resident,
         },
         maxResidentSites: 3,
+        priorityOf: tiers(),
       );
       expect(result, [0, 1]);
     });
@@ -330,6 +335,7 @@ void main() {
           4: SiteLifecycleState.resident,
         },
         maxResidentSites: 3,
+        priorityOf: tiers(),
       );
       expect(result, isEmpty);
     });
@@ -351,6 +357,7 @@ void main() {
           4: SiteLifecycleState.resident,
         },
         maxResidentSites: 2,
+        priorityOf: tiers(),
       );
       expect(result, [1, 2]);
     });
@@ -369,7 +376,7 @@ void main() {
           3: SiteLifecycleState.resident,
         },
         maxResidentSites: 2,
-        protectedIndices: {0},
+        priorityOf: tiers(active: {0}),
       );
       // Protected (0) excluded; pick oldest 2 of {1, 2, 3} → [1, 2].
       expect(result, [1, 2]);
@@ -392,7 +399,7 @@ void main() {
           3: SiteLifecycleState.resident,
         },
         maxResidentSites: 2,
-        preferKeepIndices: {0, 2},
+        priorityOf: tiers(keep: {0, 2}),
       );
       expect(result, [1, 3]);
     });
@@ -414,7 +421,7 @@ void main() {
           3: SiteLifecycleState.resident,
         },
         maxResidentSites: 1,
-        preferKeepIndices: {1, 2, 3},
+        priorityOf: tiers(keep: {1, 2, 3}),
       );
       expect(result, [0, 1, 2]);
     });
@@ -438,6 +445,7 @@ void main() {
           3: SiteLifecycleState.resident,
         },
         maxResidentSites: 2,
+        priorityOf: tiers(),
       );
       expect(result, [1, 2]);
     });
@@ -453,6 +461,7 @@ void main() {
         loadedIndices: loaded,
         states: const {},
         maxResidentSites: 1,
+        priorityOf: tiers(),
       );
       expect(result, [0, 1]);
     });
@@ -470,7 +479,7 @@ void main() {
           2: SiteLifecycleState.resident,
         },
         maxResidentSites: 1,
-        protectedIndices: {0, 1, 2},
+        priorityOf: tiers(active: {0, 1, 2}),
       );
       expect(result, isEmpty);
     });
@@ -537,3 +546,15 @@ void main() {
     });
   });
 }
+
+/// The tiers `_siteRetentionPriority` yields for the sites it protects
+/// ([active]: on screen or activating) and the selected webspace's ([keep]).
+SiteRetentionResolver tiers({
+  Set<int> active = const {},
+  Set<int> keep = const {},
+}) =>
+    (i) => active.contains(i)
+        ? SiteRetentionPriority.active
+        : keep.contains(i)
+            ? SiteRetentionPriority.webspace
+            : SiteRetentionPriority.loaded;

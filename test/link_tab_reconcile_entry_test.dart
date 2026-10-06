@@ -24,16 +24,14 @@ void main() {
     setUp(() => body = bodyOf('Future<void> _reconcileLinkTabs('));
 
     test('waits for a running tab handler instead of racing it', () {
-      final deferral = body.indexOf('if (_isTabHandling) {');
+      final deferral = body.indexOf('if (_tabGate.busy) {');
       expect(deferral, isNot(-1));
       expect(body.indexOf('_tabGate.deferUntilIdle('), greaterThan(deferral));
-      expect(body.indexOf('_isTabHandling = true;'), greaterThan(deferral));
+      expect(body.indexOf('await _tabGate.run('), greaterThan(deferral),
+          reason: 'the gate releases in its own finally, or the deferred run '
+              'never comes and every tab handler is locked out');
       expect(body, contains('if (mounted) unawaited(_reconcileLinkTabs());'),
           reason: 'the deferred run must not outlive the page');
-      expect(RegExp(r'finally \{\s*_isTabHandling = false;').hasMatch(body),
-          isTrue,
-          reason: 'every exit releases the gate, or the deferred run never '
-              'comes and every tab handler is locked out');
     });
 
     test('rewrites every tab list in one pass with no await inside', () {
@@ -112,8 +110,6 @@ void main() {
 
     test('the gate is the one every tab handler holds', () {
       expect(main, contains('late final TabHandlingGate _tabGate = TabHandlingGate(scheduleMicrotask);'));
-      expect(main, contains('bool get _isTabHandling => _tabGate.busy;'));
-      expect(main, contains('set _isTabHandling(bool value) => _tabGate.busy = value;'));
       expect(RegExp(r'\bbool _isTabHandling\b').hasMatch(main), isFalse,
           reason: 'a second flag would let the reconcile run beside a handler');
     });

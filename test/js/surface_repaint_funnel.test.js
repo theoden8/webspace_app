@@ -368,22 +368,25 @@ for (const rel of GUARDED) {
     });
 
     test(`${rel}: the menu offers a manual repaint (PAUSE-028)`, () => {
-      assert.match(src, /value:\s*"repaint"/,
-        'the overflow menu must carry a repaint entry');
+      // A String-valued menu names the entry `value: "repaint"`; the main
+      // page's typed menu decides each action's entry in one switch arm.
+      const entry = /value:\s*"repaint"|SiteMenuAction\.repaint\s*=>/g;
+      assert.match(src, entry, 'the overflow menu must carry a repaint entry');
       // The entry is a diagnostic, not a feature: EVERY occurrence must sit
       // behind the developer-mode gate as well as the Android one, or a user
       // meets a button whose effect they cannot interpret. Counted, not
       // matched: a file with two menus must not pass on one gated entry.
-      const entries = (src.match(/value:\s*"repaint"/g) || []).length;
+      const entries = (src.match(entry) || []).length;
       const gated = (
         src.match(
-          /if\s*\(hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\)\s*\n\s*PopupMenuItem<String>\(\s*\n\s*value:\s*"repaint"/g,
+          /if\s*\(hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\)\s*\n\s*PopupMenuItem<String>\(\s*\n\s*value:\s*"repaint"|SiteMenuAction\.repaint\s*=>\s*hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\s*\?/g,
         ) || []
       ).length;
       assert.equal(gated, entries,
         `${entries} repaint entr(y|ies), ${gated} behind the developer-mode ` +
           'gate; every one must be (PAUSE-028).');
-      assert.match(src, /case\s+'repaint':\s*\n\s*_repaintCurrentSurface\(\);/,
+      assert.match(src,
+        /case\s+(?:'repaint'|SiteMenuAction\.repaint):\s*\n\s*_repaintCurrentSurface\(\);/,
         'selecting it must route to _repaintCurrentSurface');
       const defIdx = lines.findIndex((l) =>
         /void\s+_repaintCurrentSurface\s*\(\)/.test(l),

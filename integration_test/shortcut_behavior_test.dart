@@ -300,7 +300,7 @@ void main() {
   }
 
   Future<void> openOverflowMenu(WidgetTester tester) async {
-    final button = find.byType(PopupMenuButton<String>);
+    final button = find.byType(PopupMenuButton<app.SiteMenuAction>);
     expect(
       button,
       findsWidgets,

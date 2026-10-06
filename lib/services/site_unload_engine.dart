@@ -9,17 +9,6 @@ import 'package:webspace/web_view_model.dart';
 /// it, a heavy user could accumulate dozens of live native webviews.
 const int kMaxLoadedSites = 20;
 
-SiteRetentionResolver _legacyResolver({
-  Set<int> protectedIndices = const <int>{},
-  Set<int> preferKeepIndices = const <int>{},
-}) {
-  return (int index) {
-    if (protectedIndices.contains(index)) return SiteRetentionPriority.active;
-    if (preferKeepIndices.contains(index)) return SiteRetentionPriority.webspace;
-    return SiteRetentionPriority.loaded;
-  };
-}
-
 /// Pure-Dart unload policy engine.
 ///
 /// Owns the three orthogonal "should this site be unloaded?" rules:
@@ -221,24 +210,12 @@ class SiteUnloadEngine {
 
   /// LRU eviction set. Returns the indices to evict (oldest first) so that
   /// [loadedIndices] plus [targetIndex] fits within [maxLoadedSites].
-  ///
-  /// Pass [priorityOf] to use named retention priorities. Falls back to
-  /// the legacy [protectedIndices]/[preferKeepIndices] sets if [priorityOf]
-  /// is null.
   static List<int> indicesToEvictForLruCap({
     required int targetIndex,
     required Set<int> loadedIndices,
     required int maxLoadedSites,
-    SiteRetentionResolver? priorityOf,
-    Set<int> protectedIndices = const <int>{},
-    Set<int> preferKeepIndices = const <int>{},
+    required SiteRetentionResolver priorityOf,
   }) {
-    final resolver = priorityOf ??
-        _legacyResolver(
-          protectedIndices: protectedIndices,
-          preferKeepIndices: preferKeepIndices,
-        );
-
     final projected = loadedIndices.contains(targetIndex)
         ? loadedIndices.length
         : loadedIndices.length + 1;
@@ -248,7 +225,7 @@ class SiteUnloadEngine {
     final candidates = <int>[];
     for (final i in loadedIndices) {
       if (i == targetIndex) continue;
-      final p = resolver(i);
+      final p = priorityOf(i);
       if (p == SiteRetentionPriority.active ||
           p == SiteRetentionPriority.activating) continue;
       candidates.add(i);
@@ -256,8 +233,8 @@ class SiteUnloadEngine {
 
     // Sort by priority: lowest priority (highest index) first.
     candidates.sort((a, b) {
-      final pa = resolver(a).index;
-      final pb = resolver(b).index;
+      final pa = priorityOf(a).index;
+      final pb = priorityOf(b).index;
       if (pa != pb) return pb.compareTo(pa);
       return 0;
     });
@@ -265,34 +242,6 @@ class SiteUnloadEngine {
     return candidates.length <= overflow
         ? candidates
         : candidates.sublist(0, overflow);
-  }
-
-  /// Picks one loaded site to evict in response to an OS memory pressure
-  /// signal. Returns null when nothing can be safely evicted.
-  static int? indexToEvictForMemoryPressure({
-    required Set<int> loadedIndices,
-    SiteRetentionResolver? priorityOf,
-    Set<int> protectedIndices = const <int>{},
-    Set<int> preferKeepIndices = const <int>{},
-  }) {
-    final resolver = priorityOf ??
-        _legacyResolver(
-          protectedIndices: protectedIndices,
-          preferKeepIndices: preferKeepIndices,
-        );
-
-    int? bestCandidate;
-    int bestPriorityIndex = -1;
-    for (final i in loadedIndices) {
-      final p = resolver(i);
-      if (p == SiteRetentionPriority.active ||
-          p == SiteRetentionPriority.activating) continue;
-      if (bestCandidate == null || p.index > bestPriorityIndex) {
-        bestCandidate = i;
-        bestPriorityIndex = p.index;
-      }
-    }
-    return bestCandidate;
   }
 
   static bool _proxyEquivalent(UserProxySettings a, UserProxySettings b) {

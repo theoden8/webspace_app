@@ -1,11 +1,9 @@
 // Background-refresh active-site gate.
 //
-// `_refreshNotificationSites` reloads every notification site. That is correct
-// when the app is backgrounded and wrong when it is not: Android's WorkManager
-// tick (NOTIF-005-A) fires whenever the Flutter engine is reachable, the
-// foreground included, so an ungated handler reloads the page the user is
-// currently reading. The handler was written when only iOS's BGAppRefreshTask
-// could reach it, where the app is suspended by definition.
+// Android's WorkManager tick (NOTIF-005-A) fires whenever the Flutter engine
+// is reachable, the foreground included, so an ungated handler reloads the
+// page the user is currently reading. The handler was written when only iOS's
+// BGAppRefreshTask could reach it, where the app is suspended by definition.
 //
 // The reload happens inside `_WebSpacePageState`, which no widget test can
 // drive without a live engine and a wired platform channel, so this is a
@@ -27,17 +25,15 @@ test('the background-refresh handler is wired', () => {
   assert.ok(assignment, `${rel} must assign onBackgroundRefresh`);
 });
 
-test('it is not the bare _refreshNotificationSites tear-off', () => {
-  // The tear-off takes excludeActive's default of false, which is the bug.
-  assert.doesNotMatch(assignment[1], /^\s*_refreshNotificationSites\s*$/,
-    `${rel} must not hand the raw tear-off to onBackgroundRefresh`);
-});
-
-test('it passes excludeActive derived from the lifecycle state', () => {
-  assert.match(assignment[1], /excludeActive:/,
-    `${rel} must pass excludeActive to _refreshNotificationSites`);
-  assert.match(assignment[1], /AppLifecycleState\.resumed/,
-    `${rel} must derive excludeActive from the resumed lifecycle state`);
+test('the foreground branch reloads around the site on screen', () => {
+  // The exclusion is ForegroundPollEngine's, unconditionally; it was once a
+  // parameter whose default reloaded the page the user was reading.
+  assert.match(assignment[1], /AppLifecycleState\.resumed\s*\?\s*_refreshNotificationSites\(\)/,
+    `${rel} must reload through _refreshNotificationSites while resumed`);
+  const refresh = /Future<void> _refreshNotificationSites\(\) async \{([\s\S]*?)\n  \}/.exec(src);
+  assert.ok(refresh, `${rel} must define _refreshNotificationSites`);
+  assert.match(refresh[1], /ForegroundPollEngine\.plan\([\s\S]*currentIndex: _currentIndex,/,
+    '_refreshNotificationSites must plan with the site on screen');
 });
 
 // NOTIF-013: the OS task ends when this handler returns. Handing the

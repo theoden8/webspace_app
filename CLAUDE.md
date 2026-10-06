@@ -413,7 +413,7 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 - **Never serialise to JSON**: `toJson` omits the field. No `includeSecrets` opt-in. Same rule as `isSecure=true` cookies. Backup files get emailed/synced — they must not carry secrets.
 - **Hydrate on load** alongside per-site/global hydration in `_loadWebViewModels` and `GlobalOutboundProxy.initialize`.
 - **Migrate legacy plaintext** with the idempotent pre-pass in `ProxyPasswordSecureStorage.migrateLegacyPassword`.
-- **Wire orphan cleanup** at the same three GC sites in [lib/main.dart](lib/main.dart): startup, post-import, post-delete.
+- **Wire orphan cleanup**: add the store to `OrphanStore` in [orphan_sweep_engine.dart](lib/services/orphan_sweep_engine.dart) with its scope (session residue or configuration). `_OrphanSweepTargets` in main.dart does not compile until it sweeps the store; startup, post-import and post-delete all run the engine.
 - **Tell the user post-import** (snackbar in `_importSettings`) if the related non-secret field was set — otherwise restored proxy silently fails auth.
 - **Regression test**: assert the secret string never appears in `SettingsBackupService.exportToJson(...)` output. Template: "proxy passwords never appear in exports (PWD-005)".
 - Update the spec, then `npx openspec validate --no-interactive --all`.
@@ -533,6 +533,6 @@ New features extend the engine (or add one alongside). Never inline a feature-sp
 Async UI handlers (button callbacks, `onPopInvokedWithResult`, gestures) get re-entered before the first call resolves.
 
 - **Rapid input**: a handler that `await`s before acting can be entered twice concurrently.
-- **Guard**: boolean flag (`_isHandling`), cleared in `finally`.
+- **Guard**: a [`ReentryGuard`](lib/services/reentry_guard.dart) field, `await _guard.run(() async {...})`; `run` owns the `finally`, so no exit path leaves it held.
 - **State across awaits**: re-check `mounted`, indices, shared state — another handler may have mutated.
 - **Drawer/dialog flash**: opening UI in an unguarded async callback lets a second tap close it immediately.

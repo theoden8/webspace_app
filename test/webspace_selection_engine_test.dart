@@ -201,40 +201,4 @@ void main() {
     });
   });
 
-  group('WebspaceSelectionEngine.cleanupWebspaceIndices', () {
-    test('strips out-of-bounds indices in place', () {
-      final webspaces = [
-        Webspace(id: 'w1', name: 'A', siteIndices: [0, 5, 1]),
-        Webspace(id: 'w2', name: 'B', siteIndices: [-1, 2, 99]),
-      ];
-      WebspaceSelectionEngine.cleanupWebspaceIndices(
-        webspaces: webspaces,
-        siteCount: 3,
-      );
-      expect(webspaces[0].siteIndices, [0, 1]);
-      expect(webspaces[1].siteIndices, [2]);
-    });
-
-    test('is a no-op when every index is already in bounds', () {
-      final webspaces = [Webspace(id: 'w1', name: 'A', siteIndices: [0, 1, 2])];
-      WebspaceSelectionEngine.cleanupWebspaceIndices(
-        webspaces: webspaces,
-        siteCount: 3,
-      );
-      expect(webspaces[0].siteIndices, [0, 1, 2]);
-    });
-
-    test('empties webspaces when siteCount is zero', () {
-      final webspaces = [
-        Webspace(id: 'w1', name: 'A', siteIndices: [0, 1, 2]),
-        Webspace(id: 'w2', name: 'B', siteIndices: [5]),
-      ];
-      WebspaceSelectionEngine.cleanupWebspaceIndices(
-        webspaces: webspaces,
-        siteCount: 0,
-      );
-      expect(webspaces[0].siteIndices, isEmpty);
-      expect(webspaces[1].siteIndices, isEmpty);
-    });
-  });
 }

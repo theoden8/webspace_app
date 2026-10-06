@@ -20,19 +20,19 @@ void main() {
 
   test('both overflow menus offer New tab and neither offers Duplicate tab',
       () {
-    expect(count('value: "newTab"'), 2);
-    expect(count("case 'newTab':"), 2);
-    expect(count('value: "duplicateTab"'), 0);
-    expect(count("case 'duplicateTab':"), 0);
+    expect(count('_siteMenuItems(context, _SiteMenuPlacement.appBar)'), 1);
+    expect(count('_siteMenuItems(context, _SiteMenuPlacement.bottomBar)'), 1);
+    expect(count('SiteMenuAction.newTab =>'), 1);
+    expect(count('SiteMenuAction.duplicateTab'), 0);
   });
 
-  test('a long press on either refresh button duplicates the tab', () {
+  test('a long press on the menus\' refresh button duplicates the tab', () {
     final refresh = RegExp(
       r'tooltip: loading \? loc\.homeStopTooltip : loc\.homeRefreshTooltip,\s*'
       r'onLongPress: _tabsEnabledAt\(_currentIndex\)\s*\?\s*\(\) \{[^}]*'
       r'_duplicateTab\(',
     );
-    expect(refresh.allMatches(source).length, 2);
+    expect(refresh.allMatches(source).length, 1);
   });
 
   test('a duplicate opens parked: it never re-binds the webview', () {
@@ -152,18 +152,12 @@ void main() {
         return source.substring(start, source.indexOf('\n  }\n', start));
       }
 
-      expect(
-        RegExp(r'while \(_isTabHandling\) \{\s*await _tabGate\.idle\(\);\s*\}\s*'
-                r'_isTabHandling = true;')
-            .hasMatch(body('Future<T> _withTabGate<T>(')),
-        isTrue,
-      );
-      expect(source, contains('_withTabGate(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
-      expect(body('Future<void> _openLinkInNewTab('), contains('await _withTabGate('),
+      expect(source, contains('_tabGate.runWhenIdle(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
+      expect(body('Future<void> _openLinkInNewTab('), contains('await _tabGate.runWhenIdle('),
           reason: 'a background insert must not be lost to a close in flight');
       expect(body('Future<void> _executeOpenInMain('),
-          contains('await _withTabGate(() => _switchToOwnerRunTab(model));'));
-      expect(body('Future<void> _openTypedAddress('), contains('await _withTabGate('));
+          contains('await _tabGate.runWhenIdle(() => _switchToOwnerRunTab(model));'));
+      expect(body('Future<void> _openTypedAddress('), contains('await _tabGate.runWhenIdle('));
       expect(body('Future<void> _dismissKeyboard('), contains('.timeout('),
           reason: 'a stuck page must not keep the list from opening');
       expect(body('Future<void> _showTabsSheet('), contains('_isShowingTabsSheet'));
@@ -195,13 +189,12 @@ void main() {
         isTrue,
         reason: 'the tab count in the app bar',
       );
-      final rows = RegExp(
-        r'if \(_tabsEnabledAt\(_currentIndex\)\) \.\.\.\[\s*'
-        r'PopupMenuItem<String>\(\s*'
-        r'value: "newTab",',
+      expect(
+        source,
+        contains('SiteMenuAction.newTab =>\n'
+            '          _tabsEnabledAt(_currentIndex) ? (Icons.add, loc.tabsNewTab) : null,'),
+        reason: 'New tab, in the overflow menus',
       );
-      expect(rows.allMatches(source).length, 2,
-          reason: 'New tab, in both overflow menus');
       final pills = RegExp(r'(?<!Widget )_tabCountPill\(')
           .allMatches(source)
           .toList();

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tab_handling_gate.dart';
 
 /// The guard every tab handler holds across its awaits, and the work that
@@ -20,50 +21,75 @@ void main() {
     }
   }
 
-  test('work deferred while busy runs once the holder lets go', () {
+  /// Holds the gate until the returned completer completes.
+  (Future<bool>, Completer<void>) hold(ReentryGuard guard) {
+    final release = Completer<void>();
+    return (guard.run(() => release.future), release);
+  }
+
+  test('a second run while the first is in flight is skipped', () async {
+    final (first, release) = hold(gate);
+    var secondRan = false;
+    expect(await gate.run(() async => secondRan = true), isFalse);
+    release.complete();
+    expect(await first, isTrue);
+    expect(secondRan, isFalse);
+    expect(gate.busy, isFalse);
+  });
+
+  test('a body that throws still releases the gate', () async {
+    await expectLater(
+        gate.run(() async => throw StateError('handler failed')),
+        throwsStateError);
+    expect(gate.busy, isFalse);
+    expect(await gate.run(() async {}), isTrue);
+  });
+
+  test('work deferred while busy runs once the holder lets go', () async {
     var runs = 0;
-    gate.busy = true;
+    final (held, release) = hold(gate);
     gate.deferUntilIdle(() => runs++);
     expect(gate.hasDeferred, isTrue);
     drain();
     expect(runs, 0, reason: 'nothing runs while the gate is held');
-    gate.busy = false;
+    release.complete();
+    await held;
     expect(gate.hasDeferred, isFalse);
     expect(runs, 0, reason: 'never inside the releasing handler\'s finally');
     drain();
     expect(runs, 1);
   });
 
-  test('many requests while busy run as one, the latest', () {
+  test('many requests while busy run as one, the latest', () async {
     final ran = <int>[];
-    gate.busy = true;
+    final (held, release) = hold(gate);
     for (var i = 0; i < 5; i++) {
       gate.deferUntilIdle(() => ran.add(i));
     }
-    gate.busy = false;
+    release.complete();
+    await held;
     drain();
     expect(ran, [4]);
   });
 
-  test('a release with nothing waiting schedules nothing', () {
-    gate.busy = true;
-    gate.busy = false;
+  test('a release with nothing waiting schedules nothing', () async {
+    await gate.run(() async {});
     expect(scheduled, isEmpty);
   });
 
-  test('deferred work runs once, not again on the next release', () {
+  test('deferred work runs once, not again on the next release', () async {
     var runs = 0;
-    gate.busy = true;
+    final (held, release) = hold(gate);
     gate.deferUntilIdle(() => runs++);
-    gate.busy = false;
+    release.complete();
+    await held;
     drain();
-    gate.busy = true;
-    gate.busy = false;
+    await gate.run(() async {});
     drain();
     expect(runs, 1);
   });
 
-  test('deferred work that finds the gate held again waits again', () {
+  test('deferred work that finds the gate held again waits again', () async {
     // The deferred reconcile re-checks the gate itself: a tab handler that
     // took it between the release and the microtask makes it defer anew.
     final log = <String>[];
@@ -73,19 +99,21 @@ void main() {
         gate.deferUntilIdle(reconcile);
         return;
       }
-      gate.busy = true;
-      log.add('ran');
-      gate.busy = false;
+      unawaited(gate.run(() async => log.add('ran')));
     }
 
-    gate.busy = true;
+    final (first, releaseFirst) = hold(gate);
     reconcile();
-    gate.busy = false;
-    gate.busy = true; // another handler gets in before the microtask
+    releaseFirst.complete();
+    await first;
+    // another handler gets in before the microtask
+    final (second, releaseSecond) = hold(gate);
     drain();
     expect(log, ['deferred', 'deferred']);
-    gate.busy = false;
+    releaseSecond.complete();
+    await second;
     drain();
+    await Future<void>.delayed(Duration.zero);
     expect(log, ['deferred', 'deferred', 'ran']);
     expect(gate.hasDeferred, isFalse);
   });
@@ -95,15 +123,12 @@ void main() {
     final real = TabHandlingGate(scheduleMicrotask);
     final log = <String>[];
     Future<void> handler() async {
-      real.busy = true;
-      try {
+      await real.run(() async {
         await Future<void>.delayed(Duration.zero);
         real.deferUntilIdle(() => log.add('reconcile'));
         log.add('handler body');
-      } finally {
-        real.busy = false;
-        log.add('handler released');
-      }
+      });
+      log.add('handler released');
     }
 
     await handler();
@@ -115,38 +140,34 @@ void main() {
   test('idle completes on the next release, and at once when free', () async {
     final real = TabHandlingGate(scheduleMicrotask);
     await real.idle();
-    real.busy = true;
+    final (held, release) = hold(real);
     var released = false;
     final waiting = real.idle().then((_) => released = true);
     await Future<void>.delayed(Duration.zero);
     expect(released, isFalse);
-    real.busy = false;
+    release.complete();
+    await held;
     await waiting;
     expect(released, isTrue);
   });
 
-  test('waiters that loop on busy take the gate one at a time', () async {
+  test('runWhenIdle waiters take the gate one at a time', () async {
     final real = TabHandlingGate(scheduleMicrotask);
     final log = <String>[];
-    Future<void> exclusive(String name) async {
-      while (real.busy) {
-        await real.idle();
-      }
-      real.busy = true;
-      try {
-        log.add('$name in');
-        await Future<void>.delayed(Duration.zero);
-        log.add('$name out');
-      } finally {
-        real.busy = false;
-      }
-    }
+    Future<String> exclusive(String name) => real.runWhenIdle(() async {
+          log.add('$name in');
+          await Future<void>.delayed(Duration.zero);
+          log.add('$name out');
+          return name;
+        });
 
-    real.busy = true;
+    final (held, release) = hold(real);
     final a = exclusive('a');
     final b = exclusive('b');
-    real.busy = false;
-    await Future.wait([a, b]);
+    release.complete();
+    await held;
+    expect(await Future.wait([a, b]), ['a', 'b']);
     expect(log, ['a in', 'a out', 'b in', 'b out']);
+    expect(real.busy, isFalse);
   });
 }

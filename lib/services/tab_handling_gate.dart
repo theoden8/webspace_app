@@ -9,27 +9,25 @@
 /// waits: asked for while busy, it runs once after the holder lets go,
 /// however many times it was asked for. Work that must happen, in order with
 /// what its caller does next (closing a deleted site's hosted tabs before the
-/// delete), waits for [idle] and takes the gate itself.
+/// delete), takes the gate through [runWhenIdle].
 library;
 
 import 'dart:async';
 
-class TabHandlingGate {
+import 'package:webspace/services/reentry_guard.dart';
+
+class TabHandlingGate extends ReentryGuard {
   TabHandlingGate(this._schedule);
 
   /// How deferred work is run once the gate is released: a microtask in the
   /// app, so it never runs inside the releasing handler's `finally`.
   final void Function(void Function() run) _schedule;
 
-  bool _busy = false;
   void Function()? _deferred;
   Completer<void>? _idle;
 
-  bool get busy => _busy;
-
-  set busy(bool value) {
-    _busy = value;
-    if (value) return;
+  @override
+  void onReleased() {
     final waiting = _idle;
     _idle = null;
     waiting?.complete();
@@ -50,5 +48,16 @@ class TabHandlingGate {
   /// Completes when the gate is next released, or now when it is free.
   /// Another waiter may take it first, so a caller checks [busy] again.
   Future<void> idle() =>
-      _busy ? (_idle ??= Completer<void>()).future : Future<void>.value();
+      busy ? (_idle ??= Completer<void>()).future : Future<void>.value();
+
+  /// Runs [body] holding the gate once whatever holds it now lets go. Never
+  /// called with the gate held: it would wait for itself.
+  Future<T> runWhenIdle<T>(Future<T> Function() body) async {
+    while (busy) {
+      await idle();
+    }
+    late final T result;
+    await run(() async => result = await body());
+    return result;
+  }
 }

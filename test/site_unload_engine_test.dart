@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -973,6 +974,7 @@ void main() {
         targetIndex: 3,
         loadedIndices: {0, 1, 2},
         maxLoadedSites: 5,
+        priorityOf: tiers(),
       );
       expect(result, isEmpty);
     });
@@ -989,6 +991,7 @@ void main() {
         targetIndex: 3,
         loadedIndices: loaded,
         maxLoadedSites: 3,
+        priorityOf: tiers(),
       );
       expect(result, [0]);
     });
@@ -1003,6 +1006,7 @@ void main() {
         targetIndex: 4,
         loadedIndices: loaded,
         maxLoadedSites: 2,
+        priorityOf: tiers(),
       );
       expect(result, [0, 1, 2]);
     });
@@ -1018,6 +1022,7 @@ void main() {
         targetIndex: 0,
         loadedIndices: loaded,
         maxLoadedSites: 3,
+        priorityOf: tiers(),
       );
       expect(result, isEmpty);
     });
@@ -1033,7 +1038,7 @@ void main() {
         targetIndex: 3,
         loadedIndices: loaded,
         maxLoadedSites: 2,
-        protectedIndices: {0},
+        priorityOf: tiers(active: {0}),
       );
       expect(result, [1, 2]);
     });
@@ -1053,6 +1058,7 @@ void main() {
         targetIndex: 3,
         loadedIndices: loaded,
         maxLoadedSites: 3,
+        priorityOf: tiers(),
       );
       expect(result, [1]);
     });
@@ -1073,6 +1079,7 @@ void main() {
         targetIndex: 4,
         loadedIndices: loaded,
         maxLoadedSites: 2,
+        priorityOf: tiers(),
       );
       expect(result, [2, 3, 1]);
     });
@@ -1082,6 +1089,7 @@ void main() {
         targetIndex: 0,
         loadedIndices: const {},
         maxLoadedSites: 5,
+        priorityOf: tiers(),
       );
       expect(result, isEmpty);
     });
@@ -1093,6 +1101,7 @@ void main() {
         targetIndex: 1,
         loadedIndices: loaded,
         maxLoadedSites: 1,
+        priorityOf: tiers(),
       );
       expect(result, [0]);
     });
@@ -1108,6 +1117,7 @@ void main() {
         targetIndex: 2,
         loadedIndices: loaded,
         maxLoadedSites: 3,
+        priorityOf: tiers(),
       );
       expect(result, isEmpty);
     });
@@ -1124,7 +1134,7 @@ void main() {
         targetIndex: 2,
         loadedIndices: loaded,
         maxLoadedSites: 1,
-        protectedIndices: {0, 1},
+        priorityOf: tiers(active: {0, 1}),
       );
       expect(result, isEmpty);
     });
@@ -1140,7 +1150,7 @@ void main() {
         targetIndex: 3,
         loadedIndices: loaded,
         maxLoadedSites: 2,
-        protectedIndices: {0},
+        priorityOf: tiers(active: {0}),
       );
       expect(result, [1, 2]);
     });
@@ -1156,7 +1166,7 @@ void main() {
         targetIndex: 0,
         loadedIndices: loaded,
         maxLoadedSites: 2,
-        protectedIndices: {0},
+        priorityOf: tiers(active: {0}),
       );
       expect(result, isEmpty);
     });
@@ -1174,7 +1184,7 @@ void main() {
         targetIndex: 0,
         loadedIndices: loaded,
         maxLoadedSites: 1,
-        protectedIndices: {0},
+        priorityOf: tiers(active: {0}),
       );
       expect(result, [1]);
     });
@@ -1189,6 +1199,7 @@ void main() {
         targetIndex: 2,
         loadedIndices: loaded,
         maxLoadedSites: 0,
+        priorityOf: tiers(),
       );
       // Overflow = 3 (projected 3 - cap 0). All non-target loaded
       // sites are evictable.
@@ -1209,7 +1220,7 @@ void main() {
           targetIndex: 4,
           loadedIndices: loaded,
           maxLoadedSites: 4,
-          preferKeepIndices: {0, 2},
+          priorityOf: tiers(keep: {0, 2}),
         );
         expect(result, [1]);
       });
@@ -1226,7 +1237,7 @@ void main() {
           targetIndex: 4,
           loadedIndices: loaded,
           maxLoadedSites: 2,
-          preferKeepIndices: {0, 1, 2, 3},
+          priorityOf: tiers(keep: {0, 1, 2, 3}),
         );
         expect(result, [0, 1, 2]);
       });
@@ -1244,7 +1255,7 @@ void main() {
           targetIndex: 6,
           loadedIndices: loaded,
           maxLoadedSites: 3,
-          preferKeepIndices: {1, 3, 4, 5},
+          priorityOf: tiers(keep: {1, 3, 4, 5}),
         );
         expect(result, [0, 2, 1, 3]);
       });
@@ -1262,8 +1273,7 @@ void main() {
           targetIndex: 4,
           loadedIndices: loaded,
           maxLoadedSites: 3,
-          protectedIndices: {0},
-          preferKeepIndices: {1},
+          priorityOf: tiers(active: {0}, keep: {1}),
         );
         expect(result, [2, 3]);
       });
@@ -1282,8 +1292,7 @@ void main() {
           targetIndex: 4,
           loadedIndices: loaded,
           maxLoadedSites: 2,
-          protectedIndices: {2, 3},
-          preferKeepIndices: {1, 3},
+          priorityOf: tiers(active: {2, 3}, keep: {1, 3}),
         );
         expect(result, [0, 1]);
       });
@@ -1300,6 +1309,7 @@ void main() {
           targetIndex: 3,
           loadedIndices: loaded,
           maxLoadedSites: 3,
+          priorityOf: tiers(),
         );
         expect(result, [0]);
       });
@@ -1317,7 +1327,7 @@ void main() {
           targetIndex: 3,
           loadedIndices: loaded,
           maxLoadedSites: 3,
-          preferKeepIndices: {0, 4, 5, 99},
+          priorityOf: tiers(keep: {0, 4, 5, 99}),
         );
         // Site 0 is in soft-keep; sites 4/5/99 are noise. Out-of-set
         // candidates: [1, 2]. Evict oldest: [1].
@@ -1339,132 +1349,10 @@ void main() {
           targetIndex: 4,
           loadedIndices: loaded,
           maxLoadedSites: 2,
-          preferKeepIndices: {1, 3},
+          priorityOf: tiers(keep: {1, 3}),
         );
         expect(result, [2, 0, 1]);
       });
-    });
-  });
-
-  group('SiteUnloadEngine.indexToEvictForMemoryPressure', () {
-    test('returns null when nothing is loaded', () {
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: const {},
-      );
-      expect(result, isNull);
-    });
-
-    test('returns null when every loaded site is protected', () {
-      // Pathological: only the active site is loaded, can't evict it.
-      final loaded = <int>{};
-      loaded.add(0);
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: loaded,
-        protectedIndices: {0},
-      );
-      expect(result, isNull);
-    });
-
-    test('picks oldest non-protected site (single tier)', () {
-      // Loaded order: 0 (oldest), 1, 2 (newest, active). Pick 0.
-      final loaded = <int>{};
-      loaded.add(0);
-      loaded.add(1);
-      loaded.add(2);
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: loaded,
-        protectedIndices: {2},
-      );
-      expect(result, 0);
-    });
-
-    test('prefers out-of-keep over in-keep', () {
-      // Order: 0 (in), 1 (out), 2 (in, active). Active is protected.
-      // Out-of-keep candidate exists → pick 1, not the older 0.
-      final loaded = <int>{};
-      loaded.add(0);
-      loaded.add(1);
-      loaded.add(2);
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: loaded,
-        protectedIndices: {2},
-        preferKeepIndices: {0, 2},
-      );
-      expect(result, 1);
-    });
-
-    test('falls through to in-keep when no out-of-keep candidate', () {
-      // Order: 0, 1, 2. Active=2. Soft-keep covers everything left.
-      // Pick the oldest in-keep: 0.
-      final loaded = <int>{};
-      loaded.add(0);
-      loaded.add(1);
-      loaded.add(2);
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: loaded,
-        protectedIndices: {2},
-        preferKeepIndices: {0, 1, 2},
-      );
-      expect(result, 0);
-    });
-
-    test('respects LRU access order after re-activation bumps', () {
-      // Activations 0, 1, 2 then re-activate 0 → order is 1, 2, 0.
-      // Active = 2 (most recent of {1, 2}). Out-of-keep: {1}; pick 1.
-      final loaded = <int>{};
-      loaded.add(0);
-      loaded.add(1);
-      loaded.add(2);
-      // Re-activate 0.
-      loaded.remove(0);
-      loaded.add(0);
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: loaded,
-        protectedIndices: {0},
-        preferKeepIndices: {0, 2},
-      );
-      expect(result, 1);
-    });
-
-    test('successive calls evict one-by-one without re-evicting', () {
-      // Caller mutates loadedIndices on each evict. After three OS
-      // memory-pressure events, three different sites get picked, in
-      // LRU order. The fourth event has only the active site left;
-      // returns null.
-      final loaded = <int>{};
-      loaded.add(0);
-      loaded.add(1);
-      loaded.add(2);
-      loaded.add(3);
-      final picked = <int>[];
-      while (true) {
-        final v = SiteUnloadEngine.indexToEvictForMemoryPressure(
-          loadedIndices: loaded,
-          protectedIndices: {3},
-        );
-        if (v == null) break;
-        picked.add(v);
-        loaded.remove(v);
-      }
-      expect(picked, [0, 1, 2]);
-      expect(loaded, {3});
-    });
-
-    test('stable when activeIndex is also in preferKeep', () {
-      // Common production case: the active site is part of the
-      // currently-selected webspace (so it's in both protectedIndices
-      // and preferKeepIndices). Tier-2 fall-through must not double-
-      // count the protected site.
-      final loaded = <int>{};
-      loaded.add(0);
-      loaded.add(1);
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: loaded,
-        protectedIndices: {1},
-        preferKeepIndices: {0, 1},
-      );
-      // Only candidate is 0 (in-keep), since 1 is protected.
-      expect(result, 0);
     });
   });
 
@@ -1503,8 +1391,7 @@ void main() {
         targetIndex: 5,
         loadedIndices: _baseLoaded(),
         maxLoadedSites: 1,
-        protectedIndices: protected,
-        preferKeepIndices: softKeep,
+        priorityOf: tiers(active: protected, keep: softKeep),
       );
       expect(result, [1, 3, 0, 4]);
     });
@@ -1516,8 +1403,7 @@ void main() {
         targetIndex: 5,
         loadedIndices: _baseLoaded(),
         maxLoadedSites: 5,
-        protectedIndices: protected,
-        preferKeepIndices: softKeep,
+        priorityOf: tiers(active: protected, keep: softKeep),
       );
       expect(result, [1]);
     });
@@ -1531,52 +1417,9 @@ void main() {
         targetIndex: 5,
         loadedIndices: _baseLoaded(),
         maxLoadedSites: 2,
-        protectedIndices: protected,
-        preferKeepIndices: softKeep,
+        priorityOf: tiers(active: protected, keep: softKeep),
       );
       expect(result, [1, 3, 0, 4]);
-    });
-
-    test('MemoryPressure picks the same first victim as LruCap', () {
-      // Cross-method consistency: both methods derive the next victim
-      // from the same priority hierarchy, so on identical inputs the
-      // first index from indicesToEvictForLruCap should match the
-      // single index from indexToEvictForMemoryPressure.
-      final lruVictim = SiteUnloadEngine.indicesToEvictForLruCap(
-        targetIndex: 5,
-        loadedIndices: _baseLoaded(),
-        maxLoadedSites: 5,
-        protectedIndices: protected,
-        preferKeepIndices: softKeep,
-      ).first;
-      final memVictim = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: _baseLoaded(),
-        protectedIndices: protected,
-        preferKeepIndices: softKeep,
-      );
-      expect(memVictim, equals(lruVictim));
-      expect(memVictim, 1);
-    });
-
-    test('MemoryPressure walks the full hierarchy across successive events',
-        () {
-      // Each call picks one victim, caller mutates loaded, repeat
-      // until null. The sequence must equal the LruCap exhaust order
-      // [1, 3, 0, 4]; site 2 stays protected.
-      final loaded = _baseLoaded();
-      final picked = <int>[];
-      while (true) {
-        final v = SiteUnloadEngine.indexToEvictForMemoryPressure(
-          loadedIndices: loaded,
-          protectedIndices: protected,
-          preferKeepIndices: softKeep,
-        );
-        if (v == null) break;
-        picked.add(v);
-        loaded.remove(v);
-      }
-      expect(picked, [1, 3, 0, 4]);
-      expect(loaded, {2});
     });
 
     test('user re-activates the site that would otherwise be next to evict',
@@ -1599,41 +1442,13 @@ void main() {
         // Previous active was 2 (different from target — common case
         // when the user is switching sites, not just re-tapping the
         // already-active one).
-        protectedIndices: {2},
         // Active webspace contains the target plus one more.
-        preferKeepIndices: {0, 1},
+        priorityOf: tiers(active: {2}, keep: {0, 1}),
       );
       // outOfKeep = [3] (1 in keep, 2 protected, 0 is target).
       // inKeep = [1] (0 is target).
       // overflow=1, take outOfKeep first → [3]. Target survives.
       expect(result, [3]);
-    });
-
-    test('memory pressure during re-activation: in-flight target is protected',
-        () {
-      // Production scenario: _setCurrentIndex(target) is mid-flight
-      // (_activationInFlightIndex = target). User has the OLD active
-      // site in _currentIndex. _handleMemoryPressure passes both as
-      // protectedIndices. Target is the LRU front (oldest) and IS in
-      // the active webspace. Without the in-flight guard the engine
-      // would pick target and dispose its webview — silently wiping
-      // the user's state from the IndexedStack on next paint.
-      final loaded = <int>{};
-      for (final i in [0, 1, 2]) {
-        loaded.add(i);
-      }
-      // _currentIndex = 2 (active, oldest gets bumped to back on
-      // every activation, so 2 is most recent). Target = 0 (oldest).
-      // Both go in protected.
-      final result = SiteUnloadEngine.indexToEvictForMemoryPressure(
-        loadedIndices: loaded,
-        protectedIndices: {0, 2},
-        preferKeepIndices: {0, 1, 2},
-      );
-      // Only candidate left is 1 (out-of-keep is empty since
-      // everything's in active webspace; in-keep with 0 and 2
-      // protected leaves just 1).
-      expect(result, 1);
     });
 
     test('protected ∩ softKeep is the production case (active site is both)',
@@ -1656,10 +1471,21 @@ void main() {
         targetIndex: 3,
         loadedIndices: loaded,
         maxLoadedSites: 2,
-        protectedIndices: {1},
-        preferKeepIndices: {0, 1},
+        priorityOf: tiers(active: {1}, keep: {0, 1}),
       );
       expect(result, [2, 0]);
     });
   });
 }
+
+/// The tiers `_siteRetentionPriority` yields for the sites it protects
+/// ([active]: on screen or activating) and the selected webspace's ([keep]).
+SiteRetentionResolver tiers({
+  Set<int> active = const {},
+  Set<int> keep = const {},
+}) =>
+    (i) => active.contains(i)
+        ? SiteRetentionPriority.active
+        : keep.contains(i)
+            ? SiteRetentionPriority.webspace
+            : SiteRetentionPriority.loaded;
