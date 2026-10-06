@@ -335,6 +335,15 @@ A link tapped inside a nested screen that was opened from a tab SHALL go the sam
 
 A routed nested screen (LIR-015) SHALL open over, and on close bring back, the slot on screen, whatever that slot runs as.
 
+An address the user types in the URL bar and submits SHALL go where a tapped link to it would: the same navigation decision for the page on screen with a gesture (NESTED-004), the way back to a hosted or foreign tab's owner, then this requirement, routing (LIR-014) and the site's external link mode, in that order. One engine step SHALL order both, so no way of opening an address can decide on its own.
+
+#### Scenario: A typed address of another site opens as its tab
+
+- **GIVEN** Site tabs are on, GitHub's routing switch is on, and GitHub is on screen
+- **WHEN** the user types `duckduckgo.com/?q=webview` in the URL bar and submits
+- **THEN** a child tab of GitHub's current tab opens there, running as DuckDuckGo
+- **AND** no nested screen opens in GitHub's container
+
 #### Scenario: A GitHub result opens as GitHub's tab
 
 - **GIVEN** Site tabs are on, the user has DuckDuckGo and GitHub sites, and DuckDuckGo's routing switch is on

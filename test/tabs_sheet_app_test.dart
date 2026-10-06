@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/screens/inappbrowser.dart' show InAppWebViewScreen;
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -61,6 +62,44 @@ void main() {
       greaterThan(tester.getTopLeft(find.text('https://duckduckgo.com')).dx),
       reason: 'listed under its parent, not beside it',
     );
+  });
+
+  Future<void> typeAddress(WidgetTester tester, String url) async {
+    await tester.enterText(find.byType(TextField).first, url);
+    await tester.testTextInput.receiveAction(TextInputAction.go);
+    await settleRealApp(tester);
+  }
+
+  testWidgets('an address of another site typed in the URL bar opens as a tab '
+      'routed like a link', (tester) async {
+    github.routeOutboundLinks = true;
+    await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
+    await openWebspace(tester, 'All');
+    await openSiteFromDrawer(tester, 'GitHub');
+    await attachWebViews(tester);
+    await typeAddress(tester, 'https://duckduckgo.com/?q=typed');
+
+    final tab = appSite('GitHub').tabs.last;
+    expect(tab.url, 'https://duckduckgo.com/?q=typed');
+    expect(tab.hostSiteId, ddg.siteId,
+        reason: 'routing on: DuckDuckGo\'s container, not a nested GitHub one');
+    expect(appSite('GitHub').activeTabId, tab.id);
+    expect(find.byType(InAppWebViewScreen), findsNothing);
+  });
+
+  testWidgets('with routing off the typed address is a tab run as GitHub',
+      (tester) async {
+    await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
+    await openWebspace(tester, 'All');
+    await openSiteFromDrawer(tester, 'GitHub');
+    await attachWebViews(tester);
+    await typeAddress(tester, 'https://duckduckgo.com/?q=typed');
+
+    final tab = appSite('GitHub').tabs.last;
+    expect(tab.url, 'https://duckduckgo.com/?q=typed');
+    expect(tab.hostSiteId, isNull);
+    expect(tab.openerSiteId, github.siteId);
+    expect(find.byType(InAppWebViewScreen), findsNothing);
   });
 
   testWidgets('the Tabs list closes the keyboard before it opens',

@@ -128,6 +128,23 @@ void main() {
           lessThan(funnel.indexOf('_closeChildTabOnBack()')));
     });
 
+    test('a typed address takes the same steps as a tapped link (LIR-032)',
+        () {
+      expect(RegExp(r'onUrlSubmitted:').allMatches(source), hasLength(1));
+      expect(source, contains('onUrlSubmitted: (url) => _openTypedAddress(model, url),'));
+      final start = source.indexOf('Future<void> _openTypedAddress(');
+      final body = source.substring(start, source.indexOf('\n  }\n', start));
+      expect(body, contains('NavigationDecisionEngine.decideShouldOverrideUrlLoading('));
+      expect(body, contains('NavigationDecisionEngine.stepFor('));
+      final route = body.indexOf('_routeOutboundLink(model, url, decision, true)');
+      expect(route, isNot(-1));
+      expect(body.indexOf('_launchNestedForModel('), greaterThan(route),
+          reason: 'a nested screen only for what routing leaves');
+      expect(File('lib/web_view_model.dart').readAsStringSync(),
+          contains('NavigationDecisionEngine.stepFor('),
+          reason: 'the page\'s own links take the same step');
+    });
+
     test('the tab list leaves out sites without tabs', () {
       final start = source.indexOf('List<TabsSheetSite> _tabsSheetSites() {');
       expect(start, isNot(-1));

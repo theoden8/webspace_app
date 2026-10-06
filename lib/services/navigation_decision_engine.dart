@@ -181,7 +181,41 @@ const _gesturePropagationWindowSeconds = 10;
 /// The engine is stateless. Gesture state lives on the caller as a
 /// mutable `DateTime?`; the engine reads it as an input and returns an
 /// optional update descriptor the caller applies after the call.
+/// What a navigation the user asked for does once its [NavigationDecision]
+/// is made, in the order every way of opening a URL applies it: a link in the
+/// page and an address typed in the URL bar alike.
+enum NavigationStep {
+  /// It loads where it is.
+  loadHere,
+
+  /// It is dropped: no gesture, or a site in the background.
+  drop,
+
+  /// A hosted or foreign tab's link back into its owner's domain opens as the
+  /// owner's child tab instead (S6 of the web search design).
+  returnToOwner,
+
+  /// Routing gets it first (LIR-014, LIR-032); what routing leaves, the
+  /// decision does itself: a nested screen, the system browser, or nothing.
+  route,
+}
+
 class NavigationDecisionEngine {
+  /// The step [decision] leads to. [returnsToOwner] is whether the URL is in
+  /// the owner's domain while the slot runs a hosted or foreign tab.
+  static NavigationStep stepFor(
+    NavigationDecision decision, {
+    required bool returnsToOwner,
+  }) =>
+      switch (decision) {
+        NavigationDecision.allow => NavigationStep.loadHere,
+        NavigationDecision.blockSilent ||
+        NavigationDecision.blockSuppressed =>
+          NavigationStep.drop,
+        _ when returnsToOwner => NavigationStep.returnToOwner,
+        _ => NavigationStep.route,
+      };
+
   /// Decision for `shouldOverrideUrlLoading`. Semantics mirror the
   /// production callback exactly:
   ///

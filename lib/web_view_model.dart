@@ -1845,10 +1845,9 @@ class WebViewModel {
               case null:
                 break;
             }
-            if (result.decision != NavigationDecision.allow &&
-                result.decision != NavigationDecision.blockSilent &&
-                result.decision != NavigationDecision.blockSuppressed &&
-                returnsToOwner(url)) {
+            if (NavigationDecisionEngine.stepFor(result.decision,
+                    returnsToOwner: returnsToOwner(url)) ==
+                NavigationStep.returnToOwner) {
               returnToOwner(url);
               return false;
             }

@@ -113,7 +113,8 @@ import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/link_routing_service.dart';
-import 'package:webspace/services/navigation_decision_engine.dart' show NavigationDecision;
+import 'package:webspace/services/navigation_decision_engine.dart'
+    show NavigationDecision, NavigationDecisionEngine, NavigationStep;
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/nested_open_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
@@ -9885,33 +9886,57 @@ class _WebSpacePageState extends State<WebSpacePage>
                 ),
               );
             },
-            onUrlSubmitted: (url) async {
-              // Cross-domain URL bar submissions route to a nested
-              // InAppWebViewScreen rather than navigating in-place — the
-              // site card stays bound to its configured identity (cookies,
-              // container, per-site privacy posture). Mirrors the
-              // shouldOverrideUrlLoading cross-domain → nested decision so
-              // typing a URL behaves identically to tapping an outbound
-              // link.
-              final identity = model.runningIdentity;
-              if (getNormalizedDomain(url) !=
-                  getNormalizedDomain(model.navigationHomeUrl)) {
-                await _launchNestedForModel(identity, url);
-                return;
-              }
-              final controller = model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts, onOutboundLink: _outboundLinkHookFor(model));
-              if (controller != null) {
-                await controller.loadUrl(url, language: identity.language);
-                if (!mounted) return;
-                setState(() {
-                  model.currentUrl = url;
-                });
-                await _saveWebViewModels();
-              }
-            },
+            onUrlSubmitted: (url) => _openTypedAddress(model, url),
           ),
       ],
     );
+  }
+
+  /// An address typed in [model]'s URL bar goes where a tapped link to it
+  /// would: the same decision and the same steps after it, so tab routing
+  /// (LIR-032, LIR-034), outbound routing (LIR-014), the site's external link
+  /// mode and the way back to the owner (S6) all apply to it.
+  Future<void> _openTypedAddress(WebViewModel model, String url) async {
+    final identity = model.runningIdentity;
+    final decision = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
+      targetUrl: url,
+      initUrl: model.navigationHomeUrl,
+      hasGesture: true,
+      isSiteActive: true,
+      lastSameDomainGestureTime: null,
+      now: DateTime.now(),
+      externalLinkMode: identity.effectiveExternalLinkMode,
+      matchesSiteClaim: model.navigationMatchesClaim,
+    ).decision;
+    final step = NavigationDecisionEngine.stepFor(
+      decision,
+      returnsToOwner: (model.runsHostedTab || model.runsForeignTab) &&
+          _tabsEnabledFor(model) &&
+          getNormalizedDomain(url) == getNormalizedDomain(model.initUrl),
+    );
+    switch (step) {
+      case NavigationStep.drop:
+        return;
+      case NavigationStep.returnToOwner:
+        await _returnToOwner(model, url);
+      case NavigationStep.route:
+        if (_routeOutboundLink(model, url, decision, true)) return;
+        if (decision == NavigationDecision.blockOpenNested) {
+          await _launchNestedForModel(identity, url);
+        } else if (decision == NavigationDecision.blockOpenExternal) {
+          await launchUrlInSystemBrowser(url);
+        }
+      case NavigationStep.loadHere:
+        final controller = model.getController(launchUrl, _cookieManager,
+            _containerCookieManager, _saveWebViewModels,
+            globalUserScripts: _globalUserScripts,
+            onOutboundLink: _outboundLinkHookFor(model));
+        if (controller == null) return;
+        await controller.loadUrl(url, language: identity.language);
+        if (!mounted) return;
+        setState(() => model.currentUrl = url);
+        await _saveWebViewModels();
+    }
   }
 
   /// Popup menu button for use in the bottom bar when tab strip is enabled.
