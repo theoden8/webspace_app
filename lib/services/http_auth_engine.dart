@@ -12,6 +12,7 @@
 library;
 
 import 'package:webspace/settings/http_auth_memory.dart';
+import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/web_view_model.dart' show getBaseDomain;
 
 export 'package:webspace/settings/http_auth_memory.dart';
@@ -142,7 +143,7 @@ class HttpAuthSession {
   final HttpAuthPrompt? prompt;
 
   final Set<String> _supplied = <String>{};
-  final Map<String, Future<HttpAuthCredential?>> _inFlight = {};
+  final SingleFlight<String, HttpAuthCredential?> _answers = SingleFlight();
 
   /// The username last sent for each protection space, so a refused sign-in
   /// reopens with it even when it was not saved. Never the password.
@@ -187,11 +188,7 @@ class HttpAuthSession {
     if (!isSiteHost(challenge.host, siteUrl)) return Future.value(null);
     final space = protectionSpace(challenge.host, challenge.realm);
     final key = '${space.host}\n${space.realm}';
-    final pending = _inFlight[key];
-    if (pending != null) return pending;
-    final result = _resolve(challenge, space, key);
-    _inFlight[key] = result;
-    return result.whenComplete(() => _inFlight.remove(key));
+    return _answers.run(key, () => _resolve(challenge, space, key));
   }
 
   Future<HttpAuthCredential?> _resolve(

@@ -15,6 +15,7 @@ import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_failure.dart';
 import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 export 'package:webspace/services/tor_bridges.dart'
     show TorBridgeConfig, TorBridgeLine, TorTransport, parseTorBridgeLine;
@@ -310,7 +311,7 @@ class TorEngine {
 
   /// Pin changes, one at a time. Two in flight could land in tor out of
   /// order and leave the older one in force.
-  Future<void> _pinQueue = Future<void>.value();
+  final SerialQueue _pins = SerialQueue();
 
   /// Where the GeoIP table for a country pin comes from. Null where the
   /// runtime is expected to have its own.
@@ -635,11 +636,7 @@ class TorEngine {
   static const TorStatus _pinHold =
       TorBootstrapping(100, tag: kTorExitPinTag);
 
-  Future<void> _flushExitCountry() {
-    final next = _pinQueue.then((_) => _applyPin());
-    _pinQueue = next.catchError((Object _) {});
-    return next;
-  }
+  Future<void> _flushExitCountry() => _pins.run(_applyPin);
 
   Future<void> _applyPin() async {
     final up = _runtimeUp;

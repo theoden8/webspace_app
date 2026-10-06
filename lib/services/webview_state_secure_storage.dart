@@ -1,38 +1,28 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:encrypt/encrypt.dart' as encrypt;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/keychain_aead.dart';
+import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview_state_storage.dart';
+import 'package:webspace/utils/concurrency.dart';
 
-/// AES-encrypted, on-disk implementation of [WebViewStateStorage].
-///
-/// Models the [HtmlCacheService] pattern: a 256-bit AES-CBC key lives
-/// in [FlutterSecureStorage] (platform keychain / keystore), the
-/// per-site state bytes are encrypted with a fixed IV derived from
-/// that key and written to `<docs>/webview_state/<siteId>.<tabId>.enc`.
+/// AES-encrypted, on-disk implementation of [WebViewStateStorage]: each
+/// state blob sealed by [KeychainAead] and written to
+/// `<docs>/webview_state/<siteId>.<tabId>.enc`.
 ///
 /// State survives cold starts. On app upgrade the cache directory is
-/// nuked (key is rotated alongside it) — the back/forward stack from
-/// a previous app version is unlikely to re-hydrate cleanly anyway.
+/// nuked and the key rotated alongside it: a back/forward stack from a
+/// previous app version is unlikely to re-hydrate cleanly anyway.
 ///
-/// Why on-disk instead of straight `flutter_secure_storage`:
-/// `saveState()` returns a `Uint8List` that's typically 1-50 KB but
-/// can grow with deep history. iOS Keychain caps individual items at
-/// ~4 KB, and Android EncryptedSharedPreferences degrades with size.
-/// AES-on-disk handles arbitrary sizes; the keychain only holds the
-/// 32-byte AES key.
-///
-/// File format: base64(AES-CBC(state-bytes)). Reads decrypt to
-/// `Uint8List`; the IV is fixed (per-key) so identical bytes encrypt
-/// to identical ciphertext — fine, the threat model is "device
-/// compromise" not "ciphertext analysis", and matches the HTML cache
-/// shape so future contributors don't have to learn two patterns.
+/// On disk rather than straight in the keystore: `saveState()` returns
+/// 1-50 KB that grows with deep history, and an iOS Keychain item is capped
+/// at ~4 KB. The keychain holds only the 32-byte key.
 class SecureWebViewStateStorage implements WebViewStateStorage {
   static const String _versionKey = 'webview_state_cache_version';
   static const String _cacheDir = 'webview_state';
@@ -49,15 +39,15 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   final String Function()? _versionProvider;
 
   FileStore? _store;
-  encrypt.Encrypter? _encrypter;
+  KeychainAead? _aead;
   bool _initialized = false;
-  Future<void>? _initInFlight;
+  final SingleFlight<(), void> _init = SingleFlight();
 
   SecureWebViewStateStorage({
     FlutterSecureStorage? secureStorage,
     FileStore? store,
     String Function()? versionProvider,
-  })  : _secureStorage = secureStorage ?? const FlutterSecureStorage(),
+  })  : _secureStorage = secureStorage ?? Keystores.aeadKeys,
         _overrideStore = store,
         _versionProvider = versionProvider;
 
@@ -66,22 +56,20 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   /// upgrade) and the cache directory is created if missing.
   Future<void> initialize() {
     if (_initialized) return Future.value();
-    // Memoize the in-flight future so two concurrent first-touch callers
-    // (e.g. a first loadState racing a first saveState) share one run instead
-    // of both entering _initEncryption and generating/persisting different
-    // keys — which would leave _encrypter using a key that isn't the stored
-    // one, making the next launch's reads fail.
-    return _initInFlight ??= _doInitialize();
+    // Shared so two first-touch callers (a first loadState racing a first
+    // saveState) cannot each generate and persist a different key.
+    return _init.run((), _doInitialize);
   }
 
   Future<void> _doInitialize() async {
     try {
       _store = _overrideStore ?? defaultFileStore(_cacheDir);
-      await _initEncryption();
+      _aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
+          logTag: 'WebViewState');
       await _clearCacheOnUpgrade();
       await _store!.ensure();
       _initialized = true;
-    } catch (e) {
+    } on Exception catch (e) {
       // Never let an init failure escape: callers `await initialize()` from
       // inside save/load, which run on the go-home and site-switch paths —
       // a throw there used to abandon the navigation the user asked for.
@@ -89,40 +77,6 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       LogService.instance.log(
         'WebViewState',
         'Error initializing state storage: $e',
-        level: LogLevel.error,
-      );
-    } finally {
-      // Cleared on failure too: a memoized rejected future would make every
-      // later call re-throw the one-time failure for the rest of the run.
-      _initInFlight = null;
-    }
-  }
-
-  Future<void> _initEncryption() async {
-    try {
-      String? keyBase64 = await _secureStorage.read(key: _encryptionKeyKey);
-      if (keyBase64 == null) {
-        final key = encrypt.Key.fromSecureRandom(32);
-        keyBase64 = base64.encode(key.bytes);
-        await _secureStorage.write(key: _encryptionKeyKey, value: keyBase64);
-        LogService.instance.log(
-          'WebViewState',
-          'Generated new encryption key',
-        );
-      }
-      final keyBytes = base64.decode(keyBase64);
-      final key = encrypt.Key(Uint8List.fromList(keyBytes));
-      // AES-GCM (authenticated) with a fresh random nonce per save (prepended
-      // to the ciphertext). Replaces AES-CBC with a fixed key-derived IV,
-      // which was deterministic and unauthenticated; legacy blobs fail GCM
-      // auth on load and are discarded.
-      _encrypter = encrypt.Encrypter(
-        encrypt.AES(key, mode: encrypt.AESMode.gcm),
-      );
-    } catch (e) {
-      LogService.instance.log(
-        'WebViewState',
-        'Error initializing encryption: $e',
         level: LogLevel.error,
       );
     }
@@ -150,22 +104,15 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       if (lastVersion != null && _store != null) {
         try {
           await _store!.deleteAll();
-        } catch (e) {
+        } on Exception catch (e) {
           LogService.instance.log(
             'WebViewState',
             'Error clearing cache on upgrade: $e',
             level: LogLevel.error,
           );
         }
-        // Rotate the AES key alongside the bytes — old ciphertext
-        // wouldn't decrypt with the new key anyway, but explicit
-        // rotation matches the HTML cache pattern.
-        try {
-          await _secureStorage.delete(key: _encryptionKeyKey);
-          await _initEncryption();
-        } catch (_) {
-          // Best effort.
-        }
+        _aead = await KeychainAead.rotate(_secureStorage, _encryptionKeyKey,
+            logTag: 'WebViewState');
       }
       if (prefs != null) {
         await prefs.setString(_versionKey, currentVersion);
@@ -191,21 +138,16 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     if (state.isEmpty) return;
     if (!_initialized) await initialize();
     final store = _store;
-    if (store == null || _encrypter == null) return;
+    final aead = _aead;
+    if (store == null || aead == null) return;
     try {
-      final encoded = base64.encode(state);
-      final iv = encrypt.IV.fromSecureRandom(12);
-      final enc = _encrypter!.encrypt(encoded, iv: iv);
-      final wire = Uint8List(iv.bytes.length + enc.bytes.length)
-        ..setRange(0, iv.bytes.length, iv.bytes)
-        ..setRange(iv.bytes.length, iv.bytes.length + enc.bytes.length, enc.bytes);
-      await store.writeText(_fileNameFor(key), base64.encode(wire));
+      await store.writeText(_fileNameFor(key), aead.seal(base64.encode(state)));
       LogService.instance.log(
         'WebViewState',
         'Saved ${state.length} bytes for $key (encrypted)',
         sensitivity: LogSensitivity.sensitive,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log(
         'WebViewState',
         'Error saving state for $key: $e',
@@ -219,33 +161,44 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   Future<Uint8List?> loadState(String key) async {
     if (!_initialized) await initialize();
     final store = _store;
-    if (store == null || _encrypter == null) {
-      return null;
-    }
+    final aead = _aead;
+    if (store == null || aead == null) return null;
+    final String? raw;
     try {
-      final raw = await store.readText(_fileNameFor(key));
-      if (raw == null) return null;
-      final wire = base64.decode(raw);
-      // 12-byte nonce + 16-byte minimum GCM tag; legacy fixed-IV CBC blobs
-      // are shorter-prefixed and fail auth, handled by the catch below.
-      if (wire.length < 12 + 16) throw const FormatException('short blob');
-      final iv = encrypt.IV(Uint8List.fromList(wire.sublist(0, 12)));
-      final body = encrypt.Encrypted(Uint8List.fromList(wire.sublist(12)));
-      final decoded = _encrypter!.decrypt(body, iv: iv);
-      final bytes = base64.decode(decoded);
-      return Uint8List.fromList(bytes);
-    } catch (e) {
+      raw = await store.readText(_fileNameFor(key));
+    } on Exception catch (e) {
       LogService.instance.log(
         'WebViewState',
         'Error loading state for $key: $e',
         level: LogLevel.error,
         sensitivity: LogSensitivity.sensitive,
       );
-      // Corrupt entry — defensive: remove so a re-save can succeed
-      // and we don't keep failing loads in a hot loop.
-      try {
-        await store.delete(_fileNameFor(key));
-      } catch (_) {}
+      return null;
+    }
+    if (raw == null) return null;
+    final opened = aead.unseal(raw);
+    final bytes = opened == null ? null : _decodeBase64(opened);
+    if (bytes != null) return bytes;
+    LogService.instance.log(
+      'WebViewState',
+      'Discarding unreadable state for $key',
+      level: LogLevel.error,
+      sensitivity: LogSensitivity.sensitive,
+    );
+    // Removed so a re-save can succeed and a load does not keep failing.
+    try {
+      await store.delete(_fileNameFor(key));
+    } on Exception catch (e) {
+      LogService.instance.log('WebViewState', 'Could not discard it: $e',
+          level: LogLevel.warning, sensitivity: LogSensitivity.sensitive);
+    }
+    return null;
+  }
+
+  static Uint8List? _decodeBase64(String text) {
+    try {
+      return base64.decode(text);
+    } on FormatException {
       return null;
     }
   }
@@ -257,7 +210,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     if (store == null) return;
     try {
       await store.delete(_fileNameFor(key));
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log(
         'WebViewState',
         'Error deleting state for $key: $e',
@@ -281,7 +234,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         await store.delete(name);
         removed++;
       }
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log(
         'WebViewState',
         'Error removing state files for a site: $e',
@@ -314,7 +267,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
           'Removed $removed orphan state file(s)',
         );
       }
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log(
         'WebViewState',
         'Error sweeping orphan state files: $e',
@@ -338,8 +291,9 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         if (!name.endsWith('.enc')) continue;
         result.add(_keyForFileName(name));
       }
-    } catch (_) {
-      // Best effort.
+    } on Exception catch (e) {
+      LogService.instance.log('WebViewState', 'Could not list state files: $e',
+          level: LogLevel.warning);
     }
     return result;
   }

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Who asked for a notification, for the background log: a page through the
 /// polyfill, the background wake on a silent site's behalf (NOTIF-014), or the
@@ -66,7 +67,7 @@ class NotificationService {
   /// Called with the siteId after each notification is shown.
   void Function(String siteId)? onPosted;
   bool _initialized = false;
-  Future<void>? _initInFlight;
+  final SingleFlight<(), void> _init = SingleFlight();
   void Function(String siteId)? onNotificationTapped;
 
   /// Listeners are invoked whenever [permissionGranted] changes (e.g.
@@ -101,11 +102,10 @@ class NotificationService {
 
   Future<void> init() {
     if (_initialized) return Future.value();
-    // Memoize the in-flight future so a concurrent caller (e.g. a page's
-    // webNotification handler racing startup) awaits real completion instead
-    // of seeing _initialized flip early and calling _plugin.show() before
-    // _plugin.initialize() has run.
-    return _initInFlight ??= _doInit();
+    // Shared so a concurrent caller (a page's webNotification handler racing
+    // startup) awaits real completion instead of calling _plugin.show()
+    // before _plugin.initialize() has run.
+    return _init.run((), _doInit);
   }
 
   Future<void> _doInit() async {
@@ -150,7 +150,6 @@ class NotificationService {
     }
 
     _initialized = true;
-    _initInFlight = null;
     LogService.instance.log('Notification', 'NotificationService initialized');
   }
 

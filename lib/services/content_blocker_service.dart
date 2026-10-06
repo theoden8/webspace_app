@@ -21,6 +21,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/procedural_action_backfill.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/pref_read.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// A filter list entry with metadata.
 class FilterList {
@@ -957,13 +958,9 @@ class ContentBlockerService {
   // race the final `_rustEngine = engine` assignment — leaking the loser's
   // native (Rust FFI) engine and leaving `_abpNetworkHosts` / token bloom out
   // of sync with the live engine. Chaining makes the freshest `_lists` win.
-  Future<void> _rebuildChain = Future<void>.value();
+  final SerialQueue _rebuilds = SerialQueue();
 
-  Future<void> _rebuildEngine() {
-    final result = _rebuildChain.then((_) => _rebuildEngineInner());
-    _rebuildChain = result.then((_) {}, onError: (_) {});
-    return result;
-  }
+  Future<void> _rebuildEngine() => _rebuilds.run(_rebuildEngineInner);
 
   Future<void> _rebuildEngineInner() async {
     _rustEngine?.dispose();

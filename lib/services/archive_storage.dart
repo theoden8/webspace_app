@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'archive_crypto.dart' show kArchiveSaltLength;
+import 'keystore.dart' show Keystores;
 
 const int kArchiveSlotCount = 16;
 const int kArchiveSlotSize = 128 * 1024;
@@ -63,11 +64,7 @@ void fillSecureRandom(Uint8List buffer, [int from = 0]) {
 
 class ArchiveStorage {
   ArchiveStorage({FlutterSecureStorage? secureStorage})
-      : _storage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions:
-                  AndroidOptions(encryptedSharedPreferences: true),
-            );
+      : _storage = secureStorage ?? Keystores.archive;
 
   final FlutterSecureStorage _storage;
   final Random _random = Random.secure();
@@ -114,7 +111,7 @@ class ArchiveStorage {
           _kdfSalt = parsed;
           return parsed;
         }
-      } catch (_) {
+      } on FormatException {
         // Unreadable entry: fall through and mint a fresh one. Archives sealed
         // under the lost salt are unrecoverable, exactly as they would be if
         // the keychain itself had dropped the slots.

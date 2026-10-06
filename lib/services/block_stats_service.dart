@@ -8,6 +8,7 @@ import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_detail_storage.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Persistent, app-wide block statistics behind the protection report
 /// (STATS-001).
@@ -57,7 +58,7 @@ class BlockStatsService {
   final Set<VoidCallback> _listeners = <VoidCallback>{};
   Timer? _idleFlushTimer;
   Timer? _maxFlushTimer;
-  Future<void> _flushChain = Future<void>.value();
+  final SerialQueue _flushes = SerialQueue();
   Future<void>? _initFuture;
   bool _notifyScheduled = false;
   bool _initialized = false;
@@ -176,10 +177,10 @@ class BlockStatsService {
     // Serialised rather than concurrent: two flushes encoding the same
     // counters can land the older payload last, which drops the difference
     // until something else marks the engine dirty again.
-    final next =
-        _flushChain.then((_) => _flushCounters()).then((_) => _flushDetail());
-    _flushChain = next.catchError((_) {});
-    return next;
+    return _flushes.run(() async {
+      await _flushCounters();
+      await _flushDetail();
+    });
   }
 
   Future<void> _flushCounters() async {

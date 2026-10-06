@@ -260,8 +260,9 @@ class TorBridgeConfig {
   /// discarded rather than handed to tor, which would fail the whole
   /// configuration and take the working lines down with it.
   static TorBridgeConfig fromJson(Map<String, Object?> json) {
+    final wireName = json['transport'];
     final transport =
-        TorTransport.fromWireName(json['transport'] as String? ?? '') ??
+        TorTransport.fromWireName(wireName is String ? wireName : '') ??
             TorTransport.obfs4;
     final raw = json['lines'];
     final lines = <TorBridgeLine>[];

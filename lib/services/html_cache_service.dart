@@ -1,11 +1,11 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/keychain_aead.dart';
+import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:encrypt/encrypt.dart' as encrypt;
 
 /// Service to cache HTML content per site for offline viewing and faster loads.
 /// Cache is AES encrypted and cleared on app upgrades.
@@ -27,12 +27,12 @@ class HtmlCacheService {
   HtmlCacheService._();
 
   FileStore? _store;
-  encrypt.Encrypter? _encrypter;
+  KeychainAead? _aead;
 
   /// In-memory cache for sync access during build
   final Map<String, String> _memoryCache = {};
 
-  FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
+  FlutterSecureStorage _secureStorage = Keystores.aeadKeys;
 
   /// Initialize the cache service. Call on app startup.
   ///
@@ -52,8 +52,8 @@ class HtmlCacheService {
     }
     _store = store ?? defaultFileStore(_cacheDir);
 
-    // Initialize encryption
-    await _initEncryption();
+    _aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
+        logTag: 'HtmlCache');
 
     if (beforeUpgradeWipe != null && await _isUpgradeDetected()) {
       await beforeUpgradeWipe();
@@ -102,77 +102,14 @@ class HtmlCacheService {
     try {
       final encrypted = await store.readText('$siteId.enc');
       if (encrypted == null) return;
-      final decrypted = _decrypt(encrypted);
+      final decrypted = _aead?.unseal(encrypted);
       if (decrypted == null) return;
       final nl = decrypted.indexOf('\n');
       if (nl == -1) return;
       _memoryCache[siteId] = decrypted.substring(nl + 1);
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log('HtmlCache', 'preloadOne error for $siteId: $e',
           level: LogLevel.error, sensitivity: LogSensitivity.sensitive);
-    }
-  }
-
-  /// Initialize AES encryption with key from secure storage
-  Future<void> _initEncryption() async {
-    try {
-      // Try to get existing key
-      String? keyBase64 = await _secureStorage.read(key: _encryptionKeyKey);
-
-      if (keyBase64 == null) {
-        // Generate new 256-bit key
-        final key = encrypt.Key.fromSecureRandom(32);
-        keyBase64 = base64.encode(key.bytes);
-        await _secureStorage.write(key: _encryptionKeyKey, value: keyBase64);
-        LogService.instance.log('HtmlCache', 'Generated new encryption key', level: LogLevel.info);
-      }
-
-      final keyBytes = base64.decode(keyBase64);
-      final key = encrypt.Key(Uint8List.fromList(keyBytes));
-      // AES-GCM (authenticated): a fresh random nonce per blob is generated in
-      // [_encrypt] and prepended to the ciphertext. The previous AES-CBC with
-      // a fixed key-derived IV was deterministic (leaked plaintext equality)
-      // and unauthenticated (malleable); legacy CBC blobs fail GCM auth in
-      // [_decrypt] and are dropped as a cache miss (the cache is also cleared
-      // on upgrade).
-      _encrypter = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.gcm));
-
-      LogService.instance.log('HtmlCache', 'Encryption initialized');
-    } catch (e) {
-      LogService.instance.log('HtmlCache', 'Error initializing encryption: $e', level: LogLevel.error);
-    }
-  }
-
-  String? _encrypt(String plaintext) {
-    if (_encrypter == null) return null;
-    try {
-      final iv = encrypt.IV.fromSecureRandom(12);
-      final enc = _encrypter!.encrypt(plaintext, iv: iv);
-      // Wire: nonce(12) || ciphertext || GCM tag(16).
-      final wire = Uint8List(iv.bytes.length + enc.bytes.length)
-        ..setRange(0, iv.bytes.length, iv.bytes)
-        ..setRange(iv.bytes.length, iv.bytes.length + enc.bytes.length, enc.bytes);
-      return base64.encode(wire);
-    } catch (e) {
-      LogService.instance.log('HtmlCache', 'Encryption error: $e', level: LogLevel.error);
-      return null;
-    }
-  }
-
-  String? _decrypt(String wireBase64) {
-    if (_encrypter == null) return null;
-    try {
-      final wire = base64.decode(wireBase64);
-      // 12-byte nonce + 16-byte minimum GCM tag. Shorter blobs, and legacy
-      // fixed-IV CBC blobs, fail authentication below and are dropped.
-      if (wire.length < 12 + 16) return null;
-      final iv = encrypt.IV(Uint8List.fromList(wire.sublist(0, 12)));
-      final body = encrypt.Encrypted(Uint8List.fromList(wire.sublist(12)));
-      return _encrypter!.decrypt(body, iv: iv);
-    } catch (e) {
-      // Legacy CBC blob or tampered ciphertext: treat as a cache miss so it
-      // is re-cached fresh under GCM. Not logged (expected during migration).
-      return null;
     }
   }
 
@@ -188,7 +125,8 @@ class HtmlCacheService {
         if (name.endsWith('.enc')) {
           try {
             final encrypted = await store.readText(name);
-            final decrypted = encrypted == null ? null : _decrypt(encrypted);
+            final decrypted =
+                encrypted == null ? null : _aead?.unseal(encrypted);
             if (decrypted != null) {
               final newlineIndex = decrypted.indexOf('\n');
               if (newlineIndex != -1) {
@@ -215,8 +153,7 @@ class HtmlCacheService {
                 sensitivity: LogSensitivity.sensitive,
               );
             }
-          } catch (e) {
-            // File read/decrypt error - discard
+          } on Exception catch (e) {
             await store.delete(name);
             LogService.instance.log(
               'HtmlCache',
@@ -228,7 +165,7 @@ class HtmlCacheService {
         }
       }
       LogService.instance.log('HtmlCache', 'Pre-loaded ${_memoryCache.length} cached pages');
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log('HtmlCache', 'Error pre-loading cache: $e', level: LogLevel.error);
     }
   }
@@ -253,9 +190,8 @@ class HtmlCacheService {
       }
       _memoryCache.clear();
       _lastSaveAt.clear();
-      // Generate new encryption key on upgrade
-      await _secureStorage.delete(key: _encryptionKeyKey);
-      await _initEncryption();
+      _aead = await KeychainAead.rotate(_secureStorage, _encryptionKeyKey,
+          logTag: 'HtmlCache');
     }
 
     await prefs.setString(_versionKey, currentVersion);
@@ -357,7 +293,8 @@ class HtmlCacheService {
   /// Save HTML content for a site (encrypted)
   Future<void> saveHtml(String siteId, String html, String url) async {
     final store = _store;
-    if (store == null || _encrypter == null) return;
+    final aead = _aead;
+    if (store == null || aead == null) return;
 
     // Skip if HTML is too large
     if (html.length > _maxHtmlSize) {
@@ -375,10 +312,7 @@ class HtmlCacheService {
     try {
       final name = _cacheFileName(siteId);
 
-      // Store URL as first line, then HTML
-      final plaintext = '$url\n$html';
-      final encrypted = _encrypt(plaintext);
-      if (encrypted == null) return;
+      final encrypted = aead.seal('$url\n$html');
 
       // An eviction (e.g. from `_goHome`) that lands between entry and
       // here invalidates this save: the call site explicitly asked the
@@ -399,9 +333,7 @@ class HtmlCacheService {
       // so a cold restart's `preloadCache` doesn't pick up content the
       // call site told us to drop.
       if ((_evictionGen[siteId] ?? 0) != genAtEntry) {
-        try {
-          await store.delete(name);
-        } catch (_) {}
+        await store.delete(name);
         LogService.instance.log(
           'HtmlCache',
           'Rolled back save for $siteId - evicted during write',
@@ -419,7 +351,7 @@ class HtmlCacheService {
         'Saved ${html.length} bytes for site $siteId (encrypted)',
         sensitivity: LogSensitivity.sensitive,
       );
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log(
         'HtmlCache',
         'Error saving HTML for $siteId: $e',
@@ -433,13 +365,14 @@ class HtmlCacheService {
   /// Returns (url, html) tuple or null if not cached
   Future<(String, String)?> loadHtml(String siteId) async {
     final store = _store;
-    if (store == null || _encrypter == null) return null;
+    final aead = _aead;
+    if (store == null || aead == null) return null;
 
     try {
       final encrypted = await store.readText(_cacheFileName(siteId));
       if (encrypted == null) return null;
 
-      final decrypted = _decrypt(encrypted);
+      final decrypted = aead.unseal(encrypted);
       if (decrypted == null) return null;
 
       final newlineIndex = decrypted.indexOf('\n');
@@ -455,7 +388,7 @@ class HtmlCacheService {
       );
 
       return (url, html);
-    } catch (e) {
+    } on Exception catch (e) {
       LogService.instance.log(
         'HtmlCache',
         'Error loading HTML for $siteId: $e',

@@ -319,10 +319,13 @@ is restarted.
 When adding a new field that holds a credential, token, or other
 sensitive secret:
 
-1. **Decide the storage**: it does not belong in SharedPreferences. Use
-   `flutter_secure_storage` with the same options as
-   `ProxyPasswordSecureStorage` (`encryptedSharedPreferences` on Android,
-   `first_unlock` keychain accessibility on Apple).
+1. **Decide the storage**: it does not belong in SharedPreferences. Build
+   it on `SecureJsonStore` (`lib/services/keystore.dart`) over
+   `Keystores.credentials`, the options `ProxyPasswordSecureStorage` uses
+   (`encryptedSharedPreferences` on Android, `first_unlock` keychain
+   accessibility on Apple). Do not define another option set: on Apple the
+   accessibility class is part of the keychain query, so an entry written
+   under one is not found under another.
 2. **Never write it to JSON**. The `toJson` for the containing object
    simply omits the field. There is intentionally no opt-in flag —
    passwords are stripped uniformly across persistence and the backup

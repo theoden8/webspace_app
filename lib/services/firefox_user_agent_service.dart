@@ -12,6 +12,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Upper bound on a plausible scraped Firefox major version. An HTML error
 /// page or a redirected mirror can yield a stray integer; anything past this
@@ -89,7 +90,7 @@ class FirefoxUserAgentService {
 
   int _major = kDefaultFirefoxMajorVersion;
   DateTime? _lastChecked;
-  Future<FirefoxVersionRefreshResult>? _inFlight;
+  SingleFlight<(), FirefoxVersionRefreshResult> _refreshes = SingleFlight();
 
   /// Current Firefox major version (scraped, or the bundled floor).
   int get majorVersion => _major;
@@ -146,9 +147,7 @@ class FirefoxUserAgentService {
   /// user's opt-in — this is the single network seam of this service.
   /// Concurrent calls share one in-flight request.
   Future<FirefoxVersionRefreshResult> refresh() =>
-      _inFlight ??= _refresh().whenComplete(() {
-        _inFlight = null;
-      });
+      _refreshes.run((), _refresh);
 
   /// Minimum spacing between automatic refreshes. Manual refreshes are
   /// never throttled.
@@ -221,7 +220,7 @@ class FirefoxUserAgentService {
   void resetForTest() {
     _major = kDefaultFirefoxMajorVersion;
     _lastChecked = null;
-    _inFlight = null;
+    _refreshes = SingleFlight();
   }
 
   Future<int?> _fetchVersion(

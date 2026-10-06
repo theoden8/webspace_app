@@ -5,7 +5,9 @@ import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 class _Entry {
   _Entry(this.icon, {required this.thisLaunch});
@@ -29,7 +31,7 @@ class SiteIconStore {
   final Map<String, _Entry> _entries = {};
   final StreamController<String?> _changes =
       StreamController<String?>.broadcast();
-  Future<void> _io = Future.value();
+  final SerialQueue _io = SerialQueue();
 
   /// Fires the site URL whenever its icon is replaced or removed, and null
   /// once the icons on disk have been loaded or all of them were cleared.
@@ -40,7 +42,7 @@ class SiteIconStore {
 
   Future<void> initialize() {
     final store = _store ??= _overrideStore ?? defaultFileStore(_dir);
-    return _io = _io.then((_) async {
+    return _disk(() async {
       var loaded = false;
       for (final name in await store.list()) {
         if (_entries.containsKey(name)) continue;
@@ -57,7 +59,7 @@ class SiteIconStore {
         loaded = true;
       }
       if (loaded) _changes.add(null);
-    }).catchError((Object _) {});
+    });
   }
 
   Uint8List? get(String siteUrl) => _entries[_name(siteUrl)]?.icon.png;
@@ -92,11 +94,11 @@ class SiteIconStore {
     _entries.clear();
     final store = _store;
     if (store != null) {
-      await (_io = _io.then((_) async {
+      await _disk(() async {
         for (final name in await store.list()) {
           await store.delete(name);
         }
-      }).catchError((Object _) {}));
+      });
     }
     _changes.add(null);
   }
@@ -107,14 +109,14 @@ class SiteIconStore {
   Future<void> _sync(String name, {required bool persist}) {
     final store = _store;
     if (store == null) return Future.value();
-    return _io = _io.then((_) async {
+    return _disk(() async {
       final entry = _entries[name];
       if (persist && entry != null) {
         await store.writeBytes(name, entry.icon.png);
       } else {
         await store.delete(name);
       }
-    }).catchError((Object _) {});
+    });
   }
 
   /// Drop every stored icon whose site is not in [persistedSiteUrls]: sites
@@ -123,12 +125,23 @@ class SiteIconStore {
     final store = _store;
     if (store == null) return;
     final keep = persistedSiteUrls.map(_name).toSet();
-    await (_io = _io.then((_) async {
+    await _disk(() async {
       for (final name in await store.list()) {
         if (keep.contains(name)) continue;
         _entries.remove(name);
         await store.delete(name);
       }
-    }).catchError((Object _) {}));
+    });
   }
+
+  /// Icons are a cache the page re-reports, so a disk failure costs a
+  /// re-fetch and is logged rather than handed to the caller.
+  Future<void> _disk(Future<void> Function() task) => _io.run(() async {
+        try {
+          await task();
+        } on Exception catch (e) {
+          LogService.instance
+              .log('SiteIcon', 'Icon store I/O failed: $e', level: LogLevel.warning);
+        }
+      });
 }

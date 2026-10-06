@@ -64,6 +64,9 @@ dependencies:
   flutter_cache_manager: ^3.3.0
   path_provider: ^2.1.0
   encrypt: ^5.0.3
+  # Named for the exception a failed GCM tag check throws; encrypt's own
+  # engine, already locked through it.
+  pointycastle: ^3.9.1
   share_plus: ^12.0.0
   qr_flutter: ^4.1.0
   flutter_zxing: ^2.2.1
@@ -90,11 +93,10 @@ dev_dependencies:
   # transitively via flutter_test); declared direct for the surface-repaint
   # nudge-loop race test.
   fake_async: ^1.3.3
-  # The https arms of the proxy tiers mint their own certificate: the macOS
-  # integration tier runs an app bundle, where no `openssl` binary is on PATH.
-  # Both are already locked transitively.
+  # The https arms of the proxy tiers mint their own certificate (with
+  # pointycastle, a main dependency): the macOS integration tier runs an app
+  # bundle, where no `openssl` binary is on PATH. Already locked transitively.
   asn1lib: ^1.6.5
-  pointycastle: ^3.9.1
   # test/helpers/real_app.dart registers the Android webview platform to pump
   # the shipped app; the fork's ref is pinned by the overrides below.
   flutter_inappwebview_android: any

@@ -12,6 +12,7 @@ import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Which blocklist attributed a block decision. Allowed requests have no
 /// source. Stats preserve this so the UI can show a merged count while
@@ -200,13 +201,7 @@ class DnsBlockService {
   // awaits. Overlapping calls (two downloads, or a download racing an import)
   // could otherwise leave the file, level, and in-memory set from different
   // calls — the wrong list loading under the wrong label after restart.
-  Future<void> _mutationChain = Future<void>.value();
-
-  Future<T> _serializeMutation<T>(Future<T> Function() action) {
-    final result = _mutationChain.then((_) => action());
-    _mutationChain = result.then((_) {}, onError: (_) {});
-    return result;
-  }
+  final SerialQueue _mutations = SerialQueue();
 
   /// Per-site DNS statistics, keyed by siteId.
   final Map<String, DnsStats> _siteStats = {};
@@ -665,7 +660,7 @@ class DnsBlockService {
   /// app-wide level. Tries each mirror URL in order. Level 0 clears every
   /// downloaded level. Returns true on success, false on failure.
   Future<bool> downloadList(int level) =>
-      _serializeMutation(() => _downloadListInner(level));
+      _mutations.run(() => _downloadListInner(level));
 
   Future<bool> _downloadListInner(int level) async {
     if (level < 0 || level > kDnsMaxLevel) return false;
@@ -705,7 +700,7 @@ class DnsBlockService {
   /// the app-wide level. Idempotent: a level already downloaded succeeds
   /// without a request.
   Future<bool> downloadLevel(int level) =>
-      _serializeMutation(() => _downloadLevelInner(level));
+      _mutations.run(() => _downloadLevelInner(level));
 
   Future<bool> _downloadLevelInner(int level) async {
     if (level < 1 || level > kDnsMaxLevel) return false;
@@ -725,7 +720,7 @@ class DnsBlockService {
   /// [requiredDnsLevels]; the app-wide level is always in it. A domain no
   /// remaining level names falls out with its last bit.
   Future<void> pruneLevels(Set<int> keep) =>
-      _serializeMutation(() => _pruneLevelsInner(keep));
+      _mutations.run(() => _pruneLevelsInner(keep));
 
   Future<void> _pruneLevelsInner(Set<int> keep) async {
     final drop = _levelSets.levels.where((l) => !keep.contains(l)).toSet();
@@ -893,7 +888,7 @@ class DnsBlockService {
   /// force, are no-ops. Tiers no site wants are reclaimed by the startup
   /// sweep rather than here.
   Future<void> applyImportedLevel(int level) =>
-      _serializeMutation(() => _applyImportedLevelInner(level));
+      _mutations.run(() => _applyImportedLevelInner(level));
 
   Future<void> _applyImportedLevelInner(int level) async {
     if (level < 0 || level > kDnsMaxLevel) return;

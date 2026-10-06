@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Secure storage for proxy authentication passwords.
 ///
@@ -47,146 +49,74 @@ class ProxyPasswordSecureStorage {
       key.startsWith(_savedProxyPrefix) ||
       key.startsWith(_savedCredentialsPrefix);
 
-  final FlutterSecureStorage _secureStorage;
-  bool _secureStorageAvailable = true;
-
-  /// Serializes every mutation of the single `proxy_passwords` entry.
   /// Static so it is shared across instances: the app keeps two separate
   /// stores (per-site via `_WebSpacePageState`, global via
   /// `GlobalOutboundProxy`) that both write this key, and an unsynchronized
   /// load-modify-save on one would otherwise clobber a concurrent write from
   /// the other (silently dropping a just-saved proxy password).
-  static Future<void> _writeLock = Future<void>.value();
+  static final SerialQueue _writes = SerialQueue();
 
-  Future<T> _synchronized<T>(Future<T> Function() action) {
-    final result = _writeLock.then((_) => action());
-    _writeLock = result.then((_) {}, onError: (_) {});
-    return result;
-  }
+  final SecureJsonStore<Map<String, String>> _store;
 
   ProxyPasswordSecureStorage({FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ??
-            const FlutterSecureStorage(
-              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(
-                  accessibility: KeychainAccessibility.first_unlock),
-            );
-
-  /// Loads every stored password as a `key -> password` map. Empty when
-  /// secure storage has nothing for us, or when secure storage is
-  /// unavailable on this platform.
-  Future<Map<String, String>> loadAll() async {
-    if (!_secureStorageAvailable) return {};
-    try {
-      final raw = await _secureStorage.read(key: _secureStorageKey);
-      if (raw == null || raw.isEmpty) return {};
-      final decoded = jsonDecode(raw);
-      if (decoded is Map) {
-        return decoded.map((k, v) => MapEntry(k as String, v as String));
-      }
-    } catch (e) {
-      LogService.instance.log(
-        'ProxyPwdStore',
-        'Failed to read proxy passwords from secure storage: $e',
-        level: LogLevel.error,
-      );
-      _secureStorageAvailable = false;
-    }
-    return {};
-  }
-
-  /// Loads the password for a single key. Returns null when absent.
-  Future<String?> loadPassword(String key) async {
-    final all = await loadAll();
-    return all[key];
-  }
-
-  /// Replace the entire `key -> password` map in secure storage.
-  /// Empty values are stripped; an empty resulting map deletes the entry.
-  ///
-  /// Prefer [mutate] when the new map is derived from the current stored
-  /// state: a bare `loadAll` + `saveAll` pair is not atomic and can lose a
-  /// concurrent write. [saveAll] itself is serialized, but the caller's read
-  /// is not part of that critical section.
-  Future<void> saveAll(Map<String, String?> passwords) {
-    return _synchronized(() => _saveAllUnlocked(passwords));
-  }
-
-  Future<void> _saveAllUnlocked(Map<String, String?> passwords) async {
-    if (!_secureStorageAvailable) return;
-    final filtered = <String, String>{};
-    passwords.forEach((k, v) {
-      if (v != null && v.isNotEmpty) filtered[k] = v;
-    });
-    try {
-      if (filtered.isEmpty) {
-        await _secureStorage.delete(key: _secureStorageKey);
-      } else {
-        await _secureStorage.write(
+      : _store = SecureJsonStore(
+          keystore: secureStorage ?? Keystores.credentials,
           key: _secureStorageKey,
-          value: jsonEncode(filtered),
+          logTag: 'ProxyPwdStore',
+          decode: _decode,
+          encode: (passwords) => passwords,
+          isEmpty: (passwords) => passwords.isEmpty,
+          onFailure: KeystoreFailurePolicy.stopUsing,
+          queue: _writes,
         );
-      }
-    } catch (e) {
-      LogService.instance.log(
-        'ProxyPwdStore',
-        'Failed to write proxy passwords to secure storage: $e',
-        level: LogLevel.error,
-      );
-      _secureStorageAvailable = false;
-    }
-  }
 
-  /// Atomically read the current map, apply [update] to a mutable draft, and
-  /// write the result back — all inside the write lock, so the read and the
-  /// write are one critical section and no concurrent writer can interleave.
-  /// Set a key to null in the draft to delete it.
-  Future<void> mutate(void Function(Map<String, String?> draft) update) {
-    return _synchronized(() async {
-      final draft = <String, String?>{...await loadAll()};
-      update(draft);
-      await _saveAllUnlocked(draft);
-    });
-  }
+  static Map<String, String> _decode(Object? json) => {
+        if (json is Map)
+          for (final MapEntry(:key, :value) in json.entries)
+            if (key is String && value is String && value.isNotEmpty)
+              key: value,
+      };
+
+  static Map<String, String> _nonEmpty(Map<String, String?> passwords) => {
+        for (final MapEntry(:key, :value) in passwords.entries)
+          if (value != null && value.isNotEmpty) key: value,
+      };
+
+  /// Every stored password as a `key -> password` map. Empty when there is
+  /// none or the keystore is unavailable.
+  Future<Map<String, String>> loadAll() => _store.read();
+
+  Future<String?> loadPassword(String key) async => (await loadAll())[key];
+
+  /// Replace the entire `key -> password` map. Empty values are stripped;
+  /// an empty result deletes the entry.
+  ///
+  /// Prefer [mutate] when the new map is derived from the stored one: the
+  /// caller's read is not part of this write's critical section.
+  Future<void> saveAll(Map<String, String?> passwords) =>
+      _store.exclusive(() => _store.write(_nonEmpty(passwords)));
+
+  /// Read the stored map, apply [update] to a mutable draft, and write the
+  /// result back as one critical section. Set a key to null to delete it.
+  Future<void> mutate(void Function(Map<String, String?> draft) update) =>
+      _store.update((current) {
+        final draft = <String, String?>{...current};
+        update(draft);
+        return _nonEmpty(draft);
+      });
 
   /// Set or clear the password for a single key. Pass null/empty to delete.
-  Future<void> savePassword(String key, String? password) {
-    return mutate((draft) {
-      if (password == null || password.isEmpty) {
-        draft.remove(key);
-      } else {
-        draft[key] = password;
-      }
-    });
-  }
+  Future<void> savePassword(String key, String? password) =>
+      mutate((draft) => draft[key] = password);
 
-  /// Drop entries for keys not present in [activeKeys]. Mirrors
-  /// [CookieSecureStorage.removeOrphanedCookies] — call after deleting sites
-  /// or restoring a backup so we don't accumulate stale passwords for sites
-  /// that no longer exist.
-  Future<void> removeOrphaned(Set<String> activeKeys) async {
-    final removed = <String>[];
-    await mutate((draft) {
-      for (final key in draft.keys.toList()) {
-        // Always preserve the global key; it's not tied to a site. Proxy
-        // library keys are not tied to a site either, and `ProxyLibrary`
-        // collects its own orphans.
-        if (key == globalProxyKey || isLibraryKey(key)) continue;
-        if (!activeKeys.contains(key)) {
-          draft.remove(key);
-          removed.add(key);
-        }
-      }
-    });
-    if (removed.isNotEmpty) {
-      LogService.instance.log(
-        'ProxyPwdStore',
-        'Removed orphaned proxy passwords for keys: $removed',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
+  /// Drop entries for keys not in [activeKeys], after deleting sites or
+  /// restoring a backup. The global key and proxy library keys are kept:
+  /// they belong to no site, and `ProxyLibrary` collects its own orphans.
+  Future<void> removeOrphaned(Set<String> activeKeys) => _store.removeOrphans(
+        activeKeys,
+        what: 'proxy passwords',
+        pinned: (key) => key == globalProxyKey || isLibraryKey(key),
       );
-    }
-  }
 
   /// One-shot migration helper: pull plaintext passwords out of a JSON map
   /// that came from SharedPreferences (e.g. an old `webViewModels` entry's
@@ -203,12 +133,12 @@ class ProxyPasswordSecureStorage {
   }) async {
     final raw = prefs.getString(prefsKey);
     if (raw == null || raw.isEmpty) return false;
-    Map<String, dynamic> decoded;
+    final Map<String, dynamic> decoded;
     try {
       final parsed = jsonDecode(raw);
       if (parsed is! Map<String, dynamic>) return false;
       decoded = parsed;
-    } catch (_) {
+    } on FormatException {
       return false;
     }
     final password = decoded['password'];

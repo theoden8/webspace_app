@@ -108,7 +108,7 @@ Future<ProxyTestResult> testProxyConnection(
           ProxyTestOutcome.reachable,
           statusCode: response.statusCode,
         );
-      } catch (e) {
+      } on Exception catch (e) {
         return _classify(e);
       } finally {
         probe.close();
@@ -124,7 +124,7 @@ Future<ProxyTestResult> testProxyConnection(
 /// in the message: dart:io reports a refused CONNECT as
 /// "Proxy failed to establish tunnel (407 ...)", and the SOCKS5 client
 /// reports a rejected username/password as an authentication failure.
-ProxyTestResult _classify(Object error) {
+ProxyTestResult _classify(Exception error) {
   if (error is TimeoutException) {
     return const ProxyTestResult(ProxyTestOutcome.timedOut);
   }

@@ -1,16 +1,18 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// In-memory [FlutterSecureStorage]. [throwOnRead] fails `read`,
 /// `readAll` and `containsKey`; [throwOnWrite] fails `write`, `delete` and
-/// `deleteAll`, modelling a keystore that is locked or absent.
+/// `deleteAll` with the [PlatformException] the plugin raises, modelling a
+/// keystore that is locked or absent.
 class MockFlutterSecureStorage implements FlutterSecureStorage {
   final Map<String, String> storage = {};
   bool throwOnRead = false;
   bool throwOnWrite = false;
 
   void _fail(bool when) {
-    if (when) throw Exception('secure storage unavailable');
+    if (when) throw PlatformException(code: 'secure storage unavailable');
   }
 
   @override

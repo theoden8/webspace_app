@@ -9,6 +9,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 TorGeoIpStore? createTorGeoIpStore() => IoTorGeoIpStore();
 
@@ -26,7 +27,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
 
   final Directory? _overrideRoot;
   final DateTime Function() _clock;
-  Future<TorGeoIpTable?>? _inFlight;
+  final SingleFlight<(), TorGeoIpTable?> _downloads = SingleFlight();
   var _circuits = 0;
 
   Future<Directory> _directory() async {
@@ -52,7 +53,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
 
   @override
   Future<TorGeoIpTable?> download(UserProxySettings via) =>
-      _inFlight ??= _download(via).whenComplete(() => _inFlight = null);
+      _downloads.run((), () => _download(via));
 
   Future<TorGeoIpTable?> _download(UserProxySettings via) async {
     for (var pass = 0; pass < kTorGeoIpPasses; pass++) {
