@@ -578,13 +578,17 @@ or active site SHALL change.
 
 The Tabs sheet's This site view SHALL list, after the site's own tree, the
 subtrees of other sites' trees that run as it: a link tab another site opened
-as it (LIR-032, LIR-034) or a search it ran for another site (LIR-030). Each
+as it (LIR-032, LIR-034) or a search it ran for another site (LIR-030). It
+SHALL look in the tree of every site with tabs, whether or not the current
+webspace shows that site; the All sites view SHALL still head only the sites
+the webspace shows. Each
 other site's subtrees SHALL come under a heading naming that site ("In
 GitHub"), each subtree whole, whatever its own descendants run as, indented
 from its own root. A site nothing elsewhere runs as SHALL get no such heading.
 
 Those rows SHALL stay in the tree that holds them: a tap SHALL open that site
-on the tab, close and close-subtree SHALL close it there, collapsing it SHALL
+on the tab, switching to All first when the current webspace does not show it
+(WEBSPACE-012), close and close-subtree SHALL close it there, collapsing it SHALL
 collapse it there too, and they SHALL NOT be dragged from this view. Tab ids
 repeat across sites, so what is collapsed SHALL be kept per site and tab.
 
@@ -606,6 +610,14 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 - **GIVEN** the sheet on DuckDuckGo listing a tab "In GitHub"
 - **WHEN** the user taps it
 - **THEN** GitHub comes on screen on that tab, running as DuckDuckGo
+
+#### Scenario: The other site is in another webspace
+
+- **GIVEN** a `duckduckgo.com` link from GitHub opened as a tab running as DuckDuckGo, and a webspace "Search" holding DuckDuckGo but not GitHub
+- **WHEN** the user opens the Tabs sheet on DuckDuckGo in "Search"
+- **THEN** "In GitHub" lists that tab
+- **AND** the sheet offers no All sites view, since "Search" shows one site with tabs
+- **AND** a tap on the tab switches to All and brings GitHub on screen on it
 
 ---
 

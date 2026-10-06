@@ -672,6 +672,46 @@ void main() {
       );
     });
 
+    testWidgets('a site the webspace hides still lists what runs as this one',
+        (tester) async {
+      await pumpSheet(tester, [
+        TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
+        TabsSheetSite(
+            index: 0,
+            model: gh,
+            isCurrent: false,
+            isLoaded: false,
+            inView: false),
+      ]);
+      expect(find.text('In GitHub'), findsOneWidget);
+      expect(find.text(hosted), findsOneWidget);
+      expect(find.text('All sites'), findsNothing,
+          reason: 'one site of the webspace has tabs, so there is no scope');
+    });
+
+    testWidgets('All sites heads only the sites the webspace shows',
+        (tester) async {
+      final other = WebViewModel(
+          siteId: 'wiki',
+          initUrl: 'https://wikipedia.org/',
+          name: 'Wikipedia');
+      await pumpSheet(tester, [
+        TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
+        TabsSheetSite(index: 2, model: other, isCurrent: false, isLoaded: false),
+        TabsSheetSite(
+            index: 0,
+            model: gh,
+            isCurrent: false,
+            isLoaded: false,
+            inView: false),
+      ]);
+      await tester.tap(find.text('All sites'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('DuckDuckGo'), findsWidgets);
+      expect(find.textContaining('Wikipedia'), findsWidgets);
+      expect(find.textContaining('GitHub'), findsNothing);
+    });
+
     testWidgets('a site nothing elsewhere runs as gets no extra heading',
         (tester) async {
       await pumpSheet(tester, [

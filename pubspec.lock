@@ -333,7 +333,7 @@ packages:
     source: git
     version: "6.2.0-beta.3"
   flutter_inappwebview_android:
-    dependency: "direct overridden"
+    dependency: "direct dev"
     description:
       path: flutter_inappwebview_android
       ref: "v6.2.0-beta.3-privacy-v12"

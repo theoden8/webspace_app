@@ -8264,9 +8264,13 @@ class _WebSpacePageState extends State<WebSpacePage>
           unawaited(_saveWebViewModels());
         }
       }
+      // An "In {site}" row can belong to a site this webspace hides.
+      await _maybeSwitchToAllForSite(model, index);
+      if (!mounted) return;
       await _setCurrentIndex(index);
       if (!mounted) return;
       setState(() {});
+      await _saveCurrentIndex();
     } finally {
       _isTabHandling = false;
     }
@@ -8626,19 +8630,27 @@ class _WebSpacePageState extends State<WebSpacePage>
     return true;
   }
 
-  /// Every site the tab list should show, in the order the drawer shows them.
-  /// A site without tabs is left out, so its stored ones cannot be opened
-  /// from another site's list.
-  List<TabsSheetSite> _tabsSheetSites() => [
-        for (final i in _getFilteredSiteIndices())
-          if (_tabsEnabledAt(i))
-            TabsSheetSite(
-              index: i,
-              model: _webViewModels[i],
-              isCurrent: i == _currentIndex,
-              isLoaded: _loadedIndices.contains(i),
-            ),
-      ];
+  /// Every site with tabs: the current webspace's in the order the drawer
+  /// shows them, then the rest, whose trees can hold tabs that run as a site
+  /// the webspace shows (TAB-017). A site without tabs is left out, so its
+  /// stored ones cannot be opened from another site's list.
+  List<TabsSheetSite> _tabsSheetSites() {
+    final view = _getFilteredSiteIndices();
+    final shown = view.toSet();
+    TabsSheetSite site(int i) => TabsSheetSite(
+          index: i,
+          model: _webViewModels[i],
+          isCurrent: i == _currentIndex,
+          isLoaded: _loadedIndices.contains(i),
+          inView: shown.contains(i),
+        );
+    return [
+      for (final i in view)
+        if (_tabsEnabledAt(i)) site(i),
+      for (var i = 0; i < _webViewModels.length; i++)
+        if (!shown.contains(i) && _tabsEnabledAt(i)) site(i),
+    ];
+  }
 
   Future<void> _showTabsSheet() async {
     if (_kioskLocked || !_tabsEnabledAt(_currentIndex)) return;

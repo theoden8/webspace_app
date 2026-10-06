@@ -66,6 +66,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 
 - [x] 8.7 This site view: the subtrees other sites' trees run as the site, under "In {site}" (TAB-017), not draggable from there; collapse kept per site and tab.
 - [x] 8.8 Container colours (TAB-018): `ContainerColors` tokens, `ContainerColorEngine` (least used, kept, app tier only), `ContainerMark` on every row and All sites heading, the dot in site info.
+- [x] 8.9 TAB-017 across webspaces: the sheet gets every site with tabs, flagged in or out of the current webspace, and a tap on a hidden site's row switches to All. Covered end to end by `test/tabs_sheet_app_test.dart`, which pumps the shipped app and taps a link through the webview's own callback.
 - [x] 8.9 Tests: `subtreesRunningAs` and `ContainerColorEngine` in `test/link_tab_container_test.dart`, the palette in `test/design_tokens_validity_test.dart`, the sheet in `test/tabs_sheet_test.dart`.
 
 ## 9. Hosted tabs and reattach: manual smoke

@@ -110,12 +110,20 @@ void main() {
     });
 
     test('the tab list leaves out sites without tabs', () {
+      final start = source.indexOf('List<TabsSheetSite> _tabsSheetSites() {');
+      expect(start, isNot(-1));
+      final body = source.substring(start, source.indexOf('\n  }\n', start));
       expect(
-        RegExp(r'List<TabsSheetSite> _tabsSheetSites\(\) => \[\s*'
-                r'for \(final i in _getFilteredSiteIndices\(\)\)\s*'
-                r'if \(_tabsEnabledAt\(i\)\)')
-            .hasMatch(source),
+        RegExp(r'for \(final i in view\)\s*if \(_tabsEnabledAt\(i\)\)')
+            .hasMatch(body),
         isTrue,
+      );
+      expect(
+        RegExp(r'if \(!shown\.contains\(i\) && _tabsEnabledAt\(i\)\)')
+            .hasMatch(body),
+        isTrue,
+        reason: 'a site the webspace hides is listed for TAB-017 only when '
+            'it has tabs',
       );
     });
 

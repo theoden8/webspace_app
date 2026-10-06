@@ -92,6 +92,9 @@ dev_dependencies:
   # Both are already locked transitively.
   asn1lib: ^1.6.5
   pointycastle: ^3.9.1
+  # test/helpers/real_app.dart registers the Android webview platform to pump
+  # the shipped app; the fork's ref is pinned by the overrides below.
+  flutter_inappwebview_android: any
 
 # Per-site container isolation requires APIs not present in upstream
 # flutter_inappwebview. We maintain a fork that adds a first-class
