@@ -60,23 +60,36 @@ void main() {
         expect(firstStatement(main, entry), contains('!_webSearchAvailable'),
             reason: entry);
       }
-      final settings = File('lib/screens/app_settings.dart').readAsStringSync();
+      final settings = File('lib/screens/app_behaviour.dart').readAsStringSync();
       expect(
-        RegExp(r'if \(_developerMode && _siteTabsSwitch\)\s*ListTile\(\s*'
-                r'leading: const Icon\(Icons\.travel_explore\)')
+        RegExp(r'bool webSearchSettingsOffered\(\) =>\s*'
+                r'DeveloperModeService\.instance\.enabled &&\s*'
+                r'ExperimentalFeaturesService\.instance\s*'
+                r'\.switchOn\(ExperimentalFeature\.siteTabs\);')
             .hasMatch(settings),
         isTrue,
-        reason: 'App Settings offers Default search only behind the gate',
+        reason: 'the gate is developer mode and the Site tabs switch',
       );
-      expect(
-        RegExp(r'if \(_developerMode && _siteTabsSwitch\)\s*'
-                r'SiteSearchListTile\(')
-            .hasMatch(settings),
-        isTrue,
-        reason: 'and the site search list download (LIR-036)',
-      );
+      // Up to the spread's own closing bracket, at the list's indentation.
+      final gate = RegExp(
+              r'if \(webSearchSettingsOffered\(\)\) \.\.\.\[(.*?)\n {10}\],',
+              dotAll: true)
+          .firstMatch(settings);
+      expect(gate, isNotNull,
+          reason: 'App Settings offers search rows only behind the gate');
+      expect(gate![1], contains('leading: const Icon(Icons.travel_explore)'),
+          reason: 'Default search');
+      expect(gate[1], contains('SiteSearchListTile('),
+          reason: 'and the site search list download (LIR-036)');
       expect('SiteSearchListTile('.allMatches(settings).length, 1,
           reason: 'built in one place, behind the gate');
+      for (final other in Directory('lib/screens').listSync()) {
+        if (other.path.endsWith('app_behaviour.dart')) continue;
+        if (other is! File || !other.path.endsWith('.dart')) continue;
+        expect(other.readAsStringSync(), isNot(contains('SiteSearchListTile(')),
+            reason: '${other.path} builds the site search list outside the '
+                'gate');
+      }
     });
 
     test('a locked kiosk shell has no web search (KIOSK-002)', () {

@@ -50,9 +50,17 @@ const PAGES = [
     path: 'screens/app-settings.html',
     group: 'Screens',
     title: 'App settings',
-    blurb: 'The real AppSettingsScreen: theme mode, all eight accent swatches, tab-strip and interface preferences. The accent row is the same palette the Foundations cards render.',
+    blurb: 'The real AppSettingsScreen: an index of categories, each row saying what its category is set to, like the Site rows in site settings.',
     source: 'lib/screens/app_settings.dart',
     shots: [['Light', 'app-settings__light.png'], ['Dark', 'app-settings__dark.png']],
+  },
+  {
+    path: 'screens/app-appearance.html',
+    group: 'Screens',
+    title: 'App appearance',
+    blurb: 'The real AppAppearanceScreen: app language, theme mode and all eight accent swatches. The accent row is the same palette the Foundations cards render.',
+    source: 'lib/screens/app_appearance.dart',
+    shots: [['Light', 'app-appearance__light.png'], ['Dark', 'app-appearance__dark.png']],
   },
   {
     path: 'screens/add-site.html',

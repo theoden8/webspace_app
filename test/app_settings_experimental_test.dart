@@ -1,4 +1,4 @@
-// App settings' Developer section and the Tor rows it no longer carries.
+// App settings' Developer screen and the Tor rows it no longer carries.
 //
 // Tor graduated out of the Experimental group (TOR-007): developer mode does
 // not hold it, so turning developer mode off costs a Tor site nothing and asks
@@ -112,9 +112,20 @@ void main() {
       buildSignature: '',
       installerStore: null,
     );
-    // The Developer section's rows are only rendered once the flag is on.
+    // The Developer row is only listed once the flag is on.
     DeveloperModeService.instance.debugSet(true);
   });
+
+  /// Opens one App Settings category through its row on the index.
+  Future<void> openCategory(WidgetTester tester, String title) async {
+    final row = find.text(title);
+    await tester.scrollUntilVisible(row, 200,
+        scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(row);
+    await tester.pumpAndSettle();
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+  }
 
   tearDown(() async {
     DeveloperModeService.instance.debugSet(false);
@@ -124,10 +135,11 @@ void main() {
     await TorService.reset();
   });
 
-  /// The developer-mode switch, scrolled into view. Found through its title
-  /// rather than by position: it is not the only `SwitchListTile` on the
-  /// screen, and which one is last changes as rows are added.
+  /// The developer-mode switch on the Developer screen. Found through its
+  /// title rather than by position: it is not the only `SwitchListTile` on
+  /// the screen, and which one is last changes as rows are added.
   Future<Finder> developerModeSwitch(WidgetTester tester) async {
+    await openCategory(tester, 'Developer');
     final title = find.text('Developer mode');
     await tester.scrollUntilVisible(title, 400,
         scrollable: find.byType(Scrollable).first);
@@ -153,6 +165,10 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(kDeveloperModeKey), isFalse,
         reason: 'the flag must survive a restart');
+    expect(find.text('Experimental'), findsNothing,
+        reason: 'the Developer screen closes with developer mode');
+    expect(find.text('App Logs'), findsOneWidget,
+        reason: 'App Settings links the logs directly again');
   });
 
   group('Tor in App settings (TOR-004, TOR-007)', () {
@@ -165,16 +181,10 @@ void main() {
       DeveloperModeService.instance.debugSet(false);
     });
 
-    /// Brings the outbound proxy block and the card under it on screen. The
-    /// list builds only what is on screen, and a stopped card has no height,
-    /// so it is reached through the row after it.
-    Future<void> scrollToCard(WidgetTester tester) async {
-      final scrollable = find.byType(Scrollable).first;
-      await tester.scrollUntilVisible(find.text('Location picker'), 200,
-          scrollable: scrollable);
-      await tester.drag(scrollable, const Offset(0, 250));
-      await tester.pumpAndSettle();
-    }
+    /// Opens the Network screen, where the outbound proxy block and the
+    /// card under it fit without scrolling.
+    Future<void> scrollToCard(WidgetTester tester) =>
+        openCategory(tester, 'Network');
 
     testWidgets('TOR is offered app-wide with developer mode off',
         (tester) async {
@@ -244,6 +254,7 @@ void main() {
           TorEngine(runtime: _PresentRuntime(), sessionSecret: 's'));
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Developer');
       final header = find.text('Experimental');
       await tester.scrollUntilVisible(header, 400,
           scrollable: find.byType(Scrollable).first);
@@ -265,6 +276,7 @@ void main() {
       DeveloperModeService.instance.debugSet(false);
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Network');
       await tester.scrollUntilVisible(find.text('Saved proxies'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
@@ -275,6 +287,7 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Developer');
       await tester.scrollUntilVisible(find.text('Experimental'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
@@ -292,6 +305,7 @@ void main() {
         (siteId: 'ddg-home', name: 'DuckDuckGo', containerColor: 5),
       ]));
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Behaviour');
       final row = find.text('Default search');
       await tester.scrollUntilVisible(row, 400,
           scrollable: find.byType(Scrollable).first);
@@ -326,6 +340,7 @@ void main() {
           .debugSet(ExperimentalFeature.siteTabs, true);
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Behaviour');
       final row = find.text('Site search list');
       await tester.scrollUntilVisible(row, 400,
           scrollable: find.byType(Scrollable).first);
@@ -345,6 +360,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Developer');
       final title = find.text('Site tabs');
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
@@ -379,6 +395,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host(routerRunsHere: true));
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Developer');
       final title = find.text('Proxy router');
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
@@ -406,6 +423,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Developer');
       final title = find.text('Site icons only');
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
@@ -445,6 +463,7 @@ void main() {
 
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
+      await openCategory(tester, 'Developer');
       final row = find.text('Reset icon cache');
       await tester.scrollUntilVisible(row, 400,
           scrollable: find.byType(Scrollable).first);

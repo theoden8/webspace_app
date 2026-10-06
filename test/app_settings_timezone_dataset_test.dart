@@ -118,6 +118,8 @@ void main() {
   Future<void> open(WidgetTester tester) async {
     await tester.pumpWidget(host());
     await tester.pump();
+    await tester.tap(find.text('Privacy'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Timezone polygons'), 400,
         scrollable: find.byType(Scrollable).first);
     await tester.pump();

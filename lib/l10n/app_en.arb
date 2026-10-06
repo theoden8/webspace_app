@@ -889,9 +889,45 @@
   "@appSettingsAccentColor": {
     "description": "Accent color section header in app settings"
   },
-  "appSettingsInterface": "Interface",
-  "@appSettingsInterface": {
-    "description": "Interface/UI section header in app settings"
+  "appSettingsGroupApp": "App",
+  "@appSettingsGroupApp": {
+    "description": "Heading on the App Settings screen over the categories about the app itself (its appearance and how it behaves), as opposed to the ones that apply to every site."
+  },
+  "appSettingsGroupSites": "Every site",
+  "@appSettingsGroupSites": {
+    "description": "Heading on the App Settings screen over the categories that apply to all of the user's websites at once (network, privacy, user scripts). Each site can adjust these in its own settings."
+  },
+  "appSettingsAppearance": "Appearance",
+  "@appSettingsAppearance": {
+    "description": "Title of the App Settings category, and of the screen it opens, holding the app's language, light/dark theme and accent colour."
+  },
+  "appSettingsBehaviour": "Behaviour",
+  "@appSettingsBehaviour": {
+    "description": "Title of the App Settings category, and of the screen it opens, holding how the app shows and opens sites: the site tab strip, full screen, the back gesture and link handling."
+  },
+  "appSettingsNetwork": "Network",
+  "@appSettingsNetwork": {
+    "description": "Title of the App Settings category, and of the screen it opens, holding the app-wide proxy, the saved proxies, Tor and trusted certificates."
+  },
+  "appSettingsBackupAndArchives": "Backup and archives",
+  "@appSettingsBackupAndArchives": {
+    "description": "Title of the App Settings category, and of the screen it opens, holding settings export and import and the passphrase-protected archived webspaces."
+  },
+  "appSettingsGroupTabStrip": "Tab strip",
+  "@appSettingsGroupTabStrip": {
+    "description": "Heading on the app Behaviour screen over the settings for the strip of site tabs shown above the page: whether it shows, in full screen, and how wide a tab can be."
+  },
+  "appSettingsGroupOpening": "Opening and navigation",
+  "@appSettingsGroupOpening": {
+    "description": "Heading on the app Behaviour screen over full screen on shortcut launch, what the back gesture does, and how shared links are opened."
+  },
+  "appSettingsGroupCertificates": "Certificates",
+  "@appSettingsGroupCertificates": {
+    "description": "Heading on the app Network screen over the list of TLS certificates the user chose to trust."
+  },
+  "appSettingsGroupWhatSitesLearn": "What sites learn",
+  "@appSettingsGroupWhatSitesLearn": {
+    "description": "Heading on the app Privacy screen over the data that decides what websites are told about the user: the browser version in the user agent, the timezone dataset, and the map used to pick a spoofed location."
   },
   "appSettingsSiteTabStrip": "Site Tab Strip",
   "@appSettingsSiteTabStrip": {
@@ -1087,10 +1123,6 @@
   "appSettingsUserScripts": "User Scripts",
   "@appSettingsUserScripts": {
     "description": "User scripts section header in app settings"
-  },
-  "appSettingsManageScripts": "Manage Scripts",
-  "@appSettingsManageScripts": {
-    "description": "Title for the global user scripts entry"
   },
   "appSettingsNoGlobalScripts": "No global scripts",
   "@appSettingsNoGlobalScripts": {

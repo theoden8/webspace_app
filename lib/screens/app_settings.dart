@@ -1,72 +1,28 @@
-import 'dart:convert';
-
-import 'package:webspace/platform/host_platform.dart';
-
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import 'package:webspace/settings/app_locale.dart';
-import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
-import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
-import 'package:webspace/screens/block_stats.dart';
-import 'package:webspace/screens/dev_tools.dart';
-import 'package:webspace/screens/tor_status.dart';
-import 'package:webspace/screens/trusted_certificates.dart';
-import 'package:webspace/services/back_gesture_engine.dart';
-import 'package:webspace/services/clearurl_service.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/ubo_backup_import.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/services/developer_unlock_engine.dart';
-import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/firefox_user_agent_service.dart';
-import 'package:webspace/services/icon_service.dart'
-    show notifyIconSourcesChanged;
-import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/timezone_location_service.dart';
-import 'package:webspace/widgets/root_messenger.dart';
-import 'package:webspace/services/web_intercept_native.dart';
-import 'package:webspace/services/localcdn_service.dart';
-import 'package:webspace/services/webview.dart';
-import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
-import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
-import 'package:webspace/screens/saved_proxies.dart';
-import 'package:webspace/services/proxy_form_engine.dart';
-import 'package:webspace/services/proxy_test_service.dart';
-import 'package:webspace/services/screen_capture_guard.dart';
-import 'package:webspace/widgets/proxy_choice_dropdown.dart';
-import 'package:webspace/widgets/proxy_status_indicator.dart';
-import 'package:webspace/widgets/proxy_test_tile.dart';
-import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/main.dart' show AppThemeSettings;
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/screens/app_appearance.dart';
+import 'package:webspace/screens/app_backup.dart';
+import 'package:webspace/screens/app_behaviour.dart';
+import 'package:webspace/screens/app_developer.dart';
+import 'package:webspace/screens/app_network.dart';
+import 'package:webspace/screens/app_privacy.dart';
 import 'package:webspace/screens/user_scripts.dart';
-import 'package:webspace/widgets/external_tor_tiles.dart';
-import 'package:webspace/widgets/firefox_version_tile.dart';
+import 'package:webspace/services/back_gesture_engine.dart';
+import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/developer_unlock_engine.dart';
+import 'package:webspace/services/ubo_backup_import.dart';
+import 'package:webspace/settings/app_locale.dart';
+import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
-import 'package:webspace/widgets/site_search_list_tile.dart';
-import 'package:webspace/widgets/hint_button.dart';
-import 'package:webspace/widgets/tor_status_card.dart';
-import 'package:webspace/widgets/level_slider.dart';
+import 'package:webspace/widgets/settings_rows.dart';
 
-// Accent color definitions for display
-const Map<AccentColor, Color> _accentColors = {
-  AccentColor.blue: Color(0xFF6B8DD6),
-  AccentColor.green: Color(0xFF7be592),
-  AccentColor.purple: Color(0xFF9B7BD6),
-  AccentColor.orange: Color(0xFFE59B5B),
-  AccentColor.red: Color(0xFFD66B6B),
-  AccentColor.pink: Color(0xFFD66BA8),
-  AccentColor.teal: Color(0xFF5BC4C4),
-  AccentColor.yellow: Color(0xFFD6C86B),
-};
-
+/// App Settings: an index of categories, each a screen of its own, like the
+/// Site rows in site settings. Every row says what its category is set to.
 class AppSettingsScreen extends StatefulWidget {
   final AppThemeSettings currentSettings;
 
@@ -209,716 +165,34 @@ class AppSettingsScreen extends StatefulWidget {
 }
 
 class _AppSettingsScreenState extends State<AppSettingsScreen>
-    with SingleTickerProviderStateMixin {
-  late AppThemeSettings _settings;
-  late bool _showTabStrip;
-  late bool _tabStripInFullscreen;
-  late bool _fullscreenOnShortcut;
-  late bool _backOpensMenu;
-  late bool _httpsUpgradeEnabled;
-  late bool _blockScreenshots;
-  late bool _tabBarButton;
-  late double _tabMaxWidth;
-  late bool _showStatsBanner;
-  late TextEditingController _osmTileUrlController;
-  bool _isDownloadingRules = false;
-  DateTime? _rulesLastUpdated;
+    with SettingsOpenGuard {
+  // Copies of what the category screens change, kept current through their
+  // callbacks so the row summaries answer without reopening them.
+  late AppThemeSettings _settings = widget.currentSettings;
+  late String _localeOverride = widget.localeOverride;
+  late bool _showTabStrip = widget.showTabStrip;
+  late bool _tabStripInFullscreen = widget.tabStripInFullscreen;
+  late bool _tabBarButton = widget.tabBarButton;
+  late int _tabMaxWidth = widget.tabMaxWidth;
+  late bool _fullscreenOnShortcut = widget.fullscreenOnShortcut;
+  late bool _backOpensMenu = widget.backOpensMenu;
+  late bool _showStatsBanner = widget.showStatsBanner;
+  late bool _httpsUpgradeEnabled = widget.httpsUpgradeEnabled;
+  late bool _blockScreenshots = widget.blockScreenshots;
 
   /// `version+build` from the platform package, null until it resolves.
   String? _appVersion;
   /// Running tap count on the version row; the developer-options gesture.
   int _versionTaps = 0;
   bool _developerMode = DeveloperModeService.instance.enabled;
-  bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.proxyRouter);
-  bool _siteIconsOnlySwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.siteIconsOnly);
-  bool _textureRenderingSwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.textureRendering);
-  bool _siteTabsSwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.siteTabs);
-
-  bool _isUpdatingFirefoxVersion = false;
-  bool _firefoxAutoRefresh = false;
-
-  // Timezone polygon dataset state (per-site "From picked location" timezone option)
-  bool _isDownloadingTimezones = false;
-  bool _timezonesCached = false;
-  DateTime? _timezonesLastUpdated;
-  int? _timezoneZoneCount;
-  int _timezoneStateVersion = 0;
-
-  // Global outbound proxy state. Mirrors the per-site proxy UI in
-  // [lib/screens/settings.dart] but applies to *every* Dart-side outbound
-  // call (DNS blocklist downloads, ClearURLs rules, content blocker rules,
-  // LocalCDN catalog, OSM map tiles in the location picker, etc.) and
-  // also acts as the fallthrough for any per-site proxy whose type is
-  // [ProxyType.DEFAULT].
-  late UserProxySettings _outboundProxy;
-  late TextEditingController _outboundProxyAddressController;
-  late TextEditingController _outboundProxyUsernameController;
-  late TextEditingController _outboundProxyPasswordController;
-  /// Snapshot of the outbound proxy fields at last persisted state. Most
-  /// of this screen auto-applies on change, but the proxy text fields only
-  /// flush via `onEditingComplete` / `onFieldSubmitted`, so a user who
-  /// types a partial value and pops via the system back gesture would
-  /// silently lose the edit. [_isOutboundProxyDirty] drives the PopScope
-  /// guard so we prompt instead.
-  late Map<String, Object?> _initialOutboundProxy;
-
-  // DNS Blocklist state
-  bool _isDownloadingBlocklist = false;
-  DateTime? _blocklistLastUpdated;
-  int _dnsBlockLevel = 0; // Downloaded level
-  int _dnsBlockSliderValue = 0; // Ephemeral slider value
-  late AnimationController _spinController;
-
-  // Content Blocker state
-  String? _downloadingListId;
-
-  // LocalCDN state
-  int _localCdnCount = 0;
-  String _localCdnSize = '0 B';
-  bool _isDownloadingLocalCdn = false;
-  bool _isClearingLocalCdn = false;
-  DateTime? _localCdnLastUpdated;
-  String _localCdnProgress = '';
+  /// Set while the seventh tap is turning developer mode on, so taps landing
+  /// during that await neither count nor unlock a second time.
+  bool _unlocking = false;
 
   @override
   void initState() {
     super.initState();
-    _settings = widget.currentSettings;
-    _showTabStrip = widget.showTabStrip;
-    _tabStripInFullscreen = widget.tabStripInFullscreen;
-    _fullscreenOnShortcut = widget.fullscreenOnShortcut;
-    _backOpensMenu = widget.backOpensMenu;
-    _tabBarButton = widget.tabBarButton;
-    _tabMaxWidth = widget.tabMaxWidth.toDouble();
-    _showStatsBanner = widget.showStatsBanner;
-    _httpsUpgradeEnabled = widget.httpsUpgradeEnabled;
-    _blockScreenshots = widget.blockScreenshots;
-    _osmTileUrlController = TextEditingController();
     _loadAppVersion();
-    _loadOsmTileUrl();
-    _loadFirefoxAutoRefresh();
-    _loadWebSearchDefault();
-    _outboundProxy = UserProxySettings(
-      type: GlobalOutboundProxy.current.type,
-      address: GlobalOutboundProxy.current.address,
-      username: GlobalOutboundProxy.current.username,
-      password: GlobalOutboundProxy.current.password,
-      savedProxyId: GlobalOutboundProxy.current.savedProxyId,
-      gatewayId: GlobalOutboundProxy.current.gatewayId,
-      credentialsId: GlobalOutboundProxy.current.credentialsId,
-    );
-    _outboundProxyAddressController = TextEditingController(
-      text: _outboundProxy.address ?? '',
-    );
-    _outboundProxyUsernameController = TextEditingController(
-      text: _outboundProxy.username ?? '',
-    );
-    _outboundProxyPasswordController = TextEditingController(
-      text: _outboundProxy.password ?? '',
-    );
-    _initialOutboundProxy = _currentOutboundProxySnapshot();
-    _outboundProxyAddressController.addListener(_onProxyFieldChanged);
-    _outboundProxyUsernameController.addListener(_onProxyFieldChanged);
-    _outboundProxyPasswordController.addListener(_onProxyFieldChanged);
-    _spinController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-    _loadRulesLastUpdated();
-    _loadBlocklistState();
-    _loadLocalCdnState();
-    TimezoneLocationService.instance.addListener(_onTimezoneDatasetChanged);
-    _loadTimezoneState();
-  }
-
-  void _onTimezoneDatasetChanged() => _loadTimezoneState();
-
-
-  // Reads the dataset on disk, not the in-memory one: only the lookup paths
-  // load it, so a downloaded dataset is usually not in memory here.
-  Future<void> _loadTimezoneState() async {
-    final version = ++_timezoneStateVersion;
-    final service = TimezoneLocationService.instance;
-    final cached = await service.hasCachedDataset();
-    final lastUpdated = await service.getLastUpdated();
-    if (!mounted || version != _timezoneStateVersion) return;
-    setState(() {
-      _timezonesCached = cached;
-      _timezonesLastUpdated = lastUpdated;
-      if (!cached) _timezoneZoneCount = null;
-    });
-    if (!cached) return;
-    final count = await service.cachedZoneCount();
-    if (!mounted || version != _timezoneStateVersion) return;
-    setState(() {
-      _timezonesCached = count != null;
-      _timezoneZoneCount = count;
-    });
-  }
-
-  Future<void> _downloadTimezones() async {
-    setState(() => _isDownloadingTimezones = true);
-    _spinController.repeat();
-    final success = await TimezoneLocationService.instance.download();
-    if (!mounted) return;
-    _spinController.stop();
-    _spinController.reset();
-    setState(() => _isDownloadingTimezones = false);
-    final loc = AppLocalizations.of(context);
-    rootScaffoldMessengerKey.currentState?.showSnackBar(SnackBar(
-        content: Text(success
-            ? loc.appSettingsTimezonesLoaded(
-                TimezoneLocationService.instance.zoneCount)
-            : loc.appSettingsTimezonesDownloadFailed)));
-  }
-
-  @override
-  void dispose() {
-    _osmTileUrlController.dispose();
-    _outboundProxyAddressController.dispose();
-    _outboundProxyUsernameController.dispose();
-    _outboundProxyPasswordController.dispose();
-    _spinController.dispose();
-    TimezoneLocationService.instance.removeListener(_onTimezoneDatasetChanged);
-    super.dispose();
-  }
-
-  String? _validateOutboundProxyAddress(String value) {
-    final loc = AppLocalizations.of(context);
-    // TOR carries no address of its own, so there is nothing to type and
-    // nothing to validate. Without this the save below refuses an empty
-    // field and global Tor cannot be turned on at all.
-    if (_outboundProxy.type == ProxyType.DEFAULT ||
-        _outboundProxy.type == ProxyType.TOR ||
-        _outboundProxy.type == ProxyType.SAVED ||
-        _outboundProxy.type == ProxyType.GATEWAY) {
-      return null;
-    }
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) return loc.appSettingsProxyAddressRequired;
-    final parts = trimmed.split(':');
-    if (parts.length != 2 || parts[0].isEmpty || parts[1].isEmpty) {
-      return loc.appSettingsProxyFormatHostPort;
-    }
-    final port = int.tryParse(parts[1]);
-    if (port == null || port < 1 || port > 65535) {
-      return loc.appSettingsProxyInvalidPort;
-    }
-    return null;
-  }
-
-  Future<void> _saveOutboundProxy() async {
-    final address = _outboundProxyAddressController.text.trim();
-    if (_outboundProxy.type != ProxyType.DEFAULT) {
-      final err = _validateOutboundProxyAddress(address);
-      if (err != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
-        return;
-      }
-    }
-    final settings = applyProxyForm(
-      stored: GlobalOutboundProxy.current,
-      fields: ProxyFormFields(
-        type: _outboundProxy.type,
-        address: address,
-        username: _outboundProxyUsernameController.text,
-        password: _outboundProxyPasswordController.text,
-        savedProxyId: _outboundProxy.savedProxyId,
-        gatewayId: _outboundProxy.gatewayId,
-        credentialsId: _outboundProxy.credentialsId,
-      ),
-    );
-    final previous = GlobalOutboundProxy.current;
-    final changed = previous.type != settings.type ||
-        previous.address != settings.address ||
-        previous.username != settings.username ||
-        previous.password != settings.password ||
-        previous.savedProxyId != settings.savedProxyId ||
-        previous.gatewayId != settings.gatewayId ||
-        previous.credentialsId != settings.credentialsId;
-    await GlobalOutboundProxy.update(settings);
-    setState(() {
-      _outboundProxy = settings;
-      _initialOutboundProxy = _currentOutboundProxySnapshot();
-    });
-    // Force every loaded webview to be rebuilt so the new global proxy
-    // takes effect immediately. Without this the change only applies to
-    // sites loaded after the next app restart — webview navigation keeps
-    // routing through the stale proxy bound at construction time.
-    // Skip the reset on no-op edits (e.g. focus leaves a field that was
-    // never modified) so we don't churn webviews while the user is
-    // tabbing through.
-    if (changed) {
-      LogService.instance.log(
-        'Proxy',
-        'Outbound proxy changed; resetting all loaded webviews so the new '
-            'value is applied on next render',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
-      widget.onOutboundProxyChanged?.call();
-    } else {
-      LogService.instance.log(
-        'Proxy',
-        'Outbound proxy save invoked but settings unchanged; skipping webview reset',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    }
-    if (mounted && changed) {
-      final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsOutboundProxyUpdated)),
-      );
-    }
-  }
-
-  /// Exactly what a save would store, so the test answers for the address
-  /// the user just typed rather than the one last saved.
-  UserProxySettings _currentOutboundProxyForTest() => applyProxyForm(
-        stored: GlobalOutboundProxy.current,
-        fields: ProxyFormFields(
-          type: _outboundProxy.type,
-          address: _outboundProxyAddressController.text,
-          username: _outboundProxyUsernameController.text,
-          password: _outboundProxyPasswordController.text,
-          savedProxyId: _outboundProxy.savedProxyId,
-          gatewayId: _outboundProxy.gatewayId,
-          credentialsId: _outboundProxy.credentialsId,
-        ),
-      );
-
-  void _onProxyFieldChanged() {
-    if (mounted) setState(() {});
-  }
-
-  Map<String, Object?> _currentOutboundProxySnapshot() => {
-        'type': _outboundProxy.type,
-        'savedProxyId': _outboundProxy.savedProxyId,
-        'gatewayId': _outboundProxy.gatewayId,
-        'credentialsId': _outboundProxy.credentialsId,
-        'address': _outboundProxyAddressController.text,
-        'username': _outboundProxyUsernameController.text,
-        'password': _outboundProxyPasswordController.text,
-      };
-
-  bool _isOutboundProxyDirty() {
-    final cur = _currentOutboundProxySnapshot();
-    for (final key in _initialOutboundProxy.keys) {
-      if (cur[key] != _initialOutboundProxy[key]) return true;
-    }
-    return false;
-  }
-
-  Future<void> _openSavedProxies() async {
-    await Navigator.push<void>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProxyLibraryScreen(
-          siteProxies: widget.siteProxies ?? () => const [],
-          appWideProxy: () => GlobalOutboundProxy.current,
-          onChanged: () => widget.onSavedProxiesChanged?.call(),
-        ),
-      ),
-    );
-    // The picker above lists them, and the count in the row counts them.
-    if (mounted) setState(() {});
-  }
-
-  Future<bool> _confirmDiscardProxy() async {
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.appSettingsDiscardChangesTitle),
-        content: Text(loc.appSettingsDiscardProxyBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.appSettingsKeepEditing),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              loc.appSettingsDiscard,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
-  Future<void> _loadBlocklistState() async {
-    final lastUpdated = await DnsBlockService.instance.getLastUpdated();
-    if (mounted) {
-      setState(() {
-        _dnsBlockLevel = DnsBlockService.instance.level;
-        _dnsBlockSliderValue = _dnsBlockLevel;
-        _blocklistLastUpdated = lastUpdated;
-      });
-    }
-  }
-
-  Future<void> _downloadBlocklist() async {
-    final level = _dnsBlockSliderValue;
-
-    setState(() {
-      _isDownloadingBlocklist = true;
-    });
-    _spinController.repeat();
-
-    final success = await DnsBlockService.instance.downloadList(level);
-
-    if (mounted) {
-      _spinController.stop();
-      _spinController.reset();
-      setState(() {
-        _isDownloadingBlocklist = false;
-      });
-
-      final loc = AppLocalizations.of(context);
-      if (success) {
-        await _loadBlocklistState();
-        // DnsBlockService fires a change listener that re-pushes domains
-        // to the native interceptor; we only need to (re)attach webviews.
-        await WebInterceptNative.attachToWebViews();
-        final domainCount = DnsBlockService.instance.domainCount;
-        final message = level == 0
-            ? loc.appSettingsDnsBlocklistDisabled
-            : loc.appSettingsDnsBlocklistUpdated(_formatNumber(domainCount));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(message)),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.appSettingsDnsBlocklistDownloadFailed)),
-        );
-      }
-    }
-  }
-
-  Future<void> _downloadContentList(String id) async {
-    setState(() {
-      _downloadingListId = id;
-    });
-
-    final success = await ContentBlockerService.instance.downloadList(id);
-
-    if (mounted) {
-      setState(() {
-        _downloadingListId = null;
-      });
-
-      final loc = AppLocalizations.of(context);
-      if (success) {
-        final list = ContentBlockerService.instance.lists
-            .firstWhere((l) => l.id == id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(loc.appSettingsFilterListRules(
-                  list.name, _formatNumber(list.ruleCount)))),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.appSettingsFilterListDownloadFailed)),
-        );
-      }
-    }
-  }
-
-  Future<void> _downloadAllContentLists() async {
-    setState(() {
-      _downloadingListId = '__all__';
-    });
-
-    final count = await ContentBlockerService.instance.downloadAllLists();
-
-    if (mounted) {
-      setState(() {
-        _downloadingListId = null;
-      });
-
-      final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsFilterListsUpdated(count))),
-      );
-    }
-  }
-
-  Future<void> _toggleContentList(String id, bool enabled) async {
-    await ContentBlockerService.instance.toggleList(id, enabled);
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _removeContentList(String id) async {
-    await ContentBlockerService.instance.removeList(id);
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _showAddCustomListDialog() async {
-    final nameController = TextEditingController();
-    final urlController = TextEditingController();
-
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.appSettingsAddCustomListTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: loc.appSettingsCustomListNameLabel,
-                hintText: loc.appSettingsCustomListNameHint,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Builder(builder: (context) {
-              const urlHint = 'https://example.com/filters.txt';
-              return TextField(
-                controller: urlController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsCustomListUrlLabel,
-                  hintText: urlHint,
-                ),
-                keyboardType: TextInputType.url,
-              );
-            }),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.commonAdd),
-          ),
-        ],
-      ),
-    );
-
-    if (result == true &&
-        nameController.text.isNotEmpty &&
-        urlController.text.isNotEmpty) {
-      final id = await ContentBlockerService.instance
-          .addCustomList(nameController.text, urlController.text);
-      await _downloadContentList(id);
-    }
-
-    nameController.dispose();
-    urlController.dispose();
-  }
-
-  Future<void> _showLocalListDialog({FilterList? existing}) async {
-    final nameController = TextEditingController(text: existing?.name);
-    final rulesController = TextEditingController(text: existing?.rules);
-
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existing == null
-            ? loc.appSettingsAddLocalListTitle
-            : loc.appSettingsEditLocalListTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsCustomListNameLabel,
-                  hintText: loc.appSettingsCustomListNameHint,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: rulesController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsLocalListRulesLabel,
-                  hintText: loc.appSettingsLocalListRulesHint,
-                  alignLabelWithHint: true,
-                  border: const OutlineInputBorder(),
-                ),
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                keyboardType: TextInputType.multiline,
-                autocorrect: false,
-                enableSuggestions: false,
-                minLines: 6,
-                maxLines: 14,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(existing == null ? loc.commonAdd : loc.commonSave),
-          ),
-        ],
-      ),
-    );
-
-    final name = nameController.text.trim();
-    final rules = rulesController.text;
-    nameController.dispose();
-    rulesController.dispose();
-    if (result != true || name.isEmpty) return;
-
-    if (existing == null) {
-      await ContentBlockerService.instance.addLocalList(name, rules);
-    } else {
-      await ContentBlockerService.instance
-          .updateLocalList(existing.id, name, rules);
-    }
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _importUboBackup() async {
-    final loc = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    String? text;
-    try {
-      final picked = await FilePicker.pickFiles(allowMultiple: false);
-      final file = picked?.files.firstOrNull;
-      if (file == null) return;
-      if (file.bytes != null) {
-        text = utf8.decode(file.bytes!, allowMalformed: true);
-      } else if (file.path != null) {
-        text = await hostReadFileText(file.path!);
-      }
-    } catch (e) {
-      LogService.instance.log('ContentBlocker', 'uBO backup read failed: $e',
-          level: LogLevel.warning);
-    }
-    final backup = text == null ? null : UboBackup.parse(text);
-    if (backup == null) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(loc.appSettingsUboNotABackup)));
-      return;
-    }
-    if (!mounted) return;
-
-    setState(() => _downloadingListId = '__all__');
-    final service = ContentBlockerService.instance;
-    final registry = await service.fetchUboAssetRegistry();
-    final plan = planUboImport(backup,
-        existing: service.existingForImport, registry: registry);
-    final sites = plan.trustedHosts.isEmpty || widget.onTrustUboHosts == null
-        ? const <UboTrustedSite>[]
-        : await widget.onTrustUboHosts!(plan.trustedHosts, apply: false);
-    if (!mounted) return;
-    setState(() => _downloadingListId = null);
-
-    if (plan.isEmpty) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(loc.appSettingsUboImportNothing)));
-      return;
-    }
-
-    final unappliedHosts = plan.trustedHosts
-        .where((h) => !sites.any((s) => hostTrustedBy(s.host, {h})))
-        .length;
-    final listCount = plan.enableIds.length + plan.addLists.length;
-    final userRuleCount = plan.userFilters == null
-        ? 0
-        : const LineSplitter()
-            .convert(plan.userFilters!)
-            .where((l) => l.trim().isNotEmpty && !l.trim().startsWith('!'))
-            .length;
-    final siteNames = sites.map((s) => s.name).join(', ');
-    final skipped = <String>[
-      if (plan.unresolvedKeys.isNotEmpty)
-        loc.appSettingsUboImportUnresolved(plan.unresolvedKeys.length),
-      if (plan.unsupportedTrusted.isNotEmpty)
-        loc.appSettingsUboImportUnsupportedTrusted(
-            plan.unsupportedTrusted.length),
-      if (unappliedHosts > 0)
-        loc.appSettingsUboImportUnappliedTrusted(unappliedHosts),
-      if (plan.droppedRuleCount > 0)
-        loc.appSettingsUboImportDroppedRules(plan.droppedRuleCount),
-    ];
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.appSettingsUboImportTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (listCount > 0) Text(loc.appSettingsUboImportLists(listCount)),
-              if (plan.userFilters != null) ...[
-                const SizedBox(height: 8),
-                Text(loc.appSettingsUboImportUserFilters(userRuleCount)),
-              ],
-              if (sites.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(loc.appSettingsUboImportTrustedSites(siteNames)),
-              ],
-              if (skipped.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(loc.appSettingsUboImportSkippedHeader,
-                    style: Theme.of(context).textTheme.titleSmall),
-                for (final line in skipped) ...[
-                  const SizedBox(height: 4),
-                  Text(line, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.homeImportAction),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _downloadingListId = '__all__');
-    final toDownload = await service.applyUboImport(plan,
-        userFiltersName: loc.appSettingsUboUserFiltersName);
-    if (sites.isNotEmpty) {
-      await widget.onTrustUboHosts!(plan.trustedHosts, apply: true);
-    }
-    var downloaded = 0;
-    for (final id in toDownload) {
-      if (await service.downloadList(id)) downloaded++;
-    }
-    if (!mounted) return;
-    setState(() => _downloadingListId = null);
-    messenger.showSnackBar(SnackBar(
-        content: Text(
-            loc.appSettingsUboImportDone(downloaded, toDownload.length))));
-  }
-
-  String _formatNumber(int n) {
-    if (n >= 1000) {
-      return '${(n / 1000).toStringAsFixed(n % 1000 == 0 ? 0 : 1)}K';
-    }
-    return n.toString();
   }
 
   Future<void> _loadAppVersion() async {
@@ -933,6 +207,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   /// user and confusing to meet by accident, but a user reporting a bug has
   /// to be able to reach them without a debug build.
   Future<void> _onVersionTapped() async {
+    if (_unlocking) return;
     final loc = AppLocalizations.of(context);
     final step = DeveloperUnlockEngine.tap(
       taps: _versionTaps,
@@ -948,8 +223,17 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       case DeveloperUnlockOutcome.alreadyEnabled:
         message = loc.appSettingsDeveloperModeAlreadyOn;
       case DeveloperUnlockOutcome.unlocked:
-        await _setDeveloperMode(true);
+        _unlocking = true;
+        try {
+          await setDeveloperMode(true);
+        } finally {
+          _unlocking = false;
+        }
         if (!mounted) return;
+        setState(() {
+          _developerMode = true;
+          _versionTaps = 0;
+        });
         message = loc.appSettingsDeveloperModeEnabled;
     }
     if (!mounted) return;
@@ -962,1566 +246,271 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       );
   }
 
-  Future<void> _setDeveloperMode(bool value) async {
-    await DeveloperModeService.instance.setEnabled(value);
-    notifyIconSourcesChanged();
-    // The external tor is an experiment, so developer mode decides it too.
-    await TorService.instance.runtimeChoiceChanged();
-    if (!mounted) return;
-    setState(() {
-      _developerMode = value;
-      _versionTaps = 0;
-    });
-  }
-
-  Future<void> _setProxyRouterSwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.proxyRouter, value);
-    if (!mounted) return;
-    setState(() => _proxyRouterSwitch = value);
-  }
-
-  Future<void> _setSiteIconsOnlySwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.siteIconsOnly, value);
-    notifyIconSourcesChanged();
-    if (!mounted) return;
-    setState(() => _siteIconsOnlySwitch = value);
-  }
-
-  Future<void> _resetIconCache() async {
-    final messenger = ScaffoldMessenger.of(context);
-    final cleared = AppLocalizations.of(context).appSettingsIconCacheCleared;
-    await FaviconUrlCache.resetAll();
-    messenger.showSnackBar(SnackBar(content: Text(cleared)));
-  }
-
-  Future<void> _setTextureRenderingSwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.textureRendering, value);
-    if (!mounted) return;
-    setState(() => _textureRenderingSwitch = value);
-  }
-
-  Future<void> _setSiteTabsSwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.siteTabs, value);
-    if (!mounted) return;
-    setState(() => _siteTabsSwitch = value);
-  }
-
-  Future<void> _loadOsmTileUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url = readPrefAs<String>(prefs, 'osmTileUrl') ??
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-    if (!mounted) return;
-    _osmTileUrlController.text = url;
-  }
-
-  Future<void> _saveOsmTileUrl(String value) async {
-    final prefs = await SharedPreferences.getInstance();
-    final trimmed = value.trim();
-    if (trimmed.isEmpty) {
-      await prefs.remove('osmTileUrl');
-    } else {
-      await prefs.setString('osmTileUrl', trimmed);
-    }
-  }
-
-  Future<void> _loadRulesLastUpdated() async {
-    final lastUpdated = await ClearUrlService.instance.getLastUpdated();
-    if (mounted) {
-      setState(() {
-        _rulesLastUpdated = lastUpdated;
-      });
-    }
-  }
-
-  Future<void> _downloadRules() async {
-    setState(() {
-      _isDownloadingRules = true;
-    });
-
-    final success = await ClearUrlService.instance.downloadRules();
-
-    if (mounted) {
-      setState(() {
-        _isDownloadingRules = false;
-      });
-
-      final loc = AppLocalizations.of(context);
-      if (success) {
-        await _loadRulesLastUpdated();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.appSettingsClearUrlsUpdated)),
+  /// Opens a category and, once it closes, redraws the summaries from what it
+  /// changed. One at a time: a second tap while the first is still sliding
+  /// in would stack a second copy.
+  Future<void> _open(Widget screen) => guardedOpen(() async {
+        await Navigator.push<void>(
+          context,
+          MaterialPageRoute(builder: (_) => screen),
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.appSettingsClearUrlsDownloadFailed)),
-        );
-      }
-    }
-  }
-
-  String _webSearchDefault = '';
-
-  String? get _webSearchDefaultName {
-    final site = widget.webSearchSites
-        .where((s) => s.siteId == _webSearchDefault)
-        .firstOrNull;
-    if (site == null) return null;
-    return searchSiteSummaryName(site.name, site.siteId,
-        widget.webSearchSites.map((s) => s.name));
-  }
-
-  Future<void> _loadWebSearchDefault() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() => _webSearchDefault =
-        readPrefAs<String>(prefs, kWebSearchDefaultSiteKey) ?? '');
-  }
-
-  /// LIR-029: which web search site Web search starts with. Only sites outside
-  /// every archive are offered, so the pref never names an archived site.
-  Future<void> _pickWebSearchDefault() async {
-    final loc = AppLocalizations.of(context);
-    final picked = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SearchSiteChoiceDialog(
-        title: loc.webSearchDefaultTitle,
-        sites: widget.webSearchSites,
-        selected: _webSearchDefault,
-        emptyText: loc.webSearchNoWebSites,
-        cancelLabel: loc.commonCancel,
-      ),
-    );
-    if (picked == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kWebSearchDefaultSiteKey, picked);
-    if (!mounted) return;
-    setState(() => _webSearchDefault = picked);
-  }
-
-  Future<void> _loadFirefoxAutoRefresh() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() {
-      _firefoxAutoRefresh = readPrefAs<bool>(prefs, kFirefoxUaAutoRefreshKey) ?? false;
-    });
-  }
-
-  Future<void> _setFirefoxAutoRefresh(bool value) async {
-    setState(() {
-      _firefoxAutoRefresh = value;
-    });
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(kFirefoxUaAutoRefreshKey, value);
-    // Enabling is itself the user gesture: run the first check right away
-    // instead of waiting for the next startup.
-    if (value && !_isUpdatingFirefoxVersion) {
-      await _updateFirefoxVersion();
-    }
-  }
-
-  Future<void> _updateFirefoxVersion() async {
-    setState(() {
-      _isUpdatingFirefoxVersion = true;
-    });
-
-    final result = await FirefoxUserAgentService.instance.refresh();
-
-    if (mounted) {
-      setState(() {
-        _isUpdatingFirefoxVersion = false;
+        if (!mounted) return;
+        setState(() => _developerMode = DeveloperModeService.instance.enabled);
       });
-      final loc = AppLocalizations.of(context);
-      final version = FirefoxUserAgentService.instance.majorVersion;
-      final message = switch (result) {
-        FirefoxVersionRefreshResult.updated =>
-          loc.appSettingsFirefoxVersionUpdated(version),
-        FirefoxVersionRefreshResult.unchanged =>
-          loc.appSettingsFirefoxVersionUnchanged(version),
-        FirefoxVersionRefreshResult.failed =>
-          loc.appSettingsFirefoxVersionFailed,
-      };
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    }
+
+  /// Keeps a summary current from a category screen's callback. The screen
+  /// sits above this one, but an async callback can still land after both
+  /// were torn down.
+  void _track(VoidCallback fn) {
+    if (mounted) setState(fn);
   }
 
-  Future<void> _loadLocalCdnState() async {
-    final count = LocalCdnService.instance.resourceCount;
-    final size = await LocalCdnService.instance.cacheSize;
-    final lastUpdated = await LocalCdnService.instance.getLastUpdated();
-    if (mounted) {
-      setState(() {
-        _localCdnCount = count;
-        _localCdnSize = LocalCdnService.formatSize(size);
-        _localCdnLastUpdated = lastUpdated;
-      });
-    }
-  }
+  void _openAppearance() => _open(AppAppearanceScreen(
+        settings: _settings,
+        onSettingsChanged: (settings) {
+          _track(() => _settings = settings);
+          widget.onSettingsChanged(settings);
+        },
+        localeOverride: _localeOverride,
+        onLocaleOverrideChanged: (tag) {
+          _track(() => _localeOverride = tag);
+          widget.onLocaleOverrideChanged(tag);
+        },
+      ));
 
-  Future<void> _downloadLocalCdnResources() async {
-    setState(() {
-      _isDownloadingLocalCdn = true;
-      _localCdnProgress = '';
-    });
+  void _openBehaviour() => _open(AppBehaviourScreen(
+        showTabStrip: _showTabStrip,
+        onShowTabStripChanged: (value) {
+          _track(() => _showTabStrip = value);
+          widget.onShowTabStripChanged(value);
+        },
+        tabStripInFullscreen: _tabStripInFullscreen,
+        onTabStripInFullscreenChanged: (value) {
+          _track(() => _tabStripInFullscreen = value);
+          widget.onTabStripInFullscreenChanged(value);
+        },
+        tabBarButton: _tabBarButton,
+        onTabBarButtonChanged: (value) {
+          _track(() => _tabBarButton = value);
+          widget.onTabBarButtonChanged(value);
+        },
+        tabMaxWidth: _tabMaxWidth,
+        onTabMaxWidthChanged: (value) {
+          _track(() => _tabMaxWidth = value);
+          widget.onTabMaxWidthChanged(value);
+        },
+        fullscreenOnShortcut: _fullscreenOnShortcut,
+        onFullscreenOnShortcutChanged: (value) {
+          _track(() => _fullscreenOnShortcut = value);
+          widget.onFullscreenOnShortcutChanged(value);
+        },
+        backOpensMenu: _backOpensMenu,
+        onBackOpensMenuChanged: (value) {
+          _track(() => _backOpensMenu = value);
+          widget.onBackOpensMenuChanged(value);
+        },
+        linkHandlingEnabled: widget.linkHandlingEnabled,
+        onOpenLinkHandlingSettings: widget.onOpenLinkHandlingSettings,
+        webSearchSites: widget.webSearchSites,
+      ));
 
-    final downloaded = await LocalCdnService.instance.downloadPopularResources(
-      onProgress: (completed, total) {
-        if (mounted) {
-          setState(() {
-            _localCdnProgress = '$completed/$total';
-          });
-        }
-      },
-    );
+  void _openNetwork() => _open(AppNetworkScreen(
+        siteNames: widget.siteNames,
+        onOutboundProxyChanged: widget.onOutboundProxyChanged,
+        siteProxies: widget.siteProxies,
+        onSavedProxiesChanged: widget.onSavedProxiesChanged,
+      ));
 
-    if (mounted) {
-      setState(() {
-        _isDownloadingLocalCdn = false;
-        _localCdnProgress = '';
-      });
-      await _loadLocalCdnState();
-      final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsLocalCdnDownloaded(downloaded))),
-      );
-    }
-  }
+  void _openPrivacy() => _open(AppPrivacyScreen(
+        siteNames: widget.siteNames,
+        showStatsBanner: _showStatsBanner,
+        onShowStatsBannerChanged: (value) {
+          _track(() => _showStatsBanner = value);
+          widget.onShowStatsBannerChanged(value);
+        },
+        httpsUpgradeEnabled: _httpsUpgradeEnabled,
+        onHttpsUpgradeEnabledChanged: (value) {
+          _track(() => _httpsUpgradeEnabled = value);
+          widget.onHttpsUpgradeEnabledChanged(value);
+        },
+        blockScreenshots: _blockScreenshots,
+        onBlockScreenshotsChanged: widget.onBlockScreenshotsChanged == null
+            ? null
+            : (value) {
+                _track(() => _blockScreenshots = value);
+                widget.onBlockScreenshotsChanged!(value);
+              },
+        onTrustUboHosts: widget.onTrustUboHosts,
+      ));
 
-  Future<void> _clearLocalCdnCache() async {
-    setState(() {
-      _isClearingLocalCdn = true;
-    });
+  void _openUserScripts() => _open(UserScriptsScreen(
+        title: 'Global User Scripts',
+        userScripts: widget.globalUserScripts,
+        onSave: (scripts) {
+          widget.onGlobalUserScriptsChanged?.call(scripts);
+        },
+        isGlobalLibrary: true,
+      ));
 
-    await LocalCdnService.instance.clearCache();
+  void _openDeveloper() => _open(AppDeveloperScreen(
+        proxyRouterRunsHere: widget.proxyRouterRunsHere,
+        externalTorRunsHere: widget.externalTorRunsHere,
+      ));
 
-    if (mounted) {
-      setState(() {
-        _isClearingLocalCdn = false;
-      });
-      await _loadLocalCdnState();
-      final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsLocalCdnCacheCleared)),
-      );
-    }
-  }
-
-  void _updateSettings(AppThemeSettings newSettings) {
-    setState(() {
-      _settings = newSettings;
-    });
-    widget.onSettingsChanged(newSettings);
-  }
-
-  Future<void> _pickAppLanguage() async {
-    final loc = AppLocalizations.of(context);
-    final tags = AppLocalizations.supportedLocales
-        .map(tagForLocale)
-        .toSet()
-        .toList()
-      ..sort((a, b) => languageLabelForTag(a)
-          .toLowerCase()
-          .compareTo(languageLabelForTag(b).toLowerCase()));
-    final selected = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.appSettingsLanguageTitle),
-        contentPadding: const EdgeInsets.symmetric(vertical: 8),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              RadioListTile<String>(
-                value: '',
-                groupValue: widget.localeOverride,
-                title: Text(loc.appSettingsLanguageSystem),
-                onChanged: (v) => Navigator.pop(ctx, v ?? ''),
-              ),
-              for (final tag in tags)
-                RadioListTile<String>(
-                  value: tag,
-                  groupValue: widget.localeOverride,
-                  title: Text(languageLabelForTag(tag)),
-                  onChanged: (v) => Navigator.pop(ctx, v),
-                ),
-            ],
+  /// Export, import and the archive actions run on the main page, so settings
+  /// closes before each one, as it did when they were rows of their own.
+  Future<void> _openBackup() => guardedOpen(() async {
+        final action = await Navigator.push<AppBackupAction>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AppBackupScreen(
+              offerRestoreArchive: widget.onRestoreArchive != null,
+              offerCloseAllArchives:
+                  widget.hasOpenArchives && widget.onCloseAllArchives != null,
+            ),
           ),
-        ),
-      ),
-    );
-    if (selected == null) return;
-    widget.onLocaleOverrideChanged(selected);
+        );
+        if (action == null || !mounted) return;
+        _closeSelf();
+        _runBackupAction(action);
+      });
+
+  /// Leaves settings for the main page. Pops only this route: if anything
+  /// was pushed above it in the meantime, a plain pop would close that
+  /// instead and leave settings open under the action.
+  void _closeSelf() {
+    final route = ModalRoute.of(context);
+    if (route == null || !route.isActive) return;
+    final navigator = Navigator.of(context);
+    if (route.isCurrent) {
+      navigator.pop();
+    } else {
+      navigator.removeRoute(route);
+    }
   }
 
-  /// How the site tab strip is presented, as one mutually-exclusive choice:
-  /// 0 = hidden, 1 = always pinned, 2 = revealed on demand by the floating
-  /// button. The button and the strip are the same feature (the button reveals
-  /// the strip), so they are one control, not two independent toggles.
-  int get _tabStripMode {
-    if (_tabBarButton) return 2;
-    if (_showTabStrip) return 1;
-    return 0;
+  void _runBackupAction(AppBackupAction action) {
+    switch (action) {
+      case AppBackupAction.export:
+        widget.onExportSettings();
+      case AppBackupAction.import:
+        widget.onImportSettings();
+      case AppBackupAction.restoreArchive:
+        widget.onRestoreArchive?.call();
+      case AppBackupAction.closeAllArchives:
+        widget.onCloseAllArchives?.call();
+    }
   }
 
-  void _setTabStripMode(int mode) {
-    setState(() {
-      _showTabStrip = mode == 1;
-      _tabBarButton = mode == 2;
-      // "Keep in full screen" only applies to a pinned strip. Leaving it set
-      // in button mode would pin the strip in full screen and hide the button
-      // there; clear it whenever we leave the pinned mode.
-      if (mode != 1) _tabStripInFullscreen = false;
-    });
-    widget.onShowTabStripChanged(_showTabStrip);
-    widget.onTabBarButtonChanged(_tabBarButton);
-    if (mode != 1) widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
-  }
+  String _appearanceSummary(AppLocalizations loc) => [
+        themeModeLabel(loc, _settings.themeMode),
+        if (_localeOverride.isNotEmpty) languageLabelForTag(_localeOverride),
+      ].join(' · ');
 
-  /// Full-screen behavior of the *pinned* tab strip: 0 = hidden, 1 = always
-  /// visible. Only shown when the strip is pinned; button mode reveals the
-  /// strip in full screen on its own.
-  int get _fullscreenTabStripMode => _tabStripInFullscreen ? 1 : 0;
-
-  void _setFullscreenTabStripMode(int mode) {
-    setState(() {
-      _tabStripInFullscreen = mode == 1;
-    });
-    widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
-  }
-
-  /// Whether the tab strip can appear at all (pinned out of fullscreen, pinned
-  /// in fullscreen, or revealed by the tab-bar button), so the width limit is
-  /// meaningful.
-  bool get _tabStripCanShow =>
-      _showTabStrip || _tabStripInFullscreen || _tabBarButton;
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    final backOpensMenuHint = hostIsAndroid
-        ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
-        : loc.appSettingsBackOpensMenuHint;
+  String _behaviourSummary(AppLocalizations loc) {
     final backOpensMenuOffered = backAtHistoryStartConfigurable(
       isIOS: hostIsIOS,
       isMacOS: hostIsMacOS,
     );
-    return PopScope(
-      canPop: !_isOutboundProxyDirty(),
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        final navigator = Navigator.of(context);
-        final discard = await _confirmDiscardProxy();
-        if (discard != true || !mounted) return;
-        setState(() {
-          _initialOutboundProxy = _currentOutboundProxySnapshot();
-        });
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted) return;
-        navigator.pop();
-      },
-      child: Scaffold(
+    return summariseSettings(
+      loc,
+      [
+        if (tabStripMode(
+                showTabStrip: _showTabStrip, tabBarButton: _tabBarButton) !=
+            0)
+          loc.appSettingsSiteTabStrip,
+        if (_fullscreenOnShortcut) loc.appSettingsFullscreenOnShortcut,
+        if (backOpensMenuOffered && _backOpensMenu)
+          loc.appSettingsBackOpensMenu,
+        if (widget.linkHandlingEnabled) loc.appSettingsLinkHandling,
+      ],
+      none: loc.behaviourSummaryNothingOn,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context);
+    return Scaffold(
       appBar: AppBar(
         title: Text(loc.appSettingsTitle),
       ),
       body: ListView(
         children: [
-          // Theme Mode Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsTheme,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+          SettingsGroupHeader(loc.appSettingsGroupApp),
+          SettingsCategoryRow(
+            icon: Icons.palette_outlined,
+            title: loc.appSettingsAppearance,
+            summary: _appearanceSummary(loc),
+            onTap: _openAppearance,
+          ),
+          SettingsCategoryRow(
+            icon: Icons.tune,
+            title: loc.appSettingsBehaviour,
+            summary: _behaviourSummary(loc),
+            onTap: _openBehaviour,
+          ),
+          SettingsGroupHeader(loc.appSettingsGroupSites),
+          SettingsCategoryRow(
+            icon: Icons.lan_outlined,
+            title: loc.appSettingsNetwork,
+            summary: appNetworkSummary(loc),
+            onTap: _openNetwork,
+          ),
+          SettingsCategoryRow(
+            icon: Icons.verified_user_outlined,
+            title: loc.appSettingsPrivacy,
+            summary: summariseSettings(
+              loc,
+              appPrivacyOn(
+                loc,
+                httpsUpgradeEnabled: _httpsUpgradeEnabled,
+                blockScreenshots: _blockScreenshots,
               ),
+              none: loc.privacySummaryNothingOn,
             ),
+            onTap: _openPrivacy,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildThemeModeRow(),
+          SettingsCategoryRow(
+            icon: Icons.code,
+            title: loc.appSettingsUserScripts,
+            summary: widget.globalUserScripts.isEmpty
+                ? loc.appSettingsNoGlobalScripts
+                : loc.appSettingsScriptsDefined(widget.globalUserScripts.length),
+            onTap: _openUserScripts,
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Accent Color Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsAccentColor,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+          SettingsGroupHeader(loc.appSettingsData),
+          SettingsCategoryRow(
+            icon: Icons.settings_backup_restore,
+            title: loc.appSettingsBackupAndArchives,
+            onTap: _openBackup,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildAccentColorGrid(),
-          ),
-          
-          const SizedBox(height: 8),
-          const Divider(height: 32),
-
-          // UI Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsInterface,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          // Site tab strip: a single choice of how it is reached — hidden,
-          // always pinned, or revealed on demand by a floating button. The
-          // button is just the on-demand presentation of the strip, so it is
-          // one control rather than two independent toggles.
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(child: Text(loc.appSettingsSiteTabStrip)),
-                      HintButton(
-                        title: loc.appSettingsSiteTabStrip,
-                        description: loc.appSettingsSiteTabStripSubtitle,
-                      ),
-                    ],
-                  ),
-                ),
-                SegmentedButton<int>(
-                  segments: [
-                    ButtonSegment<int>(
-                      value: 0,
-                      icon: const Icon(Icons.visibility_off),
-                      tooltip: loc.appSettingsFullscreenTabStripHidden,
-                    ),
-                    ButtonSegment<int>(
-                      value: 1,
-                      icon: const Icon(Icons.visibility),
-                      tooltip: loc.appSettingsFullscreenTabStripAlways,
-                    ),
-                    ButtonSegment<int>(
-                      value: 2,
-                      icon: const Icon(Icons.smart_button),
-                      tooltip: loc.appSettingsFullscreenTabStripButton,
-                    ),
-                  ],
-                  selected: {_tabStripMode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) =>
-                      _setTabStripMode(selection.first),
-                ),
-              ],
-            ),
-          ),
-          // Pinned mode only: whether the pinned strip stays visible in full
-          // screen. Button mode reveals the strip in full screen on its own;
-          // hidden mode has nothing to keep.
-          if (_tabStripMode == 1)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(child: Text(loc.appSettingsFullscreenTabStrip)),
-                  SegmentedButton<int>(
-                    segments: [
-                      ButtonSegment<int>(
-                        value: 0,
-                        icon: const Icon(Icons.visibility_off),
-                        tooltip: loc.appSettingsFullscreenTabStripHidden,
-                      ),
-                      ButtonSegment<int>(
-                        value: 1,
-                        icon: const Icon(Icons.visibility),
-                        tooltip: loc.appSettingsFullscreenTabStripAlways,
-                      ),
-                    ],
-                    selected: {_fullscreenTabStripMode},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) =>
-                        _setFullscreenTabStripMode(selection.first),
-                  ),
-                ],
-              ),
-            ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsFullscreenOnShortcut)),
-                HintButton(
-                  title: loc.appSettingsFullscreenOnShortcut,
-                  description: loc.appSettingsFullscreenOnShortcutHint,
-                ),
-              ],
-            ),
-            value: _fullscreenOnShortcut,
-            onChanged: (value) {
-              setState(() {
-                _fullscreenOnShortcut = value;
-              });
-              widget.onFullscreenOnShortcutChanged(value);
-            },
-          ),
-          Builder(
-            builder: (context) {
-              final tabWidthLabel = '${_tabMaxWidth.round()} px';
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Flexible(child: Text(loc.appSettingsTabMaxWidth)),
-                              HintButton(
-                                title: loc.appSettingsTabMaxWidth,
-                                description: loc.appSettingsTabMaxWidthHint,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(tabWidthLabel),
-                      ],
-                    ),
-                    Slider(
-                      value: _tabMaxWidth,
-                      min: 80,
-                      max: 320,
-                      divisions: 24,
-                      label: tabWidthLabel,
-                      onChanged: _tabStripCanShow
-                          ? (value) {
-                              setState(() {
-                                _tabMaxWidth = value;
-                              });
-                            }
-                          : null,
-                      onChangeEnd: _tabStripCanShow
-                          ? (value) {
-                              widget.onTabMaxWidthChanged(value.round());
-                            }
-                          : null,
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          // Apple has no back gesture the app can act on (NAV-009), so the
-          // setting is absent there rather than present and inert.
-          if (backOpensMenuOffered)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsBackOpensMenu)),
-                  HintButton(
-                    title: loc.appSettingsBackOpensMenu,
-                    // The escalation to leaving the app is Android's alone
-                    // (NAV-009), so the sentence describing it stays off every
-                    // other platform.
-                    description: backOpensMenuHint,
-                  ),
-                ],
-              ),
-              value: _backOpensMenu,
-              onChanged: (value) {
-                setState(() {
-                  _backOpensMenu = value;
-                });
-                widget.onBackOpensMenuChanged(value);
-              },
-            ),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.siteSettingsHttpsUpgrade)),
-                HintButton(
-                  title: loc.siteSettingsHttpsUpgrade,
-                  description: loc.siteSettingsHttpsUpgradeHint,
-                ),
-              ],
-            ),
-            value: _httpsUpgradeEnabled,
-            onChanged: (value) {
-              setState(() {
-                _httpsUpgradeEnabled = value;
-              });
-              widget.onHttpsUpgradeEnabledChanged(value);
-            },
-          ),
-          SwitchListTile(
-            title: Text(loc.appSettingsStatsBar),
-            subtitle: Text(loc.appSettingsStatsBarSubtitle),
-            value: _showStatsBanner,
-            onChanged: (value) {
-              setState(() {
-                _showStatsBanner = value;
-              });
-              widget.onShowStatsBannerChanged(value);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.shield_outlined),
-            title: Text(loc.blockStatsTitle),
-            subtitle: Text(loc.appSettingsProtectionReportSubtitle),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    BlockStatsScreen(siteNames: widget.siteNames),
-              ),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.language),
-            title: Text(loc.appSettingsLanguageTitle),
-            subtitle: Text(widget.localeOverride.isEmpty
-                ? loc.appSettingsLanguageSystem
-                : languageLabelForTag(widget.localeOverride)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _pickAppLanguage,
-          ),
-          ListTile(
-            leading: const Icon(Icons.share_outlined),
-            title: Text(loc.appSettingsLinkHandling),
-            subtitle: Text(widget.linkHandlingEnabled
-                ? loc.appSettingsLinkHandlingOn
-                : loc.appSettingsLinkHandlingOff),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: widget.onOpenLinkHandlingSettings,
-          ),
-          if (_developerMode && _siteTabsSwitch)
-            ListTile(
-              leading: const Icon(Icons.travel_explore),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.webSearchDefaultTitle)),
-                  HintButton(
-                    title: loc.webSearchDefaultTitle,
-                    description: loc.webSearchDefaultHint,
-                  ),
-                ],
-              ),
-              subtitle: Text(_webSearchDefaultName ??
-                  loc.appSettingsNotConfigured),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: _pickWebSearchDefault,
-            ),
-          if (_developerMode && _siteTabsSwitch)
-            SiteSearchListTile(formatCount: _formatNumber),
-          const Divider(height: 32),
-          // Global outbound proxy section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    loc.appSettingsOutboundProxy,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ),
-                HintButton(
-                  title: loc.appSettingsOutboundProxy,
-                  description: loc.appSettingsOutboundProxyHint,
-                ),
-              ],
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.vpn_lock_outlined),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.savedProxiesTitle)),
-                HintButton(
-                  title: loc.savedProxiesTitle,
-                  description: loc.savedProxiesHint,
-                ),
-              ],
-            ),
-            subtitle: Text(loc.savedProxiesCount(ProxyLibrary.data.length)),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: _openSavedProxies,
-          ),
-          ListTile(
-            title: Text(loc.appSettingsProxyType),
-            trailing: ProxyChoiceDropdown(
-              type: _outboundProxy.type,
-              savedProxyId: _outboundProxy.savedProxyId,
-              gatewayId: _outboundProxy.gatewayId,
-              library: ProxyLibrary.data,
-              torAvailable: TorService.instance.isAvailable,
-              torExternal: TorService.instance.isExternal,
-              onChanged: (choice) {
-                setState(() {
-                  _outboundProxy.type = choice.type;
-                  if (choice.type == ProxyType.SAVED) {
-                    _outboundProxy.savedProxyId = choice.savedProxyId;
-                  }
-                  if (choice.type == ProxyType.GATEWAY) {
-                    _outboundProxy.gatewayId = choice.gatewayId;
-                  }
-                  // Saved credentials stay only with a gateway they list.
-                  final credentials = ProxyLibrary.credentialsById(
-                      _outboundProxy.credentialsId);
-                  if (choice.type != ProxyType.GATEWAY ||
-                      !(credentials?.fits(_outboundProxy.gatewayId) ??
-                          false)) {
-                    _outboundProxy.credentialsId = null;
-                  }
-                });
-                _saveOutboundProxy();
-              },
-            ),
-          ),
-          if (_outboundProxy.type == ProxyType.SAVED ||
-              _outboundProxy.type == ProxyType.GATEWAY)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Builder(builder: (context) {
-                final resolved = resolveLibrary(_currentOutboundProxyForTest());
-                return ProxyStatusIndicator(
-                  proxy: resolved.route,
-                  problem: resolved.problem == LibraryProblem.none
-                      ? null
-                      : libraryProblemLabel(loc, resolved.problem),
-                );
-              }),
-            ),
-          if (_outboundProxy.type != ProxyType.DEFAULT &&
-              _outboundProxy.type != ProxyType.TOR &&
-              _outboundProxy.type != ProxyType.SAVED)
-            ProxyRouteFields(
-              type: _outboundProxy.type,
-              gatewayId: _outboundProxy.gatewayId,
-              credentialsId: _outboundProxy.credentialsId,
-              library: ProxyLibrary.data,
-              addressController: _outboundProxyAddressController,
-              usernameController: _outboundProxyUsernameController,
-              passwordController: _outboundProxyPasswordController,
-              addressValidator: (v) => _validateOutboundProxyAddress(v ?? ''),
-              addressLabel: loc.appSettingsProxyAddress,
-              addressHint: loc.appSettingsProxyAddressHint,
-              addressHelper: loc.appSettingsProxyAddressHelper,
-              onCredentialsChanged: (id) {
-                setState(() => _outboundProxy.credentialsId = id);
-                _saveOutboundProxy();
-              },
-              onEditingComplete: _saveOutboundProxy,
-            ),
-          if (_outboundProxy.type != ProxyType.DEFAULT)
-            ProxyTestTile(
-              settings: _currentOutboundProxyForTest,
-              target: kDefaultProxyTestTarget,
-            ),
-
-          // Directly under the proxy block it reports on: the dropdown is
-          // where TOR gets selected, and this is where the user finds out
-          // whether it actually came up. Renders nothing until something
-          // uses Tor.
-          TorStatusCard(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) =>
-                    TorStatusScreen(siteNames: widget.siteNames),
-              ),
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Flexible(
-                  child: Text(
-                    loc.appSettingsLocationPicker,
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
-                ),
-                HintButton(
-                  title: loc.appSettingsLocationPicker,
-                  description: loc.appSettingsLocationPickerHint,
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-            child: Builder(builder: (context) {
-              const tileUrlHint =
-                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-              return TextFormField(
-                controller: _osmTileUrlController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsTileUrl,
-                  hintText: tileUrlHint,
-                  border: const OutlineInputBorder(),
-                  isDense: true,
-                ),
-                onChanged: _saveOsmTileUrl,
-              );
-            }),
-          ),
-
-          // Timezone polygon dataset — opt-in download enabling the
-          // "From picked location" timezone option in per-site settings.
-          // Modeled on the DNS blocklist pattern: status + download/refresh
-          // button, plus a clear button when data is present.
-          ListTile(
-            leading: const Icon(Icons.public),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsTimezonePolygons)),
-                HintButton(
-                  title: loc.appSettingsTimezonePolygons,
-                  description: loc.appSettingsTimezonePolygonsHint,
-                ),
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (!_timezonesCached)
-                  Text(loc.appSettingsNotDownloaded)
-                else if (_timezoneZoneCount != null)
-                  Text(loc.appSettingsZonesCount(
-                      _formatNumber(_timezoneZoneCount!))),
-                if (_timezonesCached && _timezonesLastUpdated != null)
-                  Builder(builder: (context) {
-                    final updated = _timezonesLastUpdated!
-                        .toLocal()
-                        .toString()
-                        .split('.')[0];
-                    return Text(
-                      loc.appSettingsUpdatedAt(updated),
-                      style: const TextStyle(fontSize: 12),
-                    );
-                  }),
-              ],
-            ),
-            trailing: _isDownloadingTimezones
-                ? RotationTransition(
-                    turns: _spinController,
-                    child: const Icon(Icons.sync),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_timezonesCached)
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          tooltip: loc.appSettingsClearDataset,
-                          onPressed: TimezoneLocationService.instance.clear,
-                        ),
-                      IconButton(
-                        icon: Icon(_timezonesCached
-                            ? Icons.sync
-                            : Icons.download),
-                        tooltip: _timezonesCached
-                            ? loc.appSettingsRefreshDataset
-                            : loc.appSettingsDownloadDataset,
-                        onPressed: _downloadTimezones,
-                      ),
-                    ],
-                  ),
-          ),
-
-          const Divider(height: 32),
-
-          // User Scripts Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsUserScripts,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.code),
-            title: Text(loc.appSettingsManageScripts),
-            subtitle: Text(
-              widget.globalUserScripts.isEmpty
-                  ? loc.appSettingsNoGlobalScripts
-                  : loc.appSettingsScriptsDefined(widget.globalUserScripts.length),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => UserScriptsScreen(
-                    title: 'Global User Scripts',
-                    userScripts: widget.globalUserScripts,
-                    onSave: (scripts) {
-                      widget.onGlobalUserScriptsChanged?.call(scripts);
-                    },
-                    isGlobalLibrary: true,
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const Divider(height: 32),
-
-          // Data Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsData,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.upload),
-            title: Text(loc.appSettingsExportSettings),
-            subtitle: Text(loc.appSettingsExportSettingsSubtitle),
-            onTap: () {
-              Navigator.pop(context);
-              widget.onExportSettings();
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.download),
-            title: Text(loc.appSettingsImportSettings),
-            subtitle: Text(loc.appSettingsImportSettingsSubtitle),
-            onTap: () {
-              Navigator.pop(context);
-              widget.onImportSettings();
-            },
-          ),
-          if (widget.onRestoreArchive != null)
-            ListTile(
-              leading: const Icon(Icons.archive_outlined),
-              title: Text(loc.appSettingsRestoreArchive),
-              subtitle: Text(loc.appSettingsRestoreArchiveSubtitle),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onRestoreArchive!();
-              },
-            ),
-          if (widget.hasOpenArchives && widget.onCloseAllArchives != null)
-            ListTile(
-              leading: const Icon(Icons.lock_outline),
-              title: Text(loc.appSettingsCloseAllArchives),
-              subtitle: Text(loc.appSettingsCloseAllArchivesSubtitle),
-              onTap: () {
-                Navigator.pop(context);
-                widget.onCloseAllArchives!();
-              },
-            ),
-
-          const Divider(height: 32),
-
-          // Privacy Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsPrivacy,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          if (ScreenCaptureGuard.isSupported)
-            SwitchListTile(
-              secondary: const Icon(Icons.no_photography_outlined),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.siteSettingsBlockScreenshots)),
-                  HintButton(
-                    title: loc.siteSettingsBlockScreenshots,
-                    description: loc.appSettingsBlockScreenshotsHint,
-                  ),
-                ],
-              ),
-              value: _blockScreenshots,
-              onChanged: (value) {
-                setState(() {
-                  _blockScreenshots = value;
-                });
-                widget.onBlockScreenshotsChanged?.call(value);
-              },
-            ),
-          // Trusted certificates — only Android and Linux can create
-          // pins via the in-app prompt. On iOS/macOS the prompt is
-          // skipped entirely (TLS-009) because Apple's WKWebView
-          // rejects every URLCredential(trust:) override, so the list
-          // would always be empty there. Imported pins from a backup
-          // still apply via HttpClient.badCertificateCallback even on
-          // Apple platforms, but the rare "inspect-imported-pins-on-
-          // iOS" case doesn't justify an always-empty settings tile.
-          if (hostIsAndroid || hostIsLinux)
-            ListTile(
-              leading: const Icon(Icons.lock_outline),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsTrustedCertificates)),
-                  HintButton(
-                    title: loc.appSettingsTrustedCertificates,
-                    description: loc.appSettingsTrustedCertificatesHint,
-                  ),
-                ],
-              ),
-              subtitle: Text(loc.appSettingsTrustedCertificatesSubtitle),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const TrustedCertificatesScreen(),
-                  ),
-                );
-              },
-            ),
-          ListTile(
-            leading: const Icon(Icons.cleaning_services),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsClearUrlsRules)),
-                HintButton(
-                  title: loc.appSettingsClearUrlsRules,
-                  description: loc.appSettingsClearUrlsHint,
-                ),
-              ],
-            ),
-            subtitle: Builder(builder: (context) {
-              final updated = _rulesLastUpdated
-                  ?.toLocal()
-                  .toString()
-                  .split('.')[0];
-              return Text(
-                updated != null
-                    ? loc.appSettingsUpdatedAt(updated)
-                    : loc.appSettingsNotDownloaded,
-              );
-            }),
-            trailing: _isDownloadingRules
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : IconButton(
-                    icon: Icon(
-                      _rulesLastUpdated != null
-                          ? Icons.sync
-                          : Icons.download,
-                    ),
-                    tooltip: _rulesLastUpdated != null
-                        ? loc.appSettingsUpdateRules
-                        : loc.appSettingsDownloadRules,
-                    onPressed: _downloadRules,
-                  ),
-          ),
-
-          FirefoxVersionTile(
-            majorVersion: FirefoxUserAgentService.instance.majorVersion,
-            lastChecked: FirefoxUserAgentService.instance.lastChecked,
-            isUpdating: _isUpdatingFirefoxVersion,
-            autoUpdate: _firefoxAutoRefresh,
-            onUpdate: _updateFirefoxVersion,
-            onAutoUpdateChanged: _setFirefoxAutoRefresh,
-          ),
-
-          // DNS Blocklist
-          ListTile(
-            leading: const Icon(Icons.shield),
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsDnsBlocklist)),
-                HintButton(
-                  title: loc.appSettingsDnsBlocklist,
-                  description: loc.appSettingsDnsBlocklistHint,
-                ),
-              ],
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _dnsBlockLevel > 0
-                      ? loc.appSettingsDnsBlockLevelDomains(
-                          dnsBlockLevelNames[_dnsBlockLevel],
-                          _formatNumber(DnsBlockService.instance.domainCount))
-                      : loc.appSettingsNotConfigured,
-                ),
-                if (_blocklistLastUpdated != null)
-                  Builder(builder: (context) {
-                    final updated = _blocklistLastUpdated!
-                        .toLocal()
-                        .toString()
-                        .split('.')[0];
-                    return Text(
-                      loc.appSettingsUpdatedAt(updated),
-                      style: const TextStyle(fontSize: 12),
-                    );
-                  }),
-              ],
-            ),
-            trailing: _isDownloadingBlocklist
-                ? RotationTransition(
-                    turns: _spinController,
-                    child: const Icon(Icons.sync),
-                  )
-                : IconButton(
-                    icon: Icon(
-                      _dnsBlockSliderValue != _dnsBlockLevel
-                          ? Icons.download
-                          : Icons.sync,
-                    ),
-                    tooltip: _dnsBlockSliderValue != _dnsBlockLevel
-                        ? loc.appSettingsDownloadBlocklist
-                        : loc.appSettingsRefreshBlocklist,
-                    onPressed: _downloadBlocklist,
-                  ),
-          ),
-          LevelSlider(
-            labels: dnsBlockLevelNames,
-            value: _dnsBlockSliderValue,
-            onChanged: _isDownloadingBlocklist
-                ? null
-                : (value) => setState(() => _dnsBlockSliderValue = value),
-          ),
-
-          // LocalCDN (Android only)
-          if (hostIsAndroid)
-            ListTile(
-              leading: const Icon(Icons.storage),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsLocalCdn)),
-                  HintButton(
-                    title: loc.appSettingsLocalCdn,
-                    description: loc.appSettingsLocalCdnHint,
-                  ),
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _localCdnCount > 0
-                        ? loc.appSettingsLocalCdnResources(
-                            _localCdnCount, _localCdnSize)
-                        : loc.appSettingsNotDownloaded,
-                  ),
-                  if (_localCdnLastUpdated != null)
-                    Builder(builder: (context) {
-                      final updated = _localCdnLastUpdated!
-                          .toLocal()
-                          .toString()
-                          .split('.')[0];
-                      return Text(
-                        loc.appSettingsUpdatedAt(updated),
-                        style: const TextStyle(fontSize: 12),
-                      );
-                    }),
-                  if (_isDownloadingLocalCdn && _localCdnProgress.isNotEmpty)
-                    Text(
-                      loc.appSettingsDownloadingProgress(_localCdnProgress),
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                ],
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_isDownloadingLocalCdn || _isClearingLocalCdn)
-                    const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  else ...[
-                    IconButton(
-                      icon: Icon(
-                        _localCdnCount > 0 ? Icons.sync : Icons.download,
-                      ),
-                      tooltip: _localCdnCount > 0
-                          ? loc.appSettingsUpdateResources
-                          : loc.appSettingsDownloadResources,
-                      onPressed: _downloadLocalCdnResources,
-                    ),
-                    if (_localCdnCount > 0)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline),
-                        tooltip: loc.appSettingsClearCache,
-                        onPressed: _clearLocalCdnCache,
-                      ),
-                  ],
-                ],
-              ),
-            ),
-
-          // Content Blocker
-          const Divider(height: 32),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          loc.appSettingsContentBlocker,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      HintButton(
-                        title: loc.appSettingsContentBlocker,
-                        description: loc.appSettingsContentBlockerHint,
-                      ),
-                    ],
-                  ),
-                ),
-                if (ContentBlockerService.instance.lists
-                    .any((l) => l.enabled))
-                  _downloadingListId == '__all__'
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child:
-                              CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.sync),
-                          tooltip: loc.appSettingsUpdateAllLists,
-                          onPressed: _downloadingListId != null
-                              ? null
-                              : _downloadAllContentLists,
-                        ),
-              ],
-            ),
-          ),
-          ...ContentBlockerService.instance.lists.map((list) {
-            final isDownloading = _downloadingListId == list.id ||
-                _downloadingListId == '__all__';
-            final isDefault = !list.id.startsWith('custom_');
-
-            return ListTile(
-              leading: Switch(
-                value: list.enabled,
-                onChanged: list.lastUpdated != null && !isDownloading
-                    ? (value) => _toggleContentList(list.id, value)
-                    : null,
-              ),
-              title: Text(list.name),
-              subtitle: Text(
-                list.lastUpdated != null
-                    ? loc.appSettingsRulesCount(_formatNumber(list.ruleCount))
-                    : loc.appSettingsNotDownloaded,
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isDownloading)
-                    const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  else if (list.isLocal)
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined),
-                      tooltip: loc.commonEdit,
-                      onPressed: _downloadingListId != null
-                          ? null
-                          : () => _showLocalListDialog(existing: list),
-                    )
-                  else
-                    IconButton(
-                      icon: Icon(
-                        list.lastUpdated != null
-                            ? Icons.sync
-                            : Icons.download,
-                      ),
-                      tooltip: list.lastUpdated != null
-                          ? loc.appSettingsRefresh
-                          : loc.appSettingsDownload,
-                      onPressed: _downloadingListId != null
-                          ? null
-                          : () => _downloadContentList(list.id),
-                    ),
-                  if (!isDefault)
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      tooltip: loc.commonRemove,
-                      onPressed: _downloadingListId != null
-                          ? null
-                          : () => _removeContentList(list.id),
-                    ),
-                ],
-              ),
-            );
-          }),
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _downloadingListId != null
-                      ? null
-                      : _showAddCustomListDialog,
-                  icon: const Icon(Icons.add),
-                  label: Text(loc.appSettingsAddCustomList),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _downloadingListId != null
-                      ? null
-                      : () => _showLocalListDialog(),
-                  icon: const Icon(Icons.edit_note),
-                  label: Text(loc.appSettingsAddLocalList),
-                ),
-                OutlinedButton.icon(
-                  onPressed:
-                      _downloadingListId != null ? null : _importUboBackup,
-                  icon: const Icon(Icons.file_open_outlined),
-                  label: Text(loc.appSettingsImportUboBackup),
-                ),
-              ],
-            ),
-          ),
-          // uBO resources toggle. When off, $redirect= rules become
-          // plain blocks (drop the request) instead of returning a stub
-          // body. Some ad/tracker sites detect the missing API surface
-          // and break (white page, infinite spinner), so default on.
-          // Greyed out on platforms that don't ship the engine library.
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsUboRedirectStubs)),
-                HintButton(
-                  title: loc.appSettingsUboRedirectStubs,
-                  description: loc.appSettingsUboRedirectStubsSubtitle,
-                ),
-              ],
-            ),
-            subtitle:
-                !ContentBlockerService.instance.rustEngineSupportedOnPlatform
-                    ? Text(loc.appSettingsUboRedirectStubsUnavailable)
-                    : null,
-            value: ContentBlockerService.instance.useUboResources,
-            onChanged: ContentBlockerService.instance
-                    .rustEngineSupportedOnPlatform
-                ? (value) async {
-                    await ContentBlockerService.instance
-                        .setUseUboResources(value);
-                    if (mounted) setState(() {});
-                  }
-                : null,
-          ),
-
-          const Divider(height: 32),
-
-          // Developer Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsDeveloper,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          SettingsGroupHeader(loc.appSettingsAbout),
+          // Next to the version row whose taps turn it on.
           if (_developerMode)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsDeveloperMode)),
-                  HintButton(
-                    title: loc.appSettingsDeveloperMode,
-                    description: loc.appSettingsDeveloperModeHint,
-                  ),
-                ],
+            SettingsCategoryRow(
+              icon: Icons.developer_mode,
+              title: loc.appSettingsDeveloper,
+              summary: summariseSettings(
+                loc,
+                experimentsOn(loc,
+                    proxyRouterRunsHere: widget.proxyRouterRunsHere),
+                none: loc.behaviourSummaryNothingOn,
               ),
-              secondary: const Icon(Icons.developer_mode),
-              value: _developerMode,
-              onChanged: (value) => _setDeveloperMode(value),
-            ),
-          // Site tabs run on every platform, so the group always has a row.
-          if (_developerMode) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      loc.appSettingsExperimental,
-                      style: Theme.of(context).textTheme.titleSmall,
-                    ),
-                  ),
-                  HintButton(
-                    title: loc.appSettingsExperimental,
-                    description: loc.appSettingsExperimentalHint,
-                  ),
-                ],
-              ),
-            ),
-            if (widget.proxyRouterRunsHere)
-              SwitchListTile(
-                title: Row(
-                  children: [
-                    Flexible(
-                        child: Text(loc.appSettingsExperimentalProxyRouter)),
-                    HintButton(
-                      title: loc.appSettingsExperimentalProxyRouter,
-                      description: loc.appSettingsExperimentalProxyRouterHint,
-                    ),
-                  ],
-                ),
-                secondary: const Icon(Icons.hub_outlined),
-                value: _proxyRouterSwitch,
-                onChanged: (value) => _setProxyRouterSwitch(value),
-              ),
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(
-                      child: Text(loc.appSettingsExperimentalSiteIconsOnly)),
-                  HintButton(
-                    title: loc.appSettingsExperimentalSiteIconsOnly,
-                    description: loc.appSettingsExperimentalSiteIconsOnlyHint,
-                  ),
-                ],
-              ),
-              secondary: const Icon(Icons.image_outlined),
-              value: _siteIconsOnlySwitch,
-              onChanged: (value) => _setSiteIconsOnlySwitch(value),
-            ),
-            if (hostIsAndroid)
-              SwitchListTile(
-                title: Row(
-                  children: [
-                    Flexible(
-                        child: Text(
-                            loc.appSettingsExperimentalTextureRendering)),
-                    HintButton(
-                      title: loc.appSettingsExperimentalTextureRendering,
-                      description:
-                          loc.appSettingsExperimentalTextureRenderingHint,
-                    ),
-                  ],
-                ),
-                secondary: const Icon(Icons.layers_outlined),
-                value: _textureRenderingSwitch,
-                onChanged: (value) => _setTextureRenderingSwitch(value),
-              ),
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsExperimentalSiteTabs)),
-                  HintButton(
-                    title: loc.appSettingsExperimentalSiteTabs,
-                    description: loc.appSettingsExperimentalSiteTabsHint,
-                  ),
-                ],
-              ),
-              secondary: const Icon(Icons.tab_outlined),
-              value: _siteTabsSwitch,
-              onChanged: (value) => _setSiteTabsSwitch(value),
-            ),
-            if (widget.externalTorRunsHere)
-              ExternalTorTiles(onTorChanged: () {
-                if (mounted) setState(() {});
-              }),
+              onTap: _openDeveloper,
+            )
+          else
             ListTile(
-              leading: const Icon(Icons.hide_image_outlined),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsResetIconCache)),
-                  HintButton(
-                    title: loc.appSettingsResetIconCache,
-                    description: loc.appSettingsResetIconCacheHint,
-                  ),
-                ],
-              ),
-              onTap: _resetIconCache,
+              leading: const Icon(Icons.article_outlined),
+              title: Text(loc.appSettingsAppLogs),
+              subtitle: Text(loc.appSettingsAppLogsSubtitle),
+              onTap: () => guardedOpen(() => openAppLogs(context)),
             ),
-          ],
-          ListTile(
-            leading: const Icon(Icons.article_outlined),
-            title: Text(loc.appSettingsAppLogs),
-            subtitle: Text(loc.appSettingsAppLogsSubtitle),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => DevToolsScreen(
-                    cookieManager: CookieManager(),
-                  ),
-                ),
-              );
-            },
-          ),
-          if (_developerMode)
-            ListTile(
-              key: const Key('app-settings-background-log'),
-              leading: const Icon(Icons.bedtime_outlined),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsBackgroundLog)),
-                  HintButton(
-                    title: loc.appSettingsBackgroundLog,
-                    description: loc.appSettingsBackgroundLogHint,
-                  ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DevToolsScreen(
-                      cookieManager: CookieManager(),
-                      startOnBackground: true,
-                    ),
-                  ),
-                );
-              },
-            ),
-
-          const Divider(height: 32),
-
-          // About Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Text(
-              loc.appSettingsAbout,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
           ListTile(
             leading: const Icon(Icons.info_outline),
             title: Text(loc.appSettingsLicenses),
             subtitle: Text(loc.appSettingsLicensesSubtitle),
-            onTap: () async {
+            onTap: () => guardedOpen(() async {
               final packageInfo = await PackageInfo.fromPlatform();
               if (!context.mounted) return;
               showLicensePage(
@@ -2530,149 +519,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 applicationVersion: packageInfo.version,
                 applicationLegalese: '© 2023 Kirill Rodriguez',
               );
-            },
+            }),
           ),
           ListTile(
             leading: const Icon(Icons.tag),
             title: Text(loc.appSettingsVersion),
             subtitle: _appVersion == null ? null : Text(_appVersion!),
             onTap: _onVersionTapped,
-          ),
-        ],
-      ),
-      ),
-    );
-  }
-
-  Widget _buildThemeModeRow() {
-    final loc = AppLocalizations.of(context);
-    return Row(
-      children: [
-        Expanded(
-          child: _buildThemeModeChip(
-            ThemeMode.light,
-            loc.appSettingsThemeLight,
-            Icons.wb_sunny,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildThemeModeChip(
-            ThemeMode.dark,
-            loc.appSettingsThemeDark,
-            Icons.nights_stay,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _buildThemeModeChip(
-            ThemeMode.system,
-            loc.appSettingsThemeSystem,
-            Icons.brightness_auto,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildThemeModeChip(ThemeMode mode, String label, IconData icon) {
-    final isSelected = _settings.themeMode == mode;
-    final accentColor = Theme.of(context).colorScheme.secondary;
-    
-    return GestureDetector(
-      onTap: () {
-        _updateSettings(_settings.copyWith(themeMode: mode));
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? accentColor.withOpacity(0.15) : Colors.transparent,
-          border: Border.all(
-            color: isSelected ? accentColor : Colors.grey.shade400,
-            width: isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 24,
-              color: isSelected ? accentColor : null,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                color: isSelected ? accentColor : null,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccentColorGrid() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: AccentColor.values.map((color) {
-        return _buildAccentColorSwatch(color);
-      }).toList(),
-    );
-  }
-
-  Widget _buildAccentColorSwatch(AccentColor color) {
-    final isSelected = _settings.accentColor == color;
-    final displayColor = _accentColors[color]!;
-    final label = color.name[0].toUpperCase() + color.name.substring(1);
-    
-    return GestureDetector(
-      onTap: () {
-        _updateSettings(_settings.copyWith(accentColor: color));
-      },
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: displayColor,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected ? Colors.white : Colors.transparent,
-                width: 3,
-              ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: displayColor.withOpacity(0.6),
-                        blurRadius: 8,
-                        spreadRadius: 2,
-                      ),
-                    ]
-                  : null,
-            ),
-            child: isSelected
-                ? const Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 24,
-                  )
-                : null,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            ),
           ),
         ],
       ),

@@ -48,6 +48,15 @@ const MIGRATED = [
   'lib/screens/saved_proxies.dart',
   'lib/widgets/background_log_view.dart',
   'lib/widgets/log_entry_line.dart',
+  'lib/widgets/settings_rows.dart',
+  'lib/screens/app_settings.dart',
+  'lib/screens/app_appearance.dart',
+  'lib/screens/app_backup.dart',
+  'lib/screens/app_behaviour.dart',
+  'lib/screens/app_developer.dart',
+  'lib/screens/app_network.dart',
+  'lib/screens/app_privacy.dart',
+  'lib/screens/content_blocker_settings.dart',
 ];
 
 const PENDING = [
@@ -62,7 +71,6 @@ const PENDING = [
   'lib/widgets/untrusted_cert_prompt.dart',
   'lib/widgets/virtual_source_preview.dart',
   'lib/screens/add_site.dart',
-  'lib/screens/app_settings.dart',
   'lib/screens/block_stats.dart',
   'lib/screens/dev_tools.dart',
   'lib/screens/inappbrowser.dart',

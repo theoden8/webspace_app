@@ -279,6 +279,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | proxy-password-secure-storage | secrets in flutter_secure_storage; never in JSON |
 | screenshots | integration-test driven |
 | screenshot-block *(change)* | app-wide or per-site `FLAG_SECURE` (per-site applies while that site is on screen); Android only, switches absent where no public API blocks capture |
+| app-settings *(change)* | App Settings as an index: Appearance, Behaviour, Network, Privacy, User scripts, Backup and archives, Developer; each row a screen of its own with a summary of its state (BEHAV-002 rule); one tap, one action on every opener |
 | settings-backup | JSON import/export; every released format still imports (per-release fixture corpus), and an import is planned whole before it is applied |
 | settings-hints | where a settings row's text goes: state in the subtitle, explanation behind the hint button; fixed-string subtitles capped across all locales |
 | site-behaviour | per-site Behaviour screen: how the app hosts the site (opening + display, link handling), reached from one row under "Site" |

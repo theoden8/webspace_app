@@ -119,11 +119,11 @@ void main() {
         reason: 'each countdown must replace the last, not queue behind it');
   });
 
-  testWidgets('the switch appears only once unlocked, and turns it back off',
-      (tester) async {
+  testWidgets('the Developer row appears only once unlocked, and turns it '
+      'back off', (tester) async {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
-    expect(find.text('Developer mode'), findsNothing,
+    expect(find.text('Developer'), findsNothing,
         reason: 'nothing to say before the gesture happens');
 
     final row = await versionRow(tester);
@@ -133,18 +133,23 @@ void main() {
     }
     await tester.pumpAndSettle();
 
-    final switchRow = find.text('Developer mode');
-    await tester.scrollUntilVisible(switchRow, -400,
-        scrollable: find.byType(Scrollable).first);
+    final developerRow = find.text('Developer');
+    expect(developerRow, findsOneWidget,
+        reason: 'it takes the place of the App Logs row, beside Version');
+    await tester.tap(developerRow);
     await tester.pumpAndSettle();
-    expect(switchRow, findsOneWidget);
 
+    final switchRow = find.text('Developer mode');
+    expect(switchRow, findsOneWidget);
     await tester.tap(find.ancestor(
         of: switchRow, matching: find.byType(SwitchListTile)));
     await tester.pumpAndSettle();
     expect(DeveloperModeService.instance.enabled, isFalse);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(kDeveloperModeKey), isFalse);
+    expect(find.text('Developer'), findsNothing,
+        reason: 'the screen closes and the row goes with developer mode');
+    expect(find.text('App Logs'), findsOneWidget);
   });
 
   testWidgets('tapping while already on does not re-arm the counter',
