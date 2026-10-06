@@ -1,5 +1,6 @@
 package org.codeberg.theoden8.webspace
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.BitmapFactory
@@ -18,16 +19,11 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "org.codeberg.theoden8.webspace/shortcuts"
     private val SHARE_CHANNEL = "org.codeberg.theoden8.webspace/share_intent"
-    private var webInterceptPlugin: WebInterceptPlugin? = null
     private var locationPlugin: LocationPlugin? = null
     private var cameraPermissionPlugin: CapturePermissionPlugin? = null
     private var microphonePermissionPlugin: CapturePermissionPlugin? = null
-    private var webSpaceContainerPlugin: WebSpaceContainerPlugin? = null
     private var surfaceDiagPlugin: SurfaceDiagPlugin? = null
-    private var backgroundTaskPlugin: BackgroundTaskAndroidPlugin? = null
-    private var mediaSessionPlugin: MediaSessionPlugin? = null
-    private var proxyRelayPlugin: ProxyRelayPlugin? = null
-    private var siteIconPlugin: SiteIconPlugin? = null
+    private var enginePlugins: EnginePlugins? = null
     private var screenCapturePlugin: ScreenCapturePlugin? = null
     private var passkeyPlugin: PasskeyPlugin? = null
     private var pendingShareUrl: String? = null
@@ -53,30 +49,27 @@ class MainActivity: FlutterActivity() {
         }
     }
 
-    override fun getFlutterShellArgs(): FlutterShellArgs {
-        val args = FlutterShellArgs.fromIntent(intent)
-        // Disable Impeller on x86/x86_64 (Waydroid, emulators) where Vulkan
-        // swapchain creation crashes. Falls back to Skia + OpenGL ES which
-        // is still hardware-accelerated.
-        if (Build.SUPPORTED_ABIS.any { it == "x86_64" || it == "x86" }) {
-            args.remove(FlutterShellArgs.ARG_ENABLE_IMPELLER)
-            args.add(FlutterShellArgs.ARG_DISABLE_IMPELLER)
-        }
-        return args
+    override fun getFlutterShellArgs(): FlutterShellArgs =
+        WorkerFlutterEngine.forThisDevice(FlutterShellArgs.fromIntent(intent))
+
+    /**
+     * An engine the notification worker started holds the app's Dart state
+     * too, and two of them in one process would each write the site list and
+     * drive the one proxy override. It is stopped before this activity builds
+     * its own (NOTIF-016); the wake it ran ends there.
+     */
+    override fun provideFlutterEngine(context: Context): FlutterEngine? {
+        WorkerFlutterEngine.stop(context, "the app was opened")
+        return null
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        webInterceptPlugin = WebInterceptPlugin(this, flutterEngine)
+        enginePlugins = EnginePlugins(this, flutterEngine, this)
         locationPlugin = LocationPlugin(this, flutterEngine)
         cameraPermissionPlugin = CapturePermissionPlugin.camera(this, flutterEngine)
         microphonePermissionPlugin = CapturePermissionPlugin.microphone(this, flutterEngine)
-        webSpaceContainerPlugin = WebSpaceContainerPlugin(flutterEngine)
         surfaceDiagPlugin = SurfaceDiagPlugin(this, flutterEngine)
-        backgroundTaskPlugin = BackgroundTaskAndroidPlugin(applicationContext, flutterEngine)
-        mediaSessionPlugin = MediaSessionPlugin(applicationContext, flutterEngine)
-        proxyRelayPlugin = ProxyRelayPlugin(flutterEngine)
-        siteIconPlugin = SiteIconPlugin(applicationContext, flutterEngine)
         screenCapturePlugin = ScreenCapturePlugin(this, flutterEngine)
         passkeyPlugin = PasskeyPlugin(this, flutterEngine)
         captureSharePayload(intent)
@@ -192,22 +185,7 @@ class MainActivity: FlutterActivity() {
                     intent?.removeExtra("siteId")
                     result.success(siteId)
                 }
-                "getPinnedSiteIds" -> {
-                    try {
-                        val pinned = ShortcutManagerCompat.getShortcuts(
-                            this,
-                            ShortcutManagerCompat.FLAG_MATCH_PINNED
-                        )
-                        // A disabled tile opens nothing, so it must not hide
-                        // the menu item that would bring it back (HS-015).
-                        val ids = pinned.filter { it.isEnabled }.mapNotNull { info ->
-                            info.id.takeIf { it.startsWith("site_") }?.removePrefix("site_")
-                        }
-                        result.success(ids)
-                    } catch (e: Exception) {
-                        result.success(emptyList<String>())
-                    }
-                }
+                "getPinnedSiteIds" -> result.success(pinnedSiteIds(this))
                 else -> result.notImplemented()
             }
         }
@@ -411,12 +389,8 @@ class MainActivity: FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
-        backgroundTaskPlugin?.dispose()
-        backgroundTaskPlugin = null
-        mediaSessionPlugin?.dispose()
-        mediaSessionPlugin = null
-        proxyRelayPlugin?.dispose()
-        proxyRelayPlugin = null
+        enginePlugins?.dispose()
+        enginePlugins = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 
@@ -436,4 +410,20 @@ class MainActivity: FlutterActivity() {
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
+}
+
+/** Site ids of the enabled pinned shortcuts. Needs no activity, so the
+ * worker's engine answers it too (NOTIF-016). */
+internal fun pinnedSiteIds(context: Context): List<String> = try {
+    val pinned = ShortcutManagerCompat.getShortcuts(
+        context,
+        ShortcutManagerCompat.FLAG_MATCH_PINNED
+    )
+    // A disabled tile opens nothing, so it must not hide
+    // the menu item that would bring it back (HS-015).
+    pinned.filter { it.isEnabled }.mapNotNull { info ->
+        info.id.takeIf { it.startsWith("site_") }?.removePrefix("site_")
+    }
+} catch (e: Exception) {
+    emptyList()
 }

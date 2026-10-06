@@ -302,20 +302,48 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
   assert.ok(body.includes('useShouldOverrideUrlLoading: true'),
     'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
-  assert.ok(body.includes('shouldOverrideUrlLoading: (_, navigationAction) async {'),
+  assert.match(body,
+    /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*_onSiteNavigationPolicy\(parent, navigationAction,\s*allowCaptcha: true\)/,
     'the popup had no navigation gate: after the first load it went anywhere');
+  const gateAt = WEBVIEW.indexOf('static inapp.NavigationActionPolicy _onSiteNavigationPolicy(');
+  assert.notEqual(gateAt, -1, '_onSiteNavigationPolicy is gone');
+  const gate = WEBVIEW.slice(gateAt, WEBVIEW.indexOf('\n  }\n', gateAt));
   for (const check of [
     'DnsBlockService.instance',
     "requestType: 'document'",
     'navigationAction.isForMainFrame == false',
-    'isCaptchaChallenge(url, siteUrl: parent.initialUrl)',
+    'isCaptchaChallenge(url, siteUrl: config.initialUrl)',
   ]) {
-    assert.ok(body.includes(check), `popup gate lacks ${check}`);
+    assert.ok(gate.includes(check), `popup gate lacks ${check}`);
   }
   // The path markers only count on the site's own domain, at every caller.
   const callers = WEBVIEW.match(/isCaptchaChallenge\(url\)/g) || [];
   assert.equal(callers.length, 0,
     'isCaptchaChallenge must be called with siteUrl: a bare path marker on any origin is a claim');
+});
+
+// NOTIF-016: a background check is the site with no user, so its top
+// document stays on the site with no captcha exception, and nothing it asks
+// for is granted.
+test('NOTIF-016: a headless check stays on the site and is granted nothing', () => {
+  const at = WEBVIEW.indexOf('static Future<(HeadlessSiteCheck?, WakeSkip?)> openHeadlessCheck(');
+  assert.notEqual(at, -1, 'openHeadlessCheck is gone');
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
+  assert.match(body,
+    /_onSiteNavigationPolicy\(config, navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: config\.httpsUpgradeEnabled\)/,
+    'a headless check must run the on-site navigation gate without the captcha exception');
+  for (const check of [
+    'useShouldOverrideUrlLoading = true',
+    'if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);',
+    '_registerPageHandlers(',
+    'onCreateWindow: (_, _) async => false,',
+    'inapp.PermissionResponseAction.DENY',
+    'allow: false',
+    '_handleServerTrust(controller, challenge, null)',
+    'WebInterceptNative.attachToHeadless(',
+  ]) {
+    assert.ok(body.includes(check), `headless check lacks ${check}`);
+  }
 });
 
 // --- the live location fix ------------------------------------------------

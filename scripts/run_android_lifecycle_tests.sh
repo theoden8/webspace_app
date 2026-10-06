@@ -750,10 +750,9 @@ while :; do
       echo "  the site DID reload in the background — the break is downstream," \
            "in the polyfill -> NotificationService -> flutter_local_notifications leg" >&2
     elif [ -z "$now_pid" ] || [ "$now_pid" != "$baseline_pid" ]; then
-      echo "  the app process is GONE (pid ${baseline_pid:-none} -> ${now_pid:-none}) —" \
-           "the OS reclaimed it while backgrounded, so the worker had no engine to" \
-           "dispatch to. NOTIF-005-A accepts that; this is emulator memory pressure," \
-           "not the dispatch leg." >&2
+      echo "  the app process is GONE (pid ${baseline_pid:-none} -> ${now_pid:-none}):" \
+           "the OS reclaimed it while backgrounded, so the worker had to start an" \
+           "engine of its own (NOTIF-016); Scenario P2 covers that leg directly." >&2
     elif [ "$worker_runs_now" -le "$worker_runs_before" ]; then
       echo "  the worker never ran — the break is in the trigger, before" \
            "NotificationRefreshWorker.doWork (WorkManager never dispatched it)" >&2
@@ -836,7 +835,7 @@ push_loads() { grep -c 'GET /push-load' "$server_log" || true; }
 sse_connects() { grep -c 'GET /events' "$server_log" || true; }
 push_event() { curl -sf "http://127.0.0.1:$port/push?m=$1" || echo 0; }
 record_message() { curl -sf "http://127.0.0.1:$port/record?m=$1" || echo 0; }
-wake_posts() { adb logcat -d 2>/dev/null | grep -c 'background wake done: unread fallback posts=1' || true; }
+wake_posts() { adb logcat -d 2>/dev/null | grep -cE 'background wake done: .*unread fallback posts=1' || true; }
 background_secs="${WS_PUSH_BACKGROUND_SECS:-75}"
 
 adb shell am force-stop "$pkg"
@@ -917,7 +916,7 @@ if ! wait_for_new_notification push-wake 90 "$keys"; then
   echo "  page loads: $loads_before -> $(push_loads)" >&2
   if [ -z "$now_pid" ] || [ "$now_pid" != "$pid_before" ]; then
     echo "  the app process is gone (pid ${pid_before:-none} -> ${now_pid:-none});" \
-         "NOTIF-005-A accepts that, but this tier needs the process" >&2
+         "the worker's own engine had to check the site (NOTIF-016, Scenario P2)" >&2
   elif [ "$(push_loads)" -le "$loads_before" ]; then
     echo "  the wake never reloaded the page (worker -> engine -> onBackgroundRefresh)" >&2
   else
@@ -948,6 +947,83 @@ while [ "$(wake_posts)" -le "$wake_posts_before" ]; do
   sleep 1
 done
 echo "  delivered by the background wake (page loads $loads_before -> $loads_after)"
+
+echo "== Scenario P2: the wake reaches the site after Android reclaimed the process (NOTIF-016)"
+# The arrangement users are actually in most of the time: WebSpace left the
+# screen long enough ago that Android killed its process. The worker used to
+# find no Flutter engine and return, so nothing was checked until the app was
+# opened again. Now it starts an engine of its own, with no activity, whose
+# startup builds no site webview, and the wake checks the notification site
+# headless. Two wakes: the first records the unread baseline (P's process was
+# a seeded demo run, which persists none), the second must post for the
+# message recorded between them, against the baseline the first one's
+# engine persisted and the second one's engine read back (NOTIF-014).
+headless_wakes() { adb logcat -d 2>/dev/null | grep -cE 'background wake done: 0 live, 1 headless, 0 skipped' || true; }
+engine_starts() { bg_log_hits 'starting one for the wake'; }
+
+kill_app_process() {
+  local deadline
+  adb shell am kill "$pkg" >/dev/null 2>&1 || true
+  deadline=$(( $(date +%s) + 15 ))
+  while [ -n "$(app_pid)" ]; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      echo "FAIL: the backgrounded app process survived am kill" >&2
+      dump_bg_diagnostics push-cold-kill
+      exit 1
+    fi
+    sleep 1
+  done
+}
+
+run_cold_wake() { # $1 = slug; returns once the wake's engine logged its wake
+  local starts_before wakes_before deadline
+  starts_before="$(engine_starts)"
+  wakes_before="$(headless_wakes)"
+  adb shell am broadcast -n "$pkg/$ns.NotificationRefreshDebugReceiver" >/dev/null
+  deadline=$(( $(date +%s) + 150 ))
+  while [ "$(headless_wakes)" -le "$wakes_before" ]; do
+    if [ "$(date +%s)" -ge "$deadline" ]; then
+      echo "FAIL: $1: no headless wake within 150s of the trigger" >&2
+      if [ "$(engine_starts)" -le "$starts_before" ]; then
+        echo "  the worker never started an engine of its own" >&2
+      else
+        echo "  the worker's engine started but its wake checked no site headless" >&2
+      fi
+      bg_log | tail -15 | sed 's/^/    /' >&2
+      adb logcat -d 2>/dev/null | grep -E "background wake|wake site" \
+        | tail -10 | sed 's/^/    /' >&2 || true
+      dump_bg_diagnostics "$1"
+      exit 1
+    fi
+    sleep 2
+  done
+  echo "  $1: the worker's engine checked the site headless"
+}
+
+kill_app_process
+record_message "cold1-$run_tag" >/dev/null
+run_cold_wake push-cold-baseline
+
+record_message "cold2-$run_tag" >/dev/null
+keys="$(notif_keys)"
+wake_posts_before="$(wake_posts)"
+kill_app_process
+run_cold_wake push-cold-post
+if ! wait_for_new_notification push-cold 30 "$keys"; then
+  echo "FAIL: the headless wake after a reclaimed process posted nothing for the" \
+       "message recorded since the last wake" >&2
+  adb logcat -d 2>/dev/null | grep -E "background wake|wake site" \
+    | tail -10 | sed 's/^/    /' >&2 || true
+  dump_bg_diagnostics push-cold-post
+  exit 1
+fi
+if [ "$(wake_posts)" -le "$wake_posts_before" ]; then
+  echo "FAIL: a notification appeared but the headless wake did not log its" \
+       "unread fallback post (NOTIF-014)" >&2
+  dump_bg_diagnostics push-cold-no-fallback-log
+  exit 1
+fi
+echo "  delivered by a wake in the worker's own engine"
 
 echo "== Scenario G: warm shortcut tap switches sites (HS-002)"
 adb shell am force-stop "$pkg"

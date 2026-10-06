@@ -51,6 +51,10 @@ class BackgroundTaskAndroidPlugin(
                 "beginGracePeriod", "endGracePeriod" -> {
                     result.success(null)
                 }
+                "backgroundRefreshReady" -> {
+                    NotificationRefreshDispatcher.dartReady(channel)
+                    result.success(null)
+                }
                 "bgRefreshDidComplete" -> {
                     val args = call.arguments as? Map<*, *>
                     val success = (args?.get("success") as? Boolean) ?: true
@@ -159,13 +163,23 @@ internal object NotificationRefreshDispatcher {
     private var channel: MethodChannel? = null
     private var pendingCompletion: ((Boolean) -> Unit)? = null
 
+    /** Dart has installed its `onBackgroundRefresh` handler on [channel]. */
+    private var dartReady = false
+
+    /** A dispatch arrived before [dartReady]; it is sent when Dart is. */
+    private var waitingForDart = false
+
     fun bind(c: MethodChannel) {
         channel = c
+        dartReady = false
+        waitingForDart = false
     }
 
     fun unbind(c: MethodChannel) {
         if (channel === c) {
             channel = null
+            dartReady = false
+            waitingForDart = false
             // Any in-flight refresh that was awaiting Dart can no longer
             // complete — release its waiter so the worker stops blocking.
             val cb = pendingCompletion
@@ -175,9 +189,23 @@ internal object NotificationRefreshDispatcher {
     }
 
     /**
-     * Returns false if no Flutter engine is currently reachable (the
-     * activity is gone). The caller should treat the refresh as a no-op
-     * and return `Result.success()` so WorkManager doesn't retry-storm.
+     * Dart reports its handler is installed. An engine the worker just
+     * started (NOTIF-016) is still running the app's startup when the worker
+     * dispatches, so the refresh waits for this rather than for a channel
+     * buffer to hold it through startup.
+     */
+    fun dartReady(c: MethodChannel) {
+        if (channel !== c) return
+        dartReady = true
+        if (waitingForDart) {
+            waitingForDart = false
+            invoke(c)
+        }
+    }
+
+    /**
+     * Returns false if no Flutter engine is currently reachable; the worker
+     * then starts one ([WorkerFlutterEngine]) and dispatches again.
      */
     fun dispatch(onComplete: (Boolean) -> Unit): Boolean {
         val c = channel ?: run {
@@ -187,11 +215,15 @@ internal object NotificationRefreshDispatcher {
         // Resolve any older pending refresh as failed before taking over.
         pendingCompletion?.invoke(false)
         pendingCompletion = onComplete
+        if (dartReady) invoke(c) else waitingForDart = true
+        return true
+    }
+
+    private fun invoke(c: MethodChannel) {
         mainHandler.post {
             Log.i("WebspaceBgRefresh", "dispatch: invoking onBackgroundRefresh in Dart")
             c.invokeMethod("onBackgroundRefresh", null)
         }
-        return true
     }
 
     fun complete(success: Boolean) {

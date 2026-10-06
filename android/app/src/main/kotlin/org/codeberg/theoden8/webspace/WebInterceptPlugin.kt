@@ -4,6 +4,7 @@ import android.app.Activity
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceResponse
+import com.pichillilorenzo.flutter_inappwebview_android.InAppWebViewFlutterPlugin
 import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlocker
 import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlockerAction
 import com.pichillilorenzo.flutter_inappwebview_android.content_blocker.ContentBlockerHandler
@@ -20,7 +21,15 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
-class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterEngine) {
+/**
+ * [activity] is null in an engine the notification worker started with no
+ * activity (NOTIF-016): there the only webviews are headless ones, which the
+ * flutter_inappwebview plugin holds outside any view tree.
+ */
+class WebInterceptPlugin(
+    private val activity: Activity?,
+    private val flutterEngine: FlutterEngine,
+) {
     private val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
@@ -167,6 +176,20 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                     val count = attachToAllWebViews(siteId, dnsLevel)
                     result.success(count)
                 }
+                "attachToHeadless" -> {
+                    val headlessId = call.argument<String>("headlessId")
+                    val siteId = call.argument<String>("siteId")
+                    val dnsLevel = call.argument<Int>("dnsLevel")
+                    val webView = headlessId?.let { headlessWebView(it) }
+                    if (webView == null || siteId == null) {
+                        result.success(false)
+                    } else {
+                        if (dnsLevel != null) siteDnsLevel[siteId] = dnsLevel
+                        siteIdMap[webView] = siteId
+                        attachInterceptor(webView, siteId)
+                        result.success(true)
+                    }
+                }
                 "fetchBlockEvents" -> {
                     val siteId = call.argument<String>("siteId")
                     if (siteId == null) {
@@ -296,9 +319,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         dnsLevel: Int? = null
     ): Int {
         if (newSiteId != null && dnsLevel != null) siteDnsLevel[newSiteId] = dnsLevel
-        val rootView = activity.window.decorView.rootView
-        val webViews = mutableListOf<InAppWebView>()
-        findInAppWebViews(rootView, webViews)
+        val webViews = collectWebViews()
         val alreadyAttached = webViews.count {
             it.contentBlockerHandler is FastSubresourceInterceptor
         }
@@ -339,43 +360,73 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
                 siteIdMap[webView] = newSiteId
             }
             val siteId = siteIdMap[webView] ?: "unknown"
-            // A site's own level, remembered across re-attach so a call that
-            // names no level (the LocalCDN kill switch re-attaching everything)
-            // can't silently promote a site back to full blocking. Unknown
-            // sites fail closed at the strongest level.
-            val level = siteDnsLevel[siteId] ?: DnsHostBlocklist.MAX_LEVEL
             if (existing != null) {
                 // Already attached: the settings edit only moves the level.
                 // The host cache holds masks, not decisions, so it survives.
-                existing.dnsLevel = level
+                existing.dnsLevel = levelFor(siteId)
                 continue
             }
-            // Always attach the interceptor. The kill-switch
-            // (localCdnDisabled) governs only the LocalCDN
-            // FileInputStream serve path inside checkUrl — it does
-            // not gate DNS or ABP blocking, which must stay active
-            // so users don't have a window where their blocklists
-            // silently stop protecting sub-resource fetches.
-            webView.contentBlockerHandler = FastSubresourceInterceptor(
-                dnsBlocklist = dnsBlocklist,
-                dnsLevel = level,
-                cdnPatterns = cdnPatterns,
-                cdnCacheIndex = cdnCacheIndex,
-                localCdnDisabled = localCdnDisabled,
-                onBlockChecked = { host, blocked, source ->
-                    recordBlockEvent(siteId, host, blocked, source)
-                },
-                onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
-                onLog = { tag, message -> log(tag, message) }
-            )
-            log("WebIntercept",
-                "Attached interceptor: siteId=$siteId dnsLevel=$level " +
-                "dns=${dnsBlocklist.size} " +
-                "cdnPatterns=${cdnPatterns.size} " +
-                "cdnCache=${cdnCacheIndex.size} " +
-                "localCdnDisabled=${localCdnDisabled.get()}")
+            attachInterceptor(webView, siteId)
         }
         return webViews.size
+    }
+
+    /// A site's own level, remembered across re-attach so a call that names
+    /// no level (the LocalCDN kill switch re-attaching everything) can't
+    /// silently promote a site back to full blocking. Unknown sites fail
+    /// closed at the strongest level.
+    private fun levelFor(siteId: String) =
+        siteDnsLevel[siteId] ?: DnsHostBlocklist.MAX_LEVEL
+
+    private fun attachInterceptor(webView: InAppWebView, siteId: String) {
+        val level = levelFor(siteId)
+        // Always attach the interceptor. The kill-switch
+        // (localCdnDisabled) governs only the LocalCDN
+        // FileInputStream serve path inside checkUrl — it does
+        // not gate DNS or ABP blocking, which must stay active
+        // so users don't have a window where their blocklists
+        // silently stop protecting sub-resource fetches.
+        webView.contentBlockerHandler = FastSubresourceInterceptor(
+            dnsBlocklist = dnsBlocklist,
+            dnsLevel = level,
+            cdnPatterns = cdnPatterns,
+            cdnCacheIndex = cdnCacheIndex,
+            localCdnDisabled = localCdnDisabled,
+            onBlockChecked = { host, blocked, source ->
+                recordBlockEvent(siteId, host, blocked, source)
+            },
+            onCdnReplaced = { cacheKey, url -> recordCdnEvent(siteId, cacheKey, url) },
+            onLog = { tag, message -> log(tag, message) }
+        )
+        log("WebIntercept",
+            "Attached interceptor: siteId=$siteId dnsLevel=$level " +
+            "dns=${dnsBlocklist.size} " +
+            "cdnPatterns=${cdnPatterns.size} " +
+            "cdnCache=${cdnCacheIndex.size} " +
+            "localCdnDisabled=${localCdnDisabled.get()}")
+    }
+
+    private fun inAppWebViewPlugin(): InAppWebViewFlutterPlugin? =
+        flutterEngine.plugins.get(InAppWebViewFlutterPlugin::class.java)
+            as? InAppWebViewFlutterPlugin
+
+    private fun headlessWebView(id: String): InAppWebView? =
+        inAppWebViewPlugin()?.headlessInAppWebViewManager?.webViews?.get(id)
+            ?.flutterWebView?.webView
+
+    /// Every webview this engine runs: those in the activity's view tree,
+    /// and the headless ones, which are in no tree while no activity is.
+    private fun collectWebViews(): MutableList<InAppWebView> {
+        val webViews = mutableListOf<InAppWebView>()
+        activity?.window?.decorView?.rootView?.let { findInAppWebViews(it, webViews) }
+        val headless = inAppWebViewPlugin()?.headlessInAppWebViewManager?.webViews?.values
+        if (headless != null) {
+            for (h in headless) {
+                val w = h?.flutterWebView?.webView ?: continue
+                if (w !in webViews) webViews.add(w)
+            }
+        }
+        return webViews
     }
 
     private val siteIdMap = HashMap<InAppWebView, String>()
@@ -403,9 +454,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
         }
         val delayMs = attachRetryDelaysMs[attempt - 1].toLong()
         mainHandler.postDelayed({
-            val rootView = activity.window.decorView.rootView
-            val webViews = mutableListOf<InAppWebView>()
-            findInAppWebViews(rootView, webViews)
+            val webViews = collectWebViews()
             if (webViews.isEmpty()) {
                 log("WebIntercept",
                     "attach retry $attempt for siteId=$siteId: still found=0, " +
@@ -439,9 +488,7 @@ class WebInterceptPlugin(private val activity: Activity, flutterEngine: FlutterE
     /// `dnsBlocklist` swaps in the new set so the interceptor sees the
     /// new contents on the next cache miss; this call ensures there IS a miss.
     private fun clearAllHostDecisionCaches() {
-        val rootView = activity.window.decorView.rootView
-        val webViews = mutableListOf<InAppWebView>()
-        findInAppWebViews(rootView, webViews)
+        val webViews = collectWebViews()
         var cleared = 0
         for (webView in webViews) {
             (webView.contentBlockerHandler as? FastSubresourceInterceptor)?.let {
