@@ -23,8 +23,60 @@ void main() {
       final pplx = WebSearchEngine.capabilityOf(
           initUrl: 'https://www.perplexity.ai/')!;
       expect(pplx.kind, SearchKind.web);
-      expect(pplx.siteOperator, isFalse,
-          reason: 'Perplexity is not offered for a site: search');
+      expect(pplx.siteOperator, isTrue,
+          reason: 'Perplexity restricts its sources with site:');
+      final metager =
+          WebSearchEngine.capabilityOf(initUrl: 'https://metager.org/')!;
+      expect(metager.kind, SearchKind.web);
+      expect(metager.siteOperator, isFalse,
+          reason: 'MetaGer documents no site: operator');
+    });
+
+    test('the table knows the common engines by their own addresses', () {
+      const cases = <String, String>{
+        'https://duck.com/': 'https://duckduckgo.com/?q=%s',
+        'https://html.duckduckgo.com/html/':
+            'https://html.duckduckgo.com/html/?q=%s',
+        'https://lite.duckduckgo.com/lite/':
+            'https://lite.duckduckgo.com/lite/?q=%s',
+        'https://google.de/': 'https://www.google.de/search?q=%s',
+        'https://www.google.co.uk/': 'https://www.google.co.uk/search?q=%s',
+        'https://www.google.com.au/': 'https://www.google.com.au/search?q=%s',
+        'https://cn.bing.com/': 'https://cn.bing.com/search?q=%s',
+        'https://bing.com/': 'https://www.bing.com/search?q=%s',
+        'https://www.qwant.com/': 'https://www.qwant.com/?q=%s',
+        'https://metager.org/': 'https://metager.org/meta/meta.ger3?eingabe=%s',
+        'https://metager.de/': 'https://metager.de/meta/meta.ger3?eingabe=%s',
+        'https://swisscows.com/en': 'https://swisscows.com/web?query=%s',
+        'https://search.marginalia.nu/':
+            'https://marginalia-search.com/search?query=%s',
+        'https://search.yahoo.com/': 'https://search.yahoo.com/search?p=%s',
+        'https://yandex.ru/': 'https://yandex.ru/search/?text=%s',
+        'https://www.yandex.com.tr/': 'https://yandex.com.tr/search/?text=%s',
+        'https://ya.ru/': 'https://ya.ru/search/?text=%s',
+        'https://www.baidu.com/': 'https://www.baidu.com/s?wd=%s',
+        'https://www.naver.com/':
+            'https://search.naver.com/search.naver?query=%s',
+        'https://search.seznam.cz/': 'https://search.seznam.cz/?q=%s',
+      };
+      cases.forEach((home, address) {
+        final cap = WebSearchEngine.capabilityOf(initUrl: home);
+        expect(cap?.template, address, reason: home);
+        expect(cap?.kind, SearchKind.web, reason: home);
+      });
+    });
+
+    test('a service on an engine\'s domain is not the engine', () {
+      for (final home in [
+        'https://mail.google.com/',
+        'https://docs.google.com/',
+        'https://maps.yandex.cloud/',
+        'https://mail.yahoo.com/',
+        'https://seznam.cz/',
+      ]) {
+        expect(WebSearchEngine.capabilityOf(initUrl: home), isNull,
+            reason: home);
+      }
     });
 
     test('sites with their own search search themselves', () {
@@ -74,6 +126,80 @@ void main() {
 
     test('brave.com is not Brave Search', () {
       expect(WebSearchEngine.capabilityOf(initUrl: 'https://brave.com/'), isNull);
+    });
+  });
+
+  group('discovered addresses (LIR-035)', () {
+    test('an unknown site searches with what its pages declared', () {
+      final site = WebSearchEngine.capabilityOf(
+        initUrl: 'https://blog.example/',
+        discoveredAddress: 'https://blog.example/search?q=%s',
+      )!;
+      expect(site.kind, SearchKind.site);
+      expect(site.siteOperator, isFalse);
+      final searx = WebSearchEngine.capabilityOf(
+        initUrl: 'https://searx.lan/',
+        discoveredAddress: 'https://searx.lan/search?q=%s',
+        discoveredWeb: true,
+      )!;
+      expect(searx.kind, SearchKind.web);
+      expect(searx.siteOperator, isTrue);
+    });
+
+    test('the user\'s address and the table both win over a declared one', () {
+      expect(
+        WebSearchEngine.capabilityOf(
+          initUrl: 'https://blog.example/',
+          searchAddress: 'https://blog.example/?s=%s',
+          discoveredAddress: 'https://blog.example/search?q=%s',
+        )!.template,
+        'https://blog.example/?s=%s',
+      );
+      expect(
+        WebSearchEngine.capabilityOf(
+          initUrl: 'https://github.com/',
+          discoveredAddress: 'https://github.com/find?q=%s',
+          discoveredWeb: true,
+        )!.template,
+        'https://github.com/search?q=%s',
+      );
+    });
+
+    test('a declared address off the site\'s domain is never taken', () {
+      expect(
+        WebSearchEngine.capabilityOf(
+          initUrl: 'https://blog.example/',
+          discoveredAddress: 'https://tracker.example.net/?q=%s',
+          discoveredWeb: true,
+        ),
+        isNull,
+      );
+      expect(
+        WebSearchEngine.capabilityOf(
+          initUrl: 'https://moved.example/',
+          discoveredAddress: 'https://blog.example/search?q=%s',
+        ),
+        isNull,
+        reason: 'a site whose home moved drops its old home\'s address',
+      );
+      expect(
+        WebSearchEngine.acceptsDiscovered(
+            'https://www.blog.example/search?q=%s', 'https://blog.example/'),
+        isTrue,
+      );
+    });
+
+    test('only a site with no address and an unknown host discovers', () {
+      expect(WebSearchEngine.discovers(initUrl: 'https://searx.lan/'), isTrue);
+      expect(
+          WebSearchEngine.discovers(initUrl: 'https://duckduckgo.com/'), isFalse);
+      expect(
+        WebSearchEngine.discovers(
+            initUrl: 'https://searx.lan/',
+            searchAddress: 'https://searx.lan/search?q=%s'),
+        isFalse,
+      );
+      expect(WebSearchEngine.discovers(initUrl: 'file:///x.html'), isFalse);
     });
   });
 
@@ -170,7 +296,8 @@ void main() {
     final ddg = site('ddg', 'https://duckduckgo.com/');
     final kagi = site('kagi', 'https://kagi.com/');
     final pplx = site('pplx', 'https://www.perplexity.ai/');
-    final all = [gh, blog, ddg, kagi, pplx];
+    final mg = site('mg', 'https://metager.org/');
+    final all = [gh, blog, ddg, kagi, pplx, mg];
 
     List<String> ids(List<SearchOption> o) => [for (final x in o) x.site.siteId];
 
@@ -178,14 +305,14 @@ void main() {
       expect(
         ids(WebSearchEngine.options(
             scope: SearchScope.web, identity: gh, candidates: all, declared: [])),
-        ['ddg', 'kagi', 'pplx'],
+        ['ddg', 'kagi', 'pplx', 'mg'],
       );
     });
 
     test('this site: own search first, then engines that take site:', () {
       final o = WebSearchEngine.options(
           scope: SearchScope.thisSite, identity: gh, candidates: all, declared: []);
-      expect(ids(o), ['gh', 'ddg', 'kagi']);
+      expect(ids(o), ['gh', 'ddg', 'kagi', 'pplx']);
       expect(o.first.scoped, isFalse);
       expect(o.skip(1).every((x) => x.scoped), isTrue);
     });
@@ -194,7 +321,7 @@ void main() {
       expect(
         ids(WebSearchEngine.options(
             scope: SearchScope.thisSite, identity: blog, candidates: all, declared: [])),
-        ['ddg', 'kagi'],
+        ['ddg', 'kagi', 'pplx'],
       );
     });
 
@@ -277,8 +404,27 @@ void main() {
     });
   });
 
-  test('the empty state offers web engines, Perplexity only for the web', () {
-    final names = [for (final k in kAddableSearchEngines) k.name];
-    expect(names, ['DuckDuckGo', 'Brave Search', 'Kagi', 'Perplexity', 'Google']);
+  group('addable (LIR-029 empty state)', () {
+    List<String> names(List<KnownSearchHost> k) => [for (final x in k) x.name];
+
+    test('offers the five engines when the user has none', () {
+      expect(names(kAddableSearchEngines),
+          ['DuckDuckGo', 'Brave Search', 'Kagi', 'Perplexity', 'Google']);
+      expect(names(WebSearchEngine.addable(SearchScope.web, const [])),
+          names(kAddableSearchEngines));
+      expect(names(WebSearchEngine.addable(SearchScope.thisSite, const [])),
+          names(kAddableSearchEngines),
+          reason: 'all five take site:');
+    });
+
+    test('never offers a second site for an engine the user has', () {
+      final mine = [
+        site('blog', 'https://blog.example/'),
+        site('ddg', 'https://start.duckduckgo.com/'),
+        site('g', 'https://www.google.de/'),
+      ];
+      expect(names(WebSearchEngine.addable(SearchScope.web, mine)),
+          ['Brave Search', 'Kagi', 'Perplexity']);
+    });
   });
 }

@@ -4,7 +4,7 @@
 
 A search engine SHALL be one of the user's sites, never a bare address setting: a search runs in that site's container, with its sign-in, proxy, blockers and every other per-site setting.
 
-A site SHALL be a **search site** when it has a search address, an http(s) URL with a host and at least one `%s` where the query goes. The address SHALL be the site's `searchAddress` when set and valid, else the one its host is known for, else none. A `searchAddress` that is not a valid address SHALL make the site search nothing rather than fall back to the known one, so a user who typed an address never gets a different engine silently.
+A site SHALL be a **search site** when it has a search address, an http(s) URL with a host and at least one `%s` where the query goes. The address SHALL be the site's `searchAddress` when set and valid, else the one its host is known for, else the one its pages declared (LIR-035), else none. A `searchAddress` that is not a valid address SHALL make the site search nothing rather than fall back to the known one, so a user who typed an address never gets a different engine silently.
 
 A search site SHALL be of one of two kinds:
 
@@ -13,26 +13,35 @@ A search site SHALL be of one of two kinds:
 
 A web search MAY take `site:<host>` to search inside another site. A site search never does.
 
-Known hosts SHALL be recognised by the host of the site's `initUrl`:
+Known hosts SHALL be recognised by the host of the site's `initUrl`. Each address is the one the engine's own OpenSearch description gives, less parameters that only name the referrer (`client=opensearch`, `fr=opensearch`). An engine takes `site:` only where its own documentation says so; one that does not say is offered for the web only.
 
 | Host | Address | Kind | `site:` |
 |------|---------|------|---------|
-| `duckduckgo.com` and under | `https://duckduckgo.com/?q=%s` | web | yes |
+| `duckduckgo.com` and under, `duck.com` | `https://duckduckgo.com/?q=%s`; `html.` and `lite.` keep their own pages (`/html/?q=%s`, `/lite/?q=%s`) | web | yes |
 | `search.brave.com` only (not `brave.com`) | `https://search.brave.com/search?q=%s` | web | yes |
 | `kagi.com` and under | `https://kagi.com/search?q=%s` | web | yes |
-| `perplexity.ai` and under | `https://www.perplexity.ai/search/new?q=%s` | web | no |
-| `google.com`, `www.google.com` | `https://www.google.com/search?q=%s` | web | yes |
+| `perplexity.ai` and under | `https://www.perplexity.ai/search/new?q=%s` | web | yes |
+| `google.com` and Google's country domains (`google.de`, `google.co.uk`, `google.com.au`), with or without `www.` | `https://www.<domain>/search?q=%s` | web | yes |
 | `startpage.com` and under | `https://www.startpage.com/do/search?q=%s` | web | yes |
-| `bing.com`, `www.bing.com` | `https://www.bing.com/search?q=%s` | web | yes |
+| `bing.com`, `www.bing.com`, `cn.bing.com` | `https://<host>/search?q=%s` (`www.bing.com` for the bare domain) | web | yes |
 | `mojeek.com` and under | `https://www.mojeek.com/search?q=%s` | web | yes |
 | `ecosia.org` and under | `https://www.ecosia.org/search?q=%s` | web | yes |
+| `qwant.com` and under | `https://www.qwant.com/?q=%s` | web | yes |
+| `metager.org`, `metager.de` and under | `https://<metager.org or metager.de>/meta/meta.ger3?eingabe=%s` | web | no |
+| `swisscows.com` and under | `https://swisscows.com/web?query=%s` | web | no |
+| `marginalia-search.com` and under, `search.marginalia.nu` | `https://marginalia-search.com/search?query=%s` | web | yes |
+| `search.yahoo.com` | `https://search.yahoo.com/search?p=%s` | web | yes |
+| Yandex's country domains (`yandex.ru`, `yandex.com.tr`) and `ya.ru` | `https://<domain>/search/?text=%s` | web | yes |
+| `baidu.com`, `www.baidu.com` | `https://www.baidu.com/s?wd=%s` | web | yes |
+| `naver.com`, `www.naver.com`, `search.naver.com` | `https://search.naver.com/search.naver?query=%s` | web | no |
+| `search.seznam.cz` | `https://search.seznam.cz/?q=%s` | web | no |
 | `github.com`, `www.github.com` | `https://github.com/search?q=%s` | site | n/a |
 | `<lang>.wikipedia.org` | `https://<lang>.wikipedia.org/w/index.php?search=%s` | site | n/a |
 | `youtube.com` and under | `https://www.youtube.com/results?search_query=%s` | site | n/a |
 | `reddit.com` and under | `https://www.reddit.com/search/?q=%s` | site | n/a |
 | `stackoverflow.com` and under | `https://stackoverflow.com/search?q=%s` | site | n/a |
 
-Perplexity is a web search without `site:`: it answers a question rather than filtering an index, so it is not offered for searching another site.
+A service on an engine's domain is not the engine: `mail.google.com`, `mail.yahoo.com` and `seznam.cz` search nothing until given an address. SearXNG has no host to recognise; its instances are found by LIR-035.
 
 A `searchAddress` SHALL carry the kind the user gave it with `searchesWeb`: on, a web search that takes `site:`; off, a site search. Both fields are per-site configuration: they ride `WebViewModel.toJson`, are omitted at their defaults (null and false), and are read as absent when a backup holds a value of the wrong type.
 
@@ -89,7 +98,8 @@ The Tabs sheet (TAB-008) SHALL offer "Web search" in its header, beside "New tab
 - **Per-site list.** A site MAY declare `searchSites`, a list of siteIds. When non-empty, it limits the web search chips to the sites it names; the site's own search SHALL always be offered, even when the list omits it.
 - **Preselection** SHALL be the site's `searchDefault` when it is among the chips, else the app default when it is among them, else the first chip.
 - **App default.** The `webSearchDefaultSite` app pref SHALL hold the siteId of a web search site outside every archive, empty by default, so no build ships a preferred service. It SHALL be registered in `kExportedAppPrefs` and set from the App Settings row "Default search", whose explanation sits behind its hint (HINT-001) and whose subtitle is the site's name or "Not configured".
-- **Empty state.** When no chip exists, the sheet SHALL say so and offer the known web engines (DuckDuckGo, Brave Search, Kagi, Perplexity, Google, restricted to those that take `site:` in the site scope) as chips that add that engine as a new site at its home page, not activated, and run the search there. Inside an archive the sheet SHALL offer no engine to add: the new site would be app-tier, and the search would leave the archive with it.
+- **Telling sites apart.** Two sites can share a name (a work and a personal DuckDuckGo), never a siteId. Every list that picks a search site (the Default search dialog, and the Behaviour screen's Default search from this site and Search sites offered, BEHAV-005) SHALL show each site's siteId beneath its name, led by a dot in its container colour (TAB-018) on the container engine and by nothing on the legacy engine. The id stays in the muted text colour: the palette holds 3:1, a graphic's contrast, not the 4.5:1 a label needs (A11Y-010). Each chip in the sheet SHALL lead with the same dot.
+- **Empty state.** When no chip exists, the sheet SHALL say so and offer the known web engines (DuckDuckGo, Brave Search, Kagi, Perplexity, Google, restricted to those that take `site:` in the site scope) as chips that add that engine as a new site at its home page, not activated, and run the search there. An engine one of the candidates already is SHALL NOT be offered, so a search never makes a second site for an engine the user has, even one the site's own list leaves out. Inside an archive the sheet SHALL offer no engine to add: the new site would be app-tier, and the search would leave the archive with it.
 
 Submitting SHALL pop the sheet with the query, the scope and the chosen chip; a blank query SHALL do nothing and leave the sheet open. The sheet SHALL NOT load anything itself; LIR-030 decides where the search runs.
 
@@ -108,9 +118,9 @@ Submitting SHALL pop the sheet with the query, the scope and the chosen chip; a 
 
 #### Scenario: A site without search is searched through an engine (S3)
 
-- **GIVEN** a blog with no search address is on screen, and the user has DuckDuckGo, Kagi and Perplexity sites
+- **GIVEN** a blog with no search address is on screen, and the user has DuckDuckGo, Kagi and MetaGer sites
 - **WHEN** the user switches the scope to the blog
-- **THEN** the chips are DuckDuckGo and Kagi, and Perplexity is not offered
+- **THEN** the chips are DuckDuckGo and Kagi, and MetaGer is not offered
 - **AND** searching `webview` with Kagi searches `site:blog.example webview`
 
 #### Scenario: A web engine on screen has no site scope (S5)
@@ -138,6 +148,18 @@ Submitting SHALL pop the sheet with the query, the scope and the chosen chip; a 
 - **WHEN** the user searches the web from a blog
 - **THEN** the sheet offers DuckDuckGo, Brave Search, Kagi, Perplexity and Google to add
 - **AND** picking Brave Search creates a site at `https://search.brave.com/` without switching to it, and the search runs there
+
+#### Scenario: An engine the user has is not added again
+
+- **GIVEN** the user has a DuckDuckGo site, and a blog whose search sites list names only a site since deleted
+- **WHEN** the user searches the web from the blog
+- **THEN** the sheet offers Brave Search, Kagi, Perplexity and Google to add, and not DuckDuckGo
+
+#### Scenario: Two sites with one name
+
+- **GIVEN** the container engine, and two DuckDuckGo sites, `ddg-work` in blue and `ddg-home` in pink
+- **WHEN** the user opens Default search in App Settings
+- **THEN** both are listed as DuckDuckGo, one with `ddg-work` beneath it after a blue dot and one with `ddg-home` after a pink dot
 
 #### Scenario: Searching from an archived site (S15)
 
@@ -458,3 +480,42 @@ The move SHALL NOT race a tab change: it SHALL wait for an open, close, switch o
 - **WHEN** DuckDuckGo's settings close with its routing switch flipped
 - **THEN** the move runs once the switch has finished, once
 - **AND** no back stack is saved under the site a tab has just left
+
+---
+
+### Requirement: LIR-035 - A Site Learns Its Search From Its Own Pages
+
+A site with no `searchAddress` and a host LIR-028 does not know SHALL learn its search address from its own pages, the way browsers add search engines: OpenSearch autodiscovery. Every SearXNG instance declares itself this way, and so do many sites with their own search.
+
+- **What is read.** After the load event of the site's top document, a watcher SHALL report the document's `<link rel="search" type="application/opensearchdescription+xml">` links (`href` resolved by the page, at most four) and its `<meta name="generator">`. It SHALL run in the site's root webview only, main frame only: never in a popup, a nested screen or a subframe, whose search is not the site's. It SHALL NOT fetch anything.
+- **What is fetched.** The app SHALL read a reported description only when the document and the link are both inside the site's navigation domain (LIR-018), through the site's proxy and its DNS and content blockers, with the private-range guard and redirect rules of page icon fetches (ICON-013), at most 64 KiB, and once per webview per description.
+- **What is taken.** The address SHALL be the description's first `text/html` results URL with `{searchTerms}` as `%s`. Parameters OpenSearch 1.1 gives a value for are filled (`inputEncoding`, `outputEncoding`, `language`, `startIndex`, `startPage`); optional ones are dropped; a URL with any other required parameter is not used. A `POST` URL is used only for a SearXNG or searx instance, which answers the same query by `GET`. The address SHALL be taken only when it is valid under LIR-028 and inside the site's navigation domain, so no page can hand its site's searches to another host.
+- **What kind.** A page whose generator names SearXNG or searx (`searxng/2026.7.20`, `searx/1.1.0`) SHALL make the site a web search that takes `site:`. Any other page SHALL make it a site search, offered only for searching itself: a page cannot promote itself into the chips every other site offers.
+- **Precedence.** A `searchAddress` the user set, then the known host table, SHALL win over a discovered address. A discovered address outside the current `initUrl`'s domain SHALL be ignored, so editing a site's home drops what its old home declared.
+- **Storage.** The address and its kind SHALL be stored on the site as `discoveredSearchAddress` and `discoveredSearchesWeb`, omitted until something is found and read as absent when of the wrong type. An incognito site SHALL keep them in memory only. They SHALL ride a backup like any site field and SHALL NOT ride the QR share (QR-003): the receiver learns them from the same pages. For an archive-tier site they live only in the archive (ARCH-006).
+- **Gate.** Discovery SHALL run only while web search is reachable (LIR-029), read when each report arrives.
+- The Behaviour screen's Search address row (BEHAV-005) SHALL show a discovered address as the site's effective one, with Searches the whole web reflecting its kind; saving it unchanged SHALL store nothing, as for a known address.
+
+#### Scenario: A SearXNG instance is a web search once opened
+
+- **GIVEN** the user adds `https://searx.lan/`, a SearXNG instance whose pages carry `<meta name="generator" content="searxng/2026.7.20">` and link `/opensearch.xml?method=POST`
+- **WHEN** the site's page has loaded once with web search on
+- **THEN** it is a web search site with the address `https://searx.lan/search?q=%s` that takes `site:`
+- **AND** it is offered in Default search and as a chip for The web
+
+#### Scenario: A site's own search is offered for itself only
+
+- **GIVEN** a site at `https://blog.example/` whose pages link an OpenSearch description with `https://blog.example/search?q={searchTerms}`
+- **THEN** after a load it is a site search with the address `https://blog.example/search?q=%s`
+- **AND** it is not offered as a chip for The web on any other site
+
+#### Scenario: A description pointing elsewhere is ignored
+
+- **GIVEN** a page of `https://blog.example/` links a description on `tracker.example.net`, or one whose results URL is on `tracker.example.net`
+- **THEN** the first is never fetched and the second is never taken
+
+#### Scenario: The user's address wins
+
+- **GIVEN** a SearXNG site that has a discovered address
+- **WHEN** the user sets its search address to `https://searx.lan/search?categories=it&q=%s`
+- **THEN** searches use the user's address

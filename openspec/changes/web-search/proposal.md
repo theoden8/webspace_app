@@ -18,11 +18,18 @@ requirements.
 
 - **Search sites** (LIR-028). A site searches when it has a search address, a
   URL with `%s`. Known hosts fill it in: DuckDuckGo, Brave Search, Kagi,
-  Perplexity, Google, Startpage, Bing, Mojeek, Ecosia as web searches; GitHub,
-  Wikipedia in any language, YouTube, Reddit and Stack Overflow as site
-  searches. Any other site can be given an address on its Behaviour screen,
-  and says whether it searches the whole web. Web searches other than
-  Perplexity can search inside another site with `site:`.
+  Perplexity, Google (every country domain), Startpage, Bing, Mojeek, Ecosia,
+  Qwant, MetaGer, Swisscows, Marginalia, Yahoo, Yandex, Baidu, Naver and
+  Seznam as web searches; GitHub, Wikipedia in any language, YouTube, Reddit
+  and Stack Overflow as site searches. Any other site can be given an address
+  on its Behaviour screen, and says whether it searches the whole web. Web
+  searches whose documentation says they honour `site:` can search inside
+  another site with it.
+- **Discovery** (LIR-035). A site the table does not know learns its address
+  from the OpenSearch description its pages link, the way browsers add search
+  engines, fetched through the site's own proxy and blockers. A SearXNG
+  instance, recognised by the generator its pages carry, becomes a web search;
+  any other page can only make its site search itself.
 - **The sheet** (LIR-029). "Web search" in the Tabs sheet header, beside New
   tab (in both page menus, below Find, only for a site without tabs), opens a
   sheet with a query, a scope (The web, or the site on screen) and a chip per

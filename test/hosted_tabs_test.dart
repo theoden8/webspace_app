@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/site_tab.dart';
@@ -243,6 +244,46 @@ void main() {
       expect(back.searchesWeb, isFalse);
       expect(back.searchSites, ['ok']);
       expect(back.searchDefault, isNull);
+    });
+  });
+
+  group('discovered search (LIR-035)', () {
+    const searx = DiscoveredSearch(
+        address: 'https://searx.lan/search?q=%s', web: true);
+
+    test('round-trips, omitted until something was found', () {
+      final m = WebViewModel(siteId: 's', initUrl: 'https://searx.lan/');
+      expect(m.toJson(), isNot(contains('discoveredSearchAddress')));
+      expect(m.toJson(), isNot(contains('discoveredSearchesWeb')));
+      expect(m.searchCapability, isNull);
+      expect(m.offerDiscoveredSearch(searx), isTrue);
+      expect(m.offerDiscoveredSearch(searx), isFalse,
+          reason: 'the same find changes nothing, so nothing is saved');
+      final back = WebViewModel.fromJson(m.toJson(), null);
+      expect(back.discoveredSearchAddress, 'https://searx.lan/search?q=%s');
+      expect(back.discoveredSearchesWeb, isTrue);
+      expect(back.searchCapability!.template, 'https://searx.lan/search?q=%s');
+    });
+
+    test('an incognito site keeps what it found in memory only', () {
+      final m = WebViewModel(
+          siteId: 's', initUrl: 'https://searx.lan/', incognito: true)
+        ..offerDiscoveredSearch(searx);
+      expect(m.searchCapability?.template, 'https://searx.lan/search?q=%s');
+      final json = m.toJson();
+      expect(json, isNot(contains('discoveredSearchAddress')));
+      expect(json, isNot(contains('discoveredSearchesWeb')));
+    });
+
+    test('wrong types read as absent', () {
+      final back = WebViewModel.fromJson({
+        'siteId': 's',
+        'initUrl': 'https://searx.lan/',
+        'discoveredSearchAddress': 7,
+        'discoveredSearchesWeb': 'yes',
+      }, null);
+      expect(back.discoveredSearchAddress, isNull);
+      expect(back.discoveredSearchesWeb, isFalse);
     });
   });
 }

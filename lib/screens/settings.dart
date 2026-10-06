@@ -1092,6 +1092,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           containersActive: widget.useContainers,
           routingTargets: widget.routingTargets,
           initUrl: widget.webViewModel.initUrl,
+          discoveredSearchAddress:
+              widget.webViewModel.discoveredSearchAddress,
+          discoveredSearchesWeb: widget.webViewModel.discoveredSearchesWeb,
           // Writes straight to the model, like it did inline: domain claims
           // are not part of the dirty snapshot and are saved as they are
           // edited.

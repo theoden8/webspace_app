@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
+import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/container_mark.dart' show SiteIdLine;
 import 'package:webspace/widgets/hint_button.dart';
 
 /// Everything the behaviour screen may change, in one value so the caller can
@@ -113,6 +115,8 @@ class SiteBehaviourScreen extends StatefulWidget {
     this.routingTargets = const [],
     this.tabsAvailable,
     this.initUrl,
+    this.discoveredSearchAddress,
+    this.discoveredSearchesWeb = false,
   });
 
   final String host;
@@ -145,6 +149,11 @@ class SiteBehaviourScreen extends StatefulWidget {
 
   /// The site's home, which decides the search address it is known for.
   final String? initUrl;
+
+  /// The search address the site's pages declared (LIR-035), shown when it
+  /// has no address of its own and its host is not a known one.
+  final String? discoveredSearchAddress;
+  final bool discoveredSearchesWeb;
 
   @override
   State<SiteBehaviourScreen> createState() => _SiteBehaviourScreenState();
@@ -362,14 +371,18 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
   /// site may use.
   List<WebViewModel> get _webSearchSites => [
         for (final m in widget.routingTargets)
-          if (WebSearchEngine.capabilityOf(
-                initUrl: m.initUrl,
-                searchAddress: m.searchAddress,
-                searchesWeb: m.searchesWeb,
-              )?.kind ==
-              SearchKind.web)
-            m,
+          if (m.searchCapability?.kind == SearchKind.web) m,
       ];
+
+  /// Two search sites can share a name, never an id (LIR-029).
+  Widget _idLine(WebViewModel site) => SiteIdLine(
+        siteId: site.siteId,
+        colorIndex: widget.containersActive
+            ? site.containerColor ??
+                ContainerColorEngine.fallback(
+                    site.siteId, kContainerPaletteSize)
+            : null,
+      );
 
   String? _nameOf(String? siteId) => siteId == null
       ? null
@@ -385,10 +398,15 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         ],
       );
 
-  /// What the site's host is known to search with, ignoring its own address.
+  /// What the site searches with without an address of its own: what its
+  /// host is known for, else what its pages declared.
   SearchCapability? get _knownSearch => widget.initUrl == null
       ? null
-      : WebSearchEngine.capabilityOf(initUrl: widget.initUrl!);
+      : WebSearchEngine.capabilityOf(
+          initUrl: widget.initUrl!,
+          discoveredAddress: widget.discoveredSearchAddress,
+          discoveredWeb: widget.discoveredSearchesWeb,
+        );
 
   Widget _searchAddressRow(AppLocalizations loc) {
     final effective = _values.searchAddress ?? _knownSearch?.template;
@@ -454,6 +472,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
                       RadioListTile<String>(
                         value: m.siteId,
                         title: Text(m.getDisplayName()),
+                        subtitle: _idLine(m),
                       ),
                   ],
                 ),
@@ -485,6 +504,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           builder: (ctx) => _SearchSitesDialog(
             sites: _webSearchSites,
             selected: _values.searchSites,
+            idLine: _idLine,
           ),
         );
         if (picked == null) return;
@@ -630,10 +650,15 @@ class _SearchAddressDialogState extends State<_SearchAddressDialog> {
 /// Picks the search sites a search from a site offers. None picked offers
 /// every one.
 class _SearchSitesDialog extends StatefulWidget {
-  const _SearchSitesDialog({required this.sites, required this.selected});
+  const _SearchSitesDialog({
+    required this.sites,
+    required this.selected,
+    required this.idLine,
+  });
 
   final List<WebViewModel> sites;
   final List<String> selected;
+  final Widget Function(WebViewModel site) idLine;
 
   @override
   State<_SearchSitesDialog> createState() => _SearchSitesDialogState();
@@ -662,6 +687,7 @@ class _SearchSitesDialogState extends State<_SearchSitesDialog> {
                     CheckboxListTile(
                       value: _picked.contains(m.siteId),
                       title: Text(m.getDisplayName()),
+                      subtitle: widget.idLine(m),
                       onChanged: (v) => setState(() {
                         if (v ?? false) {
                           _picked.add(m.siteId);

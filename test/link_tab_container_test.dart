@@ -1,5 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/container_color_engine.dart';
+import 'package:webspace/services/settings_backup.dart';
+import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
@@ -372,6 +377,31 @@ void main() {
       expect(ContainerColorEngine.assign(reordered, 8), reordered);
     });
 
+    test('the palette size matches both colour sets', () {
+      expect(ContainerColors.light, hasLength(kContainerPaletteSize));
+      expect(ContainerColors.dark, hasLength(kContainerPaletteSize));
+    });
+
+    test('release keeps a colour nobody holds and frees a taken one', () {
+      expect(ContainerColorEngine.release([2, 5], 8), [2, 5]);
+      expect(ContainerColorEngine.release([2, 2, 5], 8), [2, null, 5],
+          reason: 'the first holder keeps it');
+      expect(ContainerColorEngine.release([2, 5], 8, held: [5]), [2, null]);
+      expect(ContainerColorEngine.release([9, -1, null], 8), [null, null, null]);
+    });
+
+    test('release keeps a shared colour once every colour is held', () {
+      expect(ContainerColorEngine.release([1], 3, held: [0, 1, 2]), [1]);
+      expect(ContainerColorEngine.release([0, 1, 2, 1], 3), [0, 1, 2, 1]);
+    });
+
+    test('a released site then gets a free colour, the others keep theirs',
+        () {
+      final restored = ContainerColorEngine.assign(
+          ContainerColorEngine.release([3, 3, 3, 0], 8), 8);
+      expect(restored, [3, 1, 2, 0]);
+    });
+
     test('the fallback is stable, in range and spread', () {
       expect(ContainerColorEngine.fallback('gh', 8),
           ContainerColorEngine.fallback('gh', 8));
@@ -382,6 +412,57 @@ void main() {
         seen.add(c);
       }
       expect(seen, hasLength(8));
+    });
+  });
+
+  group('restored colours (TAB-018)', () {
+    SettingsBackup backup(List<Map<String, dynamic>> sites) => SettingsBackup(
+          version: 1,
+          sites: sites,
+          webspaces: const [],
+          themeMode: 0,
+          exportedAt: DateTime(2026),
+        );
+
+    test('an import keeps every distinct colour it brings', () {
+      final plan = planSettingsImport(backup([
+        {'siteId': 'a', 'initUrl': 'https://a.example/', 'containerColor': 4},
+        {'siteId': 'b', 'initUrl': 'https://b.example/', 'containerColor': 1},
+        {'siteId': 'c', 'initUrl': 'https://c.example/'},
+      ]));
+      expect([for (final s in plan.sites) s.containerColor], [4, 1, null]);
+    });
+
+    test('an import frees a colour a site before it already holds', () {
+      final plan = planSettingsImport(backup([
+        {'siteId': 'a', 'initUrl': 'https://a.example/', 'containerColor': 4},
+        {'siteId': 'b', 'initUrl': 'https://b.example/', 'containerColor': 4},
+      ]));
+      expect([for (final s in plan.sites) s.containerColor], [4, null]);
+    });
+
+    test('a duplicate re-minted on import is a new container, not a twin', () {
+      final plan = planSettingsImport(backup([
+        {'siteId': 'a', 'initUrl': 'https://a.example/', 'containerColor': 4},
+        {'siteId': 'a', 'initUrl': 'https://a.example/', 'containerColor': 4},
+      ]));
+      expect(plan.sites[1].siteId, isNot('a'));
+      expect(plan.sites[1].containerColor, isNull);
+    });
+
+    test('the import and an archive move-out give released sites a colour',
+        () {
+      final main = File('lib/main.dart').readAsStringSync();
+      final import = main.indexOf('_webViewModels.addAll(plan.sites);');
+      expect(import, isNot(-1));
+      expect(
+          main.substring(import, import + 120), contains('_assignContainerColors();'));
+      final moveOut = main.indexOf('Future<void> _moveSiteOutOfArchive(');
+      final body = main.substring(moveOut, main.indexOf('\n  }\n', moveOut));
+      expect(body, contains('ContainerColorEngine.release('));
+      expect(body, contains('if (!m.isArchiveTier && !identical(m, model))'));
+      expect(body, contains('_saveWebViewModels()'),
+          reason: 'the save assigns the released site its colour');
     });
   });
 

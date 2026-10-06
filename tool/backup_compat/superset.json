@@ -51,6 +51,7 @@
       "incognito": false,
       "alwaysOpenHome": false,
       "kioskMode": true,
+      "containerColor": 3,
       "language": "de",
       "zoomPercent": 150,
       "clearUrlEnabled": false,
@@ -111,6 +112,8 @@
       ],
       "searchAddress": "https://mail.example.com/search?q=%s",
       "searchesWeb": true,
+      "discoveredSearchAddress": "https://mail.example.com/find?q=%s",
+      "discoveredSearchesWeb": true,
       "searchSites": ["compat-site-b"],
       "searchDefault": "compat-site-b"
     },

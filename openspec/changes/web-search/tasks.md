@@ -70,3 +70,14 @@
 - [x] 9.4 `urlBarSearchSiteTooltip` in `lib/l10n/app_en.arb`, then the 66 translations.
 - [x] 9.5 Tests: `test/url_bar_search_test.dart`, `looksLikeAddress` in `test/url_utils_test.dart`, the `barOptions` group, the structural LIR-033 checks.
 - [ ] 9.6 Manual, URL bar shown: the magnifier searches with the default and the picker switches site; `flutter hot reload` typed in the address field searches, `codeberg.org` opens.
+
+## 10. Engines, discovery and telling sites apart
+
+- [x] 10.1 Known hosts: Perplexity takes `site:`; Google country domains, `duck.com` and DuckDuckGo's HTML and Lite editions, `cn.bing.com`, Qwant, MetaGer, Swisscows, Marginalia, Yahoo, Yandex, Baidu, Naver, Seznam.
+- [x] 10.2 `lib/services/opensearch_engine.dart` (description parser, `discoverPageSearch`), `lib/services/search_link_watcher_shim.dart`, the `kSearchLinksHandler` in `webview.dart`, `SiteSearchTarget` from `WebViewModel.getWebView`; `fetchPageLinkedBytes` shared with page icons.
+- [x] 10.3 `discoveredSearchAddress` and `discoveredSearchesWeb` on `WebViewModel` (incognito keeps them in memory), excluded from the QR share, in the backup superset.
+- [x] 10.4 `WebSearchEngine.addable`: the empty state never offers an engine the user has.
+- [x] 10.5 `SiteIdLine` under each site in Default search and the Behaviour pickers, a colour dot on each sheet chip.
+- [x] 10.6 Tests: `test/opensearch_engine_test.dart`, `test/js/search_link_watcher.test.js`, the LIR-035 structural check in `test/js/page_bridge_authority.test.js`, the table and discovery groups in `test/web_search_engine_test.dart`, sheet, Behaviour and App Settings widget tests.
+- [ ] 10.7 Manual, Site tabs on: add a SearXNG instance, open it once; it appears in Default search and as a chip for The web, and searching from GitHub through it with `site:` lands in a hosted tab.
+

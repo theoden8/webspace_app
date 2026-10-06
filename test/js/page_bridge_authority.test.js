@@ -272,6 +272,28 @@ test('ICON-009: popups and the shared page scripts never report a site icon', ()
     'a popup shows another page and must not repaint the site icon');
 });
 
+test('LIR-035: only the site\'s top document declares its search', () => {
+  const build = WEBVIEW.indexOf('}) _buildPageScripts(WebViewConfig config) {');
+  const buildBody = WEBVIEW.slice(build, WEBVIEW.indexOf('\n  }\n', build));
+  assert.ok(!buildBody.includes('buildSearchLinkWatcherShim'),
+    '_buildPageScripts is shared with the popup webview');
+  const popup = WEBVIEW.indexOf('static Widget createPopupWebView({');
+  const popupBody = WEBVIEW.slice(popup, WEBVIEW.indexOf('\n  }\n', popup));
+  assert.ok(!popupBody.includes('kSearchLinksHandler'),
+    'a popup shows another page and must not set the site\'s search');
+  const at = WEBVIEW.indexOf('handlerName: kSearchLinksHandler,');
+  assert.notEqual(at, -1, 'the search link handler is gone');
+  const end = WEBVIEW.indexOf('siteSearch.onSearch(found)', at);
+  assert.notEqual(end, -1, 'the handler no longer reports what it found');
+  const handler = WEBVIEW.slice(at, end);
+  assert.ok(handler.includes('if (!call.isMainFrame || !siteSearch.enabled()) return null;'),
+    'a subframe can call the handler; its search is not the site\'s');
+  assert.ok(handler.includes('_pageIconRequestAllowed('),
+    'the description is fetched through the site\'s blockers');
+  assert.ok(handler.includes('proxy: config.proxySettings'),
+    'the description is fetched through the site\'s proxy');
+});
+
 // --- the verification popup -----------------------------------------------
 
 test('CAPTCHA-010: the popup webview runs the document checks and stays on the challenge', () => {

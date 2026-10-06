@@ -52,7 +52,8 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/icon_service.dart' show fetchPageIconBytes;
+import 'package:webspace/services/icon_service.dart'
+    show fetchPageIconBytes, fetchPageLinkedBytes;
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/download_engine.dart';
@@ -64,6 +65,8 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
+import 'package:webspace/services/opensearch_engine.dart';
+import 'package:webspace/services/search_link_watcher_shim.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/site_icon_native.dart';
@@ -465,8 +468,9 @@ void _logSiteIcon(String message) =>
 bool _pageIconRequestAllowed(
   WebViewConfig config,
   Uri target,
-  String documentUrl,
-) {
+  String documentUrl, {
+  String requestType = 'image',
+}) {
   final url = target.toString();
   if (DnsBlockService.instance
       .isBlockedAtLevel(url, config.effectiveDnsLevel)) {
@@ -476,7 +480,7 @@ bool _pageIconRequestAllowed(
       ContentBlockerService.instance.isBlocked(
         url,
         sourceUrl: documentUrl,
-        requestType: 'image',
+        requestType: requestType,
       ));
 }
 
@@ -1268,6 +1272,10 @@ class WebViewConfig {
   /// host, and must not repaint the site's icon. Android is the only platform
   /// that reports icons; elsewhere the watcher runs and nothing arrives.
   final SiteIconTarget? siteIcon;
+  /// Where the search the site's pages declare goes (LIR-035). Set only for
+  /// the site's root webview, and only for a site that has to learn its
+  /// search that way.
+  final SiteSearchTarget? siteSearch;
   /// Passkeys for this webview's pages (PASSKEY-001). Null leaves WebAuthn
   /// off, which is the WebView's default: no shim, no handler, and the
   /// engine's own `navigator.credentials` refuses a `publicKey` request.
@@ -1345,6 +1353,7 @@ class WebViewConfig {
     this.currentMicrophoneMode,
     this.onScreenShareDecision,
     this.siteIcon,
+    this.siteSearch,
     this.passkeys,
   });
 }
@@ -4335,6 +4344,15 @@ class WebViewFactory {
         unawaited(SiteIconNative.ensureEnabled());
       }
     }
+    final siteSearch = config.siteSearch;
+    if (siteSearch != null) {
+      userScripts.add(inapp.UserScript(
+        groupName: 'search_link_watcher',
+        source: '${buildSearchLinkWatcherShim()}\n;null;',
+        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
+        forMainFrameOnly: true,
+      ));
+    }
     final iconFetcher =
         iconEngine == null || iconSource != PageIconSource.declaredLinks
             ? null
@@ -4788,6 +4806,43 @@ class WebViewFactory {
               },
             );
           }
+        }
+        if (siteSearch != null) {
+          // Every page of a SearXNG instance links the same description; one
+          // read per webview is enough.
+          final readDescriptions = <String>{};
+          controller.addJavaScriptHandler(
+            handlerName: kSearchLinksHandler,
+            callback: (inapp.JavaScriptHandlerFunctionData call) {
+              if (!call.isMainFrame || !siteSearch.enabled()) return null;
+              final report = PageSearchReport.from(
+                  call.args.isEmpty ? null : call.args.first);
+              if (report == null) return null;
+              final documentUrl = call.requestUrl.toString();
+              unawaited(discoverPageSearch(
+                report,
+                documentUrl: documentUrl,
+                siteUrl: siteSearch.siteUrl,
+                fetch: (description) async {
+                  if (!readDescriptions.add(description.toString())) {
+                    return null;
+                  }
+                  return fetchPageLinkedBytes(
+                    description.toString(),
+                    documentHost: call.requestUrl.host,
+                    proxy: config.proxySettings,
+                    maxBytes: kMaxOpenSearchBytes,
+                    allowed: (target) => _pageIconRequestAllowed(
+                        config, target, documentUrl,
+                        requestType: 'other'),
+                  );
+                },
+              ).then((found) {
+                if (found != null) siteSearch.onSearch(found);
+              }));
+              return null;
+            },
+          );
         }
         // Cached-HTML → live-URL swap is wired up in onLoadStop below.
         // Don't fire loadUrl here — `onWebViewCreated` runs while chromium

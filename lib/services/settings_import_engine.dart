@@ -11,6 +11,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart'
     show kDnsLevelOff, kDnsMaxLevel;
 import 'package:webspace/services/outbound_preference.dart';
@@ -96,6 +97,16 @@ SettingsImportPlan planSettingsImport(
     sites.add(WebViewModel.fromJson(json, stateSetterF));
   }
   sanitizeImportedSites(sites);
+  // TAB-018: a restored site keeps its colour unless a site before it holds
+  // it, which a re-minted duplicate or a hand-edited backup can. A released
+  // site gets the least used colour when the import is applied.
+  final colours = ContainerColorEngine.release(
+    [for (final s in sites) s.containerColor],
+    kContainerPaletteSize,
+  );
+  for (var i = 0; i < sites.length; i++) {
+    sites[i].containerColor = colours[i];
+  }
 
   final webspaces = SettingsBackupService.restoreWebspaces(backup);
   _dedupeWebspaceIds(webspaces);

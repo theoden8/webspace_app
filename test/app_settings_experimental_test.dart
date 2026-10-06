@@ -27,6 +27,8 @@ import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
@@ -62,6 +64,8 @@ void main() {
   Widget host({
     bool routerRunsHere = false,
     Map<String, String> siteNames = const {},
+    List<({String siteId, String name, int? containerColor})> webSearchSites =
+        const [],
   }) =>
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -94,6 +98,7 @@ void main() {
           linkHandlingEnabled: true,
           onLinkHandlingEnabledChanged: (_) {},
           onOpenLinkHandlingSettings: () {},
+          webSearchSites: webSearchSites,
         ),
       );
 
@@ -275,6 +280,39 @@ void main() {
       await tester.pumpAndSettle();
       expect(savedProxies(SwitchListTile), findsNothing,
           reason: 'saved proxies are not experimental');
+    });
+
+    testWidgets(
+        'Default search tells same-named sites apart by id and colour '
+        '(LIR-029, TAB-018)', (tester) async {
+      ExperimentalFeaturesService.instance
+          .debugSet(ExperimentalFeature.siteTabs, true);
+      await tester.pumpWidget(host(webSearchSites: [
+        (siteId: 'ddg-work', name: 'DuckDuckGo', containerColor: 2),
+        (siteId: 'ddg-home', name: 'DuckDuckGo', containerColor: 5),
+      ]));
+      await tester.pumpAndSettle();
+      final row = find.text('Default search');
+      await tester.scrollUntilVisible(row, 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+
+      expect(find.widgetWithText(RadioListTile<String>, 'DuckDuckGo'),
+          findsNWidgets(2));
+      expect(find.text('ddg-work'), findsOneWidget);
+      expect(find.text('ddg-home'), findsOneWidget);
+      Color dotOf(String id) {
+        final line = find.ancestor(
+            of: find.text(id), matching: find.byType(SiteIdLine));
+        final box = tester.widget<Container>(find.descendant(
+            of: line, matching: find.byType(Container)));
+        return (box.decoration! as BoxDecoration).color!;
+      }
+
+      expect(dotOf('ddg-work'), ContainerColors.of(2, Brightness.light));
+      expect(dotOf('ddg-home'), ContainerColors.of(5, Brightness.light));
     });
 
     testWidgets('offers Site tabs everywhere, off by default (TAB-012)',

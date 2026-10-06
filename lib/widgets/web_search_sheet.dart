@@ -37,6 +37,7 @@ class WebSearchSheet extends StatefulWidget {
     this.appDefault,
     this.canAddSites = true,
     this.initialQuery = '',
+    this.containerColors = const {},
   });
 
   /// The site on screen: what "this site" means, and its own search.
@@ -57,6 +58,10 @@ class WebSearchSheet extends StatefulWidget {
   /// What the field starts with: the words typed in the URL bar when no
   /// search site could run them (LIR-033).
   final String initialQuery;
+
+  /// Each candidate's container colour by siteId, empty on the legacy engine:
+  /// what tells two chips with the same name apart (TAB-018).
+  final Map<String, int> containerColors;
 
   @override
   State<WebSearchSheet> createState() => _WebSearchSheetState();
@@ -100,15 +105,28 @@ class _WebSearchSheetState extends State<WebSearchSheet> {
     super.dispose();
   }
 
-  List<KnownSearchHost> get _addable => [
-        if (widget.canAddSites)
-          for (final k in kAddableSearchEngines)
-            if (_scope == SearchScope.web || k.siteOperator) k,
-      ];
+  List<KnownSearchHost> get _addable => widget.canAddSites
+      ? WebSearchEngine.addable(_scope, widget.candidates)
+      : const [];
 
   String? get _engineName => _options.isNotEmpty
       ? _options[_selected].site.name
       : _add?.name;
+
+  Widget? _colorDot(String siteId) {
+    final index = widget.containerColors[siteId];
+    if (index == null) return null;
+    return ExcludeSemantics(
+      child: Container(
+        width: Spacing.sm,
+        height: Spacing.sm,
+        decoration: BoxDecoration(
+          color: ContainerColors.of(index, Theme.of(context).brightness),
+          shape: BoxShape.circle,
+        ),
+      ),
+    );
+  }
 
   void _submit() {
     final query = _query.text.trim();
@@ -186,6 +204,7 @@ class _WebSearchSheetState extends State<WebSearchSheet> {
               children: [
                 for (var i = 0; i < _options.length; i++)
                   ChoiceChip(
+                    avatar: _colorDot(_options[i].site.siteId),
                     label: Text(_options[i].site.name),
                     selected: i == _selected,
                     onSelected: (_) => setState(() => _selected = i),

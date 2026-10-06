@@ -49,6 +49,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/firefox_version_tile.dart';
+import 'package:webspace/widgets/container_mark.dart' show SiteIdLine;
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 import 'package:webspace/widgets/level_slider.dart';
@@ -129,8 +130,10 @@ class AppSettingsScreen extends StatefulWidget {
   final ValueChanged<bool> onLinkHandlingEnabledChanged;
   final VoidCallback onOpenLinkHandlingSettings;
 
-  /// The user's web search sites outside every archive (LIR-029).
-  final List<({String siteId, String name})> webSearchSites;
+  /// The user's web search sites outside every archive (LIR-029), each with
+  /// its container's colour, null on the legacy engine.
+  final List<({String siteId, String name, int? containerColor})>
+      webSearchSites;
   final List<UserScriptConfig> globalUserScripts;
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired after the global outbound proxy is updated. Parent should
@@ -1094,6 +1097,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                         RadioListTile<String>(
                           value: site.siteId,
                           title: Text(site.name),
+                          // Two sites can share a name, never an id.
+                          subtitle: SiteIdLine(
+                            siteId: site.siteId,
+                            colorIndex: site.containerColor,
+                          ),
                         ),
                     ],
                   ),

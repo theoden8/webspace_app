@@ -17,7 +17,7 @@ Color containerColorOf(WebViewModel site, Brightness brightness) =>
     ContainerColors.of(
       site.containerColor ??
           ContainerColorEngine.fallback(
-              site.siteId, ContainerColors.light.length),
+              site.siteId, kContainerPaletteSize),
       brightness,
     );
 
@@ -44,4 +44,47 @@ class ContainerMark extends StatelessWidget {
           ),
         ),
       );
+}
+
+/// A site's id, led by a dot in its container's colour: what tells two sites
+/// with the same name apart in a list. [colorIndex] is null on the legacy
+/// engine, which has no containers to colour. The id stays in the muted text
+/// colour, since the palette holds 3:1, a graphic's contrast, not a label's.
+class SiteIdLine extends StatelessWidget {
+  const SiteIdLine({super.key, required this.siteId, this.colorIndex});
+
+  final String siteId;
+  final int? colorIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final index = colorIndex;
+    return Row(
+      children: [
+        if (index != null) ...[
+          ExcludeSemantics(
+            child: Container(
+              width: Spacing.sm,
+              height: Spacing.sm,
+              decoration: BoxDecoration(
+                color: ContainerColors.of(index, theme.brightness),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: Spacing.xs),
+        ],
+        Flexible(
+          child: Text(
+            siteId,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ),
+      ],
+    );
+  }
 }

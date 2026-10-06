@@ -4,9 +4,9 @@
 
 While web search is reachable (LIR-029: the Site tabs gate), the Behaviour screen SHALL end with a "Search" group, after "Link handling", holding three rows; while it is not, the group SHALL be absent and the site's stored search fields SHALL be kept. Each row's explanation SHALL sit behind a `HintButton` on its title (HINT-001) and its subtitle SHALL name state only.
 
-- **Search address** (LIR-028): subtitle the site's effective address, its own `searchAddress` or the one its host is known for, else "Not configured". Tapping it opens a dialog with the address field, validated as LIR-028 requires, and a "Searches the whole web" switch; its Reset button clears `searchAddress` back to the known address and turns `searchesWeb` off.
-- **Default search from this site** (LIR-029): subtitle the name of `searchDefault`, or "App default". Tapping it lists "App default" and the site's candidate web search sites.
-- **Search sites offered** (LIR-029): subtitle the names in `searchSites`, or "All". Tapping it opens a checkbox per candidate web search site. Picking a list that leaves out `searchDefault` SHALL clear `searchDefault`, so the site falls back to the app default rather than preselect a site it no longer offers.
+- **Search address** (LIR-028): subtitle the site's effective address, its own `searchAddress`, else the one its host is known for, else the one its pages declared (LIR-035), else "Not configured". Tapping it opens a dialog with the address field, validated as LIR-028 requires, and a "Searches the whole web" switch; its Reset button clears `searchAddress` back to the known address and turns `searchesWeb` off.
+- **Default search from this site** (LIR-029): subtitle the name of `searchDefault`, or "App default". Tapping it lists "App default" and the site's candidate web search sites, each with its siteId and container colour beneath its name (LIR-029, Telling sites apart).
+- **Search sites offered** (LIR-029): subtitle the names in `searchSites`, or "All". Tapping it opens a checkbox per candidate web search site, each with its siteId and container colour beneath its name. Picking a list that leaves out `searchDefault` SHALL clear `searchDefault`, so the site falls back to the app default rather than preselect a site it no longer offers.
 
 All four fields SHALL ride `SiteBehaviourValues`, so they are in the settings screen's dirty-snapshot diff and are saved with the rest of site settings (BUG-006, EDIT-009).
 

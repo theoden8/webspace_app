@@ -53,15 +53,34 @@ class KnownSearchHost {
 bool _isOrUnder(String host, String domain) =>
     host == domain || host.endsWith('.$domain');
 
-/// Known hosts. Web engines first, in the order the empty state offers them.
+/// `google.com` and Google's country domains (`google.de`, `google.co.uk`,
+/// `google.com.au`), with or without `www.`.
+final RegExp _googleHost =
+    RegExp(r'^(www\.)?google\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$');
+
+/// Yandex's country domains (`yandex.ru`, `yandex.com.tr`) and `ya.ru`.
+final RegExp _yandexHost =
+    RegExp(r'^(www\.)?(yandex\.(com|[a-z]{2}|com\.[a-z]{2})|ya\.ru)$');
+
+String _withWww(String host) => host.startsWith('www.') ? host : 'www.$host';
+
+/// Known hosts. Web engines first, the first five in the order the empty
+/// state offers them. Each address is the one the engine's own OpenSearch
+/// description gives, less the parameters that only name the referrer.
 final List<KnownSearchHost> kKnownSearchHosts = [
   KnownSearchHost(
     name: 'DuckDuckGo',
     home: 'https://duckduckgo.com/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => _isOrUnder(h, 'duckduckgo.com'),
-    template: (_) => 'https://duckduckgo.com/?q=%s',
+    matches: (h) =>
+        _isOrUnder(h, 'duckduckgo.com') || h == 'duck.com' || h == 'www.duck.com',
+    // The no-JavaScript editions keep their own result pages.
+    template: (h) => switch (h) {
+      'html.duckduckgo.com' => 'https://html.duckduckgo.com/html/?q=%s',
+      'lite.duckduckgo.com' => 'https://lite.duckduckgo.com/lite/?q=%s',
+      _ => 'https://duckduckgo.com/?q=%s',
+    },
   ),
   KnownSearchHost(
     name: 'Brave Search',
@@ -83,7 +102,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     name: 'Perplexity',
     home: 'https://www.perplexity.ai/',
     kind: SearchKind.web,
-    siteOperator: false,
+    siteOperator: true,
     matches: (h) => _isOrUnder(h, 'perplexity.ai'),
     template: (_) => 'https://www.perplexity.ai/search/new?q=%s',
   ),
@@ -92,8 +111,8 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.google.com/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => h == 'google.com' || h == 'www.google.com',
-    template: (_) => 'https://www.google.com/search?q=%s',
+    matches: _googleHost.hasMatch,
+    template: (h) => 'https://${_withWww(h)}/search?q=%s',
   ),
   KnownSearchHost(
     name: 'Startpage',
@@ -108,8 +127,8 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.bing.com/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => h == 'bing.com' || h == 'www.bing.com',
-    template: (_) => 'https://www.bing.com/search?q=%s',
+    matches: (h) => h == 'bing.com' || h == 'www.bing.com' || h == 'cn.bing.com',
+    template: (h) => 'https://${h == 'bing.com' ? 'www.bing.com' : h}/search?q=%s',
   ),
   KnownSearchHost(
     name: 'Mojeek',
@@ -126,6 +145,82 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     siteOperator: true,
     matches: (h) => _isOrUnder(h, 'ecosia.org'),
     template: (_) => 'https://www.ecosia.org/search?q=%s',
+  ),
+  KnownSearchHost(
+    name: 'Qwant',
+    home: 'https://www.qwant.com/',
+    kind: SearchKind.web,
+    siteOperator: true,
+    matches: (h) => _isOrUnder(h, 'qwant.com'),
+    template: (_) => 'https://www.qwant.com/?q=%s',
+  ),
+  KnownSearchHost(
+    name: 'MetaGer',
+    home: 'https://metager.org/',
+    kind: SearchKind.web,
+    siteOperator: false,
+    matches: (h) => _isOrUnder(h, 'metager.org') || _isOrUnder(h, 'metager.de'),
+    template: (h) => 'https://${_isOrUnder(h, 'metager.de') ? 'metager.de' : 'metager.org'}'
+        '/meta/meta.ger3?eingabe=%s',
+  ),
+  KnownSearchHost(
+    name: 'Swisscows',
+    home: 'https://swisscows.com/',
+    kind: SearchKind.web,
+    siteOperator: false,
+    matches: (h) => _isOrUnder(h, 'swisscows.com'),
+    template: (_) => 'https://swisscows.com/web?query=%s',
+  ),
+  KnownSearchHost(
+    name: 'Marginalia',
+    home: 'https://marginalia-search.com/',
+    kind: SearchKind.web,
+    siteOperator: true,
+    matches: (h) =>
+        _isOrUnder(h, 'marginalia-search.com') || h == 'search.marginalia.nu',
+    template: (_) => 'https://marginalia-search.com/search?query=%s',
+  ),
+  KnownSearchHost(
+    name: 'Yahoo',
+    home: 'https://search.yahoo.com/',
+    kind: SearchKind.web,
+    siteOperator: true,
+    matches: (h) => h == 'search.yahoo.com',
+    template: (_) => 'https://search.yahoo.com/search?p=%s',
+  ),
+  KnownSearchHost(
+    name: 'Yandex',
+    home: 'https://yandex.com/',
+    kind: SearchKind.web,
+    siteOperator: true,
+    matches: _yandexHost.hasMatch,
+    template: (h) =>
+        'https://${h.startsWith('www.') ? h.substring(4) : h}/search/?text=%s',
+  ),
+  KnownSearchHost(
+    name: 'Baidu',
+    home: 'https://www.baidu.com/',
+    kind: SearchKind.web,
+    siteOperator: true,
+    matches: (h) => h == 'baidu.com' || h == 'www.baidu.com',
+    template: (_) => 'https://www.baidu.com/s?wd=%s',
+  ),
+  KnownSearchHost(
+    name: 'Naver',
+    home: 'https://www.naver.com/',
+    kind: SearchKind.web,
+    siteOperator: false,
+    matches: (h) =>
+        h == 'naver.com' || h == 'www.naver.com' || h == 'search.naver.com',
+    template: (_) => 'https://search.naver.com/search.naver?query=%s',
+  ),
+  KnownSearchHost(
+    name: 'Seznam',
+    home: 'https://search.seznam.cz/',
+    kind: SearchKind.web,
+    siteOperator: false,
+    matches: (h) => h == 'search.seznam.cz',
+    template: (_) => 'https://search.seznam.cz/?q=%s',
   ),
   KnownSearchHost(
     name: 'GitHub',
@@ -257,12 +352,15 @@ class WebSearchEngine {
   }
 
   /// How a site searches: its own address when it has one, else what its
-  /// host is known for, else not at all. A custom address that searches the
-  /// web is assumed to honour `site:`, as SearXNG and the big engines do.
+  /// host is known for, else what its page declared (LIR-035), else not at
+  /// all. A custom or discovered address that searches the web is assumed to
+  /// honour `site:`, as SearXNG and the big engines do.
   static SearchCapability? capabilityOf({
     required String initUrl,
     String? searchAddress,
     bool searchesWeb = false,
+    String? discoveredAddress,
+    bool discoveredWeb = false,
   }) {
     final custom = searchAddress?.trim();
     if (custom != null && custom.isNotEmpty) {
@@ -274,14 +372,55 @@ class WebSearchEngine {
       );
     }
     final known = knownFor(initUrl);
-    if (known == null) return null;
-    final host = Uri.parse(initUrl).host.toLowerCase();
+    if (known != null) {
+      final host = Uri.parse(initUrl).host.toLowerCase();
+      return SearchCapability(
+        template: known.template(host),
+        kind: known.kind,
+        siteOperator: known.siteOperator,
+      );
+    }
+    final found = discoveredAddress?.trim();
+    if (found == null || !acceptsDiscovered(found, initUrl)) return null;
     return SearchCapability(
-      template: known.template(host),
-      kind: known.kind,
-      siteOperator: known.siteOperator,
+      template: found,
+      kind: discoveredWeb ? SearchKind.web : SearchKind.site,
+      siteOperator: discoveredWeb,
     );
   }
+
+  /// Whether a page of the site at [initUrl] may give it [template]: a valid
+  /// address inside the site's own domain, so a page can never hand its
+  /// site's searches to another host, and a site whose home moved drops the
+  /// address its old home declared.
+  static bool acceptsDiscovered(String template, String initUrl) {
+    if (!isValidTemplate(template)) return false;
+    final url = buildUrl(template, 'q');
+    return url != null && inDomainOf(url, initUrl);
+  }
+
+  /// Whether a site at [initUrl] can learn its search from its pages: one
+  /// with no address of its own and a host the table does not know.
+  static bool discovers({required String initUrl, String? searchAddress}) {
+    final custom = searchAddress?.trim();
+    if (custom != null && custom.isNotEmpty) return false;
+    final host = Uri.tryParse(initUrl)?.host ?? '';
+    return host.isNotEmpty && knownFor(initUrl) == null;
+  }
+
+  /// The known engines the empty state offers to add in [scope]: the web
+  /// engines that suit the scope, less those [candidates] already has a site
+  /// for. A search never makes a second site for an engine the user has.
+  static List<KnownSearchHost> addable(
+    SearchScope scope,
+    List<SearchSite> candidates,
+  ) =>
+      [
+        for (final k in kAddableSearchEngines)
+          if ((scope == SearchScope.web || k.siteOperator) &&
+              !candidates.any((c) => identical(knownFor(c.initUrl), k)))
+            k,
+      ];
 
   /// Whether the sheet offers "this site" for [identity], the site on screen:
   /// any site but a web engine, which has nothing of its own to search.

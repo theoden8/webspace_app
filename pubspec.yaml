@@ -75,6 +75,9 @@ dependencies:
   # Already a transitive dependency of other packages; promoted to direct
   # so it has a stable version constraint we control.
   archive: ^4.0.0
+  # Parses the OpenSearch descriptions sites declare (LIR-035). Already a
+  # transitive dependency; promoted to direct for the same reason as archive.
+  xml: ^6.6.1
 
 dev_dependencies:
   flutter_test:

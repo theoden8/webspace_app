@@ -68,6 +68,7 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 - [x] 8.8 Container colours (TAB-018): `ContainerColors` tokens, `ContainerColorEngine` (least used, kept, app tier only), `ContainerMark` on every row and All sites heading, the dot in site info.
 - [x] 8.9 TAB-017 across webspaces: the sheet gets every site with tabs, flagged in or out of the current webspace, and a tap on a hidden site's row switches to All. Covered end to end by `test/tabs_sheet_app_test.dart`, which pumps the shipped app and taps a link through the webview's own callback.
 - [x] 8.9 Tests: `subtreesRunningAs` and `ContainerColorEngine` in `test/link_tab_container_test.dart`, the palette in `test/design_tokens_validity_test.dart`, the sheet in `test/tabs_sheet_test.dart`.
+- [x] 8.10 Restored colours (TAB-018): `ContainerColorEngine.release`, applied by `planSettingsImport` and `_moveSiteOutOfArchive`; a moved-in site keeps its colour in the archive; `containerColor` excluded from the QR share and added to the backup superset. Tests in `test/link_tab_container_test.dart`.
 
 ## 9. Hosted tabs and reattach: manual smoke
 

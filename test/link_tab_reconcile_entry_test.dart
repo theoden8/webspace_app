@@ -206,7 +206,7 @@ void main() {
       final body = bodyOf('void _assignContainerColors(');
       expect(body, contains('if (!m.isArchiveTier) m,'));
       expect(body, contains('ContainerColorEngine.assign('));
-      expect(body, contains('ContainerColors.light.length'));
+      expect(body, contains('kContainerPaletteSize'));
     });
 
     test('every site has one before it is written or drawn', () {

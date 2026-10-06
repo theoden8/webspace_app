@@ -204,6 +204,9 @@ const PLUMBING = new Set([
   // site's own page icon. A nested screen shows another page, usually on
   // another host, and must not repaint the site's icon.
   'siteIcon',
+  // LIR-035: the search the site's pages declare. A nested screen shows
+  // another page, usually on another host, and must not set the site's search.
+  'siteSearch',
 ]);
 
 // Posture-ish but not yet threaded to nested webviews: tracked here rather

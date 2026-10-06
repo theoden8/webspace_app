@@ -7,6 +7,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 SiteBehaviourValues _values({
@@ -48,6 +49,8 @@ Future<void> _pump(
   List<WebViewModel> routingTargets = const [],
   bool tabsAvailable = false,
   String? initUrl,
+  String? discoveredSearchAddress,
+  bool discoveredSearchesWeb = false,
 }) async {
   // Tall surface so every row is laid out: the screen is one list and the
   // assertions below compare rows that sit at opposite ends of it.
@@ -68,6 +71,8 @@ Future<void> _pump(
       routingTargets: routingTargets,
       tabsAvailable: tabsAvailable,
       initUrl: initUrl,
+      discoveredSearchAddress: discoveredSearchAddress,
+      discoveredSearchesWeb: discoveredSearchesWeb,
     ),
   ));
   await tester.pumpAndSettle();
@@ -533,6 +538,77 @@ void main() {
       await tester.pumpAndSettle();
       expect(seen!.searchAddress, isNull);
       expect(find.text('https://github.com/search?q=%s'), findsOneWidget);
+    });
+
+    testWidgets('an address the site\'s pages declared shows as its own',
+        (tester) async {
+      await _pump(
+        tester,
+        tabsAvailable: true,
+        values: _values(),
+        initUrl: 'https://searx.lan/',
+        discoveredSearchAddress: 'https://searx.lan/search?q=%s',
+        discoveredSearchesWeb: true,
+      );
+      expect(find.text('https://searx.lan/search?q=%s'), findsOneWidget);
+      await tester.tap(find.text('https://searx.lan/search?q=%s'));
+      await tester.pumpAndSettle();
+      expect(_switchTitled(tester, 'Searches the whole web').value, isTrue);
+    });
+
+    testWidgets('pickers tell same-named sites apart by id (LIR-029)',
+        (tester) async {
+      final work = WebViewModel(
+          siteId: 'ddg-work',
+          initUrl: 'https://duckduckgo.com/',
+          name: 'DuckDuckGo')
+        ..containerColor = 1;
+      final home = WebViewModel(
+          siteId: 'ddg-home',
+          initUrl: 'https://duckduckgo.com/',
+          name: 'DuckDuckGo')
+        ..containerColor = 6;
+      await _pump(tester,
+          tabsAvailable: true, values: _values(), routingTargets: [work, home]);
+      await tester.tap(find.text('Default search from this site'));
+      await tester.pumpAndSettle();
+      expect(find.text('ddg-work'), findsOneWidget);
+      expect(find.text('ddg-home'), findsOneWidget);
+      expect(
+        tester
+            .widget<SiteIdLine>(find.ancestor(
+                of: find.text('ddg-home'), matching: find.byType(SiteIdLine)))
+            .colorIndex,
+        6,
+      );
+      Navigator.of(tester.element(find.text('ddg-home'))).pop();
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Search sites offered'));
+      await tester.pumpAndSettle();
+      expect(find.text('ddg-work'), findsOneWidget);
+      expect(find.text('ddg-home'), findsOneWidget);
+    });
+
+    testWidgets('the legacy engine shows ids without container colours',
+        (tester) async {
+      final ddg = WebViewModel(
+          siteId: 'ddg', initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo')
+        ..containerColor = 1;
+      await _pump(tester,
+          tabsAvailable: true,
+          containersActive: false,
+          values: _values(),
+          routingTargets: [ddg]);
+      await tester.tap(find.text('Default search from this site'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<SiteIdLine>(find.ancestor(
+                of: find.text('ddg'), matching: find.byType(SiteIdLine)))
+            .colorIndex,
+        isNull,
+      );
     });
 
     testWidgets('a list that drops the default clears it', (tester) async {
