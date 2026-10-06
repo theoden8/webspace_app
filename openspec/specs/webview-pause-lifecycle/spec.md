@@ -1270,6 +1270,11 @@ back rather than only if it was back at the first probe.
   at the delays in `liveSwapProbeDelays` (about 37s in all) and reload on
   the first probe that finds it up, unless a navigation started meanwhile.
   It remains one reload, never a loop.
+- Known gap: WKWebView (iOS, macOS) and WPE (Linux) report the snapshot's
+  own `initialData` commit to `shouldOverrideUrlLoading`, which bumps the
+  factory's navigation generation before the parse settles, and the swap
+  only fires while it is 0. On those engines the snapshot is never swapped
+  for the live page, network or not; only Android swaps today.
 
 #### Scenario: A standards-mode page with CSS-in-JS styles
 
@@ -1288,7 +1293,8 @@ also pins that the plugin's `outerHTML` lays the same page out differently)
 **When** a later probe in `liveSwapProbeDelays` reports online
 **Then** the webview reloads to the live page exactly once
 (regression tests: `test/html_snapshot_test.dart`; OFFLINE-INTEG-006 in
-`integration_test/offline_connection_test.dart`)
+`integration_test/offline_connection_test.dart`, which logs `SKIP` on the
+desktop engines for the gap above)
 
 ## Implementation
 

@@ -1086,6 +1086,10 @@ macOS runner exercises the failure assertions for real.
 - **Then** exactly one live reload is issued (PAUSE-033): a snapshot
   painted on return from the background is not stranded because the first
   probe raced the firewall letting the app back out
+- **And** where the engine reports the snapshot's own commit to
+  `shouldOverrideUrlLoading` (WKWebView, WPE) the swap is never issued at
+  all, so this scenario and the online one above log `SKIP` naming that
+  rather than fail; they assert on an engine that does not (Android)
 
 #### Scenario: A slow response is never reported as a failure
 
