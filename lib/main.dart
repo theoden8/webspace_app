@@ -8786,8 +8786,33 @@ class _WebSpacePageState extends State<WebSpacePage>
     ];
   }
 
+  /// A sheet opened while the keyboard is up sits behind it, and the
+  /// keyboard stays up while the URL bar or an input in the page has focus.
+  Future<void> _dismissKeyboard() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await getController()?.evaluateJavascript(
+        'document.activeElement && document.activeElement.blur && '
+        'document.activeElement.blur();');
+    await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+  }
+
   Future<void> _showTabsSheet() async {
-    if (_kioskLocked || !_tabsEnabledAt(_currentIndex)) return;
+    if (_kioskLocked || !_tabsEnabledAt(_currentIndex) || _isShowingTabsSheet) {
+      return;
+    }
+    _isShowingTabsSheet = true;
+    try {
+      await _dismissKeyboard();
+      if (!mounted || !_tabsEnabledAt(_currentIndex)) return;
+      await _presentTabsSheet();
+    } finally {
+      _isShowingTabsSheet = false;
+    }
+  }
+
+  bool _isShowingTabsSheet = false;
+
+  Future<void> _presentTabsSheet() async {
     final sites = _tabsSheetSites();
     final at = sites.indexWhere((s) => s.index == _currentIndex);
     if (at < 0) return;

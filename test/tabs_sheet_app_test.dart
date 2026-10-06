@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/site_tab.dart';
@@ -60,6 +61,22 @@ void main() {
       greaterThan(tester.getTopLeft(find.text('https://duckduckgo.com')).dx),
       reason: 'listed under its parent, not beside it',
     );
+  });
+
+  testWidgets('the Tabs list closes the keyboard before it opens',
+      (tester) async {
+    await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
+    await openWebspace(tester, 'All');
+    await openSiteFromDrawer(tester, 'GitHub');
+    await attachWebViews(tester);
+    await tester.tap(find.byType(TextField).first);
+    await settleRealApp(tester);
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    await openTabsSheet(tester);
+    expect(tester.testTextInput.isVisible, isFalse,
+        reason: 'a sheet under the keyboard cannot be seen');
+    expect(find.text('GitHub · 1 tab'), findsOneWidget);
   });
 
   testWidgets('with GitHub\'s routing off the tab is GitHub\'s own',
