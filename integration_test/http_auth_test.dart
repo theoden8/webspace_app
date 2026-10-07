@@ -222,10 +222,10 @@ void main() {
     required HttpAuthPrompt prompt,
   }) =>
       WebViewConfig(
+        hooks: bareHooks(httpAuth: prompt),
         key: ValueKey('http-auth-$siteId'),
         posture: barePosture(url, siteId: siteId),
         initialUrl: url,
-        onHttpAuthRequest: prompt,
       );
 
   testWidgets('a saved sign-in answers the challenge without a prompt',

@@ -103,6 +103,7 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                hooks: bareHooks(),
                 posture: barePosture(
                   url(path),
                   siteId: 'privacy-settings',

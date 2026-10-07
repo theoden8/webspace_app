@@ -69,7 +69,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 
 Layers: UI `screens`, `widgets`, `main.dart` · model `web_view_model.dart`, `webspace_model.dart` · services `services` · values `settings` · platform `platform`.
 
-Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · values → services (`global_outbound_proxy` and `proxy_library` are stores, `datasets` is UI, `user_script` reaches `host_resolution`) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`; `suggested_sites_service` → `add_site`'s `SiteSuggestion`) · model → UI (`web_view_model.dart`) · values → UI (`datasets`).
+Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · values → services (`global_outbound_proxy` and `proxy_library` are stores, `datasets` is UI, `user_script` reaches `host_resolution`) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`; `suggested_sites_service` → `add_site`'s `SiteSuggestion`) · values → UI (`datasets`).
 
 | Axis | Budget | Now | Funnel |
 |---|---|---|---|

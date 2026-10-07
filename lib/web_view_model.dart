@@ -5,7 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show CookieManager, WebUri;
@@ -54,9 +54,6 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/url_host.dart';
-import 'package:webspace/widgets/external_url_prompt.dart' show launchUrlInSystemBrowser;
-import 'package:webspace/widgets/tor_bootstrap.dart';
-import 'package:webspace/widgets/unproxied_block.dart';
 
 export 'package:webspace/services/url_host.dart'
     show extractDomain, getBaseDomain, getNormalizedDomain;
@@ -1217,21 +1214,19 @@ class WebViewModel implements MediaGrantRecord {
 
   /// The site as itself, at its home page, for a headless check in a
   /// background wake (NOTIF-016). Built from the same [sitePosture] as
-  /// [getWebView]'s config, so every per-site field reaches the check; the UI
-  /// callbacks are left out, since nothing is on screen.
-  WebViewConfig headlessCheckConfig({
-    required List<UserScriptConfig> globalUserScripts,
-  }) =>
-      WebViewConfig(
-        posture: sitePosture(globalUserScripts: globalUserScripts),
+  /// [getWebView]'s config, so every per-site field reaches the check, under
+  /// [hooks] that answer no one: nothing is on screen.
+  WebViewConfig headlessCheckConfig(WebViewHostHooks hooks) => WebViewConfig(
+        posture: sitePosture(globalUserScripts: hooks.globalUserScripts()),
+        hooks: hooks.unattended(),
         initialUrl: initUrl,
       );
 
-  /// The slot's webview, built on first call. [initialHtml] renders before
-  /// the live load; [onHtmlLoaded], gated by [shouldFetchHtml], keeps the
-  /// offline snapshot. All three are the slot's HTML cache, and absent when
-  /// it has none.
-  Widget getWebView(
+  /// The slot's webview, built on first call; null while the site waits for
+  /// Tor (TOR-008). [initialHtml] renders before the live load;
+  /// [onHtmlLoaded], gated by [shouldFetchHtml], keeps the offline snapshot.
+  /// All three are the slot's HTML cache, and absent when it has none.
+  Widget? getWebView(
     WebViewHostHooks hooks, {
     String? initialHtml,
     void Function(String url, String html)? onHtmlLoaded,
@@ -1288,7 +1283,7 @@ class WebViewModel implements MediaGrantRecord {
           }
           return false;
         case NavigationDecision.blockOpenExternal:
-          if (!takenOver()) launchUrlInSystemBrowser(url);
+          if (!takenOver()) hooks.openInBrowser(url);
           return false;
         case NavigationDecision.blockOutbound:
           takenOver();
@@ -1308,10 +1303,7 @@ class WebViewModel implements MediaGrantRecord {
       siteId: id.siteId,
       torUp: TorService.instance.status.isUp,
     )) {
-      // Do not cache the placeholder in `webview` — the next getWebView call
-      // after WebSpacePage's Tor listener disposes + setStates must fall
-      // through to real construction.
-      return const TorBootstrapPlaceholder();
+      return null;
     }
     if (webview == null) {
       LogService.instance.log(
@@ -1371,6 +1363,7 @@ class WebViewModel implements MediaGrantRecord {
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
           posture: posture,
+          hooks: hooks,
           initialUrl: currentUrl,
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
           // there is no Flutter route-pop edge-swipe here, so opt into
@@ -1378,11 +1371,6 @@ class WebViewModel implements MediaGrantRecord {
           backForwardGestures: true,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-          onConfirmScriptFetch: hooks.confirmScriptFetch,
-          onUntrustedCertificate: hooks.untrustedCertificate,
-          onHttpAuthRequest: hooks.httpAuth,
-          onExternalSchemeUrl: (url, info) =>
-              hooks.externalScheme(info, controller),
           onLinkLongPress: (url) => hooks.linkMenu(this, url),
           grants: PersistedGrantStore(
             id,
@@ -1391,7 +1379,6 @@ class WebViewModel implements MediaGrantRecord {
             save: hooks.save,
           ),
           pullToRefreshGate: pullToRefreshGate,
-          onWindowRequested: hooks.showPopup,
           onUnproxiedNavigationBlocked: (blocked) {
             blockedNavigationUrl = blocked;
             hooks.rebuild();
@@ -1513,8 +1500,6 @@ class WebViewModel implements MediaGrantRecord {
             }
             await hooks.save();
           },
-          cookieManager: hooks.cookieManager,
-          containerCookieManager: hooks.containerCookieManager,
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar. The mirror
             // and the block list are those of the site the slot runs as.
@@ -1664,37 +1649,11 @@ class WebViewModel implements MediaGrantRecord {
         },
       );
     }
-    final blocked = blockedNavigationUrl;
-    // Always the same Stack, whether or not the interstitial is in it: a
-    // widget swapped in at this slot would unmount the platform view and
-    // take the page the user is still on with it. `StackFit.expand` keeps
-    // the webview's constraints exactly what they were without it.
-    //
-    // Over the webview rather than instead of it, because the navigation was
-    // cancelled: the document underneath is live, and dismissing the
-    // interstitial is what "go back" means here.
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        webview!,
-        if (blocked != null)
-          Positioned.fill(
-            child: UnproxiedNavigationBlock(
-              siteName: name,
-              blockedUrl: blocked,
-              onGoBack: () {
-                blockedNavigationUrl = null;
-                hooks.rebuild();
-              },
-              onOpenProxySettings: () => hooks.openSiteSettings(siteId),
-            ),
-          ),
-      ],
-    );
+    return webview;
   }
 
   WebViewController? getController(WebViewHostHooks hooks) {
-    webview ??= getWebView(hooks);
+    if (webview == null) getWebView(hooks);
     if (controller != null) {
       setController();
     }

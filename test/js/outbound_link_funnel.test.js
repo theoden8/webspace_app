@@ -21,7 +21,7 @@ const model = read(modelRel);
 const main = read(mainRel);
 const links = read(linksRel);
 
-const getWebView = blockAfter(model, '  Widget getWebView(', '}) {', modelRel);
+const getWebView = blockAfter(model, '  Widget? getWebView(', '}) {', modelRel);
 
 function previousLine(text, index) {
   const lines = text.slice(0, index).split('\n');
@@ -41,7 +41,7 @@ test('every launch asks the outbound hook first', () => {
     /bool takenOver\(\) =>\s*hooks\.routeOutbound\(this, url, decision, hadGesture\);/,
     'the hook is asked about the link being launched');
   const launches = [...getWebView.matchAll(
-    /\b(hooks\.launchNested|launchUrlInSystemBrowser)\(/g)];
+    /\b(hooks\.launchNested|hooks\.openInBrowser)\(/g)];
   assert.equal(launches.length, 2, 'one nested and one external launch');
   for (const m of launches) {
     const prev = previousLine(getWebView, m.index + m[0].length) + getWebView
@@ -58,7 +58,7 @@ test('a blocked outbound link reaches the hook, and nothing launches', () => {
   const branch = getWebView.slice(at, getWebView.indexOf('return', at));
   assert.match(branch, /takenOver\(\);/,
     'a blocked link must reach the host, which tells the user about a tap');
-  assert.doesNotMatch(branch, /hooks\.launchNested|launchUrlInSystemBrowser/,
+  assert.doesNotMatch(branch, /hooks\.launchNested|hooks\.openInBrowser/,
     'a blocked link must not open anywhere');
 });
 

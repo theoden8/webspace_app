@@ -1,4 +1,8 @@
+import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/site_posture.dart';
+import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -22,4 +26,33 @@ SitePosture barePosture(
   );
   adjust?.call(site);
   return site.sitePosture(globalUserScripts: const []);
+}
+
+/// A host with no app around the webview: every prompt answers no and nothing
+/// opens elsewhere. [httpAuth] stands in for the sign-in prompt.
+WebViewHostHooks bareHooks({HttpAuthPrompt? httpAuth}) => WebViewHostHooks(
+      cookieManager: CookieManager(),
+      containerCookieManager: null,
+      globalUserScripts: () => const [],
+      save: () async {},
+      rebuild: () {},
+      onScreen: (_) => true,
+      launchNested: (_, _, {homeTitle}) {},
+      openInBrowser: (_) async => false,
+      routeOutbound: (_, _, _, _) => false,
+      linkMenu: (_, _) {},
+      openSiteSettings: (_) {},
+      showPopup: (_, _) async {},
+      externalScheme: (_, _) async {},
+      confirmScriptFetch: (_) async => false,
+      untrustedCertificate: (_, _, _) async => false,
+      httpAuth: httpAuth ?? (_) async => null,
+      media: _NoPrompts(),
+    );
+
+/// A capture prompt in these tests is a bug in the test.
+class _NoPrompts implements MediaPrompter {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw StateError('no capture prompt expected: ${invocation.memberName}');
 }

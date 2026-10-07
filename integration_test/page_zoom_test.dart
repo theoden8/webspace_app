@@ -135,6 +135,7 @@ void main() {
             height: _kBoxHeight,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                hooks: bareHooks(),
                 key: mountKey,
                 // Keep the surface to the zoom path: no blocker lists, no
                 // ETP shim (which also spoofs screen.*).

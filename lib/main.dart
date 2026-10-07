@@ -2655,6 +2655,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         _sites.current! < _sites.models.length &&
         identical(_sites.models[_sites.current!], slot),
     launchNested: launchUrl,
+    openInBrowser: launchUrlInSystemBrowser,
     routeOutbound: _links.routeOutbound,
     // Identity, not index: the list can have been reordered by the time the
     // native event lands.
@@ -5608,7 +5609,7 @@ class _PageHost
   void syncTorExitPin(Set<int> indices) => _s._network.syncTorExitPin(indices);
 
   @override
-  List<UserScriptConfig> get globalUserScripts => _s._globalUserScripts;
+  WebViewHostHooks get webViewHooks => _s._webViewHooks;
 
   @override
   void enterFullscreen() => _s._enterFullscreen();

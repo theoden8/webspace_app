@@ -7,6 +7,8 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/stats_banner.dart';
+import 'package:webspace/widgets/tor_bootstrap.dart';
+import 'package:webspace/widgets/unproxied_block.dart';
 
 /// One webview per loaded site, the one at [current] showing. A slot that is
 /// not loaded holds an empty box, so positions line up with [models] and a
@@ -75,7 +77,7 @@ class _SiteWebView extends StatelessWidget {
               dnsBlockEnabled: site.dnsBlockEnabled,
             ),
           Expanded(
-            child: site.getWebView(
+            child: _withInterstitial(site.getWebView(
               hooks,
               // file:// imports are user data, the only copy on the device,
               // not a re-fetchable snapshot, so they skip the save path.
@@ -97,10 +99,43 @@ class _SiteWebView extends StatelessWidget {
               initialHtml: htmlSource == HtmlSource.none
                   ? null
                   : _initialHtml(context, htmlSource == HtmlSource.import),
-            ),
+            )),
           ),
         ],
       ),
+    );
+  }
+
+  /// [webView], or the Tor placeholder while it waits (TOR-008), under the
+  /// interstitial for a navigation its proxy could not cover (LEAK-010).
+  Widget _withInterstitial(Widget? webView) {
+    if (webView == null) return const TorBootstrapPlaceholder();
+    final blocked = site.blockedNavigationUrl;
+    // Always the same Stack, whether or not the interstitial is in it: a
+    // widget swapped in at this slot would unmount the platform view and
+    // take the page the user is still on with it. `StackFit.expand` keeps
+    // the webview's constraints exactly what they were without it.
+    //
+    // Over the webview rather than instead of it, because the navigation was
+    // cancelled: the document underneath is live, and dismissing the
+    // interstitial is what "go back" means here.
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        webView,
+        if (blocked != null)
+          Positioned.fill(
+            child: UnproxiedNavigationBlock(
+              siteName: site.name,
+              blockedUrl: blocked,
+              onGoBack: () {
+                site.blockedNavigationUrl = null;
+                hooks.rebuild();
+              },
+              onOpenProxySettings: () => hooks.openSiteSettings(site.siteId),
+            ),
+          ),
+      ],
     );
   }
 

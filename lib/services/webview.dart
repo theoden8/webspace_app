@@ -69,7 +69,7 @@ import 'package:webspace/services/download_url_revert_engine.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/container_native.dart';
-import 'package:webspace/services/container_cookie_manager.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
 import 'package:webspace/services/opensearch_engine.dart';
@@ -481,7 +481,7 @@ HttpAuthSession _httpAuthSessionFor(WebViewConfig config) => HttpAuthSession(
       siteUrl: config.initialUrl,
       memory: config.posture.container.httpAuthMemory,
       store: HttpAuthSecureStorage.instance,
-      prompt: config.onHttpAuthRequest,
+      prompt: config.hooks.httpAuth,
     );
 
 void _logSiteIcon(String message) =>
@@ -1031,14 +1031,6 @@ class WebViewConfig {
   final bool backgroundAudioEnabled;
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
-  /// Cookie reader used inside [_onLoadStop] before invoking
-  /// [onCookiesChanged]. Exactly one of these is non-null per
-  /// `_WebSpacePageState`'s `_useContainers` decision: legacy mode
-  /// passes [cookieManager] (global default jar); container mode
-  /// passes [containerCookieManager] (the fork's plugin routes through
-  /// the bound container via `webViewController:`).
-  final CookieManager? cookieManager;
-  final ContainerCookieManager? containerCookieManager;
   final Function(int activeMatch, int totalMatches)? onFindResult;
   final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
   /// Fires when a main-frame navigation was cancelled because the app could
@@ -1069,10 +1061,6 @@ class WebViewConfig {
   /// use this to render a determinate loading bar while a navigation
   /// is in flight ([onLoadingChanged] gates visibility).
   final Function(int progress)? onProgressChanged;
-  /// Callback for when a popup window is requested (e.g., Cloudflare challenges).
-  /// Returns a widget (typically a WebView) to display in the popup.
-  /// The callback receives the windowId for the popup and the requested URL.
-  final Future<void> Function(int windowId, String url)? onWindowRequested;
   /// Callback when page HTML should be cached. Called on page load with (url, html).
   final Function(String url, String html)? onHtmlLoaded;
   /// Optional pre-gate for the [onHtmlLoaded] path. Returning `false`
@@ -1100,14 +1088,9 @@ class WebViewConfig {
       );
   /// Callback for JS console messages.
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
-  /// Callback to confirm fetching a script from a non-whitelisted URL.
-  /// Returns true if the user approves, false to block.
-  final Future<bool> Function(String url)? onConfirmScriptFetch;
-  /// Callback fired when the webview tries to navigate to a non-webview
-  /// URL (`intent://`, `tel:`, `mailto:`, custom app schemes). The
-  /// webview always cancels such navigations; the host UI decides
-  /// whether to launch the target app after confirming with the user.
-  final Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl;
+  /// The host's answers for every webview that runs as the site: prompts,
+  /// popups, external schemes and the cookie readers.
+  final WebViewHostHooks hooks;
   /// A long-press that landed on a link (`SRC_ANCHOR_TYPE`). The host opens
   /// its link menu, whose "Open in new tab" is how a child tab is created
   /// (TAB-006). Android and iOS only: the plugin backs this with
@@ -1115,21 +1098,6 @@ class WebViewConfig {
   /// is no macOS or Linux equivalent, so those platforms reach the same
   /// actions from the tab list instead.
   final void Function(String url)? onLinkLongPress;
-  /// Prompt for an untrusted (typically self-signed) TLS certificate
-  /// surfaced by the platform's `onReceivedServerTrustAuthRequest`. The
-  /// host UI shows a confirmation dialog; returning `true` adds the
-  /// (host, port, sha256) triple to [TrustedHostsService] and lets the
-  /// load proceed. Returning `false` (or a null callback) cancels the
-  /// load — matching the platform default.
-  final Future<bool> Function(
-    String host,
-    int port,
-    inapp.SslCertificate? certificate,
-  )? onUntrustedCertificate;
-  /// Asks the user to sign in when the site's server answers `401`
-  /// (HTTPAUTH-003). Null leaves every such challenge to the platform, which
-  /// cancels and shows the server's error body.
-  final HttpAuthPrompt? onHttpAuthRequest;
   /// Pull-to-refresh, with the gate that keeps a pinch from firing it
   /// (NAV-006); the factory feeds it from a [Listener] around the webview.
   final PullToRefreshGate? pullToRefreshGate;
@@ -1168,6 +1136,7 @@ class WebViewConfig {
   WebViewConfig({
     this.key,
     required this.posture,
+    required this.hooks,
     required this.initialUrl,
     this.backForwardGestures = false,
     this.deferInitialLoad = false,
@@ -1178,21 +1147,14 @@ class WebViewConfig {
     this.onMainFrameLoad,
     this.onProgressChanged,
     this.onCookiesChanged,
-    this.cookieManager,
-    this.containerCookieManager,
     this.onFindResult,
     this.shouldOverrideUrlLoading,
     this.onUnproxiedNavigationBlocked,
-    this.onWindowRequested,
     this.onHtmlLoaded,
     this.shouldFetchHtml,
     this.initialHtml,
     this.onConsoleMessage,
-    this.onConfirmScriptFetch,
-    this.onExternalSchemeUrl,
     this.onLinkLongPress,
-    this.onUntrustedCertificate,
-    this.onHttpAuthRequest,
     this.pullToRefreshGate,
     this.onRendererGone,
     this.onPageCommitVisible,
@@ -2491,7 +2453,7 @@ class WebViewFactory {
     final scoped = _scopedShims(posture);
     final userScriptService = UserScriptService(
       scripts: posture.page.userScripts,
-      onConfirmScriptFetch: config.onConfirmScriptFetch,
+      onConfirmScriptFetch: config.hooks.confirmScriptFetch,
       proxy: posture.container.proxy,
     );
 
@@ -3901,9 +3863,7 @@ class WebViewFactory {
             }
             return inapp.NavigationActionPolicy.CANCEL;
           }
-          if (config.onExternalSchemeUrl != null) {
-            config.onExternalSchemeUrl!(url, externalInfo);
-          }
+          config.hooks.externalScheme(externalInfo, view);
           return inapp.NavigationActionPolicy.CANCEL;
         }
         // Counted even with no list loaded, so the per-site log reflects
@@ -4146,20 +4106,17 @@ class WebViewFactory {
 
         // Show popup dialog for Cloudflare challenges (captcha verification).
         if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
-          if (config.onWindowRequested != null && windowId != null) {
-            // The host builds the popup widget out of a BuildContext that has
-            // no site attached; hand it this webview's posture by windowId so
-            // createPopupWebView can inherit it. onWindowRequested resolves
-            // when the popup dialog closes, so the entry is short-lived.
-            _popupParentConfigs[windowId] = config;
-            try {
-              await config.onWindowRequested!(windowId, url);
-            } finally {
-              _popupParentConfigs.remove(windowId);
-            }
-            return true;
+          // The host builds the popup widget out of a BuildContext that has
+          // no site attached; hand it this webview's posture by windowId so
+          // createPopupWebView can inherit it. showPopup resolves when the
+          // popup dialog closes, so the entry is short-lived.
+          _popupParentConfigs[windowId] = config;
+          try {
+            await config.hooks.showPopup(windowId, url);
+          } finally {
+            _popupParentConfigs.remove(windowId);
           }
-          return false;
+          return true;
         }
 
         // target="_blank" links can carry external app schemes too (e.g.
@@ -4204,9 +4161,7 @@ class WebViewFactory {
             }
             return false;
           }
-          if (config.onExternalSchemeUrl != null) {
-            config.onExternalSchemeUrl!(url, externalInfo);
-          }
+          config.hooks.externalScheme(externalInfo, view);
           return false;
         }
 
@@ -4397,30 +4352,20 @@ class WebViewFactory {
         lastStableUrl =
             DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
         config.onUrlChanged?.call(urlStr);
-        if (config.onCookiesChanged != null) {
-          // Read cookies from the right jar — exactly one of the two
-          // managers is non-null per the engine selection on
-          // `_WebSpacePageState`. containerCookieManager routes through
-          // the fork's `webViewController:` to the bound container's
-          // cookie store; cookieManager hits the global default jar.
-          final List<Cookie> cookies;
-          if (config.containerCookieManager != null) {
-            cookies = await config.containerCookieManager!.getCookies(
-              controller: _WebViewController(controller, pauseHack: pauseHack, settings: settings),
-              siteId: config.posture.siteId,
-              url: Uri.parse(urlStr),
-            );
-          } else {
-            assert(
-              config.cookieManager != null,
-              'onCookiesChanged requires cookieManager (legacy mode) '
-              'or containerCookieManager + cookieSiteId (container mode).',
-            );
-            cookies = await config.cookieManager!.getCookies(
-              url: Uri.parse(urlStr),
-            );
-          }
-          config.onCookiesChanged!(cookies);
+        final onCookiesChanged = config.onCookiesChanged;
+        if (onCookiesChanged != null) {
+          // The container engine reads the bound container's jar through
+          // the fork's `webViewController:`; the legacy one, the shared jar.
+          final container = config.hooks.containerCookieManager;
+          final pageUrl = Uri.parse(urlStr);
+          onCookiesChanged(container != null
+              ? await container.getCookies(
+                  controller: _WebViewController(controller,
+                      pauseHack: pauseHack, settings: settings),
+                  siteId: config.posture.siteId,
+                  url: pageUrl,
+                )
+              : await config.hooks.cookieManager.getCookies(url: pageUrl));
         }
         // Inject full cosmetic script: MutationObserver + text-based hiding
         if (config.posture.blocking.contentBlock) {
@@ -4565,7 +4510,7 @@ class WebViewFactory {
           final handled = await _handleSslLoadError(
             view: view,
             url: reqUrl,
-            prompt: config.onUntrustedCertificate,
+            prompt: config.hooks.untrustedCertificate,
           );
           if (handled) return;
         }
@@ -4630,26 +4575,13 @@ class WebViewFactory {
         }
         // No web equivalent — fall through to the dialog path so the
         // user can still choose to launch the target app.
-        if (config.onExternalSchemeUrl != null) {
-          LogService.instance.log(
-            'WebView',
-            'onReceivedError: type=${error.type} url=$reqUrl '
-                '— routing to external-scheme dialog',
-            sensitivity: LogSensitivity.sensitive,
-          );
-          config.onExternalSchemeUrl!(reqUrl, externalInfo);
-          return;
-        }
-        final recovery = lastStableUrl ?? config.initialUrl;
         LogService.instance.log(
           'WebView',
           'onReceivedError: type=${error.type} url=$reqUrl '
-              '— no host UI, scheduling reload of $recovery',
+              '— routing to external-scheme dialog',
           sensitivity: LogSensitivity.sensitive,
         );
-        Future.microtask(() async {
-          await view?.loadUrl(recovery);
-        });
+        config.hooks.externalScheme(externalInfo, view);
       },
       // Header names, never values, and no URL, so the line reaches logcat:
       // the name set tells the app's own proxy relay (`connection` alone, or
@@ -4694,7 +4626,7 @@ class WebViewFactory {
         }
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(view, challenge, config.onUntrustedCertificate),
+          _handleServerTrust(view, challenge, config.hooks.untrustedCertificate),
       onReceivedHttpAuthRequest: (controller, challenge) =>
           answerHttpAuthChallenge(
             routerIdentity: _routerIdentityForConfig(config),

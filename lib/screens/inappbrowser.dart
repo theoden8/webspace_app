@@ -224,6 +224,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     return WebViewFactory.createWebView(
       config: WebViewConfig(
         posture: p,
+        hooks: widget.hooks,
         initialUrl: widget.url,
         // BUG-002 gap #1: the OS can kill this nested webview's renderer
         // (memory reclaim while backgrounded, or a page-induced crash),
@@ -234,7 +235,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // the WebView has pixels, and the 15s commit window can close before
         // a slow renderer produces any (BUG-001 gap #18).
         onPageCommitVisible: () => _surface.nudge('page-commit-visible'),
-        onConfirmScriptFetch: widget.hooks.confirmScriptFetch,
         onUnproxiedNavigationBlocked: (blocked) {
           if (!mounted) return;
           setState(() => _blockedNavigationUrl = blocked);
@@ -242,10 +242,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         grants: _grants,
         // Only wired when the opening site actually blocks cookies: an
         // always-on reader would add a jar round-trip to every load here.
-        cookieManager:
-            blockedCookies.isEmpty ? null : widget.hooks.cookieManager,
-        containerCookieManager:
-            blockedCookies.isEmpty ? null : widget.hooks.containerCookieManager,
         onCookiesChanged: blockedCookies.isEmpty
             ? null
             : (cookies) async {
@@ -350,23 +346,18 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             case NavigationDecision.blockSuppressed:
               return false;
             case NavigationDecision.blockOpenExternal:
-              launchUrlInSystemBrowser(url);
+              widget.hooks.openInBrowser(url);
               return false;
             case NavigationDecision.blockOutbound:
               if (result.hadGesture) showExternalLinkBlocked(url);
               return false;
           }
         },
-        onWindowRequested: widget.hooks.showPopup,
-        onUntrustedCertificate: widget.hooks.untrustedCertificate,
-        onHttpAuthRequest: widget.hooks.httpAuth,
         passkeys: PasskeyAccess.forHost(
           enabled: p.container.passkeys,
           isOnScreen: () =>
               mounted && (ModalRoute.of(context)?.isCurrent ?? false),
         ),
-        onExternalSchemeUrl: (url, info) =>
-            widget.hooks.externalScheme(info, _controller),
       ),
       onControllerCreated: (controller) {
         _controller = controller;

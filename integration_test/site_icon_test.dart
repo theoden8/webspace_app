@@ -192,6 +192,7 @@ void main() {
           height: 480,
           child: WebViewFactory.createWebView(
             config: WebViewConfig(
+              hooks: bareHooks(),
               key: key,
               posture: barePosture(url,
                   siteId: 'site-icon',

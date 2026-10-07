@@ -6,6 +6,7 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -21,6 +22,7 @@ final class WebViewHostHooks {
     required this.rebuild,
     required this.onScreen,
     required this.launchNested,
+    required this.openInBrowser,
     required this.routeOutbound,
     required this.linkMenu,
     required this.openSiteSettings,
@@ -48,6 +50,10 @@ final class WebViewHostHooks {
   final bool Function(WebViewModel slot) onScreen;
   final LaunchUrlFunc launchNested;
 
+  /// Hands [url] to the system browser, the external-link mode's way out
+  /// (NESTED-009).
+  final Future<bool> Function(String url) openInBrowser;
+
   /// [source]'s webview is about to nest, send out or block [url]: true when
   /// the host took the link over (LIR-014, NESTED-009).
   final bool Function(WebViewModel source, String url,
@@ -69,4 +75,42 @@ final class WebViewHostHooks {
 
   /// The capture and protected-content popups behind every [GrantStore].
   final MediaPrompter media;
+
+  /// These answers for a webview no one is looking at, a background wake's
+  /// headless check (NOTIF-016): it opens nothing, and every question the
+  /// host would put to the user is declined.
+  WebViewHostHooks unattended() => WebViewHostHooks(
+        cookieManager: cookieManager,
+        containerCookieManager: containerCookieManager,
+        globalUserScripts: globalUserScripts,
+        save: save,
+        rebuild: rebuild,
+        onScreen: (_) => false,
+        launchNested: (_, _, {homeTitle}) {},
+        openInBrowser: (_) async => false,
+        routeOutbound: (_, _, _, _) => true,
+        linkMenu: (_, _) {},
+        openSiteSettings: (_) {},
+        showPopup: (_, _) async {},
+        externalScheme: (_, _) async {},
+        confirmScriptFetch: (_) async => false,
+        untrustedCertificate: (_, _, _) async => false,
+        httpAuth: (_) async => null,
+        media: const _Declines(),
+      );
+}
+
+final class _Declines implements MediaPrompter {
+  const _Declines();
+
+  @override
+  Future<CaptureGrant> capture(
+    CaptureKind kind,
+    String origin,
+    CaptureMode current,
+  ) async =>
+      (mode: kind.ask, source: null);
+
+  @override
+  Future<bool> protectedContent(String origin) async => false;
 }

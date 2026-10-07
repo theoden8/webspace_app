@@ -241,7 +241,7 @@ void main() {
     });
 
     test('the webview is built with the identity\'s container and cookies', () {
-      final start = model.indexOf('  Widget getWebView(');
+      final start = model.indexOf('  Widget? getWebView(');
       final body = model.substring(
           start, model.indexOf('  WebViewController? getController('));
       expect(count(body, 'id.sitePosture(globalUserScripts: globalUserScripts)'),
@@ -258,7 +258,7 @@ void main() {
     });
 
     test('a link home from a hosted tab returns to the owner (S6)', () {
-      final start = model.indexOf('  Widget getWebView(');
+      final start = model.indexOf('  Widget? getWebView(');
       final body = model.substring(
           start, model.indexOf('  WebViewController? getController('));
       expect(

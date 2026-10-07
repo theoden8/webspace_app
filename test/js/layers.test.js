@@ -41,9 +41,6 @@ const DEBT = new Set([
   'lib/settings/proxy_library.dart -> lib/services/log_service.dart',
   'lib/settings/proxy_library.dart -> lib/services/proxy_password_secure_storage.dart',
   'lib/settings/user_script.dart -> lib/services/host_resolution.dart',
-  'lib/web_view_model.dart -> lib/widgets/external_url_prompt.dart',
-  'lib/web_view_model.dart -> lib/widgets/tor_bootstrap.dart',
-  'lib/web_view_model.dart -> lib/widgets/unproxied_block.dart',
 ]);
 
 test('no file imports a layer above its own, beyond the recorded debt', () => {

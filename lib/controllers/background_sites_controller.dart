@@ -20,7 +20,7 @@ import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/wake_baseline_store.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What the background-site flows ask of the page.
@@ -31,8 +31,9 @@ abstract interface class BackgroundSitesHost implements PageHost {
   /// (TOR-014).
   void syncTorExitPin(Set<int> indices);
 
-  /// The app-wide user scripts a site may opt into.
-  List<UserScriptConfig> get globalUserScripts;
+  /// What the page answers for every site webview; a headless check takes
+  /// them unattended.
+  WebViewHostHooks get webViewHooks;
 }
 
 /// Sites that work while another is on screen or the app is away:
@@ -381,8 +382,8 @@ class _WakeHost implements BackgroundWakeHost {
           models[i],
           loaded: _sites.loaded.contains(i),
           hasWebview: models[i].controller != null,
-          proxyBindable: !WebViewFactory.storeBinding(models[i]
-                  .sitePosture(globalUserScripts: _host.globalUserScripts))
+          proxyBindable: !WebViewFactory.storeBinding(models[i].sitePosture(
+                  globalUserScripts: _host.webViewHooks.globalUserScripts()))
               .proxyUnavailable,
           env: env,
         ),
@@ -454,7 +455,7 @@ class _WakeHost implements BackgroundWakeHost {
     if (m == null) return WakeSkip.headlessFailed;
     if (_foreground) return WakeSkip.appInForeground;
     final (check, skip) = await WebViewFactory.openHeadlessCheck(
-        m.headlessCheckConfig(globalUserScripts: _host.globalUserScripts));
+        m.headlessCheckConfig(_host.webViewHooks));
     if (check == null) return skip;
     if (_foreground) {
       await check.dispose();

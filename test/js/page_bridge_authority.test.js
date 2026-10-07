@@ -142,7 +142,7 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
 test('NESTED-013: a subframe cannot steer the top document through an external scheme', () => {
   const at = WEBVIEW.indexOf("'External scheme intercepted: scheme=");
   assert.notEqual(at, -1, 'the external-scheme branch is gone');
-  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('onExternalSchemeUrl', at));
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('config.hooks.externalScheme(', at));
   const gate = body.indexOf('navigationAction.isForMainFrame == false');
   const load = body.indexOf('controller.loadUrl(');
   assert.notEqual(gate, -1,

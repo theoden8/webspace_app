@@ -130,6 +130,7 @@ void main() {
   }
 
   WebViewConfig config(String siteId, PasskeyBackend backend) => WebViewConfig(
+        hooks: bareHooks(),
         key: ValueKey('passkey-$siteId'),
         posture: barePosture(_rp, siteId: siteId),
         initialUrl: _rp,

@@ -421,7 +421,7 @@ against existing pins.
 - `lib/services/webview.dart` — `_handleServerTrust` defers on iOS/macOS; `_handleSslLoadError` post-failure prompt + reload; `onReceivedError` wires the SSL branch
 - `lib/services/outbound_http.dart` — `_isTrustedBadCert` consults `TrustedHostsService`
 - `lib/main.dart` — startup `TrustedHostsService.initialize()` + one-shot `clear()` migration
-- `lib/screens/inappbrowser.dart` + per-site `WebViewConfig` wiring — propagates the `onUntrustedCertificate` callback so nested webviews use the same prompt
+- `lib/screens/inappbrowser.dart` + per-site `WebViewConfig` wiring — take the host hooks whole (`WebViewConfig.hooks.untrustedCertificate`), so nested webviews use the same prompt
 - `lib/settings/app_prefs.dart` — `trustedHosts` deliberately NOT registered in `AppPref` (TLS-007)
 
 ---
