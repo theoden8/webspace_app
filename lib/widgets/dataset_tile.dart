@@ -87,9 +87,7 @@ class _DatasetTileState<D extends DownloadableDataset>
     setState(() => _busy = true);
     final message = await action(loc);
     if (mounted) setState(() => _busy = false);
-    if (message != null) {
-      messenger.toast(message);
-    }
+    if (message != null) messenger.toast(message);
   }
 
   void _download() => _run(_dataset.download);

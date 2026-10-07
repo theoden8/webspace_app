@@ -369,9 +369,9 @@ for (const rel of GUARDED) {
     });
 
     test(`${rel}: the menu offers a manual repaint (PAUSE-028)`, () => {
-      // A String-valued menu names the entry `value: "repaint"`; the main
-      // page's typed menu decides each action's entry in one switch arm.
-      const entry = /value:\s*"repaint"|SiteMenuAction\.repaint\s*=>/g;
+      // Both menus are typed: each decides an action's entry in one switch
+      // arm (`SiteMenuAction` on the main page, `_NestedMenuAction` here).
+      const entry = /\w+MenuAction\.repaint\s*=>/g;
       assert.match(src, entry, 'the overflow menu must carry a repaint entry');
       // The entry is a diagnostic, not a feature: EVERY occurrence must sit
       // behind the developer-mode gate as well as the Android one, or a user
@@ -380,14 +380,14 @@ for (const rel of GUARDED) {
       const entries = (src.match(entry) || []).length;
       const gated = (
         src.match(
-          /if\s*\(hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\)\s*\n\s*PopupMenuItem<String>\(\s*\n\s*value:\s*"repaint"|SiteMenuAction\.repaint\s*=>\s*hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\s*\?/g,
+          /\w+MenuAction\.repaint\s*=>\s*hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\s*\?/g,
         ) || []
       ).length;
       assert.equal(gated, entries,
         `${entries} repaint entr(y|ies), ${gated} behind the developer-mode ` +
           'gate; every one must be (PAUSE-028).');
       assert.match(src,
-        /case\s+(?:'repaint'|SiteMenuAction\.repaint):\s*\n\s*_repaintCurrentSurface\(\);/,
+        /case\s+\w+MenuAction\.repaint:\s*\n\s*_repaintCurrentSurface\(\);/,
         'selecting it must route to _repaintCurrentSurface');
       const body = methodBody('_repaintCurrentSurface', { file: rel });
       // A mechanism that does not route through the nudge funnel emits no

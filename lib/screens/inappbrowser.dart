@@ -41,6 +41,17 @@ import 'package:webspace/widgets/url_bar.dart';
 /// composited window over this rect (integration_test/white_screen_test.dart).
 const String kNestedWebViewSlotKey = 'nested-webview-slot';
 
+/// What the nested screen's overflow menu offers, in menu order.
+enum _NestedMenuAction {
+  openBrowser,
+  refresh,
+  search,
+  share,
+  toggleUrlBar,
+  repaint,
+  devTools,
+}
+
 class InAppWebViewScreen extends StatefulWidget {
   final String url;
   final String? homeTitle;
@@ -245,10 +256,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             ? null
             : (cookies) async {
                 final url = Uri.parse(_currentUrl);
-                for (final c in cookies) {
-                  if (!matchesBlockedCookie(blockedCookies, c.name, c.domain)) {
-                    continue;
-                  }
+                for (final c in cookies.where((c) =>
+                    matchesBlockedCookie(blockedCookies, c.name, c.domain))) {
                   final containerCookieManager =
                       widget.hooks.containerCookieManager;
                   if (containerCookieManager != null) {
@@ -273,11 +282,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         pullToRefreshGate: _pullToRefreshGate,
         onUrlChanged: (url) {
           _devToolsHost.currentUrl = url;
-          if (mounted) {
-            setState(() {
-              _currentUrl = url;
-            });
-          }
+          if (mounted) setState(() => _currentUrl = url);
         },
         onReloadIssued: () {
           _surface.armCommitLatch();
@@ -296,20 +301,15 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         },
         onProgressChanged: (progress) {
           if (!mounted || _loadingProgress == progress) return;
-          setState(() {
-            _loadingProgress = progress;
-          });
+          setState(() => _loadingProgress = progress);
         },
-        onConsoleMessage: (message, level) {
-          _devToolsHost.appendConsole(message, level);
-        },
+        onConsoleMessage: _devToolsHost.appendConsole,
         onFindResult: (activeMatch, totalMatches) {
-          if (mounted) {
-            setState(() {
-              findMatches.activeMatchOrdinal = activeMatch;
-              findMatches.numberOfMatches = totalMatches;
-            });
-          }
+          if (!mounted) return;
+          setState(() {
+            findMatches.activeMatchOrdinal = activeMatch;
+            findMatches.numberOfMatches = totalMatches;
+          });
         },
         // Same decision engine as the parent webview, judged against the
         // page shown here (NESTED-009 for the external-link mode, NESTED-004
@@ -444,11 +444,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     );
   }
 
-  void _toggleFind() {
-    setState(() {
-      _isFindVisible = !_isFindVisible;
-    });
-  }
+  void _toggleFind() => setState(() => _isFindVisible = !_isFindVisible);
 
   Future<void> _goBackAndRepaint(WebViewController controller) async {
     await controller.goBack();
@@ -563,12 +559,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).toast(
-          loc.inappBrowserCouldNotLaunch(url),
-        );
-      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).toast(loc.inappBrowserCouldNotLaunch(url));
     }
   }
 
@@ -590,6 +582,33 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
 
     await controller.evaluateJavascript(script);
   }
+
+  /// Icon and label of [action] in the overflow menu, or null where the menu
+  /// does not offer it.
+  (IconData, String)? _menuEntry(
+    _NestedMenuAction action,
+    AppLocalizations loc,
+  ) =>
+      switch (action) {
+        _NestedMenuAction.openBrowser =>
+          (Icons.link, loc.inappBrowserMenuOpenInBrowser),
+        _NestedMenuAction.refresh => (Icons.refresh, loc.inappBrowserMenuRefresh),
+        _NestedMenuAction.search => (Icons.search, loc.inappBrowserMenuFind),
+        _NestedMenuAction.share => (Icons.share, loc.commonShare),
+        _NestedMenuAction.toggleUrlBar => _showUrlBar
+            ? (Icons.visibility_off, loc.inappBrowserMenuHideUrlBar)
+            : (Icons.visibility, loc.inappBrowserMenuShowUrlBar),
+        // Manual escape hatch for the recurring Android blank surface
+        // (BUG-001 / PAUSE-028). Android-only, where the nudge is not a
+        // no-op, and behind developer mode: it is a diagnostic, not something
+        // to meet by accident.
+        _NestedMenuAction.repaint =>
+          hostIsAndroid && DeveloperModeService.instance.enabled
+              ? (Icons.format_paint, loc.commonRepaintScreen)
+              : null,
+        _NestedMenuAction.devTools =>
+          (Icons.developer_mode, loc.inappBrowserMenuDeveloperTools),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -660,123 +679,43 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         title: Text(title ?? loc.inappBrowserDefaultTitle),
         actions: [
           const DownloadButton(),
-          PopupMenuButton<String>(
-            itemBuilder: (BuildContext context) {
-              return [
-                PopupMenuItem<String>(
-                  value: "openbrowser",
-                  child: Row(
-                    children: [
-                      Icon(Icons.link),
-                      SizedBox(width: 8),
-                      Text(loc.inappBrowserMenuOpenInBrowser),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "refresh",
-                  child: Row(
-                    children: [
-                      Icon(Icons.refresh),
-                      SizedBox(width: 8),
-                      Text(loc.inappBrowserMenuRefresh),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "search",
-                  child: Row(
-                    children: [
-                      Icon(Icons.search),
-                      SizedBox(width: 8),
-                      Text(loc.inappBrowserMenuFind),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "share",
-                  child: Row(
-                    children: [
-                      Icon(Icons.share),
-                      SizedBox(width: 8),
-                      Text(loc.commonShare),
-                    ],
-                  ),
-                ),
-                PopupMenuItem<String>(
-                  value: "toggleUrlBar",
-                  child: Row(
-                    children: [
-                      Icon(_showUrlBar ? Icons.visibility_off : Icons.visibility),
-                      SizedBox(width: 8),
-                      Text(_showUrlBar ? loc.inappBrowserMenuHideUrlBar : loc.inappBrowserMenuShowUrlBar),
-                    ],
-                  ),
-                ),
-                // Manual escape hatch for the recurring Android blank
-                // surface (BUG-001 / PAUSE-028). Android-only, where the
-                // nudge is not a no-op, and behind developer mode: it is a
-                // diagnostic, not something to meet by accident.
-                if (hostIsAndroid && DeveloperModeService.instance.enabled)
-                  PopupMenuItem<String>(
-                    value: "repaint",
+          PopupMenuButton<_NestedMenuAction>(
+            itemBuilder: (_) => [
+              for (final action in _NestedMenuAction.values)
+                if (_menuEntry(action, loc) case (final icon, final label))
+                  PopupMenuItem(
+                    value: action,
                     child: Row(
                       children: [
-                        Icon(Icons.format_paint),
+                        Icon(icon),
                         SizedBox(width: 8),
-                        Text(loc.commonRepaintScreen),
+                        Text(label),
                       ],
                     ),
                   ),
-                PopupMenuItem<String>(
-                  value: "devTools",
-                  child: Row(
-                    children: [
-                      Icon(Icons.developer_mode),
-                      SizedBox(width: 8),
-                      Text(loc.inappBrowserMenuDeveloperTools),
-                    ],
-                  ),
-                ),
-              ];
-            },
-            onSelected: (String value) async {
-              switch (value) {
-                case 'repaint':
+            ],
+            onSelected: (action) async {
+              switch (action) {
+                case _NestedMenuAction.repaint:
                   _repaintCurrentSurface();
-                  break;
-                case 'share':
-                  if (_controller != null) {
-                    final url = await _controller!.getUrl();
-                    if (url != null) {
-                      SharePlus.instance.share(ShareParams(uri: Uri.parse(url.toString())));
-                    }
+                case _NestedMenuAction.share:
+                  final url = await _controller?.getUrl();
+                  if (url != null) {
+                    SharePlus.instance.share(ShareParams(uri: Uri.parse(url.toString())));
                   }
-                  break;
-                case 'openbrowser':
-                  if (_controller != null) {
-                    final url = await _controller!.getUrl();
-                    if (url != null) {
-                      launchExternalUrl(url.toString());
-                      if (mounted) {
-                        Navigator.pop(context);
-                      }
-                    }
-                  }
-                  break;
-                case 'search':
+                case _NestedMenuAction.openBrowser:
+                  final url = await _controller?.getUrl();
+                  if (url == null) return;
+                  launchExternalUrl(url.toString());
+                  if (mounted) Navigator.pop(context);
+                case _NestedMenuAction.search:
                   _toggleFind();
-                  break;
-                case 'toggleUrlBar':
-                  setState(() {
-                    _showUrlBar = !_showUrlBar;
-                  });
+                case _NestedMenuAction.toggleUrlBar:
+                  setState(() => _showUrlBar = !_showUrlBar);
                   await widget.onShowUrlBarChanged?.call(_showUrlBar);
-                  break;
-                case 'refresh':
+                case _NestedMenuAction.refresh:
                   await _reloadAndRepaint();
-                  break;
-                case 'devTools':
+                case _NestedMenuAction.devTools:
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -786,7 +725,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                       ),
                     ),
                   );
-                  break;
               }
             },
           ),
@@ -798,9 +736,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             FindToolbar(
               webViewController: _controller,
               matches: findMatches,
-              onClose: () {
-                _toggleFind();
-              },
+              onClose: _toggleFind,
             ),
           // The repaint inset (BUG-001 gap #1); zero in steady state.
           Expanded(

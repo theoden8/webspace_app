@@ -22,17 +22,13 @@ class LogEntryLine extends StatelessWidget {
     // Light shades for a dark background, deep ones for a light one: plain
     // amber on a light theme is close to unreadable.
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final Color color;
-    switch (entry.level) {
-      case LogLevel.warning:
-        color = dark ? Colors.amber : Colors.orange.shade900;
-      case LogLevel.error:
-        color = dark ? Colors.red.shade300 : Colors.red.shade800;
-      case LogLevel.info:
-        color = dark ? Colors.lightBlue.shade200 : Colors.blue.shade800;
-      case LogLevel.debug:
-        color = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white;
-    }
+    final color = switch (entry.level) {
+      LogLevel.warning => dark ? Colors.amber : Colors.orange.shade900,
+      LogLevel.error => dark ? Colors.red.shade300 : Colors.red.shade800,
+      LogLevel.info => dark ? Colors.lightBlue.shade200 : Colors.blue.shade800,
+      LogLevel.debug =>
+        Theme.of(context).textTheme.bodyMedium?.color ?? Colors.white,
+    };
     final isSensitive = entry.sensitivity == LogSensitivity.sensitive;
     final prefix = isSensitive ? '[SENSITIVE] ' : '';
     final line = '[$time] $prefix[${entry.tag}] ${entry.message}';
@@ -76,13 +72,11 @@ Future<void> saveLogText(
     bytes: isMobile ? bytes : null,
   );
 
-  if (outputPath != null && !isMobile) {
+  if (outputPath == null) return;
+  if (!isMobile) {
     final filePath =
         outputPath.endsWith('.txt') ? outputPath : '$outputPath.txt';
     await hostWriteFileText(filePath, text);
   }
-
-  if (outputPath != null) {
-    messenger.toast(loc.devToolsLogsExported);
-  }
+  messenger.toast(loc.devToolsLogsExported);
 }

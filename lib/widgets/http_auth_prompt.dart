@@ -30,17 +30,12 @@ class HttpAuthDialog extends StatefulWidget {
 }
 
 class _HttpAuthDialogState extends State<HttpAuthDialog> {
-  late final TextEditingController _username;
-  final TextEditingController _password = TextEditingController();
-  late bool _remember;
+  late final _username =
+      TextEditingController(text: widget.request.initialUsername);
+  final _password = TextEditingController();
+  late bool _remember =
+      widget.request.canRemember && widget.request.rememberByDefault;
   bool _obscurePassword = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _username = TextEditingController(text: widget.request.initialUsername);
-    _remember = widget.request.canRemember && widget.request.rememberByDefault;
-  }
 
   @override
   void dispose() {
@@ -49,13 +44,11 @@ class _HttpAuthDialogState extends State<HttpAuthDialog> {
     super.dispose();
   }
 
-  void _submit() {
-    Navigator.of(context).pop(HttpAuthPromptResult(
-      username: _username.text,
-      password: _password.text,
-      remember: _remember,
-    ));
-  }
+  void _submit() => Navigator.of(context).pop(HttpAuthPromptResult(
+        username: _username.text,
+        password: _password.text,
+        remember: _remember,
+      ));
 
   @override
   Widget build(BuildContext context) {

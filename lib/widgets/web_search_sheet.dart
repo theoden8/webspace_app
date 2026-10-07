@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/container_mark.dart';
 
 class WebSearchRequest {
   final String query;
@@ -113,21 +114,6 @@ class _WebSearchSheetState extends State<WebSearchSheet> {
       ? _options[_selected].site.name
       : _add?.name;
 
-  Widget? _colorDot(String siteId) {
-    final index = widget.containerColors[siteId];
-    if (index == null) return null;
-    return ExcludeSemantics(
-      child: Container(
-        width: Spacing.sm,
-        height: Spacing.sm,
-        decoration: BoxDecoration(
-          color: ContainerColors.of(index, Theme.of(context).brightness),
-          shape: BoxShape.circle,
-        ),
-      ),
-    );
-  }
-
   void _submit() {
     final query = _query.text.trim();
     if (query.isEmpty) return;
@@ -204,7 +190,11 @@ class _WebSearchSheetState extends State<WebSearchSheet> {
               children: [
                 for (var i = 0; i < _options.length; i++)
                   ChoiceChip(
-                    avatar: _colorDot(_options[i].site.siteId),
+                    avatar: switch (
+                        widget.containerColors[_options[i].site.siteId]) {
+                      final index? => ContainerDot(index),
+                      null => null,
+                    },
                     label: Text(_options[i].site.name),
                     selected: i == _selected,
                     onSelected: (_) => setState(() => _selected = i),

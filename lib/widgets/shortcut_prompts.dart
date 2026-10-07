@@ -24,57 +24,28 @@ class DialogShortcutPrompts implements ShortcutPrompts {
   );
 
   @override
-  Future<MissingShortcutChoice?> missingSite(String url) {
-    final loc = _loc;
-    return showDialog<MissingShortcutChoice>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeShortcutMissingTitle),
-        content: Text(loc.homeShortcutMissingBody(url)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(null),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () =>
-                Navigator.of(ctx).pop(MissingShortcutChoice.reroute),
-            child: Text(loc.homeShortcutOpenAnother),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(MissingShortcutChoice.create),
-            child: Text(loc.homeCreateAction),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<MissingShortcutChoice?> missingSite(String url) => choose(
+    context,
+    title: _loc.homeShortcutMissingTitle,
+    body: _loc.homeShortcutMissingBody(url),
+    options: [
+      (null, _loc.commonCancel),
+      (MissingShortcutChoice.reroute, _loc.homeShortcutOpenAnother),
+      (MissingShortcutChoice.create, _loc.homeCreateAction),
+    ],
+  );
 
   @override
-  Future<ShortcutFate?> deletedSiteTiles() {
-    final loc = _loc;
-    return showDialog<ShortcutFate>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeShortcutFateTitle),
-        content: Text(loc.homeShortcutFateBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ShortcutFate.keep),
-            child: Text(loc.homeShortcutKeep),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ShortcutFate.reassign),
-            child: Text(loc.homeShortcutReassign),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, ShortcutFate.disable),
-            child: Text(loc.homeShortcutDisable),
-          ),
-        ],
-      ),
-    );
-  }
+  Future<ShortcutFate?> deletedSiteTiles() => choose(
+    context,
+    title: _loc.homeShortcutFateTitle,
+    body: _loc.homeShortcutFateBody,
+    options: [
+      (ShortcutFate.keep, _loc.homeShortcutKeep),
+      (ShortcutFate.reassign, _loc.homeShortcutReassign),
+      (ShortcutFate.disable, _loc.homeShortcutDisable),
+    ],
+  );
 
   @override
   Future<String?> pickSite(List<WebViewModel> candidates) {
@@ -95,12 +66,7 @@ class DialogShortcutPrompts implements ShortcutPrompts {
                 leading: SizedBox(
                   width: 32,
                   height: 32,
-                  child: UnifiedFaviconImage(
-                    url: m.initUrl,
-                    size: 32,
-                    proxy: m.outboundProxySettings,
-                    customIcon: m.customIconPng,
-                  ),
+                  child: UnifiedFaviconImage.site(m, size: 32),
                 ),
                 title: Text(
                   m.getDisplayName(),

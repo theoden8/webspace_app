@@ -60,32 +60,29 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
     AppLocalizations loc,
     ColorScheme scheme,
     ProxyTestResult result,
-  ) {
-    switch (result.outcome) {
-      case ProxyTestOutcome.reachable:
+  ) =>
+      switch (result.outcome) {
         // The padlock green: it is the app's one "this is fine" colour and
         // it clears 3:1 on both light and dark surfaces.
-        return (
-          icon: Icons.check_circle_outline,
-          color: SecurityIndicator.secure,
-          message: loc.proxyTestOk,
-        );
-      case ProxyTestOutcome.authRejected:
-        return (
-          icon: Icons.lock_outline,
-          color: scheme.error,
-          message: loc.proxyTestAuthRejected,
-        );
-      case ProxyTestOutcome.unreachable:
-      case ProxyTestOutcome.timedOut:
-      case ProxyTestOutcome.blocked:
-        return (
-          icon: Icons.error_outline,
-          color: scheme.error,
-          message: loc.proxyTestUnreachable,
-        );
-    }
-  }
+        ProxyTestOutcome.reachable => (
+            icon: Icons.check_circle_outline,
+            color: SecurityIndicator.secure,
+            message: loc.proxyTestOk,
+          ),
+        ProxyTestOutcome.authRejected => (
+            icon: Icons.lock_outline,
+            color: scheme.error,
+            message: loc.proxyTestAuthRejected,
+          ),
+        ProxyTestOutcome.unreachable ||
+        ProxyTestOutcome.timedOut ||
+        ProxyTestOutcome.blocked =>
+          (
+            icon: Icons.error_outline,
+            color: scheme.error,
+            message: loc.proxyTestUnreachable,
+          ),
+      };
 
   /// The data half of the answer: which host was reached and with what
   /// status, or the error that came back instead.

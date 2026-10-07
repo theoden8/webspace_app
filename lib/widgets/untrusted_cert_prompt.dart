@@ -99,10 +99,7 @@ class _CertField extends StatelessWidget {
 
 String _formatFingerprint(String sha256Hex) {
   final upper = sha256Hex.toUpperCase();
-  final buf = StringBuffer();
-  for (var i = 0; i < upper.length; i += 2) {
-    if (i > 0) buf.write(':');
-    buf.write(upper.substring(i, i + 2));
-  }
-  return buf.toString();
+  return [
+    for (var i = 0; i < upper.length; i += 2) upper.substring(i, i + 2),
+  ].join(':');
 }

@@ -51,27 +51,23 @@ class SiteGridTile extends StatelessWidget {
               child: InkWell(
                 borderRadius: BorderRadius.circular(Radii.xl),
                 onTap: onOpen,
-                child: _SiteGridTileContent(
-                  site: site,
-                  selected: selected,
-                  showTabCount: showTabCount,
-                ),
+                child: _content(),
               ),
             ),
     );
   }
 
+  Widget _content() => _SiteGridTileContent(
+    site: site,
+    selected: selected,
+    showTabCount: showTabCount,
+  );
+
   Widget _draggable(BuildContext context, void Function(int, int) reorder) {
     final theme = Theme.of(context);
-    Widget content() => _SiteGridTileContent(
-      site: site,
-      selected: selected,
-      showTabCount: showTabCount,
-    );
     // A raw Listener rather than a GestureDetector for the tap: the gesture
     // arena against LongPressDraggable delays or drops taps.
-    Offset? pointerDownPos;
-    Duration? pointerDownTime;
+    PointerDownEvent? down;
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != listIndex,
       onAcceptWithDetails: (details) => reorder(details.data, listIndex),
@@ -85,10 +81,10 @@ class SiteGridTile extends StatelessWidget {
             child: SizedBox(
               width: 80,
               height: 88,
-              child: Opacity(opacity: 0.85, child: content()),
+              child: Opacity(opacity: 0.85, child: _content()),
             ),
           ),
-          childWhenDragging: Opacity(opacity: 0.3, child: content()),
+          childWhenDragging: Opacity(opacity: 0.3, child: _content()),
           child: Container(
             decoration: isHovered
                 ? BoxDecoration(
@@ -104,30 +100,21 @@ class SiteGridTile extends StatelessWidget {
               children: [
                 Listener(
                   behavior: HitTestBehavior.opaque,
-                  onPointerDown: (event) {
-                    pointerDownPos = event.position;
-                    pointerDownTime = event.timeStamp;
-                  },
+                  onPointerDown: (event) => down = event,
                   onPointerUp: (event) {
-                    final downAt = pointerDownPos;
-                    final downTime = pointerDownTime;
-                    if (downAt != null &&
-                        downTime != null &&
-                        (event.position - downAt).distance < 20 &&
-                        event.timeStamp - downTime < kDoubleTapTimeout) {
+                    final at = down;
+                    down = null;
+                    if (at != null &&
+                        (event.position - at.position).distance < 20 &&
+                        event.timeStamp - at.timeStamp < kDoubleTapTimeout) {
                       onOpen();
                     }
-                    pointerDownPos = null;
-                    pointerDownTime = null;
                   },
-                  onPointerCancel: (_) {
-                    pointerDownPos = null;
-                    pointerDownTime = null;
-                  },
+                  onPointerCancel: (_) => down = null,
                   child: GestureDetector(
                     onSecondaryTapDown: (details) =>
                         onMenu(context, details.globalPosition),
-                    child: content(),
+                    child: _content(),
                   ),
                 ),
                 Positioned(
@@ -211,15 +198,7 @@ class _SiteGridTileContent extends StatelessWidget {
       color: theme.colorScheme.surfaceContainerHighest,
     ),
     clipBehavior: Clip.antiAlias,
-    child: Center(
-      child: UnifiedFaviconImage(
-        url: site.initUrl,
-        size: icon,
-        proxy: site.outboundProxySettings,
-        customIcon: site.customIconPng,
-        persist: !site.isArchiveTier,
-      ),
-    ),
+    child: Center(child: UnifiedFaviconImage.site(site, size: icon)),
   );
 
   Widget _wide(ThemeData theme) {

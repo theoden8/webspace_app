@@ -69,18 +69,16 @@ class VirtualSourcePreview extends StatelessWidget {
                       dataUrl: source.dataUrl,
                       objectFit: fit == BoxFit.contain ? 'contain' : 'cover',
                     )
-                  : _imagePreview(),
+                  : switch (source.bytes) {
+                      final bytes? =>
+                        Image.memory(bytes, fit: fit, gaplessPlayback: true),
+                      null => const SizedBox.shrink(),
+                    },
             ),
           ),
         ),
       ),
     );
-  }
-
-  Widget _imagePreview() {
-    final bytes = source.bytes;
-    if (bytes == null) return const SizedBox.shrink();
-    return Image.memory(bytes, fit: fit, gaplessPlayback: true);
   }
 }
 

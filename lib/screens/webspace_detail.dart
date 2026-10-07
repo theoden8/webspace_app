@@ -13,27 +13,26 @@ class WebspaceDetailScreen extends StatefulWidget {
   final bool isReadOnly;
 
   const WebspaceDetailScreen({
-    Key? key,
+    super.key,
     required this.webspace,
     required this.allSites,
     required this.onSave,
     this.isReadOnly = false,
-  }) : super(key: key);
+  });
 
   @override
-  _WebspaceDetailScreenState createState() => _WebspaceDetailScreenState();
+  State<WebspaceDetailScreen> createState() => _WebspaceDetailScreenState();
 }
 
 class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
     with DirtyGuard<WebspaceDetailScreen> {
-  late TextEditingController _nameController;
-  late Set<int> _selectedIndices;
+  late final _nameController =
+      TextEditingController(text: widget.webspace.name);
+  late final _selectedIndices = Set<int>.from(widget.webspace.siteIndices);
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.webspace.name);
-    _selectedIndices = Set<int>.from(widget.webspace.siteIndices);
     markClean();
     _nameController.addListener(() {
       if (mounted) setState(() {});
@@ -50,30 +49,17 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
     super.dispose();
   }
 
-  void _toggleSite(int index) {
-    setState(() {
-      if (_selectedIndices.contains(index)) {
-        _selectedIndices.remove(index);
-      } else {
-        _selectedIndices.add(index);
-      }
-    });
-  }
-
   void _save() {
-    final loc = AppLocalizations.of(context);
     final trimmedName = _nameController.text.trim();
-
     if (trimmedName.isEmpty) {
-      ScaffoldMessenger.of(context).toast(loc.webspaceDetailNameEmptyError);
+      ScaffoldMessenger.of(context)
+          .toast(AppLocalizations.of(context).webspaceDetailNameEmptyError);
       return;
     }
-
-    final updatedWebspace = widget.webspace.copyWith(
+    widget.onSave(widget.webspace.copyWith(
       name: trimmedName,
       siteIndices: _selectedIndices.toList()..sort(),
-    );
-    widget.onSave(updatedWebspace);
+    ));
     Navigator.pop(context);
   }
 
@@ -160,9 +146,11 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
                           value: isSelected,
                           onChanged: widget.isReadOnly
                               ? null
-                              : (bool? value) {
-                                  _toggleSite(index);
-                                },
+                              : (_) => setState(() {
+                                    if (!_selectedIndices.remove(index)) {
+                                      _selectedIndices.add(index);
+                                    }
+                                  }),
                         ),
                       );
                     },

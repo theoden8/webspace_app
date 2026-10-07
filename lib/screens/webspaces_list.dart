@@ -15,7 +15,7 @@ class WebspacesListScreen extends StatelessWidget {
   final Function(int, int)? onReorder;
 
   const WebspacesListScreen({
-    Key? key,
+    super.key,
     required this.webspaces,
     this.selectedWebspaceId,
     required this.totalSitesCount,
@@ -25,7 +25,7 @@ class WebspacesListScreen extends StatelessWidget {
     required this.onEditWebspace,
     required this.onDeleteWebspace,
     this.onReorder,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +83,13 @@ class WebspacesListScreen extends StatelessWidget {
                   final isSelected = selectedWebspaceId == webspace.id;
                   final isAll = webspace.id == kAllWebspaceId;
                   final siteCount = isAll ? totalSitesCount : webspace.siteIndices.length;
+                  Widget action(IconData icon, VoidCallback onPressed) =>
+                      IconButton(
+                        icon: Icon(icon, size: 20),
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+                        onPressed: onPressed,
+                      );
 
                   return Semantics(
                     key: Key(webspace.id),
@@ -113,32 +120,16 @@ class WebspacesListScreen extends StatelessWidget {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            if (!isAll)
-                              IconButton(
-                                icon: Icon(Icons.edit, size: 20),
-                                padding: EdgeInsets.zero,
-                                constraints: BoxConstraints(
-                                  minWidth: 40,
-                                  minHeight: 40,
-                                ),
-                                onPressed: () => onEditWebspace(webspace),
-                              ),
-                            if (!isAll)
+                            if (!isAll) ...[
+                              action(Icons.edit, () => onEditWebspace(webspace)),
                               Container(
                                 color: Theme.of(context).cardTheme.color ??
                                        Theme.of(context).cardColor,
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    IconButton(
-                                      icon: Icon(Icons.delete, size: 20),
-                                      padding: EdgeInsets.zero,
-                                      constraints: BoxConstraints(
-                                        minWidth: 40,
-                                        minHeight: 40,
-                                      ),
-                                      onPressed: () => onDeleteWebspace(webspace),
-                                    ),
+                                    action(Icons.delete,
+                                        () => onDeleteWebspace(webspace)),
                                     ReorderableDragStartListener(
                                       index: index,
                                       child: Padding(
@@ -152,6 +143,7 @@ class WebspacesListScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
+                            ],
                             if (isSelected)
                               Padding(
                                 padding: EdgeInsetsDirectional.only(start: 4, end: 8),
@@ -171,9 +163,7 @@ class WebspacesListScreen extends StatelessWidget {
                 onReorder: (oldIndex, newIndex) {
                   // Don't allow moving "All" webspace (always at index 0)
                   if (oldIndex == 0 || newIndex == 0) return;
-                  if (onReorder != null) {
-                    onReorder!(oldIndex, newIndex);
-                  }
+                  onReorder?.call(oldIndex, newIndex);
                 },
               ),
             SliverToBoxAdapter(

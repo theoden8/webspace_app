@@ -39,7 +39,11 @@ class DownloadButton extends StatelessWidget {
           message: tooltip,
           child: InkWell(
             customBorder: const CircleBorder(),
-            onTap: () => _openSheet(context),
+            onTap: () => showModalBottomSheet<void>(
+              context: context,
+              showDragHandle: true,
+              builder: (_) => const _DownloadsSheet(),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(8),
               child: SizedBox(
@@ -96,13 +100,6 @@ class DownloadButton extends StatelessWidget {
     );
   }
 
-  void _openSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => const _DownloadsSheet(),
-    );
-  }
 }
 
 class _DownloadsSheet extends StatelessWidget {
@@ -165,24 +162,31 @@ class _DownloadTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final savedPath = task.savedPath;
-    final subtitle = switch (task.state) {
-      DownloadState.downloading => _progressSubtitle(loc, task),
-      DownloadState.completed => savedPath == null
-          ? loc.downloadButtonSaved
-          : loc.downloadButtonSavedToPath(savedPath),
-      DownloadState.failed => task.errorMessage ?? loc.downloadButtonFailed,
-      DownloadState.cancelled => loc.downloadButtonCancelled,
-    };
-    final color = switch (task.state) {
-      DownloadState.downloading => null,
-      DownloadState.completed => Theme.of(context).colorScheme.primary,
-      DownloadState.failed => Theme.of(context).colorScheme.error,
-      DownloadState.cancelled =>
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+    final scheme = Theme.of(context).colorScheme;
+    final (IconData icon, String subtitle, Color? color) = switch (task.state) {
+      DownloadState.downloading =>
+        (Icons.downloading, _progressSubtitle(loc, task), null),
+      DownloadState.completed => (
+          Icons.check_circle,
+          savedPath == null
+              ? loc.downloadButtonSaved
+              : loc.downloadButtonSavedToPath(savedPath),
+          scheme.primary,
+        ),
+      DownloadState.failed => (
+          Icons.error_outline,
+          task.errorMessage ?? loc.downloadButtonFailed,
+          scheme.error,
+        ),
+      DownloadState.cancelled => (
+          Icons.cancel_outlined,
+          loc.downloadButtonCancelled,
+          scheme.onSurface.withValues(alpha: 0.6),
+        ),
     };
 
     return ListTile(
-      leading: Icon(_iconFor(task), color: color),
+      leading: Icon(icon, color: color),
       title: Text(task.filename, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,19 +208,11 @@ class _DownloadTile extends StatelessWidget {
     );
   }
 
-  IconData _iconFor(DownloadTask t) => switch (t.state) {
-        DownloadState.downloading => Icons.downloading,
-        DownloadState.completed => Icons.check_circle,
-        DownloadState.failed => Icons.error_outline,
-        DownloadState.cancelled => Icons.cancel_outlined,
-      };
-
   static String _progressSubtitle(AppLocalizations loc, DownloadTask t) {
     final done = _formatBytes(t.bytesDone);
     final total = t.bytesTotal;
     if (total == null || total <= 0) return loc.downloadButtonBytesReceived(done);
-    final totalStr = _formatBytes(total);
-    return '$done / $totalStr';
+    return '$done / ${_formatBytes(total)}';
   }
 
   static String _formatBytes(int bytes) {

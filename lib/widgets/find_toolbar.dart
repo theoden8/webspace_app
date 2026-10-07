@@ -5,25 +5,21 @@ import 'package:webspace/services/webview.dart';
 class FindToolbar extends StatefulWidget {
   final WebViewController? webViewController;
   final FindMatchesResult matches;
-  final Function onClose;
+  final VoidCallback onClose;
 
-  FindToolbar({
+  const FindToolbar({
+    super.key,
     required this.webViewController,
     required this.matches,
     required this.onClose,
   });
 
   @override
-  _FindToolbarState createState() => _FindToolbarState();
+  State<FindToolbar> createState() => _FindToolbarState();
 }
 
 class _FindToolbarState extends State<FindToolbar> {
-  TextEditingController _searchController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-  }
+  final _searchController = TextEditingController();
 
   @override
   void dispose() {
@@ -34,6 +30,7 @@ class _FindToolbarState extends State<FindToolbar> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final controller = widget.webViewController;
     final matchCounter =
         '${widget.matches.activeMatchOrdinal}/${widget.matches.numberOfMatches}';
     return Container(
@@ -50,41 +47,30 @@ class _FindToolbarState extends State<FindToolbar> {
                 hintText: loc.findToolbarSearchHint,
               ),
               onChanged: (value) async {
-                if (widget.webViewController != null) {
-                  if (value.isNotEmpty) {
-                    await widget.webViewController!.findAllAsync(find: value);
-                  } else {
-                    await widget.webViewController!.clearMatches();
-                  }
-                  setState(() {});
+                if (controller == null) return;
+                if (value.isNotEmpty) {
+                  await controller.findAllAsync(find: value);
+                } else {
+                  await controller.clearMatches();
                 }
+                setState(() {});
               },
             ),
           ),
           Text(matchCounter),
           IconButton(
             icon: Icon(Icons.navigate_before),
-            onPressed: () async {
-              if (widget.webViewController != null) {
-                await widget.webViewController!.findNext(forward: false);
-              }
-            },
+            onPressed: () => controller?.findNext(forward: false),
           ),
           IconButton(
             icon: Icon(Icons.navigate_next),
-            onPressed: () async {
-              if (widget.webViewController != null) {
-                await widget.webViewController!.findNext(forward: true);
-              }
-            },
+            onPressed: () => controller?.findNext(forward: true),
           ),
           IconButton(
             icon: Icon(Icons.close),
             onPressed: () {
               _searchController.clear();
-              if (widget.webViewController != null) {
-                widget.webViewController!.clearMatches();
-              }
+              controller?.clearMatches();
               setState(() {
                 widget.matches.numberOfMatches = 0;
                 widget.matches.activeMatchOrdinal = 0;

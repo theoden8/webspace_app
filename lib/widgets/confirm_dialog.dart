@@ -17,30 +17,51 @@ Future<bool> confirm(
   required bool destructive,
   String? cancelLabel,
 }) async {
-  assert(body == null || content == null, 'body is content as plain text');
   final loc = AppLocalizations.of(context);
+  final confirmed = await choose<bool>(
+    context,
+    title: title,
+    body: body,
+    content: content,
+    options: [
+      (false, cancelLabel ?? loc.commonCancel),
+      (true, confirmLabel),
+    ],
+    destructive: destructive ? true : null,
+  );
+  return confirmed ?? false;
+}
+
+/// Asks the user to pick one of [options], drawn as buttons in order; null
+/// when the dialog is dismissed. The option whose value is [destructive] is
+/// drawn in the theme's error colour.
+Future<T?> choose<T>(
+  BuildContext context, {
+  required String title,
+  String? body,
+  Widget? content,
+  required List<(T?, String)> options,
+  T? destructive,
+}) {
+  assert(body == null || content == null, 'body is content as plain text');
   final shown = content ?? (body == null ? null : Text(body));
-  final confirmed = await showDialog<bool>(
+  return showDialog<T>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
       content: shown == null ? null : SingleChildScrollView(child: shown),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: Text(cancelLabel ?? loc.commonCancel),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          style: destructive
-              ? TextButton.styleFrom(
-                  foregroundColor: Theme.of(ctx).colorScheme.error,
-                )
-              : null,
-          child: Text(confirmLabel),
-        ),
+        for (final (value, label) in options)
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, value),
+            style: value != null && value == destructive
+                ? TextButton.styleFrom(
+                    foregroundColor: Theme.of(ctx).colorScheme.error,
+                  )
+                : null,
+            child: Text(label),
+          ),
       ],
     ),
   );
-  return confirmed ?? false;
 }

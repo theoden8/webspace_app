@@ -46,6 +46,27 @@ class ContainerMark extends StatelessWidget {
       );
 }
 
+/// A dot in the colour of the container at palette [colorIndex]. Decorative:
+/// what it sits beside names the site in words.
+class ContainerDot extends StatelessWidget {
+  const ContainerDot(this.colorIndex, {super.key, this.size = Spacing.sm});
+
+  final int colorIndex;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => ExcludeSemantics(
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: ContainerColors.of(colorIndex, Theme.of(context).brightness),
+            shape: BoxShape.circle,
+          ),
+        ),
+      );
+}
+
 /// A site's id, led by a dot in its container's colour: what tells two sites
 /// with the same name apart in a list. [colorIndex] is null on the legacy
 /// engine, which has no containers to colour. The id stays in the muted text
@@ -63,16 +84,7 @@ class SiteIdLine extends StatelessWidget {
     return Row(
       children: [
         if (index != null) ...[
-          ExcludeSemantics(
-            child: Container(
-              width: Spacing.sm,
-              height: Spacing.sm,
-              decoration: BoxDecoration(
-                color: ContainerColors.of(index, theme.brightness),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
+          ContainerDot(index),
           const SizedBox(width: Spacing.xs),
         ],
         Flexible(

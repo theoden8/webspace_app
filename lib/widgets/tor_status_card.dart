@@ -72,6 +72,39 @@ IconData torFailureIcon(TorFailureKind kind) => switch (kind) {
       TorFailureKind.externalExitPin => Icons.public_off_outlined,
     };
 
+/// Retry, and the way to bridges where they could help: what the card and
+/// the interstitial both offer after a failure. [busy] disables both.
+List<Widget> torRecoveryActions(
+  BuildContext context,
+  TorFailureKind kind, {
+  required bool busy,
+  required VoidCallback onRetry,
+}) {
+  final loc = AppLocalizations.of(context);
+  return [
+    TextButton.icon(
+      onPressed: busy ? null : onRetry,
+      icon: const Icon(Icons.refresh, size: IconSizes.action),
+      label: Text(loc.commonRetry),
+    ),
+    // Only where bridges could actually help. Offering them for a wrong
+    // clock or a dead exit pin sends the user down a road that cannot fix
+    // their problem (TOR-016).
+    if (bridgesMayHelp(kind))
+      TextButton.icon(
+        onPressed: busy
+            ? null
+            : () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const TorBridgeSettingsScreen(),
+                  ),
+                ),
+        icon: const Icon(Icons.alt_route, size: IconSizes.action),
+        label: Text(loc.torBridgesTitle),
+      ),
+  ];
+}
+
 /// Live Tor state for App Settings.
 class TorStatusCard extends StatefulWidget {
   const TorStatusCard({super.key, this.onTap});
@@ -130,9 +163,11 @@ class _TorStatusCardState extends State<TorStatusCard> {
     final Widget body = switch (s) {
       TorErrored(:final failure) => _error(loc, theme, failure),
       TorUp(:final host, :final port) => _connected(loc, theme, '$host:$port'),
-      TorBootstrapping(:final percent, :final summary) =>
-        _bootstrapping(loc, theme, percent, summary),
-      TorStarting() || TorStopped() => _starting(loc, theme),
+      TorBootstrapping(:final percent, :final summary) => _progress(
+          loc, theme, loc.torStatusBootstrapping(percent),
+          summary: summary, value: percent.clamp(0, 100) / 100.0),
+      TorStarting() || TorStopped() =>
+        _progress(loc, theme, loc.torStatusStarting),
     };
 
     final card = Padding(
@@ -172,38 +207,24 @@ class _TorStatusCardState extends State<TorStatusCard> {
     return onTap == null ? card : InkWell(onTap: onTap, child: card);
   }
 
-  Widget _starting(AppLocalizations loc, ThemeData theme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(loc.torStatusStarting, style: theme.textTheme.bodyMedium),
-        const SizedBox(height: Spacing.sm),
-        const LinearProgressIndicator(minHeight: Spacing.xs),
-      ],
-    );
-  }
-
-  Widget _bootstrapping(
-      AppLocalizations loc, ThemeData theme, int percent, String? summary) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(loc.torStatusBootstrapping(percent),
-            style: theme.textTheme.bodyMedium),
-        if (summary != null && summary.isNotEmpty)
-          Text(
-            loc.torStatusPhase(summary),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        const SizedBox(height: Spacing.sm),
-        LinearProgressIndicator(
-          value: (percent.clamp(0, 100)) / 100.0,
-          minHeight: Spacing.xs,
-        ),
-      ],
-    );
-  }
+  /// Starting or bootstrapping: what is happening, tor's own phase name, and
+  /// a bar that is indeterminate until there is a [value].
+  Widget _progress(AppLocalizations loc, ThemeData theme, String label,
+          {String? summary, double? value}) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: theme.textTheme.bodyMedium),
+          if (summary != null && summary.isNotEmpty)
+            Text(
+              loc.torStatusPhase(summary),
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          const SizedBox(height: Spacing.sm),
+          LinearProgressIndicator(value: value, minHeight: Spacing.xs),
+        ],
+      );
 
   Widget _connected(
       AppLocalizations loc, ThemeData theme, String endpoint) {
@@ -270,29 +291,12 @@ class _TorStatusCardState extends State<TorStatusCard> {
           ),
         ),
         Row(
-          children: [
-            TextButton.icon(
-              onPressed:
-                  _busy ? null : () => _run(TorService.instance.restart),
-              icon: const Icon(Icons.refresh, size: IconSizes.action),
-              label: Text(loc.commonRetry),
-            ),
-            // Only where bridges could actually help. Offering them for a
-            // wrong clock or a dead exit pin sends the user down a road
-            // that cannot fix their problem (TOR-016).
-            if (bridgesMayHelp(failure.kind))
-              TextButton.icon(
-                onPressed: _busy
-                    ? null
-                    : () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => const TorBridgeSettingsScreen(),
-                          ),
-                        ),
-                icon: const Icon(Icons.alt_route, size: IconSizes.action),
-                label: Text(loc.torBridgesTitle),
-              ),
-          ],
+          children: torRecoveryActions(
+            context,
+            failure.kind,
+            busy: _busy,
+            onRetry: () => _run(TorService.instance.restart),
+          ),
         ),
       ],
     );

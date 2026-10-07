@@ -13,12 +13,6 @@ import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/toast.dart';
 
-/// Camera scanning is wired up only where flutter_zxing's `ReaderWidget`
-/// has a working camera path. On desktop (Linux, macOS, Windows) and web
-/// the apply dialog skips straight to paste.
-bool _hasCameraScanner() =>
-    !kIsWeb && (hostIsAndroid || hostIsIOS);
-
 /// Show a dialog rendering [model]'s shareable subset as a QR code.
 /// Cookies, user scripts, secure cookies, and proxy passwords are stripped
 /// by [SiteSettingsQrCodec.shareableSubset] before encoding.
@@ -107,7 +101,10 @@ Future<void> showSiteSettingsQrShareDialog(
 Future<Map<String, dynamic>?> showSiteSettingsQrApplyDialog(
   BuildContext context,
 ) async {
-  if (_hasCameraScanner()) {
+  // Camera scanning is wired up only where flutter_zxing's `ReaderWidget`
+  // has a working camera path. On desktop (Linux, macOS, Windows) and web
+  // the apply dialog skips straight to paste.
+  if (!kIsWeb && (hostIsAndroid || hostIsIOS)) {
     final scanned = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
         builder: (_) => const SiteSettingsQrScannerScreen(),
@@ -116,19 +113,9 @@ Future<Map<String, dynamic>?> showSiteSettingsQrApplyDialog(
     if (scanned != null) return scanned;
     if (!context.mounted) return null;
   }
-  return _showPasteDialog(context);
-}
-
-/// Paste-fallback dialog. Exposed so [showSiteSettingsQrApplyDialog] can
-/// route to it after the scanner is cancelled or on platforms without a
-/// camera path. Tests against the codec target this through the public
-/// entry point above; this helper is intentionally private.
-Future<Map<String, dynamic>?> _showPasteDialog(
-  BuildContext context,
-) {
   return showDialog<Map<String, dynamic>>(
     context: context,
-    builder: (ctx) => const _PasteDialog(),
+    builder: (_) => const _PasteDialog(),
   );
 }
 
@@ -147,12 +134,6 @@ class _PasteDialogState extends State<_PasteDialog> {
   void dispose() {
     _controller.dispose();
     super.dispose();
-  }
-
-  Map<String, dynamic>? _tryDecode() {
-    final raw = _controller.text.trim();
-    if (raw.isEmpty) return null;
-    return SiteSettingsQrCodec.decode(raw);
   }
 
   @override
@@ -189,12 +170,10 @@ class _PasteDialogState extends State<_PasteDialog> {
                 icon: const Icon(Icons.paste),
                 label: Text(loc.qrApplyPasteFromClipboard),
                 onPressed: () async {
-                  final data = await Clipboard.getData('text/plain');
-                  if (!mounted) return;
-                  if (data?.text != null) {
-                    _controller.text = data!.text!;
-                    setState(() => _errorText = null);
-                  }
+                  final text = (await Clipboard.getData('text/plain'))?.text;
+                  if (!mounted || text == null) return;
+                  _controller.text = text;
+                  setState(() => _errorText = null);
                 },
               ),
             ),
@@ -208,7 +187,9 @@ class _PasteDialogState extends State<_PasteDialog> {
         ),
         TextButton(
           onPressed: () {
-            final decoded = _tryDecode();
+            final raw = _controller.text.trim();
+            final decoded =
+                raw.isEmpty ? null : SiteSettingsQrCodec.decode(raw);
             if (decoded == null) {
               setState(() => _errorText = loc.qrApplyInvalidError);
               return;

@@ -311,19 +311,32 @@ class _Edit<E> {
   final bool deleted;
 }
 
+/// What each library editor is handed: the entry, null for a new one, and
+/// what uses it, which the delete confirmation names.
+abstract class _LibraryEditor<E> extends StatefulWidget {
+  const _LibraryEditor({
+    super.key,
+    this.initial,
+    this.usageCount = 0,
+    this.usedByAppWide = false,
+  });
+
+  final E? initial;
+  final int usageCount;
+  final bool usedByAppWide;
+}
+
 /// Shared by the three editors: the name field, the save and delete actions,
 /// the delete confirmation and the guard against losing unsaved edits.
-abstract class _EditorState<W extends StatefulWidget, E> extends State<W>
+abstract class _EditorState<W extends _LibraryEditor<E>, E> extends State<W>
     with DirtyGuard<W> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
 
   String get entryId;
   String? get initialName;
-  bool get isNew;
+  bool get isNew => widget.initial == null;
   String newTitle(AppLocalizations loc);
-  int get usageCount;
-  bool get usedByAppWide;
   List<TextEditingController> get fields;
 
   /// The entry's own fields, as a record.
@@ -378,8 +391,8 @@ abstract class _EditorState<W extends StatefulWidget, E> extends State<W>
       title: loc.savedProxyDeleteTitle(
           name.isEmpty ? (initialName ?? '') : name),
       body: [
-        loc.savedProxyDeleteBody(usageCount),
-        if (usedByAppWide) loc.savedProxyDeleteAppWide,
+        loc.savedProxyDeleteBody(widget.usageCount),
+        if (widget.usedByAppWide) loc.savedProxyDeleteAppWide,
       ].join('\n\n'),
       confirmLabel: loc.commonDelete,
       destructive: true,
@@ -438,19 +451,16 @@ abstract class _EditorState<W extends StatefulWidget, E> extends State<W>
 /// A saved proxy: a gateway (typed, or a saved one) and credentials (typed,
 /// or saved ones that list the gateway). With both typed it is simply a
 /// proxy.
-class SavedProxyEditScreen extends StatefulWidget {
+class SavedProxyEditScreen extends _LibraryEditor<SavedProxy> {
   const SavedProxyEditScreen({
     super.key,
-    this.initial,
+    super.initial,
     required this.library,
-    this.usageCount = 0,
-    this.usedByAppWide = false,
+    super.usageCount,
+    super.usedByAppWide,
   });
 
-  final SavedProxy? initial;
   final ProxyLibraryData library;
-  final int usageCount;
-  final bool usedByAppWide;
 
   @override
   State<SavedProxyEditScreen> createState() => _SavedProxyEditScreenState();
@@ -473,13 +483,7 @@ class _SavedProxyEditScreenState
   @override
   String? get initialName => widget.initial?.name;
   @override
-  bool get isNew => widget.initial == null;
-  @override
   String newTitle(AppLocalizations loc) => loc.savedProxyNew;
-  @override
-  int get usageCount => widget.usageCount;
-  @override
-  bool get usedByAppWide => widget.usedByAppWide;
   @override
   List<TextEditingController> get fields => [_address, _username, _password];
 
@@ -552,17 +556,13 @@ class _SavedProxyEditScreenState
 }
 
 /// A gateway: type and `host:port`.
-class SavedGatewayEditScreen extends StatefulWidget {
+class SavedGatewayEditScreen extends _LibraryEditor<SavedGateway> {
   const SavedGatewayEditScreen({
     super.key,
-    this.initial,
-    this.usageCount = 0,
-    this.usedByAppWide = false,
+    super.initial,
+    super.usageCount,
+    super.usedByAppWide,
   });
-
-  final SavedGateway? initial;
-  final int usageCount;
-  final bool usedByAppWide;
 
   @override
   State<SavedGatewayEditScreen> createState() =>
@@ -580,13 +580,7 @@ class _SavedGatewayEditScreenState
   @override
   String? get initialName => widget.initial?.name;
   @override
-  bool get isNew => widget.initial == null;
-  @override
   String newTitle(AppLocalizations loc) => loc.proxyLibraryNewGateway;
-  @override
-  int get usageCount => widget.usageCount;
-  @override
-  bool get usedByAppWide => widget.usedByAppWide;
   @override
   List<TextEditingController> get fields => [_address];
 
@@ -636,19 +630,16 @@ class _SavedGatewayEditScreenState
 
 /// Credentials: a username and password, and the saved gateways they sign in
 /// on. Nothing pairs them with any other gateway.
-class SavedCredentialsEditScreen extends StatefulWidget {
+class SavedCredentialsEditScreen extends _LibraryEditor<SavedCredentials> {
   const SavedCredentialsEditScreen({
     super.key,
-    this.initial,
+    super.initial,
     required this.gateways,
-    this.usageCount = 0,
-    this.usedByAppWide = false,
+    super.usageCount,
+    super.usedByAppWide,
   });
 
-  final SavedCredentials? initial;
   final List<SavedGateway> gateways;
-  final int usageCount;
-  final bool usedByAppWide;
 
   @override
   State<SavedCredentialsEditScreen> createState() =>
@@ -672,13 +663,7 @@ class _SavedCredentialsEditScreenState
   @override
   String? get initialName => widget.initial?.name;
   @override
-  bool get isNew => widget.initial == null;
-  @override
   String newTitle(AppLocalizations loc) => loc.proxyLibraryNewCredentials;
-  @override
-  int get usageCount => widget.usageCount;
-  @override
-  bool get usedByAppWide => widget.usedByAppWide;
   @override
   List<TextEditingController> get fields => [_username, _password];
 

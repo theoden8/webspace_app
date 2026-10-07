@@ -26,28 +26,21 @@ class SitePermissionChip extends StatelessWidget {
     final loc = AppLocalizations.of(context);
     final label = state.label(loc);
 
-    Color? background;
-    Color foreground;
-    BoxBorder? border;
-    switch (state) {
-      case SitePermissionState.allowed:
-        background = scheme.errorContainer;
-        foreground = scheme.onErrorContainer;
-        break;
-      case SitePermissionState.simulated:
-        background = scheme.secondaryContainer;
-        foreground = scheme.onSecondaryContainer;
-        break;
-      case SitePermissionState.ask:
-        foreground = scheme.onSurfaceVariant;
-        border = Border.all(color: scheme.outlineVariant);
-        break;
-      case SitePermissionState.blocked:
-        // Deliberately the quietest of the four: nothing is reaching the site,
-        // so nothing should draw the eye.
-        foreground = scheme.onSurfaceVariant;
-        break;
-    }
+    final (Color? background, Color foreground, BoxBorder? border) =
+        switch (state) {
+      SitePermissionState.allowed =>
+        (scheme.errorContainer, scheme.onErrorContainer, null),
+      SitePermissionState.simulated =>
+        (scheme.secondaryContainer, scheme.onSecondaryContainer, null),
+      SitePermissionState.ask => (
+          null,
+          scheme.onSurfaceVariant,
+          Border.all(color: scheme.outlineVariant),
+        ),
+      // Deliberately the quietest of the four: nothing is reaching the site,
+      // so nothing should draw the eye.
+      SitePermissionState.blocked => (null, scheme.onSurfaceVariant, null),
+    };
 
     return Opacity(
       opacity: dimmed ? 0.55 : 1.0,

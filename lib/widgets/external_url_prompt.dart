@@ -7,6 +7,7 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart' show WebViewController;
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/toast.dart';
 
@@ -139,61 +140,47 @@ Future<void> confirmAndLaunchExternalUrl(
         ExternalUrlParser.isLoadableWebUrl(cleanedFallback);
     final loc = AppLocalizations.of(context);
     final packageName = info.package;
-    final choice = await showDialog<_ExternalUrlChoice>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.externalUrlPromptTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(loc.externalUrlPromptBody),
-              const SizedBox(height: 8),
-              SelectableText(
-                cleanedLaunchUrl,
-                style: const TextStyle(fontFamily: 'monospace'),
-              ),
-              if (packageName != null) ...[
-                const SizedBox(height: 8),
-                Text(loc.externalUrlPromptPackage(packageName)),
-              ],
-              if (hasFallback) ...[
-                const SizedBox(height: 8),
-                Text(loc.externalUrlPromptFallback(cleanedFallback)),
-              ],
-            ],
+    final choice = await choose(
+      context,
+      title: loc.externalUrlPromptTitle,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(loc.externalUrlPromptBody),
+          const SizedBox(height: 8),
+          SelectableText(
+            cleanedLaunchUrl,
+            style: const TextStyle(fontFamily: 'monospace'),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.cancel),
-            child: Text(loc.commonCancel),
-          ),
-          if (hasFallback)
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInBrowser),
-              child: Text(loc.externalUrlPromptOpenInBrowser),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInApp),
-            child: Text(loc.externalUrlPromptOpenInApp),
-          ),
+          if (packageName != null) ...[
+            const SizedBox(height: 8),
+            Text(loc.externalUrlPromptPackage(packageName)),
+          ],
+          if (hasFallback) ...[
+            const SizedBox(height: 8),
+            Text(loc.externalUrlPromptFallback(cleanedFallback)),
+          ],
         ],
       ),
+      options: [
+        (_ExternalUrlChoice.cancel, loc.commonCancel),
+        if (hasFallback)
+          (_ExternalUrlChoice.openInBrowser, loc.externalUrlPromptOpenInBrowser),
+        (_ExternalUrlChoice.openInApp, loc.externalUrlPromptOpenInApp),
+      ],
     );
 
+    // Every answer, a cancel too, is marked: a script-driven redirect must
+    // not re-prompt the user a second later for the choice they just made.
+    ExternalUrlSuppressor.mark(info);
     switch (choice ?? _ExternalUrlChoice.cancel) {
       case _ExternalUrlChoice.cancel:
         LogTag.externalUrl.debug('user chose: cancel');
-        // Suppress so a script-driven redirect doesn't re-prompt the
-        // user a second later for the choice they just declined.
-        ExternalUrlSuppressor.mark(info);
         return;
       case _ExternalUrlChoice.openInBrowser:
         LogTag.externalUrl.debug(
             'user chose: open in browser → $cleanedFallback', sensitive: true);
-        ExternalUrlSuppressor.mark(info);
         // We are the browser. Load the fallback inside our own webview
         // so per-site settings (cookie isolation, proxy, content blocker
         // etc.) still apply. shouldOverrideUrlLoading then decides
@@ -225,7 +212,6 @@ Future<void> confirmAndLaunchExternalUrl(
       case _ExternalUrlChoice.openInApp:
         LogTag.externalUrl.debug(
             'user chose: open in app → $cleanedLaunchUrl', sensitive: true);
-        ExternalUrlSuppressor.mark(info);
         await _launchInApp(cleanedLaunchUrl, cleanedFallback, info.scheme);
         return;
     }
@@ -274,23 +260,27 @@ Future<bool> _launchExternally(String url, {required String label}) async {
     LogTag.externalUrl.debug(
         '$label: external launch result=$launched url=$url', sensitive: true);
     if (!launched) {
-      final messengerContext = rootScaffoldMessengerKey.currentContext;
-      final message = messengerContext != null
-          ? AppLocalizations.of(messengerContext).externalUrlPromptNoAppAvailable(url)
-          : 'No app available to open: $url';
-      rootScaffoldMessengerKey.currentState?.toast(message);
+      _toastFailure((loc) => loc.externalUrlPromptNoAppAvailable(url),
+          'No app available to open: $url');
     }
     return launched;
   } catch (e) {
     LogTag.externalUrl.debug(
         '$label: external launch threw — $e', sensitive: true);
-    final messengerContext = rootScaffoldMessengerKey.currentContext;
-    final message = messengerContext != null
-        ? AppLocalizations.of(messengerContext).externalUrlPromptCouldNotOpen(url)
-        : 'Could not open: $url';
-    rootScaffoldMessengerKey.currentState?.toast(message);
+    _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url),
+        'Could not open: $url');
     return false;
   }
+}
+
+/// On the root messenger, which outlives the page that asked; [fallback]
+/// when no localizations are reachable from it.
+void _toastFailure(
+    String Function(AppLocalizations loc) message, String fallback) {
+  final messengerContext = rootScaffoldMessengerKey.currentContext;
+  rootScaffoldMessengerKey.currentState?.toast(messengerContext == null
+      ? fallback
+      : message(AppLocalizations.of(messengerContext)));
 }
 
 Future<void> _launchInApp(

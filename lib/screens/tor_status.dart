@@ -100,14 +100,13 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
               hint: loc.appSettingsExperimentalExternalTorHint,
               subtitle: externalAddress,
             ),
-          if (!external)
+          if (!external) ...[
             SettingTile(
               leading: const Icon(Icons.flag_outlined),
               title: loc.siteSettingsTorExitCountry,
               hint: loc.torStateExitCountryHint,
               subtitle: _exitCountry(loc),
             ),
-          if (!external)
             SettingTile(
               leading: const Icon(Icons.alt_route),
               title: loc.torBridgesTitle,
@@ -122,6 +121,7 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
                 if (mounted) setState(() {});
               }),
             ),
+          ],
           SettingTile(
             leading: const Icon(Icons.call_split),
             title: loc.torStateCircuits,

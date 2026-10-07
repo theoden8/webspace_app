@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/controllers/link_controller.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
 
@@ -49,32 +50,21 @@ class DialogLinkPrompts implements LinkPrompts {
   Future<bool> reviewSharedHtml({
     required String title,
     required String url,
-  }) async {
+  }) {
     final loc = AppLocalizations.of(context);
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeQrReviewTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title.isNotEmpty) Text(loc.homeQrReviewName(title)),
-            Text(loc.homeQrReviewUrl(url)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.homeCreateAction),
-          ),
+    return confirm(
+      context,
+      title: loc.homeQrReviewTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty) Text(loc.homeQrReviewName(title)),
+          Text(loc.homeQrReviewUrl(url)),
         ],
       ),
+      confirmLabel: loc.homeCreateAction,
+      destructive: false,
     );
-    return accepted == true;
   }
 }

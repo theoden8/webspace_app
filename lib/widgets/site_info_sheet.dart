@@ -7,6 +7,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show
         gatewayLabel,
@@ -148,19 +149,10 @@ class SiteInfoSheet extends StatelessWidget {
               label: loc.siteInfoContainer,
               value: container,
               detail: info.containerId,
-              status: info.containerColor == null
-                  ? null
-                  : ExcludeSemantics(
-                      child: Container(
-                        width: Spacing.md,
-                        height: Spacing.md,
-                        decoration: BoxDecoration(
-                          color: ContainerColors.of(
-                              info.containerColor!, theme.brightness),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
+              status: switch (info.containerColor) {
+                final index? => ContainerDot(index, size: Spacing.md),
+                null => null,
+              },
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
@@ -265,7 +257,7 @@ class _InfoRow extends StatelessWidget {
                 fontFamily: 'monospace',
               ),
             ),
-          if (status != null) status!,
+          ?status,
         ],
       ),
     );
