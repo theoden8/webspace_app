@@ -190,18 +190,21 @@ class ContentBlockerService {
   Map<String, Set<String>> _readListMasks(SharedPreferences prefs) {
     final raw = prefs.getString(_listMasksKey);
     if (raw == null) return const <String, Set<String>>{};
+    final Object? decoded;
     try {
-      final decoded = jsonDecode(raw) as Map<String, dynamic>;
-      return _normalizeMasks({
-        for (final entry in decoded.entries)
-          entry.key: {
-            for (final host in entry.value as List)
-              if (host is String) host
-          },
-      });
-    } catch (_) {
+      decoded = jsonDecode(raw);
+    } on FormatException {
       return const <String, Set<String>>{};
     }
+    if (decoded is! Map) return const <String, Set<String>>{};
+    return _normalizeMasks({
+      for (final MapEntry(:key, :value) in decoded.entries)
+        if (key is String && value is List)
+          key: {
+            for (final host in value)
+              if (host is String) host
+          },
+    });
   }
 
   static bool _sameMasks(
@@ -903,7 +906,9 @@ class ContentBlockerService {
 
     try {
       await _store.delete(_cacheName(id));
-    } catch (_) {}
+    } on Exception {
+      // The list is gone from the set either way; a stray file is only space.
+    }
 
     await _saveLists();
     await _rebuildEngine();
@@ -939,18 +944,22 @@ class ContentBlockerService {
     var listCount = 0;
     for (final list in _lists) {
       if (!list.enabled) continue;
-      try {
-        final cached =
-            list.rules ?? await _store.readText(_cacheName(list.id));
-        if (cached != null) {
-          // Sites that switched this list off get it scoped away here, so
-          // the engine carries the mask instead of every decision site.
-          buf.writeln(scopeRulesAwayFromHosts(
-              pruneFilterList(cached, _preparserEnv),
-              _listMasks[list.id] ?? const <String>{}));
-          listCount++;
+      String? cached = list.rules;
+      if (cached == null) {
+        try {
+          cached = await _store.readText(_cacheName(list.id));
+        } on Exception {
+          // An unreadable cache leaves the list out until it is downloaded.
         }
-      } catch (_) {}
+      }
+      if (cached != null) {
+        // Sites that switched this list off get it scoped away here, so
+        // the engine carries the mask instead of every decision site.
+        buf.writeln(scopeRulesAwayFromHosts(
+            pruneFilterList(cached, _preparserEnv),
+            _listMasks[list.id] ?? const <String>{}));
+        listCount++;
+      }
     }
     final concatenated = buf.toString();
     // Harvest interceptor prefilter inputs (`||host^` hosts + hostless
@@ -1174,7 +1183,9 @@ class ContentBlockerService {
     try {
       await _store.delete(_engineCacheName);
       await _store.delete(_engineCacheMetaName);
-    } catch (_) {}
+    } on Exception {
+      // A stale engine cache fails its version check on the next load.
+    }
   }
 
   @visibleForTesting

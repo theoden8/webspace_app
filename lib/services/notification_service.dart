@@ -92,11 +92,7 @@ class NotificationService {
 
   void _notifyPermissionListeners() {
     for (final cb in List<VoidCallback>.from(_permissionListeners)) {
-      try {
-        cb();
-      } catch (_) {
-        // Listeners are UI refreshers; never let one throw take down others.
-      }
+      cb();
     }
   }
 

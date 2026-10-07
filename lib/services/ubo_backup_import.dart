@@ -47,7 +47,7 @@ class UboBackup {
     Object? decoded;
     try {
       decoded = jsonDecode(text);
-    } catch (_) {
+    } on FormatException {
       return null;
     }
     if (decoded is! Map<String, dynamic>) return null;

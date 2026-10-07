@@ -361,11 +361,8 @@ class TorService {
       externalRuntime: externalRuntime,
     );
     // Here rather than in a screen, so every way back into the foreground
-    // reaches it, whatever is on screen (TOR-024). A unit test touching the
-    // singleton with no binding has no lifecycle to watch.
-    try {
-      WidgetsBinding.instance.addObserver(_TorResumeWatch(service));
-    } catch (_) {}
+    // reaches it, whatever is on screen (TOR-024).
+    WidgetsBinding.instance.addObserver(_TorResumeWatch(service));
     return service;
   }
 

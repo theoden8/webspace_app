@@ -104,7 +104,8 @@ class ExternalUrlParser {
           case 'S.browser_fallback_url':
             try {
               fallbackUrl = Uri.decodeComponent(value);
-            } catch (_) {
+            } on ArgumentError {
+              // How the SDK reports a malformed %-escape.
               fallbackUrl = value;
             }
             break;

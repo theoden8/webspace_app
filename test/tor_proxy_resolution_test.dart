@@ -14,6 +14,7 @@ import 'package:webspace/web_view_model.dart';
 UserProxySettings _tor() => UserProxySettings(type: ProxyType.TOR);
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
     // Stand in for a bootstrapped runtime on a port nothing hardcodes.

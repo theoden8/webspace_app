@@ -153,7 +153,8 @@ SettingsImportPlan planSettingsImport(
     globalUserScripts: backup.globalUserScripts == null
         ? null
         : [
-            for (final e in backup.globalUserScripts!) ?_scriptOrNull(e),
+            for (final e in backup.globalUserScripts!)
+              UserScriptConfig.fromJson(e)..enabled = false,
           ],
     suggestedSites: backup.suggestedSites == null
         ? null
@@ -289,7 +290,7 @@ Map<String, dynamic>? _decodeProxyPref(Object? raw) {
   try {
     final decoded = jsonDecode(raw);
     return decoded is Map<String, dynamic> ? decoded : null;
-  } catch (_) {
+  } on FormatException {
     return null;
   }
 }
@@ -309,14 +310,6 @@ bool _libraryNamesUsername(ProxyLibraryData lib) {
   bool named(String? u) => u != null && u.isNotEmpty;
   return lib.credentials.any((c) => named(c.username)) ||
       lib.proxies.any((p) => named(p.settings.username));
-}
-
-UserScriptConfig? _scriptOrNull(Map<String, dynamic> json) {
-  try {
-    return UserScriptConfig.fromJson(json)..enabled = false;
-  } catch (_) {
-    return null;
-  }
 }
 
 /// A repeated id would make selection and edits land on whichever copy is

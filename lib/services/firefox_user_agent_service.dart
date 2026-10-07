@@ -33,13 +33,14 @@ int? parseFirefoxVersionDisplay(String body) {
 /// (`firefox_versions.json`). Used as the fallback source when the raw
 /// source file is unreachable.
 int? parseFirefoxProductDetails(String body) {
+  final Object? json;
   try {
-    final json = jsonDecode(body);
-    if (json is Map && json['LATEST_FIREFOX_VERSION'] is String) {
-      return parseFirefoxVersionDisplay(json['LATEST_FIREFOX_VERSION'] as String);
-    }
-  } catch (_) {}
-  return null;
+    json = jsonDecode(body);
+  } on FormatException {
+    return null;
+  }
+  final version = json is Map ? json['LATEST_FIREFOX_VERSION'] : null;
+  return version is String ? parseFirefoxVersionDisplay(version) : null;
 }
 
 /// Outcome of a user-initiated [FirefoxUserAgentService.refresh].
@@ -156,12 +157,8 @@ class FirefoxUserAgentService {
   /// No-ops otherwise, so the default behavior stays "no network unless
   /// asked". Call after [initialize]; never awaited on the startup path.
   Future<void> maybeAutoRefresh() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (!AppPref.firefoxUaAutoRefresh.load(prefs)) return;
-    } catch (_) {
-      return;
-    }
+    final prefs = await SharedPreferences.getInstance();
+    if (!AppPref.firefoxUaAutoRefresh.load(prefs)) return;
     final last = _lastChecked;
     if (last != null && DateTime.now().difference(last) < kAutoRefreshInterval) {
       return;

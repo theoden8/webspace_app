@@ -12,15 +12,11 @@ class DownloadUrlRevertEngine {
   /// they typically arise from the download trigger itself, bookmarklets,
   /// or chrome pages, none of which we want to overwrite the stable URL.
   static bool isRenderable(String url) {
-    try {
-      final scheme = Uri.parse(url).scheme.toLowerCase();
-      return scheme == 'http' ||
-          scheme == 'https' ||
-          scheme == 'file' ||
-          scheme == 'about';
-    } catch (_) {
-      return false;
-    }
+    final scheme = Uri.tryParse(url)?.scheme.toLowerCase();
+    return scheme == 'http' ||
+        scheme == 'https' ||
+        scheme == 'file' ||
+        scheme == 'about';
   }
 
   /// Given the previously-known stable URL and a URL that just finished

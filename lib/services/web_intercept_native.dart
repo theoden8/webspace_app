@@ -60,7 +60,9 @@ class WebInterceptNative {
           await _channel.invokeMethod('fetchBlockEvents', {'siteId': siteId});
       if (list is! List) return;
       applyBlockEvents(siteId, list);
-    } catch (_) {}
+    } on PlatformException {
+      // A failed drain loses one window of counts; the next drain resumes.
+    }
   }
 
   /// Decode one drained batch and apply it to the stats funnels.
@@ -110,7 +112,9 @@ class WebInterceptNative {
             : null;
         LocalCdnService.instance.recordReplacement(siteId, url: url);
       }
-    } catch (_) {}
+    } on PlatformException {
+      // A failed drain loses one window of counts; the next drain resumes.
+    }
   }
 
   // ========== Domain blocklists ==========
@@ -206,7 +210,7 @@ class WebInterceptNative {
     try {
       final raw = await _channel.invokeMethod('isAdblockEngineSupported');
       return raw == true;
-    } catch (_) {
+    } on PlatformException {
       return false;
     }
   }

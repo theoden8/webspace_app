@@ -476,7 +476,7 @@ class _ArchiveSection {
     Uint8List raw;
     try {
       raw = Uint8List.fromList(base64.decode(base64Section));
-    } catch (_) {
+    } on FormatException {
       return null;
     }
     final headerLength = _magic.length + kArchiveSaltLength;

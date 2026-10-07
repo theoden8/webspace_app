@@ -86,7 +86,8 @@ Future<SiteIcon?> decodeSiteIcon(Uint8List bytes) async {
       image.width,
       image.height,
     );
-  } catch (_) {
+  } on Exception {
+    // The engine reports undecodable bytes as a plain Exception.
     return null;
   } finally {
     image?.dispose();
@@ -155,8 +156,8 @@ class SiteIconFetcher {
 
   static Uint8List? _dataBytes(String url) {
     try {
-      return Uri.parse(url).data?.contentAsBytes();
-    } catch (_) {
+      return Uri.tryParse(url)?.data?.contentAsBytes();
+    } on FormatException {
       return null;
     }
   }

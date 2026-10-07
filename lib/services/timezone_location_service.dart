@@ -104,7 +104,7 @@ class TimezoneLocationService {
   Future<bool> hasCachedDataset() async {
     try {
       return await hostFileExists(await _cachePath());
-    } catch (_) {
+    } on Exception {
       return false;
     }
   }

@@ -262,14 +262,7 @@ ConnectionTask<S> _cancellableConnect<S extends Socket>(Future<S> connect) {
 
 /// Whether [host] looks like an IPv4 / IPv6 literal — i.e. safe to pass
 /// directly to [InternetAddress] without a DNS lookup.
-bool _isIpLiteral(String host) {
-  try {
-    InternetAddress(host);
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
+bool _isIpLiteral(String host) => InternetAddress.tryParse(host) != null;
 
 bool _isLocalhost(String host) {
   return host == 'localhost' || host == '127.0.0.1' || host == '::1';

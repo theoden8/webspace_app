@@ -402,10 +402,8 @@ class DnsBlockService {
   Future<void> _clearDomainCache() async {
     _domainCache.clear();
     _persistTimer?.cancel();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_domainCacheKey);
-    } catch (_) {}
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_domainCacheKey);
   }
 
   /// Get (and cache) a Bloom filter built from all DNS-blocked domains.

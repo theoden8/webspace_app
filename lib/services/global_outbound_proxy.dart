@@ -107,8 +107,8 @@ UserProxySettings readGlobalOutboundProxy(SharedPreferences prefs) {
     if (decoded is Map<String, dynamic>) {
       return UserProxySettings.fromJson(decoded);
     }
-  } catch (_) {
-    // Fall through to default on any decode error.
+  } on FormatException {
+    // Fall through to the default.
   }
   return UserProxySettings(type: ProxyType.DEFAULT);
 }

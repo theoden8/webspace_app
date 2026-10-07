@@ -395,7 +395,7 @@ class PasskeyEngine {
     Object? decoded;
     try {
       decoded = jsonDecode(responseJson);
-    } catch (_) {
+    } on FormatException {
       return PasskeyError.unreadable.toBridgeJson();
     }
     if (decoded is! Map) return PasskeyError.unreadable.toBridgeJson();

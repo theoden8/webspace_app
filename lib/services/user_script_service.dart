@@ -33,12 +33,8 @@ enum ScriptFetchUrlStatus {
 /// [ScriptFetchUrlStatus.requiresConfirmation] for other http/https URLs,
 /// and [ScriptFetchUrlStatus.blocked] for dangerous or invalid URLs.
 ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
-  final Uri uri;
-  try {
-    uri = Uri.parse(url);
-  } catch (_) {
-    return ScriptFetchUrlStatus.blocked;
-  }
+  final uri = Uri.tryParse(url);
+  if (uri == null) return ScriptFetchUrlStatus.blocked;
 
   final scheme = uri.scheme.toLowerCase();
 

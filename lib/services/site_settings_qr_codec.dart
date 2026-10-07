@@ -200,7 +200,7 @@ class SiteSettingsQrCodec {
         conv.add(compressed.sublist(i, end));
       }
       conv.close();
-    } catch (_) {
+    } on FormatException {
       return null;
     }
     return overflow ? null : out.takeBytes();
@@ -275,7 +275,7 @@ class SiteSettingsQrCodec {
         return null;
       }
       return out;
-    } catch (_) {
+    } on FormatException {
       return null;
     }
   }

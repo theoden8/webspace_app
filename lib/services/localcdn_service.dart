@@ -333,7 +333,9 @@ class LocalCdnService {
     for (final path in _cache.values) {
       try {
         total += await hostFileLength(path);
-      } catch (_) {}
+      } on Exception {
+        // An unreadable file counts as nothing.
+      }
     }
     return total;
   }
@@ -388,7 +390,7 @@ class LocalCdnService {
       _cache.remove(key);
       await _saveCacheIndex();
       return null;
-    } catch (_) {
+    } on Exception {
       return null;
     }
   }
@@ -502,7 +504,9 @@ class LocalCdnService {
     try {
       await hostDeleteDirectory(_cacheDir!);
       await hostEnsureDirectory(_cacheDir!);
-    } catch (_) {}
+    } on Exception {
+      // The index below is what serves; files it no longer names are inert.
+    }
 
     _cache.clear();
     await _saveCacheIndex();
@@ -517,18 +521,19 @@ class LocalCdnService {
     final indexJson = prefs.getString('localcdn_cache_index');
     if (indexJson != null) {
       try {
-        final Map<String, dynamic> index = jsonDecode(indexJson);
+        final index = jsonDecode(indexJson);
         _cache.clear();
-        for (final entry in index.entries) {
-          if (await hostFileExists(entry.value as String)) {
-            _cache[entry.key] = entry.value as String;
+        if (index is! Map) return;
+        for (final MapEntry(:key, :value) in index.entries) {
+          if (key is String && value is String && await hostFileExists(value)) {
+            _cache[key] = value;
           }
         }
         // Clean up index if any files were missing
         if (_cache.length != index.length) {
           await _saveCacheIndex();
         }
-      } catch (_) {
+      } on Exception {
         _cache.clear();
       }
     }

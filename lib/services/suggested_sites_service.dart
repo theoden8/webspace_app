@@ -44,18 +44,22 @@ Future<List<SiteSuggestion>?> loadSuggestedSites() async {
   final prefs = await SharedPreferences.getInstance();
   final json = prefs.getString(_prefsKey);
   if (json == null) return null;
+  final Object? list;
   try {
-    final list = jsonDecode(json) as List<dynamic>;
-    return list
-        .map((e) => SiteSuggestion(
-              name: e['name'] as String,
-              url: e['url'] as String,
-              domain: e['domain'] as String,
-            ))
-        .toList();
-  } catch (_) {
+    list = jsonDecode(json);
+  } on FormatException {
     return null;
   }
+  if (list is! List) return null;
+  return [
+    for (final e in list)
+      if (e case {
+        'name': final String name,
+        'url': final String url,
+        'domain': final String domain,
+      })
+        SiteSuggestion(name: name, url: url, domain: domain),
+  ];
 }
 
 Future<void> saveSuggestedSites(List<SiteSuggestion> sites) async {

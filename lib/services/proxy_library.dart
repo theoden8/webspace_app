@@ -261,7 +261,7 @@ class ProxyLibraryData {
     Object? json;
     try {
       json = jsonDecode(raw);
-    } catch (_) {
+    } on FormatException {
       return ProxyLibraryData();
     }
     if (json is! Map) return ProxyLibraryData();

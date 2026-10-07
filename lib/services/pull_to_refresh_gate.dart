@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/platform/host_platform.dart';
 
@@ -126,10 +127,14 @@ class PullToRefreshGate {
   }
 
   // The control is reachable only once the native view is attached; a pointer
-  // arriving before that (or after disposal) must not surface as an error.
+  // arriving before that must not surface as an error.
   Future<void> _swallow(Future<void> Function() op) async {
     try {
       await op();
-    } catch (_) {}
+    } on PlatformException {
+      // Not attached yet; the next pointer tries again.
+    } on MissingPluginException {
+      // Not attached yet; the next pointer tries again.
+    }
   }
 }

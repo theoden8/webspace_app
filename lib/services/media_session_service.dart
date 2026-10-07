@@ -415,7 +415,8 @@ class MediaSessionService {
       if (response.statusCode != 200) return null;
       if (response.bodyBytes.length > cap) return null;
       return response.bodyBytes;
-    } catch (_) {
+    } on Exception {
+      // http, SOCKS and TLS failures alike: the notification goes without art.
       return null;
     } finally {
       client.close();
