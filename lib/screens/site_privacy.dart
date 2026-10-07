@@ -9,7 +9,6 @@ import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/site_overrides.dart';
-import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
@@ -106,7 +105,7 @@ class SitePrivacyValues {
   bool get effectiveThirdPartyCookies => _forced(
       TrackingProtectionForce.thirdPartyCookies, thirdPartyCookiesEnabled);
   bool get effectiveHttpsUpgrade => _forced(TrackingProtectionForce.httpsUpgrade,
-      httpsUpgrade.resolve(WebViewFactory.httpsUpgradeEnabled));
+      httpsUpgrade.resolve(AppPref.httpsUpgradeEnabled.value));
   bool get effectiveIncognito =>
       ArchiveFold.incognito(incognito, archived: archived);
 
@@ -440,7 +439,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   /// Follows App Settings until the site picks its own value, and can go
   /// back to following (HTTPS-005).
   Widget _httpsUpgrade(AppLocalizations loc) {
-    final appValue = WebViewFactory.httpsUpgradeEnabled;
+    final appValue = AppPref.httpsUpgradeEnabled.value;
     return ChoiceTile<Scoped<bool>>(
       title: loc.siteSettingsHttpsUpgrade,
       hint: loc.siteSettingsHttpsUpgradeHint,

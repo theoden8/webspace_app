@@ -1243,7 +1243,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     debugWebViewModels = _webViewModels;
     WebViewModel.siteLookup = _modelForSiteId;
     WidgetsBinding.instance.addObserver(this);
-    _mirrorWebViewFactoryPrefs();
     AppPref.anyChange.addListener(_onAppPrefChanged);
     AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
     AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
@@ -1280,15 +1279,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  /// The webview factory reads these synchronously while it builds.
-  void _mirrorWebViewFactoryPrefs() {
-    WebViewFactory.backForwardCacheEnabled =
-        AppPref.backForwardCacheEnabled.value;
-    WebViewFactory.httpsUpgradeEnabled = AppPref.httpsUpgradeEnabled.value;
-  }
-
   void _onAppPrefChanged() {
-    _mirrorWebViewFactoryPrefs();
     if (mounted) setState(() {});
   }
 

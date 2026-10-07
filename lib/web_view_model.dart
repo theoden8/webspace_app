@@ -44,6 +44,7 @@ import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/blocked_cookie.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/external_links.dart';
@@ -766,7 +767,7 @@ class WebViewModel {
   bool get effectiveHttpsUpgradeEnabled => _forcedByTrackingProtection(
       TrackingProtectionForce.httpsUpgrade,
       Scoped.fromStored(httpsUpgradeEnabled)
-          .resolve(WebViewFactory.httpsUpgradeEnabled));
+          .resolve(AppPref.httpsUpgradeEnabled.value));
 
   bool _forcedByTrackingProtection(TrackingProtectionForce force, bool stored) =>
       force.resolve(stored, trackingProtection: trackingProtectionEnabled);

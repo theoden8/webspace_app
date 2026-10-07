@@ -32,6 +32,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'helpers/ui.dart';
@@ -54,7 +55,7 @@ void main() {
   late HttpServer server;
   late int port;
   final requests = <_Req>[];
-  final bool savedBfcache = WebViewFactory.backForwardCacheEnabled;
+  final bool savedBfcache = AppPref.backForwardCacheEnabled.value;
 
   void log(String m) {
     // ignore: avoid_print
@@ -74,7 +75,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    WebViewFactory.backForwardCacheEnabled = savedBfcache;
+    AppPref.backForwardCacheEnabled.debugValue = savedBfcache;
     await server.close(force: true);
   });
 
@@ -164,7 +165,7 @@ void main() {
     // the back entry is restored from cache (no new request); without it the
     // engine re-fetches A.
     Future<bool> backRefetches(bool bfcache) async {
-      WebViewFactory.backForwardCacheEnabled = bfcache;
+      AppPref.backForwardCacheEnabled.debugValue = bfcache;
       final tag = bfcache ? 'on' : 'off';
       final aPath = '/bfa-$tag';
       final bPath = '/bfb-$tag';

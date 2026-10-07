@@ -4,7 +4,6 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
-import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/widgets/level_slider.dart';
@@ -266,14 +265,14 @@ void main() {
   });
 
   group('HTTPS upgrade follows App Settings until overridden (HTTPS-005)', () {
-    tearDown(() => WebViewFactory.httpsUpgradeEnabled = true);
+    tearDown(() => AppPref.httpsUpgradeEnabled.debugValue = true);
 
     DropdownButton<Scoped<bool>> dropdown(WidgetTester tester) =>
         tester.widget(find.byType(DropdownButton<Scoped<bool>>));
 
     testWidgets('a site override can go back to following the app',
         (tester) async {
-      WebViewFactory.httpsUpgradeEnabled = false;
+      AppPref.httpsUpgradeEnabled.debugValue = false;
       SitePrivacyValues? seen;
       await _pump(
         tester,

@@ -78,6 +78,7 @@ import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/site_icon_native.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/services/location_spoof_service.dart';
@@ -1900,12 +1901,6 @@ class HeadlessSiteCheck {
 }
 
 class WebViewFactory {
-  /// Global back/forward-cache preference, mirrored from the
-  /// `backForwardCacheEnabled` app pref (kExportedAppPrefs) at startup and
-  /// after settings import. Applied verbatim to every WebView's native
-  /// WebSettings; no-ops on platforms/providers without the feature.
-  static bool backForwardCacheEnabled = true;
-
   /// How Android draws a webview (PAUSE-032). True, the default, is hybrid
   /// composition: the WebView sits in the Android view hierarchy and Flutter
   /// draws into image views around it, where a surface can reattach without a
@@ -1920,11 +1915,6 @@ class WebViewFactory {
   /// update flips a texture webview's native input and selection code to
   /// hybrid behaviour.
   static bool hybridComposition = true;
-
-  /// App-wide HTTPS upgrade default, mirrored from the `httpsUpgradeEnabled`
-  /// app pref (kExportedAppPrefs) at startup and after settings import. A site
-  /// with no override of its own follows this (HTTPS-005).
-  static bool httpsUpgradeEnabled = true;
 
   /// One per process, shared by root and nested webviews: a host that answered
   /// an upgrade with a failure in one must not be probed again by the other
@@ -2271,8 +2261,8 @@ class WebViewFactory {
       ..webViewMediaIntegrityApiStatus = tp
           ? inapp.WebViewMediaIntegrityApiStatus.ENABLED_WITHOUT_APP_IDENTITY
           : null
-      // Global perf pref; same value on every WebView, nested included.
-      ..backForwardCacheEnabled = WebViewFactory.backForwardCacheEnabled
+      // No-op on platforms and providers without the feature.
+      ..backForwardCacheEnabled = AppPref.backForwardCacheEnabled.value
       ..thirdPartyCookiesEnabled = posture.container.thirdPartyCookies
       ..incognito = posture.container.incognito
       ..textZoom = textZoom
@@ -3046,7 +3036,6 @@ class WebViewFactory {
         },
       );
     }
-    // Register ClearURLs handler for clipboard/share URL cleaning
     if (config.posture.blocking.clearUrls) {
       controller.addJavaScriptHandler(handlerName: 'clearUrl', callback: (args) {
         if (args.isNotEmpty && args[0] is String) {
@@ -3116,15 +3105,8 @@ class WebViewFactory {
         return map;
       });
     }
-    // Phase 5: generic-cosmetic class/id lookup. The page-side
-    // shim from generic_cosmetic_shim.dart scans the loaded DOM
-    // for unique classes / ids, calls this handler with
-    // `{classes: [...], ids: [...]}`, and gets back a list of
-    // CSS selectors to inject as display:none. Only the engine
-    // surfaces these (the Dart parser keeps generic rules in
-    // _cosmeticSelectors, which already get injected the old
-    // way) — when no engine is active, we return an empty list
-    // and the shim is a no-op.
+    // The generic cosmetic scan's selectors for the page's classes and ids;
+    // empty, and the shim inert, without the engine.
     controller.addJavaScriptHandler(
       handlerName: 'genericCosmeticScan',
       callback: (args) {
@@ -4397,11 +4379,7 @@ class WebViewFactory {
           iconEngine.onLoadStarted(url?.toString()).forEach(siteIcon!.onIcon);
           _logSiteIcon('loadStart ${iconEngine.stateForLog}');
         }
-        // Snapshot the navigation generation BEFORE any await — if a
-        // later `shouldOverrideUrlLoading` advances the counter while
-        // we're between IPCs, the previous frame is being torn down and
-        // we abandon the remaining work rather than post evaluateJS
-        // against it. See the `navigationGen` comment above for why.
+        // Taken before any await: see `navigationGen`.
         final myGen = navigationGen;
         bool stillCurrent() => navigationGen == myGen;
 
@@ -4413,15 +4391,12 @@ class WebViewFactory {
         if (url != null) {
           WebViewFactory.httpsUpgrade.onLoadStarted(url.toString());
         }
-        // Notify the call site that a navigation just started so the
-        // Refresh button can swap to a Stop button while loading.
         config.onLoadingChanged?.call(true);
         if (url != null) {
           config.onMainFrameLoad
               ?.call(MainFrameLoadSignal.started(url.toString()));
         }
 
-        // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
         failedNavUrl = null;
         // Counted here too, so the stats banner shows a cached-HTML load
@@ -4431,12 +4406,8 @@ class WebViewFactory {
           _judgeAndRecord(config,
               UrlQuery(page, sourceUrl: page, requestType: 'document'));
         }
-        // Batch the early-injected helpers (content-blocker CSS,
-        // ClearURLs share-API shim) into a single evaluateJavascript
-        // IPC. Two separate IPCs gave chromium two race windows per
-        // onLoadStart; one IPC closes one of those windows entirely.
-        // Both scripts are already self-contained IIFEs, so
-        // concatenation is safe.
+        // One evaluateJavascript, not one per script: each IPC is a race
+        // window against Chromium's frame teardown.
         final earlyScripts = <String>[];
         if (config.posture.blocking.contentBlock && url != null) {
           final cssScript =
@@ -4492,13 +4463,9 @@ class WebViewFactory {
         if (url != null) {
           WebViewFactory.httpsUpgrade.onLoadFinished(url.toString());
         }
-        // End pull-to-refresh animation
         config.pullToRefreshGate?.controller?.endRefreshing();
-        // Notify the call site that this navigation finished loading
-        // (or was canceled) so the Stop button can swap back to
-        // Refresh. Fired regardless of whether `url` is renderable —
-        // the loading-state UI is independent of the cache/snapshot
-        // logic gated below.
+        // Whether or not `url` is renderable: the loading UI does not
+        // depend on the snapshot logic below.
         config.onLoadingChanged?.call(false);
         config.onMainFrameLoad?.call(const MainFrameLoadSignal.settled());
         if (url == null) return;
