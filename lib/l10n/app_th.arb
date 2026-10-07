@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " ผู้ร่วมสนับสนุน · ",
   "locationPickerReportMapIssue": "รายงานปัญหาแผนที่",
   "inappBrowserCouldNotLaunch": "ไม่สามารถเปิด {url}",
-  "inappBrowserVerificationTitle": "การยืนยัน",
   "inappBrowserDefaultTitle": "เว็บวิวในแอป",
   "inappBrowserMenuOpenInBrowser": "เปิดในเบราว์เซอร์",
   "inappBrowserMenuRefresh": "รีเฟรช",

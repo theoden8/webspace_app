@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " অবদানকারী · ",
   "locationPickerReportMapIssue": "একটি মানচিত্র সমস্যা রিপোর্ট করুন",
   "inappBrowserCouldNotLaunch": "{url} চালু করা যায়নি",
-  "inappBrowserVerificationTitle": "যাচাইকরণ",
   "inappBrowserDefaultTitle": "ইন-অ্যাপ WebView",
   "inappBrowserMenuOpenInBrowser": "ব্রাউজারে খুলুন",
   "inappBrowserMenuRefresh": "রিফ্রেশ",

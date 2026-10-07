@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " þátttakendur · ",
   "locationPickerReportMapIssue": "Tilkynna kortavandamál",
   "inappBrowserCouldNotLaunch": "Ekki tókst að ræsa {url}",
-  "inappBrowserVerificationTitle": "Staðfesting",
   "inappBrowserDefaultTitle": "Innbyggt WebView",
   "inappBrowserMenuOpenInBrowser": "Opna í vafra",
   "inappBrowserMenuRefresh": "Endurnýja",

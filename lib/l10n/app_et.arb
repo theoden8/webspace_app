@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " kaastöölist · ",
   "locationPickerReportMapIssue": "Teata kaardiprobleemist",
   "inappBrowserCouldNotLaunch": "Ei saanud avada {url}",
-  "inappBrowserVerificationTitle": "Kontroll",
   "inappBrowserDefaultTitle": "Sisene veebivaade",
   "inappBrowserMenuOpenInBrowser": "Ava brauseris",
   "inappBrowserMenuRefresh": "Värskenda",

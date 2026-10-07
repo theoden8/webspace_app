@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " kontributuri · ",
   "locationPickerReportMapIssue": "Irrapporta problema fil-mappa",
   "inappBrowserCouldNotLaunch": "Ma setax jitnieda {url}",
-  "inappBrowserVerificationTitle": "Verifika",
   "inappBrowserDefaultTitle": "WebView fl-App",
   "inappBrowserMenuOpenInBrowser": "Iftaħ fil-Browser",
   "inappBrowserMenuRefresh": "Aġġorna",

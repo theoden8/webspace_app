@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " bydraers · ",
   "locationPickerReportMapIssue": "Rapporteer 'n kaartprobleem",
   "inappBrowserCouldNotLaunch": "Kon nie {url} oopmaak nie",
-  "inappBrowserVerificationTitle": "Verifikasie",
   "inappBrowserDefaultTitle": "In-app webaansig",
   "inappBrowserMenuOpenInBrowser": "Maak in blaaier oop",
   "inappBrowserMenuRefresh": "Verfris",

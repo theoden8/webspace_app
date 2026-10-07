@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " col·laboradors · ",
   "locationPickerReportMapIssue": "Informa d'un problema del mapa",
   "inappBrowserCouldNotLaunch": "No s'ha pogut obrir {url}",
-  "inappBrowserVerificationTitle": "Verificació",
   "inappBrowserDefaultTitle": "Vista web integrada",
   "inappBrowserMenuOpenInBrowser": "Obre al navegador",
   "inappBrowserMenuRefresh": "Actualitza",

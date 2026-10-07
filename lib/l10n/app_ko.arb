@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " 기여자 · ",
   "locationPickerReportMapIssue": "지도 문제 신고",
   "inappBrowserCouldNotLaunch": "{url}을(를) 열 수 없습니다",
-  "inappBrowserVerificationTitle": "인증",
   "inappBrowserDefaultTitle": "인앱 웹뷰",
   "inappBrowserMenuOpenInBrowser": "브라우저에서 열기",
   "inappBrowserMenuRefresh": "새로고침",

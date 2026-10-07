@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " учасники · ",
   "locationPickerReportMapIssue": "Повідомити про проблему з картою",
   "inappBrowserCouldNotLaunch": "Не вдалося відкрити {url}",
-  "inappBrowserVerificationTitle": "Перевірка",
   "inappBrowserDefaultTitle": "Вбудований вебперегляд",
   "inappBrowserMenuOpenInBrowser": "Відкрити у браузері",
   "inappBrowserMenuRefresh": "Оновити",

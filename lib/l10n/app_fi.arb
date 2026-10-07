@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " avustajaa · ",
   "locationPickerReportMapIssue": "Ilmoita karttaongelmasta",
   "inappBrowserCouldNotLaunch": "Ei voitu avata {url}",
-  "inappBrowserVerificationTitle": "Vahvistus",
   "inappBrowserDefaultTitle": "Sovelluksensisäinen WebView",
   "inappBrowserMenuOpenInBrowser": "Avaa selaimessa",
   "inappBrowserMenuRefresh": "Päivitä",

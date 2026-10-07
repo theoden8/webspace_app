@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " مساهمون · ",
   "locationPickerReportMapIssue": "الإبلاغ عن مشكلة في الخريطة",
   "inappBrowserCouldNotLaunch": "تعذّر تشغيل {url}",
-  "inappBrowserVerificationTitle": "التحقق",
   "inappBrowserDefaultTitle": "عرض ويب داخل التطبيق",
   "inappBrowserMenuOpenInBrowser": "فتح في المتصفح",
   "inappBrowserMenuRefresh": "تحديث",

@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " bidragsytere · ",
   "locationPickerReportMapIssue": "Rapporter et kartproblem",
   "inappBrowserCouldNotLaunch": "Kunne ikke åpne {url}",
-  "inappBrowserVerificationTitle": "Verifisering",
   "inappBrowserDefaultTitle": "Innebygd nettvisning",
   "inappBrowserMenuOpenInBrowser": "Åpne i nettleser",
   "inappBrowserMenuRefresh": "Oppdater",

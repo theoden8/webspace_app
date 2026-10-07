@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " អ្នករួមចំណែក · ",
   "locationPickerReportMapIssue": "រាយការណ៍បញ្ហាផែនទី",
   "inappBrowserCouldNotLaunch": "មិនអាចបើក {url} បានទេ",
-  "inappBrowserVerificationTitle": "ការផ្ទៀងផ្ទាត់",
   "inappBrowserDefaultTitle": "WebView ក្នុងកម្មវិធី",
   "inappBrowserMenuOpenInBrowser": "បើកក្នុងកម្មវិធីរុករក",
   "inappBrowserMenuRefresh": "ធ្វើឱ្យស្រស់",

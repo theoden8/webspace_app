@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " přispěvatelé · ",
   "locationPickerReportMapIssue": "Nahlásit problém s mapou",
   "inappBrowserCouldNotLaunch": "Nelze spustit {url}",
-  "inappBrowserVerificationTitle": "Ověření",
   "inappBrowserDefaultTitle": "Vestavěné WebView",
   "inappBrowserMenuOpenInBrowser": "Otevřít v prohlížeči",
   "inappBrowserMenuRefresh": "Obnovit",

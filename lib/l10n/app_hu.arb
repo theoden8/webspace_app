@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " közreműködő · ",
   "locationPickerReportMapIssue": "Térképhiba jelentése",
   "inappBrowserCouldNotLaunch": "Nem sikerült megnyitni: {url}",
-  "inappBrowserVerificationTitle": "Ellenőrzés",
   "inappBrowserDefaultTitle": "Beépített webnézet",
   "inappBrowserMenuOpenInBrowser": "Megnyitás böngészőben",
   "inappBrowserMenuRefresh": "Frissítés",

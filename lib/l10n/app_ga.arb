@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " rannchuiditheoirí · ",
   "locationPickerReportMapIssue": "Tuairiscigh fadhb léarscáile",
   "inappBrowserCouldNotLaunch": "Níorbh fhéidir {url} a sheoladh",
-  "inappBrowserVerificationTitle": "Fíorú",
   "inappBrowserDefaultTitle": "WebView san Aip",
   "inappBrowserMenuOpenInBrowser": "Oscail sa Bhrabhsálaí",
   "inappBrowserMenuRefresh": "Athnuaigh",

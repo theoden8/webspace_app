@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " योगदानकर्ताहरू · ",
   "locationPickerReportMapIssue": "नक्सा समस्या रिपोर्ट गर्नुहोस्",
   "inappBrowserCouldNotLaunch": "{url} सुरु गर्न सकिएन",
-  "inappBrowserVerificationTitle": "प्रमाणीकरण",
   "inappBrowserDefaultTitle": "इन-एप WebView",
   "inappBrowserMenuOpenInBrowser": "ब्राउजरमा खोल्नुहोस्",
   "inappBrowserMenuRefresh": "ताजा गर्नुहोस्",

@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " na contributor · ",
   "locationPickerReportMapIssue": "Mag-ulat ng problema sa mapa",
   "inappBrowserCouldNotLaunch": "Hindi mailunsad ang {url}",
-  "inappBrowserVerificationTitle": "Pag-verify",
   "inappBrowserDefaultTitle": "In-App WebView",
   "inappBrowserMenuOpenInBrowser": "Buksan sa Browser",
   "inappBrowserMenuRefresh": "I-refresh",

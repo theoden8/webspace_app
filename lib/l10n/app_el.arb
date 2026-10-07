@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " συνεισφέροντες · ",
   "locationPickerReportMapIssue": "Αναφορά προβλήματος χάρτη",
   "inappBrowserCouldNotLaunch": "Δεν ήταν δυνατή η εκκίνηση του {url}",
-  "inappBrowserVerificationTitle": "Επαλήθευση",
   "inappBrowserDefaultTitle": "Ενσωματωμένο WebView",
   "inappBrowserMenuOpenInBrowser": "Άνοιγμα στο πρόγραμμα περιήγησης",
   "inappBrowserMenuRefresh": "Ανανέωση",

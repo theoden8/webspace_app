@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " kontribues · ",
   "locationPickerReportMapIssue": "Raporto një problem me hartën",
   "inappBrowserCouldNotLaunch": "Nuk u nis dot {url}",
-  "inappBrowserVerificationTitle": "Verifikim",
   "inappBrowserDefaultTitle": "WebView i brendshëm",
   "inappBrowserMenuOpenInBrowser": "Hap në shfletues",
   "inappBrowserMenuRefresh": "Rifresko",

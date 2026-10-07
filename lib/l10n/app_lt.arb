@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " bendraautoriai · ",
   "locationPickerReportMapIssue": "Pranešti apie žemėlapio problemą",
   "inappBrowserCouldNotLaunch": "Nepavyko atidaryti {url}",
-  "inappBrowserVerificationTitle": "Patvirtinimas",
   "inappBrowserDefaultTitle": "Įterptinis interneto rodinys",
   "inappBrowserMenuOpenInBrowser": "Atidaryti naršyklėje",
   "inappBrowserMenuRefresh": "Atnaujinti",

@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " хувь нэмэр оруулагчид · ",
   "locationPickerReportMapIssue": "Газрын зургийн асуудал мэдээлэх",
   "inappBrowserCouldNotLaunch": "{url}-ийг нээж чадсангүй",
-  "inappBrowserVerificationTitle": "Баталгаажуулалт",
   "inappBrowserDefaultTitle": "Дотоод вэбвью",
   "inappBrowserMenuOpenInBrowser": "Хөтөчид нээх",
   "inappBrowserMenuRefresh": "Сэргээх",

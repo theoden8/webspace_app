@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " соработници · ",
   "locationPickerReportMapIssue": "Пријави проблем со картата",
   "inappBrowserCouldNotLaunch": "Не можеше да се отвори {url}",
-  "inappBrowserVerificationTitle": "Потврда",
   "inappBrowserDefaultTitle": "Вграден WebView",
   "inappBrowserMenuOpenInBrowser": "Отвори во прегледник",
   "inappBrowserMenuRefresh": "Освежи",

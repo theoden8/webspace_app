@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " సహకారులు · ",
   "locationPickerReportMapIssue": "మ్యాప్ సమస్యను నివేదించు",
   "inappBrowserCouldNotLaunch": "{url}ని ప్రారంభించడం సాధ్యం కాలేదు",
-  "inappBrowserVerificationTitle": "ధృవీకరణ",
   "inappBrowserDefaultTitle": "ఇన్-యాప్ WebView",
   "inappBrowserMenuOpenInBrowser": "బ్రౌజర్‌లో తెరువు",
   "inappBrowserMenuRefresh": "రిఫ్రెష్",

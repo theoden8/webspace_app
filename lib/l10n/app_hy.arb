@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " ներդրողներ · ",
   "locationPickerReportMapIssue": "Հայտնել քարտեզի խնդրի մասին",
   "inappBrowserCouldNotLaunch": "Չհաջողվեց բացել {url}",
-  "inappBrowserVerificationTitle": "Հաստատում",
   "inappBrowserDefaultTitle": "Ներկառուցված WebView",
   "inappBrowserMenuOpenInBrowser": "Բացել դիտարկիչում",
   "inappBrowserMenuRefresh": "Թարմացնել",

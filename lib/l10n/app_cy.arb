@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " cyfranwyr · ",
   "locationPickerReportMapIssue": "Adrodd am broblem map",
   "inappBrowserCouldNotLaunch": "Methwyd lansio {url}",
-  "inappBrowserVerificationTitle": "Dilysiad",
   "inappBrowserDefaultTitle": "WebView Mewn-Ap",
   "inappBrowserMenuOpenInBrowser": "Agor mewn Porwr",
   "inappBrowserMenuRefresh": "Adnewyddu",

@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " 貢献者 · ",
   "locationPickerReportMapIssue": "地図の問題を報告",
   "inappBrowserCouldNotLaunch": "{url} を起動できませんでした",
-  "inappBrowserVerificationTitle": "確認",
   "inappBrowserDefaultTitle": "アプリ内WebView",
   "inappBrowserMenuOpenInBrowser": "ブラウザで開く",
   "inappBrowserMenuRefresh": "再読み込み",

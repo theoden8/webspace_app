@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " பங்களிப்பாளர்கள் · ",
   "locationPickerReportMapIssue": "வரைபட சிக்கலைப் புகாரளி",
   "inappBrowserCouldNotLaunch": "{url} ஐத் தொடங்க முடியவில்லை",
-  "inappBrowserVerificationTitle": "சரிபார்ப்பு",
   "inappBrowserDefaultTitle": "செயலி-உள் WebView",
   "inappBrowserMenuOpenInBrowser": "உலாவியில் திற",
   "inappBrowserMenuRefresh": "புதுப்பி",

@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " penyumbang · ",
   "locationPickerReportMapIssue": "Laporkan isu peta",
   "inappBrowserCouldNotLaunch": "Tidak dapat melancarkan {url}",
-  "inappBrowserVerificationTitle": "Pengesahan",
   "inappBrowserDefaultTitle": "WebView Dalam Aplikasi",
   "inappBrowserMenuOpenInBrowser": "Buka dalam Pelayar",
   "inappBrowserMenuRefresh": "Muat semula",

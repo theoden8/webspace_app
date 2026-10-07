@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " 貢獻者 · ",
   "locationPickerReportMapIssue": "回報地圖問題",
   "inappBrowserCouldNotLaunch": "無法啟動 {url}",
-  "inappBrowserVerificationTitle": "驗證",
   "inappBrowserDefaultTitle": "應用程式內 WebView",
   "inappBrowserMenuOpenInBrowser": "在瀏覽器中開啟",
   "inappBrowserMenuRefresh": "重新整理",

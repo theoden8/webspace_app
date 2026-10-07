@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " katkıda bulunanlar · ",
   "locationPickerReportMapIssue": "Harita sorunu bildir",
   "inappBrowserCouldNotLaunch": "{url} başlatılamadı",
-  "inappBrowserVerificationTitle": "Doğrulama",
   "inappBrowserDefaultTitle": "Uygulama İçi WebView",
   "inappBrowserMenuOpenInBrowser": "Tarayıcıda Aç",
   "inappBrowserMenuRefresh": "Yenile",

@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " സംഭാവകർ · ",
   "locationPickerReportMapIssue": "ഒരു മാപ്പ് പ്രശ്നം റിപ്പോർട്ട് ചെയ്യുക",
   "inappBrowserCouldNotLaunch": "{url} ലോഞ്ച് ചെയ്യാൻ കഴിഞ്ഞില്ല",
-  "inappBrowserVerificationTitle": "സ്ഥിരീകരണം",
   "inappBrowserDefaultTitle": "ഇൻ-ആപ്പ് WebView",
   "inappBrowserMenuOpenInBrowser": "ബ്രൗസറിൽ തുറക്കുക",
   "inappBrowserMenuRefresh": "പുതുക്കുക",

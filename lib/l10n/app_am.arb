@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " አስተዋጽኦ አበርካቾች · ",
   "locationPickerReportMapIssue": "የካርታ ችግር ሪፖርት አድርግ",
   "inappBrowserCouldNotLaunch": "{url} ማስጀመር አልተቻለም",
-  "inappBrowserVerificationTitle": "ማረጋገጫ",
   "inappBrowserDefaultTitle": "በመተግበሪያ ውስጥ WebView",
   "inappBrowserMenuOpenInBrowser": "በአሳሽ ክፈት",
   "inappBrowserMenuRefresh": "አድስ",

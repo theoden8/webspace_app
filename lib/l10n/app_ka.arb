@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " მონაწილე · ",
   "locationPickerReportMapIssue": "რუკის პრობლემის შეტყობინება",
   "inappBrowserCouldNotLaunch": "{url} ვერ გაიხსნა",
-  "inappBrowserVerificationTitle": "დადასტურება",
   "inappBrowserDefaultTitle": "აპშიდა WebView",
   "inappBrowserMenuOpenInBrowser": "ბრაუზერში გახსნა",
   "inappBrowserMenuRefresh": "განახლება",

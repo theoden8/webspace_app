@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " colaboradores · ",
   "locationPickerReportMapIssue": "Informar dun problema do mapa",
   "inappBrowserCouldNotLaunch": "Non se puido iniciar {url}",
-  "inappBrowserVerificationTitle": "Verificación",
   "inappBrowserDefaultTitle": "WebView na aplicación",
   "inappBrowserMenuOpenInBrowser": "Abrir no navegador",
   "inappBrowserMenuRefresh": "Recargar",

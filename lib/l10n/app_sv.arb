@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " bidragsgivare · ",
   "locationPickerReportMapIssue": "Rapportera ett kartproblem",
   "inappBrowserCouldNotLaunch": "Kunde inte starta {url}",
-  "inappBrowserVerificationTitle": "Verifiering",
   "inappBrowserDefaultTitle": "Inbäddad webbvy",
   "inappBrowserMenuOpenInBrowser": "Öppna i webbläsare",
   "inappBrowserMenuRefresh": "Uppdatera",

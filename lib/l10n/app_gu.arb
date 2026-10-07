@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " યોગદાનકર્તાઓ · ",
   "locationPickerReportMapIssue": "નકશા સમસ્યાની જાણ કરો",
   "inappBrowserCouldNotLaunch": "{url} લોન્ચ કરી શકાયું નહીં",
-  "inappBrowserVerificationTitle": "ચકાસણી",
   "inappBrowserDefaultTitle": "ઇન-એપ WebView",
   "inappBrowserMenuOpenInBrowser": "બ્રાઉઝરમાં ખોલો",
   "inappBrowserMenuRefresh": "તાજું કરો",

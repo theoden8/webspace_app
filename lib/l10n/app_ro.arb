@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " contributori · ",
   "locationPickerReportMapIssue": "Raportează o problemă de hartă",
   "inappBrowserCouldNotLaunch": "Nu s-a putut lansa {url}",
-  "inappBrowserVerificationTitle": "Verificare",
   "inappBrowserDefaultTitle": "WebView în aplicație",
   "inappBrowserMenuOpenInBrowser": "Deschide în browser",
   "inappBrowserMenuRefresh": "Reîncarcă",

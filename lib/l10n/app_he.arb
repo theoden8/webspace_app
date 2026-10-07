@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " תורמים · ",
   "locationPickerReportMapIssue": "דווח על בעיה במפה",
   "inappBrowserCouldNotLaunch": "לא ניתן היה לפתוח את {url}",
-  "inappBrowserVerificationTitle": "אימות",
   "inappBrowserDefaultTitle": "דפדפן מוטמע",
   "inappBrowserMenuOpenInBrowser": "פתח בדפדפן",
   "inappBrowserMenuRefresh": "רענן",

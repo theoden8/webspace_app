@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " kolaboratzaile · ",
   "locationPickerReportMapIssue": "Salatu mapako arazo bat",
   "inappBrowserCouldNotLaunch": "Ezin izan da {url} abiarazi",
-  "inappBrowserVerificationTitle": "Egiaztapena",
   "inappBrowserDefaultTitle": "Aplikazio barneko WebView-a",
   "inappBrowserMenuOpenInBrowser": "Ireki nabigatzailean",
   "inappBrowserMenuRefresh": "Berritu",

@@ -139,7 +139,6 @@
   "locationPickerOsmContributors": " දායකයන් · ",
   "locationPickerReportMapIssue": "සිතියම් ගැටලුවක් වාර්තා කරන්න",
   "inappBrowserCouldNotLaunch": "{url} දියත් කළ නොහැකි විය",
-  "inappBrowserVerificationTitle": "සත්‍යාපනය",
   "inappBrowserDefaultTitle": "යෙදුම් තුළ WebView",
   "inappBrowserMenuOpenInBrowser": "බ්‍රවුසරයේ විවෘත කරන්න",
   "inappBrowserMenuRefresh": "නැවුම් කරන්න",
