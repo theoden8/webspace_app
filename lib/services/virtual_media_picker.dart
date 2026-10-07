@@ -1,211 +1,188 @@
-import 'package:webspace/platform/host_platform.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show compute;
-import 'package:webspace/services/media_metadata_strip.dart';
 
-/// Why a picked file could not become a synthetic capture source.
+import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/media_metadata_strip.dart';
+import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/setting_labels.dart';
+
+/// Why a picked file could not become a capture source.
 enum VirtualMediaPickError { type, read, tooLarge }
 
-/// Raw outcome of a file pick: the bytes plus the lowercased extension, or a
-/// reason it was rejected. Feature services map the extension to a MIME type
-/// and wrap the bytes in their own source model.
-class VirtualMediaPickOutcome {
-  final Uint8List? bytes;
-  final String extension;
-  final String fileName;
-  final VirtualMediaPickError? error;
-
-  /// True when the user dismissed the picker without choosing a file.
-  final bool cancelled;
-
-  const VirtualMediaPickOutcome.picked({
-    required Uint8List this.bytes,
-    required this.extension,
-    required this.fileName,
-  })  : error = null,
-        cancelled = false;
-
-  const VirtualMediaPickOutcome.error(VirtualMediaPickError this.error)
-      : bytes = null,
-        extension = '',
-        fileName = '',
-        cancelled = false;
-
-  const VirtualMediaPickOutcome.cancelled()
-      : bytes = null,
-        extension = '',
-        fileName = '',
-        error = null,
-        cancelled = true;
+extension CapturePickErrorText on CaptureText {
+  String pickError(VirtualMediaPickError error) => switch (error) {
+    VirtualMediaPickError.tooLarge => tooLarge,
+    VirtualMediaPickError.type || VirtualMediaPickError.read => unreadable,
+  };
 }
 
-/// Result of a pick attempt, typed by the source model the feature builds.
-/// Callers tell "user cancelled" ([cancelled]) apart from "picked but
-/// rejected" ([error]) apart from success ([source]).
-class VirtualMediaPickResult<S> {
-  final S? source;
-  final VirtualMediaPickError? error;
-  final bool cancelled;
+/// A pick: the [source], a file the picker refused ([error]), or a dismissed
+/// picker (both null).
+typedef VirtualMediaPickResult<S> = ({S? source, VirtualMediaPickError? error});
 
-  const VirtualMediaPickResult.picked(S this.source)
-      : error = null,
-        cancelled = false;
-  const VirtualMediaPickResult.error(VirtualMediaPickError this.error)
-      : source = null,
-        cancelled = false;
-  const VirtualMediaPickResult.cancelled()
-      : source = null,
-        error = null,
-        cancelled = true;
-}
+typedef _Pick = VirtualMediaPickResult<PickedMedia>;
 
-/// Shared file-pick + validation used by the synthetic capture sources
-/// (virtual camera, virtual microphone).
+/// Picks the file a capture kind serves in place of its device.
 ///
-/// The bytes are read eagerly and handed back in memory because every
-/// consumer inlines them as a `data:` URL on the model: a `file://` path is
-/// not readable from the page's origin, and keeping the media on the model
-/// means it rides settings backups and lives inside the encrypted archive
-/// slice for archive-tier sites (same treatment as `customIconPng`).
-class VirtualMediaPicker {
-  static Future<VirtualMediaPickOutcome> pick({
-    required List<String> allowedExtensions,
-    required int maxBytes,
-  }) async {
+/// The bytes are read eagerly, stripped of metadata and inlined as a `data:`
+/// URL, because that is how every source is stored (see [VirtualSource]).
+abstract final class VirtualMediaPicker {
+  /// An image or video is base64'd onto the model and decoded whole by the
+  /// shim, so this bounds both the persisted JSON and the page's decode
+  /// footprint. 24 MiB covers a screenshot or a few seconds of phone video.
+  static const int visualMaxBytes = 24 * 1024 * 1024;
+
+  /// The shim decodes the whole clip into an `AudioBuffer` up front to loop
+  /// it seamlessly, so the cap also bounds the page's decoded PCM. 8 MiB is a
+  /// few minutes of compressed audio.
+  static const int audioMaxBytes = 8 * 1024 * 1024;
+
+  static const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+  static const videoExtensions = ['mp4', 'webm', 'mov', 'm4v', 'ogv'];
+  static const audioExtensions = [
+    'mp3',
+    'm4a',
+    'aac',
+    'wav',
+    'ogg',
+    'oga',
+    'opus',
+    'flac',
+    'weba',
+  ];
+
+  static Future<VirtualMediaPickResult<S>> pick<S extends VirtualSource>(
+    CaptureMedium<S> medium,
+  ) async {
+    final picked = switch (medium) {
+      CaptureMedium.visual => await _visual(),
+      CaptureMedium.audio => await _audio(),
+    };
+    final media = picked.source;
+    return (
+      source: media == null ? null : medium.fromPick(media),
+      error: picked.error,
+    );
+  }
+
+  static Future<_Pick> _visual() async {
+    final file = await _read(
+      [...imageExtensions, ...videoExtensions],
+      visualMaxBytes,
+    );
+    if (file.raw case final raw?) {
+      if (videoExtensions.contains(raw.extension)) {
+        final bytes = stripContainerMetadata(raw.bytes, raw.extension);
+        return (
+          source: (
+            dataUrl: _dataUrl(mimeForExtension(raw.extension, true), bytes),
+            fileName: raw.fileName,
+            isVideo: true,
+          ),
+          error: null,
+        );
+      }
+      final jpeg = raw.extension == 'jpg' || raw.extension == 'jpeg';
+      final image = await compute(stripImageMetadataForIsolate, (raw.bytes, jpeg));
+      if (image == null) {
+        return (source: null, error: VirtualMediaPickError.type);
+      }
+      return (
+        source: (
+          dataUrl: _dataUrl(image.mime, image.bytes),
+          fileName: raw.fileName,
+          isVideo: false,
+        ),
+        error: null,
+      );
+    }
+    return (source: null, error: file.error);
+  }
+
+  static Future<_Pick> _audio() async {
+    final file = await _read(audioExtensions, audioMaxBytes);
+    if (file.raw case final raw?) {
+      final bytes = stripContainerMetadata(raw.bytes, raw.extension);
+      return (
+        source: (
+          dataUrl: _dataUrl(audioMimeForExtension(raw.extension), bytes),
+          fileName: raw.fileName,
+          isVideo: false,
+        ),
+        error: null,
+      );
+    }
+    return (source: null, error: file.error);
+  }
+
+  static String _dataUrl(String mime, List<int> bytes) =>
+      'data:$mime;base64,${base64Encode(bytes)}';
+
+  static Future<
+    ({
+      ({Uint8List bytes, String extension, String fileName})? raw,
+      VirtualMediaPickError? error,
+    })
+  >
+  _read(List<String> extensions, int maxBytes) async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
-      allowedExtensions: allowedExtensions,
+      allowedExtensions: extensions,
       allowMultiple: false,
       withData: true,
     );
-    if (result == null || result.files.isEmpty) {
-      return const VirtualMediaPickOutcome.cancelled();
-    }
+    if (result == null || result.files.isEmpty) return (raw: null, error: null);
     final file = result.files.first;
     final ext = (file.extension ?? '').toLowerCase();
-    if (!allowedExtensions.contains(ext)) {
-      return const VirtualMediaPickOutcome.error(VirtualMediaPickError.type);
+    if (!extensions.contains(ext)) {
+      return (raw: null, error: VirtualMediaPickError.type);
     }
-
     var bytes = file.bytes;
     if (bytes == null && file.path != null) {
       try {
         bytes = await hostReadFileBytes(file.path!);
-      } catch (_) {
-        return const VirtualMediaPickOutcome.error(VirtualMediaPickError.read);
+      } on Exception {
+        return (raw: null, error: VirtualMediaPickError.read);
       }
     }
     if (bytes == null || bytes.isEmpty) {
-      return const VirtualMediaPickOutcome.error(VirtualMediaPickError.read);
+      return (raw: null, error: VirtualMediaPickError.read);
     }
     if (bytes.length > maxBytes) {
-      return const VirtualMediaPickOutcome.error(
-          VirtualMediaPickError.tooLarge);
+      return (raw: null, error: VirtualMediaPickError.tooLarge);
     }
-    return VirtualMediaPickOutcome.picked(
-      bytes: bytes,
-      extension: ext,
-      fileName: file.name,
+    return (
+      raw: (bytes: bytes, extension: ext, fileName: file.name),
+      error: null,
     );
   }
-}
 
-/// A picked still image or looped video, already turned into the `data:` URL
-/// every visual capture source stores.
-///
-/// The two features that substitute a visual source (simulated camera,
-/// simulated shared surface) accept exactly the same files and encode them
-/// exactly the same way, so the extension list, the MIME map and the base64
-/// wrapping live here rather than once per feature.
-class VisualMediaPick {
-  /// `image` or `video`.
-  final String kind;
-  final String dataUrl;
-  final String fileName;
+  static String mimeForExtension(String ext, bool isVideo) => switch (ext) {
+    'png' => 'image/png',
+    'jpg' || 'jpeg' => 'image/jpeg',
+    'gif' => 'image/gif',
+    'webp' => 'image/webp',
+    'bmp' => 'image/bmp',
+    'mp4' || 'm4v' => 'video/mp4',
+    'webm' => 'video/webm',
+    'mov' => 'video/quicktime',
+    'ogv' => 'video/ogg',
+    _ => isVideo ? 'video/mp4' : 'image/png',
+  };
 
-  const VisualMediaPick({
-    required this.kind,
-    required this.dataUrl,
-    required this.fileName,
-  });
-}
-
-/// Picks the image or video a site is served in place of a real visual
-/// capture device.
-class VirtualVisualMediaPicker {
-  /// Hard cap on an inlined visual source. The bytes are base64'd onto the
-  /// model in SharedPreferences and decoded whole by the shim, so this bounds
-  /// both the persisted JSON and the page's decode footprint. 24 MiB of raw
-  /// bytes (~32 MiB base64) covers a screenshot or a few seconds of
-  /// phone-recorded video, which is all either substitution needs.
-  static const int maxBytes = 24 * 1024 * 1024;
-
-  static const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
-  static const videoExtensions = ['mp4', 'webm', 'mov', 'm4v', 'ogv'];
-
-  static Future<VirtualMediaPickResult<VisualMediaPick>> pick({
-    required int maxBytes,
-  }) async {
-    final outcome = await VirtualMediaPicker.pick(
-      allowedExtensions: [...imageExtensions, ...videoExtensions],
-      maxBytes: maxBytes,
-    );
-    if (outcome.cancelled) {
-      return const VirtualMediaPickResult<VisualMediaPick>.cancelled();
-    }
-    if (outcome.error != null) {
-      return VirtualMediaPickResult<VisualMediaPick>.error(outcome.error!);
-    }
-    if (videoExtensions.contains(outcome.extension)) {
-      final bytes = stripContainerMetadata(outcome.bytes!, outcome.extension);
-      return VirtualMediaPickResult<VisualMediaPick>.picked(VisualMediaPick(
-        kind: 'video',
-        dataUrl: 'data:${mimeForExtension(outcome.extension, true)};base64,'
-            '${base64Encode(bytes)}',
-        fileName: outcome.fileName,
-      ));
-    }
-    final jpeg = outcome.extension == 'jpg' || outcome.extension == 'jpeg';
-    final image =
-        await compute(stripImageMetadataForIsolate, (outcome.bytes!, jpeg));
-    if (image == null) {
-      return const VirtualMediaPickResult<VisualMediaPick>.error(
-          VirtualMediaPickError.type);
-    }
-    return VirtualMediaPickResult<VisualMediaPick>.picked(VisualMediaPick(
-      kind: 'image',
-      dataUrl: 'data:${image.mime};base64,${base64Encode(image.bytes)}',
-      fileName: outcome.fileName,
-    ));
-  }
-
-  static String mimeForExtension(String ext, bool isVideo) {
-    switch (ext) {
-      case 'png':
-        return 'image/png';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      case 'bmp':
-        return 'image/bmp';
-      case 'mp4':
-      case 'm4v':
-        return 'video/mp4';
-      case 'webm':
-        return 'video/webm';
-      case 'mov':
-        return 'video/quicktime';
-      case 'ogv':
-        return 'video/ogg';
-      default:
-        return isVideo ? 'video/mp4' : 'image/png';
-    }
-  }
+  /// `decodeAudioData` sniffs the container itself, so this only has to be
+  /// honest enough for the `data:` URL to be well-formed.
+  static String audioMimeForExtension(String ext) => switch (ext) {
+    'mp3' => 'audio/mpeg',
+    'm4a' || 'aac' => 'audio/mp4',
+    'wav' => 'audio/wav',
+    'ogg' || 'oga' => 'audio/ogg',
+    'opus' => 'audio/ogg; codecs=opus',
+    'flac' => 'audio/flac',
+    'weba' => 'audio/webm',
+    _ => 'audio/mpeg',
+  };
 }

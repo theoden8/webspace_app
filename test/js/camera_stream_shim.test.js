@@ -34,7 +34,9 @@ afterEach(() => {
 // webCameraRequest bridge returns; pass `noBridge: true` to omit the bridge
 // entirely. Returns { dom, window, calls } where calls.realGum counts
 // pass-throughs to the platform getUserMedia.
-function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } = {}) {
+function setupCameraDom({
+  decision, mode, noBridge = false, realCameras = [], legacy = false,
+} = {}) {
   const dom = makeDom();
   const window = dom.window;
   const calls = { realGum: 0, lastConstraints: null, stopped: [] };
@@ -72,10 +74,13 @@ function setupCameraDom({ decision, mode, noBridge = false, realCameras = [] } =
     constructor() { this.kind = 'video'; this._ended = null; this.readyState = 'live'; }
     get label() { return ''; }
     getSettings() { return {}; }
+    clone() { return new MediaStreamTrack(); }
     stop() { this.readyState = 'ended'; calls.stopped.push(this); }
     addEventListener(type, cb) { if (type === 'ended') this._ended = cb; }
   }
   window.MediaStreamTrack = MediaStreamTrack;
+  // An engine that still ships the prefixed callback API.
+  if (legacy) window.navigator.webkitGetUserMedia = function webkitGetUserMedia() {};
   calls.MediaStreamTrack = MediaStreamTrack;
   Object.defineProperty(window.navigator, 'mediaDevices', {
     value: mediaDevices,
@@ -194,6 +199,40 @@ test('virtual decision with a video source loops a muted clip as the camera', as
   assert.equal(calls.videos[0].loop, true, 'source video must loop');
   assert.equal(calls.videos[0].muted, true, 'source video must be muted');
   assert.equal(calls.videoPlayed, true, 'source video must start playing');
+});
+
+test('the legacy callback API is served by the shim', async () => {
+  // It once called itself instead of the patched entry point and overflowed
+  // the stack on the first call.
+  const { window, calls } = setupCameraDom({
+    legacy: true,
+    decision: {
+      mode: 'virtual',
+      source: { kind: 'image', dataUrl: 'data:image/png;base64,AAAA' },
+    },
+  });
+  const stream = await new Promise((resolve, reject) => {
+    window.navigator.webkitGetUserMedia({ video: true }, resolve, reject);
+  });
+  assert.equal(stream.getVideoTracks()[0].label, 'Integrated Camera');
+  assert.equal(calls.realGum, 0);
+});
+
+test('a clone keeps presenting as the camera; stopping it spares the original', async () => {
+  const { window, calls } = setupCameraDom({
+    decision: {
+      mode: 'virtual',
+      source: { kind: 'video', dataUrl: 'data:video/mp4;base64,AAAA' },
+    },
+  });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  const copy = track.clone();
+  assert.equal(copy.label, 'Integrated Camera');
+  copy.stop();
+  assert.equal(calls.videoPaused, undefined, 'the original still loops the clip');
+  track.stop();
+  assert.equal(calls.videoPaused, true, 'the last track releases the source');
 });
 
 test('virtual mode with no source rejects rather than opening the real camera', async () => {

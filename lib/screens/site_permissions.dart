@@ -5,17 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/site_overrides.dart';
-import 'package:webspace/services/virtual_camera_service.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
-import 'package:webspace/services/virtual_microphone_service.dart';
-import 'package:webspace/services/virtual_screen_service.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
 import 'package:webspace/widgets/virtual_source_preview.dart';
 
@@ -30,12 +26,7 @@ import 'package:webspace/widgets/virtual_source_preview.dart';
 class SitePermissionValues {
   const SitePermissionValues({
     required this.archived,
-    required this.cameraMode,
-    required this.virtualCameraSource,
-    required this.microphoneMode,
-    required this.virtualMicrophoneSource,
-    required this.screenShareMode,
-    required this.virtualScreenSource,
+    required this.captures,
     required this.notificationsEnabled,
     required this.backgroundAudioEnabled,
     required this.protectedContentAllowed,
@@ -49,12 +40,7 @@ class SitePermissionValues {
   /// Not edited here: an archive-tier site is held to the archive's posture
   /// for every capability ARCH-006 folds.
   final bool archived;
-  final CameraAccessMode cameraMode;
-  final VirtualCameraSource? virtualCameraSource;
-  final MicrophoneAccessMode microphoneMode;
-  final VirtualMicrophoneSource? virtualMicrophoneSource;
-  final ScreenShareMode screenShareMode;
-  final VirtualScreenSource? virtualScreenSource;
+  final CaptureGrants captures;
   final bool notificationsEnabled;
   final bool backgroundAudioEnabled;
   final bool? protectedContentAllowed;
@@ -75,15 +61,7 @@ class SitePermissionValues {
   final bool spoofTimezoneFromLocation;
 
   SitePermissionValues copyWith({
-    CameraAccessMode? cameraMode,
-    VirtualCameraSource? virtualCameraSource,
-    bool clearVirtualCameraSource = false,
-    MicrophoneAccessMode? microphoneMode,
-    VirtualMicrophoneSource? virtualMicrophoneSource,
-    bool clearVirtualMicrophoneSource = false,
-    ScreenShareMode? screenShareMode,
-    VirtualScreenSource? virtualScreenSource,
-    bool clearVirtualScreenSource = false,
+    CaptureGrants? captures,
     bool? notificationsEnabled,
     bool? backgroundAudioEnabled,
     bool? protectedContentAllowed,
@@ -97,18 +75,7 @@ class SitePermissionValues {
   }) =>
       SitePermissionValues(
         archived: archived,
-        cameraMode: cameraMode ?? this.cameraMode,
-        virtualCameraSource: clearVirtualCameraSource
-            ? null
-            : (virtualCameraSource ?? this.virtualCameraSource),
-        microphoneMode: microphoneMode ?? this.microphoneMode,
-        virtualMicrophoneSource: clearVirtualMicrophoneSource
-            ? null
-            : (virtualMicrophoneSource ?? this.virtualMicrophoneSource),
-        screenShareMode: screenShareMode ?? this.screenShareMode,
-        virtualScreenSource: clearVirtualScreenSource
-            ? null
-            : (virtualScreenSource ?? this.virtualScreenSource),
+        captures: captures ?? this.captures,
         notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
         backgroundAudioEnabled:
             backgroundAudioEnabled ?? this.backgroundAudioEnabled,
@@ -128,12 +95,8 @@ class SitePermissionValues {
   /// What the site runs with, which is what the screen and the settings row
   /// show; the stored values survive underneath for when it leaves the
   /// archive.
-  CameraAccessMode get effectiveCameraMode =>
-      ArchiveFold.camera(cameraMode, archived: archived);
-  MicrophoneAccessMode get effectiveMicrophoneMode =>
-      ArchiveFold.microphone(microphoneMode, archived: archived);
-  ScreenShareMode get effectiveScreenShareMode =>
-      ArchiveFold.screenShare(screenShareMode, archived: archived);
+  CaptureGrants get effectiveCaptures =>
+      ArchiveFold.captures(captures, archived: archived);
   bool get effectiveNotifications =>
       ArchiveFold.notifications(notificationsEnabled, archived: archived);
   bool get effectiveBackgroundAudio =>
@@ -202,7 +165,7 @@ class _Option {
   final VoidCallback onSelect;
 
   /// A state this capability structurally cannot reach. Shown greyed rather
-  /// than omitted: for the microphone, the absent "Allowed" row *is* the
+  /// than omitted: for screen sharing, the absent "Allowed" row *is* the
   /// guarantee, and hiding it would hide the reassurance.
   final bool enabled;
   final String? unavailableReason;
@@ -277,48 +240,27 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     widget.onChanged(next);
   }
 
-  /// Runs [pick]; a picked source goes to [apply], a rejected file is named in
-  /// a SnackBar, and a cancelled pick changes nothing.
-  Future<void> _pickSource<S>(
-    Future<VirtualMediaPickResult<S>> Function() pick, {
-    required void Function(S source) apply,
-    required String tooLarge,
-    required String failed,
-  }) async {
-    final result = await pick();
+  /// Picks [kind]'s file; a picked one becomes the site's source, a rejected
+  /// one is named in a SnackBar, and a cancelled pick changes nothing.
+  Future<void> _pickSource<M extends CaptureMode, S extends VirtualSource>(
+    CaptureKind<M, S> kind,
+  ) async {
+    final result = await VirtualMediaPicker.pick(kind.medium);
     if (!mounted) return;
-    final source = result.source;
-    final error = result.error;
-    if (source != null) {
-      apply(source);
-    } else if (error != null) {
-      _snack(switch (error) {
-        VirtualMediaPickError.tooLarge => tooLarge,
-        VirtualMediaPickError.type || VirtualMediaPickError.read => failed,
-      });
+    if (result.source case final source?) {
+      final grant = kind.grantOf(_values.captures);
+      _setGrant(kind, (mode: grant.mode, source: source));
+    } else if (result.error case final error?) {
+      _snack(kind.text(AppLocalizations.of(context)).pickError(error));
     }
   }
 
-  Future<void> _pickCameraSource(AppLocalizations loc) => _pickSource(
-        VirtualCameraService.pickSource,
-        apply: (s) => _update(_values.copyWith(virtualCameraSource: s)),
-        tooLarge: loc.homeCameraSourceTooLarge,
-        failed: loc.homeCameraSourceError,
-      );
-
-  Future<void> _pickMicrophoneSource(AppLocalizations loc) => _pickSource(
-        VirtualMicrophoneService.pickSource,
-        apply: (s) => _update(_values.copyWith(virtualMicrophoneSource: s)),
-        tooLarge: loc.homeMicrophoneSourceTooLarge,
-        failed: loc.homeMicrophoneSourceError,
-      );
-
-  Future<void> _pickScreenShareSource(AppLocalizations loc) => _pickSource(
-        VirtualScreenService.pickSource,
-        apply: (s) => _update(_values.copyWith(virtualScreenSource: s)),
-        tooLarge: loc.homeScreenShareSourceTooLarge,
-        failed: loc.homeScreenShareSourceError,
-      );
+  void _setGrant<M extends CaptureMode, S extends VirtualSource>(
+    CaptureKind<M, S> kind,
+    CaptureGrant<M, S> grant,
+  ) => _update(
+    _values.copyWith(captures: kind.withGrant(_values.captures, grant)),
+  );
 
   void _snack(String message) {
     ScaffoldMessenger.of(context)
@@ -344,28 +286,13 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         ...unavailable,
       ]..sort((a, b) => a.state.index.compareTo(b.state.index));
 
-  Future<void> _selectCamera(AppLocalizations loc, CameraAccessMode m) async {
-    _update(_values.copyWith(cameraMode: m));
-    if (m == CameraAccessMode.virtual && _values.virtualCameraSource == null) {
-      await _pickCameraSource(loc);
-    }
-  }
-
-  Future<void> _selectMicrophone(
-      AppLocalizations loc, MicrophoneAccessMode m) async {
-    _update(_values.copyWith(microphoneMode: m));
-    if (m == MicrophoneAccessMode.virtual &&
-        _values.virtualMicrophoneSource == null) {
-      await _pickMicrophoneSource(loc);
-    }
-  }
-
-  Future<void> _selectScreenShare(
-      AppLocalizations loc, ScreenShareMode m) async {
-    _update(_values.copyWith(screenShareMode: m));
-    if (m == ScreenShareMode.virtual && _values.virtualScreenSource == null) {
-      await _pickScreenShareSource(loc);
-    }
+  Future<void> _selectCapture<M extends CaptureMode, S extends VirtualSource>(
+    CaptureKind<M, S> kind,
+    M mode,
+  ) async {
+    final source = kind.grantOf(_values.captures).source;
+    _setGrant(kind, (mode: mode, source: source));
+    if (mode == kind.virtual && source == null) await _pickSource(kind);
   }
 
   Future<void> _pickCoordinates() async {
@@ -381,131 +308,65 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     }
   }
 
-  _Capability _camera(AppLocalizations loc) => _Capability(
-        icon: _values.effectiveCameraMode == CameraAccessMode.real
-            ? Icons.videocam
-            : Icons.videocam_outlined,
-        title: loc.siteSettingsCameraAccess,
-        hint: loc.siteSettingsCameraAccessHint,
-        state: cameraPermissionState(_values.effectiveCameraMode),
-        lockedReason: _archiveReason(loc),
-        qualifier: _values.cameraMode == CameraAccessMode.virtual
-            ? (_values.virtualCameraSource?.fileName ??
-                loc.siteSettingsCameraAccessNoSource)
-            : null,
-        options: _optionsOf(
-          CameraAccessMode.values,
-          state: cameraPermissionState,
-          label: (m) => m.label(loc),
-          select: (m) => _selectCamera(loc, m),
-        ),
-        detail: (context, setSheetState) {
-          if (_values.cameraMode != CameraAccessMode.virtual) {
-            return const SizedBox.shrink();
-          }
-          return _sourceDetail(
-            loc,
-            fileName: _values.virtualCameraSource?.fileName,
-            emptyLabel: loc.siteSettingsCameraAccessNoSource,
-            actionLabel: loc.siteSettingsCameraAccessChooseSource,
-            icon: Icons.photo_library_outlined,
-            onPick: () async {
-              await _pickCameraSource(loc);
-              setSheetState(() {});
-            },
-            preview: _values.virtualCameraSource == null
-                ? null
-                : VirtualSourcePreview(source: _values.virtualCameraSource!),
-          );
-        },
-      );
-
-  _Capability _microphone(AppLocalizations loc) => _Capability(
-        icon: Icons.mic_none,
-        title: loc.siteSettingsMicrophoneAccess,
-        hint: loc.siteSettingsMicrophoneAccessHint,
-        state: microphonePermissionState(_values.effectiveMicrophoneMode),
-        lockedReason: _archiveReason(loc),
-        qualifier: _values.microphoneMode == MicrophoneAccessMode.virtual
-            ? (_values.virtualMicrophoneSource?.fileName ??
-                loc.siteSettingsMicrophoneAccessNoSource)
-            : null,
-        options: _optionsOf(
-          MicrophoneAccessMode.values,
-          state: microphonePermissionState,
-          label: (m) => m.label(loc),
-          select: (m) => _selectMicrophone(loc, m),
-        ),
-        detail: (context, setSheetState) {
-          if (_values.microphoneMode != MicrophoneAccessMode.virtual) {
-            return const SizedBox.shrink();
-          }
-          return _sourceDetail(
-            loc,
-            fileName: _values.virtualMicrophoneSource?.fileName,
-            emptyLabel: loc.siteSettingsMicrophoneAccessNoSource,
-            actionLabel: loc.siteSettingsMicrophoneAccessChooseSource,
-            icon: Icons.audiotrack_outlined,
-            onPick: () async {
-              await _pickMicrophoneSource(loc);
-              setSheetState(() {});
-            },
-          );
-        },
-      );
-
-  _Capability _screenShare(AppLocalizations loc) => _Capability(
-        icon: Icons.screen_share_outlined,
-        title: loc.siteSettingsScreenShare,
-        hint: loc.siteSettingsScreenShareHint,
-        state: screenSharePermissionState(_values.effectiveScreenShareMode),
-        lockedReason: _archiveReason(loc),
-        qualifier: _values.screenShareMode == ScreenShareMode.virtual
-            ? (_values.virtualScreenSource?.fileName ??
-                loc.siteSettingsScreenShareNoSource)
-            : null,
-        options: _optionsOf(
-          ScreenShareMode.values,
-          state: screenSharePermissionState,
-          label: (m) => m.label(loc),
-          select: (m) => _selectScreenShare(loc, m),
-          // Shown, not omitted, for the same reason as the microphone's: the
-          // unavailable row is where "no site is ever handed the real screen"
-          // becomes visible.
-          unavailable: [
+  _Capability _capture<M extends CaptureMode, S extends VirtualSource>(
+    CaptureKind<M, S> kind,
+  ) {
+    final loc = AppLocalizations.of(context);
+    final text = kind.text(loc);
+    final stored = kind.grantOf(_values.captures);
+    final state = kind.grantOf(_values.effectiveCaptures).mode.state;
+    return _Capability(
+      icon: kind.icon(real: opensRealDevice(state)),
+      title: text.title,
+      hint: text.hint,
+      state: state,
+      lockedReason: _archiveReason(loc),
+      qualifier: stored.mode == kind.virtual
+          ? (stored.source?.fileName ?? text.noSource)
+          : null,
+      options: _optionsOf(
+        kind.modes,
+        state: (mode) => mode.state,
+        label: (mode) => mode.label(loc),
+        select: (mode) => _selectCapture(kind, mode),
+        unavailable: [
+          if (kind.real == null)
             _Option(
               state: SitePermissionState.allowed,
               label: loc.permissionStateAllowed,
               onSelect: () {},
               enabled: false,
-              unavailableReason: loc.permissionScreenShareNeverReal,
+              unavailableReason: text.neverReal,
             ),
-          ],
-        ),
-        detail: (context, setSheetState) {
-          if (_values.screenShareMode != ScreenShareMode.virtual) {
-            return const SizedBox.shrink();
-          }
-          return _sourceDetail(
-            loc,
-            fileName: _values.virtualScreenSource?.fileName,
-            emptyLabel: loc.siteSettingsScreenShareNoSource,
-            actionLabel: loc.siteSettingsScreenShareChooseSource,
-            icon: Icons.photo_library_outlined,
-            onPick: () async {
-              await _pickScreenShareSource(loc);
-              setSheetState(() {});
-            },
-            preview: _values.virtualScreenSource == null
-                ? null
-                : VirtualSourcePreview(
-                    source: _values.virtualScreenSource!,
-                    aspectRatio: 16 / 9,
-                    fit: BoxFit.contain,
-                  ),
-          );
-        },
-      );
+        ],
+      ),
+      detail: (context, setSheetState) {
+        final grant = kind.grantOf(_values.captures);
+        if (grant.mode != kind.virtual) return const SizedBox.shrink();
+        return _sourceDetail(
+          fileName: grant.source?.fileName,
+          emptyLabel: text.noSource,
+          actionLabel: text.chooseSource,
+          icon: switch (kind.medium) {
+            CaptureMedium.visual => Icons.photo_library_outlined,
+            CaptureMedium.audio => Icons.audiotrack_outlined,
+          },
+          onPick: () async {
+            await _pickSource(kind);
+            setSheetState(() {});
+          },
+          preview: switch (grant.source) {
+            final VirtualVisualSource source => VirtualSourcePreview(
+              source: source,
+              aspectRatio: kind.previewFrame.aspectRatio,
+              fit: kind.previewFrame.fit,
+            ),
+            VirtualAudioSource() || null => null,
+          },
+        );
+      },
+    );
+  }
 
   _Capability _location(AppLocalizations loc) => _Capability(
         icon: _values.locationMode == LocationMode.live
@@ -751,8 +612,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
 
   // --- Rendering -----------------------------------------------------------
 
-  Widget _sourceDetail(
-    AppLocalizations loc, {
+  Widget _sourceDetail({
     required String? fileName,
     required String emptyLabel,
     required String actionLabel,
@@ -892,9 +752,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       );
 
   List<_Capability> _capabilities(AppLocalizations loc) => [
-        _camera(loc),
-        _microphone(loc),
-        _screenShare(loc),
+        for (final kind in CaptureKind.values) kind.open(_capture),
         _location(loc),
         if (widget.showNotifications) _notifications(loc),
         _protectedContent(loc),
@@ -910,9 +768,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           SettingsNote.host(widget.host),
           const Divider(height: 1),
           SettingsSection(loc.permissionsGroupDeviceAccess),
-          _row(_camera(loc)),
-          _row(_microphone(loc)),
-          _row(_screenShare(loc)),
+          for (final kind in CaptureKind.values) _row(kind.open(_capture)),
           _row(_location(loc)),
           SettingsNote(loc.permissionsRealDeviceNote),
           SettingsSection(loc.permissionsGroupBackground),

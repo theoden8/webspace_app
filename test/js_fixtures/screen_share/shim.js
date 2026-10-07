@@ -7,10 +7,10 @@
   var md = globalThis.navigator && globalThis.navigator.mediaDevices;
   if (!md) return;
 
-  var SURFACE_LABEL = "Screen";
-  // Stable per-session id, like the camera's. A fixed constant would itself
-  // be a marker.
-  var SURFACE_ID = (function() {
+  var DEVICE_LABEL = "Screen";
+  // Stable per-session id. Real implementations rotate these per origin and
+  // per session, so a fixed constant would itself be a marker.
+  var DEVICE_ID = (function() {
     var b = new Uint8Array(32);
     (globalThis.crypto && globalThis.crypto.getRandomValues)
       ? globalThis.crypto.getRandomValues(b)
@@ -19,15 +19,7 @@
     for (var i = 0; i < b.length; i++) s += ('0' + b[i].toString(16)).slice(-2);
     return s;
   })();
-
-  // Whether this realm is the top-level document. The plugin's
-  // forMainFrameOnly:true already keeps the shim out of subframes (on Android
-  // by wrapping the source in this very test, on iOS/macOS natively), so this
-  // is the second reading of the same guard rather than the only one — and the
-  // one that still holds if a future platform stops honouring the flag.
-  var IS_TOP = (function() {
-    try { return globalThis.top === globalThis; } catch (e) { return false; }
-  })();
+  var GROUP_ID = DEVICE_ID.slice(0, 32);
 
   // Shared Function.prototype.toString funnel (same WeakMap as the other
   // shims) so every wrapper stringifies as `[native code]`.
@@ -59,77 +51,20 @@
     return err;
   }
 
-  // --- request shape ------------------------------------------------------
-
-  // `getDisplayMedia()` with no argument means video, as does `{video: true}`
-  // and any video constraint object. Only an explicit `video: false` opts out,
-  // and the spec makes that a TypeError rather than an audio-only capture.
-  function wantsVideo(constraints) {
-    if (!constraints) return true;
-    return constraints.video !== false;
-  }
-
-  function pickDimension(spec) {
-    if (typeof spec === 'number') return Math.round(spec);
-    if (spec && typeof spec === 'object') {
-      var v = spec.max !== undefined ? spec.max
-            : spec.ideal !== undefined ? spec.ideal
-            : spec.exact !== undefined ? spec.exact
-            : spec.min;
-      if (typeof v === 'number') return Math.round(v);
-    }
-    return 0;
-  }
-
-  // A display capture reports the surface's own size; constraints are advisory
-  // and only cap it (you cannot ask a monitor to be 640x480). So the served
-  // frame is the source's natural size, scaled down to fit any max the page
-  // asked for, never cropped — a shared screen shows the whole surface.
-  function surfaceSize(constraints, natW, natH) {
-    var w = natW > 0 ? natW : 1280;
-    var h = natH > 0 ? natH : 720;
-    var v = constraints && constraints.video;
-    var maxW = (v && v !== true) ? pickDimension(v.width) : 0;
-    var maxH = (v && v !== true) ? pickDimension(v.height) : 0;
-    var scale = 1;
-    if (maxW > 0 && w > maxW) scale = Math.min(scale, maxW / w);
-    if (maxH > 0 && h > maxH) scale = Math.min(scale, maxH / h);
-    return {
-      width: Math.max(1, Math.round(w * scale)),
-      height: Math.max(1, Math.round(h * scale)),
-    };
-  }
-
-  function requestedFrameRate(constraints) {
-    var v = constraints && constraints.video;
-    var fps = (v && v !== true) ? pickDimension(v.frameRate) : 0;
-    if (!(fps > 0) || fps > 60) fps = 30;
-    return fps;
-  }
-
-  // --- source decision ----------------------------------------------------
-
-  // Asks Dart for this site's screen-sharing decision. Returns a promise
-  // resolving to {mode: 'virtual'|'block', source?: {kind, dataUrl}}.
+  // Asks Dart for this site's decision: {mode, source?}. The origin the popup
+  // names is read from the webview in Dart, never from here (CAM-013).
   //
-  // Coalesced: a page that retries the share button must not stack popups.
-  // The Dart side also coalesces; doing it here too keeps the extra round
-  // trips off the bridge entirely.
+  // Coalesced: a page that retries in a burst (capture libraries do) must not
+  // stack popups. The Dart side also coalesces; doing it here too keeps the
+  // extra round trips off the bridge entirely.
   var _decisionInFlight = null;
   function fetchDecision() {
     if (_decisionInFlight) return _decisionInFlight;
     var iaw = globalThis.flutter_inappwebview;
-    if (!iaw || !iaw.callHandler) {
-      // No bridge: fail closed. There is nothing to fall through to anyway,
-      // so denying is also the only honest answer available.
-      return Promise.resolve({ mode: 'block' });
-    }
-    // The origin is read from the webview in Dart, never from here (SHARE-013);
-    // this argument exists so the handler shape matches the other capture
-    // bridges, and the Dart side ignores it.
-    var origin = '';
-    try { origin = (globalThis.location && globalThis.location.origin) || ''; } catch (e) {}
-    _decisionInFlight = iaw.callHandler('webScreenShareRequest', origin).then(function(res) {
+    // No bridge: fail closed. Without the per-site decision there is no way to
+    // tell a site the user allowed from one they did not (CAM-009, MIC-010).
+    if (!iaw || !iaw.callHandler) return Promise.resolve({ mode: 'block' });
+    _decisionInFlight = iaw.callHandler("webScreenShareRequest").then(function(res) {
       _decisionInFlight = null;
       if (!res || typeof res !== 'object') return { mode: 'block' };
       return res;
@@ -140,44 +75,15 @@
     return _decisionInFlight;
   }
 
-  // --- synthetic surface --------------------------------------------------
-
-  function loadImage(dataUrl) {
-    return new Promise(function(resolve, reject) {
-      var img = new Image();
-      img.onload = function() { resolve(img); };
-      img.onerror = function() { reject(notAllowed('Could not decode the selected image')); };
-      img.src = dataUrl;
-    });
-  }
-
-  function loadVideo(dataUrl) {
-    return new Promise(function(resolve, reject) {
-      var vid = document.createElement('video');
-      vid.muted = true;
-      vid.defaultMuted = true;
-      vid.loop = true;
-      vid.playsInline = true;
-      vid.setAttribute('playsinline', '');
-      vid.oncanplay = function() {
-        var p = vid.play();
-        if (p && p.catch) p.catch(function() {});
-        resolve(vid);
-      };
-      vid.onerror = function() { reject(notAllowed('Could not decode the selected video')); };
-      vid.src = dataUrl;
-      try { vid.load(); } catch (e) {}
-    });
-  }
-
-  // Synthetic surface track -> its paint loop + reported settings. A WeakMap
-  // so a dropped stream is collectable.
+  // Substituted track -> what this shim reports for it. A WeakMap so a
+  // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
 
-  // Every track ANY WebSpace capture shim substituted, shared across shims.
-  // The camera's deactivation stop (CAM-012) skips anything registered here,
-  // so a simulated surface is not torn down when the user switches sites — it
-  // is a local file drawn onto a canvas, with nothing being observed.
+  // Shared across every capture shim: the tracks any of them substituted, and
+  // the DEVICE tracks any of them handed over. A combined audio+video request
+  // is served by two shims, so each has to recognise the other's tracks, and
+  // the deactivation stop (CAM-012 / MIC-012) has to end the device half of
+  // such a stream while leaving the substituted half running.
   if (typeof globalThis.__wsStopRealCapture !== 'function') {
     (function() {
       var RELAY = '__wsStopRealCapture';
@@ -392,50 +298,258 @@
   }
 
 
-  // Draws `media` (an <img> or a looping <video>) onto a canvas at `fps` and
-  // returns the canvas's captured MediaStream. The canvas is kept out of the
-  // document: captureStream() does not require the element to be rendered,
-  // and inserting it would let the page see it in the DOM.
-  function streamFromMedia(media, isVideo, constraints) {
-    var natW = isVideo ? (media.videoWidth || 0) : (media.naturalWidth || 0);
-    var natH = isVideo ? (media.videoHeight || 0) : (media.naturalHeight || 0);
-    var size = surfaceSize(constraints, natW, natH);
-    var fps = requestedFrameRate(constraints);
+  // Patch the PROTOTYPE, not the `navigator.mediaDevices` instance. Assigning
+  // to the instance leaves the overrides visible in
+  // Object.getOwnPropertyNames(navigator.mediaDevices), where a real browser
+  // defines them only on MediaDevices.prototype: an own-property leak the
+  // repo's lie-detection tier probes for on every shim. Never fall back to
+  // Object.prototype: on a platform with no MediaDevices class (or a stubbed
+  // mediaDevices that owns its methods) that would install the override
+  // globally. Patch the instance there instead.
+  var MDCtor = globalThis.MediaDevices;
+  var mdProto = (MDCtor && MDCtor.prototype && md instanceof MDCtor)
+    ? MDCtor.prototype
+    : null;
+  var patchTarget = mdProto || md;
+  function defineOnProto(name, fn) {
+    try {
+      var prev = Object.getOwnPropertyDescriptor(patchTarget, name);
+      Object.defineProperty(patchTarget, name, {
+        value: fn,
+        writable: prev ? prev.writable !== false : true,
+        enumerable: prev ? prev.enumerable : false,
+        configurable: true,
+      });
+    } catch (e) {}
+  }
 
-    var canvas = document.createElement('canvas');
-    canvas.width = size.width;
-    canvas.height = size.height;
-    var ctx = canvas.getContext('2d');
+  // MediaStreamTrack.prototype methods answer for this shim's tracks only;
+  // every other track reaches the method they replaced, which may be another
+  // shim's. Assigning onto a track instance instead would leave the override
+  // in Object.getOwnPropertyNames(track), where a real track has none.
+  var trackProto = globalThis.MediaStreamTrack && globalThis.MediaStreamTrack.prototype;
+  function overrideTrack(name, wrap) {
+    if (!trackProto || typeof trackProto[name] !== 'function') return;
+    try { trackProto[name] = asNative(wrap(trackProto[name]), name); } catch (e) {}
+  }
 
-    // Whole surface, scaled to the canvas. No cover-crop: the camera crops
-    // because a sensor fills its frame, but a shared screen is shown entire.
-    function draw() {
-      if (!ctx) return;
-      var sw = isVideo ? (media.videoWidth || natW) : natW;
-      var sh = isVideo ? (media.videoHeight || natH) : natH;
-      if (!sw || !sh) return;
-      ctx.drawImage(media, 0, 0, canvas.width, canvas.height);
+  // Registers a substituted track. A clone joins its original (see the clone
+  // override below), and `meta.release()` frees the stream's source once
+  // every track presenting it has stopped or ended: stopping a clone must not
+  // silence the original, any more than it does a device track. A track that
+  // ends without stop() releases too, or a page that drops the stream leaks
+  // the source for the document's lifetime.
+  function presentSynthetic(track, meta) {
+    meta.live = (meta.live || []).concat([track]);
+    _syntheticTracks.set(track, meta);
+    markSyntheticTrack(track);
+    try {
+      track.addEventListener('ended', function() { stopSynthetic(track); });
+    } catch (e) {}
+  }
+  function stopSynthetic(track) {
+    var meta = _syntheticTracks.get(track);
+    if (!meta || meta.released) return;
+    meta.live = meta.live.filter(function(t) { return t !== track; });
+    if (meta.live.length) return;
+    meta.released = true;
+    meta.release();
+  }
+
+  (function patchLabel() {
+    var desc = trackProto && Object.getOwnPropertyDescriptor(trackProto, 'label');
+    if (!desc || !desc.get) return;
+    var origGet = desc.get;
+    // Named 'get label' so Function.prototype.toString reports
+    // `function get label() { [native code] }`, matching a real accessor.
+    var get = asNative(function label() {
+      return _syntheticTracks.has(this) ? DEVICE_LABEL : origGet.call(this);
+    }, 'get label');
+    try {
+      Object.defineProperty(trackProto, 'label', {
+        get: get,
+        set: desc.set,
+        enumerable: desc.enumerable,
+        configurable: true,
+      });
+    } catch (e) {}
+  })();
+
+  // A clone keeps presenting as the same device, and stays exempt from the
+  // deactivation stop; otherwise it would report an empty label and the
+  // underlying track's settings, betraying the original.
+  overrideTrack('clone', function(orig) {
+    return function clone() {
+      var copy = orig.apply(this, arguments);
+      var meta = _syntheticTracks.get(this);
+      if (meta && copy) presentSynthetic(copy, meta);
+      return copy;
+    };
+  });
+
+  overrideTrack('stop', function(orig) {
+    return function stop() {
+      stopSynthetic(this);
+      return orig.call(this);
+    };
+  });
+
+  overrideTrack('getConstraints', function(orig) {
+    return function getConstraints() {
+      var meta = _syntheticTracks.get(this);
+      return meta && meta.constraints ? meta.constraints : orig.call(this);
+    };
+  });
+
+
+  // Whether this realm is the top-level document. The plugin's
+  // forMainFrameOnly:true already keeps the shim out of subframes (on Android
+  // by wrapping the source in this very test, on iOS/macOS natively), so this
+  // is the second reading of the same guard rather than the only one — and the
+  // one that still holds if a future platform stops honouring the flag.
+  var IS_TOP = (function() {
+    try { return globalThis.top === globalThis; } catch (e) { return false; }
+  })();
+
+  // `getDisplayMedia()` with no argument means video, as does `{video: true}`
+  // and any video constraint object. Only an explicit `video: false` opts out,
+  // and the spec makes that a TypeError rather than an audio-only capture.
+  function wantsVideo(constraints) {
+    if (!constraints) return true;
+    return constraints.video !== false;
+  }
+
+  function pickDimension(spec) {
+    if (typeof spec === 'number') return Math.round(spec);
+    if (spec && typeof spec === 'object') {
+      var v = spec.max !== undefined ? spec.max
+            : spec.ideal !== undefined ? spec.ideal
+            : spec.exact !== undefined ? spec.exact
+            : spec.min;
+      if (typeof v === 'number') return Math.round(v);
     }
+    return 0;
+  }
 
+  // A display capture reports the surface's own size; constraints are advisory
+  // and only cap it (you cannot ask a monitor to be 640x480). So the served
+  // frame is the source's natural size, scaled down to fit any max the page
+  // asked for, never cropped — a shared screen shows the whole surface.
+  function surfaceSize(constraints, natW, natH) {
+    var w = natW > 0 ? natW : 1280;
+    var h = natH > 0 ? natH : 720;
+    var v = constraints && constraints.video;
+    var maxW = (v && v !== true) ? pickDimension(v.width) : 0;
+    var maxH = (v && v !== true) ? pickDimension(v.height) : 0;
+    var scale = 1;
+    if (maxW > 0 && w > maxW) scale = Math.min(scale, maxW / w);
+    if (maxH > 0 && h > maxH) scale = Math.min(scale, maxH / h);
+    return {
+      width: Math.max(1, Math.round(w * scale)),
+      height: Math.max(1, Math.round(h * scale)),
+    };
+  }
+
+  function requestedFrameRate(constraints) {
+    var v = constraints && constraints.video;
+    var fps = (v && v !== true) ? pickDimension(v.frameRate) : 0;
+    if (!(fps > 0) || fps > 60) fps = 30;
+    return fps;
+  }
+
+  function loadImage(dataUrl) {
+    return new Promise(function(resolve, reject) {
+      var img = new Image();
+      img.onload = function() { resolve(img); };
+      img.onerror = function() { reject(notAllowed('Could not decode the selected image')); };
+      img.src = dataUrl;
+    });
+  }
+
+  function loadVideo(dataUrl) {
+    return new Promise(function(resolve, reject) {
+      var vid = document.createElement('video');
+      vid.muted = true;
+      vid.defaultMuted = true;
+      vid.loop = true;
+      vid.playsInline = true;
+      vid.setAttribute('playsinline', '');
+      vid.oncanplay = function() {
+        var p = vid.play();
+        if (p && p.catch) p.catch(function() {});
+        resolve(vid);
+      };
+      vid.onerror = function() { reject(notAllowed('Could not decode the selected video')); };
+      vid.src = dataUrl;
+      try { vid.load(); } catch (e) {}
+    });
+  }
+
+  // The picked file, decoded: an <img>, or a muted looping <video>.
+  function loadSource(source, missing) {
+    if (!source || !source.dataUrl) return Promise.reject(notAllowed(missing));
+    var isVideo = source.kind === 'video';
+    return (isVideo ? loadVideo(source.dataUrl) : loadImage(source.dataUrl))
+      .then(function(media) { return { media: media, isVideo: isVideo }; });
+  }
+
+  // The canvas's captured stream, repainted by `draw` at `fps`. The canvas is
+  // kept out of the document: captureStream() does not require the element to
+  // be rendered, and inserting it would let the page see it in the DOM.
+  //
+  // Keeps painting so a consumer sampling frames over time keeps seeing the
+  // source. A still image needs the repaint too: captureStream(fps) only
+  // emits a frame when the canvas is touched, and a stream that stops after
+  // its first frame stalls consumers that wait for several.
+  function canvasStream(canvas, draw, fps, meta) {
     draw();
     var stream = canvas.captureStream(fps);
-
-    // Keep painting so a page sampling frames over time keeps seeing the
-    // surface. A still image still needs the repaint: captureStream(fps) only
-    // emits a frame when the canvas is touched, and a stream that stops
-    // producing frames after the first one stalls consumers that wait for
-    // several.
     var timer = setInterval(draw, Math.max(1000 / fps, 16));
-
     var track = stream.getVideoTracks()[0];
+    meta.release = function() {
+      clearInterval(timer);
+      if (meta.isVideo) { try { meta.media.pause(); } catch (e) {} }
+    };
     if (track) {
-      // Register the track; the prototype-level overrides installed below read
-      // this map. Assigning label/getSettings onto the track instance instead
-      // would leave them enumerable in Object.getOwnPropertyNames(track),
-      // where a real MediaStreamTrack has none — a giveaway a fingerprinter
-      // checks for.
-      _syntheticTracks.set(track, {
-        timer: timer,
+      presentSynthetic(track, meta);
+      // A canvas track is a CanvasCaptureMediaStreamTrack; a device or
+      // display track is a plain MediaStreamTrack, and the constructor name is
+      // readable via the prototype chain. Internal slots live on the
+      // instance, so the track keeps working; if any engine disagrees, the
+      // try/catch leaves the honest prototype in place.
+      try {
+        if (globalThis.MediaStreamTrack &&
+            Object.getPrototypeOf(track) !== globalThis.MediaStreamTrack.prototype) {
+          Object.setPrototypeOf(track, globalThis.MediaStreamTrack.prototype);
+        }
+      } catch (e) {}
+    }
+    return stream;
+  }
+
+
+  function virtualSurface(source, constraints) {
+    return loadSource(source, 'No shared surface selected').then(function(loaded) {
+      var media = loaded.media;
+      var isVideo = loaded.isVideo;
+      var natW = isVideo ? (media.videoWidth || 0) : (media.naturalWidth || 0);
+      var natH = isVideo ? (media.videoHeight || 0) : (media.naturalHeight || 0);
+      var size = surfaceSize(constraints, natW, natH);
+      var fps = requestedFrameRate(constraints);
+      var canvas = document.createElement('canvas');
+      canvas.width = size.width;
+      canvas.height = size.height;
+      var ctx = canvas.getContext('2d');
+      // Whole surface, scaled to the canvas. No cover-crop: the camera crops
+      // because a sensor fills its frame, but a shared screen is shown entire.
+      function draw() {
+        if (!ctx) return;
+        var sw = isVideo ? (media.videoWidth || natW) : natW;
+        var sh = isVideo ? (media.videoHeight || natH) : natH;
+        if (!sw || !sh) return;
+        ctx.drawImage(media, 0, 0, canvas.width, canvas.height);
+      }
+      return canvasStream(canvas, draw, fps, {
         media: media,
         isVideo: isVideo,
         width: canvas.width,
@@ -445,176 +559,60 @@
           ? constraints.video
           : {},
       });
-      markSyntheticTrack(track);
-      // A canvas track is a CanvasCaptureMediaStreamTrack; a display capture
-      // track is not. Re-point the prototype so the class matches. Internal
-      // slots live on the instance, so the track keeps working; if any engine
-      // disagrees, the try/catch leaves the honest prototype in place.
-      try {
-        if (globalThis.MediaStreamTrack &&
-            Object.getPrototypeOf(track) !== globalThis.MediaStreamTrack.prototype) {
-          Object.setPrototypeOf(track, globalThis.MediaStreamTrack.prototype);
-        }
-      } catch (e) {}
-      // A track that ends must also drop the paint loop, else a page that
-      // discards the stream without calling stop() leaks a timer for the
-      // lifetime of the document.
-      try {
-        track.addEventListener('ended', function() { clearInterval(timer); });
-      } catch (e) {}
-    }
-    return stream;
-  }
-
-  // --- prototype-level track overrides (installed once) -------------------
-
-  (function patchTrackPrototype() {
-    var MST = globalThis.MediaStreamTrack;
-    if (!MST || !MST.prototype) return;
-    var proto = MST.prototype;
-
-    var labelDesc = Object.getOwnPropertyDescriptor(proto, 'label');
-    if (labelDesc && labelDesc.get) {
-      var origLabelGet = labelDesc.get;
-      // Named 'get label' so Function.prototype.toString reports
-      // `function get label() { [native code] }`, matching a real accessor.
-      var labelGet = asNative(function label() {
-        return _syntheticTracks.has(this) ? SURFACE_LABEL : origLabelGet.call(this);
-      }, 'get label');
-      try {
-        Object.defineProperty(proto, 'label', {
-          get: labelGet,
-          set: labelDesc.set,
-          enumerable: labelDesc.enumerable,
-          configurable: true,
-        });
-      } catch (e) {}
-    }
-
-    if (typeof proto.getSettings === 'function') {
-      var origGetSettings = proto.getSettings;
-      var getSettings = asNative(function getSettings() {
-        var s = origGetSettings.call(this) || {};
-        var meta = _syntheticTracks.get(this);
-        if (!meta) return s;
-        // The shape a display capture reports, which is NOT the camera's:
-        // no facingMode or groupId, and displaySurface/logicalSurface/cursor
-        // instead. A page that branches on these must see a coherent surface.
-        s.deviceId = SURFACE_ID;
-        s.displaySurface = 'monitor';
-        s.logicalSurface = true;
-        s.cursor = 'never';
-        s.resizeMode = 'none';
-        s.width = meta.width;
-        s.height = meta.height;
-        s.aspectRatio = meta.height > 0 ? meta.width / meta.height : 0;
-        if (typeof s.frameRate !== 'number') s.frameRate = meta.fps;
-        return s;
-      }, 'getSettings');
-      try { proto.getSettings = getSettings; } catch (e) {}
-    }
-
-    if (typeof proto.getCapabilities === 'function') {
-      var origGetCapabilities = proto.getCapabilities;
-      var getCapabilities = asNative(function getCapabilities() {
-        var meta = _syntheticTracks.get(this);
-        if (!meta) return origGetCapabilities.call(this);
-        return {
-          deviceId: SURFACE_ID,
-          displaySurface: 'monitor',
-          cursor: ['never'],
-          width: { max: meta.width },
-          height: { max: meta.height },
-          frameRate: { max: meta.fps },
-          aspectRatio: {
-            max: meta.height > 0 ? meta.width / meta.height : 0,
-            min: meta.height > 0 ? meta.width / meta.height : 0,
-          },
-          resizeMode: ['none'],
-        };
-      }, 'getCapabilities');
-      try { proto.getCapabilities = getCapabilities; } catch (e) {}
-    }
-
-    if (typeof proto.getConstraints === 'function') {
-      var origGetConstraints = proto.getConstraints;
-      var getConstraints = asNative(function getConstraints() {
-        var meta = _syntheticTracks.get(this);
-        return meta ? meta.constraints : origGetConstraints.call(this);
-      }, 'getConstraints');
-      try { proto.getConstraints = getConstraints; } catch (e) {}
-    }
-
-    if (typeof proto.applyConstraints === 'function') {
-      var origApply = proto.applyConstraints;
-      var applyConstraints = asNative(function applyConstraints(c) {
-        var meta = _syntheticTracks.get(this);
-        if (!meta) return origApply.call(this, c);
-        // A real display capture accepts a downscale re-negotiation; the
-        // underlying canvas track would reject it as overconstrained.
-        meta.constraints = c || {};
-        return Promise.resolve();
-      }, 'applyConstraints');
-      try { proto.applyConstraints = applyConstraints; } catch (e) {}
-    }
-
-    if (typeof proto.clone === 'function') {
-      var origClone = proto.clone;
-      var clone = asNative(function clone() {
-        var copy = origClone.call(this);
-        var meta = _syntheticTracks.get(this);
-        // A clone must keep presenting as the same surface; without this it
-        // would report an empty label and canvas settings, betraying the
-        // original. It also has to stay exempt from the camera's stop.
-        if (meta && copy) {
-          _syntheticTracks.set(copy, meta);
-          markSyntheticTrack(copy);
-        }
-        return copy;
-      }, 'clone');
-      try { proto.clone = clone; } catch (e) {}
-    }
-
-    if (typeof proto.stop === 'function') {
-      var origStop = proto.stop;
-      var stop = asNative(function stop() {
-        var meta = _syntheticTracks.get(this);
-        if (meta) {
-          clearInterval(meta.timer);
-          if (meta.isVideo) { try { meta.media.pause(); } catch (e) {} }
-        }
-        return origStop.call(this);
-      }, 'stop');
-      try { proto.stop = stop; } catch (e) {}
-    }
-  })();
-
-  function virtualSurface(source, constraints) {
-    if (!source || !source.dataUrl) {
-      return Promise.reject(notAllowed('No shared surface selected'));
-    }
-    var isVideo = source.kind === 'video';
-    var loader = isVideo ? loadVideo(source.dataUrl) : loadImage(source.dataUrl);
-    return loader.then(function(media) {
-      return streamFromMedia(media, isVideo, constraints);
     });
   }
 
-  // --- getDisplayMedia patch ---------------------------------------------
+  overrideTrack('getSettings', function(orig) {
+    return function getSettings() {
+      var s = orig.call(this) || {};
+      var meta = _syntheticTracks.get(this);
+      if (!meta) return s;
+      // The shape a display capture reports, which is NOT the camera's:
+      // no facingMode or groupId, and displaySurface/logicalSurface/cursor
+      // instead. A page that branches on these must see a coherent surface.
+      s.deviceId = DEVICE_ID;
+      s.displaySurface = 'monitor';
+      s.logicalSurface = true;
+      s.cursor = 'never';
+      s.resizeMode = 'none';
+      s.width = meta.width;
+      s.height = meta.height;
+      s.aspectRatio = meta.height > 0 ? meta.width / meta.height : 0;
+      if (typeof s.frameRate !== 'number') s.frameRate = meta.fps;
+      return s;
+    };
+  });
 
-  // Patch the PROTOTYPE, not the `navigator.mediaDevices` instance. Assigning
-  // to the instance leaves getDisplayMedia visible in
-  // Object.getOwnPropertyNames(navigator.mediaDevices), where a real browser
-  // defines it only on MediaDevices.prototype — an own-property leak the
-  // repo's lie-detection tier probes for on every shim.
-  // Never fall back to Object.prototype: on a platform with no MediaDevices
-  // class (or a stubbed mediaDevices that owns its methods) that would install
-  // the override globally. Patch the instance there instead.
-  var MDCtor = globalThis.MediaDevices;
-  var mdProto = (MDCtor && MDCtor.prototype && md instanceof MDCtor)
-    ? MDCtor.prototype
-    : null;
-  var patchTarget = mdProto || md;
+  overrideTrack('getCapabilities', function(orig) {
+    return function getCapabilities() {
+      var meta = _syntheticTracks.get(this);
+      if (!meta) return orig.call(this);
+      return {
+        deviceId: DEVICE_ID,
+        displaySurface: 'monitor',
+        cursor: ['never'],
+        width: { max: meta.width },
+        height: { max: meta.height },
+        frameRate: { max: meta.fps },
+        aspectRatio: {
+          max: meta.height > 0 ? meta.width / meta.height : 0,
+          min: meta.height > 0 ? meta.width / meta.height : 0,
+        },
+        resizeMode: ['none'],
+      };
+    };
+  });
+
+  overrideTrack('applyConstraints', function(orig) {
+    return function applyConstraints(c) {
+      var meta = _syntheticTracks.get(this);
+      if (!meta) return orig.call(this, c);
+      // A real display capture accepts a downscale re-negotiation; the
+      // underlying canvas track would reject it as overconstrained.
+      meta.constraints = c || {};
+      return Promise.resolve();
+    };
+  });
 
   var getDisplayMedia = function getDisplayMedia(constraints) {
     // Per spec an audio-only display capture is a TypeError, not a denial.
@@ -646,13 +644,7 @@
   // dead-ending. The cost is that the API is present on an engine that lacks
   // it — the same trade the camera shim makes by publishing a synthetic
   // videoinput on a camera-less device.
-  try {
-    var prev = Object.getOwnPropertyDescriptor(patchTarget, 'getDisplayMedia');
-    Object.defineProperty(patchTarget, 'getDisplayMedia', {
-      value: asNative(getDisplayMedia, 'getDisplayMedia'),
-      writable: prev ? prev.writable !== false : true,
-      enumerable: prev ? prev.enumerable : false,
-      configurable: true,
-    });
-  } catch (e) {}
+  defineOnProto('getDisplayMedia', asNative(getDisplayMedia, 'getDisplayMedia'));
+
+
 })();

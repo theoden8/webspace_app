@@ -24,9 +24,7 @@ import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/opensearch_engine.dart'
     show DiscoveredSearch, SiteSearchTarget;
-import 'package:webspace/services/camera_decision_engine.dart';
-import 'package:webspace/services/screen_share_decision_engine.dart';
-import 'package:webspace/services/microphone_decision_engine.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
@@ -46,10 +44,8 @@ import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/blocked_cookie.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
-import 'package:webspace/settings/screen_share.dart';
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/scoped.dart';
@@ -150,7 +146,7 @@ typedef LaunchUrlFunc = void Function(
 /// `null` means gone; every numeric value is alive.
 bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;
 
-class WebViewModel {
+class WebViewModel implements MediaGrantRecord {
   final String siteId; // Unique ID for per-site cookie isolation
   String initUrl; // Made non-final to allow URL editing
 
@@ -419,43 +415,15 @@ class WebViewModel {
   /// the origin provision a Widevine device identifier, so the default is
   /// "ask" rather than always-on. Android-only: WKWebView (iOS/macOS) has no
   /// EME/Widevine support and never issues this request.
+  @override
   bool? protectedContentAllowed;
-  /// Remembered per-site decision for web camera access (camera-only
-  /// getUserMedia, e.g. a banking site's QR scanner). [CameraAccessMode.ask]
-  /// (default) shows the Block/Use-file/Allow popup on the first request;
-  /// `real` hands over the device camera; `virtual` serves
-  /// [virtualCameraSource] as a synthetic stream; `block` denies silently.
-  /// Only user intent is stored: the app-level CAMERA runtime permission on
-  /// Android is re-checked at every real grant (CameraPermissionService), so
-  /// an OS-level denial never gets frozen into a per-site Block.
-  CameraAccessMode cameraMode;
-  /// Image or looped video served to the page in [CameraAccessMode.virtual].
-  /// Bytes live inline as a `data:` URL so the shim can hand them to an
-  /// `<img>`/`<video>` element. Null until the user picks a file.
-  VirtualCameraSource? virtualCameraSource;
-  /// Remembered per-site decision for web microphone access (any
-  /// `getUserMedia` asking for audio). [MicrophoneAccessMode.ask] (default)
-  /// shows the Block/Use-audio-file popup on the first request; `virtual`
-  /// loops [virtualMicrophoneSource] as the microphone; `block` denies
-  /// silently. There is no mode that opens the real device — the app never
-  /// asks the OS for a recording permission.
-  MicrophoneAccessMode microphoneMode;
-  /// Audio clip looped as the microphone in [MicrophoneAccessMode.virtual].
-  /// Bytes live inline as a `data:` URL so the shim can decode them with
-  /// WebAudio. Null until the user picks a file.
-  VirtualMicrophoneSource? virtualMicrophoneSource;
-  /// Remembered per-site decision for screen sharing (`getDisplayMedia`).
-  /// [ScreenShareMode.ask] (default) shows the Block/Use-file popup on the
-  /// first request; `virtual` serves [virtualScreenSource] as the shared
-  /// surface; `block` denies silently. There is no mode that captures the
-  /// real display — a display capture is whole-surface, so granting one would
-  /// hand the site every other site in the webspace.
-  ScreenShareMode screenShareMode;
-  /// Image or looped video served as the shared surface in
-  /// [ScreenShareMode.virtual]. Bytes live inline as a `data:` URL so the shim
-  /// can hand them to an `<img>`/`<video>` element. Null until the user picks
-  /// a file.
-  VirtualScreenSource? virtualScreenSource;
+  /// Remembered per-site camera, microphone and screen-sharing decisions,
+  /// with the file each `virtual` mode serves. An untouched kind asks on the
+  /// first request. Only user intent is stored: Android's app-level CAMERA
+  /// permission is re-checked at every real grant, so an OS-level denial is
+  /// never frozen into a per-site Block.
+  @override
+  CaptureGrants captures;
   List<UserScriptConfig> userScripts; // Per-site user scripts
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
@@ -796,33 +764,19 @@ class WebViewModel {
       archived: isArchiveTier,
       trackingProtection: trackingProtectionEnabled);
 
-  /// Effective camera-access mode. Archive-tier sites are forced to
-  /// [CameraAccessMode.block] regardless of stored value: the permission
-  /// popup and Android's OS permission dialog are OS-level UI, which
-  /// ARCH-006 forbids for archive sites. Blocked without prompting; the
-  /// stored value is preserved for when the site leaves the archive.
-  /// Unlike protected content, Tracking Protection does not force block:
-  /// capture only starts after an explicit per-site Allow (real) or a
-  /// user-picked file (virtual), so it is not a silent tracking vector the
-  /// umbrella needs to close.
-  CameraAccessMode get effectiveCameraMode =>
-      ArchiveFold.camera(cameraMode, archived: isArchiveTier);
+  /// What the site captures with. Archive-tier sites are blocked for every
+  /// kind (ARCH-006), the stored decisions and files kept for when the site
+  /// leaves the archive. Tracking Protection forces nothing here: capture
+  /// only starts after an explicit per-site Allow or a user-picked file, so it
+  /// is not a silent tracking vector the umbrella needs to close.
+  CaptureGrants get effectiveCaptures =>
+      ArchiveFold.captures(captures, archived: isArchiveTier);
 
-  /// Effective microphone-access mode. Archive-tier sites are forced to
-  /// [MicrophoneAccessMode.block] regardless of stored value: the permission
-  /// popup and the file picker are OS-level UI, which ARCH-006 forbids for
-  /// archive sites. Blocked without prompting; the stored value and any
-  /// picked clip are preserved for when the site leaves the archive.
-  MicrophoneAccessMode get effectiveMicrophoneMode =>
-      ArchiveFold.microphone(microphoneMode, archived: isArchiveTier);
-
-  /// Effective screen-sharing mode. Archive-tier sites are forced to
-  /// [ScreenShareMode.block] regardless of stored value: the permission popup
-  /// and the file picker are OS-level UI, which ARCH-006 forbids for archive
-  /// sites. Blocked without prompting; the stored value and any picked source
-  /// are preserved for when the site leaves the archive.
-  ScreenShareMode get effectiveScreenShareMode =>
-      ArchiveFold.screenShare(screenShareMode, archived: isArchiveTier);
+  @override
+  SiteMedia get effectiveMedia => (
+    capture: effectiveCaptures,
+    protectedContent: effectiveProtectedContentAllowed,
+  );
 
   /// Passkeys (PASSKEY-001): every site but an archive-tier one. The system
   /// passkey sheet is OS-level UI naming the relying party, and a created
@@ -890,18 +844,7 @@ class WebViewModel {
         granularity: liveLocationGranularity,
         webRtc: effectiveWebRtcPolicy,
       ),
-      media: (
-        camera: (mode: effectiveCameraMode, source: virtualCameraSource),
-        microphone: (
-          mode: effectiveMicrophoneMode,
-          source: virtualMicrophoneSource,
-        ),
-        screenShare: (
-          mode: effectiveScreenShareMode,
-          source: virtualScreenSource,
-        ),
-        protectedContent: effectiveProtectedContentAllowed,
-      ),
+      media: effectiveMedia,
       page: (
         javascript: javascriptEnabled,
         userAgent: effectiveUserAgentOrNull,
@@ -919,22 +862,6 @@ class WebViewModel {
   VoidCallback? onConsoleLogChanged;
 
   String? defaultUserAgent;
-  /// In-flight protected-content decision. A page can fire several
-  /// `PROTECTED_MEDIA_ID` requests in a burst while EME initializes; this
-  /// coalesces them onto a single Allow/Block popup instead of stacking
-  /// dialogs. Cleared once [protectedContentAllowed] is recorded.
-  Future<bool>? _protectedMediaDecisionInFlight;
-  /// Orchestrates camera-request resolution (decide → coalesce → persist).
-  /// The engine holds the in-flight future that shares one popup / file-pick
-  /// across a burst of `getUserMedia` retries.
-  final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
-  /// Orchestrates microphone-request resolution (decide → coalesce →
-  /// persist), same contract as [_cameraEngine].
-  final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
-  /// Orchestrates screen-sharing resolution (decide → coalesce → persist),
-  /// same contract as [_cameraEngine].
-  final ScreenShareDecisionEngine _screenShareEngine =
-      ScreenShareDecisionEngine();
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
   /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
@@ -1049,12 +976,7 @@ class WebViewModel {
     this.notificationsEnabled = false,
     this.backgroundAudioEnabled = false,
     this.protectedContentAllowed,
-    this.cameraMode = CameraAccessMode.ask,
-    this.virtualCameraSource,
-    this.microphoneMode = MicrophoneAccessMode.ask,
-    this.virtualMicrophoneSource,
-    this.screenShareMode = ScreenShareMode.ask,
-    this.virtualScreenSource,
+    this.captures = CaptureGrants.none,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
@@ -1484,48 +1406,12 @@ class WebViewModel {
           onExternalSchemeUrl: (url, info) =>
               hooks.externalScheme(info, controller),
           onLinkLongPress: (url) => hooks.linkMenu(this, url),
-          onProtectedMediaRequest: (origin) async {
-                  // Archive-tier and Tracking Protection sites deny without
-                  // prompting; otherwise a previously remembered Allow/Block
-                  // decision short-circuits the popup.
-                  final remembered = id.effectiveProtectedContentAllowed;
-                  if (remembered != null) return remembered;
-                  // Coalesce a burst of requests onto one popup.
-                  _protectedMediaDecisionInFlight ??= () async {
-                    final granted = await hooks.protectedMedia(origin);
-                    id.protectedContentAllowed = granted;
-                    await hooks.save();
-                    return granted;
-                  }();
-                  try {
-                    return await _protectedMediaDecisionInFlight!;
-                  } finally {
-                    _protectedMediaDecisionInFlight = null;
-                  }
-                },
-          onCameraDecision: (origin, isTopFrame) => id.resolveCameraRequest(
-                    origin,
-                    resolver: hooks.camera,
-                    isActive: isActive,
-                    isTopFrame: isTopFrame,
-                    saveFunc: hooks.save,
-                  ),
-          currentCameraMode: () => id.effectiveCameraMode,
-          onMicrophoneDecision: (origin, isTopFrame) =>
-              id.resolveMicrophoneRequest(
-                    origin,
-                    resolver: hooks.microphone,
-                    isActive: isActive,
-                    isTopFrame: isTopFrame,
-                    saveFunc: hooks.save,
-                  ),
-          currentMicrophoneMode: () => id.effectiveMicrophoneMode,
-          onScreenShareDecision: (origin) => id.resolveScreenShareRequest(
-                    origin,
-                    resolver: hooks.screenShare,
-                    isActive: isActive,
-                    saveFunc: hooks.save,
-                  ),
+          grants: PersistedGrantStore(
+            id,
+            prompter: hooks.media,
+            isSiteActive: isActive,
+            save: hooks.save,
+          ),
           pullToRefreshGate: pullToRefreshGate,
           onWindowRequested: hooks.showPopup,
           onUnproxiedNavigationBlocked: (blocked) {
@@ -1944,85 +1830,6 @@ class WebViewModel {
       // Controller may have been disposed
     }
   }
-
-  /// Resolve a per-site camera request for [origin] against this model
-  /// (CAM-001, CAM-006, CAM-011).
-  ///
-  /// Named rather than inline in [getWebView] so the wiring is reachable from
-  /// a test: the engine's own tests drive a fake host, which cannot catch this
-  /// model translating [isActive] — or the archive-tier fold — wrongly. A site
-  /// with no activity predicate at all counts as active, which is what the
-  /// nested/standalone callers that never pass one rely on.
-  Future<CameraDecision> resolveCameraRequest(
-    String origin, {
-    required Future<CameraDecision> Function(String, CameraAccessMode) resolver,
-    required bool Function()? isActive,
-    required bool isTopFrame,
-    required Function saveFunc,
-  }) =>
-      _cameraEngine.decide(
-        origin: origin,
-        isSiteActive: () => isActive?.call() ?? true,
-        isTopFrame: isTopFrame,
-        // Archive-tier is folded into effectiveCameraMode.
-        effectiveMode: effectiveCameraMode,
-        currentSource: () => virtualCameraSource,
-        resolve: resolver,
-        persist: (mode, source) {
-          cameraMode = mode;
-          if (source != null) virtualCameraSource = source;
-        },
-        save: () async => saveFunc(),
-      );
-
-  /// Resolve a per-site screen-sharing request for [origin] against this model
-  /// (SHARE-001, SHARE-006, SHARE-011). Same contract as
-  /// [resolveCameraRequest].
-  Future<ScreenShareDecision> resolveScreenShareRequest(
-    String origin, {
-    required Future<ScreenShareDecision> Function(String, ScreenShareMode)
-        resolver,
-    required bool Function()? isActive,
-    required Function saveFunc,
-  }) =>
-      _screenShareEngine.decide(
-        origin: origin,
-        isSiteActive: () => isActive?.call() ?? true,
-        // Archive-tier is folded into effectiveScreenShareMode.
-        effectiveMode: effectiveScreenShareMode,
-        currentSource: () => virtualScreenSource,
-        resolve: resolver,
-        persist: (mode, source) {
-          screenShareMode = mode;
-          if (source != null) virtualScreenSource = source;
-        },
-        save: () async => saveFunc(),
-      );
-
-  /// Resolve a per-site microphone request for [origin] against this model
-  /// (MIC-001, MIC-006, MIC-011). Same contract as [resolveCameraRequest].
-  Future<MicrophoneDecision> resolveMicrophoneRequest(
-    String origin, {
-    required Future<MicrophoneDecision> Function(String, MicrophoneAccessMode)
-        resolver,
-    required bool Function()? isActive,
-    required bool isTopFrame,
-    required Function saveFunc,
-  }) =>
-      _microphoneEngine.decide(
-        origin: origin,
-        isSiteActive: () => isActive?.call() ?? true,
-        isTopFrame: isTopFrame,
-        // Archive-tier is folded into effectiveMicrophoneMode.
-        effectiveMode: effectiveMicrophoneMode,
-        currentSource: () => virtualMicrophoneSource,
-        resolve: resolver,
-        persist: (mode, source) {
-          microphoneMode = mode;
-          if (source != null) virtualMicrophoneSource = source;
-        },
-        save: () async => saveFunc(),
-      );
 
   /// End any device capture this site is running: camera (CAM-012) and
   /// microphone (MIC-012), through one hook over the shims' shared registry.
@@ -2486,21 +2293,9 @@ class WebViewModel {
         if (backgroundAudioEnabled) 'backgroundAudioEnabled': true,
         if (protectedContentAllowed != null)
           'protectedContentAllowed': protectedContentAllowed,
-        // Serialized only when the site has been touched, so untouched
-        // sites keep byte-identical JSON. Virtual-source bytes ride the
-        // model like `customIconPng` (backups keep them; archive-tier
-        // sites live only inside the encrypted slice).
-        if (cameraMode != CameraAccessMode.ask) 'cameraMode': cameraMode.name,
-        if (virtualCameraSource != null)
-          'virtualCameraSource': virtualCameraSource!.toJson(),
-        if (microphoneMode != MicrophoneAccessMode.ask)
-          'microphoneMode': microphoneMode.name,
-        if (virtualMicrophoneSource != null)
-          'virtualMicrophoneSource': virtualMicrophoneSource!.toJson(),
-        if (screenShareMode != ScreenShareMode.ask)
-          'screenShareMode': screenShareMode.name,
-        if (virtualScreenSource != null)
-          'virtualScreenSource': virtualScreenSource!.toJson(),
+        // Virtual-source bytes ride the model like `customIconPng` (backups
+        // keep them; archive-tier sites live only inside the encrypted slice).
+        ...captures.toJson(),
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -2660,17 +2455,7 @@ class WebViewModel {
           false,
       backgroundAudioEnabled: field<bool>('backgroundAudioEnabled') ?? false,
       protectedContentAllowed: field<bool>('protectedContentAllowed'),
-      // `cameraAllowed` is the legacy boolean this field replaced; migrate it.
-      cameraMode:
-          cameraAccessModeFromJson(json['cameraMode'], json['cameraAllowed']),
-      virtualCameraSource:
-          VirtualCameraSource.fromJson(json['virtualCameraSource']),
-      microphoneMode: microphoneAccessModeFromJson(json['microphoneMode']),
-      virtualMicrophoneSource:
-          VirtualMicrophoneSource.fromJson(json['virtualMicrophoneSource']),
-      screenShareMode: screenShareModeFromJson(json['screenShareMode']),
-      virtualScreenSource:
-          VirtualScreenSource.fromJson(json['virtualScreenSource']),
+      captures: CaptureGrants.fromJson(json),
       userScripts:
           _jsonEntries(json['userScripts'], UserScriptConfig.fromJson),
       enabledGlobalScriptIds: {

@@ -19,14 +19,13 @@
 import 'dart:io';
 
 import 'package:webspace/services/webgl_kill_switch_shim.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/block_interceptor_shim.dart';
+import 'package:webspace/services/capture_shim.dart';
 import 'package:webspace/services/clearurl_share_shim.dart';
 import 'package:webspace/services/notification_polyfill_shim.dart';
-import 'package:webspace/services/camera_stream_shim.dart';
-import 'package:webspace/services/microphone_stream_shim.dart';
-import 'package:webspace/services/screen_share_shim.dart';
 import 'package:webspace/services/passkey_shim.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
@@ -256,9 +255,9 @@ Map<String, String> buildAllFixtures() {
   fixtures['block_interceptor/observer.js'] = blockResourceObserverScript;
   fixtures['block_interceptor/interceptor.js'] = blockJsInterceptorScript;
 
-  fixtures['camera_stream/shim.js'] = buildCameraStreamShim();
-  fixtures['microphone_stream/shim.js'] = buildMicrophoneStreamShim();
-  fixtures['screen_share/shim.js'] = buildScreenShareShim();
+  for (final kind in CaptureKind.values) {
+    fixtures['${kind.shimGroup}/shim.js'] = buildCaptureShim(kind);
+  }
   fixtures['passkey/shim.js'] = buildPasskeyShim();
   fixtures['passkey/block_shim.js'] = buildPasskeyBlockShim();
 

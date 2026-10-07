@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 
@@ -73,7 +74,7 @@ class SiteSettingsQrCodec {
 
   /// Per-site keys deliberately stripped on share. Listed so the drift
   /// test can detect a brand-new key that the dev forgot to classify.
-  static const Set<String> excludedKeys = {
+  static final Set<String> excludedKeys = {
     'siteId',
     'currentUrl',
     'pageTitle',
@@ -84,15 +85,10 @@ class SiteSettingsQrCodec {
     'enabledGlobalScriptIds',
     'blockedCookies',
     // Remembered permission decisions are trust the user gave one device's
-    // popup, not shareable configuration; the virtual camera/microphone
-    // sources are user-picked local media that would also blow QR capacity.
+    // popup, not shareable configuration; the virtual capture sources are
+    // user-picked local media that would also blow QR capacity.
     'protectedContentAllowed',
-    'cameraMode',
-    'virtualCameraSource',
-    'microphoneMode',
-    'virtualMicrophoneSource',
-    'screenShareMode',
-    'virtualScreenSource',
+    for (final kind in CaptureKind.values) ...kind.jsonKeys,
     // Base64 PNG bytes: would blow QR capacity, and an icon is
     // device-local cosmetics, not shareable configuration.
     'customIconPng',

@@ -11,8 +11,8 @@ import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/web_view_model.dart';
@@ -167,6 +167,15 @@ Set<String> _readKeys(String text) => {
         (m.group(1) ?? m.group(2))!,
     };
 
+/// The keys [CaptureGrants.fromJson] reads, which come from [CaptureKind]
+/// rather than from literals a scan can find.
+final Set<String> _captureKeysRead = {
+  for (final kind in CaptureKind.values) ...[
+    ...kind.jsonKeys,
+    ?kind.legacyAllowedKey,
+  ],
+};
+
 /// Every JSON key the backup, site, webspace and nested parsers read, taken
 /// from their source so a rename that forgets the old name shows up.
 final Set<String> _keysRead = {
@@ -180,12 +189,10 @@ final Set<String> _keysRead = {
     'lib/services/site_tab.dart',
     'lib/settings/proxy.dart',
     'lib/settings/user_script.dart',
-    'lib/settings/virtual_visual_source.dart',
-    'lib/settings/camera.dart',
-    'lib/settings/microphone.dart',
-    'lib/settings/screen_share.dart',
+    'lib/settings/capture.dart',
   ])
     ..._readKeys(File(f).readAsStringSync()),
+  ..._captureKeysRead,
   ..._readKeys(_region('lib/services/webview.dart', 'Cookie cookieFromJson(', ');\n')),
   ..._matches(
       _region('lib/services/settings_backup.dart', 'for (final key in const [', ']'),
@@ -240,9 +247,10 @@ void _expectSanitised(SettingsImportPlan plan, {required String reason}) {
     expect(site.proxySettings.password, isNull, reason: reason);
     expect(site.enabledGlobalScriptIds, isEmpty, reason: reason);
     expect(site.userScripts.where((s) => s.enabled), isEmpty, reason: reason);
-    expect(site.cameraMode, isNot(CameraAccessMode.real), reason: reason);
-    expect(site.microphoneMode, isNot(MicrophoneAccessMode.real),
-        reason: reason);
+    for (final kind in CaptureKind.values) {
+      expect(kind.grantOf(site.captures).mode.state,
+          isNot(SitePermissionState.allowed), reason: reason);
+    }
     expect(site.locationMode, isNot(LocationMode.live), reason: reason);
     expect(site.notificationsEnabled, isFalse, reason: reason);
     expect(site.backgroundAudioEnabled, isFalse, reason: reason);
@@ -579,14 +587,18 @@ void main() {
         };
 
     test('cameraAllowed maps to a camera mode, and a grant resets to ask', () {
-      expect(WebViewModel.fromJson(site({'cameraAllowed': true}), null).cameraMode,
+      expect(
+          WebViewModel.fromJson(site({'cameraAllowed': true}), null)
+              .captures
+              .camera
+              .mode,
           CameraAccessMode.real);
       final plan = _planFromJson(backupOf([
         site({'cameraAllowed': true}),
         site({'cameraAllowed': false}),
       ]));
-      expect(plan.sites[0].cameraMode, CameraAccessMode.ask);
-      expect(plan.sites[1].cameraMode, CameraAccessMode.block);
+      expect(plan.sites[0].captures.camera.mode, CameraAccessMode.ask);
+      expect(plan.sites[1].captures.camera.mode, CameraAccessMode.block);
     });
 
     test('backgroundPoll maps to notifications, then resets on import', () {
@@ -953,7 +965,7 @@ void main() {
       expect(hostile.customIconPng, isNull);
       expect(hostile.dnsBlockLevel, isNull);
       expect(hostile.proxySettings.type, ProxyType.DEFAULT);
-      expect(hostile.virtualCameraSource, isNull);
+      expect(hostile.captures.camera.source, isNull);
       expect(hostile.toJson()['screenShareMode'], isNull,
           reason: 'there is no real screen-share mode to restore');
     });
@@ -1213,8 +1225,10 @@ void main() {
         ..._readKeys(_region(
             'lib/webspace_model.dart', 'factory Webspace.fromJson(', '\n  }\n')),
         ..._legacyPrefKeys,
+        ..._captureKeysRead,
       };
       final writes = {
+        for (final kind in CaptureKind.values) ...kind.jsonKeys,
         ..._matches(
             _region('lib/web_view_model.dart', "'siteId': siteId",
                 'factory WebViewModel.fromJson('),

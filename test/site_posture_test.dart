@@ -3,20 +3,18 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/site_posture.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
-const _camSrc = VirtualCameraSource(
+const _camSrc = VirtualVisualSource(
   kind: 'image',
   dataUrl: 'data:image/png;base64,AAAA',
   fileName: 'qr.png',
 );
-const _micSrc = VirtualMicrophoneSource(
+const _micSrc = VirtualAudioSource(
   dataUrl: 'data:audio/mpeg;base64,AAAA',
   fileName: 'tone.mp3',
 );
@@ -39,11 +37,11 @@ WebViewModel _site({required bool tp, required bool archived}) {
     incognito: false,
     notificationsEnabled: true,
     protectedContentAllowed: true,
-    cameraMode: CameraAccessMode.virtual,
-    virtualCameraSource: _camSrc,
-    microphoneMode: MicrophoneAccessMode.real,
-    virtualMicrophoneSource: _micSrc,
-    screenShareMode: ScreenShareMode.ask,
+    captures: const CaptureGrants(
+      camera: (mode: CameraAccessMode.virtual, source: _camSrc),
+      microphone: (mode: MicrophoneAccessMode.real, source: _micSrc),
+      screenShare: (mode: ScreenShareMode.ask, source: null),
+    ),
     externalLinkMode: ExternalLinkMode.browser,
     proxySettings: UserProxySettings(
       type: ProxyType.SOCKS5,
@@ -109,17 +107,17 @@ void main() {
               reason: cell,
             );
             expect(
-              p.media.camera.mode,
+              p.media.capture.camera.mode,
               archived ? CameraAccessMode.block : CameraAccessMode.virtual,
               reason: cell,
             );
             expect(
-              p.media.microphone.mode,
+              p.media.capture.microphone.mode,
               archived ? MicrophoneAccessMode.block : MicrophoneAccessMode.real,
               reason: cell,
             );
             expect(
-              p.media.screenShare.mode,
+              p.media.capture.screenShare.mode,
               archived ? ScreenShareMode.block : ScreenShareMode.ask,
               reason: cell,
             );
@@ -160,7 +158,8 @@ void main() {
           expect(nested.fingerprint, root.fingerprint);
           expect(nested.location, root.location);
           expect(nested.page, root.page);
-          expect(nested.media.screenShare, root.media.screenShare);
+          expect(nested.media.capture.screenShare,
+              root.media.capture.screenShare);
           expect(nested.media.protectedContent, root.media.protectedContent);
         }
       }
@@ -170,18 +169,23 @@ void main() {
         '(CAM-005, MIC-005, SEC-007)', () {
       final root = _posture(_site(tp: false, archived: false));
       final nested = root.forNested();
-      expect(root.media.microphone.mode, MicrophoneAccessMode.real);
-      expect(nested.media.microphone.mode, MicrophoneAccessMode.ask);
-      expect(nested.media.microphone.source, same(_micSrc));
-      expect(nested.media.camera.mode, CameraAccessMode.virtual);
-      expect(nested.media.camera.source, same(_camSrc));
+      expect(root.media.capture.microphone.mode, MicrophoneAccessMode.real);
+      expect(nested.media.capture.microphone.mode, MicrophoneAccessMode.ask);
+      expect(nested.media.capture.microphone.source, same(_micSrc));
+      expect(nested.media.capture.camera.mode, CameraAccessMode.virtual);
+      expect(nested.media.capture.camera.source, same(_camSrc));
 
       for (final mode in CameraAccessMode.values) {
         final p = _posture(
-          WebViewModel(initUrl: 'https://cam.example', cameraMode: mode),
+          WebViewModel(
+            initUrl: 'https://cam.example',
+            captures: CaptureGrants.none.copyWith(
+              camera: (mode: mode, source: null),
+            ),
+          ),
         ).forNested();
         expect(
-          p.media.camera.mode,
+          p.media.capture.camera.mode,
           mode == CameraAccessMode.real ? CameraAccessMode.ask : mode,
         );
       }

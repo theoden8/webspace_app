@@ -1,7 +1,7 @@
 // Backgrounded-site gate wiring (CAM-011 / MIC-011 / SHARE-011).
 //
-// The engines take `isSiteActive` as a REQUIRED argument, so the compiler
-// already forces every call site to pass something. What it cannot force is
+// `GrantStore` takes `isSiteActive` as a REQUIRED argument, so the compiler
+// already forces every store to be given something. What it cannot force is
 // that the something is real: `isSiteActive: () => true` compiles, satisfies
 // every engine test, and silently reopens the hole the requirement exists to
 // close — a background site prompting under the visible site's name.
@@ -53,9 +53,9 @@ for (const rel of SOURCES) {
 }
 
 test('the known isSiteActive call sites are present', () => {
-  // Three capture resolvers on the model, three on the nested screen, plus the
-  // navigation engine's. A drop to zero would make this file vacuous.
-  assert.ok(sites.length >= 8,
+  // The model's grant store and the nested screen's, plus the navigation
+  // engine's. A drop to zero would make this file vacuous.
+  assert.ok(sites.length >= 5,
     `expected the known isSiteActive call sites, found ${sites.length}`);
 });
 

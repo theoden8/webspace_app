@@ -3,11 +3,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -31,10 +29,7 @@ final class WebViewHostHooks {
     required this.confirmScriptFetch,
     required this.untrustedCertificate,
     required this.httpAuth,
-    required this.protectedMedia,
-    required this.camera,
-    required this.microphone,
-    required this.screenShare,
+    required this.media,
   });
 
   /// The engine's cookie readers: [containerCookieManager] under the
@@ -71,11 +66,7 @@ final class WebViewHostHooks {
   final Future<bool> Function(
       String host, int port, inapp.SslCertificate? certificate) untrustedCertificate;
   final HttpAuthPrompt httpAuth;
-  final Future<bool> Function(String origin) protectedMedia;
-  final Future<CameraDecision> Function(
-      String origin, CameraAccessMode current) camera;
-  final Future<MicrophoneDecision> Function(
-      String origin, MicrophoneAccessMode current) microphone;
-  final Future<ScreenShareDecision> Function(
-      String origin, ScreenShareMode current) screenShare;
+
+  /// The capture and protected-content popups behind every [GrantStore].
+  final MediaPrompter media;
 }

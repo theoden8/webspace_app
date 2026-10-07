@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
+import 'package:webspace/settings/setting_labels.dart';
+import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// A permission or background capability a site currently holds, surfaced as
@@ -14,38 +14,35 @@ import 'package:webspace/web_view_model.dart';
 /// held, plus background audio.
 ///
 /// Only settled grants appear: `ask` (undecided), `block` and
-/// [LocationMode.off] produce no badge. [SitePermissionBadge.spoofLocation]
-/// and [SitePermissionBadge.virtualCamera] /
-/// [SitePermissionBadge.virtualMicrophone] mark grants the app satisfies
-/// synthetically — the site is fed data but no device is opened — and render
-/// muted, so a glance separates "this site can see/hear the room" from "this
-/// site is being played a file".
-enum SitePermissionBadge {
+/// [LocationMode.off] produce no badge. A simulated grant (a spoofed location,
+/// a picked file in place of a device) feeds the site data with no device
+/// opened and renders muted, so a glance separates "this site can see/hear
+/// the room" from "this site is being played a file".
+sealed class SitePermissionBadge {}
+
+/// A capture kind held at a [mode] that reaches the page: the device itself
+/// (the camera and microphone's `real`, MIC-014) or a picked file.
+final class CaptureBadge implements SitePermissionBadge {
+  const CaptureBadge(this.kind, this.mode);
+
+  final CaptureKind kind;
+  final CaptureMode mode;
+
+  @override
+  bool operator ==(Object other) =>
+      other is CaptureBadge && other.kind == kind && other.mode == mode;
+
+  @override
+  int get hashCode => Object.hash(kind, mode);
+}
+
+enum GrantBadge implements SitePermissionBadge {
   /// [LocationMode.live]: the real device fix reaches the page (at the
   /// site's [LocationGranularity]).
   realLocation,
 
   /// [LocationMode.spoof]: pages get user-picked coordinates.
   spoofLocation,
-
-  /// [CameraAccessMode.real]: the device camera is handed to the page.
-  realCamera,
-
-  /// [CameraAccessMode.virtual]: a picked image/video is served instead.
-  virtualCamera,
-
-  /// [MicrophoneAccessMode.real]: the device microphone is handed to the
-  /// page, while the site is the one on screen (MIC-014).
-  realMicrophone,
-
-  /// [MicrophoneAccessMode.virtual]: a picked audio clip is looped to the
-  /// page.
-  virtualMicrophone,
-
-  /// [ScreenShareMode.virtual]: a picked image/video is served as the shared
-  /// surface. There is no real-screen mode in the app, so this is the only
-  /// screen-sharing grant that exists.
-  virtualScreenShare,
 
   /// `notificationsEnabled`: the page's `Notification.permission` reads
   /// `granted` and its notifications reach the OS.
@@ -61,6 +58,16 @@ enum SitePermissionBadge {
   backgroundAudio,
 }
 
+extension CaptureKindIcon on CaptureKind {
+  /// Filled for a real device, outlined for a picked file.
+  IconData icon({required bool real}) => switch (this) {
+    CaptureKind.camera => real ? Icons.videocam : Icons.videocam_outlined,
+    CaptureKind.microphone => real ? Icons.mic : Icons.mic_none,
+    CaptureKind.screenShare =>
+      real ? Icons.screen_share : Icons.screen_share_outlined,
+  };
+}
+
 /// Badges held by [model], in a stable display order (the Permissions row's
 /// order, then background playback). Reads the `effective*` getters, so an
 /// archive-tier site shows no badge even when the stored mode says otherwise
@@ -70,30 +77,23 @@ List<SitePermissionBadge> sitePermissionBadges(
   WebViewModel model, {
   bool? protectedContentApplies,
 }) {
+  final captures = model.effectiveCaptures;
   return [
     switch (model.locationMode) {
-      LocationMode.live => SitePermissionBadge.realLocation,
-      LocationMode.spoof => SitePermissionBadge.spoofLocation,
+      LocationMode.live => GrantBadge.realLocation,
+      LocationMode.spoof => GrantBadge.spoofLocation,
       LocationMode.off => null,
     },
-    switch (model.effectiveCameraMode) {
-      CameraAccessMode.real => SitePermissionBadge.realCamera,
-      CameraAccessMode.virtual => SitePermissionBadge.virtualCamera,
-      CameraAccessMode.ask || CameraAccessMode.block => null,
-    },
-    switch (model.effectiveMicrophoneMode) {
-      MicrophoneAccessMode.real => SitePermissionBadge.realMicrophone,
-      MicrophoneAccessMode.virtual => SitePermissionBadge.virtualMicrophone,
-      MicrophoneAccessMode.ask || MicrophoneAccessMode.block => null,
-    },
-    if (model.effectiveScreenShareMode == ScreenShareMode.virtual)
-      SitePermissionBadge.virtualScreenShare,
-    if (model.effectiveNotificationsEnabled) SitePermissionBadge.notifications,
+    for (final kind in CaptureKind.values)
+      if (kind.grantOf(captures).mode case final mode
+          when mode.state == SitePermissionState.allowed ||
+              mode.state == SitePermissionState.simulated)
+        CaptureBadge(kind, mode),
+    if (model.effectiveNotificationsEnabled) GrantBadge.notifications,
     if ((protectedContentApplies ?? hostIsAndroid) &&
         model.effectiveProtectedContentAllowed == true)
-      SitePermissionBadge.protectedContent,
-    if (model.effectiveBackgroundAudioEnabled)
-      SitePermissionBadge.backgroundAudio,
+      GrantBadge.protectedContent,
+    if (model.effectiveBackgroundAudioEnabled) GrantBadge.backgroundAudio,
   ].nonNulls.toList();
 }
 
@@ -102,33 +102,23 @@ List<SitePermissionBadge> sitePermissionBadges(
 /// Matches the Permissions row, which draws the same grants in the error
 /// colour.
 bool _isRealDeviceAccess(SitePermissionBadge badge) => switch (badge) {
-      SitePermissionBadge.realLocation ||
-      SitePermissionBadge.realCamera ||
-      SitePermissionBadge.realMicrophone ||
-      SitePermissionBadge.notifications ||
-      SitePermissionBadge.protectedContent =>
-        true,
-      SitePermissionBadge.spoofLocation ||
-      SitePermissionBadge.virtualCamera ||
-      SitePermissionBadge.virtualMicrophone ||
-      SitePermissionBadge.virtualScreenShare ||
-      SitePermissionBadge.backgroundAudio =>
-        false,
-    };
+  CaptureBadge(:final mode) => opensRealDevice(mode.state),
+  GrantBadge.realLocation ||
+  GrantBadge.notifications ||
+  GrantBadge.protectedContent => true,
+  GrantBadge.spoofLocation || GrantBadge.backgroundAudio => false,
+};
 
 /// Filled glyph for a real device, outlined for a synthetic stream.
 IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
-      SitePermissionBadge.realLocation => Icons.location_on,
-      SitePermissionBadge.spoofLocation => Icons.location_on_outlined,
-      SitePermissionBadge.realCamera => Icons.videocam,
-      SitePermissionBadge.virtualCamera => Icons.videocam_outlined,
-      SitePermissionBadge.realMicrophone => Icons.mic,
-      SitePermissionBadge.virtualMicrophone => Icons.mic_none,
-      SitePermissionBadge.virtualScreenShare => Icons.screen_share_outlined,
-      SitePermissionBadge.notifications => Icons.notifications,
-      SitePermissionBadge.protectedContent => Icons.shield,
-      SitePermissionBadge.backgroundAudio => Icons.music_note,
-    };
+  CaptureBadge(:final kind, :final mode) =>
+    kind.icon(real: opensRealDevice(mode.state)),
+  GrantBadge.realLocation => Icons.location_on,
+  GrantBadge.spoofLocation => Icons.location_on_outlined,
+  GrantBadge.notifications => Icons.notifications,
+  GrantBadge.protectedContent => Icons.shield,
+  GrantBadge.backgroundAudio => Icons.music_note,
+};
 
 /// Localized "<setting>: <value>" label, e.g. "Camera access: Always allow".
 /// Composed from the per-site settings strings the badge mirrors rather than
@@ -136,25 +126,17 @@ IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
 String sitePermissionBadgeLabel(AppLocalizations loc, SitePermissionBadge badge) {
   const separator = ': ';
   return switch (badge) {
-    SitePermissionBadge.realLocation =>
+    CaptureBadge(:final kind, :final mode) =>
+      '${kind.text(loc).title}$separator${mode.label(loc)}',
+    GrantBadge.realLocation =>
       '${loc.siteSettingsGeolocation}$separator${loc.siteSettingsLocationLive}',
-    SitePermissionBadge.spoofLocation =>
+    GrantBadge.spoofLocation =>
       '${loc.siteSettingsGeolocation}$separator${loc.siteSettingsLocationStatic}',
-    SitePermissionBadge.realCamera =>
-      '${loc.siteSettingsCameraAccess}$separator${loc.siteSettingsCameraAccessAllow}',
-    SitePermissionBadge.virtualCamera =>
-      '${loc.siteSettingsCameraAccess}$separator${loc.siteSettingsCameraAccessVirtual}',
-    SitePermissionBadge.realMicrophone =>
-      '${loc.siteSettingsMicrophoneAccess}$separator${loc.siteSettingsMicrophoneAccessAllow}',
-    SitePermissionBadge.virtualMicrophone =>
-      '${loc.siteSettingsMicrophoneAccess}$separator${loc.siteSettingsMicrophoneAccessVirtual}',
-    SitePermissionBadge.virtualScreenShare =>
-      '${loc.siteSettingsScreenShare}$separator${loc.siteSettingsScreenShareVirtual}',
-    SitePermissionBadge.notifications =>
+    GrantBadge.notifications =>
       '${loc.siteSettingsNotifications}$separator${loc.siteSettingsProtectedContentAllow}',
-    SitePermissionBadge.protectedContent =>
+    GrantBadge.protectedContent =>
       '${loc.siteSettingsProtectedContent}$separator${loc.siteSettingsProtectedContentAllow}',
-    SitePermissionBadge.backgroundAudio => loc.siteSettingsBackgroundAudio,
+    GrantBadge.backgroundAudio => loc.siteSettingsBackgroundAudio,
   };
 }
 

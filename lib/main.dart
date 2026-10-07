@@ -143,14 +143,11 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/app_locale.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_tor.dart';
-import 'package:webspace/settings/screen_share.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/services/virtual_camera_service.dart';
-import 'package:webspace/services/virtual_screen_service.dart';
+import 'package:webspace/settings/setting_labels.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
-import 'package:webspace/services/virtual_microphone_service.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_engine.dart';
@@ -1011,7 +1008,7 @@ class _ArchiveSlice {
 
 class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware
-    implements DeferredStartupHost {
+    implements DeferredStartupHost, MediaPrompter {
   int? _currentIndex;
   final List<WebViewModel> _webViewModels = [];
   AppThemeSettings _themeSettings = const AppThemeSettings();
@@ -6372,10 +6369,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     confirmScriptFetch: _confirmScriptFetch,
     untrustedCertificate: _promptUntrustedCertificate,
     httpAuth: _promptHttpAuth,
-    protectedMedia: _promptProtectedMedia,
-    camera: _resolveCameraDecision,
-    microphone: _resolveMicrophoneDecision,
-    screenShare: _resolveScreenShareDecision,
+    media: this,
   );
 
   Future<void> launchUrl(
@@ -6476,12 +6470,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     return result ?? false;
   }
 
-  /// Stable callback for the protected-content (Widevine/EME) permission
-  /// popup. Shown the first time a site requests `PROTECTED_MEDIA_ID` (e.g.
-  /// the Spotify web player). The per-site decision is remembered by the
-  /// caller (the parent webview persists it on the `WebViewModel`; nested
-  /// webviews remember it in-memory), so this only collects user intent.
-  Future<bool> _promptProtectedMedia(String origin) async {
+  /// Shown the first time a site requests `PROTECTED_MEDIA_ID` (e.g. the
+  /// Spotify web player). The [GrantStore] remembers the answer, so this only
+  /// collects user intent.
+  @override
+  Future<bool> protectedContent(String origin) async {
     if (!mounted) return false;
     final loc = AppLocalizations.of(context);
     final result = await showDialog<bool>(
@@ -6504,51 +6497,35 @@ class _WebSpacePageState extends State<WebSpacePage>
     return result ?? false;
   }
 
-  /// Stable resolvers for a capture request: camera-only `getUserMedia`
-  /// (e.g. a banking site's QR scanner), any `getUserMedia` asking for audio,
-  /// and `getDisplayMedia`. The first request shows a Block / Use-a-file /
-  /// Allow popup (no Allow for screen share); picking the file opens a picker
-  /// and the chosen media becomes the site's virtual source. The per-site
-  /// decision is remembered by the caller (the parent webview persists it on
-  /// the `WebViewModel`; nested webviews remember it in-memory), so these only
-  /// collect user intent. The Android app-level camera permission is handled
-  /// at real-grant time by `CameraPermissionService`.
-  Future<CameraDecision> _resolveCameraDecision(
-          String origin, CameraAccessMode current) =>
-      _resolveMedia(_cameraPrompt, origin, current);
-
-  Future<MicrophoneDecision> _resolveMicrophoneDecision(
-          String origin, MicrophoneAccessMode current) =>
-      _resolveMedia(_microphonePrompt, origin, current);
-
-  Future<ScreenShareDecision> _resolveScreenShareDecision(
-          String origin, ScreenShareMode current) =>
-      _resolveMedia(_screenSharePrompt, origin, current);
-
-  /// [current] is the site's stored mode: a site already set to `virtual` but
-  /// missing a source skips the popup and goes straight to the picker. A
-  /// dismissed popup returns `ask` so the request is denied once and the popup
-  /// returns next time; a cancelled picker leaves the prior mode intact for the
-  /// same reason.
-  Future<D> _resolveMedia<M, S, D>(
-    _MediaPrompt<M, S, D> kind,
+  /// The first request shows Block / Use a file / Allow (no Allow for a kind
+  /// with no real mode); picking the file opens a picker and the chosen media
+  /// becomes the site's virtual source. The [GrantStore] remembers the answer,
+  /// so this only collects user intent. A site already set to `virtual` but
+  /// missing a file skips the popup for the picker. A dismissed popup returns
+  /// `ask`, so the request is denied once and the popup returns next time; a
+  /// cancelled picker leaves the prior mode for the same reason. Android's
+  /// app-level camera permission is handled at grant time by
+  /// `CameraPermissionService`.
+  @override
+  Future<CaptureGrant<M, S>>
+  capture<M extends CaptureMode, S extends VirtualSource>(
+    CaptureKind<M, S> kind,
     String origin,
     M current,
   ) async {
-    if (!mounted) return kind.decision(kind.block);
-    if (current == kind.virtual) {
-      return _pickVirtualOrKeep(kind, origin, current);
-    }
+    if (!mounted) return (mode: kind.block, source: null);
+    if (current == kind.virtual) return _pickVirtualOrKeep(kind, current);
     final loc = AppLocalizations.of(context);
-    final text = kind.text(loc, origin);
+    final text = kind.text(loc);
+    final real = kind.real;
     final choice = await showDialog<_MediaChoice>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(text.title),
-        content: Text(text.body),
+        title: Text(text.promptTitle),
+        content: Text(text.promptBody(origin)),
         actions: [
           for (final choice in _MediaChoice.values)
-            if (choice != _MediaChoice.allow || kind.allow != null)
+            if (choice != _MediaChoice.allow || real != null)
               TextButton(
                 onPressed: () => Navigator.pop(ctx, choice),
                 child: Text(switch (choice) {
@@ -6561,36 +6538,29 @@ class _WebSpacePageState extends State<WebSpacePage>
       ),
     );
     return switch (choice) {
-      _MediaChoice.allow => kind.decision(kind.allow ?? kind.block),
-      _MediaChoice.useFile => _pickVirtualOrKeep(kind, origin, kind.ask),
-      _MediaChoice.block => kind.decision(kind.block),
-      // Dismissed: unresolved, deny this once and ask again next time.
-      null => kind.decision(kind.ask),
+      _MediaChoice.allow => (mode: real ?? kind.block, source: null),
+      _MediaChoice.useFile => await _pickVirtualOrKeep(kind, kind.ask),
+      _MediaChoice.block => (mode: kind.block, source: null),
+      null => (mode: kind.ask, source: null),
     };
   }
 
-  /// Runs the picker. On success returns a `virtual` decision carrying the
-  /// source; on cancel or error returns [fallback] with no source, so the
-  /// caller's stored mode is preserved and the request is denied this once.
-  Future<D> _pickVirtualOrKeep<M, S, D>(
-    _MediaPrompt<M, S, D> kind,
-    String origin,
+  /// Runs the picker. On success returns `virtual` with the source; on cancel
+  /// or error returns [fallback] with no source, so the stored mode survives
+  /// and the request is denied this once.
+  Future<CaptureGrant<M, S>>
+  _pickVirtualOrKeep<M extends CaptureMode, S extends VirtualSource>(
+    CaptureKind<M, S> kind,
     M fallback,
   ) async {
-    final result = await kind.pick();
+    final result = await VirtualMediaPicker.pick(kind.medium);
     if (result.source case final source?) {
-      return kind.decision(kind.virtual, source);
+      return (mode: kind.virtual, source: source);
     }
-    if (result.error case final error? when mounted) {
-      final text = kind.text(AppLocalizations.of(context), origin);
-      _toast((_) => switch (error) {
-            VirtualMediaPickError.tooLarge => text.tooLarge,
-            VirtualMediaPickError.type ||
-            VirtualMediaPickError.read =>
-              text.unreadable,
-          });
+    if (result.error case final error?) {
+      _toast((loc) => kind.text(loc).pickError(error));
     }
-    return kind.decision(fallback);
+    return (mode: fallback, source: null);
   }
 
   /// Shows a SnackBar. Built after the mounted check, so a caller past an
@@ -11015,92 +10985,6 @@ enum _ManualRepaint {
 }
 
 enum _MediaChoice { block, useFile, allow }
-
-typedef _MediaPromptText = ({
-  String title,
-  String body,
-  String useFile,
-  String tooLarge,
-  String unreadable,
-});
-
-/// How one capture kind asks: its strings, the mode each answer means, and
-/// its file picker. [M] is the kind's mode enum, [S] its picked source, [D]
-/// its decision.
-class _MediaPrompt<M, S, D> {
-  const _MediaPrompt({
-    required this.text,
-    required this.ask,
-    required this.virtual,
-    required this.block,
-    required this.allow,
-    required this.decision,
-    required this.pick,
-  });
-
-  final _MediaPromptText Function(AppLocalizations loc, String origin) text;
-  final M ask;
-  final M virtual;
-  final M block;
-
-  /// The mode "Allow" grants, or null where no mode hands over a real device:
-  /// a display capture is whole-surface, so it would carry every other site
-  /// in the webspace.
-  final M? allow;
-  final D Function(M mode, [S? source]) decision;
-  final Future<VirtualMediaPickResult<S>> Function() pick;
-}
-
-final _cameraPrompt =
-    _MediaPrompt<CameraAccessMode, VirtualCameraSource, CameraDecision>(
-  text: (loc, origin) => (
-    title: loc.homeCameraAccessTitle,
-    body: loc.homeCameraAccessBody(origin),
-    useFile: loc.homeCameraUseFileAction,
-    tooLarge: loc.homeCameraSourceTooLarge,
-    unreadable: loc.homeCameraSourceError,
-  ),
-  ask: CameraAccessMode.ask,
-  virtual: CameraAccessMode.virtual,
-  block: CameraAccessMode.block,
-  allow: CameraAccessMode.real,
-  decision: CameraDecision.new,
-  pick: VirtualCameraService.pickSource,
-);
-
-final _microphonePrompt = _MediaPrompt<MicrophoneAccessMode,
-    VirtualMicrophoneSource, MicrophoneDecision>(
-  text: (loc, origin) => (
-    title: loc.homeMicrophoneAccessTitle,
-    body: loc.homeMicrophoneAccessBody(origin),
-    useFile: loc.homeMicrophoneUseFileAction,
-    tooLarge: loc.homeMicrophoneSourceTooLarge,
-    unreadable: loc.homeMicrophoneSourceError,
-  ),
-  ask: MicrophoneAccessMode.ask,
-  virtual: MicrophoneAccessMode.virtual,
-  block: MicrophoneAccessMode.block,
-  allow: MicrophoneAccessMode.real,
-  decision: MicrophoneDecision.new,
-  pick: VirtualMicrophoneService.pickSource,
-);
-
-final _screenSharePrompt =
-    _MediaPrompt<ScreenShareMode, VirtualScreenSource, ScreenShareDecision>(
-  text: (loc, origin) => (
-    title: loc.homeScreenShareTitle,
-    body: loc.homeScreenShareBody(origin),
-    useFile: loc.homeScreenShareUseFileAction,
-    tooLarge: loc.homeScreenShareSourceTooLarge,
-    unreadable: loc.homeScreenShareSourceError,
-  ),
-  ask: ScreenShareMode.ask,
-  virtual: ScreenShareMode.virtual,
-  block: ScreenShareMode.block,
-  allow: null,
-  decision: ScreenShareDecision.new,
-  pick: VirtualScreenService.pickSource,
-);
 
 /// What a site's long-press menu in the list offers.
 enum _SiteListAction {

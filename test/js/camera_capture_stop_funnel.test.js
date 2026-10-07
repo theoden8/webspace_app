@@ -93,6 +93,7 @@ const SHIMS = [
   'lib/services/camera_stream_shim.dart',
   'lib/services/microphone_stream_shim.dart',
 ];
+const PRELUDE = 'lib/services/capture_shim_prelude.dart';
 const REGISTRY = 'lib/services/capture_track_registry.dart';
 
 test(`${REGISTRY} is the only definer of __wsStopRealCapture`, () => {
@@ -101,11 +102,16 @@ test(`${REGISTRY} is the only definer of __wsStopRealCapture`, () => {
     'a second definer would clobber the first depending on injection order');
 });
 
+test(`${PRELUDE} embeds the shared registry`, () => {
+  assert.match(read(PRELUDE), /buildRealCaptureRegistry\(\)/,
+    'every capture shim reaches the registry through the shared prelude');
+});
+
 for (const shim of SHIMS) {
   test(`${shim}: device streams go through the shared registry`, () => {
     const shimSrc = read(shim);
-    assert.match(shimSrc, /buildRealCaptureRegistry\(\)/,
-      'the shim must embed the shared registry rather than roll its own');
+    assert.match(shimSrc, /captureShim\(CaptureKind\./,
+      'the shim must be built on the shared prelude rather than roll its own');
     assert.match(shimSrc, /rememberRealTracks\(/,
       'a stream this shim obtained from the platform must be registered, or '
         + 'the deactivation stop cannot end it');

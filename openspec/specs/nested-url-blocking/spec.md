@@ -286,7 +286,7 @@ webview reports (BUG-024)
 
 #### Scenario: A forced camera block survives the hop
 
-**Given** an archive-tier site (`effectiveCameraMode == block`)
+**Given** an archive-tier site (its effective camera mode is `block`)
 **When** it opens an outbound link and that page calls `getUserMedia`
 **Then** the nested screen's in-memory mode starts at `block`
 **And** no permission popup and no OS camera prompt appear

@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_permissions.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
 
@@ -20,12 +18,11 @@ SitePermissionValues _values({
 }) =>
     SitePermissionValues(
       archived: archived,
-      cameraMode: camera,
-      virtualCameraSource: null,
-      microphoneMode: microphone,
-      virtualMicrophoneSource: null,
-      screenShareMode: screenShare,
-      virtualScreenSource: null,
+      captures: CaptureGrants(
+        camera: (mode: camera, source: null),
+        microphone: (mode: microphone, source: null),
+        screenShare: (mode: screenShare, source: null),
+      ),
       notificationsEnabled: notifications,
       backgroundAudioEnabled: false,
       protectedContentAllowed: protectedContent,
@@ -141,7 +138,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Always block'));
     await tester.pumpAndSettle();
-    expect(reported?.cameraMode, CameraAccessMode.block);
+    expect(reported?.captures.camera.mode, CameraAccessMode.block);
   });
 
   testWidgets('timezone sits inside the location sheet, not in the list',

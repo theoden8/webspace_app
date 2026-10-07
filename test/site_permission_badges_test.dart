@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
+import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'helpers/localized.dart';
@@ -23,9 +22,11 @@ WebViewModel site({
     WebViewModel(
       initUrl: 'https://example.com',
       locationMode: locationMode,
-      cameraMode: cameraMode,
-      microphoneMode: microphoneMode,
-      screenShareMode: screenShareMode,
+      captures: CaptureGrants(
+        camera: (mode: cameraMode, source: null),
+        microphone: (mode: microphoneMode, source: null),
+        screenShare: (mode: screenShareMode, source: null),
+      ),
       notificationsEnabled: notificationsEnabled,
       protectedContentAllowed: protectedContentAllowed,
       trackingProtectionEnabled: trackingProtectionEnabled,
@@ -44,6 +45,16 @@ WebViewModel everyGrant({bool isArchiveTier = false}) => site(
       backgroundAudioEnabled: true,
       isArchiveTier: isArchiveTier,
     );
+
+const _realCamera = CaptureBadge(CaptureKind.camera, CameraAccessMode.real);
+const _virtualCamera =
+    CaptureBadge(CaptureKind.camera, CameraAccessMode.virtual);
+const _realMicrophone =
+    CaptureBadge(CaptureKind.microphone, MicrophoneAccessMode.real);
+const _virtualMicrophone =
+    CaptureBadge(CaptureKind.microphone, MicrophoneAccessMode.virtual);
+const _virtualScreenShare =
+    CaptureBadge(CaptureKind.screenShare, ScreenShareMode.virtual);
 
 void main() {
   group('sitePermissionBadges (PERMBADGE-001)', () {
@@ -68,25 +79,25 @@ void main() {
 
     test('each grant maps to its badge', () {
       expect(sitePermissionBadges(site(locationMode: LocationMode.live)),
-          [SitePermissionBadge.realLocation]);
+          [GrantBadge.realLocation]);
       expect(sitePermissionBadges(site(locationMode: LocationMode.spoof)),
-          [SitePermissionBadge.spoofLocation]);
+          [GrantBadge.spoofLocation]);
       expect(sitePermissionBadges(site(cameraMode: CameraAccessMode.real)),
-          [SitePermissionBadge.realCamera]);
+          [_realCamera]);
       expect(sitePermissionBadges(site(cameraMode: CameraAccessMode.virtual)),
-          [SitePermissionBadge.virtualCamera]);
+          [_virtualCamera]);
       expect(
           sitePermissionBadges(
               site(microphoneMode: MicrophoneAccessMode.virtual)),
-          [SitePermissionBadge.virtualMicrophone]);
+          [_virtualMicrophone]);
       expect(sitePermissionBadges(site(backgroundAudioEnabled: true)),
-          [SitePermissionBadge.backgroundAudio]);
+          [GrantBadge.backgroundAudio]);
       expect(sitePermissionBadges(site(notificationsEnabled: true)),
-          [SitePermissionBadge.notifications]);
+          [GrantBadge.notifications]);
       expect(
           sitePermissionBadges(site(protectedContentAllowed: true),
               protectedContentApplies: true),
-          [SitePermissionBadge.protectedContent]);
+          [GrantBadge.protectedContent]);
     });
 
     test('protected content is badged only where the host consults it', () {
@@ -121,22 +132,22 @@ void main() {
         backgroundAudioEnabled: true,
       );
       expect(sitePermissionBadges(model), [
-        SitePermissionBadge.realLocation,
-        SitePermissionBadge.realCamera,
-        SitePermissionBadge.virtualMicrophone,
-        SitePermissionBadge.backgroundAudio,
+        GrantBadge.realLocation,
+        _realCamera,
+        _virtualMicrophone,
+        GrantBadge.backgroundAudio,
       ]);
     });
 
     test('every grant surfaces in the Permissions row order', () {
       expect(sitePermissionBadges(everyGrant(), protectedContentApplies: true), [
-        SitePermissionBadge.realLocation,
-        SitePermissionBadge.realCamera,
-        SitePermissionBadge.realMicrophone,
-        SitePermissionBadge.virtualScreenShare,
-        SitePermissionBadge.notifications,
-        SitePermissionBadge.protectedContent,
-        SitePermissionBadge.backgroundAudio,
+        GrantBadge.realLocation,
+        _realCamera,
+        _realMicrophone,
+        _virtualScreenShare,
+        GrantBadge.notifications,
+        GrantBadge.protectedContent,
+        GrantBadge.backgroundAudio,
       ]);
     });
 
@@ -152,14 +163,21 @@ void main() {
       expect(sitePermissionBadges(model, protectedContentApplies: true),
           isEmpty);
       // Stored intent survives for when the site leaves the archive.
-      expect(model.cameraMode, CameraAccessMode.real);
-      expect(model.microphoneMode, MicrophoneAccessMode.virtual);
+      expect(model.captures.camera.mode, CameraAccessMode.real);
+      expect(model.captures.microphone.mode, MicrophoneAccessMode.virtual);
     });
 
     test('no two badges share a glyph', () {
-      final icons =
-          SitePermissionBadge.values.map(sitePermissionBadgeIcon).toSet();
-      expect(icons, hasLength(SitePermissionBadge.values.length));
+      final every = <SitePermissionBadge>[
+        ...GrantBadge.values,
+        for (final kind in CaptureKind.values)
+          for (final mode in kind.modes)
+            if (mode.state == SitePermissionState.allowed ||
+                mode.state == SitePermissionState.simulated)
+              CaptureBadge(kind, mode),
+      ];
+      final icons = every.map(sitePermissionBadgeIcon).toSet();
+      expect(icons, hasLength(every.length));
     });
   });
 
@@ -181,7 +199,7 @@ void main() {
       )));
       expect(find.byType(Icon), findsNWidgets(4));
       expect(
-          find.byIcon(sitePermissionBadgeIcon(SitePermissionBadge.realCamera)),
+          find.byIcon(sitePermissionBadgeIcon(_realCamera)),
           findsOneWidget);
     });
 
@@ -194,9 +212,9 @@ void main() {
       final context = tester.element(find.byType(SitePermissionBadges));
       final scheme = Theme.of(context).colorScheme;
       final real = tester.widget<Icon>(find
-          .byIcon(sitePermissionBadgeIcon(SitePermissionBadge.realCamera)));
+          .byIcon(sitePermissionBadgeIcon(_realCamera)));
       final simulated = tester.widget<Icon>(find.byIcon(
-          sitePermissionBadgeIcon(SitePermissionBadge.virtualMicrophone)));
+          sitePermissionBadgeIcon(_virtualMicrophone)));
       expect(real.color, scheme.error);
       expect(simulated.color, scheme.onSurfaceVariant);
     });
@@ -207,7 +225,7 @@ void main() {
       final context = tester.element(find.byType(SitePermissionBadges));
       final icon = tester.widget<Icon>(find.byType(Icon));
       expect(icon.icon,
-          sitePermissionBadgeIcon(SitePermissionBadge.notifications));
+          sitePermissionBadgeIcon(GrantBadge.notifications));
       expect(icon.color, Theme.of(context).colorScheme.error);
     });
 
@@ -220,7 +238,7 @@ void main() {
       expect(icon.semanticLabel,
           '${loc.siteSettingsCameraAccess}: ${loc.siteSettingsCameraAccessAllow}');
       expect(icon.semanticLabel,
-          sitePermissionBadgeLabel(loc, SitePermissionBadge.realCamera));
+          sitePermissionBadgeLabel(loc, _realCamera));
     });
   });
 

@@ -11,11 +11,11 @@
 // gate: there was nothing it could get wrong. It now grants, and every clause
 // that makes granting safe is easy to delete without failing a single test:
 //
-//   - it must ask the RESOLVER, not read a mode off a model. The resolver is
+//   - it must ask the GRANT STORE, not read a mode off a model. The store is
 //     what applies the on-screen gate (MIC-011) and the archive-tier fold
-//     (MIC-006); a branch that read `microphoneMode` directly would grant a
-//     backgrounded or archived site and every existing test would stay green.
-//   - it must require `MicrophoneAccessMode.real`, not merely a decision.
+//     (MIC-006); a branch that read the stored captures directly would grant
+//     a backgrounded or archived site and every existing test would stay green.
+//   - it must require a mode that opens the device, not merely a decision.
 //   - it must hold the app-level permission (MIC-015), or Android's
 //     `PermissionRequest.grant()` fails silently and the page sees a dead
 //     track instead of a denial.
@@ -35,28 +35,34 @@ const src = read(SRC);
 // The handler body, comments removed. `onPermissionRequest:` opens with a
 // ternary guard, so the block starts at the `async {` of the callback.
 const handler = code(
-  blockAfter(src, 'onPermissionRequest: ((', '(controller, request) async {', SRC));
+  blockAfter(src, 'onPermissionRequest: grants == null', '(controller, request) async {', SRC));
 
 // The microphone branch: from the `wantsMicrophone` test to the end of the
 // `if` that answers it.
 const micBranch = blockAfter(handler, 'if (wantsMicrophone || wantsBoth)', null,
   `${SRC} microphone branch`);
 
-test(`${SRC}: the microphone grant goes through the resolver`, () => {
-  assert.match(micBranch, /config\.onMicrophoneDecision!\(/,
-    'the branch must ask the resolver, which is what applies the on-screen '
+// How the branch asks: one helper over the store, shared with the camera path.
+const helperAt = handler.indexOf('Future<bool> opensDevice(');
+assert.notEqual(helperAt, -1, `${SRC}: opensDevice is gone`);
+const opensDevice = handler.slice(helperAt, handler.indexOf(';', helperAt));
+
+test(`${SRC}: a device grant goes through the grant store`, () => {
+  assert.match(opensDevice, /grants\.capture\(kind, origin/,
+    'the branch must ask the store, which is what applies the on-screen '
       + 'gate (MIC-011) and the archive-tier fold (MIC-006)');
-  assert.doesNotMatch(micBranch, /\bmicrophoneMode\b/,
-    'reading the stored mode directly bypasses both gates');
+  assert.match(micBranch, /opensDevice\(\s*CaptureKind\.microphone/);
+  assert.doesNotMatch(handler, /\.captures\b/,
+    'reading the stored captures directly bypasses both gates');
 });
 
-test(`${SRC}: a microphone grant requires the real mode`, () => {
-  assert.match(micBranch, /MicrophoneAccessMode\.real/,
+test(`${SRC}: a microphone grant requires a mode that opens the device`, () => {
+  assert.match(opensDevice, /opensRealDevice\(/,
     'GRANT must be conditioned on the decision being `real`');
   const grantIdx = micBranch.indexOf('PermissionResponseAction.GRANT');
   assert.notEqual(grantIdx, -1, 'the branch must still be able to grant');
   assert.ok(
-    micBranch.indexOf('MicrophoneAccessMode.real') < grantIdx,
+    micBranch.indexOf('opensDevice(') < grantIdx,
     'the mode check must precede the grant',
   );
 });
@@ -72,7 +78,7 @@ test(`${SRC}: the combined resource needs the camera to be real too`, () => {
   // block, virtual or ask.
   assert.match(micBranch, /wantsBoth/,
     'the branch must distinguish CAMERA_AND_MICROPHONE from MICROPHONE');
-  assert.match(micBranch, /CameraAccessMode\.real/,
+  assert.match(micBranch, /if \(granted && wantsBoth\) \{\s*granted = await opensDevice\(CaptureKind\.camera/,
     'a combined grant must also require the camera decision to be real');
 });
 

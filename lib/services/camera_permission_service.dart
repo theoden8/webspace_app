@@ -13,7 +13,7 @@ import 'package:webspace/services/log_service.dart';
 /// gate, so those platforms report granted here and let the OS handle it.
 ///
 /// The result is deliberately not persisted anywhere: per-site intent lives
-/// on the model (`cameraMode` / `microphoneMode`), while the OS-level state is
+/// on the model (`WebViewModel.captures`), while the OS-level state is
 /// re-checked on every page request, so a permission revoked in system
 /// settings stops the next request and one granted later starts working,
 /// without the user touching the site setting (CAM/MIC-015).

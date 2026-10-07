@@ -11,13 +11,11 @@ library;
 import 'package:meta/meta.dart';
 
 import 'package:webspace/settings/blocked_cookie.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/http_auth_memory.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/user_script.dart';
 
 /// The store the site binds and what it keeps there.
@@ -69,12 +67,7 @@ typedef SiteLocation = ({
 });
 
 /// Capture and DRM decisions, as the site has settled them.
-typedef SiteMedia = ({
-  ({CameraAccessMode mode, VirtualCameraSource? source}) camera,
-  ({MicrophoneAccessMode mode, VirtualMicrophoneSource? source}) microphone,
-  ({ScreenShareMode mode, VirtualScreenSource? source}) screenShare,
-  bool? protectedContent,
-});
+typedef SiteMedia = ({CaptureGrants capture, bool? protectedContent});
 
 /// How pages are run and presented.
 typedef SitePage = ({
@@ -119,21 +112,7 @@ final class SitePosture {
     location: location,
     page: page,
     media: (
-      camera: (
-        mode: switch (media.camera.mode) {
-          CameraAccessMode.real => CameraAccessMode.ask,
-          final mode => mode,
-        },
-        source: media.camera.source,
-      ),
-      microphone: (
-        mode: switch (media.microphone.mode) {
-          MicrophoneAccessMode.real => MicrophoneAccessMode.ask,
-          final mode => mode,
-        },
-        source: media.microphone.source,
-      ),
-      screenShare: media.screenShare,
+      capture: media.capture.withoutRealGrants(),
       protectedContent: media.protectedContent,
     ),
   );

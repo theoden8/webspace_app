@@ -1,325 +1,131 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
+import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/web_view_model.dart';
 
-/// Drives the wiring a real `WebViewModel` hands to `WebViewConfig`, rather
-/// than an engine with a fake host.
+import 'helpers/capture_fakes.dart';
+
+/// Drives the store `getWebView` hands a site's own webview: a
+/// [PersistedGrantStore] over the real `WebViewModel`, rather than the engine
+/// over in-memory storage.
 ///
-/// The engine tests prove the gate; they cannot prove this model reaches it
-/// correctly. Wire `isActive` to the wrong thing — or to a bare `true` to
-/// make something compile — and every engine test still passes while a
-/// backgrounded site prompts (CAM-011 / MIC-011 / SHARE-011). These call the
-/// model's own resolvers, which is what `getWebView` installs into the config.
-
-const _camSrc = VirtualCameraSource(
-  kind: 'image',
-  dataUrl: 'data:image/png;base64,AAAA',
-  fileName: 'qr.png',
+/// The engine tests prove the gate; they cannot prove the model reads and
+/// records through it correctly. Read the stored captures instead of the
+/// effective ones and an archived site prompts (CAM-006 / MIC-006 /
+/// SHARE-006); record onto the effective view and its stored intent is lost.
+GrantStore _store(
+  WebViewModel model, {
+  MediaPrompter? prompter,
+  bool Function()? isActive,
+  void Function()? onSave,
+}) => PersistedGrantStore(
+  model,
+  prompter: prompter ?? FakePrompter(),
+  isSiteActive: isActive ?? () => true,
+  save: () async => onSave?.call(),
 );
-const _micSrc = VirtualMicrophoneSource(
-  dataUrl: 'data:audio/mpeg;base64,AAAA',
-  fileName: 'tone.mp3',
-);
-const _screenSrc = VirtualScreenSource(
-  kind: 'image',
-  dataUrl: 'data:image/png;base64,AAAA',
-  fileName: 'slide.png',
-);
-
-WebViewModel _site({
-  CameraAccessMode camera = CameraAccessMode.ask,
-  MicrophoneAccessMode microphone = MicrophoneAccessMode.ask,
-  ScreenShareMode screenShare = ScreenShareMode.ask,
-  bool archived = false,
-}) =>
-    WebViewModel(
-      initUrl: 'https://bank.example',
-      cameraMode: camera,
-      virtualCameraSource: camera == CameraAccessMode.virtual ? _camSrc : null,
-      microphoneMode: microphone,
-      virtualMicrophoneSource:
-          microphone == MicrophoneAccessMode.virtual ? _micSrc : null,
-      screenShareMode: screenShare,
-      virtualScreenSource:
-          screenShare == ScreenShareMode.virtual ? _screenSrc : null,
-      isArchiveTier: archived,
-    );
 
 void main() {
-  group('WebViewModel.resolveCameraRequest', () {
-    test('a backgrounded site is denied without prompting (CAM-011)', () async {
-      for (final mode in CameraAccessMode.values) {
-        final model = _site(camera: mode);
+  const origin = 'https://site.example';
+
+  for (final kind in CaptureKind.values) {
+    group('PersistedGrantStore for $kind', () {
+      test('a backgrounded site is denied without prompting', () async {
+        for (final mode in kind.modes) {
+          final model = siteWith(kind, mode, withSource: true);
+          var saves = 0;
+          final grant = await _store(
+            model,
+            isActive: () => false,
+            onSave: () => saves++,
+          ).capture(kind, origin, isTopFrame: true);
+          expect(grant.toBridgeJson(), {'mode': 'block'}, reason: '$mode');
+          expect(kind.grantOf(model.captures).mode, mode,
+              reason: 'stored decision left intact');
+          expect(saves, 0);
+        }
+      });
+
+      test('the active site resolves, persists and saves', () async {
+        final model = siteWith(kind, kind.ask);
         var saves = 0;
-        final d = await model.resolveCameraRequest(
-          'https://bank.example',
-          resolver: (_, _) async => fail('a background site must not prompt'),
-          isActive: () => false,
-          isTopFrame: true,
-          saveFunc: () => saves++,
-        );
-        expect(d.mode, CameraAccessMode.block, reason: 'stored mode $mode');
-        expect(model.cameraMode, mode, reason: 'stored decision left intact');
-        expect(saves, 0);
-      }
-    });
+        final grant = await _store(
+          model,
+          prompter: FakePrompter((_, _, _) => Answer.useFile),
+          onSave: () => saves++,
+        ).capture(kind, origin, isTopFrame: true);
+        expect(grant.mode, kind.virtual);
+        expect(kind.grantOf(model.captures),
+            (mode: kind.virtual, source: pickedFor(kind)));
+        expect(saves, 1);
+      });
 
-    test('the active site resolves and persists normally', () async {
-      final model = _site();
-      var saves = 0;
-      final d = await model.resolveCameraRequest(
-        'https://bank.example',
-        resolver: (_, _) async => const CameraDecision(CameraAccessMode.real),
-        isActive: () => true,
-        isTopFrame: true,
-        saveFunc: () => saves++,
-      );
-      expect(d.mode, CameraAccessMode.real);
-      expect(model.cameraMode, CameraAccessMode.real);
-      expect(saves, 1);
-    });
+      test('the archive-tier fold survives the wiring (CAM-006 / MIC-006 / '
+          'SHARE-006)', () async {
+        final model =
+            siteWith(kind, kind.virtual, withSource: true, archived: true);
+        final store = _store(model);
+        expect((await store.capture(kind, origin, isTopFrame: true)).mode,
+            kind.block);
+        expect(store.mode(kind), kind.block,
+            reason: 'enumerateDevices reads the folded mode too');
+        expect(kind.grantOf(model.captures).mode, kind.virtual,
+            reason: 'preserved for when the site leaves the archive');
+      });
 
-    test('a site with no activity predicate counts as active', () async {
-      final model = _site(camera: CameraAccessMode.real);
-      final d = await model.resolveCameraRequest(
-        'https://bank.example',
-        resolver: (_, _) async => fail('a settled mode must not prompt'),
-        isActive: null,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(d.mode, CameraAccessMode.real);
+      test('the activity predicate is read per request', () async {
+        var active = true;
+        final store = _store(siteWith(kind, kind.virtual, withSource: true),
+            isActive: () => active);
+        expect((await store.capture(kind, origin, isTopFrame: true)).mode,
+            kind.virtual);
+        active = false;
+        expect((await store.capture(kind, origin, isTopFrame: true)).mode,
+            kind.block);
+      });
     });
+  }
 
-    test('the archive-tier fold survives the wiring (CAM-006)', () async {
-      final model = _site(camera: CameraAccessMode.virtual, archived: true);
-      final d = await model.resolveCameraRequest(
-        'https://bank.example',
-        resolver: (_, _) async => fail('an archive site must not prompt'),
-        isActive: () => true,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(d.mode, CameraAccessMode.block);
-      expect(model.cameraMode, CameraAccessMode.virtual,
-          reason: 'preserved for when the site leaves the archive');
-    });
+  test('a stored real microphone settles without prompting (MIC-001)',
+      () async {
+    var saves = 0;
+    final grant = await _store(
+      siteWith(CaptureKind.microphone, MicrophoneAccessMode.real),
+      onSave: () => saves++,
+    ).capture(CaptureKind.microphone, origin, isTopFrame: true);
+    expect(grant.toBridgeJson(), {'mode': 'real'});
+    expect(saves, 0, reason: 'nothing changed, so nothing to persist');
   });
 
-  group('WebViewModel.resolveMicrophoneRequest', () {
-    test('a backgrounded site is denied without prompting (MIC-011)', () async {
-      for (final mode in MicrophoneAccessMode.values) {
-        final model = _site(microphone: mode);
-        var saves = 0;
-        final d = await model.resolveMicrophoneRequest(
-          'https://meet.example',
-          resolver: (_, _) async => fail('a background site must not prompt'),
-          isActive: () => false,
-          isTopFrame: true,
-          saveFunc: () => saves++,
-        );
-        expect(d.mode, MicrophoneAccessMode.block, reason: 'stored mode $mode');
-        expect(model.microphoneMode, mode,
-            reason: 'stored decision left intact');
-        expect(saves, 0);
-      }
-    });
-
-    test('the active site resolves and persists normally', () async {
-      final model = _site();
-      var saves = 0;
-      final d = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async =>
-            const MicrophoneDecision(MicrophoneAccessMode.virtual, _micSrc),
-        isActive: () => true,
-        isTopFrame: true,
-        saveFunc: () => saves++,
-      );
-      expect(d.mode, MicrophoneAccessMode.virtual);
-      expect(model.microphoneMode, MicrophoneAccessMode.virtual);
-      expect(model.virtualMicrophoneSource?.fileName, 'tone.mp3');
-      expect(saves, 1);
-    });
-
-    test('a stored real grant settles without prompting (MIC-001)', () async {
-      final model = _site(microphone: MicrophoneAccessMode.real);
-      var saves = 0;
-      final d = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('a settled mode must not prompt'),
-        isActive: () => true,
-        isTopFrame: true,
-        saveFunc: () => saves++,
-      );
-      expect(d.mode, MicrophoneAccessMode.real);
-      expect(d.toBridgeJson(), {'mode': 'real'});
-      expect(saves, 0, reason: 'nothing changed, so nothing to persist');
-    });
-
-    test('a backgrounded real grant does not open the device (MIC-011)',
-        () async {
-      // The sharpest case of the background rule now that a device exists:
-      // without the gate this would start recording behind another site's
-      // page, with nothing on screen to attribute it to.
-      final model = _site(microphone: MicrophoneAccessMode.real);
-      final d = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('a background site must not prompt'),
-        isActive: () => false,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(d.mode, MicrophoneAccessMode.block);
-      expect(model.microphoneMode, MicrophoneAccessMode.real);
-    });
-
-    test('an archive-tier real grant is folded away (MIC-006)', () async {
-      final model = _site(microphone: MicrophoneAccessMode.real, archived: true);
-      final d = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('an archive site must not prompt'),
-        isActive: () => true,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(d.mode, MicrophoneAccessMode.block);
-      expect(model.microphoneMode, MicrophoneAccessMode.real,
-          reason: 'preserved for when the site leaves the archive');
-    });
-
-    test('a site with no activity predicate counts as active', () async {
-      final model = _site(microphone: MicrophoneAccessMode.virtual);
-      final d = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('a settled mode must not prompt'),
-        isActive: null,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(d.mode, MicrophoneAccessMode.virtual);
-      expect(d.source?.fileName, 'tone.mp3');
-    });
-
-    test('the archive-tier fold survives the wiring (MIC-006)', () async {
-      final model = _site(microphone: MicrophoneAccessMode.virtual, archived: true);
-      final d = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('an archive site must not prompt'),
-        isActive: () => true,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(d.mode, MicrophoneAccessMode.block);
-      expect(model.microphoneMode, MicrophoneAccessMode.virtual,
-          reason: 'preserved for when the site leaves the archive');
-    });
-
-    test('a backgrounded site is denied even mid-switch, per request',
-        () async {
-      // The activity predicate is read at decide() time, not captured once:
-      // a site that loses focus between two requests must flip to denied.
-      var active = true;
-      final model = _site(microphone: MicrophoneAccessMode.virtual);
-      final first = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('a settled mode must not prompt'),
-        isActive: () => active,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(first.mode, MicrophoneAccessMode.virtual);
-      active = false;
-      final second = await model.resolveMicrophoneRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('a background site must not prompt'),
-        isActive: () => active,
-        isTopFrame: true,
-        saveFunc: () {},
-      );
-      expect(second.mode, MicrophoneAccessMode.block);
-    });
+  test('no answer can produce a real-display grant (SHARE-001)', () async {
+    // The host UI is the only thing that could widen this, and it has no
+    // value to widen it to: every answer maps to a payload the shim reads as
+    // "serve a file" or "deny".
+    for (final answer in Answer.values) {
+      final grant = await _store(
+        siteWith(CaptureKind.screenShare, ScreenShareMode.ask),
+        prompter: FakePrompter((_, _, _) => answer),
+      ).capture(CaptureKind.screenShare, origin, isTopFrame: true);
+      expect(grant.toBridgeJson()['mode'], isIn(['virtual', 'block']),
+          reason: answer.name);
+    }
   });
 
-  group('WebViewModel.resolveScreenShareRequest', () {
-    test('a backgrounded site is denied without prompting (SHARE-011)',
-        () async {
-      for (final mode in ScreenShareMode.values) {
-        final model = _site(screenShare: mode);
-        var saves = 0;
-        final d = await model.resolveScreenShareRequest(
-          'https://meet.example',
-          resolver: (_, _) async => fail('a background site must not prompt'),
-          isActive: () => false,
-          saveFunc: () => saves++,
-        );
-        expect(d.mode, ScreenShareMode.block, reason: 'stored mode $mode');
-        expect(model.screenShareMode, mode,
-            reason: 'stored decision left intact');
-        expect(saves, 0);
-      }
-    });
+  test('a protected-content answer is recorded on the model and saved',
+      () async {
+    final model =
+        WebViewModel(initUrl: origin, trackingProtectionEnabled: false);
+    var saves = 0;
+    final store = _store(model,
+        prompter: FakePrompter()..drmAnswer = true, onSave: () => saves++);
+    expect(await store.protectedContent(origin), isTrue);
+    expect(model.protectedContentAllowed, isTrue);
+    expect(saves, 1);
+  });
 
-    test('the active site resolves and persists normally', () async {
-      final model = _site();
-      var saves = 0;
-      final d = await model.resolveScreenShareRequest(
-        'https://meet.example',
-        resolver: (_, _) async =>
-            const ScreenShareDecision(ScreenShareMode.virtual, _screenSrc),
-        isActive: () => true,
-        saveFunc: () => saves++,
-      );
-      expect(d.mode, ScreenShareMode.virtual);
-      expect(model.screenShareMode, ScreenShareMode.virtual);
-      expect(model.virtualScreenSource?.fileName, 'slide.png');
-      expect(saves, 1);
-    });
-
-    test('a site with no activity predicate counts as active', () async {
-      final model = _site(screenShare: ScreenShareMode.virtual);
-      final d = await model.resolveScreenShareRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('a settled mode must not prompt'),
-        isActive: null,
-        saveFunc: () {},
-      );
-      expect(d.mode, ScreenShareMode.virtual);
-      expect(d.source?.fileName, 'slide.png');
-    });
-
-    test('the archive-tier fold survives the wiring (SHARE-006)', () async {
-      final model =
-          _site(screenShare: ScreenShareMode.virtual, archived: true);
-      final d = await model.resolveScreenShareRequest(
-        'https://meet.example',
-        resolver: (_, _) async => fail('an archive site must not prompt'),
-        isActive: () => true,
-        saveFunc: () {},
-      );
-      expect(d.mode, ScreenShareMode.block);
-      expect(model.screenShareMode, ScreenShareMode.virtual,
-          reason: 'preserved for when the site leaves the archive');
-    });
-
-    test('no resolver answer can produce a real-display grant (SHARE-001)',
-        () async {
-      // The host UI is the only thing that could widen this, and it has no
-      // value to widen it to: every mode the resolver can return maps to a
-      // bridge payload the shim reads as "serve a file" or "deny".
-      for (final mode in ScreenShareMode.values) {
-        final model = _site();
-        final d = await model.resolveScreenShareRequest(
-          'https://meet.example',
-          resolver: (_, _) async => ScreenShareDecision(mode, _screenSrc),
-          isActive: () => true,
-          saveFunc: () {},
-        );
-        expect(d.toBridgeJson()['mode'], isIn(['virtual', 'block']),
-            reason: mode.name);
-      }
-    });
+  test('Tracking Protection denies protected content without a popup', () async {
+    final model = WebViewModel(initUrl: origin, trackingProtectionEnabled: true)
+      ..protectedContentAllowed = true;
+    expect(await _store(model).protectedContent(origin), isFalse);
   });
 }

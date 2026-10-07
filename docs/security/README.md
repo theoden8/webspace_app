@@ -70,8 +70,8 @@ Most 2026-09 findings were one of four shapes. Grep for these before anything el
 
 - **Raw field where the effective getter belongs**: `model.incognito`,
   `proxySettings.type == ProxyType.TOR`, `cameraMode` passed where
-  `effectiveIncognito`, `resolveEffectiveProxy(...)`, `effectiveCameraMode` was
-  meant. Every webview surface is now built from the `SitePosture` that
+  `effectiveIncognito`, `resolveEffectiveProxy(...)`, `effectiveCameraMode`
+  (now `effectiveCaptures`) was meant. Every webview surface is now built from the `SitePosture` that
   `WebViewModel.sitePosture` resolves, which
   `test/js/effective_getter_boundary.test.js` scans; a raw read elsewhere (the
   misses were in `lib/main.dart`) is still found only by grepping.

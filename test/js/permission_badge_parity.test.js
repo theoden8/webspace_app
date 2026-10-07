@@ -25,17 +25,29 @@ function functionBody(source, signature) {
   throw new Error(`${signature} is unterminated`);
 }
 
+const CAPTURE_LOOP = 'for (final kind in CaptureKind.values)';
+
 test('every capability in the Permissions row has a drawer badge', () => {
   const row = functionBody(read('lib/screens/settings.dart'), 'Widget _buildPermissionsRow()');
   const entries = row.slice(0, row.indexOf('final held'));
   const rowLabels = [...entries.matchAll(/loc\.(siteSettings\w+)/g)].map((m) => m[1]);
-  assert.ok(rowLabels.length >= 6, `expected the row's capabilities, found ${rowLabels}`);
+  assert.ok(rowLabels.length >= 3, `expected the row's capabilities, found ${rowLabels}`);
 
-  const badges = functionBody(
-    read('lib/widgets/site_permission_badges.dart'),
-    'String sitePermissionBadgeLabel(',
-  );
+  const badgeFile = read('lib/widgets/site_permission_badges.dart');
+  const badges = functionBody(badgeFile, 'String sitePermissionBadgeLabel(');
   const badgeLabels = new Set([...badges.matchAll(/loc\.(siteSettings\w+)/g)].map((m) => m[1]));
+
+  // Capture kinds reach both through CaptureKind, so a new kind is badged by
+  // construction; what is left to check is that both still loop over it.
+  assert.ok(entries.includes(CAPTURE_LOOP), 'the row no longer lists the capture kinds');
+  const held = badgeFile.slice(
+    badgeFile.indexOf('List<SitePermissionBadge> sitePermissionBadges('),
+    badgeFile.indexOf('bool _isRealDeviceAccess('),
+  );
+  assert.ok(
+    held.includes(CAPTURE_LOOP),
+    'the row lists every capture kind, so the drawer must badge every one',
+  );
 
   const missing = rowLabels.filter((l) => !badgeLabels.has(l));
   assert.deepEqual(

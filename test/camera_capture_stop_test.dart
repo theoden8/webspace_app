@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/web_view_model.dart';
 import 'helpers/fake_webview_controller.dart';
 
@@ -8,14 +8,16 @@ WebViewModel _model(
   WebViewController? controller, {
   bool notificationsEnabled = false,
   bool backgroundAudioEnabled = false,
-  CameraAccessMode cameraMode = CameraAccessMode.real,
+  CameraAccessMode camera = CameraAccessMode.real,
 }) {
   final m = WebViewModel(
     initUrl: 'https://bank.example',
     name: 'Bank',
     notificationsEnabled: notificationsEnabled,
     backgroundAudioEnabled: backgroundAudioEnabled,
-    cameraMode: cameraMode,
+    captures: CaptureGrants.none.copyWith(
+      camera: (mode: camera, source: null),
+    ),
   );
   m.controller = controller;
   return m;
@@ -68,7 +70,7 @@ void main() {
       // from before the mode changed, and only the shim knows which tracks
       // are synthetic.
       final c = FakeWebViewController();
-      await _model(c, cameraMode: CameraAccessMode.virtual)
+      await _model(c, camera: CameraAccessMode.virtual)
           .stopRealCapture();
       expect(c.evaluated, hasLength(1));
     });

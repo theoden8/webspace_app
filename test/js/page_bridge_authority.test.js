@@ -407,18 +407,20 @@ test('PASSKEY-015: a ceremony cannot hold the gate past its timeout or its page'
 
 // --- the permission prompts ----------------------------------------------
 
-test('CAM-013 / MIC-013: camera / microphone prompts name an origin read from the webview', () => {
-  for (const handler of ['webCameraRequest', 'webMicrophoneRequest']) {
-    const at = WEBVIEW.indexOf(`handlerName: '${handler}'`);
-    assert.notEqual(at, -1, `${handler} registration is gone`);
-    const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
-    assert.ok(!body.includes('args[0]'),
-      `${handler} must not take the origin from the page: the shim is ` +
-      'injected forMainFrameOnly:false, so any frame can call the handler ' +
-      'directly and name a site it is not');
-    assert.ok(body.includes('_promptOrigin(controller, config, frame: data)'),
-      `${handler} must derive the origin from the controller and the frame`);
-  }
+// Every capture kind's bridge is one registration, looped over CaptureKind.
+const CAPTURE_BRIDGE = (() => {
+  const at = WEBVIEW.indexOf('handlerName: kind.requestHandler');
+  assert.notEqual(at, -1, 'the capture bridge registration is gone');
+  return WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+})();
+
+test('CAM-013 / MIC-013: capture prompts name an origin read from the webview', () => {
+  assert.ok(!CAPTURE_BRIDGE.includes('args'),
+    'a capture bridge must not take the origin from the page: the camera and ' +
+    'microphone shims are injected forMainFrameOnly:false, so any frame can ' +
+    'call the handler directly and name a site it is not');
+  assert.ok(CAPTURE_BRIDGE.includes('_promptOrigin(controller, config, frame: data)'),
+    'a capture bridge must derive the origin from the controller and the frame');
   assert.match(WEBVIEW,
     /_promptOrigin\([\s\S]{0,400}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
     '_promptOrigin must read the live URL, falling back to the site URL');
@@ -432,30 +434,20 @@ test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
   // cross-origin frame is covered — which also puts an ad frame on the same
   // handler. `real` is the one answer that opens the device, and the popup
   // that produced it named the top document.
-  for (const handler of ['webCameraRequest', 'webMicrophoneRequest']) {
-    const at = WEBVIEW.indexOf(`handlerName: '${handler}'`);
-    const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
-    assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData data'),
-      `${handler} must use the frame-aware callback: page script can neither ` +
-      'forge isMainFrame nor call the handler around it');
-    assert.ok(body.includes('data.isMainFrame'),
-      `${handler} must hand the frame identity to the resolver`);
-  }
-  for (const [file, engine] of [
-    ['lib/services/camera_decision_engine.dart', 'CameraAccessMode'],
-    ['lib/services/microphone_decision_engine.dart', 'MicrophoneAccessMode'],
-  ]) {
-    const src = read(file);
-    assert.match(src, new RegExp(
-      `if \\(mode == ${engine}\\.real\\) \\{\\s*return isTopFrame`),
-      `${file}: a settled real mode must short-circuit only for the top document`);
-  }
-  // The answer a subframe popup produced is that request's, not the site's.
+  assert.ok(CAPTURE_BRIDGE.includes('inapp.JavaScriptHandlerFunctionData data'),
+    'a capture bridge must use the frame-aware callback: page script can ' +
+    'neither forge isMainFrame nor call the handler around it');
+  assert.ok(CAPTURE_BRIDGE.includes('isTopFrame: data.isMainFrame'),
+    'a capture bridge must hand the frame identity to the store');
   const grant = read('lib/services/media_grant_engine.dart');
-  assert.match(grant, /if \(isTopFrame\) \{\s*persist\(resolved\);/,
+  assert.match(grant, /SitePermissionState\.allowed =>\s*isTopFrame \?/,
+    'media_grant_engine.dart: a settled real mode must short-circuit only for ' +
+    'the top document');
+  // The answer a subframe popup produced is that request's, not the site's.
+  assert.match(grant, /if \(isTopFrame\) \{\s*_recordCaptures\(/,
     'media_grant_engine.dart: a subframe answer must not be written back to ' +
     'the site — one frame cannot flip the whole site to real');
-  assert.match(grant, /_inFlight\[origin\]/,
+  assert.match(grant, /final key = \(kind, origin\);[\s\S]*_inFlight\.run\(key,/,
     'media_grant_engine.dart: coalescing must be keyed by prompt origin, or a ' +
     'subframe rides the answer the user gave for the top document');
 });
@@ -493,8 +485,8 @@ test('CAM-012 / MIC-012: the capture stop is out of the page\'s reach', () => {
   assert.match(registry, /postMessage\(RELAY, '\*'\)/,
     'the stop must relay to subframes: Dart evaluates in the main frame only, ' +
     'and a subframe granted a device track holds its own registry');
-  for (const shim of ['camera_stream_shim', 'microphone_stream_shim',
-    'screen_share_shim']) {
+  for (const shim of ['capture_shim_prelude', 'camera_stream_shim',
+    'microphone_stream_shim', 'screen_share_shim']) {
     const src = read(`lib/services/${shim}.dart`);
     assert.ok(!src.includes('__wsSyntheticTracks'),
       `${shim}.dart must reach the registry through the shared block, not a global`);

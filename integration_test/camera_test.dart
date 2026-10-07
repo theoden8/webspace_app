@@ -43,7 +43,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -58,6 +58,9 @@ const int _kSourceG = 0xC8;
 const int _kSourceB = 0x7A;
 
 /// Solid-colour PNG used as the virtual camera source, as a `data:` URL.
+CaptureGrants _camera(CameraAccessMode mode, [VirtualVisualSource? source]) =>
+    CaptureGrants.none.copyWith(camera: (mode: mode, source: source));
+
 String _sourceImageDataUrl() {
   final image = img.Image(width: 320, height: 240);
   img.fill(image, color: img.ColorRgb8(_kSourceR, _kSourceG, _kSourceB));
@@ -219,7 +222,7 @@ void main() {
     });
     final base = 'http://127.0.0.1:${server!.port}';
 
-    final source = VirtualCameraSource(
+    final source = VirtualVisualSource(
       kind: 'image',
       dataUrl: _sourceImageDataUrl(),
       fileName: 'source.png',
@@ -229,31 +232,32 @@ void main() {
       siteId: 'ws-cam-virtual',
       initUrl: '$base/probe.html?site=virtual',
       name: 'CamVirtual',
-      cameraMode: CameraAccessMode.virtual,
-      virtualCameraSource: source,
+      captures: _camera(CameraAccessMode.virtual, source),
     );
     final video = WebViewModel(
       siteId: 'ws-cam-video',
       initUrl: '$base/probe.html?site=video',
       name: 'CamVideo',
-      cameraMode: CameraAccessMode.virtual,
-      virtualCameraSource: const VirtualCameraSource(
-        kind: 'video',
-        dataUrl: kVirtualCameraVideoDataUrl,
-        fileName: 'clip.webm',
+      captures: _camera(
+        CameraAccessMode.virtual,
+        const VirtualVisualSource(
+          kind: 'video',
+          dataUrl: kVirtualCameraVideoDataUrl,
+          fileName: 'clip.webm',
+        ),
       ),
     );
     final blocked = WebViewModel(
       siteId: 'ws-cam-block',
       initUrl: '$base/probe.html?site=block',
       name: 'CamBlock',
-      cameraMode: CameraAccessMode.block,
+      captures: _camera(CameraAccessMode.block),
     );
     final real = WebViewModel(
       siteId: 'ws-cam-real',
       initUrl: '$base/probe.html?site=real',
       name: 'CamReal',
-      cameraMode: CameraAccessMode.real,
+      captures: _camera(CameraAccessMode.real),
     );
 
     SharedPreferences.setMockInitialValues({

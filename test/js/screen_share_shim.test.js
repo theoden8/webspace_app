@@ -369,6 +369,18 @@ test('the simulated surface is exempt from the camera deactivation stop',
     assert.equal(track.readyState, 'live');
   });
 
+test('stopping a clone leaves the shared surface playing', async () => {
+  const { window, calls } = setupShareDom({
+    decision: { mode: 'virtual', source: VIDEO_SOURCE },
+  });
+  const stream = await window.navigator.mediaDevices.getDisplayMedia({ video: true });
+  const track = stream.getVideoTracks()[0];
+  track.clone().stop();
+  assert.equal(calls.videoPaused, undefined, 'the original still loops the clip');
+  track.stop();
+  assert.equal(calls.videoPaused, true);
+});
+
 test('stopping the track drops the repaint loop', async () => {
   const { window } = setupShareDom({
     decision: { mode: 'virtual', source: VIDEO_SOURCE },

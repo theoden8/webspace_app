@@ -3,12 +3,10 @@
 library;
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/scoped.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/user_script.dart';
 
@@ -42,29 +40,76 @@ extension WebRtcPolicyLabel on WebRtcPolicy {
   };
 }
 
-extension CameraAccessModeLabel on CameraAccessMode {
+extension CaptureModeLabel on CaptureMode {
   String label(AppLocalizations loc) => switch (this) {
     CameraAccessMode.ask => loc.siteSettingsCameraAccessAsk,
     CameraAccessMode.real => loc.siteSettingsCameraAccessAllow,
     CameraAccessMode.virtual => loc.siteSettingsCameraAccessVirtual,
     CameraAccessMode.block => loc.siteSettingsCameraAccessBlock,
-  };
-}
-
-extension MicrophoneAccessModeLabel on MicrophoneAccessMode {
-  String label(AppLocalizations loc) => switch (this) {
     MicrophoneAccessMode.ask => loc.siteSettingsMicrophoneAccessAsk,
     MicrophoneAccessMode.real => loc.siteSettingsMicrophoneAccessAllow,
     MicrophoneAccessMode.virtual => loc.siteSettingsMicrophoneAccessVirtual,
     MicrophoneAccessMode.block => loc.siteSettingsMicrophoneAccessBlock,
-  };
-}
-
-extension ScreenShareModeLabel on ScreenShareMode {
-  String label(AppLocalizations loc) => switch (this) {
     ScreenShareMode.ask => loc.siteSettingsScreenShareAsk,
     ScreenShareMode.virtual => loc.siteSettingsScreenShareVirtual,
     ScreenShareMode.block => loc.siteSettingsScreenShareBlock,
+  };
+}
+
+/// A capture kind's copy: its settings row, its first-request popup, and what
+/// the picker says about a file it cannot use.
+typedef CaptureText = ({
+  String title,
+  String hint,
+  String noSource,
+  String chooseSource,
+  String promptTitle,
+  String Function(String origin) promptBody,
+  String useFile,
+  String tooLarge,
+  String unreadable,
+  // Why the Allowed row is greyed, for a kind with no real mode.
+  String? neverReal,
+});
+
+extension CaptureKindText on CaptureKind {
+  CaptureText text(AppLocalizations loc) => switch (this) {
+    CaptureKind.camera => (
+      title: loc.siteSettingsCameraAccess,
+      hint: loc.siteSettingsCameraAccessHint,
+      noSource: loc.siteSettingsCameraAccessNoSource,
+      chooseSource: loc.siteSettingsCameraAccessChooseSource,
+      promptTitle: loc.homeCameraAccessTitle,
+      promptBody: loc.homeCameraAccessBody,
+      useFile: loc.homeCameraUseFileAction,
+      tooLarge: loc.homeCameraSourceTooLarge,
+      unreadable: loc.homeCameraSourceError,
+      neverReal: null,
+    ),
+    CaptureKind.microphone => (
+      title: loc.siteSettingsMicrophoneAccess,
+      hint: loc.siteSettingsMicrophoneAccessHint,
+      noSource: loc.siteSettingsMicrophoneAccessNoSource,
+      chooseSource: loc.siteSettingsMicrophoneAccessChooseSource,
+      promptTitle: loc.homeMicrophoneAccessTitle,
+      promptBody: loc.homeMicrophoneAccessBody,
+      useFile: loc.homeMicrophoneUseFileAction,
+      tooLarge: loc.homeMicrophoneSourceTooLarge,
+      unreadable: loc.homeMicrophoneSourceError,
+      neverReal: null,
+    ),
+    CaptureKind.screenShare => (
+      title: loc.siteSettingsScreenShare,
+      hint: loc.siteSettingsScreenShareHint,
+      noSource: loc.siteSettingsScreenShareNoSource,
+      chooseSource: loc.siteSettingsScreenShareChooseSource,
+      promptTitle: loc.homeScreenShareTitle,
+      promptBody: loc.homeScreenShareBody,
+      useFile: loc.homeScreenShareUseFileAction,
+      tooLarge: loc.homeScreenShareSourceTooLarge,
+      unreadable: loc.homeScreenShareSourceError,
+      neverReal: loc.permissionScreenShareNeverReal,
+    ),
   };
 }
 

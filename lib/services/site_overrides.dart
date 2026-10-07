@@ -4,10 +4,8 @@
 /// the webview runs with, and each rule is stated once.
 library;
 
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
 
 /// What Tracking Protection holds a subordinate setting at while it is on.
 /// The stored value survives underneath, so turning the umbrella off restores
@@ -41,20 +39,12 @@ enum TrackingProtectionForce {
 /// disk outside the archive's keyspace. Each fold keeps the stored value for
 /// when the site leaves the archive.
 abstract final class ArchiveFold {
-  static CameraAccessMode camera(
-    CameraAccessMode stored, {
+  /// The capture popups, the file picker and Android's OS permission dialog
+  /// are OS-level UI, so every kind is blocked without prompting.
+  static CaptureGrants captures(
+    CaptureGrants stored, {
     required bool archived,
-  }) => archived ? CameraAccessMode.block : stored;
-
-  static MicrophoneAccessMode microphone(
-    MicrophoneAccessMode stored, {
-    required bool archived,
-  }) => archived ? MicrophoneAccessMode.block : stored;
-
-  static ScreenShareMode screenShare(
-    ScreenShareMode stored, {
-    required bool archived,
-  }) => archived ? ScreenShareMode.block : stored;
+  }) => archived ? stored.blocked() : stored;
 
   static bool notifications(bool stored, {required bool archived}) =>
       stored && !archived;

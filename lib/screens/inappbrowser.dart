@@ -7,10 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
-import 'package:webspace/services/camera_decision_engine.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
-import 'package:webspace/services/microphone_decision_engine.dart';
-import 'package:webspace/services/screen_share_decision_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
@@ -26,9 +24,6 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart'
     show extractDomain, matchesBlockedCookie, rendererProbeIndicatesGone;
@@ -91,35 +86,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   late String _currentUrl;
   late final PullToRefreshGate? _pullToRefreshGate;
 
-  /// In-memory protected-content (Widevine/EME) decision for this nested
-  /// screen. null = ask, true/false = remembered grant/deny. Nested screens
-  /// are transient and have no persisted model, so the choice only lives
-  /// for the lifetime of this screen. [_protectedMediaInFlight] coalesces a
-  /// burst of `PROTECTED_MEDIA_ID` requests onto one popup.
-  bool? _protectedContentAllowed;
-  Future<bool>? _protectedMediaInFlight;
-
-  /// In-memory camera-access decision for this nested screen, seeded from
-  /// the opening site's posture; once the popup / file-pick settles it holds
-  /// the chosen mode and, for virtual, the picked source for the life of this
-  /// screen. Resolution runs through the same [CameraDecisionEngine] as the
-  /// parent — only the storage differs (in-memory, no persistence).
-  late CameraAccessMode _cameraMode;
-  VirtualCameraSource? _cameraSource;
-  final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
-
-  /// In-memory microphone-access decision for this nested screen, same
-  /// contract as the camera one above.
-  late MicrophoneAccessMode _microphoneMode;
-  VirtualMicrophoneSource? _microphoneSource;
-  final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
-
-  /// In-memory screen-sharing decision for this nested screen, same contract
-  /// as the camera one above.
-  late ScreenShareMode _screenShareMode;
-  VirtualScreenSource? _screenShareSource;
-  final ScreenShareDecisionEngine _screenShareEngine =
-      ScreenShareDecisionEngine();
+  /// A nested screen is the visible webview for as long as it is mounted; a
+  /// route pushed above it (the popup itself included) must not read as
+  /// backgrounded, or a burst would stop coalescing onto that one popup.
+  late final GrantStore _grants = InMemoryGrantStore(
+    widget.posture.media,
+    prompter: widget.hooks.media,
+    isSiteActive: () => mounted,
+  );
 
   /// Cached InAppWebView widget. Built once in initState and reused on
   /// every build() so setState calls (URL bar updates, find results,
@@ -214,14 +188,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     title = widget.homeTitle;
     _currentUrl = widget.url;
     _showUrlBar = widget.showUrlBar;
-    final media = widget.posture.media;
-    _cameraMode = media.camera.mode;
-    _cameraSource = media.camera.source;
-    _microphoneMode = media.microphone.mode;
-    _microphoneSource = media.microphone.source;
-    _screenShareMode = media.screenShare.mode;
-    _screenShareSource = media.screenShare.source;
-    _protectedContentAllowed = media.protectedContent;
     _devToolsHost = NestedDevToolsHost(
       name: widget.homeTitle ?? extractDomain(widget.url),
       siteId: widget.posture.siteId,
@@ -273,74 +239,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           if (!mounted) return;
           setState(() => _blockedNavigationUrl = blocked);
         },
-        onProtectedMediaRequest: (origin) async {
-                if (_protectedContentAllowed != null) {
-                  return _protectedContentAllowed!;
-                }
-                _protectedMediaInFlight ??= () async {
-                  final granted = await widget.hooks.protectedMedia(origin);
-                  _protectedContentAllowed = granted;
-                  return granted;
-                }();
-                try {
-                  return await _protectedMediaInFlight!;
-                } finally {
-                  _protectedMediaInFlight = null;
-                }
-              },
-        onCameraDecision: (origin, isTopFrame) => _cameraEngine.decide(
-                  origin: origin,
-                  isTopFrame: isTopFrame,
-                  // A nested screen is the visible webview for as long as it
-                  // is mounted; a route pushed above it (including the camera
-                  // popup itself) must not read as backgrounded, or a burst
-                  // would stop coalescing onto that one popup.
-                  isSiteActive: () => mounted,
-                  effectiveMode: _cameraMode,
-                  currentSource: () => _cameraSource,
-                  resolve: widget.hooks.camera,
-                  persist: (mode, source) {
-                    _cameraMode = mode;
-                    if (source != null) _cameraSource = source;
-                  },
-                  // Nested screens have no persisted model.
-                  save: () async {},
-                ),
-        currentCameraMode: () => _cameraMode,
-        onMicrophoneDecision: (origin, isTopFrame) => _microphoneEngine.decide(
-                  origin: origin,
-                  isTopFrame: isTopFrame,
-                  // Mounted is the nested screen's "on screen": a route pushed
-                  // above it (the popup itself included) must not read as
-                  // backgrounded, or a burst would stop coalescing onto it.
-                  isSiteActive: () => mounted,
-                  effectiveMode: _microphoneMode,
-                  currentSource: () => _microphoneSource,
-                  resolve: widget.hooks.microphone,
-                  persist: (mode, source) {
-                    _microphoneMode = mode;
-                    if (source != null) _microphoneSource = source;
-                  },
-                  // Nested screens have no persisted model.
-                  save: () async {},
-                ),
-        currentMicrophoneMode: () => _microphoneMode,
-        onScreenShareDecision: (origin) => _screenShareEngine.decide(
-                  origin: origin,
-                  // Mounted is the nested screen's "on screen": a route pushed
-                  // above it (the popup itself included) must not read as
-                  // backgrounded, or a burst would stop coalescing onto it.
-                  isSiteActive: () => mounted,
-                  effectiveMode: _screenShareMode,
-                  currentSource: () => _screenShareSource,
-                  resolve: widget.hooks.screenShare,
-                  persist: (mode, source) {
-                    _screenShareMode = mode;
-                    if (source != null) _screenShareSource = source;
-                  },
-                  // Nested screens have no persisted model.
-                  save: () async {},
-                ),
+        grants: _grants,
         // Only wired when the opening site actually blocks cookies: an
         // always-on reader would add a jar round-trip to every load here.
         cookieManager:

@@ -44,9 +44,8 @@ import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/camera_permission_service.dart';
-import 'package:webspace/services/camera_stream_shim.dart';
-import 'package:webspace/services/microphone_stream_shim.dart';
-import 'package:webspace/services/screen_share_shim.dart';
+import 'package:webspace/services/capture_shim.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
 import 'package:webspace/services/passkey_shim.dart';
@@ -89,9 +88,8 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/notification_polyfill_shim.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/screen_share.dart';
-import 'package:webspace/settings/microphone.dart';
+import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/surface_nudge_scope.dart';
@@ -1131,65 +1129,10 @@ class WebViewConfig {
   /// imply one, and BUG-001 gap #18 caught a load whose nudges had all drained
   /// twelve seconds before the renderer produced anything.
   final VoidCallback? onPageCommitVisible;
-  /// Prompt fired when the page requests protected-media (Widevine/EME)
-  /// permission (`PROTECTED_MEDIA_ID`). Returns true to grant, false to
-  /// deny. When null, the handler is not installed and the platform's
-  /// default applies (Android denies). Only meaningful on Android — iOS/
-  /// macOS WKWebView has no EME/Widevine and never issues the request.
-  final Future<bool> Function(String origin)? onProtectedMediaRequest;
-  /// Resolves the site's decision when the page requests camera-only capture
-  /// (getUserMedia video, e.g. a banking site's QR scanner). Called with the
-  /// origin and the site's current [CameraAccessMode]; returns a settled
-  /// [CameraDecision] (real / virtual / block, plus a [VirtualCameraSource]
-  /// for virtual) after any Allow/Use-file/Block popup or file-pick. When
-  /// null, camera requests keep the platform default (deny). The
-  /// `webCameraRequest` JS handler drives the virtual path; the native
-  /// permission request grants the real camera only when this resolves to
-  /// `real` (and, on Android, after [CameraPermissionService] ensures the
-  /// app-level CAMERA runtime permission). Requests that bundle the
-  /// microphone never route here. The model computes the current mode
-  /// internally, so this takes the requesting frame's origin plus whether that
-  /// frame is the top document — a settled `real` grant belongs to the document
-  /// the popup named and is not inherited by a subframe (CAM-014).
-  final Future<CameraDecision> Function(String origin, bool isTopFrame)?
-      onCameraDecision;
-  /// Reads the site's current camera mode WITHOUT prompting. Backs the
-  /// `webCameraMode` JS handler, which the shim uses to decide whether
-  /// `enumerateDevices` should mask real cameras (virtual mode) — enumeration
-  /// must never pop a permission dialog, so it cannot go through
-  /// [onCameraDecision].
-  final CameraAccessMode Function()? currentCameraMode;
-  /// Resolves the site's decision when the page asks for audio capture.
-  /// Called with the origin and the site's current [MicrophoneAccessMode];
-  /// returns a settled [MicrophoneDecision] (virtual / block, plus a
-  /// [VirtualMicrophoneSource] for virtual) after any Block/Use-audio-file
-  /// popup or file-pick. When null, audio capture keeps the platform default
-  /// (deny on Android/Linux, WebKit's own prompt on iOS/macOS). When
-  /// non-null, the `webMicrophoneRequest` JS handler serves the whole flow in
-  /// JS and the native layer denies every MICROPHONE request outright, so no
-  /// OS recording permission is ever requested. Takes the requesting frame's
-  /// origin plus whether that frame is the top document, for the same reason
-  /// as [onCameraDecision] (MIC-016).
-  final Future<MicrophoneDecision> Function(String origin, bool isTopFrame)?
-      onMicrophoneDecision;
-  /// Reads the site's current microphone mode WITHOUT prompting. Backs the
-  /// `webMicrophoneMode` JS handler, which the shim uses to decide whether
-  /// `enumerateDevices` should mask real microphones (virtual mode) —
-  /// enumeration must never pop a permission dialog, so it cannot go through
-  /// [onMicrophoneDecision].
-  final MicrophoneAccessMode Function()? currentMicrophoneMode;
-  /// Resolves the site's decision when the page calls `getDisplayMedia`.
-  /// Called with the origin and the site's current [ScreenShareMode]; returns
-  /// a settled [ScreenShareDecision] (virtual / block, plus a
-  /// [VirtualScreenSource] for virtual) after any Block/Use-a-media-file popup
-  /// or file-pick. When null the shim is not injected either, and
-  /// `getDisplayMedia` keeps whatever the platform provides — which on every
-  /// platform this app ships is nothing (see the native note on
-  /// `onPermissionRequest`). When non-null, the `webScreenShareRequest` JS
-  /// handler serves the whole flow in JS and no display surface is ever
-  /// captured.
-  final Future<ScreenShareDecision> Function(String origin)?
-      onScreenShareDecision;
+  /// Camera, microphone, screen-sharing and protected-content decisions for
+  /// this webview's pages. Null installs none of the capture shims or their
+  /// handlers, and leaves permission requests to the platform's default.
+  final GrantStore? grants;
   /// Where the page's own icon goes (ICON-009). Set only for the site's root
   /// webview: a nested screen or popup shows another page, often on another
   /// host, and must not repaint the site's icon. Android is the only platform
@@ -1235,12 +1178,7 @@ class WebViewConfig {
     this.pullToRefreshGate,
     this.onRendererGone,
     this.onPageCommitVisible,
-    this.onProtectedMediaRequest,
-    this.onCameraDecision,
-    this.currentCameraMode,
-    this.onMicrophoneDecision,
-    this.currentMicrophoneMode,
-    this.onScreenShareDecision,
+    this.grants,
     this.siteIcon,
     this.siteSearch,
     this.passkeys,
@@ -2508,62 +2446,28 @@ class WebViewFactory {
         pageShim('webgl_kill_switch', js, frames: ShimFrames.all),
       pageShim('do_not_track', buildDoNotTrackShim(), frames: ShimFrames.all),
     ];
-    // Virtual camera shim. Intercepts video-only getUserMedia and, per the
-    // site's decision (fetched via the webCameraRequest handler), serves a
-    // user-picked image / looped video as the camera instead of the device
-    // lens. Injected whenever the host wired a camera resolver — the shim
-    // itself asks Dart for the mode, so gating here on the callback keeps
-    // the "no handler -> not injected" invariant. forMainFrameOnly:false so
-    // a QR scanner embedded in a cross-origin iframe is covered too.
-    if (config.onCameraDecision != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'camera_stream',
-        source: '${buildCameraStreamShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Virtual microphone shim. Intercepts any getUserMedia that asks for
-    // audio and, per the site's decision (fetched via the
-    // webMicrophoneRequest handler), serves a user-picked clip on loop
-    // instead of the device microphone — which is never opened, on any
-    // platform. Gated on the resolver for the same reason as the camera shim.
-    // A combined audio+video request is split here and its video half
-    // re-issued through the live navigator.mediaDevices.getUserMedia, so the
-    // two shims compose whichever order they were injected in.
-    if (config.onMicrophoneDecision != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'microphone_stream',
-        source: '${buildMicrophoneStreamShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Simulated screen sharing shim. Intercepts getDisplayMedia and, per the
-    // site's decision (fetched via the webScreenShareRequest handler), serves
-    // a user-picked image / looped video as the shared surface. No mode
-    // captures a real display, on any platform.
+    // Capture shims. Each asks Dart for the site's decision through its
+    // kind's request handler, so the popup, the remembered choice and the
+    // archive-tier override are enforced in one place. A combined audio+video
+    // getUserMedia is split by the microphone shim and its video half
+    // re-issued through the live entry point, so the shims compose whichever
+    // order they were injected in.
     //
-    // forMainFrameOnly:TRUE, unlike the camera and microphone shims. A screen
-    // share is the grant a user is least willing to have redirected, and a
-    // third-party frame is not who they answered the popup for, so a subframe
-    // gets no getDisplayMedia from us at all. Nothing under it can back-door
-    // one either: no platform this app ships offers display capture to a
-    // WKWebView / Android WebView, and the Linux WPE plugin denies a
-    // display-device user-media request natively before Dart is consulted
-    // (its resource-type mapping yields an empty list, which it treats as a
-    // refusal). The shim re-reads the same `window === window.top` test
-    // internally, so the guard survives a platform that stops honouring the
-    // flag.
-    if (config.onScreenShareDecision != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'screen_share',
-        source: '${buildScreenShareShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: true,
-      ));
+    // The camera and microphone reach every frame, so a QR scanner in a
+    // cross-origin iframe is covered. Screen sharing does not (SHARE-005), and
+    // nothing under it can back-door one: no platform this app ships offers
+    // display capture to a WKWebView / Android WebView, and the Linux WPE
+    // plugin denies a display-device user-media request natively before Dart
+    // is consulted. Its shim re-reads `window === window.top` itself, so the
+    // guard survives a platform that stops honouring the flag.
+    if (config.grants != null) {
+      for (final kind in CaptureKind.values) {
+        userScripts.add(pageShim(
+          kind.shimGroup,
+          buildCaptureShim(kind),
+          frames: kind.reachesSubframes ? ShimFrames.all : ShimFrames.top,
+        ));
+      }
     }
 
     userScripts.addAll([
@@ -2893,82 +2797,37 @@ class WebViewFactory {
         },
       );
     }
-    // Virtual camera bridge: the camera-stream shim calls this on the
-    // first video-only getUserMedia to learn the site's decision. The
-    // model wrapper resolves it (short-circuiting a settled mode,
-    // coalescing a burst, showing the Allow/Use-file/Block popup or the
-    // file-pick only when unresolved) and returns {mode, source?}. Null
-    // callback -> the shim isn't injected either, so this is never hit.
-    if (config.onCameraDecision != null) {
-      controller.addJavaScriptHandler(
-        handlerName: 'webCameraRequest',
-        callback: (inapp.JavaScriptHandlerFunctionData data) async {
-          final decision = await config.onCameraDecision!(
-            await _promptOrigin(controller, config, frame: data),
-            data.isMainFrame,
+    // Capture bridges: a shim asks its kind's request handler for the site's
+    // decision, and the store answers {mode, source?} (short-circuiting a
+    // settled mode, coalescing a burst, prompting only when unresolved).
+    // Frame-aware, so the origin and the frame identity reach Dart behind the
+    // bridge secret, where page script can neither forge them nor call the
+    // handler around them. A kind that does not reach subframes is denied one
+    // HERE rather than only in its shim's realm (SHARE-005).
+    final grants = config.grants;
+    if (grants != null) {
+      for (final kind in CaptureKind.values) {
+        controller.addJavaScriptHandler(
+          handlerName: kind.requestHandler,
+          callback: (inapp.JavaScriptHandlerFunctionData data) async {
+            if (!kind.reachesSubframes && !data.isMainFrame) {
+              return const {'mode': 'block'};
+            }
+            final grant = await grants.capture(
+              kind,
+              await _promptOrigin(controller, config, frame: data),
+              isTopFrame: data.isMainFrame,
+            );
+            return grant.toBridgeJson();
+          },
+        );
+        if (kind.publishedDevice case final device?) {
+          controller.addJavaScriptHandler(
+            handlerName: device.modeHandler,
+            callback: (args) => grants.mode(kind).name,
           );
-          return decision.toBridgeJson();
-        },
-      );
-      // Non-prompting mode read for the shim's enumerateDevices branch.
-      controller.addJavaScriptHandler(
-        handlerName: 'webCameraMode',
-        callback: (args) =>
-            (config.currentCameraMode?.call() ?? CameraAccessMode.ask).name,
-      );
-    }
-    // Virtual microphone bridge: the microphone-stream shim calls this on
-    // the first getUserMedia that asks for audio, to learn the site's
-    // decision. The model wrapper resolves it (short-circuiting a settled
-    // mode, coalescing a burst, showing the Block/Use-audio-file popup or
-    // the file-pick only when unresolved) and returns {mode, source?}.
-    // Null callback -> the shim isn't injected either, so this is never
-    // hit.
-    if (config.onMicrophoneDecision != null) {
-      controller.addJavaScriptHandler(
-        handlerName: 'webMicrophoneRequest',
-        callback: (inapp.JavaScriptHandlerFunctionData data) async {
-          final decision = await config.onMicrophoneDecision!(
-            await _promptOrigin(controller, config, frame: data),
-            data.isMainFrame,
-          );
-          return decision.toBridgeJson();
-        },
-      );
-      // Non-prompting mode read for the shim's enumerateDevices branch.
-      controller.addJavaScriptHandler(
-        handlerName: 'webMicrophoneMode',
-        callback: (args) => (config.currentMicrophoneMode?.call() ??
-                MicrophoneAccessMode.ask)
-            .name,
-      );
-    }
-    // Simulated screen sharing bridge: the screen-share shim calls this on
-    // getDisplayMedia to learn the site's decision. The model wrapper resolves
-    // it (short-circuiting a settled mode, coalescing a burst, showing the
-    // Block/Use-a-media-file popup or the file-pick only when unresolved) and
-    // returns {mode, source?}. Null callback -> the shim isn't injected
-    // either, so this is never hit.
-    //
-    // Registered with the frame-aware handler signature rather than the plain
-    // `(args)` one so the deny for a subframe is enforced HERE and not only in
-    // JS: the shim's own top-frame test and the plugin's forMainFrameOnly
-    // wrapper both live in the page's realm, and this does not. `isMainFrame`
-    // is computed by the plugin's bridge preamble and reaches Dart behind the
-    // bridge secret, so page script can neither forge it nor call the handler
-    // around it (SHARE-005).
-    if (config.onScreenShareDecision != null) {
-      controller.addJavaScriptHandler(
-        handlerName: 'webScreenShareRequest',
-        callback: (inapp.JavaScriptHandlerFunctionData data) async {
-          if (!data.isMainFrame) {
-            return const ScreenShareDecision.block().toBridgeJson();
-          }
-          final decision = await config
-              .onScreenShareDecision!(await _promptOrigin(controller, config));
-          return decision.toBridgeJson();
-        },
-      );
+        }
+      }
     }
     // Passkey bridge (PASSKEY-004..009). The origin Credential Manager is
     // told is the bridge's frame origin, captured by the plugin's preamble
@@ -3595,6 +3454,7 @@ class WebViewFactory {
     // Shared between this webview's controller (which issues the pause) and
     // its `onJsAlert` (which has to recognise the pause's own alert).
     final pauseHack = PauseTimersHackState();
+    final grants = config.grants;
 
     final inapp.InAppWebView webViewWidget = inapp.InAppWebView(
       key: config.key,
@@ -3650,18 +3510,15 @@ class WebViewFactory {
       // The fallback returns PROMPT for everything else: Android and Linux
       // WPE map any non-GRANT action to deny (their no-handler default),
       // iOS 15+/macOS 12+ show WebKit's own per-site prompt.
-      onPermissionRequest: ((hostIsAndroid &&
-                  config.onProtectedMediaRequest != null) ||
-              config.onCameraDecision != null ||
-              config.onMicrophoneDecision != null)
-          ? (controller, request) async {
+      onPermissionRequest: grants == null
+          ? null
+          : (controller, request) async {
               final wantsProtectedMedia = hostIsAndroid &&
-                  config.onProtectedMediaRequest != null &&
                   request.resources.contains(
                       inapp.PermissionResourceType.PROTECTED_MEDIA_ID);
               if (wantsProtectedMedia) {
-                final granted = await config.onProtectedMediaRequest!(
-                    request.origin.toString());
+                final granted =
+                    await grants.protectedContent(request.origin.toString());
                 return inapp.PermissionResponse(
                   resources: [
                     inapp.PermissionResourceType.PROTECTED_MEDIA_ID
@@ -3684,26 +3541,30 @@ class WebViewFactory {
               // the microphone shim reached never produces one (the shim
               // splits the request and asks for audio only), so this is the
               // backstop for a frame the shim missed or a build without it.
-              final wantsMicrophone = config.onMicrophoneDecision != null &&
-                  request.resources
-                      .contains(inapp.PermissionResourceType.MICROPHONE);
-              final wantsBoth = config.onMicrophoneDecision != null &&
-                  request.resources.contains(
-                      inapp.PermissionResourceType.CAMERA_AND_MICROPHONE);
+              Future<bool> opensDevice(
+                CaptureKind kind,
+                String origin, {
+                required bool isTopFrame,
+              }) async =>
+                  opensRealDevice((await grants.capture(kind, origin,
+                          isTopFrame: isTopFrame))
+                      .mode
+                      .state);
+              final wantsMicrophone = request.resources
+                  .contains(inapp.PermissionResourceType.MICROPHONE);
+              final wantsBoth = request.resources.contains(
+                  inapp.PermissionResourceType.CAMERA_AND_MICROPHONE);
               if (wantsMicrophone || wantsBoth) {
                 final topOrigin = await _promptOrigin(controller, config);
                 final requestOrigin = request.origin.toString();
                 final isTopFrame = _sameOrigin(topOrigin, requestOrigin);
                 final origin = isTopFrame ? topOrigin : requestOrigin;
-                final micDecision =
-                    await config.onMicrophoneDecision!(origin, isTopFrame);
-                bool granted =
-                    micDecision.mode == MicrophoneAccessMode.real;
+                bool granted = await opensDevice(
+                    CaptureKind.microphone, origin,
+                    isTopFrame: isTopFrame);
                 if (granted && wantsBoth) {
-                  final camDecision = config.onCameraDecision == null
-                      ? const CameraDecision.block()
-                      : await config.onCameraDecision!(origin, isTopFrame);
-                  granted = camDecision.mode == CameraAccessMode.real;
+                  granted = await opensDevice(CaptureKind.camera, origin,
+                      isTopFrame: isTopFrame);
                 }
                 if (granted) {
                   granted = await MicrophonePermissionService.ensurePermission();
@@ -3718,20 +3579,19 @@ class WebViewFactory {
                       : inapp.PermissionResponseAction.DENY,
                 );
               }
-              final wantsCameraOnly = config.onCameraDecision != null &&
-                  request.resources.length == 1 &&
+              final wantsCameraOnly = request.resources.length == 1 &&
                   request.resources
                       .contains(inapp.PermissionResourceType.CAMERA);
               if (wantsCameraOnly) {
                 final requestOrigin = request.origin.toString();
-                final decision = await config.onCameraDecision!(
+                bool granted = await opensDevice(
+                  CaptureKind.camera,
                   requestOrigin,
-                  _sameOrigin(
+                  isTopFrame: _sameOrigin(
                     await _promptOrigin(controller, config),
                     requestOrigin,
                   ),
                 );
-                bool granted = decision.mode == CameraAccessMode.real;
                 if (granted) {
                   granted = await CameraPermissionService.ensurePermission();
                 }
@@ -3746,8 +3606,7 @@ class WebViewFactory {
                 resources: request.resources,
                 action: inapp.PermissionResponseAction.PROMPT,
               );
-            }
-          : null,
+            },
       // Android's WebChromeClient asks the app before the WebView reaches the
       // OS location service. Always deny: no mode needs this path. `off`,
       // `spoof` and a coordinate-less site are refused by the shim, and `live`

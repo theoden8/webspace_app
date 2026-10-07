@@ -17,8 +17,6 @@ import 'package:webspace/services/dns_level_mask_engine.dart'
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart'
     show ProxyLibraryData, resolveLibrary;
@@ -214,12 +212,7 @@ void sanitizeImportedSites(List<WebViewModel> sites) {
     // user gave on the exporting device. Reset each to the state that asks
     // again (or, where the capability has no prompt, to off); simulated and
     // blocked states grant nothing and stay.
-    if (site.cameraMode == CameraAccessMode.real) {
-      site.cameraMode = CameraAccessMode.ask;
-    }
-    if (site.microphoneMode == MicrophoneAccessMode.real) {
-      site.microphoneMode = MicrophoneAccessMode.ask;
-    }
+    site.captures = site.captures.withoutRealGrants();
     if (site.locationMode == LocationMode.live) {
       site.locationMode = LocationMode.off;
     }

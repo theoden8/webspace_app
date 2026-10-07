@@ -53,11 +53,7 @@ drawer.
 |---|---|
 | `realLocation` | `locationMode == LocationMode.live` |
 | `spoofLocation` | `locationMode == LocationMode.spoof` |
-| `realCamera` | `effectiveCameraMode == CameraAccessMode.real` |
-| `virtualCamera` | `effectiveCameraMode == CameraAccessMode.virtual` |
-| `realMicrophone` | `effectiveMicrophoneMode == MicrophoneAccessMode.real` |
-| `virtualMicrophone` | `effectiveMicrophoneMode == MicrophoneAccessMode.virtual` |
-| `virtualScreenShare` | `effectiveScreenShareMode == ScreenShareMode.virtual` |
+| `CaptureBadge(kind, mode)` | for each `CaptureKind`, its mode in `effectiveCaptures` is `real` (camera, microphone) or `virtual` |
 | `notifications` | `effectiveNotificationsEnabled` |
 | `protectedContent` | `effectiveProtectedContentAllowed == true`, on an Android host |
 | `backgroundAudio` | `effectiveBackgroundAudioEnabled` |
@@ -72,9 +68,9 @@ is badged only on Android, the only host that consults the setting, matching
 the Permissions row, which shows it only there. Notifications carry no engine
 gate: the polyfill answers `granted` whenever the flag is on.
 
-`realMicrophone` SHALL be treated as real device access by the badge's
-`_isRealDeviceAccess`, so it renders in the theme's error colour alongside
-`realLocation` and `realCamera`. This badge is not decoration: MIC-014 lists
+A capture badge at a `real` mode, the microphone's included, SHALL be treated
+as real device access by the badge's `_isRealDeviceAccess`, so it renders in
+the theme's error colour alongside `realLocation`. This badge is not decoration: MIC-014 lists
 visibility as one of the clauses that make holding the recording capability
 defensible, and the drawer is the only surface that shows a grant the user
 settled months ago without their opening the site's settings.
@@ -132,10 +128,10 @@ grant on any platform.
 ### Requirement: PERMBADGE-002 — Real Device Access Reads Differently From Simulated
 
 A badge for a grant that hands the site a real device or capability
-(`realLocation`, `realCamera`, `realMicrophone`, `notifications`,
+(`realLocation`, a capture badge at `real`, `notifications`,
 `protectedContent`) SHALL render with the filled glyph in
 `ColorScheme.error`, as the Permissions row draws the same grants; a badge for a grant the app satisfies synthetically
-(`spoofLocation`, `virtualCamera`, `virtualMicrophone`) and the
+(`spoofLocation`, a capture badge at `virtual`) and the
 background-audio badge SHALL render with an outlined glyph in
 `ColorScheme.onSurfaceVariant`. No two badges SHALL share a glyph.
 
