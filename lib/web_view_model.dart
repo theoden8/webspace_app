@@ -7,13 +7,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show CookieManager, SslCertificate, WebUri;
+    show CookieManager, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/http_auth_engine.dart';
@@ -43,6 +42,7 @@ import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/blocked_cookie.dart';
 import 'package:webspace/settings/camera.dart';
@@ -130,14 +130,6 @@ String generateFingerprintResetNonce() {
   final bytes = List<int>.generate(8, (_) => rng.nextInt(256));
   return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }
-
-/// The host's hook into a site's own navigation: called with a link the
-/// navigation engine decided to nest, send to the system browser (outbound
-/// routing, LIR-014) or block (NESTED-009, so the host can say so). True
-/// means the host took the link over and the caller must not also launch it;
-/// false means the caller's own path runs.
-typedef OutboundLinkHandler = bool Function(
-    String url, NavigationDecision decision, bool hadGesture);
 
 /// Opens [url] in a nested `InAppWebViewScreen` that runs as the opening
 /// site, under [posture] (see [SitePosture], which a new per-site field joins
@@ -1334,38 +1326,15 @@ class WebViewModel {
         initialUrl: initUrl,
       );
 
+  /// The slot's webview, built on first call. [initialHtml] renders before
+  /// the live load; [onHtmlLoaded], gated by [shouldFetchHtml], keeps the
+  /// offline snapshot. All three are the slot's HTML cache, and absent when
+  /// it has none.
   Widget getWebView(
-    LaunchUrlFunc launchUrlFunc,
-    CookieManager cookieManager,
-    ContainerCookieManager? containerCookieManager,
-    Function saveFunc, {
-    Future<void> Function(int windowId, String url)? onWindowRequested,
-    Function(String url, String html)? onHtmlLoaded,
-    bool Function()? shouldFetchHtml,
+    WebViewHostHooks hooks, {
     String? initialHtml,
-    bool Function()? isActive,
-    Future<bool> Function(String url)? onConfirmScriptFetch,
-    Future<bool> Function(
-      String host,
-      int port,
-      inapp.SslCertificate? certificate,
-    )? onUntrustedCertificate,
-    HttpAuthPrompt? onHttpAuthRequest,
-    Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
-    void Function(String url)? onLinkLongPress,
-    Future<bool> Function(String origin)? onProtectedMediaRequest,
-    Future<CameraDecision> Function(String origin, CameraAccessMode current)?
-        onCameraDecision,
-    Future<MicrophoneDecision> Function(
-            String origin, MicrophoneAccessMode current)?
-        onMicrophoneDecision,
-    Future<ScreenShareDecision> Function(
-            String origin, ScreenShareMode current)?
-        onScreenShareDecision,
-    List<UserScriptConfig> globalUserScripts = const [],
-    VoidCallback? onNavigationBlockChanged,
-    VoidCallback? onOpenProxySettings,
-    OutboundLinkHandler? onOutboundLink,
+    void Function(String url, String html)? onHtmlLoaded,
+    bool Function()? shouldFetchHtml,
   }) {
     // LIR-018: a hosted tab runs as its host. Everything that decides the
     // container, the posture and the navigation rules reads [id]; the slot's
@@ -1385,6 +1354,8 @@ class WebViewModel {
         (hosted || runsForeignTab) &&
         onReturnToOwner != null &&
         getNormalizedDomain(url) == ownerDomain;
+    bool isActive() => hooks.onScreen(this);
+    final globalUserScripts = hooks.globalUserScripts();
     // Carries out a navigation decision, for a tap and a redirect alike:
     // false when this webview must not load [url]. The host's outbound hook
     // may take a leaving link over first (LIR-014) and hears of a blocked one
@@ -1399,8 +1370,7 @@ class WebViewModel {
         onReturnToOwner?.call(url);
         return false;
       }
-      bool takenOver() =>
-          onOutboundLink?.call(url, decision, hadGesture) ?? false;
+      bool takenOver() => hooks.routeOutbound(this, url, decision, hadGesture);
       switch (decision) {
         case NavigationDecision.allow:
           return true;
@@ -1409,7 +1379,7 @@ class WebViewModel {
           return false;
         case NavigationDecision.blockOpenNested:
           if (!takenOver()) {
-            launchUrlFunc(
+            hooks.launchNested(
               url,
               id.sitePosture(globalUserScripts: globalUserScripts),
               homeTitle: id.name,
@@ -1507,14 +1477,13 @@ class WebViewModel {
           backForwardGestures: true,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-          onConfirmScriptFetch: onConfirmScriptFetch,
-          onUntrustedCertificate: onUntrustedCertificate,
-          onHttpAuthRequest: onHttpAuthRequest,
-          onExternalSchemeUrl: onExternalSchemeUrl,
-          onLinkLongPress: onLinkLongPress,
-          onProtectedMediaRequest: onProtectedMediaRequest == null
-              ? null
-              : (origin) async {
+          onConfirmScriptFetch: hooks.confirmScriptFetch,
+          onUntrustedCertificate: hooks.untrustedCertificate,
+          onHttpAuthRequest: hooks.httpAuth,
+          onExternalSchemeUrl: (url, info) =>
+              hooks.externalScheme(info, controller),
+          onLinkLongPress: (url) => hooks.linkMenu(this, url),
+          onProtectedMediaRequest: (origin) async {
                   // Archive-tier and Tracking Protection sites deny without
                   // prompting; otherwise a previously remembered Allow/Block
                   // decision short-circuits the popup.
@@ -1522,9 +1491,9 @@ class WebViewModel {
                   if (remembered != null) return remembered;
                   // Coalesce a burst of requests onto one popup.
                   _protectedMediaDecisionInFlight ??= () async {
-                    final granted = await onProtectedMediaRequest(origin);
+                    final granted = await hooks.protectedMedia(origin);
                     id.protectedContentAllowed = granted;
-                    await saveFunc();
+                    await hooks.save();
                     return granted;
                   }();
                   try {
@@ -1533,39 +1502,34 @@ class WebViewModel {
                     _protectedMediaDecisionInFlight = null;
                   }
                 },
-          onCameraDecision: onCameraDecision == null
-              ? null
-              : (origin, isTopFrame) => id.resolveCameraRequest(
+          onCameraDecision: (origin, isTopFrame) => id.resolveCameraRequest(
                     origin,
-                    resolver: onCameraDecision,
+                    resolver: hooks.camera,
                     isActive: isActive,
                     isTopFrame: isTopFrame,
-                    saveFunc: saveFunc,
+                    saveFunc: hooks.save,
                   ),
           currentCameraMode: () => id.effectiveCameraMode,
-          onMicrophoneDecision: onMicrophoneDecision == null
-              ? null
-              : (origin, isTopFrame) => id.resolveMicrophoneRequest(
+          onMicrophoneDecision: (origin, isTopFrame) =>
+              id.resolveMicrophoneRequest(
                     origin,
-                    resolver: onMicrophoneDecision,
+                    resolver: hooks.microphone,
                     isActive: isActive,
                     isTopFrame: isTopFrame,
-                    saveFunc: saveFunc,
+                    saveFunc: hooks.save,
                   ),
           currentMicrophoneMode: () => id.effectiveMicrophoneMode,
-          onScreenShareDecision: onScreenShareDecision == null
-              ? null
-              : (origin) => id.resolveScreenShareRequest(
+          onScreenShareDecision: (origin) => id.resolveScreenShareRequest(
                     origin,
-                    resolver: onScreenShareDecision,
+                    resolver: hooks.screenShare,
                     isActive: isActive,
-                    saveFunc: saveFunc,
+                    saveFunc: hooks.save,
                   ),
           pullToRefreshGate: pullToRefreshGate,
-          onWindowRequested: onWindowRequested,
+          onWindowRequested: hooks.showPopup,
           onUnproxiedNavigationBlocked: (blocked) {
             blockedNavigationUrl = blocked;
-            onNavigationBlockChanged?.call();
+            hooks.rebuild();
           },
           shouldOverrideUrlLoading: (url, hasGesture) {
             LogService.instance.log(
@@ -1578,7 +1542,7 @@ class WebViewModel {
               targetUrl: url,
               initUrl: navHome,
               hasGesture: hasGesture,
-              isSiteActive: isActive?.call() ?? true,
+              isSiteActive: isActive(),
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: now,
               externalLinkMode: id.effectiveExternalLinkMode,
@@ -1620,7 +1584,7 @@ class WebViewModel {
             final handled = NavigationDecisionEngine.handleOnUrlChanged(
               newUrl: url,
               initUrl: navHome,
-              isSiteActive: isActive?.call() ?? true,
+              isSiteActive: isActive(),
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: now,
               isCaptchaChallenge: (u) =>
@@ -1687,14 +1651,10 @@ class WebViewModel {
               // subsequent work — saveFunc below is Dart-only.
               controller?.setThemePreference(_currentTheme).catchError((_) {});
             }
-            await saveFunc();
+            await hooks.save();
           },
-          // Route the post-load cookie read through whichever
-          // manager is active for this engine. Container mode hits the
-          // per-site container via the fork's `webViewController:`;
-          // legacy mode hits the global jar.
-          cookieManager: cookieManager,
-          containerCookieManager: containerCookieManager,
+          cookieManager: hooks.cookieManager,
+          containerCookieManager: hooks.containerCookieManager,
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar. The mirror
             // and the block list are those of the site the slot runs as.
@@ -1702,6 +1662,7 @@ class WebViewModel {
               final blocked = newCookies.where((c) => id.isCookieBlocked(c.name, c.domain)).toList();
               final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : id.initUrl);
               for (final c in blocked) {
+                final containerCookieManager = hooks.containerCookieManager;
                 if (containerCookieManager != null) {
                   await containerCookieManager.deleteCookie(
                     controller: controller,
@@ -1712,7 +1673,7 @@ class WebViewModel {
                     path: c.path ?? '/',
                   );
                 } else {
-                  await cookieManager.deleteCookie(
+                  await hooks.cookieManager.deleteCookie(
                     url: url,
                     name: c.name,
                     domain: c.domain,
@@ -1724,7 +1685,7 @@ class WebViewModel {
             } else {
               id.cookies = newCookies;
             }
-            await saveFunc();
+            await hooks.save();
           },
           onFindResult: (activeMatch, totalMatches) {
             findMatches.activeMatchOrdinal = activeMatch;
@@ -1740,7 +1701,7 @@ class WebViewModel {
           onPageCommitVisible: () => onPageCommitVisible?.call(),
           passkeys: PasskeyAccess.forHost(
             enabled: posture.container.passkeys,
-            isOnScreen: isActive ?? () => true,
+            isOnScreen: isActive,
           ),
           siteIcon: SiteIconTarget(
             siteUrl: iconSiteUrl,
@@ -1759,7 +1720,7 @@ class WebViewModel {
                   onSearch: (found) {
                     if (!id.offerDiscoveredSearch(found)) return;
                     stateSetterF?.call();
-                    unawaited(saveFunc());
+                    unawaited(hooks.save());
                   },
                 )
               : null,
@@ -1875,27 +1836,17 @@ class WebViewModel {
               blockedUrl: blocked,
               onGoBack: () {
                 blockedNavigationUrl = null;
-                onNavigationBlockChanged?.call();
+                hooks.rebuild();
               },
-              onOpenProxySettings: () => onOpenProxySettings?.call(),
+              onOpenProxySettings: () => hooks.openSiteSettings(siteId),
             ),
           ),
       ],
     );
   }
 
-  WebViewController? getController(
-    LaunchUrlFunc launchUrlFunc,
-    CookieManager cookieManager,
-    ContainerCookieManager? containerCookieManager,
-    Function saveFunc, {
-    List<UserScriptConfig> globalUserScripts = const [],
-    OutboundLinkHandler? onOutboundLink,
-  }) {
-    if (webview == null) {
-      // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, containerCookieManager, saveFunc, globalUserScripts: globalUserScripts, onOutboundLink: onOutboundLink);
-    }
+  WebViewController? getController(WebViewHostHooks hooks) {
+    webview ??= getWebView(hooks);
     if (controller != null) {
       setController();
     }

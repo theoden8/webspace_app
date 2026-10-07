@@ -4,15 +4,15 @@
 // mode) hands each cross-domain link it would nest or send to the system
 // browser to the host first, which may open it as the site that claims it.
 // A link the site's external-link mode blocks goes to the same hook, so the
-// host can say it was blocked. The hook is one line in front of each launch in
-// `WebViewModel.getWebView`, and the host only sees it on the webviews it
-// passed it to. A launch added without the line, or a webview built without
-// the hook (`getController` builds one when the frame has not yet), silently
-// opens the link with the source's own posture instead.
+// host can say it was blocked. The hook is a required field of
+// WebViewHostHooks, which every site webview is built from, so no webview
+// lacks it; what remains to check is that each launch in
+// `WebViewModel.getWebView` asks it first. A launch that does not opens the
+// link with the source's own posture instead.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read, blockAfter, callArgs } = require('./helpers/source');
+const { read, blockAfter } = require('./helpers/source');
 
 const modelRel = 'lib/web_view_model.dart';
 const mainRel = 'lib/main.dart';
@@ -20,8 +20,6 @@ const model = read(modelRel);
 const main = read(mainRel);
 
 const getWebView = blockAfter(model, '  Widget getWebView(', '}) {', modelRel);
-const getController = blockAfter(
-  model, '  WebViewController? getController(', '}) {', modelRel);
 
 function previousLine(text, index) {
   const lines = text.slice(0, index).split('\n');
@@ -38,10 +36,10 @@ test('the tap and the redirect path carry out decisions in one place', () => {
 
 test('every launch asks the outbound hook first', () => {
   assert.match(getWebView,
-    /bool takenOver\(\) =>\s*onOutboundLink\?\.call\(url, decision, hadGesture\) \?\? false;/,
+    /bool takenOver\(\) =>\s*hooks\.routeOutbound\(this, url, decision, hadGesture\);/,
     'the hook is asked about the link being launched');
   const launches = [...getWebView.matchAll(
-    /\b(launchUrlFunc|launchUrlInSystemBrowser)\(/g)];
+    /\b(hooks\.launchNested|launchUrlInSystemBrowser)\(/g)];
   assert.equal(launches.length, 2, 'one nested and one external launch');
   for (const m of launches) {
     const prev = previousLine(getWebView, m.index + m[0].length) + getWebView
@@ -58,23 +56,8 @@ test('a blocked outbound link reaches the hook, and nothing launches', () => {
   const branch = getWebView.slice(at, getWebView.indexOf('return', at));
   assert.match(branch, /takenOver\(\);/,
     'a blocked link must reach the host, which tells the user about a tap');
-  assert.doesNotMatch(branch, /launchUrlFunc|launchUrlInSystemBrowser/,
+  assert.doesNotMatch(branch, /hooks\.launchNested|launchUrlInSystemBrowser/,
     'a blocked link must not open anywhere');
-});
-
-test('getController forwards the hook to the webview it builds', () => {
-  assert.match(getController, /getWebView\([^;]*onOutboundLink: onOutboundLink/s,
-    'a webview built by getController would never route');
-});
-
-test('every site webview main.dart builds carries the hook', () => {
-  const calls = [...main.matchAll(/\.(getWebView|getController)\(\s*launchUrl\b/g)];
-  assert.ok(calls.length > 0, 'expected site webview builds in main.dart');
-  for (const m of calls) {
-    const call = callArgs(main, m.index);
-    assert.match(call, /onOutboundLink:\s*_outboundLinkHookFor\(/,
-      `${m[1]} at offset ${m.index} builds a webview without the outbound hook`);
-  }
 });
 
 test("the link menu's Open routes as a tap would", () => {

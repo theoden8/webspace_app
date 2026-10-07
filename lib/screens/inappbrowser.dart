@@ -8,7 +8,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/camera_decision_engine.dart';
-import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/microphone_decision_engine.dart';
 import 'package:webspace/services/screen_share_decision_engine.dart';
@@ -25,6 +24,7 @@ import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/microphone.dart';
@@ -37,8 +37,6 @@ import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
-import 'package:webspace/widgets/http_auth_prompt.dart';
-import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 
@@ -55,13 +53,8 @@ class InAppWebViewScreen extends StatefulWidget {
   /// ([SitePosture.forNested]). A nested screen has no persisted model, so
   /// the decisions it seeds (capture, DRM) live in this screen's memory only.
   final SitePosture posture;
+  final WebViewHostHooks hooks;
   final bool showUrlBar;
-  final Future<bool> Function(String url)? onConfirmScriptFetch;
-  /// Opens the parent site's own proxy settings, for the blocked-navigation
-  /// interstitial (LEAK-010). A nested screen has no persisted model of its
-  /// own, so the route back to the setting that caused the block has to come
-  /// from the host.
-  final VoidCallback? onOpenProxySettings;
 
   /// A link here into one of the user's sites, with Site tabs on: true when
   /// the app takes it as a tab of the site this screen was opened from, and
@@ -71,47 +64,20 @@ class InAppWebViewScreen extends StatefulWidget {
   /// What the site on screen was running as when this screen opened, for
   /// the site info sheet. Null for a screen a share opened.
   final String? openedFrom;
-  /// Protected-content (Widevine/EME) permission popup, forwarded from the
-  /// parent so a DRM site followed through an outbound link prompts the
-  /// same way.
-  final Future<bool> Function(String origin)? onProtectedMediaRequest;
-  /// Capture resolvers, forwarded from the parent so a site followed through
-  /// an outbound link prompts the same way, virtual sources included. Each is
-  /// called with this screen's in-memory current mode, so a grant the user
-  /// gave the parent site is never inherited across the origin change.
-  final Future<CameraDecision> Function(String origin, CameraAccessMode current)?
-      onCameraDecision;
-  final Future<MicrophoneDecision> Function(
-      String origin, MicrophoneAccessMode current)? onMicrophoneDecision;
-  final Future<ScreenShareDecision> Function(
-      String origin, ScreenShareMode current)? onScreenShareDecision;
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
   final Future<void> Function(bool show)? onShowUrlBarChanged;
 
-  /// Cookie readers for the blocked-cookie sweep, forwarded from the host so
-  /// the read routes through whichever engine is live. Exactly one is
-  /// non-null; both are ignored when the site blocks no cookies.
-  final CookieManager? cookieManager;
-  final ContainerCookieManager? containerCookieManager;
-
   InAppWebViewScreen({
     required this.url,
     required SitePosture posture,
+    required this.hooks,
     this.homeTitle,
     this.showUrlBar = false,
-    this.onConfirmScriptFetch,
-    this.onOpenProxySettings,
     this.onOpenAsTab,
     this.openedFrom,
-    this.onProtectedMediaRequest,
-    this.onCameraDecision,
-    this.onMicrophoneDecision,
-    this.onScreenShareDecision,
     this.onShowUrlBarChanged,
-    this.cookieManager,
-    this.containerCookieManager,
   }) : posture = posture.forNested();
 
   @override
@@ -302,20 +268,17 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // the WebView has pixels, and the 15s commit window can close before
         // a slow renderer produces any (BUG-001 gap #18).
         onPageCommitVisible: () => _nudgeSurfaceRepaint('page-commit-visible'),
-        onConfirmScriptFetch: widget.onConfirmScriptFetch,
+        onConfirmScriptFetch: widget.hooks.confirmScriptFetch,
         onUnproxiedNavigationBlocked: (blocked) {
           if (!mounted) return;
           setState(() => _blockedNavigationUrl = blocked);
         },
-        onProtectedMediaRequest: widget.onProtectedMediaRequest == null
-            ? null
-            : (origin) async {
+        onProtectedMediaRequest: (origin) async {
                 if (_protectedContentAllowed != null) {
                   return _protectedContentAllowed!;
                 }
                 _protectedMediaInFlight ??= () async {
-                  final granted =
-                      await widget.onProtectedMediaRequest!(origin);
+                  final granted = await widget.hooks.protectedMedia(origin);
                   _protectedContentAllowed = granted;
                   return granted;
                 }();
@@ -325,9 +288,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   _protectedMediaInFlight = null;
                 }
               },
-        onCameraDecision: widget.onCameraDecision == null
-            ? null
-            : (origin, isTopFrame) => _cameraEngine.decide(
+        onCameraDecision: (origin, isTopFrame) => _cameraEngine.decide(
                   origin: origin,
                   isTopFrame: isTopFrame,
                   // A nested screen is the visible webview for as long as it
@@ -337,7 +298,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   isSiteActive: () => mounted,
                   effectiveMode: _cameraMode,
                   currentSource: () => _cameraSource,
-                  resolve: widget.onCameraDecision!,
+                  resolve: widget.hooks.camera,
                   persist: (mode, source) {
                     _cameraMode = mode;
                     if (source != null) _cameraSource = source;
@@ -346,9 +307,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   save: () async {},
                 ),
         currentCameraMode: () => _cameraMode,
-        onMicrophoneDecision: widget.onMicrophoneDecision == null
-            ? null
-            : (origin, isTopFrame) => _microphoneEngine.decide(
+        onMicrophoneDecision: (origin, isTopFrame) => _microphoneEngine.decide(
                   origin: origin,
                   isTopFrame: isTopFrame,
                   // Mounted is the nested screen's "on screen": a route pushed
@@ -357,7 +316,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   isSiteActive: () => mounted,
                   effectiveMode: _microphoneMode,
                   currentSource: () => _microphoneSource,
-                  resolve: widget.onMicrophoneDecision!,
+                  resolve: widget.hooks.microphone,
                   persist: (mode, source) {
                     _microphoneMode = mode;
                     if (source != null) _microphoneSource = source;
@@ -366,9 +325,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   save: () async {},
                 ),
         currentMicrophoneMode: () => _microphoneMode,
-        onScreenShareDecision: widget.onScreenShareDecision == null
-            ? null
-            : (origin) => _screenShareEngine.decide(
+        onScreenShareDecision: (origin) => _screenShareEngine.decide(
                   origin: origin,
                   // Mounted is the nested screen's "on screen": a route pushed
                   // above it (the popup itself included) must not read as
@@ -376,7 +333,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   isSiteActive: () => mounted,
                   effectiveMode: _screenShareMode,
                   currentSource: () => _screenShareSource,
-                  resolve: widget.onScreenShareDecision!,
+                  resolve: widget.hooks.screenShare,
                   persist: (mode, source) {
                     _screenShareMode = mode;
                     if (source != null) _screenShareSource = source;
@@ -386,9 +343,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 ),
         // Only wired when the opening site actually blocks cookies: an
         // always-on reader would add a jar round-trip to every load here.
-        cookieManager: blockedCookies.isEmpty ? null : widget.cookieManager,
+        cookieManager:
+            blockedCookies.isEmpty ? null : widget.hooks.cookieManager,
         containerCookieManager:
-            blockedCookies.isEmpty ? null : widget.containerCookieManager,
+            blockedCookies.isEmpty ? null : widget.hooks.containerCookieManager,
         onCookiesChanged: blockedCookies.isEmpty
             ? null
             : (cookies) async {
@@ -397,8 +355,10 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   if (!matchesBlockedCookie(blockedCookies, c.name, c.domain)) {
                     continue;
                   }
-                  if (widget.containerCookieManager != null) {
-                    await widget.containerCookieManager!.deleteCookie(
+                  final containerCookieManager =
+                      widget.hooks.containerCookieManager;
+                  if (containerCookieManager != null) {
+                    await containerCookieManager.deleteCookie(
                       controller: _controller,
                       siteId: p.siteId,
                       url: url,
@@ -407,7 +367,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                       path: c.path ?? '/',
                     );
                   } else {
-                    await widget.cookieManager?.deleteCookie(
+                    await widget.hooks.cookieManager.deleteCookie(
                       url: url,
                       name: c.name,
                       domain: c.domain,
@@ -500,33 +460,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               return false;
           }
         },
-        onWindowRequested: _showPopupWindow,
-        onUntrustedCertificate: (host, port, cert) async {
-          if (!mounted) return false;
-          return promptUntrustedCertificate(
-            context,
-            host: host,
-            port: port,
-            certificate: cert,
-          );
-        },
-        onHttpAuthRequest: (request) async {
-          if (!mounted) return null;
-          return promptHttpAuth(context, request);
-        },
+        onWindowRequested: widget.hooks.showPopup,
+        onUntrustedCertificate: widget.hooks.untrustedCertificate,
+        onHttpAuthRequest: widget.hooks.httpAuth,
         passkeys: PasskeyAccess.forHost(
           enabled: p.container.passkeys,
           isOnScreen: () =>
               mounted && (ModalRoute.of(context)?.isCurrent ?? false),
         ),
-        onExternalSchemeUrl: (url, info) async {
-          if (!mounted) return;
-          await confirmAndLaunchExternalUrl(
-            context,
-            info,
-            loadInWebView: _controller,
-          );
-        },
+        onExternalSchemeUrl: (url, info) =>
+            widget.hooks.externalScheme(info, _controller),
       ),
       onControllerCreated: (controller) {
         _controller = controller;
@@ -845,61 +788,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     await controller.evaluateJavascript(script);
   }
 
-  /// Shows a popup window for handling window.open() requests from webviews.
-  Future<void> _showPopupWindow(int windowId, String url) async {
-    if (!mounted) return;
-    final loc = AppLocalizations.of(context);
-
-    LogService.instance.log(
-      'PopupWindow',
-      'Opening popup window with id: $windowId, url: $url',
-      sensitivity: LogSensitivity.sensitive,
-    );
-
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          insetPadding: EdgeInsets.all(16),
-          child: Container(
-            width: MediaQuery.of(dialogContext).size.width * 0.9,
-            height: MediaQuery.of(dialogContext).size.height * 0.8,
-            child: Column(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(loc.inappBrowserVerificationTitle, style: TextStyle(fontWeight: FontWeight.bold)),
-                      IconButton(
-                        icon: Icon(Icons.close),
-                        onPressed: () => Navigator.of(dialogContext).pop(),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: WebViewFactory.createPopupWebView(
-                    windowId: windowId,
-                    onCloseWindow: () {
-                      if (Navigator.of(dialogContext).canPop()) {
-                        Navigator.of(dialogContext).pop();
-                      }
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    LogService.instance.log('PopupWindow', 'Popup window closed');
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -1153,8 +1041,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                           blockedUrl: _blockedNavigationUrl!,
                           onGoBack: () =>
                               setState(() => _blockedNavigationUrl = null),
-                          onOpenProxySettings: () =>
-                              widget.onOpenProxySettings?.call(),
+                          onOpenProxySettings: () => widget.hooks
+                              .openSiteSettings(widget.posture.siteId),
                         ),
                       ),
                   ],

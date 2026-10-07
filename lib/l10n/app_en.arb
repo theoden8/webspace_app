@@ -600,10 +600,6 @@
       }
     }
   },
-  "inappBrowserVerificationTitle": "Verification",
-  "@inappBrowserVerificationTitle": {
-    "description": "Title of a window.open() popup dialog in the in-app browser."
-  },
   "inappBrowserDefaultTitle": "In-App WebView",
   "@inappBrowserDefaultTitle": {
     "description": "Default app bar title for the nested browser when no page title is available."

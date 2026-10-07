@@ -23,6 +23,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache, SiteSuggestion;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
@@ -2945,10 +2946,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
     switch (landing) {
       case SearchLanding.inPlace:
-        final controller = owner.getController(launchUrl, _cookieManager,
-            _containerCookieManager, _saveWebViewModels,
-            globalUserScripts: _globalUserScripts,
-            onOutboundLink: _outboundLinkHookFor(owner));
+        final controller = owner.getController(_webViewHooks);
         if (controller == null) return;
         await controller.loadUrl(url.toString(), language: identity.language);
         if (!mounted) return;
@@ -3087,10 +3085,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// [owner]'s hook into its own webview's navigation (LIR-014).
-  OutboundLinkHandler _outboundLinkHookFor(WebViewModel owner) =>
-      (url, decision, hadGesture) =>
-          _routeOutboundLink(owner, url, decision, hadGesture);
-
   /// [owner]'s webview is about to nest [url], hand it to the system
   /// browser or block it. True when routing took the link over, so the
   /// webview must not also launch it. The link is the running identity's
@@ -3414,14 +3408,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _setCurrentIndex(activateIndex);
     }
     if (!mounted) return;
-    final controller = model.getController(
-      launchUrl,
-      _cookieManager,
-      _containerCookieManager,
-      _saveWebViewModels,
-      globalUserScripts: _globalUserScripts,
-      onOutboundLink: _outboundLinkHookFor(model),
-    );
+    final controller = model.getController(_webViewHooks);
     if (controller == null) {
       LogService.instance.log(
         'LinkIntent',
@@ -3495,14 +3482,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     await _registerNewSite(model);
     if (!mounted) return;
-    final controller = model.getController(
-      launchUrl,
-      _cookieManager,
-      _containerCookieManager,
-      _saveWebViewModels,
-      globalUserScripts: _globalUserScripts,
-      onOutboundLink: _outboundLinkHookFor(model),
-    );
+    final controller = model.getController(_webViewHooks);
     if (controller != null && a.fullUrl != a.home) {
       await controller.loadUrl(a.fullUrl, language: model.language);
       if (!mounted) return;
@@ -6371,6 +6351,42 @@ class _WebSpacePageState extends State<WebSpacePage>
     return SiteRetentionPriority.loaded;
   }
 
+  /// What this page answers for every site webview, root and nested.
+  late final WebViewHostHooks _webViewHooks = WebViewHostHooks(
+    cookieManager: _cookieManager,
+    containerCookieManager: _containerCookieManager,
+    globalUserScripts: () => _globalUserScripts,
+    save: _saveWebViewModels,
+    rebuild: () {
+      if (mounted) setState(() {});
+    },
+    onScreen: (slot) =>
+        _currentIndex != null &&
+        _currentIndex! < _webViewModels.length &&
+        identical(_webViewModels[_currentIndex!], slot),
+    launchNested: launchUrl,
+    routeOutbound: _routeOutboundLink,
+    // Identity, not index: the list can have been reordered by the time the
+    // native event lands.
+    linkMenu: (source, url) {
+      final at = _webViewModels.indexOf(source);
+      if (at >= 0) unawaited(_showLinkLongPressMenu(at, url));
+    },
+    openSiteSettings: _openSiteSettingsById,
+    showPopup: _showPopupWindow,
+    externalScheme: (info, loadIn) async {
+      if (!mounted) return;
+      await confirmAndLaunchExternalUrl(context, info, loadInWebView: loadIn);
+    },
+    confirmScriptFetch: _confirmScriptFetch,
+    untrustedCertificate: _promptUntrustedCertificate,
+    httpAuth: _promptHttpAuth,
+    protectedMedia: _promptProtectedMedia,
+    camera: _resolveCameraDecision,
+    microphone: _resolveMicrophoneDecision,
+    screenShare: _resolveScreenShareDecision,
+  );
+
   Future<void> launchUrl(
     String url,
     SitePosture posture, {
@@ -6406,16 +6422,9 @@ class _WebSpacePageState extends State<WebSpacePage>
                 },
           homeTitle: homeTitle,
           posture: posture,
+          hooks: _webViewHooks,
           showUrlBar: AppPref.showUrlBar.value,
-          onConfirmScriptFetch: _confirmScriptFetch,
-          onOpenProxySettings: () => _openSiteSettingsById(posture.siteId),
-          onProtectedMediaRequest: _promptProtectedMedia,
-          onCameraDecision: _resolveCameraDecision,
-          onMicrophoneDecision: _resolveMicrophoneDecision,
-          onScreenShareDecision: _resolveScreenShareDecision,
           onShowUrlBarChanged: AppPref.showUrlBar.set,
-          cookieManager: _cookieManager,
-          containerCookieManager: _containerCookieManager,
         ),
       ),
     );
@@ -7268,7 +7277,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       return null;
     }
     final model = _webViewModels[_currentIndex!];
-    return model.getController(launchUrl, _cookieManager, _containerCookieManager, _saveWebViewModels, globalUserScripts: _globalUserScripts, onOutboundLink: _outboundLinkHookFor(model));
+    return model.getController(_webViewHooks);
   }
 
   void _openDrawerFromBackGesture(ScaffoldState? scaffoldState) {
@@ -8389,10 +8398,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     switch (decision) {
       case NavigationDecision.allow:
         await model
-            .getController(launchUrl, _cookieManager, _containerCookieManager,
-                _saveWebViewModels,
-                globalUserScripts: _globalUserScripts,
-                onOutboundLink: _outboundLinkHookFor(model))
+            .getController(_webViewHooks)
             ?.loadUrl(url, language: identity.language);
       case NavigationDecision.blockOpenNested:
         if (_routeOutboundLink(
@@ -9028,10 +9034,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         }
       case NavigationStep.loadHere:
         await _tabGate.runWhenIdle(() async {
-          final controller = model.getController(launchUrl, _cookieManager,
-              _containerCookieManager, _saveWebViewModels,
-              globalUserScripts: _globalUserScripts,
-              onOutboundLink: _outboundLinkHookFor(model));
+          final controller = model.getController(_webViewHooks);
           if (controller == null) return;
           await controller.loadUrl(url, language: identity.language);
           if (!mounted) return;
@@ -10582,20 +10585,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                                 ),
                               Expanded(
                                 child: webViewModel.getWebView(
-                                  launchUrl,
-                                  _cookieManager,
-                                  _containerCookieManager,
-                                  _saveWebViewModels,
-                                  onWindowRequested: _showPopupWindow,
-                                  onNavigationBlockChanged: () {
-                                    if (!mounted) return;
-                                    setState(() {});
-                                  },
-                                  onOpenProxySettings: () =>
-                                      _openSiteSettingsById(webViewModel.siteId),
-                                  onOutboundLink:
-                                      _outboundLinkHookFor(webViewModel),
-                                  globalUserScripts: _globalUserScripts,
+                                  _webViewHooks,
                                   // file:// imports are user data (only copy on device), not
                                   // a re-fetchable snapshot — the canonical bytes live in
                                   // HtmlImportStorage and never change after import, so
@@ -10652,37 +10642,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                                                   MediaQuery.platformBrightnessOf(context) == Brightness.dark);
                                           return HtmlCacheService.applyThemePrelude(cached, dark: isDark);
                                         }(),
-                                  isActive: () => _currentIndex == index,
-                                  onConfirmScriptFetch: _confirmScriptFetch,
-                                  onProtectedMediaRequest: _promptProtectedMedia,
-                                  onCameraDecision: _resolveCameraDecision,
-                                  onMicrophoneDecision:
-                                      _resolveMicrophoneDecision,
-                                  onScreenShareDecision:
-                                      _resolveScreenShareDecision,
-                                  onUntrustedCertificate: _promptUntrustedCertificate,
-                                  onHttpAuthRequest: _promptHttpAuth,
-                                  onExternalSchemeUrl: (url, info) async {
-                                    if (!mounted) return;
-                                    await confirmAndLaunchExternalUrl(
-                                      context,
-                                      info,
-                                      loadInWebView: webViewModel.controller,
-                                    );
-                                  },
-                                  // Android / iOS only (the plugin has no
-                                  // macOS or Linux long-press signal): a long
-                                  // press on a link is how a child tab is
-                                  // created (TAB-006). Identity check, not
-                                  // index: the list can have been reordered by
-                                  // the time the native event lands.
-                                  onLinkLongPress: (url) {
-                                    final at =
-                                        _webViewModels.indexOf(webViewModel);
-                                    if (at < 0) return;
-                                    unawaited(
-                                        _showLinkLongPressMenu(at, url));
-                                  },
                                 ),
                               ),
                             ],

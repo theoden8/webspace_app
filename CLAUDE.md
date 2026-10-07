@@ -489,7 +489,11 @@ A nested screen differs from the site's own webview only where
 `SitePosture.forNested()` says so. Wiring that belongs to a surface rather than
 the site (callbacks, `backForwardGestures`, the slot's `backgroundAudioEnabled`,
 the site icon and search targets) stays a `WebViewConfig` field the owning
-surface sets.
+surface sets. What the host answers (prompts, popups, capture resolvers,
+cookie jars, routing) is one `WebViewHostHooks`
+([webview_host_hooks.dart](lib/services/webview_host_hooks.dart)) that
+`main.dart` builds once and both surfaces take whole; a new host answer is a
+required field there (BUG-027).
 
 If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., frames: ShimFrames.all)` ([page_shim.dart](lib/services/page_shim.dart)) so the shim reaches cross-origin iframes.
 
