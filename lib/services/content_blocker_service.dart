@@ -160,10 +160,8 @@ class ContentBlockerService {
     final next = _normalizeMasks(masks);
     if (_sameMasks(_listMasks, next)) return;
     _listMasks = next;
-    LogService.instance.log('ContentBlocker',
-        'Per-site filter-list mask changed: '
-        '${next.map((id, hosts) => MapEntry(id, hosts.length))}',
-        level: LogLevel.info);
+    LogTag.contentBlocker.info('Per-site filter-list mask changed: '
+        '${next.map((id, hosts) => MapEntry(id, hosts.length))}');
     await _saveListMasks();
     await _rebuildEngine();
   }
@@ -303,10 +301,8 @@ class ContentBlockerService {
       _engineBlockedSinceTimingOn = 0;
       _engineAllowedSinceTimingOn = 0;
     }
-    LogService.instance.log('ContentBlocker',
-        'engine timing recording: ${v ? "ON" : "OFF"} '
-        '(engineActive=${_rustEngine != null})',
-        level: LogLevel.info);
+    LogTag.contentBlocker.info('engine timing recording: ${v ? "ON" : "OFF"} '
+        '(engineActive=${_rustEngine != null})');
   }
   bool get engineTimingEnabled => _engineTimingEnabled;
 
@@ -359,9 +355,8 @@ class ContentBlockerService {
 
   Future<void> setUseUboResources(bool enabled) async {
     if (useUboResources == enabled) return;
-    LogService.instance.log('ContentBlocker',
-        'uBO resources toggle flipped to $enabled (was ${!enabled})',
-        level: LogLevel.info);
+    LogTag.contentBlocker.info(
+        'uBO resources toggle flipped to $enabled (was ${!enabled})');
     await AppPref.useUboResources.set(enabled);
     await _clearEngineCache();
     await _rebuildEngine();
@@ -603,13 +598,11 @@ class ContentBlockerService {
       proceduralActions: procedural,
     );
     _engineCosmeticCache[pageUrl] = entry;
-    LogService.instance.log('ContentBlocker',
-        'engine.cosmeticResources($pageUrl) → '
+    LogTag.contentBlocker.debug('engine.cosmeticResources($pageUrl) → '
         '${hides.length} hide(s), ${exceptions.length} exception(s)'
         '${genericHide ? ", generichide" : ""}'
         '${procedural.isNotEmpty ? ", ${procedural.length} procedural" : ""}',
-        level: LogLevel.debug,
-        sensitivity: LogSensitivity.sensitive);
+        sensitive: true);
     return entry;
   }
 
@@ -624,13 +617,10 @@ class ContentBlockerService {
       selectors: ctx.hides,
       styleRules: const [],
     );
-    LogService.instance.log(
-        'ContentBlocker',
-        'getEarlyCssScript($pageUrl): '
+    LogTag.contentBlocker.debug('getEarlyCssScript($pageUrl): '
         '${ctx.hides.length} hide(s) '
         '→ ${script == null ? "no script" : "${script.length} bytes"}',
-        level: LogLevel.debug,
-        sensitivity: LogSensitivity.sensitive);
+        sensitive: true);
     return script;
   }
 
@@ -651,11 +641,9 @@ class ContentBlockerService {
     if (classes.isEmpty && ids.isEmpty) return const [];
     final engineCtx = _engineCosmeticFor(pageUrl);
     if (engineCtx?.genericHide == true) {
-      LogService.instance.log('ContentBlocker',
+      LogTag.contentBlocker.debug(
           'engine.hiddenClassIdSelectors($pageUrl) skipped — '
-          'page has \$generichide allowlist',
-          level: LogLevel.debug,
-          sensitivity: LogSensitivity.sensitive);
+          'page has \$generichide allowlist', sensitive: true);
       return const [];
     }
     final mergedExceptions =
@@ -667,12 +655,9 @@ class ContentBlockerService {
       ids,
       exceptions: mergedExceptions,
     );
-    LogService.instance.log('ContentBlocker',
-        'engine.hiddenClassIdSelectors($pageUrl): '
+    LogTag.contentBlocker.debug('engine.hiddenClassIdSelectors($pageUrl): '
         '${classes.length} class(es), ${ids.length} id(s) → '
-        '${result.length} selector(s)',
-        level: LogLevel.debug,
-        sensitivity: LogSensitivity.sensitive);
+        '${result.length} selector(s)', sensitive: true);
     return result;
   }
 
@@ -721,12 +706,11 @@ class ContentBlockerService {
 
       await _rebuildEngine();
 
-      LogService.instance.log('ContentBlocker',
+      LogTag.contentBlocker.info(
           'Initialized: ${_lists.length} list(s), engine '
-          '${_rustEngine == null ? "inactive" : "active"}',
-          level: LogLevel.info);
+          '${_rustEngine == null ? "inactive" : "active"}');
     } catch (e) {
-      LogService.instance.log('ContentBlocker', 'Error initializing: $e', level: LogLevel.error);
+      LogTag.contentBlocker.error('Error initializing: $e');
     }
   }
 
@@ -763,11 +747,12 @@ class ContentBlockerService {
       await _saveLists();
       await _rebuildEngine();
 
-      LogService.instance.log('ContentBlocker', 'Downloaded ${list.name}: ~${list.ruleCount} rules', level: LogLevel.info);
+      LogTag.contentBlocker.info(
+          'Downloaded ${list.name}: ~${list.ruleCount} rules');
 
       return true;
     } on Exception catch (e) {
-      LogService.instance.log('ContentBlocker', 'Error downloading ${list.name}: $e', level: LogLevel.error);
+      LogTag.contentBlocker.error('Error downloading ${list.name}: $e');
       return false;
     }
   }
@@ -778,7 +763,7 @@ class ContentBlockerService {
     final uri = Uri.tryParse(url);
     if (uri == null) return Future.value(const FetchFailed('not a URL'));
     return fetchViaAppProxy(uri,
-        tag: 'ContentBlocker', timeout: const Duration(seconds: 30));
+        tag: LogTag.contentBlocker, timeout: const Duration(seconds: 30));
   }
 
   /// Download all enabled lists. Returns number of successful downloads.
@@ -1006,10 +991,9 @@ class ContentBlockerService {
         enableUboResources: useUboResources);
     sw.stop();
     if (engine == null) {
-      LogService.instance.log('ContentBlocker',
+      LogTag.contentBlocker.warning(
           'Engine library is not loadable on this platform — '
-          'adblock decisions will all return "allowed".',
-          level: LogLevel.warning);
+          'adblock decisions will all return "allowed".');
       if (hostIsAndroid) {
         await WebInterceptNative.sendAdblockEngineRules('');
       }
@@ -1017,11 +1001,9 @@ class ContentBlockerService {
       return;
     }
     _rustEngine = engine;
-    LogService.instance.log('ContentBlocker',
-        'Engine active: ${engine.version} '
+    LogTag.contentBlocker.info('Engine active: ${engine.version} '
         '($loadMode $listCount list(s), ${rulesText.length} bytes, '
-        '${sw.elapsedMilliseconds}ms)',
-        level: LogLevel.info);
+        '${sw.elapsedMilliseconds}ms)');
     if (loadMode == 'parse') {
       unawaited(_writeEngineCache(rulesHash, engine));
     }
@@ -1030,14 +1012,12 @@ class ContentBlockerService {
           await WebInterceptNative.sendAdblockEngineRules(rulesText,
               enableUboResources: useUboResources);
       if (result == null || result['active'] != true) {
-        LogService.instance.log('ContentBlocker',
+        LogTag.contentBlocker.warning(
             'Native engine inactive on this Android build — '
-            'sub-resource blocking will Dart-roundtrip per request.',
-            level: LogLevel.warning);
+            'sub-resource blocking will Dart-roundtrip per request.');
       } else {
-        LogService.instance.log('ContentBlocker',
-            'Native engine active for Android sub-resources.',
-            level: LogLevel.info);
+        LogTag.contentBlocker.info(
+            'Native engine active for Android sub-resources.');
       }
     }
     _notifyRulesChanged();
@@ -1092,8 +1072,7 @@ class ContentBlockerService {
       final url = e['url'] as String?;
       if (id == null || name == null || url == null) continue;
       if (!_kListIdPattern.hasMatch(id)) {
-        LogService.instance.log('ContentBlocker',
-            'Skipped imported list with unsafe id', level: LogLevel.warning);
+        LogTag.contentBlocker.warning('Skipped imported list with unsafe id');
         continue;
       }
       final rules = e['rules'];
@@ -1155,9 +1134,8 @@ class ContentBlockerService {
       if ((parts[1] == '1') != useUboResources) return null;
       return _store.readBytes(_engineCacheName);
     } catch (e) {
-      LogService.instance.log('ContentBlocker',
-          'engine cache read failed: $e — falling back to parse',
-          level: LogLevel.debug);
+      LogTag.contentBlocker.debug(
+          'engine cache read failed: $e — falling back to parse');
       return null;
     }
   }
@@ -1169,13 +1147,10 @@ class ContentBlockerService {
       await _store.writeBytes(_engineCacheName, blob);
       await _store.writeText(
           _engineCacheMetaName, '$hash:${useUboResources ? '1' : '0'}');
-      LogService.instance.log('ContentBlocker',
-          'engine cache written: ${blob.length} bytes (hash=${hash.substring(0, 8)}…)',
-          level: LogLevel.debug);
+      LogTag.contentBlocker.debug(
+          'engine cache written: ${blob.length} bytes (hash=${hash.substring(0, 8)}…)');
     } catch (e) {
-      LogService.instance.log('ContentBlocker',
-          'engine cache write failed: $e',
-          level: LogLevel.warning);
+      LogTag.contentBlocker.warning('engine cache write failed: $e');
     }
   }
 

@@ -233,8 +233,7 @@ class _ContentBlockerSettingsScreenState
         text = await hostReadFileText(file.path!);
       }
     } catch (e) {
-      LogService.instance.log('ContentBlocker', 'uBO backup read failed: $e',
-          level: LogLevel.warning);
+      LogTag.contentBlocker.warning('uBO backup read failed: $e');
     }
     final backup = text == null ? null : UboBackup.parse(text);
     if (backup == null) {

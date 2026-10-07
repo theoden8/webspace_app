@@ -508,7 +508,7 @@ class ConsoleLogEntry {
 
 - `WebViewConfig.onConsoleMessage` callback wired in `WebViewFactory.createWebView()`
 - `WebViewModel.consoleLogs` and `NestedDevToolsHost.consoleLogs`, both ring buffers (max 500 entries)
-- All service files use `LogService.instance.log()` instead of `debugPrint()`
+- All service files log through a `LogTag` (`LogTag.x.debug(...)`, `sensitive: true` for per-site identifiers) instead of `debugPrint()`
 - Popup menu "Developer Tools" item in `main.dart` (top-level sites) and `inappbrowser.dart` (nested webviews)
 - "App Logs" tile in App Settings screen
 - `lib/services/developer_mode_service.dart` + `lib/services/developer_unlock_engine.dart` — DEVTOOLS-010 gate and its unlock gesture; `test/developer_unlock_engine_test.dart` characterizes the counting

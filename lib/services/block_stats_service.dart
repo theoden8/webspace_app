@@ -93,8 +93,7 @@ class BlockStatsService {
         }
       }
     } catch (e) {
-      LogService.instance.log('BlockStats', 'Failed to load stats: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Failed to load stats: $e');
       _engine = BlockStatsEngine();
     }
     await _loadDetail();
@@ -117,8 +116,7 @@ class BlockStatsService {
         _detail.mergeFromJson(decoded);
       }
     } catch (e) {
-      LogService.instance.log('BlockStats', 'Failed to load detail: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Failed to load detail: $e');
     }
   }
 
@@ -195,8 +193,7 @@ class BlockStatsService {
       // recorded while it was in flight is not in the payload at all.
       engine.markCleanAt(revision);
     } catch (e) {
-      LogService.instance.log('BlockStats', 'Failed to persist stats: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Failed to persist stats: $e');
     }
   }
 

@@ -138,11 +138,9 @@ class TabsController {
         model.tabs, model.activeTabId, model.initUrl);
     if (landing == null) return;
     if (_gate.busy) {
-      LogService.instance.log(
-        'Tabs',
-        'Home landing for "${model.name}" skipped: a tab change is running',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tabs.debug(
+          'Home landing for "${model.name}" skipped: a tab change is running',
+          sensitive: true);
       return;
     }
     await _gate.run(() async {
@@ -217,11 +215,9 @@ class TabsController {
         _sites.models.indexOf(model) == _sites.current) {
       _host.enterFullscreen();
     }
-    LogService.instance.log(
-      'Tabs',
-      'Bound "${model.name}" to tab $targetTabId (${model.tabs.length} tabs)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.tabs.debug(
+        'Bound "${model.name}" to tab $targetTabId (${model.tabs.length} tabs)',
+        sensitive: true);
     await _host.commitSites(const SitesEdited());
   }
 
@@ -302,12 +298,9 @@ class TabsController {
             _host.cancelPendingCapture(owner.siteId);
           }
           dropped.add(owner.stateKeyForTab(tab.id));
-          LogService.instance.log(
-            'Tabs',
-            'Tab ${tab.id} of "${owner.name}" now runs as '
-                '${host ?? owner.siteId} (opener ${opener.siteId})',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.tabs.debug('Tab ${tab.id} of "${owner.name}" now runs as '
+              '${host ?? owner.siteId} (opener ${opener.siteId})',
+              sensitive: true);
           tab.hostSiteId = host;
           changed = true;
         }
@@ -513,12 +506,9 @@ class TabsController {
         homeUrl: homeUrl,
       );
       owner.tabs = TabLifecycleEngine.insertChild(owner.tabs, tab);
-      LogService.instance.log(
-        'Tabs',
-        'Opened a child tab of "${owner.name}"'
-            '${tab.hostSiteId == null ? '' : ' run as ${tab.hostSiteId}'}',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tabs.debug('Opened a child tab of "${owner.name}"'
+          '${tab.hostSiteId == null ? '' : ' run as ${tab.hostSiteId}'}',
+          sensitive: true);
       await switchActiveTab(owner, tab.id);
     });
   }
@@ -557,11 +547,9 @@ class TabsController {
       }
       model.tabs = TabLifecycleEngine.insertAfter(model.tabs, source.id, copy);
       _host.rebuild();
-      LogService.instance.log(
-        'Tabs',
-        'Duplicated ${source.id} as ${copy.id} in "${model.name}"',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tabs.debug(
+          'Duplicated ${source.id} as ${copy.id} in "${model.name}"',
+          sensitive: true);
       await _host.commitSites(const SitesEdited());
       _host.offerOpenTab(model, copy.id);
     });
@@ -596,11 +584,9 @@ class TabsController {
       return tab;
     });
     if (tab == null) return;
-    LogService.instance.log(
-      'Tabs',
-      'Opened a background tab under ${model.activeTabId} in "${model.name}"',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.tabs.debug(
+        'Opened a background tab under ${model.activeTabId} in "${model.name}"',
+        sensitive: true);
     await _host.commitSites(const SitesEdited());
     _host.offerOpenTab(model, tab.id);
   }
@@ -618,12 +604,9 @@ class TabsController {
       await navStates.removeState(model.stateKeyForTab(id));
     }
     if (!_host.mounted) return;
-    LogService.instance.log(
-      'Tabs',
-      'Closed ${result.closedIds.length} tab(s) in "${model.name}"; '
-          '${result.tabs.length} left',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.tabs.debug(
+        'Closed ${result.closedIds.length} tab(s) in "${model.name}"; '
+        '${result.tabs.length} left', sensitive: true);
     if (result.tabs.isEmpty) {
       // A site always has a tab to show. Closing the last one lands it back on
       // its home page rather than leaving the site blank. Through the same
@@ -697,11 +680,9 @@ class TabsController {
       _returns = const [];
       return false;
     }
-    LogService.instance.log(
-      'Navigation',
-      'Back gesture: at the start of a tab opened from the Tabs sheet; '
-          'back where it was opened from',
-    );
+    LogTag.navigation.debug(
+        'Back gesture: at the start of a tab opened from the Tabs sheet; '
+        'back where it was opened from');
     await openTab(index, back.fromTabId);
     return true;
   }
@@ -724,10 +705,8 @@ class TabsController {
         TabBackAction.closeAndActivateParent) {
       return false;
     }
-    LogService.instance.log(
-      'Navigation',
-      'Back gesture: at history start in a tab opened from another; closing it',
-    );
+    LogTag.navigation.debug(
+        'Back gesture: at history start in a tab opened from another; closing it');
     await closeTab(index, model.activeTabId);
     return true;
   }

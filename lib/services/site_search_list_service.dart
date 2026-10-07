@@ -67,8 +67,7 @@ class SiteSearchListService {
     try {
       decoded = jsonDecode(text);
     } on FormatException catch (e) {
-      LogService.instance.log('SearchList', 'Stored list unreadable: $e',
-          level: LogLevel.warning);
+      LogTag.searchList.warning('Stored list unreadable: $e');
       return;
     }
     if (decoded is! Map) return;
@@ -87,7 +86,7 @@ class SiteSearchListService {
   /// leaves the stored list as it was.
   Future<bool> download({Duration timeout = const Duration(minutes: 2)}) async {
     final fetched = await fetchViaAppProxy(Uri.parse(kSiteSearchListUrl),
-        tag: 'SearchList', timeout: timeout, maxBytes: _maxDownloadBytes);
+        tag: LogTag.searchList, timeout: timeout, maxBytes: _maxDownloadBytes);
     final response = switch (fetched) {
       Fetched(:final response) => response,
       FetchRefused() || FetchFailed() => null,
@@ -96,8 +95,7 @@ class SiteSearchListService {
     try {
       final table = await compute(_reduce, response.body);
       if (table.isEmpty) {
-        LogService.instance.log('SearchList', 'Download held no usable entry',
-            level: LogLevel.error);
+        LogTag.searchList.error('Download held no usable entry');
         return false;
       }
       await hostWriteDocumentText(_cacheFileName, jsonEncode(table));
@@ -106,15 +104,13 @@ class SiteSearchListService {
       await prefs.setString(_lastUpdatedPrefKey, now.toIso8601String());
       _table = table;
       _lastUpdated = now;
-      LogService.instance
-          .log('SearchList', 'Downloaded ${table.length} site searches');
+      LogTag.searchList.debug('Downloaded ${table.length} site searches');
       _notify();
       return true;
     } on Exception catch (e) {
       // A body that is not JSON, or the store's own failure. Errors are bugs
       // and still reach the caller.
-      LogService.instance
-          .log('SearchList', 'Download error: $e', level: LogLevel.error);
+      LogTag.searchList.error('Download error: $e');
       return false;
     }
   }

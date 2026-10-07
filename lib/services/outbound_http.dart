@@ -83,7 +83,7 @@ final class FetchFailed extends AppProxyFetch {
 /// abandoned as it arrives.
 Future<AppProxyFetch> fetchViaAppProxy(
   Uri url, {
-  required String tag,
+  required LogTag tag,
   Duration timeout = const Duration(seconds: 15),
   int? maxBytes,
   Map<String, String> headers = const {},
@@ -94,8 +94,7 @@ Future<AppProxyFetch> fetchViaAppProxy(
   final http.Client client;
   switch (outboundHttp.clientFor(GlobalOutboundProxy.current)) {
     case OutboundClientBlocked(:final reason):
-      LogService.instance.log(tag, 'Skipped download: $reason',
-          level: LogLevel.warning);
+      tag.warning('Skipped download: $reason');
       return FetchRefused(reason);
     case OutboundClientReady(client: final ready):
       client = ready;
@@ -114,7 +113,7 @@ Future<AppProxyFetch> fetchViaAppProxy(
 Future<AppProxyFetch> _fetch(
   http.Client client,
   Uri url,
-  String tag,
+  LogTag tag,
   int? maxBytes,
   Map<String, String> headers,
 ) async {
@@ -139,8 +138,7 @@ Future<AppProxyFetch> _fetch(
   ));
 }
 
-FetchFailed _fetchFailed(String tag, Uri url, String reason) {
-  LogService.instance.log(tag, 'Download from ${url.host} failed: $reason',
-      level: LogLevel.error);
+FetchFailed _fetchFailed(LogTag tag, Uri url, String reason) {
+  tag.error('Download from ${url.host} failed: $reason');
   return FetchFailed(reason);
 }

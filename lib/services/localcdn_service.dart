@@ -418,7 +418,7 @@ class LocalCdnService {
     if (_cache.containsKey(cacheKey)) return _getResourceByKey(cacheKey);
 
     final fetched = await fetchViaAppProxy(Uri.parse(_cdnjsUrl(cacheKey)),
-        tag: 'LocalCDN');
+        tag: LogTag.localCdn);
     return switch (fetched) {
       Fetched(:final response) => _saveToCache(cacheKey, response.bodyBytes),
       FetchRefused() || FetchFailed() => null,
@@ -436,8 +436,7 @@ class LocalCdnService {
       await _saveCacheIndex();
       return bytes;
     } catch (e) {
-      LogService.instance.log('LocalCDN',
-          'Cache write error for $key: $e', level: LogLevel.error);
+      LogTag.localCdn.error('Cache write error for $key: $e');
       return null;
     }
   }
@@ -485,8 +484,7 @@ class LocalCdnService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
 
-    LogService.instance.log('LocalCDN',
-        'Downloaded $downloaded/$total popular resources');
+    LogTag.localCdn.debug('Downloaded $downloaded/$total popular resources');
     return downloaded;
   }
 

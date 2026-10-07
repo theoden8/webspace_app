@@ -49,11 +49,7 @@ class ProxyRelay implements ProxyRelayApi {
       if (call.method == 'logEvent') {
         final msg = (call.arguments as Map?)?['msg']?.toString();
         if (msg != null) {
-          LogService.instance.log(
-            'ProxyRelay',
-            msg,
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.proxyRelay.debug(msg, sensitive: true);
         }
       }
       return null;

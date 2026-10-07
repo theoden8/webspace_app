@@ -35,12 +35,8 @@ class ContainerIsolationEngine {
     try {
       await containerNative.getOrCreateContainer(siteId);
     } catch (e) {
-      LogService.instance.log(
-        'Container',
-        'ensureContainer($siteId) failed: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.container.error(
+          'ensureContainer($siteId) failed: $e', sensitive: true);
     }
   }
 
@@ -54,11 +50,8 @@ class ContainerIsolationEngine {
     if (!await containerNative.isSupported()) return 0;
     await ensureContainer(siteId);
     final bound = await containerNative.bindContainerToWebView(siteId);
-    LogService.instance.log(
-      'Container',
-      'Bound container ws-$siteId to $bound webview(s)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.container.debug(
+        'Bound container ws-$siteId to $bound webview(s)', sensitive: true);
     return bound;
   }
 
@@ -70,11 +63,8 @@ class ContainerIsolationEngine {
   Future<void> onSiteDeleted(String siteId) async {
     if (!await containerNative.isSupported()) return;
     final deleted = await containerNative.deleteContainer(siteId);
-    LogService.instance.log(
-      'Container',
-      'Deleted container ws-$siteId (success=$deleted)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.container.debug(
+        'Deleted container ws-$siteId (success=$deleted)', sensitive: true);
   }
 
   /// Wipes [siteId]'s container data (cookies, localStorage, IndexedDB,
@@ -90,7 +80,7 @@ class ContainerIsolationEngine {
     if (!await containerNative.isSupported()) return false;
     final ok = await containerNative.clearContainerData(siteId);
     LogService.instance.log(
-      'Container',
+      LogTag.container,
       ok
           ? 'Cleared container ws-$siteId'
           : 'clearContainerData(ws-$siteId) reported failure',
@@ -118,10 +108,7 @@ class ContainerIsolationEngine {
       }
     }
     if (deleted > 0) {
-      LogService.instance.log(
-        'Container',
-        'GC: deleted $deleted orphan container(s)',
-      );
+      LogTag.container.debug('GC: deleted $deleted orphan container(s)');
     }
     return deleted;
   }

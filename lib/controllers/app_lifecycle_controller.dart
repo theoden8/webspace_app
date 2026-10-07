@@ -110,7 +110,7 @@ class AppLifecycleController {
     final loadedNotif = loadedWith((m) => m.effectiveNotificationsEnabled);
     _backgroundedAt = DateTime.now();
     BackgroundLog.instance.record(
-      'Lifecycle',
+      LogTag.lifecycle,
       'App background: jsPause=${pausePlan.jsPauseIndex != null} '
           'capture=${pausePlan.captureStateIndex != null} '
           'bgAudio=$loadedBgAudio notif=$loadedNotif loaded',
@@ -161,7 +161,7 @@ class AppLifecycleController {
       _backgroundedAt = null;
       final c = background.counts();
       BackgroundLog.instance.record(
-        'Lifecycle',
+        LogTag.lifecycle,
         'App resumed after ${DateTime.now().difference(since).inSeconds}s '
             'in background: notif sites ${c.enabled} enabled, '
             '${c.loaded} loaded',
@@ -253,12 +253,9 @@ class AppLifecycleController {
         trigger: trigger, siteId: model.siteId);
     // A concurrent recreate may have swapped the controller already.
     if (!gone || !identical(model.controller, controller)) return;
-    LogService.instance.log(
-      'WebView',
-      'Renderer probe failed for "${model.name}" (siteId: ${model.siteId}) — recreating',
-      level: LogLevel.warning,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.warning(
+        'Renderer probe failed for "${model.name}" (siteId: ${model.siteId}) — recreating',
+        sensitive: true);
     model.handleRendererGone(didCrash: false);
   }
 
@@ -281,10 +278,8 @@ class AppLifecycleController {
         if (!await ConnectivityService.instance.isOnline()) return;
         if (!_stillShown(model)) return;
         model.resumeReload.noteRetryIssued();
-        LogService.instance.log(
-          'ResumeReload',
-          'attempt=${model.resumeReload.attempts} -> reissuing stranded load',
-        );
+        LogTag.resumeReload.debug(
+            'attempt=${model.resumeReload.attempts} -> reissuing stranded load');
         await model.reissueLoadAndRepaint(plan.url!);
         await Future.delayed(ResumeReloadEngine.retryBackoff);
         if (!_stillShown(model)) return;

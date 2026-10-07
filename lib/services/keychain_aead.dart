@@ -33,21 +33,20 @@ final class KeychainAead {
   static Future<KeychainAead?> open(
     FlutterSecureStorage keystore,
     String keyName, {
-    required String logTag,
+    required LogTag logTag,
   }) async {
     final stored = await keystoreCall(logTag, 'read $keyName', () async {
       final existing = await keystore.read(key: keyName);
       if (existing != null) return existing;
       final fresh = base64.encode(encrypt.Key.fromSecureRandom(32).bytes);
       await keystore.write(key: keyName, value: fresh);
-      LogService.instance.log(logTag, 'Generated new encryption key');
+      logTag.debug('Generated new encryption key');
       return fresh;
     });
     if (stored == null) return null;
     final key = _decodeBase64(stored);
     if (key == null || key.length != 32) {
-      LogService.instance.log(logTag, '$keyName is not a stored key',
-          level: LogLevel.error);
+      logTag.error('$keyName is not a stored key');
       return null;
     }
     return KeychainAead._(key);
@@ -58,7 +57,7 @@ final class KeychainAead {
   static Future<KeychainAead?> rotate(
     FlutterSecureStorage keystore,
     String keyName, {
-    required String logTag,
+    required LogTag logTag,
   }) async {
     final deleted = await keystoreCall(logTag, 'delete $keyName', () async {
       await keystore.delete(key: keyName);

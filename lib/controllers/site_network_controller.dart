@@ -89,13 +89,9 @@ class SiteNetworkController {
   /// Revoking a pinned certificate wipes what its host's sites remembered of
   /// the handshake, so their next load asks again.
   Future<void> pinRevoked(TrustedHostEntry entry) async {
-    LogService.instance.log(
-      'TLS',
-      'pin revoked for ${entry.host}:${entry.port} '
-          '(loaded=${_sites.loaded.toList()..sort()}, '
-          'webViewModels=${_sites.models.length})',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.tls.debug('pin revoked for ${entry.host}:${entry.port} '
+        '(loaded=${_sites.loaded.toList()..sort()}, '
+        'webViewModels=${_sites.models.length})', sensitive: true);
     final host = entry.host.toLowerCase();
     // Android's cert-acceptance state lives in multiple layers:
     //   1. App-level SSL preferences table (WebView.clearSslPreferences) —
@@ -124,40 +120,26 @@ class SiteNetworkController {
     if (preferred != null) {
       try {
         await preferred.nativeController.clearSslPreferences();
-        LogService.instance.log(
-          'TLS',
-          'clearSslPreferences() completed for ${entry.host}:${entry.port} '
-              '(via ${matching != null ? "matching-host" : "any-loaded"} controller)',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.tls.debug(
+            'clearSslPreferences() completed for ${entry.host}:${entry.port} '
+            '(via ${matching != null ? "matching-host" : "any-loaded"} controller)',
+            sensitive: true);
       } catch (e) {
-        LogService.instance.log('TLS',
-            'clearSslPreferences() failed: $e',
-            level: LogLevel.error);
+        LogTag.tls.error('clearSslPreferences() failed: $e');
       }
     } else {
-      LogService.instance.log(
-        'TLS',
-        'no loaded controller to call clearSslPreferences() for '
-            '${entry.host}:${entry.port} — SSL prefs table may retain stale '
-            'host decisions until next app restart',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug('no loaded controller to call clearSslPreferences() for '
+          '${entry.host}:${entry.port} — SSL prefs table may retain stale '
+          'host decisions until next app restart', sensitive: true);
     }
     // Static: flushes the Chromium network service every WebView and
     // profile shares.
     try {
       await inapp.InAppWebViewController.clearAllCache(includeDiskFiles: true);
-      LogService.instance.log(
-        'TLS',
-        'clearAllCache(disk=true) completed for revoke of '
-            '${entry.host}:${entry.port}',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug('clearAllCache(disk=true) completed for revoke of '
+          '${entry.host}:${entry.port}', sensitive: true);
     } catch (e) {
-      LogService.instance.log('TLS',
-          'clearAllCache failed: $e',
-          level: LogLevel.error);
+      LogTag.tls.error('clearAllCache failed: $e');
     }
     if (!_host.mounted) return;
     var changed = false;
@@ -192,12 +174,9 @@ class SiteNetworkController {
       for (final siteId in wipedSiteIds) {
         if (await containers.clearForSite(siteId)) cleared++;
       }
-      LogService.instance.log(
-        'TLS',
-        'cleared $cleared of ${wipedSiteIds.length} container(s) after '
-            'revoke of ${entry.host}:${entry.port}',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'cleared $cleared of ${wipedSiteIds.length} container(s) after '
+          'revoke of ${entry.host}:${entry.port}', sensitive: true);
     }
     if (changed && _host.mounted) _host.rebuild();
   }

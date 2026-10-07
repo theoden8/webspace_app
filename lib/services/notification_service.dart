@@ -146,7 +146,7 @@ class NotificationService {
     }
 
     _initialized = true;
-    LogService.instance.log('Notification', 'NotificationService initialized');
+    LogTag.notification.debug('NotificationService initialized');
   }
 
   void _onTap(NotificationResponse response) {
@@ -155,15 +155,12 @@ class NotificationService {
       final data = jsonDecode(response.payload!);
       final siteId = data['siteId'] as String?;
       if (siteId != null) {
-        LogService.instance.log(
-          'Notification',
-          'Tapped notification for siteId: $siteId',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.notification.debug(
+            'Tapped notification for siteId: $siteId', sensitive: true);
         onNotificationTapped?.call(siteId);
       }
     } catch (e) {
-      LogService.instance.log('Notification', 'Failed to parse tap payload: $e', level: LogLevel.error);
+      LogTag.notification.error('Failed to parse tap payload: $e');
     }
   }
 
@@ -207,7 +204,7 @@ class NotificationService {
       }
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'Notification',
+        LogTag.notification,
         'OS permission could not be read: ${e.code}',
         level: LogLevel.warning,
       );
@@ -216,7 +213,7 @@ class NotificationService {
     final changed = _permissionGranted != value;
     _permissionGranted = value;
     BackgroundLog.instance.record(
-        'Notification', 'OS permission read off screen: '
+        LogTag.notification, 'OS permission read off screen: '
             '${value ? "granted" : "not granted"}',
         level: value ? LogLevel.info : LogLevel.warning);
     if (changed) _notifyPermissionListeners();
@@ -235,7 +232,7 @@ class NotificationService {
     final app = SchedulerBinding.instance.lifecycleState?.name ?? 'unknown';
     if (_permissionGranted != true) {
       BackgroundLog.instance.record(
-        'Notification',
+        LogTag.notification,
         'notification dropped (${origin.name}, app $app): '
             'OS notification permission denied',
         level: LogLevel.warning,
@@ -277,7 +274,7 @@ class NotificationService {
       await _plugin.show(id: target.id, title: title, body: body.isNotEmpty ? body : null, notificationDetails: details, payload: payload);
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'Notification',
+        LogTag.notification,
         'notification failed (${origin.name}, app $app): ${e.code}',
         level: LogLevel.error,
         sensitive: 'notification "$title" for siteId $siteId failed: ${e.message}',
@@ -287,7 +284,7 @@ class NotificationService {
     _lastPostedAt[siteId] = DateTime.now();
     onPosted?.call(siteId);
     BackgroundLog.instance.record(
-      'Notification',
+      LogTag.notification,
       'notification posted (${origin.name}, '
           '${tag == null || tag.isEmpty ? 'untagged' : 'tagged'}, app $app)',
       sensitive: 'Showed notification: "$title" for siteId: $siteId',
@@ -318,7 +315,7 @@ class NotificationService {
     final changed = _permissionGranted != granted;
     _permissionGranted = granted;
     BackgroundLog.instance.record(
-        'Notification', 'OS permission: ${granted ? "granted" : "denied"}',
+        LogTag.notification, 'OS permission: ${granted ? "granted" : "denied"}',
         level: granted ? LogLevel.info : LogLevel.warning);
     if (changed) _notifyPermissionListeners();
     return granted;

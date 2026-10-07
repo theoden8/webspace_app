@@ -58,12 +58,9 @@ class GlobalOutboundProxy {
     if (pwd != null && pwd.isNotEmpty) {
       _current.password = pwd;
     }
-    LogService.instance.log(
-      'Proxy',
-      'GlobalOutboundProxy initialized: ${_current.describeForLogs()}',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info(
+        'GlobalOutboundProxy initialized: ${_current.describeForLogs()}',
+        sensitive: true);
   }
 
   /// Update both the in-memory cache and the persisted value.
@@ -75,12 +72,9 @@ class GlobalOutboundProxy {
       ProxyPasswordSecureStorage.globalProxyKey,
       settings.password,
     );
-    LogService.instance.log(
-      'Proxy',
-      'GlobalOutboundProxy updated: ${settings.describeForLogs()}',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info(
+        'GlobalOutboundProxy updated: ${settings.describeForLogs()}',
+        sensitive: true);
   }
 
   static void resetForTest() {

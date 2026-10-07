@@ -36,7 +36,7 @@ class CookieSecureStorage {
       : _secure = SecureJsonStore(
           keystore: secureStorage ?? Keystores.credentials,
           key: _secureStorageKey,
-          logTag: 'CookieStorage',
+          logTag: LogTag.cookieStorage,
           decode: _decodeCookies,
           encode: _encodeCookies,
           isEmpty: (cookies) => cookies.isEmpty,
@@ -168,12 +168,9 @@ class CookieSecureStorage {
       await _saveCookiesUnlocked(allCookies);
     });
     if (siteIdsToRemove.isEmpty) return;
-    LogService.instance.log(
-      'CookieStorage',
-      'Removed orphaned cookies for siteIds: $siteIdsToRemove',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieStorage.info(
+        'Removed orphaned cookies for siteIds: $siteIdsToRemove',
+        sensitive: true);
   }
 
   /// Clears all stored cookies from both secure storage and fallback.
@@ -209,9 +206,8 @@ class CookieSecureStorage {
     try {
       return _decodeCookies(jsonDecode(jsonString));
     } on FormatException {
-      LogService.instance.log('CookieStorage',
-          'Non-secure cookies are not JSON; reading them as empty',
-          level: LogLevel.error);
+      LogTag.cookieStorage.error(
+          'Non-secure cookies are not JSON; reading them as empty');
       return {};
     }
   }

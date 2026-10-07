@@ -19,7 +19,7 @@ import 'package:webspace/webspace_model.dart';
 /// - 'en', 'es', etc.: Override all sites with this language
 Future<void> seedDemoData({String theme = 'system', String? language}) async {
   void log(String msg) =>
-      LogService.instance.log('DemoData', msg, level: LogLevel.info);
+      LogTag.demoData.info(msg);
 
   log('========================================');
   log('SEEDING DEMO DATA');

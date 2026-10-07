@@ -521,14 +521,11 @@ Future<void> _migrateFileImportsToStorage() async {
       }
     }
     if (migrated > 0) {
-      LogService.instance.log('HtmlImport',
-          'Migrated $migrated file-import page(s) from cache to import storage',
-          level: LogLevel.info);
+      LogTag.htmlImport.info(
+          'Migrated $migrated file-import page(s) from cache to import storage');
     }
   } catch (e) {
-    LogService.instance.log('HtmlImport',
-        'File-import migration failed: $e',
-        level: LogLevel.error);
+    LogTag.htmlImport.error('File-import migration failed: $e');
   }
 }
 
@@ -544,7 +541,7 @@ Future<void> _runTimed(String label, AsyncStep step) async {
   try {
     await step();
   } finally {
-    LogService.instance.log('Startup', '  $label: ${sw.elapsedMilliseconds}ms');
+    LogTag.startup.debug('  $label: ${sw.elapsedMilliseconds}ms');
   }
 }
 
@@ -589,12 +586,10 @@ void main([List<String> args = const []]) async {
       await inapp.ServiceWorkerController.setBlockNetworkLoads(true);
       await inapp.ServiceWorkerController.instance()
           .setServiceWorkerClient(null);
-      LogService.instance.log('WebView',
+      LogTag.webView.debug(
           'Service worker network loads blocked at WebView layer');
     } catch (e) {
-      LogService.instance.log('WebView',
-          'Failed to block service worker network loads: $e',
-          level: LogLevel.error);
+      LogTag.webView.error('Failed to block service worker network loads: $e');
     }
   }
 
@@ -631,8 +626,8 @@ void main([List<String> args = const []]) async {
     bridgeSetup: WebInterceptNative.initialize,
   );
   if (swServices != null) {
-    LogService.instance.log(
-        'Startup', 'parallel service init: ${swServices.elapsedMilliseconds}ms');
+    LogTag.startup.debug(
+        'parallel service init: ${swServices.elapsedMilliseconds}ms');
   }
 
   // Opt-in weekly Firefox-version auto-refresh (DM-004). Fire-and-forget:
@@ -812,7 +807,7 @@ void main([List<String> args = const []]) async {
   // than resumed here, which is how the background log tells a cold wake from
   // a launch the user made.
   BackgroundLog.instance.record(
-    'Lifecycle',
+    LogTag.lifecycle,
     'process started (app '
         '${WidgetsBinding.instance.lifecycleState?.name ?? 'state not reported yet'})',
   );
@@ -850,8 +845,8 @@ void main([List<String> args = const []]) async {
     }
   }
   if (swMain != null) {
-    LogService.instance.log(
-        'Startup', 'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms');
+    LogTag.startup.debug(
+        'main() pre-runApp init: ${swMain.elapsedMilliseconds}ms');
   }
   runApp(WebSpaceApp());
 }
@@ -1295,7 +1290,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       case ManualRepaint.nativeInvalidate || ManualRepaint.nativeVisibility:
         unawaited(SurfaceDiagNative.nativeRepaint(
                 mechanism.label.substring('native-'.length))
-            .then((views) => LogService.instance.log('SurfaceDiag',
+            .then((views) => LogTag.surfaceDiag.debug(
                 'manual ${mechanism.label} reached ${views ?? 0} view(s)')));
       case ManualRepaint.recreate:
         _resetCurrentSiteWebView();
@@ -1558,11 +1553,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           jsonDecode(json[i]) as Map<String, dynamic>,
         ));
       } catch (e) {
-        LogService.instance.log(
-          'Boot',
-          'Skipped malformed global user script at index $i: $e',
-          level: LogLevel.warning,
-        );
+        LogTag.boot.warning(
+            'Skipped malformed global user script at index $i: $e');
       }
     }
     _globalUserScripts = loaded;
@@ -1744,17 +1736,12 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     final target = _sites.models[index];
 
-    LogService.instance.log(
-      'CookieIsolation',
-      'Switching to site $index: "${target.name}" (siteId: ${target.siteId})',
-      sensitivity: LogSensitivity.sensitive,
-    );
-    LogService.instance.log(
-      'CookieIsolation',
-      'Target domain: ${getBaseDomain(target.initUrl)}',
-      sensitivity: LogSensitivity.sensitive,
-    );
-    LogService.instance.log('CookieIsolation', 'Currently loaded indices: ${_sites.loaded}');
+    LogTag.cookieIsolation.debug(
+        'Switching to site $index: "${target.name}" (siteId: ${target.siteId})',
+        sensitive: true);
+    LogTag.cookieIsolation.debug(
+        'Target domain: ${getBaseDomain(target.initUrl)}', sensitive: true);
+    LogTag.cookieIsolation.debug('Currently loaded indices: ${_sites.loaded}');
 
     // Mark this site as activation-in-flight so concurrent OS memory
     // pressure events can't pick it as a victim before _sites.current
@@ -1781,12 +1768,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (version != _sites.activationVersion) return;
       if (bytes != null) {
         target.schedulePendingRestoreState(bytes);
-        LogService.instance.log(
-          'WebViewState',
-          'Queued ${bytes.length} restore bytes for "${target.name}" '
-              '(siteId: ${target.siteId})',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webViewState.debug(
+            'Queued ${bytes.length} restore bytes for "${target.name}" '
+            '(siteId: ${target.siteId})', sensitive: true);
       }
     }
     // The about-to-be-resumed webview is back at the lowest tier; reset
@@ -1914,7 +1898,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       _exitFullscreen();
     }
 
-    LogService.instance.log('CookieIsolation', 'After switch, loaded indices: ${_sites.loaded}', sensitivity: LogSensitivity.sensitive);
+    LogTag.cookieIsolation.debug(
+        'After switch, loaded indices: ${_sites.loaded}', sensitive: true);
     // Force the just-activated Android platform-view surface to recomposite.
     // Bringing a webview onstage (tab tap, shortcut open, cold-start restore)
     // can re-attach the hybrid-composition SurfaceView blank: the page is alive
@@ -1997,20 +1982,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     final bytes = await model.captureNavigationState();
     if (bytes == null) return false;
     if (model.activeTabId != tabId || model.activeStateKey != key) {
-      LogService.instance.log(
-        'WebViewState',
-        'Dropped a capture for "${model.name}": its tab changed meanwhile',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webViewState.debug(
+          'Dropped a capture for "${model.name}": its tab changed meanwhile',
+          sensitive: true);
       return false;
     }
     await _stateStorage.saveState(key, bytes);
-    LogService.instance.log(
-      'WebViewState',
-      'Captured ${bytes.length} bytes for "${model.name}" '
-          '(state key: $key)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webViewState.debug(
+        'Captured ${bytes.length} bytes for "${model.name}" '
+        '(state key: $key)', sensitive: true);
     return true;
   }
 
@@ -2040,7 +2020,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
     if (result.isClean) return;
     LogService.instance.log(
-      'WebView',
+      LogTag.webView,
       'Teardown of "${model.name}" ran ${result.ran}'
           '${result.errors.isEmpty ? '' : ', failed ${result.errors}'}'
           '${result.stalledOn == null ? '' : ', stalled on ${result.stalledOn}'}'
@@ -2078,11 +2058,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   Future<void> _showPopupWindow(int windowId, String url) async {
     if (!mounted) return;
 
-    LogService.instance.log(
-      'PopupWindow',
-      'Opening popup window with id: $windowId, url: $url',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.popupWindow.debug(
+        'Opening popup window with id: $windowId, url: $url', sensitive: true);
 
     final loc = AppLocalizations.of(context);
     await showDialog(
@@ -2126,7 +2103,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       },
     );
 
-    LogService.instance.log('PopupWindow', 'Popup window closed');
+    LogTag.popupWindow.debug('Popup window closed');
   }
 
   Future<void> _loadWebspaces() async {
@@ -2139,11 +2116,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         try {
           loadedWebspaces.add(Webspace.fromJson(jsonDecode(webspacesJson[i])));
         } catch (e) {
-          LogService.instance.log(
-            'Boot',
-            'Skipped malformed webspace at index $i: $e',
-            level: LogLevel.warning,
-          );
+          LogTag.boot.warning('Skipped malformed webspace at index $i: $e');
         }
       }
 
@@ -2233,16 +2206,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     _sites.useContainers = await ContainerNative.instance.isSupported();
     _containerCookieManager =
         _sites.useContainers ? ContainerCookieManager() : null;
-    LogService.instance.log(
-      'Container',
-      _sites.useContainers
-          ? 'Container API supported — using ContainerIsolationEngine + ContainerCookieManager'
-          : 'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager',
-    );
+    LogTag.container.debug(_sites.useContainers
+        ? 'Container API supported — using ContainerIsolationEngine + ContainerCookieManager'
+        : 'Container API not supported — using CookieIsolationEngine + (legacy) CookieManager');
     final (sites: restored, :needsResave) =
         await _siteStore.load(onChange: () => setState(() {}));
     if (swRestore != null) {
-      LogService.instance.log('Startup',
+      LogTag.startup.debug(
           'load ${restored.length} site(s) + cookies: ${swRestore.elapsedMilliseconds}ms');
     }
     // Legacy positional membership resolves against the restored order,
@@ -2376,7 +2346,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _setCurrentIndex(indexToRestore);
     }
     if (swActivate != null) {
-      LogService.instance.log('Startup',
+      LogTag.startup.debug(
           'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');
     }
     if (!mounted) return;
@@ -2397,7 +2367,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     setState(() {}); // Trigger UI update after async operation
     if (swRestore != null) {
-      LogService.instance.log('Startup',
+      LogTag.startup.debug(
           'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms');
     }
 
@@ -2552,12 +2522,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Re-resolve after the disk read: the site may have been deleted.
     if (_sites.byId(siteId) == null) return;
     model.schedulePendingRestoreState(bytes);
-    LogService.instance.log(
-      'WebViewState',
-      'Queued ${bytes.length} restore bytes for auto-loaded site '
-          '"${model.name}" (siteId: $siteId)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webViewState.debug(
+        'Queued ${bytes.length} restore bytes for auto-loaded site '
+        '"${model.name}" (siteId: $siteId)', sensitive: true);
   }
 
   @override
@@ -2624,11 +2591,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         siteLevels: [for (final m in _sites.models) m.effectiveDnsBlockLevel],
       ));
     } catch (e) {
-      LogService.instance.log(
-        'Startup',
-        'Deferred startup GC failed: $e',
-        level: LogLevel.error,
-      );
+      LogTag.startup.error('Deferred startup GC failed: $e');
     }
   }
 
@@ -3132,7 +3095,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           return;
         }
       } else {
-        LogService.instance.log('WebspaceSwitch', 'Offline - preserving loaded webviews');
+        LogTag.webspaceSwitch.debug('Offline - preserving loaded webviews');
       }
 
       setState(() {}); // Update UI
@@ -3312,11 +3275,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         setState(() {});
       });
     } catch (e) {
-      LogService.instance.log(
-        'Import',
-        'Aborted import; live state left intact: $e',
-        level: LogLevel.error,
-      );
+      LogTag.import.error('Aborted import; live state left intact: $e');
       _toast((loc) => loc.homeImportInvalidBackup);
       return;
     }
@@ -3375,7 +3334,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final importedCounts = _background.counts();
     if (importedCounts.enabled > 0) {
       BackgroundLog.instance.record(
-        'SiteUnload',
+        LogTag.siteUnload,
         'settings import: ${importedCounts.enabled} notification sites, '
             '${importedCounts.loaded} loaded until opened or the next launch',
         level: LogLevel.warning,
@@ -3479,28 +3438,29 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
       switch (action) {
         case BackGestureAction.ignore:
-          LogService.instance.log('Navigation', 'Back gesture: nothing to do, ignoring');
+          LogTag.navigation.debug('Back gesture: nothing to do, ignoring');
           break;
         case BackGestureAction.closeDrawer:
-          LogService.instance.log('Navigation', 'Back gesture: closing open drawer');
+          LogTag.navigation.debug('Back gesture: closing open drawer');
           _scaffoldKey.currentState?.closeDrawer();
           break;
         case BackGestureAction.closeDrawerAndExit:
-          LogService.instance.log('Navigation', 'Back gesture: closing drawer and leaving app');
+          LogTag.navigation.debug(
+              'Back gesture: closing drawer and leaving app');
           _scaffoldKey.currentState?.closeDrawer();
           await SystemNavigator.pop();
           break;
         case BackGestureAction.openDrawer:
-          LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
+          LogTag.navigation.debug('Back gesture: no history, opening drawer');
           _openDrawerFromBackGesture(scaffoldState);
           break;
         case BackGestureAction.exitApp:
-          LogService.instance.log('Navigation', 'Back gesture: no site shown, leaving app');
+          LogTag.navigation.debug('Back gesture: no site shown, leaving app');
           await SystemNavigator.pop();
           break;
         case BackGestureAction.goBack:
           await _goBackAndRepaint(controller!);
-          LogService.instance.log('Navigation', 'Back gesture: navigated back (canGoBack)');
+          LogTag.navigation.debug('Back gesture: navigated back (canGoBack)');
           break;
         case BackGestureAction.attemptGoBack:
           // iOS/macOS: canGoBack() can return false for pushState
@@ -3513,13 +3473,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           if (!mounted) return;
           final urlAfter = (await controller.getUrl())?.toString();
           final urlChanged = urlBefore != urlAfter;
-          LogService.instance.log(
-            'Navigation',
-            urlChanged
-                ? 'Back gesture: navigated back from $urlBefore to $urlAfter'
-                : 'Back gesture: URL unchanged ($urlAfter)',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.navigation.debug(urlChanged
+              ? 'Back gesture: navigated back from $urlBefore to $urlAfter'
+              : 'Back gesture: URL unchanged ($urlAfter)', sensitive: true);
           if (!urlChanged) {
             // Same rule as the Android branch above, reached the only way
             // Apple can reach it: the URL did not move, so the tab is at the
@@ -3533,7 +3489,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             atHistoryStart: _backAtHistoryStart,
           );
           if (next == BackGestureAction.openDrawer) {
-            LogService.instance.log('Navigation', 'Back gesture: no history, opening drawer');
+            LogTag.navigation.debug('Back gesture: no history, opening drawer');
             _openDrawerFromBackGesture(_scaffoldKey.currentState);
           }
           break;
@@ -5456,12 +5412,8 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
 
   @override
   void reportProxyFailure(Object error) {
-    LogService.instance.log(
-      'Proxy',
-      'Nested open refused: proxy apply failed: $error',
-      level: LogLevel.error,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.error(
+        'Nested open refused: proxy apply failed: $error', sensitive: true);
     if (!state.mounted) return;
     state._toast((loc) => loc.siteSettingsProxyError('$error'));
   }

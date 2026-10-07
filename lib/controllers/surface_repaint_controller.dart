@@ -92,8 +92,7 @@ class SurfaceRepaintController {
     // directly, not through the developer-mode trace: the adb probe needs the
     // line in logcat to prove the dropped nudge was reached at all.
     if (RepaintSuppression.suppresses(trigger)) {
-      LogService.instance
-          .log('SurfaceDiag', 'trigger=$trigger$traceSuffix suppressed');
+      LogTag.surfaceDiag.debug('trigger=$trigger$traceSuffix suppressed');
       return;
     }
     final started = _engine.request();
@@ -123,14 +122,14 @@ class SurfaceRepaintController {
     if (!DeveloperModeService.instance.enabled) return;
     for (final line in _log.note('$trigger$traceSuffix',
         coalesced: coalesced, now: DateTime.now())) {
-      LogService.instance.log('SurfaceDiag', line);
+      LogTag.surfaceDiag.debug(line);
     }
     _logFlushTimer?.cancel();
     if (!_log.hasPending) return;
     _logFlushTimer = Timer(RepaintLogThrottle.burstWindow, () {
       _logFlushTimer = null;
       final summary = _log.flush();
-      if (summary != null) LogService.instance.log('SurfaceDiag', summary);
+      if (summary != null) LogTag.surfaceDiag.debug(summary);
     });
   }
 
@@ -216,7 +215,7 @@ class SurfaceRepaintController {
     const mechanisms = ManualRepaint.values;
     final mechanism = mechanisms[_manualPass % mechanisms.length];
     _manualPass++;
-    LogService.instance.log('SurfaceDiag', 'manual mechanism=${mechanism.label}');
+    LogTag.surfaceDiag.debug('manual mechanism=${mechanism.label}');
     _insetPx = mechanism == ManualRepaint.inset16 ? 16.0 : 1.0;
     return mechanism;
   }
@@ -251,7 +250,7 @@ class SurfaceRepaintController {
     required String siteId,
   }) async {
     if (RepaintSuppression.suppresses(trigger)) {
-      LogService.instance.log('SurfaceDiag', 'trigger=$trigger probe suppressed');
+      LogTag.surfaceDiag.debug('trigger=$trigger probe suppressed');
       return false;
     }
     final result = await controller.evaluateJavascriptReturning(
@@ -260,11 +259,9 @@ class SurfaceRepaintController {
     final gone = rendererProbeIndicatesGone(result);
     // No site name or URL: separates a dead renderer (null, BUG-002,
     // recreate) from a live unpainted surface (a number, BUG-001, nudge).
-    LogService.instance.log(
-      'SurfaceDiag',
-      'trigger=$trigger$traceSuffix site=$siteId probe=${result ?? 'null'} → '
-          '${gone ? 'renderer-gone (recreate)' : 'renderer-alive (nudge)'}',
-    );
+    LogTag.surfaceDiag.debug(
+        'trigger=$trigger$traceSuffix site=$siteId probe=${result ?? 'null'} → '
+        '${gone ? 'renderer-gone (recreate)' : 'renderer-alive (nudge)'}');
     // -1 is `document.body` missing, which counts as alive: the renderer
     // answered. A surface nudge cannot repaint a document with no body, so
     // say which document answered and where its body went (BUG-001 gap #17).
@@ -277,7 +274,7 @@ class SurfaceRepaintController {
           "+' bodyParent='+(b[0]&&b[0].parentNode?b[0].parentNode.nodeName:'-')"
           "+' '+location.protocol+'//'+location.host;})()");
       if (!_host.mounted) return false;
-      LogService.instance.log('SurfaceDiag',
+      LogTag.surfaceDiag.debug(
           'trigger=$trigger$traceSuffix site=$siteId no body: ${detail ?? 'null'}');
     }
     return gone;

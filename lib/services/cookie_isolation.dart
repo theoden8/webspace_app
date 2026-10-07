@@ -48,11 +48,9 @@ class CookieIsolationEngine {
     if (index < 0 || index >= models.length) return;
 
     final model = models[index];
-    LogService.instance.log(
-      'CookieIsolation',
-      'Unloading site $index: "${model.name}" (siteId: ${model.siteId})',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieIsolation.debug(
+        'Unloading site $index: "${model.name}" (siteId: ${model.siteId})',
+        sensitive: true);
 
     if (!model.effectiveIncognito) {
       // Snapshot the full native jar and attribute by base-domain so
@@ -67,19 +65,14 @@ class CookieIsolationEngine {
           .where((c) => cookieMatchesBaseDomain(c, base))
           .toList();
       await storage.saveCookiesForSite(model.siteId, model.cookies);
-      LogService.instance.log(
-        'CookieIsolation',
-        'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.cookieIsolation.debug(
+          'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
+          sensitive: true);
     }
 
     model.disposeWebView();
-    LogService.instance.log(
-      'CookieIsolation',
-      'Disposed webview for site $index',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieIsolation.debug(
+        'Disposed webview for site $index', sensitive: true);
     loadedIndices.remove(index);
   }
 
@@ -165,11 +158,9 @@ class CookieIsolationEngine {
     final cookies = await storage.loadCookiesForSite(model.siteId);
     model.cookies = cookies;
 
-    LogService.instance.log(
-      'CookieIsolation',
-      'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieIsolation.debug(
+        'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})',
+        sensitive: true);
 
     await _setCookies(model, cookies);
 

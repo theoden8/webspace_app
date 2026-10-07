@@ -51,10 +51,11 @@ class ClearUrlService {
       if (contents != null) {
         final json = jsonDecode(contents) as Map<String, dynamic>;
         _parseRules(json);
-        LogService.instance.log('ClearURLs', 'Loaded ${_providers.length} providers from cache', level: LogLevel.info);
+        LogTag.clearUrls.info(
+            'Loaded ${_providers.length} providers from cache');
       }
     } catch (e) {
-      LogService.instance.log('ClearURLs', 'Error loading cached rules: $e', level: LogLevel.error);
+      LogTag.clearUrls.error('Error loading cached rules: $e');
     }
   }
 
@@ -67,7 +68,7 @@ class ClearUrlService {
   /// request — falling back to direct would leak the device IP.
   Future<bool> downloadRules() async {
     final response = switch (
-        await fetchViaAppProxy(Uri.parse(_rulesUrl), tag: 'ClearURLs')) {
+        await fetchViaAppProxy(Uri.parse(_rulesUrl), tag: LogTag.clearUrls)) {
       Fetched(:final response) => response,
       FetchRefused() || FetchFailed() => null,
     };
@@ -79,10 +80,11 @@ class ClearUrlService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
       _parseRules(json);
-      LogService.instance.log('ClearURLs', 'Downloaded and parsed ${_providers.length} providers', level: LogLevel.info);
+      LogTag.clearUrls.info(
+          'Downloaded and parsed ${_providers.length} providers');
       return true;
     } on Exception catch (e) {
-      LogService.instance.log('ClearURLs', 'Download error: $e', level: LogLevel.error);
+      LogTag.clearUrls.error('Download error: $e');
       return false;
     }
   }
@@ -238,7 +240,7 @@ class ClearUrlService {
           redirections: redirections,
         ));
       } catch (e) {
-        LogService.instance.log('ClearURLs', 'Error parsing provider "${entry.key}": $e', level: LogLevel.error);
+        LogTag.clearUrls.error('Error parsing provider "${entry.key}": $e');
       }
     }
 
@@ -307,7 +309,7 @@ class ClearUrlService {
         try {
           result.add(RegExp(item, caseSensitive: false));
         } catch (e) {
-          LogService.instance.log('ClearURLs', 'Invalid regex "$item": $e', level: LogLevel.error);
+          LogTag.clearUrls.error('Invalid regex "$item": $e');
         }
       }
     }

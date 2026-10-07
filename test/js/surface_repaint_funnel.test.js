@@ -393,7 +393,7 @@ for (const rel of GUARDED) {
       // A mechanism that does not route through the nudge funnel emits no
       // trigger= line, so the controller names each one as it hands it out.
       if (/nextManual\(\)/.test(body)) {
-        assert.match(controllerMethod('nextManual'), /LogService\.instance\.log\('SurfaceDiag'/,
+        assert.match(controllerMethod('nextManual'), /LogTag\.surfaceDiag\./,
           'a branching manual repaint must log which mechanism it ran');
       }
       assert.match(body, /_surface\.nudge\('manual'\)/,

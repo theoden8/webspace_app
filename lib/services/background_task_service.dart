@@ -59,7 +59,7 @@ class BackgroundTaskService {
         case 'onBackgroundRefresh':
           final lifecycle =
               SchedulerBinding.instance.lifecycleState?.name ?? 'unknown';
-          BackgroundLog.instance.record('BackgroundTask',
+          BackgroundLog.instance.record(LogTag.backgroundTask,
               'background refresh fired (app $lifecycle) — reloading notif sites');
           final watch = Stopwatch()..start();
           try {
@@ -67,13 +67,13 @@ class BackgroundTaskService {
             if (cb != null) {
               await cb();
             }
-            BackgroundLog.instance.record('BackgroundTask',
+            BackgroundLog.instance.record(LogTag.backgroundTask,
                 'background refresh handled in ${watch.elapsedMilliseconds}ms');
             await bgRefreshDidComplete(success: true);
           } catch (e, st) {
             // The message can quote a page URL; only its type is kept on disk.
             BackgroundLog.instance.record(
-              'BackgroundTask',
+              LogTag.backgroundTask,
               'background refresh handler threw ${e.runtimeType}',
               level: LogLevel.error,
               sensitive: 'background refresh handler threw: $e\n$st',
@@ -94,7 +94,7 @@ class BackgroundTaskService {
       await _channel.invokeMethod('backgroundRefreshReady');
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'backgroundRefreshReady failed: ${e.message}',
         level: LogLevel.warning,
       );
@@ -105,11 +105,11 @@ class BackgroundTaskService {
     if (!hostIsIOS) return;
     try {
       await _channel.invokeMethod('beginGracePeriod');
-      LogService.instance.log(
-          'BackgroundTask', 'Started ~30s grace period for notification flush');
+      LogTag.backgroundTask.debug(
+          'Started ~30s grace period for notification flush');
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'beginGracePeriod failed: ${e.message}',
         level: LogLevel.warning,
       );
@@ -122,7 +122,7 @@ class BackgroundTaskService {
       await _channel.invokeMethod('endGracePeriod');
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'endGracePeriod failed: ${e.message}',
         level: LogLevel.warning,
       );
@@ -135,7 +135,7 @@ class BackgroundTaskService {
       await _channel.invokeMethod('scheduleRefresh');
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'scheduleRefresh failed: ${e.message}',
         level: LogLevel.warning,
       );
@@ -148,7 +148,7 @@ class BackgroundTaskService {
       await _channel.invokeMethod('cancelScheduledRefreshes');
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'cancelScheduledRefreshes failed: ${e.message}',
         level: LogLevel.warning,
       );
@@ -162,7 +162,7 @@ class BackgroundTaskService {
           .invokeMethod('bgRefreshDidComplete', {'success': success});
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'bgRefreshDidComplete failed: ${e.message}',
         level: LogLevel.warning,
       );
@@ -187,10 +187,10 @@ class BackgroundTaskService {
       await _channel
           .invokeMethod('setBackgroundAudioActive', {'active': active});
       BackgroundLog.instance.record(
-          'BackgroundTask', 'Background audio session active=$active');
+          LogTag.backgroundTask, 'Background audio session active=$active');
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'setBackgroundAudioActive failed: ${e.message}',
         level: LogLevel.warning,
       );

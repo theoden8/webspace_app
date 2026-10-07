@@ -116,8 +116,7 @@ class DiagSeed {
     suppress ??= hostEnvironment['WS_DIAG_SUPPRESS_REPAINT'];
     RepaintSuppression.setFromSpec(suppress);
     if (RepaintSuppression.triggers.isNotEmpty) {
-      LogService.instance.log('DiagSeed',
-          'repaint triggers suppressed: '
+      LogTag.diagSeed.debug('repaint triggers suppressed: '
           '${RepaintSuppression.triggers.join(', ')}');
     }
     if (encoded == null || encoded.isEmpty) return false;
@@ -125,8 +124,7 @@ class DiagSeed {
     try {
       seed = parse(encoded);
     } catch (e) {
-      LogService.instance
-          .log('DiagSeed', 'ignoring unparseable seed: $e', level: LogLevel.error);
+      LogTag.diagSeed.error('ignoring unparseable seed: $e');
       return false;
     }
     final prefs = await SharedPreferences.getInstance();
@@ -146,8 +144,7 @@ class DiagSeed {
     // repaint path fired, and a pixel verdict alone cannot say that.
     await prefs.setBool(AppPref.developerMode.key, true);
     isDemoMode = true;
-    LogService.instance.log('DiagSeed',
-        'seeded ${seed.sites.length} sites: '
+    LogTag.diagSeed.debug('seeded ${seed.sites.length} sites: '
         '${seed.sites.map((s) => s.siteId).join(', ')}');
     return true;
   }

@@ -175,11 +175,7 @@ class _ContainerNative implements ContainerNative {
         _supportedCache = false;
       }
     } catch (e) {
-      LogService.instance.log(
-        'Container',
-        'isSupported() failed: $e',
-        level: LogLevel.error,
-      );
+      LogTag.container.error('isSupported() failed: $e');
       _supportedCache = false;
     }
     return _supportedCache!;
@@ -197,12 +193,8 @@ class _ContainerNative implements ContainerNative {
       return await inapp.ContainerController.instance()
           .deleteContainer('ws-$siteId');
     } catch (e) {
-      LogService.instance.log(
-        'Container',
-        'deleteContainer($siteId) failed: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.container.error(
+          'deleteContainer($siteId) failed: $e', sensitive: true);
       return false;
     }
   }
@@ -213,12 +205,8 @@ class _ContainerNative implements ContainerNative {
       return await inapp.ContainerController.instance()
           .clearContainerData('ws-$siteId');
     } catch (e) {
-      LogService.instance.log(
-        'Container',
-        'clearContainerData($siteId) failed: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.container.error(
+          'clearContainerData($siteId) failed: $e', sensitive: true);
       return false;
     }
   }
@@ -233,11 +221,7 @@ class _ContainerNative implements ContainerNative {
           if (name.startsWith('ws-')) name.substring(3),
       ];
     } catch (e) {
-      LogService.instance.log(
-        'Container',
-        'listContainers() failed: $e',
-        level: LogLevel.error,
-      );
+      LogTag.container.error('listContainers() failed: $e');
       return const [];
     }
   }

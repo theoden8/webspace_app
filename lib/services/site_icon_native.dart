@@ -21,11 +21,7 @@ class SiteIconNative {
         await _channel.invokeMethod<bool>('enable');
         _enabled = true;
       } on PlatformException catch (e) {
-        LogService.instance.log(
-          'Icon',
-          'Enabling WebView favicons failed: $e',
-          level: LogLevel.warning,
-        );
+        LogTag.icon.warning('Enabling WebView favicons failed: $e');
       }
     });
   }

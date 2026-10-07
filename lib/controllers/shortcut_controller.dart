@@ -275,12 +275,9 @@ class ShortcutController {
     final url = launch.url ??
         _urlLedger[launch.siteId] ??
         _tombstoneUrlFor(launch.siteId);
-    LogService.instance.log(
-      'Shortcut',
-      '${warm ? 'warm' : 'cold'} launch siteId=${launch.siteId} payloadUrl=${launch.url} '
-          'resolvedUrl=$url',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.shortcut.debug(
+        '${warm ? 'warm' : 'cold'} launch siteId=${launch.siteId} payloadUrl=${launch.url} '
+        'resolvedUrl=$url', sensitive: true);
     return StartupRestoreEngine.resolveLaunch(
       shortcutSiteId: launch.siteId,
       shortcutUrl: url,
@@ -403,11 +400,9 @@ class ShortcutController {
       pinnedSiteIds: pinnedNow,
       rememberedRemap: _remap,
     );
-    LogService.instance.log(
-      'Shortcut',
-      'delete siteId=${model.siteId} pinned=$pinnedNow reachingTiles=$tiles',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.shortcut.debug(
+        'delete siteId=${model.siteId} pinned=$pinnedNow reachingTiles=$tiles',
+        sensitive: true);
     return tiles;
   }
 

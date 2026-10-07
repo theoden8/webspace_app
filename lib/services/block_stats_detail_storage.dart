@@ -66,15 +66,13 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
 
   Future<void> _open() async {
     final aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
-        logTag: 'BlockStats');
+        logTag: LogTag.blockStats);
     if (aead == null) return;
     final store = _overrideStore ?? defaultFileStore(_storageDir);
     try {
       await store.ensure();
     } on Exception catch (e) {
-      LogService.instance.log(
-          'BlockStats', 'Detail storage unavailable, counts only: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Detail storage unavailable, counts only: $e');
       return;
     }
     _aead = aead;
@@ -91,8 +89,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     try {
       wire = await store.readText(_fileName);
     } on Exception catch (e) {
-      LogService.instance.log('BlockStats', 'Detail read failed: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Detail read failed: $e');
       return null;
     }
     // A pre-GCM blob or a tampered one reads as "no detail": the report
@@ -111,8 +108,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
       await store.writeText(_fileName, aead.seal(payload));
       return true;
     } on Exception catch (e) {
-      LogService.instance.log('BlockStats', 'Detail write failed: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Detail write failed: $e');
       return false;
     }
   }
@@ -125,8 +121,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     try {
       await store.delete(_fileName);
     } on Exception catch (e) {
-      LogService.instance.log('BlockStats', 'Detail clear failed: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Detail clear failed: $e');
     }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -12,7 +13,7 @@ Future<AppProxyFetch> _fetch(
   int? maxBytes,
 }) {
   outboundHttp = factory;
-  return fetchViaAppProxy(Uri.parse(url), tag: 'Test', maxBytes: maxBytes);
+  return fetchViaAppProxy(Uri.parse(url), tag: LogTag.test, maxBytes: maxBytes);
 }
 
 FakeOutbound _answering(http.Response response) =>

@@ -296,7 +296,7 @@ class _TorLogTail extends StatelessWidget {
       animation: LogService.instance,
       builder: (context, _) {
         final lines = LogService.instance
-            .recent({kTorLogTag, kTorDaemonLogTag})
+            .recent({LogTag.tor, LogTag.torLog})
             .map((e) => e.message)
             .toList();
         if (lines.isEmpty) return const SizedBox.shrink();

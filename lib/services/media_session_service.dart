@@ -150,7 +150,7 @@ class MediaSessionService {
         final args = call.arguments;
         final message = (args is Map ? args['message'] : null) as String? ?? '';
         if (message.isNotEmpty) {
-          LogService.instance.log('MediaSession', 'Audio session: $message');
+          LogTag.mediaSession.debug('Audio session: $message');
         }
         return null;
       }
@@ -218,7 +218,7 @@ class MediaSessionService {
         // Non-sensitive: no site name, URL or track metadata. BGAUDIO-006's
         // observable — the line the integration test and a user bug report
         // both read to tell "the service was asked" from "nothing happened".
-        LogService.instance.log('MediaSession', 'Notification raised');
+        LogTag.mediaSession.debug('Notification raised');
         unawaited(_verifyVisible());
       }
     } else {
@@ -235,7 +235,7 @@ class MediaSessionService {
         'playing': false,
         'artwork': null,
       });
-      LogService.instance.log('MediaSession', 'Playback paused by the page');
+      LogTag.mediaSession.debug('Playback paused by the page');
     }
   }
 
@@ -250,11 +250,8 @@ class MediaSessionService {
     required String error,
   }) async {
     if (!_enabled) return;
-    LogService.instance.log(
-      'MediaSession',
-      'Transport "$action" did not reach playback: $error',
-      level: LogLevel.warning,
-    );
+    LogTag.mediaSession.warning(
+        'Transport "$action" did not reach playback: $error');
   }
 
   /// Clear whatever media surface the OS shows for this app, including one we
@@ -272,7 +269,7 @@ class MediaSessionService {
       _ownerFrame = null;
       _ownerIsMainFrame = false;
       _visibilityChecked = false;
-      LogService.instance.log('MediaSession', 'Notification torn down');
+      LogTag.mediaSession.debug('Notification torn down');
     }
     // `deactivate`: with nothing of ours left playing, giving the audio
     // session up is what actually drops the app out of the OS media surface —
@@ -322,12 +319,9 @@ class MediaSessionService {
     await Future<void>.delayed(debugVisibilityCheckDelay);
     if (!_active) return;
     if (await notificationPosted()) return;
-    LogService.instance.log(
-      'MediaSession',
-      'Notification raised but not posted by the OS — notification permission '
-          'is likely denied; media controls will not be visible',
-      level: LogLevel.warning,
-    );
+    LogTag.mediaSession.warning(
+        'Notification raised but not posted by the OS — notification permission '
+        'is likely denied; media controls will not be visible');
   }
 
   Future<void> _stop() async {
@@ -337,18 +331,14 @@ class MediaSessionService {
     _ownerFrame = null;
     _visibilityChecked = false;
     await _invoke('stop', null);
-    LogService.instance.log('MediaSession', 'Notification torn down');
+    LogTag.mediaSession.debug('Notification torn down');
   }
 
   Future<Object?> _invoke(String method, Map<String, Object?>? args) async {
     try {
       return await _channel.invokeMethod<Object?>(method, args);
     } on PlatformException catch (e) {
-      LogService.instance.log(
-        'MediaSession',
-        '$method failed: ${e.message}',
-        level: LogLevel.warning,
-      );
+      LogTag.mediaSession.warning('$method failed: ${e.message}');
     } on MissingPluginException {
       // Native side not present (older build); harmless.
     }
@@ -388,22 +378,15 @@ class MediaSessionService {
     final verdict = await classifyOutboundTarget(url, effective);
     if (verdict != HostRangeVerdict.public &&
         verdict != HostRangeVerdict.notResolvedHere) {
-      LogService.instance.log(
-        'MediaSession',
-        'Artwork fetch skipped: $url does not resolve to a routable address',
-        level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.mediaSession.warning(
+          'Artwork fetch skipped: $url does not resolve to a routable address',
+          sensitive: true);
       return null;
     }
     final http.Client client;
     switch (outboundHttp.clientFor(effective)) {
       case OutboundClientBlocked(:final reason):
-        LogService.instance.log(
-          'MediaSession',
-          'Artwork fetch skipped: $reason',
-          level: LogLevel.warning,
-        );
+        LogTag.mediaSession.warning('Artwork fetch skipped: $reason');
         return null;
       case OutboundClientReady(client: final ready):
         client = ready;

@@ -77,8 +77,8 @@ void main() {
   group('App Logs copy', () {
     testWidgets('copies the visible entries with no dialog when none are sensitive',
         (tester) async {
-      LogService.instance.log('Nav', 'app started');
-      LogService.instance.log('Theme', 'dark mode on');
+      LogTag.nav.debug('app started');
+      LogTag.theme.debug('dark mode on');
       await pumpDevTools(tester);
 
       await tester.tap(find.byKey(const Key('devtools-logs-copy')));
@@ -92,9 +92,8 @@ void main() {
 
     testWidgets('sensitive entries are hidden and uncopied while the toggle is off',
         (tester) async {
-      LogService.instance.log('Nav', 'app started');
-      LogService.instance.log('Cookie', 'siteId=abc host=github.com',
-          sensitivity: LogSensitivity.sensitive);
+      LogTag.nav.debug('app started');
+      LogTag.cookie.debug('siteId=abc host=github.com', sensitive: true);
       await pumpDevTools(tester);
 
       await tester.tap(find.byKey(const Key('devtools-logs-copy')));
@@ -107,9 +106,8 @@ void main() {
 
     testWidgets('confirming the dialog copies the sensitive entries too',
         (tester) async {
-      LogService.instance.log('Nav', 'app started');
-      LogService.instance.log('Cookie', 'siteId=abc host=github.com',
-          sensitivity: LogSensitivity.sensitive);
+      LogTag.nav.debug('app started');
+      LogTag.cookie.debug('siteId=abc host=github.com', sensitive: true);
       await pumpDevTools(tester);
 
       await tester.tap(find.byType(Switch));
@@ -129,8 +127,7 @@ void main() {
     });
 
     testWidgets('cancelling the dialog copies nothing', (tester) async {
-      LogService.instance.log('Cookie', 'siteId=abc host=github.com',
-          sensitivity: LogSensitivity.sensitive);
+      LogTag.cookie.debug('siteId=abc host=github.com', sensitive: true);
       await pumpDevTools(tester);
 
       await tester.tap(find.byType(Switch));
@@ -147,8 +144,8 @@ void main() {
     });
 
     testWidgets('a level filter narrows what is copied', (tester) async {
-      LogService.instance.log('Nav', 'app started');
-      LogService.instance.log('Net', 'request failed', level: LogLevel.error);
+      LogTag.nav.debug('app started');
+      LogTag.net.error('request failed');
       await pumpDevTools(tester);
 
       await tester.tap(find.widgetWithText(FilterChip, 'debug'));

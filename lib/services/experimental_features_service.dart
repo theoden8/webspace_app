@@ -72,8 +72,7 @@ class ExperimentalFeaturesService {
   Future<void> setSwitch(ExperimentalFeature feature, bool value) async {
     if (switchOn(feature) == value) return;
     await feature.pref.set(value);
-    LogService.instance.log(
-        'Experimental', '${feature.name} ${value ? 'on' : 'off'}');
+    LogTag.experimental.debug('${feature.name} ${value ? 'on' : 'off'}');
   }
 
   /// Test seam: set a switch without touching SharedPreferences.

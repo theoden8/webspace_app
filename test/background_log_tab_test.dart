@@ -55,7 +55,7 @@ void main() {
     await BackgroundLog.instance.setRecording(true);
     BackgroundLog.instance.appState =
         () => const [MapEntry('app.notificationSitesLoaded', '0')];
-    BackgroundLog.instance.record('BackgroundTask',
+    BackgroundLog.instance.record(LogTag.backgroundTask,
         'cancel refresh — notif sites: 1 enabled, 0 loaded',
         sensitive: 'unloaded notification site "Mail"');
     await pump(tester, startOnBackground: true);
@@ -75,7 +75,7 @@ void main() {
     await BackgroundLog.instance.setRecording(true);
     BackgroundLog.instance.appState =
         () => const [MapEntry('app.notificationSitesEnabled', '1')];
-    BackgroundLog.instance.record('BackgroundTask', 'wake site 1/1: loaded',
+    BackgroundLog.instance.record(LogTag.backgroundTask, 'wake site 1/1: loaded',
         sensitive: 'wake site 1/1 is "Mail"');
     await pump(tester, startOnBackground: true);
 
@@ -118,7 +118,7 @@ void main() {
     BackgroundLog.instance.appState = () => [
           for (var i = 0; i < 20; i++) MapEntry('app.row$i', 'value'),
         ];
-    BackgroundLog.instance.record('BackgroundTask', 'the newest line');
+    BackgroundLog.instance.record(LogTag.backgroundTask, 'the newest line');
     await pump(tester, startOnBackground: true);
     expect(tester.takeException(), isNull);
     expect(find.textContaining('the newest line'), findsOneWidget);
@@ -149,7 +149,7 @@ void main() {
   testWidgets('nothing is recorded while developer mode is off', (tester) async {
     DeveloperModeService.instance.debugSet(true);
     await BackgroundLog.instance.setRecording(false);
-    BackgroundLog.instance.record('BackgroundTask', 'schedule refresh');
+    BackgroundLog.instance.record(LogTag.backgroundTask, 'schedule refresh');
     await pump(tester, startOnBackground: true);
     expect(find.text('No background events recorded yet'), findsOneWidget);
   });

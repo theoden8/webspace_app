@@ -45,14 +45,6 @@ const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
 const String _kEvents = 'org.codeberg.theoden8.webspace/tor/events';
 const String _kLogEvents = 'org.codeberg.theoden8.webspace/tor/logs';
 
-/// Log tag for the runtime's own lifecycle: state transitions and the
-/// plugin's notes about them.
-const String kTorLogTag = 'Tor';
-
-/// Log tag for tor's own output, kept apart from [kTorLogTag] so a reader
-/// can tell what the app decided from what tor said.
-const String kTorDaemonLogTag = 'TorLog';
-
 /// Whether this build has the native runtime behind the channels.
 ///
 /// The two Apple platforms ship it; nothing else does (TOR-007), and asking
@@ -240,7 +232,7 @@ class TorLogBridge {
         final line = decodeLogLine(raw);
         if (line == null) return;
         LogService.instance.log(
-          line.fromTor ? kTorDaemonLogTag : kTorLogTag,
+          line.fromTor ? LogTag.torLog : LogTag.tor,
           line.message,
           level: line.level,
           // tor's own output is sensitive and the plugin's notes are not.
@@ -255,11 +247,8 @@ class TorLogBridge {
       // An error on the channel must not tear the subscription down: this
       // is the surface that explains a failing bootstrap, and losing it
       // exactly when tor is unhappy is the case it exists for.
-      onError: (Object error) => LogService.instance.log(
-        kTorLogTag,
-        'Log channel error: $error',
-        level: LogLevel.warning,
-      ),
+      onError: (Object error) => LogTag.tor.warning(
+          'Log channel error: $error'),
       cancelOnError: false,
     );
   }
@@ -440,7 +429,7 @@ class TorService {
   // (TOR-018).
   void _forward(TorStatus s) {
     LogService.instance.log(
-      kTorLogTag,
+      LogTag.tor,
       'State: $s',
       level: s is TorErrored ? LogLevel.error : LogLevel.info,
     );
@@ -484,7 +473,7 @@ class TorService {
     final from = _engine;
     final holders = from.holders.toSet();
     _externalActive = external;
-    LogService.instance.log(kTorLogTag,
+    LogTag.tor.debug(
         'Switched to the ${external ? 'external' : 'built-in'} tor');
     _forward(_engine.status);
     await from.syncHolders(const <TorHolder>[]);
@@ -629,11 +618,9 @@ UserProxySettings? materializeTorProxy(
   if (settings.type != ProxyType.TOR) return settings;
   final resolved = TorService.instance.socksFor(siteId: siteId);
   if (resolved == null) {
-    LogService.instance.log(
-      'Tor',
-      'Blocked an outbound request: proxy is TOR but the runtime is '
-          '${TorService.instance.status}.',
-    );
+    LogTag.tor.debug(
+        'Blocked an outbound request: proxy is TOR but the runtime is '
+        '${TorService.instance.status}.');
   }
   return resolved;
 }

@@ -100,7 +100,7 @@ void main() {
     test('opens a key the old code stored, and leaves it as stored', () async {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'k', value: _key);
-      final aead = await KeychainAead.open(keychain, 'k', logTag: 't');
+      final aead = await KeychainAead.open(keychain, 'k', logTag: LogTag.test);
       expect(aead!.unseal(_oldSeal(_key, 'hello')), 'hello');
       expect(_oldUnseal(_key, aead.seal('world')), 'world');
       expect(keychain.storage, {'k': _key});
@@ -108,7 +108,7 @@ void main() {
 
     test('a fresh key is 32 bytes, base64, under the given name', () async {
       final keychain = MockFlutterSecureStorage();
-      await KeychainAead.open(keychain, 'k', logTag: 't');
+      await KeychainAead.open(keychain, 'k', logTag: LogTag.test);
       expect(base64.decode(keychain.storage['k']!), hasLength(32));
     });
 
@@ -116,21 +116,21 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'short', value: base64.encode([1, 2, 3]));
       await keychain.write(key: 'garbage', value: 'not base64!');
-      expect(await KeychainAead.open(keychain, 'short', logTag: 't'), isNull);
-      expect(await KeychainAead.open(keychain, 'garbage', logTag: 't'), isNull);
+      expect(await KeychainAead.open(keychain, 'short', logTag: LogTag.test), isNull);
+      expect(await KeychainAead.open(keychain, 'garbage', logTag: LogTag.test), isNull);
       expect(keychain.storage['short'], base64.encode([1, 2, 3]),
           reason: 'an unreadable key is reported, never replaced');
     });
 
     test('seals with a fresh nonce each time', () async {
       final keychain = MockFlutterSecureStorage();
-      final aead = (await KeychainAead.open(keychain, 'k', logTag: 't'))!;
+      final aead = (await KeychainAead.open(keychain, 'k', logTag: LogTag.test))!;
       expect(aead.seal('same'), isNot(aead.seal('same')));
     });
 
     test('a tampered, truncated or foreign blob reads as null', () async {
       final keychain = MockFlutterSecureStorage();
-      final aead = (await KeychainAead.open(keychain, 'k', logTag: 't'))!;
+      final aead = (await KeychainAead.open(keychain, 'k', logTag: LogTag.test))!;
       final wire = base64.decode(aead.seal('secret'));
       wire[wire.length - 1] ^= 1;
       expect(aead.unseal(base64.encode(wire)), isNull);
@@ -143,7 +143,7 @@ void main() {
     test('reads a pre-GCM import blob', () async {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'k', value: _key);
-      final aead = (await KeychainAead.open(keychain, 'k', logTag: 't'))!;
+      final aead = (await KeychainAead.open(keychain, 'k', logTag: LogTag.test))!;
       final legacy = _oldLegacyCbcSeal(_key, 'https://a\n<p>old</p>');
       expect(aead.unseal(legacy), isNull);
       expect(aead.unsealLegacyCbc(legacy), 'https://a\n<p>old</p>');
@@ -259,7 +259,7 @@ void main() {
     final store = ProxyPasswordSecureStorage(secureStorage: keychain);
     expect(await store.loadAll(), isEmpty);
     final logged =
-        LogService.instance.recent({'ProxyPwdStore'}, limit: 50, scan: 2000);
+        LogService.instance.recent({LogTag.proxyPwdStore}, limit: 50, scan: 2000);
     expect(logged, isNotEmpty);
     expect(logged.map((e) => e.message).join('\n'), isNot(contains('hunter2')));
   });

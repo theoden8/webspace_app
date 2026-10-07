@@ -105,7 +105,7 @@ class BackgroundSitesController {
     final c = counts();
     final any = c.enabled > 0;
     BackgroundLog.instance.record(
-      'BackgroundTask',
+      LogTag.backgroundTask,
       '${any ? "schedule" : "cancel"} refresh — '
           'notif sites: ${c.enabled} enabled, ${c.loaded} loaded',
     );
@@ -142,7 +142,7 @@ class BackgroundSitesController {
     if (!m.effectiveNotificationsEnabled) return;
     final c = counts();
     BackgroundLog.instance.record(
-      'SiteUnload',
+      LogTag.siteUnload,
       'notification site unloaded ($reason); '
           '${c.loaded} of ${c.enabled} still loaded, '
           'the rest are checked headless',
@@ -168,7 +168,7 @@ class BackgroundSitesController {
       reloaded++;
     }
     BackgroundLog.instance.record(
-      'BackgroundTask',
+      LogTag.backgroundTask,
       'refresh notif sites: reloaded=$reloaded, '
           'skipped(unloaded)=${plan.unloaded}, '
           'skipped(no controller)=${plan.reload.length - reloaded}',
@@ -180,7 +180,7 @@ class BackgroundSitesController {
   Future<void> wake() async {
     final c = counts();
     BackgroundLog.instance.record(
-      'BackgroundTask',
+      LogTag.backgroundTask,
       'background wake: notif sites ${c.enabled} enabled, '
           '${c.loaded} loaded, ${c.live} with a live webview',
     );
@@ -199,12 +199,12 @@ class BackgroundSitesController {
     for (var i = 0; i < report.sites.length; i++) {
       final o = report.sites[i];
       final line = describeWakeSite(o, i + 1, report.sites.length);
-      BackgroundLog.instance.record('BackgroundTask', line.normal,
+      BackgroundLog.instance.record(LogTag.backgroundTask, line.normal,
           level: o.skip == null ? LogLevel.info : LogLevel.warning,
           sensitive: line.sensitive);
     }
     BackgroundLog.instance.record(
-      'BackgroundTask',
+      LogTag.backgroundTask,
       'background wake done: ${report.count(WakeMode.live)} live, '
           '${report.count(WakeMode.headless)} headless, '
           '${report.skipped} skipped, unread fallback posts=${report.posted}, '
@@ -281,19 +281,13 @@ class BackgroundSitesController {
   void _onNotificationTapped(String siteId) {
     final index = _sites.models.indexWhere((m) => m.siteId == siteId);
     if (index < 0) {
-      LogService.instance.log(
-        'Notification',
-        'Tap for unknown siteId: $siteId',
-        level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.notification.warning(
+          'Tap for unknown siteId: $siteId', sensitive: true);
       return;
     }
-    LogService.instance.log(
-      'Notification',
-      'Tap routing to site $index: "${_sites.models[index].name}"',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.notification.debug(
+        'Tap routing to site $index: "${_sites.models[index].name}"',
+        sensitive: true);
     unawaited(_host.activate(index));
     _host.rebuild();
   }
@@ -414,7 +408,7 @@ class _WakeHost implements BackgroundWakeHost {
       return true;
     } on Exception catch (e) {
       BackgroundLog.instance.record(
-        'BackgroundTask',
+        LogTag.backgroundTask,
         'could not apply the route for a headless check: ${e.runtimeType}',
         level: LogLevel.warning,
         sensitive: 'route for "${m.name}" failed: $e',

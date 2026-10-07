@@ -31,8 +31,7 @@ class DeveloperModeService {
   Future<void> setEnabled(bool value) async {
     if (enabled == value) return;
     await AppPref.developerMode.set(value);
-    LogService.instance
-        .log('DeveloperMode', value ? 'enabled' : 'disabled');
+    LogTag.developerMode.debug(value ? 'enabled' : 'disabled');
     // DEVTOOLS-011: the background log exists only while developer mode is
     // on; turning it off deletes what was recorded.
     await BackgroundLog.instance.setRecording(value);

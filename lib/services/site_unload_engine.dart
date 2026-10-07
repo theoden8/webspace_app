@@ -236,7 +236,7 @@ class SiteUnloadEngine {
     if (index < 0 || index >= host.models.length) return;
     final model = host.models[index];
     LogService.instance.log(
-      'SiteUnload',
+      LogTag.siteUnload,
       'Unloading site $index "${model.name}": ${reason.label}',
       level: reason.logLevel,
       sensitivity: LogSensitivity.sensitive,
@@ -389,11 +389,8 @@ class SiteUnloadEngine {
 
     for (final site in plan.cacheClears) {
       if (!stillResident(site)) continue;
-      LogService.instance.log(
-        'SiteUnload',
-        'Clearing the cache of site "${site.name}"',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.siteUnload.debug(
+          'Clearing the cache of site "${site.name}"', sensitive: true);
       await site.clearWebViewCache();
       if (isStale()) return false;
       // A concurrent path may have promoted or unloaded it meanwhile.

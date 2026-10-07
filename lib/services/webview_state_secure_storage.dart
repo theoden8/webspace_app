@@ -65,7 +65,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     try {
       _store = _overrideStore ?? defaultFileStore(_cacheDir);
       _aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
-          logTag: 'WebViewState');
+          logTag: LogTag.webViewState);
       await _clearCacheOnUpgrade();
       await _store!.ensure();
       _initialized = true;
@@ -74,11 +74,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       // inside save/load, which run on the go-home and site-switch paths —
       // a throw there used to abandon the navigation the user asked for.
       // Nothing is initialized, so save/load degrade to no-ops below.
-      LogService.instance.log(
-        'WebViewState',
-        'Error initializing state storage: $e',
-        level: LogLevel.error,
-      );
+      LogTag.webViewState.error('Error initializing state storage: $e');
     }
   }
 
@@ -105,14 +101,10 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         try {
           await _store!.deleteAll();
         } on Exception catch (e) {
-          LogService.instance.log(
-            'WebViewState',
-            'Error clearing cache on upgrade: $e',
-            level: LogLevel.error,
-          );
+          LogTag.webViewState.error('Error clearing cache on upgrade: $e');
         }
         _aead = await KeychainAead.rotate(_secureStorage, _encryptionKeyKey,
-            logTag: 'WebViewState');
+            logTag: LogTag.webViewState);
       }
       if (prefs != null) {
         await prefs.setString(_versionKey, currentVersion);
@@ -142,18 +134,11 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     if (store == null || aead == null) return;
     try {
       await store.writeText(_fileNameFor(key), aead.seal(base64.encode(state)));
-      LogService.instance.log(
-        'WebViewState',
-        'Saved ${state.length} bytes for $key (encrypted)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webViewState.debug(
+          'Saved ${state.length} bytes for $key (encrypted)', sensitive: true);
     } on Exception catch (e) {
-      LogService.instance.log(
-        'WebViewState',
-        'Error saving state for $key: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webViewState.error(
+          'Error saving state for $key: $e', sensitive: true);
     }
   }
 
@@ -167,30 +152,21 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     try {
       raw = await store.readText(_fileNameFor(key));
     } on Exception catch (e) {
-      LogService.instance.log(
-        'WebViewState',
-        'Error loading state for $key: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webViewState.error(
+          'Error loading state for $key: $e', sensitive: true);
       return null;
     }
     if (raw == null) return null;
     final opened = aead.unseal(raw);
     final bytes = opened == null ? null : _decodeBase64(opened);
     if (bytes != null) return bytes;
-    LogService.instance.log(
-      'WebViewState',
-      'Discarding unreadable state for $key',
-      level: LogLevel.error,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webViewState.error(
+        'Discarding unreadable state for $key', sensitive: true);
     // Removed so a re-save can succeed and a load does not keep failing.
     try {
       await store.delete(_fileNameFor(key));
     } on Exception catch (e) {
-      LogService.instance.log('WebViewState', 'Could not discard it: $e',
-          level: LogLevel.warning, sensitivity: LogSensitivity.sensitive);
+      LogTag.webViewState.warning('Could not discard it: $e', sensitive: true);
     }
     return null;
   }
@@ -211,12 +187,8 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     try {
       await store.delete(_fileNameFor(key));
     } on Exception catch (e) {
-      LogService.instance.log(
-        'WebViewState',
-        'Error deleting state for $key: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webViewState.error(
+          'Error deleting state for $key: $e', sensitive: true);
     }
   }
 
@@ -235,11 +207,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         removed++;
       }
     } on Exception catch (e) {
-      LogService.instance.log(
-        'WebViewState',
-        'Error removing state files for a site: $e',
-        level: LogLevel.error,
-      );
+      LogTag.webViewState.error('Error removing state files for a site: $e');
     }
     return removed;
   }
@@ -262,17 +230,10 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         }
       }
       if (removed > 0) {
-        LogService.instance.log(
-          'WebViewState',
-          'Removed $removed orphan state file(s)',
-        );
+        LogTag.webViewState.debug('Removed $removed orphan state file(s)');
       }
     } on Exception catch (e) {
-      LogService.instance.log(
-        'WebViewState',
-        'Error sweeping orphan state files: $e',
-        level: LogLevel.error,
-      );
+      LogTag.webViewState.error('Error sweeping orphan state files: $e');
     }
     return removed;
   }
@@ -292,8 +253,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         result.add(_keyForFileName(name));
       }
     } on Exception catch (e) {
-      LogService.instance.log('WebViewState', 'Could not list state files: $e',
-          level: LogLevel.warning);
+      LogTag.webViewState.warning('Could not list state files: $e');
     }
     return result;
   }

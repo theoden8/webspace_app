@@ -135,8 +135,7 @@ class FirefoxUserAgentService {
       final ts = prefs.getString(_lastCheckedKey);
       if (ts != null) _lastChecked = DateTime.tryParse(ts);
     } catch (e) {
-      LogService.instance
-          .log('FirefoxUA', 'init error: $e', level: LogLevel.error);
+      LogTag.firefoxUa.error('init error: $e');
     }
   }
 
@@ -178,13 +177,10 @@ class FirefoxUserAgentService {
       if (isNewer) await prefs.setInt(_versionKey, _major);
       await prefs.setString(_lastCheckedKey, _lastChecked!.toIso8601String());
     } catch (e) {
-      LogService.instance
-          .log('FirefoxUA', 'persist error: $e', level: LogLevel.error);
+      LogTag.firefoxUa.error('persist error: $e');
     }
     if (isNewer) {
-      LogService.instance.log(
-          'FirefoxUA', 'Firefox version updated to $_major',
-          level: LogLevel.info);
+      LogTag.firefoxUa.info('Firefox version updated to $_major');
       return FirefoxVersionRefreshResult.updated;
     }
     return FirefoxVersionRefreshResult.unchanged;
@@ -195,7 +191,7 @@ class FirefoxUserAgentService {
       (_sourceVersionUrl, parseFirefoxVersionDisplay),
       (_productDetailsUrl, parseFirefoxProductDetails),
     ]) {
-      switch (await fetchViaAppProxy(Uri.parse(url), tag: 'FirefoxUA')) {
+      switch (await fetchViaAppProxy(Uri.parse(url), tag: LogTag.firefoxUa)) {
         case FetchRefused():
           return null;
         case FetchFailed():

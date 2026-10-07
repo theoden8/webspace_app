@@ -38,15 +38,10 @@ class WebInterceptNative {
         case 'log':
           final args = call.arguments;
           if (args is Map) {
-            final tag = (args['tag'] as String?) ?? 'WebIntercept';
-            final message = (args['message'] as String?) ?? '';
             // Native bridge messages may carry per-site hosts / URLs.
             // Treat as sensitive so they stay out of adb logcat.
-            LogService.instance.log(
-              tag,
-              message,
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webIntercept
+                .debug((args['message'] as String?) ?? '', sensitive: true);
           }
           break;
       }
@@ -152,15 +147,11 @@ class WebInterceptNative {
       await _channel.invokeMethod('setDnsBlockedDomains', {
         'domains': blob,
       });
-      LogService.instance.log(
-          'DnsBlock',
+      LogTag.dnsBlock.info(
           'Queued $total DNS domains across ${masks.length} group(s) for native build '
-              '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)',
-          level: LogLevel.info);
+          '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)');
     } catch (e) {
-      LogService.instance.log('DnsBlock',
-          'Failed to send DNS domains to native: $e',
-          level: LogLevel.error);
+      LogTag.dnsBlock.error('Failed to send DNS domains to native: $e');
     }
   }
 
@@ -187,17 +178,12 @@ class WebInterceptNative {
       final map = (raw as Map?)
           ?.map((k, v) => MapEntry(k.toString(), v == true)) ??
           const {};
-      LogService.instance.log(
-          'ContentBlocker',
-          'Native adblock engine: '
-              'supported=${map['supported']}, active=${map['active']} '
-              '(${rulesText.length} bytes pushed)',
-          level: LogLevel.info);
+      LogTag.contentBlocker.info('Native adblock engine: '
+          'supported=${map['supported']}, active=${map['active']} '
+          '(${rulesText.length} bytes pushed)');
       return map;
     } catch (e) {
-      LogService.instance.log('ContentBlocker',
-          'Failed to send engine rules to native: $e',
-          level: LogLevel.error);
+      LogTag.contentBlocker.error('Failed to send engine rules to native: $e');
       return null;
     }
   }
@@ -226,13 +212,9 @@ class WebInterceptNative {
       final count = await _channel.invokeMethod('setCdnPatterns', {
         'patterns': patterns,
       });
-      LogService.instance.log('LocalCDN',
-          'Sent $count CDN patterns to native handler',
-          level: LogLevel.info);
+      LogTag.localCdn.info('Sent $count CDN patterns to native handler');
     } catch (e) {
-      LogService.instance.log('LocalCDN',
-          'Failed to send CDN patterns to native: $e',
-          level: LogLevel.error);
+      LogTag.localCdn.error('Failed to send CDN patterns to native: $e');
     }
   }
 
@@ -244,13 +226,9 @@ class WebInterceptNative {
       final count = await _channel.invokeMethod('setCdnCacheIndex', {
         'index': index,
       });
-      LogService.instance.log('LocalCDN',
-          'Sent $count cached CDN entries to native handler',
-          level: LogLevel.info);
+      LogTag.localCdn.info('Sent $count cached CDN entries to native handler');
     } catch (e) {
-      LogService.instance.log('LocalCDN',
-          'Failed to send CDN cache index to native: $e',
-          level: LogLevel.error);
+      LogTag.localCdn.error('Failed to send CDN cache index to native: $e');
     }
   }
 
@@ -275,9 +253,8 @@ class WebInterceptNative {
       });
       return attached ?? false;
     } on PlatformException catch (e) {
-      LogService.instance.log('WebIntercept',
-          'Failed to attach native interceptor to a headless webview: $e',
-          level: LogLevel.error);
+      LogTag.webIntercept.error(
+          'Failed to attach native interceptor to a headless webview: $e');
       return false;
     } on MissingPluginException {
       return false;
@@ -301,17 +278,13 @@ class WebInterceptNative {
         'dnsLevel': ?dnsLevel,
         'localCdn': ?localCdn,
       });
-      LogService.instance.log(
-        'WebIntercept',
-        'Attached native interceptor to $count webviews '
-        '(siteId: $siteId, dnsLevel: $dnsLevel, localCdn: $localCdn)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webIntercept.debug(
+          'Attached native interceptor to $count webviews '
+          '(siteId: $siteId, dnsLevel: $dnsLevel, localCdn: $localCdn)',
+          sensitive: true);
       return count as int;
     } catch (e) {
-      LogService.instance.log('WebIntercept',
-          'Failed to attach native interceptor: $e',
-          level: LogLevel.error);
+      LogTag.webIntercept.error('Failed to attach native interceptor: $e');
       return 0;
     }
   }

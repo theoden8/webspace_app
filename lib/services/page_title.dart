@@ -29,11 +29,8 @@ Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
     ),
   );
   if (clientResult is! OutboundClientReady) {
-    LogService.instance.log(
-      'Title',
-      'Outbound blocked: ${(clientResult as OutboundClientBlocked).reason}',
-      level: LogLevel.warning,
-    );
+    LogTag.title.warning(
+        'Outbound blocked: ${(clientResult as OutboundClientBlocked).reason}');
     return null;
   }
   final client = clientResult.client;

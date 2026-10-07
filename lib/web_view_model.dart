@@ -1145,15 +1145,11 @@ class WebViewModel implements MediaGrantRecord {
       if (release != null) await proxyManager.releaseContainerProxy(release);
       return true;
     } catch (e) {
-      LogService.instance.log(
-        'WebView',
-        'Failed to apply proxy settings: $e',
-        level: LogLevel.error,
-        // Exception text can include proxy host / username / scheme,
-        // which are per-site identifiers for any site with a custom
-        // proxy (including archive-tier sites). Keep in the memory ring.
-        sensitivity: LogSensitivity.sensitive,
-      );
+      // Exception text can include proxy host / username / scheme, which
+      // are per-site identifiers for any site with a custom proxy (including
+      // archive-tier sites). Keep in the memory ring.
+      LogTag.webView
+          .error('Failed to apply proxy settings: $e', sensitive: true);
       // Fail closed: ProxyManager.setProxySettings throws precisely to
       // refuse a direct fallback (relay bind failure, malformed host:port).
       // If the site expected a real proxy, swallowing the throw would let
@@ -1262,8 +1258,7 @@ class WebViewModel implements MediaGrantRecord {
     // (NESTED-009).
     bool dispatch(NavigationDecision decision, String url, bool hadGesture,
         {required String via}) {
-      LogService.instance.log('WebView', '$via -> ${decision.name} $url',
-          sensitivity: LogSensitivity.sensitive);
+      LogTag.webView.debug('$via -> ${decision.name} $url', sensitive: true);
       if (NavigationDecisionEngine.stepFor(decision,
               returnsToOwner: returnsToOwner(url)) ==
           NavigationStep.returnToOwner) {
@@ -1310,17 +1305,12 @@ class WebViewModel implements MediaGrantRecord {
       return null;
     }
     if (webview == null) {
-      LogService.instance.log(
-        'WebView',
-        'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
-        '${hosted ? ', running as ${id.siteId}' : ''})',
-        sensitivity: LogSensitivity.sensitive,
-      );
-      LogService.instance.log(
-        'WebView',
-        'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webView.debug(
+          'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
+          '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
+      LogTag.webView.debug(
+          'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
+          sensitive: true);
       final pullToRefreshGate =
           PullToRefreshGate.forHost(onRefresh: userDrivenReload);
       // Track last user gesture on same-domain navigation, so we can
@@ -1388,11 +1378,9 @@ class WebViewModel implements MediaGrantRecord {
             hooks.rebuild();
           },
           shouldOverrideUrlLoading: (url, hasGesture) {
-            LogService.instance.log(
-              'WebView',
-              'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webView.debug(
+                'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
+                sensitive: true);
             final now = DateTime.now();
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
               targetUrl: url,
@@ -1586,11 +1574,9 @@ class WebViewModel implements MediaGrantRecord {
           },
         ),
         onControllerCreated: (ctrl) {
-          LogService.instance.log(
-            'WebView',
-            'onControllerCreated for "$name" (siteId: $siteId)',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              'onControllerCreated for "$name" (siteId: $siteId)',
+              sensitive: true);
           controller = ctrl;
           setController();
           unawaited(_pushPendingArchiveCookies(ctrl));
@@ -1626,11 +1612,9 @@ class WebViewModel implements MediaGrantRecord {
               // on a proxy failure stay blank (fail closed).
               if (!await proxyReady) return;
               final ok = await ctrl.restoreState(pending);
-              LogService.instance.log(
-                'WebView',
-                'restoreState for "$name" (siteId: $siteId): $ok',
-                sensitivity: LogSensitivity.sensitive,
-              );
+              LogTag.webView.debug(
+                  'restoreState for "$name" (siteId: $siteId): $ok',
+                  sensitive: true);
               if (materialize) {
                 // ok: reload the restored top entry (keeps the back stack).
                 // !ok: nothing was restored, so just load the saved URL or
@@ -1707,10 +1691,8 @@ class WebViewModel implements MediaGrantRecord {
   /// since the process holding them is gone — `currentUrl` is reloaded so
   /// the back-/forward stack is the only thing dropped.
   void handleRendererGone({required bool didCrash}) {
-    LogService.instance.log(
-      'WebView',
-      'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating',
-    );
+    LogTag.webView.debug(
+        'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
     webview = null;
     controller = null;
     resumeReload.reset();
@@ -1744,11 +1726,8 @@ class WebViewModel implements MediaGrantRecord {
     if (notificationsEnabled) return;
     if (effectiveBackgroundAudioEnabled) return;
     await controller!.pause();
-    LogService.instance.log(
-      'WebView',
-      'Paused webview for "$name" (siteId: $siteId)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.debug(
+        'Paused webview for "$name" (siteId: $siteId)', sensitive: true);
   }
 
   /// End any device capture this site is running: camera (CAM-012) and
@@ -1811,11 +1790,8 @@ class WebViewModel implements MediaGrantRecord {
   Future<void> resumeWebView() async {
     if (controller == null) return;
     await controller!.resume();
-    LogService.instance.log(
-      'WebView',
-      'Resumed webview for "$name" (siteId: $siteId)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.debug(
+        'Resumed webview for "$name" (siteId: $siteId)', sensitive: true);
   }
 
   /// App-lifecycle pause: per-instance pause + process-global JS timer pause.
@@ -1834,11 +1810,9 @@ class WebViewModel implements MediaGrantRecord {
     if (c == null) return;
     await c.pause();
     await c.pauseAllJsTimers();
-    LogService.instance.log(
-      'WebView',
-      'App-lifecycle paused webview for "$name" (siteId: $siteId)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.debug(
+        'App-lifecycle paused webview for "$name" (siteId: $siteId)',
+        sensitive: true);
   }
 
   /// Inverse of [pauseForAppLifecycle].
@@ -1849,21 +1823,17 @@ class WebViewModel implements MediaGrantRecord {
     if (c == null) return;
     await c.resume();
     await c.resumeAllJsTimers();
-    LogService.instance.log(
-      'WebView',
-      'App-lifecycle resumed webview for "$name" (siteId: $siteId)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.debug(
+        'App-lifecycle resumed webview for "$name" (siteId: $siteId)',
+        sensitive: true);
   }
 
   /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
-    LogService.instance.log(
-      'WebView',
-      'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.debug(
+        'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
+        sensitive: true);
     webview = null;
     controller = null;
     resumeReload.reset();
@@ -1881,11 +1851,9 @@ class WebViewModel implements MediaGrantRecord {
   Future<void> clearWebViewCache() async {
     if (controller == null) return;
     await controller!.clearCache();
-    LogService.instance.log(
-      'WebView',
-      'Cleared in-memory cache for "$name" (siteId: $siteId)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.debug(
+        'Cleared in-memory cache for "$name" (siteId: $siteId)',
+        sensitive: true);
   }
 
   /// User-driven hard reload (pull-to-refresh, Refresh button, Clear-cookies).

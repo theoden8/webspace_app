@@ -140,8 +140,7 @@ class SiteIconStore {
         try {
           await task();
         } on Exception catch (e) {
-          LogService.instance
-              .log('SiteIcon', 'Icon store I/O failed: $e', level: LogLevel.warning);
+          LogTag.siteIcon.warning('Icon store I/O failed: $e');
         }
       });
 }

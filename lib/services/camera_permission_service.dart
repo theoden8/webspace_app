@@ -22,18 +22,18 @@ class CapturePermissionService {
 
   final String _channelName;
   final String _method;
-  final String _tag;
+  final LogTag _tag;
 
   static const camera = CapturePermissionService._(
     'org.codeberg.theoden8.webspace/camera_permission',
     'ensureCameraPermission',
-    'Camera',
+    LogTag.camera,
   );
 
   static const microphone = CapturePermissionService._(
     'org.codeberg.theoden8.webspace/microphone_permission',
     'ensureMicrophonePermission',
-    'Microphone',
+    LogTag.microphone,
   );
 
   /// Returns true when the app may capture. On Android this shows the OS
@@ -44,18 +44,14 @@ class CapturePermissionService {
       final status =
           await MethodChannel(_channelName).invokeMethod<String>(_method);
       if (status != 'granted') {
-        LogService.instance.log(
-          _tag,
-          'App ${_tag.toLowerCase()} permission not granted (status: '
-              '$status); webview request denied.',
-        );
+        _tag.debug(
+            'App ${_tag.label.toLowerCase()} permission not granted (status: '
+            '$status); webview request denied.');
       }
       return status == 'granted';
     } on PlatformException catch (e) {
-      LogService.instance.log(
-        _tag,
-        '${_tag} permission channel failed: ${e.code} ${e.message}',
-      );
+      _tag.debug(
+          '${_tag.label} permission channel failed: ${e.code} ${e.message}');
       return false;
     } on MissingPluginException {
       return false;

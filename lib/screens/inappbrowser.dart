@@ -518,11 +518,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// the dead controller is dropped (a fresh one arrives via onControllerCreated).
   void _handleRendererGone(bool didCrash) {
     if (!mounted) return;
-    LogService.instance.log(
-      'WebView',
-      'Nested renderer gone (siteId: ${widget.posture.siteId}, didCrash: $didCrash) — recreating',
-      level: LogLevel.warning,
-    );
+    LogTag.webView.warning(
+        'Nested renderer gone (siteId: ${widget.posture.siteId}, didCrash: $didCrash) — recreating');
     setState(() {
       _controller = null;
       _rendererGen++;
@@ -621,11 +618,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           if (hostIsAndroid) {
             if (await controller.canGoBack()) {
               await _goBackAndRepaint(controller);
-              LogService.instance.log('Navigation',
+              LogTag.navigation.debug(
                   'Nested back gesture: navigated back (canGoBack)');
             } else {
               if (!mounted) return;
-              LogService.instance.log('Navigation',
+              LogTag.navigation.debug(
                   'Nested back gesture: no history, exiting nested');
               navigator.pop();
             }
@@ -638,18 +635,14 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           final urlAfter = (await controller.getUrl())?.toString();
           if (!mounted) return;
           if (urlBefore == urlAfter) {
-            LogService.instance.log(
-              'Navigation',
-              'Nested back gesture: no history ($urlAfter), exiting nested',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.navigation.debug(
+                'Nested back gesture: no history ($urlAfter), exiting nested',
+                sensitive: true);
             navigator.pop();
           } else {
-            LogService.instance.log(
-              'Navigation',
-              'Nested back gesture: navigated $urlBefore -> $urlAfter',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.navigation.debug(
+                'Nested back gesture: navigated $urlBefore -> $urlAfter',
+                sensitive: true);
           }
         });
       },

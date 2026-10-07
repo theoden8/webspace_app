@@ -53,12 +53,8 @@ class ContainerCookieManager {
               ))
           .toList(growable: false);
     } catch (e) {
-      LogService.instance.log(
-        'ContainerCookieManager',
-        'getCookies($siteId, ${url.host}) failed: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.containerCookieManager.error(
+          'getCookies($siteId, ${url.host}) failed: $e', sensitive: true);
       return const [];
     }
   }
@@ -87,13 +83,9 @@ class ContainerCookieManager {
         webViewController: controller.nativeController,
       );
     } catch (e) {
-      LogService.instance.log(
-        'ContainerCookieManager',
-        'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
-            'failed: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.containerCookieManager.error(
+          'deleteCookie($name@${domain ?? url.host}, siteId=$siteId) '
+          'failed: $e', sensitive: true);
     }
   }
 }

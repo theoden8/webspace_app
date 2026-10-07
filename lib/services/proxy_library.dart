@@ -330,13 +330,10 @@ class ProxyLibrary {
     }
     _data = loaded;
     await _writePasswords();
-    LogService.instance.log(
-      'Proxy',
-      'ProxyLibrary initialized: ${loaded.gateways.length} gateways, '
-          '${loaded.credentials.length} credentials, '
-          '${loaded.proxies.length} proxies',
-      level: LogLevel.info,
-    );
+    LogTag.proxy.info(
+        'ProxyLibrary initialized: ${loaded.gateways.length} gateways, '
+        '${loaded.credentials.length} credentials, '
+        '${loaded.proxies.length} proxies');
   }
 
   /// Replace the whole library: persist the non-secret fields, write each
@@ -346,13 +343,10 @@ class ProxyLibrary {
     _data = next.copy();
     await AppPref.proxyLibrary.set(_data.encode());
     await _writePasswords();
-    LogService.instance.log(
-      'Proxy',
-      'ProxyLibrary updated: ${_data.gateways.length} gateways, '
-          '${_data.credentials.length} credentials, '
-          '${_data.proxies.length} proxies',
-      level: LogLevel.info,
-    );
+    LogTag.proxy.info(
+        'ProxyLibrary updated: ${_data.gateways.length} gateways, '
+        '${_data.credentials.length} credentials, '
+        '${_data.proxies.length} proxies');
   }
 
   /// Re-read the library an import just wrote. An import carries no password

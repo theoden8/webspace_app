@@ -371,7 +371,7 @@ class DnsBlockService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_domainCacheKey, jsonEncode(_domainCache));
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Failed to persist domain cache: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Failed to persist domain cache: $e');
     }
   }
 
@@ -391,7 +391,7 @@ class DnsBlockService {
         _domainCache[e.key] = e.value as bool;
       }
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Failed to load domain cache: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Failed to load domain cache: $e');
     }
   }
 
@@ -414,9 +414,8 @@ class DnsBlockService {
     final sw = Stopwatch()..start();
     _bloomFilter = BloomFilter.build(_levelSets.domains, fpRate: 0.05);
     sw.stop();
-    LogService.instance.log('DnsBlock',
-        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_levelSets.domainCount} domains in ${sw.elapsedMilliseconds}ms',
-        level: LogLevel.info);
+    LogTag.dnsBlock.info(
+        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_levelSets.domainCount} domains in ${sw.elapsedMilliseconds}ms');
     return _bloomFilter!;
   }
 
@@ -445,12 +444,10 @@ class DnsBlockService {
     }
     _mergedBloomFilter = BloomFilter.build(union, fpRate: 0.05);
     sw.stop();
-    LogService.instance.log(
-        'BlockBloom',
+    LogTag.blockBloom.info(
         'Built merged bloom: ${_mergedBloomFilter!.sizeInBytes} bytes, k=${_mergedBloomFilter!.k}, '
         'from ${_levelSets.domainCount} DNS + ${_abpNetworkHosts.length} ABP '
-        'host(s) ($unionCount unique) in ${sw.elapsedMilliseconds}ms',
-        level: LogLevel.info);
+        'host(s) ($unionCount unique) in ${sw.elapsedMilliseconds}ms');
     return _mergedBloomFilter!;
   }
 
@@ -542,16 +539,14 @@ class DnsBlockService {
 
       await _loadFromDisk(prefs);
       if (!_levelSets.isEmpty) {
-        LogService.instance.log(
-            'DnsBlock',
+        LogTag.dnsBlock.info(
             'Loaded ${_levelSets.domainCount} domains from cache '
             '(level $_level, levels ${_levelSets.levels.toList()..sort()}, '
-            '${_levelSets.groupCount} group(s))',
-            level: LogLevel.info);
+            '${_levelSets.groupCount} group(s))');
       }
       await _loadDomainCache();
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Error loading cached blocklist: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Error loading cached blocklist: $e');
     }
   }
 
@@ -663,7 +658,7 @@ class DnsBlockService {
         await prefs.remove(_lastUpdatedKey);
         await _persistDownloadedLevels(prefs, const <int>{});
       } catch (e) {
-        LogService.instance.log('DnsBlock', 'Error clearing blocklist: $e', level: LogLevel.error);
+        LogTag.dnsBlock.error('Error clearing blocklist: $e');
       }
       _level = 0;
       await _clearDomainCache();
@@ -678,10 +673,9 @@ class DnsBlockService {
     await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
     await _persistDownloadedLevels(prefs, _levelSets.levels);
     await _clearDomainCache();
-    LogService.instance.log('DnsBlock',
+    LogTag.dnsBlock.info(
         'Downloaded level $level (${_levelSets.domainCount} domains across '
-        '${_levelSets.groupCount} group(s))',
-        level: LogLevel.info);
+        '${_levelSets.groupCount} group(s))');
     return true;
   }
 
@@ -698,10 +692,9 @@ class DnsBlockService {
     final prefs = await SharedPreferences.getInstance();
     await _persistDownloadedLevels(prefs, _levelSets.levels);
     await _clearDomainCache();
-    LogService.instance.log('DnsBlock',
+    LogTag.dnsBlock.info(
         'Added level $level (${_levelSets.domainCount} domains across '
-        '${_levelSets.groupCount} group(s))',
-        level: LogLevel.info);
+        '${_levelSets.groupCount} group(s))');
     return true;
   }
 
@@ -724,10 +717,9 @@ class DnsBlockService {
     await _persistDownloadedLevels(prefs, pruned.levels);
     await _clearDomainCache();
     _applyLevelSets(pruned);
-    LogService.instance.log('DnsBlock',
+    LogTag.dnsBlock.info(
         'Dropped unused blocklist levels ${drop.toList()..sort()} '
-        '(${pruned.domainCount} domains left)',
-        level: LogLevel.info);
+        '(${pruned.domainCount} domains left)');
   }
 
   /// Download [level]'s list and fold it into the partition, setting its bit
@@ -764,8 +756,8 @@ class DnsBlockService {
 
     for (final baseUrl in _mirrorBaseUrls) {
       final url = '$baseUrl$filePath';
-      LogService.instance.log('DnsBlock', 'Trying mirror: $url');
-      switch (await fetchViaAppProxy(Uri.parse(url), tag: 'DnsBlock')) {
+      LogTag.dnsBlock.debug('Trying mirror: $url');
+      switch (await fetchViaAppProxy(Uri.parse(url), tag: LogTag.dnsBlock)) {
         case FetchRefused():
           return null;
         case FetchFailed():
@@ -773,14 +765,12 @@ class DnsBlockService {
         case Fetched(:final response):
           final domains = _extractDomains(response.body);
           if (looksLikeDomainList(domains)) return response.body;
-          LogService.instance.log(
-              'DnsBlock',
+          LogTag.dnsBlock.error(
               'Mirror returned ${response.body.length} bytes yielding '
-              '${domains.length} usable entries, not a domain list. Skipping.',
-              level: LogLevel.error);
+              '${domains.length} usable entries, not a domain list. Skipping.');
       }
     }
-    LogService.instance.log('DnsBlock', 'All mirrors failed for level $level', level: LogLevel.error);
+    LogTag.dnsBlock.error('All mirrors failed for level $level');
     return null;
   }
 
@@ -856,8 +846,7 @@ class DnsBlockService {
       await prefs.remove(_lastUpdatedKey);
       await _persistDownloadedLevels(prefs, const <int>{});
     } catch (e) {
-      LogService.instance.log('DnsBlock',
-          'Error applying imported level: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Error applying imported level: $e');
     }
     _level = level;
     await _clearDomainCache();

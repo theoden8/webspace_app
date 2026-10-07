@@ -793,23 +793,16 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           siteId: widget.host!.siteId!,
           url: Uri.parse(url),
         );
-        LogService.instance.log(
-          'DevTools',
-          'Cookie inspector via ContainerCookieManager: '
-              'siteId=${widget.host!.siteId} url=$url '
-              'count=${cookies.length}',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.devTools.debug('Cookie inspector via ContainerCookieManager: '
+            'siteId=${widget.host!.siteId} url=$url '
+            'count=${cookies.length}', sensitive: true);
       } else {
         cookies = await widget.cookieManager.getCookies(url: Uri.parse(url));
-        LogService.instance.log(
-          'DevTools',
-          'Cookie inspector via legacy CookieManager: '
-              'siteId=${widget.host!.siteId} url=$url '
-              'count=${cookies.length} '
-              '(container=${container != null} ctrl=${controller != null})',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.devTools.debug('Cookie inspector via legacy CookieManager: '
+            'siteId=${widget.host!.siteId} url=$url '
+            'count=${cookies.length} '
+            '(container=${container != null} ctrl=${controller != null})',
+            sensitive: true);
       }
       if (mounted) {
         widget.host!.cookies = cookies;

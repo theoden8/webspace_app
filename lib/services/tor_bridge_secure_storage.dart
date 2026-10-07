@@ -17,6 +17,7 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:webspace/services/keystore.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/utils/concurrency.dart';
 
@@ -42,7 +43,7 @@ class TorBridgeSecureStorage {
       : _store = SecureJsonStore(
           keystore: secureStorage ?? Keystores.torBridges,
           key: _secureStorageKey,
-          logTag: 'Tor',
+          logTag: LogTag.tor,
           decode: (json) => json is Map
               ? TorBridgeConfig.fromJson(json.cast<String, Object?>())
               : const TorBridgeConfig(),

@@ -62,7 +62,7 @@ class ProxyPasswordSecureStorage {
       : _store = SecureJsonStore(
           keystore: secureStorage ?? Keystores.credentials,
           key: _secureStorageKey,
-          logTag: 'ProxyPwdStore',
+          logTag: LogTag.proxyPwdStore,
           decode: _decode,
           encode: (passwords) => passwords,
           isEmpty: (passwords) => passwords.isEmpty,
@@ -146,12 +146,9 @@ class ProxyPasswordSecureStorage {
     await savePassword(secureKey, password);
     decoded.remove('password');
     await prefs.setString(prefsKey, jsonEncode(decoded));
-    LogService.instance.log(
-      'ProxyPwdStore',
-      'Migrated legacy plaintext password from prefs[$prefsKey] -> secure[$secureKey]',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxyPwdStore.info(
+        'Migrated legacy plaintext password from prefs[$prefsKey] -> secure[$secureKey]',
+        sensitive: true);
     return true;
   }
 }

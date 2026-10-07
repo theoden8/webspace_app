@@ -144,7 +144,7 @@ ProxyTestResult _classify(Exception error) {
 /// be asked to paste when a proxy misbehaves.
 void logProxyTest(UserProxySettings settings, ProxyTestResult result) {
   LogService.instance.log(
-    'Proxy',
+    LogTag.proxy,
     'Connection test: ${settings.describeForLogs()} '
         'outcome=${result.outcome.name} status=${result.statusCode ?? '-'}',
     level: result.outcome == ProxyTestOutcome.reachable

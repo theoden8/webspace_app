@@ -290,11 +290,7 @@ class SettingsBackupService {
       }
       return true;
     } catch (e, stack) {
-      LogService.instance.log(
-        'SettingsBackup',
-        'Export failed: $e\n$stack',
-        level: LogLevel.error,
-      );
+      LogTag.settingsBackup.error('Export failed: $e\n$stack');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export failed: $e')),

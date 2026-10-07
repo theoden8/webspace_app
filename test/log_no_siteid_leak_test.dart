@@ -52,29 +52,16 @@ void main() {
       // cookie capture, switch. Every per-site log call must already be
       // tagged sensitive in production code; this asserts the contract
       // holds end-to-end.
-      LogService.instance.log(
-        'WebView',
-        'Creating webview for "$siteId" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-      LogService.instance.log(
-        'WebView',
-        'onUrlChanged: $url',
-        sensitivity: LogSensitivity.sensitive,
-      );
-      LogService.instance.log(
-        'Container',
-        'Bound container ws-$siteId to 1 webview(s)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-      LogService.instance.log(
-        'CookieIsolation',
-        'Restoring cookies for siteId: $siteId',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webView.debug(
+          'Creating webview for "$siteId" (siteId: $siteId)', sensitive: true);
+      LogTag.webView.debug('onUrlChanged: $url', sensitive: true);
+      LogTag.container.debug(
+          'Bound container ws-$siteId to 1 webview(s)', sensitive: true);
+      LogTag.cookieIsolation.debug(
+          'Restoring cookies for siteId: $siteId', sensitive: true);
 
       // Normal logs are also fine — they should NOT carry siteId/URLs.
-      LogService.instance.log('App', 'Application started');
+      LogTag.app.debug('Application started');
     });
 
     // Site identifier must never appear in adb logcat / iOS console
@@ -121,14 +108,10 @@ void main() {
     final ids = [for (var i = 0; i < 5; i++) _generateSiteId()];
 
     for (final id in ids) {
-      LogService.instance.log(
-        'WebView',
-        'siteId=$id',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webView.debug('siteId=$id', sensitive: true);
     }
     // One normal log to confirm export() still works.
-    LogService.instance.log('App', 'started');
+    LogTag.app.debug('started');
 
     final exported = LogService.instance.export();
     expect(exported, contains('started'));
@@ -150,11 +133,8 @@ void main() {
     final captured = await _captureZonePrint(() async {
       for (final id in siteIds) {
         // The audit guarantees these call sites are sensitive.
-        LogService.instance.log(
-          'WebView',
-          'shouldOverrideUrlLoading: site (siteId: $id)',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webView.debug(
+            'shouldOverrideUrlLoading: site (siteId: $id)', sensitive: true);
       }
     });
 
@@ -196,11 +176,7 @@ void main() {
       if (message != null) captured.add(message);
     };
     try {
-      LogService.instance.log(
-        'WebView',
-        'siteId=$siteId',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webView.debug('siteId=$siteId', sensitive: true);
     } finally {
       debugPrint = original;
     }

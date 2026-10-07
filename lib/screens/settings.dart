@@ -558,13 +558,9 @@ class _SettingsScreenState extends State<SettingsScreen>
         );
 
         widget.webViewModel.proxySettings = _proxySettings;
-        LogService.instance.log(
-          'Proxy',
-          'Saving per-site proxy for siteId=${widget.webViewModel.siteId}: '
-              '${_proxySettings.describeForLogs()}',
-          level: LogLevel.info,
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.proxy.info(
+            'Saving per-site proxy for siteId=${widget.webViewModel.siteId}: '
+            '${_proxySettings.describeForLogs()}', sensitive: true);
 
         // Apply proxy settings immediately
         await widget.webViewModel.updateProxySettings(_proxySettings);
@@ -572,12 +568,9 @@ class _SettingsScreenState extends State<SettingsScreen>
         // Force DEFAULT proxy on unsupported platforms
         final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
         widget.webViewModel.proxySettings = defaultProxy;
-        LogService.instance.log(
-          'Proxy',
-          'Per-site proxy unsupported on this platform; forcing DEFAULT for '
-              'siteId=${widget.webViewModel.siteId}',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.proxy.debug(
+            'Per-site proxy unsupported on this platform; forcing DEFAULT for '
+            'siteId=${widget.webViewModel.siteId}', sensitive: true);
         await widget.webViewModel.updateProxySettings(defaultProxy);
       }
 

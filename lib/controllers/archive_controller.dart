@@ -192,12 +192,9 @@ class ArchiveController {
             if (slice.webspaceIds.contains(w.id)) w.toJson(),
         ]);
     } else {
-      LogService.instance.log(
-        'Archive',
-        'close: ${slice.siteIds.length - ownedSites.length} archived sites '
-            'missing from the runtime; sealed state left as opened',
-        level: LogLevel.error,
-      );
+      LogTag.archive.error(
+          'close: ${slice.siteIds.length - ownedSites.length} archived sites '
+          'missing from the runtime; sealed state left as opened');
     }
     // App-tier membership of the archived sites goes into the archive
     // state and out of the runtime lists, so nothing names them once the

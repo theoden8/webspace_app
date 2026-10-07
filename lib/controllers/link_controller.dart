@@ -134,12 +134,12 @@ class LinkController {
   /// on every resume.
   Future<void> handleShareIntent() async {
     if (_shareIntentGuard.busy) {
-      LogService.instance.log('LinkIntent', 'poll skipped: re-entry guarded');
+      LogTag.linkIntent.debug('poll skipped: re-entry guarded');
       return;
     }
     await _shareIntentGuard.run(() async {
       try {
-        LogService.instance.log('LinkIntent', 'poll: consumeLaunchHtml');
+        LogTag.linkIntent.debug('poll: consumeLaunchHtml');
         // HTML file payload first — the native side clears it after read,
         // so a tag mismatch (e.g. an HTML file that *also* has EXTRA_TEXT)
         // won't double-fire.
@@ -147,15 +147,13 @@ class LinkController {
         if (!_host.mounted) return;
         if (html != null) {
           if (!AppPref.linkHandlingEnabled.value) {
-            LogService.instance.log('LinkIntent',
+            LogTag.linkIntent.debug(
                 'HTML share dropped (link handling disabled)');
             return;
           }
-          LogService.instance.log(
-            'LinkIntent',
-            'HTML share received (${html.content.length} bytes, title=${html.title})',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.linkIntent.debug(
+              'HTML share received (${html.content.length} bytes, title=${html.title})',
+              sensitive: true);
           await dispatchInbound(InboundHtml(
             content: html.content,
             suggestedTitle: html.title,
@@ -163,24 +161,17 @@ class LinkController {
           ));
           return;
         }
-        LogService.instance.log('LinkIntent', 'poll: consumeLaunchUrl');
+        LogTag.linkIntent.debug('poll: consumeLaunchUrl');
         final raw = await ShareIntentService.consumeLaunchUrl();
         if (!_host.mounted) return;
         if (raw == null || raw.isEmpty) {
-          LogService.instance.log('LinkIntent', 'poll: no pending URL');
+          LogTag.linkIntent.debug('poll: no pending URL');
           return;
         }
-        LogService.instance.log(
-          'LinkIntent',
-          'received: $raw',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.linkIntent.debug('received: $raw', sensitive: true);
         if (!AppPref.linkHandlingEnabled.value) {
-          LogService.instance.log(
-            'LinkIntent',
-            'Share dropped (link handling disabled): $raw',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.linkIntent.debug(
+              'Share dropped (link handling disabled): $raw', sensitive: true);
           return;
         }
         if (raw.startsWith('webspace://qr/')) {
@@ -188,32 +179,21 @@ class LinkController {
           if (decoded != null) {
             await _host.addSiteFromQr(decoded);
           } else {
-            LogService.instance.log(
-              'LinkIntent',
-              'QR payload failed to decode: $raw',
-              level: LogLevel.warning,
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.linkIntent.warning(
+                'QR payload failed to decode: $raw', sensitive: true);
           }
           return;
         }
         final parsed = Uri.tryParse(raw);
         if (parsed == null) {
-          LogService.instance.log(
-            'LinkIntent',
-            'unparseable URL: $raw',
-            level: LogLevel.warning,
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.linkIntent.warning('unparseable URL: $raw', sensitive: true);
           _host.toast((loc) => loc.homeUnsupportedUrl);
           return;
         }
         await dispatchInbound(InboundUrl(parsed));
       } catch (e, st) {
-        LogService.instance.log(
-            'LinkIntent', 'share intent handler threw: $e\n$st',
-            level: LogLevel.error,
-            sensitivity: LogSensitivity.sensitive);
+        LogTag.linkIntent.error(
+            'share intent handler threw: $e\n$st', sensitive: true);
       }
     });
   }
@@ -231,11 +211,9 @@ class LinkController {
       sites: adapters,
     );
     final inboundUri = payload is InboundUrl ? payload.url : null;
-    LogService.instance.log(
-      'LinkIntent',
-      'dispatch ${inboundUri ?? '(html payload)'} -> ${_describeDispatchAction(action)}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.linkIntent.debug(
+        'dispatch ${inboundUri ?? '(html payload)'} -> ${_describeDispatchAction(action)}',
+        sensitive: true);
     await _executeDispatchAction(action, inboundUri);
   }
 
@@ -386,11 +364,9 @@ class LinkController {
       urlInSearchSiteDomain:
           WebSearchEngine.inDomainOf(url, searchSite.initUrl),
     );
-    LogService.instance.log(
-      'WebSearch',
-      'Search by ${searchSite.siteId} from ${owner.siteId}: ${landing.name}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webSearch.debug(
+        'Search by ${searchSite.siteId} from ${owner.siteId}: ${landing.name}',
+        sensitive: true);
     switch (landing) {
       case SearchLanding.inPlace:
         final controller = _host.controllerOf(owner);
@@ -471,12 +447,8 @@ class LinkController {
       case DispatchOpenInTab():
         // Outbound only: `_executeOutboundDispatch` and `executeTabRoute`
         // run these with the site the link came from.
-        LogService.instance.log(
-          'LinkIntent',
-          'outbound-only action on the inbound path: '
-              '${_describeDispatchAction(action)}',
-          level: LogLevel.warning,
-        );
+        LogTag.linkIntent.warning('outbound-only action on the inbound path: '
+            '${_describeDispatchAction(action)}');
     }
   }
 
@@ -565,11 +537,9 @@ class LinkController {
       ],
     );
     if (action == null) return false;
-    LogService.instance.log(
-      'LinkIntent',
-      'outbound $url from ${source.siteId} -> ${_describeDispatchAction(action)}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.linkIntent.debug(
+        'outbound $url from ${source.siteId} -> ${_describeDispatchAction(action)}',
+        sensitive: true);
     unawaited(_executeOutboundDispatch(owner, source, action, Uri.parse(url)));
     return true;
   }
@@ -626,12 +596,9 @@ class LinkController {
     DispatchAction action,
     Uri url,
   ) async {
-    LogService.instance.log(
-      'LinkIntent',
-      'link $url from ${source.siteId} as a tab of ${owner.siteId} -> '
-          '${_describeDispatchAction(action)}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.linkIntent.debug(
+        'link $url from ${source.siteId} as a tab of ${owner.siteId} -> '
+        '${_describeDispatchAction(action)}', sensitive: true);
     switch (action) {
       case DispatchOpenInTab(:final siteId):
         await _tabs.openChildTab(owner, url.toString(),
@@ -643,11 +610,8 @@ class LinkController {
         await showOutboundPicker(owner, source, action, url,
             parentTabId: parentTabId);
       default:
-        LogService.instance.log(
-          'LinkIntent',
-          'unexpected action on the tab path: ${_describeDispatchAction(action)}',
-          level: LogLevel.warning,
-        );
+        LogTag.linkIntent.warning(
+            'unexpected action on the tab path: ${_describeDispatchAction(action)}');
     }
   }
 
@@ -668,12 +632,8 @@ class LinkController {
       case DispatchNestedFallback():
         await _host.launchNestedFor(source, url.toString());
       default:
-        LogService.instance.log(
-          'LinkIntent',
-          'inbound-only action on the outbound path: '
-              '${_describeDispatchAction(action)}',
-          level: LogLevel.warning,
-        );
+        LogTag.linkIntent.warning('inbound-only action on the outbound path: '
+            '${_describeDispatchAction(action)}');
     }
   }
 
@@ -791,12 +751,8 @@ class LinkController {
     final index =
         _sites.models.indexWhere((m) => m.siteId == a.siteId);
     if (index < 0) {
-      LogService.instance.log(
-        'LinkIntent',
-        'OpenInMain bailed: site ${a.siteId} not found',
-        level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.linkIntent.warning(
+          'OpenInMain bailed: site ${a.siteId} not found', sensitive: true);
       return;
     }
     final model = _sites.models[index];
@@ -843,13 +799,10 @@ class LinkController {
     if (!_host.mounted) return;
     final controller = _host.controllerOf(model);
     if (controller == null) {
-      LogService.instance.log(
-        'LinkIntent',
-        'OpenInMain: controller not yet ready for "${model.name}" '
-            '(siteId: ${model.siteId}); ${a.url} may queue until first frame',
-        level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.linkIntent.warning(
+          'OpenInMain: controller not yet ready for "${model.name}" '
+          '(siteId: ${model.siteId}); ${a.url} may queue until first frame',
+          sensitive: true);
       return;
     }
     await controller.loadUrl(a.url, language: model.language);

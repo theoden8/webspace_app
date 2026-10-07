@@ -221,20 +221,14 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     // never modified) so we don't churn webviews while the user is
     // tabbing through.
     if (changed) {
-      LogService.instance.log(
-        'Proxy',
-        'Outbound proxy changed; resetting all loaded webviews so the new '
-            'value is applied on next render',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.info(
+          'Outbound proxy changed; resetting all loaded webviews so the new '
+          'value is applied on next render', sensitive: true);
       widget.onOutboundProxyChanged?.call();
     } else {
-      LogService.instance.log(
-        'Proxy',
-        'Outbound proxy save invoked but settings unchanged; skipping webview reset',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.debug(
+          'Outbound proxy save invoked but settings unchanged; skipping webview reset',
+          sensitive: true);
     }
     if (mounted && changed) {
       final loc = AppLocalizations.of(context);

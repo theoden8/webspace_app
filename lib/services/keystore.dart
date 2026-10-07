@@ -53,7 +53,7 @@ abstract final class Keystores {
 /// [MissingPluginException] where no plugin answers. Only the exception's
 /// type is logged: the plugins' messages can echo what was stored.
 Future<T?> keystoreCall<T extends Object>(
-  String logTag,
+  LogTag logTag,
   String what,
   Future<T> Function() call,
 ) async {
@@ -67,12 +67,8 @@ Future<T?> keystoreCall<T extends Object>(
   return null;
 }
 
-void _logRefusal(String logTag, String what, Exception e) {
-  LogService.instance.log(
-    logTag,
-    'Keystore refused to $what: ${e.runtimeType}',
-    level: LogLevel.error,
-  );
+void _logRefusal(LogTag logTag, String what, Exception e) {
+  logTag.error('Keystore refused to $what: ${e.runtimeType}');
 }
 
 /// What a [SecureJsonStore] does after a keystore call failed.
@@ -112,7 +108,7 @@ final class SecureJsonStore<T> {
         _queue = queue;
 
   final String key;
-  final String logTag;
+  final LogTag logTag;
   final FlutterSecureStorage _keystore;
   final T Function(Object? json) _decode;
   final Object? Function(T value) _encode;
@@ -146,8 +142,7 @@ final class SecureJsonStore<T> {
     try {
       return _decode(jsonDecode(raw));
     } on FormatException {
-      LogService.instance.log(logTag, '$key is not JSON; reading it as empty',
-          level: LogLevel.error);
+      logTag.error('$key is not JSON; reading it as empty');
       _available = false;
       return _decode(null);
     }
@@ -204,11 +199,6 @@ extension SecureJsonMapStore<V> on SecureJsonStore<Map<String, V>> {
       return map;
     });
     if (removed.isEmpty) return;
-    LogService.instance.log(
-      logTag,
-      'Removed orphaned $what for: $removed',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    logTag.info('Removed orphaned $what for: $removed', sensitive: true);
   }
 }

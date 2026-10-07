@@ -368,11 +368,7 @@ class CookieManager {
     try {
       await _manager.flush();
     } catch (e) {
-      LogService.instance.log(
-        'CookieManager',
-        'flush() failed: $e',
-        level: LogLevel.warning,
-      );
+      LogTag.cookieManager.warning('flush() failed: $e');
     }
   }
 }
@@ -457,12 +453,8 @@ Future<inapp.HttpAuthResponse?> answerHttpAuthChallenge({
       platformRetry: !hostIsAndroid && challenge.previousFailureCount > 0,
     ));
   } catch (e) {
-    LogService.instance.log(
-      'HttpAuth',
-      'Challenge from ${space.host} not answered: $e',
-      level: LogLevel.error,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.httpAuth.error(
+        'Challenge from ${space.host} not answered: $e', sensitive: true);
     return null;
   }
   if (credential == null) return null;
@@ -485,7 +477,7 @@ HttpAuthSession _httpAuthSessionFor(WebViewConfig config) => HttpAuthSession(
     );
 
 void _logSiteIcon(String message) =>
-    LogService.instance.log('SiteIcon', message);
+    LogTag.siteIcon.debug(message);
 
 /// Whether the site's own blockers let a request for one of its page icons
 /// through: the DNS level and filter lists its webview applies to an image
@@ -674,12 +666,8 @@ class ProxyManager {
       containerId,
       (id) => inapp.ProxyController.instance().clearProxyOverride(containerId: id),
     );
-    LogService.instance.log(
-      'Proxy',
-      'Cleared container proxy for $containerId',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info(
+        'Cleared container proxy for $containerId', sensitive: true);
   }
 
   /// [siteId] is the isolation tag a TOR proxy carries (TOR-003): without
@@ -688,11 +676,9 @@ class ProxyManager {
   Future<void> setProxySettings(UserProxySettings settings,
       {required String siteId}) async {
     if (!PlatformInfo.isProxySupported) {
-      LogService.instance.log(
-        'Proxy',
-        'setProxySettings: platform does not support proxy override; no-op',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.debug(
+          'setProxySettings: platform does not support proxy override; no-op',
+          sensitive: true);
       return;
     }
 
@@ -703,11 +689,9 @@ class ProxyManager {
     // per-site proxy require the WebView to be rebuilt by the caller (see
     // [WebViewModel.updateProxySettings]).
     if (binding == ProxyBinding.perSite) {
-      LogService.instance.log(
-        'Proxy',
-        'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.debug(
+          'setProxySettings: iOS/macOS bind proxy at WebView construction; no-op here',
+          sensitive: true);
       return;
     }
 
@@ -716,11 +700,9 @@ class ProxyManager {
     // exactly the serialisation PROXY-013 removes. Per-site routing is
     // refreshed through `ProxyRouterService`, not here.
     if (ProxyRouterService.instance.isActive) {
-      LogService.instance.log(
-        'Proxy',
-        'setProxySettings: router mode active; process-wide rule unchanged',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.debug(
+          'setProxySettings: router mode active; process-wide rule unchanged',
+          sensitive: true);
       return;
     }
 
@@ -739,12 +721,9 @@ class ProxyManager {
     if (effective.type == ProxyType.TOR) {
       final expanded = expandTorProxy(effective);
       if (expanded == null) {
-        LogService.instance.log(
-          'Proxy',
-          'Tor is not up; refusing to apply a proxy rule for a Tor site.',
-          level: LogLevel.error,
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.proxy.error(
+            'Tor is not up; refusing to apply a proxy rule for a Tor site.',
+            sensitive: true);
         throw Exception('Tor is not up');
       }
       effective = expanded;
@@ -752,57 +731,38 @@ class ProxyManager {
 
     if (effective.type == ProxyType.DEFAULT) {
       if (hostIsAndroid) await ProxyRelay.instance.stop();
-      LogService.instance.log(
-        'Proxy',
-        'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.info(
+          'Clearing proxy override (per-site=DEFAULT, no global proxy set)',
+          sensitive: true);
       final sw = Stopwatch()..start();
       await controller.clearProxyOverride();
       overrideActive = false;
-      LogService.instance.log(
-        'Proxy',
-        'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.info(
+          'Cleared proxy override (native call took ${sw.elapsedMilliseconds}ms)',
+          sensitive: true);
       return;
     }
 
     if (effective.address == null || effective.address!.isEmpty) {
-      LogService.instance.log(
-        'Proxy',
-        'Effective proxy missing address; aborting setProxyOverride. '
-            'Effective: ${effective.describeForLogs()}',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'Effective proxy missing address; aborting setProxyOverride. '
+          'Effective: ${effective.describeForLogs()}', sensitive: true);
       throw Exception('Proxy address is required');
     }
 
     final parts = effective.address!.split(':');
     if (parts.length != 2) {
-      LogService.instance.log(
-        'Proxy',
-        'Effective proxy address malformed (expected host:port). '
-            'Effective: ${effective.describeForLogs()}',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'Effective proxy address malformed (expected host:port). '
+          'Effective: ${effective.describeForLogs()}', sensitive: true);
       throw Exception('Proxy address must be in format host:port');
     }
 
     final host = parts[0];
     final port = int.tryParse(parts[1]);
     if (port == null) {
-      LogService.instance.log(
-        'Proxy',
-        'Effective proxy port is not numeric. '
-            'Effective: ${effective.describeForLogs()}',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error('Effective proxy port is not numeric. '
+          'Effective: ${effective.describeForLogs()}', sensitive: true);
       throw Exception('Invalid port number');
     }
 
@@ -822,23 +782,16 @@ class ProxyManager {
     if (hostIsAndroid && effective.hasCredentials) {
       final relay = await ProxyRelay.instance.start(effective);
       if (relay == null) {
-        LogService.instance.log(
-          'Proxy',
-          'Auth proxy relay failed to start; refusing to fall back to a '
-              'direct connection. Effective: ${effective.describeForLogs()}',
-          level: LogLevel.error,
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.proxy.error(
+            'Auth proxy relay failed to start; refusing to fall back to a '
+            'direct connection. Effective: ${effective.describeForLogs()}',
+            sensitive: true);
         throw Exception('Proxy relay failed to start');
       }
-      LogService.instance.log(
-        'Proxy',
-        'Applying Android proxy override via auth relay (upstream scheme=$scheme'
-            '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
-            'effective: ${effective.describeForLogs()})',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.info(
+          'Applying Android proxy override via auth relay (upstream scheme=$scheme'
+          '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
+          'effective: ${effective.describeForLogs()})', sensitive: true);
       final sw = Stopwatch()..start();
       await controller.setProxyOverride(
         settings: inapp.ProxySettings(
@@ -851,13 +804,9 @@ class ProxyManager {
         ),
       );
       overrideActive = true;
-      LogService.instance.log(
-        'Proxy',
-        'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
-            'relay endpoint=${relay.host}:${relay.port})',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.info(
+          'Applied proxy override via relay (native call took ${sw.elapsedMilliseconds}ms, '
+          'relay endpoint=${relay.host}:${relay.port})', sensitive: true);
       return;
     }
 
@@ -870,14 +819,9 @@ class ProxyManager {
         ? '$scheme://${Uri.encodeComponent(effective.username!)}:${Uri.encodeComponent(effective.password!)}@$host:$port'
         : '$scheme://$host:$port';
 
-    LogService.instance.log(
-      'Proxy',
-      'Applying proxy override (scheme=$scheme'
-          '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
-          'effective: ${effective.describeForLogs()})',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info('Applying proxy override (scheme=$scheme'
+        '${fellThrough ? ', via DEFAULT->global fallthrough' : ''}, '
+        'effective: ${effective.describeForLogs()})', sensitive: true);
     final sw = Stopwatch()..start();
     await controller.setProxyOverride(
       settings: inapp.ProxySettings(
@@ -886,13 +830,9 @@ class ProxyManager {
       ),
     );
     overrideActive = true;
-    LogService.instance.log(
-      'Proxy',
-      'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
-          'scheme=$scheme)',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info(
+        'Applied proxy override (native call took ${sw.elapsedMilliseconds}ms, '
+        'scheme=$scheme)', sensitive: true);
   }
 
   /// Point the process-wide rule at the loopback router on [host]:[port]
@@ -911,20 +851,12 @@ class ProxyManager {
           bypassRules: [],
         ),
       );
-      LogService.instance.log(
-        'Proxy',
-        'Applied router override -> $host:$port',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.info(
+          'Applied router override -> $host:$port', sensitive: true);
       return true;
     } catch (e) {
-      LogService.instance.log(
-        'Proxy',
-        'Router override failed to apply: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'Router override failed to apply: $e', sensitive: true);
       return false;
     }
   }
@@ -937,12 +869,9 @@ class ProxyManager {
     final sw = Stopwatch()..start();
     await inapp.ProxyController.instance().clearProxyOverride();
     overrideActive = false;
-    LogService.instance.log(
-      'Proxy',
-      'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info(
+        'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
+        sensitive: true);
   }
 }
 
@@ -1460,8 +1389,7 @@ class _WebViewController implements WebViewController {
     try {
       return await call();
     } on PlatformException catch (e) {
-      LogService.instance.log('WebView', 'Native call refused: $e',
-          sensitivity: LogSensitivity.sensitive);
+      LogTag.webView.debug('Native call refused: $e', sensitive: true);
       return null;
     } on MissingPluginException {
       return null;
@@ -2655,7 +2583,7 @@ class WebViewFactory {
         !MediaSessionService.instance.isSupported) {
       return const [];
     }
-    LogService.instance.log('MediaSession', 'Bridge armed for this site');
+    LogTag.mediaSession.debug('Bridge armed for this site');
     return [
       pageShim('media_session_shim', buildMediaSessionShim(),
           frames: ShimFrames.all),
@@ -2863,7 +2791,7 @@ class WebViewFactory {
           final label = '$webviewKey#${++_passkeyRequests}';
           final status = await PasskeyNative.status();
           if (!status.available) {
-            LogService.instance.log('Passkey',
+            LogTag.passkey.debug(
                 '$label refused: Credential Manager unavailable (${status.describe})');
             return PasskeyError.unsupported.toBridgeJson();
           }
@@ -2877,8 +2805,8 @@ class WebViewFactory {
           );
           final ceremony = plan.ceremony;
           if (ceremony == null) {
-            LogService.instance.log(
-                'Passkey', '$label refused before the provider: ${plan.error}');
+            LogTag.passkey.debug(
+                '$label refused before the provider: ${plan.error}');
             return plan.error!.toBridgeJson();
           }
           final key = '$webviewKey:${ceremony.origin}:${request['requestId']}';
@@ -2889,7 +2817,7 @@ class WebViewFactory {
             ceremony: ceremony,
             send: () => PasskeyNative.run(key, ceremony),
             cancel: () => PasskeyNative.cancel(key),
-            log: (message) => LogService.instance.log('Passkey', message),
+            log: (message) => LogTag.passkey.debug(message),
           );
         },
       );
@@ -2998,14 +2926,10 @@ class WebViewFactory {
         );
         if (selectors.isNotEmpty) {
           final preview = selectors.take(8).join(', ');
-          LogService.instance.log(
-            'WebView',
-            'genericCosmeticScan ${config.initialUrl}: '
-                '${classes.length} class / ${ids.length} id → '
-                '${selectors.length} hide(s): [$preview${selectors.length > 8 ? ", …" : ""}]',
-            level: LogLevel.debug,
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug('genericCosmeticScan ${config.initialUrl}: '
+              '${classes.length} class / ${ids.length} id → '
+              '${selectors.length} hide(s): [$preview${selectors.length > 8 ? ", …" : ""}]',
+              sensitive: true);
         }
         return selectors;
       },
@@ -3110,7 +3034,8 @@ class WebViewFactory {
       handlerName: 'webNotificationRequestPermission',
       callback: (args) {
         final result = config.posture.page.notifications ? 'granted' : 'denied';
-        LogService.instance.log('Notification', 'requestPermission handler called, returning: $result');
+        LogTag.notification.debug(
+            'requestPermission handler called, returning: $result');
         return result;
       },
     );
@@ -3156,12 +3081,8 @@ class WebViewFactory {
             DownloadsService.instance.fail(taskId, e.message);
           }
         } catch (e, stack) {
-          LogService.instance.log(
-            'WebView',
-            'Blob download error: $e\n$stack',
-            level: LogLevel.error,
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.error(
+              'Blob download error: $e\n$stack', sensitive: true);
           if (taskId.isNotEmpty) {
             DownloadsService.instance.fail(taskId, e.toString());
           }
@@ -3395,11 +3316,9 @@ class WebViewFactory {
     final iosUlBypass = IosUniversalLinkBypass();
 
 
-    LogService.instance.log(
-      'DnsBlock',
-      'Creating webview: siteId=${config.posture.siteId} dnsLevel=${config.effectiveDnsLevel} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.dnsBlock.debug(
+        'Creating webview: siteId=${config.posture.siteId} dnsLevel=${config.effectiveDnsLevel} hasBlocklist=${DnsBlockService.instance.hasBlocklist} isAndroid=${hostIsAndroid} url=${config.initialUrl} containerId=$containerId proxySettings=${inappProxy != null}',
+        sensitive: true);
 
     final settings = _siteSettings(
       binding,
@@ -3606,11 +3525,9 @@ class WebViewFactory {
         )) {
           return null;
         }
-        LogService.instance.log(
-          'WebView',
-          'Swallowed escaped pauseTimers() alert for siteId=${config.posture.siteId}',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webView.debug(
+            'Swallowed escaped pauseTimers() alert for siteId=${config.posture.siteId}',
+            sensitive: true);
         return inapp.JsAlertResponse(handledByClient: true);
       },
       onWebViewCreated: (controller) async {
@@ -3681,9 +3598,8 @@ class WebViewFactory {
                       'taken=${accepted != null} ${iconEngine.stateForLog}');
                   if (accepted != null) siteIcon!.onIcon(accepted);
                 }).catchError((Object e) {
-                  LogService.instance.log('Icon', 'Page icon fetch failed: $e',
-                      level: LogLevel.warning,
-                      sensitivity: LogSensitivity.sensitive);
+                  LogTag.icon.warning(
+                      'Page icon fetch failed: $e', sensitive: true);
                 }));
                 return null;
               },
@@ -3749,10 +3665,9 @@ class WebViewFactory {
           Future.microtask(() async {
             try {
               final kept = await PasskeyNative.setWebViewSupport('browser');
-              LogService.instance.log('Passkey', 'WebView support: $kept');
+              LogTag.passkey.debug('WebView support: $kept');
             } catch (e) {
-              LogService.instance.log('Passkey', 'WebView support failed: $e',
-                  level: LogLevel.warning);
+              LogTag.passkey.warning('WebView support failed: $e');
             }
           });
         }
@@ -3766,13 +3681,9 @@ class WebViewFactory {
           // native-side "attachToAllWebViews" log. Phase 14: helps
           // debug the case where Android sub-resources aren't blocked
           // — first thing to check is whether attach is even running.
-          LogService.instance.log(
-            'WebView',
-            'requesting native interceptor attach: siteId=${config.posture.siteId} '
-                'initialUrl=${config.initialUrl}',
-            level: LogLevel.debug,
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              'requesting native interceptor attach: siteId=${config.posture.siteId} '
+              'initialUrl=${config.initialUrl}', sensitive: true);
           Future.microtask(() => WebInterceptNative.attachToWebViews(
               siteId: config.posture.siteId,
               dnsLevel: config.effectiveDnsLevel,
@@ -3799,12 +3710,10 @@ class WebViewFactory {
         // onReceivedError handles recovery.
         final externalInfo = ExternalUrlParser.parse(url);
         if (externalInfo != null) {
-          LogService.instance.log(
-            'WebView',
-            'External scheme intercepted: scheme=${externalInfo.scheme} '
-                'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              'External scheme intercepted: scheme=${externalInfo.scheme} '
+              'package=${externalInfo.package} fallback=${externalInfo.fallbackUrl} url=$url',
+              sensitive: true);
           // External scheme with a resolvable web URL (intent:// fallback,
           // x-safari-http(s) force-open): route it through the standard
           // same-domain / cross-domain path, no confirmation prompt. We
@@ -3831,19 +3740,15 @@ class WebViewFactory {
             // user deliberately clicking, so it always routes.
             if (!hasGesture &&
                 ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
-              LogService.instance.log(
-                'WebView',
-                'silent route suppressed (recently routed): $url',
-                sensitivity: LogSensitivity.sensitive,
-              );
+              LogTag.webView.debug(
+                  'silent route suppressed (recently routed): $url',
+                  sensitive: true);
               return inapp.NavigationActionPolicy.CANCEL;
             }
             ExternalUrlSuppressor.mark(externalInfo);
-            LogService.instance.log(
-              'WebView',
-              'external scheme resolved → $resolved (from $url)',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webView.debug(
+                'external scheme resolved → $resolved (from $url)',
+                sensitive: true);
             bool allow = true;
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
@@ -3882,7 +3787,7 @@ class WebViewFactory {
         // on Linux has been observed to return true for navigations
         // that originate from inside an iframe; Android API 24+
         // returns false for child-frame navigations consistently.
-        LogService.instance.log('WebView',
+        LogTag.webView.debug(
             'shouldOverrideUrlLoading: isForMainFrame=${navigationAction.isForMainFrame}');
         if (!isMainFrame) {
           return inapp.NavigationActionPolicy.ALLOW;
@@ -3927,12 +3832,8 @@ class WebViewFactory {
           if (rewritten != null &&
               rewritten != url &&
               ExternalUrlParser.isLoadableWebUrl(rewritten)) {
-            LogService.instance.log(
-              'ContentBlocker',
-              '\$removeparam= rewrote $url → $rewritten',
-              level: LogLevel.debug,
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.contentBlocker.debug(
+                '\$removeparam= rewrote $url → $rewritten', sensitive: true);
             controller.loadUrl(
                 urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten)));
             return inapp.NavigationActionPolicy.CANCEL;
@@ -3953,13 +3854,9 @@ class WebViewFactory {
         // than riding the original's decision.
         if (url.startsWith('http') &&
             coverageGate.evaluate(url) == ProxyCoverage.unprovable) {
-          LogService.instance.log(
-            'Proxy',
-            'Navigation blocked: proxy coverage not established for $url '
-                '(siteId=${config.posture.siteId})',
-            level: LogLevel.warning,
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.proxy.warning(
+              'Navigation blocked: proxy coverage not established for $url '
+              '(siteId=${config.posture.siteId})', sensitive: true);
           config.onUnproxiedNavigationBlocked?.call(url);
           return inapp.NavigationActionPolicy.CANCEL;
         }
@@ -3979,22 +3876,17 @@ class WebViewFactory {
               currentGeneration: () => navigationGen,
             );
             if (out.load != null) {
-              LogService.instance.log(
-                'WebView',
-                'https upgrade timed out, falling back to ${out.load}',
-                sensitivity: LogSensitivity.sensitive,
-              );
+              LogTag.webView.debug(
+                  'https upgrade timed out, falling back to ${out.load}',
+                  sensitive: true);
               controller.loadUrl(
                   urlRequest: inapp.URLRequest(url: inapp.WebUri(out.load!)));
             }
           });
         }
         if (upgrade.load != null) {
-          LogService.instance.log(
-            'WebView',
-            '  -> CANCEL (https upgrade) $url',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              '  -> CANCEL (https upgrade) $url', sensitive: true);
           controller.loadUrl(
               urlRequest: inapp.URLRequest(url: inapp.WebUri(upgrade.load!)));
         }
@@ -4047,11 +3939,9 @@ class WebViewFactory {
               httpMethod: navigationAction.request.method,
             )) {
           if (iosUlBypass.shouldCancelAndReissue(url)) {
-            LogService.instance.log(
-              'WebView',
-              '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webView.debug(
+                '  -> CANCEL (iOS UL bypass: reissuing programmatically) $url',
+                sensitive: true);
             final originalUrl = navigationAction.request.url;
             final originalHeaders = navigationAction.request.headers;
             controller.loadUrl(urlRequest: inapp.URLRequest(
@@ -4060,11 +3950,9 @@ class WebViewFactory {
             ));
             return inapp.NavigationActionPolicy.CANCEL;
           }
-          LogService.instance.log(
-            'WebView',
-            '  -> ALLOW (iOS UL bypass: reissued nav passing through)',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              '  -> ALLOW (iOS UL bypass: reissued nav passing through)',
+              sensitive: true);
         }
         return inapp.NavigationActionPolicy.ALLOW;
       },
@@ -4088,11 +3976,8 @@ class WebViewFactory {
       onCreateWindow: (controller, createWindowAction) async {
         final url = createWindowAction.request.url?.toString() ?? '';
         final windowId = createWindowAction.windowId;
-        LogService.instance.log(
-          'WebView',
-          'onCreateWindow: url=$url windowId=$windowId',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webView.debug(
+            'onCreateWindow: url=$url windowId=$windowId', sensitive: true);
 
         // Show popup dialog for Cloudflare challenges (captcha verification).
         if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
@@ -4114,31 +3999,24 @@ class WebViewFactory {
         // the same confirmation path as direct navigations.
         final externalInfo = ExternalUrlParser.parse(url);
         if (externalInfo != null) {
-          LogService.instance.log(
-            'WebView',
-            'External scheme intercepted (onCreateWindow): '
-                'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug('External scheme intercepted (onCreateWindow): '
+              'scheme=${externalInfo.scheme} package=${externalInfo.package} url=$url',
+              sensitive: true);
           final resolved = ExternalUrlParser.toWebUrl(externalInfo);
           if (resolved != null) {
             final hasGesture = _hasUserGesture(createWindowAction);
             // Same loop guard as shouldOverrideUrlLoading (EXT-007).
             if (!hasGesture &&
                 ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
-              LogService.instance.log(
-                'WebView',
-                'silent route suppressed (onCreateWindow, recently routed): $url',
-                sensitivity: LogSensitivity.sensitive,
-              );
+              LogTag.webView.debug(
+                  'silent route suppressed (onCreateWindow, recently routed): $url',
+                  sensitive: true);
               return false;
             }
             ExternalUrlSuppressor.mark(externalInfo);
-            LogService.instance.log(
-              'WebView',
-              'external scheme resolved (onCreateWindow) → $resolved (from $url)',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webView.debug(
+                'external scheme resolved (onCreateWindow) → $resolved (from $url)',
+                sensitive: true);
             bool allow = true;
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
@@ -4182,17 +4060,15 @@ class WebViewFactory {
               config.onProgressChanged!(progress);
             },
       onLoadStart: (controller, url) async {
-        LogService.instance.log(
-          'WebViewLifecycle',
-          'onLoadStart siteId=${config.posture.siteId} url=$url',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webViewLifecycle.debug(
+            'onLoadStart siteId=${config.posture.siteId} url=$url',
+            sensitive: true);
         // A passkey ceremony belongs to the document that started it, and a
         // main-frame load replaces that document (PASSKEY-015).
         final pendingPasskey = _passkeyGate.active;
         if (pendingPasskey != null &&
             pendingPasskey.startsWith('${_passkeyWebviewKey(controller)}:')) {
-          LogService.instance.log('Passkey', 'page left, request cancelled');
+          LogTag.passkey.debug('page left, request cancelled');
           unawaited(PasskeyNative.cancel(pendingPasskey));
         }
         if (iconEngine != null) {
@@ -4256,19 +4132,15 @@ class WebViewFactory {
               if (accepted != null) siteIcon!.onIcon(accepted);
             },
       onPageCommitVisible: (controller, url) {
-        LogService.instance.log(
-          'WebViewLifecycle',
-          'onPageCommitVisible siteId=${config.posture.siteId} url=$url',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webViewLifecycle.debug(
+            'onPageCommitVisible siteId=${config.posture.siteId} url=$url',
+            sensitive: true);
         config.onPageCommitVisible?.call();
       },
       onLoadStop: (controller, url) async {
-        LogService.instance.log(
-          'WebViewLifecycle',
-          'onLoadStop siteId=${config.posture.siteId} url=$url',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webViewLifecycle.debug(
+            'onLoadStop siteId=${config.posture.siteId} url=$url',
+            sensitive: true);
         if (iconEngine != null) {
           iconEngine.onLoadFinished(url?.toString()).forEach(siteIcon!.onIcon);
           _logSiteIcon('loadStop ${iconEngine.stateForLog}');
@@ -4330,7 +4202,7 @@ class WebViewFactory {
             stillWanted: () => navigationGen == genAtSchedule,
           ).then((online) async {
             if (!online) {
-              LogService.instance.log('WebView',
+              LogTag.webView.debug(
                   'Cached snapshot kept: offline or navigated away');
               return;
             }
@@ -4400,12 +4272,9 @@ class WebViewFactory {
             if (liveUrl == urlStr) {
               config.onHtmlLoaded!(urlStr, snapshot);
             } else {
-              LogService.instance.log(
-                'WebView',
-                'Skipping cache save: URL changed during snapshot '
-                    '($urlStr -> $liveUrl)',
-                sensitivity: LogSensitivity.sensitive,
-              );
+              LogTag.webView.debug(
+                  'Skipping cache save: URL changed during snapshot '
+                  '($urlStr -> $liveUrl)', sensitive: true);
             }
           }
         }
@@ -4448,23 +4317,16 @@ class WebViewFactory {
             request.url.toString(),
             isMainFrame: request.isForMainFrame ?? true);
         if (upgradeFailure.load != null) {
-          LogService.instance.log(
-            'WebView',
-            'https upgrade did not answer, falling back to '
-                '${upgradeFailure.load}',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug('https upgrade did not answer, falling back to '
+              '${upgradeFailure.load}', sensitive: true);
           controller.loadUrl(urlRequest: inapp.URLRequest(
               url: inapp.WebUri(upgradeFailure.load!)));
           return;
         }
-                LogService.instance.log(
-          'WebViewLifecycle',
-          'onReceivedError siteId=${config.posture.siteId} url=${request.url} '
-              'type=${error.type} desc=${error.description}',
-          level: LogLevel.warning,
-          sensitivity: LogSensitivity.sensitive,
-        );
+                LogTag.webViewLifecycle.warning(
+                    'onReceivedError siteId=${config.posture.siteId} url=${request.url} '
+                    'type=${error.type} desc=${error.description}',
+                    sensitive: true);
         // For non-internal schemes (intent://, custom app schemes) Android
         // sometimes hands the URL straight to onReceivedError without
         // calling shouldOverrideUrlLoading first — observed every time on
@@ -4482,21 +4344,16 @@ class WebViewFactory {
         //     marks suppression on the user's choice.
         //   * external scheme + no host UI → best-effort reload.
         if (request.isForMainFrame != true) return;
-        LogService.instance.log(
-          'WebViewLifecycle',
-          'main-frame load error type=${error.type} ${ProxyManager.stateForLogs}',
-          level: LogLevel.warning,
-        );
+        LogTag.webViewLifecycle.warning(
+            'main-frame load error type=${error.type} ${ProxyManager.stateForLogs}');
         final reqUrl = request.url.toString();
         // iOS/macOS post-failure TLS path: `_handleServerTrust` deferred
         // to the OS and the OS rejected. Show the user prompt; on
         // approval pin the cached cert and reload.
         if (_isSslError(error.type)) {
-          LogService.instance.log(
-            'TLS',
-            'onReceivedError ssl: type=${error.type} url=$reqUrl description="${error.description}"',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.tls.debug(
+              'onReceivedError ssl: type=${error.type} url=$reqUrl description="${error.description}"',
+              sensitive: true);
           final handled = await _handleSslLoadError(
             view: view,
             url: reqUrl,
@@ -4523,18 +4380,14 @@ class WebViewFactory {
             // the user is looking at (and clobber a silent-route load the
             // shouldOverrideUrlLoading path just issued). Only Android
             // paints chrome-error:// over the page and needs the clear.
-            LogService.instance.log(
-              'WebView',
-              'onReceivedError: suppressed — committed page intact, no-op (url=$reqUrl)',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webView.debug(
+                'onReceivedError: suppressed — committed page intact, no-op (url=$reqUrl)',
+                sensitive: true);
             return;
           }
-          LogService.instance.log(
-            'WebView',
-            'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              'onReceivedError: suppressed — loading about:blank to clear error commit (url=$reqUrl)',
+              sensitive: true);
           // The fallback page actually loaded (HtmlCache shows
           // multi-MB saves); Android then painted chrome-error://
           // chromewebdata over it because the page's JS retried the
@@ -4551,11 +4404,9 @@ class WebViewFactory {
         final resolved = ExternalUrlParser.toWebUrl(externalInfo);
         if (resolved != null) {
           ExternalUrlSuppressor.mark(externalInfo);
-          LogService.instance.log(
-            'WebView',
-            'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
+              sensitive: true);
           Future.microtask(() async {
             final bool allow =
                 config.shouldOverrideUrlLoading?.call(resolved, false) ?? true;
@@ -4565,12 +4416,8 @@ class WebViewFactory {
         }
         // No web equivalent — fall through to the dialog path so the
         // user can still choose to launch the target app.
-        LogService.instance.log(
-          'WebView',
-          'onReceivedError: type=${error.type} url=$reqUrl '
-              '— routing to external-scheme dialog',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.webView.debug('onReceivedError: type=${error.type} url=$reqUrl '
+            '— routing to external-scheme dialog', sensitive: true);
         config.hooks.externalScheme(externalInfo, view);
       },
       // Header names, never values, and no URL, so the line reaches logcat:
@@ -4582,12 +4429,9 @@ class WebViewFactory {
           for (final name in errorResponse.headers?.keys ?? const <String>[])
             name.toLowerCase(),
         ]..sort();
-        LogService.instance.log(
-          'WebViewLifecycle',
-          'main-frame HTTP ${errorResponse.statusCode} '
-              'headers=[${headerNames.join(',')}] ${ProxyManager.stateForLogs}',
-          level: LogLevel.warning,
-        );
+        LogTag.webViewLifecycle.warning(
+            'main-frame HTTP ${errorResponse.statusCode} '
+            'headers=[${headerNames.join(',')}] ${ProxyManager.stateForLogs}');
       },
       onDownloadStartRequest: (controller, downloadStartRequest) async {
         // onUrlChanged / onUpdateVisitedHistory has likely already fired
@@ -4632,12 +4476,9 @@ class WebViewFactory {
       // setState so the IndexedStack child rebuilds at the same `currentUrl`.
       // Fixes issue #333.
       onRenderProcessGone: (controller, detail) {
-        LogService.instance.log(
-          'WebView',
-          'onRenderProcessGone: siteId=${config.posture.siteId} didCrash=${detail.didCrash} '
-              'priority=${detail.rendererPriorityAtExit}',
-          level: LogLevel.warning,
-        );
+        LogTag.webView.warning(
+            'onRenderProcessGone: siteId=${config.posture.siteId} didCrash=${detail.didCrash} '
+            'priority=${detail.rendererPriorityAtExit}');
         config.onRendererGone?.call(detail.didCrash);
       },
       // iOS/macOS parity for `onRenderProcessGone`: WKWebView raises this
@@ -4645,11 +4486,8 @@ class WebViewFactory {
       // backgrounding, or a page-induced crash). Same recovery path —
       // throw the WebView away and let the host rebuild.
       onWebContentProcessDidTerminate: (controller) {
-        LogService.instance.log(
-          'WebView',
-          'onWebContentProcessDidTerminate: siteId=${config.posture.siteId}',
-          level: LogLevel.warning,
-        );
+        LogTag.webView.warning(
+            'onWebContentProcessDidTerminate: siteId=${config.posture.siteId}');
         config.onRendererGone?.call(true);
       },
     );
@@ -4776,11 +4614,9 @@ class WebViewFactory {
       port: port,
       fingerprint: fingerprint,
     )) {
-      LogService.instance.log(
-        'TLS',
-        'pinned cert accepted for $host:$port (sha256=$fingerprint)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'pinned cert accepted for $host:$port (sha256=$fingerprint)',
+          sensitive: true);
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.PROCEED);
     }
@@ -4796,12 +4632,9 @@ class WebViewFactory {
     // (browsing to `https://localhost`) is preserved because the
     // requested host then matches the cert identity.
     if (_isLoopbackSinkholeCert(host, cert)) {
-      LogService.instance.log(
-        'TLS',
-        'localhost sinkhole cert for $host:$port — cancelling silently '
-            '(no prompt; likely a device-level DNS/ad blocker)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'localhost sinkhole cert for $host:$port — cancelling silently '
+          '(no prompt; likely a device-level DNS/ad blocker)', sensitive: true);
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
@@ -4814,13 +4647,10 @@ class WebViewFactory {
     final upgradeCert =
         WebViewFactory.httpsUpgrade.onCertificateRejected(host);
     if (upgradeCert.load != null) {
-      LogService.instance.log(
-        'TLS',
-        'untrusted cert on an https upgrade for $host:$port — cancelling '
-            'silently and falling back to ${upgradeCert.load} (no prompt, '
-            'no pin)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'untrusted cert on an https upgrade for $host:$port — cancelling '
+          'silently and falling back to ${upgradeCert.load} (no prompt, '
+          'no pin)', sensitive: true);
       view?.loadUrl(upgradeCert.load!);
     }
     if (upgradeCert.cancel) {
@@ -4830,21 +4660,16 @@ class WebViewFactory {
         // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
     if (prompt == null) {
-      LogService.instance.log(
-        'TLS',
-        'untrusted cert for $host:$port and no host UI — cancelling load',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'untrusted cert for $host:$port and no host UI — cancelling load',
+          sensitive: true);
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
     final approved = await prompt(host, port, cert);
     if (!approved) {
-      LogService.instance.log(
-        'TLS',
-        'user rejected untrusted cert for $host:$port',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'user rejected untrusted cert for $host:$port', sensitive: true);
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
@@ -4854,17 +4679,13 @@ class WebViewFactory {
         port: port,
         fingerprint: fingerprint,
       );
-      LogService.instance.log(
-        'TLS',
-        'user trusted cert for $host:$port (pinned sha256=$fingerprint)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'user trusted cert for $host:$port (pinned sha256=$fingerprint)',
+          sensitive: true);
     } else {
-      LogService.instance.log(
-        'TLS',
-        'user trusted cert for $host:$port (no DER from platform — not pinned)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'user trusted cert for $host:$port (no DER from platform — not pinned)',
+          sensitive: true);
     }
     // Android's SslErrorHandler (and WPE's TLS-error proxy) may have
     // been invalidated during the async prompt — the WebView gives up
@@ -5005,19 +4826,15 @@ class WebViewFactory {
       fingerprint: fingerprint,
     )) {
       if (!_claimReloadGuard(key)) {
-        LogService.instance.log(
-          'TLS',
-          'ignoring further ssl errors for $host:$port — reload already in flight',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.tls.debug(
+            'ignoring further ssl errors for $host:$port — reload already in flight',
+            sensitive: true);
         return true;
       }
-      LogService.instance.log(
-        'TLS',
-        'pin matches but iOS reported error for $host:$port — reloading once '
-            '(os: $hostOperatingSystem $hostOperatingSystemVersion)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'pin matches but iOS reported error for $host:$port — reloading once '
+          '(os: $hostOperatingSystem $hostOperatingSystemVersion)',
+          sensitive: true);
       Future.microtask(() async {
         await view?.loadUrl(url);
       });
@@ -5028,19 +4845,14 @@ class WebViewFactory {
     try {
       final approved = await prompt(host, port, cert);
       if (!approved) {
-        LogService.instance.log(
-          'TLS',
-          'user rejected untrusted cert for $host:$port',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.tls.debug(
+            'user rejected untrusted cert for $host:$port', sensitive: true);
         return false;
       }
       if (fingerprint == null) {
-        LogService.instance.log(
-          'TLS',
-          'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.tls.debug(
+            'user trusted cert for $host:$port but DER missing — cannot pin, load will fail again',
+            sensitive: true);
         return false;
       }
       await TrustedHostsService.instance.trust(
@@ -5048,11 +4860,9 @@ class WebViewFactory {
         port: port,
         fingerprint: fingerprint,
       );
-      LogService.instance.log(
-        'TLS',
-        'user trusted cert for $host:$port (pinned sha256=$fingerprint) — reloading',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'user trusted cert for $host:$port (pinned sha256=$fingerprint) — reloading',
+          sensitive: true);
       await view?.loadUrl(url);
       return true;
     } finally {
@@ -5115,12 +4925,10 @@ class WebViewFactory {
       final cookieHeader = DownloadEngine.buildCookieHeader(
         cookies.map((c) => MapEntry(c.name, c.value.toString())),
       );
-      LogService.instance.log(
-        'Download',
-        'HTTP download: url=${req.url} cookies=${cookies.length} '
-            'ua=${req.userAgent != null} referer=${referer != null}',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.download.debug(
+          'HTTP download: url=${req.url} cookies=${cookies.length} '
+          'ua=${req.userAgent != null} referer=${referer != null}',
+          sensitive: true);
       final engine = DownloadEngine(proxy: proxy);
       final result = await engine.fetch(
         url: req.url.toString(),
@@ -5151,12 +4959,7 @@ class WebViewFactory {
     } on DownloadException catch (e) {
       DownloadsService.instance.fail(task.id, e.message);
     } catch (e, stack) {
-      LogService.instance.log(
-        'Download',
-        'Download error: $e\n$stack',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.download.error('Download error: $e\n$stack', sensitive: true);
       DownloadsService.instance.fail(task.id, e.toString());
     }
   }
@@ -5185,12 +4988,8 @@ class WebViewFactory {
     } on DownloadException catch (e) {
       DownloadsService.instance.fail(task.id, e.message);
     } catch (e, stack) {
-      LogService.instance.log(
-        'Download',
-        'Data-URI download error: $e\n$stack',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.download.error(
+          'Data-URI download error: $e\n$stack', sensitive: true);
       DownloadsService.instance.fail(task.id, e.toString());
     }
   }
@@ -5214,12 +5013,8 @@ class WebViewFactory {
     try {
       await controller.evaluateJavascript(source: script);
     } catch (e, stack) {
-      LogService.instance.log(
-        'Download',
-        'Blob download eval error: $e\n$stack',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.download.error(
+          'Blob download eval error: $e\n$stack', sensitive: true);
       DownloadsService.instance.fail(task.id, e.toString());
     }
   }

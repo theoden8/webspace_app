@@ -128,8 +128,7 @@ class TimezoneLocationService {
       await prefs.setInt(_zoneCountPrefKey, count);
       return count;
     } catch (e) {
-      LogService.instance
-          .log('TZ', 'Failed to count tz cache: $e', level: LogLevel.error);
+      LogTag.tz.error('Failed to count tz cache: $e');
       return 0;
     }
   }
@@ -153,13 +152,11 @@ class TimezoneLocationService {
       _zones = await compute(_readAndParseZones, path);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_zoneCountPrefKey, _zones!.length);
-      LogService.instance
-          .log('TZ', 'Loaded ${_zones?.length ?? 0} zones from cache');
+      LogTag.tz.debug('Loaded ${_zones?.length ?? 0} zones from cache');
       _notifyListeners();
       return _zones != null;
     } catch (e) {
-      LogService.instance
-          .log('TZ', 'Failed to load tz cache: $e', level: LogLevel.error);
+      LogTag.tz.error('Failed to load tz cache: $e');
       return false;
     }
   }
@@ -171,13 +168,13 @@ class TimezoneLocationService {
     final url = await getUrl();
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      LogService.instance.log('TZ', 'Not a URL: $url', level: LogLevel.error);
+      LogTag.tz.error('Not a URL: $url');
       return false;
     }
-    LogService.instance.log('TZ', 'Downloading $url');
+    LogTag.tz.debug('Downloading $url');
     final fetched = await fetchViaAppProxy(
       uri,
-      tag: 'TZ',
+      tag: LogTag.tz,
       timeout: timeout,
       headers: const {
         'User-Agent': 'Webspace (+https://github.com/theoden8/webspace_app)'
@@ -215,10 +212,8 @@ class TimezoneLocationService {
         }
         gj ??= largestJson;
         if (gj == null) {
-          LogService.instance.log('TZ',
-              'Zip contains no .geojson or .json file (entries: '
-              '${archive.files.where((f) => f.isFile).map((f) => f.name).join(", ")})',
-              level: LogLevel.error);
+          LogTag.tz.error('Zip contains no .geojson or .json file (entries: '
+              '${archive.files.where((f) => f.isFile).map((f) => f.name).join(", ")})');
           return false;
         }
         body = utf8.decode(gj.content as List<int>);
@@ -236,13 +231,12 @@ class TimezoneLocationService {
       await prefs.setString(
           _lastUpdatedPrefKey, DateTime.now().toIso8601String());
       await prefs.setInt(_zoneCountPrefKey, _zones!.length);
-      LogService.instance.log('TZ',
+      LogTag.tz.debug(
           'Downloaded and parsed ${_zones?.length ?? 0} zones from $url');
       _notifyListeners();
       return true;
     } on Exception catch (e) {
-      LogService.instance
-          .log('TZ', 'Download error: $e', level: LogLevel.error);
+      LogTag.tz.error('Download error: $e');
       return false;
     }
   }
@@ -257,8 +251,7 @@ class TimezoneLocationService {
       await prefs.remove(_lastUpdatedPrefKey);
       await prefs.remove(_zoneCountPrefKey);
     } catch (e) {
-      LogService.instance
-          .log('TZ', 'Clear error: $e', level: LogLevel.error);
+      LogTag.tz.error('Clear error: $e');
     }
     _notifyListeners();
   }

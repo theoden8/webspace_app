@@ -2,6 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/keystore.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/utils/concurrency.dart';
 
@@ -29,7 +30,7 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
       : _store = SecureJsonStore(
           keystore: secureStorage ?? Keystores.credentials,
           key: _secureStorageKey,
-          logTag: 'HttpAuthStore',
+          logTag: LogTag.httpAuthStore,
           decode: _decode,
           encode: (all) => {
             for (final MapEntry(:key, :value) in all.entries)

@@ -59,14 +59,10 @@ class SiteListStore {
         }
         cleanedJsonStrings.add(jsonEncode(decoded));
       } catch (e) {
-        LogService.instance.log(
-          'Boot',
-          'Dropped unparseable site JSON at index $i: $e',
-          level: LogLevel.warning,
-          // The exception text can echo the malformed site JSON, which
-          // includes initUrl / name — per-site identifiers. Memory ring.
-          sensitivity: LogSensitivity.sensitive,
-        );
+        // The exception text can echo the malformed site JSON, which
+        // includes initUrl / name — per-site identifiers. Memory ring.
+        LogTag.boot.warning('Dropped unparseable site JSON at index $i: $e',
+            sensitive: true);
       }
     }
     if (legacyMigrations.isNotEmpty) {
@@ -77,11 +73,8 @@ class SiteListStore {
       });
       await prefs.setStringList(_key, cleanedJsonStrings);
       secureProxyPasswords.addAll(legacyMigrations);
-      LogService.instance.log(
-        'ProxyPwdStore',
-        'Migrated ${legacyMigrations.length} legacy plaintext per-site proxy password(s) to secure storage',
-        level: LogLevel.info,
-      );
+      LogTag.proxyPwdStore.info(
+          'Migrated ${legacyMigrations.length} legacy plaintext per-site proxy password(s) to secure storage');
     }
 
     final loadedWebViewModels = <WebViewModel>[];
@@ -91,13 +84,9 @@ class SiteListStore {
           WebViewModel.fromJson(jsonDecode(cleanedJsonStrings[i]), onChange),
         );
       } catch (e) {
-        LogService.instance.log(
-          'Boot',
-          'Skipped malformed site at index $i: $e',
-          level: LogLevel.warning,
-          // Exception text can echo site JSON (initUrl / name). Memory ring.
-          sensitivity: LogSensitivity.sensitive,
-        );
+        // Exception text can echo site JSON (initUrl / name). Memory ring.
+        LogTag.boot.warning('Skipped malformed site at index $i: $e',
+            sensitive: true);
       }
     }
 
@@ -113,14 +102,10 @@ class SiteListStore {
         hydratedCount++;
       }
     }
-    LogService.instance.log(
-      'Proxy',
-      'Hydrated proxy passwords for $hydratedCount of '
-          '${loadedWebViewModels.length} site(s); '
-          '$sitesWithCustomProxy site(s) have a non-DEFAULT per-site proxy',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info('Hydrated proxy passwords for $hydratedCount of '
+        '${loadedWebViewModels.length} site(s); '
+        '$sitesWithCustomProxy site(s) have a non-DEFAULT per-site proxy',
+        sensitive: true);
 
     final secureCookies = await cookies.loadCookies();
     // By siteId, falling back to the legacy domain key. Incognito sites

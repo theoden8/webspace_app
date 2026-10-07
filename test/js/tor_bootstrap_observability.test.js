@@ -335,7 +335,7 @@ test('the interstitial shows what is happening, not a mute bar', () => {
     'the interstitial must render the recent Tor log lines');
   assert.match(widget, /animation: LogService\.instance/,
     'the tail must be live, not a snapshot taken once');
-  assert.match(widget, /recent\(\{kTorLogTag, kTorDaemonLogTag\}\)/,
+  assert.match(widget, /recent\(\{LogTag\.tor, LogTag\.torLog\}\)/,
     'it must show the runtime transitions and what tor itself said');
   // Both branches: a user staring at a stalled bootstrap and a user staring
   // at a failure both need to see what led there.

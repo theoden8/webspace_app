@@ -14,8 +14,6 @@ import 'package:webspace/utils/concurrency.dart';
 
 TorGeoIpStore? createTorGeoIpStore() => IoTorGeoIpStore();
 
-const String _logTag = 'TorGeoIP';
-
 /// [TorGeoIpStore] over `<app cache>/tor_geoip/`.
 ///
 /// The cache directory rather than documents: the table is re-downloadable,
@@ -62,8 +60,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
         final http.Client client;
         switch (outboundHttp.clientFor(_freshCircuit(via))) {
           case OutboundClientBlocked(:final reason):
-            LogService.instance.log(_logTag, 'Download blocked: $reason',
-                level: LogLevel.warning);
+            LogTag.torGeoIp.warning('Download blocked: $reason');
             return null;
           case OutboundClientReady(client: final ready):
             client = ready;
@@ -73,28 +70,22 @@ class IoTorGeoIpStore implements TorGeoIpStore {
         try {
           final response = await client.get(uri).timeout(kTorGeoIpTimeout);
           if (response.statusCode != 200) {
-            LogService.instance.log(
-                _logTag, '$host answered HTTP ${response.statusCode}',
-                level: LogLevel.warning);
+            LogTag.torGeoIp.warning(
+                '$host answered HTTP ${response.statusCode}');
             continue;
           }
           final bytes = response.bodyBytes;
           if (!await Isolate.run(() => _isTable(bytes))) {
-            LogService.instance.log(
-                _logTag,
+            LogTag.torGeoIp.warning(
                 '$host answered ${bytes.length} bytes that are not a GeoIP '
-                'table under $kTorGeoIpLicence',
-                level: LogLevel.warning);
+                'table under $kTorGeoIpLicence');
             continue;
           }
           final table = await _keep(bytes);
-          LogService.instance.log(
-              _logTag, 'Fetched ${bytes.length} bytes from $host',
-              level: LogLevel.info);
+          LogTag.torGeoIp.info('Fetched ${bytes.length} bytes from $host');
           return table;
         } on Exception catch (e) {
-          LogService.instance.log(_logTag, '$host failed: $e',
-              level: LogLevel.warning);
+          LogTag.torGeoIp.warning('$host failed: $e');
         } finally {
           client.close();
         }
@@ -138,8 +129,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
       try {
         await entry.delete();
       } on FileSystemException catch (e) {
-        LogService.instance.log(_logTag, 'Could not drop an old table: $e',
-            level: LogLevel.warning);
+        LogTag.torGeoIp.warning('Could not drop an old table: $e');
       }
     }
     return TorGeoIpTable(
