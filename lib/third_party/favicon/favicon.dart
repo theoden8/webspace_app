@@ -59,7 +59,6 @@ class Favicon implements Comparable<Favicon> {
       return url.length < other.url.length ? -1 : 1;
     }
 
-    // Sort on bitmap size
     return (width * height > other.width * other.height) ? -1 : 1;
   }
 
@@ -99,7 +98,6 @@ class FaviconFinder {
     var uri = Uri.parse(url);
     var document = parse((await client.get(uri)).body);
 
-    // Look for icons in tags
     for (var rel in ['icon', 'shortcut icon']) {
       for (var iconTag in document.querySelectorAll("link[rel='$rel']")) {
         if (iconTag.attributes['href'] != null) {
@@ -120,10 +118,8 @@ class FaviconFinder {
             iconUrl = uri.scheme + '://' + uri.host + ":" + uri.port.toString() + '/' + iconUrl;
           }
 
-          // Remove query strings
           iconUrl = iconUrl.split('?').first;
 
-          // Verify so the icon actually exists
           if (await _verifyImage(iconUrl, client)) {
             iconUrls.add(iconUrl);
           }
@@ -131,21 +127,17 @@ class FaviconFinder {
       }
     }
 
-    // Look for icon by predefined URL
     var iconUrl = uri.scheme + '://' + uri.host + '/favicon.ico';
     if (await _verifyImage(iconUrl, client)) {
       iconUrls.add(iconUrl);
     }
 
-    // Deduplicate
     iconUrls = iconUrls.toSet().toList();
 
-    // Filter on suffixes
     if (suffixes != null) {
       iconUrls.removeWhere((url) => !suffixes.contains(url.split('.').last));
     }
 
-    // Fetch dimensions
     for (var iconUrl in iconUrls) {
       // No need for size calculation on vector images
       if (iconUrl.endsWith('.svg')) {
@@ -193,7 +185,6 @@ class FaviconFinder {
     if (url.endsWith('.ico')) {
       if (response.bodyBytes.length < 4) return false;
 
-      // Check if ico file contains a valid image signature
       if (!_verifySignature(response.bodyBytes, ICO_SIG) &&
           !_verifySignature(response.bodyBytes, PNG_SIG)) {
         return false;

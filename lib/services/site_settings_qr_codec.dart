@@ -166,12 +166,6 @@ class SiteSettingsQrCodec {
     return '$_scheme://$_path/v$currentVersion/$payload';
   }
 
-  /// Decode a `webspace://qr/site/vN/<payload>` URI back to a shareable
-  /// subset. Returns null if the input is malformed, the version is newer
-  /// than [currentVersion], the payload fails gunzip, or `initUrl` is
-  /// missing. Any keys outside [includedKeys] in a successfully decoded
-  /// payload are dropped — a hostile sender cannot smuggle, e.g.,
-  /// `cookies` past the receiver's strip filter.
   // A per-site settings payload is a few hundred bytes; these ceilings leave
   // generous headroom while bounding a decompression bomb.
   static const int _kMaxCompressedBytes = 64 * 1024;
@@ -206,6 +200,12 @@ class SiteSettingsQrCodec {
     return overflow ? null : out.takeBytes();
   }
 
+  /// Decode a `webspace://qr/site/vN/<payload>` URI back to a shareable
+  /// subset. Returns null if the input is malformed, the version is newer
+  /// than [currentVersion], the payload fails gunzip, or `initUrl` is
+  /// missing. Any keys outside [includedKeys] in a successfully decoded
+  /// payload are dropped — a hostile sender cannot smuggle, e.g.,
+  /// `cookies` past the receiver's strip filter.
   static Map<String, dynamic>? decode(String input) {
     final parsed = _parse(input.trim());
     if (parsed == null) return null;

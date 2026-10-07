@@ -85,7 +85,6 @@ class ConsoleLogEntry {
 }
 
 
-/// Generates a unique site ID for per-site cookie isolation.
 String _generateSiteId() {
   final now = DateTime.now().microsecondsSinceEpoch;
   final random = Random().nextInt(999999);
@@ -147,8 +146,8 @@ typedef LaunchUrlFunc = void Function(
 bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;
 
 class WebViewModel implements MediaGrantRecord {
-  final String siteId; // Unique ID for per-site cookie isolation
-  String initUrl; // Made non-final to allow URL editing
+  final String siteId;
+  String initUrl;
 
   /// This site's tabs, in tree order (a child follows its parent). Never
   /// empty. Exactly one of them — [activeTabId] — is bound to the site's
@@ -267,7 +266,7 @@ class WebViewModel implements MediaGrantRecord {
 
   /// Put a site that has no webview yet on a tab at its home page, as Always
   /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on
-  /// stays in the list; without, that tab is sent home, as before tabs.
+  /// stays in the list; without, that tab is sent home.
   void landAtHome({required bool tabsOn}) {
     if (tabsOn) {
       final landing =
@@ -300,7 +299,7 @@ class WebViewModel implements MediaGrantRecord {
     activeTab.lastActiveAt = DateTime.now();
   }
 
-  String name; // Custom name for the site
+  String name;
   List<Cookie> cookies;
   Widget? webview;
   /// Destination of the last main-frame navigation this site's webview
@@ -371,7 +370,7 @@ class WebViewModel implements MediaGrantRecord {
   /// the anti-fingerprinting JS shim (Canvas/WebGL/audio/fonts/screen/
   /// hardware/timing) AND forces clearUrlEnabled, dnsBlockEnabled, and
   /// contentBlockEnabled to behave as on regardless of their own value.
-  /// When false, the three sub-toggles act independently as before.
+  /// When false, the three sub-toggles act independently.
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   /// Where a cross-domain link that is not covered by this site's domain
@@ -427,12 +426,12 @@ class WebViewModel implements MediaGrantRecord {
   /// never frozen into a per-site Block.
   @override
   CaptureGrants captures;
-  List<UserScriptConfig> userScripts; // Per-site user scripts
+  List<UserScriptConfig> userScripts;
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
   /// independently enables which ones to inject.
   Set<String> enabledGlobalScriptIds;
-  Set<BlockedCookie> blockedCookies; // Per-site blocked cookies (name + domain)
+  Set<BlockedCookie> blockedCookies;
   LocationMode locationMode;
   double? spoofLatitude;
   double? spoofLongitude;
@@ -459,11 +458,6 @@ class WebViewModel implements MediaGrantRecord {
   /// [LocationMode.spoof].
   LocationGranularity liveLocationGranularity;
   WebRtcPolicy webRtcPolicy;
-  /// User-set window content size reported to the page by the
-  /// anti-fingerprinting shim (`window.innerWidth`/`innerHeight`). Both must
-  /// be set and positive to take effect; when either is null the shim picks
-  /// a stable, plausible desktop window size seeded by [siteId]. Only applied
-  /// when [trackingProtectionEnabled] is on, since the shim is gated on it.
   /// When true, the site's WebView is rendered in a Tor-style letterbox: a
   /// centered box snapped to a 200x100 grid of the available area (or exactly
   /// [spoofWindowWidth] x [spoofWindowHeight] when both are set), with margin
@@ -1072,7 +1066,6 @@ class WebViewModel implements MediaGrantRecord {
     fingerprintResetNonce = generateFingerprintResetNonce();
   }
 
-  /// Check if a cookie is blocked by name + domain for this site.
   bool isCookieBlocked(String name, String? domain) =>
       matchesBlockedCookie(blockedCookies, name, domain);
 
@@ -1123,8 +1116,6 @@ class WebViewModel implements MediaGrantRecord {
     defaultUserAgent ??= await c.getDefaultUserAgent();
   }
 
-  /// Apply proxy settings to the webview.
-  ///
   /// Android: routes through the global `inapp.ProxyController`. Takes
   /// effect on next request without reload.
   ///
@@ -1189,14 +1180,11 @@ class WebViewModel implements MediaGrantRecord {
     ];
   }
 
-  /// Apply theme preference to the webview
   Future<void> setTheme(WebViewTheme theme) async {
     _currentTheme = theme;
     if (webview != null) await controller?.setThemePreference(theme);
   }
 
-  /// Update proxy settings and apply them.
-  ///
   /// On iOS / macOS, the proxy is sealed into the per-site
   /// `WKWebsiteDataStore` at WebView construction time. To pick up the
   /// new value, the live WebView is discarded so the next render
@@ -1454,7 +1442,6 @@ class WebViewModel implements MediaGrantRecord {
             }
             currentUrl = urlChangedState.currentUrl;
             stateSetterF?.call();
-            // Get page title and update name if we have a title.
             // Skip the title + theme IPCs when the URL didn't actually
             // advance — this is the duplicate event from the other of
             // `onLoadStop` / `onUpdateVisitedHistory` firing for the
@@ -1476,7 +1463,6 @@ class WebViewModel implements MediaGrantRecord {
               if (controller == null) return;
               if (title != null && title.isNotEmpty) {
                 pageTitle = title;
-                // Auto-update name from page title if name is still the default domain
                 if (!hosted && name == extractDomain(initUrl)) {
                   name = title;
                 }
@@ -1673,10 +1659,9 @@ class WebViewModel implements MediaGrantRecord {
     cookies = [];
   }
 
-  /// Capture current cookies from CookieManager and store locally.
   /// Used for per-site cookie isolation when switching between same-domain sites.
   Future<void> captureCookies(CookieManager cookieManager) async {
-    if (incognito) return; // Don't capture cookies for incognito sites
+    if (incognito) return;
     final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
     cookies = await cookieManager.getCookies(url: url);
   }
@@ -1786,7 +1771,6 @@ class WebViewModel implements MediaGrantRecord {
     await controller?.evaluateJavascript(buildMediaPauseJs());
   }
 
-  /// Resume a previously paused webview when it becomes active again.
   Future<void> resumeWebView() async {
     if (controller == null) return;
     await controller!.resume();
@@ -1828,7 +1812,6 @@ class WebViewModel implements MediaGrantRecord {
         sensitive: true);
   }
 
-  /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
     LogTag.webView.debug(
@@ -2064,13 +2047,10 @@ class WebViewModel implements MediaGrantRecord {
     _pendingRestoreState = state;
   }
 
-  /// Get display name - uses the name field (which auto-updates from page title)
   String getDisplayName() {
     return name;
   }
 
-  // Serialization methods
-  ///
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See
   /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).

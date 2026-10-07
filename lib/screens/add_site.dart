@@ -397,7 +397,6 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   }
 }
 
-// Keep old FaviconImage for backward compatibility (just wraps UnifiedFaviconImage)
 class FaviconImage extends StatelessWidget {
   final String domain;
   final double size;

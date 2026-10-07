@@ -84,7 +84,7 @@ class TabDrop {
 /// What the system back gesture means at the start of the active tab's own
 /// history (NAV-001, TAB-007).
 enum TabBackAction {
-  /// Root tab: the gesture is a no-op, exactly as before tabs existed.
+  /// Root tab: the gesture is a no-op.
   ignore,
 
   /// Child tab: close it, its parent takes the webview.
@@ -406,7 +406,6 @@ class TabLifecycleEngine {
   ) =>
       _close(tabs, activeTabId, {closeId}, reparent: true);
 
-  /// Close a tab and everything under it.
   static TabCloseResult closeSubtree(
     List<SiteTab> tabs,
     String activeTabId,

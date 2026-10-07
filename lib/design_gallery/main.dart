@@ -768,7 +768,6 @@ class _WebspaceDetailCard extends StatelessWidget {
       );
 }
 
-/// The real AppSettingsScreen: the global preferences surface.
 /// The protection report on seeded counters (STATS-003).
 class _ProtectionReportCard extends StatelessWidget {
   const _ProtectionReportCard();

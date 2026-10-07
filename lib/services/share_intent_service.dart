@@ -47,7 +47,6 @@ class ShareIntentService {
     } on PlatformException {
       return null;
     } on MissingPluginException {
-      // Native side hasn't shipped the HTML branch yet; ignore.
       return null;
     }
   }

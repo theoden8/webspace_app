@@ -444,8 +444,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  // ── Console Tab ──
-
   Widget _buildConsoleTab() {
     final loc = AppLocalizations.of(context);
     final allLogs = widget.host!.consoleLogs;
@@ -539,8 +537,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       ),
     );
   }
-
-  // ── Console Eval ──
 
   static const _kEvalPromptGlyph = '>';
 
@@ -699,8 +695,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       TextPosition(offset: _evalController.text.length),
     );
   }
-
-  // ── Cookies Tab ──
 
   Widget _buildCookiesTab() {
     final loc = AppLocalizations.of(context);
@@ -973,8 +967,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     return _buildSecurityChip(label, color);
   }
 
-  // ── Scripts Bottom Sheet ──
-
   void _showScriptsSheet() {
     final loc = AppLocalizations.of(context);
     final siteScripts = widget.host!.siteUserScripts ?? const <UserScriptConfig>[];
@@ -1113,8 +1105,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       },
     );
   }
-
-  // ── Share HTML Bottom Sheet ──
 
   void _showShareSheet() {
     final loc = AppLocalizations.of(context);
@@ -1269,8 +1259,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
   }
 
-  // ── Save Icon as PNG ──
-
   Future<void> _saveIconAsPng() async {
     if (_isSavingIcon) return;
     setState(() => _isSavingIcon = true);
@@ -1316,8 +1304,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (mounted) setState(() => _isSavingIcon = false);
     }
   }
-
-  // ── DNS Tab ──
 
   Widget _buildDnsTab() {
     final loc = AppLocalizations.of(context);
@@ -1451,8 +1437,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  // ── ABP (Rust engine) Tab ──
-
   Widget _buildAbpTab() {
     final svc = ContentBlockerService.instance;
     final samples = svc.recentEngineDecisions;
@@ -1581,8 +1565,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       ),
     );
   }
-
-  // ── App Logs Tab ──
 
   Widget _buildAppLogsTab() {
     final loc = AppLocalizations.of(context);
@@ -1786,8 +1768,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   Future<void> _exportLogs() =>
       saveLogText(context, LogService.instance.export(),
           fileNamePrefix: 'webspace_logs');
-
-  // ── Helpers ──
 
   String _consoleLevelName(ConsoleMessageLevel level) {
     if (level == ConsoleMessageLevel.WARNING) return 'WARN';

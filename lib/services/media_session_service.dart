@@ -11,18 +11,6 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
 
-/// BGAUDIO-006 Dart bridge to the native media session. A background-audio
-/// site's page-JS reports its playback state here (via the `wsMediaSession`
-/// handler wired in `webview.dart`); this service raises/refreshes/tears down
-/// the OS media surface and routes transport controls back to the owning
-/// webview's JS.
-///
-/// Two native implementations behind one channel: Android's `mediaPlayback`
-/// foreground service + `MediaStyle` notification (`MediaSessionPlugin.kt` /
-/// `MediaPlaybackService.kt`), and iOS's Now Playing info + remote command
-/// centre (`MediaSessionPlugin.swift`, BGAUDIO-010). Leaving iOS to WebKit's
-/// own Now Playing handling meant nothing in the app knew the controls were
-/// up, and a transport tap had no route back into the page.
 /// One `wsMediaSession` report: what a frame of the page says it is playing.
 /// [frame] is the frame's token; the shim mints one per frame so a sibling
 /// iframe cannot speak for the frame that is actually playing. [isMainFrame]
@@ -68,6 +56,18 @@ class MediaSessionReport {
   final String artworkUrl;
 }
 
+/// BGAUDIO-006 Dart bridge to the native media session. A background-audio
+/// site's page-JS reports its playback state here (via the `wsMediaSession`
+/// handler wired in `webview.dart`); this service raises/refreshes/tears down
+/// the OS media surface and routes transport controls back to the owning
+/// webview's JS.
+///
+/// Two native implementations behind one channel: Android's `mediaPlayback`
+/// foreground service + `MediaStyle` notification (`MediaSessionPlugin.kt` /
+/// `MediaPlaybackService.kt`), and iOS's Now Playing info + remote command
+/// centre (`MediaSessionPlugin.swift`, BGAUDIO-010). Leaving iOS to WebKit's
+/// own Now Playing handling meant nothing in the app knew the controls were
+/// up, and a transport tap had no route back into the page.
 class MediaSessionService {
   static final MediaSessionService instance = MediaSessionService._();
   MediaSessionService._();
@@ -345,6 +345,12 @@ class MediaSessionService {
     return null;
   }
 
+  /// Test seam: parks or short-circuits the artwork fetch so the ownership
+  /// re-check after it can be driven deterministically.
+  @visibleForTesting
+  static Future<Uint8List?> Function(String url, UserProxySettings? proxy)?
+  debugArtworkFetchOverride;
+
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and
   /// timed out. Decoding/scaling happens natively. Null on anything unexpected.
   ///
@@ -353,12 +359,6 @@ class MediaSessionService {
   /// (LEAK-002) and fails closed when that proxy cannot be honored, and it
   /// refuses loopback / private / link-local literals so a page cannot use it
   /// to probe the LAN or cloud metadata.
-  /// Test seam: parks or short-circuits the artwork fetch so the ownership
-  /// re-check after it can be driven deterministically.
-  @visibleForTesting
-  static Future<Uint8List?> Function(String url, UserProxySettings? proxy)?
-  debugArtworkFetchOverride;
-
   Future<Uint8List?> _fetchArtwork(String url, UserProxySettings? proxy) async {
     final override = debugArtworkFetchOverride;
     if (override != null) return override(url, proxy);
@@ -391,7 +391,7 @@ class MediaSessionService {
       case OutboundClientReady(client: final ready):
         client = ready;
     }
-    const cap = 1536 * 1024; // 1.5 MB
+    const cap = 1536 * 1024;
     const timeout = Duration(seconds: 5);
     try {
       final response = await client.get(uri).timeout(timeout);

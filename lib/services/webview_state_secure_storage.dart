@@ -51,9 +51,9 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         _overrideStore = store,
         _versionProvider = versionProvider;
 
-  /// Initialize the storage. Idempotent. Must complete before any
-  /// save/load — the AES key is provisioned here (or rotated on app
-  /// upgrade) and the cache directory is created if missing.
+  /// Idempotent. Must complete before any save/load — the AES key is
+  /// provisioned here (or rotated on app upgrade) and the cache directory is
+  /// created if missing.
   Future<void> initialize() {
     if (_initialized) return Future.value();
     // Shared so two first-touch callers (a first loadState racing a first

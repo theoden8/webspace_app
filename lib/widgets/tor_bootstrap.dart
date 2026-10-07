@@ -4,10 +4,9 @@
 // makes a fresh site whose bootstrap raced the render come up direct — the
 // fail-open flavour of TOR-008).
 //
-// It also has to say what is happening. The first cut rendered a mute
-// progress bar and a mute error glyph, which left a user staring at a blank
-// tab with no way to tell "connecting" from "this network blocks Tor"
-// (TOR-013, TOR-015).
+// It also has to say what is happening: a mute progress bar and a mute
+// error glyph leave a user staring at a blank tab with no way to tell
+// "connecting" from "this network blocks Tor" (TOR-013, TOR-015).
 //
 // Spec: openspec/specs/tor-proxy/spec.md.
 

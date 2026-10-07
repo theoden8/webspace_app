@@ -68,7 +68,6 @@ String libraryProblemLabel(AppLocalizations loc, LibraryProblem problem) =>
         loc.proxyLibraryCredentialsMismatch,
     };
 
-/// A route as data (LOC-002): the type name and the address.
 /// What a TOR route is called: TOR, or "Tor (external)" where this launch
 /// rides an external tor (TOR-025), so no picker or summary passes one off as
 /// the other. [external] defaults to the running service.
@@ -77,6 +76,7 @@ String torRouteLabel(AppLocalizations loc, {bool? external}) =>
         ? loc.appSettingsExperimentalExternalTor
         : ProxyType.TOR.name;
 
+/// A route as data (LOC-002): the type name and the address.
 String routeLabel(UserProxySettings route) =>
     '${route.type.name} ${route.address ?? ''}'.trim();
 

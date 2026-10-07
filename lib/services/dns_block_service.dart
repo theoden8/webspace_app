@@ -122,7 +122,6 @@ class DnsStats {
   }
 }
 
-/// Level names for DNS blocklist severity levels (0-5).
 const List<String> dnsBlockLevelNames = [
   'Off',
   'Light',
@@ -451,7 +450,6 @@ class DnsBlockService {
     return _mergedBloomFilter!;
   }
 
-  /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
     return _siteStats.putIfAbsent(siteId, () => DnsStats());
   }

@@ -149,7 +149,6 @@ import 'package:webspace/widgets/surface_nudge_scope.dart';
 import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 
-// Accent color enum
 enum AccentColor {
   blue,
   green,
@@ -196,7 +195,6 @@ class _PerLineLicenseEntry extends LicenseEntry {
   }
 }
 
-// App theme settings - combines theme mode and accent color
 class AppThemeSettings {
   final ThemeMode themeMode;
   final AccentColor accentColor;
@@ -218,11 +216,9 @@ class AppThemeSettings {
 
   // For backward compatibility - convert to index for storage
   int toStorageIndex() {
-    // Store as: themeMode * 10 + accentColor
     return themeMode.index * 10 + accentColor.index;
   }
 
-  // Restore from storage index
   static AppThemeSettings fromStorageIndex(int index) {
     final themeModeIndex = index ~/ 10;
     final accentColorIndex = index % 10;
@@ -257,7 +253,6 @@ enum AppTheme {
   system,       // Follow system theme (blue accent)
 }
 
-// Convert legacy AppTheme to new AppThemeSettings
 AppThemeSettings _legacyAppThemeToSettings(AppTheme appTheme) {
   switch (appTheme) {
     case AppTheme.lightBlue:
@@ -273,7 +268,6 @@ AppThemeSettings _legacyAppThemeToSettings(AppTheme appTheme) {
   }
 }
 
-// Get accent color from AccentColor enum
 Color _accentColorToColor(AccentColor accentColor) {
   switch (accentColor) {
     case AccentColor.blue:
@@ -330,7 +324,6 @@ void recolorLogoPixels(Uint8List pixels, AccentColor accentColor, {required bool
       }
     }
 
-    // Determine final RGB
     int r = c0, g = c1, b = c2;
 
     // Recolor blue pixels to accent (skip for blue accent)
@@ -460,7 +453,6 @@ class _AccentLogoState extends State<AccentLogo> {
   }
 }
 
-// Helper to convert ThemeMode to WebViewTheme
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
   switch (mode) {
     case ThemeMode.dark:
@@ -549,8 +541,6 @@ void main([List<String> args = const []]) async {
   launchedForBackgroundWake = args.contains(kBackgroundWakeArg);
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Debug-only startup phase timing (see 'Startup' tag in the log screen /
-  // console). Compiled out of release builds via kDebugMode.
   final swMain = kDebugMode ? (Stopwatch()..start()) : null;
 
   // Externally-driven test tiers (INTEG-011/012): a debug launch may
@@ -661,8 +651,6 @@ void main([List<String> args = const []]) async {
   DnsBlockService.instance.setAbpNetworkHosts(
       ContentBlockerService.instance.abpNetworkBlockHosts);
 
-  // Seed the native interceptor with CDN patterns + the current cache
-  // index, and keep its copy in sync whenever the cache changes.
   await _runTimed(
       'cdnSend',
       () async {
@@ -676,9 +664,7 @@ void main([List<String> args = const []]) async {
         LocalCdnService.instance.cacheIndexSnapshot);
   });
 
-  // Register custom licenses. The list pairs a display name with the path
-  // to a bundled license text under `assets/licenses/`; see that directory
-  // for the originals. The pubspec asset glob pulls each `.txt` in.
+  // The pubspec asset glob pulls each `.txt` under `assets/licenses/` in.
   const customLicenses = <(List<String>, String)>[
     (['WebSpace Assets'], 'assets/LICENSE'),
     (['favicon (modified)'], 'assets/licenses/favicon.txt'),
@@ -772,7 +758,7 @@ void main([List<String> args = const []]) async {
   await _runTimed(
       'connectivity', ConnectivityService.instance.primeLastKnownOnline);
 
-  // HTML caches are NOT bulk-preloaded here anymore: that decrypted every
+  // HTML caches are not bulk-preloaded here: that would decrypt every
   // cached + imported page (e.g. a 9.7 MB notif import) before the first
   // frame, even when the launched site needs none of them. Instead each site's
   // page is decrypted on demand via `HtmlCacheService.preloadOne` /
@@ -984,11 +970,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   late final ContainerCookieManager? _containerCookieManager;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  /// Height of the page-load progress bar pinned to the AppBar's bottom
-  /// edge. Reserved (as an empty strut) whenever a site is current, so the
-  /// webview surface below doesn't shift by a few pixels every time a
-  /// navigation starts or ends.
-
   final _backGuard = ReentryGuard();
   final _siteSettingsGuard = ReentryGuard();
   bool _isFindVisible = false;
@@ -998,8 +979,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
   /// archive is open; cleared on `resumed`. Apps without an open
-  /// archive get the normal screenshot as before — this is a purely
-  /// additive guard.
+  /// archive get the normal screenshot.
   bool _maskBackground = false;
   // NAV-009: what the back gesture does at the start of a site's history.
   // Off by default — the gesture only walks webview history (issue #369);
@@ -1055,10 +1035,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   final NavStateCaptureDebouncer _navStateDebouncer =
       NavStateCaptureDebouncer();
 
-  // Configurable suggested sites
   List<SiteSuggestion> _suggestedSites = [];
 
-  // Global user scripts (shared across all sites)
   List<UserScriptConfig> _globalUserScripts = [];
 
   // KIOSK-002: set when the current session entered via a home-shortcut tap
@@ -1489,13 +1467,13 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _saveCurrentIndex() async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('currentIndex', _sites.current == null ? 10000 : _sites.current!);
   }
 
   Future<void> _saveThemeSettings() async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('themeSettings', _themeSettings.toStorageIndex());
   }
@@ -1678,7 +1656,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       };
 
   Future<void> _saveWebspaces() async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     // Archive-tier collections and archived siteIds live in `_sites.webspaces`
     // for rendering while open but must not enter app-tier persistence
@@ -1691,7 +1669,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Future<void> _saveSelectedWebspaceId() async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if (_sites.selectedWebspaceId != null) {
       await prefs.setString('selectedWebspaceId', _sites.selectedWebspaceId!);
@@ -1717,7 +1695,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           : null;
       // Going home is committed before the teardown below, never after it
       // (NAV-010): every step there is a native round-trip that can throw,
-      // be superseded, or never answer at all, and each of those used to
+      // be superseded, or never answer at all, and each of those would
       // abandon the whole call with `_sites.current` still on the site the
       // user asked to leave — a "back to webspaces" that silently did
       // nothing. Nothing in the teardown decides where we end up.
@@ -1829,7 +1807,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _containerIsolation.ensureContainer(target.siteId);
       if (version != _sites.activationVersion) return;
     } else {
-      // Legacy path: restore cookies for target site before loading
       await _restoreCookiesForSite(index);
       if (version != _sites.activationVersion) return;
     }
@@ -1838,9 +1815,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (index >= _sites.models.length) return;
 
     // Decrypt this site's cached/imported HTML into memory before it enters
-    // _sites.loaded, so the build's synchronous getHtmlSync hits. Replaces the
-    // cold-start bulk preload of every page (idempotent no-op for sites that
-    // have no cached/imported HTML, e.g. a plain URL site).
+    // _sites.loaded, so the build's synchronous getHtmlSync hits. Idempotent
+    // no-op for sites that have no cached/imported HTML, e.g. a plain URL site.
     await _ensureSiteHtml(index);
     if (version != _sites.activationVersion) return;
 
@@ -1850,7 +1826,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     _sites.loaded.remove(index);
     _sites.loaded.add(index);
 
-    // Resume the newly active webview
     await _sites.models[index].resumeWebView();
 
     // A site that sat offscreen while the OS reclaimed memory can come back
@@ -1891,7 +1866,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       unawaited(_quiesceOutgoingSite(model, version, captureState: false));
     }
 
-    // Auto-enter fullscreen if the site has fullscreenMode enabled
     if (target.fullscreenMode) {
       _enterFullscreen();
     } else {
@@ -2041,7 +2015,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  /// Restores cookies for a site before activation. Delegates to the engine.
+  /// Restores cookies for a site before activation.
   Future<void> _restoreCookiesForSite(int index) async {
     final version = _sites.activationVersion;
     await _cookieIsolation.restoreCookiesForSite(
@@ -2125,19 +2099,16 @@ class _WebSpacePageState extends State<WebSpacePage>
       });
     }
 
-    // Ensure "All" webspace always exists
     _ensureAllWebspaceExists();
 
     _sites.selectedWebspaceId = prefs.getString('selectedWebspaceId');
 
-    // If no webspace is selected, select "All" by default
     if (_sites.selectedWebspaceId == null) {
       _sites.selectedWebspaceId = kAllWebspaceId;
     }
   }
 
   void _ensureAllWebspaceExists() {
-    // Check if "All" webspace already exists
     final hasAll = _sites.webspaces.any((ws) => ws.id == kAllWebspaceId);
 
     if (!hasAll) {
@@ -2158,7 +2129,6 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   Future<void> _restoreAppState() async {
     final activationVersionAtRestore = _sites.activationVersion;
-    // Debug-only startup phase timing (compiled out of release via kDebugMode).
     final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     AppPref.loadAll(prefs);
@@ -2248,10 +2218,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       for (final m in _sites.models)
         if (!m.incognito) m.siteId,
     };
-    // Sweep containers whose owning site no longer exists. Also
-    // catches any leftover rev'd-name containers from the short-lived
-    // `containerRev` workaround on this branch — the name won't match
-    // any current siteId, so the set-membership check drops them.
     await _containerIsolation.garbageCollectOrphans(activeSiteIdsAtStartup);
     // Drop incognito containers before any WebView binds — `deleteContainer`
     // is reliable in this unbound window on every platform, and we want
@@ -2336,7 +2302,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
     }
 
-    // Set current index (async for cookie restoration)
     final swActivate = kDebugMode ? (Stopwatch()..start()) : null;
     if (StartupRestoreEngine.shouldActivateAfterRestore(
       indexToRestore: indexToRestore,
@@ -2350,8 +2315,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');
     }
     if (!mounted) return;
-    // indexToRestore is non-null only for a shortcut cold launch (see the
-    // "only restore index if launched via shortcut" comment above), so apply
+    // indexToRestore is non-null only for a shortcut cold launch, so apply
     // the FS-008 shortcut-launch fullscreen policy here.
     // KIOSK-003: a locked kiosk launch always goes fullscreen, overriding the
     // per-site / fullscreenOnShortcut policy.
@@ -2365,7 +2329,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             ))) {
       _enterFullscreen();
     }
-    setState(() {}); // Trigger UI update after async operation
+    setState(() {});
     if (swRestore != null) {
       LogTag.startup.debug(
           'restore to first setState (total): ${swRestore.elapsedMilliseconds}ms');
@@ -2454,7 +2418,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  // ── DeferredStartupHost ──────────────────────────────────────────────────
   // Drives DeferredStartupEngine for the post-paint deferred init (notif
   // auto-load, timezone re-bake). Everything is addressed by siteId and the
   // siteId<->index translation happens fresh per call, so an add/delete while
@@ -2559,7 +2522,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   Set<String> liveNonIncognitoSiteIds() =>
       {for (final m in _sites.models) if (!m.incognito) m.siteId};
-  // ─────────────────────────────────────────────────────────────────────────
 
   /// Housekeeping sweep of storage left by sites deleted in previous sessions,
   /// deferred off the cold-launch first-paint path. The launched site never
@@ -2929,7 +2891,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  // Webspace management methods
   void _addWebspace() async {
     final webspace = Webspace(name: '');
     await Navigator.push(
@@ -2978,7 +2939,6 @@ class _WebSpacePageState extends State<WebSpacePage>
           allSites: _sites.models,
           isReadOnly: webspace.id == kAllWebspaceId,
           onSave: (updatedWebspace) {
-            // Don't save changes for "All" webspace
             if (updatedWebspace.id == kAllWebspaceId) return;
 
             // Translate the editor's index-based selection back into
@@ -3003,7 +2963,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _deleteWebspace(Webspace webspace) async {
-    // Prevent deletion of "All" webspace
     final loc = AppLocalizations.of(context);
     if (webspace.id == kAllWebspaceId) {
       _toast((loc) => loc.homeCannotDeleteAllWebspace);
@@ -3037,7 +2996,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     setState(() {
       _sites.webspaces.removeWhere((ws) => ws.id == webspace.id);
       if (wasSelected) {
-        _sites.selectedWebspaceId = kAllWebspaceId; // Select "All" instead of null
+        _sites.selectedWebspaceId = kAllWebspaceId;
       }
     });
     if (wasSelected) {
@@ -3050,7 +3009,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   void _selectWebspace(Webspace webspace) async {
-    // If the same webspace is already selected, just open the drawer
     if (_sites.selectedWebspaceId == webspace.id) {
       _scaffoldKey.currentState?.openDrawer();
       return;
@@ -3067,7 +3025,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     _webspaceSwitchCompleter = completer;
 
     try {
-      // Get indices from the previous webspace before switching
       final previousIndices = _sites.filteredIndices().toSet();
 
       setState(() {
@@ -3077,7 +3034,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       // Open drawer immediately so the user sees instant feedback on tap
       _scaffoldKey.currentState?.openDrawer();
 
-      // Get indices in the new webspace
       final newIndices = _sites.filteredIndices().toSet();
 
       // Only unload sites when online - preserve live webviews when offline
@@ -3098,7 +3054,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         LogTag.webspaceSwitch.debug('Offline - preserving loaded webviews');
       }
 
-      setState(() {}); // Update UI
+      setState(() {});
       await _saveSelectedWebspaceId();
       await _saveCurrentIndex();
     } finally {
@@ -3123,7 +3079,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     _saveWebspaces();
   }
 
-  // Export settings to a file
   Future<void> _exportSettings() async {
     final prefs = await SharedPreferences.getInstance();
     // The global proxy password is in secure storage, not in the prefs
@@ -3165,7 +3120,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  // Import settings from a file
   /// uBO trusts a site by switching all filtering off on it; the per-site
   /// content-blocker toggle is the equivalent here. Archive-tier sites are
   /// left alone (ARCH-006), and so are sites whose Tracking Protection
@@ -3201,7 +3155,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       return;
     }
 
-    // Show confirmation dialog with backup info
     final sitesCount = backup.sites.length;
     final webspacesCount = backup.webspaces.length;
     final exportDate = backup.exportedAt.toLocal().toString().split('.')[0];
@@ -3357,7 +3310,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       await suggested_sites.saveSuggestedSites(_suggestedSites);
     }
 
-    // Apply theme to all webviews
     final webViewTheme = _themeModeToWebViewTheme(_themeSettings.themeMode);
     for (var webViewModel in _sites.models) {
       await webViewModel.setTheme(webViewTheme);
@@ -3589,12 +3541,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _sites.models[_sites.current!].userStopLoading();
   }
 
-  /// Navigate to the site's initial URL and clear navigation history.
-  /// Disposes the webview so it's recreated fresh with no back history.
-  /// Evicts the in-memory HTML cache snapshot (online only) so the
-  /// rebuilt webview boots clean and goes straight to the live home URL
-  /// rather than flashing a stale cached frame. Offline: the cache is
-  /// preserved — it's the only content we can render without network.
   /// Reset every "Always open Home" / incognito site that shares a named
   /// webspace with [launchedIndex] back to its `initUrl` and tear down its
   /// live webview so the next paint reloads at home. Called from both the
@@ -3825,6 +3771,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
+  /// Navigate to the site's initial URL and clear navigation history.
+  /// Disposes the webview so it's recreated fresh with no back history.
+  /// Evicts the in-memory HTML cache snapshot (online only) so the
+  /// rebuilt webview boots clean and goes straight to the live home URL
+  /// rather than flashing a stale cached frame. Offline: the cache is
+  /// preserved — it's the only content we can render without network.
   void _goHome() {
     if (_sites.current == null || _sites.current! >= _sites.models.length) return;
     final model = _sites.models[_sites.current!];
@@ -3989,7 +3941,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         // the app's "home", which is where a protection summary belongs.
         if (_sites.current == null || _sites.current! >= _sites.models.length)
           ProtectionShieldButton(onPressed: _openProtectionReport),
-        // Settings icon button (only visible on webspaces list screen)
         if (_sites.current == null || _sites.current! >= _sites.models.length)
           IconButton(
             icon: Icon(Icons.settings),
@@ -4125,7 +4076,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     void handleTap() {
       // Tapping the chip of the site already on screen opens its tab list —
       // the strip switches sites, and within a site the tabs are what is left
-      // to switch between (TAB-008). It was a no-op before.
+      // to switch between (TAB-008).
       if (isActive) {
         unawaited(_showTabsSheet());
         return;
@@ -4272,7 +4223,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Find toolbar (when visible)
         if (hasFindToolbar)
           FindToolbar(
             webViewController: getController(),
@@ -4281,7 +4231,6 @@ class _WebSpacePageState extends State<WebSpacePage>
               _toggleFind();
             },
           ),
-        // URL bar (when visible)
         if (hasUrlBar)
           UrlBar(
             currentUrl: model.currentUrl,
@@ -5336,8 +5285,6 @@ enum SiteMenuAction {
   addToHome,
 }
 
-/// What the edit-site dialog saved. [icon] is null when the icon was left
-/// alone; a null `png` inside it resets to the fetched favicon.
 
 enum _MediaChoice { block, useFile, allow }
 

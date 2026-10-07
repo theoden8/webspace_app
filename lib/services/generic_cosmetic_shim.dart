@@ -18,8 +18,7 @@
 //
 // The shim is no-op when the bridge handler isn't registered (i.e.
 // when the Rust engine isn't active for this site) — caller should
-// only inject this when [kUseRustEngineForNetwork] is true and the
-// engine loaded.
+// only inject this when the engine loaded.
 
 /// Build the generic-cosmetic scanner JS as a self-contained string.
 /// `handlerName` is the JavaScript-bridge handler the Dart side

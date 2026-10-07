@@ -10,7 +10,6 @@ typedef SiteSetEffects = ({
   /// Write the app-tier site list. Archive rows are filtered out (ARCH-001).
   bool persists,
 
-  /// Write webspace membership.
   bool savesWebspaces,
 
   /// LIR-017 / LIR-031: drop outbound and search references that name a
@@ -151,12 +150,10 @@ final class SitesEdited extends SiteSetChange {
   const SitesEdited();
 }
 
-/// The per-site settings screen saved.
 final class SiteSettingsSaved extends SiteSetChange {
   const SiteSettingsSaved();
 }
 
-/// The per-site settings screen closed.
 final class SiteSettingsClosed extends SiteSetChange {
   const SiteSettingsClosed();
 }
@@ -173,7 +170,6 @@ final class SiteAdded extends SiteSetChange {
   final WebViewModel site;
 }
 
-/// A site deleted.
 final class SiteRemoved extends SiteSetChange {
   const SiteRemoved(this.site);
   final WebViewModel site;

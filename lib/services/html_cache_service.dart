@@ -34,7 +34,7 @@ class HtmlCacheService {
 
   FlutterSecureStorage _secureStorage = Keystores.aeadKeys;
 
-  /// Initialize the cache service. Call on app startup.
+  /// Call on app startup.
   ///
   /// [beforeUpgradeWipe] runs once if an app-version upgrade is
   /// detected, after the existing AES key has been loaded but before
@@ -271,7 +271,6 @@ class HtmlCacheService {
     return '$_darkCachePrelude$html';
   }
 
-  /// Save HTML content for a site (encrypted)
   Future<void> saveHtml(String siteId, String html, String url) async {
     final store = _store;
     final aead = _aead;
@@ -327,7 +326,6 @@ class HtmlCacheService {
     }
   }
 
-  /// Load cached HTML for a site (decrypted)
   /// Returns (url, html) tuple or null if not cached
   Future<(String, String)?> loadHtml(String siteId) async {
     final store = _store;

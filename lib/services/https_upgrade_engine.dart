@@ -188,8 +188,6 @@ class HttpsUpgradeEngine {
     _responded.clear();
   }
 
-  // --- Event surface -------------------------------------------------------
-  //
   // The four platform events that can resolve an upgrade, plus the deadline.
   // The call site forwards each one and obeys the outcome; it holds no state
   // and makes no choice of its own, so every ordering below is reachable from

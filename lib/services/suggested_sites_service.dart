@@ -76,7 +76,6 @@ Future<void> resetSuggestedSites() async {
   await prefs.remove(_prefsKey);
 }
 
-/// Get the effective suggested sites list: user-customized or flavor default.
 Future<List<SiteSuggestion>> getEffectiveSuggestedSites() async {
   final custom = await loadSuggestedSites();
   return custom ?? flavorDefaultSuggestions;

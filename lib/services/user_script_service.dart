@@ -28,11 +28,6 @@ enum ScriptFetchUrlStatus {
   blocked,
 }
 
-/// Validate a URL for script fetching and classify it.
-///
-/// Returns [ScriptFetchUrlStatus.whitelisted] for trusted CDN domains,
-/// [ScriptFetchUrlStatus.requiresConfirmation] for other http/https URLs,
-/// and [ScriptFetchUrlStatus.blocked] for dangerous or invalid URLs.
 ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
   final uri = Uri.tryParse(url);
   if (uri == null) return ScriptFetchUrlStatus.blocked;
@@ -69,7 +64,6 @@ ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
 
 const int _maxFetchBytes = 5 * 1024 * 1024;
 
-/// Redirect hops a bridged fetch will follow before giving up.
 const int _maxFetchRedirects = 5;
 
 bool _isRedirect(int status) =>

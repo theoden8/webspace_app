@@ -234,7 +234,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       ));
 
   /// Export, import and the archive actions run on the main page, so settings
-  /// closes before each one, as it did when they were rows of their own.
+  /// closes before each one.
   Future<void> _openBackup() => guardedOpen(() async {
         final action = await Navigator.push<AppBackupAction>(
           context,

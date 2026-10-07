@@ -146,7 +146,6 @@ enum AppPref<T extends Object> {
       (legacyKey == null ? null : _coerce(prefs.get(legacyKey!))) ??
       fallback;
 
-  /// Re-reads [value] from [prefs] and returns it.
   T load(SharedPreferences prefs) => _notifier.value = stored(prefs);
 
   static void loadAll(SharedPreferences prefs) {

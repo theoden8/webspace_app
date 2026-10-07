@@ -95,7 +95,6 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/surface_nudge_scope.dart';
 
-// Re-export inapp.Cookie as Cookie for convenience
 typedef Cookie = inapp.Cookie;
 
 /// Translate WebSpace's [UserProxySettings] into the fork's
@@ -210,7 +209,6 @@ inapp.ProxySettings? routerRelayProxyFor({
   );
 }
 
-/// Extension to add JSON serialization to inapp.Cookie
 extension CookieJson on inapp.Cookie {
   Map<String, dynamic> toJson() => {
     'name': name,
@@ -225,7 +223,6 @@ extension CookieJson on inapp.Cookie {
   };
 }
 
-/// Factory function to create Cookie from JSON
 Cookie cookieFromJson(Map<String, dynamic> json) => inapp.Cookie(
   name: json['name'],
   value: json['value'],
@@ -260,7 +257,6 @@ Cookie? tryCookieFromJson(Object? json) {
   return cookieFromJson(json);
 }
 
-/// Cookie manager - thin wrapper around inapp.CookieManager
 class CookieManager {
   final _manager = inapp.CookieManager.instance();
 
@@ -332,7 +328,6 @@ class CookieManager {
     path: path ?? '/',
   );
 
-  /// Delete all cookies for a URL.
   /// Used for per-site cookie isolation when switching between same-domain sites.
   Future<void> deleteAllCookiesForUrl(Uri url) async {
     final cookies = await getCookies(url: url);
@@ -346,7 +341,6 @@ class CookieManager {
     }
   }
 
-  /// Delete ALL cookies from all domains.
   /// Used for aggressive cookie isolation when switching between same-domain sites.
   Future<void> deleteAllCookies() async {
     await _manager.deleteAllCookies();
@@ -373,13 +367,11 @@ class CookieManager {
   }
 }
 
-/// Find matches result
 class FindMatchesResult {
   int activeMatchOrdinal = 0;
   int numberOfMatches = 0;
 }
 
-/// Theme preference for webviews
 enum WebViewTheme { light, dark, system }
 
 /// Answer the loopback proxy router's `407` with this site's credential
@@ -601,8 +593,6 @@ String? containerIdFor({
       : null;
 }
 
-/// Proxy manager singleton.
-///
 /// Two delivery paths coexist behind a single API:
 ///
 ///   * **Android.** Routes through `inapp.ProxyController` — a process-wide
@@ -647,7 +637,6 @@ class ProxyManager {
         isMacOS: hostIsMacOS,
       );
 
-  /// Tests only.
   static void setBindingForTest(ProxyBinding? value) => _binding = value;
 
   /// Containers this process built a WebView on with a proxy (PROXY-029).
@@ -875,8 +864,6 @@ class ProxyManager {
   }
 }
 
-/// Platform info - proxy support detection.
-///
 /// Returns true on:
 /// - Android, when the System WebView reports `PROXY_OVERRIDE` support.
 /// - iOS / macOS, unconditionally — the fork's
@@ -921,10 +908,8 @@ class PlatformInfo {
   static bool get isProxySupported => _isProxySupportedCached ?? false;
 }
 
-/// Configuration for creating a webview
 class WebViewConfig {
   /// Unique key to force widget recreation when settings change.
-  /// When this key changes, Flutter will create a new widget state.
   final Key? key;
   /// What every webview that runs as the site applies, resolved once by
   /// `WebViewModel.sitePosture`. A popup this webview spawns inherits it.
@@ -1015,7 +1000,6 @@ class WebViewConfig {
         dnsLevel: effectiveDnsLevel,
         contentBlock: posture.blocking.contentBlock,
       );
-  /// Callback for JS console messages.
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
   /// The host's answers for every webview that runs as the site: prompts,
   /// popups, external schemes and the cookie readers.
@@ -1094,7 +1078,6 @@ class WebViewConfig {
   });
 }
 
-/// Controller interface for webview operations
 abstract class WebViewController {
   /// The underlying `inapp.InAppWebViewController` this wrapper is
   /// bound to. Exposed so per-site code paths can pass it as the
@@ -1158,7 +1141,6 @@ abstract class WebViewController {
   /// a webview, dispose it instead.
   Future<void> pause();
 
-  /// Resume a previously paused webview.
   Future<void> resume();
 
   /// Pause JavaScript timers (`setTimeout`/`setInterval`/`requestAnimationFrame`)
@@ -1170,7 +1152,6 @@ abstract class WebViewController {
   /// site that's about to become active.
   Future<void> pauseAllJsTimers();
 
-  /// Inverse of [pauseAllJsTimers].
   Future<void> resumeAllJsTimers();
 
   /// Abort any in-flight main-frame load. Used to quiesce chromium
@@ -1286,19 +1267,6 @@ bool isEscapedPauseTimersAlert({
 }) =>
     pauseWasIssued && (message ?? '').isEmpty && (isMainFrame ?? true);
 
-/// Whether the root site webview must defer its initial load so the
-/// controller-created handler can apply `restoreState` to a pristine
-/// back/forward list. True only on Android: `WebView.restoreState` no-ops
-/// when the WebView has already navigated (an `initialUrlRequest` would build
-/// a 1-entry history first), so the back/forward stack restore is silently
-/// dropped. iOS/macOS `WKWebView.interactionState` replaces the stack in
-/// place even after a load started, so they keep the initial load.
-///
-/// Excludes file:// imports: their URL is a synthetic handle with no
-/// fetchable form, so the post-restore reload would surface
-/// ERR_FILE_NOT_FOUND — and back/forward history is meaningless for a static
-/// local page anyway, so they keep rendering their cached `initialData`.
-/// Only meaningful when nav-state bytes are actually pending for this build.
 /// Android and Linux apply the proxy as a process-global override from Dart
 /// after the platform view exists (`WebViewModel.setController`). A site whose
 /// effective proxy is non-DEFAULT must therefore carry no initial load, or its
@@ -1318,6 +1286,19 @@ bool deferInitialLoadForProxy({
     releasesContainerProxy ||
     (proxyIsGlobal && (effectiveNonDefault || overrideActive));
 
+/// Whether the root site webview must defer its initial load so the
+/// controller-created handler can apply `restoreState` to a pristine
+/// back/forward list. True only on Android: `WebView.restoreState` no-ops
+/// when the WebView has already navigated (an `initialUrlRequest` would build
+/// a 1-entry history first), so the back/forward stack restore is silently
+/// dropped. iOS/macOS `WKWebView.interactionState` replaces the stack in
+/// place even after a load started, so they keep the initial load.
+///
+/// Excludes file:// imports: their URL is a synthetic handle with no
+/// fetchable form, so the post-restore reload would surface
+/// ERR_FILE_NOT_FOUND — and back/forward history is meaningless for a static
+/// local page anyway, so they keep rendering their cached `initialData`.
+/// Only meaningful when nav-state bytes are actually pending for this build.
 bool deferInitialLoadForRestore({
   required bool hasPendingRestoreState,
   required bool isAndroid,
@@ -1748,7 +1729,6 @@ typedef StoreBinding = ({
   bool releasesContainerProxy,
 });
 
-/// Factory for creating webviews
 /// A site's page loaded with no view, for one background wake (NOTIF-016).
 /// Built by [WebViewFactory.openHeadlessCheck].
 class HeadlessSiteCheck {
@@ -1822,9 +1802,6 @@ class WebViewFactory {
     return (math.min(w, h), math.max(w, h));
   }
 
-  /// Determine if a navigation was triggered by a user gesture.
-  /// Android: uses hasGesture property.
-  /// iOS/macOS: uses navigationType (LINK_ACTIVATED = user tap, FORM_SUBMITTED = user form).
   static bool _hasUserGesture(inapp.NavigationAction action) {
     if (hostIsAndroid) {
       return action.hasGesture ?? true;
@@ -1833,7 +1810,7 @@ class WebViewFactory {
       return action.navigationType == inapp.NavigationType.LINK_ACTIVATED ||
              action.navigationType == inapp.NavigationType.FORM_SUBMITTED;
     }
-    return true; // Default allow on unknown platforms
+    return true;
   }
 
   static bool _shouldBlockUrl(String url) {
@@ -1888,7 +1865,6 @@ class WebViewFactory {
         _sameSite(host, siteUrl)) {
       return true;
     }
-    // reCAPTCHA: /recaptcha/ path only on known Google-owned domains
     if (uri.path.contains('/recaptcha/') &&
         _recaptchaDomains.any((d) => _matchesDomain(host, d))) {
       return true;
@@ -1950,15 +1926,11 @@ class WebViewFactory {
     //     once.
     //
     // A Linux site with no container has no session to pin, so it stays on
-    // the process-wide override path below, as it always has.
+    // the process-wide override path below.
     //
     // On Android the global `inapp.ProxyController` path runs from
     // `WebViewModel._applyProxySettings` instead, so leave `proxySettings`
     // null and avoid sending a no-op object to the native side.
-    // resolveEffectiveProxy keeps these WebViews in sync with the Dart-side
-    // and Android paths: per-site DEFAULT falls through to the app-global
-    // outbound proxy, so a site the user hasn't customized still inherits a
-    // global Tor / corporate proxy. Explicit per-site values win.
     // The named binding (PROXY-027) answers the process-level half: Apple
     // carries a proxy on the store, everything else on one process rule.
     // Linux adds a per-SITE condition on top that no process-level value
@@ -2165,7 +2137,6 @@ class WebViewFactory {
       ..preferredContentMode = desktopMode
           ? inapp.UserPreferredContentMode.DESKTOP
           : inapp.UserPreferredContentMode.RECOMMENDED
-      // Enable DevTools inspection in debug mode (chrome://inspect on Android)
       ..isInspectable = kDebugMode
       ..useHybridComposition = WebViewFactory.hybridComposition;
   }
@@ -3151,7 +3122,7 @@ class WebViewFactory {
     required WebViewConfig config,
     required Function(WebViewController) onControllerCreated,
   }) {
-    // Build initial URL request headers. DNT/Sec-GPC are always-on per
+    // DNT/Sec-GPC are always-on per
     // the privacy posture of this app — every outbound nav advertises
     // the user's no-tracking preference.
     final headers = _navigationHeaders(config);
@@ -3175,11 +3146,10 @@ class WebViewFactory {
     // we render the cache and never reload to live.
     //
     // The reload-to-live swap is what triggers the chromium
-    // `partition_alloc_support.cc:770` dangling-raw_ptr SIGTRAP we
-    // chased for many commits. That FATAL is gated by the
+    // `partition_alloc_support.cc:770` dangling-raw_ptr SIGTRAP.
+    // That FATAL is gated by the
     // `PartitionAllocUnretainedDanglingPtr` chromium feature flag —
-    // enabled on AOSP userdebug builds (where this branch was
-    // originally tested), disabled in production Stable WebView.
+    // enabled on AOSP userdebug builds, disabled in production Stable WebView.
     // Production users get the speed-up of cached first paint without
     // the dev-only crash.
     final binding = _bindingFor(config);
@@ -3192,12 +3162,6 @@ class WebViewFactory {
       initialHtml: config.initialHtml,
     );
     final isFileImport = fileImport != null;
-    // When the cache is missing for a file import (incognito mode,
-    // post-upgrade cache wipe, …) we feed initialData with a synthetic
-    // "content unavailable" page rather than letting chromium attempt
-    // to load the synthetic file:// URL — there's no actual file on
-    // disk, so the load would surface as ERR_INVALID_URL or
-    // ERR_FILE_NOT_FOUND in the user's face.
     // Android restore: suppress every initial-load form (URL + cached HTML)
     // so `restoreState` can apply to a pristine history. With this set, the
     // cached-HTML reload-to-live machinery below also stays off — the
@@ -3293,8 +3257,7 @@ class WebViewFactory {
     // and any further `evaluateJavascript` we post against it is bound
     // with `Unretained` lifetimes that the chromium IO thread later
     // dereferences after the frame is freed — exactly the
-    // dangling-raw_ptr SIGTRAP at `partition_alloc_support.cc:770`
-    // that this branch has been chasing.
+    // dangling-raw_ptr SIGTRAP at `partition_alloc_support.cc:770`.
     var navigationGen = 0;
 
     // One gate per mounted WebView, because the mounting navigation it tracks
@@ -3678,7 +3641,7 @@ class WebViewFactory {
         // subsequent updates are picked up without re-attaching.
         if (hostIsAndroid) {
           // Track attach attempts so we can correlate with the
-          // native-side "attachToAllWebViews" log. Phase 14: helps
+          // native-side "attachToAllWebViews" log. Helps
           // debug the case where Android sub-resources aren't blocked
           // — first thing to check is whether attach is even running.
           LogTag.webView.debug(
@@ -3798,8 +3761,6 @@ class WebViewFactory {
         // The rewrite target is likewise re-checked before it is loaded — a
         // ClearURLs redirection rule yields whatever the matched URL carried
         // in its capture group, and `loadUrl` on Android takes any scheme.
-        //
-        // ClearURLs: strip tracking parameters from URLs
         if (config.posture.blocking.clearUrls && ClearUrlService.instance.hasRules) {
           final cleanedUrl = ClearUrlService.instance.cleanUrl(url);
           if (cleanedUrl.isEmpty) return inapp.NavigationActionPolicy.CANCEL;
@@ -3891,7 +3852,7 @@ class WebViewFactory {
               urlRequest: inapp.URLRequest(url: inapp.WebUri(upgrade.load!)));
         }
         if (upgrade.cancel) return inapp.NavigationActionPolicy.CANCEL;
-                // A captcha challenge loads in place. Decided AFTER the routing
+        // A captcha challenge loads in place. Decided AFTER the routing
         // decision above, never before it: taken first, "is this a captcha
         // URL?" becomes a way to navigate the parent webview to any origin
         // with the gesture requirement and the cross-domain nested route
@@ -3979,7 +3940,6 @@ class WebViewFactory {
         LogTag.webView.debug(
             'onCreateWindow: url=$url windowId=$windowId', sensitive: true);
 
-        // Show popup dialog for Cloudflare challenges (captcha verification).
         if (isCaptchaChallenge(url, siteUrl: config.initialUrl)) {
           // The host builds the popup widget out of a BuildContext that has
           // no site attached; hand it this webview's posture by windowId so
@@ -4298,7 +4258,7 @@ class WebViewFactory {
           if (urlStr != lastLoadStartUrl) {
             userScriptService.reinjectOnSpaNavigation(controller);
           }
-          lastLoadStartUrl = null; // Reset for next navigation
+          lastLoadStartUrl = null;
         }
       },
       onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
@@ -4336,7 +4296,7 @@ class WebViewFactory {
         // "reload lastStableUrl" recovery looped forever (every reload
         // re-renders the page that re-fires the same intent).
         //
-        // New flow:
+        // Flow:
         //   * already suppressed → silent no-op (lets the page sit on
         //     whatever it managed to render before redirecting).
         //   * external scheme + host UI hooked up → fire the dialog
@@ -4657,7 +4617,7 @@ class WebViewFactory {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
-        // Post-failure platforms (Android, Linux): the OS already rejected
+    // Post-failure platforms (Android, Linux): the OS already rejected
     // the chain. Prompt the user now.
     if (prompt == null) {
       LogTag.tls.debug(

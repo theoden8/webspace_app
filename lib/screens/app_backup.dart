@@ -4,7 +4,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
 /// What the Backup and archives screen asks App Settings to do. Each one runs
-/// on the main page once settings has closed, as it did from the single list.
+/// on the main page once settings has closed.
 enum AppBackupAction { export, import, restoreArchive, closeAllArchives }
 
 extension on AppBackupAction {

@@ -330,7 +330,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
 /// Counts and chart come from the persisted daily buckets; the lists of what
 /// was actually stopped and which site it was stopped for come from the
 /// encrypted detail blob (STATS-009). Both survive a restart, so the two
-/// halves of the screen no longer disagree after one.
+/// halves of the screen agree after one.
 class BlockStatsCategoryScreen extends StatefulWidget {
   final BlockCategory category;
   final int rangeDays;

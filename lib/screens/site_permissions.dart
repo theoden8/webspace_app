@@ -225,8 +225,7 @@ class SitePermissionsScreen extends StatefulWidget {
   /// different proxy, so notifications cannot be enabled here.
   final String? notificationsBlockedBySite;
 
-  /// Notifications need container support; hidden entirely without it, as the
-  /// settings screen did.
+  /// Notifications need container support; hidden entirely without it.
   final bool showNotifications;
 
   @override

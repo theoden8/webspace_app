@@ -9,7 +9,6 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
-/// Backup version for compatibility checking
 const int kBackupVersion = 1;
 
 /// Data class representing a backup of app settings.

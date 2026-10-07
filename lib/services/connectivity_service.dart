@@ -2,7 +2,6 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 
-/// Simple connectivity service with a testable override.
 class ConnectivityService {
   static ConnectivityService? _instance;
   static ConnectivityService get instance => _instance ??= ConnectivityService._();

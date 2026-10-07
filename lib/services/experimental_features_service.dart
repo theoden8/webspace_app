@@ -24,7 +24,7 @@ enum ExperimentalFeature {
   textureRendering(AppPref.experimentalTextureRendering),
 
   /// Several pages per site (inactive-tabs TAB-012). Off by default: it is
-  /// new. With it off a site shows its one page, as before tabs existed.
+  /// new. With it off a site shows its one page.
   siteTabs(AppPref.experimentalSiteTabs),
 
   /// Tor sites through a tor already running on the device, with per-site

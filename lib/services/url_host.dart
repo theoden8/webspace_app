@@ -121,7 +121,6 @@ bool _isIPv6Address(String host) {
   final cleaned = host.startsWith('[') && host.endsWith(']')
       ? host.substring(1, host.length - 1)
       : host;
-  // Simple check: contains colons and valid hex characters
   if (!cleaned.contains(':')) return false;
   final validChars = RegExp(r'^[0-9a-fA-F:]+$');
   return validChars.hasMatch(cleaned);

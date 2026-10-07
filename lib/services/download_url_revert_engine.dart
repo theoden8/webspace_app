@@ -1,10 +1,6 @@
 /// Decides which URL should be treated as "stable" (i.e. safe to persist
 /// as the site's current URL) and which URL to revert the address bar to
 /// after a download is triggered.
-///
-/// Extracted from [`WebViewFactory.createWebView`] so the scheme-based
-/// gating and revert-target selection are unit-testable without running a
-/// real webview.
 class DownloadUrlRevertEngine {
   /// Schemes that render as a normal page and therefore represent a
   /// reasonable state to roll back to after a download. Transient schemes

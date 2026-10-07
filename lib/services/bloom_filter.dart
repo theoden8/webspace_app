@@ -1,9 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
 
-/// Simple Bloom filter for fast probabilistic set membership checks.
-/// False positives possible (configurable rate), false negatives impossible.
-///
 /// Uses FNV-1a hash with multiple seeds via the Kirsch-Mitzenmacher technique.
 /// JS-compatible: see [toMap] for the binary format that mirrors the JS reader.
 class BloomFilter {

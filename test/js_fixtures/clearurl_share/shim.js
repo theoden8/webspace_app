@@ -1,7 +1,6 @@
 (function() {
   const URL_RE = /^https?:\/\//i;
 
-  // Intercept navigator.clipboard.writeText
   if (navigator.clipboard && navigator.clipboard.writeText) {
     const origWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
     navigator.clipboard.writeText = async function(text) {
@@ -17,7 +16,6 @@
     };
   }
 
-  // Intercept navigator.share (Web Share API)
   if (navigator.share) {
     const origShare = navigator.share.bind(navigator);
     navigator.share = async function(data) {
@@ -41,7 +39,6 @@
     };
   }
 
-  // Intercept document.execCommand('copy') by cleaning selected text if it's a URL
   const origExecCommand = document.execCommand.bind(document);
   document.execCommand = function(command, showUI, value) {
     if (command === 'copy') {

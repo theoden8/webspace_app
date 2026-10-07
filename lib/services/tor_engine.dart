@@ -30,7 +30,7 @@ const String kTorAppGlobalTag = '__webspace_app_global__';
 
 /// How long a released runtime is still treated as claimed, so a webspace
 /// switch or a quick toggle-off-toggle-on does not look like an idle
-/// runtime. It no longer ends in a stop: see [TorEngine.release].
+/// runtime. It does not end in a stop: see [TorEngine.release].
 const Duration kTorIdleDebounce = Duration(seconds: 60);
 
 /// How long `bootstrapping` may last before the engine gives up. Past this
@@ -90,7 +90,6 @@ const Duration kTorSuspendedSlack = Duration(seconds: 15);
 /// Whether a SOCKS5 listener at [host]:[port] answers a greeting.
 typedef TorSocksProbe = Future<bool> Function(String host, int port);
 
-/// Observable state of the runtime.
 sealed class TorStatus {
   const TorStatus();
 
@@ -481,8 +480,6 @@ class TorEngine {
   /// The bridge configuration currently in force, or queued for next start.
   TorBridgeConfig get bridges => _bridges;
 
-  /// Set the bridge configuration.
-  ///
   /// Takes effect on the next start. Returns whether a [restart] is needed
   /// for it to apply — true when tor is already running, since bridges are
   /// only read at bootstrap. The caller decides whether to restart: doing it

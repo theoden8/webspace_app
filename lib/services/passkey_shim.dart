@@ -18,8 +18,6 @@
 // Must be injected at DOCUMENT_START so it beats the page's feature
 // detection. Window-only: there is no `navigator.credentials` in a worker.
 
-/// Build the passkey shim.
-///
 /// Pure-Dart so the shim string is reachable from `tool/dump_shim_js.dart`
 /// and the drift check.
 String buildPasskeyShim() => _passkeyShimSource;

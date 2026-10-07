@@ -192,8 +192,6 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     widget.onChanged(next);
   }
 
-  // --- Proxy ---------------------------------------------------------------
-
   Widget _proxyType(AppLocalizations loc) {
     final type = _values.proxyType;
     return SettingTile(
@@ -350,8 +348,6 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         widget.proxyTest!,
     ];
   }
-
-  // --- Connection ----------------------------------------------------------
 
   Widget _webRtc(AppLocalizations loc) {
     final proxied =

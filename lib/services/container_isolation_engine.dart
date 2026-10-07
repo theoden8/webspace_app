@@ -9,15 +9,13 @@ import 'package:webspace/services/log_service.dart';
 /// 2. "Clear Site Data" routes through [clearForSite], which on
 ///    iOS/macOS maps to `WKWebsiteDataStore.removeData(...)` — the
 ///    one primitive Apple actually supports while a WKWebView is
-///    bound. The fork's pre-privacy-v2 `deleteContainer` silently
-///    no-oped in that case (#360); we now keep [deleteContainer] for
-///    site deletion / orphan GC only, both of which run when no
-///    WebView is bound.
+///    bound. `deleteContainer` silently no-ops in that case (#360), so
+///    it is kept for site deletion / orphan GC only, both of which run
+///    when no WebView is bound.
 /// 3. Containers are deleted when their owning site is deleted.
 /// 4. Orphaned containers (whose owning site no longer exists — e.g.
-///    a site deleted in a previous session, or a rev'd container left
-///    on disk by a now-removed app-side workaround) are swept on app
-///    startup against the live siteId set.
+///    a site deleted in a previous session) are swept on app startup
+///    against the live siteId set.
 ///
 /// The engine is stateless beyond [containerNative]; tests inject a mock
 /// that models per-container cookie partitioning, the same pattern as
@@ -93,10 +91,7 @@ class ContainerIsolationEngine {
   /// Sweeps containers whose owning site no longer exists in
   /// [activeSiteIds]. Returns the number of containers deleted. Run at
   /// app startup, after the active site set is known but before any
-  /// site is activated. Also cleans up any leftover rev'd-name
-  /// containers from an earlier app-side workaround — they won't
-  /// match a current siteId, so the parser-less check still drops
-  /// them.
+  /// site is activated.
   Future<int> garbageCollectOrphans(Set<String> activeSiteIds) async {
     if (!await containerNative.isSupported()) return 0;
     final stored = await containerNative.listContainers();

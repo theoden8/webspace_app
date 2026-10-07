@@ -184,7 +184,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Use home site title if provided
     title = widget.homeTitle;
     _currentUrl = widget.url;
     _showUrlBar = widget.showUrlBar;
@@ -369,7 +368,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // it routinely settles after this nudge drains (PAUSE-025).
         _surface.armCommitLatch();
         _surface.nudge('controller-attach');
-        // Remove all cookies on load
         controller.evaluateJavascript('''
           (function() {
             var cookies = document.cookie.split("; ");

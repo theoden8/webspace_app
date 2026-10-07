@@ -97,6 +97,10 @@ class ProxyRelay implements ProxyRelayApi {
     }
   }
 
+  @override
+  String? get lastError => _lastError;
+  String? _lastError;
+
   /// Start (or reconfigure) the relay in router mode, fronting every
   /// site's upstream at once. Returns the loopback address and port to
   /// hand to `ProxyController`, or `null` if it could not bind (the caller
@@ -110,10 +114,6 @@ class ProxyRelay implements ProxyRelayApi {
   /// [realm] is the nonce the relay names in its `407`; the Dart side
   /// answers a challenge only when both host and realm match (see
   /// `ProxyRouterEngine.shouldAnswerChallenge`).
-  @override
-  String? get lastError => _lastError;
-  String? _lastError;
-
   @override
   Future<({String host, int port})?> startRouter(String realm) async {
     if (!hostIsAndroid) return null;

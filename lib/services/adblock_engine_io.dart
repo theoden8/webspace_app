@@ -17,8 +17,7 @@
 //   * Windows: not supported in the current spec
 //
 // On platforms that don't ship the library, [AdblockEngine.load]
-// returns null — callers MUST handle that case (the legacy Dart
-// content-blocker engine remains the fallback).
+// returns null — callers MUST handle that case.
 
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -628,8 +627,8 @@ class AdblockEngine implements AdblockEngineApi {
   ///
   /// The shape mirrors `adblock::Engine::url_cosmetic_resources`:
   /// hide selectors (domain-specific only — generic class/id rules
-  /// need a separate scan-and-query pass that's not wired up yet),
-  /// procedural actions, exceptions, injected_script, generichide.
+  /// come from [hiddenClassIdSelectors]), procedural actions,
+  /// exceptions, injected_script, generichide.
   @override
   Map<String, dynamic>? cosmeticResources(String url) {
     final urlBytes = utf8.encode(url);

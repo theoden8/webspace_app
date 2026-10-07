@@ -385,7 +385,6 @@ enum CaptureKind {
     if (grant.source case final source?) _json.source: source.toJson(),
   };
 
-  /// The keys a site's JSON carries for this kind.
   List<String> get jsonKeys => [_json.mode, _json.source];
 }
 

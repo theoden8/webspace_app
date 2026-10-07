@@ -8,14 +8,6 @@ import 'package:webspace/webspace_model.dart';
 /// returns plain collections out. `ConnectivityService` stays at the caller —
 /// offline-vs-online is a policy decision the engine doesn't make.
 class WebspaceSelectionEngine {
-  /// The indices displayed for `selectedWebspaceId`:
-  ///
-  ///   * `null`                        → empty list (home screen shows nothing)
-  ///   * [kAllWebspaceId]              → every index `0..siteCount-1`
-  ///   * any other webspace id         → that webspace's `siteIndices`,
-  ///                                     filtered to in-bounds of `siteCount`
-  ///                                     (order preserved)
-  ///   * unknown id                    → empty list
   /// Recomputes each webspace's runtime `siteIndices` from its persisted
   /// `siteIds` against [siteIdsByPosition], in `siteIds` order; ids with no
   /// position drop out of the projection. "All" is synthetic and skipped.
@@ -35,6 +27,14 @@ class WebspaceSelectionEngine {
     }
   }
 
+  /// The indices displayed for `selectedWebspaceId`:
+  ///
+  ///   * `null`                        → empty list (home screen shows nothing)
+  ///   * [kAllWebspaceId]              → every index `0..siteCount-1`
+  ///   * any other webspace id         → that webspace's `siteIndices`,
+  ///                                     filtered to in-bounds of `siteCount`
+  ///                                     (order preserved)
+  ///   * unknown id                    → empty list
   static List<int> filteredSiteIndices({
     required String? selectedWebspaceId,
     required List<Webspace> webspaces,

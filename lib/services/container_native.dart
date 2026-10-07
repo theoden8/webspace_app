@@ -41,11 +41,9 @@ import 'package:webspace/services/log_service.dart';
 /// "Clear Site Data" routes through [clearContainerData], which on
 /// iOS/macOS maps to `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`
 /// — designed to be safe while a WKWebView is still bound, unlike
-/// [deleteContainer] which depends on the data store being unreferenced.
-/// That asymmetry is the whole reason the fork's privacy-v2 cut added
-/// the API: an earlier app-side workaround had to rev-bump container
-/// names because `WKWebsiteDataStore.remove(forIdentifier:)` silently
-/// no-oped while a pending JS handler retained the WKWebView (#360).
+/// [deleteContainer] which depends on the data store being unreferenced:
+/// `WKWebsiteDataStore.remove(forIdentifier:)` silently no-ops while a
+/// pending JS handler retains the WKWebView (#360).
 ///
 /// See [openspec/specs/per-site-containers/spec.md] for the per-platform
 /// details and the legacy [CookieIsolationEngine] fallback used when

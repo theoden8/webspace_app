@@ -33,8 +33,6 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   await prefs.remove('selectedWebspaceId');
   await prefs.remove('currentIndex');
 
-  // Language can be explicitly set per site (null = system default)
-  // If a language parameter is passed to seedDemoData, it overrides all sites
   final sites = <WebViewModel>[
     WebViewModel(
       initUrl: 'https://searx.be',

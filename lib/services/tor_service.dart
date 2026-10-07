@@ -307,7 +307,6 @@ class TorService {
 
   static TorService? _instance;
 
-  /// The live singleton, created on first touch.
   static TorService get instance => _instance ??= _production();
 
   /// Whether the external tor is wanted (TOR-025). Installed at startup from

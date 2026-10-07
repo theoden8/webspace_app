@@ -45,7 +45,6 @@ import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 
-// Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
   MapEntry(null, 'System default'),
   MapEntry('en', 'English'),
@@ -89,11 +88,8 @@ class SettingsScreen extends StatefulWidget {
   final WebViewModel webViewModel;
   /// Callback when settings are saved (to trigger webview reload)
   final VoidCallback? onSettingsSaved;
-  /// Callback to clear cookies for this site
   final VoidCallback? onClearCookies;
-  /// Global user scripts shared across all sites
   final List<UserScriptConfig> globalUserScripts;
-  /// Callback when global user scripts are changed
   final void Function(List<UserScriptConfig>)? onGlobalUserScriptsChanged;
   /// Fired when the user toggles / edits / adds / deletes / opts in to a
   /// user script. Parent should dispose this site's webview so the next
@@ -206,7 +202,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     _longitudeController.addListener(_onAnyFieldChanged);
     _accuracyController.addListener(_onAnyFieldChanged);
     NotificationService.instance.addPermissionListener(_onPermissionChanged);
-    // Load the timezone polygon dataset on demand here (it is no longer loaded
+    // Load the timezone polygon dataset on demand here (it is not loaded
     // at app startup) so the "From picked location" preview/resolution works.
     if (!TimezoneLocationService.instance.isReady) {
       TimezoneLocationService.instance.loadFromCacheIfPresent().then((_) {
@@ -411,7 +407,6 @@ class _SettingsScreenState extends State<SettingsScreen>
   /// payload has been written back into the model.
   void _loadFromModel() {
     final m = widget.webViewModel;
-    // Force DEFAULT proxy on unsupported platforms.
     _proxySettings = UserProxySettings(
       type: PlatformInfo.isProxySupported
           ? m.proxySettings.type
@@ -528,9 +523,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
   Future<void> _saveSettings() async {
     final loc = AppLocalizations.of(context);
-    // Only validate and update proxy settings on supported platforms
     if (PlatformInfo.isProxySupported) {
-      // Validate proxy address if needed
       final proxyError = validateProxyAddress(
           loc, _proxySettings.type, _proxyAddressController.text);
       if (proxyError != null) {
@@ -542,7 +535,6 @@ class _SettingsScreenState extends State<SettingsScreen>
     }
 
     try {
-      // Update proxy settings only on supported platforms
       if (PlatformInfo.isProxySupported) {
         _proxySettings = applyProxyForm(
           stored: _proxySettings,
@@ -562,10 +554,8 @@ class _SettingsScreenState extends State<SettingsScreen>
             'Saving per-site proxy for siteId=${widget.webViewModel.siteId}: '
             '${_proxySettings.describeForLogs()}', sensitive: true);
 
-        // Apply proxy settings immediately
         await widget.webViewModel.updateProxySettings(_proxySettings);
       } else {
-        // Force DEFAULT proxy on unsupported platforms
         final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
         widget.webViewModel.proxySettings = defaultProxy;
         LogTag.proxy.debug(
@@ -574,7 +564,6 @@ class _SettingsScreenState extends State<SettingsScreen>
         await widget.webViewModel.updateProxySettings(defaultProxy);
       }
 
-      // Update other settings.
       // Unconditional: an empty field clears the override (previously it
       // was skipped, making an override impossible to remove). setUserAgent
       // re-attaches a preset for generated shapes and drops stock
@@ -663,7 +652,6 @@ class _SettingsScreenState extends State<SettingsScreen>
 
       if (!mounted) return;
 
-      // Store current URL before disposing webview
       final currentUrl = widget.webViewModel.currentUrl;
 
       // Dispose the webview so it gets recreated with new settings
@@ -750,9 +738,8 @@ class _SettingsScreenState extends State<SettingsScreen>
       double.tryParse(_latitudeController.text.trim()) != null &&
       double.tryParse(_longitudeController.text.trim()) != null;
 
-  /// One row where seven controls used to be scattered down the screen. The
-  /// subtitle names what the site actually holds, so the common question is
-  /// answered without opening it.
+  /// The subtitle names what the site actually holds, so the common question
+  /// is answered without opening it.
   /// What the site runs with, not what it stores: an archived site's
   /// grants are held off underneath (ARCH-006), as the drawer badges show.
   Widget _buildPermissionsRow() {
@@ -921,9 +908,8 @@ class _SettingsScreenState extends State<SettingsScreen>
           discoveredSearchesWeb: widget.webViewModel.discoveredSearchesWeb,
           listedSearchAddress: SiteSearchListService.instance
               .addressFor(widget.webViewModel.initUrl),
-          // Writes straight to the model, like it did inline: domain claims
-          // are not part of the dirty snapshot and are saved as they are
-          // edited.
+          // Writes straight to the model: domain claims are not part of the
+          // dirty snapshot and are saved as they are edited.
           domainClaims: DomainClaimsEditor(
             model: widget.webViewModel,
             otherSites: widget.otherSites,

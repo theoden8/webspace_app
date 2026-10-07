@@ -13,7 +13,7 @@ const int kArchiveMacLength = 16;
 // passphrase. Pinned by test/archive_crypto_test.dart so a silent downgrade
 // fails CI.
 const int kArchiveArgon2Parallelism = 4;
-const int kArchiveArgon2MemoryKiB = 64 * 1024; // 64 MiB
+const int kArchiveArgon2MemoryKiB = 64 * 1024;
 const int kArchiveArgon2Iterations = 3;
 
 const String _saltDomain = 'archive-salt-v1';

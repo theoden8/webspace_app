@@ -1,11 +1,8 @@
 // The one place a user can read what the embedded Tor client is doing.
 //
-// Before this existed the feature was unreadable: a site set to TOR either
-// showed a mute progress bar or a mute error icon, and the only text
-// anywhere was a single log line that fired on a blocked fetch. A privacy
-// feature the user cannot verify is barely a feature, so the card reports
-// the state, the bootstrap phase, the live SOCKS endpoint, and — when it
-// fails — which kind of failure it is and what to do about it (TOR-013,
+// A privacy feature the user cannot verify is barely a feature, so the card
+// reports the state, the bootstrap phase, the live SOCKS endpoint, and — when
+// it fails — which kind of failure it is and what to do about it (TOR-013,
 // TOR-015).
 //
 // Gated with the rest of Tor on `TorService.isAvailable` (TOR-007).

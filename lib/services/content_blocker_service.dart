@@ -663,8 +663,7 @@ class ContentBlockerService {
 
   /// Get full JavaScript for injection after page load. Same <style>
   /// tag as the early shim — text-content rules and `:style()` rules
-  /// flow through the procedural runner now that adblock-rust owns the
-  /// cosmetic side.
+  /// flow through the procedural runner.
   String? getCosmeticScript(String pageUrl) {
     final ctx = _engineCosmeticFor(pageUrl);
     if (ctx == null) return null;

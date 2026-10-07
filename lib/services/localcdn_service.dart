@@ -340,7 +340,6 @@ class LocalCdnService {
     return total;
   }
 
-  /// Initialize the service - load cache index from disk.
   Future<void> initialize() async {
     if (_initialized) return;
     _cacheDir = '${await hostDocumentsPath()}/localcdn_cache';
@@ -513,7 +512,6 @@ class LocalCdnService {
     await prefs.remove(_lastUpdatedKey);
   }
 
-  /// Load cache index from SharedPreferences.
   Future<void> _loadCacheIndex() async {
     final prefs = await SharedPreferences.getInstance();
     final indexJson = prefs.getString('localcdn_cache_index');

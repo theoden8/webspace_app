@@ -35,7 +35,6 @@ ColorScheme buildAccentColorScheme(Color accent, Brightness brightness) {
       ? hsl.withLightness(0.15).toColor()
       : hsl.withLightness(0.90).toColor();
 
-  // Use fromSeed as base for surface/neutral colors only
   final base = ColorScheme.fromSeed(seedColor: accent, brightness: brightness);
 
   return base.copyWith(

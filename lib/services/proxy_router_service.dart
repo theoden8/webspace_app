@@ -46,10 +46,9 @@ typedef ProxyRouterOverrideBinder = Future<bool> Function(
 /// answering a `407`. The relay itself is the in-process
 /// [`LocalProxyRelay`] instead of the Kotlin plugin.
 ///
-/// This used to add that whether `WKWebsiteDataStore.proxyConfigurations`
-/// carries two different proxies at once was open. It is not: BUG-014
-/// attempt 80 measured four container stores reaching four distinct
-/// upstreams in one frame, two of them separated only by the credential
+/// `WKWebsiteDataStore.proxyConfigurations` carries two different proxies
+/// at once: BUG-014 attempt 80 measured four container stores reaching four
+/// distinct upstreams in one frame, two of them separated only by the credential
 /// they presented to one relay endpoint, which is this design end to end.
 ///
 /// Gated on container mode. Chromium caches a proxy credential per
@@ -74,12 +73,10 @@ class ProxyRouterService {
   String? _host;
   int? _port;
 
-  /// Test seam: swap the platform-channel relay for a fake.
   void setRelayForTest(ProxyRelayApi relay) {
     _relayOverride = relay;
   }
 
-  /// Reset to the pre-activation state. Tests only.
   void resetForTest() {
     _state = null;
     _host = null;
