@@ -162,13 +162,17 @@ class TabsController {
   ///
   /// [captureOutgoing] is false only when the tab being left is being closed —
   /// its stack is going away with it, so capturing it would write a file the
-  /// caller then has to delete.
+  /// caller then has to delete. [tabs] replaces the list in the same step as
+  /// the active id, after the identity being left is read: a close that
+  /// installed it first would leave the closed tab's host unseen.
   Future<void> switchActiveTab(
     WebViewModel model,
     String targetTabId, {
+    List<SiteTab>? tabs,
     bool captureOutgoing = true,
   }) async {
-    if (!model.tabs.any((t) => t.id == targetTabId)) return;
+    bool present() => (tabs ?? model.tabs).any((t) => t.id == targetTabId);
+    if (!present()) return;
     if (captureOutgoing) {
       // A capture already queued for this site would fire against the webview
       // we are about to dispose and write under whichever key is current by
@@ -176,9 +180,10 @@ class TabsController {
       _host.cancelPendingCapture(model.siteId);
       await _host.captureNavState(model);
       if (!_host.mounted) return;
-      if (!model.tabs.any((t) => t.id == targetTabId)) return;
+      if (!present()) return;
     }
     final identityBefore = model.runningIdentity;
+    if (tabs != null) model.tabs = tabs;
     model.activeTabId = targetTabId;
     model.activeTab.lastActiveAt = DateTime.now();
     if (!await _applySlotIdentityChange(model, identityBefore)) return;
@@ -613,11 +618,10 @@ class TabsController {
       await navStates.removeState(model.stateKeyForTab(id));
     }
     if (!_host.mounted) return;
-    model.tabs = result.tabs;
     LogService.instance.log(
       'Tabs',
       'Closed ${result.closedIds.length} tab(s) in "${model.name}"; '
-          '${model.tabs.length} left',
+          '${result.tabs.length} left',
       sensitivity: LogSensitivity.sensitive,
     );
     if (result.tabs.isEmpty) {
@@ -627,18 +631,19 @@ class TabsController {
       // that was just closed cannot be left rendering it; there is nothing to
       // capture, since that tab is gone.
       final home = SiteTab.primary(url: model.initUrl);
-      model.tabs = [home];
-      await switchActiveTab(model, home.id, captureOutgoing: false);
+      await switchActiveTab(model, home.id,
+          tabs: [home], captureOutgoing: false);
       return;
     }
     final next = result.nextActiveId;
-    if (result.activeChanged && next != null) {
-      if (index == _sites.current || _sites.loaded.contains(index)) {
-        await switchActiveTab(model, next, captureOutgoing: false);
-        return;
-      }
-      model.activeTabId = next;
+    final live = index == _sites.current || _sites.loaded.contains(index);
+    if (result.activeChanged && next != null && live) {
+      await switchActiveTab(model, next,
+          tabs: result.tabs, captureOutgoing: false);
+      return;
     }
+    model.tabs = result.tabs;
+    if (result.activeChanged && next != null) model.activeTabId = next;
     if (!_host.mounted) return;
     _host.rebuild();
     await _host.commitSites(const SitesEdited());

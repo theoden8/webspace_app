@@ -159,8 +159,11 @@ class WebViewModel implements MediaGrantRecord {
   /// The tab the site's webview is showing. Always names a member of [tabs].
   late String activeTabId;
 
-  SiteTab get activeTab =>
-      tabs.firstWhere((t) => t.id == activeTabId, orElse: () => tabs.first);
+  SiteTab get activeTab {
+    final tab = tabs.where((t) => t.id == activeTabId).firstOrNull;
+    assert(tab != null, 'activeTabId $activeTabId is not among the tabs');
+    return tab ?? tabs.first;
+  }
 
   /// The URL this site is showing: the active tab's. A setter rather than a
   /// field so every existing `model.currentUrl = …` writer keeps working and
