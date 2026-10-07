@@ -20,7 +20,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:socks5_proxy/exceptions.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -163,18 +165,41 @@ Future<bool> _waitFor(bool Function() done, Duration budget) async {
   return done();
 }
 
-Future<String?> _exitAddress(String reason) async {
+/// The address check.torproject.org saw a request through tor come from, or
+/// why there is none: which step failed is the first thing a red run needs.
+Future<({String? ip, String detail})> _exitAddress(String reason) async {
   final via = TorService.instance.socksFor(siteId: reason);
-  if (via == null) return null;
+  if (via == null) return (ip: null, detail: 'no SOCKS route');
   final route = outboundHttp.clientFor(via);
-  if (route is! OutboundClientReady) return null;
+  if (route is! OutboundClientReady) {
+    return (ip: null, detail: 'no client: $route');
+  }
+  final started = DateTime.now();
+  String failed(String why) =>
+      '$why after ${DateTime.now().difference(started).inSeconds}s';
   try {
     final response =
         await route.client.get(_exitCheck).timeout(const Duration(seconds: 90));
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    return body['IsTor'] == true ? body['IP'] as String? : 'not-tor';
-  } catch (e) {
-    return null;
+    if (response.statusCode != 200) {
+      return (ip: null, detail: failed('HTTP ${response.statusCode}'));
+    }
+    final body = jsonDecode(response.body);
+    final ip = body is Map<String, dynamic> ? body['IP'] : null;
+    if (ip is! String) {
+      return (ip: null, detail: failed('no IP in ${response.body}'));
+    }
+    if (body['IsTor'] != true) return (ip: null, detail: 'not a Tor exit: $ip');
+    return (ip: ip, detail: ip);
+  } on TimeoutException {
+    return (ip: null, detail: failed('no answer'));
+  } on SocksClientException catch (e) {
+    return (ip: null, detail: failed('SOCKS $e'));
+  } on http.ClientException catch (e) {
+    return (ip: null, detail: failed('$e'));
+  } on TlsException catch (e) {
+    return (ip: null, detail: failed('TLS $e'));
+  } on FormatException catch (e) {
+    return (ip: null, detail: failed('unreadable body: ${e.message}'));
   } finally {
     route.client.close();
   }
@@ -200,8 +225,8 @@ Future<bool> _run() async {
 
   final before = TorService.instance.socksEndpoint!;
   final exitBefore = await _exitAddress(reason);
-  check(exitBefore != null && exitBefore != 'not-tor',
-      'a request through $before left from a Tor exit ($exitBefore)');
+  check(exitBefore.ip != null,
+      'a request through $before left from a Tor exit (${exitBefore.detail})');
 
   final tcp = await _Pair.open(InternetAddress.loopbackIPv4, 0);
   final unixPath = '${(await getTemporaryDirectory()).path}/ts.sock';
@@ -260,8 +285,8 @@ Future<bool> _run() async {
   if (after != null) {
     check(await _socksAnswers(after), 'the SOCKS listener at $after answers');
     final exitAfter = await _exitAddress(reason);
-    check(exitAfter != null && exitAfter != 'not-tor',
-        'a request through $after left from a Tor exit ($exitAfter)');
+    check(exitAfter.ip != null,
+        'a request through $after left from a Tor exit (${exitAfter.detail})');
   }
   // A connect attempted while DisableNetwork is set marks its guard failed
   // for a minute, so the runtime reports up and carries nothing. The one path
