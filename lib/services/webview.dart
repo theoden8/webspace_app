@@ -13,7 +13,9 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/blob_url_capture.dart';
+import 'package:webspace/services/block_interceptor_shim.dart';
 import 'package:webspace/services/clearurl_service.dart';
+import 'package:webspace/services/clearurl_share_shim.dart';
 import 'package:webspace/services/container_proxy_ledger.dart';
 import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/html_snapshot.dart';
@@ -23,6 +25,7 @@ import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/letterbox.dart';
+import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_coverage_engine.dart';
@@ -36,6 +39,7 @@ import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/theme_color_scheme_shim.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/camera_permission_service.dart';
@@ -80,6 +84,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/notification_polyfill_shim.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/camera.dart';
@@ -1609,15 +1614,12 @@ class _WebViewController implements WebViewController {
     // "color-scheme">` and the page falls back to its own default
     // (typically light), since onUrlChanged dedups same-URL events
     // and skips its own evaluateJavascript reapplication.
-    final source = '${buildThemeColorSchemeShim(themeValue)}\n;null;';
+    final shim = buildThemeColorSchemeShim(themeValue);
     await _c.removeUserScriptsByGroupName(groupName: 'theme_color_scheme_shim');
-    await _c.addUserScript(userScript: inapp.UserScript(
-      groupName: 'theme_color_scheme_shim',
-      source: source,
-      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      forMainFrameOnly: false,
-    ));
-    await evaluateJavascript(buildThemeColorSchemeShim(themeValue));
+    await _c.addUserScript(
+        userScript: pageShim('theme_color_scheme_shim', shim,
+            frames: ShimFrames.all));
+    await evaluateJavascript(shim);
   }
 
   @override
@@ -1630,15 +1632,12 @@ class _WebViewController implements WebViewController {
     // iOS/macOS: WKWebView has no textZoom setting. Rotate the
     // DOCUMENT_START user script so future page loads pick up the new
     // value, then update the style element on the current page.
-    final source = '${WebViewFactory._textSizeAdjustScript(zoomPercent)}\n;null;';
+    final shim = buildTextZoomShim(zoomPercent);
     await _c.removeUserScriptsByGroupName(groupName: 'system_text_zoom');
-    await _c.addUserScript(userScript: inapp.UserScript(
-      groupName: 'system_text_zoom',
-      source: source,
-      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      forMainFrameOnly: false,
-    ));
-    await evaluateJavascript(WebViewFactory._textSizeAdjustScript(zoomPercent));
+    await _c.addUserScript(
+        userScript:
+            pageShim('system_text_zoom', shim, frames: ShimFrames.all));
+    await evaluateJavascript(shim);
   }
 
   @override
@@ -1729,130 +1728,6 @@ class _WebViewController implements WebViewController {
     }
   }
 }
-
-
-
-/// JavaScript that intercepts clipboard writes and Web Share API calls to clean
-/// tracking parameters from URLs before they leave the webview. Sends URLs to
-/// Dart via the 'clearUrl' handler for cleaning with ClearURLs rules.
-String _notificationPolyfillScript({
-  required String siteId,
-  required bool notificationsEnabled,
-}) {
-  final permission = notificationsEnabled ? 'granted' : 'denied';
-  return '''
-(function() {
-  var SITE_ID = ${jsonEncode(siteId)};
-  var permission = '$permission';
-  function deliver(title, options) {
-    options = options || {};
-    window.flutter_inappwebview.callHandler('webNotification', {
-      title: String(title),
-      body: String(options.body || ''),
-      icon: String(options.icon || ''),
-      tag: String(options.tag || ''),
-      siteId: SITE_ID
-    });
-  }
-  function blocked(api, title) {
-    try { console.warn('[WebSpace] ' + api + '("' + title + '") suppressed: permission ' + permission); } catch (e) {}
-  }
-  function Notification(title, options) {
-    if (permission !== 'granted') { blocked('Notification', title); return; }
-    deliver(title, options);
-  }
-  Notification.permission = permission;
-  Notification.requestPermission = function(cb) {
-    var p = window.flutter_inappwebview.callHandler('webNotificationRequestPermission', {siteId: SITE_ID})
-      .then(function(result) { permission = result; Notification.permission = result; return result; });
-    if (typeof cb === 'function') p.then(cb);
-    return p;
-  };
-  Object.defineProperty(window, 'Notification', { value: Notification, writable: false, configurable: false });
-  // Page-context ServiceWorkerRegistration.showNotification(). Catches sites
-  // that post notifications from the page after `navigator.serviceWorker.ready`.
-  // Notifications raised from INSIDE the worker's own `push`/`message` handler
-  // run in the worker global scope, which a page-injected script cannot reach —
-  // those (true server-driven web push) remain unsupported by design.
-  try {
-    if (window.ServiceWorkerRegistration && ServiceWorkerRegistration.prototype) {
-      ServiceWorkerRegistration.prototype.showNotification = function(title, options) {
-        if (permission !== 'granted') { blocked('showNotification', title); return Promise.resolve(); }
-        deliver(title, options);
-        return Promise.resolve();
-      };
-      ServiceWorkerRegistration.prototype.getNotifications = function() { return Promise.resolve([]); };
-    }
-  } catch (e) {}
-})();
-;null;''';
-}
-
-const String _clearUrlShareScript = r'''
-(function() {
-  const URL_RE = /^https?:\/\//i;
-
-  // Intercept navigator.clipboard.writeText
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    const origWriteText = navigator.clipboard.writeText.bind(navigator.clipboard);
-    navigator.clipboard.writeText = async function(text) {
-      if (typeof text === 'string' && URL_RE.test(text.trim())) {
-        try {
-          const cleaned = await window.flutter_inappwebview.callHandler('clearUrl', text.trim());
-          if (typeof cleaned === 'string' && cleaned.length > 0) {
-            text = cleaned;
-          }
-        } catch (e) {}
-      }
-      return origWriteText(text);
-    };
-  }
-
-  // Intercept navigator.share (Web Share API)
-  if (navigator.share) {
-    const origShare = navigator.share.bind(navigator);
-    navigator.share = async function(data) {
-      if (data && typeof data === 'object') {
-        const cleaned = Object.assign({}, data);
-        if (typeof cleaned.url === 'string' && URL_RE.test(cleaned.url)) {
-          try {
-            const r = await window.flutter_inappwebview.callHandler('clearUrl', cleaned.url);
-            if (typeof r === 'string' && r.length > 0) cleaned.url = r;
-          } catch (e) {}
-        }
-        if (typeof cleaned.text === 'string' && URL_RE.test(cleaned.text.trim())) {
-          try {
-            const r = await window.flutter_inappwebview.callHandler('clearUrl', cleaned.text.trim());
-            if (typeof r === 'string' && r.length > 0) cleaned.text = r;
-          } catch (e) {}
-        }
-        return origShare(cleaned);
-      }
-      return origShare(data);
-    };
-  }
-
-  // Intercept document.execCommand('copy') by cleaning selected text if it's a URL
-  const origExecCommand = document.execCommand.bind(document);
-  document.execCommand = function(command, showUI, value) {
-    if (command === 'copy') {
-      const selection = window.getSelection();
-      if (selection && selection.toString) {
-        const text = selection.toString().trim();
-        if (URL_RE.test(text)) {
-          // Use async clipboard API to write the cleaned URL instead
-          window.flutter_inappwebview.callHandler('clearUrl', text).then(function(cleaned) {
-            if (typeof cleaned === 'string' && cleaned.length > 0 && cleaned !== text) {
-              navigator.clipboard.writeText(cleaned).catch(function() {});
-            }
-          }).catch(function() {});
-        }
-      }
-    }
-    return origExecCommand(command, showUI, value);
-  };
-})();
-''';
 
 /// HTML rendered when a file-import site has no cached HTML available
 /// (incognito session, post-upgrade cache wipe, …). Loaded via
@@ -2030,138 +1905,6 @@ class WebViewFactory {
     final scale = WidgetsBinding.instance.platformDispatcher.textScaleFactor;
     return (scale * 100).round();
   }
-
-  /// CSS injected on iOS/macOS where WKWebView has no `textZoom` setting.
-  /// `-webkit-text-size-adjust` is the closest equivalent — it scales text
-  /// without resizing images. Sites that hard-pin it to 100% still win.
-  static String _textSizeAdjustCss(int zoomPercent) =>
-      'html{-webkit-text-size-adjust:$zoomPercent% !important;}';
-
-  static String _textSizeAdjustScript(int zoomPercent) => '''
-(function(){
-  var id='__webspace_text_zoom__';
-  var css='${_textSizeAdjustCss(zoomPercent)}';
-  function apply(){
-    var el=document.getElementById(id);
-    if(!el){
-      el=document.createElement('style');
-      el.id=id;
-      (document.head||document.documentElement).appendChild(el);
-    }
-    el.textContent=css;
-  }
-  if(document.documentElement){apply();}
-  else{document.addEventListener('DOMContentLoaded',apply);}
-})();''';
-
-  /// Per-site browser-style page zoom — desktop fallback path. CSS `zoom`
-  /// scales the whole page (text and images) and is honoured by Chromium
-  /// and modern WebKit (Safari 17+/WPE 2.40+), reflowing the layout to fill
-  /// the window. Used on desktop engines (which ignore the viewport meta)
-  /// and on mobile under desktop-mode (which owns the viewport). Mobile
-  /// non-desktop sites take the [buildPageZoomViewportShim] path instead, so
-  /// the *layout* viewport reflows rather than the page shrinking into a
-  /// gutter. Injected at DOCUMENT_START via a re-applied style element so it
-  /// survives same-document navigations and reaches iframes.
-  static String _pageZoomCss(int zoomPercent) =>
-      'html{zoom:$zoomPercent% !important;}';
-
-  static String _pageZoomScript(int zoomPercent) => '''
-(function(){
-  var id='__webspace_page_zoom__';
-  var css='${_pageZoomCss(zoomPercent)}';
-  function apply(){
-    var el=document.getElementById(id);
-    if(!el){
-      el=document.createElement('style');
-      el.id=id;
-      (document.head||document.documentElement).appendChild(el);
-    }
-    el.textContent=css;
-  }
-  function relayout(){
-    apply();
-    // Root `zoom` applied at document start can leave Blink showing a
-    // blank frame until a layout invalidation lands (it needs a manual
-    // reload to recover otherwise); force a reflow and resize to nudge
-    // the compositor into painting the zoomed page.
-    try{void document.documentElement.offsetHeight;}catch(e){}
-    try{window.dispatchEvent(new Event('resize'));}catch(e){}
-  }
-  if(document.documentElement){apply();}
-  else{document.addEventListener('DOMContentLoaded',apply);}
-  window.addEventListener('DOMContentLoaded',relayout);
-  window.addEventListener('load',relayout);
-})();''';
-
-  /// Pin WebKit's initial scale to 1 on load.
-  ///
-  /// A page that reaches first layout without a `<meta name="viewport">`
-  /// (common on iOS: a `width=device-width` site whose meta has not parsed
-  /// yet on a re-navigation, e.g. Turbo/PJAX SPAs or the Universal-Link
-  /// cancel+reissue) is laid out at WebKit's ~980px default and zoomed out
-  /// to fit. WebKit then does not cleanly reset when the real meta arrives —
-  /// it latches a stuck fractional scale (observed 0.73 on github.com) that
-  /// never recovers. The trigger is a viewport that omits `initial-scale`,
-  /// which lets WebKit pick the scale itself.
-  ///
-  /// So: ensure every viewport meta carries `initial-scale=1`. Add a full
-  /// `width=device-width, initial-scale=1` when the page ships none; append
-  /// `initial-scale=1` to one that declares width but omits it. A page that
-  /// sets its own `initial-scale` is left untouched. Runs at DOCUMENT_START
-  /// and via a MutationObserver so the meta is corrected the instant it is
-  /// inserted — before WebKit locks in the 980-default scale. DOMContentLoaded
-  /// injection (the earlier approach) lands after that lock and does not undo
-  /// it. Android pins the scale natively via useWideViewPort, so this is
-  /// WebKit-only.
-  static const String _defaultViewportScript = '''
-(function(){
-  function normalize(meta){
-    var c=(meta.getAttribute('content')||'').trim();
-    if(/initial-scale/i.test(c))return;
-    if(c===''){c='width=device-width, initial-scale=1';}
-    else{
-      c=c.replace(/\\s*,?\\s*\$/,'')+', initial-scale=1';
-      if(!/width\\s*=/i.test(c)){c='width=device-width, '+c;}
-    }
-    meta.setAttribute('content',c);
-  }
-  function ensure(){
-    var metas=document.querySelectorAll('meta[name="viewport" i]');
-    if(!metas.length){
-      var m=document.createElement('meta');
-      m.setAttribute('name','viewport');
-      m.setAttribute('content','width=device-width, initial-scale=1');
-      (document.head||document.documentElement).appendChild(m);
-      return;
-    }
-    for(var i=0;i<metas.length;i++){normalize(metas[i]);}
-  }
-  ensure();
-  try{
-    var mo=new MutationObserver(function(muts){
-      for(var i=0;i<muts.length;i++){
-        var mu=muts[i], tgt=mu.target;
-        if(mu.type==='attributes'&&tgt&&tgt.tagName==='META'){
-          var n=tgt.getAttribute&&tgt.getAttribute('name');
-          if(n&&n.toLowerCase()==='viewport'){normalize(tgt);}
-        }
-        var add=mu.addedNodes;
-        if(add){for(var j=0;j<add.length;j++){
-          var el=add[j];
-          if(el&&el.nodeType===1&&el.tagName==='META'){
-            var n2=el.getAttribute&&el.getAttribute('name');
-            if(n2&&n2.toLowerCase()==='viewport'){normalize(el);}
-          }
-        }}
-      }
-    });
-    if(document.documentElement){
-      mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['content','name']});
-    }
-  }catch(e){}
-  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ensure,{once:true});}
-})();''';
 
   /// The view's CSS-pixel width in each orientation, `(portrait,
   /// landscape)`. The page-zoom shim pins the layout viewport against
@@ -2725,7 +2468,8 @@ class WebViewFactory {
 
   /// Everything the page-facing JS surface of a site needs, derived from
   /// [config] alone. Shared with [createPopupWebView] so a popup opened by a
-  /// site carries the same shims as the webview that spawned it.
+  /// site carries the same shims as the webview that spawned it. The list is
+  /// in injection order.
   static ({
     int textZoom,
     List<inapp.UserScript> userScripts,
@@ -2733,52 +2477,27 @@ class WebViewFactory {
     bool desktopMode,
     UserScriptService userScriptService,
   }) _buildPageScripts(WebViewConfig config) {
+    final posture = config.posture;
     final textZoom = systemTextZoomPercent();
+    final desktopMode = isDesktopUserAgent(posture.page.userAgent);
+    final zoomPlan = planPageZoom(
+      zoomPercent: posture.page.zoomPercent,
+      isAndroid: hostIsAndroid,
+      isIOS: hostIsIOS,
+      desktopMode: desktopMode,
+    );
+    final scoped = _scopedShims(posture);
+    final userScriptService = UserScriptService(
+      scripts: posture.page.userScripts,
+      onConfirmScriptFetch: config.onConfirmScriptFetch,
+      proxy: posture.container.proxy,
+    );
 
-    final userScripts = <inapp.UserScript>[];
-
-    // WebGL kill-switch, folded under tracking protection. Stripping the
-    // entire WebGL surface is the strongest answer to WebGL
-    // fingerprinting, so it rides the per-site tracking protection
-    // toggle on every platform: ETP-on sites get no WebGL at all (the
-    // anti-fingerprinting shim's vendor/renderer masking is moot once
-    // the constructors are gone), while turning tracking protection off
-    // for a site restores WebGL2 for legitimate uses like maps and 3D
-    // viewers (issue #391, gpx.studio).
-    //
-    // On Android it doubles as a crash workaround: LinkedIn's
-    // `protechts.net` fingerprint script (and others) try to create a
-    // WebGL context on every page, and on this device's WebView build
-    // that walks a chromium code path with a dangling-raw_ptr regression
-    // and SIGTRAPs the renderer at `partition_alloc_support.cc:770`.
-    // `hardwareAcceleration: false` does NOT prevent this (chromium
-    // still walks the WebGL blocklist code path even with software
-    // compositing), and there's no `disableWebGL` flag in
-    // InAppWebViewSettings. Shimming the JS API so getContext() returns
-    // null for WebGL types means JS never asks for the context and
-    // chromium never enters the blocklist cleanup path.
-    if (config.posture.fingerprint.trackingProtection) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'webgl_kill_switch',
-        source: '$webGlKillSwitchScript\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // Inject into every frame — third-party fingerprint scripts
-        // routinely run inside iframes.
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Always-on Do Not Track / Global Privacy Control. Installs the
-    // navigator.doNotTrack / navigator.globalPrivacyControl getters before
-    // any site script can read them — also covers iframes (fingerprinters
-    // routinely run inside one).
-    userScripts.add(inapp.UserScript(
-      groupName: 'do_not_track',
-      source: '${buildDoNotTrackShim()}\n;null;',
-      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      forMainFrameOnly: false,
-    ));
-
+    final userScripts = <inapp.UserScript>[
+      if (scoped.webGl case final js?)
+        pageShim('webgl_kill_switch', js, frames: ShimFrames.all),
+      pageShim('do_not_track', buildDoNotTrackShim(), frames: ShimFrames.all),
+    ];
     // Virtual camera shim. Intercepts video-only getUserMedia and, per the
     // site's decision (fetched via the webCameraRequest handler), serves a
     // user-picked image / looped video as the camera instead of the device
@@ -2837,817 +2556,39 @@ class WebViewFactory {
       ));
     }
 
-    // Passkeys through the Credential Manager bridge (PASSKEY-003). Every
-    // frame gets the shim so a same-origin frame can sign in and a
-    // cross-origin one is refused the way Chromium refuses an undelegated
-    // frame, by the handler rather than by a missing API. The WebView
-    // backend installs nothing: the engine exposes WebAuthn itself.
-    if (config.passkeys?.backend == PasskeyBackend.credentialManager) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'passkey',
-        source: '${buildPasskeyShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    }
-    // WebKit answers WebAuthn itself and has no public switch to stop it, so
-    // on iOS and macOS "no passkeys" is this shim, in every frame
-    // (PASSKEY-013). Without the browser passkey entitlement WebKit refuses
-    // anyway; with it, this is what keeps an archive-tier site from the
-    // system passkey sheet.
-    if (config.passkeys == null && PasskeyAccess.hostIsApple) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'passkey_block',
-        source: '${buildPasskeyBlockShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Always-on: rewrite `target="_blank"` anchors to `_self` so cross-domain
-    // link taps route through shouldOverrideUrlLoading (reliable gesture)
-    // instead of onCreateWindow (unreliable gesture / empty URL on Android),
-    // where the nested-url-blocking engine would otherwise silently drop the
-    // navigation. See target_blank_rewrite.dart and issue #405.
-    userScripts.add(inapp.UserScript(
-      groupName: 'target_blank_rewrite',
-      source: '$targetBlankRewriteScript\n;null;',
-      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      forMainFrameOnly: false,
-    ));
-
-    // Per-site anti-fingerprinting shim. Patches Canvas/WebGL/audio/fonts/
-    // screen/hardware/timing surfaces, seeded by siteId so the same site
-    // sees a stable fingerprint across launches but different sites see
-    // different ones. Must run before site scripts capture the unpatched
-    // references and must reach iframes.
-    //
-    // Incognito carve-out (issue #327, ETP-028): when the site is incognito
-    // the seed mixes in `LaunchNonce.value` so the fingerprint randomizes
-    // across cold restarts. Within one process the nonce is constant, so
-    // every iframe / nested webview / tab switch in the same launch sees
-    // the same fingerprint.
-    // Shim bodies that must ALSO be installed into Worker/SharedWorker global
-    // scopes, in page-injection order. A UserScript never reaches a worker, so
-    // without this a page re-reading these values in a worker sees the real
-    // ones (see worker_shim.dart). Window-only shims (desktop mode, viewport,
-    // zoom, notifications) are deliberately absent.
-    final workerScopeShims = <String>[];
-    if (config.posture.fingerprint.trackingProtection) {
-      workerScopeShims.add(webGlKillSwitchScript);
-    }
-
-    final antiFpSource = buildAntiFingerprintingScriptSource(
-      siteId: config.posture.siteId,
-      trackingProtectionEnabled: config.posture.fingerprint.trackingProtection,
-      incognito: config.posture.container.incognito,
-      launchNonce: LaunchNonce.value,
-      resetNonce: config.posture.fingerprint.resetNonce,
-      letterbox: config.posture.fingerprint.letterbox,
-    );
-    if (antiFpSource != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'anti_fingerprinting',
-        source: antiFpSource,
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-      workerScopeShims.add(antiFpSource);
-    }
-
-    // Blob URL capture: bridge sites whose CSP `connect-src` rejects
-    // fetch(blob:) — the IIFE in `_handleBlobDownload` looks the Blob
-    // up directly and never opens a network handle.
-    userScripts.add(inapp.UserScript(
-      groupName: 'blob_url_capture',
-      source: '$blobUrlCaptureScript\n;null;',
-      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-    ));
-
-    // Android-only: bridge `<a download href="blob:">` clicks into Dart.
-    // Android's DownloadListener does not fire for blob: URLs, so without
-    // this script the click is a silent no-op. iOS/macOS WKWebView
-    // surfaces blob downloads through onDownloadStartRequest natively
-    // and does not need (or want) the JS path.
-    if (hostIsAndroid) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'blob_download_click_intercept',
-        source: '$blobDownloadClickInterceptScript\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      ));
-    }
-
-    // Desktop-mode inference: a per-site UA without mobile markers
-    // ("Android" / "iPhone" / "Mobile" etc) is treated as desktop, and
-    // we inject the shim that patches navigator.userAgentData /
-    // maxTouchPoints / matchMedia / viewport so feature-detecting sites
-    // see a coherent desktop fingerprint instead of an Android-mobile one
-    // with a desktop UA glued on top. Runs at DOCUMENT_START so the
-    // shim's properties are in place before any site script reads them.
-    final desktopMode = isDesktopUserAgent(config.posture.page.userAgent);
-    if (desktopMode) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'desktop_mode_shim',
-        source: '${buildDesktopModeShim(config.posture.page.userAgent ?? '')}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // Inject into iframes too. Without this, a site can embed
-        // browserleaks.com or similar in an iframe and bypass the shim
-        // (iOS WKUserScript defaults to main-frame-only).
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Engine-consistent navigator identity: a per-site UA changes the UA
-    // string but not the navigator fields the host engine populates
-    // (vendor / productSub / oscpu / buildID / platform / userAgentData).
-    // A Gecko UA on an iOS WebKit host, or a Firefox UA on Android Blink,
-    // otherwise leaks the real engine. Run for every classifiable per-site
-    // UA (desktop and mobile); complements desktop_mode_shim, no overlap.
-    final uaValue = config.posture.page.userAgent;
-    if (uaValue != null && uaValue.isNotEmpty) {
-      final identityShim = buildUserAgentIdentityShim(uaValue);
-      if (identityShim != null) {
-        userScripts.add(inapp.UserScript(
-          groupName: 'ua_identity_shim',
-          source: '$identityShim\n;null;',
-          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-          // Reach cross-origin iframes so a subframe can't report the real
-          // engine's identity and contradict the top frame.
-          forMainFrameOnly: false,
-        ));
-        workerScopeShims.add(identityShim);
-      }
-    }
-
-    // WebKit (iOS/macOS) zooms out and latches a stuck fractional scale
-    // when a page reaches first layout without an `initial-scale`; force
-    // one onto every viewport meta. Desktop mode owns the viewport via its
-    // own shim, so skip there.
-    if ((hostIsIOS || hostIsMacOS) && !desktopMode) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'default_viewport',
-        source: '$_defaultViewportScript\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      ));
-    }
-
-    // System text zoom for non-Android: WKWebView has no `textZoom`
-    // setting, so inject CSS that pushes -webkit-text-size-adjust.
-    if (!hostIsAndroid) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'system_text_zoom',
-        source: '${_textSizeAdjustScript(textZoom)}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Per-site browser-style page zoom. Skipped at 100% so the default site
-    // carries no zoom shim. On Android/iOS (outside desktop-mode, which owns
-    // the viewport meta) drive the layout viewport via `initial-scale` so
-    // the page reflows to fill the screen instead of shrinking into a gutter
-    // or overflowing horizontally; desktop engines ignore the viewport meta
-    // and keep the CSS `zoom` path. Android additionally needs the layout
-    // width spelled out — see [buildPageZoomViewportShim].
-    final zoomPlan = planPageZoom(
-      zoomPercent: config.posture.page.zoomPercent,
-      isAndroid: hostIsAndroid,
-      isIOS: hostIsIOS,
-      desktopMode: desktopMode,
-    );
-    if (zoomPlan.channel != PageZoomChannel.none) {
-      final viewExtents = _viewExtents();
-      userScripts.add(inapp.UserScript(
-        groupName: 'page_zoom',
-        source: zoomPlan.channel == PageZoomChannel.viewportMeta
-            ? '${buildPageZoomViewportShim(
-                zoomPercent: config.posture.page.zoomPercent,
-                pinLayoutWidth: zoomPlan.pinLayoutWidth,
-                portraitWidth: viewExtents.$1,
-                landscapeWidth: viewExtents.$2,
-              )}\n;null;'
-            : '${_pageZoomScript(config.posture.page.zoomPercent)}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-    }
-
-    userScripts.add(inapp.UserScript(
-      groupName: 'notification_polyfill',
-      source: _notificationPolyfillScript(
-        siteId: config.posture.siteId,
-        notificationsEnabled: config.posture.page.notifications,
-      ),
-      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      forMainFrameOnly: false,
-    ));
-
-    // BGAUDIO-006: media-session bridge shim on background-audio sites only.
-    if (config.backgroundAudioEnabled &&
-        MediaSessionService.instance.isSupported) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'media_session_shim',
-        source: '${buildMediaSessionShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: false,
-      ));
-      // BGAUDIO-007: the first link in the chain. Its absence in an App Logs
-      // export says the site's Background audio toggle is off — the one
-      // failure the downstream MediaSession lines cannot distinguish from a
-      // broken bridge. Non-sensitive: no site name or URL.
-      LogService.instance.log('MediaSession', 'Bridge armed for this site');
-    }
-
-    // Location / timezone / WebRTC shim — must run FIRST so overrides are
-    // in place before any site script can capture the unpatched references.
-    // The zone was resolved from the picked coordinates at settings-save
-    // time, so the multi-MB polygon dataset never loads on this path.
-    final location = config.posture.location;
-    final locationShim = LocationSpoofService.buildScript(
-      locationMode: location.mode,
-      spoofLatitude: location.latitude,
-      spoofLongitude: location.longitude,
-      spoofAccuracy: location.accuracy,
-      spoofTimezone: location.timezone,
-      liveLocationGranularity: location.granularity,
-      webRtcPolicy: location.webRtc,
-    );
-    userScripts.add(inapp.UserScript(
-      groupName: 'location_spoof',
-      source: '$locationShim\n;null;',
-      injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-      // Inject into every frame (iOS WKUserScript defaults to main-frame
-      // only). Without this a site could embed browserleaks.com in an
-      // iframe and bypass the spoof.
-      forMainFrameOnly: false,
-    ));
-    // Carries the timezone override, which workers re-read. The geolocation
-    // and WebRTC halves self-disable outside window scope, so with no zone
-    // set the payload is inert there and propagating it would install the
-    // blob wrapper on a site that has no spoofing to propagate (WORK-006).
-    if (LocationSpoofService.affectsWorkerScope(location.timezone)) {
-      workerScopeShims.add(locationShim);
-    }
-
-    // Inject content blocker CSS at DOCUMENT_START so elements are hidden
-    // before they ever render, eliminating the flash of unstyled content.
-    if (config.posture.blocking.contentBlock) {
-      final earlyScript = ContentBlockerService.instance.getEarlyCssScript(config.initialUrl);
-      if (earlyScript != null) {
-        userScripts.add(inapp.UserScript(
-          source: '$earlyScript\n;null;',
-          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        ));
-      }
-      // ABP $csp= rules. Engine-only — the Dart parser doesn't handle
-      // them. <meta http-equiv> is the most portable path: works on
-      // every platform without needing response-header rewrite (which
-      // WKWebView doesn't expose). Browsers honour <meta> CSP as
-      // equivalent to the header when injected before the first
-      // resource fetch, which DOCUMENT_START is.
-      final cspDirectives =
-          ContentBlockerService.instance.cspFor(config.initialUrl);
-      if (cspDirectives != null && cspDirectives.isNotEmpty) {
-        final escaped =
-            cspDirectives.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
-        userScripts.add(inapp.UserScript(
-          source: '''
-(function() {
-  if (document.documentElement) {
-    var m = document.createElement('meta');
-    m.setAttribute('http-equiv', 'Content-Security-Policy');
-    m.setAttribute('content', '$escaped');
-    (document.head || document.documentElement).appendChild(m);
-  }
-})();
-;null;''',
-          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        ));
-      }
-      // Phase 5: generic class/id cosmetic shim runs at DOCUMENT_END
-      // (after the body is parseable but before late mutations land)
-      // and queries the engine via the genericCosmeticScan bridge.
-      // Only useful when the engine is active — otherwise the bridge
-      // handler returns [] and the shim is a no-op.
-      if (ContentBlockerService.instance.usingRustEngine) {
-        userScripts.add(inapp.UserScript(
-          source:
-              '${buildGenericCosmeticScannerShim()}\n;null;',
-          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
-        ));
-        // Procedural actions: ##selector:has-text(...), :remove(),
-        // :upward(N), :style(...), etc. Their selectors can't be
-        // expressed in pure CSS, so they need an in-page runner.
-        // The shim builder returns null when there are no procedural
-        // rules for this URL (most pages — most rules are plain hides).
-        final procedural = ContentBlockerService.instance
-            .proceduralActionsFor(config.initialUrl);
-        if (procedural.isNotEmpty) {
-          final shim = buildProceduralCosmeticShim(procedural);
-          if (shim != null) {
-            userScripts.add(inapp.UserScript(
-              source: '$shim\n;null;',
-              injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
-            ));
-          }
-        }
-      }
-    }
-
-    // ClearURLs: intercept clipboard writes and Web Share API to clean tracking
-    // parameters from shared URLs before they leave the webview.
-    if (config.posture.blocking.clearUrls) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'clearurl_share',
-        source: '$_clearUrlShareScript\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // A clipboard write or share from an iframe leaves the webview
-        // just the same as one from the top document.
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Override navigator.language / navigator.languages so client-rendered
-    // SPAs (Bluesky, etc.) pick up the per-site language instead of the OS
-    // locale. The Accept-Language header alone doesn't reach JS-side locale
-    // resolvers. Must run at DOCUMENT_START before the page's JS reads it.
-    if (config.posture.page.language != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'language_override',
-        source: '${buildLanguageShim(config.posture.page.language!)}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // Must reach cross-origin iframes; otherwise a subframe reports the
-        // real OS locale, contradicting the spoofed top frame (fingerprint).
-        forMainFrameOnly: false,
-      ));
-      workerScopeShims.add(buildLanguageShim(config.posture.page.language!));
-    }
-
-    // Propagate the shims above into Worker / SharedWorker global scopes by
-    // patching those constructors. Null (and so skipped entirely) when the site
-    // has no active spoofing, which keeps the blob indirection off pages that
-    // gain nothing from it.
-    final workerShim = buildWorkerShimScript(workerScopeShims);
-    if (workerShim != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'worker_shim',
-        source: '$workerShim\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // An iframe can create its own workers, so the patch must reach every
-        // frame the shims themselves reach.
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // Block stats: inject PerformanceObserver to report loaded resource
-    // URLs so allowed requests show up in the per-site log on iOS/macOS.
-    // On Android, the native FastSubresourceInterceptor reports events
-    // directly, so skip PerformanceObserver to avoid double-counting.
-    // Always injected: stats are recorded based on user intent to visit the
-    // site, not on whether blocklists are populated.
-    final hasDnsRules = DnsBlockService.instance.hasBlocklist;
-    final hasAbpRules = ContentBlockerService.instance.hasRules;
-    if (!hostIsAndroid) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'block_resource_observer',
-        source: '''
-(function() {
-  // Per-host dedup. PerformanceObserver fires once per loaded resource;
-  // a typical news page is hundreds of entries across ~30 hosts. We
-  // record one host per Dart roundtrip and dedup the rest in JS — same
-  // semantics as the native Android interceptor, but driven from the
-  // performance timeline because WebKit doesn't expose a sub-resource
-  // intercept hook.
-  var seenHost = Object.create(null);
-  var pending = [];           // batched hosts not yet sent
-  var pendingTimer = null;
-  var BATCH_MS = 250;
-  var BATCH_MAX = 64;
-
-  function flush() {
-    pendingTimer = null;
-    if (!pending.length) return;
-    if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
-      setTimeout(flush, 50);
-      return;
-    }
-    var batch = pending;
-    pending = [];
-    window.flutter_inappwebview.callHandler('blockResourceLoadedBatch', batch);
-  }
-  function schedule() {
-    if (pending.length >= BATCH_MAX) { flush(); return; }
-    if (pendingTimer == null) pendingTimer = setTimeout(flush, BATCH_MS);
-  }
-  function report(url) {
-    if (!url || url.charCodeAt(0) === 100 /* d */) return; // data:
-    if (url.indexOf('http') !== 0) return;
-    var host;
-    try { host = new URL(url).hostname; } catch (e) { return; }
-    if (!host || seenHost[host]) return;
-    seenHost[host] = 1;
-    pending.push(host);
-    schedule();
-  }
-  var po = new PerformanceObserver(function(list) {
-    var entries = list.getEntries();
-    for (var i = 0; i < entries.length; i++) report(entries[i].name);
-  });
-  po.observe({type: 'resource', buffered: true});
-  po.observe({type: 'navigation', buffered: true});
-})();
-;null;''',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // Sub-resources loaded by cross-origin frames count too.
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // iOS sub-resource blocking: JS interceptor with merged DNS+ABP
-    // Bloom-filter prefilter. The hot path is allocation-light and
-    // SYNCHRONOUS for bloom misses (the dominant case): no Promise
-    // wrapping, no microtask delay. That matters for property setters
-    // — wrapping `Image.src = url` in `Promise.resolve().then(set)`
-    // delays every image load by a microtask, which on a page with
-    // hundreds of `<img>` elements adds up to a visible stall. Only
-    // the rare bloom-hit path goes through Dart, where the actual DNS
-    // vs ABP attribution happens.
-    //
-    // We don't fire `blockResourceLoaded` from this script anymore.
-    // The block_resource_observer (PerformanceObserver) above batches
-    // unique hosts and reports them via `blockResourceLoadedBatch` —
-    // having both fire was double-counting hundreds of entries per
-    // page.
-    if (!hostIsAndroid
-        && ((config.effectiveDnsLevel > kDnsLevelOff && hasDnsRules) ||
-            (config.posture.blocking.contentBlock && hasAbpRules))) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'block_js_interceptor',
-        source: '''
-(function() {
-  var bloomReady = false;
-  var bloomBits = null;
-  var bloomBitCount = 0;
-  var bloomK = 0;
-
-  // Second bloom for hostless network rules (path/substring), keyed by
-  // the rules' literal tokens. The host bloom can't prefilter a rule
-  // that matches on path, so without this a `/ads/track.js`-style rule
-  // never fires on iOS/macOS (bloom miss == hard allow). hasGeneric is
-  // true when any such rule is loaded; genericFallback is true when the
-  // lists also carry rules we can't tokenize (regex, sub-3-char tokens),
-  // which force a Dart round-trip on every host-bloom miss.
-  var tokenBits = null;
-  var tokenBitCount = 0;
-  var tokenK = 0;
-  var hasGeneric = false;
-  var genericFallback = false;
-  // Set by checkSync, read synchronously by checkAsync: whether the
-  // round-trip's verdict may be cached by host. Host-level matches
-  // (host bloom / DNS) are cacheable; a token-driven path match is not,
-  // since a different path on the same host can have a different verdict.
-  var pendingCacheable = true;
-
-  function fnv1a(s, seed) {
-    var h = seed >>> 0;
-    for (var i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619) >>> 0;
-    }
-    return h >>> 0;
-  }
-
-  function bloomContains(s) {
-    if (!bloomReady) return true;
-    var h1 = fnv1a(s, 0x811C9DC5);
-    var h2 = fnv1a(s, 0xCBF29CE4);
-    for (var i = 0; i < bloomK; i++) {
-      var pos = ((h1 + i * h2) >>> 0) % bloomBitCount;
-      if ((bloomBits[pos >> 3] & (1 << (pos & 7))) === 0) return false;
-    }
-    return true;
-  }
-
-  function maybeBlocked(host) {
-    if (bloomContains(host)) return true;
-    // Suffix walk without parts.slice().join() per level — peel labels
-    // from the left by tracking a single dot index.
-    var dot = host.indexOf('.');
-    while (dot >= 0 && dot < host.length - 1) {
-      var parent = host.substring(dot + 1);
-      if (parent.indexOf('.') < 0) break;
-      if (bloomContains(parent)) return true;
-      dot = host.indexOf('.', dot + 1);
-    }
-    return false;
-  }
-
-  function tokenHit(tok) {
-    if (!tokenBits) return false;
-    var h1 = fnv1a(tok, 0x811C9DC5);
-    var h2 = fnv1a(tok, 0xCBF29CE4);
-    for (var i = 0; i < tokenK; i++) {
-      var pos = ((h1 + i * h2) >>> 0) % tokenBitCount;
-      if ((tokenBits[pos >> 3] & (1 << (pos & 7))) === 0) return false;
-    }
-    return true;
-  }
-
-  // Tokenize the URL on runs of [a-z0-9] (the finest split, so never
-  // coarser than the engine's own tokenizer — guarantees no false
-  // negative) and return true if any >=3-char token is in the token
-  // bloom. A hit means a hostless rule MIGHT match, so we let Dart
-  // adjudicate the full URL. Pure string scan, no allocation per token
-  // beyond the substring on an actual hit candidate.
-  function urlMaybeGeneric(url) {
-    var s = url.toLowerCase();
-    var n = s.length > 2048 ? 2048 : s.length;
-    var start = -1;
-    for (var i = 0; i <= n; i++) {
-      var c = i < n ? s.charCodeAt(i) : 0;
-      var alnum = (c >= 48 && c <= 57) || (c >= 97 && c <= 122);
-      if (alnum) {
-        if (start < 0) start = i;
-      } else {
-        if (start >= 0) {
-          if (i - start >= 3 && tokenHit(s.substring(start, i))) return true;
-          start = -1;
-        }
-      }
-    }
-    return false;
-  }
-
-  // Cache. Capacity 500 covers the typical page header set; FIFO eviction
-  // when full. Map-of-bools instead of two parallel objects so we keep
-  // per-host RAM at one entry not two — important on iOS where every
-  // long-running tab keeps this state alive.
-  var hostCache = Object.create(null);     // host -> true (blocked) | false (allowed)
-  var hostOrder = [];                       // FIFO order
-  var MAX_CACHE = 500;
-  function cacheGet(host) { return hostCache[host]; }
-  function cachePut(host, blocked) {
-    if (host in hostCache) { hostCache[host] = blocked; return; }
-    hostCache[host] = blocked;
-    hostOrder.push(host);
-    if (hostOrder.length > MAX_CACHE) {
-      var old = hostOrder.shift();
-      delete hostCache[old];
-    }
-  }
-
-  // Sync-only check. Returns:
-  //   true  → known blocked (skip request)
-  //   false → known allowed (proceed synchronously)
-  //   undefined → decision needs async Dart confirmation
-  // The caller is responsible for handling the undefined case via
-  // checkAsync. Keeping the sync path branchless and microtask-free is
-  // what makes property-setter patches not stall image loads.
-  function checkSync(url) {
-    if (!url || typeof url !== 'string' || url.charCodeAt(0) !== 104) return false; // 'h'
-    if (url.indexOf('http') !== 0) return false;
-    var host;
-    try { host = new URL(url).hostname; } catch (e) { return false; }
-    if (!host) return false;
-    var cached = cacheGet(host);
-    if (cached === false) return false;
-    if (cached === true) return true;
-    if (!bloomReady) { pendingCacheable = true; return undefined; } // warming up
-    if (maybeBlocked(host)) {
-      pendingCacheable = true; // host-level match — verdict is per host
-      return undefined; // bloom hit — Dart must adjudicate
-    }
-    // Host bloom miss. With no hostless rules loaded this is a definite
-    // allow (and cacheable by host, the common fast path). With hostless
-    // rules present we can't cache by host — a path rule may match one
-    // URL on this host and not another — so re-evaluate per request:
-    // tokenize and only round-trip on a token hit.
-    if (hasGeneric) {
-      if (genericFallback || urlMaybeGeneric(url)) {
-        pendingCacheable = false; // path-level — must not cache by host
-        return undefined;
-      }
-      return false; // no generic token matched — allow, but don't cache
-    }
-    cachePut(host, false);
-    return false;
-  }
-
-  function checkAsync(url) {
-    // Capture cacheability synchronously: pendingCacheable is set by the
-    // checkSync call that immediately preceded this one, and a later
-    // request could overwrite it before this promise resolves.
-    var cacheable = pendingCacheable;
-    if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
-      return Promise.resolve(false);
-    }
-    return window.flutter_inappwebview.callHandler('blockCheck', url).then(function(blocked) {
-      if (cacheable) {
-        try {
-          var host = new URL(url).hostname;
-          if (host) cachePut(host, !!blocked);
-        } catch (e) {}
-      }
-      return !!blocked;
-    });
-  }
-
-  // Promise-returning wrapper for callers that always go through .then.
-  function check(url) {
-    var sync = checkSync(url);
-    if (sync !== undefined) return Promise.resolve(sync);
-    return checkAsync(url);
-  }
-
-  function loadBloom() {
-    if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
-      setTimeout(loadBloom, 50);
-      return;
-    }
-    window.flutter_inappwebview.callHandler('getBlockBloom').then(function(map) {
-      if (!map) return;
-      var bytes = map.bits;
-      bloomBits = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-      bloomBitCount = map.bitCount;
-      bloomK = map.k;
-      if (map.tokenBits && map.tokenBitCount) {
-        tokenBits = map.tokenBits instanceof Uint8Array
-            ? map.tokenBits : new Uint8Array(map.tokenBits);
-        tokenBitCount = map.tokenBitCount;
-        tokenK = map.tokenK;
-      } else {
-        tokenBits = null;
-      }
-      genericFallback = !!map.genericFallback;
-      hasGeneric = !!map.hasGeneric;
-      // Under hostless (path) rules a host-level "allowed" verdict can't
-      // be trusted to skip the per-request token check, so drop any
-      // allows cached during warmup. Blocks are host-level and safe.
-      if (hasGeneric) {
-        for (var ch in hostCache) {
-          if (!hostCache[ch]) delete hostCache[ch];
-        }
-      }
-      // The response carries no host list. The app-wide domain-decision
-      // cache used to be seeded in here as a warm start, but any page can
-      // call this handler and there is no origin allowlist — that made
-      // every other site's browsing history readable from page JS. The
-      // bloom answers the same question; a cold hostCache only costs a
-      // Dart round-trip on the first bloom hit per host.
-      bloomReady = true;
-    });
-  }
-  loadBloom();
-
-  // Async decision encoding (returned by callHandler('blockCheck')):
-  //   false       — allow
-  //   true        — block (drop)
-  //   <string>    — block + redirect; string is a `data:` URL to
-  //                 swap the request with. Engine's \$redirect= path.
-  // checkSync only knows bool (bloom prefilter answers host membership,
-  // not redirect specifics) — redirect lookup always goes through Dart.
-  function isRedirect(d) { return typeof d === 'string' && d.indexOf('data:') === 0; }
-
-  // fetch — sync fast-path on misses, async only on bloom hits.
-  var origFetch = window.fetch;
-  if (origFetch) {
-    window.fetch = function(input, init) {
-      var url = typeof input === 'string' ? input : (input && input.url);
-      var sync = checkSync(url);
-      if (sync === false) return origFetch.call(this, input, init);
-      if (sync === true) return Promise.reject(new TypeError('Blocked: ' + url));
-      var self = this;
-      return checkAsync(url).then(function(decision) {
-        if (isRedirect(decision)) return origFetch.call(self, decision, init);
-        if (decision) return Promise.reject(new TypeError('Blocked: ' + url));
-        return origFetch.call(self, input, init);
-      });
-    };
-  }
-
-  // XMLHttpRequest. Redirect can't easily swap the URL after open();
-  // chromium has already configured the request. Drop the XHR
-  // entirely on a redirect decision — equivalent observable
-  // behaviour to a plain block. Better-engineered redirect for XHR
-  // would intercept earlier (at open()) and re-issue against the
-  // data URL, but XHR is rare for tracker scripts so skip.
-  var origOpen = XMLHttpRequest.prototype.open;
-  XMLHttpRequest.prototype.open = function(method, url) {
-    this.__dnsBlockUrl = url;
-    return origOpen.apply(this, arguments);
-  };
-  var origSend = XMLHttpRequest.prototype.send;
-  XMLHttpRequest.prototype.send = function(body) {
-    var url = this.__dnsBlockUrl;
-    var sync = checkSync(url);
-    if (sync === false) return origSend.apply(this, arguments);
-    if (sync === true) { try { this.abort(); } catch (e) {} return; }
-    var self = this;
-    var args = arguments;
-    checkAsync(url).then(function(decision) {
-      if (decision) { try { self.abort(); } catch (e) {} return; }
-      origSend.apply(self, args);
-    });
-  };
-
-  // Property setters for src/href. CRITICAL that the bloom-miss path is
-  // synchronous: wrapping `el.src = url` in `Promise.resolve().then(set)`
-  // delays every image load by one microtask. On a typical e-commerce
-  // page with 200 product images that's 200 microtasks — visible
-  // jitter and dropped scroll frames.
-  function patchSetter(proto, attr) {
-    var desc = Object.getOwnPropertyDescriptor(proto, attr);
-    if (!desc || !desc.set) return;
-    var origSet = desc.set;
-    Object.defineProperty(proto, attr, {
-      configurable: true,
-      enumerable: desc.enumerable,
-      get: desc.get,
-      set: function(value) {
-        var sync = checkSync(value);
-        if (sync === false) { origSet.call(this, value); return; }
-        if (sync === true) { return; }
-        var el = this;
-        checkAsync(value).then(function(decision) {
-          if (isRedirect(decision)) origSet.call(el, decision);
-          else if (!decision) origSet.call(el, value);
-        });
-      }
-    });
-  }
-  patchSetter(HTMLImageElement.prototype, 'src');
-  patchSetter(HTMLScriptElement.prototype, 'src');
-  patchSetter(HTMLLinkElement.prototype, 'href');
-  patchSetter(HTMLIFrameElement.prototype, 'src');
-
-  // MutationObserver for statically-parsed HTML elements. Bloom-miss
-  // path is a no-op (the element is allowed to keep the attribute);
-  // only confirmed-blocked elements are stripped (or rewritten when
-  // the engine offers a redirect body).
-  function checkElement(el) {
-    var attr = null;
-    if (el.tagName === 'IMG' || el.tagName === 'SCRIPT' || el.tagName === 'IFRAME') attr = 'src';
-    else if (el.tagName === 'LINK') attr = 'href';
-    if (!attr) return;
-    var url = el.getAttribute(attr);
-    if (!url || url.indexOf('http') !== 0) return;
-    var sync = checkSync(url);
-    if (sync === false) return; // allowed, leave element alone
-    if (sync === true) {
-      el.removeAttribute(attr);
-      if (el.parentNode) el.parentNode.removeChild(el);
-      return;
-    }
-    checkAsync(url).then(function(decision) {
-      if (isRedirect(decision)) {
-        el.setAttribute(attr, decision);
-        return;
-      }
-      if (decision) {
-        el.removeAttribute(attr);
-        if (el.parentNode) el.parentNode.removeChild(el);
-      }
-    });
-  }
-  var mo = new MutationObserver(function(mutations) {
-    for (var i = 0; i < mutations.length; i++) {
-      var added = mutations[i].addedNodes;
-      for (var j = 0; j < added.length; j++) {
-        var node = added[j];
-        if (node.nodeType !== 1) continue;
-        checkElement(node);
-        if (node.querySelectorAll) {
-          var els = node.querySelectorAll('img, script, link, iframe');
-          for (var k = 0; k < els.length; k++) checkElement(els[k]);
-        }
-      }
-    }
-  });
-  function startObserving() {
-    if (document.documentElement) {
-      mo.observe(document.documentElement, {childList: true, subtree: true});
-    } else {
-      setTimeout(startObserving, 10);
-    }
-  }
-  startObserving();
-})();
-;null;''',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        // The only sub-resource blocking WebKit has: no
-        // shouldInterceptRequest, no WKContentRuleList. Main-frame-only
-        // would leave every tracker in a cross-origin iframe unblocked.
-        forMainFrameOnly: false,
-      ));
-    }
-
-    // User script injection: shim for external dependency resolution + scripts
-    final userScriptService = UserScriptService(
-      scripts: config.posture.page.userScripts,
-      onConfirmScriptFetch: config.onConfirmScriptFetch,
-      proxy: config.posture.container.proxy,
-    );
-    userScripts.addAll(userScriptService.buildInitialUserScripts());
+    userScripts.addAll([
+      ..._passkeyShims(config.passkeys),
+      // Cross-domain taps then reach shouldOverrideUrlLoading, which has a
+      // reliable gesture, instead of onCreateWindow (issue #405).
+      pageShim('target_blank_rewrite', targetBlankRewriteScript,
+          frames: ShimFrames.all),
+      if (scoped.antiFingerprinting case final js?)
+        pageShim('anti_fingerprinting', js, frames: ShimFrames.all),
+      ..._downloadShims(),
+      ..._identityShims(posture, scoped, desktopMode: desktopMode),
+      ..._zoomShims(posture, zoomPlan,
+          textZoom: textZoom, desktopMode: desktopMode),
+      pageShim(
+          'notification_polyfill',
+          buildNotificationPolyfillShim(
+            siteId: posture.siteId,
+            notificationsEnabled: posture.page.notifications,
+          ),
+          frames: ShimFrames.all),
+      ..._mediaSessionShims(config),
+      pageShim('location_spoof', scoped.location, frames: ShimFrames.all),
+      ..._contentBlockerShims(config),
+      if (posture.blocking.clearUrls)
+        pageShim('clearurl_share', clearUrlShareScript,
+            frames: ShimFrames.all),
+      if (scoped.language case final js?)
+        pageShim('language_override', js, frames: ShimFrames.all),
+      // An iframe can create its own workers.
+      if (buildWorkerShimScript(workerScopeBodies(scoped)) case final js?)
+        pageShim('worker_shim', js, frames: ShimFrames.all),
+      ..._blockInterceptorShims(config),
+      ...userScriptService.buildInitialUserScripts(),
+    ]);
     return (
       textZoom: textZoom,
       userScripts: userScripts,
@@ -3655,6 +2596,189 @@ class WebViewFactory {
       desktopMode: desktopMode,
       userScriptService: userScriptService,
     );
+  }
+
+  /// The shims whose values a worker can read too, built once for the page
+  /// and its workers.
+  ///
+  /// Tracking Protection strips WebGL outright: the strongest answer to its
+  /// fingerprint, and on Android a crash workaround, since a
+  /// fingerprinter's `getContext('webgl')` walks a Chromium blocklist path
+  /// that SIGTRAPs the renderer (`partition_alloc_support.cc:770`) and no
+  /// setting turns WebGL off. Turning Tracking Protection off for a site
+  /// brings it back for maps and 3D viewers (issue #391). The incognito
+  /// fingerprint rerolls per launch (ETP-028). The location zone was resolved
+  /// when the site was saved, so the polygon dataset never loads here.
+  static ScopedShims _scopedShims(SitePosture p) {
+    final tp = p.fingerprint.trackingProtection;
+    final ua = p.page.userAgent;
+    final language = p.page.language;
+    final location = p.location;
+    return (
+      webGl: tp ? webGlKillSwitchScript : null,
+      antiFingerprinting: buildAntiFingerprintingScriptSource(
+        siteId: p.siteId,
+        trackingProtectionEnabled: tp,
+        incognito: p.container.incognito,
+        launchNonce: LaunchNonce.value,
+        resetNonce: p.fingerprint.resetNonce,
+        letterbox: p.fingerprint.letterbox,
+      ),
+      identity:
+          ua == null || ua.isEmpty ? null : buildUserAgentIdentityShim(ua),
+      location: LocationSpoofService.buildScript(
+        locationMode: location.mode,
+        spoofLatitude: location.latitude,
+        spoofLongitude: location.longitude,
+        spoofAccuracy: location.accuracy,
+        spoofTimezone: location.timezone,
+        liveLocationGranularity: location.granularity,
+        webRtcPolicy: location.webRtc,
+      ),
+      timezone: location.timezone,
+      language: language == null ? null : buildLanguageShim(language),
+    );
+  }
+
+  /// Passkeys through the Credential Manager bridge (PASSKEY-003), in every
+  /// frame, so a cross-origin frame is refused by the handler the way
+  /// Chromium refuses an undelegated one rather than by a missing API. The
+  /// WebView backend needs nothing: the engine exposes WebAuthn itself.
+  /// WebKit answers WebAuthn on its own with no switch to stop it, so on iOS
+  /// and macOS "no passkeys" is the block shim, in every frame (PASSKEY-013).
+  static List<inapp.UserScript> _passkeyShims(PasskeyAccess? passkeys) => [
+        if (passkeys?.backend == PasskeyBackend.credentialManager)
+          pageShim('passkey', buildPasskeyShim(), frames: ShimFrames.all),
+        if (passkeys == null && PasskeyAccess.hostIsApple)
+          pageShim('passkey_block', buildPasskeyBlockShim(),
+              frames: ShimFrames.all),
+      ];
+
+  /// Blob downloads. The capture serves a site whose CSP `connect-src`
+  /// refuses `fetch(blob:)`: [_handleBlobDownload] reads the Blob itself.
+  /// Android's DownloadListener never fires for a `blob:` link, so the click
+  /// is bridged too; WebKit raises onDownloadStartRequest for it natively.
+  static List<inapp.UserScript> _downloadShims() => [
+        pageShim('blob_url_capture', blobUrlCaptureScript,
+            frames: ShimFrames.top),
+        if (hostIsAndroid)
+          pageShim(
+              'blob_download_click_intercept', blobDownloadClickInterceptScript,
+              frames: ShimFrames.top),
+      ];
+
+  /// The per-site UA's identity. A desktop UA also gets userAgentData,
+  /// maxTouchPoints, matchMedia and the viewport of a desktop; any UA gets
+  /// the navigator fields the host engine would otherwise fill in its own
+  /// name (vendor, productSub, oscpu, buildID, platform).
+  static List<inapp.UserScript> _identityShims(
+    SitePosture p,
+    ScopedShims scoped, {
+    required bool desktopMode,
+  }) =>
+      [
+        if (desktopMode)
+          pageShim('desktop_mode_shim',
+              buildDesktopModeShim(p.page.userAgent ?? ''),
+              frames: ShimFrames.all),
+        if (scoped.identity case final js?)
+          pageShim('ua_identity_shim', js, frames: ShimFrames.all),
+      ];
+
+  /// The page's scale: WebKit's default viewport fix (desktop mode owns the
+  /// viewport itself), the OS text size where there is no `textZoom`
+  /// setting, and the per-site zoom on the channel [planPageZoom] picked.
+  static List<inapp.UserScript> _zoomShims(
+    SitePosture p,
+    PageZoomPlan plan, {
+    required int textZoom,
+    required bool desktopMode,
+  }) {
+    final zoom = p.page.zoomPercent;
+    final pageZoom = switch (plan.channel) {
+      PageZoomChannel.none => null,
+      PageZoomChannel.cssZoom => buildPageZoomCssShim(zoom),
+      PageZoomChannel.viewportMeta => () {
+          final (portrait, landscape) = _viewExtents();
+          return buildPageZoomViewportShim(
+            zoomPercent: zoom,
+            pinLayoutWidth: plan.pinLayoutWidth,
+            portraitWidth: portrait,
+            landscapeWidth: landscape,
+          );
+        }(),
+    };
+    return [
+      if ((hostIsIOS || hostIsMacOS) && !desktopMode)
+        pageShim('default_viewport', defaultViewportScript,
+            frames: ShimFrames.top),
+      if (!hostIsAndroid)
+        pageShim('system_text_zoom', buildTextZoomShim(textZoom),
+            frames: ShimFrames.all),
+      if (pageZoom != null)
+        pageShim('page_zoom', pageZoom, frames: ShimFrames.all),
+    ];
+  }
+
+  /// BGAUDIO-006, on background-audio sites only. The log line is the first
+  /// link of BGAUDIO-007's chain: its absence from an App Logs export says
+  /// the toggle is off, which nothing downstream can tell from a broken
+  /// bridge.
+  static List<inapp.UserScript> _mediaSessionShims(WebViewConfig config) {
+    if (!config.backgroundAudioEnabled ||
+        !MediaSessionService.instance.isSupported) {
+      return const [];
+    }
+    LogService.instance.log('MediaSession', 'Bridge armed for this site');
+    return [
+      pageShim('media_session_shim', buildMediaSessionShim(),
+          frames: ShimFrames.all),
+    ];
+  }
+
+  /// Cosmetic filtering and `$csp=`. The early CSS hides before first paint;
+  /// the generic class/id scan and the procedural actions (`:has-text()`,
+  /// `:upward()`, `:remove()`) need a parsed body and the engine.
+  static List<inapp.UserScript> _contentBlockerShims(WebViewConfig config) {
+    if (!config.posture.blocking.contentBlock) return const [];
+    final blocker = ContentBlockerService.instance;
+    final url = config.initialUrl;
+    final csp = blocker.cspFor(url);
+    final engine = blocker.usingRustEngine;
+    final procedural = engine
+        ? buildProceduralCosmeticShim(blocker.proceduralActionsFor(url))
+        : null;
+    return [
+      if (blocker.getEarlyCssScript(url) case final js?)
+        pageShim('content_blocker_early_css', js, frames: ShimFrames.top),
+      if (csp != null && csp.isNotEmpty)
+        pageShim('content_blocker_csp', buildContentBlockerCspShim(csp),
+            frames: ShimFrames.top),
+      if (engine)
+        pageShim('generic_cosmetic', buildGenericCosmeticScannerShim(),
+            frames: ShimFrames.top, at: ShimTime.end),
+      if (procedural != null)
+        pageShim('procedural_cosmetic', procedural,
+            frames: ShimFrames.top, at: ShimTime.end),
+    ];
+  }
+
+  /// WebKit's sub-resource accounting and blocking, which Android does
+  /// natively. The observer runs whether or not a list is loaded, since the
+  /// per-site log reflects the visit rather than the blockers.
+  static List<inapp.UserScript> _blockInterceptorShims(WebViewConfig config) {
+    if (hostIsAndroid) return const [];
+    final blocks = (config.effectiveDnsLevel > kDnsLevelOff &&
+            DnsBlockService.instance.hasBlocklist) ||
+        (config.posture.blocking.contentBlock &&
+            ContentBlockerService.instance.hasRules);
+    return [
+      pageShim('block_resource_observer', blockResourceObserverScript,
+          frames: ShimFrames.all),
+      if (blocks)
+        pageShim('block_js_interceptor', blockJsInterceptorScript,
+            frames: ShimFrames.all),
+    ];
   }
 
   /// The origin a camera / microphone prompt names.
@@ -4395,24 +3519,17 @@ class WebViewFactory {
         siteIcon == null ? null : SiteIconEngine(siteIcon.siteUrl);
     final iconSource = pageIconSource;
     if (iconEngine != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'icon_link_watcher',
-        source: '${buildIconLinkWatcherShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: true,
-      ));
+      userScripts.add(pageShim('icon_link_watcher', buildIconLinkWatcherShim(),
+          frames: ShimFrames.top));
       if (iconSource == PageIconSource.webview) {
         unawaited(SiteIconNative.ensureEnabled());
       }
     }
     final siteSearch = config.siteSearch;
     if (siteSearch != null) {
-      userScripts.add(inapp.UserScript(
-        groupName: 'search_link_watcher',
-        source: '${buildSearchLinkWatcherShim()}\n;null;',
-        injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        forMainFrameOnly: true,
-      ));
+      userScripts.add(pageShim(
+          'search_link_watcher', buildSearchLinkWatcherShim(),
+          frames: ShimFrames.top));
     }
     final iconFetcher =
         iconEngine == null || iconSource != PageIconSource.declaredLinks
@@ -5429,7 +4546,7 @@ class WebViewFactory {
           if (cssScript != null) earlyScripts.add(cssScript);
         }
         if (config.posture.blocking.clearUrls) {
-          earlyScripts.add(_clearUrlShareScript);
+          earlyScripts.add(clearUrlShareScript);
         }
         if (earlyScripts.isNotEmpty && stillCurrent()) {
           try {

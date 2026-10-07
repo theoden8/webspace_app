@@ -21,6 +21,9 @@ import 'dart:io';
 import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
+import 'package:webspace/services/block_interceptor_shim.dart';
+import 'package:webspace/services/clearurl_share_shim.dart';
+import 'package:webspace/services/notification_polyfill_shim.dart';
 import 'package:webspace/services/camera_stream_shim.dart';
 import 'package:webspace/services/microphone_stream_shim.dart';
 import 'package:webspace/services/screen_share_shim.dart';
@@ -241,6 +244,17 @@ Map<String, String> buildAllFixtures() {
       pinLayoutWidth: false,
       portraitWidth: 393,
       landscapeWidth: 851);
+  fixtures['page_zoom/css_zoom_120.js'] = buildPageZoomCssShim(120);
+  fixtures['page_zoom/text_zoom_150.js'] = buildTextZoomShim(150);
+  fixtures['page_zoom/default_viewport.js'] = defaultViewportScript;
+
+  fixtures['notification_polyfill/granted.js'] = buildNotificationPolyfillShim(
+      siteId: 'site-fixture', notificationsEnabled: true);
+  fixtures['notification_polyfill/denied.js'] = buildNotificationPolyfillShim(
+      siteId: 'site-fixture', notificationsEnabled: false);
+  fixtures['clearurl_share/shim.js'] = clearUrlShareScript;
+  fixtures['block_interceptor/observer.js'] = blockResourceObserverScript;
+  fixtures['block_interceptor/interceptor.js'] = blockJsInterceptorScript;
 
   fixtures['camera_stream/shim.js'] = buildCameraStreamShim();
   fixtures['microphone_stream/shim.js'] = buildMicrophoneStreamShim();
@@ -343,6 +357,8 @@ Map<String, String> buildAllFixtures() {
   // stubs the bridge handler and asserts the injection happens.
   fixtures['content_blocker/generic_scanner.js'] =
       buildGenericCosmeticScannerShim();
+  fixtures['content_blocker/csp.js'] =
+      buildContentBlockerCspShim("script-src 'none'; img-src 'self'");
 
   // Fixture exercising uBO `:style(...)` rules — the parser emits
   // these instead of `display:none`, and the shim must apply the

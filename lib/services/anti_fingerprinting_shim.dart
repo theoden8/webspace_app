@@ -85,9 +85,8 @@ String computeAntiFingerprintingSeed({
   return incognito ? '$base:$launchNonce' : base;
 }
 
-/// Compose the full anti-fingerprinting `UserScript.source` (shim body
-/// plus the trailing `\n;null;` evaluator-return) for the given site
-/// configuration, or `null` if the umbrella is off / no siteId is set.
+/// The anti-fingerprinting shim for the given site configuration, or `null`
+/// if the umbrella is off / no siteId is set.
 ///
 /// Lives alongside [computeAntiFingerprintingSeed] so the entire chain —
 /// gate → seed derivation → shim text — is exercisable from `flutter test`
@@ -107,7 +106,8 @@ String? buildAntiFingerprintingScriptSource({
     launchNonce: launchNonce,
     resetNonce: resetNonce,
   );
-  return '${buildAntiFingerprintingShim(opaqueAntiFingerprintingSeed(seed), letterbox: letterbox)}\n;null;';
+  return buildAntiFingerprintingShim(opaqueAntiFingerprintingSeed(seed),
+      letterbox: letterbox);
 }
 
 /// The seed the page actually sees. [computeAntiFingerprintingSeed] names

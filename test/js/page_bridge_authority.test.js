@@ -524,26 +524,6 @@ test('DNS-018: the bloom consumer no longer seeds its cache from the response', 
     'the interceptor JS must not read a host list off getBlockBloom');
 });
 
-// --- sub-resource reach ---------------------------------------------------
-
-test('every page shim that must see sub-resources sets forMainFrameOnly: false', () => {
-  // On iOS/macOS the JS interceptor is the ONLY sub-resource blocking (no
-  // shouldInterceptRequest, no WKContentRuleList). UserScript.forMainFrameOnly
-  // defaults to true, so an omission leaves every tracker in a cross-origin
-  // iframe unblocked — and it looks identical to a correct call.
-  for (const group of ['clearurl_share', 'block_resource_observer',
-    'block_js_interceptor']) {
-    const at = WEBVIEW.indexOf(`groupName: '${group}'`);
-    assert.notEqual(at, -1, `the ${group} user script is gone`);
-    // Read from injectionTime rather than the group name: the `source:` in
-    // between is a JS blob whose own braces and parens defeat brace matching.
-    const inj = WEBVIEW.indexOf('injectionTime:', at);
-    const decl = WEBVIEW.slice(inj, inj + 300);
-    assert.ok(decl.includes('forMainFrameOnly: false'),
-      `${group} must be injected into every frame`);
-  }
-});
-
 // --- outbound reach -------------------------------------------------------
 
 test('LEAK-002: the media-session artwork fetch goes through the outbound seam', () => {

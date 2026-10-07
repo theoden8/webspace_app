@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/user_script_shim.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -235,16 +236,9 @@ class UserScriptService {
     final result = <inapp.UserScript>[];
     if (!hasScripts) return result;
 
-    // Shim first (at DOCUMENT_START, before user scripts).
-    // Append ";null;" so WebKit doesn't error on undefined return value.
     if (shimScript != null) {
-      result.add(
-        inapp.UserScript(
-          groupName: 'script_fetch_shim',
-          source: '${shimScript!}\n;null;',
-          injectionTime: inapp.UserScriptInjectionTime.AT_DOCUMENT_START,
-        ),
-      );
+      result.add(pageShim('script_fetch_shim', shimScript!,
+          frames: ShimFrames.top));
     }
 
     // User scripts
@@ -271,16 +265,15 @@ class UserScriptService {
         'Adding to initialUserScripts: "${script.name}" at $time (${src.length} chars, url=${script.url ?? "none"})',
         sensitivity: LogSensitivity.sensitive,
       );
-      result.add(
-        inapp.UserScript(
-          groupName: 'user_scripts',
-          source: '${_guarded(script.id, src)}\n;null;',
-          injectionTime:
-              script.injectionTime == UserScriptInjectionTime.atDocumentStart
-              ? inapp.UserScriptInjectionTime.AT_DOCUMENT_START
-              : inapp.UserScriptInjectionTime.AT_DOCUMENT_END,
-        ),
-      );
+      result.add(pageShim(
+        'user_scripts',
+        _guarded(script.id, src),
+        frames: ShimFrames.top,
+        at: switch (script.injectionTime) {
+          UserScriptInjectionTime.atDocumentStart => ShimTime.start,
+          UserScriptInjectionTime.atDocumentEnd => ShimTime.end,
+        },
+      ));
     }
     return result;
   }

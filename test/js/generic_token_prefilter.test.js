@@ -1,5 +1,5 @@
 // Validates the hostless-rule token prefilter used by the iOS/macOS JS
-// sub-resource interceptor (webview.dart). fnv1a / the bloom build /
+// sub-resource interceptor (block_interceptor_shim.dart). fnv1a / the bloom build /
 // urlMaybeGeneric are copied from the interceptor and BloomFilter so the
 // test exercises the exact algorithm; if you change either side, change
 // it here too.
@@ -57,7 +57,7 @@ function bloomMember(b) {
   };
 }
 
-// ---- urlMaybeGeneric, copied from the interceptor (webview.dart) ----
+// ---- urlMaybeGeneric, copied from the interceptor (block_interceptor_shim.dart) ----
 // `member(tok)` stands in for the embedded tokenHit(); the membership
 // backend is injected so logic tests can use an exact set.
 function urlMaybeGeneric(url, member) {

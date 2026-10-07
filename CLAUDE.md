@@ -438,7 +438,7 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 
 `notificationsEnabled` (per-site) folds three behaviors so a single user toggle keeps notifications reliable:
 
-- **Polyfill**: JS `Notification` constructor + `requestPermission()` are polyfilled at `DOCUMENT_START` (`forMainFrameOnly: false`); calls bridge to `NotificationService` via `addJavaScriptHandler('webNotification', ...)`.
+- **Polyfill**: JS `Notification` constructor + `requestPermission()` are polyfilled at `DOCUMENT_START` (`ShimFrames.all`); calls bridge to `NotificationService` via `addJavaScriptHandler('webNotification', ...)`.
 - **No per-instance pause**: `WebViewModel.pauseWebView()` early-returns for notification sites — iOS's `pauseTimers()` alert hack would freeze the JS thread between site switches and queue setTimeouts into one burst on resume.
 - **No app-background JS pause while one is loaded** (NOTIF-011): Android's `pauseTimers()` is process-global, so any loaded notification site vetoes it, not only an active one.
 - **Auto-load + retention priority**: notification sites are added to `_loadedIndices` on startup and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
@@ -491,7 +491,7 @@ the site (callbacks, `backForwardGestures`, the slot's `backgroundAudioEnabled`,
 the site icon and search targets) stays a `WebViewConfig` field the owning
 surface sets.
 
-If the field controls JS in `initialUserScripts`, set `forMainFrameOnly: false` (iOS default is main-frame-only) so the shim reaches cross-origin iframes.
+If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., frames: ShimFrames.all)` ([page_shim.dart](lib/services/page_shim.dart)) so the shim reaches cross-origin iframes.
 
 ## Logic engine vs rendering engine
 

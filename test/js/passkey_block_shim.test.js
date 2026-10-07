@@ -210,22 +210,19 @@ test('a second injection does not wrap twice', async () => {
 const readDart = (rel) => code(read(rel));
 
 test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in every frame', () => {
-  const pageScripts = blockAfter(readDart('lib/services/webview.dart'),
+  const webview = readDart('lib/services/webview.dart');
+  const pageScripts = blockAfter(webview,
     '_buildPageScripts(WebViewConfig config) {', undefined, 'webview.dart');
-  const at = pageScripts.indexOf('buildPasskeyBlockShim()');
-  assert.notEqual(at, -1,
-    '_buildPageScripts, shared by site and popup webviews, must install the block shim');
-  const guard = pageScripts.lastIndexOf('if (', at);
-  assert.equal(
-    pageScripts.slice(guard, pageScripts.indexOf('{', guard)).replace(/\s+/g, ' ').trim(),
-    'if (config.passkeys == null && PasskeyAccess.hostIsApple)',
-    'the shim goes wherever passkeys are off on iOS and macOS, and nowhere else');
-  const script = pageScripts.slice(pageScripts.lastIndexOf('inapp.UserScript(', at),
-    pageScripts.indexOf('));', at));
-  assert.ok(script.includes('forMainFrameOnly: false'),
-    'WebKit answers a same-origin subframe too, so every frame needs the shim');
-  assert.ok(script.includes('UserScriptInjectionTime.AT_DOCUMENT_START'),
-    'the shim has to be in place before page script can call WebAuthn');
+  assert.ok(pageScripts.includes('..._passkeyShims(config.passkeys),'),
+    '_buildPageScripts, shared by site and popup webviews, must install the passkey shims');
+  const at = webview.indexOf('_passkeyShims(PasskeyAccess? passkeys) => [');
+  assert.notEqual(at, -1, 'webview.dart no longer builds the passkey shims');
+  const shims = webview.slice(at, webview.indexOf('];', at)).replace(/\s+/g, ' ');
+  assert.ok(shims.includes(
+    "if (passkeys == null && PasskeyAccess.hostIsApple) "
+      + "pageShim('passkey_block', buildPasskeyBlockShim(), frames: ShimFrames.all)"),
+    'the shim goes wherever passkeys are off on iOS and macOS, in every frame '
+      + '(WebKit answers a same-origin subframe too), before page script runs');
 });
 
 test('PASSKEY-001: webviews get their passkey access from one rule', () => {

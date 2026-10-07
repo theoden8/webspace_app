@@ -70,16 +70,12 @@ void main() {
       // shim never gets a chance to wrap createObjectURL before the page
       // calls it, and github.com downloads silently break again.
       final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
-      expect(webviewSrc, contains("groupName: 'blob_url_capture'"));
-      // Find the registration block and make sure the injection time on it
-      // is DOCUMENT_START.
-      final blockStart = webviewSrc.indexOf("groupName: 'blob_url_capture'");
+      final blockStart =
+          webviewSrc.indexOf("pageShim('blob_url_capture', blobUrlCaptureScript");
       expect(blockStart, greaterThan(0));
-      final blockEnd = webviewSrc.indexOf('));', blockStart);
-      expect(blockEnd, greaterThan(blockStart));
-      final block = webviewSrc.substring(blockStart, blockEnd);
-      expect(block, contains('AT_DOCUMENT_START'));
-      expect(block, contains(r'$blobUrlCaptureScript'));
+      final block =
+          webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));
+      expect(block, isNot(contains('ShimTime.end')));
     });
 
     test('blob-download IIFE looks up the same global the shim exports', () {
@@ -248,16 +244,12 @@ void main() {
       // shim is in place before any page script can mint a blob URL
       // and wire a click handler against it.
       final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
-      expect(
-          webviewSrc, contains("groupName: 'blob_download_click_intercept'"));
-      final blockStart =
-          webviewSrc.indexOf("groupName: 'blob_download_click_intercept'");
+      final blockStart = webviewSrc.indexOf(
+          "'blob_download_click_intercept', blobDownloadClickInterceptScript");
       expect(blockStart, greaterThan(0));
-      final blockEnd = webviewSrc.indexOf('));', blockStart);
-      expect(blockEnd, greaterThan(blockStart));
-      final block = webviewSrc.substring(blockStart, blockEnd);
-      expect(block, contains('AT_DOCUMENT_START'));
-      expect(block, contains(r'$blobDownloadClickInterceptScript'));
+      final block =
+          webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));
+      expect(block, isNot(contains('ShimTime.end')));
       // Android gate: the registration sits inside a hostIsAndroid block
       // (the web-safe Platform.isAndroid) so iOS/macOS keep using
       // onDownloadStartRequest natively.

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -206,16 +205,32 @@ void main() {
       expect(shim, contains('&& navigator.geolocation) {'));
     });
 
-    test('webview.dart gates the propagation on that', () {
-      final source = File('lib/services/webview.dart').readAsStringSync();
-      final flat = source.replaceAll(RegExp(r'\s+'), ' ');
-      expect(
-        flat,
-        contains('if (LocationSpoofService.affectsWorkerScope('
-            'location.timezone)) { workerScopeShims.add(locationShim); }'),
-        reason: 'an unguarded add puts the blob wrapper on every site, which '
-            'WORK-006 forbids',
-      );
+    ScopedShims scoped({String? timezone, String? language}) => (
+          webGl: null,
+          antiFingerprinting: null,
+          identity: null,
+          location: 'LOCATION',
+          timezone: timezone,
+          language: language,
+        );
+
+    test('the worker payload carries the location shim only with a zone', () {
+      expect(workerScopeBodies(scoped()), isEmpty,
+          reason: 'an unguarded add puts the blob wrapper on every site');
+      expect(buildWorkerShimScript(workerScopeBodies(scoped())), isNull);
+      expect(workerScopeBodies(scoped(timezone: 'UTC')), ['LOCATION']);
     });
+  });
+
+  test('worker bodies keep page-injection order', () {
+    final bodies = workerScopeBodies((
+      webGl: 'A',
+      antiFingerprinting: 'B',
+      identity: 'C',
+      location: 'D',
+      timezone: 'Asia/Tokyo',
+      language: 'E',
+    ));
+    expect(bodies, ['A', 'B', 'C', 'D', 'E']);
   });
 }

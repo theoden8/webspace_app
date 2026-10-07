@@ -134,6 +134,19 @@ String? buildContentBlockerCosmeticShim({
 ''';
 }
 
+/// ABP `$csp=` directives as a `<meta http-equiv>` policy. A browser honours
+/// one like the header when it lands before the first fetch, which
+/// DOCUMENT_START does, and WKWebView exposes no response-header rewrite.
+String buildContentBlockerCspShim(String directives) => '''
+(function() {
+  if (document.documentElement) {
+    var m = document.createElement('meta');
+    m.setAttribute('http-equiv', 'Content-Security-Policy');
+    m.setAttribute('content', ${jsonEncode(directives)});
+    (document.head || document.documentElement).appendChild(m);
+  }
+})();''';
+
 String _buildCssText(
   List<String> selectors,
   List<ContentBlockerStyleRule> styleRules,
