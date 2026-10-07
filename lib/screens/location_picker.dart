@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/current_location_service.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/widgets/toast.dart';
 

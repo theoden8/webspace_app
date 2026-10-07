@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'helpers/fake_outbound.dart';
 

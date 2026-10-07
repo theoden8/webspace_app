@@ -67,9 +67,9 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
 | `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
 
-Layers: UI `screens`, `widgets`, `main.dart` · model `web_view_model.dart`, `webspace_model.dart` · services `services` · values `settings` · platform `platform`.
+Layers: UI `screens`, `widgets`, `controllers`, `main.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.
 
-Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · values → services (`global_outbound_proxy` and `proxy_library` are stores, `datasets` is UI, `user_script` reaches `host_resolution`) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`; `suggested_sites_service` → `add_site`'s `SiteSuggestion`) · values → UI (`datasets`).
+Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`).
 
 | Axis | Budget | Now | Funnel |
 |---|---|---|---|
@@ -542,7 +542,7 @@ DNS blocklist, content blocker, LocalCDN need a downloaded blob.
 - **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, its row sets `SettingTile.missingData`: a warning icon beside the title and an amber "Not configured" subtitle (also on the Tracking Protection card when a forced dep is unconfigured).
 - **LocalCDN**: still hard-gated by a `Lock` — it can't serve anything without a cache, so the switch is greyed and its `value` forced off.
 - See [lib/screens/site_privacy.dart](lib/screens/site_privacy.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.
-- **App Settings rows for the data**: each dataset is a `DownloadableDataset` adapter in [lib/settings/datasets.dart](lib/settings/datasets.dart) rendered by one `DatasetTile`, which owns the busy state, the date line, the buttons and the SnackBar. A new downloaded dataset is a new adapter, not a new row.
+- **App Settings rows for the data**: each dataset is a `DownloadableDataset` adapter in [lib/widgets/datasets.dart](lib/widgets/datasets.dart) rendered by one `DatasetTile`, which owns the busy state, the date line, the buttons and the SnackBar. A new downloaded dataset is a new adapter, not a new row.
 
 ## Per-site settings MUST apply to nested webviews
 

@@ -10,7 +10,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http_types.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/outbound_http_web.dart'
     if (dart.library.io) 'package:webspace/services/outbound_http_io.dart';

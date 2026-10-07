@@ -29,7 +29,7 @@ import 'package:http/http.dart' as http;
 import 'package:image/image.dart';
 
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Signatures from https://en.wikipedia.org/wiki/List_of_file_signatures

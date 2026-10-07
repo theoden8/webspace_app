@@ -7,9 +7,9 @@
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/services/tor_engine.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 
 /// Resolve the effective proxy for a per-site outbound call.
 ///

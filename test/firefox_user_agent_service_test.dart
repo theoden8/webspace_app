@@ -8,7 +8,7 @@ import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'helpers/fake_outbound.dart';
 
 const _sourceUrl = 'raw.githubusercontent.com';

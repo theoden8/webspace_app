@@ -16,6 +16,7 @@ import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
 import '../settings/proxy.dart';
+import '../settings/site_suggestion.dart';
 import '../utils/url_utils.dart';
 import 'site_settings_qr.dart';
 import '../widgets/theme_mode_button.dart';
@@ -87,18 +88,6 @@ class FaviconUrlCache {
 bool addSitePreviewMayResolveLocally() =>
     resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT)).type ==
         ProxyType.DEFAULT;
-
-class SiteSuggestion {
-  final String name;
-  final String url;
-  final String domain;
-
-  const SiteSuggestion({
-    required this.name,
-    required this.url,
-    required this.domain,
-  });
-}
 
 // Unified favicon widget with progressive loading
 // Icons update as better quality versions are found:

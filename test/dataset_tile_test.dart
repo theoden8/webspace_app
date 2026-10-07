@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/datasets.dart';
+import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 
 import 'helpers/localized.dart';

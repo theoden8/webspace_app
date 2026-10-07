@@ -80,7 +80,7 @@ import 'package:webspace/services/site_icon_fetcher.dart';
 import 'package:webspace/services/site_icon_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_shim.dart';

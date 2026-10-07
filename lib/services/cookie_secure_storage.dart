@@ -5,7 +5,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/demo_data.dart' show isDemoMode;
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/utils/concurrency.dart';
 
 /// Service for securely storing cookies using Flutter Secure Storage.

@@ -300,7 +300,7 @@ is restarted.
 
 ### Modified
 - `lib/settings/proxy.dart` - `toJson` always omits the password
-- `lib/settings/global_outbound_proxy.dart` - migrate + hydrate on
+- `lib/services/global_outbound_proxy.dart` - migrate + hydrate on
   `initialize`; route password to secure storage on `update`
 - `lib/web_view_model.dart` - `toJson` always omits the password
 - `lib/controllers/site_list_store.dart` - `SiteListStore.load` / `save`

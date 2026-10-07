@@ -13,7 +13,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'helpers/fake_outbound.dart';
 

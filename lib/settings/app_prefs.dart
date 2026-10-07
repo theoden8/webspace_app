@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:webspace/demo_data.dart' show isDemoMode;
+import 'package:webspace/settings/demo_mode.dart';
 
 /// A global app-level preference: its SharedPreferences key, its default,
 /// and the value the app runs with. Every entry rides settings

@@ -1242,7 +1242,7 @@ macOS runner exercises the failure assertions for real.
   scenario (NOTIF-005-A); INTEG-013: warm home-shortcut taps. Frame
   classifier:
   [`scripts/classify_window_pixels.py`](../../../scripts/classify_window_pixels.py);
-  launch seeding: [`lib/services/diag_seed.dart`](../../../lib/services/diag_seed.dart)
+  launch seeding: [`lib/diag_seed.dart`](../../../lib/diag_seed.dart)
   (`getDiagSeed` in MainActivity, debuggable builds only; parsing
   unit-tested in [`test/diag_seed_test.dart`](../../../test/diag_seed_test.dart))
 - [`integration_test/camera_test.dart`](../../../integration_test/camera_test.dart)

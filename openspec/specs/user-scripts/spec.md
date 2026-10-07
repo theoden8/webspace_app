@@ -720,9 +720,9 @@ At injection time: `fullSource = urlSource + '\n' + source`
 ## Files
 
 ### Created
-- `lib/settings/user_script.dart` — UserScriptConfig model with JSON serialization, URL classification
+- `lib/settings/user_script.dart` — UserScriptConfig model with JSON serialization, the trusted CDN list
 - `lib/screens/user_scripts.dart` — Management and editor screens
-- `lib/services/user_script_service.dart` — Injection service: shim, handlers, re-injection lifecycle
+- `lib/services/user_script_service.dart` — Injection service: shim, handlers, URL classification, re-injection lifecycle
 - `test/user_script_test.dart` — Unit tests for model and WebViewModel integration
 
 ### Modified

@@ -11,7 +11,7 @@ import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import '../third_party/favicon/favicon.dart';
 

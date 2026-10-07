@@ -1,5 +1,5 @@
 import 'package:webspace/settings/external_links.dart';
-import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/url_host.dart';
 
 /// The outcome of a navigation-interception decision.
 enum NavigationDecision {

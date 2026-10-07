@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 
 /// Encode/decode the QR-shareable subset of a [WebViewModel] JSON dict.
 ///

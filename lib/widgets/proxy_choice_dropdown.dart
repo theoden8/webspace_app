@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 
 /// What a proxy form asks for under each type. Exhaustive, so a new type

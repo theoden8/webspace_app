@@ -6,7 +6,7 @@ import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_health_service.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/dirty_guard.dart';

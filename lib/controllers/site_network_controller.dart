@@ -17,7 +17,7 @@ import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 

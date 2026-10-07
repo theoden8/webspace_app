@@ -1065,7 +1065,7 @@ about. The sampler now fills transparent window pixels from the
   [scripts/classify_window_pixels.py](../../scripts/classify_window_pixels.py) with the
   in-app sampler's thresholds; a white control cold start proves this plane is not
   vacuous either. Site list is injected at launch by a debug-only `ws_diag_seed`
-  intent extra ([lib/services/diag_seed.dart](../../lib/services/diag_seed.dart)) and
+  intent extra ([lib/diag_seed.dart](../../lib/diag_seed.dart)) and
   activated through the production pinned-shortcut `siteId` extra (a plain cold start
   shows the webspace picker with no site selected), so the cold-start scenario also
   pixel-checks the shortcut launch path (Attempt 2's trigger).

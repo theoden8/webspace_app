@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/screens/add_site.dart' show SiteSuggestion;
+import 'package:webspace/settings/site_suggestion.dart';
 
 /// Default suggested sites for non-fdroid builds.
 const List<SiteSuggestion> kDefaultSuggestions = [

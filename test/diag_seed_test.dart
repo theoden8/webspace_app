@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/diag_seed.dart';
+import 'package:webspace/diag_seed.dart';
 
 String encodeSeed(Object seed) => base64.encode(utf8.encode(jsonEncode(seed)));
 

@@ -3,14 +3,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-
-/// Global flag to indicate demo mode is active.
-/// When true, the app will not persist any changes to storage.
-/// This is used during screenshot tests to ensure the demo data
-/// is not overwritten and normal app usage restores user settings.
-bool isDemoMode = false;
 
 /// Seeds demo/test data for screenshots and testing.
 ///

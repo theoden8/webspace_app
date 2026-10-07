@@ -11,7 +11,7 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 
 /// Default factory backed by `dart:io`'s [HttpClient].
 ///

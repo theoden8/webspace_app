@@ -8,7 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:webspace/demo_data.dart' show isDemoMode;
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
 import 'package:webspace/screens/app_settings.dart';

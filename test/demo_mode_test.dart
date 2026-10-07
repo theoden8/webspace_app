@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/demo_data.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/webview.dart';
 import 'helpers/mock_secure_storage.dart';

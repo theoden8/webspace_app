@@ -15,6 +15,61 @@ import 'package:webspace/settings/user_script.dart';
 export 'package:webspace/services/user_script_shim.dart'
     show buildUserScriptShim, userScriptShimTemplate;
 
+/// Result of validating a URL for script fetching.
+enum ScriptFetchUrlStatus {
+  /// URL is on the trusted whitelist — fetch without confirmation.
+  whitelisted,
+
+  /// URL is valid http/https but not whitelisted — requires user confirmation.
+  requiresConfirmation,
+
+  /// URL scheme is blocked (javascript:, data:, blob:, file://) or invalid.
+  blocked,
+}
+
+/// Validate a URL for script fetching and classify it.
+///
+/// Returns [ScriptFetchUrlStatus.whitelisted] for trusted CDN domains,
+/// [ScriptFetchUrlStatus.requiresConfirmation] for other http/https URLs,
+/// and [ScriptFetchUrlStatus.blocked] for dangerous or invalid URLs.
+ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
+  final Uri uri;
+  try {
+    uri = Uri.parse(url);
+  } catch (_) {
+    return ScriptFetchUrlStatus.blocked;
+  }
+
+  final scheme = uri.scheme.toLowerCase();
+
+  if (scheme != 'http' && scheme != 'https') {
+    return ScriptFetchUrlStatus.blocked;
+  }
+
+  final host = uri.host.toLowerCase();
+  if (host.isEmpty) return ScriptFetchUrlStatus.blocked;
+
+  // SSRF guard, literal half: window.__wsFetch is a page-reachable global, so
+  // any script on a user-script-enabled site (including third-party page
+  // scripts) can drive this fetch. Block loopback / private / link-local
+  // literal hosts so it can't reach localhost services, the LAN, or cloud
+  // metadata (169.254.169.254). A hostname that *resolves* into one of those
+  // ranges is not visible here and is caught by the resolving half below,
+  // which runs where the fetch is about to happen and knows whether we are
+  // the ones resolving it.
+  if (isPrivateOrLoopbackHost(host)) {
+    return ScriptFetchUrlStatus.blocked;
+  }
+
+  for (final domain in scriptFetchWhitelist) {
+    if (host == domain || host.endsWith('.$domain')) {
+      return ScriptFetchUrlStatus.whitelisted;
+    }
+  }
+
+  return ScriptFetchUrlStatus.requiresConfirmation;
+}
+
 const int _maxFetchBytes = 5 * 1024 * 1024;
 
 /// Redirect hops a bridged fetch will follow before giving up.

@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_test_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'helpers/fake_outbound.dart';
 

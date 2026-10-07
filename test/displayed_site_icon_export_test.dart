@@ -13,7 +13,7 @@ import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 
 import 'helpers/fake_outbound.dart';
 

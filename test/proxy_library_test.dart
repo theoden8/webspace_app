@@ -11,9 +11,9 @@ import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview.dart' show userProxyToInappProxy;
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/mock_secure_storage.dart';

@@ -5,7 +5,7 @@ import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/capture_fakes.dart';

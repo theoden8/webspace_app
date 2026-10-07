@@ -18,7 +18,7 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart'
+import 'package:webspace/services/proxy_library.dart'
     show ProxyLibraryData, resolveLibrary;
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';

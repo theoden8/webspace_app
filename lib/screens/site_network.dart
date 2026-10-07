@@ -8,7 +8,7 @@ import 'package:webspace/services/webview.dart' show ProxyManager;
 import 'package:webspace/settings/location.dart'
     show WebRtcPolicy, resolveWebRtcPolicy;
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';

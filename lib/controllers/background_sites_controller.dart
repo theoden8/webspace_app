@@ -5,7 +5,6 @@ import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/wake_candidates.dart';
-import 'package:webspace/demo_data.dart' show isDemoMode;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/background_task_service.dart';
@@ -21,6 +20,7 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/wake_baseline_store.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// What the background-site flows ask of the page.

@@ -821,7 +821,7 @@ address.
 ### Created
 - `lib/services/outbound_http.dart` — `OutboundHttpFactory`, default impl,
   `resolveEffectiveProxy`, test override hook.
-- `lib/settings/global_outbound_proxy.dart` — persistence + in-memory
+- `lib/services/global_outbound_proxy.dart` — persistence + in-memory
   cache for the app-global outbound proxy.
 - `test/outbound_http_test.dart` — unit tests for the factory, host:port
   parser, persistence, and `resolveEffectiveProxy`.

@@ -10,7 +10,7 @@
 
 - [x] 2.1 `ProxyType.SAVED` and `ProxyType.GATEWAY`; `savedProxyId`,
   `gatewayId`, `credentialsId` on `UserProxySettings`.
-- [x] 2.2 `lib/settings/proxy_library.dart`: `SavedGateway`,
+- [x] 2.2 `lib/services/proxy_library.dart`: `SavedGateway`,
   `SavedCredentials`, `SavedProxy`, `ProxyLibraryData`, `ProxyLibrary`
   (prefs + secure storage), `resolveLibrary` with the reason a route fails,
   `usesLibraryEntry`.

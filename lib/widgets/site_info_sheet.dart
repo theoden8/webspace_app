@@ -4,8 +4,8 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/proxy_library.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show

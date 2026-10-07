@@ -6,7 +6,7 @@ import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/datasets.dart';
+import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';

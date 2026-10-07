@@ -34,7 +34,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/demo_data.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';

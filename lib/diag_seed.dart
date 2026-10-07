@@ -4,7 +4,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/demo_data.dart' show isDemoMode;
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/settings/app_prefs.dart';

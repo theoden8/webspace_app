@@ -9,7 +9,7 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
-import 'package:webspace/settings/datasets.dart';
+import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/level_slider.dart';

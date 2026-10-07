@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/proxy_conflict_engine.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 
 UserProxySettings _default() => UserProxySettings(type: ProxyType.DEFAULT);
 UserProxySettings _socks(String addr, {String? user, String? pwd}) =>
