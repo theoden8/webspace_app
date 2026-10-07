@@ -399,7 +399,7 @@ load is still in flight
 ## Implementation Notes
 
 - **Single funnel.** DNS/ABP block accounting on every platform already passes through
-  `DnsBlockService.recordHostRequest` (the Android native interceptor drains into it,
+  `DnsBlockService.recordVerdict` (the Android native interceptor drains into it,
   the iOS/macOS JS bridge calls it per URL, navigation checks call it). The report
   hooks that one place, so the aggregate cannot drift from the per-site counters.
 - **No siteId reaches plaintext.** Only per-category daily totals go to

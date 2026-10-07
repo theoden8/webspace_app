@@ -23,6 +23,51 @@ import 'package:webspace/settings/proxy.dart';
 /// centre (`MediaSessionPlugin.swift`, BGAUDIO-010). Leaving iOS to WebKit's
 /// own Now Playing handling meant nothing in the app knew the controls were
 /// up, and a transport tap had no route back into the page.
+/// One `wsMediaSession` report: what a frame of the page says it is playing.
+/// [frame] is the frame's token; the shim mints one per frame so a sibling
+/// iframe cannot speak for the frame that is actually playing. [isMainFrame]
+/// comes from the bridge, never from the page (BGAUDIO-008).
+class MediaSessionReport {
+  const MediaSessionReport({
+    required this.frame,
+    required this.isMainFrame,
+    required this.playing,
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.artworkUrl,
+  });
+
+  /// Reads the shim's payload. The page writes it, so a field of the wrong
+  /// type reads as absent rather than throwing in the handler.
+  factory MediaSessionReport.fromPage(
+    Map<Object?, Object?> data, {
+    required bool isMainFrame,
+  }) {
+    String text(String key) => switch (data[key]) {
+          final String s => s,
+          _ => '',
+        };
+    return MediaSessionReport(
+      frame: text('frame'),
+      isMainFrame: isMainFrame,
+      playing: data['playing'] == true,
+      title: text('title'),
+      artist: text('artist'),
+      album: text('album'),
+      artworkUrl: text('artwork'),
+    );
+  }
+
+  final String frame;
+  final bool isMainFrame;
+  final bool playing;
+  final String title;
+  final String artist;
+  final String album;
+  final String artworkUrl;
+}
+
 class MediaSessionService {
   static final MediaSessionService instance = MediaSessionService._();
   MediaSessionService._();
@@ -125,22 +170,22 @@ class MediaSessionService {
   }
 
   /// Called from the `wsMediaSession` JS handler for a background-audio site.
-  ///
-  /// [frame] is the reporting frame's token; the shim mints one per frame so a
-  /// sibling iframe cannot speak for the frame that is actually playing.
-  Future<void> report({
-    required String siteId,
-    required String frame,
-    required bool isMainFrame,
+  Future<void> report(
+    String siteId,
+    MediaSessionReport page, {
     required Future<void> Function(String js) runJs,
-    required bool playing,
-    required String title,
-    required String artist,
-    required String album,
-    required String artworkUrl,
-    UserProxySettings? proxy,
+    required UserProxySettings? proxy,
   }) async {
     if (!_enabled) return;
+    final MediaSessionReport(
+      :frame,
+      :isMainFrame,
+      :playing,
+      :title,
+      :artist,
+      :album,
+      :artworkUrl,
+    ) = page;
     if (playing) {
       // Taking the notification over is how a site the user starts playing
       // becomes the one the controls drive. A SUBFRAME doing it is an ad

@@ -3093,15 +3093,9 @@ class WebViewFactory {
             return null;
           }
           await MediaSessionService.instance.report(
-            siteId: config.posture.siteId,
-            frame: data['frame'] as String? ?? '',
-            isMainFrame: call.isMainFrame,
+            config.posture.siteId,
+            MediaSessionReport.fromPage(data, isMainFrame: call.isMainFrame),
             runJs: (js) => controller.evaluateJavascript(source: js),
-            playing: data['playing'] as bool? ?? false,
-            title: data['title'] as String? ?? '',
-            artist: data['artist'] as String? ?? '',
-            album: data['album'] as String? ?? '',
-            artworkUrl: data['artwork'] as String? ?? '',
             proxy: config.posture.container.proxy,
           );
           return null;

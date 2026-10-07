@@ -43,15 +43,17 @@ void main() {
     UserProxySettings? proxy,
   }) {
     return service.report(
-      siteId: siteId,
-      frame: frame,
-      isMainFrame: isMainFrame,
+      siteId,
+      MediaSessionReport(
+        frame: frame,
+        isMainFrame: isMainFrame,
+        playing: playing,
+        title: title,
+        artist: 'Artist',
+        album: 'Album',
+        artworkUrl: artworkUrl,
+      ),
       runJs: (source) async => js?.add(source),
-      playing: playing,
-      title: title,
-      artist: 'Artist',
-      album: 'Album',
-      artworkUrl: artworkUrl,
       proxy: proxy,
     );
   }
@@ -114,6 +116,18 @@ void main() {
       );
     },
   );
+
+  test('a page payload of the wrong shape reads as absent, not a throw', () {
+    final r = MediaSessionReport.fromPage(
+      {'frame': 7, 'playing': 'yes', 'title': ['x'], 'artwork': null},
+      isMainFrame: false,
+    );
+    expect(r.frame, '');
+    expect(r.playing, isFalse);
+    expect(r.title, '');
+    expect(r.artworkUrl, '');
+    expect(r.isMainFrame, isFalse);
+  });
 
   test('a non-owner reporting not-playing cannot clobber the owner', () async {
     await reportPlaying('a');

@@ -326,7 +326,7 @@ To minimize Dart roundtrips, the iOS interceptor uses three tiers:
 Dart maintains a single `_domainCache: Map<String, bool>` keyed by host (NOT
 per-site — trackers and CDNs are shared across sites, so one site learning
 about `googleapis.com` benefits all sites). Updated transparently via
-`recordRequest` whenever any webview reports a block decision (via native
+`recordVerdict` whenever any webview reports a block decision (via native
 handler, JS `blockCheck`, or the JS `blockResourceLoadedBatch` observer). Persisted in
 SharedPreferences under `dns_domain_cache`, write-debounced to 2 seconds.
 Capped at 5000 entries with FIFO eviction. Invalidated (cleared) when the
@@ -618,7 +618,7 @@ on insert, and cap-enforced on load (corrupted or oversized prefs blobs
 SHALL NOT be allowed to load past the cap).
 
 **Merged cache** (`_domainCache`): keyed by host, value is the merged
-DNS ∪ ABP decision. Populated by `recordRequest` from webview hooks
+DNS ∪ ABP decision. Populated by `recordVerdict` from webview hooks
 after the caller has combined both signals. Persisted to
 SharedPreferences under `dns_domain_cache`. It is app-wide and
 Dart-side only: it SHALL NOT be handed to page JS (DNS-018).
@@ -682,7 +682,7 @@ Light does not
 #### Scenario: Persistence is write-debounced
 
 **Given** many DNS decisions occur in rapid succession
-**When** `recordRequest` is called repeatedly
+**When** `recordVerdict` is called repeatedly
 **Then** SharedPreferences is written once after a 2-second idle window
 **And** individual writes do not block the recording path
 **And** the DNS-only hot-path cache, being in-memory, is not affected
@@ -1072,7 +1072,7 @@ keeps `isBlocked()` purely synchronous.
 
 **`_domainCache`** (merged DNS ∪ ABP, persisted, iOS JS hydration)
 
-Populated by `recordRequest` from `webview.dart` after the caller has
+Populated by `recordVerdict` from `webview.dart` after the caller has
 combined DNS and ABP signals. Kept as a `Map<String, bool>` because
 it is read and written per host on the Dart side. It stays
 Dart-side: shipping it to page JS would hand any site the hosts every

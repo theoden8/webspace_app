@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/screens/dev_tools.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart';
@@ -164,8 +165,10 @@ void main() {
     testWidgets('copies only the entries the blocked/allowed filter leaves',
         (tester) async {
       DnsBlockService.instance.loadDomainsFromString('tracker.net');
-      DnsBlockService.instance.recordHostRequest('site-1', 'tracker.net', true);
-      DnsBlockService.instance.recordHostRequest('site-1', 'example.com', false);
+      DnsBlockService.instance.recordVerdict('site-1',
+          const HostQuery('tracker.net'), const Blocked(BlockSource.dns));
+      DnsBlockService.instance.recordVerdict('site-1',
+          const HostQuery('example.com'), const Allowed());
       addTearDown(() => DnsBlockService.instance.clearStatsForSite('site-1'));
 
       await pumpDevTools(tester, host: _StubHost('site-1'));

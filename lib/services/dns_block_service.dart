@@ -350,7 +350,7 @@ class DnsBlockService {
   }
 
   /// Record a confirmed merged decision for a host. Persists asynchronously.
-  /// Called from [recordRequest] — caller has already merged DNS+ABP signals.
+  /// Called from [recordVerdict] — caller has already merged DNS+ABP signals.
   void recordDomainDecision(String host, bool blocked) {
     if (host.isEmpty) return;
     final prev = _domainCache[host];
@@ -461,55 +461,42 @@ class DnsBlockService {
     return _siteStats.putIfAbsent(siteId, () => DnsStats());
   }
 
-  /// Records [verdict] for [query] against [siteId].
-  void recordVerdict(String siteId, BlockQuery query, BlockVerdict verdict) {
-    final source = verdict.source;
-    switch (query) {
-      case UrlQuery(:final url):
-        recordRequest(siteId, url, source != null, source: source);
-      case HostQuery(:final host):
-        recordHostRequest(siteId, host, source != null, source: source);
-    }
-  }
-
-  /// Record a request (allowed or blocked) for a site. [source] identifies
-  /// which blocklist attributed the block (`dns` vs `abp`); null for
-  /// allowed requests.
+  /// Records [verdict] for [query] against [siteId]. [count] folds repeats
+  /// the Android interceptor deduplicated into one log entry.
   ///
   /// Also updates the global per-domain cache so other webviews skip
   /// re-checking the same host. The domain cache only persists the
   /// blocked-or-not bit — the DNS vs ABP distinction is recovered on the
   /// next request because both services can answer independently.
-  void recordRequest(String siteId, String url, bool wasBlocked,
-      {BlockSource? source}) {
-    final host = extractHost(url);
+  void recordVerdict(
+    String siteId,
+    BlockQuery query,
+    BlockVerdict verdict, {
+    int count = 1,
+  }) {
+    final host = switch (query) {
+      UrlQuery(:final url) => extractHost(url),
+      HostQuery(:final host) => host,
+    };
     if (host == null || host.isEmpty) return;
-    recordHostRequest(siteId, host, wasBlocked, source: source);
-  }
-
-  /// Like [recordRequest] but the caller already has a host (e.g. the
-  /// Android native interceptor reports `host` directly). Skips
-  /// `Uri.tryParse` and the URL synthesis roundtrip. [count] folds
-  /// dedup'd repeat requests into the per-site totals without growing
-  /// the log by [count].
-  void recordHostRequest(String siteId, String host, bool wasBlocked,
-      {BlockSource? source, int count = 1}) {
-    if (host.isEmpty) return;
-    statsForSite(siteId).record(host, wasBlocked, source: source, count: count);
+    final source = verdict.source;
+    final blocked = source != null;
+    statsForSite(siteId).record(host, blocked, source: source, count: count);
     // Single funnel for the persisted app-wide report (STATS-002): every
     // DNS/ABP block on every platform passes through here, so the aggregate
     // cannot drift from the per-site counters.
-    if (wasBlocked && source != null) {
+    if (source != null) {
       BlockStatsService.instance.record(
         siteId,
-        source == BlockSource.dns
-            ? BlockCategory.dnsBlocklist
-            : BlockCategory.filterList,
+        switch (source) {
+          BlockSource.dns => BlockCategory.dnsBlocklist,
+          BlockSource.abp => BlockCategory.filterList,
+        },
         count: count,
         label: host,
       );
     }
-    recordDomainDecision(host, wasBlocked);
+    recordDomainDecision(host, blocked);
     _scheduleNotifyDnsLogListeners();
   }
 
@@ -814,9 +801,7 @@ class DnsBlockService {
   bool isBlocked(String url) => isBlockedAtLevel(url, _level);
 
   /// Like [isBlocked] but skips URL parsing — caller already has the host
-  /// (e.g. native interceptor bridge passing `host` directly). Hot-path
-  /// callers should prefer this over `recordRequest('https://$host/', ...)`
-  /// which round-trips through `Uri.tryParse` just to recover the host.
+  /// (e.g. native interceptor bridge passing `host` directly).
   bool isHostBlocked(String host) => isHostBlockedAtLevel(host, _level);
 
   /// [isBlocked] at a specific severity level — what a site with its own
