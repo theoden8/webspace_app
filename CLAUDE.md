@@ -2,6 +2,87 @@
 
 WebSpace: Flutter app managing multiple websites with per-site cookie isolation via flutter_inappwebview. Platforms: iOS, Android, macOS, Linux (WPE WebKit fork).
 
+## Coding principles
+
+Simplicity comes first: every structure here exists to make the code easier to hold in the head; one that makes it harder has failed, however correct it is. Within that: one owner per fact, joins are types, and every invariant is caught at the earliest point it can be violated. A bug then has one suspect.
+
+### The ladder
+
+Each invariant sits on one rung. Put it on the highest rung Dart allows; step down only with a one-line reason next to the check.
+
+| Rung | Caught by | Dart form |
+|---|---|---|
+| 0 | decided before run time | `const` data; `extension type` ids; enum with fields; one field registry every serializer iterates |
+| 1 | the compiler | `sealed` + exhaustive `switch`, no `default` or `_`; records with `required` fields; a scope object that does in the constructor and undoes in `dispose` |
+| 2 | an assert at the owner | `assert(cond, 'why')` on entry to the compartment that owns the fact |
+| 3 | a self-check | the owner recomputes its result independently and compares |
+| 4 | a boundary test | the compartment driven through its public type with a fake that models the other side |
+| 5 | a gate | a test over source text; its header says what a type could not express |
+| 6 | prose | a paragraph here or a doc comment; catches nothing |
+
+An invariant written as a comment is on rung 6. `tab_lifecycle_engine.dart` says in a `///` that a tree has "an `activeTabId` that names a member"; as `assert(tabs.any((t) => t.id == activeTabId), 'activeTabId names a member')` the comment goes. A swallowed error (`catch (_)`) is below rung 6.
+
+**Check**: break the invariant on purpose. If a reviewer or a grep is what catches it, it is on the wrong rung.
+
+### Rules
+
+1. **One owner.** A fact is computed in one place; everything else reads it. Two places agreeing today is still a bug. The UI never restates a rule. A decision has one owner too: a job this codebase already does (a guard, a dialog, a store, a "follow app" choice, a sync primitive) is done the way the map or the existing code does it. A second way needs one line saying why, and then replaces the first everywhere in the same change, or is listed as debt. *Check*: a bug fix that edits two compartments means the fact had two owners; a new idiom beside an old one for the same job is a fork; fix the ownership.
+2. **Small typed joins.** Between compartments passes a record, class or sealed type, never a parameter list, map or string. More than four parameters is a missing type. A reader needs about four entities to follow a change; more means a join is misplaced. An abstraction earns its place by removing a copy, a forgotten-item failure or a parameter list; one that only adds a hop (a single caller, a generic parameter nobody varies, a wrapper that renames) is inlined. Every hop is a join that has to be proven valid too (a type, an assert, a boundary test), so an unneeded one is paid for twice: once in reading, once in validation. *Check*: did a join in the map change shape? One line why.
+3. **Fixed cost per axis.** Adding one item (a per-site field, a pref, a capture kind, a settings row) touches a fixed set of places through one funnel, and forgetting it anywhere fails to compile. *Check*: edit sites against the budget table; over budget, build the funnel first in its own commit.
+4. **Layers point down.** UI → model → services → values → platform (the map lists the directories). A file imports its own layer or lower. Engines (`*_engine.dart`) decide and are pure: no Flutter import, no I/O, no `context`; tests import them with fakes that model the interface. *Check*: [`test/js/layers.test.js`](test/js/layers.test.js) (rung 5: Dart has no module boundary a type can enforce); its debt list only shrinks.
+5. **Ids are types.** `extension type SiteId(String raw) {}`; a `String siteId` parameter is a square where a move was meant (`Host` in `services/url_host.dart` is the model). Constant data is `const`; a field is declared once and every serializer iterates the declaration. *Check*: any new `String` id, startup-built table, or hand-written per-field line?
+
+### Fixing a bug
+
+Name the fact and its owner. No single owner: that is the bug; pick one and delete the copy. Owner exists: fix it there, never a reader. Then lift the invariant one rung so this class cannot recur. Recurring: append to `docs/bugs/`.
+
+### Before finishing
+
+- Each new type explains itself in one sentence and removes more than it adds for a reader.
+- One compartment touched, or one line why not.
+- No join changed shape, or one line why.
+- A forgotten item would fail to compile.
+- Imports point down; new logic is a pure engine with a boundary test.
+- Nothing new on rung 5 or 6 without the line that names what would lift it.
+
+### This section
+
+Rules are fixed; a new one replaces one. The map grows one row per item. No recipes: a numbered list of edit sites is an axis without a funnel and belongs in the budget table as debt (the recipes further down this file are listed there). No restating a spec, type or test; link it. Area detail goes in `lib/<area>/CLAUDE.md`. When a gate becomes a type, delete the gate and its paragraph in the same commit.
+
+### Map
+
+| Compartment | Owns | Join |
+|---|---|---|
+| `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture, {homeTitle})`; `WebViewConfig.posture` |
+| `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
+| `WebViewHostHooks` | the host's answers to every site webview: prompts, outbound links, capture | one required-field class, passed whole |
+| `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
+| `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js, frames:)`; `ShimFrames` has no default |
+| `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |
+| `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |
+| `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | generic enum with typed lenses; sealed `GrantStore` |
+| `AppPref` (`settings/app_prefs.dart`) | every global pref, its default, what a backup carries | `AppPref.x.value` / `.set(v)`; backups iterate `AppPref.values` |
+| `SecureJsonStore` / `Keystores` / `KeychainAead` | secrets at rest and their keychain options | `SecureJsonStore<T>` on a `Keystores` set |
+| `host_platform` (`platform/`) | dart:io primitives, importable from plain Dart | conditional export |
+| `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
+| `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
+
+Layers: UI `screens`, `widgets`, `main.dart` · model `web_view_model.dart`, `webspace_model.dart` · services `services` · values `settings` · platform `platform`.
+
+Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · values → services (`global_outbound_proxy` and `proxy_library` are stores, `datasets` is UI, `user_script` reaches `host_resolution`) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`; `suggested_sites_service` → `add_site`'s `SiteSuggestion`) · model → UI (`web_view_model.dart`) · values → UI (`datasets`).
+
+| Axis | Budget | Now | Funnel |
+|---|---|---|---|
+| per-site field | 3 | ~7 edits, 4 files | `SitePosture` group; debt: a field registry for the model's constructor, `toJson`, `fromJson` |
+| pref | 2 | 2 | `AppPref` |
+| capture kind | ~5 files | ~5 files | `CaptureKind` |
+| settings row | 1–3 lines | 1–3 | `SettingTile` / `EnumTile` |
+| secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
+
+Flag for review before changing: persisted formats, the Dart to page-script bridge, any join above.
+
+Health, monthly: `node tool/architecture_health.js` prints files per fix commit, gates, `catch (_)`, asserts per 1k lines, comment share, `String` ids, hand-kept `toJson`/`fromJson` classes and layer violations, each with the direction it should move.
+
 ## Style (output, code, commits)
 
 - No preamble, no closing fluff, no em-dashes, no emoji.

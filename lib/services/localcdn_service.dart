@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/platform/host_storage.dart';
+import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/host_lookup.dart';

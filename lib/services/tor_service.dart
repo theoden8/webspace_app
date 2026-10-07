@@ -14,7 +14,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
-import 'package:webspace/platform/host_storage.dart'
+import 'package:webspace/services/host_storage.dart'
     show createExternalTorIdentify, createTorGeoIpStore, createTorSocksProbe;
 
 import 'package:webspace/services/external_tor_runtime.dart';
