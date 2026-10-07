@@ -6,29 +6,58 @@ import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 
-String _categoryLabel(AppLocalizations loc, BlockCategory category) {
-  switch (category) {
-    case BlockCategory.filterList:
-      return loc.blockStatsCategoryFilterList;
-    case BlockCategory.dnsBlocklist:
-      return loc.blockStatsCategoryDns;
-    case BlockCategory.trackingParam:
-      return loc.blockStatsCategoryParam;
-    case BlockCategory.localCdn:
-      return loc.blockStatsCategoryCdn;
-  }
+String _categoryLabel(AppLocalizations loc, BlockCategory category) =>
+    switch (category) {
+      BlockCategory.filterList => loc.blockStatsCategoryFilterList,
+      BlockCategory.dnsBlocklist => loc.blockStatsCategoryDns,
+      BlockCategory.trackingParam => loc.blockStatsCategoryParam,
+      BlockCategory.localCdn => loc.blockStatsCategoryCdn,
+    };
+
+IconData _categoryIcon(BlockCategory category) => switch (category) {
+      BlockCategory.filterList => Icons.block,
+      BlockCategory.dnsBlocklist => Icons.dns_outlined,
+      BlockCategory.trackingParam => Icons.link_off,
+      BlockCategory.localCdn => Icons.cloud_off_outlined,
+    };
+
+String _rangeSubtitle(AppLocalizations loc, int days) =>
+    days == 7 ? loc.blockStatsSubtitleWeek : loc.blockStatsSubtitleMonth;
+
+TextStyle? _muted(ThemeData theme) => theme.textTheme.bodyMedium
+    ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+
+/// The footer of both report screens: [count] blocked since counting began.
+Widget _since(BuildContext context, int count) {
+  final since = MaterialLocalizations.of(context)
+      .formatShortDate(BlockStatsService.instance.engine.since);
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    child: Text(
+      AppLocalizations.of(context).blockStatsSince(count, since),
+      style: _muted(Theme.of(context)),
+    ),
+  );
 }
 
-IconData _categoryIcon(BlockCategory category) {
-  switch (category) {
-    case BlockCategory.filterList:
-      return Icons.block;
-    case BlockCategory.dnsBlocklist:
-      return Icons.dns_outlined;
-    case BlockCategory.trackingParam:
-      return Icons.link_off;
-    case BlockCategory.localCdn:
-      return Icons.cloud_off_outlined;
+/// Rebuilds a report screen whenever the counters move.
+mixin _RebuildOnStats<T extends StatefulWidget> on State<T> {
+  BlockStatsService get _service => BlockStatsService.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _service.addListener(_onStatsChanged);
+  }
+
+  @override
+  void dispose() {
+    _service.removeListener(_onStatsChanged);
+    super.dispose();
+  }
+
+  void _onStatsChanged() {
+    if (mounted) setState(() {});
   }
 }
 
@@ -83,30 +112,13 @@ class BlockStatsScreen extends StatefulWidget {
   State<BlockStatsScreen> createState() => _BlockStatsScreenState();
 }
 
-class _BlockStatsScreenState extends State<BlockStatsScreen> {
+class _BlockStatsScreenState extends State<BlockStatsScreen>
+    with _RebuildOnStats {
   static const List<int> _ranges = [7, 30];
 
   int _rangeDays = 7;
 
-  BlockStatsService get _service => BlockStatsService.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    _service.addListener(_onStatsChanged);
-  }
-
-  @override
-  void dispose() {
-    _service.removeListener(_onStatsChanged);
-    super.dispose();
-  }
-
-  void _onStatsChanged() {
-    if (!mounted) return;
-    setState(() {});
-  }
-
+  /// The reset notifies, which rebuilds the screen.
   Future<void> _confirmReset() async {
     final loc = AppLocalizations.of(context);
     final confirmed = await confirm(
@@ -118,8 +130,6 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
     );
     if (!confirmed) return;
     await _service.reset();
-    if (!mounted) return;
-    setState(() {});
   }
 
   @override
@@ -171,18 +181,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
                 const SizedBox(height: 20),
                 ..._buildCategoryRows(loc, theme, totals, rangeTotal),
                 const Divider(height: 32),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Text(
-                    loc.blockStatsSince(
-                      engine.allTimeTotal,
-                      MaterialLocalizations.of(context)
-                          .formatShortDate(engine.since),
-                    ),
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                ),
+                _since(context, engine.allTimeTotal),
               ],
             ),
     );
@@ -203,8 +202,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
             Text(
               loc.blockStatsEmptyHint,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: _muted(theme),
             ),
           ],
         ),
@@ -243,9 +241,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            _rangeDays == 7
-                ? loc.blockStatsSubtitleWeek
-                : loc.blockStatsSubtitleMonth,
+            _rangeSubtitle(loc, _rangeDays),
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium
                 ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
@@ -348,26 +344,8 @@ class BlockStatsCategoryScreen extends StatefulWidget {
       _BlockStatsCategoryScreenState();
 }
 
-class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen> {
-  BlockStatsService get _service => BlockStatsService.instance;
-
-  @override
-  void initState() {
-    super.initState();
-    _service.addListener(_onStatsChanged);
-  }
-
-  @override
-  void dispose() {
-    _service.removeListener(_onStatsChanged);
-    super.dispose();
-  }
-
-  void _onStatsChanged() {
-    if (!mounted) return;
-    setState(() {});
-  }
-
+class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
+    with _RebuildOnStats {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -393,11 +371,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen> {
           if (items.isEmpty && sites.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text(
-                loc.blockStatsDetailEmpty,
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
+              child: Text(loc.blockStatsDetailEmpty, style: _muted(theme)),
             ),
           if (items.isNotEmpty) ...[
             _sectionHeader(theme, loc.blockStatsDetailItems),
@@ -412,18 +386,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen> {
                   icon: Icons.public_outlined),
           ],
           const Divider(height: 32),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              loc.blockStatsSince(
-                engine.allTimeFor(category),
-                MaterialLocalizations.of(context)
-                    .formatShortDate(engine.since),
-              ),
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
+          _since(context, engine.allTimeFor(category)),
         ],
       ),
     );
@@ -457,9 +420,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen> {
             ),
           ),
           Text(
-            widget.rangeDays == 7
-                ? loc.blockStatsSubtitleWeek
-                : loc.blockStatsSubtitleMonth,
+            _rangeSubtitle(loc, widget.rangeDays),
             style: theme.textTheme.titleSmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),

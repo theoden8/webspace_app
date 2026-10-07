@@ -22,22 +22,12 @@ class TrustedCertificatesScreen extends StatefulWidget {
 }
 
 class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
-  late List<TrustedHostEntry> _entries;
-
-  @override
-  void initState() {
-    super.initState();
-    _entries = _sorted(TrustedHostsService.instance.all());
-  }
-
-  List<TrustedHostEntry> _sorted(List<TrustedHostEntry> list) {
-    list.sort((a, b) {
-      final byHost = a.host.toLowerCase().compareTo(b.host.toLowerCase());
-      if (byHost != 0) return byHost;
-      return a.port.compareTo(b.port);
-    });
-    return list;
-  }
+  List<TrustedHostEntry> get _sortedEntries =>
+      TrustedHostsService.instance.all()
+        ..sort((a, b) {
+          final byHost = a.host.toLowerCase().compareTo(b.host.toLowerCase());
+          return byHost != 0 ? byHost : a.port.compareTo(b.port);
+        });
 
   Future<void> _untrust(TrustedHostEntry entry) async {
     final loc = AppLocalizations.of(context);
@@ -53,10 +43,7 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
       host: entry.host,
       port: entry.port,
     );
-    if (!mounted) return;
-    setState(() {
-      _entries = _sorted(TrustedHostsService.instance.all());
-    });
+    if (mounted) setState(() {});
   }
 
   Future<void> _confirmClearAll() async {
@@ -70,30 +57,25 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
     );
     if (!ok) return;
     await TrustedHostsService.instance.clear();
-    if (!mounted) return;
-    setState(() {
-      _entries = const [];
-    });
+    if (mounted) setState(() {});
   }
 
   String _formatFingerprint(String sha256Hex) {
     final upper = sha256Hex.toUpperCase();
-    final buf = StringBuffer();
-    for (var i = 0; i < upper.length; i += 2) {
-      if (i > 0) buf.write(':');
-      buf.write(upper.substring(i, i + 2));
-    }
-    return buf.toString();
+    return [
+      for (var i = 0; i < upper.length; i += 2) upper.substring(i, i + 2),
+    ].join(':');
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final entries = _sortedEntries;
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.trustedCertScreenTitle),
         actions: [
-          if (_entries.isNotEmpty)
+          if (entries.isNotEmpty)
             IconButton(
               tooltip: loc.trustedCertRevokeAllTooltip,
               icon: const Icon(Icons.delete_sweep),
@@ -101,7 +83,7 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
             ),
         ],
       ),
-      body: _entries.isEmpty
+      body: entries.isEmpty
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -132,10 +114,10 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
             )
           : ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _entries.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemCount: entries.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final entry = _entries[index];
+                final entry = entries[index];
                 final formatted = _formatFingerprint(entry.sha256Hex);
                 final hostPort = '${entry.host}:${entry.port}';
                 return ListTile(

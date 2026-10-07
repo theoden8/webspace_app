@@ -36,24 +36,35 @@ Future<void> openAppLogs(BuildContext context,
       ),
     );
 
+/// The experiments this device offers, in the order the Experimental group
+/// lists them.
+List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
+        AppLocalizations loc,
+        {required bool proxyRouterRunsHere}) =>
+    [
+      if (proxyRouterRunsHere)
+        (ExperimentalFeature.proxyRouter, Icons.hub_outlined,
+            loc.appSettingsExperimentalProxyRouter,
+            loc.appSettingsExperimentalProxyRouterHint),
+      (ExperimentalFeature.siteIconsOnly, Icons.image_outlined,
+          loc.appSettingsExperimentalSiteIconsOnly,
+          loc.appSettingsExperimentalSiteIconsOnlyHint),
+      if (hostIsAndroid)
+        (ExperimentalFeature.textureRendering, Icons.layers_outlined,
+            loc.appSettingsExperimentalTextureRendering,
+            loc.appSettingsExperimentalTextureRenderingHint),
+      (ExperimentalFeature.siteTabs, Icons.tab_outlined,
+          loc.appSettingsExperimentalSiteTabs,
+          loc.appSettingsExperimentalSiteTabsHint),
+    ];
+
 /// The names of the experiments switched on, for the App Settings row.
 List<String> experimentsOn(AppLocalizations loc,
         {required bool proxyRouterRunsHere}) =>
     [
-      if (proxyRouterRunsHere &&
-          ExperimentalFeaturesService.instance
-              .switchOn(ExperimentalFeature.proxyRouter))
-        loc.appSettingsExperimentalProxyRouter,
-      if (ExperimentalFeaturesService.instance
-          .switchOn(ExperimentalFeature.siteIconsOnly))
-        loc.appSettingsExperimentalSiteIconsOnly,
-      if (hostIsAndroid &&
-          ExperimentalFeaturesService.instance
-              .switchOn(ExperimentalFeature.textureRendering))
-        loc.appSettingsExperimentalTextureRendering,
-      if (ExperimentalFeaturesService.instance
-          .switchOn(ExperimentalFeature.siteTabs))
-        loc.appSettingsExperimentalSiteTabs,
+      for (final (feature, _, title, _)
+          in _experiments(loc, proxyRouterRunsHere: proxyRouterRunsHere))
+        if (ExperimentalFeaturesService.instance.switchOn(feature)) title,
     ];
 
 /// Developer mode's own screen: the switch that turns it off, the logs, and
@@ -103,16 +114,6 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
     }
   }
 
-  Toggle _experimentalSwitch(ExperimentalFeature feature) => Toggle(
-        ExperimentalFeaturesService.instance.switchOn(feature),
-        (value) async {
-          await ExperimentalFeaturesService.instance.setSwitch(feature, value);
-          if (feature == ExperimentalFeature.siteIconsOnly) {
-            notifyIconSourcesChanged();
-          }
-        },
-      );
-
   Future<void> _resetIconCache() async {
     final messenger = ScaffoldMessenger.of(context);
     final cleared = AppLocalizations.of(context).appSettingsIconCacheCleared;
@@ -159,33 +160,23 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
             loc.appSettingsExperimental,
             hint: loc.appSettingsExperimentalHint,
           ),
-          if (widget.proxyRouterRunsHere)
+          for (final (feature, icon, title, hint) in _experiments(loc,
+              proxyRouterRunsHere: widget.proxyRouterRunsHere))
             SettingTile(
-              leading: const Icon(Icons.hub_outlined),
-              title: loc.appSettingsExperimentalProxyRouter,
-              hint: loc.appSettingsExperimentalProxyRouterHint,
-              control: _experimentalSwitch(ExperimentalFeature.proxyRouter),
+              leading: Icon(icon),
+              title: title,
+              hint: hint,
+              control: Toggle(
+                ExperimentalFeaturesService.instance.switchOn(feature),
+                (value) async {
+                  await ExperimentalFeaturesService.instance
+                      .setSwitch(feature, value);
+                  if (feature == ExperimentalFeature.siteIconsOnly) {
+                    notifyIconSourcesChanged();
+                  }
+                },
+              ),
             ),
-          SettingTile(
-            leading: const Icon(Icons.image_outlined),
-            title: loc.appSettingsExperimentalSiteIconsOnly,
-            hint: loc.appSettingsExperimentalSiteIconsOnlyHint,
-            control: _experimentalSwitch(ExperimentalFeature.siteIconsOnly),
-          ),
-          if (hostIsAndroid)
-            SettingTile(
-              leading: const Icon(Icons.layers_outlined),
-              title: loc.appSettingsExperimentalTextureRendering,
-              hint: loc.appSettingsExperimentalTextureRenderingHint,
-              control:
-                  _experimentalSwitch(ExperimentalFeature.textureRendering),
-            ),
-          SettingTile(
-            leading: const Icon(Icons.tab_outlined),
-            title: loc.appSettingsExperimentalSiteTabs,
-            hint: loc.appSettingsExperimentalSiteTabsHint,
-            control: _experimentalSwitch(ExperimentalFeature.siteTabs),
-          ),
           if (widget.externalTorRunsHere)
             ExternalTorTiles(onTorChanged: () {
               if (mounted) setState(() {});
