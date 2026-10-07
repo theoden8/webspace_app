@@ -4333,16 +4333,22 @@ class WebViewFactory {
           awaitOnlineForLiveSwap(
             isOnline: ConnectivityService.instance.isOnline,
             stillWanted: () => navigationGen == genAtSchedule,
-          ).then((online) {
+          ).then((online) async {
             if (!online) {
               LogService.instance.log('WebView',
                   'Cached snapshot kept: offline or navigated away');
               return;
             }
+            config.onReloadIssued?.call();
             try {
-              config.onReloadIssued?.call();
-              controller.reload();
-            } catch (_) {}
+              await controller.reload();
+            } on PlatformException catch (e) {
+              LogService.instance.log('WebView',
+                  'Live-swap reload failed: ${e.code}',
+                  level: LogLevel.warning);
+            } on MissingPluginException {
+              // The native view is gone; the snapshot goes with it.
+            }
           });
         }
 
