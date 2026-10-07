@@ -132,7 +132,7 @@ void main() {
           site('https://a.test',
               proxy: UserProxySettings(type: ProxyType.TOR)),
           proxyIsGlobal: false),
-      startsWith('exit='),
+      isA<WakeRoute>().having((r) => r.torExit, 'torExit', isNotNull),
     );
   });
 }

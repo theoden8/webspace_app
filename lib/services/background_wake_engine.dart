@@ -1,3 +1,11 @@
+import 'package:webspace/settings/proxy.dart';
+
+/// The process-wide route a site needs (NOTIF-016): Android's proxy override
+/// outside router mode, and Tor's exit country, one setting of the runtime on
+/// every platform (TOR-014). One route serves two sites exactly when their
+/// routes are equal.
+typedef WakeRoute = ({ProxyRouteKey? proxy, String? torExit});
+
 /// One notification site as the background wake sees it.
 class WakeSite {
   final String siteId;
@@ -43,11 +51,8 @@ class WakeCandidate {
   /// Why a headless check of this site must not run, or null.
   final WakeSkip? headlessBlocked;
 
-  /// The process-wide route this site needs (Android's proxy override
-  /// outside router mode, Tor's exit country), as a fingerprint two sites
-  /// share exactly when one route serves both. Null when nothing it needs is
-  /// process-wide.
-  final String? route;
+  /// Null when nothing the site needs is process-wide.
+  final WakeRoute? route;
 
   const WakeCandidate({
     required this.site,
@@ -306,7 +311,7 @@ class BackgroundWakeEngine {
   /// out, and the plan says which.
   static WakePlan plan(List<WakeCandidate> candidates) {
     final sites = [for (final c in candidates) if (c.notificationsEnabled) c];
-    String? routeInForce;
+    WakeRoute? routeInForce;
     for (final c in sites) {
       if (c.live && c.route != null) {
         routeInForce = c.route;

@@ -606,9 +606,8 @@ task (it draws no frames, so no webview is ever built), and every site after
 Android reclaimed the process. Reported from a device whose background log
 showed wakes with notification sites enabled and none checked.
 
-The headless webview is built from the same per-site fields as the site's
-own webview (`WebViewModel.headlessCheckConfig`, held to `getWebView` by
-`test/js/headless_check_config_parity.test.js`), so it runs in the site's
+The headless webview is built from the same `SitePosture` as the site's
+own webview (`WebViewModel.headlessCheckConfig`), so it runs in the site's
 container with its proxy, language, location, user agent, shims, user
 scripts and blockers, and the notification polyfill reports through the
 same handler (NOTIF-002, NOTIF-010). It has no user and shows nothing, so it

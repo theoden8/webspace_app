@@ -8,7 +8,6 @@ NOTIF-005-I, NOTIF-005-A, NOTIF-011, NOTIF-013, NOTIF-014, NOTIF-016
 (the wake: which sites, how, and what it posts),
 [test/wake_candidates_test.dart](../../test/wake_candidates_test.dart) (the
 app's models as the wake sees them),
-[test/js/headless_check_config_parity.test.js](../../test/js/headless_check_config_parity.test.js),
 [test/js/background_wake_cold_engine.test.js](../../test/js/background_wake_cold_engine.test.js),
 emulator Scenarios F, P and P2 in
 [scripts/run_android_lifecycle_tests.sh](../../scripts/run_android_lifecycle_tests.sh)

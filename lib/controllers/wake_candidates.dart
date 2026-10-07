@@ -25,19 +25,17 @@ class WakeEnvironment {
   });
 }
 
-/// The process-wide route [m] needs (NOTIF-016): the proxy fingerprint where
-/// one override covers the process, and Tor's exit-country constraint, which
-/// is one setting of the runtime on every platform (TOR-014). Null when
-/// nothing it needs is process-wide.
-String? wakeRouteFor(WebViewModel m, {required bool proxyIsGlobal}) {
-  final exit = SiteUnloadEngine.torExitConstraint(m);
-  final parts = [
-    if (proxyIsGlobal)
-      ProxyConflictEngine.fingerprint(
-          resolveEffectiveProxy(m.proxySettings, siteId: m.siteId)),
-    if (exit != null) 'exit=$exit',
-  ];
-  return parts.isEmpty ? null : parts.join(' ');
+/// The process-wide route [m] needs: its proxy's route key where one override
+/// covers the process, and its Tor exit-country constraint. Null when nothing
+/// it needs is process-wide.
+WakeRoute? wakeRouteFor(WebViewModel m, {required bool proxyIsGlobal}) {
+  final proxy = proxyIsGlobal
+      ? ProxyConflictEngine.fingerprint(m.outboundProxySettings)
+      : null;
+  final torExit = SiteUnloadEngine.torExitConstraint(m);
+  return proxy == null && torExit == null
+      ? null
+      : (proxy: proxy, torExit: torExit);
 }
 
 /// [m] as a background wake sees it. [loaded] and [hasWebview] are the slot's
