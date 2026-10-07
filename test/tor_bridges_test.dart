@@ -320,7 +320,7 @@ void main() {
       await engine.dispose();
     });
 
-    test('a keystore that throws leaves tor startable, and retries later',
+    test('a keystore that refuses leaves tor startable, and retries later',
         () async {
       // Refusing to start Tor because the keychain was unreadable would be
       // worse than starting without bridges, but caching the failure would
@@ -332,7 +332,7 @@ void main() {
         sessionSecret: 's',
         bridgeLoader: () async {
           attempts++;
-          if (attempts == 1) throw StateError('keystore unavailable');
+          if (attempts == 1) return null;
           return TorBridgeConfig(
             enabled: true,
             transport: TorTransport.obfs4,

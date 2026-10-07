@@ -65,6 +65,13 @@ class TorBridgeSecureStorage {
   /// actually read.
   Future<TorBridgeConfig> load() => _store.read();
 
+  /// [load], or null when the keystore refused, for a caller that can ask
+  /// again later rather than keep bridges off.
+  Future<TorBridgeConfig?> loadIfReadable() async {
+    final config = await _store.read();
+    return _store.isAvailable ? config : null;
+  }
+
   /// Replace the stored configuration, returning whether it landed. A false
   /// return must not be reported to the user as saved: they would believe
   /// they are reaching Tor through a bridge that is not configured.

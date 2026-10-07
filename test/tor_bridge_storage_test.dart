@@ -80,6 +80,19 @@ void main() {
           reason: 'the caller must be able to tell this apart from "none set"');
     });
 
+    test('a refused read gives the engine nothing to keep (BUG-026)',
+        () async {
+      // The engine's loader: a configuration it would hydrate from and never
+      // read again, so a refusal has to come back as no answer.
+      final fake = MockFlutterSecureStorage()..throwOnRead = true;
+      final store = TorBridgeSecureStorage(secureStorage: fake);
+      expect(await store.loadIfReadable(), isNull);
+
+      fake.throwOnRead = false;
+      await store.save(TorBridgeConfig(enabled: true, lines: [line(_bridge)]));
+      expect((await store.loadIfReadable())!.enabled, isTrue);
+    });
+
     test('a failed write reports false rather than claiming success',
         () async {
       // Reporting saved would tell the user they are reaching Tor through a

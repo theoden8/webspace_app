@@ -343,7 +343,7 @@ class TorService {
         // call to push them: nothing on a cold start opens the bridge
         // screen, so a pushed-only configuration was simply absent on every
         // relaunch (TOR-016).
-        bridgeLoader: () => TorBridgeSecureStorage().load(),
+        bridgeLoader: () => TorBridgeSecureStorage().loadIfReadable(),
         // Downloaded on the device, never shipped (LICENSE-002).
         geoIpStore: createTorGeoIpStore(),
         socksProbe: createTorSocksProbe(),

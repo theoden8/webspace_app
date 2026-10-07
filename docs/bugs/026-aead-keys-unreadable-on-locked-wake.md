@@ -49,7 +49,16 @@ for the life of the process.**
 
 ## Fix attempts
 
-None yet.
+1. **2026-10-07, #680.** *What:* the Tor bridge store, the one
+   `first_unlock` store whose reader cached a failure, now answers a refused
+   read with null (`TorBridgeSecureStorage.loadIfReadable`), and `TorEngine`
+   stays un-hydrated on null so the next start asks again. Regression tests:
+   "a refused read gives the engine nothing to keep (BUG-026)" and "a keystore
+   that refuses leaves tor startable, and retries later". *Why:* the engine's
+   retry path caught a throw the store never raises: `SecureJsonStore.read`
+   turns a refusal into the default, bridges off, which the engine then kept
+   for the process. *Why partial:* it covers the bridge store; the four AEAD
+   stores above still keep a failed open.
 
 ## Known open gaps
 

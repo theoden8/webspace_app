@@ -269,7 +269,7 @@ class TorEngine {
     required String sessionSecret,
     Duration idleDebounce = kTorIdleDebounce,
     Duration bootstrapTimeout = kTorBootstrapTimeout,
-    Future<TorBridgeConfig> Function()? bridgeLoader,
+    Future<TorBridgeConfig?> Function()? bridgeLoader,
     TorGeoIpStore? geoIpStore,
     DateTime Function()? clock,
     TorSocksProbe? socksProbe,
@@ -344,7 +344,8 @@ class TorEngine {
   TorBridgeConfig _bridges = const TorBridgeConfig();
 
   /// Reads the persisted bridge configuration, or null where nothing
-  /// persists it (tests, and platforms with no runtime).
+  /// persists it (tests, and platforms with no runtime). The read answers
+  /// null when the keystore refused.
   ///
   /// The engine pulls rather than waiting to be pushed. Bridges live in the
   /// keystore precisely so they survive a relaunch, and an in-memory field
@@ -355,7 +356,7 @@ class TorEngine {
   /// "connected". Hydrating here rather than at a startup call site makes
   /// that unmissable, since every start already funnels through
   /// [_applyBridgeConfig].
-  final Future<TorBridgeConfig> Function()? _bridgeLoader;
+  final Future<TorBridgeConfig?> Function()? _bridgeLoader;
 
   /// Whether [_bridges] reflects storage yet. Set by the first load and by
   /// any [setBridges]: an explicit set is the user acting now, so it wins
@@ -496,10 +497,10 @@ class TorEngine {
   /// Pull the persisted configuration in, once, before the first start that
   /// needs it.
   ///
-  /// A loader that throws leaves the default (bridges off) rather than
-  /// propagating: the alternative is refusing to start Tor at all because
-  /// the keystore was unreadable. It stays un-hydrated so a later start can
-  /// try again rather than caching the failure for the process lifetime.
+  /// A keystore that refused leaves the default (bridges off) for this start
+  /// rather than refusing to start Tor, and stays un-hydrated so a later
+  /// start asks again rather than keeping bridges off for the process
+  /// lifetime (BUG-026).
   Future<void> _hydrateBridges() async {
     if (_bridgesHydrated) return;
     final loader = _bridgeLoader;
@@ -507,12 +508,10 @@ class TorEngine {
       _bridgesHydrated = true;
       return;
     }
-    try {
-      _bridges = await loader();
-      _bridgesHydrated = true;
-    } catch (_) {
-      // Left un-hydrated deliberately; see above.
-    }
+    final loaded = await loader();
+    if (loaded == null) return;
+    _bridges = loaded;
+    _bridgesHydrated = true;
   }
 
   /// Put [_bridges] into force for the start that is about to happen.
