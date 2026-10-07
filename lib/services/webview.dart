@@ -1452,7 +1452,9 @@ class _WebViewController implements WebViewController {
 
   /// Null when the webview is gone or the platform refused: a native
   /// failure arrives as [PlatformException], a torn-down platform view as
-  /// [MissingPluginException].
+  /// [MissingPluginException], and a method the platform's plugin lacks
+  /// (Linux WPE has no `getDefaultUserAgent`) as [UnimplementedError] from
+  /// the platform interface.
   Future<T?> _native<T>(Future<T?> Function() call) async {
     if (_disposed) return null;
     try {
@@ -1462,6 +1464,8 @@ class _WebViewController implements WebViewController {
           sensitivity: LogSensitivity.sensitive);
       return null;
     } on MissingPluginException {
+      return null;
+    } on UnimplementedError {
       return null;
     }
   }

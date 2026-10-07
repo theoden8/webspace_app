@@ -197,6 +197,8 @@ void main() {
         expect(await controller.reload(), isFalse);
         native.failWith = MissingPluginException();
         expect(await controller.reload(), isFalse);
+        native.failWith = UnimplementedError('not on this platform');
+        expect(await controller.reload(), isFalse);
       });
     });
 
