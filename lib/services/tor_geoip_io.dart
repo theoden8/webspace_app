@@ -68,10 +68,10 @@ class IoTorGeoIpStore implements TorGeoIpStore {
           case OutboundClientReady(client: final ready):
             client = ready;
         }
-        final host = Uri.parse(url).host;
+        final uri = Uri.parse(url);
+        final host = uri.host;
         try {
-          final response =
-              await client.get(Uri.parse(url)).timeout(kTorGeoIpTimeout);
+          final response = await client.get(uri).timeout(kTorGeoIpTimeout);
           if (response.statusCode != 200) {
             LogService.instance.log(
                 _logTag, '$host answered HTTP ${response.statusCode}',

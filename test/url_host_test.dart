@@ -22,6 +22,14 @@ void main() {
       expect(Host.ofWebUrl('about:blank'), isNull);
       expect(Host.ofWebUrl(null), isNull);
     });
+
+    test('inUrl takes any scheme that names a host', () {
+      expect(Host.inUrl('wss://Example.COM./x'), 'example.com');
+      expect(Host.inUrl('http://[2001:db8::1]:8080/'), '2001:db8::1');
+      expect(Host.inUrl('file:///a.html'), isNull);
+      expect(Host.inUrl('about:blank'), isNull);
+      expect(Host.inUrl(null), isNull);
+    });
   });
 
   group('extractDomain', () {

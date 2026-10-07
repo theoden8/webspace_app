@@ -4,6 +4,7 @@ import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Where the protection report's itemised detail lives between runs
 /// (STATS-009).
@@ -39,7 +40,8 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
 
   FileStore? _store;
   KeychainAead? _aead;
-  Future<void>? _initInFlight;
+  bool _initialized = false;
+  final SingleFlight<(), void> _init = SingleFlight();
 
   SecureBlockStatsDetailStore({
     FlutterSecureStorage? secureStorage,
@@ -47,11 +49,22 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
   })  : _secureStorage = secureStorage ?? Keystores.aeadKeys,
         _overrideStore = store;
 
-  /// Memoized so a load racing the first flush cannot generate two keys and
+  /// Shared so a load racing the first flush cannot generate two keys and
   /// leave the encrypter using one that was never stored.
-  Future<void> _initialize() => _initInFlight ??= _doInitialize();
+  Future<void> _initialize() =>
+      _initialized ? Future.value() : _init.run((), _doInitialize);
 
   Future<void> _doInitialize() async {
+    try {
+      await _open();
+    } finally {
+      // Kept even when the open failed: a store opened later in the process
+      // would overwrite the detail this process never read (BUG-026).
+      _initialized = true;
+    }
+  }
+
+  Future<void> _open() async {
     final aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
         logTag: 'BlockStats');
     if (aead == null) return;

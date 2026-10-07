@@ -377,7 +377,7 @@ class MediaSessionService {
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
       return null;
     }
-    if (isPrivateOrLoopbackHost(uri.host.toLowerCase())) return null;
+    if (isPrivateOrLoopbackHost(uri.host)) return null;
     final effective = resolveEffectiveProxy(
       proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
       siteId: null,

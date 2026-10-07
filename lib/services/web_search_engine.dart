@@ -347,8 +347,8 @@ class WebSearchEngine {
       'site:$host ${query.trim()}';
 
   static KnownSearchHost? knownFor(String initUrl) {
-    final host = Uri.tryParse(initUrl)?.host.toLowerCase() ?? '';
-    if (host.isEmpty) return null;
+    final host = Host.inUrl(initUrl);
+    if (host == null) return null;
     for (final k in kKnownSearchHosts) {
       if (k.matches(host)) return k;
     }
@@ -379,8 +379,8 @@ class WebSearchEngine {
       );
     }
     final known = knownFor(initUrl);
-    if (known != null) {
-      final host = Uri.parse(initUrl).host.toLowerCase();
+    final host = Host.inUrl(initUrl);
+    if (known != null && host != null) {
       return SearchCapability(
         template: known.template(host),
         kind: known.kind,
@@ -419,8 +419,7 @@ class WebSearchEngine {
   static bool discovers({required String initUrl, String? searchAddress}) {
     final custom = searchAddress?.trim();
     if (custom != null && custom.isNotEmpty) return false;
-    final host = Uri.tryParse(initUrl)?.host ?? '';
-    return host.isNotEmpty && knownFor(initUrl) == null;
+    return Host.inUrl(initUrl) != null && knownFor(initUrl) == null;
   }
 
   /// The known engines the empty state offers to add in [scope]: the web

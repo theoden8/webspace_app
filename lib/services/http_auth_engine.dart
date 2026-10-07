@@ -154,10 +154,9 @@ class HttpAuthSession {
   /// suffix (`github.io`) is not a base domain, so a page on one
   /// `github.io` subdomain cannot raise a prompt for another.
   static bool isSiteHost(String host, String? siteUrl) {
-    if (siteUrl == null) return false;
-    final siteHost = Host(Uri.tryParse(siteUrl)?.host ?? '');
+    final siteHost = Host.inUrl(siteUrl);
     final h = Host(host);
-    if (siteHost.isEmpty || h.isEmpty) return false;
+    if (siteHost == null || h.isEmpty) return false;
     return getBaseDomain(h) == getBaseDomain(siteHost);
   }
 

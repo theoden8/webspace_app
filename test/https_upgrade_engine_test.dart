@@ -95,6 +95,8 @@ void main() {
       expect(up('http://intranet.example/other'), isNull);
       // Case-insensitively, and for the site's other paths.
       expect(up('http://INTRANET.EXAMPLE/'), isNull);
+      // And in its fully qualified form, which names the same host.
+      expect(up('http://intranet.example./'), isNull);
       // A different host is unaffected.
       expect(up('http://other.example/'), 'https://other.example/');
     });

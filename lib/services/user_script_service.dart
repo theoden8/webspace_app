@@ -5,6 +5,7 @@ import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/page_shim.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/services/user_script_shim.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
@@ -42,7 +43,7 @@ ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
     return ScriptFetchUrlStatus.blocked;
   }
 
-  final host = uri.host.toLowerCase();
+  final host = Host(uri.host);
   if (host.isEmpty) return ScriptFetchUrlStatus.blocked;
 
   // SSRF guard, literal half: window.__wsFetch is a page-reachable global, so

@@ -346,6 +346,13 @@ void main() {
       );
     });
 
+    test('a literal spelled with the root dot is the same literal', () {
+      expect(classifyScriptFetchUrl('http://localhost./script.js'),
+          ScriptFetchUrlStatus.blocked);
+      expect(classifyScriptFetchUrl('http://127.0.0.1./script.js'),
+          ScriptFetchUrlStatus.blocked);
+    });
+
     test('should block private IPv4 address', () {
       expect(
         classifyScriptFetchUrl('http://192.168.1.1/scripts/app.js'),

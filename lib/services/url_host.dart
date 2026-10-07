@@ -14,6 +14,14 @@ extension type const Host._(String name) implements String {
     return Host._(h);
   }
 
+  /// The host [url] names, whatever its scheme, or null when it names none.
+  static Host? inUrl(String? url) {
+    final raw = url == null ? null : Uri.tryParse(url)?.host;
+    if (raw == null) return null;
+    final host = Host(raw);
+    return host.isEmpty ? null : host;
+  }
+
   /// The http(s) host [url] names, or null for any other URL.
   static Host? ofWebUrl(String? url) {
     final uri = url == null ? null : Uri.tryParse(url);

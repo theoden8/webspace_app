@@ -59,7 +59,7 @@ class BlockStatsService {
   Timer? _idleFlushTimer;
   Timer? _maxFlushTimer;
   final SerialQueue _flushes = SerialQueue();
-  Future<void>? _initFuture;
+  final SingleFlight<(), void> _init = SingleFlight();
   bool _notifyScheduled = false;
   bool _initialized = false;
 
@@ -70,8 +70,6 @@ class BlockStatsService {
   /// category per day.
   BlockStatsDetail get detail => _detail;
 
-  bool get isInitialized => _initialized;
-
   /// Load the persisted counters and the encrypted detail. Safe to call more
   /// than once: concurrent callers await the same load, and later calls are
   /// no-ops, so a re-entrant startup path cannot replace an engine that has
@@ -79,11 +77,11 @@ class BlockStatsService {
   Future<void> initialize({
     @visibleForTesting BlockStatsDetailStore? detailStore,
   }) {
-    return _initFuture ??= _initialize(detailStore);
+    if (_initialized) return Future.value();
+    return _init.run((), () => _initialize(detailStore));
   }
 
   Future<void> _initialize(BlockStatsDetailStore? detailStore) async {
-    _initialized = true;
     _detailStore = detailStore ?? SecureBlockStatsDetailStore();
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -103,6 +101,7 @@ class BlockStatsService {
     // Both, then decide: `||` would short-circuit the detail out of every
     // launch that pruned a counter bucket.
     final pruned = _engine.prune() + _detail.prune();
+    _initialized = true;
     if (pruned > 0) {
       unawaited(flush());
     }

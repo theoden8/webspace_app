@@ -90,8 +90,8 @@ Map<String, String> siteSearchTable(Object? bangs) {
 /// the site's own domain. Null when the list names none.
 String? listedAddressFor(Map<String, String> table, String initUrl) {
   if (table.isEmpty) return null;
-  final host = Host(Uri.tryParse(initUrl)?.host ?? '');
-  if (host.isEmpty) return null;
+  final host = Host.inUrl(initUrl);
+  if (host == null) return null;
   final address =
       table[host.withoutWww] ?? table[getNormalizedDomain(initUrl)];
   if (address == null) return null;

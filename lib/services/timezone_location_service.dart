@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/utils/concurrency.dart';
 import 'log_service.dart';
 
 /// Default download URL: the latest `timezones-now` GeoJSON zip from
@@ -57,7 +58,7 @@ class TimezoneLocationService {
 
   List<_ZoneEntry>? _zones;
   bool _loadAttempted = false;
-  Future<int>? _countingFromFile;
+  final SingleFlight<(), int> _countingFromFile = SingleFlight();
 
   /// True iff a polygon dataset is parsed and ready for lookups.
   bool get isReady => _zones != null && _zones!.isNotEmpty;
@@ -122,16 +123,14 @@ class TimezoneLocationService {
     // only the number comes back, so the polygons are not kept in memory.
     final path = await _cachePath();
     try {
-      final count =
-          await (_countingFromFile ??= compute(_readAndCountZones, path));
+      final count = await _countingFromFile.run(
+          (), () => compute(_readAndCountZones, path));
       await prefs.setInt(_zoneCountPrefKey, count);
       return count;
     } catch (e) {
       LogService.instance
           .log('TZ', 'Failed to count tz cache: $e', level: LogLevel.error);
       return 0;
-    } finally {
-      _countingFromFile = null;
     }
   }
 

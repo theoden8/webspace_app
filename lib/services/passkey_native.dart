@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/passkey_engine.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// What the device can do for passkeys, from `PasskeyPlugin.status`.
 class PasskeyNativeStatus {
@@ -41,28 +42,31 @@ class PasskeyNative {
   static const MethodChannel _channel =
       MethodChannel('org.codeberg.theoden8.webspace/passkey');
 
-  static Future<PasskeyNativeStatus>? _status;
+  /// Kept once the plugin has answered; a failed read is asked again.
+  static PasskeyNativeStatus? _status;
+  static final SingleFlight<(), PasskeyNativeStatus> _reading = SingleFlight();
 
   static Future<PasskeyNativeStatus> status() {
     if (!hostIsAndroid) return Future.value(PasskeyNativeStatus.none);
-    return _status ??= _readStatus();
+    final known = _status;
+    if (known != null) return Future.value(known);
+    return _reading.run((), _readStatus);
   }
 
   static Future<PasskeyNativeStatus> _readStatus() async {
     try {
       final raw = await _channel.invokeMapMethod<String, Object?>('status');
-      if (raw == null) return PasskeyNativeStatus.none;
-      return PasskeyNativeStatus(
-        sdk: raw['sdk'] is int ? raw['sdk'] as int : 0,
-        feature: raw['feature'] == true,
-        permission: raw['permission'] == true,
-        webViewSupport: raw['webViewSupport'] == true,
-      );
+      return _status = raw == null
+          ? PasskeyNativeStatus.none
+          : PasskeyNativeStatus(
+              sdk: raw['sdk'] is int ? raw['sdk'] as int : 0,
+              feature: raw['feature'] == true,
+              permission: raw['permission'] == true,
+              webViewSupport: raw['webViewSupport'] == true,
+            );
     } on PlatformException {
-      _status = null;
       return PasskeyNativeStatus.none;
     } on MissingPluginException {
-      _status = null;
       return PasskeyNativeStatus.none;
     }
   }

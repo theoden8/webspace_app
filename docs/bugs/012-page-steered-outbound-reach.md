@@ -85,6 +85,16 @@ than copy the range table.**
    seam opts into by calling `classifyOutboundTarget` — a fourth seam added
    tomorrow inherits nothing.
 
+4. **2026-10-07 — the literal's other spelling** (#680).
+   `isPrivateOrLoopbackHost` normalises its input through `Host`, so
+   `localhost.` and `127.0.0.1.` are the literals they name. Regression test:
+   "a literal spelled with the root dot is the same literal" in
+   `test/user_script_test.dart`. *Why:* each caller lowercased the host itself
+   and none dropped the root dot, so the FQDN spelling read as a public name
+   and was left to the resolving half, which a proxy skips. *Why it is
+   partial:* it closes a spelling of the literal guard, nothing else in the
+   gaps below.
+
 ## Known open gaps
 
 - **The TTL-flip race.** The gate resolves the name; the `http` client resolves

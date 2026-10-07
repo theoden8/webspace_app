@@ -15,6 +15,7 @@
 
 import 'package:meta/meta.dart';
 
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'package:webspace/platform/host_platform.dart'
@@ -44,7 +45,8 @@ void resetHostLookup() => _lookup = hostLookupAddresses;
 /// Literals only. A hostname that *resolves* into one of these ranges walks
 /// straight through — pair it with [hostLookup] where the caller is about to
 /// connect through the device's own resolver.
-bool isPrivateOrLoopbackHost(String host) {
+bool isPrivateOrLoopbackHost(String raw) {
+  final host = Host(raw);
   if (host == 'localhost' || host.endsWith('.localhost')) return true;
 
   // IPv6 literal (Uri.host strips the surrounding brackets).
@@ -118,7 +120,7 @@ Future<HostRangeVerdict> classifyResolvedHost(String host) async {
   if (addresses == null) return HostRangeVerdict.notResolvedHere;
   if (addresses.isEmpty) return HostRangeVerdict.unresolvable;
   for (final a in addresses) {
-    if (isPrivateOrLoopbackHost(a.toLowerCase())) {
+    if (isPrivateOrLoopbackHost(a)) {
       return HostRangeVerdict.private;
     }
   }
@@ -143,7 +145,7 @@ Future<HostRangeVerdict> classifyOutboundTarget(
   UserProxySettings effective,
 ) async {
   if (effective.type != ProxyType.DEFAULT) return HostRangeVerdict.notResolvedHere;
-  final host = Uri.tryParse(url)?.host.toLowerCase();
-  if (host == null || host.isEmpty) return HostRangeVerdict.unresolvable;
+  final host = Host.inUrl(url);
+  if (host == null) return HostRangeVerdict.unresolvable;
   return classifyResolvedHost(host);
 }
