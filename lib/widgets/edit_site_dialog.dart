@@ -76,21 +76,24 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
   });
 
   Future<void> _refreshTitleAndIcon() async {
-    await _refresh.run(() async {
-      setState(() {});
-      final site = widget.site;
-      // Invalidating the favicon cache re-fetches the preview
-      // (UnifiedFaviconImage listens for it); the fetched title lands in the
-      // name field, applied on Save like any other edit.
-      await FaviconUrlCache.invalidate(site.initUrl);
-      final title = await getPageTitle(site.initUrl, proxy: site.proxySettings);
-      if (!mounted || title == null || title.isEmpty) return;
-      _name.text = title;
-      ScaffoldMessenger.of(context).toast(
-        AppLocalizations.of(context).homeTitleUpdatedTo(title),
-      );
-    });
-    if (mounted) setState(() {});
+    try {
+      await _refresh.run(() async {
+        setState(() {});
+        final site = widget.site;
+        // Invalidating the favicon cache re-fetches the preview
+        // (UnifiedFaviconImage listens for it); the fetched title lands in the
+        // name field, applied on Save like any other edit.
+        await FaviconUrlCache.invalidate(site.initUrl);
+        final title = await getPageTitle(site.initUrl, proxy: site.proxySettings);
+        if (!mounted || title == null || title.isEmpty) return;
+        _name.text = title;
+        ScaffoldMessenger.of(context).toast(
+          AppLocalizations.of(context).homeTitleUpdatedTo(title),
+        );
+      });
+    } finally {
+      if (mounted) setState(() {});
+    }
   }
 
   @override

@@ -74,11 +74,14 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
   }
 
   Future<void> _retry() async {
-    await _retryGuard.run(() async {
-      setState(() {});
-      await TorService.instance.restart();
-    });
-    if (mounted) setState(() {});
+    try {
+      await _retryGuard.run(() async {
+        setState(() {});
+        await TorService.instance.restart();
+      });
+    } finally {
+      if (mounted) setState(() {});
+    }
   }
 
   @override

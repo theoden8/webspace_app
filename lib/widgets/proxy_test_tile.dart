@@ -39,18 +39,21 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
   /// The button disables itself while a test is in flight, but a second tap
   /// can land before that frame is painted.
   Future<void> _run() async {
-    await _guard.run(() async {
-      setState(() => _result = null);
-      final settings = widget.settings();
-      final result = await testProxyConnection(
-        settings,
-        target: widget.target,
-        siteId: widget.siteId,
-      );
-      logProxyTest(settings, result);
-      _result = result;
-    });
-    if (mounted) setState(() {});
+    try {
+      await _guard.run(() async {
+        setState(() => _result = null);
+        final settings = widget.settings();
+        final result = await testProxyConnection(
+          settings,
+          target: widget.target,
+          siteId: widget.siteId,
+        );
+        logProxyTest(settings, result);
+        _result = result;
+      });
+    } finally {
+      if (mounted) setState(() {});
+    }
   }
 
   ({IconData icon, Color color, String message}) _describe(
