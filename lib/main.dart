@@ -1553,13 +1553,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       // the site's proxy; when it fails the native side uses the app icon.
       // The page-chosen URL is never handed to native for a direct retry
       // (LEAK-003). A user-chosen icon is already normalized PNG and wins.
-      final iconBytes = model.customIconPng ??
-          SiteIconStore.instance.get(model.initUrl) ??
-          await exportIconAsPng(
-            model.initUrl,
-            resolvedIconUrl: faviconUrl,
-            proxy: model.outboundProxySettings,
-          );
+      final iconBytes = await displayedSiteIconAsPng(
+        model.initUrl,
+        customIcon: model.customIconPng,
+        resolvedIconUrl: faviconUrl,
+        proxy: model.outboundProxySettings,
+      );
       if (!mounted) return;
       final pinned = await ShortcutService.pinShortcut(
         siteId: model.siteId,

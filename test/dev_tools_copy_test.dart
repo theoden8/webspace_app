@@ -32,6 +32,8 @@ class _StubHost implements DevToolsHost {
   @override
   String get iconUrl => 'https://example.com/';
   @override
+  Uint8List? get customIcon => null;
+  @override
   UserProxySettings? get proxy => null;
   @override
   WebViewController? get controller => null;

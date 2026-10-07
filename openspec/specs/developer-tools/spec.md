@@ -145,6 +145,12 @@ The app SHALL allow sharing, saving, or copying the current page's HTML source v
 The app SHALL allow saving the current site's favicon as a PNG file via an
 AppBar action button, regardless of the source format the site serves.
 
+The icon saved SHALL be the one the drawer shows for the site, taken in the
+drawer's order: the user's custom icon, then the page icon the site's webview
+produced ([icon-fetching](../icon-fetching/spec.md) ICON-009/013), then the
+fetched favicon. `displayedSiteIconAsPng` is that order, shared with the home
+shortcut (HS-003).
+
 The favicon SHALL be fetched through the same proxy-aware client as all other
 favicon requests (per-site proxy, fail-closed when it cannot be honored), so
 the action never leaks the device IP.
@@ -156,11 +162,21 @@ and SVG sources are rasterized.
 #### Scenario: Save favicon to a PNG file
 
 **Given** a site is loaded with a resolvable favicon
+**And** it has no custom icon and no page icon
 **When** the user taps the image icon in the AppBar
 **Then** the favicon is resolved (preferring the `FaviconUrlCache` entry for
 the site's `initUrl`) and fetched through the site's proxy
 **And** it is normalized to PNG bytes
 **And** a file save dialog appears with filename `{domain}_icon.png`
+
+#### Scenario: The page icon on screen is the one saved
+
+**Given** Site icons only is on and the drawer shows the PNG icon a GitHub page
+declared
+**And** `FaviconUrlCache` holds the SVG the home page scrape found
+**When** the user saves the icon
+**Then** the saved PNG is the drawer's icon
+**And** the SVG is not fetched
 
 #### Scenario: SVG favicon is rasterized
 
@@ -466,7 +482,7 @@ The app SHALL provide a JavaScript evaluation input in the Console tab, allowing
 | `lib/services/background_log.dart` | DEVTOOLS-011 `BackgroundLog`: records background lines (normal to the native file, sensitive companions in memory), merges the native file with this process, exposes the system-state rows. |
 | `lib/widgets/background_log_view.dart` | The Background tab: system state, the log, the sensitive switch, Refresh / Export / Copy / Clear. |
 | `android/.../BackgroundLogFile.kt`, `ios/Runner/BackgroundTaskPlugin.swift` (`BackgroundLogFile`) | Native background-log file, single-owner executor / queue, and the system-state query. |
-| `lib/services/icon_png_export.dart` | Resolves a site favicon, fetches it via the proxy-aware icon client, and normalizes any source (PNG/ICO/JPEG/SVG) to PNG bytes (`exportIconAsPng`). |
+| `lib/services/icon_png_export.dart` | The icon the drawer shows, as PNG (`displayedSiteIconAsPng`); resolves a site favicon, fetches it via the proxy-aware icon client, and normalizes any source (PNG/ICO/JPEG/SVG) to PNG bytes (`exportIconAsPng`). |
 | `lib/screens/inappbrowser.dart` | InAppWebViewScreen owns a NestedDevToolsHost: forwards onConsoleMessage / onUrlChanged / onControllerCreated and exposes a "Developer Tools" entry in the popup menu. |
 
 ### Data Models

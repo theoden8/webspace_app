@@ -43,6 +43,8 @@ abstract class DevToolsHost {
   /// URL used as the favicon cache key for this host (the site's stable
   /// `initUrl` for top-level sites; the current URL for nested webviews).
   String get iconUrl;
+  /// The user-chosen icon, which the drawer shows over any other.
+  Uint8List? get customIcon;
   /// Per-site proxy the favicon must be fetched through, or null for global.
   UserProxySettings? get proxy;
   WebViewController? get controller;
@@ -69,7 +71,9 @@ class WebViewModelDevToolsHost implements DevToolsHost {
   @override
   String get iconUrl => model.initUrl;
   @override
-  UserProxySettings? get proxy => model.proxySettings;
+  Uint8List? get customIcon => model.customIconPng;
+  @override
+  UserProxySettings? get proxy => model.outboundProxySettings;
   @override
   WebViewController? get controller => model.controller;
   @override
@@ -119,6 +123,8 @@ class NestedDevToolsHost implements DevToolsHost {
 
   @override
   String get iconUrl => _currentUrl;
+  @override
+  Uint8List? get customIcon => null;
   @override
   UserProxySettings? get proxy => null;
 
@@ -1279,8 +1285,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       SnackBar(content: Text(loc.devToolsPreparingIcon)),
     );
     try {
-      final png = await exportIconAsPng(
+      final png = await displayedSiteIconAsPng(
         host.iconUrl,
+        customIcon: host.customIcon,
         resolvedIconUrl: FaviconUrlCache.get(host.iconUrl),
         proxy: host.proxy,
       );
