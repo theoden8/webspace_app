@@ -286,10 +286,8 @@ void main() {
       expect(ProxyLibraryData.decode('{not json').isEmpty, isTrue);
       expect(ProxyLibraryData.decode('[]').isEmpty, isTrue);
       expect(ProxyLibraryData.decode(null).isEmpty, isTrue);
-    });
-
-    test('the library is registered for backups', () {
-      expect(kExportedAppPrefs[kProxyLibraryKey], kProxyLibraryDefault);
+      expect(ProxyLibraryData.decode(AppPref.proxyLibrary.fallback).isEmpty,
+          isTrue);
     });
   });
 
@@ -308,7 +306,7 @@ void main() {
     test('passwords go to secure storage, the rest to prefs', () async {
       await ProxyLibrary.update(_library());
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString(kProxyLibraryKey), isNot(contains('secret')));
+      expect(prefs.getString(AppPref.proxyLibrary.key), isNot(contains('secret')));
       expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('alice')),
           'alice-secret');
       expect(await stored(ProxyPasswordSecureStorage.savedProxyKey('plain')),
@@ -462,8 +460,8 @@ void main() {
 
     test('an app-wide proxy from the library shows its address', () {
       final b = backup({
-        kGlobalOutboundProxyKey: jsonEncode(_proxy('work').toJson()),
-        kProxyLibraryKey: _library().encode(),
+        AppPref.globalOutboundProxy.key: jsonEncode(_proxy('work').toJson()),
+        AppPref.proxyLibrary.key: _library().encode(),
       });
       expect(backupGlobalProxyAddress(b), 'us.gw:1080');
     });

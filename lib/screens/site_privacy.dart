@@ -10,6 +10,7 @@ import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/webview.dart' show WebViewFactory;
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/level_slider.dart';
@@ -116,7 +117,7 @@ class SitePrivacyValues {
 
   /// The app-wide switch covers every site (SCREENBLOCK-002).
   bool get effectiveBlockScreenshots =>
-      blockScreenshots || ScreenCaptureGuard.appWideEnabled;
+      blockScreenshots || AppPref.blockScreenshots.value;
 }
 
 /// Per-site privacy screen: the tracking-protection umbrella, the settings it
@@ -504,7 +505,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   Widget _blockScreenshots(AppLocalizations loc) => SettingTile(
         title: loc.siteSettingsBlockScreenshots,
         hint: loc.siteSettingsBlockScreenshotsHint,
-        lock: ScreenCaptureGuard.appWideEnabled
+        lock: AppPref.blockScreenshots.value
             ? AppWideLock(loc.siteSettingsBlockScreenshotsAppWide)
             : null,
         control: Toggle(_values.effectiveBlockScreenshots,

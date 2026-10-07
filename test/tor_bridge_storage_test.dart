@@ -96,7 +96,7 @@ void main() {
   group('never exported (TOR-016)', () {
     test('bridge lines cannot reach a settings backup', () {
       // Excluded by construction: nothing writes bridge state to
-      // SharedPreferences or kExportedAppPrefs, so there is no export path
+      // SharedPreferences or an AppPref, so there is no export path
       // to suppress. This asserts that rather than trusting it — and fails
       // loudly if someone later routes bridges through app prefs.
       final backup = SettingsBackupService.createBackup(
@@ -118,7 +118,7 @@ void main() {
     test('the export registry has no bridge key', () {
       // The structural half: if a future change registers bridges as an
       // exported app pref, this fails before any data can leak.
-      for (final key in kExportedAppPrefs.keys) {
+      for (final key in AppPref.values.map((p) => p.key)) {
         expect(key.toLowerCase().contains('bridge'), isFalse,
             reason: 'bridge state must not be an exported app pref: $key');
       }

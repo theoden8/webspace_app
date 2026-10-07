@@ -20,6 +20,7 @@ import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
@@ -52,26 +53,6 @@ void main() {
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},
-          showTabStrip: false,
-          onShowTabStripChanged: (_) {},
-          tabStripInFullscreen: false,
-          onTabStripInFullscreenChanged: (_) {},
-          fullscreenOnShortcut: false,
-          onFullscreenOnShortcutChanged: (_) {},
-          backOpensMenu: false,
-          onBackOpensMenuChanged: (_) {},
-          httpsUpgradeEnabled: true,
-          onHttpsUpgradeEnabledChanged: (_) {},
-          tabBarButton: false,
-          onTabBarButtonChanged: (_) {},
-          tabMaxWidth: 140,
-          onTabMaxWidthChanged: (_) {},
-          showStatsBanner: false,
-          onShowStatsBannerChanged: (_) {},
-          localeOverride: '',
-          onLocaleOverrideChanged: (_) {},
-          linkHandlingEnabled: true,
-          onLinkHandlingEnabledChanged: (_) {},
           onOpenLinkHandlingSettings: () {},
           webSearchSites: webSearchSites,
         ),
@@ -105,7 +86,7 @@ void main() {
   tearDown(() async {
     DeveloperModeService.instance.debugSet(false);
     for (final f in ExperimentalFeature.values) {
-      ExperimentalFeaturesService.instance.debugSet(f, f.defaultOn);
+      ExperimentalFeaturesService.instance.debugSet(f, f.pref.fallback);
     }
     await TorService.reset();
   });
@@ -138,7 +119,7 @@ void main() {
             'blocks nothing');
     expect(DeveloperModeService.instance.enabled, isFalse);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kDeveloperModeKey), isFalse,
+    expect(prefs.getBool(AppPref.developerMode.key), isFalse,
         reason: 'the flag must survive a restart');
     expect(find.text('Experimental'), findsNothing,
         reason: 'the Developer screen closes with developer mode');
@@ -356,7 +337,7 @@ void main() {
               .isEnabled(ExperimentalFeature.siteTabs),
           isTrue);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalSiteTabsKey), isTrue);
+      expect(prefs.getBool(AppPref.experimentalSiteTabs.key), isTrue);
 
       DeveloperModeService.instance.debugSet(false);
       expect(
@@ -391,7 +372,7 @@ void main() {
               .switchOn(ExperimentalFeature.proxyRouter),
           isFalse);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalProxyRouterKey), isFalse);
+      expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isFalse);
     });
 
     testWidgets('offers Site icons only on every platform, off by default',
@@ -415,7 +396,7 @@ void main() {
               .isEnabled(ExperimentalFeature.siteIconsOnly),
           isTrue);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalSiteIconsOnlyKey), isTrue);
+      expect(prefs.getBool(AppPref.experimentalSiteIconsOnly.key), isTrue);
     });
 
     testWidgets('Reset icon cache forgets every cached icon', (tester) async {
@@ -424,7 +405,7 @@ void main() {
         'favicon_svg_https://a.test/icon.svg': '<svg/>',
         'favicon_url_https://b.test/':
             'https://www.google.com/s2/favicons?domain=b.test&sz=256',
-        kExperimentalProxyRouterKey: true,
+        AppPref.experimentalProxyRouter.key: true,
       });
       await FaviconUrlCache.initialize();
       final files = MemoryFileStore();
@@ -449,7 +430,7 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getKeys().where((k) => k.startsWith('favicon_')), isEmpty);
-      expect(prefs.getBool(kExperimentalProxyRouterKey), isTrue,
+      expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isTrue,
           reason: 'only icon entries go');
       expect(SiteIconStore.instance.get('https://a.test/'), isNull);
       expect(await files.list(), isEmpty);

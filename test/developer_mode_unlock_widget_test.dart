@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'helpers/localized.dart';
 
@@ -19,26 +20,6 @@ void main() {
     onSettingsChanged: (_) {},
     onExportSettings: () {},
     onImportSettings: () {},
-    showTabStrip: false,
-    onShowTabStripChanged: (_) {},
-    tabStripInFullscreen: false,
-    onTabStripInFullscreenChanged: (_) {},
-    fullscreenOnShortcut: false,
-    onFullscreenOnShortcutChanged: (_) {},
-    backOpensMenu: false,
-    onBackOpensMenuChanged: (_) {},
-    httpsUpgradeEnabled: true,
-    onHttpsUpgradeEnabledChanged: (_) {},
-    tabBarButton: false,
-    onTabBarButtonChanged: (_) {},
-    tabMaxWidth: 140,
-    onTabMaxWidthChanged: (_) {},
-    showStatsBanner: false,
-    onShowStatsBannerChanged: (_) {},
-    localeOverride: '',
-    onLocaleOverrideChanged: (_) {},
-    linkHandlingEnabled: true,
-    onLinkHandlingEnabledChanged: (_) {},
     onOpenLinkHandlingSettings: () {},
   ));
 
@@ -88,7 +69,7 @@ void main() {
 
     expect(DeveloperModeService.instance.enabled, isTrue);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kDeveloperModeKey), isTrue,
+    expect(prefs.getBool(AppPref.developerMode.key), isTrue,
         reason: 'the flag must survive a restart');
   });
 
@@ -142,7 +123,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(DeveloperModeService.instance.enabled, isFalse);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kDeveloperModeKey), isFalse);
+    expect(prefs.getBool(AppPref.developerMode.key), isFalse);
     expect(find.text('Developer'), findsNothing,
         reason: 'the screen closes and the row goes with developer mode');
     expect(find.text('App Logs'), findsOneWidget);

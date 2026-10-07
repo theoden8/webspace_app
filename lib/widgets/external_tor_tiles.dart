@@ -5,6 +5,7 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show splitProxyAddress;
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
@@ -125,7 +126,7 @@ class _ExternalTorAddressDialogState extends State<ExternalTorAddressDialog> {
         autofocus: true,
         keyboardType: TextInputType.url,
         decoration: InputDecoration(
-          hintText: kExternalTorDefaultAddress,
+          hintText: AppPref.externalTorAddress.fallback,
           errorText: _error,
         ),
         onSubmitted: (_) => _save(loc),

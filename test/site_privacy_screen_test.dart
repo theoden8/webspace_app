@@ -5,6 +5,7 @@ import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/webview.dart' show WebViewFactory;
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/widgets/level_slider.dart';
 
@@ -121,7 +122,7 @@ void main() {
   group('Block screenshots (SCREENBLOCK-003)', () {
     tearDown(() {
       ScreenCaptureGuard.debugSupportedOverride = null;
-      ScreenCaptureGuard.appWideEnabled = false;
+      AppPref.blockScreenshots.debugValue = false;
     });
 
     testWidgets('absent where the platform cannot block capture',
@@ -145,7 +146,7 @@ void main() {
     testWidgets('locked on while the app-wide switch covers every site',
         (tester) async {
       ScreenCaptureGuard.debugSupportedOverride = true;
-      ScreenCaptureGuard.appWideEnabled = true;
+      AppPref.blockScreenshots.debugValue = true;
       await _pump(tester, values: _values());
       final tile = _switchTitled(tester, 'Block screenshots');
       expect(tile.value, isTrue);

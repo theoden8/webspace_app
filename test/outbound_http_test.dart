@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -192,14 +193,14 @@ void main() {
         password: 'top-secret',
       ));
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(kGlobalOutboundProxyKey)!;
+      final raw = prefs.getString(AppPref.globalOutboundProxy.key)!;
       expect(raw.contains('top-secret'), isFalse,
           reason: 'plaintext password leaked into SharedPreferences');
     });
 
     test('readGlobalOutboundProxy falls back to default on malformed JSON', () async {
       SharedPreferences.setMockInitialValues({
-        kGlobalOutboundProxyKey: '{not-valid-json',
+        AppPref.globalOutboundProxy.key: '{not-valid-json',
       });
       final prefs = await SharedPreferences.getInstance();
       final settings = readGlobalOutboundProxy(prefs);

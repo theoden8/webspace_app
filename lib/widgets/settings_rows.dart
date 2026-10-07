@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/settings/app_prefs.dart';
+
 /// One opener at a time on a settings screen. A tap that lands while an
 /// earlier one is still opening a screen or dialog (an `await` before the
 /// push, a file picker), or while what it opened is still on top, is dropped
@@ -18,5 +20,25 @@ mixin SettingsOpenGuard<T extends StatefulWidget> on State<T> {
     } finally {
       _opening = false;
     }
+  }
+}
+
+/// Rebuilds the screen whenever an app pref changes, so a row reading
+/// `AppPref.x.value` shows what was just set.
+mixin RebuildOnAppPref<T extends StatefulWidget> on State<T> {
+  @override
+  void initState() {
+    super.initState();
+    AppPref.anyChange.addListener(_rebuildOnAppPref);
+  }
+
+  @override
+  void dispose() {
+    AppPref.anyChange.removeListener(_rebuildOnAppPref);
+    super.dispose();
+  }
+
+  void _rebuildOnAppPref() {
+    if (mounted) setState(() {});
   }
 }

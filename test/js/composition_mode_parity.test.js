@@ -89,5 +89,7 @@ test('hybrid composition is the default, texture mode an experiment', () => {
     'texture mode must be reachable only through the DEVTOOLS-011 gate');
   const experimental = read('lib/services/experimental_features_service.dart');
   assert.match(experimental,
-    /textureRendering\(kExperimentalTextureRenderingKey, defaultOn: false\)/);
+    /textureRendering\(AppPref\.experimentalTextureRendering\)/);
+  assert.match(read('lib/settings/app_prefs.dart'),
+    /experimentalTextureRendering\('experimentalTextureRendering', false\)/);
 });

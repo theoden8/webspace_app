@@ -7,7 +7,7 @@ A feature that ships before it is finished SHALL be reachable only while develop
 - **The group.** App settings' Developer section SHALL show an **Experimental** group while developer mode is on, listing one switch per experimental feature that this platform can run. With no such feature on the platform, the group SHALL NOT be shown. Each switch carries its explanation behind a `HintButton` (HINT-001).
 - **The switches keep their positions.** Turning developer mode off SHALL leave every switch as it was, so turning developer mode back on restores the same set of features.
 - **Reading it.** `ExperimentalFeaturesService.instance.isEnabled(feature)` (`lib/services/experimental_features_service.dart`) is the single reader. The rule itself, developer mode and the switch, is the pure `experimentalFeatureEnabled`.
-- **Persistence.** Each switch is a user-facing global pref registered in `kExportedAppPrefs`, so it round-trips export and import, and the service SHALL be re-read after an import.
+- **Persistence.** Each switch is a user-facing global pref registered in `AppPref`, so it round-trips export and import, and the service SHALL be re-read after an import.
 - **Defaults.** A feature that developer mode alone opened before this group existed SHALL default its switch on, so an upgrade does not turn it off for a user who had it. A new feature SHALL default off.
 - **Leaving the group.** A feature that graduates SHALL remove its switch and stop reading this gate; one that is dropped SHALL remove its switch with its code.
 

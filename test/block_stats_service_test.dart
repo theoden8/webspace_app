@@ -150,7 +150,8 @@ void main() {
       );
       final exported = SettingsBackupService.exportToJson(backup);
 
-      expect(kExportedAppPrefs.containsKey(BlockStatsService.prefsKey), isFalse);
+      expect(AppPref.values.map((p) => p.key),
+          isNot(contains(BlockStatsService.prefsKey)));
       expect(exported, isNot(contains(BlockStatsService.prefsKey)));
       expect(exported, isNot(contains('4242')));
     });

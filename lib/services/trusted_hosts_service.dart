@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/log_service.dart';
 
 /// SharedPreferences key holding the encoded trusted-cert pin list.
-/// Round-tripped through settings export/import via [kExportedAppPrefs].
+/// Never rides a settings backup (BACKUP-010, TLS-007).
 const String kTrustedHostsKey = 'trustedHosts';
 
 /// One pinned (host, port, sha256) triple. Pinning the cert fingerprint

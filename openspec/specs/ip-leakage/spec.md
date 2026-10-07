@@ -394,7 +394,7 @@ not in the subtitle
 
 The app-global outbound proxy SHALL be persisted under the SharedPreferences
 key `globalOutboundProxy` as a JSON-encoded `UserProxySettings`. The key
-SHALL be registered in `kExportedAppPrefs` so it round-trips through
+SHALL be registered in `AppPref` so it round-trips through
 settings backup / restore. The in-memory cache (`GlobalOutboundProxy.current`)
 SHALL be initialized at app startup before any service that may emit
 outbound traffic runs.

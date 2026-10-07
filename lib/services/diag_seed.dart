@@ -5,9 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/demo_data.dart' show isDemoMode;
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
@@ -134,17 +134,17 @@ class DiagSeed {
         seed.sites.map((s) => jsonEncode(s.toJson())).toList());
     await prefs.remove('webspaces');
     await prefs.setString('selectedWebspaceId', kAllWebspaceId);
-    await prefs.setBool('showUrlBar', false);
+    await prefs.setBool(AppPref.showUrlBar.key, false);
     // The harness activates sites through the shortcut path, which enters
     // fullscreen by default; the first immersive entry pops Android's
     // "viewing full screen" education bubble, whose screen-wide 50% dim
     // corrupts every pixel sample.
-    await prefs.setBool('fullscreenOnShortcut', false);
+    await prefs.setBool(AppPref.fullscreenOnShortcut.key, false);
     // Turn the SurfaceDiag repaint trace on for the run: it is gated on
     // developer mode so an ordinary session does not spend its log ring on
     // it, but the externally-driven tiers exist precisely to see which
     // repaint path fired, and a pixel verdict alone cannot say that.
-    await prefs.setBool(kDeveloperModeKey, true);
+    await prefs.setBool(AppPref.developerMode.key, true);
     isDemoMode = true;
     LogService.instance.log('DiagSeed',
         'seeded ${seed.sites.length} sites: '

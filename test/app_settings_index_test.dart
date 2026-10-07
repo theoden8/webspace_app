@@ -12,10 +12,17 @@ import 'package:webspace/screens/app_behaviour.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 
 void main() {
-  setUp(() {
-    SharedPreferences.setMockInitialValues({});
+  setUp(() async {
+    // Off where the default is on, so each test turns on what it names.
+    SharedPreferences.setMockInitialValues({
+      AppPref.fullscreenOnShortcut.key: false,
+      AppPref.linkHandlingEnabled.key: false,
+      AppPref.httpsUpgradeEnabled.key: false,
+    });
+    AppPref.loadAll(await SharedPreferences.getInstance());
     PackageInfo.setMockInitialValues(
       appName: 'WebSpace',
       packageName: 'org.codeberg.theoden8.webspace',
@@ -29,40 +36,11 @@ void main() {
 
   tearDown(() => DeveloperModeService.instance.debugSet(false));
 
-  Widget settings({
-    String localeOverride = '',
-    bool showTabStrip = false,
-    bool fullscreenOnShortcut = false,
-    bool linkHandlingEnabled = false,
-    bool httpsUpgradeEnabled = false,
-    ValueChanged<bool>? onFullscreenOnShortcutChanged,
-    VoidCallback? onExportSettings,
-  }) =>
-      AppSettingsScreen(
+  Widget settings({VoidCallback? onExportSettings}) => AppSettingsScreen(
         currentSettings: AppThemeSettings(),
         onSettingsChanged: (_) {},
         onExportSettings: onExportSettings ?? () {},
         onImportSettings: () {},
-        showTabStrip: showTabStrip,
-        onShowTabStripChanged: (_) {},
-        tabStripInFullscreen: false,
-        onTabStripInFullscreenChanged: (_) {},
-        fullscreenOnShortcut: fullscreenOnShortcut,
-        onFullscreenOnShortcutChanged: onFullscreenOnShortcutChanged ?? (_) {},
-        backOpensMenu: false,
-        onBackOpensMenuChanged: (_) {},
-        httpsUpgradeEnabled: httpsUpgradeEnabled,
-        onHttpsUpgradeEnabledChanged: (_) {},
-        tabBarButton: false,
-        onTabBarButtonChanged: (_) {},
-        tabMaxWidth: 140,
-        onTabMaxWidthChanged: (_) {},
-        showStatsBanner: false,
-        onShowStatsBannerChanged: (_) {},
-        localeOverride: localeOverride,
-        onLocaleOverrideChanged: (_) {},
-        linkHandlingEnabled: linkHandlingEnabled,
-        onLinkHandlingEnabledChanged: (_) {},
         onOpenLinkHandlingSettings: () {},
       );
 
@@ -120,7 +98,7 @@ void main() {
         reason: 'the categories keep their order: $titles');
 
     expect(find.byType(SwitchListTile, skipOffstage: false), findsNothing);
-    expect(find.byType(SegmentedButton<int>, skipOffstage: false),
+    expect(find.byType(SegmentedButton<TabStrip>, skipOffstage: false),
         findsNothing);
     expect(find.byType(Slider, skipOffstage: false), findsNothing);
     expect(find.byType(TextField, skipOffstage: false), findsNothing);
@@ -134,10 +112,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(summaryText(tester, 'Appearance'), 'System');
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(app(settings(localeOverride: 'de')));
+    AppPref.appLocaleOverride.debugValue = 'de';
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Appearance'), 'System · Deutsch');
+    expect(summaryText(tester, 'Appearance'), 'System · Deutsch',
+        reason: 'the row follows the pref as it changes');
   });
 
   testWidgets('Behaviour names what is on, two then a count', (tester) async {
@@ -145,12 +123,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(summaryText(tester, 'Behaviour'), 'Nothing enabled');
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(app(settings(
-      showTabStrip: true,
-      fullscreenOnShortcut: true,
-      linkHandlingEnabled: true,
-    )));
+    AppPref.showTabStrip.debugValue = true;
+    AppPref.fullscreenOnShortcut.debugValue = true;
+    AppPref.linkHandlingEnabled.debugValue = true;
     await tester.pumpAndSettle();
     expect(summaryText(tester, 'Behaviour'),
         'Site Tab Strip · Full screen on shortcut launch · 1 more');
@@ -158,10 +133,7 @@ void main() {
 
   testWidgets('a change on a category screen reaches the app and the row',
       (tester) async {
-    bool? reported;
-    await tester.pumpWidget(app(settings(
-      onFullscreenOnShortcutChanged: (v) => reported = v,
-    )));
+    await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
 
     await openRow(tester, 'Behaviour');
@@ -169,7 +141,8 @@ void main() {
         of: find.text('Full screen on shortcut launch'),
         matching: find.byType(SwitchListTile)));
     await tester.pumpAndSettle();
-    expect(reported, isTrue, reason: 'applied at once, as before');
+    expect(AppPref.fullscreenOnShortcut.value, isTrue,
+        reason: 'applied at once, as before');
 
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -177,14 +150,14 @@ void main() {
   });
 
   testWidgets('Network and Privacy say what every site gets', (tester) async {
-    await tester.pumpWidget(app(settings(httpsUpgradeEnabled: true)));
+    AppPref.httpsUpgradeEnabled.debugValue = true;
+    await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
     expect(summaryText(tester, 'Network'), 'Default connection');
     expect(DnsBlockService.instance.level, 0);
     expect(summaryText(tester, 'Privacy'), 'HTTPS upgrade');
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pumpWidget(app(settings()));
+    AppPref.httpsUpgradeEnabled.debugValue = false;
     await tester.pumpAndSettle();
     expect(summaryText(tester, 'Privacy'), 'No protection enabled');
   });

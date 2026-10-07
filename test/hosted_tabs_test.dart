@@ -223,12 +223,12 @@ void main() {
         webspaces: const [],
         themeMode: 0,
         exportedAt: DateTime(2026),
-        globalPrefs: {kWebSearchDefaultSiteKey: 'not-in-backup'},
+        globalPrefs: {AppPref.webSearchDefaultSite.key: 'not-in-backup'},
       ));
       final blog = plan.sites.firstWhere((s) => s.siteId == 'blog');
       expect(blog.searchSites, ['ddg']);
       expect(blog.searchDefault, isNull);
-      expect(plan.appPrefs[kWebSearchDefaultSiteKey], '');
+      expect(plan.appPrefs[AppPref.webSearchDefaultSite.key], '');
     });
 
     test('wrong types read as absent', () {

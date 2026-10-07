@@ -80,16 +80,7 @@ class AppDeveloperScreen extends StatefulWidget {
 }
 
 class _AppDeveloperScreenState extends State<AppDeveloperScreen>
-    with SettingsOpenGuard {
-  bool _proxyRouterSwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.proxyRouter);
-  bool _siteIconsOnlySwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.siteIconsOnly);
-  bool _textureRenderingSwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.textureRendering);
-  bool _siteTabsSwitch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.siteTabs);
-
+    with SettingsOpenGuard, RebuildOnAppPref {
   /// Set once the switch is flipped off, so a second flip during the await
   /// neither turns it off again nor pops a second route.
   bool _turningOff = false;
@@ -111,40 +102,21 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
     }
   }
 
-  Future<void> _setProxyRouterSwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.proxyRouter, value);
-    if (!mounted) return;
-    setState(() => _proxyRouterSwitch = value);
-  }
-
-  Future<void> _setSiteIconsOnlySwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.siteIconsOnly, value);
-    notifyIconSourcesChanged();
-    if (!mounted) return;
-    setState(() => _siteIconsOnlySwitch = value);
-  }
+  Toggle _experimentalSwitch(ExperimentalFeature feature) => Toggle(
+        ExperimentalFeaturesService.instance.switchOn(feature),
+        (value) async {
+          await ExperimentalFeaturesService.instance.setSwitch(feature, value);
+          if (feature == ExperimentalFeature.siteIconsOnly) {
+            notifyIconSourcesChanged();
+          }
+        },
+      );
 
   Future<void> _resetIconCache() async {
     final messenger = ScaffoldMessenger.of(context);
     final cleared = AppLocalizations.of(context).appSettingsIconCacheCleared;
     await FaviconUrlCache.resetAll();
     messenger.showSnackBar(SnackBar(content: Text(cleared)));
-  }
-
-  Future<void> _setTextureRenderingSwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.textureRendering, value);
-    if (!mounted) return;
-    setState(() => _textureRenderingSwitch = value);
-  }
-
-  Future<void> _setSiteTabsSwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.siteTabs, value);
-    if (!mounted) return;
-    setState(() => _siteTabsSwitch = value);
   }
 
   @override
@@ -191,13 +163,13 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
               leading: const Icon(Icons.hub_outlined),
               title: loc.appSettingsExperimentalProxyRouter,
               hint: loc.appSettingsExperimentalProxyRouterHint,
-              control: Toggle(_proxyRouterSwitch, _setProxyRouterSwitch),
+              control: _experimentalSwitch(ExperimentalFeature.proxyRouter),
             ),
           SettingTile(
             leading: const Icon(Icons.image_outlined),
             title: loc.appSettingsExperimentalSiteIconsOnly,
             hint: loc.appSettingsExperimentalSiteIconsOnlyHint,
-            control: Toggle(_siteIconsOnlySwitch, _setSiteIconsOnlySwitch),
+            control: _experimentalSwitch(ExperimentalFeature.siteIconsOnly),
           ),
           if (hostIsAndroid)
             SettingTile(
@@ -205,13 +177,13 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
               title: loc.appSettingsExperimentalTextureRendering,
               hint: loc.appSettingsExperimentalTextureRenderingHint,
               control:
-                  Toggle(_textureRenderingSwitch, _setTextureRenderingSwitch),
+                  _experimentalSwitch(ExperimentalFeature.textureRendering),
             ),
           SettingTile(
             leading: const Icon(Icons.tab_outlined),
             title: loc.appSettingsExperimentalSiteTabs,
             hint: loc.appSettingsExperimentalSiteTabsHint,
-            control: Toggle(_siteTabsSwitch, _setSiteTabsSwitch),
+            control: _experimentalSwitch(ExperimentalFeature.siteTabs),
           ),
           if (widget.externalTorRunsHere)
             ExternalTorTiles(onTorChanged: () {

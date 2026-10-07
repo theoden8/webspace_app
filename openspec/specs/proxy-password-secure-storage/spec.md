@@ -79,7 +79,7 @@ NOT appear in plaintext SharedPreferences entries.
 
 **Given** the user updates `GlobalOutboundProxy.current` with a non-empty `password`
 **When** the in-memory cache is flushed by `GlobalOutboundProxy.update`
-**Then** `prefs.getString(kGlobalOutboundProxyKey)` decodes to a JSON
+**Then** `prefs.getString(AppPref.globalOutboundProxy.key)` decodes to a JSON
 object without a `password` key
 **And** `flutter_secure_storage` contains the password under
 [`ProxyPasswordSecureStorage.globalProxyKey`] (`__global_outbound__`)
@@ -139,7 +139,7 @@ SharedPreferences entries to secure storage, exactly once per entry.
 
 #### Scenario: Global legacy migration on initialize
 
-**Given** `prefs.getString(kGlobalOutboundProxyKey)` decodes to a JSON
+**Given** `prefs.getString(AppPref.globalOutboundProxy.key)` decodes to a JSON
 object that contains `"password": "legacy-secret"`
 **When** `GlobalOutboundProxy.initialize` is called
 **Then** secure storage is updated with
@@ -201,12 +201,12 @@ is serialised via `exportToJson`
 
 **Given** `GlobalOutboundProxy.current.password = "p2"`
 **When** the export is built
-**Then** `globalPrefs[kGlobalOutboundProxyKey]` decodes to a JSON object
+**Then** `globalPrefs[AppPref.globalOutboundProxy.key]` decodes to a JSON object
 that does NOT contain a `password` key
 
 #### Scenario: Import drops an app-wide password the file carries
 
-**Given** a backup whose `globalPrefs[kGlobalOutboundProxyKey]` decodes to
+**Given** a backup whose `globalPrefs[AppPref.globalOutboundProxy.key]` decodes to
 an object with a `password` (v0.2.2 wrote one; any file can)
 **When** `resolveExportedAppPrefs` applies it
 **Then** the stored value has no `password` key

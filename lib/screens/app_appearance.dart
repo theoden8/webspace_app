@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/settings/app_locale.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/setting_tile.dart';
@@ -32,25 +33,18 @@ class AppAppearanceScreen extends StatefulWidget {
     super.key,
     required this.settings,
     required this.onSettingsChanged,
-    required this.localeOverride,
-    required this.onLocaleOverrideChanged,
   });
 
   final AppThemeSettings settings;
   final ValueChanged<AppThemeSettings> onSettingsChanged;
-
-  /// Current UI language override as a locale tag ('' = follow system).
-  final String localeOverride;
-  final ValueChanged<String> onLocaleOverrideChanged;
 
   @override
   State<AppAppearanceScreen> createState() => _AppAppearanceScreenState();
 }
 
 class _AppAppearanceScreenState extends State<AppAppearanceScreen>
-    with SettingsOpenGuard {
+    with SettingsOpenGuard, RebuildOnAppPref {
   late AppThemeSettings _settings = widget.settings;
-  late String _localeOverride = widget.localeOverride;
 
   void _updateSettings(AppThemeSettings newSettings) {
     setState(() {
@@ -68,6 +62,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
       ..sort((a, b) => languageLabelForTag(a)
           .toLowerCase()
           .compareTo(languageLabelForTag(b).toLowerCase()));
+    final current = AppPref.appLocaleOverride.value;
     final selected = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -80,14 +75,14 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
             children: [
               RadioListTile<String>(
                 value: '',
-                groupValue: _localeOverride,
+                groupValue: current,
                 title: Text(loc.appSettingsLanguageSystem),
                 onChanged: (v) => Navigator.pop(ctx, v ?? ''),
               ),
               for (final tag in tags)
                 RadioListTile<String>(
                   value: tag,
-                  groupValue: _localeOverride,
+                  groupValue: current,
                   title: Text(languageLabelForTag(tag)),
                   onChanged: (v) => Navigator.pop(ctx, v),
                 ),
@@ -96,9 +91,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
         ),
       ),
     );
-    if (selected == null || !mounted) return;
-    setState(() => _localeOverride = selected);
-    widget.onLocaleOverrideChanged(selected);
+    if (selected != null) await AppPref.appLocaleOverride.set(selected);
   }
 
   @override
@@ -112,9 +105,9 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
             leading: const Icon(Icons.language),
             title: loc.appSettingsLanguageTitle,
             hint: null,
-            subtitle: _localeOverride.isEmpty
+            subtitle: AppPref.appLocaleOverride.value.isEmpty
                 ? loc.appSettingsLanguageSystem
-                : languageLabelForTag(_localeOverride),
+                : languageLabelForTag(AppPref.appLocaleOverride.value),
             control: Opens(() => guardedOpen(_pickAppLanguage)),
           ),
           SettingsSection(loc.appSettingsTheme),

@@ -18,12 +18,10 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart'
-    show kGlobalOutboundProxyKey;
 import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart'
-    show ProxyLibraryData, kProxyLibraryKey, resolveLibrary;
+    show ProxyLibraryData, resolveLibrary;
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -41,7 +39,7 @@ class SettingsImportPlan {
   /// In the current `themeMode * 10 + accent` encoding.
   final int themeStorageIndex;
 
-  /// Every `kExportedAppPrefs` key with a value of the registry's type.
+  /// Every `AppPref` key with a value of its declared type.
   final Map<String, Object> appPrefs;
 
   final String selectedWebspaceId;
@@ -132,11 +130,10 @@ SettingsImportPlan planSettingsImport(
     site.pruneSearchReferences(known.contains);
   }
   final appPrefs = resolveExportedAppPrefs(backup.globalPrefs);
-  final searchDefault = appPrefs[kWebSearchDefaultSiteKey];
-  if (searchDefault is String &&
-      searchDefault.isNotEmpty &&
-      !known.contains(searchDefault)) {
-    appPrefs[kWebSearchDefaultSiteKey] = '';
+  final searchDefault =
+      AppPref.webSearchDefaultSite.fromBackup(backup.globalPrefs);
+  if (searchDefault.isNotEmpty && !known.contains(searchDefault)) {
+    appPrefs[AppPref.webSearchDefaultSite.key] = '';
   }
 
   final selected = backup.selectedWebspaceId;
@@ -267,7 +264,7 @@ int normalizeBackupThemeIndex(int raw, List<Map<String, dynamic>> sites) {
 /// `host:port` of the app-wide proxy [backup] would install, or null when it
 /// sets none. Shown in the import confirmation.
 String? backupGlobalProxyAddress(SettingsBackup backup) {
-  final proxy = _decodeProxyPref(backup.globalPrefs[kGlobalOutboundProxyKey]);
+  final proxy = _decodeProxyPref(backup.globalPrefs[AppPref.globalOutboundProxy.key]);
   if (proxy == null) return null;
   final type = proxy['type'];
   if (type is! int || type == ProxyType.DEFAULT.index) return null;
@@ -276,7 +273,7 @@ String? backupGlobalProxyAddress(SettingsBackup backup) {
   if (type == ProxyType.SAVED.index || type == ProxyType.GATEWAY.index) {
     return resolveLibrary(
       UserProxySettings.fromJson(proxy),
-      ProxyLibraryData.decode(backup.globalPrefs[kProxyLibraryKey]),
+      ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]),
     ).route.address;
   }
   final address = proxy['address'];
@@ -310,9 +307,9 @@ bool _backupNamesProxyUsername(SettingsBackup backup) {
       proxy['username'] is String &&
       (proxy['username'] as String).isNotEmpty;
   return backup.sites.any((s) => named(s['proxySettings'])) ||
-      named(_decodeProxyPref(backup.globalPrefs[kGlobalOutboundProxyKey])) ||
+      named(_decodeProxyPref(backup.globalPrefs[AppPref.globalOutboundProxy.key])) ||
       _libraryNamesUsername(
-          ProxyLibraryData.decode(backup.globalPrefs[kProxyLibraryKey]));
+          ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]));
 }
 
 bool _libraryNamesUsername(ProxyLibraryData lib) {

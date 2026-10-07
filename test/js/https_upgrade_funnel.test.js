@@ -143,13 +143,3 @@ test('HTTPS-006: the app never overrides upgradeKnownHostsToHTTPS', () => {
       'default true');
   }
 });
-
-// HTTPS-005. The default is the whole feature for anyone who never opens
-// settings, so it is worth one line of gate.
-test('HTTPS-005: the global pref is registered and defaults on', () => {
-  const prefs = code(read('lib/settings/app_prefs.dart'));
-  assert.match(prefs, /kHttpsUpgradeEnabledKey:\s*true,/,
-    'registered in kExportedAppPrefs so it rides export/import, and true so ' +
-    'a fresh install is upgraded');
-  assert.match(prefs, /const String kHttpsUpgradeEnabledKey = 'httpsUpgradeEnabled';/);
-});

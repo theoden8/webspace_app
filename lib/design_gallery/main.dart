@@ -15,6 +15,7 @@ import 'package:http/http.dart' as http;
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
@@ -31,7 +32,7 @@ import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/demo_data.dart'
-    show demoBlockStatsSiteNames, seedDemoBlockStats;
+    show demoBlockStatsSiteNames, isDemoMode, seedDemoBlockStats;
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/add_site.dart';
 import 'package:webspace/screens/app_appearance.dart';
@@ -116,7 +117,7 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'app-appearance', label: 'App appearance screen', fullBleed: true, builder: (c) => const _AppAppearanceCard()),
   GalleryCard(id: 'app-behaviour', label: 'App behaviour screen', fullBleed: true, builder: (c) => const _AppBehaviourCard()),
   GalleryCard(id: 'app-network', label: 'App network screen', fullBleed: true, builder: (c) => const AppNetworkScreen()),
-  GalleryCard(id: 'app-privacy', label: 'App privacy screen', fullBleed: true, builder: (c) => const _AppPrivacyCard()),
+  GalleryCard(id: 'app-privacy', label: 'App privacy screen', fullBleed: true, builder: (c) => const AppPrivacyScreen()),
   GalleryCard(id: 'app-content-blocker', label: 'Content blocker screen', fullBleed: true, builder: (c) => const ContentBlockerSettingsScreen()),
   GalleryCard(id: 'app-backup', label: 'Backup and archives screen', fullBleed: true, builder: (c) => const AppBackupScreen(offerRestoreArchive: true, offerCloseAllArchives: true)),
   GalleryCard(id: 'app-developer', label: 'Developer screen', fullBleed: true, builder: (c) => const AppDeveloperScreen(proxyRouterRunsHere: true)),
@@ -165,6 +166,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _loadRoboto();
   _seedSavedProxies();
+  _seedAppPrefs();
   final q = Uri.base.queryParameters;
   runApp(GalleryApp(
     cardId: q['card'],
@@ -801,26 +803,6 @@ class _AppSettingsCard extends StatelessWidget {
         onSettingsChanged: (_) {},
         onExportSettings: () {},
         onImportSettings: () {},
-        showTabStrip: true,
-        onShowTabStripChanged: (_) {},
-        tabStripInFullscreen: false,
-        onTabStripInFullscreenChanged: (_) {},
-        fullscreenOnShortcut: false,
-        onFullscreenOnShortcutChanged: (_) {},
-        backOpensMenu: false,
-        onBackOpensMenuChanged: (_) {},
-        httpsUpgradeEnabled: true,
-        onHttpsUpgradeEnabledChanged: (_) {},
-        tabBarButton: true,
-        onTabBarButtonChanged: (_) {},
-        tabMaxWidth: 180,
-        onTabMaxWidthChanged: (_) {},
-        showStatsBanner: false,
-        onShowStatsBannerChanged: (_) {},
-        localeOverride: '',
-        onLocaleOverrideChanged: (_) {},
-        linkHandlingEnabled: false,
-        onLinkHandlingEnabledChanged: (_) {},
         onOpenLinkHandlingSettings: () {},
       );
 }
@@ -833,47 +815,29 @@ class _AppAppearanceCard extends StatelessWidget {
   Widget build(BuildContext context) => AppAppearanceScreen(
         settings: const AppThemeSettings(),
         onSettingsChanged: (_) {},
-        localeOverride: '',
-        onLocaleOverrideChanged: (_) {},
       );
 }
 
-/// App behaviour with the tab strip pinned, so the full-screen choice under
-/// it shows.
+/// App behaviour, with the tab strip pinned by [_seedAppPrefs] so the
+/// full-screen choice under it shows.
 class _AppBehaviourCard extends StatelessWidget {
   const _AppBehaviourCard();
 
   @override
   Widget build(BuildContext context) => AppBehaviourScreen(
-        showTabStrip: true,
-        onShowTabStripChanged: (_) {},
-        tabStripInFullscreen: false,
-        onTabStripInFullscreenChanged: (_) {},
-        tabBarButton: false,
-        onTabBarButtonChanged: (_) {},
-        tabMaxWidth: 180,
-        onTabMaxWidthChanged: (_) {},
-        fullscreenOnShortcut: false,
-        onFullscreenOnShortcutChanged: (_) {},
-        backOpensMenu: false,
-        onBackOpensMenuChanged: (_) {},
-        linkHandlingEnabled: true,
         onOpenLinkHandlingSettings: () {},
       );
 }
 
-/// App privacy: the protection report, the blockers every site masks, the
-/// identity data and screen capture.
-class _AppPrivacyCard extends StatelessWidget {
-  const _AppPrivacyCard();
-
-  @override
-  Widget build(BuildContext context) => AppPrivacyScreen(
-        showStatsBanner: true,
-        onShowStatsBannerChanged: (_) {},
-        httpsUpgradeEnabled: true,
-        onHttpsUpgradeEnabledChanged: (_) {},
-      );
+/// Off their defaults where that shows more of App settings: the tab strip
+/// pinned, so Behaviour shows its full-screen choice, with a width set, and
+/// full screen on shortcut off. Demo mode keeps what a designer toggles out
+/// of the browser's storage.
+void _seedAppPrefs() {
+  isDemoMode = true;
+  AppPref.showTabStrip.debugValue = true;
+  AppPref.tabMaxWidth.debugValue = 180;
+  AppPref.fullscreenOnShortcut.debugValue = false;
 }
 
 /// The proxy credentials fold and the connection test, as the network

@@ -4,8 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/settings/pref_read.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/current_location_service.dart';
@@ -60,10 +59,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   bool _mapLoaded = false;
   bool _fetchingLocation = false;
-  String _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  String get _tileUrl => AppPref.osmTileUrl.value;
   // Compliant User-Agent per OSM Tile Usage Policy: clearly identifies the
   // app, includes a contact URL, and avoids the library default. Populated
-  // before the map can mount (see _loadTileUrl).
+  // before the map can mount (see _loadTileUserAgent).
   String _tileUserAgent = 'Webspace (+https://github.com/theoden8/webspace_app)';
   final MapController _mapController = MapController();
   // Held at field scope so the recognizers are only allocated once and
@@ -93,12 +92,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     _accController = TextEditingController(
       text: widget.initialAccuracy.toString(),
     );
-    _loadTileUrl();
+    _loadTileUserAgent();
   }
 
-  Future<void> _loadTileUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url = readPrefAs<String>(prefs, 'osmTileUrl') ?? _tileUrl;
+  Future<void> _loadTileUserAgent() async {
     String ua = _tileUserAgent;
     try {
       final info = await PackageInfo.fromPlatform();
@@ -108,10 +105,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       // Keep the static fallback if PackageInfo is unavailable.
     }
     if (!mounted) return;
-    setState(() {
-      _tileUrl = url;
-      _tileUserAgent = ua;
-    });
+    setState(() => _tileUserAgent = ua);
   }
 
   @override

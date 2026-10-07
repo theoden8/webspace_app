@@ -320,7 +320,7 @@ void main() {
     });
 
     test('the pref the default comes from is registered and on', () {
-      expect(kExportedAppPrefs[kHttpsUpgradeEnabledKey], isTrue);
+      expect(AppPref.httpsUpgradeEnabled.fallback, isTrue);
     });
 
     test('the per-site override round-trips through JSON', () {

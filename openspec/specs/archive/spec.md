@@ -110,7 +110,7 @@ The active app state SHALL be byte-identical regardless of whether the device ha
 **And** a snapshot of the SharedPreferences XML on disk after first launch
 **When** the user creates an archive, adds a site to it, closes it, reopens it, and closes it again
 **Then** the SharedPreferences XML on disk equals the snapshot byte-for-byte
-**And** the `kExportedAppPrefs` registry contains no archive-related key
+**And** the `AppPref` registry contains no archive-related key
 
 #### Scenario: app-tier WebViewModel collection unchanged
 
@@ -438,13 +438,13 @@ When at least one archive is open and the app is backgrounded, the visible UI SH
 
 ### Requirement: ARCH-010 — Settings export/import never includes archives without explicit opt-in
 
-`SettingsBackupService.createBackup` / `exportToJson` SHALL operate exclusively on the app-tier `_webViewModels` and `kExportedAppPrefs`. Archive-tier state is not included in exports by default. A user-controlled "include open archives" tick on the export dialog MAY add archive blobs to the export file at the user's explicit request; the resulting file's archive section is itself encrypted under each included archive's `MK_arch`.
+`SettingsBackupService.createBackup` / `exportToJson` SHALL operate exclusively on the app-tier `_webViewModels` and `AppPref` values. Archive-tier state is not included in exports by default. A user-controlled "include open archives" tick on the export dialog MAY add archive blobs to the export file at the user's explicit request; the resulting file's archive section is itself encrypted under each included archive's `MK_arch`.
 
 #### Scenario: Default export excludes archives entirely
 
 **Given** an archive is open with sites
 **When** the user exports settings without ticking "include open archives"
-**Then** the export JSON contains only app-tier sites, app-tier webspaces, and `kExportedAppPrefs`
+**Then** the export JSON contains only app-tier sites, app-tier webspaces, and `AppPref` values
 **And** the export bytes are equal to the bytes a user without any archives would produce with identical app-tier state
 
 #### Scenario: Default import targets only app-tier

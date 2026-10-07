@@ -939,7 +939,6 @@ class WebSpaceApp extends StatefulWidget {
 
 class _WebSpaceAppState extends State<WebSpaceApp> {
   AppThemeSettings _themeSettings = const AppThemeSettings();
-  Locale? _localeOverride;
 
   void _setThemeSettings(AppThemeSettings settings) {
     setState(() {
@@ -947,14 +946,14 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
     });
   }
 
-  void _setLocaleOverride(Locale? locale) {
-    setState(() {
-      _localeOverride = locale;
-    });
-  }
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      ValueListenableBuilder<String>(
+        valueListenable: AppPref.appLocaleOverride.listenable,
+        builder: (context, localeTag, _) => _buildApp(localeFromTag(localeTag)),
+      );
+
+  Widget _buildApp(Locale? locale) {
     final Color accentColor = _accentColorToColor(_themeSettings.accentColor);
     return MaterialApp(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
@@ -963,7 +962,7 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       navigatorObservers: [surfaceRouteObserver],
       localizationsDelegates: AppLocalizations.localizationsDelegates,
       supportedLocales: AppLocalizations.supportedLocales,
-      locale: _localeOverride,
+      locale: locale,
       // Fall back to English for any device locale we don't ship, instead of
       // gen_l10n's default of supportedLocales.first (alphabetically 'af').
       localeListResolutionCallback: resolveSupportedLocale,
@@ -977,10 +976,7 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
       themeMode: _themeSettings.themeMode,
-      home: WebSpacePage(
-        onThemeSettingsChanged: _setThemeSettings,
-        onLocaleOverrideChanged: _setLocaleOverride,
-      ),
+      home: WebSpacePage(onThemeSettingsChanged: _setThemeSettings),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -988,12 +984,8 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
 
 class WebSpacePage extends StatefulWidget {
   final Function(AppThemeSettings) onThemeSettingsChanged;
-  final Function(Locale?) onLocaleOverrideChanged;
 
-  WebSpacePage({
-    required this.onThemeSettingsChanged,
-    required this.onLocaleOverrideChanged,
-  });
+  WebSpacePage({required this.onThemeSettingsChanged});
 
   @override
   _WebSpacePageState createState() => _WebSpacePageState();
@@ -1107,33 +1099,20 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// archive get the normal screenshot as before — this is a purely
   /// additive guard.
   bool _maskBackground = false;
-  bool _showUrlBar = false;
-  bool _showTabStrip = false;
-  bool _tabStripInFullscreen = false;
-  // Show a floating button that reveals the tab strip (and its overflow menu)
-  // on demand, in and out of fullscreen. Lets the user reach tabs + menu
-  // without keeping the strip pinned. Global pref mirror of `tabBarButton`.
-  bool _tabBarButton = false;
-  // App-wide default corner for the tab-bar button (true = right), used for
-  // sites that were never dragged. Kept as the legacy `tabBarButtonOnRight`
-  // pref so pre-per-site users keep their chosen corner; no settings UI
-  // writes it anymore — dragging the button stores the corner per site.
-  bool _tabBarButtonOnRight = true;
   // Runtime-only: fractional position of the tab-bar button while the user
   // drags it between corners; null when not dragging. On release the button
   // glides to the nearest corner, which is persisted on the current site's
   // model.
   Alignment? _tabBarButtonDragAlignment;
   final GlobalKey _bodyStackKey = GlobalKey();
-  // Enter fullscreen when a site is opened via a home-screen shortcut. Global
-  // pref mirror of the `fullscreenOnShortcut` SharedPreferences key. On by
-  // default. Independent of per-site `WebViewModel.fullscreenMode`.
-  bool _fullscreenOnShortcut = true;
   // NAV-009: what the back gesture does at the start of a site's history.
   // Off by default — the gesture only walks webview history (issue #369);
   // turning it on opens the drawer there, and again to leave the app (#431).
   // Pinned off where the setting is not offered.
-  BackAtHistoryStart _backAtHistoryStart = BackAtHistoryStart.ignore;
+  BackAtHistoryStart get _backAtHistoryStart =>
+      _backAtHistoryStartOffered && AppPref.backOpensMenu.value
+          ? BackAtHistoryStart.openMenu
+          : BackAtHistoryStart.ignore;
   bool get _backAtHistoryStartOffered => backAtHistoryStartConfigurable(
         isIOS: hostIsIOS,
         isMacOS: hostIsMacOS,
@@ -1141,15 +1120,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   // True while the drawer showing is the one the back gesture itself opened.
   // Only that drawer escalates to leaving the app on the next gesture.
   bool _drawerOpenedByBackGesture = false;
-  int _tabMaxWidth = 140;
   // Runtime-only: whether the tab-bar button has revealed the tab strip.
   // Reset on exiting fullscreen and on site switch; never persisted.
   bool _tabBarOverlayVisible = false;
-  bool _linkHandlingEnabled = true;
-  bool _linkHandlingClaimDomains = false;
-  bool _showStatsBanner = true;
-  // UI language override as a locale tag ('' = follow system).
-  String _localeOverride = '';
 
   // Webspace-related state
   final List<Webspace> _webspaces = [];
@@ -1269,6 +1242,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     debugWebViewModels = _webViewModels;
     WebViewModel.siteLookup = _modelForSiteId;
     WidgetsBinding.instance.addObserver(this);
+    _mirrorWebViewFactoryPrefs();
+    AppPref.anyChange.addListener(_onAppPrefChanged);
+    AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
+    AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
     _restoreAppState();
     _refreshPinnedSiteIds();
     _probeAppIntents();
@@ -1300,6 +1277,23 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       SystemChrome.setSystemUIChangeCallback(_onSystemUiChange);
     }
+  }
+
+  /// The webview factory reads these synchronously while it builds.
+  void _mirrorWebViewFactoryPrefs() {
+    WebViewFactory.backForwardCacheEnabled =
+        AppPref.backForwardCacheEnabled.value;
+    WebViewFactory.httpsUpgradeEnabled = AppPref.httpsUpgradeEnabled.value;
+  }
+
+  void _onAppPrefChanged() {
+    _mirrorWebViewFactoryPrefs();
+    if (mounted) setState(() {});
+  }
+
+  void _onTabStripPrefChanged() {
+    if (!AppPref.tabBarButton.value) _tabBarOverlayVisible = false;
+    if (_isFullscreen) _applyFullscreenSystemUi();
   }
 
   void _onTorStatusChanged(TorStatus s) {
@@ -1678,6 +1672,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     _navStateDebouncer.dispose();
     _untrustSub?.cancel();
     _torStatusSub?.cancel();
+    AppPref.anyChange.removeListener(_onAppPrefChanged);
+    AppPref.tabStripInFullscreen.listenable
+        .removeListener(_onTabStripPrefChanged);
+    AppPref.tabBarButton.listenable.removeListener(_onTabStripPrefChanged);
     _revealedBarsHideTimer?.cancel();
     SystemChrome.setSystemUIChangeCallback(null);
     surfaceRouteObserver.unsubscribe(this);
@@ -2449,7 +2447,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (_kioskLocked ||
         StartupRestoreEngine.shouldEnterFullscreen(
           viaShortcut: true,
-          fullscreenOnShortcut: _fullscreenOnShortcut,
+          fullscreenOnShortcut: AppPref.fullscreenOnShortcut.value,
           perSiteFullscreenMode: _webViewModels[index].fullscreenMode,
         )) {
       _enterFullscreen();
@@ -2693,7 +2691,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         final html = await ShareIntentService.consumeLaunchHtml();
         if (!mounted) return;
         if (html != null) {
-          if (!_linkHandlingEnabled) {
+          if (!AppPref.linkHandlingEnabled.value) {
             LogService.instance.log('LinkIntent',
                 'HTML share dropped (link handling disabled)');
             return;
@@ -2722,7 +2720,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           'received: $raw',
           sensitivity: LogSensitivity.sensitive,
         );
-        if (!_linkHandlingEnabled) {
+        if (!AppPref.linkHandlingEnabled.value) {
           LogService.instance.log(
             'LinkIntent',
             'Share dropped (link handling disabled): $raw',
@@ -2788,10 +2786,6 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   final _webSearchGuard = ReentryGuard();
 
-  /// The `webSearchDefaultSite` app pref, kept here for the URL bar, which
-  /// names its search site while it builds (LIR-033).
-  String? _webSearchDefaultSite;
-
   /// [m] as web search sees it (LIR-028).
   SearchSite _searchSiteOf(WebViewModel m) => SearchSite(
         siteId: m.siteId,
@@ -2810,9 +2804,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _webSearchGuard.run(() async {
       final owner = _webViewModels[index];
       final identity = owner.runningIdentity;
-      final prefs = await SharedPreferences.getInstance();
-      if (!mounted) return;
-      final appDefault = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);
+      final appDefault = AppPref.webSearchDefaultSite.value;
       final candidates = [
         for (final m in {..._outboundCandidates(owner), identity})
           _searchSiteOf(m),
@@ -2826,9 +2818,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           candidates: candidates,
           declared: owner.searchSites,
           declaredDefault: owner.searchDefault,
-          appDefault: appDefault == null || appDefault.isEmpty
-              ? null
-              : appDefault,
+          appDefault: appDefault.isEmpty ? null : appDefault,
           canAddSites: !owner.isArchiveTier,
           initialQuery: initialQuery,
           containerColors: {
@@ -2876,7 +2866,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   ({List<UrlBarSearchSite> sites, String? defaultId}) _urlBarSearchFor(
       WebViewModel owner) {
     final identity = owner.runningIdentity;
-    final appDefault = _webSearchDefaultSite;
+    final appDefault = AppPref.webSearchDefaultSite.value;
     final bar = WebSearchEngine.barOptions(
       identity: _searchSiteOf(identity),
       candidates: [
@@ -2885,7 +2875,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       ],
       declared: owner.searchSites,
       declaredDefault: owner.searchDefault,
-      appDefault: appDefault == null || appDefault.isEmpty ? null : appDefault,
+      appDefault: appDefault.isEmpty ? null : appDefault,
     );
     return (
       sites: [
@@ -3083,22 +3073,16 @@ class _WebSpacePageState extends State<WebSpacePage>
       final ids = {for (final c in _outboundCandidates(m)) c.siteId};
       if (m.pruneSearchReferences(ids.contains)) changed = true;
     }
-    unawaited(_pruneSearchDefaultPref());
+    _pruneSearchDefaultPref();
     return changed;
   }
 
-  Future<void> _pruneSearchDefaultPref() async {
-    final prefs = await SharedPreferences.getInstance();
-    var id = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);
-    if (id != null && id.isNotEmpty) {
-      final site = _modelForSiteId(id);
-      if (site == null || site.isArchiveTier) {
-        await prefs.setString(kWebSearchDefaultSiteKey, '');
-        id = '';
-      }
-    }
-    if (mounted && id != _webSearchDefaultSite) {
-      setState(() => _webSearchDefaultSite = id);
+  void _pruneSearchDefaultPref() {
+    final id = AppPref.webSearchDefaultSite.value;
+    if (id.isEmpty) return;
+    final site = _modelForSiteId(id);
+    if (site == null || site.isArchiveTier) {
+      unawaited(AppPref.webSearchDefaultSite.set(''));
     }
   }
 
@@ -3348,7 +3332,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         otherSites: others,
         canBind: action.offerBind,
         canCreate: action.offerCreate,
-        claimDomains: _linkHandlingClaimDomains,
+        claimDomains: AppPref.linkHandlingClaimDomains.value,
       ),
     );
     if (!mounted || choice == null) return;
@@ -3363,7 +3347,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         followUp = LinkIntentDispatchEngine.sendToSite(
           inbound: inbound,
           site: _SiteRouteAdapter(site),
-          claimDomain: _linkHandlingClaimDomains,
+          claimDomain: AppPref.linkHandlingClaimDomains.value,
         );
       case DispatchChoiceCreate():
         followUp =
@@ -4475,51 +4459,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     await prefs.setInt('themeSettings', _themeSettings.toStorageIndex());
   }
 
-  Future<void> _saveShowUrlBar() async {
-    if (isDemoMode) return; // Don't persist in demo mode
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('showUrlBar', _showUrlBar);
-  }
-
-  Future<void> _saveShowTabStrip() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('showTabStrip', _showTabStrip);
-  }
-
-  Future<void> _saveTabStripInFullscreen() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tabStripInFullscreen', _tabStripInFullscreen);
-  }
-
-  Future<void> _saveFullscreenOnShortcut() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('fullscreenOnShortcut', _fullscreenOnShortcut);
-  }
-
-  Future<void> _saveBackAtHistoryStart() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-      kBackOpensMenuKey,
-      _backAtHistoryStart == BackAtHistoryStart.openMenu,
-    );
-  }
-
-  Future<void> _saveBlockScreenshots() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(kBlockScreenshotsKey, ScreenCaptureGuard.appWideEnabled);
-  }
-
-  Future<void> _saveTabBarButton() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('tabBarButton', _tabBarButton);
-  }
-
   static const double _kTabBarButtonSize = 42;
   static const double _kTabBarButtonMargin = 16;
 
@@ -4532,7 +4471,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       corner = _webViewModels[index].tabBarButtonCorner;
     }
     return corner ??
-        (_tabBarButtonOnRight
+        (AppPref.tabBarButtonOnRight.value
             ? TabBarCorner.bottomRight
             : TabBarCorner.bottomLeft);
   }
@@ -4578,46 +4517,11 @@ class _WebSpacePageState extends State<WebSpacePage>
     _saveWebViewModels();
   }
 
-  Future<void> _saveTabMaxWidth() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('tabMaxWidth', _tabMaxWidth);
-  }
-
-  Future<void> _saveShowStatsBanner() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('showStatsBanner', _showStatsBanner);
-  }
-
-  Future<void> _saveLinkHandlingEnabled() async {
-    if (isDemoMode) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(kLinkHandlingEnabledKey, _linkHandlingEnabled);
-  }
-
-  Future<void> _saveLinkHandlingClaimDomains() async {
-    if (isDemoMode) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(
-        kLinkHandlingClaimDomainsKey, _linkHandlingClaimDomains);
-  }
-
   void _openLinkHandlingSettings() {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (ctx) => LinkHandlingSettingsScreen(
-          enabled: _linkHandlingEnabled,
-          onEnabledChanged: (v) {
-            setState(() => _linkHandlingEnabled = v);
-            _saveLinkHandlingEnabled();
-          },
-          claimDomains: _linkHandlingClaimDomains,
-          onClaimDomainsChanged: (v) {
-            setState(() => _linkHandlingClaimDomains = v);
-            _saveLinkHandlingClaimDomains();
-          },
           sites: List<WebViewModel>.from(_webViewModels),
           onOpenSiteEditor: (site) {
             final idx = _webViewModels.indexOf(site);
@@ -5590,6 +5494,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Debug-only startup phase timing (compiled out of release via kDebugMode).
     final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    AppPref.loadAll(prefs);
     setState(() {
       // Load theme settings, with migration from old formats
       final savedThemeSettings = readPrefAs<int>(prefs, 'themeSettings');
@@ -5621,33 +5526,8 @@ class _WebSpacePageState extends State<WebSpacePage>
           }
         }
       }
-      _showUrlBar = readPrefAs<bool>(prefs, 'showUrlBar') ?? false;
-      _webSearchDefaultSite = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);
-      _showTabStrip = readPrefAs<bool>(prefs, 'showTabStrip') ?? false;
-      _tabStripInFullscreen = readPrefAs<bool>(prefs, 'tabStripInFullscreen') ?? false;
-      _tabBarButton =
-          readPrefAs<bool>(prefs, 'tabBarButton') ?? readPrefAs<bool>(prefs, 'tabBarButtonInFullscreen') ?? false;
-      _tabBarButtonOnRight = readPrefAs<bool>(prefs, 'tabBarButtonOnRight') ?? true;
-      _fullscreenOnShortcut = readPrefAs<bool>(prefs, 'fullscreenOnShortcut') ?? true;
-      _backAtHistoryStart =
-          _backAtHistoryStartOffered && (readPrefAs<bool>(prefs, kBackOpensMenuKey) ?? false)
-              ? BackAtHistoryStart.openMenu
-              : BackAtHistoryStart.ignore;
-      _tabMaxWidth = readPrefAs<int>(prefs, 'tabMaxWidth') ?? 140;
-      _showStatsBanner = readPrefAs<bool>(prefs, 'showStatsBanner') ?? true;
-      WebViewFactory.backForwardCacheEnabled =
-          readPrefAs<bool>(prefs, kBackForwardCacheEnabledKey) ?? true;
-      WebViewFactory.httpsUpgradeEnabled =
-          readPrefAs<bool>(prefs, kHttpsUpgradeEnabledKey) ?? true;
-      ScreenCaptureGuard.appWideEnabled =
-          readPrefAs<bool>(prefs, kBlockScreenshotsKey) ?? false;
-      _linkHandlingEnabled = readPrefAs<bool>(prefs, kLinkHandlingEnabledKey) ?? true;
-      _linkHandlingClaimDomains =
-          readPrefAs<bool>(prefs, kLinkHandlingClaimDomainsKey) ?? false;
-      _localeOverride = readPrefAs<String>(prefs, kAppLocaleOverrideKey) ?? '';
       _loadShortcutRemap(prefs);
       widget.onThemeSettingsChanged(_themeSettings);
-      widget.onLocaleOverrideChanged(localeFromTag(_localeOverride));
     });
     await _loadWebspaces();
     await _loadGlobalUserScripts();
@@ -5894,7 +5774,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         (_kioskLocked ||
             StartupRestoreEngine.shouldEnterFullscreen(
               viaShortcut: true,
-              fullscreenOnShortcut: _fullscreenOnShortcut,
+              fullscreenOnShortcut: AppPref.fullscreenOnShortcut.value,
               perSiteFullscreenMode:
                   _webViewModels[indexToRestore].fullscreenMode,
             ))) {
@@ -6526,20 +6406,14 @@ class _WebSpacePageState extends State<WebSpacePage>
                 },
           homeTitle: homeTitle,
           posture: posture,
-          showUrlBar: _showUrlBar,
+          showUrlBar: AppPref.showUrlBar.value,
           onConfirmScriptFetch: _confirmScriptFetch,
           onOpenProxySettings: () => _openSiteSettingsById(posture.siteId),
           onProtectedMediaRequest: _promptProtectedMedia,
           onCameraDecision: _resolveCameraDecision,
           onMicrophoneDecision: _resolveMicrophoneDecision,
           onScreenShareDecision: _resolveScreenShareDecision,
-          onShowUrlBarChanged: (show) async {
-            if (!mounted) return;
-            setState(() {
-              _showUrlBar = show;
-            });
-            await _saveShowUrlBar();
-          },
+          onShowUrlBarChanged: AppPref.showUrlBar.set,
           cookieManager: _cookieManager,
           containerCookieManager: _containerCookieManager,
         ),
@@ -6791,8 +6665,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   SystemUiMode get _fullscreenSystemUiMode => fullscreenSystemUiMode(
-        tabStripInFullscreen: _tabStripInFullscreen,
-        tabBarButton: _tabBarButton,
+        tabStripInFullscreen: AppPref.tabStripInFullscreen.value,
+        tabBarButton: AppPref.tabBarButton.value,
         kioskLocked: _kioskLocked,
       );
 
@@ -7245,10 +7119,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _closeAllArchives();
     if (!mounted) return;
 
-    // The same resolved values are applied here and persisted below, so a
-    // pref the backup does not name reads the same before and after a
-    // restart.
-    final prefs = plan.appPrefs;
+    // Applied and persisted in one step, before any site activates, so a pref
+    // the backup does not name reads the same before and after a restart.
+    // Per PWD-005 the backup carries no proxy password: the user re-enters
+    // it on the proxy settings screen, as they re-log into sites whose secure
+    // cookies were stripped.
+    await writeExportedAppPrefs(
+        await SharedPreferences.getInstance(), plan.appPrefs);
+    if (!mounted) return;
     setState(() {
       // Invalidate any in-flight `_setCurrentIndex`/`_selectWebspace` that
       // captured the pre-import list: the clear+replace below shifts every
@@ -7262,24 +7140,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       _webspaces.addAll(plan.webspaces);
 
       _themeSettings = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
-      _showUrlBar = prefs['showUrlBar'] as bool;
-      _showTabStrip = prefs['showTabStrip'] as bool;
-      _tabStripInFullscreen = prefs['tabStripInFullscreen'] as bool;
-      _tabBarButton = prefs['tabBarButton'] as bool;
-      _tabBarButtonOnRight = prefs['tabBarButtonOnRight'] as bool;
-      _fullscreenOnShortcut = prefs['fullscreenOnShortcut'] as bool;
-      _backAtHistoryStart =
-          prefs[kBackOpensMenuKey] as bool && _backAtHistoryStartOffered
-              ? BackAtHistoryStart.openMenu
-              : BackAtHistoryStart.ignore;
-      _tabMaxWidth = prefs['tabMaxWidth'] as int;
-      _showStatsBanner = prefs['showStatsBanner'] as bool;
-      WebViewFactory.backForwardCacheEnabled =
-          prefs[kBackForwardCacheEnabledKey] as bool;
-      WebViewFactory.httpsUpgradeEnabled =
-          prefs[kHttpsUpgradeEnabledKey] as bool;
-      ScreenCaptureGuard.appWideEnabled = prefs[kBlockScreenshotsKey] as bool;
-
       _selectedWebspaceId = plan.selectedWebspaceId;
     });
     _resolveWebspaceIndices();
@@ -7304,13 +7164,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Apply theme to app
     widget.onThemeSettingsChanged(_themeSettings);
 
-    // Per PWD-005 the backup file does not carry proxy passwords, so
-    // there's nothing to route into secure storage here — the user will
-    // re-enter passwords on the proxy settings screen, just like they
-    // re-log into sites whose secure cookies were stripped.
-    final prefsToWrite = await SharedPreferences.getInstance();
-    await writeExportedAppPrefs(prefsToWrite, prefs);
-    // The registry write above set the raw key; the service caches it.
     await DeveloperModeService.instance.reload();
     final importedCounts = _notificationSiteCounts();
     if (importedCounts.enabled > 0) {
@@ -7321,8 +7174,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         level: LogLevel.warning,
       );
     }
-    await ExperimentalFeaturesService.instance.reload();
-    await ExternalTorSettings.initialize();
     await TorService.instance.externalAddressChanged();
     await TorService.instance.runtimeChoiceChanged();
     // Hydrate the in-memory GlobalOutboundProxy from the (password-less)
@@ -8746,88 +8597,6 @@ class _WebSpacePageState extends State<WebSpacePage>
                       await _closeAllArchives();
                       _toast((loc) => loc.homeArchivesClosed);
                     },
-                    showTabStrip: _showTabStrip,
-                    onShowTabStripChanged: (value) {
-                      setState(() {
-                        _showTabStrip = value;
-                      });
-                      _saveShowTabStrip();
-                    },
-                    tabStripInFullscreen: _tabStripInFullscreen,
-                    onTabStripInFullscreenChanged: (value) {
-                      setState(() {
-                        _tabStripInFullscreen = value;
-                      });
-                      _saveTabStripInFullscreen();
-                      if (_isFullscreen) _applyFullscreenSystemUi();
-                    },
-                    fullscreenOnShortcut: _fullscreenOnShortcut,
-                    onFullscreenOnShortcutChanged: (value) {
-                      setState(() {
-                        _fullscreenOnShortcut = value;
-                      });
-                      _saveFullscreenOnShortcut();
-                    },
-                    backOpensMenu:
-                        _backAtHistoryStart == BackAtHistoryStart.openMenu,
-                    onBackOpensMenuChanged: (value) {
-                      setState(() {
-                        _backAtHistoryStart = value
-                            ? BackAtHistoryStart.openMenu
-                            : BackAtHistoryStart.ignore;
-                      });
-                      _saveBackAtHistoryStart();
-                    },
-                    tabBarButton: _tabBarButton,
-                    onTabBarButtonChanged: (value) {
-                      setState(() {
-                        _tabBarButton = value;
-                        if (!value) _tabBarOverlayVisible = false;
-                      });
-                      _saveTabBarButton();
-                      if (_isFullscreen) _applyFullscreenSystemUi();
-                    },
-                    tabMaxWidth: _tabMaxWidth,
-                    onTabMaxWidthChanged: (value) {
-                      setState(() {
-                        _tabMaxWidth = value;
-                      });
-                      _saveTabMaxWidth();
-                    },
-                    showStatsBanner: _showStatsBanner,
-                    onShowStatsBannerChanged: (value) {
-                      setState(() {
-                        _showStatsBanner = value;
-                      });
-                      _saveShowStatsBanner();
-                    },
-                    httpsUpgradeEnabled: WebViewFactory.httpsUpgradeEnabled,
-                    onHttpsUpgradeEnabledChanged: (value) async {
-                      setState(() {
-                        WebViewFactory.httpsUpgradeEnabled = value;
-                      });
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setBool(kHttpsUpgradeEnabledKey, value);
-                    },
-                    blockScreenshots: ScreenCaptureGuard.appWideEnabled,
-                    onBlockScreenshotsChanged: (value) {
-                      setState(() {
-                        ScreenCaptureGuard.appWideEnabled = value;
-                      });
-                      _saveBlockScreenshots();
-                    },
-                    localeOverride: _localeOverride,
-                    onLocaleOverrideChanged: (tag) async {
-                      setState(() => _localeOverride = tag);
-                      widget.onLocaleOverrideChanged(localeFromTag(tag));
-                      final prefs = await SharedPreferences.getInstance();
-                      await prefs.setString(kAppLocaleOverrideKey, tag);
-                    },
-                    linkHandlingEnabled: _linkHandlingEnabled,
-                    onLinkHandlingEnabledChanged: (value) {
-                      setState(() => _linkHandlingEnabled = value);
-                      _saveLinkHandlingEnabled();
-                    },
                     onOpenLinkHandlingSettings: _openLinkHandlingSettings,
                     webSearchSites: [
                       for (final m in _webViewModels)
@@ -8860,13 +8629,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                   ),
                 ),
               );
-              // Experimental switches are read in build (TAB-012); the
-              // default search site is read by the URL bar.
-              await _pruneSearchDefaultPref();
               if (mounted) setState(() {});
             },
           ),
-        if (_currentIndex != null && _currentIndex! < _webViewModels.length && !_showTabStrip)
+        if (_currentIndex != null && _currentIndex! < _webViewModels.length && !AppPref.showTabStrip.value)
           PopupMenuButton<SiteMenuAction>(
             itemBuilder: (context) =>
                 _siteMenuItems(context, _SiteMenuPlacement.appBar),
@@ -8889,10 +8655,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     if (_getFilteredSiteIndices().isEmpty) return false;
     if (_isFullscreen) {
-      if (_tabStripInFullscreen) return true;
-      return _tabBarButton && _tabBarOverlayVisible;
+      if (AppPref.tabStripInFullscreen.value) return true;
+      return AppPref.tabBarButton.value && _tabBarOverlayVisible;
     }
-    return _showTabStrip || (_tabBarButton && _tabBarOverlayVisible);
+    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _tabBarOverlayVisible);
   }
 
   /// Whether the floating tab-bar button is currently shown. It reveals the
@@ -8900,7 +8666,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Suppressed while the strip is already pinned or revealed — the strip then
   /// carries its own dismiss control.
   bool get _tabBarButtonShown {
-    if (!_tabBarButton) return false;
+    if (!AppPref.tabBarButton.value) return false;
     // KIOSK-002: a locked session must not expose tab switching.
     if (_kioskLocked) return false;
     if (_currentIndex == null || _currentIndex! >= _webViewModels.length) {
@@ -8908,8 +8674,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     if (_getFilteredSiteIndices().isEmpty) return false;
     if (_tabBarOverlayVisible) return false;
-    if (_isFullscreen) return !_tabStripInFullscreen;
-    return !_showTabStrip;
+    if (_isFullscreen) return !AppPref.tabStripInFullscreen.value;
+    return !AppPref.showTabStrip.value;
   }
 
   /// Build the tab strip shown in bottomNavigationBar.
@@ -9072,7 +8838,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     bool isDark,
   ) {
     return Container(
-      constraints: BoxConstraints(maxWidth: _tabMaxWidth.toDouble()),
+      constraints: BoxConstraints(maxWidth: AppPref.tabMaxWidth.value.toDouble()),
       margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
       padding: EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
@@ -9158,7 +8924,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
 
     final model = _webViewModels[_currentIndex!];
-    final hasUrlBar = _showUrlBar;
+    final hasUrlBar = AppPref.showUrlBar.value;
     final hasFindToolbar = _isFindVisible && getController() != null;
     if (!hasUrlBar && !hasFindToolbar) {
       return null;
@@ -9330,7 +9096,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           _tabsFeatureEnabled && !_tabsEnabledAt(_currentIndex)
               ? (Icons.travel_explore, loc.webSearchMenu)
               : null,
-        SiteMenuAction.toggleUrlBar => _showUrlBar
+        SiteMenuAction.toggleUrlBar => AppPref.showUrlBar.value
             ? (Icons.visibility_off, loc.homeHideUrlBarMenu)
             : (Icons.visibility, loc.homeShowUrlBarMenu),
         SiteMenuAction.fullscreen => _isFullscreen
@@ -9444,8 +9210,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.webSearch:
         await _webSearch();
       case SiteMenuAction.toggleUrlBar:
-        setState(() => _showUrlBar = !_showUrlBar);
-        await _saveShowUrlBar();
+        await AppPref.showUrlBar.set(!AppPref.showUrlBar.value);
       case SiteMenuAction.fullscreen:
         _toggleFullscreen();
       case SiteMenuAction.repaint:
@@ -10810,7 +10575,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           key: ValueKey(webViewModel.siteId),
                           child: Column(
                             children: [
-                              if (_showStatsBanner)
+                              if (AppPref.showStatsBanner.value)
                                 StatsBanner(
                                   siteId: webViewModel.siteId,
                                   dnsBlockEnabled: webViewModel.dnsBlockEnabled,
@@ -11056,7 +10821,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // that moves _currentIndex cannot skip it (SCREENBLOCK-002).
     final shown = _currentIndex;
     unawaited(_screenCaptureGuard.apply(screenCaptureBlocked(
-      appWide: ScreenCaptureGuard.appWideEnabled,
+      appWide: AppPref.blockScreenshots.value,
       siteOnScreen: shown != null && shown >= 0 && shown < _webViewModels.length
           ? _webViewModels[shown].blockScreenshots
           : null,

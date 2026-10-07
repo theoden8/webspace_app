@@ -97,7 +97,7 @@ its hint, not its subtitle (settings-hints).
 JSON only when on, so a site that never used it serialises exactly as before. A
 wrong-typed value SHALL read as off. It SHALL ride settings backups and site QR
 codes (`SiteSettingsQrCodec.includedKeys`): it is configuration, not a secret.
-The app-wide switch SHALL be registered in `kExportedAppPrefs` under
+The app-wide switch SHALL be registered in `AppPref` under
 `blockScreenshots`, default off, and re-read after an import.
 
 Archive-tier sites (ARCH-006) SHALL keep the stored value: the flag writes

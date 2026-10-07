@@ -216,16 +216,16 @@ SharedPreferences and gives each test a deterministic starting state.
 #### Scenario: Persistence is skipped
 
 - **Given** `isDemoMode = true`
-- **When** the app would otherwise save any setting via
-  `_save<X>` methods in `_WebSpacePageState`
-- **Then** the write is short-circuited by the `if (isDemoMode) return;`
-  guard
+- **When** the app would otherwise save any setting, through a `_save<X>`
+  method in `_WebSpacePageState` or an app pref through `AppPref.set`
+- **Then** the write is short-circuited by the `isDemoMode` guard (for app
+  prefs, `test/app_prefs_test.dart`)
 - **And** the test does not pollute SharedPreferences across runs
 
 #### Scenario: Initial state seeded for the test
 
 - **Given** the test pre-seeds
-  `SharedPreferences.setMockInitialValues({kGlobalOutboundProxyKey: jsonEncode({...})})`
+  `SharedPreferences.setMockInitialValues({AppPref.globalOutboundProxy.key: jsonEncode({...})})`
 - **When** `app.main()` runs
 - **Then** `GlobalOutboundProxy.initialize` reads the seeded entry
 - **And** the in-memory `GlobalOutboundProxy.current` reflects the seeded

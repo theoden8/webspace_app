@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
@@ -102,9 +103,10 @@ final class PlatformLock extends Lock {
   const PlatformLock(String super.text);
 }
 
-/// Another setting decides this one while it is on.
+/// Another setting decides this one while it is on. Without a reason when the
+/// deciding row sits right above.
 final class RequiresLock extends Lock {
-  const RequiresLock(String super.text);
+  const RequiresLock([super.text]);
 }
 
 /// What sits at the trailing end of a row and what tapping it does.
@@ -117,6 +119,13 @@ final class Toggle extends SettingControl {
 
   final bool value;
   final ValueChanged<bool> onChanged;
+}
+
+/// A switch bound to an app pref: shows its live value and sets it.
+final class PrefToggle extends SettingControl {
+  const PrefToggle(this.pref);
+
+  final AppPref<bool> pref;
 }
 
 /// Opens a screen or a picker; drawn with a chevron.
@@ -182,14 +191,21 @@ class SettingTile extends StatelessWidget {
                 ? const TextStyle(color: MissingDataIcon.color)
                 : null,
           );
+    Widget toggle(bool value, ValueChanged<bool> onChanged) => SwitchListTile(
+      secondary: leading,
+      contentPadding: contentPadding,
+      title: titleRow,
+      subtitle: subtitleText,
+      value: value,
+      onChanged: locked ? null : onChanged,
+    );
     if (control case Toggle(:final value, :final onChanged)) {
-      return SwitchListTile(
-        secondary: leading,
-        contentPadding: contentPadding,
-        title: titleRow,
-        subtitle: subtitleText,
-        value: value,
-        onChanged: locked ? null : onChanged,
+      return toggle(value, onChanged);
+    }
+    if (control case PrefToggle(:final pref)) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: pref.listenable,
+        builder: (context, value, _) => toggle(value, pref.set),
       );
     }
     final (Widget? trailing, VoidCallback? onTap) = switch (control) {
@@ -198,7 +214,7 @@ class SettingTile extends StatelessWidget {
         onTap,
       ),
       Trailing(:final child, :final onTap) => (child, onTap),
-      Toggle() || null => (null, null),
+      Toggle() || PrefToggle() || null => (null, null),
     };
     return ListTile(
       leading: leading,

@@ -4,7 +4,6 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
@@ -58,7 +57,7 @@ enum FirefoxVersionRefreshResult {
 /// Tracks the current Firefox release version by scraping it from Firefox
 /// source. The scrape is performed on explicit user action (a button in app
 /// settings), or at startup when the user has opted in to automatic updates
-/// ([kFirefoxUaAutoRefreshKey], default off, throttled to weekly) — so the
+/// ([AppPref.firefoxUaAutoRefresh], default off, throttled to weekly) — so the
 /// app makes no network request the user did not ask for (an F-Droid
 /// inclusion requirement). Until an update runs, generated per-site
 /// User-Agents render at [kDefaultFirefoxMajorVersion] baked into the build.
@@ -152,14 +151,14 @@ class FirefoxUserAgentService {
   static const Duration kAutoRefreshInterval = Duration(days: 7);
 
   /// Startup hook for the opt-in automatic update: refreshes only when the
-  /// user has enabled [kFirefoxUaAutoRefreshKey] and the last successful
+  /// user has enabled [AppPref.firefoxUaAutoRefresh] and the last successful
   /// check is older than [kAutoRefreshInterval] (or has never happened).
   /// No-ops otherwise, so the default behavior stays "no network unless
   /// asked". Call after [initialize]; never awaited on the startup path.
   Future<void> maybeAutoRefresh() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      if (!(readPrefAs<bool>(prefs, kFirefoxUaAutoRefreshKey) ?? false)) return;
+      if (!AppPref.firefoxUaAutoRefresh.load(prefs)) return;
     } catch (_) {
       return;
     }

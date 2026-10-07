@@ -14,7 +14,6 @@ import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 
 /// State read back from disk, so a reload that finishes after a newer one
@@ -284,24 +283,20 @@ class SiteSearchListDataset extends ChangeNotifier implements ClearableDataset {
 /// a value (the bundled default), so the row only ever refreshes it.
 class FirefoxVersionDataset extends _LoadedDataset {
   final _service = FirefoxUserAgentService.instance;
-  bool _autoRefresh = false;
 
   /// Whether the weekly check at startup is armed.
-  bool get autoRefresh => _autoRefresh;
+  bool get autoRefresh => AppPref.firefoxUaAutoRefresh.value;
 
   Future<void> setAutoRefresh(bool value) async {
-    _autoRefresh = value;
+    final saved = AppPref.firefoxUaAutoRefresh.set(value);
     _notify();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(kFirefoxUaAutoRefreshKey, value);
+    await saved;
   }
 
   @override
   Future<void> load(bool Function() isCurrent) async {
     final prefs = await SharedPreferences.getInstance();
-    if (isCurrent()) {
-      _autoRefresh = readPrefAs<bool>(prefs, kFirefoxUaAutoRefreshKey) ?? false;
-    }
+    if (isCurrent()) AppPref.firefoxUaAutoRefresh.load(prefs);
   }
 
   @override

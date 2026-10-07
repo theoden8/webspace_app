@@ -16,6 +16,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/settings/app_locale.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
@@ -56,36 +57,7 @@ class AppSettingsScreen extends StatefulWidget {
   /// its absence does not indicate whether any archives exist on disk.
   final bool hasOpenArchives;
   final VoidCallback? onCloseAllArchives;
-  final bool showTabStrip;
-  final ValueChanged<bool> onShowTabStripChanged;
-  final bool tabStripInFullscreen;
-  final ValueChanged<bool> onTabStripInFullscreenChanged;
-  final bool fullscreenOnShortcut;
-  final ValueChanged<bool> onFullscreenOnShortcutChanged;
-  /// NAV-009: back gesture opens the drawer where a site has no page left to
-  /// go back to (and leaves the app on the press after that). Off by default.
-  final bool backOpensMenu;
-  final ValueChanged<bool> onBackOpensMenuChanged;
-  final bool tabBarButton;
-  final ValueChanged<bool> onTabBarButtonChanged;
-  final int tabMaxWidth;
-  final ValueChanged<int> onTabMaxWidthChanged;
-  final bool showStatsBanner;
-  final ValueChanged<bool> onShowStatsBannerChanged;
-  /// HTTPS-005: app-wide default for retrying a plain-http navigation over
-  /// https. A site can override it; Tracking Protection forces it on.
-  final bool httpsUpgradeEnabled;
-  final ValueChanged<bool> onHttpsUpgradeEnabledChanged;
-  /// SCREENBLOCK-002: withhold the whole app from screen capture.
-  final bool blockScreenshots;
-  final ValueChanged<bool>? onBlockScreenshotsChanged;
-  /// Current UI language override as a locale tag ('' = follow system).
-  final String localeOverride;
-  final ValueChanged<String> onLocaleOverrideChanged;
-  /// LIR-008: master "Handle shared links" switch + entry into the
-  /// routing overview screen. The wrapping page handles persistence.
-  final bool linkHandlingEnabled;
-  final ValueChanged<bool> onLinkHandlingEnabledChanged;
+  /// LIR-008: entry into the routing overview screen.
   final VoidCallback onOpenLinkHandlingSettings;
 
   /// The user's web search sites outside every archive (LIR-029), each with
@@ -130,28 +102,6 @@ class AppSettingsScreen extends StatefulWidget {
     this.onRestoreArchive,
     this.hasOpenArchives = false,
     this.onCloseAllArchives,
-    required this.showTabStrip,
-    required this.onShowTabStripChanged,
-    required this.tabStripInFullscreen,
-    required this.onTabStripInFullscreenChanged,
-    required this.fullscreenOnShortcut,
-    required this.onFullscreenOnShortcutChanged,
-    required this.backOpensMenu,
-    required this.onBackOpensMenuChanged,
-    required this.tabBarButton,
-    required this.onTabBarButtonChanged,
-    required this.tabMaxWidth,
-    required this.onTabMaxWidthChanged,
-    required this.showStatsBanner,
-    required this.onShowStatsBannerChanged,
-    required this.httpsUpgradeEnabled,
-    required this.onHttpsUpgradeEnabledChanged,
-    this.blockScreenshots = false,
-    this.onBlockScreenshotsChanged,
-    required this.localeOverride,
-    required this.onLocaleOverrideChanged,
-    required this.linkHandlingEnabled,
-    required this.onLinkHandlingEnabledChanged,
     required this.onOpenLinkHandlingSettings,
     this.webSearchSites = const [],
     this.globalUserScripts = const [],
@@ -166,26 +116,16 @@ class AppSettingsScreen extends StatefulWidget {
 }
 
 class _AppSettingsScreenState extends State<AppSettingsScreen>
-    with SettingsOpenGuard {
-  // Copies of what the category screens change, kept current through their
-  // callbacks so the row summaries answer without reopening them.
+    with SettingsOpenGuard, RebuildOnAppPref {
+  /// The theme the Appearance screen last set, for its row's summary. The
+  /// rest of the summaries read app prefs, which [RebuildOnAppPref] follows.
   late AppThemeSettings _settings = widget.currentSettings;
-  late String _localeOverride = widget.localeOverride;
-  late bool _showTabStrip = widget.showTabStrip;
-  late bool _tabStripInFullscreen = widget.tabStripInFullscreen;
-  late bool _tabBarButton = widget.tabBarButton;
-  late int _tabMaxWidth = widget.tabMaxWidth;
-  late bool _fullscreenOnShortcut = widget.fullscreenOnShortcut;
-  late bool _backOpensMenu = widget.backOpensMenu;
-  late bool _showStatsBanner = widget.showStatsBanner;
-  late bool _httpsUpgradeEnabled = widget.httpsUpgradeEnabled;
-  late bool _blockScreenshots = widget.blockScreenshots;
 
   /// `version+build` from the platform package, null until it resolves.
   String? _appVersion;
   /// Running tap count on the version row; the developer-options gesture.
   int _versionTaps = 0;
-  bool _developerMode = DeveloperModeService.instance.enabled;
+  bool get _developerMode => DeveloperModeService.instance.enabled;
   /// Set while the seventh tap is turning developer mode on, so taps landing
   /// during that await neither count nor unlock a second time.
   bool _unlocking = false;
@@ -231,10 +171,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           _unlocking = false;
         }
         if (!mounted) return;
-        setState(() {
-          _developerMode = true;
-          _versionTaps = 0;
-        });
+        setState(() => _versionTaps = 0);
         message = loc.appSettingsDeveloperModeEnabled;
     }
     if (!mounted) return;
@@ -255,62 +192,20 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           context,
           MaterialPageRoute(builder: (_) => screen),
         );
-        if (!mounted) return;
-        setState(() => _developerMode = DeveloperModeService.instance.enabled);
+        if (mounted) setState(() {});
       });
-
-  /// Keeps a summary current from a category screen's callback. The screen
-  /// sits above this one, but an async callback can still land after both
-  /// were torn down.
-  void _track(VoidCallback fn) {
-    if (mounted) setState(fn);
-  }
 
   void _openAppearance() => _open(AppAppearanceScreen(
         settings: _settings,
         onSettingsChanged: (settings) {
-          _track(() => _settings = settings);
+          // The screen sits above this one, but the callback can still land
+          // after both were torn down.
+          if (mounted) setState(() => _settings = settings);
           widget.onSettingsChanged(settings);
-        },
-        localeOverride: _localeOverride,
-        onLocaleOverrideChanged: (tag) {
-          _track(() => _localeOverride = tag);
-          widget.onLocaleOverrideChanged(tag);
         },
       ));
 
   void _openBehaviour() => _open(AppBehaviourScreen(
-        showTabStrip: _showTabStrip,
-        onShowTabStripChanged: (value) {
-          _track(() => _showTabStrip = value);
-          widget.onShowTabStripChanged(value);
-        },
-        tabStripInFullscreen: _tabStripInFullscreen,
-        onTabStripInFullscreenChanged: (value) {
-          _track(() => _tabStripInFullscreen = value);
-          widget.onTabStripInFullscreenChanged(value);
-        },
-        tabBarButton: _tabBarButton,
-        onTabBarButtonChanged: (value) {
-          _track(() => _tabBarButton = value);
-          widget.onTabBarButtonChanged(value);
-        },
-        tabMaxWidth: _tabMaxWidth,
-        onTabMaxWidthChanged: (value) {
-          _track(() => _tabMaxWidth = value);
-          widget.onTabMaxWidthChanged(value);
-        },
-        fullscreenOnShortcut: _fullscreenOnShortcut,
-        onFullscreenOnShortcutChanged: (value) {
-          _track(() => _fullscreenOnShortcut = value);
-          widget.onFullscreenOnShortcutChanged(value);
-        },
-        backOpensMenu: _backOpensMenu,
-        onBackOpensMenuChanged: (value) {
-          _track(() => _backOpensMenu = value);
-          widget.onBackOpensMenuChanged(value);
-        },
-        linkHandlingEnabled: widget.linkHandlingEnabled,
         onOpenLinkHandlingSettings: widget.onOpenLinkHandlingSettings,
         webSearchSites: widget.webSearchSites,
       ));
@@ -324,23 +219,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   void _openPrivacy() => _open(AppPrivacyScreen(
         siteNames: widget.siteNames,
-        showStatsBanner: _showStatsBanner,
-        onShowStatsBannerChanged: (value) {
-          _track(() => _showStatsBanner = value);
-          widget.onShowStatsBannerChanged(value);
-        },
-        httpsUpgradeEnabled: _httpsUpgradeEnabled,
-        onHttpsUpgradeEnabledChanged: (value) {
-          _track(() => _httpsUpgradeEnabled = value);
-          widget.onHttpsUpgradeEnabledChanged(value);
-        },
-        blockScreenshots: _blockScreenshots,
-        onBlockScreenshotsChanged: widget.onBlockScreenshotsChanged == null
-            ? null
-            : (value) {
-                _track(() => _blockScreenshots = value);
-                widget.onBlockScreenshotsChanged!(value);
-              },
         onTrustUboHosts: widget.onTrustUboHosts,
       ));
 
@@ -405,7 +283,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   String _appearanceSummary(AppLocalizations loc) => [
         themeModeLabel(loc, _settings.themeMode),
-        if (_localeOverride.isNotEmpty) languageLabelForTag(_localeOverride),
+        if (AppPref.appLocaleOverride.value case final tag
+            when tag.isNotEmpty)
+          languageLabelForTag(tag),
       ].join(' · ');
 
   String _behaviourSummary(AppLocalizations loc) {
@@ -416,14 +296,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     return summariseSettings(
       loc,
       [
-        if (TabStrip.of(
-                showTabStrip: _showTabStrip, tabBarButton: _tabBarButton) !=
-            TabStrip.hidden)
-          loc.appSettingsSiteTabStrip,
-        if (_fullscreenOnShortcut) loc.appSettingsFullscreenOnShortcut,
-        if (backOpensMenuOffered && _backOpensMenu)
+        if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
+        if (AppPref.fullscreenOnShortcut.value)
+          loc.appSettingsFullscreenOnShortcut,
+        if (backOpensMenuOffered && AppPref.backOpensMenu.value)
           loc.appSettingsBackOpensMenu,
-        if (widget.linkHandlingEnabled) loc.appSettingsLinkHandling,
+        if (AppPref.linkHandlingEnabled.value) loc.appSettingsLinkHandling,
       ],
       none: loc.behaviourSummaryNothingOn,
     );
@@ -463,11 +341,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: loc.appSettingsPrivacy,
             summary: summariseSettings(
               loc,
-              appPrivacyOn(
-                loc,
-                httpsUpgradeEnabled: _httpsUpgradeEnabled,
-                blockScreenshots: _blockScreenshots,
-              ),
+              appPrivacyOn(loc),
               none: loc.privacySummaryNothingOn,
             ),
             onTap: _openPrivacy,

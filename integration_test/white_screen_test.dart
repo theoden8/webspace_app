@@ -59,6 +59,7 @@ import 'package:webspace/demo_data.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/web_view_model.dart';
@@ -153,7 +154,7 @@ void main() {
     // says the surface is painted, and only the trace says which repaint path
     // painted it — which is what a silently-dropped funnel would change.
     SharedPreferences.setMockInitialValues({
-      kDeveloperModeKey: true,
+      AppPref.developerMode.key: true,
       'webViewModels': [
         jsonEncode(dark.toJson()),
         jsonEncode(white.toJson()),

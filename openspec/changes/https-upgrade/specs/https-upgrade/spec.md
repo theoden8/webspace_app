@@ -222,7 +222,7 @@ than an error
 ### Requirement: HTTPS-005 - A global default-on knob, with a per-site override
 
 The upgrade SHALL be controlled by a global `httpsUpgradeEnabled` preference
-registered in `kExportedAppPrefs` with the default `true`, and a per-site
+registered in `AppPref` with the default `true`, and a per-site
 `WebViewModel.httpsUpgradeEnabled` override for a site that has no TLS at all.
 
 The per-site value SHALL ride `toJson`/`fromJson`, the `WebViewConfig`, the

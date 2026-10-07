@@ -145,13 +145,6 @@ void main() {
       expect(body, contains('await _runSearch(owner, site.siteId, url);'));
       expect(body, contains('await _webSearch(initialQuery: query);'));
     });
-
-    test('the bar knows the app default without reading prefs in build', () {
-      expect(bodyOf(main, 'Future<void> _pruneSearchDefaultPref('),
-          contains('_webSearchDefaultSite = id'));
-      expect(main, contains(
-          '_webSearchDefaultSite = readPrefAs<String>(prefs, kWebSearchDefaultSiteKey);'));
-    });
   });
 
   group('hosted tabs (LIR-018 to LIR-024)', () {

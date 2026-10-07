@@ -8,7 +8,7 @@
 // keeps proxy passwords out of exports (PWD-005) applies here.
 //
 // Excluded from export by construction rather than by a filter: nothing
-// writes bridge state to SharedPreferences or to `kExportedAppPrefs`, so
+// writes bridge state to SharedPreferences or to an `AppPref`, so
 // there is no export path to remember to suppress. The regression test
 // asserts that rather than trusting it.
 //

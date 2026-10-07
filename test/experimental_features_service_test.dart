@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -10,7 +11,7 @@ void main() {
   tearDown(() {
     DeveloperModeService.instance.debugSet(false);
     for (final f in ExperimentalFeature.values) {
-      ExperimentalFeaturesService.instance.debugSet(f, f.defaultOn);
+      ExperimentalFeaturesService.instance.debugSet(f, f.pref.fallback);
     }
   });
 
@@ -36,8 +37,8 @@ void main() {
         ExperimentalFeaturesService.instance
             .isEnabled(ExperimentalFeature.siteTabs),
         isFalse);
-    SharedPreferences.setMockInitialValues({kExperimentalSiteTabsKey: true});
-    await ExperimentalFeaturesService.instance.reload();
+    SharedPreferences.setMockInitialValues({AppPref.experimentalSiteTabs.key: true});
+    await ExperimentalFeaturesService.instance.initialize();
     expect(
         ExperimentalFeaturesService.instance
             .isEnabled(ExperimentalFeature.siteTabs),
@@ -46,7 +47,7 @@ void main() {
 
   test('Tor graduated: it has no switch (TOR-007)', () {
     expect(
-        ExperimentalFeature.values.map((f) => f.prefKey),
+        ExperimentalFeature.values.map((f) => f.pref.key),
         isNot(contains('experimentalTor')),
         reason: 'a graduated feature removes its switch and stops reading '
             'this gate (DEVTOOLS-011)');
@@ -54,7 +55,7 @@ void main() {
 
   test('Saved proxies graduated: they have no switch (PROXY-030)', () {
     expect(
-        ExperimentalFeature.values.map((f) => f.prefKey),
+        ExperimentalFeature.values.map((f) => f.pref.key),
         isNot(contains('experimentalProxyLibrary')),
         reason: 'a graduated feature removes its switch and stops reading '
             'this gate (DEVTOOLS-011)');
@@ -85,18 +86,18 @@ void main() {
             .isEnabled(ExperimentalFeature.siteIconsOnly),
         isTrue);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kExperimentalSiteIconsOnlyKey), isTrue);
+    expect(prefs.getBool(AppPref.experimentalSiteIconsOnly.key), isTrue);
   });
 
   test('a switch persists and is read back', () async {
     await ExperimentalFeaturesService.instance
         .setSwitch(ExperimentalFeature.proxyRouter, false);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kExperimentalProxyRouterKey), isFalse);
+    expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isFalse);
 
     ExperimentalFeaturesService.instance
         .debugSet(ExperimentalFeature.proxyRouter, true);
-    await ExperimentalFeaturesService.instance.reload();
+    await ExperimentalFeaturesService.instance.initialize();
     expect(
         ExperimentalFeaturesService.instance
             .switchOn(ExperimentalFeature.proxyRouter),
@@ -104,7 +105,7 @@ void main() {
   });
 
   test('a wrong-typed stored value reads as the default', () async {
-    SharedPreferences.setMockInitialValues({kExperimentalProxyRouterKey: 'yes'});
+    SharedPreferences.setMockInitialValues({AppPref.experimentalProxyRouter.key: 'yes'});
     await ExperimentalFeaturesService.instance.initialize();
     expect(
         ExperimentalFeaturesService.instance

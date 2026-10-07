@@ -503,7 +503,7 @@ The system SHALL gate `adblock-rust`'s uBO web_accessible_resources/ pool behind
 
 ### Requirement: CB-011 - Settings Backup Round-Trip
 
-The `useUboResources` preference SHALL round-trip through settings export/import via the `kExportedAppPrefs` registry. The retired `useRustAdblockEngine` toggle SHALL NOT round-trip.
+The `useUboResources` preference SHALL round-trip through settings export/import via the `AppPref` registry. The retired `useRustAdblockEngine` toggle SHALL NOT round-trip.
 
 The filter-list selection SHALL also round-trip, as user intent: each
 list's `id`, `name`, `url`, and `enabled` flag ride a dedicated
@@ -511,7 +511,7 @@ list's `id`, `name`, `url`, and `enabled` flag ride a dedicated
 skipped counts, last-updated timestamps) and the cached rule blobs SHALL
 NOT be exported — they are machine state, repopulated by re-downloading
 after import. The selection rides a dedicated field rather than the
-`kExportedAppPrefs` registry because applying it on import must run
+`AppPref` registry because applying it on import must run
 through `ContentBlockerService` (replacing `_lists` and rebuilding the
 engine), which the registry's blind pref-write path cannot do.
 

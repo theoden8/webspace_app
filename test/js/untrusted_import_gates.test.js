@@ -54,8 +54,8 @@ test('the webspace://qr/ deep link is behind the link-handling switch', () => {
   assert.ok(consumed < qr, 'the QR branch no longer sits on the consumed-URL path');
   assert.match(
     src.slice(consumed, qr),
-    /if \(!_linkHandlingEnabled\)/,
-    'the QR branch runs before the _linkHandlingEnabled check on the inbound-URL '
+    /if \(!AppPref\.linkHandlingEnabled\.value\)/,
+    'the QR branch runs before the linkHandlingEnabled check on the inbound-URL '
       + 'path, so turning link handling off would not stop an inbound QR payload',
   );
 });

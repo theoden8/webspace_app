@@ -23,7 +23,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -82,7 +82,7 @@ void main() {
       webspaces: [Webspace.all()],
       themeMode: 0,
       globalPrefs: <String, Object?>{
-        kGlobalOutboundProxyKey:
+        AppPref.globalOutboundProxy.key:
             jsonEncode(UserProxySettings(type: ProxyType.TOR).toJson()),
       },
     );

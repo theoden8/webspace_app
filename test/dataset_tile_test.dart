@@ -131,14 +131,14 @@ void main() {
   testWidgets('the Firefox row keeps its auto-update choice in prefs', (
     tester,
   ) async {
-    SharedPreferences.setMockInitialValues({kFirefoxUaAutoRefreshKey: true});
+    SharedPreferences.setMockInitialValues({AppPref.firefoxUaAutoRefresh.key: true});
     final firefox = FirefoxVersionDataset();
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     expect(firefox.autoRefresh, isTrue);
 
     await tester.runAsync(() => firefox.setAutoRefresh(false));
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kFirefoxUaAutoRefreshKey), isFalse);
+    expect(prefs.getBool(AppPref.firefoxUaAutoRefresh.key), isFalse);
     firefox.dispose();
   });
 

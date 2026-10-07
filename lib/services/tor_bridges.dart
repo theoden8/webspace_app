@@ -244,7 +244,7 @@ class TorBridgeConfig {
   ///
   /// There is deliberately no path from here into settings export: bridge
   /// lines live only in `flutter_secure_storage`, never in SharedPreferences
-  /// and never in `kExportedAppPrefs`. A privately-allocated obfs4 bridge
+  /// and never in an `AppPref`. A privately-allocated obfs4 bridge
   /// identifies its user, and a backup file gets mailed and synced
   /// (the reasoning behind PWD-005, applied to a different secret).
   Map<String, Object?> toJson() => {

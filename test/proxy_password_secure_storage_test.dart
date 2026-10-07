@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -203,7 +204,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       // Pre-migration state: password lives in plaintext prefs.
       await prefs.setString(
-        kGlobalOutboundProxyKey,
+        AppPref.globalOutboundProxy.key,
         jsonEncode({
           'type': ProxyType.SOCKS5.index,
           'address': '127.0.0.1:9050',
@@ -219,7 +220,7 @@ void main() {
       expect(GlobalOutboundProxy.current.username, equals('tor'));
       // Prefs no longer holds the password.
       final rewritten =
-          jsonDecode(prefs.getString(kGlobalOutboundProxyKey)!) as Map;
+          jsonDecode(prefs.getString(AppPref.globalOutboundProxy.key)!) as Map;
       expect(rewritten.containsKey('password'), isFalse);
       // Secure storage holds it.
       expect(
@@ -239,7 +240,7 @@ void main() {
       ));
 
       // Prefs JSON is sanitised.
-      final raw = prefs.getString(kGlobalOutboundProxyKey)!;
+      final raw = prefs.getString(AppPref.globalOutboundProxy.key)!;
       expect(raw.contains('hunter2'), isFalse);
       final decoded = jsonDecode(raw) as Map;
       expect(decoded['username'], equals('me'));

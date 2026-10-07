@@ -102,7 +102,7 @@ void main() {
     DeveloperModeService.instance.debugSet(false);
     ExperimentalFeaturesService.instance.debugSet(
         ExperimentalFeature.proxyRouter,
-        ExperimentalFeature.proxyRouter.defaultOn);
+        ExperimentalFeature.proxyRouter.pref.fallback);
   });
 
   group('activation', () {

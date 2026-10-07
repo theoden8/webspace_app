@@ -1,12 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
-
-/// SharedPreferences key holding the developer-mode flag. Round-tripped
-/// through settings export/import via `kExportedAppPrefs`.
-const String kDeveloperModeKey = 'developerMode';
+import 'package:webspace/settings/app_prefs.dart';
 
 /// App-global gate for affordances that only make sense while diagnosing the
 /// app, not while using it.
@@ -20,26 +16,21 @@ class DeveloperModeService {
   DeveloperModeService._();
   static final DeveloperModeService instance = DeveloperModeService._();
 
-  bool _enabled = false;
-
   /// Whether developer affordances are visible. False until [initialize].
-  bool get enabled => _enabled;
+  bool get enabled => AppPref.developerMode.value;
 
   Future<void> initialize() async {
-    final prefs = await SharedPreferences.getInstance();
-    _enabled = readPrefAs<bool>(prefs, kDeveloperModeKey) ?? false;
-    await BackgroundLog.instance.setRecording(_enabled);
+    AppPref.developerMode.load(await SharedPreferences.getInstance());
+    await BackgroundLog.instance.setRecording(enabled);
   }
 
-  /// Re-read the flag from disk. Called after a settings import, which
-  /// writes the raw pref through the registry behind this service's back.
+  /// Called after a settings import, so the background log follows the
+  /// imported flag.
   Future<void> reload() => initialize();
 
   Future<void> setEnabled(bool value) async {
-    if (_enabled == value) return;
-    _enabled = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(kDeveloperModeKey, value);
+    if (enabled == value) return;
+    await AppPref.developerMode.set(value);
     LogService.instance
         .log('DeveloperMode', value ? 'enabled' : 'disabled');
     // DEVTOOLS-011: the background log exists only while developer mode is
@@ -48,5 +39,5 @@ class DeveloperModeService {
   }
 
   /// Test seam: set the in-memory flag without touching SharedPreferences.
-  void debugSet(bool value) => _enabled = value;
+  void debugSet(bool value) => AppPref.developerMode.debugValue = value;
 }

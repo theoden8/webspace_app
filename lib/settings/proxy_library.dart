@@ -5,16 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/settings/pref_read.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
-
-/// SharedPreferences key holding the proxy library as one JSON object:
-/// `{gateways, credentials, proxies}`. Registered in `kExportedAppPrefs`, so
-/// it rides backups; every password stays in secure storage and never does
-/// (PWD-005, PWD-007).
-const String kProxyLibraryKey = 'proxyLibrary';
-
-const String kProxyLibraryDefault = '{}';
 
 /// The types a gateway may have. Tor is one built-in route with per-site
 /// circuits, not an endpoint to share, and DEFAULT, SAVED and GATEWAY name
@@ -292,7 +284,7 @@ class ProxyLibraryData {
 }
 
 ProxyLibraryData readProxyLibrary(SharedPreferences prefs) =>
-    ProxyLibraryData.decode(readPrefAs<String>(prefs, kProxyLibraryKey));
+    ProxyLibraryData.decode(AppPref.proxyLibrary.stored(prefs));
 
 /// In-memory copy of the library, loaded once at startup so that
 /// `resolveEffectiveProxy` can stay synchronous. Same shape as
@@ -352,8 +344,7 @@ class ProxyLibrary {
   /// are gone.
   static Future<void> update(ProxyLibraryData next) async {
     _data = next.copy();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kProxyLibraryKey, _data.encode());
+    await AppPref.proxyLibrary.set(_data.encode());
     await _writePasswords();
     LogService.instance.log(
       'Proxy',

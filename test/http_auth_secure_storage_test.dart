@@ -105,7 +105,7 @@ void main() {
   test('HTTPAUTH-006: saved sign-ins never appear in exports', () async {
     // The credential lives only in secure storage, so nothing on the model,
     // the site JSON or the exported prefs can carry it. This fails the day
-    // someone moves it onto WebViewModel or into kExportedAppPrefs.
+    // someone moves it onto WebViewModel or into an AppPref.
     const userNeedle = 'user-needle-5b1e';
     const passwordNeedle = 'password-needle-93c0';
     final site = WebViewModel(initUrl: 'https://nas.example.com/');

@@ -977,7 +977,7 @@ appear in a settings export — the same reasoning that keeps proxy
 passwords out of backups (PWD-005).
 
 Exclusion SHALL be by construction rather than by a filter: nothing
-writes bridge state to `SharedPreferences` or to `kExportedAppPrefs`, so
+writes bridge state to `SharedPreferences` or to `AppPref`, so
 there is no export path to remember to suppress.
 
 A write that did not land SHALL NOT be reported as saved: the user would
@@ -1463,7 +1463,7 @@ turns `IsolateSOCKSAuth` off by default. It is an experimental feature
 Android, Linux and macOS and not on iOS, where no other app exposes a SOCKS
 port this one can dial. The tor's address, `externalTorAddress`
 (`host:port`, default `127.0.0.1:9050`), is a user-facing global pref in
-`kExportedAppPrefs`, edited under the switch while it is on.
+`AppPref`, edited under the switch while it is on.
 
 - **One tor at a time, switched in place.** `TorService` SHALL keep one
   engine per runtime and route every Tor-bound connection through the one

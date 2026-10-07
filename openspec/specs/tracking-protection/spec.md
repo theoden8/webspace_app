@@ -1377,7 +1377,7 @@ if (config.trackingProtectionEnabled && config.siteId != null) {
 
 `trackingProtectionEnabled` is a per-site field on `WebViewModel.toJson`,
 so it rides through the settings backup path automatically — no entry
-in `kExportedAppPrefs` is needed.
+in `AppPref` is needed.
 
 ---
 

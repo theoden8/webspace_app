@@ -19,7 +19,6 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/procedural_action_backfill.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/utils/concurrency.dart';
 
 /// A filter list entry with metadata.
@@ -354,17 +353,14 @@ class ContentBlockerService {
   /// Drives the `$redirect=` rule output: when on, the engine returns
   /// the matching stub body (noop.js, 1x1.gif, …); when off, redirect
   /// rules become plain blocks (drop the request).
-  bool get useUboResources => _useUboResources;
-  bool _useUboResources = true;
+  bool get useUboResources => AppPref.useUboResources.value;
 
   Future<void> setUseUboResources(bool enabled) async {
-    if (_useUboResources == enabled) return;
+    if (useUboResources == enabled) return;
     LogService.instance.log('ContentBlocker',
         'uBO resources toggle flipped to $enabled (was ${!enabled})',
         level: LogLevel.info);
-    _useUboResources = enabled;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(kUseUboResourcesKey, enabled);
+    await AppPref.useUboResources.set(enabled);
     await _clearEngineCache();
     await _rebuildEngine();
   }
@@ -699,7 +695,7 @@ class ContentBlockerService {
   Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _useUboResources = readPrefAs<bool>(prefs, kUseUboResourcesKey) ?? true;
+      AppPref.useUboResources.load(prefs);
       if (hostIsAndroid) {
         _rustEngineSupported =
             await WebInterceptNative.isAdblockEngineSupported();
@@ -998,7 +994,7 @@ class ContentBlockerService {
     final cached = await _readEngineCache(rulesHash);
     if (cached != null) {
       engine = AdblockEngine.loadFromSerialized(cached,
-          enableUboResources: _useUboResources);
+          enableUboResources: useUboResources);
       if (engine != null) {
         loadMode = 'deserialize';
       } else {
@@ -1006,7 +1002,7 @@ class ContentBlockerService {
       }
     }
     engine ??= AdblockEngine.load(rulesText,
-        enableUboResources: _useUboResources);
+        enableUboResources: useUboResources);
     sw.stop();
     if (engine == null) {
       LogService.instance.log('ContentBlocker',
@@ -1031,7 +1027,7 @@ class ContentBlockerService {
     if (hostIsAndroid) {
       final result =
           await WebInterceptNative.sendAdblockEngineRules(rulesText,
-              enableUboResources: _useUboResources);
+              enableUboResources: useUboResources);
       if (result == null || result['active'] != true) {
         LogService.instance.log('ContentBlocker',
             'Native engine inactive on this Android build — '
@@ -1155,7 +1151,7 @@ class ContentBlockerService {
       final parts = metaText.split(':');
       if (parts.length != 2) return null;
       if (parts[0] != expectedHash) return null;
-      if ((parts[1] == '1') != _useUboResources) return null;
+      if ((parts[1] == '1') != useUboResources) return null;
       return _store.readBytes(_engineCacheName);
     } catch (e) {
       LogService.instance.log('ContentBlocker',
@@ -1171,7 +1167,7 @@ class ContentBlockerService {
       if (blob == null) return;
       await _store.writeBytes(_engineCacheName, blob);
       await _store.writeText(
-          _engineCacheMetaName, '$hash:${_useUboResources ? '1' : '0'}');
+          _engineCacheMetaName, '$hash:${useUboResources ? '1' : '0'}');
       LogService.instance.log('ContentBlocker',
           'engine cache written: ${blob.length} bytes (hash=${hash.substring(0, 8)}…)',
           level: LogLevel.debug);
@@ -1205,7 +1201,7 @@ class ContentBlockerService {
     _genericNetworkTokens = <String>{};
     _hasUntokenizableNetworkRules = false;
     _genericTokenBloom = null;
-    _useUboResources = true;
+    AppPref.useUboResources.debugValue = AppPref.useUboResources.fallback;
   }
 
   /// Exposed for testing: install an engine directly without going

@@ -40,6 +40,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
@@ -117,7 +118,7 @@ void main() {
     // Pre-seed: a global outbound proxy entry with username (no
     // password — passwords have never lived in SharedPreferences).
     SharedPreferences.setMockInitialValues({
-      kGlobalOutboundProxyKey: jsonEncode({
+      AppPref.globalOutboundProxy.key: jsonEncode({
         'type': ProxyType.HTTPS.index,
         'address': 'proxy.example.com:8080',
         'username': 'ci-user',

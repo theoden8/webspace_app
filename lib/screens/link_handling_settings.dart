@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
@@ -10,14 +11,6 @@ import 'package:webspace/widgets/setting_tile.dart';
 /// so the user can refine that site's [DomainClaim] list (LIR-008
 /// scenario "Tap row opens site editor").
 class LinkHandlingSettingsScreen extends StatefulWidget {
-  final bool enabled;
-  final ValueChanged<bool> onEnabledChanged;
-
-  /// LIR-010 / discussion #439: when true, sending a shared link to a site
-  /// also adopts the URL's host as a domain claim on that site; when false
-  /// (default) the link just opens there. Opt-in.
-  final bool claimDomains;
-  final ValueChanged<bool> onClaimDomainsChanged;
   final List<WebViewModel> sites;
   final void Function(WebViewModel site) onOpenSiteEditor;
 
@@ -29,10 +22,6 @@ class LinkHandlingSettingsScreen extends StatefulWidget {
 
   const LinkHandlingSettingsScreen({
     super.key,
-    required this.enabled,
-    required this.onEnabledChanged,
-    required this.claimDomains,
-    required this.onClaimDomainsChanged,
     required this.sites,
     required this.onOpenSiteEditor,
     this.onManualDispatch,
@@ -60,24 +49,30 @@ class _LinkHandlingSettingsScreenState
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: AppPref.linkHandlingEnabled.listenable,
+        builder: (context, enabled, _) => _build(enabled),
+      );
+
+  Widget _build(bool enabled) {
     final loc = AppLocalizations.of(context);
     final rows = _buildRoutingOverview(widget.sites);
     return Scaffold(
       appBar: AppBar(title: Text(loc.linkHandlingScreenTitle)),
       body: ListView(
         children: [
-          SwitchListTile(
-            title: HintedTitle(loc.linkHandlingMasterToggleTitle,
-              hint: loc.linkHandlingMasterToggleHint),
-            value: widget.enabled,
-            onChanged: widget.onEnabledChanged,
+          SettingTile(
+            title: loc.linkHandlingMasterToggleTitle,
+            hint: loc.linkHandlingMasterToggleHint,
+            control: const PrefToggle(AppPref.linkHandlingEnabled),
           ),
-          SwitchListTile(
-            title: HintedTitle(loc.linkHandlingClaimDomainsToggleTitle,
-              hint: loc.linkHandlingClaimDomainsToggleHint),
-            value: widget.claimDomains,
-            onChanged: widget.enabled ? widget.onClaimDomainsChanged : null,
+          // LIR-010 / discussion #439: sending a shared link to a site also
+          // adopts the URL's host as a domain claim on that site. Opt-in.
+          SettingTile(
+            title: loc.linkHandlingClaimDomainsToggleTitle,
+            hint: loc.linkHandlingClaimDomainsToggleHint,
+            lock: enabled ? null : const RequiresLock(),
+            control: const PrefToggle(AppPref.linkHandlingClaimDomains),
           ),
           const Divider(height: 1),
           if (widget.onManualDispatch != null) ...[
@@ -98,12 +93,12 @@ class _LinkHandlingSettingsScreenState
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.send),
                     tooltip: loc.linkHandlingDispatchTooltip,
-                    onPressed: widget.enabled ? _dispatch : null,
+                    onPressed: enabled ? _dispatch : null,
                   ),
                 ),
                 keyboardType: TextInputType.url,
                 onSubmitted: (_) =>
-                    widget.enabled ? _dispatch() : null,
+                    enabled ? _dispatch() : null,
               ),
             ),
             const SizedBox(height: 8),

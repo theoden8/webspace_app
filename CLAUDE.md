@@ -332,17 +332,19 @@ Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` and sibling des
 
 ## Adding a new global app setting
 
-User-facing global pref persisted to SharedPreferences MUST round-trip through the export/import registry, else it drops out of backups.
+A user-facing global pref is one entry of the `AppPref` enum; persistence, backup export/import, the demo-mode guard and the live value come with it.
 
-- Add key + default to `kExportedAppPrefs` in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart) (single source of truth).
-- The integrity test in [test/settings_backup_test.dart](test/settings_backup_test.dart) iterates the registry — no test edit needed for `bool|int|double|String|List<String>`.
-- Don't add per-pref params to `SettingsBackupService.createBackup`; main.dart already does `readExportedAppPrefs` / `writeExportedAppPrefs`.
+1. Declare it in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart): `name('sharedPrefsKey', default)`, a `bool`, `int` or `String` (a const assert rejects anything else). Declaration order is the order a backup lists it.
+2. Bind its row: a switch is `SettingTile(..., control: const PrefToggle(AppPref.name))`; anything else reads `AppPref.name.value` and writes `AppPref.name.set(v)`. Code with a side effect listens on `AppPref.name.listenable`; main.dart rebuilds on `AppPref.anyChange`.
+
+- No per-pref constructor params, `_saveX` methods or second cache of the value: `set` persists (except in demo mode) and every reader sees the same notifier. `writeExportedAppPrefs` applies an import to disk and to the running app.
+- The integrity test in [test/settings_backup_test.dart](test/settings_backup_test.dart) iterates `AppPref.values` — no test edit needed.
 - Don't register: migration flags, download timestamps, cache indices, machine state from downloaded data (DNS blocklist, content blocker, localcdn).
 - Per-site settings ride `WebViewModel.toJson` automatically — keep them on the model.
 - Touched export/import? Re-run `flutter test test/settings_backup_test.dart test/settings_backup_compat_test.dart`.
 - Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `_importSettings` only applies the plan (BACKUP-013).
-- Renaming a persisted key (site JSON, backup field, SharedPreferences key) keeps reading the old name and carries the value over; dropping one is declared with its reason (`_renamedKeys` / `_retiredKeys` in the compat test, `RETIRED` in `test/js/prefs_key_history.test.js`). Both tests hold every release's writes against today's reads (BACKUP-012, BACKUP-014).
-- A new `fromJson` field reads a wrong-typed value as absent, never with a bare cast: a site whose JSON throws is dropped at startup and deleted by the next save. Read a `kExportedAppPrefs` key with `readPrefAs<T>`, never `prefs.getBool` and friends (gated).
+- Renaming a persisted key (site JSON, backup field, SharedPreferences key) keeps reading the old name and carries the value over (for an `AppPref`, `legacyKey: 'old'`); dropping one is declared with its reason (`_renamedKeys` / `_retiredKeys` in the compat test, `RETIRED` in `test/js/prefs_key_history.test.js`). Both tests hold every release's writes against today's reads (BACKUP-012, BACKUP-014).
+- A new `fromJson` field reads a wrong-typed value as absent, never with a bare cast: a site whose JSON throws is dropped at startup and deleted by the next save. An `AppPref` coerces its stored value itself; never read one with `prefs.getBool(AppPref.x.key)` and friends (gated by `test/js/prefs_key_history.test.js`).
 - On release day (version bumped in `pubspec.yaml`), run `tool/backup_compat/generate.sh HEAD` and commit the new `test/fixtures/backup_compat/v<version>/`; the compat test fails without it.
 
 ## Settings rows: state in the subtitle, explanation in the hint

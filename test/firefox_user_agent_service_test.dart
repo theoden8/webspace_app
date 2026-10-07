@@ -222,7 +222,7 @@ void main() {
 
     test('refreshes when opted in and never checked', () async {
       SharedPreferences.setMockInitialValues(
-          {kFirefoxUaAutoRefreshKey: true});
+          {AppPref.firefoxUaAutoRefresh.key: true});
       outboundHttp = FakeOutbound(responder: (_) => http.Response('160.0', 200));
       await svc.maybeAutoRefresh();
       expect(svc.majorVersion, 160);
@@ -230,7 +230,7 @@ void main() {
 
     test('throttles when checked within the interval', () async {
       SharedPreferences.setMockInitialValues({
-        kFirefoxUaAutoRefreshKey: true,
+        AppPref.firefoxUaAutoRefresh.key: true,
         'firefox_ua_last_checked':
             DateTime.now().subtract(const Duration(days: 1)).toIso8601String(),
       });
@@ -246,7 +246,7 @@ void main() {
 
     test('refreshes again once the interval has passed', () async {
       SharedPreferences.setMockInitialValues({
-        kFirefoxUaAutoRefreshKey: true,
+        AppPref.firefoxUaAutoRefresh.key: true,
         'firefox_ua_last_checked': DateTime.now()
             .subtract(const Duration(days: 8))
             .toIso8601String(),

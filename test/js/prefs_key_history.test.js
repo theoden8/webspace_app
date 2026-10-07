@@ -80,12 +80,12 @@ test('a retired key is not quietly read again', () => {
 test('exported prefs are never read through a typed getter', () => {
   // v0.2.2 to v0.3.1 imports stored globalPrefs values under the file's
   // JSON type, so any of these keys can hold the wrong type on a device.
-  // `readPrefAs` and `readExportedAppPrefs` return the default instead of
+  // `AppPref.stored` and `readExportedAppPrefs` return the default instead of
   // throwing.
   const offenders = head.typedReads
     .filter((r) => r.key in head.registry)
     .map((r) => `${r.at}: get${r.type}('${r.key}')`);
-  assert.deepEqual(offenders, [], 'read these with readPrefAs<T>()');
+  assert.deepEqual(offenders, [], 'read these through their AppPref');
 });
 
 test('lib/ reads every key it writes with the type it writes', () => {

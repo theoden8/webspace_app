@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -8,7 +7,6 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/datasets.dart';
-import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
@@ -21,8 +19,9 @@ enum TabStrip {
   pinned,
   button;
 
-  static TabStrip of({required bool showTabStrip, required bool tabBarButton}) =>
-      tabBarButton ? button : (showTabStrip ? pinned : hidden);
+  static TabStrip get current => AppPref.tabBarButton.value
+      ? button
+      : (AppPref.showTabStrip.value ? pinned : hidden);
 }
 
 extension on TabStrip {
@@ -51,42 +50,11 @@ bool webSearchSettingsOffered() =>
 class AppBehaviourScreen extends StatefulWidget {
   const AppBehaviourScreen({
     super.key,
-    required this.showTabStrip,
-    required this.onShowTabStripChanged,
-    required this.tabStripInFullscreen,
-    required this.onTabStripInFullscreenChanged,
-    required this.tabBarButton,
-    required this.onTabBarButtonChanged,
-    required this.tabMaxWidth,
-    required this.onTabMaxWidthChanged,
-    required this.fullscreenOnShortcut,
-    required this.onFullscreenOnShortcutChanged,
-    required this.backOpensMenu,
-    required this.onBackOpensMenuChanged,
-    required this.linkHandlingEnabled,
     required this.onOpenLinkHandlingSettings,
     this.webSearchSites = const [],
   });
 
-  final bool showTabStrip;
-  final ValueChanged<bool> onShowTabStripChanged;
-  final bool tabStripInFullscreen;
-  final ValueChanged<bool> onTabStripInFullscreenChanged;
-  final bool tabBarButton;
-  final ValueChanged<bool> onTabBarButtonChanged;
-  final int tabMaxWidth;
-  final ValueChanged<int> onTabMaxWidthChanged;
-  final bool fullscreenOnShortcut;
-  final ValueChanged<bool> onFullscreenOnShortcutChanged;
-
-  /// NAV-009: back gesture opens the drawer where a site has no page left to
-  /// go back to (and leaves the app on the press after that). Off by default.
-  final bool backOpensMenu;
-  final ValueChanged<bool> onBackOpensMenuChanged;
-
-  /// LIR-008: entry into the routing overview screen. The wrapping page
-  /// handles persistence.
-  final bool linkHandlingEnabled;
+  /// LIR-008: entry into the routing overview screen.
   final VoidCallback onOpenLinkHandlingSettings;
 
   /// The user's web search sites outside every archive (LIR-029), each with
@@ -98,46 +66,23 @@ class AppBehaviourScreen extends StatefulWidget {
 }
 
 class _AppBehaviourScreenState extends State<AppBehaviourScreen>
-    with SettingsOpenGuard {
-  late bool _showTabStrip = widget.showTabStrip;
-  late bool _tabStripInFullscreen = widget.tabStripInFullscreen;
-  late bool _tabBarButton = widget.tabBarButton;
-  late double _tabMaxWidth = widget.tabMaxWidth.toDouble();
-  late bool _fullscreenOnShortcut = widget.fullscreenOnShortcut;
-  late bool _backOpensMenu = widget.backOpensMenu;
-  String _webSearchDefault = '';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadWebSearchDefault();
-  }
-
-  TabStrip get _tabStrip =>
-      TabStrip.of(showTabStrip: _showTabStrip, tabBarButton: _tabBarButton);
+    with SettingsOpenGuard, RebuildOnAppPref {
+  /// The tab width while its slider is dragged; persisted on release.
+  double? _tabWidthDrag;
 
   void _setTabStrip(TabStrip mode) {
-    setState(() {
-      _showTabStrip = mode == TabStrip.pinned;
-      _tabBarButton = mode == TabStrip.button;
-      // "Keep in full screen" only applies to a pinned strip. Leaving it set
-      // in button mode would pin the strip in full screen and hide the button
-      // there; clear it whenever we leave the pinned mode.
-      if (mode != TabStrip.pinned) _tabStripInFullscreen = false;
-    });
-    widget.onShowTabStripChanged(_showTabStrip);
-    widget.onTabBarButtonChanged(_tabBarButton);
-    if (mode != TabStrip.pinned) {
-      widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
-    }
+    AppPref.showTabStrip.set(mode == TabStrip.pinned);
+    AppPref.tabBarButton.set(mode == TabStrip.button);
+    // "Keep in full screen" only applies to a pinned strip. Leaving it set
+    // in button mode would pin the strip in full screen and hide the button
+    // there; clear it whenever we leave the pinned mode.
+    if (mode != TabStrip.pinned) AppPref.tabStripInFullscreen.set(false);
   }
 
   /// Full-screen behavior of the *pinned* tab strip. Only shown when the
   /// strip is pinned; button mode reveals the strip in full screen on its own.
-  void _setFullscreenTabStrip(TabStrip mode) {
-    setState(() => _tabStripInFullscreen = mode == TabStrip.pinned);
-    widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
-  }
+  void _setFullscreenTabStrip(TabStrip mode) =>
+      AppPref.tabStripInFullscreen.set(mode == TabStrip.pinned);
 
   Widget _tabStripRow(
     Widget title,
@@ -170,22 +115,17 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   /// in fullscreen, or revealed by the tab-bar button), so the width limit is
   /// meaningful.
   bool get _tabStripCanShow =>
-      _showTabStrip || _tabStripInFullscreen || _tabBarButton;
+      AppPref.showTabStrip.value ||
+      AppPref.tabStripInFullscreen.value ||
+      AppPref.tabBarButton.value;
 
   String? get _webSearchDefaultName {
     final site = widget.webSearchSites
-        .where((s) => s.siteId == _webSearchDefault)
+        .where((s) => s.siteId == AppPref.webSearchDefaultSite.value)
         .firstOrNull;
     if (site == null) return null;
     return searchSiteSummaryName(site.name, site.siteId,
         widget.webSearchSites.map((s) => s.name));
-  }
-
-  Future<void> _loadWebSearchDefault() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() => _webSearchDefault =
-        readPrefAs<String>(prefs, kWebSearchDefaultSiteKey) ?? '');
   }
 
   /// LIR-029: which web search site Web search starts with. Only sites outside
@@ -197,16 +137,12 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       builder: (ctx) => SearchSiteChoiceDialog(
         title: loc.webSearchDefaultTitle,
         sites: widget.webSearchSites,
-        selected: _webSearchDefault,
+        selected: AppPref.webSearchDefaultSite.value,
         emptyText: loc.webSearchNoWebSites,
         cancelLabel: loc.commonCancel,
       ),
     );
-    if (picked == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kWebSearchDefaultSiteKey, picked);
-    if (!mounted) return;
-    setState(() => _webSearchDefault = picked);
+    if (picked != null) await AppPref.webSearchDefaultSite.set(picked);
   }
 
   @override
@@ -219,7 +155,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       isIOS: hostIsIOS,
       isMacOS: hostIsMacOS,
     );
-    final tabWidthLabel = '${_tabMaxWidth.round()} px';
+    final tabWidth = _tabWidthDrag ?? AppPref.tabMaxWidth.value.toDouble();
+    final tabWidthLabel = '${tabWidth.round()} px';
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
@@ -229,17 +166,19 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             HintedTitle(loc.appSettingsSiteTabStrip,
                 hint: loc.appSettingsSiteTabStripSubtitle),
             TabStrip.values,
-            _tabStrip,
+            TabStrip.current,
             _setTabStrip,
           ),
           // Pinned mode only: whether the pinned strip stays visible in full
           // screen. Button mode reveals the strip in full screen on its own;
           // hidden mode has nothing to keep.
-          if (_tabStrip == TabStrip.pinned)
+          if (TabStrip.current == TabStrip.pinned)
             _tabStripRow(
               Text(loc.appSettingsFullscreenTabStrip),
               const [TabStrip.hidden, TabStrip.pinned],
-              _tabStripInFullscreen ? TabStrip.pinned : TabStrip.hidden,
+              AppPref.tabStripInFullscreen.value
+                  ? TabStrip.pinned
+                  : TabStrip.hidden,
               _setFullscreenTabStrip,
             ),
           Padding(
@@ -255,21 +194,18 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             ),
           ),
           Slider(
-            value: _tabMaxWidth,
+            value: tabWidth,
             min: 80,
             max: 320,
             divisions: 24,
             label: tabWidthLabel,
             onChanged: _tabStripCanShow
-                ? (value) {
-                    setState(() {
-                      _tabMaxWidth = value;
-                    });
-                  }
+                ? (value) => setState(() => _tabWidthDrag = value)
                 : null,
             onChangeEnd: _tabStripCanShow
                 ? (value) {
-                    widget.onTabMaxWidthChanged(value.round());
+                    _tabWidthDrag = null;
+                    AppPref.tabMaxWidth.set(value.round());
                   }
                 : null,
           ),
@@ -277,10 +213,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           SettingTile(
             title: loc.appSettingsFullscreenOnShortcut,
             hint: loc.appSettingsFullscreenOnShortcutHint,
-            control: Toggle(_fullscreenOnShortcut, (value) {
-              setState(() => _fullscreenOnShortcut = value);
-              widget.onFullscreenOnShortcutChanged(value);
-            }),
+            control: const PrefToggle(AppPref.fullscreenOnShortcut),
           ),
           // Apple has no back gesture the app can act on (NAV-009), so the
           // setting is absent there rather than present and inert.
@@ -291,16 +224,13 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
               // other platform.
               title: loc.appSettingsBackOpensMenu,
               hint: backOpensMenuHint,
-              control: Toggle(_backOpensMenu, (value) {
-                setState(() => _backOpensMenu = value);
-                widget.onBackOpensMenuChanged(value);
-              }),
+              control: const PrefToggle(AppPref.backOpensMenu),
             ),
           SettingTile(
             leading: const Icon(Icons.share_outlined),
             title: loc.appSettingsLinkHandling,
             hint: null,
-            subtitle: widget.linkHandlingEnabled
+            subtitle: AppPref.linkHandlingEnabled.value
                 ? loc.appSettingsLinkHandlingOn
                 : loc.appSettingsLinkHandlingOff,
             // The opener pushes synchronously, so the route check in the

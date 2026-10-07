@@ -213,7 +213,7 @@ that forgets to declare fails closed (undercount) rather than open (leak).
 
 ### Requirement: STATS-006 - Excluded from Settings Backup
 
-The report SHALL NOT be registered in `kExportedAppPrefs`, and the detail blob SHALL
+The report SHALL NOT be registered in `AppPref`, and the detail blob SHALL
 NOT be serialised into a backup at all. Backup files are emailed and synced; block
 volume over time is browsing-activity history, not a user setting, and restoring one
 device's activity onto another would be wrong regardless.
