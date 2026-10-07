@@ -127,9 +127,11 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
     assert.ok(body.includes(wiring),
       `createPopupWebView no longer carries ${wiring}`);
   }
-  assert.match(body, /initialSettings: _siteSettings\(\s*binding,\s*parent\.posture,/,
+  assert.match(body, /final settings = _siteSettings\(\s*binding,\s*parent\.posture,/,
     'the popup must take its native settings from the parent posture, '
     + 'through the builder the site webview uses');
+  assert.ok(body.includes('initialSettings: settings,'),
+    'the popup must be built with those settings');
   assert.ok(WEBVIEW.includes('_popupParentConfigs[windowId] = config;'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
@@ -288,7 +290,8 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
   const settings = blockAfter(WEBVIEW, 'static inapp.InAppWebViewSettings _siteSettings(', '}) {',
     'webview.dart');
-  assert.ok(body.includes('initialSettings: _siteSettings(')
+  assert.ok(body.includes('final settings = _siteSettings(')
+      && body.includes('initialSettings: settings,')
       && settings.includes('..useShouldOverrideUrlLoading = true'),
     'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
   assert.match(body,
@@ -330,7 +333,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
     'onCreateWindow: (_, _) async => false,',
     'inapp.PermissionResponseAction.DENY',
     'allow: false',
-    '_handleServerTrust(controller, challenge, null)',
+    '_handleServerTrust(null, challenge, null)',
     'WebInterceptNative.attachToHeadless(',
   ]) {
     assert.ok(body.includes(check), `headless check lacks ${check}`);

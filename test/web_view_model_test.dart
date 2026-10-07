@@ -384,6 +384,27 @@ void main() {
       expect(WebViewModel.fromJson(json, null).tabsEnabled, isFalse);
     });
 
+    test('a wrong-typed list entry is dropped, its neighbours kept', () {
+      final json = WebViewModel(initUrl: 'https://example.org/').toJson()
+        ..['cookies'] = [
+          {'name': 'sid', 'value': 'a', 'domain': 'example.org'},
+          {'name': 7, 'value': 'b'},
+          {'name': 'c', 'value': 'c', 'isSecure': 'yes'},
+        ]
+        ..['blockedCookies'] = [
+          {'name': 'track', 'domain': 'example.org'},
+          {'name': 'track', 'domain': 3},
+        ]
+        ..['domainClaims'] = [
+          {'kind': 'baseDomain', 'value': 'example.org'},
+          {'kind': 'baseDomain', 'value': 42},
+        ];
+      final m = WebViewModel.fromJson(json, null);
+      expect(m.cookies.map((c) => c.name), ['sid']);
+      expect(m.blockedCookies.map((c) => c.name), ['track']);
+      expect(m.domainClaims?.map((c) => c.value), ['example.org']);
+    });
+
     test('a wrong-typed tabsEnabled reads as absent (TAB-013)', () {
       final json = WebViewModel(initUrl: 'https://example.org/').toJson()
         ..['tabsEnabled'] = 'no';

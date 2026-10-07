@@ -14,6 +14,27 @@ SiteTab tab(String id, {String? parent, String? url, int? activeAt}) => SiteTab(
 List<String> ids(List<SiteTab> tabs) => tabs.map((t) => t.id).toList();
 
 void main() {
+  group('wellFormed', () {
+    test('accepts a tree', () {
+      expect(
+          TabLifecycleEngine.wellFormed(
+              [tab('a'), tab('b', parent: 'a'), tab('c', parent: 'b')]),
+          isTrue);
+    });
+
+    test('rejects each shape normalize repairs', () {
+      for (final (name, tabs) in [
+        ('empty', <SiteTab>[]),
+        ('duplicate id', [tab('a'), tab('a')]),
+        ('missing parent', [tab('a', parent: 'ghost')]),
+        ('own parent', [tab('a', parent: 'a')]),
+        ('cycle', [tab('r'), tab('a', parent: 'b'), tab('b', parent: 'a')]),
+      ]) {
+        expect(TabLifecycleEngine.wellFormed(tabs), isFalse, reason: name);
+      }
+    });
+  });
+
   group('normalize (TAB-001)', () {
     test('an empty list becomes one primary tab at the fallback url', () {
       final r = TabLifecycleEngine.normalize(null, null, 'https://site.test/');

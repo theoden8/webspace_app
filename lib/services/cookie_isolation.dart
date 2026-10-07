@@ -33,13 +33,13 @@ class CookieIsolationEngine {
     required this.storage,
   });
 
-  /// Captures the conflicting site's cookies to siteId-keyed storage (last
-  /// chance — the webview is about to be disposed), then disposes it and
-  /// removes it from `loadedIndices`.
+  /// Captures the site's cookies to siteId-keyed storage, then disposes its
+  /// webview and removes it from `loadedIndices`; every unload reason comes
+  /// through here (ISO-002).
   ///
-  /// The native cookie jar is NOT nuked here. Callers MUST invoke
-  /// [restoreCookiesForSite] immediately after so the jar is wiped and the
-  /// target's cookies are restored in the same transaction.
+  /// The native jar keeps the site's cookies until the next activation's
+  /// [restoreCookiesForSite], which attributes the jar to the loaded sites
+  /// only and then empties it, so this capture is all the site keeps.
   Future<void> unloadSiteForDomainSwitch({
     required int index,
     required List<WebViewModel> models,
@@ -252,16 +252,7 @@ class CookieIsolationEngine {
       final base = getBaseDomain(m.initUrl);
       if (base.isNotEmpty) urls.add('https://$base/');
     }
-    return urls
-        .map((s) {
-          try {
-            return Uri.parse(s);
-          } catch (_) {
-            return null;
-          }
-        })
-        .whereType<Uri>()
-        .toList();
+    return urls.map(Uri.tryParse).whereType<Uri>().toList();
   }
 
   Future<void> _setCookies(WebViewModel model, List<Cookie> cookies) async {

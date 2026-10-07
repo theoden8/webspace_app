@@ -24,15 +24,16 @@ class TabRow {
 }
 
 /// Result of a close. [tabs] is the surviving list in its original order;
-/// [nextActiveId] names the tab that should take the webview, or null when the
-/// list emptied and the caller must seed a fresh home tab.
+/// [nextActiveId] names the tab that should take the webview, or is null and
+/// the caller must seed a fresh home tab.
 class TabCloseResult {
-  const TabCloseResult({
+  TabCloseResult({
     required this.tabs,
     required this.nextActiveId,
     required this.closedIds,
     required this.activeChanged,
-  });
+  }) : assert((nextActiveId == null) == tabs.isEmpty,
+            'a close names the next tab exactly when one survives');
 
   final List<SiteTab> tabs;
   final String? nextActiveId;
@@ -93,9 +94,33 @@ enum TabBackAction {
 class TabLifecycleEngine {
   TabLifecycleEngine._();
 
-  /// Coerce any tab list into the shape the rest of the app may assume:
-  /// non-empty, unique ids, every `parentId` naming another tab in the list,
-  /// no parent cycles, and an `activeTabId` that names a member.
+  /// The shape the rest of the app may assume of a site's tabs: non-empty,
+  /// unique ids, every `parentId` naming another tab in the list, and no
+  /// parent cycles. [normalize] establishes it and every operation here that
+  /// returns a tree keeps it.
+  static bool wellFormed(List<SiteTab> tabs) {
+    final byId = {for (final t in tabs) t.id: t};
+    if (tabs.isEmpty || byId.length != tabs.length) return false;
+    for (final t in tabs) {
+      final seen = <String>{t.id};
+      for (var p = t.parentId; p != null; p = byId[p]!.parentId) {
+        if (!byId.containsKey(p) || !seen.add(p)) return false;
+      }
+    }
+    return true;
+  }
+
+  /// [tabs] is [wellFormed] and [activeTabId] names one of them.
+  static bool _wellFormedWith(List<SiteTab> tabs, String activeTabId) =>
+      wellFormed(tabs) && tabs.any((t) => t.id == activeTabId);
+
+  /// An operation keeps the shape: only a malformed input may come out
+  /// malformed.
+  static bool _kept(List<SiteTab> before, List<SiteTab> after) =>
+      !wellFormed(before) || wellFormed(after);
+
+  /// Coerce any tab list into a [wellFormed] one whose `activeTabId` names a
+  /// member.
   ///
   /// Runs on every rehydrate because the list can arrive from an imported
   /// backup or a partial write, where none of that is guaranteed. A cycle is
@@ -141,12 +166,12 @@ class TabLifecycleEngine {
         activeTabId != null && byId.containsKey(activeTabId)
             ? activeTabId
             : out.first.id;
+    assert(_wellFormedWith(out, active), 'normalize repairs every tree');
     return (tabs: out, activeTabId: active);
   }
 
   /// Depth-first tree order: roots in list order, each followed by its
-  /// children in list order. Every tab appears exactly once — [normalize] has
-  /// already rooted anything whose parent is missing or cyclic.
+  /// children in list order.
   static List<TabRow> treeOrder(List<SiteTab> tabs) {
     final childrenOf = <String, List<SiteTab>>{};
     final roots = <SiteTab>[];
@@ -178,6 +203,8 @@ class TabLifecycleEngine {
     for (final t in tabs) {
       if (!visited.contains(t.id)) out.add(TabRow(t, 0));
     }
+    assert(!wellFormed(tabs) || out.length == tabs.length,
+        'every tab of a well-formed tree is one row');
     return out;
   }
 
@@ -243,8 +270,10 @@ class TabLifecycleEngine {
   /// opened from rather than at the end of the site.
   static List<SiteTab> insertChild(List<SiteTab> tabs, SiteTab tab) {
     final parentId = tab.parentId;
-    if (parentId == null) return [...tabs, tab];
-    return insertAfter(tabs, parentId, tab);
+    final out =
+        parentId == null ? [...tabs, tab] : insertAfter(tabs, parentId, tab);
+    assert(_kept(tabs, out), 'insertChild keeps the tree well-formed');
+    return out;
   }
 
   /// Insert [tab] directly after [anchorId] and everything under it, which is
@@ -264,7 +293,9 @@ class TabLifecycleEngine {
     while (at < tabs.length && subtree.contains(tabs[at].id)) {
       at++;
     }
-    return [...tabs.take(at), tab, ...tabs.skip(at)];
+    final out = [...tabs.take(at), tab, ...tabs.skip(at)];
+    assert(_kept(tabs, out), 'insertAfter keeps the tree well-formed');
+    return out;
   }
 
   /// Move [tabId] and everything under it (TAB-015, LIR-026): it becomes a
@@ -320,8 +351,12 @@ class TabLifecycleEngine {
     } else {
       at = rest.length;
     }
+    final wasWellFormed = wellFormed(tabs);
     moving.parentId = newParentId;
-    return [...rest.take(at), ...moved, ...rest.skip(at)];
+    final out = [...rest.take(at), ...moved, ...rest.skip(at)];
+    assert(!wasWellFormed || wellFormed(out),
+        'move keeps the tree well-formed');
+    return out;
   }
 
   /// "Move under..." (LIR-026): [tabId] and its subtree become the last
@@ -398,6 +433,7 @@ class TabLifecycleEngine {
         activeChanged: false,
       );
     }
+    final wasWellFormed = _wellFormedWith(tabs, activeTabId);
     final byId = {for (final t in tabs) t.id: t};
     final survivors = tabs.where((t) => !doomed.contains(t.id)).toList();
     if (reparent) {
@@ -423,6 +459,8 @@ class TabLifecycleEngine {
       }
     }
     final activeClosed = doomed.contains(activeTabId);
+    assert(!wasWellFormed || survivors.isEmpty || wellFormed(survivors),
+        'a close keeps the surviving tree well-formed');
     if (survivors.isEmpty) {
       return TabCloseResult(
         tabs: survivors,
@@ -553,9 +591,17 @@ class TabLifecycleEngine {
       if (t.id == activeTabId || !ownHome(t)) continue;
       if (home == null || t.lastActiveAt.isAfter(home.lastActiveAt)) home = t;
     }
-    if (home != null) return (tabs: tabs, activeTabId: home.id);
-    final fresh = SiteTab(url: initUrl);
-    return (tabs: [...tabs, fresh], activeTabId: fresh.id);
+    final ({List<SiteTab> tabs, String activeTabId}) landing;
+    if (home != null) {
+      landing = (tabs: tabs, activeTabId: home.id);
+    } else {
+      final fresh = SiteTab(url: initUrl);
+      landing = (tabs: [...tabs, fresh], activeTabId: fresh.id);
+    }
+    assert(
+        !wellFormed(tabs) || _wellFormedWith(landing.tabs, landing.activeTabId),
+        'a home landing keeps the tree well-formed');
+    return landing;
   }
 }
 

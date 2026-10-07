@@ -67,6 +67,10 @@ class DomainClaim {
         json['value'] as String? ?? '',
       );
 
+  /// Null for a value that is present but not a string.
+  static DomainClaim? tryFromJson(Map<String, dynamic> json) =>
+      json['value'] is String? ? DomainClaim.fromJson(json) : null;
+
   @override
   bool operator ==(Object other) =>
       other is DomainClaim && other.kind == kind && other.value == value;

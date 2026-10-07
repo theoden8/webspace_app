@@ -234,25 +234,8 @@ class CookieSecureStorage {
   }
 
   static List<Cookie> _cookieList(List<Object?> json) => [
-        for (final c in json) ?_cookieOrNull(c),
+        for (final c in json) ?tryCookieFromJson(c),
       ];
-
-  /// [cookieFromJson] casts each field, so a field of another type is
-  /// rejected here instead of thrown there.
-  static Cookie? _cookieOrNull(Object? json) {
-    if (json is! Map<String, dynamic>) return null;
-    if (json['name'] is! String ||
-        json['domain'] is! String? ||
-        json['path'] is! String? ||
-        json['expiresDate'] is! int? ||
-        json['isSecure'] is! bool? ||
-        json['isHttpOnly'] is! bool? ||
-        json['isSessionOnly'] is! bool? ||
-        json['sameSite'] is! String?) {
-      return null;
-    }
-    return cookieFromJson(json);
-  }
 
   static void _mergeByName(
     Map<String, List<Cookie>> into,

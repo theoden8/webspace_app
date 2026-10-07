@@ -243,6 +243,23 @@ Cookie cookieFromJson(Map<String, dynamic> json) => inapp.Cookie(
       : null,
 );
 
+/// [cookieFromJson] for stored JSON: null, rather than a cast failure, unless
+/// every field has the type the cookie takes.
+Cookie? tryCookieFromJson(Object? json) {
+  if (json is! Map<String, dynamic>) return null;
+  if (json['name'] is! String ||
+      json['domain'] is! String? ||
+      json['path'] is! String? ||
+      json['expiresDate'] is! int? ||
+      json['isSecure'] is! bool? ||
+      json['isHttpOnly'] is! bool? ||
+      json['isSessionOnly'] is! bool? ||
+      json['sameSite'] is! String?) {
+    return null;
+  }
+  return cookieFromJson(json);
+}
+
 /// Cookie manager - thin wrapper around inapp.CookieManager
 class CookieManager {
   final _manager = inapp.CookieManager.instance();
@@ -1196,8 +1213,8 @@ abstract class WebViewController {
   inapp.InAppWebViewController get nativeController;
 
   Future<void> loadUrl(String url, {String? language});
-  Future<void> loadHtmlString(String html, {String? baseUrl});
-  Future<void> reload();
+  /// False when no load starts: the webview is gone or the platform refused.
+  Future<bool> reload();
   Future<Uri?> getUrl();
   Future<String?> getTitle();
   Future<String?> getHtml();
@@ -1439,9 +1456,15 @@ void applyWebViewOptions(
     ..incognito = incognito ?? false;
 }
 
-/// InAppWebView controller wrapper
+/// The [WebViewController] over one native webview. Every native call goes
+/// through [_native], so a call on a webview that has left the tree is a
+/// no-op and a platform refusal reads as "nothing happened".
 class _WebViewController implements WebViewController {
   final inapp.InAppWebViewController _c;
+
+  /// Set by [_ControllerScope] in the frame the plugin disposes [_c]. A call
+  /// on a disposed controller asserts in debug and does nothing in release.
+  bool _disposed = false;
 
   /// Shared with the `onJsAlert` handler of the same webview, which needs to
   /// know that this controller issued an alert-hack pause (PAUSE-030).
@@ -1465,14 +1488,34 @@ class _WebViewController implements WebViewController {
         _settings = settings,
         _import = fileImport;
 
+  /// Null when the webview is gone or the platform refused: a native
+  /// failure arrives as [PlatformException], a torn-down platform view as
+  /// [MissingPluginException].
+  Future<T?> _native<T>(Future<T?> Function() call) async {
+    if (_disposed) return null;
+    try {
+      return await call();
+    } on PlatformException catch (e) {
+      LogService.instance.log('WebView', 'Native call refused: $e',
+          sensitivity: LogSensitivity.sensitive);
+      return null;
+    } on MissingPluginException {
+      return null;
+    }
+  }
+
+  Future<bool> _issued(Future<void> Function() call) async =>
+      await _native(() => call().then((_) => true)) ?? false;
+
   @override
   inapp.InAppWebViewController get nativeController => _c;
 
   @override
-  Future<void> loadUrl(String url, {String? language}) {
+  Future<void> loadUrl(String url, {String? language}) async {
     final fileImport = _import;
     if (fileImport != null && fileImport.isLoadOf(url)) {
-      return loadHtmlString(fileImport.html, baseUrl: fileImport.url);
+      await _loadHtml(fileImport.html, fileImport.url);
+      return;
     }
     final headers = <String, String>{};
     // HTTP headers are only meaningful for http(s) schemes. Attaching them to
@@ -1487,76 +1530,63 @@ class _WebViewController implements WebViewController {
     if (language != null && isHttp) {
       headers['Accept-Language'] = '$language, *;q=0.5';
     }
-    return _c.loadUrl(
-      urlRequest: inapp.URLRequest(
-        url: inapp.WebUri(url),
-        headers: headers.isNotEmpty ? headers : null,
-      ),
-    );
+    await _native(() => _c.loadUrl(
+          urlRequest: inapp.URLRequest(
+            url: inapp.WebUri(url),
+            headers: headers.isNotEmpty ? headers : null,
+          ),
+        ));
   }
 
-  @override
-  Future<void> loadHtmlString(String html, {String? baseUrl}) {
-    return _c.loadData(
-      data: html,
-      mimeType: 'text/html',
-      encoding: 'utf-8',
-      baseUrl: baseUrl != null ? inapp.WebUri(baseUrl) : null,
-    );
-  }
+  Future<bool> _loadHtml(String html, String baseUrl) =>
+      _issued(() => _c.loadData(
+            data: html,
+            mimeType: 'text/html',
+            encoding: 'utf-8',
+            baseUrl: inapp.WebUri(baseUrl),
+          ));
 
   @override
-  Future<void> reload() {
+  Future<bool> reload() {
     final fileImport = _import;
     if (fileImport != null &&
         FileImportDocument.rendersOnReload(isAndroid: hostIsAndroid)) {
-      return loadHtmlString(fileImport.html, baseUrl: fileImport.url);
+      return _loadHtml(fileImport.html, fileImport.url);
     }
-    return _c.reload();
+    return _issued(() => _c.reload());
   }
 
   @override
-  Future<Uri?> getUrl() => _c.getUrl();
+  Future<Uri?> getUrl() => _native(_c.getUrl);
 
   @override
-  Future<String?> getTitle() => _c.getTitle();
+  Future<String?> getTitle() async => await _native(_c.getTitle);
 
   @override
-  Future<String?> getHtml() => _c.getHtml();
+  Future<String?> getHtml() async => await _native(_c.getHtml);
 
   @override
-  Future<void> evaluateJavascript(String source) async {
-    try {
-      await _c.evaluateJavascript(source: '$source\n;null;');
-    } catch (_) {} // WebKit "unsupported type" — JS still ran
-  }
+  Future<void> evaluateJavascript(String source) =>
+      _native(() => _c.evaluateJavascript(source: '$source\n;null;'));
 
   @override
-  Future<Object?> evaluateJavascriptReturning(String source) async {
-    try {
-      return await _c.evaluateJavascript(source: source);
-    } catch (_) {
-      return null;
-    }
-  }
+  Future<Object?> evaluateJavascriptReturning(String source) =>
+      _native(() => _c.evaluateJavascript(source: source));
 
   @override
-  Future<void> findAllAsync({required String find}) => _c.findAllAsync(find: find);
+  Future<void> findAllAsync({required String find}) =>
+      _native(() => _c.findAllAsync(find: find));
 
   @override
-  Future<void> findNext({required bool forward}) => _c.findNext(forward: forward);
+  Future<void> findNext({required bool forward}) =>
+      _native(() => _c.findNext(forward: forward));
 
   @override
-  Future<void> clearMatches() => _c.clearMatches();
+  Future<void> clearMatches() => _native(_c.clearMatches);
 
   @override
-  Future<String?> getDefaultUserAgent() async {
-    try {
-      return await inapp.InAppWebViewController.getDefaultUserAgent();
-    } catch (_) {
-      return null;
-    }
-  }
+  Future<String?> getDefaultUserAgent() async =>
+      await _native(inapp.InAppWebViewController.getDefaultUserAgent);
 
   @override
   Future<void> setOptions({
@@ -1575,7 +1605,7 @@ class _WebViewController implements WebViewController {
     // The OS text size can change between creation and this call, before
     // didChangeTextScaleFactor can reach the controller.
     _settings.textZoom = WebViewFactory.systemTextZoomPercent();
-    return _c.setSettings(settings: _settings);
+    return _native(() => _c.setSettings(settings: _settings));
   }
 
   @override
@@ -1587,37 +1617,35 @@ class _WebViewController implements WebViewController {
     // "color-scheme">` and the page falls back to its own default
     // (typically light), since onUrlChanged dedups same-URL events
     // and skips its own evaluateJavascript reapplication.
-    final shim = buildThemeColorSchemeShim(themeValue);
-    await _c.removeUserScriptsByGroupName(groupName: 'theme_color_scheme_shim');
-    await _c.addUserScript(
-        userScript: pageShim('theme_color_scheme_shim', shim,
-            frames: ShimFrames.all));
-    await evaluateJavascript(shim);
+    await _rotateShim(
+        'theme_color_scheme_shim', buildThemeColorSchemeShim(themeValue));
   }
 
   @override
   Future<void> setTextZoom(int zoomPercent) async {
     if (hostIsAndroid) {
       _settings.textZoom = zoomPercent;
-      await _c.setSettings(settings: _settings);
+      await _native(() => _c.setSettings(settings: _settings));
       return;
     }
     // iOS/macOS: WKWebView has no textZoom setting. Rotate the
     // DOCUMENT_START user script so future page loads pick up the new
     // value, then update the style element on the current page.
-    final shim = buildTextZoomShim(zoomPercent);
-    await _c.removeUserScriptsByGroupName(groupName: 'system_text_zoom');
-    await _c.addUserScript(
-        userScript:
-            pageShim('system_text_zoom', shim, frames: ShimFrames.all));
+    await _rotateShim('system_text_zoom', buildTextZoomShim(zoomPercent));
+  }
+
+  Future<void> _rotateShim(String group, String shim) async {
+    await _native(() => _c.removeUserScriptsByGroupName(groupName: group));
+    await _native(() => _c.addUserScript(
+        userScript: pageShim(group, shim, frames: ShimFrames.all)));
     await evaluateJavascript(shim);
   }
 
   @override
-  Future<void> goBack() => _c.goBack();
+  Future<void> goBack() => _native(_c.goBack);
 
   @override
-  Future<bool> canGoBack() => _c.canGoBack();
+  Future<bool> canGoBack() async => await _native(_c.canGoBack) ?? false;
 
   @override
   Future<void> pause() async {
@@ -1627,16 +1655,13 @@ class _WebViewController implements WebViewController {
     // composition SurfaceView through onPause/onResume leaves it blank on the
     // next paint (the white-screen bug). App-lifecycle backgrounding freezes JS
     // via the global `pauseAllJsTimers()`; memory pressure disposes.
-    //
-    // Must NOT throw: callers run `pause()` then `pauseAllJsTimers()` inside one
-    // try block, so an exception here would skip the global JS freeze.
     switch (perInstanceLifecycleCallFor(
         isAndroid: hostIsAndroid, isIOS: hostIsIOS)) {
       case PerInstanceLifecycleCall.none:
         return;
       case PerInstanceLifecycleCall.timers:
         _pauseHack.notePauseIssued();
-        await _c.pauseTimers();
+        await _native(_c.pauseTimers);
     }
   }
 
@@ -1648,7 +1673,7 @@ class _WebViewController implements WebViewController {
       case PerInstanceLifecycleCall.none:
         return;
       case PerInstanceLifecycleCall.timers:
-        await _c.resumeTimers();
+        await _native(_c.resumeTimers);
     }
   }
 
@@ -1661,45 +1686,63 @@ class _WebViewController implements WebViewController {
         isAndroid: hostIsAndroid, isIOS: hostIsIOS, isMacOS: hostIsMacOS)) {
       _pauseHack.notePauseIssued();
     }
-    return _c.pauseTimers();
+    return _native(_c.pauseTimers);
   }
 
   @override
-  Future<void> resumeAllJsTimers() => _c.resumeTimers();
+  Future<void> resumeAllJsTimers() => _native(_c.resumeTimers);
 
   @override
-  Future<void> stopLoading() async {
-    await _c.stopLoading();
+  Future<void> stopLoading() => _native(_c.stopLoading);
+
+  @override
+  Future<void> clearCache() => _native(_c.clearCache);
+
+  @override
+  Future<Uint8List?> saveState() async => await _native(_c.saveState);
+
+  @override
+  Future<bool> restoreState(Uint8List state) async =>
+      await _native(() => _c.restoreState(state)) ?? false;
+}
+
+/// Marks the [_WebViewController] of the webview under it disposed when that
+/// webview leaves the tree, the frame the plugin disposes the native
+/// controller. Sits directly over the `InAppWebView` and carries its key, so
+/// the two elements live and die together.
+class _ControllerScope extends StatefulWidget {
+  const _ControllerScope({
+    super.key,
+    required this.onUnmount,
+    required this.child,
+  });
+
+  final VoidCallback onUnmount;
+  final Widget child;
+
+  @override
+  State<_ControllerScope> createState() => _ControllerScopeState();
+}
+
+class _ControllerScopeState extends State<_ControllerScope> {
+  // The plugin keeps answering through the callbacks of the widget that
+  // created the native view, so a later widget's callback never names it.
+  late final VoidCallback _onUnmount;
+
+  @override
+  void initState() {
+    super.initState();
+    _onUnmount = widget.onUnmount;
   }
 
   @override
-  Future<void> clearCache() async {
-    try {
-      await _c.clearCache();
-    } catch (_) {
-      // Controller may have been disposed during memory pressure.
-    }
+  void dispose() {
+    _onUnmount();
+    super.dispose();
   }
 
   @override
-  Future<Uint8List?> saveState() async {
-    try {
-      return await _c.saveState();
-    } catch (_) {
-      // Disposed mid-call, or platform refused. Treat as "nothing
-      // to save" — re-activation will fall back to a fresh load.
-      return null;
-    }
-  }
-
-  @override
-  Future<bool> restoreState(Uint8List state) async {
-    try {
-      return await _c.restoreState(state);
-    } catch (_) {
-      return false;
-    }
-  }
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// HTML rendered when a file-import site has no cached HTML available
@@ -2120,16 +2163,20 @@ class WebViewFactory {
     ProxyManager.noteStoreProxy(binding.containerId, binding.proxy);
     final page = _buildPageScripts(parent);
     final httpAuth = _httpAuthSessionFor(parent);
-    return inapp.InAppWebView(
+    final settings = _siteSettings(
+      binding,
+      parent.posture,
+      textZoom: page.textZoom,
+      desktopMode: page.desktopMode,
+    );
+    _WebViewController? view;
+    final popup = inapp.InAppWebView(
       windowId: windowId,
-      initialSettings: _siteSettings(
-        binding,
-        parent.posture,
-        textZoom: page.textZoom,
-        desktopMode: page.desktopMode,
-      ),
+      initialSettings: settings,
       initialUserScripts: UnmodifiableListView(page.userScripts),
       onWebViewCreated: (controller) {
+        view = _WebViewController(controller,
+            pauseHack: PauseTimersHackState(), settings: settings);
         _registerPageHandlers(
           controller,
           parent,
@@ -2152,7 +2199,7 @@ class WebViewFactory {
       // verification iframe would be more confusing than the cancel
       // it falls back to.
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(controller, challenge, null),
+          _handleServerTrust(view, challenge, null),
       // A popup is the same site in a dialog, so it presents the same
       // router credential (PROXY-013) and the same saved sign-ins.
       onReceivedHttpAuthRequest: (controller, challenge) =>
@@ -2161,6 +2208,10 @@ class WebViewFactory {
             session: httpAuth,
             challenge: challenge,
           ),
+    );
+    return _ControllerScope(
+      onUnmount: () => view?._disposed = true,
+      child: popup,
     );
   }
 
@@ -2348,8 +2399,10 @@ class WebViewFactory {
           handledByClient: true, action: inapp.JsPromptResponseAction.CANCEL),
       onDownloadStarting: (_, _) async => inapp.DownloadStartResponse(
           handled: true, action: inapp.DownloadStartResponseAction.CANCEL),
-      onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(controller, challenge, null),
+      // No view: an https upgrade the certificate refuses has no plaintext
+      // fallback to load in a check.
+      onReceivedServerTrustAuthRequest: (_, challenge) =>
+          _handleServerTrust(null, challenge, null),
       onReceivedHttpAuthRequest: (controller, challenge) =>
           answerHttpAuthChallenge(
             routerIdentity: _routerIdentityForConfig(config),
@@ -3456,9 +3509,9 @@ class WebViewFactory {
     // its `onJsAlert` (which has to recognise the pause's own alert).
     final pauseHack = PauseTimersHackState();
     final grants = config.grants;
+    _WebViewController? view;
 
-    final inapp.InAppWebView webViewWidget = inapp.InAppWebView(
-      key: config.key,
+    final webViewWidget = inapp.InAppWebView(
       initialUrlRequest: (renderInitialData || suppressInitialLoad) ? null : inapp.URLRequest(
         url: inapp.WebUri(proxyUnavailable ? 'about:blank' : config.initialUrl),
         headers: proxyUnavailable || headers.isEmpty ? null : headers,
@@ -3614,7 +3667,7 @@ class WebViewFactory {
           proxyConfigured: binding.proxyConfigured,
           mountUrl: config.initialUrl,
         );
-        final wrappedController = _WebViewController(
+        final wrappedController = view = _WebViewController(
           controller,
           pauseHack: pauseHack,
           settings: settings,
@@ -4240,10 +4293,7 @@ class WebViewFactory {
           earlyScripts.add(clearUrlShareScript);
         }
         if (earlyScripts.isNotEmpty && stillCurrent()) {
-          try {
-            await controller.evaluateJavascript(
-                source: '${earlyScripts.join('\n')}\n;null;');
-          } catch (_) {} // WebKit "unsupported type" — JS still ran
+          await view?.evaluateJavascript(earlyScripts.join('\n'));
         }
         if (stillCurrent()) {
           await userScriptService.reinjectOnLoadStart(controller);
@@ -4340,15 +4390,7 @@ class WebViewFactory {
               return;
             }
             config.onReloadIssued?.call();
-            try {
-              await controller.reload();
-            } on PlatformException catch (e) {
-              LogService.instance.log('WebView',
-                  'Live-swap reload failed: ${e.code}',
-                  level: LogLevel.warning);
-            } on MissingPluginException {
-              // The native view is gone; the snapshot goes with it.
-            }
+            await view?.reload();
           });
         }
 
@@ -4383,11 +4425,7 @@ class WebViewFactory {
         // Inject full cosmetic script: MutationObserver + text-based hiding
         if (config.posture.blocking.contentBlock) {
           final script = ContentBlockerService.instance.getCosmeticScript(urlStr);
-          if (script != null) {
-            try {
-              await controller.evaluateJavascript(source: '$script\n;null;');
-            } catch (_) {} // WebKit "unsupported type" — JS still ran
-          }
+          if (script != null) await view?.evaluateJavascript(script);
         }
         await userScriptService.reinjectOnLoadStop(controller);
         // Cache HTML for offline viewing. Pre-gate the renderer IPC
@@ -4409,36 +4447,31 @@ class WebViewFactory {
             && !firedLiveReload
             && failedNavUrl == null
             && (config.shouldFetchHtml?.call() ?? true)) {
-          try {
-            final snapshot =
-                await controller.evaluateJavascript(source: htmlSnapshotScript);
-            final html = snapshot is String ? snapshot : null;
-            if (html != null && html.isNotEmpty) {
-              // `urlStr` was captured at onLoadStop entry. The snapshot is
-              // an async IPC into the renderer; if the user kicked off a
-              // back/forward gesture or a link tap during that round trip,
-              // the markup we got back belongs to the *new* page, not
-              // `urlStr`. Saving (urlStr, html-of-new-page) under `siteId`
-              // poisons the cache: next webview construction renders that
-              // mismatched HTML at `baseUrl=currentUrl`, so the user sees
-              // the wrong page when they swipe back into the cached entry.
-              // Re-read the URL post-snapshot and skip the save on
-              // mismatch — the next stable onLoadStop will write the
-              // right pair.
-              final liveUrl = (await controller.getUrl())?.toString();
-              if (liveUrl == urlStr) {
-                config.onHtmlLoaded!(urlStr, html);
-              } else {
-                LogService.instance.log(
-                  'WebView',
-                  'Skipping cache save: URL changed during snapshot '
-                      '($urlStr -> $liveUrl)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-              }
+          final snapshot =
+              await view?.evaluateJavascriptReturning(htmlSnapshotScript);
+          if (snapshot is String && snapshot.isNotEmpty) {
+            // `urlStr` was captured at onLoadStop entry. The snapshot is
+            // an async IPC into the renderer; if the user kicked off a
+            // back/forward gesture or a link tap during that round trip,
+            // the markup we got back belongs to the *new* page, not
+            // `urlStr`. Saving (urlStr, html-of-new-page) under `siteId`
+            // poisons the cache: next webview construction renders that
+            // mismatched HTML at `baseUrl=currentUrl`, so the user sees
+            // the wrong page when they swipe back into the cached entry.
+            // Re-read the URL post-snapshot and skip the save on
+            // mismatch — the next stable onLoadStop will write the
+            // right pair.
+            final liveUrl = (await view?.getUrl())?.toString();
+            if (liveUrl == urlStr) {
+              config.onHtmlLoaded!(urlStr, snapshot);
+            } else {
+              LogService.instance.log(
+                'WebView',
+                'Skipping cache save: URL changed during snapshot '
+                    '($urlStr -> $liveUrl)',
+                sensitivity: LogSensitivity.sensitive,
+              );
             }
-          } catch (_) {
-            // Controller may have been disposed if webview was unloaded
           }
         }
       },
@@ -4530,7 +4563,7 @@ class WebViewFactory {
             sensitivity: LogSensitivity.sensitive,
           );
           final handled = await _handleSslLoadError(
-            controller: controller,
+            view: view,
             url: reqUrl,
             prompt: config.onUntrustedCertificate,
           );
@@ -4576,11 +4609,7 @@ class WebViewFactory {
           // suppression already prevents another dialog if the page
           // tries again.
           Future.microtask(() async {
-            try {
-              await controller.loadUrl(
-                urlRequest: inapp.URLRequest(url: inapp.WebUri('about:blank')),
-              );
-            } catch (_) {}
+            await view?.loadUrl('about:blank');
           });
           return;
         }
@@ -4593,21 +4622,9 @@ class WebViewFactory {
             sensitivity: LogSensitivity.sensitive,
           );
           Future.microtask(() async {
-            try {
-              bool allow = true;
-              if (config.shouldOverrideUrlLoading != null) {
-                allow = config.shouldOverrideUrlLoading!(resolved, false);
-              }
-              if (allow) {
-                await controller.loadUrl(
-                  urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)),
-                );
-              } else {
-                await controller.loadUrl(
-                  urlRequest: inapp.URLRequest(url: inapp.WebUri('about:blank')),
-                );
-              }
-            } catch (_) {}
+            final bool allow =
+                config.shouldOverrideUrlLoading?.call(resolved, false) ?? true;
+            await view?.loadUrl(allow ? resolved : 'about:blank');
           });
           return;
         }
@@ -4631,11 +4648,7 @@ class WebViewFactory {
           sensitivity: LogSensitivity.sensitive,
         );
         Future.microtask(() async {
-          try {
-            await controller.loadUrl(
-              urlRequest: inapp.URLRequest(url: inapp.WebUri(recovery)),
-            );
-          } catch (_) {}
+          await view?.loadUrl(recovery);
         });
       },
       // Header names, never values, and no URL, so the line reaches logcat:
@@ -4665,6 +4678,11 @@ class WebViewFactory {
           lastStableUrl: lastStableUrl,
           initialUrl: config.initialUrl,
         );
+        // Abort the main-frame navigation to this URL. Without this the
+        // webview tries to render the attachment response as a page and ends
+        // up on a "net::ERR_UNKNOWN_URL_SCHEME" / "invalid request" error
+        // page while the URL bar is stuck on the download URL.
+        await view?.stopLoading();
         await _handleDownloadRequest(
           controller,
           downloadStartRequest,
@@ -4676,7 +4694,7 @@ class WebViewFactory {
         }
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(controller, challenge, config.onUntrustedCertificate),
+          _handleServerTrust(view, challenge, config.onUntrustedCertificate),
       onReceivedHttpAuthRequest: (controller, challenge) =>
           answerHttpAuthChallenge(
             routerIdentity: _routerIdentityForConfig(config),
@@ -4713,7 +4731,12 @@ class WebViewFactory {
         config.onRendererGone?.call(true);
       },
     );
-    return _applyLetterbox(config, _applyRefreshGate(config, webViewWidget));
+    final scoped = _ControllerScope(
+      key: config.key,
+      onUnmount: () => view?._disposed = true,
+      child: webViewWidget,
+    );
+    return _applyLetterbox(config, _applyRefreshGate(config, scoped));
   }
 
   /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].
@@ -4794,7 +4817,7 @@ class WebViewFactory {
   ///     `load-failed-with-tls-errors`), so the callback only runs when
   ///     the OS has rejected the cert. Prompt the user inline.
   static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(
-    inapp.InAppWebViewController controller,
+    WebViewController? view,
     inapp.ServerTrustChallenge challenge,
     Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
   ) async {
@@ -4876,8 +4899,7 @@ class WebViewFactory {
             'no pin)',
         sensitivity: LogSensitivity.sensitive,
       );
-      controller.loadUrl(
-          urlRequest: inapp.URLRequest(url: inapp.WebUri(upgradeCert.load!)));
+      view?.loadUrl(upgradeCert.load!);
     }
     if (upgradeCert.cancel) {
       return inapp.ServerTrustAuthResponse(
@@ -4930,9 +4952,7 @@ class WebViewFactory {
     // short-circuits via the now-matching pin synchronously on the
     // new attempt.
     Future.microtask(() async {
-      try {
-        await controller.reload();
-      } catch (_) {}
+      await view?.reload();
     });
     return inapp.ServerTrustAuthResponse(
         action: inapp.ServerTrustAuthResponseAction.PROCEED);
@@ -5031,7 +5051,7 @@ class WebViewFactory {
   ///     cert and reload. The reload's trust callback finds the pin
   ///     and returns PROCEED.
   static Future<bool> _handleSslLoadError({
-    required inapp.InAppWebViewController controller,
+    required WebViewController? view,
     required String url,
     required Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
   }) async {
@@ -5077,11 +5097,7 @@ class WebViewFactory {
         sensitivity: LogSensitivity.sensitive,
       );
       Future.microtask(() async {
-        try {
-          await controller.loadUrl(
-            urlRequest: inapp.URLRequest(url: inapp.WebUri(url)),
-          );
-        } catch (_) {}
+        await view?.loadUrl(url);
       });
       return true;
     }
@@ -5115,11 +5131,7 @@ class WebViewFactory {
         'user trusted cert for $host:$port (pinned sha256=$fingerprint) — reloading',
         sensitivity: LogSensitivity.sensitive,
       );
-      try {
-        await controller.loadUrl(
-          urlRequest: inapp.URLRequest(url: inapp.WebUri(url)),
-        );
-      } catch (_) {}
+      await view?.loadUrl(url);
       return true;
     } finally {
       _inflightSslPrompts.remove(key);
@@ -5132,14 +5144,6 @@ class WebViewFactory {
     String? referer,
     UserProxySettings? proxy,
   }) async {
-    // Abort any in-flight main-frame navigation to this URL. Without this
-    // the webview tries to render the attachment response as a page and
-    // ends up on a "net::ERR_UNKNOWN_URL_SCHEME" / "invalid request" error
-    // page while the URL bar is stuck on the download URL.
-    try {
-      await controller.stopLoading();
-    } catch (_) {}
-
     final urlStr = req.url.toString();
     final scheme = req.url.scheme.toLowerCase();
 

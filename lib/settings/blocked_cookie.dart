@@ -19,6 +19,14 @@ class BlockedCookie {
 
   factory BlockedCookie.fromJson(Map<String, dynamic> json) =>
       BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
+
+  /// Null unless name and domain are both strings.
+  static BlockedCookie? tryFromJson(Map<String, dynamic> json) =>
+      switch ((json['name'], json['domain'])) {
+        (final String name, final String domain) =>
+          BlockedCookie(name: name, domain: domain),
+        _ => null,
+      };
 }
 
 /// True if (name, domain) matches one of [blocked]. Domain match is

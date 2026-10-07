@@ -5,6 +5,7 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show CookieManager, WebUri;
@@ -91,14 +92,16 @@ class ConsoleLogEntry {
 String _generateSiteId() {
   final now = DateTime.now().microsecondsSinceEpoch;
   final random = Random().nextInt(999999);
-  return '${now.toRadixString(36)}-${random.toRadixString(36)}';
+  final id = '${now.toRadixString(36)}-${random.toRadixString(36)}';
+  assert(_kSiteIdPattern.hasMatch(id), 'a minted siteId is path-safe');
+  return id;
 }
 
 /// A siteId is concatenated into filesystem paths (HTML/import/nav-state cache
 /// filenames, native container names) and secure-storage keys, so an imported
 /// backup must not smuggle path metacharacters. Accept only a path-safe token;
 /// anything else (including `../…` traversal) returns null so the caller mints
-/// a fresh id. Minted ids (`<base36>-<base36>`) always match.
+/// a fresh id.
 final RegExp _kSiteIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
 
 String? sanitizedSiteId(Object? raw) {
@@ -501,8 +504,14 @@ class WebViewModel implements MediaGrantRecord {
   bool routeOutboundLinks;
 
   /// This site's own routing rules, consulted before the global claims
-  /// (LIR-014). At most one entry per claim.
-  List<OutboundPreference> outboundPreferences;
+  /// (LIR-014).
+  List<OutboundPreference> get outboundPreferences => _outboundPreferences;
+  set outboundPreferences(List<OutboundPreference> value) {
+    assert(_onePerClaim(value), 'at most one outbound preference per claim');
+    _outboundPreferences = value;
+  }
+
+  List<OutboundPreference> _outboundPreferences;
 
   /// How to search this site (LIR-028): an address with `%s` for the query.
   /// Null means the address its host is known for, if any.
@@ -563,9 +572,9 @@ class WebViewModel implements MediaGrantRecord {
     return true;
   }
 
-  /// View used by the resolver — always non-empty: returns the explicit
-  /// `domainClaims` if the user has set them, otherwise the synthesized
-  /// `[baseDomain(getBaseDomain(initUrl))]` per LIR-001.
+  /// View used by the resolver: the explicit `domainClaims` if the user has
+  /// set them, otherwise the synthesized `[baseDomain(getBaseDomain(initUrl))]`
+  /// per LIR-001, which is empty for an [initUrl] with no host.
   List<DomainClaim> get effectiveDomainClaims {
     final explicit = domainClaims;
     if (explicit != null && explicit.isNotEmpty) return explicit;
@@ -1004,8 +1013,10 @@ class WebViewModel implements MediaGrantRecord {
     this.searchDefault,
     this.stateSetterF,
     this.isArchiveTier = false,
-  })  : userScripts = userScripts ?? [],
-        outboundPreferences = outboundPreferences ?? [],
+  })  : assert(_onePerClaim(outboundPreferences ?? const []),
+            'at most one outbound preference per claim'),
+        userScripts = userScripts ?? [],
+        _outboundPreferences = outboundPreferences ?? [],
         searchSites = searchSites ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
@@ -1094,46 +1105,21 @@ class WebViewModel implements MediaGrantRecord {
     if (_initialLoadDeferredForProxy) {
       _initialLoadDeferredForProxy = false;
       if (proxyApplied && !restorePending) {
-        try {
-          await controller?.loadUrl(currentUrl);
-        } catch (_) {}
+        await controller?.loadUrl(currentUrl);
       }
     }
 
-    // The controller can be disposed across these awaits — a memory-pressure
-    // eviction, a site delete while `onControllerCreated` is still settling, or
-    // widget teardown. `disposeWebView()` nulls the ref, but a widget-level
-    // dispose leaves a non-null ref to a now-dead native controller (asserts
-    // "used after disposed"). Capture the controller and swallow that error:
-    // there's nothing to configure on a dead one.
     final c = controller;
     if (c == null) return;
-    try {
-      final id = runningIdentity;
-      await c.setOptions(
-        javascriptEnabled: id.javascriptEnabled,
-        userAgent: id.effectiveUserAgentOrNull,
-        thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
-        incognito: id.effectiveIncognito,
-      );
-      // Apply current theme preference
-      await c.setThemePreference(_currentTheme);
-      // Don't call loadUrl here - it's already initialized with the URL
-      if (defaultUserAgent == null) {
-        defaultUserAgent = await c.getDefaultUserAgent();
-      }
-    } catch (e) {
-      // Controller disposed mid-setup, or webview not fully initialized
-      // (common in tests). Nothing left to configure.
-      defaultUserAgent ??= '';
-      LogService.instance.log(
-        'WebView',
-        'setController skipped configuring a disposed/unavailable '
-            'controller for "$name": $e',
-        level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
-      );
-    }
+    final id = runningIdentity;
+    await c.setOptions(
+      javascriptEnabled: id.javascriptEnabled,
+      userAgent: id.effectiveUserAgentOrNull,
+      thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
+      incognito: id.effectiveIncognito,
+    );
+    await c.setThemePreference(_currentTheme);
+    defaultUserAgent ??= await c.getDefaultUserAgent();
   }
 
   /// Apply proxy settings to the webview.
@@ -1176,10 +1162,8 @@ class WebViewModel implements MediaGrantRecord {
       // too (LEAK-003).
       if (resolveEffectiveProxy(id.proxySettings, siteId: id.siteId).type !=
           ProxyType.DEFAULT) {
-        try {
-          await controller?.stopLoading();
-          await controller?.loadUrl('about:blank');
-        } catch (_) {}
+        await controller?.stopLoading();
+        await controller?.loadUrl('about:blank');
       }
       return false;
     }
@@ -1211,13 +1195,7 @@ class WebViewModel implements MediaGrantRecord {
   /// Apply theme preference to the webview
   Future<void> setTheme(WebViewTheme theme) async {
     _currentTheme = theme;
-    if (controller != null && webview != null) {
-      try {
-        await controller!.setThemePreference(theme);
-      } catch (_) {
-        // Controller may have been disposed during domain conflict unload
-      }
-    }
+    if (webview != null) await controller?.setThemePreference(theme);
   }
 
   /// Update proxy settings and apply them.
@@ -1514,20 +1492,15 @@ class WebViewModel implements MediaGrantRecord {
               // null `controller`, so we re-check before every native call —
               // calling into a torn-down WebView peer can trip Chromium's
               // dangling raw_ptr detector and SIGTRAP the renderer.
-              try {
-                if (controller == null) return;
-                final title = await controller!.getTitle();
-                if (controller == null) return;
-                if (title != null && title.isNotEmpty) {
-                  pageTitle = title;
-                  // Auto-update name from page title if name is still the default domain
-                  if (!hosted && name == extractDomain(initUrl)) {
-                    name = title;
-                  }
+              if (controller == null) return;
+              final title = await controller!.getTitle();
+              if (controller == null) return;
+              if (title != null && title.isNotEmpty) {
+                pageTitle = title;
+                // Auto-update name from page title if name is still the default domain
+                if (!hosted && name == extractDomain(initUrl)) {
+                  name = title;
                 }
-              } catch (_) {
-                // Controller torn down mid-call — safe to swallow, the next
-                // page load on the new controller will reapply title.
               }
               // Reapply theme after page load (some sites might override it).
               // Fire-and-forget: don't await. The await chained an
@@ -1536,7 +1509,7 @@ class WebViewModel implements MediaGrantRecord {
               // dying frame when chromium tears down between our request
               // and its dispatch. The theme call doesn't gate any
               // subsequent work — saveFunc below is Dart-only.
-              controller?.setThemePreference(_currentTheme).catchError((_) {});
+              controller?.setThemePreference(_currentTheme);
             }
             await hooks.save();
           },
@@ -1663,32 +1636,20 @@ class WebViewModel implements MediaGrantRecord {
               // The override must land before the restored entry loads;
               // on a proxy failure stay blank (fail closed).
               if (!await proxyReady) return;
-              try {
-                final ok = await ctrl.restoreState(pending);
-                LogService.instance.log(
-                  'WebView',
-                  'restoreState for "$name" (siteId: $siteId): $ok',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                if (materialize) {
-                  // ok: reload the restored top entry (keeps the back stack).
-                  // !ok: nothing was restored, so just load the saved URL or
-                  // the suppressed-initial-load webview would stay blank.
-                  if (ok) {
-                    await reloadAndRepaint(ctrl);
-                  } else {
-                    await ctrl.loadUrl(restoreUrl);
-                  }
-                }
-              } catch (_) {
-                // Restore is best-effort. On Apple the page is already
-                // loading from `currentUrl`; on Android the initial load was
-                // suppressed, so fall back to loading it explicitly or the
-                // view would stay blank.
-                if (materialize) {
-                  try {
-                    await ctrl.loadUrl(restoreUrl);
-                  } catch (_) {}
+              final ok = await ctrl.restoreState(pending);
+              LogService.instance.log(
+                'WebView',
+                'restoreState for "$name" (siteId: $siteId): $ok',
+                sensitivity: LogSensitivity.sensitive,
+              );
+              if (materialize) {
+                // ok: reload the restored top entry (keeps the back stack).
+                // !ok: nothing was restored, so just load the saved URL or
+                // the suppressed-initial-load webview would stay blank.
+                if (ok) {
+                  await reloadAndRepaint(ctrl);
+                } else {
+                  await ctrl.loadUrl(restoreUrl);
                 }
               }
             }());
@@ -1819,16 +1780,12 @@ class WebViewModel implements MediaGrantRecord {
     if (controller == null) return;
     if (notificationsEnabled) return;
     if (effectiveBackgroundAudioEnabled) return;
-    try {
-      await controller!.pause();
-      LogService.instance.log(
-        'WebView',
-        'Paused webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller!.pause();
+    LogService.instance.log(
+      'WebView',
+      'Paused webview for "$name" (siteId: $siteId)',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// End any device capture this site is running: camera (CAM-012) and
@@ -1847,16 +1804,10 @@ class WebViewModel implements MediaGrantRecord {
   ///     notification and background-audio sites. Those sites may keep running
   ///     JS and audio in the background. The camera is not covered by either.
   Future<void> stopRealCapture() async {
-    final c = controller;
-    if (c == null) return;
-    try {
-      await c.evaluateJavascript(
-        "if (typeof globalThis.__wsStopRealCapture === 'function') "
-        'globalThis.__wsStopRealCapture();',
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller?.evaluateJavascript(
+      "if (typeof globalThis.__wsStopRealCapture === 'function') "
+      'globalThis.__wsStopRealCapture();',
+    );
   }
 
   /// Tell a background-audio site's page whether the app is backgrounded
@@ -1868,15 +1819,9 @@ class WebViewModel implements MediaGrantRecord {
   /// Main frame only — the shim relays the state to its own subframes.
   Future<void> setBackgroundPlayback(bool active) async {
     if (!effectiveBackgroundAudioEnabled) return;
-    final c = controller;
-    if (c == null) return;
-    try {
-      await c.evaluateJavascript(
-        'if(window.__wsMediaBackground)window.__wsMediaBackground($active);',
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller?.evaluateJavascript(
+      'if(window.__wsMediaBackground)window.__wsMediaBackground($active);',
+    );
   }
 
   /// Pause every playing media element in the page's main frame (BGAUDIO-009).
@@ -1896,28 +1841,18 @@ class WebViewModel implements MediaGrantRecord {
   /// subframe is accepted degradation, as in BGAUDIO-008.
   Future<void> pauseMediaPlayback() async {
     if (effectiveBackgroundAudioEnabled) return;
-    final c = controller;
-    if (c == null) return;
-    try {
-      await c.evaluateJavascript(buildMediaPauseJs());
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller?.evaluateJavascript(buildMediaPauseJs());
   }
 
   /// Resume a previously paused webview when it becomes active again.
   Future<void> resumeWebView() async {
     if (controller == null) return;
-    try {
-      await controller!.resume();
-      LogService.instance.log(
-        'WebView',
-        'Resumed webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller!.resume();
+    LogService.instance.log(
+      'WebView',
+      'Resumed webview for "$name" (siteId: $siteId)',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// App-lifecycle pause: per-instance pause + process-global JS timer pause.
@@ -1934,17 +1869,13 @@ class WebViewModel implements MediaGrantRecord {
     // both calls on the same still-live controller.
     final c = controller;
     if (c == null) return;
-    try {
-      await c.pause();
-      await c.pauseAllJsTimers();
-      LogService.instance.log(
-        'WebView',
-        'App-lifecycle paused webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await c.pause();
+    await c.pauseAllJsTimers();
+    LogService.instance.log(
+      'WebView',
+      'App-lifecycle paused webview for "$name" (siteId: $siteId)',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// Inverse of [pauseForAppLifecycle].
@@ -1953,17 +1884,13 @@ class WebViewModel implements MediaGrantRecord {
     // concurrent dispose can't strand the process-global resumeAllJsTimers.
     final c = controller;
     if (c == null) return;
-    try {
-      await c.resume();
-      await c.resumeAllJsTimers();
-      LogService.instance.log(
-        'WebView',
-        'App-lifecycle resumed webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await c.resume();
+    await c.resumeAllJsTimers();
+    LogService.instance.log(
+      'WebView',
+      'App-lifecycle resumed webview for "$name" (siteId: $siteId)',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// Dispose the webview and controller to release resources.
@@ -1990,16 +1917,12 @@ class WebViewModel implements MediaGrantRecord {
   /// (already disposed).
   Future<void> clearWebViewCache() async {
     if (controller == null) return;
-    try {
-      await controller!.clearCache();
-      LogService.instance.log(
-        'WebView',
-        'Cleared in-memory cache for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed mid-call.
-    }
+    await controller!.clearCache();
+    LogService.instance.log(
+      'WebView',
+      'Cleared in-memory cache for "$name" (siteId: $siteId)',
+      sensitivity: LogSensitivity.sensitive,
+    );
   }
 
   /// User-driven hard reload (pull-to-refresh, Refresh button, Clear-cookies).
@@ -2069,16 +1992,11 @@ class WebViewModel implements MediaGrantRecord {
     final ctrl = target ?? controller;
     if (ctrl == null) return;
     onReloadIssued?.call();
-    try {
-      await ctrl.reload();
-    } catch (_) {
-      // Controller may have been disposed between the cache clear and the
-      // reload. No load will start, so clear the bar [_beginPendingLoad] turned
-      // on rather than leaving the action button stuck on Stop.
-      if (isLoading) {
-        isLoading = false;
-        stateSetterF?.call();
-      }
+    // No load starts, so clear the bar [_beginPendingLoad] turned on rather
+    // than leaving the action button stuck on Stop.
+    if (!await ctrl.reload() && isLoading) {
+      isLoading = false;
+      stateSetterF?.call();
     }
   }
 
@@ -2093,11 +2011,7 @@ class WebViewModel implements MediaGrantRecord {
     final ctrl = controller;
     if (ctrl == null) return;
     onReloadIssued?.call();
-    try {
-      await ctrl.loadUrl(url, language: language);
-    } catch (_) {
-      // Controller may have been disposed while the retry was in flight.
-    }
+    await ctrl.loadUrl(url, language: language);
   }
 
   /// User tapped the Stop button. Cancels the in-flight load and
@@ -2109,13 +2023,7 @@ class WebViewModel implements MediaGrantRecord {
   /// guard in [onLoadingChanged] suppresses the duplicate rebuild
   /// when the callback does fire.
   Future<void> userStopLoading() async {
-    if (controller != null) {
-      try {
-        await controller!.stopLoading();
-      } catch (_) {
-        // Controller may have been disposed while the cancel was in flight.
-      }
-    }
+    await controller?.stopLoading();
     if (isLoading) {
       isLoading = false;
       stateSetterF?.call();
@@ -2133,13 +2041,9 @@ class WebViewModel implements MediaGrantRecord {
   Future<Uint8List?> captureNavigationState() async {
     if (controller == null) return null;
     if (incognito) return null;
-    try {
-      final state = await controller!.saveState();
-      if (state == null || state.isEmpty) return null;
-      return state;
-    } catch (_) {
-      return null;
-    }
+    final state = await controller!.saveState();
+    if (state == null || state.isEmpty) return null;
+    return state;
   }
 
   /// Current memory-tier state. Drives the
@@ -2194,11 +2098,13 @@ class WebViewModel implements MediaGrantRecord {
     _pendingArchiveCookies = null;
     final mgr = inapp.CookieManager.instance();
     for (final cookie in pending) {
-      if (cookie.value.isEmpty) continue;
+      if (cookie.name.isEmpty || cookie.value.isEmpty) continue;
       final dom = cookie.domain ?? '';
       final cleanDomain = dom.startsWith('.') ? dom.substring(1) : dom;
       if (cleanDomain.isEmpty) continue;
       final path = cookie.path ?? '/';
+      // The plugin asserts both are non-empty.
+      if (path.isEmpty) continue;
       try {
         await mgr.setCookie(
           url: inapp.WebUri('https://$cleanDomain$path'),
@@ -2211,7 +2117,7 @@ class WebViewModel implements MediaGrantRecord {
           isHttpOnly: cookie.isHttpOnly,
           webViewController: ctrl.nativeController,
         );
-      } catch (_) {
+      } on PlatformException {
         // Best effort. A cookie that fails to insert (malformed
         // attributes from a legacy import, expired, etc.) is simply
         // dropped from the runtime jar; archive state still has it for
@@ -2395,7 +2301,7 @@ class WebViewModel implements MediaGrantRecord {
       name: field<String>('name'),
       cookies: isIncognito
           ? const <Cookie>[]
-          : _jsonEntries(json['cookies'], cookieFromJson),
+          : _jsonEntries(json['cookies'], tryCookieFromJson),
       proxySettings: proxy is Map
           ? UserProxySettings.fromJson(Map<String, dynamic>.from(proxy))
           : null,
@@ -2463,7 +2369,7 @@ class WebViewModel implements MediaGrantRecord {
           if (id is String) id
       },
       blockedCookies:
-          _jsonEntries(json['blockedCookies'], BlockedCookie.fromJson).toSet(),
+          _jsonEntries(json['blockedCookies'], BlockedCookie.tryFromJson).toSet(),
       locationMode: LocationMode.values.firstWhere(
         (m) => m.name == json['locationMode'],
         orElse: () => LocationMode.off,
@@ -2490,7 +2396,7 @@ class WebViewModel implements MediaGrantRecord {
       domainClaims: json['domainClaims'] is List
           ? [
               for (final claim
-                  in _jsonEntries(json['domainClaims'], DomainClaim.fromJson))
+                  in _jsonEntries(json['domainClaims'], DomainClaim.tryFromJson))
                 if (claim.value.isNotEmpty) claim,
             ]
           : null,
@@ -2527,28 +2433,25 @@ class WebViewModel implements MediaGrantRecord {
 
 /// The entries of a JSON list that [parse] accepts. A malformed entry (a
 /// cookie, a script, a claim) is dropped rather than failing its site.
-List<T> _jsonEntries<T>(
+List<T> _jsonEntries<T extends Object>(
   Object? raw,
-  T Function(Map<String, dynamic>) parse,
-) {
-  if (raw is! List) return <T>[];
-  final out = <T>[];
-  for (final entry in raw) {
-    if (entry is! Map) continue;
-    try {
-      out.add(parse(Map<String, dynamic>.from(entry)));
-    } catch (_) {
-      continue;
-    }
-  }
-  return out;
-}
+  T? Function(Map<String, dynamic>) parse,
+) =>
+    raw is List
+        ? [
+            for (final entry in raw)
+              if (entry is Map<String, dynamic>) ?parse(entry),
+          ]
+        : <T>[];
+
+bool _onePerClaim(List<OutboundPreference> prefs) =>
+    prefs.map((p) => p.claim).toSet().length == prefs.length;
 
 Uint8List? _decodeCustomIconPng(Object? raw) {
   if (raw is! String || raw.isEmpty) return null;
   try {
     return base64Decode(raw);
-  } catch (_) {
+  } on FormatException {
     return null;
   }
 }

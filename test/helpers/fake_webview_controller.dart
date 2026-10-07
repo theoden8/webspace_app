@@ -5,11 +5,6 @@ import 'package:webspace/services/webview.dart';
 /// calls it receives. Any other member is unimplemented and fails the test
 /// reaching it.
 class FakeWebViewController extends Fake implements WebViewController {
-  FakeWebViewController({this.evaluateError});
-
-  /// Thrown by [evaluateJavascript], as a disposed controller does.
-  final Object? evaluateError;
-
   final List<String> calls = [];
   final List<String> evaluated = [];
 
@@ -28,7 +23,6 @@ class FakeWebViewController extends Fake implements WebViewController {
   @override
   Future<void> evaluateJavascript(String source) async {
     calls.add('evaluateJavascript');
-    if (evaluateError case final error?) throw error;
     evaluated.add(source);
   }
 

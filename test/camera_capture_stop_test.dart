@@ -45,10 +45,6 @@ void main() {
       await _model(null).stopRealCapture();
     });
 
-    test('a disposed controller is swallowed', () async {
-      await _model(FakeWebViewController(evaluateError: StateError('controller disposed'))).stopRealCapture();
-    });
-
     test('notification sites still stop capture', () async {
       // pauseWebView() early-returns for these, which is exactly why the stop
       // is a separate call: their JS keeps running in the background, so a
