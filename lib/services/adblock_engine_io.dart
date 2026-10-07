@@ -29,8 +29,6 @@ import 'package:ffi/ffi.dart';
 
 import 'package:webspace/services/adblock_engine.dart' show AdblockEngineApi;
 
-// ---------- C function signatures ----------
-
 typedef _EngineNewC = ffi.Pointer<ffi.Void> Function(
     ffi.Pointer<Utf8>, ffi.UintPtr, ffi.Bool);
 typedef _EngineNewDart = ffi.Pointer<ffi.Void> Function(
@@ -343,7 +341,6 @@ class AdblockEngine implements AdblockEngineApi {
   ///
   /// Returns an empty list when the native library can't be loaded
   /// on this platform — same fallback shape as the engine itself.
-  /// Static — no engine instance required.
   static List<Map<String, dynamic>> depLicenses() {
     final lib = _tryOpenLibrary();
     if (lib == null) return const [];
@@ -693,9 +690,6 @@ class AdblockEngine implements AdblockEngineApi {
   }
 }
 
-/// Resolve the native library on the current platform. Returns null
-/// when the library isn't shipped — callers must fall back to the
-/// legacy Dart engine in that case.
 /// Resolve the FFI bindings, or null when the library is present as a handle
 /// but carries none of our symbols.
 ///

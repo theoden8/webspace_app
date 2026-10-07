@@ -39,7 +39,7 @@ engine, and keeps the back stack unless the site is sent home on purpose.**
    (shortcut launch, or a link opening in an always-open-home site) later
    disposed without the capture as well.
 
-2. **2026-10-06 — branch `refactor/main-funnels`.** Every unload goes through
+2. **2026-10-06 — #680.** Every unload goes through
    `SiteUnloadEngine.unload`: under the legacy engine it captures the jar
    whatever the reason, and `UnloadReason.keepsNavState` (an exhaustive
    switch) decides the back-stack capture. *Why*: one funnel leaves no path to

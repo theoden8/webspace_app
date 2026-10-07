@@ -7,7 +7,6 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
 
-/// Result of a successful download fetch.
 class DownloadResult {
   final Uint8List bytes;
   final String filename;
@@ -20,7 +19,6 @@ class DownloadResult {
   });
 }
 
-/// Thrown when a download cannot be completed.
 class DownloadException implements Exception {
   final String message;
   DownloadException(this.message);

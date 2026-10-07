@@ -44,7 +44,6 @@ class _DoNotTrackOutboundHttpFactory implements OutboundHttpFactory {
 /// that can carry user-identifying traffic.
 OutboundHttpFactory get outboundHttp => _DoNotTrackOutboundHttpFactory(_factory);
 
-/// Replace the global factory. Intended for tests.
 @visibleForTesting
 set outboundHttp(OutboundHttpFactory f) => _factory = f;
 

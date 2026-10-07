@@ -95,8 +95,6 @@ class UserProxySettings {
     return '{$cc}';
   }
 
-  /// Serialize to JSON.
-  ///
   /// The password is intentionally never written to JSON. The canonical
   /// store for it is `flutter_secure_storage` via
   /// [ProxyPasswordSecureStorage]; both at-rest persistence
@@ -162,6 +160,5 @@ class UserProxySettings {
         '${credentialsId != null ? ' credentials=$credentialsId' : ''}';
   }
 
-  /// Returns true if credentials are provided
   bool get hasCredentials => username != null && username!.isNotEmpty && password != null && password!.isNotEmpty;
 }

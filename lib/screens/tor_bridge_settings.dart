@@ -33,7 +33,6 @@ String bridgeParseErrorMessage(AppLocalizations loc, TorBridgeParseError e) =>
       TorBridgeParseError.missingCertificate => loc.torBridgeErrorCert,
     };
 
-/// Message for a failed Moat exchange.
 String moatErrorMessage(AppLocalizations loc, MoatErrorKind kind) =>
     switch (kind) {
       // Not "the service is down": on a censored network this is the

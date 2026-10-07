@@ -69,7 +69,7 @@ named profile.
    site. The sweep covers profiles left by earlier builds and by any path
    that repeats the mistake. *Why partial:* see below.
 
-4. **2026-10-06, 1c04a939 and 1a2905e7 (branch `refactor/site-posture`),
+4. **2026-10-06, #680,
    BUG-024 attempt 6.** *What:* the per-site chain became one `SitePosture`
    value, required by `WebViewConfig`, `InAppWebViewScreen` and `launchUrl`,
    with `archiveContainerId` in its container group; `storeBinding` and the

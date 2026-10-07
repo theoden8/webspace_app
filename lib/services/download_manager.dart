@@ -124,7 +124,6 @@ class DownloadsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Remove all non-active tasks.
   void clearCompleted() {
     _tasks.removeWhere((t) => !t.isActive);
     notifyListeners();

@@ -59,7 +59,6 @@ class _StatsBannerState extends State<StatsBanner> {
       return const SizedBox.shrink();
     }
 
-    // Get the most recent blocked domains (unique, up to 5)
     final recentBlocked = <String>[];
     for (int i = stats.log.length - 1; i >= 0 && recentBlocked.length < 5; i--) {
       final entry = stats.log[i];

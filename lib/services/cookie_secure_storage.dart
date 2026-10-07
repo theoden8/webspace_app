@@ -65,7 +65,6 @@ class CookieSecureStorage {
       }
     });
 
-    // Handle legacy migration if needed
     if (result.isEmpty) {
       final legacyCookies = await _loadLegacyFromSharedPreferences();
       if (legacyCookies.isNotEmpty) {
@@ -101,7 +100,7 @@ class CookieSecureStorage {
   }
 
   Future<void> _saveCookiesUnlocked(Map<String, List<Cookie>> cookiesByUrl) async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
 
     final Map<String, List<Cookie>> secure = {};
     final Map<String, List<Cookie>> nonSecure = {};
@@ -123,10 +122,9 @@ class CookieSecureStorage {
     }
   }
 
-  /// Saves cookies for a single site URL.
   /// The URL is converted to a domain key before storing.
   Future<void> saveCookiesForUrl(String url, List<Cookie> cookies) {
-    if (isDemoMode) return Future.value(); // Don't persist in demo mode
+    if (isDemoMode) return Future.value();
     return _writes.run(() async {
       final domain = extractDomain(url);
       final existingCookies = await loadCookies();
@@ -135,16 +133,14 @@ class CookieSecureStorage {
     });
   }
 
-  /// Loads cookies for a specific site by siteId.
   /// Returns an empty list if no cookies are stored for this site.
   Future<List<Cookie>> loadCookiesForSite(String siteId) async {
     final allCookies = await loadCookies();
     return allCookies[siteId] ?? [];
   }
 
-  /// Saves cookies for a specific site by siteId.
   Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) {
-    if (isDemoMode) return Future.value(); // Don't persist in demo mode
+    if (isDemoMode) return Future.value();
     return _writes.run(() async {
       final existingCookies = await loadCookies();
       if (cookies.isEmpty) {
@@ -159,7 +155,7 @@ class CookieSecureStorage {
   /// Removes cookies for siteIds not in the provided set of active siteIds.
   /// This cleans up orphaned cookies after sites are deleted or settings are imported.
   Future<void> removeOrphanedCookies(Set<String> activeSiteIds) async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     final siteIdsToRemove = <String>[];
     await _writes.run(() async {
       final allCookies = await loadCookies();
@@ -182,7 +178,7 @@ class CookieSecureStorage {
 
   /// Clears all stored cookies from both secure storage and fallback.
   Future<void> clearCookies() async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     await _secure.delete();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sharedPrefsCookiesKey);
@@ -191,16 +187,15 @@ class CookieSecureStorage {
   /// Clears cookies from SharedPreferences after migration.
   /// This should be called after confirming cookies are safely in secure storage.
   Future<void> clearSharedPreferencesCookies() async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     final prefs = await SharedPreferences.getInstance();
     final webViewModelsJson = prefs.getStringList('webViewModels');
 
     if (webViewModelsJson == null) return;
 
-    // Update each model to remove cookies from SharedPreferences
     final updatedModels = webViewModelsJson.map((modelJson) {
       final json = jsonDecode(modelJson) as Map<String, dynamic>;
-      json['cookies'] = []; // Clear cookies from SharedPreferences data
+      json['cookies'] = [];
       return jsonEncode(json);
     }).toList();
 

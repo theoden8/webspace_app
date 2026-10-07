@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/settings/app_prefs.dart';
 
 /// One opener at a time on a settings screen. A tap that lands while an
@@ -10,16 +11,11 @@ import 'package:webspace/settings/app_prefs.dart';
 /// push, a file picker), or while what it opened is still on top, is dropped
 /// rather than stacking a second copy.
 mixin SettingsOpenGuard<T extends StatefulWidget> on State<T> {
-  bool _opening = false;
+  final _opening = ReentryGuard();
 
   Future<void> guardedOpen(Future<void> Function() open) async {
-    if (_opening || ModalRoute.isCurrentOf(context) == false) return;
-    _opening = true;
-    try {
-      await open();
-    } finally {
-      _opening = false;
-    }
+    if (ModalRoute.isCurrentOf(context) == false) return;
+    await _opening.run(open);
   }
 }
 

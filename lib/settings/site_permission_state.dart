@@ -6,11 +6,6 @@ import 'package:webspace/settings/location.dart';
 /// permission screen can render one row shape and a reader can compare two
 /// rows at a glance. The per-capability enums stay the source of truth: this
 /// is a projection of them for display, never a stored value.
-///
-/// The vocabulary matters more than it looks. Before it, the same concept was
-/// spelled four ways across the settings screen ("Always allow" / "Simulated
-/// camera" / "Audio file" / "Live"), and [LocationMode.off] was labelled "Off"
-/// while meaning pass-through.
 enum SitePermissionState {
   /// No decision recorded. The first request prompts, and the answer sticks.
   ///

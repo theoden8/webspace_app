@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-// Accent colors
 const Color accentBlue = Color(0xFF6B8DD6);
 const Color accentGreen = Color(0xFF7be592);
 const Color accentPurple = Color(0xFF9B7BD6);

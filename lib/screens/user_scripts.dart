@@ -330,10 +330,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
 
     return ListView(
       children: [
-        // Global scripts section
         for (var i = 0; i < _globalScripts.length; i++) _buildGlobalTile(i),
         if (_hasGlobal && _scripts.isNotEmpty) const Divider(height: 1),
-        // Site scripts section (reorderable)
         if (_scripts.isNotEmpty)
           ReorderableListView.builder(
             shrinkWrap: true,
@@ -596,7 +594,6 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
       return;
     }
     final url = _urlController.text.trim();
-    // Auto-download URL source if URL is set and either not yet cached or URL changed.
     if (url.isNotEmpty && (_urlSource == null || url != _originalUrl)) {
       setState(() {
         _downloading = true;
@@ -616,7 +613,6 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
       }
       _urlSource = result.source;
     }
-    // Clear urlSource if URL was removed.
     if (url.isEmpty) _urlSource = null;
     if (!mounted) return;
     Navigator.pop(

@@ -206,7 +206,6 @@ class DnsBlockService {
   /// Listeners notified when a DNS request is logged (for live UI updates).
   final List<VoidCallback> _dnsLogListeners = [];
 
-  /// Whether a blocklist is loaded and active.
   bool get hasBlocklist => !_levelSets.isEmpty;
 
   /// The app-wide severity level (0-5). Sites that don't set their own run
@@ -355,7 +354,7 @@ class DnsBlockService {
   void recordDomainDecision(String host, bool blocked) {
     if (host.isEmpty) return;
     final prev = _domainCache[host];
-    if (prev == blocked) return; // no change, no write
+    if (prev == blocked) return;
     _putCappedHostDecision(_domainCache, host, blocked);
     _schedulePersistDomainCache();
   }
@@ -514,18 +513,15 @@ class DnsBlockService {
     _scheduleNotifyDnsLogListeners();
   }
 
-  /// Clear stats for a specific site.
   void clearStatsForSite(String siteId) {
     _siteStats[siteId]?.clear();
     _scheduleNotifyDnsLogListeners();
   }
 
-  /// Add a listener for DNS log changes (live UI updates).
   void addDnsLogListener(VoidCallback listener) {
     _dnsLogListeners.add(listener);
   }
 
-  /// Remove a DNS log listener.
   void removeDnsLogListener(VoidCallback listener) {
     _dnsLogListeners.remove(listener);
   }
@@ -833,7 +829,6 @@ class DnsBlockService {
     return isHostBlockedAtLevel(host, level);
   }
 
-  /// [isHostBlocked] at a specific severity level.
   bool isHostBlockedAtLevel(String host, int level) {
     if (level <= kDnsLevelOff || level > kDnsMaxLevel) return false;
     if (_levelSets.isEmpty || host.isEmpty) return false;
@@ -895,7 +890,7 @@ class DnsBlockService {
   }
 
   /// Load one level's domains from a raw string, as if it had just been
-  /// downloaded at [level] and made the app-wide level. Exposed for testing.
+  /// downloaded at [level] and made the app-wide level.
   @visibleForTesting
   void loadDomainsFromString(String data, {int level = 1}) {
     final domains = _extractDomains(data);
@@ -912,7 +907,7 @@ class DnsBlockService {
   }
 
   /// Load several levels at once, as if each had been downloaded. Keys are
-  /// levels, values raw list bodies. Exposed for testing.
+  /// levels, values raw list bodies.
   @visibleForTesting
   void loadLevelsFromStrings(Map<int, String> byLevel, {int? globalLevel}) {
     final levels = byLevel.keys.toList()..sort();

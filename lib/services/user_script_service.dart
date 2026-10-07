@@ -193,7 +193,6 @@ class UserScriptService {
        _onConfirmScriptFetch = onConfirmScriptFetch,
        _proxy = proxy;
 
-  /// Create a service instance for the given user scripts.
   factory UserScriptService({
     required List<UserScriptConfig> scripts,
     Future<bool> Function(String url)? onConfirmScriptFetch,
@@ -241,7 +240,6 @@ class UserScriptService {
           frames: ShimFrames.top));
     }
 
-    // User scripts
     LogService.instance.log(
       'UserScript',
       'createWebView: ${_scripts.length} user scripts configured',
@@ -482,8 +480,6 @@ class UserScriptService {
     );
   }
 
-  /// Build injectable source for a user script.
-  /// Returns the full source (urlSource + source concatenation).
   static String _buildSource(UserScriptConfig script) {
     return script.fullSource;
   }

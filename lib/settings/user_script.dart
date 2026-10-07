@@ -70,7 +70,6 @@ ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
 
   final scheme = uri.scheme.toLowerCase();
 
-  // Only allow http and https
   if (scheme != 'http' && scheme != 'https') {
     return ScriptFetchUrlStatus.blocked;
   }
@@ -90,7 +89,6 @@ ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
     return ScriptFetchUrlStatus.blocked;
   }
 
-  // Check whitelist: exact match or subdomain match
   for (final domain in scriptFetchWhitelist) {
     if (host == domain || host.endsWith('.$domain')) {
       return ScriptFetchUrlStatus.whitelisted;
@@ -100,7 +98,6 @@ ScriptFetchUrlStatus classifyScriptFetchUrl(String url) {
   return ScriptFetchUrlStatus.requiresConfirmation;
 }
 
-/// Generate a stable unique identifier for a user script.
 String _generateUserScriptId() {
   final now = DateTime.now().microsecondsSinceEpoch;
   final random = Random().nextInt(999999);

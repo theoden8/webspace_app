@@ -21,7 +21,6 @@ import 'package:webspace/services/procedural_action_backfill.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/utils/concurrency.dart';
 
-/// A filter list entry with metadata.
 class FilterList {
   final String id;
   String name;
@@ -365,10 +364,8 @@ class ContentBlockerService {
     await _rebuildEngine();
   }
 
-  /// All configured filter lists.
   List<FilterList> get lists => List.unmodifiable(_lists);
 
-  /// Total rule count across all enabled lists.
   int get totalRuleCount =>
       _lists.where((l) => l.enabled).fold(0, (sum, l) => sum + l.ruleCount);
 
@@ -730,7 +727,6 @@ class ContentBlockerService {
     }
   }
 
-  /// Download a filter list by ID. Returns true on success.
   Future<bool> downloadList(String id) async {
     final list = _lists.firstWhere((l) => l.id == id,
         orElse: () => throw Exception('List not found: $id'));
@@ -755,8 +751,7 @@ class ContentBlockerService {
       // adblock-rust counts rules at parse time inside the engine — we
       // don't have a parse-only API on this side, so the displayed
       // ruleCount becomes a coarse proxy (line count of the raw list,
-      // including comments). Better than the previous Dart parser's
-      // per-rule count, which had its own classification quirks.
+      // including comments).
       list.ruleCount = _approximateRuleCount(body);
       list.skippedCount = 0;
       list.lastUpdated = DateTime.now();
@@ -830,7 +825,6 @@ class ContentBlockerService {
     return id;
   }
 
-  /// Replace a local list's name and rules in place.
   Future<void> updateLocalList(String id, String name, String rules) async {
     final list = _lists.firstWhere((l) => l.id == id && l.isLocal);
     list.name = name;
@@ -904,7 +898,6 @@ class ContentBlockerService {
   List<ExistingFilterList> get existingForImport =>
       [for (final l in _lists) ExistingFilterList(l.id, l.url)];
 
-  /// Remove a filter list by ID.
   Future<void> removeList(String id) async {
     _lists.removeWhere((l) => l.id == id);
 
@@ -916,7 +909,6 @@ class ContentBlockerService {
     await _rebuildEngine();
   }
 
-  /// Toggle a filter list enabled/disabled.
   Future<void> toggleList(String id, bool enabled) async {
     final list = _lists.firstWhere((l) => l.id == id);
     list.enabled = enabled;
@@ -1185,7 +1177,6 @@ class ContentBlockerService {
     } catch (_) {}
   }
 
-  /// Exposed for testing: reset singleton state.
   @visibleForTesting
   void reset() {
     _lists = [];
@@ -1213,7 +1204,6 @@ class ContentBlockerService {
     _engineCosmeticCache.clear();
   }
 
-  /// Exposed for testing: seed lists directly.
   @visibleForTesting
   void setLists(List<FilterList> lists) {
     _lists = lists;

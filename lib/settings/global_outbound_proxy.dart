@@ -30,14 +30,12 @@ class GlobalOutboundProxy {
 
   static UserProxySettings _current = UserProxySettings(type: ProxyType.DEFAULT);
 
-  /// Currently-applied global outbound proxy.
   static UserProxySettings get current => _current;
 
   /// Secure-storage handle for the password component. Tests may override.
   static ProxyPasswordSecureStorage _passwordStore =
       ProxyPasswordSecureStorage();
 
-  /// Override the password store; for tests.
   static void setPasswordStoreForTest(ProxyPasswordSecureStorage store) {
     _passwordStore = store;
   }
@@ -85,7 +83,6 @@ class GlobalOutboundProxy {
     );
   }
 
-  /// Reset to default; for tests.
   static void resetForTest() {
     _current = UserProxySettings(type: ProxyType.DEFAULT);
   }

@@ -46,7 +46,7 @@ site ahead of it was deleted the on-screen check compared the wrong slot.
    never routed outbound links. *Why partial:* it covered the one hook it
    added; the prompts that already existed stayed absent on that path.
 
-2. **2026-10-07, refactor/webview-internals.** *What:* the hooks became one
+2. **2026-10-07, #680.** *What:* the hooks became one
    `WebViewHostHooks` with required fields, built once in `main.dart` and
    passed whole to `getWebView`, `getController` and `InAppWebViewScreen`; the
    on-screen check became an identity test (`onScreen`), and the nested

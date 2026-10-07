@@ -20,6 +20,5 @@ Future<void> hostWriteDocumentText(String name, String contents) async {
   await io.File('${dir.path}/$name').writeAsString(contents);
 }
 
-/// Absolute path of the app documents directory.
 Future<String> hostDocumentsPath() async =>
     (await pp.getApplicationDocumentsDirectory()).path;

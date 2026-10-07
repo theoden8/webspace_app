@@ -126,7 +126,6 @@ class MoatClient {
     'Accept': 'application/vnd.api+json',
   };
 
-  /// Ask for a captcha for [transport].
   Future<MoatChallenge> fetchChallenge(TorTransport transport) async {
     final body = jsonEncode({
       'data': [

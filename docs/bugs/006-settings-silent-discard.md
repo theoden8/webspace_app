@@ -70,7 +70,7 @@ except fields fully derived from an already-registered field.**
    Regression test: `test/site_settings_network_row_test.dart` ("pinning a
    Tor exit country guards the leave").
 
-6. **2026-10-06 — `refactor/settings-primitives`.** The symptom through a
+6. **2026-10-06 — #680.** The symptom through a
    path with no guard at all: the user script editor and the webspace editor
    each have a Save action and popped on back, dropping whatever had been
    typed. The three guards that did exist (site settings, App Settings'

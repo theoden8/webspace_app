@@ -41,7 +41,6 @@ class ClearUrlService {
 
   List<ClearUrlProvider> _providers = [];
 
-  /// Whether rules have been loaded and are available.
   bool get hasRules => _providers.isNotEmpty;
 
   /// Initialize the service by loading cached rules from disk (no network).
@@ -109,13 +108,10 @@ class ClearUrlService {
     for (final provider in _providers) {
       if (!provider.urlPattern.hasMatch(url)) continue;
 
-      // Check exceptions - skip this provider if URL matches an exception
       if (provider.exceptions.any((e) => e.hasMatch(url))) continue;
 
-      // Block entirely if completeProvider
       if (provider.completeProvider) return '';
 
-      // Check redirections - extract redirect target
       for (final redirection in provider.redirections) {
         final match = redirection.firstMatch(url);
         if (match != null && match.groupCount >= 1) {
@@ -132,7 +128,6 @@ class ClearUrlService {
         }
       }
 
-      // Strip query params matching rules
       var uri = Uri.tryParse(url);
       if (uri == null) continue;
 
@@ -144,7 +139,6 @@ class ClearUrlService {
 
         if (cleanedParams.length != uri.queryParameters.length) {
           if (cleanedParams.isEmpty) {
-            // Remove query string entirely
             uri = uri.replace(query: '');
             url = uri.toString();
             // Remove trailing '?' left by empty query
@@ -158,7 +152,6 @@ class ClearUrlService {
         }
       }
 
-      // Apply rawRules - regex replacements on the full URL string
       for (final rawRule in provider.rawRules) {
         url = url.replaceAll(rawRule, '');
       }
@@ -187,7 +180,6 @@ class ClearUrlService {
     return removed.join(', ');
   }
 
-  /// Load rules from a parsed JSON map. Exposed for testing.
   @visibleForTesting
   void loadRulesFromJson(Map<String, dynamic> json) {
     _parseRules(json);

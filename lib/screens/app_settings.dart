@@ -14,6 +14,7 @@ import 'package:webspace/screens/user_scripts.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
@@ -126,9 +127,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   /// Running tap count on the version row; the developer-options gesture.
   int _versionTaps = 0;
   bool get _developerMode => DeveloperModeService.instance.enabled;
-  /// Set while the seventh tap is turning developer mode on, so taps landing
+  /// Held while the seventh tap is turning developer mode on, so taps landing
   /// during that await neither count nor unlock a second time.
-  bool _unlocking = false;
+  final _unlocking = ReentryGuard();
 
   @override
   void initState() {
@@ -148,7 +149,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   /// user and confusing to meet by accident, but a user reporting a bug has
   /// to be able to reach them without a debug build.
   Future<void> _onVersionTapped() async {
-    if (_unlocking) return;
+    if (_unlocking.busy) return;
     final loc = AppLocalizations.of(context);
     final step = DeveloperUnlockEngine.tap(
       taps: _versionTaps,
@@ -164,12 +165,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       case DeveloperUnlockOutcome.alreadyEnabled:
         message = loc.appSettingsDeveloperModeAlreadyOn;
       case DeveloperUnlockOutcome.unlocked:
-        _unlocking = true;
-        try {
-          await setDeveloperMode(true);
-        } finally {
-          _unlocking = false;
-        }
+        await _unlocking.run(() => setDeveloperMode(true));
         if (!mounted) return;
         setState(() => _versionTaps = 0);
         message = loc.appSettingsDeveloperModeEnabled;

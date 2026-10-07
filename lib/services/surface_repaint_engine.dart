@@ -47,7 +47,6 @@ class SurfaceRepaintEngine {
   /// Current 1px-inset state to render.
   bool get inset => _inset;
 
-  /// Whether a tick loop is currently running.
   bool get isLooping => _looping;
 
   /// Whether a blank-surface (re)attach is still owed a repaint. Mirrors

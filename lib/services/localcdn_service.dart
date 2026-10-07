@@ -151,7 +151,6 @@ class LocalCdnService {
   /// as they appear on cdnjs.cloudflare.com.
   /// These are the most commonly encountered CDN resources across the web.
   static const _popularResources = [
-    // jQuery
     ('jquery', '3.7.1', 'jquery.min.js'),
     ('jquery', '3.6.0', 'jquery.min.js'),
     ('jquery', '3.5.1', 'jquery.min.js'),
@@ -161,7 +160,6 @@ class LocalCdnService {
     ('jquery', '2.1.4', 'jquery.min.js'),
     ('jquery', '1.12.4', 'jquery.min.js'),
 
-    // Bootstrap CSS + JS
     ('twitter-bootstrap', '5.3.3', 'js/bootstrap.bundle.min.js'),
     ('twitter-bootstrap', '5.3.3', 'css/bootstrap.min.css'),
     ('twitter-bootstrap', '5.3.2', 'js/bootstrap.bundle.min.js'),
@@ -184,99 +182,74 @@ class LocalCdnService {
     ('popper.js', '2.11.6', 'umd/popper.min.js'),
     ('popper.js', '1.16.1', 'umd/popper.min.js'),
 
-    // Font Awesome
     ('font-awesome', '6.5.1', 'css/all.min.css'),
     ('font-awesome', '6.4.2', 'css/all.min.css'),
     ('font-awesome', '5.15.4', 'css/all.min.css'),
     ('font-awesome', '4.7.0', 'css/font-awesome.min.css'),
 
-    // Lodash
     ('lodash.js', '4.17.21', 'lodash.min.js'),
 
-    // Moment.js
     ('moment.js', '2.29.4', 'moment.min.js'),
     ('moment.js', '2.30.1', 'moment.min.js'),
 
-    // Axios
     ('axios', '1.6.7', 'axios.min.js'),
     ('axios', '1.6.2', 'axios.min.js'),
     ('axios', '0.21.4', 'axios.min.js'),
 
-    // Animate.css
     ('animate.css', '4.1.1', 'animate.min.css'),
 
-    // Modernizr
     ('modernizr', '2.8.3', 'modernizr.min.js'),
 
-    // Underscore.js
     ('underscore.js', '1.13.6', 'underscore-min.js'),
 
-    // Backbone.js
     ('backbone.js', '1.6.0', 'backbone-min.js'),
 
-    // D3.js
     ('d3', '7.9.0', 'd3.min.js'),
     ('d3', '7.8.5', 'd3.min.js'),
 
-    // Chart.js
     ('Chart.js', '4.4.1', 'chart.umd.min.js'),
     ('Chart.js', '3.9.1', 'chart.min.js'),
 
-    // Vue.js
     ('vue', '3.4.21', 'vue.global.prod.min.js'),
     ('vue', '2.7.16', 'vue.min.js'),
     ('vue', '2.6.14', 'vue.min.js'),
 
-    // React + ReactDOM
     ('react', '18.2.0', 'umd/react.production.min.js'),
     ('react-dom', '18.2.0', 'umd/react-dom.production.min.js'),
 
-    // Angular
     ('angular.js', '1.8.3', 'angular.min.js'),
 
-    // Leaflet
     ('leaflet', '1.9.4', 'leaflet.min.js'),
     ('leaflet', '1.9.4', 'leaflet.min.css'),
 
-    // Highlight.js
     ('highlight.js', '11.9.0', 'highlight.min.js'),
     ('highlight.js', '11.9.0', 'styles/default.min.css'),
 
-    // Swiper
     ('Swiper', '11.0.5', 'swiper-bundle.min.js'),
     ('Swiper', '11.0.5', 'swiper-bundle.min.css'),
 
-    // Normalize.css
     ('normalize', '8.0.1', 'normalize.min.css'),
 
-    // SweetAlert2
     ('limonte-sweetalert2', '11.10.5', 'sweetalert2.all.min.js'),
 
-    // Select2
     ('select2', '4.0.13', 'js/select2.min.js'),
     ('select2', '4.0.13', 'css/select2.min.css'),
 
-    // jQuery UI
     ('jqueryui', '1.13.2', 'jquery-ui.min.js'),
     ('jqueryui', '1.13.2', 'themes/base/jquery-ui.min.css'),
 
-    // Slick carousel
     ('slick-carousel', '1.8.1', 'slick.min.js'),
     ('slick-carousel', '1.8.1', 'slick.min.css'),
     ('slick-carousel', '1.8.1', 'slick-theme.min.css'),
 
-    // Owl Carousel
     ('OwlCarousel2', '2.3.4', 'owl.carousel.min.js'),
     ('OwlCarousel2', '2.3.4', 'assets/owl.carousel.min.css'),
 
-    // Lottie
     ('lottie-player', '2.0.4', 'lottie-player.js'),
 
-    // GSAP
     ('gsap', '3.12.5', 'gsap.min.js'),
   ];
 
-  /// Content type mapping by file extension.
   static const _contentTypes = <String, String>{
     '.js': 'application/javascript',
     '.mjs': 'application/javascript',
@@ -312,10 +285,8 @@ class LocalCdnService {
     );
   }
 
-  /// Number of CDN requests replaced from cache for a given site.
   int replacementsForSite(String siteId) => _replacementsPerSite[siteId] ?? 0;
 
-  /// Clear the replacement counter for a specific site.
   void clearReplacementsForSite(String siteId) {
     _replacementsPerSite.remove(siteId);
   }
@@ -348,16 +319,12 @@ class LocalCdnService {
     }
   }
 
-  /// Whether the service has been initialized.
   bool get isInitialized => _initialized;
 
-  /// Whether any resources are cached.
   bool get hasCache => _cache.isNotEmpty;
 
-  /// Number of cached resources.
   int get resourceCount => _cache.length;
 
-  /// Total number of popular resources available for pre-download.
   int get popularResourceCount => _popularResources.length;
 
   /// Total size of cached resources in bytes.
@@ -395,10 +362,8 @@ class LocalCdnService {
     return null;
   }
 
-  /// Check if a URL is a CDN URL that can be intercepted.
   bool isCdnUrl(String url) => getCacheKey(url) != null;
 
-  /// Check if a CDN resource is already cached.
   bool isCached(String url) {
     final key = getCacheKey(url);
     return key != null && _cache.containsKey(key);
@@ -412,7 +377,6 @@ class LocalCdnService {
     return _getResourceByKey(key);
   }
 
-  /// Get cached resource by cache key directly.
   Future<Uint8List?> _getResourceByKey(String key) async {
     final filePath = _cache[key];
     if (filePath == null) return null;
@@ -421,7 +385,6 @@ class LocalCdnService {
       if (await hostFileExists(filePath)) {
         return hostReadFileBytes(filePath);
       }
-      // File missing - remove from index
       _cache.remove(key);
       await _saveCacheIndex();
       return null;
@@ -432,7 +395,6 @@ class LocalCdnService {
 
   /// Get the content type for a URL based on its file extension.
   String getContentType(String url) {
-    // Strip query string
     final path = url.contains('?') ? url.substring(0, url.indexOf('?')) : url;
     for (final entry in _contentTypes.entries) {
       if (path.endsWith(entry.key)) {
@@ -442,7 +404,6 @@ class LocalCdnService {
     return 'application/octet-stream';
   }
 
-  /// Build the cdnjs download URL for a given cache key.
   /// Cache key format: library/version/file
   static String _cdnjsUrl(String cacheKey) {
     return '$_preferredCdnBase/$cacheKey';
@@ -462,7 +423,6 @@ class LocalCdnService {
     };
   }
 
-  /// Save bytes to cache and update index.
   Future<Uint8List?> _saveToCache(String key, Uint8List bytes) async {
     final safeFilename = key
         .replaceAll('/', '__')
@@ -487,7 +447,6 @@ class LocalCdnService {
     final key = getCacheKey(url);
     if (key == null) return null;
 
-    // Try cache first
     final cached = await _getResourceByKey(key);
     if (cached != null) return cached;
 
@@ -510,7 +469,6 @@ class LocalCdnService {
       final (lib, ver, file) = _popularResources[i];
       final key = '$lib/$ver/$file';
 
-      // Skip already cached
       if (_cache.containsKey(key)) {
         downloaded++;
         onProgress?.call(i + 1, total);
@@ -522,7 +480,6 @@ class LocalCdnService {
       onProgress?.call(i + 1, total);
     }
 
-    // Save timestamp
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
 
@@ -539,7 +496,6 @@ class LocalCdnService {
     return DateTime.tryParse(timestamp);
   }
 
-  /// Clear all cached resources.
   Future<void> clearCache() async {
     if (!_initialized) return;
 
@@ -551,7 +507,6 @@ class LocalCdnService {
     _cache.clear();
     await _saveCacheIndex();
 
-    // Clear timestamp
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_lastUpdatedKey);
   }
@@ -565,7 +520,6 @@ class LocalCdnService {
         final Map<String, dynamic> index = jsonDecode(indexJson);
         _cache.clear();
         for (final entry in index.entries) {
-          // Verify file exists before adding to index
           if (await hostFileExists(entry.value as String)) {
             _cache[entry.key] = entry.value as String;
           }
@@ -589,7 +543,6 @@ class LocalCdnService {
     _notifyCacheChanged();
   }
 
-  /// Format cache size as human-readable string.
   static String formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';

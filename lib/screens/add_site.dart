@@ -26,7 +26,6 @@ class FaviconUrlCache {
 
   static Future<void> initialize() async {
     _prefs ??= await SharedPreferences.getInstance();
-    // Wire up SVG content persistence
     onSvgContentCached = (url, content) async {
       await setSvg(url, content);
     };
@@ -59,7 +58,6 @@ class FaviconUrlCache {
       await _prefs?.remove('$_svgPrefix$oldUrl');
     }
     if (!keepSiteIcon) await SiteIconStore.instance.remove(siteUrl);
-    // Also clear in-memory caches
     invalidateFaviconFor(siteUrl);
   }
 
@@ -238,10 +236,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       return;
     }
 
-    // Check persistent cache first
     final cachedUrl = FaviconUrlCache.get(widget.url);
     if (cachedUrl != null) {
-      // Use cached URL immediately, skip icon_service
       _currentIconUrl = cachedUrl;
       _currentQuality = 100;
       _isLoading = false;
@@ -253,7 +249,6 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       return;
     }
 
-    // No cache - fetch via icon_service
     _startIconStream();
   }
 
@@ -348,7 +343,6 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       );
     }
 
-    // Show current best icon, or loading indicator if nothing yet
     if (_currentIconUrl == null) {
       if (_isLoading) {
         return SizedBox(
@@ -357,7 +351,6 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
           child: CircularProgressIndicator(strokeWidth: 2),
         );
       } else {
-        // No favicon found
         return Icon(
           Icons.language,
           size: widget.size,
@@ -368,7 +361,6 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
     final iconUrl = _currentIconUrl!;
 
-    // Use SvgPicture for SVG files, CachedNetworkImage for others
     if (_isSvgUrl(iconUrl)) {
       if (_svgContent == null) {
         // SVG not cached yet — show placeholder, never use SvgPicture.network
@@ -516,7 +508,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     // when the site is actually loaded.
     if (!_isDirectHost(uri.host) && addSitePreviewMayResolveLocally()) {
       if (!await hostCanResolve(uri.host)) {
-        // DNS lookup failed — domain doesn't exist
         if (mounted && _previewUrl != null) {
           setState(() => _previewUrl = null);
         }
@@ -705,7 +696,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                 ElevatedButton(
                   onPressed: () {
                     String url = urlController.text.trim();
-                    // If no protocol specified, default to https
                     url = ensureUrlScheme(url);
                     Navigator.of(context).pop();
                     Navigator.of(context).pop({'url': url, 'name': '', 'incognito': incognito});
@@ -777,7 +767,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final tileSize = (constraints.maxWidth - 36) / 4; // 4 columns with 12px spacing
-            final iconSize = tileSize * 0.7; // Icon takes 70% of tile size
+            final iconSize = tileSize * 0.7;
 
             return CustomScrollView(
               slivers: [
@@ -820,7 +810,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                             child: ElevatedButton(
                               onPressed: () {
                                 String url = _urlController.text.trim();
-                                // If no protocol specified, default to https
                                 url = ensureUrlScheme(url);
                                 Navigator.pop(context, {'url': url, 'name': ''});
                               },

@@ -549,8 +549,7 @@ class TorEngine {
   ///
   /// This is what a Retry needs and what [acquire] cannot provide: acquire
   /// returns early whenever the holder set is already non-empty, which it
-  /// always is for a site pinned to TOR, so retrying through it was a no-op
-  /// and the button was left out of the first cut rather than shipped inert.
+  /// always is for a site pinned to TOR, so retrying through it was a no-op.
   /// It does not stop tor first. It cannot: the second `tor_run_main` in a
   /// process dies in `threadpool_new` and never bootstraps (BUG-013), so a
   /// stop here would turn a recoverable failure into a permanent one. A tor

@@ -58,7 +58,7 @@ Consult paths as of this writing:
    lower bound; if a future platform adds another native consult path it
    must call the recorder itself.
 
-3. **2026-10-07 — refactor/webview-internals.** Every Dart path that
+3. **2026-10-07 — #680.** Every Dart path that
    blocks or counts a request now takes one verdict from
    `BlockDecision.decide` (`lib/services/block_decision.dart`), DNS first
    as the CB attribution scenario and Android's native interceptor already

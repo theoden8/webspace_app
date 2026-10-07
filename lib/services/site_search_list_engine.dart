@@ -8,7 +8,6 @@ import 'package:webspace/services/web_search_engine.dart'
     show WebSearchEngine, kSearchQueryToken;
 import 'package:webspace/services/url_host.dart';
 
-/// Where the list is downloaded from.
 const String kSiteSearchListUrl =
     'https://raw.githubusercontent.com/kagisearch/bangs/main/data/bangs.json';
 

@@ -1,5 +1,5 @@
 // JS shim that does the page-side half of the generic-cosmetic
-// pipeline introduced in phase 5 of the adblock-rust integration.
+// pipeline.
 //
 // uBO splits its cosmetic ruleset two ways: domain-scoped rules
 // (`linkedin.com##.feed-promo`) live with `url_cosmetic_resources`

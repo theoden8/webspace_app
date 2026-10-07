@@ -208,7 +208,6 @@ class HttpsUpgradeEngine {
     return _nothing;
   }
 
-  /// The main frame finished loading [url].
   UpgradeOutcome onLoadFinished(String url) {
     recordUpgradeSuccess(url);
     return _nothing;

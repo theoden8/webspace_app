@@ -81,7 +81,6 @@ class _UrlBarState extends State<UrlBar> {
   @override
   void didUpdateWidget(UrlBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update the displayed URL when navigating (but not while editing)
     if (!_isEditing && widget.currentUrl != oldWidget.currentUrl) {
       _urlController.text = widget.currentUrl;
     }
@@ -177,7 +176,6 @@ class _UrlBarState extends State<UrlBar> {
       return;
     }
 
-    // Infer protocol if not specified
     final url = ensureUrlScheme(typed);
 
     _focusNode.unfocus();

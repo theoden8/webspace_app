@@ -14,7 +14,7 @@ class LinkHandlingSettingsScreen extends StatefulWidget {
   final List<WebViewModel> sites;
   final void Function(WebViewModel site) onOpenSiteEditor;
 
-  /// LIR-010 manual re-route entry point (task 8.6). Invoked when the user
+  /// LIR-010 manual re-route entry point. Invoked when the user
   /// types a URL into the test field; the host runs it through
   /// `LinkIntentDispatchEngine` and shows the picker / activation as if the
   /// URL had arrived via share intent.
@@ -283,7 +283,7 @@ class _SiteRouteAdapter implements RoutableSite {
   List<DomainClaim> get domainClaims => model.effectiveDomainClaims;
 }
 
-/// Per-site domain-claim editor (LIR-008 task 8.4). Embedded in the
+/// Per-site domain-claim editor (LIR-008). Embedded in the
 /// per-site settings screen. Surfaces add / remove for `exactHost` and
 /// `wildcardSubdomain` claims; the synthesized `baseDomain` claim is
 /// displayed but not editable (it's auto-derived from `initUrl`).

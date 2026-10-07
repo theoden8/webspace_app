@@ -1,6 +1,5 @@
-// dart:io half of the outbound HTTP seam. Unchanged from when this was one
-// file: the native proxy, SOCKS5 and certificate-pinning behaviour must not
-// vary because the web target exists.
+// dart:io half of the outbound HTTP seam. The native proxy, SOCKS5 and
+// certificate-pinning behaviour must not vary because the web target exists.
 
 import 'dart:io';
 

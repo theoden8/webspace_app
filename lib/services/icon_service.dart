@@ -42,17 +42,6 @@ http.Client? _proxiedClient(UserProxySettings proxy) {
   return null;
 }
 
-/// Icon Service - Handles favicon fetching with quality scoring
-///
-/// Features:
-/// - Progressive loading: icons update as better quality versions are found
-/// - Google & DuckDuckGo services for high-quality icons
-/// - Falls back to favicon package for HTML parsing + favicon.ico
-/// - Domain substitution rules
-/// - Caching to avoid repeated requests
-/// - Max 5 concurrent requests
-
-/// Represents an icon update with quality information
 class IconUpdate {
   final String url;
   final int quality;
@@ -65,7 +54,6 @@ class IconUpdate {
 final Map<String, String?> _faviconCache = {};
 final Map<String, int> _faviconQualityCache = {};
 
-// In-memory cache for SVG content
 final Map<String, String> _svgContentCache = {};
 
 // In-memory cache of raster icon bytes, keyed by icon URL. The render path
@@ -89,7 +77,6 @@ Future<String?> getSvgContent(
   if (_svgContentCache.containsKey(svgUrl)) {
     return _svgContentCache[svgUrl];
   }
-  // Use persisted content from disk cache if available
   if (persistedContent != null) {
     _svgContentCache[svgUrl] = persistedContent;
     return persistedContent;
@@ -320,15 +307,12 @@ void wireFaviconTrustInvalidation() {
   });
 }
 
-// Verified URLs cache
 final Set<String> _verifiedUrls = {};
 
-// Domain substitution rules
 const Map<String, String> _domainSubstitutions = {
   'gmail.com': 'mail.google.com',
 };
 
-// Request queue management
 const int _maxConcurrentRequests = 5;
 int _activeRequests = 0;
 final Queue<Completer<void>> _requestQueue = Queue();
@@ -337,7 +321,6 @@ String _applyDomainSubstitution(String domain) {
   return _domainSubstitutions[domain] ?? domain;
 }
 
-// Check if host is an IP address (IPv4 or IPv6)
 bool _isIpAddress(String host) {
   // IPv4: digits and dots only, with valid octet pattern
   final ipv4Pattern = RegExp(r'^(\d{1,3}\.){3}\d{1,3}$');
@@ -346,7 +329,6 @@ bool _isIpAddress(String host) {
   // IPv6: contains colons (including bracketed form [::1])
   if (host.contains(':')) return true;
 
-  // Localhost variations
   if (host == 'localhost') return true;
 
   return false;
@@ -412,15 +394,11 @@ void reloadAllIcons() {
   _reloadController.add(IconReload.all);
 }
 
-// Check if we should use public icon services (Google, DuckDuckGo)
-// Returns false for http:// sites and IP addresses, and under site icons only
 bool _shouldUsePublicIconServices(Uri uri) {
   if (!publicIconServicesAllowed) return false;
 
-  // Skip for non-HTTPS sites
   if (uri.scheme != 'https') return false;
 
-  // Skip for IP addresses and localhost
   if (_isIpAddress(uri.host)) return false;
 
   return true;
@@ -639,7 +617,6 @@ Future<Favicon?> _findBestIcon(String url, UserProxySettings proxy) async {
 
   final svgColorCache = <String, bool>{};
 
-  // Check SVG colors in parallel
   await Future.wait(
     favicons.where((f) => f.url.endsWith('.svg')).map((f) async {
       svgColorCache[f.url] = await _isSvgColored(f.url, proxy);
@@ -660,7 +637,6 @@ Future<Favicon?> _findBestIcon(String url, UserProxySettings proxy) async {
 /// - 50: favicon package (HTML parsing + favicon.ico)
 Future<String?> getFaviconUrl(String url, {UserProxySettings? proxy}) async {
   _dropUnusableCachedIcon(url);
-  // Check cache first
   if (_faviconCache.containsKey(url)) {
     LogService.instance.log(
       'Icon',
@@ -670,7 +646,6 @@ Future<String?> getFaviconUrl(String url, {UserProxySettings? proxy}) async {
     return _faviconCache[url];
   }
 
-  // Queue management to limit concurrent requests
   if (_activeRequests >= _maxConcurrentRequests) {
     LogService.instance.log(
       'Icon',
@@ -699,7 +674,6 @@ Future<String?> getFaviconUrl(String url, {UserProxySettings? proxy}) async {
       sensitivity: LogSensitivity.sensitive,
     );
 
-    // Process next queued request
     if (_requestQueue.isNotEmpty) {
       final nextCompleter = _requestQueue.removeFirst();
       nextCompleter.complete();
@@ -729,7 +703,6 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
   String? bestUrl;
 
   _dropUnusableCachedIcon(url);
-  // Check cache first - if we have a cached result, emit it immediately
   if (_faviconCache.containsKey(url) && _faviconCache[url] != null) {
     final cachedUrl = _faviconCache[url]!;
     final cachedQuality = _faviconQualityCache[url] ?? 100;
@@ -742,7 +715,6 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
     return;
   }
 
-  // Check if we should use public icon services (skip for http:// and IP addresses)
   final usePublicServices = _shouldUsePublicIconServices(uri);
 
   LogService.instance.log(
@@ -772,7 +744,6 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
       ]);
       final allowed = publicIconServicesAllowed;
 
-      // Emit Google 128px if better
       if (allowed && googleResults[0] != null && 128 > bestQuality) {
         bestUrl = googleResults[0];
         bestQuality = 128;
@@ -780,7 +751,6 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
         yield IconUpdate(googleResults[0]!, 128);
       }
 
-      // Emit Google 256px if better
       if (allowed && googleResults[1] != null && 256 > bestQuality) {
         bestUrl = googleResults[1];
         bestQuality = 256;
@@ -802,11 +772,9 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
     LogService.instance.log('Icon', 'Stream: Emitting favicon package icon (quality: ${faviconResult.quality})');
     yield IconUpdate(faviconResult.url, faviconResult.quality, isFinal: true);
   } else if (bestUrl != null) {
-    // Re-emit best as final
     yield IconUpdate(bestUrl, bestQuality, isFinal: true);
   }
 
-  // Cache the best result
   _faviconCache[url] = bestUrl;
   _faviconQualityCache[url] = bestQuality;
 
@@ -835,7 +803,6 @@ Future<String?> _fetchFaviconUrlInternal(String url, UserProxySettings proxy) as
 
   final List<_IconCandidate> candidates = [];
 
-  // Try sources in parallel (skip public services for http:// and IP addresses)
   try {
     final futures = <Future<_IconCandidate?>>[];
 
@@ -874,7 +841,6 @@ Future<String?> _fetchFaviconUrlInternal(String url, UserProxySettings proxy) as
     return null;
   }
 
-  // Sort by quality (highest first)
   candidates.sort((a, b) => b.quality.compareTo(a.quality));
 
   LogService.instance.log(
@@ -883,7 +849,6 @@ Future<String?> _fetchFaviconUrlInternal(String url, UserProxySettings proxy) as
     sensitivity: LogSensitivity.sensitive,
   );
 
-  // Return first valid candidate
   for (var candidate in candidates) {
     if (_verifiedUrls.contains(candidate.url)) {
       _faviconCache[url] = candidate.url;
@@ -969,14 +934,12 @@ Future<_IconCandidate?> _tryFaviconPackage(String url, UserProxySettings proxy) 
 
     final svgColorCache = <String, bool>{};
 
-    // Check SVG colors in parallel ONCE
     await Future.wait(
       favicons.where((f) => f.url.endsWith('.svg')).map((f) async {
         svgColorCache[f.url] = await _isSvgColored(f.url, proxy);
       })
     );
 
-    // Sort with color information
     favicons.sort((a, b) => _compareFavicons(a, b, svgColorCache));
 
     final best = favicons.first;
@@ -1008,7 +971,6 @@ Future<_IconCandidate?> _tryFaviconPackage(String url, UserProxySettings proxy) 
   return null;
 }
 
-/// Clears the favicon cache
 void clearFaviconCache() {
   _faviconCache.clear();
   _faviconQualityCache.clear();
@@ -1017,7 +979,6 @@ void clearFaviconCache() {
   _iconBytesCache.clear();
 }
 
-/// Gets current queue stats (for debugging)
 Map<String, int> getQueueStats() {
   return {
     'active': _activeRequests,

@@ -223,7 +223,7 @@ observed, still has no tier that runs the plugin at all, so the first evidence r
 device.
 
 ### Attempt 8 — One guard type for Android native state, gated for the whole class
-**Date:** 2026-10-07 · **Branch:** `refactor/native-shared` · **Files:**
+**Date:** 2026-10-07 · **PR:** #680 · **Files:**
 `android/app/src/main/kotlin/.../Guarded.kt`, `SiteEventInbox.kt`, `WebInterceptPlugin.kt`,
 `test/js/native_shared_state.test.js`, `SiteEventInboxTest.kt`,
 `HostDecisionCacheConcurrencyTest.kt`

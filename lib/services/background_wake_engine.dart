@@ -250,9 +250,7 @@ class WakeReport {
 /// JS has had a moment to post, then posts on behalf of any site that stayed
 /// silent while its unread count rose.
 ///
-/// Returning is what ends the OS task. Before this the wake returned as soon
-/// as the reloads were issued, so the OS could suspend the app before any page
-/// loaded, and a wake never ran page JS at all.
+/// Returning is what ends the OS task.
 class BackgroundWakeEngine {
   BackgroundWakeEngine({
     this.settleDeadline = const Duration(seconds: 20),

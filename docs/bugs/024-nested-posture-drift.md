@@ -82,7 +82,7 @@ site resolves, whichever surface builds it.
    chain (BUG-019 attempt 3). *Why partial:* one more field threaded by hand
    through seven places; the next field would need the same.
 
-6. **2026-10-06, 1c04a939 and 1a2905e7 (branch `refactor/site-posture`).**
+6. **2026-10-06, #680.**
    *What:* `SitePosture`, one immutable value in six groups (container,
    blocking, fingerprint, location, media, page), every field required, built
    only by `WebViewModel.sitePosture`, where the umbrella's forcing and the

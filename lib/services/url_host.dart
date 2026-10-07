@@ -98,7 +98,6 @@ const Set<String> _ambiguousCcTldSecondLevels = {
   'gob', 'gouv', 'ac', 'ne', 'or', 'go', 'mil', 'int',
 };
 
-/// Checks if a string is an IPv4 address.
 bool _isIPv4Address(String host) {
   final parts = host.split('.');
   if (parts.length != 4) return false;
@@ -111,7 +110,6 @@ bool _isIPv4Address(String host) {
 
 /// Checks if a string is an IPv6 address (with or without brackets).
 bool _isIPv6Address(String host) {
-  // Remove brackets if present (e.g., [::1] -> ::1)
   final cleaned = host.startsWith('[') && host.endsWith(']')
       ? host.substring(1, host.length - 1)
       : host;
@@ -149,11 +147,9 @@ String getBaseDomain(String url) {
   final parts = host.split('.');
 
   if (parts.length >= 3) {
-    // Check if the last two parts form a multi-part TLD
     final possibleTld = '${parts[parts.length - 2]}.${parts.last}';
     if (_multiPartTlds.contains(possibleTld) ||
         _privateSuffixes.contains(possibleTld)) {
-      // Return third-to-last part + multi-part TLD (e.g., google.co.uk)
       return '${parts[parts.length - 3]}.$possibleTld';
     }
     // The pair looks like a registry suffix the table doesn't list. Resolve
@@ -188,14 +184,10 @@ const Map<String, String> _domainAliases = {
   'youtube.com': 'google.com',
   'youtu.be': 'google.com',
   'youtube-nocookie.com': 'google.com',
-  // Discord
   'discordapp.com': 'discord.com',
   'discord.gg': 'discord.com',
-  // Hugging Face
   'hf.co': 'huggingface.co',
-  // Anthropic / Claude
   'claude.ai': 'anthropic.com',
-  // OpenAI / ChatGPT
   'chatgpt.com': 'openai.com',
   // Regional Google domains
   'google.co.uk': 'google.com',
@@ -257,15 +249,12 @@ const Map<String, String> _domainAliases = {
 String getNormalizedDomain(String url) {
   final host = extractDomain(url);
 
-  // Check if the full host has an alias
   if (_domainAliases.containsKey(host)) {
     return _domainAliases[host]!;
   }
 
-  // Extract base domain
   final secondLevel = getBaseDomain(url);
 
-  // Check if the second-level domain has an alias
   if (_domainAliases.containsKey(secondLevel)) {
     return _domainAliases[secondLevel]!;
   }

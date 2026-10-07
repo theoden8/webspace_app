@@ -107,7 +107,6 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
   Future<int> countForSite(String siteId) async =>
       (await _store.read())[siteId]?.length ?? 0;
 
-  /// Forget every saved credential for [siteId].
   Future<void> removeSite(String siteId) =>
       _mutate((draft) => draft.remove(siteId));
 

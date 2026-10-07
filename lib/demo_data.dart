@@ -38,7 +38,6 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   await prefs.remove('selectedWebspaceId');
   await prefs.remove('currentIndex');
 
-  // Create sample sites
   // Language can be explicitly set per site (null = system default)
   // If a language parameter is passed to seedDemoData, it overrides all sites
   final sites = <WebViewModel>[
@@ -65,17 +64,17 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
     WebViewModel(
       initUrl: 'https://github.com',
       name: 'GitHub',
-      language: language ?? 'en', // English by default for GitHub
+      language: language ?? 'en',
     ),
     WebViewModel(
       initUrl: 'https://news.ycombinator.com',
       name: 'Hacker News',
-      language: language ?? 'en', // English by default for HN
+      language: language ?? 'en',
     ),
     WebViewModel(
       initUrl: 'https://wandb.ai',
       name: 'Weights & Biases',
-      language: language ?? 'en', // English by default for W&B
+      language: language ?? 'en',
     ),
     WebViewModel(
       initUrl: 'https://www.wikipedia.org',
@@ -94,7 +93,7 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   // unrelated sites — pluck siteIds off the freshly-constructed
   // models above rather than hard-coding positions.
   final webspaces = <Webspace>[
-    Webspace.all(), // The "All" webspace
+    Webspace.all(),
     Webspace(
       id: 'webspace_work',
       name: 'Work',
@@ -141,7 +140,6 @@ Future<void> seedDemoData({String theme = 'system', String? language}) async {
   log('Data saved successfully!');
   log('Verifying saved data...');
 
-  // Verify
   final savedSites = prefs.getStringList('webViewModels');
   final savedWebspaces = prefs.getStringList('webspaces');
   final selectedId = prefs.getString('selectedWebspaceId');

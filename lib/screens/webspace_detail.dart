@@ -63,7 +63,6 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
     final loc = AppLocalizations.of(context);
     final trimmedName = _nameController.text.trim();
 
-    // Validate that name is not empty
     if (trimmedName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

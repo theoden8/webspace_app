@@ -52,9 +52,7 @@ enum SiteLifecycleState {
   /// visible active site (controller resumed) and any backgrounded
   /// loaded site (controller paused). The distinction between
   /// resumed/paused is orthogonal to memory tier and tracked via the
-  /// controller's pause/resume state, not here. Renamed from `live`
-  /// because backgrounded loaded sites are paused — "live" implied
-  /// activity that doesn't apply.
+  /// controller's pause/resume state, not here.
   resident,
 
   /// Webview is in memory but `clearCache()` has been called. The
@@ -78,7 +76,6 @@ class SiteTierCounts {
   /// Sites at [SiteLifecycleState.resident] minus the active one.
   final int resident;
 
-  /// Sites at [SiteLifecycleState.cacheCleared].
   final int cacheCleared;
 
   /// Sites at [SiteLifecycleState.savedForRestore]. Includes sites

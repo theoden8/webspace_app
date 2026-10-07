@@ -855,7 +855,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     setState(() {
       widget.host!.blockedCookies!.add(rule);
     });
-    // Delete the cookie immediately from the webview
     await _deleteCookie(cookie);
     await widget.onSave?.call();
   }

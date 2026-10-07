@@ -59,10 +59,8 @@ class HtmlCacheService {
       await beforeUpgradeWipe();
     }
 
-    // Clear cache on version upgrade
     await _clearCacheOnUpgrade();
 
-    // Ensure cache directory exists
     await _store!.ensure();
 
     // No eager preload here — main() calls [preloadCache] explicitly
@@ -113,7 +111,6 @@ class HtmlCacheService {
     }
   }
 
-  /// Pre-load all cached HTML files into memory
   /// Files that fail to decrypt are discarded (deleted)
   Future<void> _preloadCache() async {
     final store = _store;
@@ -134,7 +131,6 @@ class HtmlCacheService {
                 final html = decrypted.substring(newlineIndex + 1);
                 _memoryCache[siteId] = html;
               } else {
-                // Invalid format - discard
                 await store.delete(name);
                 LogService.instance.log(
                   'HtmlCache',
@@ -170,7 +166,6 @@ class HtmlCacheService {
     }
   }
 
-  /// Get cached HTML synchronously (from pre-loaded memory cache)
   String? getHtmlSync(String siteId) {
     return _memoryCache[siteId];
   }
@@ -183,7 +178,6 @@ class HtmlCacheService {
     final lastVersion = prefs.getString(_versionKey);
 
     if (lastVersion != null && lastVersion != currentVersion) {
-      // Version changed - clear the HTML cache and generate new key
       if (_store != null) {
         await _store!.deleteAll();
         LogService.instance.log('HtmlCache', 'Cleared cache on upgrade from $lastVersion to $currentVersion', level: LogLevel.info);
@@ -197,10 +191,8 @@ class HtmlCacheService {
     await prefs.setString(_versionKey, currentVersion);
   }
 
-  /// Cache file name for a site.
   String _cacheFileName(String siteId) => '$siteId.enc';
 
-  /// Max HTML size to cache (10MB)
   static const int _maxHtmlSize = 10 * 1024 * 1024;
 
   /// Minimum interval between successful saves for a given siteId.
@@ -296,7 +288,6 @@ class HtmlCacheService {
     final aead = _aead;
     if (store == null || aead == null) return;
 
-    // Skip if HTML is too large
     if (html.length > _maxHtmlSize) {
       LogService.instance.log(
         'HtmlCache',
@@ -342,7 +333,6 @@ class HtmlCacheService {
         return;
       }
 
-      // Update memory cache and debounce timestamp
       _memoryCache[siteId] = html;
       _lastSaveAt[siteId] = DateTime.now();
 
@@ -399,7 +389,6 @@ class HtmlCacheService {
     }
   }
 
-  /// Check if cached HTML exists for a site
   Future<bool> hasCache(String siteId) async {
     final store = _store;
     if (store == null) return false;
@@ -419,7 +408,6 @@ class HtmlCacheService {
     await store.delete(_cacheFileName(siteId));
   }
 
-  /// Delete cached HTML for sites not in the provided set
   Future<void> removeOrphanedCaches(Set<String> activeSiteIds) async {
     final store = _store;
     if (store == null) return;

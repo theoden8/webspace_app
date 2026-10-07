@@ -46,7 +46,6 @@ class RepaintSuppression {
     set(spec.split(','));
   }
 
-  /// Whether [trigger] is currently dropped.
   static bool suppresses(String trigger) =>
       !kReleaseMode && _triggers.contains(trigger);
 

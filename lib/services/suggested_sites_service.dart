@@ -30,13 +30,11 @@ const List<SiteSuggestion> kDefaultSuggestions = [
 
 const String _prefsKey = 'suggested_sites';
 
-/// Whether the current build is the fdroid flavor.
 bool get isFdroidFlavor {
   const flavor = String.fromEnvironment('FLUTTER_APP_FLAVOR');
   return flavor == 'fdroid';
 }
 
-/// Returns the flavor-appropriate default suggestions.
 List<SiteSuggestion> get flavorDefaultSuggestions =>
     isFdroidFlavor ? const [] : kDefaultSuggestions;
 
@@ -60,7 +58,6 @@ Future<List<SiteSuggestion>?> loadSuggestedSites() async {
   }
 }
 
-/// Save user-customized suggested sites to SharedPreferences.
 Future<void> saveSuggestedSites(List<SiteSuggestion> sites) async {
   final prefs = await SharedPreferences.getInstance();
   final json = jsonEncode(sites
