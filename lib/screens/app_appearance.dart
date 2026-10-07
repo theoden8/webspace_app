@@ -48,11 +48,13 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
   late AppThemeSettings _settings = widget.settings;
 
   void _updateSettings(AppThemeSettings newSettings) {
-    setState(() {
-      _settings = newSettings;
-    });
+    setState(() => _settings = newSettings);
     widget.onSettingsChanged(newSettings);
   }
+
+  /// A language override's name; the empty tag follows the system.
+  String _languageName(AppLocalizations loc, String tag) =>
+      tag.isEmpty ? loc.appSettingsLanguageSystem : languageLabelForTag(tag);
 
   Future<void> _pickAppLanguage() async {
     final loc = AppLocalizations.of(context);
@@ -74,18 +76,12 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
           child: ListView(
             shrinkWrap: true,
             children: [
-              RadioListTile<String>(
-                value: '',
-                groupValue: current,
-                title: Text(loc.appSettingsLanguageSystem),
-                onChanged: (v) => Navigator.pop(ctx, v ?? ''),
-              ),
-              for (final tag in tags)
+              for (final tag in ['', ...tags])
                 RadioListTile<String>(
                   value: tag,
                   groupValue: current,
-                  title: Text(languageLabelForTag(tag)),
-                  onChanged: (v) => Navigator.pop(ctx, v),
+                  title: Text(_languageName(loc, tag)),
+                  onChanged: (v) => Navigator.pop(ctx, v ?? ''),
                 ),
             ],
           ),
@@ -106,38 +102,41 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
             leading: const Icon(Icons.language),
             title: loc.appSettingsLanguageTitle,
             hint: null,
-            subtitle: AppPref.appLocaleOverride.value.isEmpty
-                ? loc.appSettingsLanguageSystem
-                : languageLabelForTag(AppPref.appLocaleOverride.value),
+            subtitle: _languageName(loc, AppPref.appLocaleOverride.value),
             control: Opens(() => guardedOpen(_pickAppLanguage)),
           ),
           SettingsSection(loc.appSettingsTheme),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildThemeModeRow(),
+            child: Row(
+              spacing: 8,
+              children: [
+                for (final mode in const [
+                  ThemeMode.light,
+                  ThemeMode.dark,
+                  ThemeMode.system,
+                ])
+                  Expanded(child: _buildThemeModeChip(mode)),
+              ],
+            ),
           ),
           SettingsSection(loc.appSettingsAccentColor),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildAccentColorGrid(),
+            child: Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                for (final color in AccentColor.values)
+                  _buildAccentColorSwatch(color),
+              ],
+            ),
           ),
           const SizedBox(height: 24),
         ],
       ),
     );
   }
-
-  Widget _buildThemeModeRow() => Row(
-        spacing: 8,
-        children: [
-          for (final mode in const [
-            ThemeMode.light,
-            ThemeMode.dark,
-            ThemeMode.system,
-          ])
-            Expanded(child: _buildThemeModeChip(mode)),
-        ],
-      );
 
   Widget _buildThemeModeChip(ThemeMode mode) {
     final label = themeModeLabel(AppLocalizations.of(context), mode);
@@ -146,9 +145,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
     final accentColor = Theme.of(context).colorScheme.secondary;
 
     return GestureDetector(
-      onTap: () {
-        _updateSettings(_settings.copyWith(themeMode: mode));
-      },
+      onTap: () => _updateSettings(_settings.copyWith(themeMode: mode)),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         decoration: BoxDecoration(
@@ -182,25 +179,13 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
     );
   }
 
-  Widget _buildAccentColorGrid() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: AccentColor.values.map((color) {
-        return _buildAccentColorSwatch(color);
-      }).toList(),
-    );
-  }
-
   Widget _buildAccentColorSwatch(AccentColor color) {
     final isSelected = _settings.accentColor == color;
     final displayColor = _accentColors[color]!;
     final label = color.name[0].toUpperCase() + color.name.substring(1);
 
     return GestureDetector(
-      onTap: () {
-        _updateSettings(_settings.copyWith(accentColor: color));
-      },
+      onTap: () => _updateSettings(_settings.copyWith(accentColor: color)),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -105,13 +105,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     setState(() => _busy = true);
     final saved = await _storage.save(next);
     if (!mounted) return;
-    if (!saved) {
-      setState(() {
-        _busy = false;
-        _message = null;
-      });
-      return;
-    }
+    if (!saved) return _settle();
     final needsRestart = TorService.instance.setBridges(next);
     setState(() {
       _config = next;
@@ -119,6 +113,12 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
       _restartNeeded = _restartNeeded || needsRestart;
     });
   }
+
+  /// Ends a step that did not change the configuration, saying [message].
+  void _settle([String? message]) => setState(() {
+        _busy = false;
+        _message = message;
+      });
 
   Future<void> _addPasted() async {
     final result = parseTorBridgeLine(_pasteController.text);
@@ -140,12 +140,6 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     await _commit(next);
   }
 
-  Future<void> _remove(TorBridgeLine line) async {
-    await _commit(_config.copyWith(
-      lines: _config.lines.where((l) => l != line).toList(),
-    ));
-  }
-
   Future<void> _fetchFromMoat() async {
     final loc = AppLocalizations.of(context);
     final client = widget.moatClientFactory?.call() ?? MoatClient();
@@ -162,12 +156,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
         if (solution == null) {
           // Cancelled: leave the configuration untouched rather than
           // committing a half-finished fetch.
-          if (mounted) {
-            setState(() {
-              _busy = false;
-              _message = null;
-            });
-          }
+          if (mounted) _settle();
           return;
         }
         attempt = MoatBridgesObtained(
@@ -187,11 +176,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
         setState(() => _message = loc.torBridgesAdded(lines.length));
       }
     } on MoatException catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _busy = false;
-        _message = moatErrorMessage(loc, e.kind);
-      });
+      if (mounted) _settle(moatErrorMessage(loc, e.kind));
     }
   }
 
@@ -289,12 +274,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                     lock: _busy ? const Lock.because(null) : null,
                     onChanged: (v) => _commit(_config.copyWith(transport: v)),
                   ),
-                  if (_restartNeeded)
-                    _notice(theme, loc.torBridgesRestartNeeded,
-                        action: TextButton(
-                          onPressed: _busy ? null : _restartTor,
-                          child: Text(loc.torBridgesRestartNow),
-                        )),
+                  if (_restartNeeded) _restartNotice(loc, theme),
                   const Divider(),
                   _linesSection(loc, theme),
                   // Only where BridgeDB actually hands bridges out.
@@ -311,11 +291,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                 // to take effect, so that notice outlives the section it
                 // came from.
                 else if (_restartNeeded)
-                  _notice(theme, loc.torBridgesRestartNeeded,
-                      action: TextButton(
-                        onPressed: _busy ? null : _restartTor,
-                        child: Text(loc.torBridgesRestartNow),
-                      )),
+                  _restartNotice(loc, theme),
                 if (_message != null)
                   Padding(
                     padding: const EdgeInsets.all(Spacing.lg),
@@ -326,18 +302,21 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     );
   }
 
-  Widget _notice(ThemeData theme, String text, {Widget? action}) => Container(
+  Widget _restartNotice(AppLocalizations loc, ThemeData theme) => Container(
         color: theme.colorScheme.secondaryContainer,
         padding: const EdgeInsets.symmetric(
             horizontal: Spacing.lg, vertical: Spacing.sm),
         child: Row(
           children: [
             Expanded(
-              child: Text(text,
+              child: Text(loc.torBridgesRestartNeeded,
                   style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onSecondaryContainer)),
             ),
-            ?action,
+            TextButton(
+              onPressed: _busy ? null : _restartTor,
+              child: Text(loc.torBridgesRestartNow),
+            ),
           ],
         ),
       );
@@ -382,7 +361,10 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
             trailing: IconButton(
               tooltip: loc.torBridgesRemove,
               icon: const Icon(Icons.delete_outline),
-              onPressed: _busy ? null : () => _remove(line),
+              onPressed: _busy
+                  ? null
+                  : () => _commit(_config.copyWith(
+                      lines: _config.lines.where((l) => l != line).toList())),
             ),
           ),
         Padding(

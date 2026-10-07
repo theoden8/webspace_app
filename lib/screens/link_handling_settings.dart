@@ -35,13 +35,7 @@ class LinkHandlingSettingsScreen extends StatefulWidget {
 
 class _LinkHandlingSettingsScreenState
     extends State<LinkHandlingSettingsScreen> {
-  late TextEditingController _testUrlController;
-
-  @override
-  void initState() {
-    super.initState();
-    _testUrlController = TextEditingController();
-  }
+  final _testUrlController = TextEditingController();
 
   @override
   void dispose() {
@@ -57,7 +51,10 @@ class _LinkHandlingSettingsScreenState
 
   Widget _build(bool enabled) {
     final loc = AppLocalizations.of(context);
-    final rows = _buildRoutingOverview(widget.sites);
+    Widget heading(String text) => Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Text(text, style: Theme.of(context).textTheme.titleSmall),
+        );
     return Scaffold(
       appBar: AppBar(title: Text(loc.linkHandlingScreenTitle)),
       body: ListView(
@@ -77,13 +74,7 @@ class _LinkHandlingSettingsScreenState
           ),
           const Divider(height: 1),
           if (widget.onManualDispatch != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Text(
-                loc.linkHandlingTestRoutingTitle,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-            ),
+            heading(loc.linkHandlingTestRoutingTitle),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: TextField(
@@ -113,20 +104,14 @@ class _LinkHandlingSettingsScreenState
             const SizedBox(height: 12),
             const Divider(height: 1),
           ],
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: Text(
-              loc.linkHandlingRoutingOverviewTitle,
-              style: Theme.of(context).textTheme.titleSmall,
-            ),
-          ),
-          if (rows.isEmpty)
+          heading(loc.linkHandlingRoutingOverviewTitle),
+          if (widget.sites.isEmpty)
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(loc.linkHandlingNoSites),
             )
           else
-            ...rows,
+            for (final site in widget.sites) _routeRow(site),
         ],
       ),
     );
@@ -144,129 +129,90 @@ class _LinkHandlingSettingsScreenState
     await widget.onManualDispatch?.call(parsed);
   }
 
-  List<Widget> _buildRoutingOverview(List<WebViewModel> sites) {
-    if (sites.isEmpty) return const [];
-    final rows = <Widget>[];
-    for (final site in sites) {
-      final claims = site.effectiveDomainClaims;
-      final conflicts = LinkRoutingService.validateClaims(
-        site.siteId,
-        claims,
-        sites
-            .map((s) => _SiteRouteAdapter(s))
-            .where((a) => a.siteId != site.siteId)
-            .toList(growable: false),
-      );
-      final conflictedClaims = <DomainClaim>{
-        for (final c in conflicts) c.claim,
-      };
-      rows.add(ListTile(
-        title: Text(site.getDisplayName()),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: [
-                for (final claim in claims)
-                  _ClaimChip(
-                    claim: claim,
-                    isConflicting: conflictedClaims.contains(claim),
-                  ),
-              ],
-            ),
-            for (final c in conflicts)
-              _ConflictExplanation(conflict: c, sites: sites),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => widget.onOpenSiteEditor(site),
-      ));
-    }
-    return rows;
-  }
-}
-
-class _ClaimChip extends StatelessWidget {
-  final DomainClaim claim;
-  final bool isConflicting;
-  const _ClaimChip({required this.claim, this.isConflicting = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final label = _claimLabel(AppLocalizations.of(context), claim);
-    if (!isConflicting) return Chip(label: Text(label));
-    final scheme = Theme.of(context).colorScheme;
-    return Chip(
-      label: Text(label),
-      backgroundColor: scheme.errorContainer,
-      side: BorderSide(color: scheme.error),
-      labelStyle: TextStyle(color: scheme.onErrorContainer),
-    );
-  }
-}
-
-String _claimLabel(AppLocalizations loc, DomainClaim claim) {
-  switch (claim.kind) {
-    case DomainClaimKind.exactHost:
-      return claim.value;
-    case DomainClaimKind.wildcardSubdomain:
-      return '*.${claim.value}';
-    case DomainClaimKind.baseDomain:
-      return loc.linkHandlingClaimBaseLabel(claim.value);
-  }
-}
-
-/// Single conflict line shown under a routing-overview row, e.g.
-/// "Hijacks Site B (mastodon.social) via exactHost: mastodon.social".
-/// Looks the other site up by id from the snapshot list so the message
-/// names a real site rather than a raw uuid.
-class _ConflictExplanation extends StatelessWidget {
-  final ClaimConflict conflict;
-  final List<WebViewModel> sites;
-  const _ConflictExplanation({
-    required this.conflict,
-    required this.sites,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _routeRow(WebViewModel site) {
+    final sites = widget.sites;
+    final claims = site.effectiveDomainClaims;
+    final conflicts = LinkRoutingService.validateClaims(site.siteId, claims, [
+      for (final s in sites)
+        if (s.siteId != site.siteId) _SiteRouteAdapter(s),
+    ]);
+    final conflictedClaims = {for (final c in conflicts) c.claim};
     final loc = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
-    final other = sites.firstWhere(
-      (s) => s.siteId == conflict.otherSiteId,
-      orElse: () => sites.first,
-    );
-    final isHijack = conflict.kind == ClaimConflictKind.hijack;
-    final color = isHijack ? scheme.error : scheme.tertiary;
-    final otherName = other.getDisplayName();
-    final claimLabel = _claimLabel(loc, conflict.claim);
-    final message = isHijack
-        ? loc.linkHandlingConflictHijacks(otherName, claimLabel)
-        : loc.linkHandlingConflictOverlaps(otherName, claimLabel);
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
+
+    // One conflict line, e.g. "Hijacks Site B (mastodon.social) via
+    // exactHost: mastodon.social". The other site is looked up by id so the
+    // message names a real site rather than a raw uuid.
+    Widget conflictLine(ClaimConflict conflict) {
+      final other = sites.firstWhere(
+        (s) => s.siteId == conflict.otherSiteId,
+        orElse: () => sites.first,
+      );
+      final isHijack = conflict.kind == ClaimConflictKind.hijack;
+      final color = isHijack ? scheme.error : scheme.tertiary;
+      final otherName = other.getDisplayName();
+      final claimLabel = _claimLabel(loc, conflict.claim);
+      final message = isHijack
+          ? loc.linkHandlingConflictHijacks(otherName, claimLabel)
+          : loc.linkHandlingConflictOverlaps(otherName, claimLabel);
+      return Padding(
+        padding: const EdgeInsets.only(top: 4),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              isHijack ? Icons.warning_amber_rounded : Icons.info_outline,
+              size: 16,
+              color: color,
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(color: color, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListTile(
+      title: Text(site.getDisplayName()),
+      subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            isHijack ? Icons.warning_amber_rounded : Icons.info_outline,
-            size: 16,
-            color: color,
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final claim in claims)
+                if (conflictedClaims.contains(claim))
+                  Chip(
+                    label: Text(_claimLabel(loc, claim)),
+                    backgroundColor: scheme.errorContainer,
+                    side: BorderSide(color: scheme.error),
+                    labelStyle: TextStyle(color: scheme.onErrorContainer),
+                  )
+                else
+                  Chip(label: Text(_claimLabel(loc, claim))),
+            ],
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: color, fontSize: 12),
-            ),
-          ),
+          for (final c in conflicts) conflictLine(c),
         ],
       ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => widget.onOpenSiteEditor(site),
     );
   }
 }
+
+String _claimLabel(AppLocalizations loc, DomainClaim claim) =>
+    switch (claim.kind) {
+      DomainClaimKind.exactHost => claim.value,
+      DomainClaimKind.wildcardSubdomain => '*.${claim.value}',
+      DomainClaimKind.baseDomain => loc.linkHandlingClaimBaseLabel(claim.value),
+    };
 
 class _SiteRouteAdapter implements RoutableSite {
   final WebViewModel model;
@@ -303,18 +249,10 @@ class DomainClaimsEditor extends StatefulWidget {
 }
 
 class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
-  late List<DomainClaim> _claims;
-
-  @override
-  void initState() {
-    super.initState();
-    _claims = List<DomainClaim>.from(widget.model.effectiveDomainClaims);
-  }
+  late List<DomainClaim> _claims = [...widget.model.effectiveDomainClaims];
 
   void _commit(List<DomainClaim> next) {
-    setState(() {
-      _claims = next;
-    });
+    setState(() => _claims = next);
     final defaultClaims = widget.model.effectiveDomainClaims;
     if (next.length == defaultClaims.length &&
         next.every((c) => defaultClaims.contains(c)) &&
@@ -336,24 +274,18 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
     _commit([..._claims, result]);
   }
 
-  void _removeAt(int i) {
-    final next = [..._claims]..removeAt(i);
-    _commit(next);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final adapters = widget.otherSites
-        .map((s) => _SiteRouteAdapter(s))
-        .toList(growable: false);
     final conflicts = LinkRoutingService.validateClaims(
       widget.model.siteId,
       _claims,
-      adapters,
+      [for (final s in widget.otherSites) _SiteRouteAdapter(s)],
     );
-    final conflictsByClaim = <DomainClaim, List<ClaimConflict>>{};
+    // A conflicted claim: true when any of its conflicts is a hijack.
+    final hijacked = <DomainClaim, bool>{};
     for (final c in conflicts) {
-      conflictsByClaim.putIfAbsent(c.claim, () => []).add(c);
+      hijacked[c.claim] = (hijacked[c.claim] ?? false) ||
+          c.kind == ClaimConflictKind.hijack;
     }
     final loc = AppLocalizations.of(context);
     return Column(
@@ -378,53 +310,27 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
             ],
           ),
         ),
-        for (var i = 0; i < _claims.length; i++)
-          _ClaimRow(
-            claim: _claims[i],
-            conflicts: conflictsByClaim[_claims[i]] ?? const [],
-            onRemove: _claims[i].kind == DomainClaimKind.baseDomain &&
+        for (final (i, claim) in _claims.indexed)
+          ListTile(
+            title: Text(_claimLabel(loc, claim)),
+            subtitle: switch (hijacked[claim]) {
+              true => Text(
+                  loc.linkHandlingClaimHijackConflict,
+                  style: const TextStyle(color: Colors.red),
+                ),
+              false => Text(loc.linkHandlingClaimOverlapConflict),
+              null => null,
+            },
+            // The synthesized base-domain claim stays while it is the only one.
+            trailing: claim.kind == DomainClaimKind.baseDomain &&
                     _claims.length == 1
                 ? null
-                : () => _removeAt(i),
+                : IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => _commit([..._claims]..removeAt(i)),
+                  ),
           ),
       ],
-    );
-  }
-}
-
-class _ClaimRow extends StatelessWidget {
-  final DomainClaim claim;
-  final List<ClaimConflict> conflicts;
-  final VoidCallback? onRemove;
-
-  const _ClaimRow({
-    required this.claim,
-    required this.conflicts,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    final label = _claimLabel(loc, claim);
-    final hasHijack =
-        conflicts.any((c) => c.kind == ClaimConflictKind.hijack);
-    return ListTile(
-      title: Text(label),
-      subtitle: hasHijack
-          ? Text(
-              loc.linkHandlingClaimHijackConflict,
-              style: const TextStyle(color: Colors.red),
-            )
-          : conflicts.isNotEmpty
-              ? Text(loc.linkHandlingClaimOverlapConflict)
-              : null,
-      trailing: onRemove == null
-          ? null
-          : IconButton(
-              icon: const Icon(Icons.delete_outline),
-              onPressed: onRemove,
-            ),
     );
   }
 }
@@ -588,22 +494,18 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
             value: _kind,
             isExpanded: true,
             onChanged: (v) {
-              if (v != null) {
-                setState(() {
-                  _kind = v;
-                  _takenBy = null;
-                });
-              }
+              if (v == null) return;
+              setState(() {
+                _kind = v;
+                _takenBy = null;
+              });
             },
             items: [
-              DropdownMenuItem(
-                value: DomainClaimKind.exactHost,
-                child: Text(loc.linkHandlingClaimKindExactHost),
-              ),
-              DropdownMenuItem(
-                value: DomainClaimKind.wildcardSubdomain,
-                child: Text(loc.linkHandlingClaimKindWildcard),
-              ),
+              for (final (kind, label) in [
+                (DomainClaimKind.exactHost, loc.linkHandlingClaimKindExactHost),
+                (DomainClaimKind.wildcardSubdomain, loc.linkHandlingClaimKindWildcard),
+              ])
+                DropdownMenuItem(value: kind, child: Text(label)),
             ],
           ),
           const SizedBox(height: 12),

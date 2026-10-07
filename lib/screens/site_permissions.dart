@@ -330,26 +330,47 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       detail: (context, setSheetState) {
         final grant = kind.grantOf(_values.captures);
         if (grant.mode != kind.virtual) return const SizedBox.shrink();
-        return _sourceDetail(
-          fileName: grant.source?.fileName,
-          emptyLabel: text.noSource,
-          actionLabel: text.chooseSource,
-          icon: switch (kind.medium) {
-            CaptureMedium.visual => Icons.photo_library_outlined,
-            CaptureMedium.audio => Icons.audiotrack_outlined,
-          },
-          onPick: () async {
-            await _pickSource(kind);
-            setSheetState(() {});
-          },
-          preview: switch (grant.source) {
-            final VirtualVisualSource source => VirtualSourcePreview(
-              source: source,
-              aspectRatio: kind.previewFrame.aspectRatio,
-              fit: kind.previewFrame.fit,
-            ),
-            VirtualAudioSource() || null => null,
-          },
+        final preview = switch (grant.source) {
+          final VirtualVisualSource source => VirtualSourcePreview(
+            source: source,
+            aspectRatio: kind.previewFrame.aspectRatio,
+            fit: kind.previewFrame.fit,
+          ),
+          VirtualAudioSource() || null => null,
+        };
+        return Padding(
+          padding: const EdgeInsets.only(left: 32, top: 4, bottom: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      grant.source?.fileName ?? text.noSource,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                  TextButton.icon(
+                    icon: Icon(
+                      switch (kind.medium) {
+                        CaptureMedium.visual => Icons.photo_library_outlined,
+                        CaptureMedium.audio => Icons.audiotrack_outlined,
+                      },
+                      size: 18,
+                    ),
+                    label: Text(text.chooseSource),
+                    onPressed: () async {
+                      await _pickSource(kind);
+                      setSheetState(() {});
+                    },
+                  ),
+                ],
+              ),
+              if (preview != null)
+                Padding(padding: const EdgeInsets.only(top: 8), child: preview),
+            ],
+          ),
         );
       },
     );
@@ -472,32 +493,21 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     // "From picked location" is conceptually a sibling of "System default":
     // both derive the zone instead of taking an explicit one, so it goes
     // directly after that entry rather than at the bottom of the list.
-    final items = <DropdownMenuItem<String?>>[];
-    var insertedFromLocation = false;
-    for (final e in commonTimezones) {
-      items.add(DropdownMenuItem<String?>(
-        value: e.key,
-        child: Text(_timezoneLabel(e)),
-      ));
-      if (!insertedFromLocation && e.key == null) {
-        items.add(DropdownMenuItem<String?>(
-          value: _kFromLocationSentinel,
-          child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
-        ));
-        insertedFromLocation = true;
-      }
-    }
-    // Defensive fallback: if commonTimezones ever loses the System default
-    // entry, still expose the option somewhere.
-    if (!insertedFromLocation) {
-      items.insert(
-        0,
+    assert(commonTimezones.where((e) => e.key == null).length == 1,
+        'System default is listed once, for From picked location to follow');
+    final items = [
+      for (final e in commonTimezones) ...[
         DropdownMenuItem<String?>(
-          value: _kFromLocationSentinel,
-          child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
+          value: e.key,
+          child: Text(_timezoneLabel(e)),
         ),
-      );
-    }
+        if (e.key == null)
+          DropdownMenuItem<String?>(
+            value: _kFromLocationSentinel,
+            child: Text(loc.siteSettingsTimezoneFromLocation(preview)),
+          ),
+      ],
+    ];
 
     return DropdownButtonFormField<String?>(
       value: value,
@@ -513,15 +523,11 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       onChanged: forceFromLocation
           ? null
           : (v) {
-              if (v == _kFromLocationSentinel) {
-                _update(_values.copyWith(
-                    spoofTimezoneFromLocation: true, clearSpoofTimezone: true));
-              } else {
-                _update(_values.copyWith(
-                    spoofTimezoneFromLocation: false,
-                    spoofTimezone: v,
-                    clearSpoofTimezone: v == null));
-              }
+              final fromLocation = v == _kFromLocationSentinel;
+              _update(_values.copyWith(
+                  spoofTimezoneFromLocation: fromLocation,
+                  spoofTimezone: fromLocation ? null : v,
+                  clearSpoofTimezone: fromLocation || v == null));
               setSheetState(() {});
             },
     );
@@ -538,24 +544,18 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
                 ? loc.siteSettingsProtectedContentBlockedByEtp
                 : null),
         options: [
-          _Option(
-            state: SitePermissionState.ask,
-            label: loc.siteSettingsProtectedContentAsk,
-            onSelect: () => _update(
-                _values.copyWith(clearProtectedContentAllowed: true)),
-          ),
-          _Option(
-            state: SitePermissionState.allowed,
-            label: loc.siteSettingsProtectedContentAllow,
-            onSelect: () =>
-                _update(_values.copyWith(protectedContentAllowed: true)),
-          ),
-          _Option(
-            state: SitePermissionState.blocked,
-            label: loc.siteSettingsProtectedContentBlock,
-            onSelect: () =>
-                _update(_values.copyWith(protectedContentAllowed: false)),
-          ),
+          for (final (state, label, allowed) in [
+            (SitePermissionState.ask, loc.siteSettingsProtectedContentAsk, null),
+            (SitePermissionState.allowed, loc.siteSettingsProtectedContentAllow, true),
+            (SitePermissionState.blocked, loc.siteSettingsProtectedContentBlock, false),
+          ])
+            _Option(
+              state: state,
+              label: label,
+              onSelect: () => _update(allowed == null
+                  ? _values.copyWith(clearProtectedContentAllowed: true)
+                  : _values.copyWith(protectedContentAllowed: allowed)),
+            ),
         ],
       );
 
@@ -598,43 +598,6 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
   }
 
   // --- Rendering -----------------------------------------------------------
-
-  Widget _sourceDetail({
-    required String? fileName,
-    required String emptyLabel,
-    required String actionLabel,
-    required IconData icon,
-    required Future<void> Function() onPick,
-    Widget? preview,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(left: 32, top: 4, bottom: 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    fileName ?? emptyLabel,
-                    style: const TextStyle(fontSize: 12.5),
-                  ),
-                ),
-                TextButton.icon(
-                  icon: Icon(icon, size: 18),
-                  label: Text(actionLabel),
-                  onPressed: onPick,
-                ),
-              ],
-            ),
-            if (preview != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: preview,
-              ),
-          ],
-        ),
-      );
 
   Widget _row(_Capability capability) {
     final scheme = Theme.of(context).colorScheme;

@@ -174,9 +174,12 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   Widget _trackingProtectionCard(AppLocalizations loc) {
     final scheme = Theme.of(context).colorScheme;
     final on = _values.trackingProtectionEnabled;
-    final unconfigured = on &&
-        (!DnsBlockService.instance.hasBlocklist ||
-            !ContentBlockerService.instance.hasRules);
+    List<String> missing() => [
+          if (!DnsBlockService.instance.hasBlocklist)
+            loc.siteSettingsDnsBlocklist,
+          if (!ContentBlockerService.instance.hasRules)
+            loc.siteSettingsContentBlocker,
+        ];
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 4, 12, 4),
       color: on ? scheme.secondaryContainer : null,
@@ -189,20 +192,15 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           loc.siteSettingsTrackingProtection,
           hint: loc.siteSettingsTrackingProtectionHint,
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-          warn: unconfigured,
+          warn: on && missing().isNotEmpty,
         ),
         subtitle: Text(loc.siteSettingsTrackingProtectionSubtitle,
             style: const TextStyle(fontSize: 12.5)),
         value: on,
         onChanged: (value) {
-          if (value) {
-            final missing = <String>[
-              if (!DnsBlockService.instance.hasBlocklist)
-                loc.siteSettingsDnsBlocklist,
-              if (!ContentBlockerService.instance.hasRules)
-                loc.siteSettingsContentBlocker,
-            ];
-            if (missing.isNotEmpty) _warnNotConfigured(missing.join(', '));
+          final unconfigured = missing();
+          if (value && unconfigured.isNotEmpty) {
+            _warnNotConfigured(unconfigured.join(', '));
           }
           _update(_values.copyWith(trackingProtectionEnabled: value));
         },
@@ -211,15 +209,6 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   }
 
   // --- Trackers ------------------------------------------------------------
-
-  Widget _clearUrls(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsClearUrls,
-        hint: loc.siteSettingsClearUrlsHint,
-        subtitle: loc.siteSettingsClearUrlsSubtitle,
-        lock: _umbrella(TrackingProtectionForce.clearUrls),
-        control: Toggle(_values.effectiveClearUrl,
-            (value) => _update(_values.copyWith(clearUrlEnabled: value))),
-      );
 
   Widget _dnsBlocklist(AppLocalizations loc) {
     final ready = DnsBlockService.instance.hasBlocklist;
@@ -422,45 +411,6 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
     );
   }
 
-  Widget _thirdPartyCookies(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsThirdPartyCookies,
-        hint: loc.siteSettingsThirdPartyCookiesHint,
-        subtitle: loc.siteSettingsThirdPartyCookiesSubtitle,
-        lock: _umbrella(TrackingProtectionForce.thirdPartyCookies),
-        control: Toggle(_values.effectiveThirdPartyCookies,
-            (value) => _update(_values.copyWith(thirdPartyCookiesEnabled: value))),
-      );
-
-  /// Follows App Settings until the site picks its own value, and can go
-  /// back to following (HTTPS-005).
-  Widget _httpsUpgrade(AppLocalizations loc) {
-    final appValue = AppPref.httpsUpgradeEnabled.value;
-    return ChoiceTile<Scoped<bool>>(
-      title: loc.siteSettingsHttpsUpgrade,
-      hint: loc.siteSettingsHttpsUpgradeHint,
-      lock: _umbrella(TrackingProtectionForce.httpsUpgrade),
-      values: const [FollowApp(), Own(true), Own(false)],
-      label: (choice) => choice.label(loc, appValue: appValue),
-      value: _values.trackingProtectionEnabled
-          ? const Own(true)
-          : _values.httpsUpgrade,
-      onChanged: (choice) => _update(_values.copyWith(httpsUpgrade: choice)),
-    );
-  }
-
-  // --- Fingerprinting ------------------------------------------------------
-
-  Widget _letterbox(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsLetterboxTitle,
-        hint: loc.siteSettingsWindowSizeHelper,
-        lock: _values.trackingProtectionEnabled
-            ? null
-            : Lock.because(loc.siteSettingsNeedsTrackingProtection),
-        control: Toggle(
-            _values.letterboxEnabled && _values.trackingProtectionEnabled,
-            (value) => _update(_values.copyWith(letterboxEnabled: value))),
-      );
-
   // --- Storage -------------------------------------------------------------
 
   /// Sits above the umbrella, not under it. Incognito is the bluntest thing
@@ -494,18 +444,6 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
     );
   }
 
-  // --- Screen capture ------------------------------------------------------
-
-  Widget _blockScreenshots(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsBlockScreenshots,
-        hint: loc.siteSettingsBlockScreenshotsHint,
-        lock: AppPref.blockScreenshots.value
-            ? Lock.because(loc.siteSettingsBlockScreenshotsAppWide)
-            : null,
-        control: Toggle(_values.effectiveBlockScreenshots,
-            (value) => _update(_values.copyWith(blockScreenshots: value))),
-      );
-
   // --- DNS counters --------------------------------------------------------
 
   Widget _dnsStats() {
@@ -526,7 +464,14 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           _incognitoCard(loc),
           _trackingProtectionCard(loc),
           SettingsSection(loc.privacyGroupTrackers),
-          _clearUrls(loc),
+          SettingTile(
+            title: loc.siteSettingsClearUrls,
+            hint: loc.siteSettingsClearUrlsHint,
+            subtitle: loc.siteSettingsClearUrlsSubtitle,
+            lock: _umbrella(TrackingProtectionForce.clearUrls),
+            control: Toggle(_values.effectiveClearUrl,
+                (value) => _update(_values.copyWith(clearUrlEnabled: value))),
+          ),
           _dnsBlocklist(loc),
           if (_values.effectiveDnsBlock && DnsBlockService.instance.hasBlocklist)
             _dnsBlocklistLevel(loc),
@@ -536,10 +481,42 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
               ContentBlockerService.instance.hasRules)
             _contentBlockerLists(loc),
           if (hostIsAndroid) _localCdn(loc),
-          _thirdPartyCookies(loc),
-          _httpsUpgrade(loc),
+          SettingTile(
+            title: loc.siteSettingsThirdPartyCookies,
+            hint: loc.siteSettingsThirdPartyCookiesHint,
+            subtitle: loc.siteSettingsThirdPartyCookiesSubtitle,
+            lock: _umbrella(TrackingProtectionForce.thirdPartyCookies),
+            control: Toggle(
+                _values.effectiveThirdPartyCookies,
+                (value) =>
+                    _update(_values.copyWith(thirdPartyCookiesEnabled: value))),
+          ),
+          // Follows App Settings until the site picks its own value, and can
+          // go back to following (HTTPS-005).
+          ChoiceTile<Scoped<bool>>(
+            title: loc.siteSettingsHttpsUpgrade,
+            hint: loc.siteSettingsHttpsUpgradeHint,
+            lock: _umbrella(TrackingProtectionForce.httpsUpgrade),
+            values: const [FollowApp(), Own(true), Own(false)],
+            label: (choice) => choice.label(loc,
+                appValue: AppPref.httpsUpgradeEnabled.value),
+            value: _values.trackingProtectionEnabled
+                ? const Own(true)
+                : _values.httpsUpgrade,
+            onChanged: (choice) =>
+                _update(_values.copyWith(httpsUpgrade: choice)),
+          ),
           SettingsSection(loc.privacyGroupFingerprinting),
-          _letterbox(loc),
+          SettingTile(
+            title: loc.siteSettingsLetterboxTitle,
+            hint: loc.siteSettingsWindowSizeHelper,
+            lock: _values.trackingProtectionEnabled
+                ? null
+                : Lock.because(loc.siteSettingsNeedsTrackingProtection),
+            control: Toggle(
+                _values.letterboxEnabled && _values.trackingProtectionEnabled,
+                (value) => _update(_values.copyWith(letterboxEnabled: value))),
+          ),
           // Only while the umbrella is on: with it off nothing is being
           // randomised, and the note would be describing something that is
           // not happening.
@@ -547,7 +524,15 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
             SettingsNote(loc.privacyFingerprintingNote),
           if (ScreenCaptureGuard.isSupported) ...[
             SettingsSection(loc.privacyGroupScreenCapture),
-            _blockScreenshots(loc),
+            SettingTile(
+              title: loc.siteSettingsBlockScreenshots,
+              hint: loc.siteSettingsBlockScreenshotsHint,
+              lock: AppPref.blockScreenshots.value
+                  ? Lock.because(loc.siteSettingsBlockScreenshotsAppWide)
+                  : null,
+              control: Toggle(_values.effectiveBlockScreenshots,
+                  (value) => _update(_values.copyWith(blockScreenshots: value))),
+            ),
           ],
           const SizedBox(height: 24),
         ],

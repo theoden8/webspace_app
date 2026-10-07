@@ -54,9 +54,12 @@ class LocationPickerResult {
 }
 
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
-  late TextEditingController _latController;
-  late TextEditingController _lngController;
-  late TextEditingController _accController;
+  late final _latController =
+      TextEditingController(text: widget.initialLatitude?.toString() ?? '');
+  late final _lngController =
+      TextEditingController(text: widget.initialLongitude?.toString() ?? '');
+  late final _accController =
+      TextEditingController(text: widget.initialAccuracy.toString());
 
   bool _mapLoaded = false;
   bool _fetchingLocation = false;
@@ -84,15 +87,6 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   @override
   void initState() {
     super.initState();
-    _latController = TextEditingController(
-      text: widget.initialLatitude?.toString() ?? '',
-    );
-    _lngController = TextEditingController(
-      text: widget.initialLongitude?.toString() ?? '',
-    );
-    _accController = TextEditingController(
-      text: widget.initialAccuracy.toString(),
-    );
     _loadTileUserAgent();
   }
 
@@ -143,12 +137,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     return LatLng(lat, lng);
   }
 
-  void _setPin(LatLng p) {
-    setState(() {
-      _latController.text = p.latitude.toStringAsFixed(6);
-      _lngController.text = p.longitude.toStringAsFixed(6);
-    });
-  }
+  void _setPin(LatLng p, {double accuracy = 0}) => setState(() {
+        _latController.text = p.latitude.toStringAsFixed(6);
+        _lngController.text = p.longitude.toStringAsFixed(6);
+        if (accuracy > 0) _accController.text = accuracy.toStringAsFixed(1);
+      });
 
   void _onCoordTyped(String _) {
     setState(() {});
@@ -186,16 +179,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       return;
     }
     final fix = res.fix!;
-    setState(() {
-      _latController.text = fix.latitude.toStringAsFixed(6);
-      _lngController.text = fix.longitude.toStringAsFixed(6);
-      if (fix.accuracy > 0) {
-        _accController.text = fix.accuracy.toStringAsFixed(1);
-      }
-    });
+    final pin = LatLng(fix.latitude, fix.longitude);
+    _setPin(pin, accuracy: fix.accuracy);
     if (_mapLoaded) {
       try {
-        _mapController.move(LatLng(fix.latitude, fix.longitude), 14.0);
+        _mapController.move(pin, 14.0);
       } catch (_) {}
     }
   }
@@ -257,6 +245,21 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   Widget _buildCoordinateInputs() {
     final loc = AppLocalizations.of(context);
+    // Coordinates are signed and move the pin as they are typed; accuracy is
+    // neither.
+    Widget field(TextEditingController controller, String label,
+            {bool coordinate = true}) =>
+        TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.numberWithOptions(
+              signed: coordinate, decimal: true),
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
+          onChanged: coordinate ? _onCoordTyped : null,
+        );
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -264,45 +267,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           Row(
             children: [
               Expanded(
-                child: TextFormField(
-                  controller: _latController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      signed: true, decimal: true),
-                  decoration: InputDecoration(
-                    labelText: loc.locationPickerLatitudeLabel,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: _onCoordTyped,
-                ),
-              ),
+                  child: field(_latController, loc.locationPickerLatitudeLabel)),
               const SizedBox(width: 8),
               Expanded(
-                child: TextFormField(
-                  controller: _lngController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      signed: true, decimal: true),
-                  decoration: InputDecoration(
-                    labelText: loc.locationPickerLongitudeLabel,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: _onCoordTyped,
-                ),
-              ),
+                  child:
+                      field(_lngController, loc.locationPickerLongitudeLabel)),
             ],
           ),
           const SizedBox(height: 8),
-          TextFormField(
-            controller: _accController,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: loc.locationPickerAccuracyLabel,
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
+          field(_accController, loc.locationPickerAccuracyLabel,
+              coordinate: false),
           if (CurrentLocationService.isSupported) ...[
             const SizedBox(height: 8),
             Align(
@@ -380,16 +354,21 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   Widget _buildMap() {
     final loc = AppLocalizations.of(context);
-    final initial = _currentLatLng() ?? const LatLng(0, 0);
-    final initialZoom = _currentLatLng() == null ? 2.0 : 10.0;
+    final pin = _currentLatLng();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Wikipedia-style link blue on light, lighter cyan on dark — both meet
+    // WCAG AA on the chosen surface.
+    final linkStyle = TextStyle(
+      color: isDark ? const Color(0xFF6CA0DC) : const Color(0xFF0645AD),
+      decoration: TextDecoration.underline,
+    );
     return Stack(
       children: [
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: initial,
-            initialZoom: initialZoom,
+            initialCenter: pin ?? const LatLng(0, 0),
+            initialZoom: pin == null ? 2.0 : 10.0,
             onTap: (_, p) => _setPin(p),
           ),
           children: [
@@ -415,8 +394,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               // stay readable; the map gets a flat dark-grey aesthetic
               // that matches Material's dark surfaces.
               tileBuilder: isDark
-                  ? (context, tileWidget, tile) {
-                      return ColorFiltered(
+                  ? (context, tileWidget, tile) => ColorFiltered(
                         colorFilter: const ColorFilter.matrix(<double>[
                           -0.2126, -0.7152, -0.0722, 0, 255,
                           -0.2126, -0.7152, -0.0722, 0, 255,
@@ -424,15 +402,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           0, 0, 0, 1, 0,
                         ]),
                         child: tileWidget,
-                      );
-                    }
+                      )
                   : null,
             ),
-            if (_currentLatLng() != null)
+            if (pin != null)
               MarkerLayer(
                 markers: [
                   Marker(
-                    point: _currentLatLng()!,
+                    point: pin,
                     width: 40,
                     height: 40,
                     child: Icon(
@@ -468,25 +445,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   const TextSpan(text: '© '),
                   TextSpan(
                     text: 'OpenStreetMap',
-                    style: TextStyle(
-                      // Wikipedia-style link blue on light, lighter cyan
-                      // on dark — both meet WCAG AA on the chosen surface.
-                      color: isDark
-                          ? const Color(0xFF6CA0DC)
-                          : const Color(0xFF0645AD),
-                      decoration: TextDecoration.underline,
-                    ),
+                    style: linkStyle,
                     recognizer: _osmCopyrightRecognizer,
                   ),
                   TextSpan(text: loc.locationPickerOsmContributors),
                   TextSpan(
                     text: loc.locationPickerReportMapIssue,
-                    style: TextStyle(
-                      color: isDark
-                          ? const Color(0xFF6CA0DC)
-                          : const Color(0xFF0645AD),
-                      decoration: TextDecoration.underline,
-                    ),
+                    style: linkStyle,
                     recognizer: _osmFixmapRecognizer,
                   ),
                 ],

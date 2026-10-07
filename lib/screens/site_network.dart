@@ -57,22 +57,18 @@ class SiteNetworkValues {
     Object? gatewayId = _keep,
     Object? credentialsId = _keep,
     WebRtcPolicy? webRtcPolicy,
-  }) =>
-      SiteNetworkValues(
-        proxyType: proxyType ?? this.proxyType,
-        torExitCountry: identical(torExitCountry, _keep)
-            ? this.torExitCountry
-            : torExitCountry as String?,
-        savedProxyId: identical(savedProxyId, _keep)
-            ? this.savedProxyId
-            : savedProxyId as String?,
-        gatewayId:
-            identical(gatewayId, _keep) ? this.gatewayId : gatewayId as String?,
-        credentialsId: identical(credentialsId, _keep)
-            ? this.credentialsId
-            : credentialsId as String?,
-        webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
-      );
+  }) {
+    String? or(Object? next, String? kept) =>
+        identical(next, _keep) ? kept : next as String?;
+    return SiteNetworkValues(
+      proxyType: proxyType ?? this.proxyType,
+      torExitCountry: or(torExitCountry, this.torExitCountry),
+      savedProxyId: or(savedProxyId, this.savedProxyId),
+      gatewayId: or(gatewayId, this.gatewayId),
+      credentialsId: or(credentialsId, this.credentialsId),
+      webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
+    );
+  }
 }
 
 /// The address check the save path runs; [ProxyTypeForm.typesAddress] says
@@ -192,31 +188,6 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     widget.onChanged(next);
   }
 
-  Widget _proxyType(AppLocalizations loc) {
-    final type = _values.proxyType;
-    return SettingTile(
-      title: loc.siteSettingsProxyType,
-      hint: loc.siteSettingsProxyCoverageHint,
-      // What a configured proxy actually covers here, which is not the same
-      // claim as "a proxy is configured" (LEAK-010). Absent on DEFAULT, where
-      // the row claims nothing.
-      subtitle: type == ProxyType.DEFAULT
-          ? null
-          : (ProxyManager.binding == ProxyBinding.perSite
-              ? loc.siteSettingsProxyCoverageFirstOnly
-              : loc.siteSettingsProxyCoverageAll),
-      control: Trailing(ProxyChoiceDropdown(
-        type: type,
-        savedProxyId: _values.savedProxyId,
-        gatewayId: _values.gatewayId,
-        library: _library,
-        torAvailable: TorService.instance.isAvailable,
-        torExternal: TorService.instance.isExternal,
-        onChanged: _pickProxy,
-      )),
-    );
-  }
-
   ProxyLibraryData get _library => widget.library ?? ProxyLibrary.data;
 
   /// A pick moves only the reference it names; the others are kept, like
@@ -325,7 +296,27 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     return [
       SettingsSection(loc.networkGroupProxy),
       SettingsNote(loc.siteSettingsProxyShared),
-      _proxyType(loc),
+      SettingTile(
+        title: loc.siteSettingsProxyType,
+        hint: loc.siteSettingsProxyCoverageHint,
+        // What a configured proxy actually covers here, which is not the same
+        // claim as "a proxy is configured" (LEAK-010). Absent on DEFAULT,
+        // where the row claims nothing.
+        subtitle: type == ProxyType.DEFAULT
+            ? null
+            : (ProxyManager.binding == ProxyBinding.perSite
+                ? loc.siteSettingsProxyCoverageFirstOnly
+                : loc.siteSettingsProxyCoverageAll),
+        control: Trailing(ProxyChoiceDropdown(
+          type: type,
+          savedProxyId: _values.savedProxyId,
+          gatewayId: _values.gatewayId,
+          library: _library,
+          torAvailable: TorService.instance.isAvailable,
+          torExternal: TorService.instance.isExternal,
+          onChanged: _pickProxy,
+        )),
+      ),
       // An external tor picks its own exits (TOR-025).
       if (type == ProxyType.TOR && !TorService.instance.isExternal)
         _torExitCountry(loc),

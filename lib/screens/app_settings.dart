@@ -3,7 +3,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/app_appearance.dart';
 import 'package:webspace/screens/app_backup.dart';
 import 'package:webspace/screens/app_behaviour.dart';
@@ -11,7 +10,6 @@ import 'package:webspace/screens/app_developer.dart';
 import 'package:webspace/screens/app_network.dart';
 import 'package:webspace/screens/app_privacy.dart';
 import 'package:webspace/screens/user_scripts.dart';
-import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -135,13 +133,9 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   @override
   void initState() {
     super.initState();
-    _loadAppVersion();
-  }
-
-  Future<void> _loadAppVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (!mounted) return;
-    setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    });
   }
 
   /// One tap on the version row: the Android developer-options gesture, which
@@ -192,47 +186,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         if (mounted) setState(() {});
       });
 
-  void _openAppearance() => _open(AppAppearanceScreen(
-        settings: _settings,
-        onSettingsChanged: (settings) {
-          // The screen sits above this one, but the callback can still land
-          // after both were torn down.
-          if (mounted) setState(() => _settings = settings);
-          widget.onSettingsChanged(settings);
-        },
-      ));
-
-  void _openBehaviour() => _open(AppBehaviourScreen(
-        onOpenLinkHandlingSettings: widget.onOpenLinkHandlingSettings,
-        webSearchSites: widget.webSearchSites,
-      ));
-
-  void _openNetwork() => _open(AppNetworkScreen(
-        siteNames: widget.siteNames,
-        onOutboundProxyChanged: widget.onOutboundProxyChanged,
-        siteProxies: widget.siteProxies,
-        onSavedProxiesChanged: widget.onSavedProxiesChanged,
-      ));
-
-  void _openPrivacy() => _open(AppPrivacyScreen(
-        siteNames: widget.siteNames,
-        onTrustUboHosts: widget.onTrustUboHosts,
-      ));
-
-  void _openUserScripts() => _open(UserScriptsScreen(
-        title: 'Global User Scripts',
-        userScripts: widget.globalUserScripts,
-        onSave: (scripts) {
-          widget.onGlobalUserScriptsChanged?.call(scripts);
-        },
-        isGlobalLibrary: true,
-      ));
-
-  void _openDeveloper() => _open(AppDeveloperScreen(
-        proxyRouterRunsHere: widget.proxyRouterRunsHere,
-        externalTorRunsHere: widget.externalTorRunsHere,
-      ));
-
   /// Export, import and the archive actions run on the main page, so settings
   /// closes before each one.
   Future<void> _openBackup() => guardedOpen(() async {
@@ -248,7 +201,16 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         );
         if (action == null || !mounted) return;
         _closeSelf();
-        _runBackupAction(action);
+        switch (action) {
+          case AppBackupAction.export:
+            widget.onExportSettings();
+          case AppBackupAction.import:
+            widget.onImportSettings();
+          case AppBackupAction.restoreArchive:
+            widget.onRestoreArchive?.call();
+          case AppBackupAction.closeAllArchives:
+            widget.onCloseAllArchives?.call();
+        }
       });
 
   /// Leaves settings for the main page. Pops only this route: if anything
@@ -265,19 +227,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     }
   }
 
-  void _runBackupAction(AppBackupAction action) {
-    switch (action) {
-      case AppBackupAction.export:
-        widget.onExportSettings();
-      case AppBackupAction.import:
-        widget.onImportSettings();
-      case AppBackupAction.restoreArchive:
-        widget.onRestoreArchive?.call();
-      case AppBackupAction.closeAllArchives:
-        widget.onCloseAllArchives?.call();
-    }
-  }
-
   String _appearanceSummary(AppLocalizations loc) => [
         themeModeLabel(loc, _settings.themeMode),
         if (AppPref.appLocaleOverride.value case final tag
@@ -285,24 +234,18 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           languageLabelForTag(tag),
       ].join(' · ');
 
-  String _behaviourSummary(AppLocalizations loc) {
-    final backOpensMenuOffered = backAtHistoryStartConfigurable(
-      isIOS: hostIsIOS,
-      isMacOS: hostIsMacOS,
-    );
-    return summariseSettings(
-      loc,
-      [
-        if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
-        if (AppPref.fullscreenOnShortcut.value)
-          loc.appSettingsFullscreenOnShortcut,
-        if (backOpensMenuOffered && AppPref.backOpensMenu.value)
-          loc.appSettingsBackOpensMenu,
-        if (AppPref.linkHandlingEnabled.value) loc.appSettingsLinkHandling,
-      ],
-      none: loc.behaviourSummaryNothingOn,
-    );
-  }
+  String _behaviourSummary(AppLocalizations loc) => summariseSettings(
+        loc,
+        [
+          if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
+          if (AppPref.fullscreenOnShortcut.value)
+            loc.appSettingsFullscreenOnShortcut,
+          if (backOpensMenuOffered() && AppPref.backOpensMenu.value)
+            loc.appSettingsBackOpensMenu,
+          if (AppPref.linkHandlingEnabled.value) loc.appSettingsLinkHandling,
+        ],
+        none: loc.behaviourSummaryNothingOn,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -318,20 +261,36 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             leading: const Icon(Icons.palette_outlined),
             title: loc.appSettingsAppearance,
             summary: _appearanceSummary(loc),
-            onTap: _openAppearance,
+            onTap: () => _open(AppAppearanceScreen(
+              settings: _settings,
+              onSettingsChanged: (settings) {
+                // The screen sits above this one, but the callback can still
+                // land after both were torn down.
+                if (mounted) setState(() => _settings = settings);
+                widget.onSettingsChanged(settings);
+              },
+            )),
           ),
           SummaryNavRow(
             leading: const Icon(Icons.tune),
             title: loc.appSettingsBehaviour,
             summary: _behaviourSummary(loc),
-            onTap: _openBehaviour,
+            onTap: () => _open(AppBehaviourScreen(
+              onOpenLinkHandlingSettings: widget.onOpenLinkHandlingSettings,
+              webSearchSites: widget.webSearchSites,
+            )),
           ),
           SettingsSection(loc.appSettingsGroupSites),
           SummaryNavRow(
             leading: const Icon(Icons.lan_outlined),
             title: loc.appSettingsNetwork,
             summary: appNetworkSummary(loc),
-            onTap: _openNetwork,
+            onTap: () => _open(AppNetworkScreen(
+              siteNames: widget.siteNames,
+              onOutboundProxyChanged: widget.onOutboundProxyChanged,
+              siteProxies: widget.siteProxies,
+              onSavedProxiesChanged: widget.onSavedProxiesChanged,
+            )),
           ),
           SummaryNavRow(
             leading: const Icon(Icons.verified_user_outlined),
@@ -341,7 +300,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               appPrivacyOn(loc),
               none: loc.privacySummaryNothingOn,
             ),
-            onTap: _openPrivacy,
+            onTap: () => _open(AppPrivacyScreen(
+              siteNames: widget.siteNames,
+              onTrustUboHosts: widget.onTrustUboHosts,
+            )),
           ),
           SummaryNavRow(
             leading: const Icon(Icons.code),
@@ -349,7 +311,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             summary: widget.globalUserScripts.isEmpty
                 ? loc.appSettingsNoGlobalScripts
                 : loc.appSettingsScriptsDefined(widget.globalUserScripts.length),
-            onTap: _openUserScripts,
+            onTap: () => _open(UserScriptsScreen(
+              title: 'Global User Scripts',
+              userScripts: widget.globalUserScripts,
+              onSave: (scripts) =>
+                  widget.onGlobalUserScriptsChanged?.call(scripts),
+              isGlobalLibrary: true,
+            )),
           ),
           SettingsSection(loc.appSettingsData),
           SummaryNavRow(
@@ -370,7 +338,10 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                     proxyRouterRunsHere: widget.proxyRouterRunsHere),
                 none: loc.behaviourSummaryNothingOn,
               ),
-              onTap: _openDeveloper,
+              onTap: () => _open(AppDeveloperScreen(
+                proxyRouterRunsHere: widget.proxyRouterRunsHere,
+                externalTorRunsHere: widget.externalTorRunsHere,
+              )),
             )
           else
             SettingTile(

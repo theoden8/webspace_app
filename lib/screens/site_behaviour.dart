@@ -180,55 +180,6 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     widget.onChanged(next);
   }
 
-  // --- Opening and display -------------------------------------------------
-
-  Widget _alwaysOpenHome(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsAlwaysOpenHome,
-        hint: loc.siteSettingsAlwaysOpenHomeHint,
-        lock: widget.incognito
-            ? Lock.because(loc.siteSettingsAlwaysOpenHomeForced)
-            : null,
-        control: Toggle(_values.effectiveAlwaysOpenHome(widget.incognito),
-            (value) => _update(_values.copyWith(alwaysOpenHome: value))),
-      );
-
-  Widget _kioskMode(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsKioskMode,
-        hint: loc.siteSettingsKioskModeHint,
-        control: Toggle(_values.kioskMode,
-            (value) => _update(_values.copyWith(kioskMode: value))),
-      );
-
-  Widget _fullscreen(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsFullscreen,
-        hintTitle: loc.siteSettingsFullscreenHintTitle,
-        hint: loc.siteSettingsFullscreenHint,
-        subtitle: loc.siteSettingsFullscreenSubtitle,
-        control: Toggle(_values.fullscreenMode,
-            (value) => _update(_values.copyWith(fullscreenMode: value))),
-      );
-
-  /// Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode off,
-  /// and Kiosk mode on shows tabs off without forgetting the stored choice.
-  Widget _tabs(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsTabs,
-        hint: loc.siteSettingsTabsHint,
-        control: Toggle(
-            _values.effectiveTabsEnabled,
-            (value) => _update(value
-                ? _values.copyWith(tabsEnabled: true, kioskMode: false)
-                : _values.copyWith(tabsEnabled: false))),
-      );
-
-  Widget _htmlCaching(AppLocalizations loc) => SettingTile(
-        title: loc.siteSettingsHtmlCaching,
-        hintTitle: loc.siteSettingsHtmlCachingHintTitle,
-        hint: loc.siteSettingsHtmlCachingHint,
-        lock: _values.archived ? const ArchiveLock() : null,
-        control: Toggle(_values.effectiveHtmlCaching,
-            (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
-      );
-
   // --- Link handling -------------------------------------------------------
 
   bool get _tabsAvailable =>
@@ -454,11 +405,50 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         children: [
           SettingsNote.host(widget.host),
           SettingsSection(loc.behaviourGroupOpening),
-          _alwaysOpenHome(loc),
-          _kioskMode(loc),
-          _fullscreen(loc),
-          if (_tabsAvailable) _tabs(loc),
-          _htmlCaching(loc),
+          SettingTile(
+            title: loc.siteSettingsAlwaysOpenHome,
+            hint: loc.siteSettingsAlwaysOpenHomeHint,
+            lock: widget.incognito
+                ? Lock.because(loc.siteSettingsAlwaysOpenHomeForced)
+                : null,
+            control: Toggle(_values.effectiveAlwaysOpenHome(widget.incognito),
+                (value) => _update(_values.copyWith(alwaysOpenHome: value))),
+          ),
+          SettingTile(
+            title: loc.siteSettingsKioskMode,
+            hint: loc.siteSettingsKioskModeHint,
+            control: Toggle(_values.kioskMode,
+                (value) => _update(_values.copyWith(kioskMode: value))),
+          ),
+          SettingTile(
+            title: loc.siteSettingsFullscreen,
+            hintTitle: loc.siteSettingsFullscreenHintTitle,
+            hint: loc.siteSettingsFullscreenHint,
+            subtitle: loc.siteSettingsFullscreenSubtitle,
+            control: Toggle(_values.fullscreenMode,
+                (value) => _update(_values.copyWith(fullscreenMode: value))),
+          ),
+          // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
+          // off, and Kiosk mode on shows tabs off without forgetting the
+          // stored choice.
+          if (_tabsAvailable)
+            SettingTile(
+              title: loc.siteSettingsTabs,
+              hint: loc.siteSettingsTabsHint,
+              control: Toggle(
+                  _values.effectiveTabsEnabled,
+                  (value) => _update(value
+                      ? _values.copyWith(tabsEnabled: true, kioskMode: false)
+                      : _values.copyWith(tabsEnabled: false))),
+            ),
+          SettingTile(
+            title: loc.siteSettingsHtmlCaching,
+            hintTitle: loc.siteSettingsHtmlCachingHintTitle,
+            hint: loc.siteSettingsHtmlCachingHint,
+            lock: _values.archived ? const ArchiveLock() : null,
+            control: Toggle(_values.effectiveHtmlCaching,
+                (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
+          ),
           SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,

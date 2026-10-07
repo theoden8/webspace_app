@@ -26,8 +26,12 @@ class HintedTitle extends StatelessWidget {
   final String? hintTitle;
   final TextStyle? style;
 
-  /// Marks a setting that is on while the data it needs is missing.
+  /// Marks a setting that is on while the data it needs is missing: the
+  /// persistent counterpart of the "not configured" SnackBar, so the gap stays
+  /// visible after the SnackBar is gone.
   final bool warn;
+
+  static const Color missingDataColor = Colors.orange;
 
   @override
   Widget build(BuildContext context) {
@@ -38,24 +42,15 @@ class HintedTitle extends StatelessWidget {
         Flexible(child: Text(title, style: style)),
         if (hint != null)
           HintButton(title: hintTitle ?? title, description: hint),
-        if (warn) const MissingDataIcon(),
+        if (warn)
+          const Padding(
+            padding: EdgeInsets.only(left: Spacing.xs),
+            child: Icon(Icons.warning_amber_rounded,
+                size: 18, color: missingDataColor),
+          ),
       ],
     );
   }
-}
-
-/// Persistent counterpart of the "not configured" SnackBar: the gap stays
-/// visible after the SnackBar is gone.
-class MissingDataIcon extends StatelessWidget {
-  const MissingDataIcon({super.key});
-
-  static const Color color = Colors.orange;
-
-  @override
-  Widget build(BuildContext context) => const Padding(
-    padding: EdgeInsets.only(left: Spacing.xs),
-    child: Icon(Icons.warning_amber_rounded, size: 18, color: color),
-  );
 }
 
 /// Why a row cannot be changed here. The row renders disabled; the reason, if
@@ -168,7 +163,7 @@ class SettingTile extends StatelessWidget {
         : Text(
             text,
             style: missingData
-                ? const TextStyle(color: MissingDataIcon.color)
+                ? const TextStyle(color: HintedTitle.missingDataColor)
                 : null,
           );
     Widget toggle(bool value, ValueChanged<bool> onChanged) => SwitchListTile(
