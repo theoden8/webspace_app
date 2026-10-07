@@ -99,32 +99,6 @@ void main() {
     // ignore: avoid_print
     print('After Settings tap, ${visibleTexts.length} Text widgets: $visibleTexts');
 
-    // The Export Settings + Import Settings tiles live near the
-    // bottom of the AppSettingsScreen ListView, well below the
-    // viewport fold under the integration_test default viewport.
-    // ListView's SliverChildListDelegate culls offscreen children, so
-    // they aren't in the Element tree until scrolled into view.
-    // scrollUntilVisible scrolls the nearest Scrollable ancestor
-    // until the matcher resolves.
-    await tester.scrollUntilVisible(
-      find.text('Export Settings'),
-      300.0,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Export Settings'), findsOneWidget,
-      reason: 'Export Settings list tile should render after scroll');
-    // Import Settings is the next tile below Export; the ListView culls it
-    // until scrolled into view, so bring it into the viewport explicitly
-    // rather than assuming both tiles share the fold (adding any tile above
-    // shifts where Export lands).
-    await tester.scrollUntilVisible(
-      find.text('Import Settings'),
-      100.0,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Import Settings'), findsOneWidget,
-      reason: 'Import Settings list tile should render after scroll');
-
     // Verify we can scroll the settings screen — proves the
     // ListView/Scrollable inside the screen layouts correctly under
     // the Linux desktop renderer's DPR.
@@ -132,5 +106,22 @@ void main() {
     expect(scrollable, findsOneWidget);
     await tester.drag(scrollable, const Offset(0, -300));
     await tester.pumpAndSettle();
+
+    // Export Settings + Import Settings live on the Backup and archives
+    // screen. The index's ListView culls offscreen children, so the row is
+    // not in the Element tree until scrolled into view; scrollUntilVisible
+    // scrolls the nearest Scrollable ancestor until the matcher resolves.
+    await tester.scrollUntilVisible(
+      find.text('Backup and archives'),
+      300.0,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Backup and archives'));
+    await tester.pumpAndSettle();
+    expect(find.text('Export Settings'), findsOneWidget,
+      reason: 'Export Settings list tile should render on the Backup screen');
+    expect(find.text('Import Settings'), findsOneWidget,
+      reason: 'Import Settings list tile should render on the Backup screen');
   });
 }

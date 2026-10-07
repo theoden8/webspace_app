@@ -33,7 +33,14 @@ import 'package:webspace/demo_data.dart'
     show demoBlockStatsSiteNames, seedDemoBlockStats;
 import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
 import 'package:webspace/screens/add_site.dart';
+import 'package:webspace/screens/app_appearance.dart';
+import 'package:webspace/screens/app_backup.dart';
+import 'package:webspace/screens/app_behaviour.dart';
+import 'package:webspace/screens/app_developer.dart';
+import 'package:webspace/screens/app_network.dart';
+import 'package:webspace/screens/app_privacy.dart';
 import 'package:webspace/screens/app_settings.dart';
+import 'package:webspace/screens/content_blocker_settings.dart';
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/screens/location_picker.dart';
@@ -104,6 +111,13 @@ final List<GalleryCard> galleryCards = [
   GalleryCard(id: 'saved-proxy-edit', label: 'Saved proxy form', fullBleed: true, builder: (c) => const _SavedProxyEditCard()),
   GalleryCard(id: 'saved-credentials-edit', label: 'Saved credentials form', fullBleed: true, builder: (c) => const _SavedCredentialsEditCard()),
   GalleryCard(id: 'app-settings', label: 'App settings screen', fullBleed: true, builder: (c) => const _AppSettingsCard()),
+  GalleryCard(id: 'app-appearance', label: 'App appearance screen', fullBleed: true, builder: (c) => const _AppAppearanceCard()),
+  GalleryCard(id: 'app-behaviour', label: 'App behaviour screen', fullBleed: true, builder: (c) => const _AppBehaviourCard()),
+  GalleryCard(id: 'app-network', label: 'App network screen', fullBleed: true, builder: (c) => const AppNetworkScreen()),
+  GalleryCard(id: 'app-privacy', label: 'App privacy screen', fullBleed: true, builder: (c) => const _AppPrivacyCard()),
+  GalleryCard(id: 'app-content-blocker', label: 'Content blocker screen', fullBleed: true, builder: (c) => const ContentBlockerSettingsScreen()),
+  GalleryCard(id: 'app-backup', label: 'Backup and archives screen', fullBleed: true, builder: (c) => const AppBackupScreen(offerRestoreArchive: true, offerCloseAllArchives: true)),
+  GalleryCard(id: 'app-developer', label: 'Developer screen', fullBleed: true, builder: (c) => const AppDeveloperScreen(proxyRouterRunsHere: true)),
   GalleryCard(id: 'protection-report', label: 'Protection report screen', fullBleed: true, builder: (c) => const _ProtectionReportCard()),
   GalleryCard(id: 'protection-report-category', label: 'Protection report category', fullBleed: true, builder: (c) => const _ProtectionCategoryCard()),
   GalleryCard(id: 'add-site', label: 'Add site screen', fullBleed: true, builder: (c) => const _AddSiteCard()),
@@ -806,6 +820,57 @@ class _AppSettingsCard extends StatelessWidget {
         linkHandlingEnabled: false,
         onLinkHandlingEnabledChanged: (_) {},
         onOpenLinkHandlingSettings: () {},
+      );
+}
+
+/// App appearance: language, theme mode and every accent swatch.
+class _AppAppearanceCard extends StatelessWidget {
+  const _AppAppearanceCard();
+
+  @override
+  Widget build(BuildContext context) => AppAppearanceScreen(
+        settings: const AppThemeSettings(),
+        onSettingsChanged: (_) {},
+        localeOverride: '',
+        onLocaleOverrideChanged: (_) {},
+      );
+}
+
+/// App behaviour with the tab strip pinned, so the full-screen choice under
+/// it shows.
+class _AppBehaviourCard extends StatelessWidget {
+  const _AppBehaviourCard();
+
+  @override
+  Widget build(BuildContext context) => AppBehaviourScreen(
+        showTabStrip: true,
+        onShowTabStripChanged: (_) {},
+        tabStripInFullscreen: false,
+        onTabStripInFullscreenChanged: (_) {},
+        tabBarButton: false,
+        onTabBarButtonChanged: (_) {},
+        tabMaxWidth: 180,
+        onTabMaxWidthChanged: (_) {},
+        fullscreenOnShortcut: false,
+        onFullscreenOnShortcutChanged: (_) {},
+        backOpensMenu: false,
+        onBackOpensMenuChanged: (_) {},
+        linkHandlingEnabled: true,
+        onOpenLinkHandlingSettings: () {},
+      );
+}
+
+/// App privacy: the protection report, the blockers every site masks, the
+/// identity data and screen capture.
+class _AppPrivacyCard extends StatelessWidget {
+  const _AppPrivacyCard();
+
+  @override
+  Widget build(BuildContext context) => AppPrivacyScreen(
+        showStatsBanner: true,
+        onShowStatsBannerChanged: (_) {},
+        httpsUpgradeEnabled: true,
+        onHttpsUpgradeEnabledChanged: (_) {},
       );
 }
 
