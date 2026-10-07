@@ -2556,15 +2556,7 @@ class WebViewFactory {
       ),
       identity:
           ua == null || ua.isEmpty ? null : buildUserAgentIdentityShim(ua),
-      location: LocationSpoofService.buildScript(
-        locationMode: location.mode,
-        spoofLatitude: location.latitude,
-        spoofLongitude: location.longitude,
-        spoofAccuracy: location.accuracy,
-        spoofTimezone: location.timezone,
-        liveLocationGranularity: location.granularity,
-        webRtcPolicy: location.webRtc,
-      ),
+      location: LocationSpoofService.buildScript(location),
       timezone: location.timezone,
       language: language == null ? null : buildLanguageShim(language),
     );

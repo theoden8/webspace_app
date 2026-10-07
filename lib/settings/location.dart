@@ -58,6 +58,18 @@ enum LocationGranularity { gps, approximate, gsm }
 /// [disabled] — neutralize `RTCPeerConnection` entirely.
 enum WebRtcPolicy { defaultPolicy, relayOnly, disabled }
 
+/// Where the site is told the device is, and how it may find out.
+typedef SiteLocation = ({
+  LocationMode mode,
+  double? latitude,
+  double? longitude,
+  double accuracy,
+  // The effective zone, "From picked location" already resolved at save.
+  String? timezone,
+  LocationGranularity granularity,
+  WebRtcPolicy webRtc,
+});
+
 /// The policy a webview actually runs (ETP-031). Tracking Protection on a
 /// proxied site raises [WebRtcPolicy.defaultPolicy] to
 /// [WebRtcPolicy.relayOnly]: a direct ICE candidate carries the device IP

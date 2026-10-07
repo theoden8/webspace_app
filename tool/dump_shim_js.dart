@@ -74,108 +74,117 @@ Map<String, String> buildAllFixtures() {
       buildDesktopModeShim(firefoxWindowsDesktopUserAgent);
 
   fixtures['location_spoof/static_tokyo.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.spoof,
-    spoofLatitude: 35.6762,
-    spoofLongitude: 139.6503,
-    spoofAccuracy: 25.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.spoof,
+    latitude: 35.6762,
+    longitude: 139.6503,
+    accuracy: 25.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/live_gps.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.live,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.live,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/live_approximate.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.live,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    liveLocationGranularity: LocationGranularity.approximate,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.live,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.approximate,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/live_gsm.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.live,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    liveLocationGranularity: LocationGranularity.gsm,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
-  fixtures['location_spoof/blocked.js'] = LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.live,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gsm,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
+  fixtures['location_spoof/blocked.js'] = LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   // A spoof site whose coordinates went missing must fail closed, not fall
   // back to the platform fix.
   fixtures['location_spoof/spoof_without_coords.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.spoof,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.spoof,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   // Zero-offset zone: the negative-zero boundary case.
   fixtures['webgl_kill_switch/shim.js'] = webGlKillSwitchScript;
   fixtures['location_spoof/timezone_only_utc.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: 'UTC',
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: 'UTC',
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/timezone_only_tokyo.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: 'Asia/Tokyo',
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: 'Asia/Tokyo',
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/webrtc_relay.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.relayOnly,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.relayOnly,
+  ));
   fixtures['location_spoof/webrtc_disabled.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.disabled,
-  );
-  fixtures['location_spoof/full_combo.js'] = LocationSpoofService.buildScript(
-    locationMode: LocationMode.spoof,
-    spoofLatitude: 48.8566,
-    spoofLongitude: 2.3522,
-    spoofAccuracy: 30.0,
-    spoofTimezone: 'Europe/Paris',
-    webRtcPolicy: WebRtcPolicy.relayOnly,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.disabled,
+  ));
+  fixtures['location_spoof/full_combo.js'] = LocationSpoofService.buildScript((
+    mode: LocationMode.spoof,
+    latitude: 48.8566,
+    longitude: 2.3522,
+    accuracy: 30.0,
+    timezone: 'Europe/Paris',
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.relayOnly,
+  ));
 
   fixtures['do_not_track/shim.js'] = buildDoNotTrackShim();
 
@@ -289,14 +298,15 @@ Map<String, String> buildAllFixtures() {
   fixtures['worker_shim/installer_combined.js'] = buildWorkerShimScript([
     buildAntiFingerprintingShim('alpha-fixture-seed'),
     buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!,
-    LocationSpoofService.buildScript(
-      locationMode: LocationMode.off,
-      spoofLatitude: null,
-      spoofLongitude: null,
-      spoofAccuracy: 50.0,
-      spoofTimezone: 'UTC',
-      webRtcPolicy: WebRtcPolicy.disabled,
-    ),
+    LocationSpoofService.buildScript((
+      mode: LocationMode.off,
+      latitude: null,
+      longitude: null,
+      accuracy: 50.0,
+      timezone: 'UTC',
+      granularity: LocationGranularity.gps,
+      webRtc: WebRtcPolicy.disabled,
+    )),
     buildLanguageShim('en'),
   ])!;
 

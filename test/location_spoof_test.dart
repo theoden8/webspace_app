@@ -11,14 +11,15 @@ void main() {
       // permission prompt, so the least-permissive-looking option was the
       // only pass-through one. It now refuses every request on every
       // platform.
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, contains('var BLOCK_LOC = true'));
       expect(script, contains('var STATIC_LOC = false'));
       expect(script, contains('var LIVE_LOC = false'));
@@ -29,14 +30,15 @@ void main() {
       // LOC-OFF-002. Reachable from a hand-edited or partially-restored
       // backup. Emitting no shim would hand the page the real device fix,
       // which is the opposite of what the site is configured for.
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.spoof,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.spoof,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, contains('var BLOCK_LOC = true'));
       expect(script, contains('var STATIC_LOC = false'));
     });
@@ -46,28 +48,30 @@ void main() {
         (LocationMode.live, null, null),
         (LocationMode.spoof, 35.6762, 139.6503),
       ]) {
-        final script = LocationSpoofService.buildScript(
-          locationMode: grant.$1,
-          spoofLatitude: grant.$2,
-          spoofLongitude: grant.$3,
-          spoofAccuracy: 50.0,
-          spoofTimezone: null,
-          webRtcPolicy: WebRtcPolicy.defaultPolicy,
-        );
+        final script = LocationSpoofService.buildScript((
+          mode: grant.$1,
+          latitude: grant.$2,
+          longitude: grant.$3,
+          accuracy: 50.0,
+          timezone: null,
+          granularity: LocationGranularity.gps,
+          webRtc: WebRtcPolicy.defaultPolicy,
+        ));
         expect(script, contains('var BLOCK_LOC = false'),
             reason: '${grant.$1} is a grant and must not block');
       }
     });
 
     test('live mode emits a shim that flips LIVE_LOC and not STATIC_LOC', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.live,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.live,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, isNotNull);
       // STATIC_LOC must be false — the shim should not embed any static
       // coords. LIVE_LOC must be true so the JS code path calls back into
@@ -78,14 +82,15 @@ void main() {
     });
 
     test('geolocation shim embeds the coordinates', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.spoof,
-        spoofLatitude: 35.6762,
-        spoofLongitude: 139.6503,
-        spoofAccuracy: 25.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.spoof,
+        latitude: 35.6762,
+        longitude: 139.6503,
+        accuracy: 25.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var STATIC_LOC = true'));
       expect(script, contains('var LAT = 35.6762'));
@@ -96,28 +101,30 @@ void main() {
     });
 
     test('timezone-only shim still emits script without static_loc', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: 'Asia/Tokyo',
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: 'Asia/Tokyo',
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var STATIC_LOC = false'));
       expect(script, contains('var TZ = "Asia/Tokyo"'));
     });
 
     test('webrtc relay-only shim sets WRTC=relay', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.relayOnly,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.relayOnly,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var WRTC = "relay"'));
       expect(script, contains("iceTransportPolicy = 'relay'"));
@@ -125,28 +132,30 @@ void main() {
     });
 
     test('webrtc disabled shim sets WRTC=off and neuters RTCPeerConnection', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.disabled,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.disabled,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var WRTC = "off"'));
       expect(script, contains('WebRTC disabled'));
     });
 
     test('shim patches prototype methods not just instance', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.spoof,
-        spoofLatitude: 0.0,
-        spoofLongitude: 0.0,
-        spoofAccuracy: 50.0,
-        spoofTimezone: 'UTC',
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.spoof,
+        latitude: 0.0,
+        longitude: 0.0,
+        accuracy: 50.0,
+        timezone: 'UTC',
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, contains('Geolocation.prototype'));
       expect(script, contains('Date.prototype.getTimezoneOffset'));
       expect(script, contains('Date.prototype.toString'));
@@ -160,14 +169,15 @@ void main() {
     // outside the proxy, and `Intl.DateTimeFormat.prototype.constructor`
     // resolves the device timezone.
     test('relay wrapper re-points RTCPeerConnection.prototype.constructor', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.relayOnly,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.relayOnly,
+      ));
       expect(script, contains('_Patched.prototype = _RealRTC.prototype'));
       expect(
         script,
@@ -177,14 +187,15 @@ void main() {
     });
 
     test('timezone wrapper re-points DateTimeFormat.prototype.constructor', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: 'Asia/Tokyo',
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: 'Asia/Tokyo',
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, contains('PatchedDTF.prototype = _nativeDTF.prototype'));
       expect(
         script,
@@ -194,27 +205,29 @@ void main() {
     });
 
     test('shim hardens Function.prototype.toString', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.spoof,
-        spoofLatitude: 0.0,
-        spoofLongitude: 0.0,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.spoof,
+        latitude: 0.0,
+        longitude: 0.0,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, contains('Function.prototype.toString'));
       expect(script, contains('[native code]'));
     });
 
     test('shim fakes permissions.query for geolocation', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.spoof,
-        spoofLatitude: 0.0,
-        spoofLongitude: 0.0,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.spoof,
+        latitude: 0.0,
+        longitude: 0.0,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, contains('navigator.permissions'));
       expect(script, contains("name === 'geolocation'"));
       expect(script, contains("'granted'"));
@@ -224,14 +237,15 @@ void main() {
       // Backwards-compat: callers that omit `liveLocationGranularity`
       // must still build a live shim that does NOT snap — snapping is
       // opt-in only via approximate/gsm.
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.live,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.live,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var LIVE_LOC = true'));
       expect(script, contains('var SNAP_STEP_DEG = 0.0'));
@@ -239,15 +253,15 @@ void main() {
     });
 
     test('live mode with approximate granularity snaps to a ~110 m grid', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.live,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        liveLocationGranularity: LocationGranularity.approximate,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.live,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.approximate,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var LIVE_LOC = true'));
       expect(script, contains('var SNAP_STEP_DEG = 0.001'));
@@ -257,15 +271,15 @@ void main() {
     });
 
     test('live mode with gsm granularity snaps to a ~1.1 km grid', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.live,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        liveLocationGranularity: LocationGranularity.gsm,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.live,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gsm,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var LIVE_LOC = true'));
       expect(script, contains('var SNAP_STEP_DEG = 0.01'));
@@ -277,15 +291,15 @@ void main() {
       // Static spoof coords reflect what the user typed/picked; the
       // builder must not flip on snapping when the mode isn't live, even
       // if the caller passes gsm.
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.spoof,
-        spoofLatitude: 35.6762,
-        spoofLongitude: 139.6503,
-        spoofAccuracy: 25.0,
-        spoofTimezone: null,
-        liveLocationGranularity: LocationGranularity.gsm,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.spoof,
+        latitude: 35.6762,
+        longitude: 139.6503,
+        accuracy: 25.0,
+        timezone: null,
+        granularity: LocationGranularity.gsm,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, isNotNull);
       expect(script, contains('var STATIC_LOC = true'));
       expect(script, contains('var LIVE_LOC = false'));
@@ -294,14 +308,15 @@ void main() {
     });
 
     test('installs only once via window flag', () {
-      final script = LocationSpoofService.buildScript(
-        locationMode: LocationMode.spoof,
-        spoofLatitude: 1.0,
-        spoofLongitude: 2.0,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final script = LocationSpoofService.buildScript((
+        mode: LocationMode.spoof,
+        latitude: 1.0,
+        longitude: 2.0,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(script, contains('__wsLocShimInstalled'));
     });
   });

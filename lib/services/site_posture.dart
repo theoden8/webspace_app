@@ -54,18 +54,6 @@ typedef SiteFingerprint = ({
   String? resetNonce,
 });
 
-/// Where the site is told the device is, and how it may find out.
-typedef SiteLocation = ({
-  LocationMode mode,
-  double? latitude,
-  double? longitude,
-  double accuracy,
-  // The effective zone, "From picked location" already resolved at save.
-  String? timezone,
-  LocationGranularity granularity,
-  WebRtcPolicy webRtc,
-});
-
 /// Capture and DRM decisions, as the site has settled them.
 typedef SiteMedia = ({CaptureGrants capture, bool? protectedContent});
 

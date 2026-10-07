@@ -380,9 +380,7 @@ class LinkController {
     if (searchSite == null || index < 0) return;
     final identity = owner.runningIdentity;
     final landing = WebSearchEngine.land(
-      searchSiteId: searchSiteId,
-      ownerSiteId: owner.siteId,
-      identitySiteId: identity.siteId,
+      (search: searchSiteId, owner: owner.siteId, identity: identity.siteId),
       tabsEnabled: _tabs.enabledFor(owner),
       canHost: _tabs.mayHost(searchSite, owner),
       urlInSearchSiteDomain:

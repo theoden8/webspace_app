@@ -295,6 +295,10 @@ class SearchOption {
   const SearchOption(this.site, {required this.scoped});
 }
 
+/// The sites a search involves, by siteId: the one that searches, the one
+/// whose slot it starts from, and the one that slot is running as.
+typedef SearchParties = ({String search, String owner, String identity});
+
 /// Where a search's results open.
 enum SearchLanding {
   /// The site on screen searches itself, with tabs off: in its page.
@@ -531,20 +535,18 @@ class WebSearchEngine {
     return buildUrl(template, q);
   }
 
-  /// Where a search by [searchSiteId] lands, from a slot owned by
-  /// [ownerSiteId] and running as [identitySiteId].
-  static SearchLanding land({
-    required String searchSiteId,
-    required String ownerSiteId,
-    required String identitySiteId,
+  /// Where a search by `sites.search` lands, from a slot owned by
+  /// `sites.owner` and running as `sites.identity`.
+  static SearchLanding land(
+    SearchParties sites, {
     required bool tabsEnabled,
     required bool canHost,
     required bool urlInSearchSiteDomain,
   }) {
-    if (searchSiteId == identitySiteId) {
+    if (sites.search == sites.identity) {
       return tabsEnabled ? SearchLanding.childTab : SearchLanding.inPlace;
     }
-    if (searchSiteId == ownerSiteId) {
+    if (sites.search == sites.owner) {
       return tabsEnabled ? SearchLanding.childTab : SearchLanding.inSearchSite;
     }
     if (tabsEnabled && canHost && urlInSearchSiteDomain) {

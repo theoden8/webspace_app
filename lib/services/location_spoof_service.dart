@@ -77,19 +77,19 @@ class LocationSpoofService {
   /// Build the shim. Always returns a script: geolocation is mediated in
   /// every mode, including [LocationMode.off], which refuses the page rather
   /// than deferring to the platform.
-  static String buildScript({
-    required LocationMode locationMode,
-    required double? spoofLatitude,
-    required double? spoofLongitude,
-    required double spoofAccuracy,
-    required String? spoofTimezone,
-    LocationGranularity liveLocationGranularity = LocationGranularity.gps,
-    required WebRtcPolicy webRtcPolicy,
-  }) {
-    final spoofLocation = locationMode == LocationMode.spoof &&
-        spoofLatitude != null &&
-        spoofLongitude != null;
-    final liveLocation = locationMode == LocationMode.live;
+  static String buildScript(SiteLocation location) {
+    final (
+      :mode,
+      :latitude,
+      :longitude,
+      :accuracy,
+      :timezone,
+      :granularity,
+      :webRtc,
+    ) = location;
+    final spoofLocation =
+        mode == LocationMode.spoof && latitude != null && longitude != null;
+    final liveLocation = mode == LocationMode.live;
     // Anything that is not an explicit grant refuses the page. Without a shim
     // the platform's own `navigator.geolocation` stays live behind the
     // webview's permission prompt, so [LocationMode.off] used to be the only
@@ -97,13 +97,13 @@ class LocationSpoofService {
     // [LocationMode.spoof] site whose coordinates went missing (hand-edited
     // backup, failed import) fails closed for the same reason.
     final blockLocation = !spoofLocation && !liveLocation;
-    final hasTimezone = spoofTimezone != null && spoofTimezone.isNotEmpty;
+    final hasTimezone = timezone != null && timezone.isNotEmpty;
 
-    final lat = spoofLatitude ?? 0.0;
-    final lng = spoofLongitude ?? 0.0;
-    final acc = spoofAccuracy > 0 ? spoofAccuracy : kDefaultSpoofAccuracy;
-    final tzJson = hasTimezone ? jsonEncode(spoofTimezone) : 'null';
-    final wrtcJson = switch (webRtcPolicy) {
+    final lat = latitude ?? 0.0;
+    final lng = longitude ?? 0.0;
+    final acc = accuracy > 0 ? accuracy : kDefaultSpoofAccuracy;
+    final tzJson = hasTimezone ? jsonEncode(timezone) : 'null';
+    final wrtcJson = switch (webRtc) {
       WebRtcPolicy.relayOnly => '"relay"',
       WebRtcPolicy.disabled => '"off"',
       WebRtcPolicy.defaultPolicy => '"default"',
@@ -112,8 +112,9 @@ class LocationSpoofService {
     // 0.001° ≈ 110 m at the equator; 0.01° ≈ 1100 m. GPS=no snap. The
     // longitude step is derived from cos(snappedLat) at runtime so cells
     // stay roughly square at higher latitudes (see snapFix below).
-    final (snapStepDeg, snapMinAccM) =
-        !liveLocation ? (0.0, 0.0) : liveSnapParams(liveLocationGranularity);
+    final (snapStepDeg, snapMinAccM) = !liveLocation
+        ? (0.0, 0.0)
+        : liveSnapParams(granularity);
 
     return _template
         .replaceAll('__STATIC_LOC__', spoofLocation ? 'true' : 'false')
