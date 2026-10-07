@@ -159,8 +159,8 @@ notification, rather than fetching direct
 
 **Given** the app-global outbound proxy is `SOCKS5 127.0.0.1:9050`
 **When** `getPageTitle` runs — from add-site, the title refresh in the site
-editor, the shortcut create-site path, or `_executeCreateSite` handling an
-inbound shared link
+editor, the shortcut create-site path, or `LinkController._executeCreateSite`
+handling an inbound shared link
 **Then** the recording fake observes `clientFor(SOCKS5 127.0.0.1:9050)` for a
 site whose proxy is `DEFAULT`, and the site's own proxy otherwise
 **And** a `Blocked` result skips the title fetch and returns null

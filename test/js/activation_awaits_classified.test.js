@@ -32,20 +32,19 @@ const CLASSIFIED = {
     'Bounded and non-fatal: SiteTeardownEngine runs it under a budget (NAV-010).',
   '_stateStorage.loadState':
     'A secure-storage read on the device. No socket, nothing to reclaim.',
-  '_unloadSite':
-    'A WebKit/WebView saveState on the main thread, then a dispose; under the '
-    + 'legacy engine a cookie capture from the in-process cookie store first.',
-  '_refreshProxyRoutes':
+  '_applyResidency':
+    'Each unload is a WebKit/WebView saveState on the main thread, then a '
+    + 'dispose, under the legacy engine after a cookie capture from the '
+    + 'in-process cookie store; each cache clear is an in-process WebView call.',
+  '_network.refreshRoutes':
     'Android router mode: rewrites the in-process relay\'s route table.',
-  '_webViewModels[].clearWebViewCache':
-    'An in-process WebView cache clear.',
   '_containerIsolation.ensureContainer':
     'An in-process container lookup, caught and logged on failure.',
   '_restoreCookiesForSite':
     'Legacy engine only: writes cookies into the in-process cookie store.',
   '_ensureSiteHtml':
     'Decrypts a cached page from disk in Dart.',
-  '_webViewModels[].resumeWebView':
+  '_sites.models[].resumeWebView':
     'A main-thread WebView resume, caught on a disposed controller.',
 };
 
@@ -78,22 +77,25 @@ test('every classified await is still there', () => {
 test('the activation path never waits on Tor', () => {
   assert.ok(!/await\s+TorService\b/.test(setCurrentIndex),
     '_setCurrentIndex awaits TorService; the engine holds Tor sites until a '
-    + 'pin lands, so call _syncTorExitPin instead');
-  assert.match(setCurrentIndex, /_syncTorExitPin\(/,
+    + 'pin lands, so call _network.syncTorExitPin instead');
+  assert.match(setCurrentIndex, /_network\.syncTorExitPin\(/,
     '_setCurrentIndex must still put the pin the loaded sites want in force');
-  assert.ok(!/await\s+TorService\.instance\.setExitCountry/.test(main),
-    `${mainRel} awaits setExitCountry; route it through _syncTorExitPin`);
-  const sync = blockAfter(main, 'void _syncTorExitPin(', ') {', mainRel);
+  const network = read('lib/controllers/site_network_controller.dart');
+  for (const [rel, src] of [[mainRel, main], ['lib/controllers/site_network_controller.dart', network]]) {
+    assert.ok(!/await\s+TorService\.instance\.setExitCountry/.test(src),
+      `${rel} awaits setExitCountry; route it through syncTorExitPin`);
+  }
+  const sync = blockAfter(network, 'void syncTorExitPin(', ') {', 'lib/controllers/site_network_controller.dart');
   assert.match(sync, /unawaited\(TorService\.instance\.setExitCountry\(/,
-    '_syncTorExitPin must not wait on the change it starts');
+    'syncTorExitPin must not wait on the change it starts');
 });
 
 test('the pin follows a memory-pressure eviction', () => {
   const pressure = blockAfter(main, 'Future<void> _handleMemoryPressure() async {',
     null, mainRel);
-  const unload = pressure.search(/await _unloadSite\(victim,/);
-  assert.notEqual(unload, -1, 'memory pressure must still evict through the helper');
-  assert.ok(pressure.indexOf('_syncTorExitPin(', unload) > unload,
+  const unload = pressure.search(/await _applyResidency\(plan,/);
+  assert.notEqual(unload, -1, 'memory pressure must still evict through the plan');
+  assert.ok(pressure.indexOf('_network.syncTorExitPin(', unload) > unload,
     'the pin of an evicted site must be recomputed when it goes, not at the '
     + 'next activation');
 });

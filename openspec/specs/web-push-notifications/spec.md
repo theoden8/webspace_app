@@ -80,7 +80,7 @@ The system SHALL navigate to the originating site when the user taps a notificat
 #### Scenario: User taps a notification for a loaded site
 
 **Given** a native notification was created by Site A
-**And** Site A is still loaded in `_loadedIndices`
+**And** Site A is still loaded in `_sites.loaded`
 **When** the user taps the notification
 **Then** the app opens (or comes to foreground)
 **And** `_setCurrentIndex` is called with Site A's index
@@ -89,9 +89,9 @@ The system SHALL navigate to the originating site when the user taps a notificat
 #### Scenario: User taps a notification for a site that was not yet loaded
 
 **Given** a native notification was created by Site A
-**And** Site A is not in `_loadedIndices` (e.g., app was restarted)
+**And** Site A is not in `_sites.loaded` (e.g., app was restarted)
 **When** the user taps the notification
-**Then** `_setCurrentIndex` adds Site A to `_loadedIndices`
+**Then** `_setCurrentIndex` adds Site A to `_sites.loaded`
 **And** Site A's webview is created with its profile
 **And** Site A becomes the active site
 
@@ -498,7 +498,7 @@ page had loaded and a wake never ran page JS at all. A load counts as settled
 once it has been seen to start and stop, or when it never started within the
 first second; a webview that goes away mid-wake stops counting. The
 foreground branch (Android's worker firing while the app is visible) keeps
-`_refreshNotificationSites(excludeActive: true)`. Structural gate:
+`BackgroundSitesController.refreshSites(excludeActive: true)`. Structural gate:
 `test/js/background_refresh_active_site.test.js`.
 
 #### Scenario: A wake does not end before the page has loaded

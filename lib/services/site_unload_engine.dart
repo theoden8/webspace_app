@@ -1,5 +1,8 @@
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -40,6 +43,19 @@ enum UnloadReason {
         // It goes back to its home page, which is the point (always-open-home).
         UnloadReason.homeReset => false,
       };
+
+  /// An unload the user did not ask for and will notice logs as a warning.
+  LogLevel get logLevel => switch (this) {
+        UnloadReason.domainConflict ||
+        UnloadReason.proxyMismatch ||
+        UnloadReason.torExitMismatch ||
+        UnloadReason.memoryPressure =>
+          LogLevel.warning,
+        UnloadReason.loadedSiteCap ||
+        UnloadReason.webspaceSwitch ||
+        UnloadReason.homeReset =>
+          LogLevel.info,
+      };
 }
 
 /// What [SiteUnloadEngine.unload] reads and writes on the page.
@@ -55,6 +71,92 @@ abstract interface class SiteUnloadHost {
   Future<void> captureNavState(WebViewModel model);
 
   void noteUnloaded(WebViewModel model, UnloadReason reason);
+}
+
+/// What [SiteUnloadEngine.plan] reads beyond what an unload needs.
+abstract interface class ResidencyHost implements SiteUnloadHost {
+  /// What each slot runs as (LIR-024): a slot showing a hosted tab reads as
+  /// its host. The slot at [except] reads as its own site.
+  List<WebViewModel> identities({int? except});
+
+  SiteRetentionPriority priorityOf(int index);
+
+  ProxyTopology get proxyTopology;
+
+  /// Whether a Tor runtime exists here, so loaded sites can disagree about
+  /// its exit country (TOR-014).
+  bool get torAvailable;
+}
+
+/// What can change which sites stay loaded. [SiteUnloadEngine.plan] answers
+/// every kind in one switch, so a new event is a case it must handle.
+sealed class ResidencyEvent {
+  const ResidencyEvent();
+}
+
+/// [target] is about to be shown: the loaded sites it conflicts with go
+/// (ISO-001, PROXY-008, TOR-014), then whatever the loaded-site cap and the
+/// resident cap take (PAUSE-012).
+final class Activating extends ResidencyEvent {
+  const Activating(this.target);
+
+  final int target;
+}
+
+/// The OS asked for memory back: one loaded site moves one tier down
+/// (PAUSE-006).
+final class MemoryPressure extends ResidencyEvent {
+  const MemoryPressure();
+}
+
+/// The selected webspace changed from the sites at [previous] to those at
+/// [next]. Only a shared cookie jar unloads for it (CONT-003).
+final class WebspaceSwitched extends ResidencyEvent {
+  const WebspaceSwitched({required this.previous, required this.next});
+
+  final Set<int> previous;
+  final Set<int> next;
+}
+
+/// A setting changed under loaded sites: the first Tor site in [order]
+/// decides the exit pin, and the loaded Tor sites that want another go
+/// before it is put in force (TOR-014).
+final class TorExitSettled extends ResidencyEvent {
+  const TorExitSettled(this.order);
+
+  final Iterable<int> order;
+}
+
+/// A nested screen is about to run as [target] under its proxy, which
+/// loaded sites contending for the same proxy cannot share (SEC-004).
+final class NestedOpening extends ResidencyEvent {
+  const NestedOpening(this.target);
+
+  final int target;
+}
+
+/// The slot on screen at [slot] now runs as another site, so its proxy may
+/// have changed under its contenders (LIR-024).
+final class SlotIdentityChanged extends ResidencyEvent {
+  const SlotIdentityChanged(this.slot);
+
+  final int slot;
+}
+
+/// What a [ResidencyEvent] does to the loaded sites. Sites rather than
+/// positions: a delete can shift the list while the plan runs.
+final class ResidencyPlan {
+  const ResidencyPlan({this.unloads = const [], this.cacheClears = const []});
+
+  static const none = ResidencyPlan();
+
+  /// In the order they run.
+  final List<({WebViewModel site, UnloadReason reason})> unloads;
+
+  /// Resident sites whose cache is cleared once the unloads ran.
+  final List<WebViewModel> cacheClears;
+
+  bool get isEmpty => unloads.isEmpty && cacheClears.isEmpty;
 }
 
 /// How the host scopes a proxy, which decides who contends for it when a
@@ -117,6 +219,12 @@ class SiteUnloadEngine {
   ) async {
     if (index < 0 || index >= host.models.length) return;
     final model = host.models[index];
+    LogService.instance.log(
+      'SiteUnload',
+      'Unloading site $index "${model.name}": ${reason.label}',
+      level: reason.logLevel,
+      sensitivity: LogSensitivity.sensitive,
+    );
     if (reason.keepsNavState) await host.captureNavState(model);
     // A lower-indexed delete can shift the list across the capture.
     final at = host.models.indexOf(model);
@@ -133,6 +241,151 @@ class SiteUnloadEngine {
       );
     }
     host.noteUnloaded(model, reason);
+  }
+
+  /// Every rule deciding which loaded sites go, and in what order, for
+  /// [event]. Each rule reads the loaded set the rules before it leave.
+  static ResidencyPlan plan(ResidencyHost host, ResidencyEvent event) {
+    final models = host.models;
+    final loaded = {...host.loadedIndices};
+    final unloads = <({WebViewModel site, UnloadReason reason})>[];
+    void unload(Iterable<int> indices, UnloadReason reason) {
+      for (final i in indices.toList()) {
+        if (i < 0 || i >= models.length || !loaded.remove(i)) continue;
+        unloads.add((site: models[i], reason: reason));
+      }
+    }
+
+    Set<int> proxyContenders(int target, {int? except}) =>
+        indicesToUnloadForProxyMismatch(
+          targetIndex: target,
+          models: host.identities(except: except),
+          loadedIndices: loaded,
+          topology: host.proxyTopology,
+        );
+    Set<int> torDissenters(int anchor) => host.torAvailable
+        ? indicesToUnloadForTorExitMismatch(
+            targetIndex: anchor,
+            models: host.identities(),
+            loadedIndices: loaded,
+          )
+        : const {};
+    Map<int, SiteLifecycleState> tiers() => {
+          for (final i in loaded)
+            if (i >= 0 && i < models.length) i: models[i].lifecycleState,
+        };
+
+    switch (event) {
+      case Activating(:final target):
+        // Under containers each site's jar is its own, so same-base-domain
+        // sites coexist (CONT-003).
+        if (host.sharedJar != null) {
+          final conflict = SiteActivationEngine.findDomainConflict(
+            targetIndex: target,
+            models: models,
+            loadedIndices: loaded,
+          );
+          unload([?conflict], UnloadReason.domainConflict);
+        }
+        unload(proxyContenders(target), UnloadReason.proxyMismatch);
+        unload(torDissenters(target), UnloadReason.torExitMismatch);
+        unload(
+          indicesToEvictForLruCap(
+            targetIndex: target,
+            loadedIndices: loaded,
+            maxLoadedSites: kMaxLoadedSites,
+            priorityOf: host.priorityOf,
+          ),
+          UnloadReason.loadedSiteCap,
+        );
+        final cacheClears =
+            SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
+          loadedIndices: loaded,
+          states: tiers(),
+          maxResidentSites: kMaxResidentSites,
+          priorityOf: host.priorityOf,
+        );
+        return ResidencyPlan(
+          unloads: unloads,
+          cacheClears: [for (final i in cacheClears) models[i]],
+        );
+      case MemoryPressure():
+        final victim = SiteLifecyclePromotionEngine.pickPromotionTarget(
+          loadedIndices: loaded,
+          states: tiers(),
+          priorityOf: host.priorityOf,
+        );
+        if (victim == null || victim >= models.length) return ResidencyPlan.none;
+        final site = models[victim];
+        return switch (
+            SiteLifecyclePromotionEngine.nextState(site.lifecycleState)) {
+          SiteLifecycleState.cacheCleared => ResidencyPlan(cacheClears: [site]),
+          // The unload's state capture is what makes it savedForRestore.
+          SiteLifecycleState.savedForRestore => ResidencyPlan(
+              unloads: [(site: site, reason: UnloadReason.memoryPressure)]),
+          SiteLifecycleState.resident || null => ResidencyPlan.none,
+        };
+      case WebspaceSwitched(:final previous, :final next):
+        unload(
+          indicesToUnloadOnWebspaceSwitch(
+            useContainers: host.sharedJar == null,
+            loadedIndices: loaded,
+            previousWebspaceIndices: previous,
+            newWebspaceIndices: next,
+          ),
+          UnloadReason.webspaceSwitch,
+        );
+      case TorExitSettled(:final order):
+        final anchor = torExitAnchor(indices: order, models: host.identities());
+        if (anchor != null) {
+          unload(torDissenters(anchor), UnloadReason.torExitMismatch);
+        }
+      case NestedOpening(:final target):
+        // The nested screen runs as [target] itself, whatever its slot shows.
+        unload(proxyContenders(target, except: target),
+            UnloadReason.proxyMismatch);
+      case SlotIdentityChanged(:final slot):
+        unload(proxyContenders(slot), UnloadReason.proxyMismatch);
+    }
+    return ResidencyPlan(unloads: unloads);
+  }
+
+  /// Runs [plan] through [unload]. A site no longer loaded when its turn
+  /// comes is skipped. False when [isStale] turned true across an await, in
+  /// which case the rest of the plan did not run.
+  static Future<bool> apply(
+    SiteUnloadHost host,
+    ResidencyPlan plan, {
+    required bool Function() isStale,
+  }) async {
+    for (final (:site, :reason) in plan.unloads) {
+      final i = host.models.indexOf(site);
+      if (i < 0 || !host.loadedIndices.contains(i)) continue;
+      await unload(host, i, reason);
+      if (isStale()) return false;
+    }
+    bool stillResident(WebViewModel site) {
+      final i = host.models.indexOf(site);
+      return i >= 0 &&
+          host.loadedIndices.contains(i) &&
+          site.lifecycleState == SiteLifecycleState.resident;
+    }
+
+    for (final site in plan.cacheClears) {
+      if (!stillResident(site)) continue;
+      LogService.instance.log(
+        'SiteUnload',
+        'Clearing the cache of site "${site.name}"',
+        sensitivity: LogSensitivity.sensitive,
+      );
+      await site.clearWebViewCache();
+      if (isStale()) return false;
+      // A concurrent path may have promoted or unloaded it meanwhile.
+      if (stillResident(site)) {
+        site.lifecycleState = SiteLifecycleState.cacheCleared;
+      }
+    }
+    return true;
   }
 
   /// Webspace-switch unload set. Returns the indices to dispose.
@@ -323,28 +576,11 @@ class SiteUnloadEngine {
     final projected = loadedIndices.contains(targetIndex)
         ? loadedIndices.length
         : loadedIndices.length + 1;
-    if (projected <= maxLoadedSites) return const [];
     final overflow = projected - maxLoadedSites;
-
-    final candidates = <int>[];
-    for (final i in loadedIndices) {
-      if (i == targetIndex) continue;
-      final p = priorityOf(i);
-      if (p == SiteRetentionPriority.active ||
-          p == SiteRetentionPriority.activating) continue;
-      candidates.add(i);
-    }
-
-    // Sort by priority: lowest priority (highest index) first.
-    candidates.sort((a, b) {
-      final pa = priorityOf(a).index;
-      final pb = priorityOf(b).index;
-      if (pa != pb) return pb.compareTo(pa);
-      return 0;
-    });
-
-    return candidates.length <= overflow
-        ? candidates
-        : candidates.sublist(0, overflow);
+    if (overflow <= 0) return const [];
+    return evictionOrder(
+      loadedIndices.where((i) => i != targetIndex),
+      priorityOf,
+    ).take(overflow).toList();
   }
 }

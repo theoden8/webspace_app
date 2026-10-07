@@ -8,6 +8,7 @@ import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/theme_mode_button.dart';
 
 const Map<AccentColor, Color> _accentColors = {
   AccentColor.blue: accentBlue,
@@ -140,11 +141,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
 
   Widget _buildThemeModeChip(ThemeMode mode) {
     final label = themeModeLabel(AppLocalizations.of(context), mode);
-    final icon = switch (mode) {
-      ThemeMode.light => Icons.wb_sunny,
-      ThemeMode.dark => Icons.nights_stay,
-      ThemeMode.system => Icons.brightness_auto,
-    };
+    final icon = themeModeIcon(mode);
     final isSelected = _settings.themeMode == mode;
     final accentColor = Theme.of(context).colorScheme.secondary;
 

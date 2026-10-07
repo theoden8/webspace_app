@@ -241,7 +241,7 @@ constraints.
 - The notification exposes **play/pause/stop only** — next/previous have no
   universal web mechanism, so dead buttons are deliberately omitted.
 - The service runs only while a background-audio site is loaded and playing;
-  when the last such site unloads, `_updateBackgroundAudioSession` calls
+  when the last such site unloads, `BackgroundSitesController.updateAudioSession` calls
   `stopAll`. Enabling the toggle requests `POST_NOTIFICATIONS` so the media
   controls are visible on Android 13+.
 - Scope: the media notification is driven by the **root** site webview. A
@@ -270,7 +270,7 @@ resumable paused state
 
 **Given** the media notification is showing
 **When** the only background-audio site is unloaded or its toggle is turned off
-**Then** `_updateBackgroundAudioSession` finds no loaded background-audio site
+**Then** `BackgroundSitesController.updateAudioSession` finds no loaded background-audio site
 and calls `MediaSessionService.stopAll`, stopping the foreground service
 
 #### Scenario: A player that never enters the DOM still raises the notification
@@ -452,7 +452,7 @@ ask for is worse than leaving it paused where they can hit play.
 Pausing the media is not enough on iOS: WebKit publishes its own Now Playing
 info for any page that plays, and that entry outlives the audio as a control
 whose play button reaches a site the app is no longer keeping alive. When no
-loaded site has the toggle, `_updateBackgroundAudioSession` SHALL therefore
+loaded site has the toggle, `BackgroundSitesController.updateAudioSession` SHALL therefore
 call `MediaSessionService.clearOsMediaSurface()`, which clears the surface
 even when the app never raised it (`stopAll` alone cannot: it early-returns
 because nothing of ours is active). Three things that clearing needs to
@@ -747,7 +747,7 @@ the events reach the page as they always have
 - `lib/services/app_lifecycle_engine.dart` — `anyLoadedBackgroundAudio`,
   plan/resume gating; BGAUDIO-009 `mediaPauseIndices`.
 - `lib/main.dart` — engine callbacks, decision log line, retention tier,
-  `_updateBackgroundAudioSession` sync points; BGAUDIO-009 media stop at the
+  `BackgroundSitesController.updateAudioSession` sync points; BGAUDIO-009 media stop at the
   site-switch, going-home, sweep and app-background call sites.
 - `lib/services/background_task_service.dart` — `setBackgroundAudioActive`.
 - `ios/Runner/BackgroundTaskPlugin.swift`, `ios/Runner/Info.plist` —

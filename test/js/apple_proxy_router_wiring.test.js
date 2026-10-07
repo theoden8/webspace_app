@@ -16,10 +16,10 @@ const { read, methodBody } = require('./helpers/source');
 
 const webviewRel = 'lib/services/webview.dart';
 const probeRel = 'lib/services/proxy_router_probe.dart';
-const mainRel = 'lib/main.dart';
+const networkRel = 'lib/controllers/site_network_controller.dart';
 const webview = read(webviewRel);
 const probe = read(probeRel);
-const main = read(mainRel);
+const network = read(networkRel);
 
 test('the relay rule is consulted when a WebView is built', () => {
   assert.match(
@@ -110,9 +110,9 @@ test('the attribution probe travels the relay too', () => {
 
 test('the process-wide binder is not required off Android', () => {
   assert.match(
-    main,
+    network,
     /bindOverride: bindsProcessWide \? ProxyManager\(\)\.applyRouterOverride : null/,
-    `${mainRel}: applyRouterOverride answers false off Android, and a `
+    `${networkRel}: applyRouterOverride answers false off Android, and a `
       + 'binder that answers false stands router mode down. Apple binds per '
       + 'store instead, so it must be passed no binder at all',
   );

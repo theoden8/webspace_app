@@ -68,7 +68,7 @@ void main() {
 
     // PWD-005: password lives in secure storage, never in JSON. Seed it
     // through the real platform channel so the app's hydration path
-    // (loadAll inside _loadWebViewModels) finds it.
+    // (loadAll inside SiteListStore.load) finds it.
     await secure.write(
       key: 'proxy_passwords',
       value: jsonEncode({'proxy-1': 'sekret-pass'}),

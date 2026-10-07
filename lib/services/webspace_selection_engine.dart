@@ -16,6 +16,25 @@ class WebspaceSelectionEngine {
   ///                                     filtered to in-bounds of `siteCount`
   ///                                     (order preserved)
   ///   * unknown id                    → empty list
+  /// Recomputes each webspace's runtime `siteIndices` from its persisted
+  /// `siteIds` against [siteIdsByPosition], in `siteIds` order; ids with no
+  /// position drop out of the projection. "All" is synthetic and skipped.
+  static void resolveIndices(
+    List<Webspace> webspaces,
+    List<String> siteIdsByPosition,
+  ) {
+    final positionBySiteId = <String, int>{
+      for (var i = 0; i < siteIdsByPosition.length; i++)
+        siteIdsByPosition[i]: i,
+    };
+    for (final ws in webspaces) {
+      if (ws.isAll) continue;
+      ws.siteIndices = [
+        for (final sid in ws.siteIds) ?positionBySiteId[sid],
+      ];
+    }
+  }
+
   static List<int> filteredSiteIndices({
     required String? selectedWebspaceId,
     required List<Webspace> webspaces,

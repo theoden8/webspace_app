@@ -127,13 +127,16 @@ void main() {
       return host.substring(start, end < 0 ? host.length : end);
     }
 
+    // Which changes sweep is SiteSetChange.effects (site_runtime_test).
     test('import and delete sweep through the engine', () {
+      expect(body('Future<void> _commitSites(SiteSetChange change) async {'),
+          contains('if (effects.sweepsOrphans) await _sweepOrphans();'));
       expect(body('Future<void> _importSettings() async {'),
-          contains('await _sweepOrphans();'));
+          contains('await _commitSites(SitesReplaced('));
       expect(
           body('Future<void> _deleteSite(BuildContext context, int index) '
               'async {'),
-          contains('await _sweepOrphans();'));
+          contains('await _commitSites(SiteRemoved(deletedModel));'));
     });
 
     test('no store is swept outside the engine binding', () {

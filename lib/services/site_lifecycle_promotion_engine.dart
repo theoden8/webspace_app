@@ -142,22 +142,10 @@ class SiteLifecyclePromotionEngine {
       SiteLifecycleState.resident,
       SiteLifecycleState.cacheCleared,
     ]) {
-      final candidates = <int>[];
-      for (final i in loadedIndices) {
-        final p = priorityOf(i);
-        if (p == SiteRetentionPriority.active ||
-            p == SiteRetentionPriority.activating) continue;
-        final s = states[i] ?? SiteLifecycleState.resident;
-        if (s != tier) continue;
-        candidates.add(i);
-      }
-      if (candidates.isEmpty) continue;
-      candidates.sort((a, b) {
-        final pa = priorityOf(a).index;
-        final pb = priorityOf(b).index;
-        return pb.compareTo(pa);
-      });
-      return candidates.first;
+      final inTier = loadedIndices
+          .where((i) => (states[i] ?? SiteLifecycleState.resident) == tier);
+      final pick = evictionOrder(inTier, priorityOf).firstOrNull;
+      if (pick != null) return pick;
     }
     return null;
   }
@@ -185,32 +173,14 @@ class SiteLifecyclePromotionEngine {
     required int maxResidentSites,
     required SiteRetentionResolver priorityOf,
   }) {
-    var residentCount = 0;
-    for (final i in loadedIndices) {
-      final s = states[i] ?? SiteLifecycleState.resident;
-      if (s == SiteLifecycleState.resident) residentCount++;
-    }
-    if (residentCount <= maxResidentSites) return const [];
-    final excess = residentCount - maxResidentSites;
-
-    final candidates = <int>[];
-    for (final i in loadedIndices) {
-      final p = priorityOf(i);
-      if (p == SiteRetentionPriority.active ||
-          p == SiteRetentionPriority.activating) continue;
-      final s = states[i] ?? SiteLifecycleState.resident;
-      if (s != SiteLifecycleState.resident) continue;
-      candidates.add(i);
-    }
-    candidates.sort((a, b) {
-      final pa = priorityOf(a).index;
-      final pb = priorityOf(b).index;
-      return pb.compareTo(pa);
-    });
-
-    return candidates.length <= excess
-        ? candidates
-        : candidates.sublist(0, excess);
+    final resident = loadedIndices
+        .where((i) =>
+            (states[i] ?? SiteLifecycleState.resident) ==
+            SiteLifecycleState.resident)
+        .toList();
+    final excess = resident.length - maxResidentSites;
+    if (excess <= 0) return const [];
+    return evictionOrder(resident, priorityOf).take(excess).toList();
   }
 
   /// Tier-count snapshot. The `active` count is whichever loaded

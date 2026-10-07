@@ -162,8 +162,8 @@ with them.
 
 ### Requirement: PERMBADGE-004 — Both Drawer Tile Paths Show Badges
 
-The drawer renders site tiles through one shared content builder
-(`_buildSiteGridTileContent` in [lib/main.dart](../../../lib/main.dart)),
+The drawer renders site tiles through one shared content widget
+(`_SiteGridTileContent` in [lib/widgets/site_grid_tile.dart](../../../lib/widgets/site_grid_tile.dart)),
 used by both the reorderable (drag-enabled) and static tile paths, so a
 grant is equally visible whichever path is active and in either tile
 layout (narrow icon-over-name, wide icon-beside-name). In the narrow

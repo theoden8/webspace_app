@@ -51,13 +51,13 @@ function globalClears() {
 test('every unscoped global cookie clear is gated on the engine selection', () => {
   const ungated = globalClears().filter(({ context }) => {
     const window = context.join('\n');
-    return !window.includes('_useContainers') && !window.includes(FUNNEL_METHOD);
+    return !window.includes('useContainers') && !window.includes(FUNNEL_METHOD);
   });
 
   assert.deepEqual(
     ungated.map((s) => `${s.rel}:${s.line}`),
     [],
-    'unscoped deleteAllCookies() must be gated on !_useContainers or reached ' +
+    'unscoped deleteAllCookies() must be gated on !_sites.useContainers or reached ' +
       `via ${FUNNEL_METHOD} — an ungated call can empty a live container's jar`,
   );
 });

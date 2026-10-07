@@ -291,7 +291,7 @@ blue_site_id="ws-$run_tag-blue"
 b2_site_id="ws-$run_tag-b2"
 b3_site_id="ws-$run_tag-b3"
 
-# Every trigger _nudgeSurfaceRepaint takes, for the control that has to see a
+# Every trigger SurfaceRepaintController.nudge takes, for the control that has to see a
 # blank. Naming only the reload-path ones left `metrics-resume` live, and
 # didChangeMetrics fires throughout a reload: it nudged 17 times and the
 # control measured nothing. A control is only a control if nothing Dart-side
@@ -478,14 +478,14 @@ $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
 }
 
 # The pixel assertions below are close to vacuous on this host. Scenario B3-A
-# suppressed all fourteen `_nudgeSurfaceRepaint` triggers *and* the second
+# suppressed all fourteen `SurfaceRepaintController.nudge` triggers *and* the second
 # repaint path in `_probeRendererAndRecover`, and every surface still came back
 # painted -- so this tier would stay green with the repaint machinery deleted.
 # What it can still check, host-independently, is the wiring: that the app
 # ASKED for a repaint on the path just driven. That is the thing that actually
 # keeps recurring (a new entry path reaches a surface without passing a
 # chokepoint), and it is read from the app's own trace rather than from the
-# compositor. `_traceRepaint` is developer-mode gated and the diag seed turns
+# compositor. the repaint trace is developer-mode gated and the diag seed turns
 # developer mode on, so the lines are there in every seeded run.
 nudge_hits() { # $1 = trigger label
   adb logcat -d 2>/dev/null | grep -cF "trigger=$1" || true

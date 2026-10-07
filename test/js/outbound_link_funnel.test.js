@@ -16,8 +16,10 @@ const { read, blockAfter } = require('./helpers/source');
 
 const modelRel = 'lib/web_view_model.dart';
 const mainRel = 'lib/main.dart';
+const linksRel = 'lib/controllers/link_controller.dart';
 const model = read(modelRel);
 const main = read(mainRel);
+const links = read(linksRel);
 
 const getWebView = blockAfter(model, '  Widget getWebView(', '}) {', modelRel);
 
@@ -61,29 +63,29 @@ test('a blocked outbound link reaches the hook, and nothing launches', () => {
 });
 
 test("the link menu's Open routes as a tap would", () => {
-  const open = blockAfter(main, '  Future<void> _openLinkAsTapped(', ') async {', mainRel);
-  const launches = [...open.matchAll(/await (_launchNestedForModel|launchUrlInSystemBrowser)\(/g)];
+  const open = blockAfter(links, '  Future<void> openLinkAsTapped(', ') async {', linksRel);
+  const launches = [...open.matchAll(/await (_host\.launchNestedFor|launchUrlInSystemBrowser)\(/g)];
   assert.equal(launches.length, 2, 'expected a nested and an external launch');
   for (const m of launches) {
     const before = open.slice(0, m.index);
     const lastCase = before.lastIndexOf('case NavigationDecision.');
-    assert.match(before.slice(lastCase), /_routeOutboundLink\(/,
-      `${m[1]} in _openLinkAsTapped runs without asking outbound routing first`);
+    assert.match(before.slice(lastCase), /routeOutbound\(/,
+      `${m[1]} in openLinkAsTapped runs without asking outbound routing first`);
   }
 });
 
 test('routing hands every gate to the engine, with the live values', () => {
-  const route = blockAfter(main, '  bool _routeOutboundLink(', ') {', mainRel);
+  const route = blockAfter(links, '  bool routeOutbound(', ') {', linksRel);
   assert.doesNotMatch(route, /ExperimentalFeature/,
     'link routing shipped: no developer-mode or experimental gate');
   assert.match(route, /LinkIntentDispatchEngine\.routeOutbound\(/,
     'the gates live in the engine, where they are unit-tested');
   for (const [arg, why] of [
     [/routeOutboundLinks: source\.effectiveRouteOutboundLinks/, 'the source opted in, in the in-app mode (LIR-013)'],
-    [/kioskLocked: _kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
+    [/kioskLocked: _host\.kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
     [/hadGesture: hadGesture/, 'only a user gesture is routed'],
-    [/containersActive: _useContainers/, 'the legacy engine does not route'],
-    [/_outboundCandidates\(source\)/, 'candidates stay on the source side of the archive boundary'],
+    [/containersActive: _sites\.useContainers/, 'the legacy engine does not route'],
+    [/outboundCandidates\(source\)/, 'candidates stay on the source side of the archive boundary'],
   ]) {
     assert.match(route, arg, `routeOutbound must be given ${why}`);
   }
@@ -102,23 +104,10 @@ test('a nested open runs through the engine, over the source only when routed', 
     'the screen opens through the NESTED-010 funnel');
 });
 
-test('every point that can orphan a preference prunes it (LIR-017)', () => {
-  const prunes = (body) => /_pruneOutboundPreferences\(\)/.test(body);
-  const load = blockAfter(main, '  Future<void> _loadWebViewModels() async {', null, mainRel);
-  assert.ok(prunes(load), 'startup must prune');
-  const del = blockAfter(main, '  Future<void> _deleteSite(', ') async {', mainRel);
-  const pruneAt = del.indexOf('_pruneOutboundPreferences()');
-  assert.ok(pruneAt !== -1 && pruneAt < del.indexOf('await _saveWebViewModels()'),
-    'a delete must prune before it saves');
-  const toArchive = blockAfter(main, '  Future<void> _moveSiteToArchive(', ') async {', mainRel);
-  const at = toArchive.indexOf('_pruneOutboundPreferences()');
-  assert.ok(at !== -1 && at < toArchive.indexOf('target.state.sites.add(model.toJson())'),
-    'a move into an archive must prune before the archived copy is taken');
-  const outOf = blockAfter(main, '  Future<void> _moveSiteOutOfArchive(', ') async {', mainRel);
-  const flip = outOf.indexOf('model.isArchiveTier = false;');
-  const after = outOf.indexOf('_pruneOutboundPreferences()');
-  assert.ok(flip !== -1 && after > flip,
-    'a move out of an archive must prune after the tier flip');
+// Which site-set changes prune (LIR-017) is SiteSetChange.effects, tested in
+// test/site_runtime_test.dart; where the commit prunes is
+// test/js/site_set_commit.test.js. An import prunes earlier, in its plan.
+test('an import prunes inside its plan (LIR-017, BACKUP-013)', () => {
   const importRel = 'lib/services/settings_import_engine.dart';
   const plan = blockAfter(
     read(importRel),

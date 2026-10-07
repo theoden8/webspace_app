@@ -35,15 +35,18 @@ test('no call site hardcodes the topology', () => {
       expr,
       /ProxyTopology|PerSessionProxy|ProcessGlobalProxy|RoutedProxy/,
       `${file}: topology ${expr} is hardcoded rather than read from `
-        + '_proxyTopology, which asks whether router mode is running',
+        + 'SiteNetworkController.topology, which asks whether router mode is running',
     );
   }
 });
 
 test('the page derives its topology from the router state', () => {
-  const main = read('lib/main.dart');
-  const getter = /ProxyTopology get _proxyTopology \{([\s\S]*?)\n  \}/.exec(main);
-  assert.ok(getter, 'lib/main.dart must define _proxyTopology');
+  assert.match(read('lib/main.dart'),
+    /ProxyTopology get proxyTopology => state\._network\.topology;/,
+    'the residency plan reads the topology the network controller derives');
+  const getter = /ProxyTopology get topology \{([\s\S]*?)\n  \}/.exec(
+    read('lib/controllers/site_network_controller.dart'));
+  assert.ok(getter, 'SiteNetworkController must define topology');
   assert.match(getter[1], /ProxyRouterService\.instance\.isActive/,
     'Android is process-global only while the router is off (PROXY-013)');
 });

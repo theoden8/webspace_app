@@ -2,18 +2,22 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
+import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/mock_cookie_manager.dart';
+
 WebViewModel _site(String url, {UserProxySettings? proxy}) =>
     WebViewModel(initUrl: url, proxySettings: proxy);
 
-/// A page under containers: no shared jar. The legacy path is exercised
-/// against the real jar engine in cookie_isolation_integration_test.dart.
-class _ContainerPage implements SiteUnloadHost {
+/// A page under containers unless [sharedJar] is set. The legacy unload is
+/// exercised against the real jar engine in
+/// cookie_isolation_integration_test.dart.
+class _ContainerPage implements ResidencyHost {
   _ContainerPage(this.models) : loadedIndices = {for (var i = 0; i < models.length; i++) i};
 
   @override
@@ -21,7 +25,25 @@ class _ContainerPage implements SiteUnloadHost {
   @override
   final Set<int> loadedIndices;
   @override
-  CookieIsolationEngine? get sharedJar => null;
+  CookieIsolationEngine? sharedJar;
+
+  @override
+  ProxyTopology proxyTopology = const PerSessionProxy();
+  @override
+  bool torAvailable = false;
+  SiteRetentionResolver retention = tiers();
+
+  /// Slot -> the site it runs as, for slots showing a hosted tab.
+  final Map<int, WebViewModel> hosted = {};
+
+  @override
+  List<WebViewModel> identities({int? except}) => [
+        for (var i = 0; i < models.length; i++)
+          i == except ? models[i] : hosted[i] ?? models[i],
+      ];
+
+  @override
+  SiteRetentionPriority priorityOf(int index) => retention(index);
 
   final List<WebViewModel> captured = [];
   final List<(WebViewModel, UnloadReason)> noted = [];
@@ -78,7 +100,210 @@ void main() {
       expect(main, isNot(contains('_cookieIsolation.unloadSiteForDomainSwitch(')));
       final select = main.substring(main.indexOf('void _selectWebspace('));
       expect(select.substring(0, select.indexOf('\n  }\n')),
-          contains('await _unloadSite(index, UnloadReason.webspaceSwitch);'));
+          contains('_residencyPlan(WebspaceSwitched('));
+    });
+  });
+
+  group('SiteUnloadEngine.plan', () {
+    List<WebViewModel> sites(int n) =>
+        [for (var i = 0; i < n; i++) _site('https://s$i.example.com')];
+    UserProxySettings http(String address) =>
+        UserProxySettings(type: ProxyType.HTTP, address: address);
+    UserProxySettings tor(String country) =>
+        UserProxySettings(type: ProxyType.TOR, torExitCountry: country);
+    List<(WebViewModel, UnloadReason)> unloads(ResidencyPlan plan) =>
+        [for (final u in plan.unloads) (u.site, u.reason)];
+
+    test('activation unloads a same-base-domain site only with a shared jar',
+        () {
+      final a = _site('https://mail.example.com');
+      final b = _site('https://docs.example.com');
+      final page = _ContainerPage([a, b])..loadedIndices.remove(1);
+      expect(SiteUnloadEngine.plan(page, const Activating(1)).isEmpty, isTrue,
+          reason: 'containers keep same-base-domain sites apart (CONT-003)');
+
+      page.sharedJar = CookieIsolationEngine(
+        cookieManager: MockCookieManager(),
+        storage: MockCookieSecureStorage(),
+      );
+      expect(unloads(SiteUnloadEngine.plan(page, const Activating(1))),
+          [(a, UnloadReason.domainConflict)]);
+    });
+
+    test('activation runs conflict, proxy, Tor, then the cap, each on what '
+        'the rule before left', () {
+      final models = [
+        _site('https://a.example.com', proxy: http('p1:8080')),
+        _site('https://b.example.com', proxy: tor('de')),
+        _site('https://c.example.com'),
+        _site('https://d.example.com', proxy: tor('nl')),
+      ];
+      final page = _ContainerPage(models)
+        ..proxyTopology = const ProcessGlobalProxy()
+        ..torAvailable = true
+        ..loadedIndices.remove(3);
+      final plan = SiteUnloadEngine.plan(page, const Activating(3));
+      // Every loaded site disagrees with d's proxy; the Tor rule finds none
+      // left to take, and the cap counts what remains.
+      expect(unloads(plan), [
+        (models[0], UnloadReason.proxyMismatch),
+        (models[1], UnloadReason.proxyMismatch),
+        (models[2], UnloadReason.proxyMismatch),
+      ]);
+    });
+
+    test('activation reads what each slot runs as (LIR-024)', () {
+      final models = [
+        _site('https://a.example.com'),
+        _site('https://b.example.com', proxy: http('p1:8080')),
+      ];
+      final page = _ContainerPage(models)
+        ..proxyTopology = const ProcessGlobalProxy()
+        ..loadedIndices.remove(1);
+      expect(unloads(SiteUnloadEngine.plan(page, const Activating(1))),
+          [(models[0], UnloadReason.proxyMismatch)]);
+      page.hosted[0] = models[1];
+      expect(SiteUnloadEngine.plan(page, const Activating(1)).isEmpty, isTrue,
+          reason: 'slot 0 runs as b, so it already shares b\'s proxy');
+    });
+
+    test('a Tor exit disagreement unloads only where a Tor runtime exists', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor('de')),
+        _site('https://b.example.com', proxy: tor('nl')),
+      ];
+      final page = _ContainerPage(models)..loadedIndices.remove(1);
+      expect(SiteUnloadEngine.plan(page, const Activating(1)).isEmpty, isTrue);
+      page.torAvailable = true;
+      expect(unloads(SiteUnloadEngine.plan(page, const Activating(1))),
+          [(models[0], UnloadReason.torExitMismatch)]);
+    });
+
+    test('activation evicts past the loaded-site cap, protected sites kept',
+        () {
+      final models = sites(kMaxLoadedSites + 1);
+      final page = _ContainerPage(models)
+        ..loadedIndices.remove(kMaxLoadedSites)
+        ..retention = tiers(active: {0});
+      final plan = SiteUnloadEngine.plan(page, Activating(kMaxLoadedSites));
+      expect(unloads(plan), [(models[1], UnloadReason.loadedSiteCap)]);
+    });
+
+    test('activation drops the oldest residents past the resident cap', () {
+      final models = sites(kMaxResidentSites + 2);
+      final target = kMaxResidentSites + 1;
+      final page = _ContainerPage(models)
+        ..retention = tiers(active: {target});
+      models[0].lifecycleState = SiteLifecycleState.cacheCleared;
+      final plan = SiteUnloadEngine.plan(page, Activating(target));
+      expect(plan.unloads, isEmpty);
+      expect(plan.cacheClears, [models[1]],
+          reason: 'site 0 is already cleared and does not count');
+    });
+
+    test('memory pressure moves one site one tier, never a protected one', () {
+      final models = sites(3);
+      final page = _ContainerPage(models)..retention = tiers(active: {0});
+      expect(SiteUnloadEngine.plan(page, const MemoryPressure()).cacheClears,
+          [models[1]]);
+      models[1].lifecycleState = SiteLifecycleState.cacheCleared;
+      models[2].lifecycleState = SiteLifecycleState.cacheCleared;
+      expect(unloads(SiteUnloadEngine.plan(page, const MemoryPressure())),
+          [(models[1], UnloadReason.memoryPressure)]);
+      page.loadedIndices.removeAll({1, 2});
+      expect(SiteUnloadEngine.plan(page, const MemoryPressure()).isEmpty,
+          isTrue);
+    });
+
+    test('a webspace switch unloads only with a shared jar', () {
+      final models = sites(3);
+      final page = _ContainerPage(models);
+      const event = WebspaceSwitched(previous: {0, 1}, next: {1, 2});
+      expect(SiteUnloadEngine.plan(page, event).isEmpty, isTrue);
+      page.sharedJar = CookieIsolationEngine(
+        cookieManager: MockCookieManager(),
+        storage: MockCookieSecureStorage(),
+      );
+      expect(unloads(SiteUnloadEngine.plan(page, event)),
+          [(models[0], UnloadReason.webspaceSwitch)]);
+    });
+
+    test('a settled Tor exit keeps the first Tor site in order and its '
+        'agreeing siblings', () {
+      final models = [
+        _site('https://a.example.com', proxy: tor('de')),
+        _site('https://b.example.com'),
+        _site('https://c.example.com', proxy: tor('nl')),
+        _site('https://d.example.com', proxy: tor('nl')),
+      ];
+      final page = _ContainerPage(models)..torAvailable = true;
+      expect(unloads(SiteUnloadEngine.plan(page, const TorExitSettled([1, 2, 0, 3]))),
+          [(models[0], UnloadReason.torExitMismatch)]);
+    });
+
+    test('a nested open reads its own slot as the target itself', () {
+      final models = [
+        _site('https://a.example.com'),
+        _site('https://b.example.com', proxy: http('p1:8080')),
+      ];
+      final page = _ContainerPage(models)
+        ..proxyTopology = const ProcessGlobalProxy()
+        ..hosted[1] = models[0];
+      expect(unloads(SiteUnloadEngine.plan(page, const NestedOpening(1))),
+          [(models[0], UnloadReason.proxyMismatch)]);
+      expect(SiteUnloadEngine.plan(page, const SlotIdentityChanged(1)).isEmpty,
+          isTrue, reason: 'on screen, slot 1 runs as a');
+    });
+  });
+
+  group('SiteUnloadEngine.apply', () {
+    test('follows each site across a shift and skips one already gone',
+        () async {
+      final models = [
+        _site('https://a.example.com'),
+        _site('https://b.example.com'),
+        _site('https://c.example.com'),
+      ];
+      final page = _ContainerPage(List.of(models));
+      final plan = ResidencyPlan(unloads: [
+        (site: models[1], reason: UnloadReason.loadedSiteCap),
+        (site: models[2], reason: UnloadReason.loadedSiteCap),
+      ]);
+      page.duringCapture = () {
+        page.duringCapture = null;
+        page.models.removeAt(0);
+        page.loadedIndices
+          ..clear()
+          ..addAll({0, 1});
+      };
+      page.loadedIndices.remove(2);
+      expect(await SiteUnloadEngine.apply(page, plan, isStale: () => false),
+          isTrue);
+      expect(page.noted.map((n) => n.$1), [models[1], models[2]]);
+      expect(page.loadedIndices, isEmpty);
+    });
+
+    test('stops at the first stale await', () async {
+      final models = [_site('https://a.example.com'), _site('https://b.example.com')];
+      final page = _ContainerPage(models);
+      final plan = ResidencyPlan(unloads: [
+        for (final m in models) (site: m, reason: UnloadReason.proxyMismatch),
+      ]);
+      expect(await SiteUnloadEngine.apply(page, plan, isStale: () => true),
+          isFalse);
+      expect(page.noted.single.$1, models[0]);
+    });
+
+    test('clears only a site still loaded and resident', () async {
+      final models = [_site('https://a.example.com'), _site('https://b.example.com')];
+      final page = _ContainerPage(models)..loadedIndices.remove(1);
+      await SiteUnloadEngine.apply(
+        page,
+        ResidencyPlan(cacheClears: models),
+        isStale: () => false,
+      );
+      expect(models[0].lifecycleState, SiteLifecycleState.cacheCleared);
+      expect(models[1].lifecycleState, SiteLifecycleState.resident);
     });
   });
 
@@ -1521,7 +1746,7 @@ void main() {
   });
 }
 
-/// The tiers `_siteRetentionPriority` yields for the sites it protects
+/// The tiers `SiteRuntime.retentionPriority` yields for the sites it protects
 /// ([active]: on screen or activating) and the selected webspace's ([keep]).
 SiteRetentionResolver tiers({
   Set<int> active = const {},

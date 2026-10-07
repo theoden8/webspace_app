@@ -4,14 +4,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 /// LIR-032: with Site tabs on, a link into one of the user's sites opens as a
 /// tab run as that site, from a site's webview and from a nested screen over
-/// it. Structural, because `_WebSpacePageState` is not constructible from a
-/// unit test; the decision itself is `routeToTab`, tested with the engine.
+/// it. Structural, because `LinkController` needs the page behind it; the
+/// decision itself is `routeToTab`, tested with the engine.
 void main() {
   late String main;
+  late String links;
   late String nested;
 
   setUpAll(() {
     main = File('lib/main.dart').readAsStringSync();
+    links = File('lib/controllers/link_controller.dart').readAsStringSync();
     nested = File('lib/screens/inappbrowser.dart').readAsStringSync();
   });
 
@@ -22,45 +24,45 @@ void main() {
   }
 
   test('a nested link asks for a tab before routing does', () {
-    final route = bodyOf(main, 'bool _routeOutboundLink(');
-    final tab = route.indexOf('_tabRouteFor(');
+    final route = bodyOf(links, 'bool routeOutbound(');
+    final tab = route.indexOf('tabRouteFor(');
     expect(tab, isNot(-1));
     expect(tab, lessThan(route.indexOf('LinkIntentDispatchEngine.routeOutbound(')));
   });
 
   test('the engine gets the live gates and the hosts of the owner\'s tree', () {
-    final body = bodyOf(main, 'DispatchAction? _tabRouteFor(');
+    final body = bodyOf(links, 'DispatchAction? tabRouteFor(');
     for (final arg in [
-      'tabsEnabled: _tabsEnabledFor(owner)',
-      'containersActive: _useContainers',
-      'kioskLocked: _kioskLocked',
+      'tabsEnabled: _tabs.enabledFor(owner)',
+      'containersActive: _sites.useContainers',
+      'kioskLocked: _host.kioskLocked',
       'hadGesture: hadGesture',
-      'hosts: () => _tabHostsIn(owner, source)',
+      'hosts: () => tabHostsIn(owner, source)',
     ]) {
       expect(body, contains(arg), reason: arg);
     }
-    final hosts = bodyOf(main, 'List<_SiteRouteAdapter> _tabHostsIn(');
-    expect(hosts, contains('_outboundCandidates(source)'));
-    expect(hosts, contains('identical(m, owner) || _mayHost(m, owner)'));
+    final hosts = bodyOf(links, 'List<SiteRoute> tabHostsIn(');
+    expect(hosts, contains('outboundCandidates(source)'));
+    expect(hosts, contains('identical(m, owner) || _tabs.mayHost(m, owner)'));
   });
 
   test('the source\'s routing switch decides the container (LIR-034)', () {
-    final body = bodyOf(main, 'DispatchAction? _tabRouteFor(');
+    final body = bodyOf(links, 'DispatchAction? tabRouteFor(');
     expect(body,
         contains('routeOutboundLinks: source.effectiveRouteOutboundLinks'));
     // Routing off runs the tab as the source, which must be able to run in
     // the owner's tree.
-    expect(body, contains('!_mayHost(source, owner)'));
+    expect(body, contains('!_tabs.mayHost(source, owner)'));
   });
 
   test('a routed screen opens over the slot on screen, not what it runs as',
       () {
     for (final signature in [
       'Future<void> _executeOutboundDispatch(',
-      'Future<void> _showOutboundPicker(',
+      'Future<void> showOutboundPicker(',
     ]) {
-      final body = bodyOf(main, signature);
-      expect(body, contains('_executeOpenNested('), reason: signature);
+      final body = bodyOf(links, signature);
+      expect(body, contains('_host.openNested('), reason: signature);
       expect(body, isNot(contains('source: source)')), reason: signature);
       expect(body, contains('source: owner)'), reason: signature);
     }

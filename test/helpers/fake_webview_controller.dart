@@ -1,8 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/webview.dart';
 
-/// [WebViewController] that records the pause/resume and JavaScript calls it
-/// receives. Any other member is unimplemented and fails the test reaching it.
+/// [WebViewController] that records the pause/resume, load and JavaScript
+/// calls it receives. Any other member is unimplemented and fails the test
+/// reaching it.
 class FakeWebViewController extends Fake implements WebViewController {
   FakeWebViewController({this.evaluateError});
 
@@ -30,4 +31,8 @@ class FakeWebViewController extends Fake implements WebViewController {
     if (evaluateError case final error?) throw error;
     evaluated.add(source);
   }
+
+  @override
+  Future<void> loadUrl(String url, {String? language}) async =>
+      calls.add('loadUrl $url');
 }

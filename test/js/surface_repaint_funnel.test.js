@@ -8,15 +8,20 @@
 // left one such path; this makes a new one fail CI.
 //
 // Covers the main page (lib/main.dart) and the nested InAppWebViewScreen
-// (lib/screens/inappbrowser.dart) — the latter was BUG-001 gap #1.
+// (lib/screens/inappbrowser.dart) — the latter was BUG-001 gap #1. Both drive
+// one SurfaceRepaintController (lib/controllers/surface_repaint_controller.dart),
+// so the funnel's own properties are checked there once, and each host is
+// checked for wiring its triggers to it.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { read } = require('./helpers/source');
+const { read, methodBody } = require('./helpers/source');
 
 // Files that host an Android webview back path and so must have the funnel.
 const GUARDED = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
+const CONTROLLER = 'lib/controllers/surface_repaint_controller.dart';
+const controllerMethod = (name) => methodBody(name, { file: CONTROLLER });
 
 function linesOf(rel) {
   return read(rel).split('\n');
@@ -40,7 +45,7 @@ for (const rel of GUARDED) {
     assert.ok(defIdx >= 0, '_goBackAndRepaint must be defined');
     const body = lines.slice(defIdx, defIdx + 6).join('\n');
     assert.match(body, /controller\.goBack\(\)/, 'funnel must call goBack');
-    assert.match(body, /_nudgeSurfaceRepaint\(/, 'funnel must nudge the surface');
+    assert.match(body, /_surface\.nudge\('back'\)/, 'funnel must nudge the surface');
   });
 
   test(`${rel}: Android back-nav routes through the funnel`, () => {
@@ -89,8 +94,8 @@ for (const rel of GUARDED) {
     {
       file: 'lib/screens/inappbrowser.dart',
       funnel: /Future<void>\s+_reloadAndRepaint\s*\(/,
-      latch: /_armCommitLatch\(\)/,
-      settled: /_surfaceRepaint\.noteLoadSettled\(\)/,
+      latch: /_surface\.armCommitLatch\(\)/,
+      settled: /_surface\.loadSettled\(\)/,
     },
   ];
 
@@ -131,14 +136,19 @@ for (const rel of GUARDED) {
   }
 
   // main.dart holds no controller of its own — it reloads through the model —
-  // so its obligation is to wire the two host hooks to the engine.
+  // so its obligation is to hand every loaded site's hooks to the repaint
+  // controller, whose watch wires them to the engine.
   test('lib/main.dart: reload hooks drive the surface repaint engine', () => {
     const src = linesOf('lib/main.dart').join('\n');
-    assert.match(src, /onReloadIssued\s*=\s*\(\)\s*\{/,
-      'main.dart must handle onReloadIssued for the visible site');
-    assert.match(src, /_armCommitLatch\(\)/,
+    assert.match(methodBody('_wireSite'), /_surface\.watch\(site,/,
+      'every loaded site must be watched by the repaint controller');
+    assert.match(methodBody('_buildBodyWithBottomBar'), /_wireSite\(/,
+      'the body must wire each loaded site');
+    const watch = methodBody('watch', { file: 'lib/controllers/surface_repaint_controller.dart' });
+    const reload = watch.slice(watch.search(/site\.onReloadIssued\s*=/));
+    assert.match(reload.slice(0, 200), /armCommitLatch\(\)/,
       'the reload must be latched on the engine');
-    assert.match(src, /_surfaceRepaint\.noteLoadSettled\(\)/,
+    assert.match(watch, /site\.onLoadSettled\s*=[^;]*loadSettled\(\)/s,
       'the settled load must re-nudge (PAUSE-021)');
     const offenders = [];
     linesOf('lib/main.dart').forEach((l, i) => {
@@ -163,19 +173,24 @@ for (const rel of GUARDED) {
   test('lib/main.dart: didChangeMetrics re-nudges within the post-resume window', () => {
     const defIdx = lines.findIndex((l) => /void\s+didChangeMetrics\s*\(/.test(l));
     assert.ok(defIdx >= 0, 'didChangeMetrics override must exist');
-    const body = lines.slice(defIdx, defIdx + 20).join('\n');
-    assert.match(body, /_resumeRepaintWindowOpen/,
-      'didChangeMetrics must gate on the post-resume window');
-    assert.match(body, /_nudgeSurfaceRepaint\(/,
-      'didChangeMetrics must nudge the surface on the attach signal');
+    const body = lines.slice(defIdx, defIdx + 8).join('\n');
+    assert.match(body, /_surface\.metricsChanged\(\)/,
+      'didChangeMetrics must hand the attach signal to the repaint controller');
   });
 
-  test('lib/main.dart: the post-resume repaint window is opened on resume', () => {
-    assert.match(src, /_openResumeRepaintWindow\(\)/,
+  test('the post-resume repaint window is opened on resume', () => {
+    const resumed = methodBody('_foregrounded', { file: 'lib/controllers/app_lifecycle_controller.dart' });
+    assert.match(resumed, /surface\.openResumeWindow\(\)/,
       'a resume must open the post-resume repaint window');
-    // >= 2: the definition plus at least one call site on the resume path.
-    const refs = (src.match(/_openResumeRepaintWindow\(/g) || []).length;
-    assert.ok(refs >= 2, `expected window-open definition + >=1 call site, found ${refs}`);
+  });
+
+  test(`${CONTROLLER}: a metrics change nudges only inside the window`, () => {
+    assert.match(controllerMethod('metricsChanged'),
+      /if \(_resumeWindowOpen\) nudge\('metrics-resume'\);/,
+      'steady-state metric changes (keyboard, rotation) must not nudge');
+    assert.match(controllerMethod('openResumeWindow'),
+      /Timer\(const Duration\(seconds: 3\)/,
+      'the window must close on its own');
   });
 }
 
@@ -193,19 +208,19 @@ for (const rel of GUARDED) {
   test('lib/main.dart: the nudge inset is published to SurfaceNudgeScope', () => {
     assert.match(src, /SurfaceNudgeScope\(\s*\n?\s*bottomInset:\s*nudgeInset,/,
       'the body must publish the nudge inset for descendants that quantise size');
-    assert.match(src, /final\s+nudgeInset\s*=\s*_repaintNudge\s*\?\s*_repaintInsetPx\s*:\s*0\.0;/,
-      'the inset must be computed once so the Padding and the scope cannot drift');
+    assert.match(src, /final\s+nudgeInset\s*=\s*_surface\.bottomInset;/,
+      'the inset must be read once so the Padding and the scope cannot drift');
   });
 
   test('lib/main.dart: no unpublished nudge inset', () => {
     const offenders = [];
     lines.forEach((l, i) => {
-      if (/_repaintNudge\s*\?/.test(l) && !/final\s+nudgeInset/.test(l)) {
+      if (/_surface\.bottomInset/.test(l) && !/final\s+nudgeInset/.test(l)) {
         offenders.push(i + 1);
       }
     });
     assert.deepEqual(offenders, [],
-      `raw _repaintNudge inset at line(s) ${offenders.join(', ')}; route it through ` +
+      `raw _surface.bottomInset at line(s) ${offenders.join(', ')}; route it through ` +
         'nudgeInset so SurfaceNudgeScope carries it to the letterbox.');
   });
 
@@ -249,7 +264,7 @@ for (const rel of GUARDED) {
       const defIdx = lines.findIndex((l) => /void\s+didPopNext\s*\(/.test(l));
       assert.ok(defIdx >= 0, 'didPopNext override must exist');
       const body = lines.slice(defIdx, defIdx + 8).join('\n');
-      assert.match(body, /_nudgeSurfaceRepaint\(/,
+      assert.match(body, /_surface\.nudge\(/,
         'returning from a pushed route must nudge the surface');
     });
   }
@@ -262,20 +277,22 @@ for (const rel of GUARDED) {
 // does, so the load-settled signal repaints the committed document.
 {
   const COMMIT_LATCH = [
-    // file, the attach handler that must arm the latch
-    { file: 'lib/main.dart', handler: /onControllerReady\s*=\s*\(\)\s*\{/ },
-    { file: 'lib/screens/inappbrowser.dart', handler: /onControllerCreated:\s*\(controller\)\s*\{/ },
+    // file, the attach handler that must arm the latch, how it reaches the controller
+    { file: 'lib/controllers/surface_repaint_controller.dart',
+      handler: /site\.onControllerReady\s*=\s*\(\)\s*\{/, via: '' },
+    { file: 'lib/screens/inappbrowser.dart',
+      handler: /onControllerCreated:\s*\(controller\)\s*\{/, via: '_surface.' },
   ];
 
-  for (const { file, handler } of COMMIT_LATCH) {
+  for (const { file, handler, via } of COMMIT_LATCH) {
     test(`${file}: a fresh controller attach latches the first commit`, () => {
       const lines = linesOf(file);
       const defIdx = lines.findIndex((l) => handler.test(l));
       assert.ok(defIdx >= 0, 'the controller-attach handler must exist');
       const body = lines.slice(defIdx, defIdx + 20).join('\n');
-      assert.match(body, /_armCommitLatch\(\)/,
+      assert.ok(body.includes(`${via}armCommitLatch()`),
         'the attach must arm the commit latch (PAUSE-025)');
-      assert.match(body, /_nudgeSurfaceRepaint\(/,
+      assert.ok(body.includes(`${via}nudge(`),
         'the attach must also nudge now (PAUSE-017)');
     });
   }
@@ -295,25 +312,18 @@ for (const rel of GUARDED) {
     );
     assert.ok(defIdx >= 0, 'the nested screen must observe app lifecycle');
     const body = lines.slice(defIdx, defIdx + 24).join('\n');
-    assert.match(body, /_openResumeRepaintWindow\(\)/,
+    assert.match(body, /_surface\.openResumeWindow\(\)/,
       'a resume must open the post-resume repaint window');
-    assert.match(body, /_nudgeSurfaceRepaint\(/,
+    assert.match(body, /_surface\.nudge\(/,
       'a resume must nudge the nested surface');
   });
 
   test('lib/screens/inappbrowser.dart: didChangeMetrics re-nudges in the window', () => {
     const defIdx = lines.findIndex((l) => /void\s+didChangeMetrics\s*\(/.test(l));
     assert.ok(defIdx >= 0, 'didChangeMetrics override must exist');
-    const body = lines.slice(defIdx, defIdx + 12).join('\n');
-    assert.match(body, /_resumeRepaintWindowOpen/,
-      'the re-nudge must be bounded to the post-resume window');
-    assert.match(body, /_nudgeSurfaceRepaint\(/,
-      'the attach signal must nudge the nested surface');
-  });
-
-  test('lib/screens/inappbrowser.dart: the resume window timer is cancelled', () => {
-    assert.match(src, /_resumeRepaintWindowTimer\?\.cancel\(\)/,
-      'dispose must cancel the window timer');
+    const body = lines.slice(defIdx, defIdx + 6).join('\n');
+    assert.match(body, /_surface\.metricsChanged\(\)/,
+      "the attach signal must reach the nested surface's controller");
   });
 }
 
@@ -324,44 +334,37 @@ for (const rel of GUARDED) {
 // repaint. Every host that latches a commit must therefore arm through a helper
 // that holds the window open for a bounded time and close it on a timer.
 {
-  const LATCH_HOSTS = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
+  test(`${CONTROLLER}: armCommitLatch arms the engine and bounds the window`, () => {
+    const body = controllerMethod('armCommitLatch');
+    assert.match(body, /_engine\.noteCommitPending\(\)/,
+      'the helper must arm the engine latch');
+    assert.match(body, /_commitWindowTimer\?\.cancel\(\)/,
+      'a new issue must restart the window rather than stack timers');
+    assert.match(body, /Timer\(SurfaceRepaintEngine\.commitWindow/,
+      'the window must be bounded by the engine-owned duration');
+    assert.match(body, /_engine\.closeCommitWindow\(\)/,
+      'the timer must close the window (PAUSE-027)');
+    // The engine is private to the controller, so no host can arm it raw.
+    assert.equal((read(CONTROLLER).match(/_engine\.noteCommitPending\(\)/g) || []).length, 1,
+      'only armCommitLatch arms the latch, so the window is always bounded');
+  });
 
-  for (const rel of LATCH_HOSTS) {
+  test(`${CONTROLLER}: dispose cancels every timer`, () => {
+    const body = controllerMethod('dispose');
+    for (const timer of ['_commitWindowTimer', '_logFlushTimer', '_resumeWindowTimer']) {
+      assert.ok(body.includes(`${timer}?.cancel()`), `${timer} must not outlive the screen`);
+    }
+  });
+
+  for (const rel of GUARDED) {
     const lines = linesOf(rel);
     const src = lines.join('\n');
 
-    test(`${rel}: _armCommitLatch arms the engine and bounds the window`, () => {
-      const defIdx = lines.findIndex((l) => /void\s+_armCommitLatch\s*\(\)/.test(l));
-      assert.ok(defIdx >= 0, '_armCommitLatch must be defined');
-      const body = lines.slice(defIdx, defIdx + 10).join('\n');
-      assert.match(body, /_surfaceRepaint\.noteCommitPending\(\)/,
-        'the helper must arm the engine latch');
-      assert.match(body, /_commitWindowTimer\?\.cancel\(\)/,
-        'a new issue must restart the window rather than stack timers');
-      assert.match(body, /Timer\(SurfaceRepaintEngine\.commitWindow/,
-        'the window must be bounded by the engine-owned duration');
-      assert.match(body, /_surfaceRepaint\.closeCommitWindow\(\)/,
-        'the timer must close the window (PAUSE-027)');
-    });
-
-    test(`${rel}: nothing arms the engine latch outside the helper`, () => {
-      const offenders = [];
-      lines.forEach((l, i) => {
-        if (/^\s*(\/\/|\*)/.test(l)) return; // prose, not a call site
-        if (!/_surfaceRepaint\.noteCommitPending\(\)/.test(l)) return;
-        if (/void\s+_armCommitLatch\s*\(\)/.test(context(lines, i, 3, 0))) return;
-        offenders.push(i + 1);
-      });
-      assert.deepEqual(offenders, [],
-        `raw noteCommitPending() at line(s) ${offenders.join(', ')}; ` +
-          'arm through _armCommitLatch so the window is bounded (PAUSE-027).');
-    });
-
-    test(`${rel}: dispose cancels the commit window timer`, () => {
+    test(`${rel}: dispose disposes the repaint controller`, () => {
       const defIdx = lines.findIndex((l) => /void\s+dispose\s*\(\)/.test(l));
       assert.ok(defIdx >= 0, 'dispose must exist');
       const body = lines.slice(defIdx, defIdx + 14).join('\n');
-      assert.match(body, /_commitWindowTimer\?\.cancel\(\)/,
+      assert.match(body, /_surface\.dispose\(\)/,
         'a pending window timer must not outlive the screen');
     });
 
@@ -386,29 +389,14 @@ for (const rel of GUARDED) {
       assert.match(src,
         /case\s+(?:'repaint'|SiteMenuAction\.repaint):\s*\n\s*_repaintCurrentSurface\(\);/,
         'selecting it must route to _repaintCurrentSurface');
-      const defIdx = lines.findIndex((l) =>
-        /void\s+_repaintCurrentSurface\s*\(\)/.test(l),
-      );
-      assert.ok(defIdx >= 0, '_repaintCurrentSurface must be defined');
-      // An expression body is the whole method; a block body runs to its
-      // closing brace rather than a fixed window, because the main-page one
-      // cycles through repaint mechanisms (BUG-001 gap #18) and a line count
-      // would fail on the next mechanism added.
-      const isExpr = /=>/.test(lines[defIdx]);
-      let body;
-      if (isExpr) {
-        body = lines[defIdx];
-      } else {
-        const endIdx = lines.findIndex((l, i) => i > defIdx && /^ {2}}$/.test(l));
-        assert.ok(endIdx > defIdx, '_repaintCurrentSurface must be closed');
-        body = lines.slice(defIdx, endIdx).join('\n');
-        // A mechanism that does not route through the nudge funnel emits no
-        // trigger= line, so a tap must name itself or a user report cannot be
-        // matched to what it actually did.
-        assert.match(body, /LogService\.instance\.log\(\s*'SurfaceDiag'/,
+      const body = methodBody('_repaintCurrentSurface', { file: rel });
+      // A mechanism that does not route through the nudge funnel emits no
+      // trigger= line, so the controller names each one as it hands it out.
+      if (/nextManual\(\)/.test(body)) {
+        assert.match(controllerMethod('nextManual'), /LogService\.instance\.log\('SurfaceDiag'/,
           'a branching manual repaint must log which mechanism it ran');
       }
-      assert.match(body, /_nudgeSurfaceRepaint\('manual'\)/,
+      assert.match(body, /_surface\.nudge\('manual'\)/,
         "the manual action must nudge under the 'manual' trigger, so a user " +
           'report can be matched to the log line the tap produced');
     });
@@ -423,25 +411,27 @@ for (const rel of GUARDED) {
 // window -- a later tidy-up that routes it through noteLoadSettled() would
 // reproduce exactly the failure it was added for.
 {
-  const GUARDED = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
-  for (const rel of GUARDED) {
+  const GUARDED = [
+    // file, the commit-visible nudge as that file calls it
+    { rel: 'lib/controllers/surface_repaint_controller.dart', call: "nudge('page-commit-visible')" },
+    { rel: 'lib/screens/inappbrowser.dart', call: "_surface.nudge('page-commit-visible')" },
+  ];
+  for (const { rel, call } of GUARDED) {
     const lines = linesOf(rel);
     const src = lines.join('\n');
 
     test(`${rel}: the commit-visible trigger nudges (PAUSE-031)`, () => {
-      assert.match(src, /_nudgeSurfaceRepaint\('page-commit-visible'\)/,
+      assert.ok(src.includes(call),
         'onPageCommitVisible must route through the nudge funnel');
     });
 
     test(`${rel}: the commit-visible trigger is not window-gated (PAUSE-031)`, () => {
-      const i = lines.findIndex((l) =>
-        /_nudgeSurfaceRepaint\('page-commit-visible'\)/.test(l),
-      );
+      const i = lines.findIndex((l) => l.includes(call));
       assert.ok(i >= 0, 'the commit-visible nudge must exist');
       // The five lines above the nudge: enough to hold an index guard, not
       // enough to reach the neighbouring commit-settled handler's own gate.
       const before = lines.slice(Math.max(0, i - 5), i).join('\n');
-      assert.doesNotMatch(before, /noteLoadSettled\(\)/,
+      assert.doesNotMatch(before, /loadSettled\(\)/,
         'the commit-visible nudge must not be gated on the commit window: ' +
           'the window can close before a slow renderer produces a frame');
     });
@@ -451,60 +441,31 @@ for (const rel of GUARDED) {
 // Diagnostic funnel (BUG-001 Attempt 11). The SurfaceDiag trace exists to say
 // WHICH path repainted on a device that went blank, and hand-written log lines
 // at a few call sites left most paths dark: 6 of 26 nudges reported. The line
-// is therefore emitted inside _nudgeSurfaceRepaint from a required trigger
-// label, so a new path cannot be added silently.
+// is therefore emitted inside the controller's nudge from its trigger, which
+// the compiler makes every call site pass.
 {
+  test(`${CONTROLLER}: the nudge funnel reports its own trigger`, () => {
+    assert.match(controllerMethod('nudge'), /_trace\(trigger,\s*coalesced:/,
+      'the funnel must report through _trace, not its call sites');
+  });
+
+  test(`${CONTROLLER}: the trace is gated on developer mode and throttled`, () => {
+    const body = controllerMethod('_trace');
+    // A repaint line per call would evict LogService's 2000-entry ring with
+    // one repeated sentence: didChangeMetrics alone fires it many times a
+    // second through a warm resume.
+    assert.match(body, /if\s*\(!DeveloperModeService\.instance\.enabled\)\s*return;/,
+      'an ordinary session must not spend its log ring on the repaint trace');
+    assert.match(body, /_log\.note\(/,
+      'the trace must go through the burst collapser');
+    assert.match(body, /RepaintLogThrottle\.burstWindow/,
+      'a folded burst must be flushed on the throttle window');
+    assert.match(body, /_log\.flush\(\)/,
+      'the flush timer must emit the pending summary');
+  });
+
   for (const rel of GUARDED) {
-    const lines = linesOf(rel);
-    const src = lines.join('\n');
-
-    test(`${rel}: the nudge funnel reports its own trigger`, () => {
-      const defIdx = lines.findIndex((l) =>
-        /void\s+_nudgeSurfaceRepaint\s*\(String\s+trigger\)/.test(l),
-      );
-      assert.ok(defIdx >= 0,
-        '_nudgeSurfaceRepaint must take a trigger label, so every path names itself');
-      const body = lines.slice(defIdx, defIdx + 22).join('\n');
-      assert.match(body, /_traceRepaint\(trigger,\s*coalesced:/,
-        'the funnel must report through _traceRepaint, not its call sites');
-    });
-
-    test(`${rel}: the trace is gated on developer mode and throttled`, () => {
-      const defIdx = lines.findIndex((l) =>
-        /void\s+_traceRepaint\s*\(String\s+trigger/.test(l),
-      );
-      assert.ok(defIdx >= 0, '_traceRepaint must be defined');
-      const body = lines.slice(defIdx, defIdx + 18).join('\n');
-      // A repaint line per call would evict LogService's 2000-entry ring with
-      // one repeated sentence: didChangeMetrics alone fires it many times a
-      // second through a warm resume.
-      assert.match(body, /if\s*\(!DeveloperModeService\.instance\.enabled\)\s*return;/,
-        'an ordinary session must not spend its log ring on the repaint trace');
-      assert.match(body, /_repaintLog\s*\n?\s*\.note\(|_repaintLog\.note\(/,
-        'the trace must go through the burst collapser');
-      assert.match(body, /RepaintLogThrottle\.burstWindow/,
-        'a folded burst must be flushed on the throttle window');
-      assert.match(body, /_repaintLog\.flush\(\)/,
-        'the flush timer must emit the pending summary');
-    });
-
-    test(`${rel}: the trace flush timer does not outlive the screen`, () => {
-      const defIdx = lines.findIndex((l) => /void\s+dispose\s*\(\)/.test(l));
-      assert.ok(defIdx >= 0, 'dispose must exist');
-      const body = lines.slice(defIdx, defIdx + 14).join('\n');
-      assert.match(body, /_repaintLogFlushTimer\?\.cancel\(\)/,
-        'a pending flush must be cancelled with the screen');
-    });
-
-    test(`${rel}: every repaint call site passes a trigger`, () => {
-      const offenders = [];
-      lines.forEach((l, i) => {
-        if (/_nudgeSurfaceRepaint\(\s*\)/.test(l)) offenders.push(i + 1);
-      });
-      assert.deepEqual(offenders, [],
-        `unlabelled _nudgeSurfaceRepaint() at line(s) ${offenders.join(', ')}; ` +
-          'pass a trigger so the SurfaceDiag trace can name the path.');
-    });
+    const src = linesOf(rel).join('\n');
 
     test(`${rel}: no call site hand-writes a trigger line any more`, () => {
       // A duplicate line at a call site is how the coverage drifted before:
@@ -516,4 +477,3 @@ for (const rel of GUARDED) {
     });
   }
 }
-

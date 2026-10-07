@@ -9,7 +9,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read, code, blockAfter } = require('./helpers/source');
+const { read, code, blockAfter, methodBody } = require('./helpers/source');
 
 const swift = code(read('ios/Runner/TorControllerPlugin.swift'));
 const engine = code(read('lib/services/tor_engine.dart'));
@@ -73,7 +73,7 @@ test('the listener is asked on every way back into the app', () => {
   assert.match(watch, /AppLifecycleState\.resumed[\s\S]*revive\(\)/,
     'a return to the foreground asks the listener');
 
-  const wake = blockAfter(main, 'Future<void> _backgroundWake(');
+  const wake = methodBody('wake', { file: 'lib/controllers/background_sites_controller.dart' });
   const revive = wake.indexOf('TorService.instance.revive()');
   assert.ok(revive > 0 && revive < wake.indexOf('_wakeEngine.wake('),
     'a background wake resumes the process without a resumed event, so it '

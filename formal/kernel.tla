@@ -78,7 +78,7 @@ Activate(s) ==
     /\ Attach
     /\ frozen' = frozen
 
-\* App returns to foreground (_onResumed).  PAUSE-015.
+\* App returns to foreground (AppLifecycleController._onResumed).  PAUSE-015.
 Resume ==
     /\ Attach
     /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
@@ -88,7 +88,7 @@ ControllerAttach ==
     /\ Attach
     /\ UNCHANGED << currentIndex, loaded, frozen, jarOwner >>
 
-\* The repaint chokepoint (_nudgeSurfaceRepaint). Clears the owed repaint.
+\* The repaint chokepoint (SurfaceRepaintController.nudge). Clears the owed repaint.
 \* PAUSE-015 / PAUSE-017 / PAUSE-018.
 Nudge ==
     /\ owed
@@ -202,7 +202,7 @@ Next == GoodNext
         \/ (Conflict = "contaminate" /\ Contaminate)
 
 \* Weak fairness on Nudge: a continuously-owed, non-frozen repaint must
-\* eventually fire. This is the formal counterpart of "_nudgeSurfaceRepaint
+\* eventually fire. This is the formal counterpart of "SurfaceRepaintController.nudge
 \* runs its tick loop to completion."
 Spec == Init /\ [][Next]_vars /\ WF_vars(Nudge)
 

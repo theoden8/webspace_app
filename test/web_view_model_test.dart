@@ -1288,7 +1288,7 @@ void main() {
 
     // Defensive deserialization: malformed prefs blobs from partial writes
     // or external backups must not crash boot. Pairs with the per-entry
-    // try/catch in `_loadWebViewModels`.
+    // try/catch in `SiteListStore.load`.
     group('fromJson tolerates missing/null fields', () {
       Map<String, dynamic> baseJson() => {
             'initUrl': 'https://example.com',

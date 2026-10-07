@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -12,13 +13,10 @@ import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/repaint_log_throttle.dart';
-import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
-import 'package:webspace/services/surface_repaint_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
@@ -26,10 +24,11 @@ import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart'
-    show extractDomain, matchesBlockedCookie, rendererProbeIndicatesGone;
+    show extractDomain, matchesBlockedCookie;
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
+import 'package:webspace/widgets/page_load_bar.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
@@ -80,7 +79,8 @@ class InAppWebViewScreen extends StatefulWidget {
 }
 
 class _InAppWebViewScreenState extends State<InAppWebViewScreen>
-    with WidgetsBindingObserver, RouteAware {
+    with WidgetsBindingObserver, RouteAware
+    implements SurfaceHost {
   WebViewController? _controller;
   String? title;
   late String _currentUrl;
@@ -126,7 +126,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// screen's `WebViewModel.isLoading` / `loadingProgress`.
   bool _isLoading = false;
   int _loadingProgress = 0;
-  static const double _loadingBarHeight = 3.0;
 
   /// Race guard for the PopScope handler. Async swipe gestures (iOS edge
   /// swipe) can re-enter `onPopInvokedWithResult` while the previous
@@ -146,20 +145,19 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// closing: nothing else loads or is handed over.
   bool _handedOffToTab = false;
 
-  /// Surface-repaint nudge for this nested webview (BUG-001 gap #1). A back
-  /// navigation that restores a bfcached page re-attaches a blank Android
-  /// SurfaceView; mirror the main page's `_goBackAndRepaint`/`_nudgeSurfaceRepaint`
-  /// here so the nested screen recomposites too. Pure-Dart engine drives the
-  /// 1px-inset toggle rendered below; no-op off Android.
-  final SurfaceRepaintEngine _surfaceRepaint = SurfaceRepaintEngine();
-  bool _repaintNudge = false;
-  bool _resumeRepaintWindowOpen = false;
-  Timer? _resumeRepaintWindowTimer;
-  // Bounds the commit latch opened by _armCommitLatch (PAUSE-027).
-  Timer? _commitWindowTimer;
-  // Collapses repaint-trace bursts; only ever fed while developer mode is on.
-  final RepaintLogThrottle _repaintLog = RepaintLogThrottle();
-  Timer? _repaintLogFlushTimer;
+  /// This screen's own surface: the main page's repaint cannot reach it,
+  /// since that toggles an inset around an IndexedStack under this route
+  /// (BUG-001 gap #1).
+  late final SurfaceRepaintController _surface = SurfaceRepaintController(
+    this,
+    repaints: hostIsAndroid,
+    traceSuffix: '-nested',
+  );
+
+  @override
+  void rebuild() {
+    if (mounted) setState(() {});
+  }
 
   /// Recovery state for a load the OS stranded while the app was backgrounded
   /// (PAUSE-022). The nested screen is as exposed as the main page: it is the
@@ -233,7 +231,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // Ungated, unlike the commit-settled trigger below: this fires when
         // the WebView has pixels, and the 15s commit window can close before
         // a slow renderer produces any (BUG-001 gap #18).
-        onPageCommitVisible: () => _nudgeSurfaceRepaint('page-commit-visible'),
+        onPageCommitVisible: () => _surface.nudge('page-commit-visible'),
         onConfirmScriptFetch: widget.hooks.confirmScriptFetch,
         onUnproxiedNavigationBlocked: (blocked) {
           if (!mounted) return;
@@ -285,8 +283,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           }
         },
         onReloadIssued: () {
-          _armCommitLatch();
-          _nudgeSurfaceRepaint('reload');
+          _surface.armCommitLatch();
+          _surface.nudge('reload');
         },
         onMainFrameLoad: _resumeReload.noteLoad,
         onLoadingChanged: (loading) {
@@ -297,9 +295,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           });
           // The reloaded document commits onto the surface here, which is
           // where the repaint has to land (PAUSE-021).
-          if (!loading && _surfaceRepaint.noteLoadSettled()) {
-            _nudgeSurfaceRepaint('commit-settled');
-          }
+          if (!loading) _surface.loadSettled();
         },
         onProgressChanged: (progress) {
           if (!mounted || _loadingProgress == progress) return;
@@ -378,8 +374,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // paints it — the main page's PAUSE-017 case, which the nested screen
         // never had. Latch the first commit too: the entry URL is remote, so
         // it routinely settles after this nudge drains (PAUSE-025).
-        _armCommitLatch();
-        _nudgeSurfaceRepaint('controller-attach');
+        _surface.armCommitLatch();
+        _surface.nudge('controller-attach');
         // Remove all cookies on load
         controller.evaluateJavascript('''
           (function() {
@@ -408,14 +404,12 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// nested counterpart of the main page's route return (PAUSE-024).
   @override
   void didPopNext() {
-    _nudgeSurfaceRepaint('route-return');
+    _surface.nudge('route-return');
   }
 
   @override
   void dispose() {
-    _resumeRepaintWindowTimer?.cancel();
-    _commitWindowTimer?.cancel();
-    _repaintLogFlushTimer?.cancel();
+    _surface.dispose();
     _torStatusSub?.cancel();
     if (widget.posture.container.proxy.type == ProxyType.TOR) {
       TorService.instance.release(TorNestedHolder(widget.posture.siteId));
@@ -465,76 +459,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     });
   }
 
-  /// Recomposite the nested Android surface after a back navigation: a bfcache
-  /// restore re-attaches a blank SurfaceView (BUG-001 / PAUSE-018). Mirrors
-  /// `_WebSpacePageState._nudgeSurfaceRepaint`; no-op off Android.
-  void _nudgeSurfaceRepaint(String trigger) {
-    if (!hostIsAndroid) return;
-    // Debug-only, diag tiers only: drop this trigger so a scenario can observe
-    // what the native layer repaints on its own (BUG-001 gap #5).
-    if (RepaintSuppression.suppresses(trigger)) {
-      _traceRepaint('$trigger-suppressed', coalesced: false);
-      return;
-    }
-    final started = _surfaceRepaint.request();
-    _traceRepaint(trigger, coalesced: !started);
-    if (!started) return;
-    void tick() {
-      if (!mounted) {
-        _surfaceRepaint.abort();
-        return;
-      }
-      final t = _surfaceRepaint.tick();
-      setState(() => _repaintNudge = t.inset);
-      if (t.done) return;
-      Future.delayed(const Duration(milliseconds: 100), tick);
-    }
-
-    tick();
-  }
-
   Future<void> _goBackAndRepaint(WebViewController controller) async {
     await controller.goBack();
-    _nudgeSurfaceRepaint('back');
-  }
-
-  /// Nested counterpart of `_WebSpacePageState._traceRepaint`: same funnel,
-  /// same developer-mode gate and burst collapsing. `-nested` distinguishes
-  /// this screen's surface from the main page's in a shared trace — the two
-  /// have separate SurfaceViews and separate repaint machinery.
-  void _traceRepaint(String trigger, {required bool coalesced}) {
-    if (!DeveloperModeService.instance.enabled) return;
-    for (final line in _repaintLog
-        .note('$trigger-nested', coalesced: coalesced, now: DateTime.now())) {
-      LogService.instance.log('SurfaceDiag', line);
-    }
-    _repaintLogFlushTimer?.cancel();
-    if (!_repaintLog.hasPending) return;
-    _repaintLogFlushTimer = Timer(RepaintLogThrottle.burstWindow, () {
-      _repaintLogFlushTimer = null;
-      final summary = _repaintLog.flush();
-      if (summary != null) LogService.instance.log('SurfaceDiag', summary);
-    });
-  }
-
-  /// Nested counterpart of `_WebSpacePageState._armCommitLatch` (PAUSE-027):
-  /// arm the commit latch and hold it open for a bounded window, so every
-  /// load settling inside it repaints — not just the first, whose document a
-  /// second refresh or a redirect chain has already replaced.
-  void _armCommitLatch() {
-    _surfaceRepaint.noteCommitPending();
-    _commitWindowTimer?.cancel();
-    _commitWindowTimer = Timer(SurfaceRepaintEngine.commitWindow, () {
-      _commitWindowTimer = null;
-      _surfaceRepaint.closeCommitWindow();
-    });
+    _surface.nudge('back');
   }
 
   /// User asked for a repaint from the menu (PAUSE-028). Nested counterpart of
   /// `_WebSpacePageState._repaintCurrentSurface`, without the renderer probe:
   /// this screen recreates nothing, so a dead renderer here is the user's cue
   /// to leave and re-open the link.
-  void _repaintCurrentSurface() => _nudgeSurfaceRepaint('manual');
+  void _repaintCurrentSurface() => _surface.nudge('manual');
 
   /// Reload funnel for the nested webview, mirroring
   /// `WebViewModel.reloadAndRepaint`. A reload drops the painted frame and
@@ -544,8 +478,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Future<void> _reloadAndRepaint() async {
     final controller = _controller;
     if (controller == null) return;
-    _armCommitLatch();
-    _nudgeSurfaceRepaint('reload');
+    _surface.armCommitLatch();
+    _surface.nudge('reload');
     await controller.reload();
   }
 
@@ -571,8 +505,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         final controller = _controller;
         if (!mounted || controller == null) return;
         _resumeReload.noteRetryIssued();
-        _armCommitLatch();
-        _nudgeSurfaceRepaint('resume-reissue');
+        _surface.armCommitLatch();
+        _surface.nudge('resume-reissue');
         try {
           await controller.loadUrl(plan.url!, language: widget.posture.page.language);
         } catch (_) {
@@ -608,12 +542,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   Future<void> _probeNestedRenderer() async {
     final controller = _controller;
     if (controller == null) return;
-    final result = await controller
-        .evaluateJavascriptReturning('document.body ? document.body.offsetHeight : -1');
-    if (!mounted) return;
-    if (rendererProbeIndicatesGone(result) && identical(_controller, controller)) {
-      _handleRendererGone(false);
-    }
+    final gone = await _surface.rendererGone(controller,
+        trigger: 'resume', siteId: widget.posture.siteId);
+    if (gone && identical(_controller, controller)) _handleRendererGone(false);
   }
 
   @override
@@ -627,8 +558,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       // that one toggles the inset around an IndexedStack sitting under this
       // route. Same two-part fix as PAUSE-020 — a tail nudge now, plus a
       // re-nudge on the attach signal for a surface that comes back later.
-      _openResumeRepaintWindow();
-      _nudgeSurfaceRepaint('resume');
+      _surface.openResumeWindow();
+      _surface.nudge('resume');
       unawaited(_retryIncompleteLoadOnResume());
     }
   }
@@ -636,22 +567,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    if (!_resumeRepaintWindowOpen) return;
-    _nudgeSurfaceRepaint('metrics-resume');
-  }
-
-  /// Post-resume window during which a `didChangeMetrics` — the closest
-  /// Dart-side signal to the SurfaceView re-attaching — re-fires the nudge.
-  /// Bounded so steady-state metric changes (keyboard, rotation) don't nudge.
-  /// Mirrors `_WebSpacePageState._openResumeRepaintWindow` (PAUSE-020).
-  void _openResumeRepaintWindow() {
-    if (!hostIsAndroid) return;
-    _resumeRepaintWindowOpen = true;
-    _resumeRepaintWindowTimer?.cancel();
-    _resumeRepaintWindowTimer = Timer(const Duration(seconds: 3), () {
-      _resumeRepaintWindowOpen = false;
-      _resumeRepaintWindowTimer = null;
-    });
+    _surface.metricsChanged();
   }
 
   Future<void> launchExternalUrl(String url) async {
@@ -749,16 +665,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       },
       child: Scaffold(
       appBar: AppBar(
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(_loadingBarHeight),
-          child: _isLoading
-              ? LinearProgressIndicator(
-                  value: _loadingProgress > 0 ? _loadingProgress / 100 : null,
-                  minHeight: _loadingBarHeight,
-                  backgroundColor: Colors.transparent,
-                )
-              : const SizedBox(height: _loadingBarHeight),
-        ),
+        bottom: PageLoadBar(loading: _isLoading, progress: _loadingProgress),
         // Custom back button that bypasses PopScope by calling
         // Navigator.pop directly (vs maybePop), so the AppBar back
         // arrow always closes the nested screen. Only the system back
@@ -914,13 +821,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                 _toggleFind();
               },
             ),
-          // 1px inset toggled by _nudgeSurfaceRepaint forces the nested
-          // hybrid-composition SurfaceView to recomposite after a back
-          // navigation (BUG-001 gap #1). Zero inset in steady state.
+          // The repaint inset (BUG-001 gap #1); zero in steady state.
           Expanded(
             child: Padding(
               key: const ValueKey(kNestedWebViewSlotKey),
-              padding: EdgeInsets.only(bottom: _repaintNudge ? 1.0 : 0.0),
+              padding: EdgeInsets.only(bottom: _surface.bottomInset),
               // KeyedSubtree key bumped by _handleRendererGone remounts a fresh
               // InAppWebView after a renderer death (BUG-002 gap #1).
               child: KeyedSubtree(

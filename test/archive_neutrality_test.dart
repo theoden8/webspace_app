@@ -17,6 +17,7 @@ import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/archive_storage.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
 import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/settings_import_engine.dart';
@@ -332,7 +333,7 @@ void main() {
         isArchiveTier: true,
       );
 
-      // Mimic the production filter in `_saveWebViewModels`.
+      // Mimic the production filter in `_persistSites`.
       final all = [appA, archX, appB, archY];
       final persisted =
           all.where((m) => !m.isArchiveTier).map((m) => jsonEncode(m.toJson())).toList();
@@ -404,7 +405,7 @@ void main() {
 
   // The legacy cookie engine (used wherever native containers are
   // unsupported) branched on the raw `incognito` field, not
-  // `effectiveIncognito`. `_saveWebViewModels` filters archive-tier sites
+  // `effectiveIncognito`. `_persistSites` filters archive-tier sites
   // out of app-tier persistence, but the engine ran underneath that filter
   // and put an archive site's non-Secure cookies into plaintext
   // SharedPreferences (`cookies_fallback`) keyed by its cleartext siteId —
@@ -728,26 +729,12 @@ Future<Map<String, String>> _snapshotDir(Directory dir) async {
   return out;
 }
 
-/// Mirror of `_WebSpacePageState._resolveWebspaceIndices`. The runtime
-/// `webspace.siteIndices` view is recomputed from `webspace.siteIds`
-/// against the current `_webViewModels`. Duplicated here so the
-/// neutrality tests can exercise the contract without dragging in a
-/// full widget test harness.
 void _resolveWebspaceIndices(
   List<Webspace> webspaces,
   List<WebViewModel> models,
-) {
-  final positionBySiteId = <String, int>{
-    for (var i = 0; i < models.length; i++) models[i].siteId: i,
-  };
-  for (final ws in webspaces) {
-    if (ws.isAll) continue;
-    ws.siteIndices = [
-      for (final sid in ws.siteIds)
-        if (positionBySiteId.containsKey(sid)) positionBySiteId[sid]!,
-    ];
-  }
-}
+) =>
+    WebspaceSelectionEngine.resolveIndices(
+        webspaces, [for (final m in models) m.siteId]);
 
 WebViewModel _siteWithId(String siteId, {bool archive = false}) {
   return WebViewModel(

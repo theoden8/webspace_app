@@ -213,16 +213,18 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 - `WebViewModel` ([lib/web_view_model.dart](lib/web_view_model.dart)) — site with URL, cookies, per-site settings (language, incognito, proxy, etc.). Unique `siteId` keys cookie isolation.
 - `Webspace` ([lib/webspace_model.dart](lib/webspace_model.dart)) — named collection of site indices. `__all_webspace__` shows all.
 
-**Main** — [lib/main.dart](lib/main.dart): `WebSpaceApp` (root MaterialApp) and `WebSpacePage` holding `_webViewModels`, `_webspaces`, `_loadedIndices`, isolation orchestration.
+**Main** — [lib/main.dart](lib/main.dart): `WebSpaceApp` (root MaterialApp) and `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, loaded positions, current site, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (shortcuts, archives, surface repaint, background sites, app lifecycle, site network, tabs, links). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of main.dart; `lib/services` never imports a controller.
+
+**Site-set changes** — every add, delete, move, edit, import, archive open/close goes through `_commitSites(SiteSetChange)` ([site_set_change.dart](lib/controllers/site_set_change.dart)). The sealed change's `effects` record (every field required) decides what follows it, and the funnel runs those steps in one fixed order, so a new kind of change does not compile until it answers each one.
 
 **Services** ([lib/services/](lib/services/)) — `cookie_secure_storage`, `html_cache_service` (AES, clears on upgrade), `icon_service`, `dns_block_service`, `webview` (CookieManager wrapper, WebViewTheme).
 
-**Cookie isolation — two engines, runtime-selected.** `_WebSpacePageState` caches `bool _useContainers = await ContainerNative.isSupported()` at startup and gates the path.
+**Cookie isolation — two engines, runtime-selected.** `SiteRuntime.useContainers` caches `await ContainerNative.instance.isSupported()` at startup and gates the path.
 
 - **Container engine** ([container_isolation_engine.dart](lib/services/container_isolation_engine.dart)) — Android System WebView reporting `MULTI_PROFILE` (runtime-detected, no published milestone version), iOS 17+, macOS 14+, Linux WPE WebKit 2.40+. Each `siteId` → native container `ws-<siteId>` (`androidx.webkit.Profile` / `WKWebsiteDataStore(forIdentifier:)` / `WebKitNetworkSession` cached under `<XDG_DATA_HOME>/flutter_inappwebview/containers/`) owning its cookies, localStorage, IDB, ServiceWorkers, HTTP cache. Same-base-domain sites load concurrently — no conflict-unload, no capture-nuke-restore. Bridge: [`ContainerNative`](lib/services/container_native.dart). Lifecycle ops route through fork's `inapp.ContainerController`; only the Android `MULTI_PROFILE` feature gate lives in [`WebSpaceContainerPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceContainerPlugin.kt). Bind happens in `InAppWebView.prepare()` / `preWKWebViewConfiguration` / Linux `webkit_web_view_set_property("network-session", ...)`, driven by stock `inapp.InAppWebViewSettings.containerId` set by `WebViewFactory.createWebView`. Spec: [openspec/specs/per-site-containers/spec.md](openspec/specs/per-site-containers/spec.md).
 - **Legacy engine** ([cookie_isolation.dart](lib/services/cookie_isolation.dart)) — Windows, web, anywhere `ContainerController.isClassSupported` is false. Sites with matching base domains can't load simultaneously; switching unloads the conflict and runs capture-nuke-restore on the shared cookie jar. Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
 
-**Other patterns** — Lazy webview loading (`_loadedIndices`); `isDemoMode` flag (no persistence, seeded data).
+**Other patterns** — Lazy webview loading (`SiteRuntime.loaded`); `isDemoMode` flag (no persistence, seeded data).
 
 **flutter_inappwebview fork** — adds containers + per-site iOS/macOS proxy. Monorepo: <https://github.com/theoden8/flutter_inappwebview>. `dependency_overrides` in [pubspec.yaml](pubspec.yaml) pin every platform plugin to one git ref. Pub caches under `~/.pub-cache/git/`. Currently a mutable branch — tag it before each release. Surface area: `grep -rn '\[WebSpace fork patch\]' ~/.pub-cache/git/flutter_inappwebview-*/`.
 
@@ -508,7 +510,7 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 
 - **Storage**: a `SecureJsonStore` ([keystore.dart](lib/services/keystore.dart)) on `Keystores.credentials`, keyed by `siteId` (per-site) or a fixed reserved key (global). Never a new `FlutterSecureStorage` option set: on Apple the accessibility class is part of the keychain query, so changing it makes existing entries unreadable ([BUG-026](docs/bugs/026-aead-keys-unreadable-on-locked-wake.md)). An encrypted blob on disk takes its key from `KeychainAead`.
 - **Never serialise to JSON**: `toJson` omits the field. No `includeSecrets` opt-in. Same rule as `isSecure=true` cookies. Backup files get emailed/synced — they must not carry secrets.
-- **Hydrate on load** alongside per-site/global hydration in `_loadWebViewModels` and `GlobalOutboundProxy.initialize`.
+- **Hydrate on load** alongside per-site/global hydration in `SiteListStore.load` and `GlobalOutboundProxy.initialize`.
 - **Migrate legacy plaintext** with the idempotent pre-pass in `ProxyPasswordSecureStorage.migrateLegacyPassword`.
 - **Wire orphan cleanup**: add the store to `OrphanStore` in [orphan_sweep_engine.dart](lib/services/orphan_sweep_engine.dart) with its scope (session residue or configuration). `_OrphanSweepTargets` in main.dart does not compile until it sweeps the store; startup, post-import and post-delete all run the engine.
 - **Tell the user post-import** (snackbar in `_importSettings`) if the related non-secret field was set — otherwise restored proxy silently fails auth.
@@ -522,14 +524,14 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 - **Polyfill**: JS `Notification` constructor + `requestPermission()` are polyfilled at `DOCUMENT_START` (`ShimFrames.all`); calls bridge to `NotificationService` via `addJavaScriptHandler('webNotification', ...)`.
 - **No per-instance pause**: `WebViewModel.pauseWebView()` early-returns for notification sites — iOS's `pauseTimers()` alert hack would freeze the JS thread between site switches and queue setTimeouts into one burst on resume.
 - **No app-background JS pause while one is loaded** (NOTIF-011): Android's `pauseTimers()` is process-global, so any loaded notification site vetoes it, not only an active one.
-- **Auto-load + retention priority**: notification sites are added to `_loadedIndices` on startup and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
+- **Auto-load + retention priority**: notification sites are added to `SiteRuntime.loaded` on startup and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
 - **iOS background contract** (NOTIF-005-I): `BackgroundTaskService` calls `UIApplication.beginBackgroundTask` on app-pause for a ~30s grace window and registers a `BGAppRefreshTask` (`org.codeberg.theoden8.webspace.notification-refresh`) that reloads notif sites opportunistically. Native bridge: [`ios/Runner/BackgroundTaskPlugin.swift`](ios/Runner/BackgroundTaskPlugin.swift).
-- **A wake ends when its pages have loaded** (NOTIF-013): returning from `onBackgroundRefresh` completes the OS task, so `_backgroundWake` awaits `BackgroundWakeEngine`, which waits for the reloads to settle. A reload shows what arrived but a site need not notify for it, so a site that stayed silent while its title's unread count rose gets one post on its behalf (NOTIF-014). iOS has no way to run a page between wakes: no foreground service, no Web Push in WKWebView apps, and keep-awake tricks fail App Store review.
+- **A wake ends when its pages have loaded** (NOTIF-013): returning from `onBackgroundRefresh` completes the OS task, so `BackgroundSitesController.wake` awaits `BackgroundWakeEngine`, which waits for the reloads to settle. A reload shows what arrived but a site need not notify for it, so a site that stayed silent while its title's unread count rose gets one post on its behalf (NOTIF-014). iOS has no way to run a page between wakes: no foreground service, no Web Push in WKWebView apps, and keep-awake tricks fail App Store review.
 - **A wake checks every notification site** (NOTIF-016), not only loaded ones with a webview: in a process the OS launched for the wake there is no webview at all. `BackgroundWakeEngine.plan` decides from `wakeCandidateFor` (live: reload; else `WebViewFactory.openHeadlessCheck` with `WebViewModel.headlessCheckConfig`, held to `getWebView` by `test/js/headless_check_config_parity.test.js`; else skip with a `WakeSkip` reason). Lineage: [BUG-024](docs/bugs/024-background-notifications-never-arrive.md).
 - **Android background contract** (NOTIF-005-A): same `BackgroundTaskService` — Android side uses `WorkManager` `PeriodicWorkRequest` (15-min minimum, 15-min initial delay so the first period is not due at enqueue time, unique-work `webspace-notification-refresh`) and no foreground service: apps that notify from the background are woken by a push channel rather than staying resident, and `FOREGROUND_SERVICE_SPECIAL_USE` is intractable for Play review. A keep-alive `specialUse` service was built and withdrawn for this reason: a foreground service for notifications is off limits (NOTIF-015, gated by `test/js/notification_no_foreground_service.test.js`). When no Flutter engine is reachable the worker starts one with no activity (`WorkerFlutterEngine`, plugins from `EnginePlugins`, `main` told by `--background-wake` to build no site webview), waits for Dart's `backgroundRefreshReady`, and destroys it after; `MainActivity.provideFlutterEngine` stops it first if the app is opened. Native bridge: [`android/app/src/main/kotlin/.../BackgroundTaskAndroidPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundTaskAndroidPlugin.kt) + [`NotificationRefreshWorker.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/NotificationRefreshWorker.kt). One-time background-limits info dialog shows on first toggle on either platform. The CI lifecycle tier runs the worker through `NotificationRefreshDebugReceiver` (`android/app/src/debug/`, debug builds only) — `cmd jobscheduler run -f` cannot drive periodic work, since WorkManager refuses a `WorkSpec` executed before its next run time.
 - **Test delivery the way sites deliver** (NOTIF-012): a fixture that posts on page load proves only that a reload happened. Scenario P in the lifecycle tier serves a page whose unread count lives on the server and which posts only when the server sends it something; it checks the live path with the site behind a plain one, then records a message while the app sits in the background past the freezer, drives the wake, and requires the wake's fallback post.
 
-When adding a notification-related code path, prefer extending `NotificationService` / `BackgroundTaskService` over reaching into `_WebSpacePageState`.
+When adding a notification-related code path, prefer extending `NotificationService` / `BackgroundTaskService` / [`BackgroundSitesController`](lib/controllers/background_sites_controller.dart) over reaching into `_WebSpacePageState`.
 
 ## Per-site toggles backed by downloaded data
 
@@ -582,7 +584,8 @@ If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., 
 
 Orchestration (which sites unload on switch, how indices shift after delete, what cookies move during activation) → pure-Dart engine in `lib/services/*_engine.dart`. Template: [cookie_isolation.dart](lib/services/cookie_isolation.dart). Native webview / platform channels / `setState` stays at the call site.
 
-- Mutating `_webViewModels`/`_loadedIndices`/`_webspaces` with >1 line of index arithmetic? Engine.
+- Mutating `SiteRuntime`'s models, loaded positions or webspaces with >1 line of index arithmetic? Engine.
+- Which loaded sites go, and why? A `ResidencyEvent` case in `SiteUnloadEngine.plan` ([site_unload_engine.dart](lib/services/site_unload_engine.dart)), run by `SiteUnloadEngine.apply`; every eviction picks through `evictionOrder`. Never unload from a loop at a call site.
 - `await native_call` then mutate shared state with scenario-dependent logic? Engine.
 - Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
 - Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
@@ -621,16 +624,6 @@ observe:
 - **Record recurrence in BUG-007**, not a new file — append a dated fix attempt with *why it
   was partial* (which path it covered, which it missed). Cross-link the spec that owns the
   state.
-
-## Logic engine vs rendering engine
-
-Orchestration (which sites unload on switch, how indices shift after delete, what cookies move during activation) → pure-Dart engine in `lib/services/*_engine.dart`. Template: [cookie_isolation.dart](lib/services/cookie_isolation.dart). Native webview / platform channels / `setState` stays at the call site.
-
-- Mutating `_webViewModels`/`_loadedIndices`/`_webspaces` with >1 line of index arithmetic? Engine.
-- `await native_call` then mutate shared state with scenario-dependent logic? Engine.
-- Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
-- Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
-- Tests import the engine directly with in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart).
 
 ## DRY: tests delegate, don't reimplement
 

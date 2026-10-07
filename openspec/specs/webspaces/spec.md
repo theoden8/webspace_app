@@ -156,7 +156,7 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 
 **Given** sites [A, B, C, D] with A and C loaded and C active
 **When** A is deleted from the drawer
-**Then** C stays loaded and active at index 1 (`_loadedIndices` and `_currentIndex` follow it)
+**Then** C stays loaded and active at index 1 (`_sites.loaded` and `_sites.current` follow it)
 **And** neither D nor an empty slot is shown in C's place
 
 ---
@@ -179,10 +179,10 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 
 #### Scenario: Reorder sites within the "All" webspace
 
-**Given** the "All" webspace is selected showing every site in `_webViewModels` order
+**Given** the "All" webspace is selected showing every site in `_sites.models` order
 **When** the user drags a site to a new position in the tab strip or drawer grid
-**Then** `_webViewModels` is reordered to match
-**And** the active site stays active (its `_currentIndex` follows it to its new position)
+**Then** `_sites.models` is reordered to match
+**And** the active site stays active (its `_sites.current` follows it to its new position)
 **And** any loaded webviews keep their in-memory state (IndexedStack children are keyed by `siteId`, not position)
 **And** the new order is persisted
 
@@ -235,6 +235,11 @@ production):
   - `cleanupWebspaceIndices({webspaces, siteCount})` — strips
     out-of-bounds entries in place.
 - [`SiteUnloadEngine`](../../../lib/services/site_unload_engine.dart):
+  - `plan(host, ResidencyEvent)` — every rule that unloads a loaded site,
+    one `ResidencyEvent` case each (`Activating`, `MemoryPressure`,
+    `WebspaceSwitched`, `TorExitSettled`, `NestedOpening`,
+    `SlotIdentityChanged`); the rules below are its parts. `apply` runs
+    the plan through the one unload, following each site by identity.
   - `indicesToUnloadOnWebspaceSwitch({useContainers, ...})` — returns
     `{}` under container mode (sites are isolated and stay loaded);
     delegates to `WebspaceSelectionEngine` in legacy mode.
@@ -258,13 +263,13 @@ production):
     sites are evicted last.
 - [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart)
   — returns the rewritten `siteIndices` for every affected webspace
-  when a site is removed from `_webViewModels`, implementing
+  when a site is removed from `_sites.models`, implementing
   WEBSPACE-010. The rewrite drops the deleted index and shifts every
   `i > deletedIndex` down by one.
 - [`SiteLifecycleEngine.computeReorderPatch`](../../../lib/services/site_lifecycle_engine.dart)
   — implements the "All" branch of WEBSPACE-011. Given a move of the
   model at `oldIndex` to `newIndex` (`removeAt` + `insert`), it remaps
-  `_loadedIndices` and `_currentIndex` to the positions their elements
+  `_sites.loaded` and `_sites.current` to the positions their elements
   occupy after the move, so the active site and every loaded webview
   keep pointing at the same `siteId`. Reordering within a named
   webspace needs no engine: it rewrites the webspace's siteId-keyed

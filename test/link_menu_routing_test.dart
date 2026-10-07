@@ -72,32 +72,32 @@ void main() {
   });
 
   test('the menu opens links only through the tap routing', () {
-    final source = File('lib/main.dart').readAsStringSync();
-    final lines = source.split('\n');
-    String body(String signature) {
+    String body(String path, String signature) {
+      final lines = File(path).readAsStringSync().split('\n');
       final start = lines.indexWhere((l) => l.contains(signature));
-      expect(start, isNot(-1), reason: '$signature not found in lib/main.dart');
+      expect(start, isNot(-1), reason: '$signature not found in $path');
       final end = lines.indexWhere((l) => l == '  }', start);
       return lines.sublist(start, end).join('\n');
     }
 
-    final menu = body('Future<void> _showLinkLongPressMenu(');
+    final menu = body('lib/main.dart', 'Future<void> _showLinkLongPressMenu(');
     expect(
       menu.contains('.loadUrl('),
       isFalse,
       reason:
-          'a load from the menu has to go through _openLinkAsTapped, '
+          'a load from the menu has to go through openLinkAsTapped, '
           'or a cross-domain link lands in the site\'s own webview',
     );
-    expect(menu.contains('_openLinkAsTapped('), isTrue);
+    expect(menu.contains('_links.openLinkAsTapped('), isTrue);
 
-    final open = body('Future<void> _openLinkAsTapped(');
+    final open = body('lib/controllers/link_controller.dart',
+        'Future<void> openLinkAsTapped(');
     expect(open.contains('decideUserOpenedLink('), isTrue);
-    expect(open.contains('_launchNestedForModel('), isTrue);
+    expect(open.contains('_host.launchNestedFor('), isTrue);
     expect(open.contains('launchUrlInSystemBrowser('), isTrue);
     // A blocked link says so through the same hook a tap uses.
     expect(
-      RegExp(r'case NavigationDecision\.blockOutbound:\s*_routeOutboundLink\(')
+      RegExp(r'case NavigationDecision\.blockOutbound:\s*routeOutbound\(')
           .hasMatch(open),
       isTrue,
     );

@@ -295,7 +295,7 @@ load and run concurrently with fully isolated cookies, `localStorage`,
 **And** profile mode is active
 **When** the user activates site A and then site B without unloading A
 **Then** site A is NOT unloaded (no `_unloadSiteForDomainSwitch` call)
-**And** both sites are in `_loadedIndices`
+**And** both sites are in `_sites.loaded`
 **And** site A's session cookies are not visible to site B and vice
   versa
 **And** site B logging out does not log site A out
@@ -313,7 +313,7 @@ load and run concurrently with fully isolated cookies, `localStorage`,
 **And** site A is in webspace `Work` and site B is in webspace `Personal`
 **And** both A and B have been loaded
 **When** the user switches webspace from `Work` to `Personal`
-**Then** site A is NOT unloaded (it remains in `_loadedIndices` and its
+**Then** site A is NOT unloaded (it remains in `_sites.loaded` and its
   webview stays in the IndexedStack), even though it isn't part of the
   newly-active webspace
 **Because** the per-site container isolates A's state from B's, so
@@ -353,9 +353,9 @@ under this policy, two backstops apply:
   webview resume
 **Then** A is NOT picked as the eviction victim
 **Because** `_setCurrentIndex` records its target in
-  `_activationInFlightIndex` (set in the try block, cleared in
-  finally); `_handleMemoryPressure` includes that index in its
-  hard-protected set alongside `_currentIndex`. Without the in-flight
+  `SiteRuntime.activating` (set in the try block, cleared in
+  finally); `SiteRuntime.retentionPriority` ranks it `activating`,
+  which no eviction takes, alongside the `active` current site. Without the in-flight
   guard, mid-activation eviction would dispose A's webview, leaving
   `_setCurrentIndex` to call `resumeWebView()` on a null controller
   (no-op) — the IndexedStack would re-create a fresh webview on next

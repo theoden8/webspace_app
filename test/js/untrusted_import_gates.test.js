@@ -36,16 +36,27 @@ test('QR-supplied site settings are reviewed before the site is created', () => 
   );
 
   // Every QR entry point has to pass through _addSite to reach that review.
+  const links = read('lib/controllers/link_controller.dart');
   assert.ok(
-    !/webspace:\/\/qr\/[\s\S]{0,600}?_registerNewSite/.test(src),
-    'the webspace://qr/ deep link reaches _registerNewSite without passing through '
+    !/webspace:\/\/qr\/[\s\S]{0,600}?registerSite/.test(links),
+    'the webspace://qr/ deep link registers a site without passing through '
       + '_addSite, bypassing the review dialog',
+  );
+  assert.match(
+    links,
+    /webspace:\/\/qr\/[\s\S]{0,200}?_host\.addSiteFromQr\(decoded\)/,
+    'the webspace://qr/ deep link no longer hands its payload to the add-site flow',
+  );
+  assert.match(
+    src,
+    /Future<void> addSiteFromQr\([^)]*\)\s*=>\s*_s\._addSite\(deepLinkQrSettings: settings\);/,
+    'the page answers a QR deep link with something other than _addSite',
   );
 });
 
 test('the webspace://qr/ deep link is behind the link-handling switch', () => {
-  const src = read('lib/main.dart');
-  // Anchor on the inbound-URL path specifically. _handleShareIntent gates the
+  const src = read('lib/controllers/link_controller.dart');
+  // Anchor on the inbound-URL path specifically. handleShareIntent gates the
   // HTML-share path separately and earlier, so a bare indexOf would match that
   // one and keep passing however the QR branch moves.
   const consumed = src.indexOf('ShareIntentService.consumeLaunchUrl()');

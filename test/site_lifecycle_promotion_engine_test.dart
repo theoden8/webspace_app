@@ -28,6 +28,33 @@ void main() {
     });
   });
 
+  group('evictionOrder', () {
+    test('keeps the given order within a priority, past where List.sort is '
+        'no longer stable', () {
+      final loaded = [for (var i = 0; i < 100; i++) i];
+      final order = evictionOrder(
+        loaded,
+        (i) => i.isEven
+            ? SiteRetentionPriority.loaded
+            : SiteRetentionPriority.webspace,
+      );
+      expect(order, [
+        for (final i in loaded)
+          if (i.isEven) i,
+        for (final i in loaded)
+          if (i.isOdd) i,
+      ]);
+    });
+
+    test('never yields a site that is not evictable', () {
+      final order = evictionOrder([0, 1, 2], tiers(active: {0, 2}));
+      expect(order, [1]);
+      for (final p in SiteRetentionPriority.values) {
+        expect(evictionOrder([0], (_) => p).isEmpty, !p.evictable);
+      }
+    });
+  });
+
   group('SiteLifecyclePromotionEngine.pickPromotionTarget', () {
     test('returns null when nothing is loaded', () {
       final result = SiteLifecyclePromotionEngine.pickPromotionTarget(
@@ -547,7 +574,7 @@ void main() {
   });
 }
 
-/// The tiers `_siteRetentionPriority` yields for the sites it protects
+/// The tiers `SiteRuntime.retentionPriority` yields for the sites it protects
 /// ([active]: on screen or activating) and the selected webspace's ([keep]).
 SiteRetentionResolver tiers({
   Set<int> active = const {},

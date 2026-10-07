@@ -17,6 +17,7 @@ import '../services/site_icon_store.dart';
 import '../settings/proxy.dart';
 import '../utils/url_utils.dart';
 import 'site_settings_qr.dart';
+import '../widgets/theme_mode_button.dart';
 
 /// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
@@ -710,17 +711,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     );
   }
 
-  IconData _getThemeIcon() {
-    switch (widget.themeMode) {
-      case ThemeMode.light:
-        return Icons.wb_sunny;
-      case ThemeMode.dark:
-        return Icons.nights_stay;
-      case ThemeMode.system:
-        return Icons.brightness_auto;
-    }
-  }
-
   String _getThemeTooltip(AppLocalizations loc) {
     switch (widget.themeMode) {
       case ThemeMode.light:
@@ -732,22 +722,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     }
   }
 
-  void _toggleTheme() {
-    ThemeMode newMode;
-    switch (widget.themeMode) {
-      case ThemeMode.light:
-        newMode = ThemeMode.dark;
-        break;
-      case ThemeMode.dark:
-        newMode = ThemeMode.system;
-        break;
-      case ThemeMode.system:
-        newMode = ThemeMode.light;
-        break;
-    }
-    widget.onThemeModeChanged(newMode);
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -755,10 +729,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       appBar: AppBar(
         title: Text(loc.addSiteScreenTitle),
         actions: [
-          IconButton(
-            icon: Icon(_getThemeIcon()),
+          ThemeModeButton(
+            mode: widget.themeMode,
             tooltip: _getThemeTooltip(loc),
-            onPressed: _toggleTheme,
+            onChanged: widget.onThemeModeChanged,
           ),
         ],
       ),

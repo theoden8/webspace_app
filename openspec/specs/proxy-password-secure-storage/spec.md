@@ -69,7 +69,7 @@ NOT appear in plaintext SharedPreferences entries.
 #### Scenario: Per-site password is segregated
 
 **Given** a site has a proxy with a non-empty `password`
-**When** the site is persisted via `_saveWebViewModels`
+**When** the site is persisted via `_persistSites`
 **Then** `prefs.getStringList('webViewModels')` contains the site's blob
 **And** that blob's `proxySettings` map does NOT contain a `password` key
 **And** `flutter_secure_storage` contains an entry under the
@@ -103,7 +103,7 @@ storage at startup and after every backup import.
 #### Scenario: Per-site hydration
 
 **Given** secure storage holds a password for `siteId = "abc"`
-**When** `_loadWebViewModels` reads `webViewModels` from prefs
+**When** `SiteListStore.load` reads `webViewModels` from prefs
 **Then** the constructed `WebViewModel` for `"abc"` has its
 `proxySettings.password` populated from secure storage
 
@@ -126,7 +126,7 @@ SharedPreferences entries to secure storage, exactly once per entry.
 **Given** a `webViewModels` entry from a pre-migration build whose
 `proxySettings` contains `"password": "legacy-secret"`
 **And** secure storage has no entry for that `siteId`
-**When** `_loadWebViewModels` runs
+**When** `SiteListStore.load` runs
 **Then** secure storage is updated with `siteId -> "legacy-secret"`
 **And** the prefs entry is rewritten without the `password` key
 **And** the WebViewModel's `proxySettings.password` is `"legacy-secret"`
@@ -134,7 +134,7 @@ SharedPreferences entries to secure storage, exactly once per entry.
 #### Scenario: Per-site legacy migration is idempotent
 
 **Given** the migration ran on a previous launch
-**When** `_loadWebViewModels` runs again
+**When** `SiteListStore.load` runs again
 **Then** no further mutation of secure storage or prefs occurs
 
 #### Scenario: Global legacy migration on initialize
@@ -258,7 +258,7 @@ is restarted.
 
 ### Loading (App Start)
 
-1. `_loadWebViewModels` reads `webViewModels` from SharedPreferences
+1. `SiteListStore.load` reads `webViewModels` from SharedPreferences
 2. **Pre-pass:** scan each blob's `proxySettings` for a legacy plaintext
    `password`; for each one found, write to secure storage (unless an
    entry already exists for that `siteId`) and rewrite the blob without
@@ -273,8 +273,8 @@ is restarted.
 
 1. Mirror per-site `model.proxySettings.password` values into secure
    storage via `ProxyPasswordSecureStorage.saveAll`
-2. `_saveWebViewModels` calls `model.toJson()` (default — password
-   omitted) and writes to prefs
+2. `SiteListStore.save` (from `_persistSites`) calls `model.toJson()`
+   (default — password omitted) and writes to prefs
 3. `GlobalOutboundProxy.update` writes JSON-without-password to prefs and
    the password to secure storage
 
@@ -285,7 +285,7 @@ is restarted.
 | Export build  | `model.toJson()` (always password-less)      | `readExportedAppPrefs(prefs)` (already password-less since prefs are sanitised) |
 | Export to disk| Backup carries `address` / `username` only   | Backup carries `address` / `username` only                 |
 | Import parse  | `WebViewModel.fromJson` — `password` field is null | `readGlobalOutboundProxy` — `password` field is null  |
-| Import apply  | `_saveWebViewModels` writes prefs, no password to migrate | `GlobalOutboundProxy.update` with the password-less settings |
+| Import apply  | `_persistSites` writes prefs, no password to migrate | `GlobalOutboundProxy.update` with the password-less settings |
 | Post-import   | UI snackbar tells the user to re-enter passwords if a `username` was present in the backup |
 
 ---
@@ -303,7 +303,8 @@ is restarted.
 - `lib/settings/global_outbound_proxy.dart` - migrate + hydrate on
   `initialize`; route password to secure storage on `update`
 - `lib/web_view_model.dart` - `toJson` always omits the password
-- `lib/main.dart` - `_loadWebViewModels` / `_saveWebViewModels` /
+- `lib/controllers/site_list_store.dart` - `SiteListStore.load` / `save`
+- `lib/main.dart` - `_persistSites` /
   `_exportSettings` / `_importSettings` / orphan cleanup paths;
   post-import snackbar surfaces the strip contract when a `username` was
   present in the imported backup
@@ -331,7 +332,7 @@ sensitive secret:
    passwords are stripped uniformly across persistence and the backup
    format, matching the rule for `isSecure=true` cookies.
 3. **Hydrate on load** at the same point we hydrate proxy passwords —
-   `_loadWebViewModels` for per-site, `GlobalOutboundProxy.initialize`
+   `SiteListStore.load` for per-site, `GlobalOutboundProxy.initialize`
    (or its analogue) for global.
 4. **Migrate legacy plaintext** with the same idempotent pre-pass: read
    prefs, move secret to secure storage, rewrite prefs without it. Use

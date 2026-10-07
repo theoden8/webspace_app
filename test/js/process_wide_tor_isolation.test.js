@@ -45,7 +45,7 @@ test('the process-wide rule expands TOR with the site id before applying', () =>
 
 test('the mismatch unload compares Tor sites by their own tags', () => {
   const text = code(read('lib/services/site_unload_engine.dart'));
-  const at = text.indexOf('indicesToUnloadForProxyMismatch(');
+  const at = text.search(/static Set<int> indicesToUnloadForProxyMismatch\(/);
   const body = enclosed(text, text.indexOf(')', at), '{').body;
   const calls = body.match(/resolveEffectiveProxy\(([^;]*?)\)\s*;/gs) || [];
   assert.ok(calls.length >= 2, 'expected the target and each loaded site');

@@ -73,7 +73,7 @@ Issue ==
     /\ nudging' = K
     /\ latch' = TRUE
 
-\* One nudge tick (`_nudgeSurfaceRepaint` toggling the 1px inset). A relayout
+\* One nudge tick (`SurfaceRepaintController.nudge` toggling the 1px inset). A relayout
 \* repaints whatever surface is currently attached, so it clears any owed
 \* repaint. When owed is already false this is a harmless no-op tick.
 Tick ==
@@ -96,7 +96,7 @@ Settle ==
     /\ latch' = IF Fix = "oneshot" THEN FALSE ELSE latch
     /\ UNCHANGED << issued >>
 
-\* The host's bounded window elapses (_armCommitLatch's timer). See the
+\* The host's bounded window elapses (SurfaceRepaintController.armCommitLatch's timer). See the
 \* modeling assumption in the header for the inflight = 0 guard.
 CloseWindow ==
     /\ Fix = "window"

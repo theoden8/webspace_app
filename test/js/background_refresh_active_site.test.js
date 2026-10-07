@@ -13,7 +13,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read } = require('./helpers/source');
 
-const rel = 'lib/main.dart';
+const rel = 'lib/controllers/background_sites_controller.dart';
 const src = read(rel);
 
 const assignment = src.match(
@@ -26,12 +26,12 @@ test('the background-refresh handler is wired', () => {
 test('the foreground branch reloads around the site on screen', () => {
   // The exclusion is ForegroundPollEngine's, unconditionally; it was once a
   // parameter whose default reloaded the page the user was reading.
-  assert.match(assignment[1], /AppLifecycleState\.resumed\s*\?\s*_refreshNotificationSites\(\)/,
-    `${rel} must reload through _refreshNotificationSites while resumed`);
-  const refresh = /Future<void> _refreshNotificationSites\(\) async \{([\s\S]*?)\n  \}/.exec(src);
-  assert.ok(refresh, `${rel} must define _refreshNotificationSites`);
-  assert.match(refresh[1], /ForegroundPollEngine\.plan\([\s\S]*currentIndex: _currentIndex,/,
-    '_refreshNotificationSites must plan with the site on screen');
+  assert.match(assignment[1], /AppLifecycleState\.resumed\s*\?\s*refreshSites\(\)/,
+    `${rel} must reload through refreshSites while resumed`);
+  const refresh = /Future<void> refreshSites\(\) async \{([\s\S]*?)\n  \}/.exec(src);
+  assert.ok(refresh, `${rel} must define refreshSites`);
+  assert.match(refresh[1], /ForegroundPollEngine\.plan\([\s\S]*currentIndex: _sites\.current,/,
+    'refreshSites must plan with the site on screen');
 });
 
 // NOTIF-013: the OS task ends when this handler returns. Handing the
@@ -39,12 +39,12 @@ test('the foreground branch reloads around the site on screen', () => {
 // (as _refreshNotificationSites does) lets iOS suspend the app before a page
 // has loaded, so no page JS ever runs in a wake.
 test('the backgrounded branch runs the wake that waits for the pages', () => {
-  assert.match(assignment[1], /_backgroundWake\(\)/,
-    `${rel} must run _backgroundWake when the app is not resumed`);
-  const wake = /Future<void> _backgroundWake\(\) async \{([\s\S]*?)\n  \}/.exec(src);
-  assert.ok(wake, `${rel} must define _backgroundWake`);
+  assert.match(assignment[1], /:\s*wake\(\)/,
+    `${rel} must run wake when the app is not resumed`);
+  const wake = /Future<void> wake\(\) async \{([\s\S]*?)\n  \}/.exec(src);
+  assert.ok(wake, `${rel} must define wake`);
   assert.match(wake[1], /await _wakeEngine\.wake\(/,
-    '_backgroundWake must await the engine, or it returns before the pages settle');
+    'wake must await the engine, or it returns before the pages settle');
   const service = read('lib/services/background_task_service.dart');
   // Only a background-log line may sit between the two: it is recorded while
   // the OS task is still open, so it lands before iOS can suspend the app.

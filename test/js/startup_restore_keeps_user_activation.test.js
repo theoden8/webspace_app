@@ -20,9 +20,9 @@ const restore = blockAfter(src, 'Future<void> _restoreAppState() async {', null,
 
 test('the activation version is captured before the restore first awaits', () => {
   const capture = restore.indexOf(
-    'final activationVersionAtRestore = _setCurrentIndexVersion;');
+    'final activationVersionAtRestore = _sites.activationVersion;');
   assert.notEqual(capture, -1,
-    '_restoreAppState must record _setCurrentIndexVersion on entry');
+    '_restoreAppState must record _sites.activationVersion on entry');
   const firstAwait = restore.indexOf('await ');
   assert.ok(firstAwait === -1 || capture < firstAwait,
     'a tap landing before the capture would be read as the restore\'s own state');
@@ -34,7 +34,7 @@ test('every restore activation asks the engine first', () => {
   for (const call of calls) {
     const before = restore.slice(Math.max(0, call.index - 400), call.index);
     assert.match(before,
-      /if \(StartupRestoreEngine\.shouldActivateAfterRestore\(\s*indexToRestore: indexToRestore,\s*activatedDuringRestore:\s*_setCurrentIndexVersion != activationVersionAtRestore,\s*\)\) \{\s*$/,
+      /if \(StartupRestoreEngine\.shouldActivateAfterRestore\(\s*indexToRestore: indexToRestore,\s*activatedDuringRestore:\s*_sites\.activationVersion != activationVersionAtRestore,\s*\)\) \{\s*$/,
       `_setCurrentIndex(${call[1]}) in _restoreAppState must be guarded by ` +
       'StartupRestoreEngine.shouldActivateAfterRestore, or a site opened during ' +
       'startup is closed again');

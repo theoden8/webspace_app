@@ -96,7 +96,7 @@ a capture → nuke → restore cycle:
    restore every other still-loaded site's cookies (parallel-loaded sites
    share the same native jar).
 
-All async steps SHALL check `_setCurrentIndexVersion` and early-return if a
+All async steps SHALL check `SiteRuntime.activationVersion` and early-return if a
 newer `_setCurrentIndex` invocation has started, to prevent concurrent
 cookie mutations from interleaving under rapid tab switching.
 
@@ -172,7 +172,7 @@ Every guard in `CookieIsolationEngine` SHALL read
 `WebViewModel.effectiveIncognito`, never the stored `incognito` field.
 `effectiveIncognito` is forced true for archive-tier sites, and the engine
 is the only writer of `CookieSecureStorage` that runs underneath
-`_saveWebViewModels`'s `!isArchiveTier` filter — so a raw read put an
+`_persistSites`'s `!isArchiveTier` filter — so a raw read put an
 archive site's non-Secure cookies into plaintext SharedPreferences
 (`cookies_fallback`) keyed by its cleartext `siteId`, breaking ARCH-001
 byte-identity the moment an archive was opened. The hazard is called out
@@ -460,7 +460,7 @@ stays at the `_WebSpacePageState` call site.
   diverge between prod and tests.
 - [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart) —
   pure index-rewrite transform applied during site deletion (ISO-010);
-  shifts `_loadedIndices` and every webspace's `siteIndices` down when
+  shifts `_sites.loaded` and every webspace's `siteIndices` down when
   an earlier index is removed, so references don't drift.
 
 ### Domain Comparison for Cookie Isolation

@@ -330,7 +330,7 @@ has seen those choices and accepted them.
 The gate SHALL live in `_addSite`'s `qrSettings` branch so that **both**
 entry points cross it: the in-app scanner / paste dialog
 (`AddSiteScreen._addByQr` → `showSiteSettingsQrApplyDialog`) and the
-`webspace://qr/` deep link handled by `_handleShareIntent`. The dialog
+`webspace://qr/` deep link handled by `LinkController.handleShareIntent`. The dialog
 SHALL show the payload's `initUrl`, its `name`, its proxy address when the
 payload sets a non-DEFAULT proxy, the protections the payload switches off
 (Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN,
@@ -363,7 +363,7 @@ deep links along with every other inbound URL.
 **Given** link handling is enabled
 **And** another app opens `webspace://qr/site/v1/<payload>` where the
 payload sets `trackingProtectionEnabled: false` and a SOCKS5 proxy
-**When** `_handleShareIntent` decodes it and calls
+**When** `LinkController.handleShareIntent` decodes it and hands it to
 `_addSite(deepLinkQrSettings: decoded)`
 **Then** a review dialog is shown naming the URL, the name, the proxy
 address, and "Tracking Protection" as a protection being turned off
@@ -393,13 +393,13 @@ string, so a value `fromJson` would coerce cannot slip past the review
 **Given** the review dialog is shown
 **When** the user cancels
 **Then** `_registerNewSite` is not called
-**And** `_webViewModels` is unchanged
+**And** `_sites.models` is unchanged
 
 #### Scenario: Deep-link site does not take the screen
 
 **Given** the user accepts the review dialog for a deep-link payload
 **When** `_registerNewSite(model, activate: false)` runs
-**Then** the model is appended to `_webViewModels` and persisted
+**Then** the model is appended to `_sites.models` and persisted
 **And** `_setCurrentIndex` is NOT called, so the currently-visible site
 stays visible
 
@@ -511,8 +511,9 @@ subset with the empty placeholders `WebViewModel.fromJson` requires
   `_addByQr` pops `{qrSettings: <decoded>}` for `_addSite` to consume
 - `lib/main.dart` — `_addSite` branches on `qrSettings`; the QR path
   uses `WebViewModel.fromJson(SiteSettingsQrCodec.hydrateForFromJson(...), stateSetter)`
-  behind `_confirmQrSiteSettings` (QR-008), and `_handleShareIntent`
-  evaluates `_linkHandlingEnabled` before the `webspace://qr/` branch
+  behind `_confirmQrSiteSettings` (QR-008)
+- `lib/controllers/link_controller.dart` — `handleShareIntent` evaluates
+  `AppPref.linkHandlingEnabled` before the `webspace://qr/` branch
 - `lib/screens/settings.dart` — "Share QR" button wired to
   `showSiteSettingsQrShareDialog`, hidden for `file://` sites
 

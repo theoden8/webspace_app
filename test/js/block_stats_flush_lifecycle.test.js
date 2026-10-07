@@ -11,7 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read } = require('./helpers/source');
 
-const rel = 'lib/main.dart';
+const rel = 'lib/controllers/app_lifecycle_controller.dart';
 const src = read(rel);
 
 test('the flush is gated on leaving the foreground, not on one state', () => {

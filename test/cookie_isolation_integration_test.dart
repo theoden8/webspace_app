@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
-import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
@@ -11,7 +11,7 @@ import 'helpers/site_list_state.dart';
 /// Test harness for cookie isolation. Delegates cookie-jar management to
 /// the REAL [CookieIsolationEngine] — the tests exercise production code,
 /// not duplicated harness code.
-class CookieIsolationTestHarness with SiteListState implements SiteUnloadHost {
+class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   final MockCookieManager cookieManager;
   final MockCookieSecureStorage storage = MockCookieSecureStorage();
   late final CookieIsolationEngine engine = CookieIsolationEngine(
@@ -37,6 +37,20 @@ class CookieIsolationTestHarness with SiteListState implements SiteUnloadHost {
   @override
   void noteUnloaded(WebViewModel model, UnloadReason reason) {}
 
+  @override
+  List<WebViewModel> identities({int? except}) => sites;
+
+  @override
+  SiteRetentionPriority priorityOf(int index) => index == currentIndex
+      ? SiteRetentionPriority.active
+      : SiteRetentionPriority.loaded;
+
+  @override
+  ProxyTopology get proxyTopology => const PerSessionProxy();
+
+  @override
+  bool get torAvailable => false;
+
   /// Mirrors `_unloadSite` in main.dart.
   Future<void> unload(int index, UnloadReason reason) =>
       SiteUnloadEngine.unload(this, index, reason);
@@ -54,22 +68,17 @@ class CookieIsolationTestHarness with SiteListState implements SiteUnloadHost {
     ));
   }
 
-  /// Mirrors `_setCurrentIndex` in main.dart: bumps the version, unloads
-  /// any same-base-domain conflicting site, then delegates cookie restore
-  /// to the real engine. Both the conflict-finding and restore steps go
-  /// through the production engines so the harness can't drift from prod.
+  /// Mirrors `_setCurrentIndex` in main.dart: bumps the version, runs the
+  /// activation's residency plan, then delegates cookie restore to the real
+  /// engine, so the harness can't drift from prod.
   Future<void> switchToSite(int index) async {
     if (index < 0 || index >= sites.length) return;
     final v = ++version;
 
-    final conflictIndex = SiteActivationEngine.findDomainConflict(
-      targetIndex: index,
-      models: sites,
-      loadedIndices: loadedIndices,
-    );
-    if (conflictIndex != null) {
-      await unload(conflictIndex, UnloadReason.domainConflict);
-      if (v != version) return;
+    final plan = SiteUnloadEngine.plan(this, Activating(index));
+    if (!await SiteUnloadEngine.apply(this, plan,
+        isStale: () => v != version)) {
+      return;
     }
 
     await engine.restoreCookiesForSite(

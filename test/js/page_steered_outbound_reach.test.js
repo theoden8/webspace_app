@@ -34,7 +34,7 @@ const GUARDED = [
 // Seams that do not, and why. A reason is required: "it seemed fine" is how
 // the artwork fetch ended up with half the guard for a fortnight.
 const EXEMPT = {
-  'lib/main.dart':
+  'lib/services/page_title.dart':
     'getPageTitle takes a URL the user is adding as a site or one arriving in '
     + 'a share intent. Attacker-authored, but not chosen by a loaded page, so '
     + 'it is a different surface from this class.',

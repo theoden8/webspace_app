@@ -8,14 +8,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read, blockAfter } = require('./helpers/source');
-
-const main = read('lib/main.dart');
+const { methodBody } = require('./helpers/source');
 
 test('the close sweeps ws-<siteId> for the archive, never an app-tier site', () => {
-  const close = blockAfter(main, '  Future<void> _closeArchive(ArchiveHandle handle) async {', null, 'lib/main.dart');
+  const close = methodBody('close', { file: 'lib/controllers/archive_controller.dart' });
   const opaque = close.indexOf('for (final cid in slice.containerIds)');
-  const sweep = close.indexOf('_containerIsolation.onSiteDeleted(sid)');
+  const sweep = close.indexOf('containers.onSiteDeleted(sid)');
   assert.notEqual(opaque, -1, 'the close must delete the opaque containers');
   assert.notEqual(sweep, -1, 'the close must delete ws-<siteId> for the archive sites');
   const guard = close.slice(opaque, sweep);

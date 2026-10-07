@@ -89,7 +89,7 @@ void main() {
     await tester.tap(editMenuItem);
     await tester.pumpAndSettle(const Duration(seconds: 3));
 
-    // Edit Site dialog (lib/main.dart `_editSite`):
+    // Edit Site dialog (lib/widgets/edit_site_dialog.dart):
     //   AlertDialog title 'Edit Site',
     //   TextField labelled 'Site Name',
     //   TextField labelled 'URL'.
