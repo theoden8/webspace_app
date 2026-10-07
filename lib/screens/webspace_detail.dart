@@ -134,13 +134,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
                         checked: isSelected,
                         enabled: !widget.isReadOnly,
                         child: CheckboxListTile(
-                          secondary: UnifiedFaviconImage(
-                            url: site.initUrl,
-                            size: 32,
-                            proxy: site.proxySettings,
-                            customIcon: site.customIconPng,
-                            persist: !site.isArchiveTier,
-                          ),
+                          secondary: UnifiedFaviconImage.site(site, size: 32),
                           title: Text(site.getDisplayName()),
                           subtitle: Text(extractDomain(site.initUrl)),
                           value: isSelected,

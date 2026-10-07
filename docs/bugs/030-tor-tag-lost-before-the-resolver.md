@@ -46,8 +46,24 @@ Every path that resolves a site's stored settings has to remember the id.
    settings that already carry their tag; the type cannot tell those from a
    site's stored settings.
 
+3. **2026-10-07, refactor/cuts (follow-up to #680).** *What:* the site's
+   favicon in a webspace's site list, the title fetched when a site is added
+   or edited, and the user-script source fetch from a site's settings passed
+   the stored `proxySettings` to `UnifiedFaviconImage`, `getPageTitle` and
+   `fetchUserScriptSource`; they now pass `outboundProxySettings` (the
+   favicon through `UnifiedFaviconImage.site`, the constructor every other
+   site icon uses). `test/js/outbound_proxy_tag.test.js` fails on
+   `proxy: <x>.proxySettings` anywhere in `lib/` but the router table.
+   *Why:* these fetches resolve their proxy with no `siteId`, so attempt 2's
+   required parameter never reached them; each sent a Tor site's request down
+   the app-global circuit. *Why partial:* the gate matches the named-argument
+   spelling; a stored setting reaching an outbound API by another route
+   (a local variable, a positional argument) still compiles.
+
 ## Known open gaps
 
 - Stored and outbound settings are one type. A distinct type for settings
-  that carry their tag (or a resolver that takes the site, not its settings)
-  would make the fallback unreachable for a site.
+  that carry their tag, returned only by `outboundProxySettings` and taken by
+  every outbound API (favicons, titles, user scripts, downloads, media
+  artwork, icon export), would make the fallback unreachable for a site and
+  retire `outbound_proxy_tag.test.js`.

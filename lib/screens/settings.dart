@@ -1130,7 +1130,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     enabledGlobalScriptIds: widget.webViewModel.enabledGlobalScriptIds,
                     onEnabledGlobalScriptIdsChanged: (ids) =>
                         widget.webViewModel.enabledGlobalScriptIds = ids,
-                    proxy: widget.webViewModel.proxySettings,
+                    proxy: widget.webViewModel.outboundProxySettings,
                     onWebViewReset: widget.onScriptsChanged,
                     // Re-reads the controller each call: changing the
                     // script list disposes and recreates the webview, so

@@ -4516,7 +4516,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (model.name.isEmpty) {
         final pageTitle = await getPageTitle(
           model.initUrl,
-          proxy: model.proxySettings,
+          proxy: model.outboundProxySettings,
         );
         if (!mounted) return;
         if (pageTitle != null && pageTitle.isNotEmpty) {

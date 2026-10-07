@@ -84,7 +84,8 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
         // (UnifiedFaviconImage listens for it); the fetched title lands in the
         // name field, applied on Save like any other edit.
         await FaviconUrlCache.invalidate(site.initUrl);
-        final title = await getPageTitle(site.initUrl, proxy: site.proxySettings);
+        final title = await getPageTitle(site.initUrl,
+            proxy: site.outboundProxySettings);
         if (!mounted || title == null || title.isEmpty) return;
         _name.text = title;
         ScaffoldMessenger.of(context).toast(
