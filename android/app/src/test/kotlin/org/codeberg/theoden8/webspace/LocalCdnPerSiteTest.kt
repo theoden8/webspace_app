@@ -9,16 +9,14 @@ import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import java.io.File
-import java.util.concurrent.atomic.AtomicBoolean
 
 class LocalCdnPerSiteTest {
 
     private val url = "https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"
     private val pattern =
         Regex("""^https://cdn\.jsdelivr\.net/npm/([^@/]+)@([^/]+)/(.+)$""")
-    private lateinit var cacheIndex: MutableMap<String, String>
+    private val tables = LocalCdnTables()
     private val replaced = mutableListOf<String>()
-    private val killSwitch = AtomicBoolean(false)
 
     @Before
     fun cacheOneFile() {
@@ -26,17 +24,16 @@ class LocalCdnPerSiteTest {
             writeText("/* cached */")
             deleteOnExit()
         }
-        cacheIndex = mutableMapOf("jquery/3.7.1/dist/jquery.min.js" to cached.path)
+        tables.patterns = listOf(pattern)
+        tables.index = mapOf("jquery/3.7.1/dist/jquery.min.js" to cached.path)
     }
 
     private fun interceptor(localCdnEnabled: Boolean) = FastSubresourceInterceptor(
         dnsBlocklist = DnsHostBlocklist(),
         localCdnEnabled = localCdnEnabled,
-        cdnPatterns = mutableListOf(pattern),
-        cdnCacheIndex = cacheIndex,
-        localCdnDisabled = killSwitch,
-        onBlockChecked = { _, _, _ -> },
-        onCdnReplaced = { key, _ -> replaced += key },
+        cdnTables = tables,
+        onBlockChecked = {},
+        onCdnReplaced = { replaced += it.cacheKey },
         onLog = { _, _ -> },
     )
 
@@ -62,8 +59,8 @@ class LocalCdnPerSiteTest {
     }
 
     @Test
-    fun killSwitch_overridesAnEnabledSite() {
-        killSwitch.set(true)
+    fun emptyTables_goToTheNetwork() {
+        tables.index = emptyMap()
         assertNull(interceptor(localCdnEnabled = true).localCdnResponse(url))
     }
 

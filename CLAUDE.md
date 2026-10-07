@@ -90,8 +90,8 @@ curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bas
 export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 nvm install --lts
 
-# Swift — only to run tool/swift_typecheck/check.sh, which type-checks the two
-# Apple plugins no other tier compiles. It exits 0 with "no swiftc on PATH,
+# Swift — only to run tool/swift_typecheck/check.sh, which type-checks the
+# Apple plugin sources no other tier compiles. It exits 0 with "no swiftc on PATH,
 # skipping" when Swift is absent, so without this the gate is silently not a
 # gate, which is how `proxyConfigurations?.count` reached CI once.
 curl -fsSLO https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz
@@ -515,7 +515,13 @@ observe:
 
 - **Total synchronization or none-shared.** Either single-owner / immutable-snapshot /
   message-passed, or *every* read, write, and eviction under one monitor / serial queue /
-  RW-lock. A lock on the writer but not the reader is BUG-007 — don't.
+  RW-lock. A lock on the writer but not the reader is BUG-007 — don't. In Kotlin that means
+  [`Guarded<T>`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/Guarded.kt)
+  (state reachable only inside `with { }`), `SiteEventInbox` for IO-thread events Dart
+  drains, or an immutable snapshot behind a `@Volatile var`;
+  [`test/js/native_shared_state.test.js`](test/js/native_shared_state.test.js) fails on any
+  other property holding a mutable collection, and on a raw lock, unless it is named there
+  with its reason.
 - **One-shot resources are idempotent + identity-guarded.** A freed pointer or a completed
   task: guard the second call to a no-op (`guard pendingRefreshTask === task`). Never
   free/complete by re-reading shared state.
@@ -523,7 +529,8 @@ observe:
   across a blocking call (read under lock, compute outside, write under lock).
 - **Encode a class-level guard** (practice, not optional): a JVM concurrency/stress test or a
   structural CI gate so the *next* instance fails, not just this one. Templates:
-  `AdblockEngineNativeTest.kt`, `test/js/native_bgtask_completion_funnel.test.js`.
+  `AdblockEngineNativeTest.kt`, `SiteEventInboxTest.kt`,
+  `test/js/native_bgtask_completion_funnel.test.js`.
 - **Record recurrence in BUG-007**, not a new file — append a dated fix attempt with *why it
   was partial* (which path it covered, which it missed). Cross-link the spec that owns the
   state.

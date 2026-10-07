@@ -34,7 +34,9 @@ Do not point users at it. The two signed channels below are the product.
    already exists for iOS; enable the macOS platform on it, with App Groups
    and Keychain Sharing. Add `org.codeberg.theoden8.webspace.ShareExtension`
    for the extension. Both use team `7NGC2P87LM`, which
-   `macos/Runner/AppDelegate.swift` hardcodes into the group name.
+   `ios/Runner/AppGroup.swift` writes into the macOS group name. It is
+   spelled out rather than taken from `$(TeamIdentifierPrefix)`, because the
+   build has no team until `sign_macos.sh` signs it.
 2. **App group** `group.org.codeberg.theoden8.webspace`, enabled for both IDs.
 3. **Certificates**. Developer ID Application for the direct build; Apple
    Distribution plus Mac Installer Distribution for the App Store build.

@@ -13,14 +13,6 @@ import UniformTypeIdentifiers
 @objc(ShareViewController)
 final class ShareViewController: NSViewController {
 
-    /// macOS sandboxed app groups require the team-prefixed form
-    /// `<TEAMID>.group.<id>`. The team ID below MUST match the
-    /// DEVELOPMENT_TEAM the host app + extension are signed under
-    /// (Runner.xcodeproj on iOS uses 7NGC2P87LM). If you sign with a
-    /// different team, update both this constant and the matching one
-    /// in `macos/Runner/AppDelegate.swift`.
-    private static let appGroupId = "7NGC2P87LM.group.org.codeberg.theoden8.webspace"
-    private static let pendingUrlKey = "pending_share_url"
     private static let hostScheme = "webspace"
     private static let hostHost = "share"
 
@@ -113,11 +105,11 @@ final class ShareViewController: NSViewController {
     }
 
     private func handOff(_ url: String, completion: @escaping () -> Void) {
-        if let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) {
-            defaults.set(url, forKey: ShareViewController.pendingUrlKey)
+        if let defaults = AppGroup.defaults {
+            defaults.set(url, forKey: AppGroup.pendingShareUrlKey)
             NSLog("[WebSpace.ShareExt.macOS] wrote URL to app group")
         } else {
-            NSLog("[WebSpace.ShareExt.macOS] app group \(ShareViewController.appGroupId) unavailable; URL not persisted")
+            NSLog("[WebSpace.ShareExt.macOS] app group \(AppGroup.id) unavailable; URL not persisted")
         }
         var components = URLComponents()
         components.scheme = ShareViewController.hostScheme

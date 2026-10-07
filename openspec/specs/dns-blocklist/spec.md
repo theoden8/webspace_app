@@ -722,10 +722,12 @@ holds hosts from all of them
 ### Requirement: DNS-017 - Android Pull-Based Event Delivery
 
 The Android native DNS handler SHALL deliver DNS events (both blocked and
-allowed) to Dart using a signal-then-pull pattern: Java accumulates events
-in per-site lists, signals Dart when new events arrive, and Dart pulls the
-batched list in a single call. Duplicate signals SHALL be suppressed while
-one is in flight.
+allowed) to Dart using a signal-then-pull pattern: native code accumulates
+events per site, signals Dart when new events arrive, and Dart pulls the
+batch in a single call. A signal SHALL be suppressed while an earlier one for
+the site is outstanding, and Dart's pull SHALL retire it, so no recorded
+event waits for a later one to be delivered. Repeats SHALL be counted per
+host and verdict, never folded into another verdict's record.
 
 #### Scenario: Both allowed and blocked events captured
 
@@ -747,13 +749,30 @@ one is in flight.
 **When** the first event fires the signal
 **Then** subsequent events append to the per-site list without firing new signals
 **And** Dart's single `fetchEvents` call retrieves all 100 events atomically
-(each as `{host, blocked}`)
+(as `{host, blocked, source, count}` records, one per host and verdict)
 
 #### Scenario: Signal repeats after completion
 
 **Given** Dart has completed a `fetchEvents` call and cleared the list
 **When** a new event occurs
 **Then** a new `blockEventsReady` signal is sent
+
+#### Scenario: An event during Dart's drain is not stranded
+
+**Given** Dart's `blockEventsReady` handler has fetched the site's events but
+has not returned yet
+**When** a new event is recorded for the site
+**Then** a new `blockEventsReady` signal is sent without waiting for that reply
+(regression: `SiteEventInboxTest.anEventAfterTheDrainWakesBeforeDartAnswers`)
+
+#### Scenario: One host, two verdicts
+
+**Given** a host's page assets are allowed and its ad paths are blocked by the
+engine within one drain window
+**When** Dart fetches the events
+**Then** it receives one allowed record and one `abp` record for the host, each
+with its own count
+(regression: `SiteEventInboxTest.oneHostAllowedAndBlockedKeepsBothVerdicts`)
 
 #### Scenario: Stats update without PerformanceObserver lag
 

@@ -561,14 +561,15 @@ Methods:
 
 ### iOS App Intents
 
-`ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, *)`):
+`ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, macOS 13, *)`;
+the macOS project compiles the same file):
 
 - `SiteEntity: AppEntity` — one synced site with `id: String` (siteId), `name: String`, and `url: String?` (so a tombstone-resolved deleted site can route by domain, HS-011/HS-014). `displayRepresentation` MUST use `DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name)))`. The static `"%@"` key is stable for the compile-time App Intents metadata extractor while the runtime `defaultValue` still resolves to each site's name. Two earlier forms both collapse the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app: `DisplayRepresentation(title: "\(name)")` (interpolation renders the literal `%@`), and `DisplayRepresentation(stringLiteral: name)` (resolves in the live picker but not in the materialized tiles, since a runtime string can't be a compile-time title key — the surviving tile also keeps a stale bound target).
 - `SiteEntityQuery: EntityQuery` — `suggestedEntities()` returns `shortcut_sites` (live only) so the picker / materialized App Shortcuts stay clean; `entities(for:)` resolves **every** requested id from `shortcut_sites` ∪ `shortcut_tombstones`, falling back to a placeholder `SiteEntity` for any unknown id so a tile never reads "no longer available" (HS-014).
 - `OpenSiteIntent: AppIntent, OpenIntent` — parameterized on `SiteEntity`. `openAppWhenRun = true` foregrounds WebSpace; `perform()` writes the chosen siteId to `pending_shortcut_site_id` and its url to `pending_shortcut_url` in App Group UserDefaults.
 - `WebSpaceShortcuts: AppShortcutsProvider` — declares the discoverable "Open Site" App Shortcut with phrase template `"Open \(\.$target) in WebSpace"`.
 
-The Swift method-channel handler lives in `ios/Runner/ShortcutsPlugin.swift` and is registered alongside the other plugins in `AppDelegate.application(_:didFinishLaunchingWithOptions:)`.
+The Swift method-channel handler lives in `ios/Runner/ShortcutsPlugin.swift`, also compiled by the macOS project, and is registered alongside the other plugins in each `AppDelegate`. The App Group id (team-prefixed on macOS) and the keys above are declared once, in `ios/Runner/AppGroup.swift`.
 
 ### Shortcut Intent
 

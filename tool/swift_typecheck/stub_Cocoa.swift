@@ -29,3 +29,10 @@ open class NSApplication: NSObject {
   public static let shared = NSApplication()
   open var keyWindow: NSWindow?
 }
+
+// NSWorkspace.h: `sharedWorkspace` and `- (BOOL)openURL:(NSURL *)url;`. An
+// imported Objective-C method's result is discardable.
+open class NSWorkspace: NSObject {
+  open class var shared: NSWorkspace { NSWorkspace() }
+  @discardableResult open func open(_ url: URL) -> Bool { false }
+}

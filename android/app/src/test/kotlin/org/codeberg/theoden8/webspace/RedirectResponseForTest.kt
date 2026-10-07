@@ -20,18 +20,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
-import java.util.concurrent.atomic.AtomicBoolean
 
 class RedirectResponseForTest {
 
     private fun newInterceptor(): FastSubresourceInterceptor =
         FastSubresourceInterceptor(
             dnsBlocklist = DnsHostBlocklist(),
-            cdnPatterns = mutableListOf(),
-            cdnCacheIndex = mutableMapOf(),
-            localCdnDisabled = AtomicBoolean(false),
-            onBlockChecked = { _, _, _ -> },
-            onCdnReplaced = { _, _ -> },
+            cdnTables = LocalCdnTables(),
+            onBlockChecked = {},
+            onCdnReplaced = {},
             onLog = { _, _ -> },
         )
 
