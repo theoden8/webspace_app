@@ -675,13 +675,6 @@ class WebViewModel implements MediaGrantRecord {
           TrackingProtectionForce.localCdn, localCdnEnabled),
       archived: isArchiveTier);
 
-  /// Effective HTML-cache enable. Archive-tier sites never write the
-  /// encrypted-at-rest HTML cache (the cache file path is keyed by
-  /// `siteId`, so its existence would correlate to specific archive
-  /// sites on disk inspection — ARCH-006).
-  bool get effectiveHtmlCachingEnabled =>
-      ArchiveFold.htmlCaching(htmlCachingEnabled, archived: isArchiveTier);
-
   /// Whether this site's block events roll into the app-wide protection
   /// report. Archive-tier sites never do: the report's counters live in
   /// plaintext SharedPreferences, and a counter that only moves while an

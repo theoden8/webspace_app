@@ -204,7 +204,9 @@ void main() {
       final store = ProxyPasswordSecureStorage(secureStorage: keychain);
       await store.savePassword('b', 'pw');
       expect(keychain.storage['proxy_passwords'], '{"a":"old","b":"pw"}');
-      await store.saveAll({'a': null, 'b': ''});
+      await store.mutate((draft) => draft
+        ..['a'] = null
+        ..['b'] = '');
       expect(keychain.storage.containsKey('proxy_passwords'), isFalse);
     });
 

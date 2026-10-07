@@ -70,12 +70,6 @@ Future<void> saveSuggestedSites(List<SiteSuggestion> sites) async {
   await prefs.setString(_prefsKey, json);
 }
 
-/// Reset suggested sites to flavor defaults (removes customization).
-Future<void> resetSuggestedSites() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove(_prefsKey);
-}
-
 Future<List<SiteSuggestion>> getEffectiveSuggestedSites() async {
   final custom = await loadSuggestedSites();
   return custom ?? flavorDefaultSuggestions;

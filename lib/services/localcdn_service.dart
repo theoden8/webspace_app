@@ -250,45 +250,20 @@ class LocalCdnService {
     ('gsap', '3.12.5', 'gsap.min.js'),
   ];
 
-  static const _contentTypes = <String, String>{
-    '.js': 'application/javascript',
-    '.mjs': 'application/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-    '.otf': 'font/otf',
-    '.eot': 'application/vnd.ms-fontobject',
-    '.svg': 'image/svg+xml',
-    '.map': 'application/json',
-  };
-
   /// Cached resource index: cache key -> file path on disk.
   final Map<String, String> _cache = {};
   String? _cacheDir;
   bool _initialized = false;
 
-  /// Per-site counter of CDN requests replaced from the local cache.
-  /// Runtime-only (not persisted); resets when the app restarts.
-  final Map<String, int> _replacementsPerSite = {};
-
   /// Record that a CDN request was replaced with a local copy for [siteId].
   /// [url] is the CDN request that was served locally; only its host reaches
   /// the report, and only the session-scoped detail.
   void recordReplacement(String siteId, {String? url}) {
-    _replacementsPerSite[siteId] = (_replacementsPerSite[siteId] ?? 0) + 1;
     BlockStatsService.instance.record(
       siteId,
       BlockCategory.localCdn,
       label: url == null ? null : extractHost(url),
     );
-  }
-
-  int replacementsForSite(String siteId) => _replacementsPerSite[siteId] ?? 0;
-
-  void clearReplacementsForSite(String siteId) {
-    _replacementsPerSite.remove(siteId);
   }
 
   /// The CDN URL regex patterns as strings, suitable for passing to the
@@ -309,23 +284,15 @@ class LocalCdnService {
     _cacheChangeListeners.add(listener);
   }
 
-  void removeCacheChangeListener(VoidCallback listener) {
-    _cacheChangeListeners.remove(listener);
-  }
-
   void _notifyCacheChanged() {
     for (final listener in List<VoidCallback>.from(_cacheChangeListeners)) {
       listener();
     }
   }
 
-  bool get isInitialized => _initialized;
-
   bool get hasCache => _cache.isNotEmpty;
 
   int get resourceCount => _cache.length;
-
-  int get popularResourceCount => _popularResources.length;
 
   /// Total size of cached resources in bytes.
   Future<int> get cacheSize async {
@@ -363,21 +330,6 @@ class LocalCdnService {
     return null;
   }
 
-  bool isCdnUrl(String url) => getCacheKey(url) != null;
-
-  bool isCached(String url) {
-    final key = getCacheKey(url);
-    return key != null && _cache.containsKey(key);
-  }
-
-  /// Get cached resource content for a CDN URL.
-  /// Returns null if not cached or if the URL doesn't match a CDN pattern.
-  Future<Uint8List?> getResource(String url) async {
-    final key = getCacheKey(url);
-    if (key == null) return null;
-    return _getResourceByKey(key);
-  }
-
   Future<Uint8List?> _getResourceByKey(String key) async {
     final filePath = _cache[key];
     if (filePath == null) return null;
@@ -392,17 +344,6 @@ class LocalCdnService {
     } on Exception {
       return null;
     }
-  }
-
-  /// Get the content type for a URL based on its file extension.
-  String getContentType(String url) {
-    final path = url.contains('?') ? url.substring(0, url.indexOf('?')) : url;
-    for (final entry in _contentTypes.entries) {
-      if (path.endsWith(entry.key)) {
-        return entry.value;
-      }
-    }
-    return 'application/octet-stream';
   }
 
   /// Cache key format: library/version/file
@@ -438,20 +379,6 @@ class LocalCdnService {
       LogTag.localCdn.error('Cache write error for $key: $e');
       return null;
     }
-  }
-
-  /// Try to get a resource from cache, falling back to download from cdnjs.
-  /// This is the primary method used by the webview interceptor.
-  /// The original CDN URL is NEVER contacted.
-  Future<Uint8List?> getOrFetchResource(String url) async {
-    final key = getCacheKey(url);
-    if (key == null) return null;
-
-    final cached = await _getResourceByKey(key);
-    if (cached != null) return cached;
-
-    // Download from cdnjs (not from the original CDN URL)
-    return _downloadAndCache(key);
   }
 
   /// Download all popular resources from cdnjs.

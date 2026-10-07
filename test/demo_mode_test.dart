@@ -109,17 +109,6 @@ void main() {
       expect(mockSecureStorage.storage['secure_cookies'], isNotNull);
     });
 
-    test('saveCookiesForUrl does nothing when isDemoMode is true', () async {
-      isDemoMode = true;
-
-      await cookieSecureStorage.saveCookiesForUrl(
-        'https://example.com',
-        [Cookie(name: 'test', value: 'value', domain: 'example.com')],
-      );
-
-      expect(mockSecureStorage.storage, isEmpty);
-    });
-
     test('clearCookies does nothing when isDemoMode is true', () async {
       // First, save some cookies with demo mode disabled
       // Use isSecure: true so cookies go to secure storage (COOKIE-006)

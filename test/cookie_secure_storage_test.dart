@@ -234,38 +234,6 @@ void main() {
       expect(loaded, isEmpty);
     });
 
-    test('should save cookies for single URL (converted to domain)', () async {
-      // Mix of secure and non-secure cookies (COOKIE-006)
-      final cookies = [
-        Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
-        Cookie(name: 'theme', value: 'dark', domain: 'example.com', isSecure: false),
-      ];
-
-      await cookieSecureStorage.saveCookiesForUrl('https://example.com', cookies);
-
-      final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded['example.com'], hasLength(2));
-      expect(loaded['example.com']!.map((c) => c.name).toSet(), equals({'session', 'theme'}));
-    });
-
-    test('should merge cookies when saving for multiple domains', () async {
-      // Save initial cookies for first domain (secure cookie)
-      await cookieSecureStorage.saveCookies({
-        'first.com': [
-          Cookie(name: 'first', value: 'value1', domain: 'first.com', isSecure: true),
-        ],
-      });
-
-      // Save cookies for second domain (non-secure cookie)
-      await cookieSecureStorage.saveCookiesForUrl('https://second.com', [
-        Cookie(name: 'second', value: 'value2', domain: 'second.com', isSecure: false),
-      ]);
-
-      final loaded = await cookieSecureStorage.loadCookies();
-      expect(loaded['first.com'], hasLength(1));
-      expect(loaded['second.com'], hasLength(1));
-    });
-
     test('should clear all cookies from both storages', () async {
       // Save mix of secure and non-secure cookies (COOKIE-006)
       await cookieSecureStorage.saveCookies({
@@ -322,35 +290,6 @@ void main() {
 
       final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded.length, equals(2));
-    });
-
-    test('should clear cookies from SharedPreferences', () async {
-      final webViewModelsJson = [
-        jsonEncode({
-          'initUrl': 'https://example.com',
-          'currentUrl': 'https://example.com',
-          'name': 'Example',
-          'pageTitle': 'Example Site',
-          'cookies': [
-            {'name': 'legacy_cookie', 'value': 'old_value', 'domain': 'example.com'},
-          ],
-          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-        }),
-      ];
-
-      SharedPreferences.setMockInitialValues({
-        'webViewModels': webViewModelsJson,
-      });
-
-      await cookieSecureStorage.clearSharedPreferencesCookies();
-
-      final prefs = await SharedPreferences.getInstance();
-      final updatedModels = prefs.getStringList('webViewModels')!;
-      final model = jsonDecode(updatedModels[0]) as Map<String, dynamic>;
-      expect(model['cookies'], isEmpty);
     });
 
     test('should handle corrupted secure storage gracefully', () async {

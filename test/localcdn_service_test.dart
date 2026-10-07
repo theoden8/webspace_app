@@ -126,16 +126,6 @@ void main() {
       expect(service.getCacheKey('https://www.google.com/'), isNull);
       expect(service.getCacheKey('https://github.com/repo/file.js'), isNull);
     });
-
-    test('isCdnUrl returns true for CDN URLs', () {
-      expect(service.isCdnUrl('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js'), isTrue);
-      expect(service.isCdnUrl('https://cdn.jsdelivr.net/npm/vue@3.3.0/dist/vue.global.min.js'), isTrue);
-    });
-
-    test('isCdnUrl returns false for non-CDN URLs', () {
-      expect(service.isCdnUrl('https://example.com/'), isFalse);
-      expect(service.isCdnUrl('https://www.google.com/'), isFalse);
-    });
   });
 
   group('Cross-CDN deduplication', () {
@@ -182,87 +172,10 @@ void main() {
     });
   });
 
-  group('Content type detection', () {
-    test('detects JavaScript content type', () {
-      expect(service.getContentType('https://example.com/jquery.min.js'), equals('application/javascript'));
-    });
-
-    test('detects CSS content type', () {
-      expect(service.getContentType('https://example.com/bootstrap.min.css'), equals('text/css'));
-    });
-
-    test('detects font content types', () {
-      expect(service.getContentType('https://example.com/font.woff'), equals('font/woff'));
-      expect(service.getContentType('https://example.com/font.woff2'), equals('font/woff2'));
-      expect(service.getContentType('https://example.com/font.ttf'), equals('font/ttf'));
-    });
-
-    test('detects SVG content type', () {
-      expect(service.getContentType('https://example.com/icon.svg'), equals('image/svg+xml'));
-    });
-
-    test('strips query params for content type detection', () {
-      expect(service.getContentType('https://example.com/jquery.min.js?v=123'), equals('application/javascript'));
-    });
-
-    test('returns octet-stream for unknown extensions', () {
-      expect(service.getContentType('https://example.com/file.xyz'), equals('application/octet-stream'));
-    });
-  });
-
-  group('Popular resources manifest', () {
-    test('has a non-empty list of popular resources', () {
-      expect(service.popularResourceCount, greaterThan(0));
-    });
-  });
-
   group('LocalCdnService cache state', () {
     test('initial state has no cache', () {
       // Before initialization, resourceCount should be 0
       expect(service.resourceCount, greaterThanOrEqualTo(0));
-    });
-
-    test('isCached returns false for uncached URL', () {
-      expect(service.isCached('https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js'), isFalse);
-    });
-  });
-
-  group('Per-site replacement counter', () {
-    test('returns 0 for a site with no replacements', () {
-      expect(service.replacementsForSite('fresh-site'), equals(0));
-    });
-
-    test('recordReplacement increments the per-site counter', () {
-      const siteId = 'site-a';
-      service.clearReplacementsForSite(siteId);
-      service.recordReplacement(siteId);
-      service.recordReplacement(siteId);
-      service.recordReplacement(siteId);
-      expect(service.replacementsForSite(siteId), equals(3));
-      service.clearReplacementsForSite(siteId);
-    });
-
-    test('counters are isolated per site', () {
-      const a = 'site-a2';
-      const b = 'site-b2';
-      service.clearReplacementsForSite(a);
-      service.clearReplacementsForSite(b);
-      service.recordReplacement(a);
-      service.recordReplacement(a);
-      service.recordReplacement(b);
-      expect(service.replacementsForSite(a), equals(2));
-      expect(service.replacementsForSite(b), equals(1));
-      service.clearReplacementsForSite(a);
-      service.clearReplacementsForSite(b);
-    });
-
-    test('clearReplacementsForSite resets a site to 0', () {
-      const siteId = 'site-c';
-      service.recordReplacement(siteId);
-      service.recordReplacement(siteId);
-      expect(service.replacementsForSite(siteId), equals(2));
-      service.clearReplacementsForSite(siteId);
-      expect(service.replacementsForSite(siteId), equals(0));
     });
   });
 

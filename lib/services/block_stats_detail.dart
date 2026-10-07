@@ -115,16 +115,12 @@ class BlockStatsDetail {
     return [for (final site in out) MapEntry(site.label, site.count)];
   }
 
-  /// Events of [category] held here, across every site.
-  int totalFor(BlockCategory category) =>
-      (_sites[category]?.values ?? const <BlockDetailItem>[])
-          .fold<int>(0, (a, b) => a + b.count);
-
   /// Drop rows last seen before the retention cutoff, matching the counter
   /// buckets' window. Returns the number dropped.
-  int prune({DateTime? now, int retentionDays = BlockStatsEngine.retentionDays}) {
+  int prune({DateTime? now}) {
     final at = now ?? DateTime.now();
-    final cutoff = DateTime(at.year, at.month, at.day - retentionDays);
+    final cutoff =
+        DateTime(at.year, at.month, at.day - BlockStatsEngine.retentionDays);
     final dropped =
         _pruneTables(_items, cutoff) + _pruneTables(_sites, cutoff);
     if (dropped > 0) _markDirty();

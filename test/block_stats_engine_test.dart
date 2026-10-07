@@ -154,8 +154,8 @@ void main() {
         },
       });
 
-      expect(restored.allTimeTotals[BlockCategory.filterList], 5);
-      expect(restored.allTimeTotals[BlockCategory.dnsBlocklist], isNull);
+      expect(restored.allTimeFor(BlockCategory.filterList), 5);
+      expect(restored.allTimeFor(BlockCategory.dnsBlocklist), 0);
       expect(restored.totalForLastDays(30, now: DateTime(2026, 8, 19)), 0);
     });
   });

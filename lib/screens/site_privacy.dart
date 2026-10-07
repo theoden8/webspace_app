@@ -105,8 +105,6 @@ class SitePrivacyValues {
       archived: archived);
   bool get effectiveThirdPartyCookies => _forced(
       TrackingProtectionForce.thirdPartyCookies, thirdPartyCookiesEnabled);
-  bool get effectiveHttpsUpgrade => _forced(TrackingProtectionForce.httpsUpgrade,
-      httpsUpgrade.resolve(AppPref.httpsUpgradeEnabled.value));
   bool get effectiveIncognito =>
       ArchiveFold.incognito(incognito, archived: archived);
 

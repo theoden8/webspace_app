@@ -12,7 +12,6 @@ void main() {
     expect(s.tasks.first.id, t2.id);
     expect(s.tasks.last.id, t1.id);
     expect(s.hasActive, isTrue);
-    expect(s.activeCount, 2);
   });
 
   test('updateProgress mutates task and notifies listeners', () {

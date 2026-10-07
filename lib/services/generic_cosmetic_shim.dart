@@ -20,9 +20,9 @@
 // when the Rust engine isn't active for this site) — caller should
 // only inject this when the engine loaded.
 
-/// Build the generic-cosmetic scanner JS as a self-contained string.
-/// `handlerName` is the JavaScript-bridge handler the Dart side
-/// registers via `addJavaScriptHandler` to receive the scan result.
+/// Build the generic-cosmetic scanner JS as a self-contained string. The
+/// scan result goes to the `genericCosmeticScan` bridge handler the Dart side
+/// registers via `addJavaScriptHandler`.
 ///
 /// The shim fires once on DOMContentLoaded, then installs a debounced
 /// MutationObserver that picks up classes/ids appearing on new
@@ -33,7 +33,7 @@
 /// `<script>` at the bottom of `<body>` (every Flutter probe page,
 /// every React/Vue/Angular app) end up with all the dynamically-
 /// appended elements missing every generic cosmetic rule.
-String buildGenericCosmeticScannerShim({String handlerName = 'genericCosmeticScan'}) {
+String buildGenericCosmeticScannerShim() {
   return '''
 (function() {
   var STYLE_ID = '_webspace_generic_cosmetic_style';
@@ -96,7 +96,7 @@ String buildGenericCosmeticScannerShim({String handlerName = 'genericCosmeticSca
   function query(payload) {
     if (!payload || (payload.classes.length === 0 && payload.ids.length === 0)) return;
     if (!window.flutter_inappwebview || !window.flutter_inappwebview.callHandler) return;
-    window.flutter_inappwebview.callHandler('$handlerName', payload)
+    window.flutter_inappwebview.callHandler('genericCosmeticScan', payload)
       .then(function(selectors) { inject(selectors); })
       .catch(function() {});
   }

@@ -4394,7 +4394,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               Navigator.pop(menuContext);
               if (_sites.current != null && _sites.current! < _sites.models.length) {
                 final model = _sites.models[_sites.current!];
-                final url = model.currentUrl ?? model.initUrl;
+                final url = model.currentUrl;
                 SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
               }
             },
@@ -4513,7 +4513,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         SiteSettingsQrCodec.hydrateForFromJson(resultQrSettings),
         stateSetter,
       );
-      if ((model.name ?? '').isEmpty) {
+      if (model.name.isEmpty) {
         final pageTitle = await getPageTitle(
           model.initUrl,
           proxy: model.proxySettings,

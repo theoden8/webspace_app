@@ -290,12 +290,10 @@ class TorService {
     TorEngine? embedded,
     TorEngine? external,
     ExternalTorRuntime? externalRuntime,
-    TorLogBridge? logs,
   })  : assert(embedded != null || external != null),
         _embedded = embedded,
         _externalEngine = external,
-        _externalRuntime = externalRuntime,
-        _logs = logs ?? TorLogBridge() {
+        _externalRuntime = externalRuntime {
     _externalActive = _resolveExternal();
     _logs.start();
     for (final engine in [embedded, external].nonNulls) {
@@ -358,11 +356,11 @@ class TorService {
   /// [external] when the engine's runtime is an [ExternalTorRuntime].
   @visibleForTesting
   static void overrideEngine(TorEngine engine,
-      {TorLogBridge? logs, ExternalTorRuntime? external}) {
+      {ExternalTorRuntime? external}) {
     _instance?._cancelSubs();
     _instance = external == null
-        ? TorService._(embedded: engine, logs: logs)
-        : TorService._(external: engine, externalRuntime: external, logs: logs);
+        ? TorService._(embedded: engine)
+        : TorService._(external: engine, externalRuntime: external);
   }
 
   /// Both engines, with [wantsExternal] choosing between them. Tests only.
@@ -371,14 +369,12 @@ class TorService {
     required TorEngine embedded,
     required TorEngine external,
     required ExternalTorRuntime externalRuntime,
-    TorLogBridge? logs,
   }) {
     _instance?._cancelSubs();
     _instance = TorService._(
       embedded: embedded,
       external: external,
       externalRuntime: externalRuntime,
-      logs: logs,
     );
   }
 
@@ -398,7 +394,7 @@ class TorService {
   final TorEngine? _embedded;
   final TorEngine? _externalEngine;
   final ExternalTorRuntime? _externalRuntime;
-  final TorLogBridge _logs;
+  final TorLogBridge _logs = TorLogBridge();
   final List<StreamSubscription<TorStatus>> _engineSubs = [];
   final StreamController<TorStatus> _statuses =
       StreamController<TorStatus>.broadcast();
@@ -600,26 +596,4 @@ class _TorResumeWatch with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) unawaited(_service.revive());
   }
-}
-
-/// Resolve [settings] into something dialable, expanding [ProxyType.TOR]
-/// into the live SOCKS5 endpoint tagged for [siteId].
-///
-/// Three outcomes, and callers must distinguish them:
-/// - non-TOR input is returned unchanged,
-/// - TOR with the runtime up returns SOCKS5 settings,
-/// - TOR with the runtime not up returns null, meaning *block*, never
-///   "fall back to direct" (TOR-008).
-UserProxySettings? materializeTorProxy(
-  UserProxySettings settings, {
-  String? siteId,
-}) {
-  if (settings.type != ProxyType.TOR) return settings;
-  final resolved = TorService.instance.socksFor(siteId: siteId);
-  if (resolved == null) {
-    LogTag.tor.debug(
-        'Blocked an outbound request: proxy is TOR but the runtime is '
-        '${TorService.instance.status}.');
-  }
-  return resolved;
 }

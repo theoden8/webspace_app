@@ -139,9 +139,6 @@ class BlockStatsService {
     }
   }
 
-  @visibleForTesting
-  bool siteContributes(String siteId) => _contributingSiteIds.contains(siteId);
-
   /// Record [count] block events of [category] attributed to [siteId].
   /// Ignored for sites that have not been declared app-tier. [label] names
   /// what was stopped (a host, the stripped parameters) and only ever reaches

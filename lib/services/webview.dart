@@ -637,8 +637,6 @@ class ProxyManager {
         isMacOS: hostIsMacOS,
       );
 
-  static void setBindingForTest(ProxyBinding? value) => _binding = value;
-
   /// Containers this process built a WebView on with a proxy (PROXY-029).
   static final ContainerProxyLedger containerProxies = ContainerProxyLedger();
 
@@ -3744,9 +3742,9 @@ class WebViewFactory {
         // `partition_alloc_support.cc:770` dangle ride sits on top
         // of. Allow iframe navigations to load in-place; the engine
         // sees only main-frame navigations.
-        final isMainFrame = navigationAction.isForMainFrame ?? true;
+        final isMainFrame = navigationAction.isForMainFrame;
         // Diagnostic: log the raw isForMainFrame so we can tell
-        // when a platform reports null vs. true vs. false. WebKit2GTK
+        // when a platform reports true vs. false. WebKit2GTK
         // on Linux has been observed to return true for navigations
         // that originate from inside an iframe; Android API 24+
         // returns false for child-frame navigations consistently.

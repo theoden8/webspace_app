@@ -9,7 +9,6 @@ import 'package:material_design_icons_flutter/material_design_icons_flutter.dart
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/widgets/toast.dart';
-import '../main.dart' show extractDomain;
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, IconReload, iconReloads, reloadAllIcons, usableIconUrl;
 import '../services/html_import_storage.dart' show importedFileSite;

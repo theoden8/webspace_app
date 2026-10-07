@@ -33,7 +33,7 @@ void main() {
           const HostQuery('tracker.example'), const Blocked(BlockSource.dns),
           count: 3);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.dnsBlocklist], 3);
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist), 3);
       expect(stats.engine.allTimeTotal, 3);
     });
 
@@ -42,7 +42,7 @@ void main() {
           const HostQuery('ads.example'), const Blocked(BlockSource.abp),
           count: 5);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 5);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 5);
     });
 
     test('the URL-shaped funnel lands the same way', () {
@@ -52,7 +52,7 @@ void main() {
               sourceUrl: '', requestType: 'image'),
           const Blocked(BlockSource.abp));
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 1);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 1);
     });
 
     test('a verdict is one request: a filter-list block is not also allowed',
@@ -77,7 +77,7 @@ void main() {
       expect(perSite.blocked, 2);
       expect(perSite.blockedByAbp, 2);
       expect(perSite.allowed, 1);
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 2);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 2);
     });
 
     test('allowed requests move no report counter', () {
@@ -101,9 +101,9 @@ void main() {
 
       final perSite = DnsBlockService.instance.statsForSite('site-1');
       expect(stats.engine.allTimeTotal, perSite.blocked);
-      expect(stats.engine.allTimeTotals[BlockCategory.dnsBlocklist],
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist),
           perSite.blockedByDns);
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList],
+      expect(stats.engine.allTimeFor(BlockCategory.filterList),
           perSite.blockedByAbp);
     });
   });
@@ -121,8 +121,8 @@ void main() {
         {'host': 'cdn.example', 'blocked': false, 'count': 30},
       ]);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 12);
-      expect(stats.engine.allTimeTotals[BlockCategory.dnsBlocklist], 4);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 12);
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist), 4);
       expect(stats.engine.allTimeTotal, 16);
     });
 
@@ -143,7 +143,7 @@ void main() {
         'not-a-map',
       ]);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 2);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 2);
     });
 
     test('an archive-tier site drains without moving the report', () {
@@ -163,7 +163,7 @@ void main() {
       LocalCdnService.instance.recordReplacement('site-1');
       LocalCdnService.instance.recordReplacement('site-1');
 
-      expect(stats.engine.allTimeTotals[BlockCategory.localCdn], 2);
+      expect(stats.engine.allTimeFor(BlockCategory.localCdn), 2);
     });
   });
 
@@ -201,7 +201,11 @@ void main() {
       LocalCdnService.instance.recordReplacement('site-1');
 
       expect(stats.detail.topItems(BlockCategory.localCdn), isEmpty);
-      expect(stats.detail.totalFor(BlockCategory.localCdn), 1);
+      expect(
+          stats.detail
+              .siteCounts(BlockCategory.localCdn)
+              .map((e) => (e.key, e.value)),
+          [('site-1', 1)]);
     });
   });
 }

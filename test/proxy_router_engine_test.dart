@@ -555,11 +555,11 @@ void main() {
   group('attribution predicate (PROXY-015)', () {
     test('holds when every nonce comes back stamped with its own site', () {
       expect(
-        ProxyRouterEngine.attributionHolds(
+        ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1', 'b': 'n2'},
           observed: {'n1': 'a', 'n2': 'b'},
         ),
-        isTrue,
+        isEmpty,
       );
     });
 
@@ -567,13 +567,6 @@ void main() {
       // Both containers replayed whichever credential was cached first,
       // so both probes came back stamped 'a'. Nothing errors on such a
       // device; this predicate is the only thing that notices.
-      expect(
-        ProxyRouterEngine.attributionHolds(
-          expected: {'a': 'n1', 'b': 'n2'},
-          observed: {'n1': 'a', 'n2': 'a'},
-        ),
-        isFalse,
-      );
       expect(
         ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1', 'b': 'n2'},
@@ -585,29 +578,29 @@ void main() {
 
     test('fails when an observation is missing', () {
       expect(
-        ProxyRouterEngine.attributionHolds(
+        ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1', 'b': 'n2'},
           observed: {'n1': 'a'},
         ),
-        isFalse,
+        ['b'],
         reason: 'unproven must not read as proven',
       );
     });
 
     test('fails when a nonce is stamped with an unrelated site', () {
       expect(
-        ProxyRouterEngine.attributionHolds(
+        ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1'},
           observed: {'n1': 'somebody-else'},
         ),
-        isFalse,
+        ['a'],
       );
     });
 
     test('vacuously holds with no sites', () {
       expect(
-        ProxyRouterEngine.attributionHolds(expected: {}, observed: {}),
-        isTrue,
+        ProxyRouterEngine.attributionFailures(expected: {}, observed: {}),
+        isEmpty,
       );
     });
 

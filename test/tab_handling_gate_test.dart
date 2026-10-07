@@ -48,12 +48,10 @@ void main() {
     var runs = 0;
     final (held, release) = hold(gate);
     gate.deferUntilIdle(() => runs++);
-    expect(gate.hasDeferred, isTrue);
     drain();
     expect(runs, 0, reason: 'nothing runs while the gate is held');
     release.complete();
     await held;
-    expect(gate.hasDeferred, isFalse);
     expect(runs, 0, reason: 'never inside the releasing handler\'s finally');
     drain();
     expect(runs, 1);
@@ -114,7 +112,6 @@ void main() {
     drain();
     await Future<void>.delayed(Duration.zero);
     expect(log, ['deferred', 'deferred', 'ran']);
-    expect(gate.hasDeferred, isFalse);
   });
 
   test('with microtasks, the deferred work runs after the handler returns',

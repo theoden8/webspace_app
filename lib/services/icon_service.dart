@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart' show visibleForTesting;
@@ -300,10 +299,6 @@ const Map<String, String> _domainSubstitutions = {
   'gmail.com': 'mail.google.com',
 };
 
-const int _maxConcurrentRequests = 5;
-int _activeRequests = 0;
-final Queue<Completer<void>> _requestQueue = Queue();
-
 String _applyDomainSubstitution(String domain) {
   return _domainSubstitutions[domain] ?? domain;
 }
@@ -583,70 +578,6 @@ int _compareFavicons(Favicon a, Favicon b, Map<String, bool> svgColorCache) {
   return a.compareTo(b);
 }
 
-// ignore: unused_element
-Future<Favicon?> _findBestIcon(String url, UserProxySettings proxy) async {
-  final favicons = await FaviconFinder.getAll(url, proxy: proxy);
-  LogTag.icon.debug(
-      'Favicons: ${favicons.map((f) => '${f.url} (width: ${f.width}, height: ${f.height})').join(', ')}',
-      sensitive: true);
-  if (favicons.isEmpty) return null;
-
-  final svgColorCache = <String, bool>{};
-
-  await Future.wait(
-    favicons.where((f) => f.url.endsWith('.svg')).map((f) async {
-      svgColorCache[f.url] = await _isSvgColored(f.url, proxy);
-    })
-  );
-
-  favicons.sort((a, b) => _compareFavicons(a, b, svgColorCache));
-
-  return favicons.first;
-}
-
-/// Fetches the best quality favicon for a given URL (legacy single-result API)
-///
-/// Quality scoring:
-/// - 256: Google 256px
-/// - 128: Google 128px
-/// - 64: DuckDuckGo
-/// - 50: favicon package (HTML parsing + favicon.ico)
-Future<String?> getFaviconUrl(String url, {UserProxySettings? proxy}) async {
-  _dropUnusableCachedIcon(url);
-  if (_faviconCache.containsKey(url)) {
-    LogTag.icon.debug('Using cached icon for $url', sensitive: true);
-    return _faviconCache[url];
-  }
-
-  if (_activeRequests >= _maxConcurrentRequests) {
-    LogTag.icon.debug(
-        'Queueing request for $url (active: $_activeRequests)',
-        sensitive: true);
-    final completer = Completer<void>();
-    _requestQueue.add(completer);
-    await completer.future;
-  }
-
-  _activeRequests++;
-  LogTag.icon.debug(
-      'Starting request for $url (active: $_activeRequests, queued: ${_requestQueue.length})',
-      sensitive: true);
-
-  try {
-    return await _fetchFaviconUrlInternal(url, _resolve(proxy));
-  } finally {
-    _activeRequests--;
-    LogTag.icon.debug(
-        'Finished request for $url (active: $_activeRequests, queued: ${_requestQueue.length})',
-        sensitive: true);
-
-    if (_requestQueue.isNotEmpty) {
-      final nextCompleter = _requestQueue.removeFirst();
-      nextCompleter.complete();
-    }
-  }
-}
-
 /// Progressive favicon loading - yields icons as they're found
 ///
 /// Emits IconUpdate objects with increasing quality:
@@ -746,76 +677,6 @@ Stream<IconUpdate> getFaviconUrlStream(String url, {UserProxySettings? proxy}) a
       sensitive: true);
 }
 
-Future<String?> _fetchFaviconUrlInternal(String url, UserProxySettings proxy) async {
-  Uri? uri = Uri.tryParse(url);
-  if (uri == null || uri.host.isEmpty) {
-    _faviconCache[url] = null;
-    return null;
-  }
-
-  String domain = _applyDomainSubstitution(uri.host);
-  final usePublicServices = _shouldUsePublicIconServices(uri);
-
-  LogTag.icon.debug(
-      'Fetching icon for $url (domain: $domain, usePublicServices: $usePublicServices)',
-      sensitive: true);
-
-  final List<_IconCandidate> candidates = [];
-
-  try {
-    final futures = <Future<_IconCandidate?>>[];
-
-    if (usePublicServices) {
-      futures.addAll([
-        _tryGoogleFavicon(domain, 256, proxy).then((url) =>
-          url != null ? _IconCandidate(url, 256) : null),
-        _tryGoogleFavicon(domain, 128, proxy).then((url) =>
-          url != null ? _IconCandidate(url, 128) : null),
-        _tryDuckDuckGo(domain, proxy).then((url) =>
-          url != null ? _IconCandidate(url, 64) : null),
-      ]);
-    }
-
-    futures.add(_tryFaviconPackage(url, proxy));
-
-    final results = await Future.wait(futures).timeout(
-      Duration(seconds: 15),
-      onTimeout: () => List<_IconCandidate?>.filled(futures.length, null),
-    );
-
-    candidates.addAll(results
-        .whereType<_IconCandidate>()
-        .where((c) => usableIconUrl(c.url) != null));
-  } catch (e) {
-    LogTag.icon.error('Error fetching icons for $url: $e', sensitive: true);
-  }
-
-  if (candidates.isEmpty) {
-    _faviconCache[url] = null;
-    return null;
-  }
-
-  candidates.sort((a, b) => b.quality.compareTo(a.quality));
-
-  LogTag.icon.debug(
-      'Candidates: ${candidates.map((c) => '${c.url} (quality: ${c.quality})').join(', ')}',
-      sensitive: true);
-
-  for (var candidate in candidates) {
-    if (_verifiedUrls.contains(candidate.url)) {
-      _faviconCache[url] = candidate.url;
-      return candidate.url;
-    }
-
-    // Already verified in the try methods, so just return it
-    _faviconCache[url] = candidate.url;
-    return candidate.url;
-  }
-
-  _faviconCache[url] = null;
-  return null;
-}
-
 Future<String?> _tryGoogleFavicon(String domain, int size, UserProxySettings proxy) async {
   try {
     final googleUrl = 'https://www.google.com/s2/favicons?domain=$domain&sz=$size';
@@ -905,11 +766,4 @@ void clearFaviconCache() {
   _verifiedUrls.clear();
   _svgContentCache.clear();
   _iconBytesCache.clear();
-}
-
-Map<String, int> getQueueStats() {
-  return {
-    'active': _activeRequests,
-    'queued': _requestQueue.length,
-  };
 }

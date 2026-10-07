@@ -70,7 +70,6 @@ void main() {
 
       expect(detail.topItems(BlockCategory.localCdn), isEmpty);
       expect(_pairs(detail.siteCounts(BlockCategory.localCdn)), [['a', 4]]);
-      expect(detail.totalFor(BlockCategory.localCdn), 4);
     });
 
     test('the item table is bounded, evicting the least frequent', () {

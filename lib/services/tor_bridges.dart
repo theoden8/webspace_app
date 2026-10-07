@@ -292,7 +292,6 @@ class TorBridgeConfig {
 List<(String, String)> torBridgeOptions(
   TorBridgeConfig config, {
   required int transportPort,
-  String transportHost = '127.0.0.1',
 }) {
   if (!config.enabled || !config.isUsable) return const [];
   if (transportPort <= 0) return const [];
@@ -302,7 +301,7 @@ List<(String, String)> torBridgeOptions(
     ('UseBridges', '1'),
     (
       'ClientTransportPlugin',
-      '${t.wireName} socks5 $transportHost:$transportPort',
+      '${t.wireName} socks5 127.0.0.1:$transportPort',
     ),
   ];
 

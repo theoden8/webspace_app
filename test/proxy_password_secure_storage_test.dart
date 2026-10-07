@@ -39,22 +39,6 @@ void main() {
       expect(await store.loadPassword('site-1'), isNull);
     });
 
-    test('saveAll replaces the whole map', () async {
-      await store.savePassword('a', '1');
-      await store.savePassword('b', '2');
-      await store.saveAll({'b': '2-updated', 'c': '3'});
-      // 'a' is dropped because saveAll is a wholesale replace.
-      expect(await store.loadPassword('a'), isNull);
-      expect(await store.loadPassword('b'), equals('2-updated'));
-      expect(await store.loadPassword('c'), equals('3'));
-    });
-
-    test('saveAll with empty map deletes the underlying entry', () async {
-      await store.savePassword('a', '1');
-      await store.saveAll({});
-      expect(mockSecureStorage.storage.containsKey('proxy_passwords'), false);
-    });
-
     test('removeOrphaned drops site keys not in the active set', () async {
       await store.savePassword('site-1', 'a');
       await store.savePassword('site-2', 'b');

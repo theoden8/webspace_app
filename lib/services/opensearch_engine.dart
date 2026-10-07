@@ -18,9 +18,6 @@ import 'package:xml/xml.dart';
 import 'package:webspace/services/web_search_engine.dart'
     show WebSearchEngine, kSearchQueryToken;
 
-/// The `type` of an OpenSearch description link.
-const String kOpenSearchType = 'application/opensearchdescription+xml';
-
 /// Largest OpenSearch description read, in bytes. Real ones are under 4 KiB.
 const int kMaxOpenSearchBytes = 64 * 1024;
 

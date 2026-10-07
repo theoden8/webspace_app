@@ -122,17 +122,6 @@ class CookieSecureStorage {
     }
   }
 
-  /// The URL is converted to a domain key before storing.
-  Future<void> saveCookiesForUrl(String url, List<Cookie> cookies) {
-    if (isDemoMode) return Future.value();
-    return _writes.run(() async {
-      final domain = extractDomain(url);
-      final existingCookies = await loadCookies();
-      existingCookies[domain] = cookies;
-      await _saveCookiesUnlocked(existingCookies);
-    });
-  }
-
   /// Returns an empty list if no cookies are stored for this site.
   Future<List<Cookie>> loadCookiesForSite(String siteId) async {
     final allCookies = await loadCookies();
@@ -179,24 +168,6 @@ class CookieSecureStorage {
     await _secure.delete();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_sharedPrefsCookiesKey);
-  }
-
-  /// Clears cookies from SharedPreferences after migration.
-  /// This should be called after confirming cookies are safely in secure storage.
-  Future<void> clearSharedPreferencesCookies() async {
-    if (isDemoMode) return;
-    final prefs = await SharedPreferences.getInstance();
-    final webViewModelsJson = prefs.getStringList('webViewModels');
-
-    if (webViewModelsJson == null) return;
-
-    final updatedModels = webViewModelsJson.map((modelJson) {
-      final json = jsonDecode(modelJson) as Map<String, dynamic>;
-      json['cookies'] = [];
-      return jsonEncode(json);
-    }).toList();
-
-    await prefs.setStringList('webViewModels', updatedModels);
   }
 
   Future<Map<String, List<Cookie>>> _loadNonSecureCookiesOnly() async {

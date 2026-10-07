@@ -52,8 +52,6 @@ void main() {
   test('under Site icons only every request goes to the site', () async {
     siteIconsOnly(true);
     await getFaviconUrlStream(_site).drain<void>();
-    clearFaviconCache();
-    await getFaviconUrl(_site);
     expect(hosts(), {'example.com'});
   });
 
@@ -73,7 +71,6 @@ void main() {
     factory.requests.clear();
     final after = await getFaviconUrlStream(_site).toList();
     expect(after.map((u) => u.url), isNot(contains(_google)));
-    expect(await getFaviconUrl(_site), isNot(_google));
     expect(hosts(), {'example.com'});
   });
 
@@ -98,15 +95,6 @@ void main() {
     expect(
         updates.where((u) => u.isFinal && isPublicIconServiceUrl(u.url)),
         isEmpty);
-  });
-
-  test('getFaviconUrl drops a service answer that lands after the switch',
-      () async {
-    outboundHttp = factory = FakeOutbound(responder: (req) {
-      if (req.url.host == 'example.com') siteIconsOnly(true);
-      return http.Response('<html><head></head></html>', 200);
-    });
-    expect(isPublicIconServiceUrl(await getFaviconUrl(_site) ?? ''), isFalse);
   });
 
   test('a service URL kept on disk reads as absent under the switch',

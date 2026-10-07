@@ -86,13 +86,6 @@ class TimezoneLocationService {
     return prefs.getString(_urlPrefKey) ?? _defaultUrl;
   }
 
-  /// Persist a new download URL. Does not trigger a download — the user
-  /// must press "Download" again to fetch from the new URL.
-  Future<void> setUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_urlPrefKey, url);
-  }
-
   /// Last successful download timestamp, or null if never downloaded.
   Future<DateTime?> getLastUpdated() async {
     final prefs = await SharedPreferences.getInstance();

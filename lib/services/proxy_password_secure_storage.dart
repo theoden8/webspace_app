@@ -88,14 +88,6 @@ class ProxyPasswordSecureStorage {
 
   Future<String?> loadPassword(String key) async => (await loadAll())[key];
 
-  /// Replace the entire `key -> password` map. Empty values are stripped;
-  /// an empty result deletes the entry.
-  ///
-  /// Prefer [mutate] when the new map is derived from the stored one: the
-  /// caller's read is not part of this write's critical section.
-  Future<void> saveAll(Map<String, String?> passwords) =>
-      _store.exclusive(() => _store.write(_nonEmpty(passwords)));
-
   /// Read the stored map, apply [update] to a mutable draft, and write the
   /// result back as one critical section. Set a key to null to delete it.
   Future<void> mutate(void Function(Map<String, String?> draft) update) =>

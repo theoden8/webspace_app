@@ -290,7 +290,6 @@ void main() {
 
       expect(seen!.httpsUpgrade, const FollowApp<bool>());
       expect(seen!.httpsUpgrade.stored, isNull, reason: 'stored as null');
-      expect(seen!.effectiveHttpsUpgrade, isFalse);
     });
 
     testWidgets('Tracking Protection shows it forced on and locks it',

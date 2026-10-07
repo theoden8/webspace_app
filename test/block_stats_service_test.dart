@@ -86,7 +86,6 @@ void main() {
       service.record('moving-site', BlockCategory.filterList, count: 40);
 
       expect(service.engine.allTimeTotal, 2);
-      expect(service.siteContributes('moving-site'), isFalse);
     });
   });
 
@@ -104,7 +103,7 @@ void main() {
       await second.initialize(detailStore: detailStore);
 
       expect(second.engine.allTimeTotal, 10);
-      expect(second.engine.allTimeTotals[BlockCategory.trackingParam], 2);
+      expect(second.engine.allTimeFor(BlockCategory.trackingParam), 2);
     });
 
     test('a corrupt stored blob starts from empty instead of crashing',

@@ -49,9 +49,6 @@ final class TabHandlingGate {
     _schedule(task);
   }
 
-  /// Whether work is waiting for the gate.
-  bool get hasDeferred => _deferred != null;
-
   /// Remember [task] for when the gate is released. A later request replaces
   /// an earlier one: the work is idempotent, so running the latest once is
   /// running all of them.

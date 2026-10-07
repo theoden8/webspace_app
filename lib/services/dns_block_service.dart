@@ -214,9 +214,6 @@ class DnsBlockService {
   /// Number of domains across every downloaded level.
   int get domainCount => _levelSets.domainCount;
 
-  /// Every blocked domain, across every downloaded level.
-  Iterable<String> get blockedDomains => _levelSets.domains;
-
   /// Levels whose list has been fetched, so a site may run at them.
   Set<int> get downloadedLevels => _levelSets.levels;
 
@@ -257,10 +254,6 @@ class DnsBlockService {
 
   void addBlocklistChangedListener(VoidCallback listener) {
     _blocklistChangedListeners.add(listener);
-  }
-
-  void removeBlocklistChangedListener(VoidCallback listener) {
-    _blocklistChangedListeners.remove(listener);
   }
 
   void _notifyBlocklistChanged() {

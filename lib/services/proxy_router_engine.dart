@@ -74,7 +74,8 @@ class ProxyRouterEngine {
   /// would have to fake a TLS handshake for.
   static String probeUrlFor(String nonce) => 'http://$nonce$probeSuffix/';
 
-  /// Does the device actually attribute each site's traffic to that site?
+  /// The sites whose traffic the device does not attribute to them; empty
+  /// when attribution holds.
   ///
   /// [expected] is siteId -> the nonce we told that site's container to
   /// fetch; [observed] is nonce -> the siteId whose credential the relay
@@ -84,22 +85,10 @@ class ProxyRouterEngine {
   /// This is the runtime form of the PROXY-013 gate. Chromium caches a
   /// proxy credential per `HttpNetworkSession`; if a device turned out to
   /// share one session across container profiles, every probe would come
-  /// back stamped with whichever site authenticated first, and this
-  /// returns false. A missing observation also returns false: an
+  /// back stamped with whichever site authenticated first, and every site
+  /// but that one is listed. A missing observation is listed too: an
   /// unproven site is treated exactly like a failed one, because the
   /// failure it would otherwise hide is silent.
-  static bool attributionHolds({
-    required Map<String, String> expected,
-    required Map<String, String> observed,
-  }) {
-    if (expected.isEmpty) return true;
-    for (final entry in expected.entries) {
-      if (observed[entry.value] != entry.key) return false;
-    }
-    return true;
-  }
-
-  /// The sites whose attribution could not be proven, for logging.
   static List<String> attributionFailures({
     required Map<String, String> expected,
     required Map<String, String> observed,

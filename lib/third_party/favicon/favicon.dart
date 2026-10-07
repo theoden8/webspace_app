@@ -165,16 +165,6 @@ class FaviconFinder {
     }
   }
 
-  static Future<Favicon?> getBest(
-    String url, {
-    List<String>? suffixes,
-    UserProxySettings? proxy,
-  }) async {
-    List<Favicon> favicons =
-        await getAll(url, suffixes: suffixes, proxy: proxy);
-    return favicons.isNotEmpty ? favicons.first : null;
-  }
-
   static Future<bool> _verifyImage(String url, http.Client client) async {
     var response = await client.get(Uri.parse(url));
 
