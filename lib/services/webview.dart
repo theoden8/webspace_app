@@ -8,8 +8,10 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
+import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/blob_url_capture.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/container_proxy_ledger.dart';
@@ -2114,6 +2116,33 @@ typedef StoreBinding = ({
 });
 
 /// Factory for creating webviews
+/// A site's page loaded with no view, for one background wake (NOTIF-016).
+/// Built by [WebViewFactory.openHeadlessCheck].
+class HeadlessSiteCheck {
+  HeadlessSiteCheck._();
+
+  late final inapp.HeadlessInAppWebView _webview;
+  inapp.InAppWebViewController? _controller;
+  bool _loading = false;
+  bool _gone = false;
+  bool _disposed = false;
+
+  /// Null once the page is gone: disposed, or its renderer died.
+  bool? get isLoading => _gone || _disposed ? null : _loading;
+
+  Future<String?> title() async {
+    final c = _controller;
+    if (c == null || _gone || _disposed) return null;
+    return c.getTitle();
+  }
+
+  Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
+    await _webview.dispose();
+  }
+}
+
 class WebViewFactory {
   /// Global back/forward-cache preference, mirrored from the
   /// `backForwardCacheEnabled` app pref (kExportedAppPrefs) at startup and
@@ -2585,40 +2614,9 @@ class WebViewFactory {
       // The popup exists for one challenge: its documents pass the site's
       // DNS and content-blocker checks, and its top document stays on a
       // captcha host or the site's own domain (CAPTCHA-010).
-      shouldOverrideUrlLoading: (_, navigationAction) async {
-        final url = navigationAction.request.url?.toString() ?? '';
-        if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
-        if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
-        if (parent.siteId != null && url.startsWith('http')) {
-          final blocked = DnsBlockService.instance
-              .isBlockedAtLevel(url, parent.effectiveDnsLevel);
-          DnsBlockService.instance.recordRequest(parent.siteId!, url, blocked,
-              source: blocked ? BlockSource.dns : null);
-          if (blocked) return inapp.NavigationActionPolicy.CANCEL;
-        }
-        if (parent.contentBlockEnabled &&
-            ContentBlockerService.instance.isBlocked(
-              url,
-              sourceUrl: parent.initialUrl,
-              requestType: 'document',
-            )) {
-          if (parent.siteId != null) {
-            DnsBlockService.instance.recordRequest(parent.siteId!, url, true,
-                source: BlockSource.abp);
-          }
-          return inapp.NavigationActionPolicy.CANCEL;
-        }
-        if (navigationAction.isForMainFrame == false) {
-          return inapp.NavigationActionPolicy.ALLOW;
-        }
-        final host = Uri.tryParse(url)?.host ?? '';
-        if (url.startsWith('http') &&
-            (isCaptchaChallenge(url, siteUrl: parent.initialUrl) ||
-                _sameSite(host, parent.initialUrl))) {
-          return inapp.NavigationActionPolicy.ALLOW;
-        }
-        return inapp.NavigationActionPolicy.CANCEL;
-      },
+      shouldOverrideUrlLoading: (_, navigationAction) async =>
+          _onSiteNavigationPolicy(parent, navigationAction,
+              allowCaptcha: true),
       onCloseWindow: (controller) {
         onCloseWindow?.call();
       },
@@ -2639,6 +2637,231 @@ class WebViewFactory {
           ),
     );
   }
+
+  /// The navigation rule of a webview that is the site but not the site's
+  /// own tab: a popup ([createPopupWebView]) or a background check
+  /// ([openHeadlessCheck]). Every document passes the site's DNS and
+  /// content-blocker checks, and the top document stays on the site's own
+  /// domain, or on a captcha host when [allowCaptcha].
+  static inapp.NavigationActionPolicy _onSiteNavigationPolicy(
+    WebViewConfig config,
+    inapp.NavigationAction navigationAction, {
+    required bool allowCaptcha,
+    bool refusePlainHttp = false,
+  }) {
+    final url = navigationAction.request.url?.toString() ?? '';
+    if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
+    if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
+    if (config.siteId != null && url.startsWith('http')) {
+      final blocked = DnsBlockService.instance
+          .isBlockedAtLevel(url, config.effectiveDnsLevel);
+      DnsBlockService.instance.recordRequest(config.siteId!, url, blocked,
+          source: blocked ? BlockSource.dns : null);
+      if (blocked) return inapp.NavigationActionPolicy.CANCEL;
+    }
+    if (config.contentBlockEnabled &&
+        ContentBlockerService.instance.isBlocked(
+          url,
+          sourceUrl: config.initialUrl,
+          requestType: 'document',
+        )) {
+      if (config.siteId != null) {
+        DnsBlockService.instance.recordRequest(config.siteId!, url, true,
+            source: BlockSource.abp);
+      }
+      return inapp.NavigationActionPolicy.CANCEL;
+    }
+    if (navigationAction.isForMainFrame == false) {
+      return inapp.NavigationActionPolicy.ALLOW;
+    }
+    if (refusePlainHttp && url.startsWith('http://')) {
+      return inapp.NavigationActionPolicy.CANCEL;
+    }
+    final host = Uri.tryParse(url)?.host ?? '';
+    if (url.startsWith('http') &&
+        ((allowCaptcha && isCaptchaChallenge(url, siteUrl: config.initialUrl)) ||
+            _sameSite(host, config.initialUrl))) {
+      return inapp.NavigationActionPolicy.ALLOW;
+    }
+    return inapp.NavigationActionPolicy.CANCEL;
+  }
+
+  /// DNT and Sec-GPC on every navigation the app issues, and the site's
+  /// language when it has one.
+  static Map<String, String> _navigationHeaders(WebViewConfig config) => {
+        'DNT': '1',
+        'Sec-GPC': '1',
+        if (config.language != null)
+          'Accept-Language': '${config.language}, *;q=0.5',
+      };
+
+  /// Opens [config]'s site in a headless webview for a background wake
+  /// (NOTIF-016) and starts loading [WebViewConfig.initialUrl]. Returns the
+  /// check, or why there is none; a check is the caller's to dispose.
+  ///
+  /// It is the site in every way that reaches the network or the page:
+  /// container, proxy, user agent, shims, user scripts, blockers, and the
+  /// notification polyfill's handler. It has no user, so it is stricter than
+  /// the site's tab: the top document stays on the site, no window opens,
+  /// every permission and JS dialog is declined, downloads are dropped, an
+  /// untrusted certificate is refused unless already pinned, and an HTTP
+  /// auth challenge is answered only from saved sign-ins.
+  static Future<(HeadlessSiteCheck?, WakeSkip?)> openHeadlessCheck(
+      WebViewConfig config) async {
+    final binding = _bindingFor(config);
+    // SEC-009: a proxy the site expects but the platform cannot bind must
+    // not become a direct connection.
+    if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);
+    ProxyManager.noteStoreProxy(binding.containerId, binding.proxy);
+    if (config.siteId != null) {
+      BlockStatsService.instance
+          .setSiteContributes(config.siteId!, config.contributesBlockStats);
+    }
+    final page = _buildPageScripts(config);
+    final httpAuth = _httpAuthSessionFor(config);
+    final check = HeadlessSiteCheck._();
+    final created = Completer<inapp.InAppWebViewController>();
+    String? loadStartUrl;
+    final headless = inapp.HeadlessInAppWebView(
+      initialSettings: inapp.InAppWebViewSettings(
+        containerId: binding.containerId,
+        proxySettings: binding.proxy,
+      )
+        ..javaScriptEnabled = config.javascriptEnabled
+        ..userAgent = config.userAgent
+        ..userAgentMetadata = buildUserAgentMetadata(config.userAgent)
+        ..requestedWithHeaderOriginAllowList =
+            config.trackingProtectionEnabled ? const <String>{} : null
+        ..attributionRegistrationBehavior = config.trackingProtectionEnabled
+            ? inapp.AttributionBehavior.DISABLED
+            : null
+        ..webViewMediaIntegrityApiStatus = config.trackingProtectionEnabled
+            ? inapp.WebViewMediaIntegrityApiStatus.ENABLED_WITHOUT_APP_IDENTITY
+            : null
+        ..thirdPartyCookiesEnabled = config.thirdPartyCookiesEnabled
+        ..incognito = config.incognito
+        ..textZoom = page.textZoom
+        ..useShouldOverrideUrlLoading = true
+        ..useShouldInterceptRequest = false
+        ..useOnLoadResource = false
+        ..supportMultipleWindows = false
+        ..javaScriptCanOpenWindowsAutomatically = false
+        ..domStorageEnabled = true
+        ..databaseEnabled = true
+        ..cacheEnabled = true
+        // Nothing plays in a check: no one is there to hear it, and on iOS
+        // audio would ride the background audio session (NOTIF-015).
+        ..mediaPlaybackRequiresUserGesture = true
+        ..preferredContentMode = page.desktopMode
+            ? inapp.UserPreferredContentMode.DESKTOP
+            : inapp.UserPreferredContentMode.RECOMMENDED
+        ..isInspectable = kDebugMode
+        ..useHybridComposition = WebViewFactory.hybridComposition,
+      initialUserScripts: UnmodifiableListView(page.userScripts),
+      onWebViewCreated: (controller) {
+        _registerPageHandlers(
+          controller,
+          config,
+          userScriptService: page.userScriptService,
+          sourceUrl: () => loadStartUrl,
+        );
+        if (!created.isCompleted) created.complete(controller);
+      },
+      // HTTPS-001 with no fallback: a check that cannot reach the site over
+      // https fails rather than going out in plaintext.
+      shouldOverrideUrlLoading: (_, navigationAction) async =>
+          _onSiteNavigationPolicy(config, navigationAction,
+              allowCaptcha: false,
+              refusePlainHttp: config.httpsUpgradeEnabled),
+      onLoadStart: (_, url) {
+        loadStartUrl = url?.toString();
+        check._loading = true;
+      },
+      onLoadStop: (_, _) => check._loading = false,
+      onReceivedError: (_, request, _) {
+        if (request.isForMainFrame ?? true) check._loading = false;
+      },
+      onCreateWindow: (_, _) async => false,
+      onPermissionRequest: (_, request) async => inapp.PermissionResponse(
+        resources: request.resources,
+        action: inapp.PermissionResponseAction.DENY,
+      ),
+      onGeolocationPermissionsShowPrompt: (_, origin) async =>
+          inapp.GeolocationPermissionShowPromptResponse(
+              origin: origin, allow: false, retain: false),
+      onJsAlert: (_, _) async => inapp.JsAlertResponse(
+          handledByClient: true, action: inapp.JsAlertResponseAction.CONFIRM),
+      onJsConfirm: (_, _) async => inapp.JsConfirmResponse(
+          handledByClient: true, action: inapp.JsConfirmResponseAction.CANCEL),
+      onJsPrompt: (_, _) async => inapp.JsPromptResponse(
+          handledByClient: true, action: inapp.JsPromptResponseAction.CANCEL),
+      onDownloadStarting: (_, _) async => inapp.DownloadStartResponse(
+          handled: true, action: inapp.DownloadStartResponseAction.CANCEL),
+      onReceivedServerTrustAuthRequest: (controller, challenge) =>
+          _handleServerTrust(controller, challenge, null),
+      onReceivedHttpAuthRequest: (controller, challenge) =>
+          answerHttpAuthChallenge(
+            routerIdentity: _routerIdentityForConfig(config),
+            session: httpAuth,
+            challenge: challenge,
+          ),
+      onRenderProcessGone: (_, _) => check._gone = true,
+      onWebContentProcessDidTerminate: (_) => check._gone = true,
+    );
+    check._webview = headless;
+    final inapp.InAppWebViewController controller;
+    try {
+      await headless.run();
+      controller = await created.future.timeout(_headlessCreateTimeout);
+    } on TimeoutException {
+      await check.dispose();
+      return (null, WakeSkip.headlessFailed);
+    } on PlatformException {
+      await check.dispose();
+      return (null, WakeSkip.headlessFailed);
+    }
+    check._controller = controller;
+    // Android blocks sub-resources in a native interceptor, attached here by
+    // the webview's id so it carries this site's id and level, not those of
+    // whichever site next asks to attach. Without one a site that blocks
+    // would load the page's trackers unfiltered, so its load never starts.
+    if (hostIsAndroid) {
+      final attached = await WebInterceptNative.attachToHeadless(
+        headlessId: headless.id,
+        siteId: config.siteId,
+        dnsLevel: config.effectiveDnsLevel,
+      );
+      if (!attached &&
+          (config.dnsBlockEnabled ||
+              config.contentBlockEnabled ||
+              config.localCdnEnabled)) {
+        await check.dispose();
+        return (null, WakeSkip.blockersNotAttached);
+      }
+    }
+    final home = Uri.tryParse(config.initialUrl);
+    final url = config.httpsUpgradeEnabled &&
+            home != null &&
+            home.scheme == 'http' &&
+            (!home.hasPort || home.port == 80)
+        ? home.replace(scheme: 'https', port: null).toString()
+        : config.initialUrl;
+    check._loading = true;
+    try {
+      await controller.loadUrl(
+        urlRequest: inapp.URLRequest(
+          url: inapp.WebUri(url),
+          headers: _navigationHeaders(config),
+        ),
+      );
+    } on PlatformException {
+      await check.dispose();
+      return (null, WakeSkip.headlessFailed);
+    }
+    return (check, null);
+  }
+
+  static const Duration _headlessCreateTimeout = Duration(seconds: 10);
 
   /// Everything the page-facing JS surface of a site needs, derived from
   /// [config] alone. Shared with [createPopupWebView] so a popup opened by a
@@ -4250,10 +4473,7 @@ class WebViewFactory {
     // Build initial URL request headers. DNT/Sec-GPC are always-on per
     // the privacy posture of this app — every outbound nav advertises
     // the user's no-tracking preference.
-    final headers = <String, String>{
-      'DNT': '1',
-      'Sec-GPC': '1',
-    };
+    final headers = _navigationHeaders(config);
 
     // Declare this site's protection-report scope before any block event can
     // be recorded for it. Keyed by siteId, so a nested webview built for the
@@ -4262,10 +4482,6 @@ class WebViewFactory {
       BlockStatsService.instance
           .setSiteContributes(config.siteId!, config.contributesBlockStats);
     }
-    if (config.language != null) {
-      headers['Accept-Language'] = '${config.language}, *;q=0.5';
-    }
-
     // Cached-HTML render: when the call site supplies
     // `config.initialHtml`, feed it to chromium via
     // `InAppWebViewInitialData(data, baseUrl: initialUrl)` for instant

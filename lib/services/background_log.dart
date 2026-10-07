@@ -231,11 +231,22 @@ class BackgroundLog extends ChangeNotifier {
 
   /// Text for a file or the clipboard. Sensitive entries are dropped unless
   /// [includeSensitive]; a file is never written with them.
+  /// [state] goes first: the OS gates and app counts explain the lines
+  /// below them, and a log shared without them misses the gate that stopped
+  /// a wake. None of them names a site.
   static String format(
     Iterable<LogEntry> entries, {
     bool includeSensitive = false,
+    Iterable<MapEntry<String, String>> state = const [],
   }) {
     final buffer = StringBuffer();
+    if (state.isNotEmpty) {
+      buffer.writeln('System state:');
+      for (final row in state) {
+        buffer.writeln('  ${row.key}: ${row.value}');
+      }
+      buffer.writeln();
+    }
     for (final e in entries) {
       if (!includeSensitive && e.sensitivity == LogSensitivity.sensitive) {
         continue;

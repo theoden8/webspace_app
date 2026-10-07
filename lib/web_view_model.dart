@@ -1563,6 +1563,56 @@ class WebViewModel {
     await _applyProxySettings();
   }
 
+  /// The site's posture for a headless check in a background wake
+  /// (NOTIF-016): every field of [getWebView]'s config that reaches the
+  /// network or the page, for this site as itself, at its home page. The UI
+  /// callbacks are left out, since nothing is on screen. Gated against
+  /// [getWebView] by `test/js/headless_check_config_parity.test.js`.
+  WebViewConfig headlessCheckConfig({
+    List<UserScriptConfig> globalUserScripts = const [],
+  }) =>
+      WebViewConfig(
+        siteId: siteId,
+        archiveContainerId: archiveContainerId,
+        initialUrl: initUrl,
+        javascriptEnabled: javascriptEnabled,
+        userAgent: effectiveUserAgentOrNull,
+        thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
+        httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled,
+        incognito: effectiveIncognito,
+        language: language,
+        zoomPercent: zoomPercent,
+        clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
+        dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
+        dnsBlockLevel: effectiveDnsBlockLevel,
+        contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
+        disabledFilterLists: effectiveDisabledFilterLists,
+        localCdnEnabled: effectiveLocalCdnEnabled ||
+            (trackingProtectionEnabled && !isArchiveTier),
+        contributesBlockStats: contributesBlockStats,
+        trackingProtectionEnabled: trackingProtectionEnabled,
+        letterboxEnabled: letterboxEnabled,
+        spoofWindowWidth: spoofWindowWidth,
+        spoofWindowHeight: spoofWindowHeight,
+        fingerprintResetNonce: fingerprintResetNonce,
+        locationMode: locationMode,
+        spoofLatitude: spoofLatitude,
+        spoofLongitude: spoofLongitude,
+        spoofAccuracy: spoofAccuracy,
+        spoofTimezone: spoofTimezone,
+        spoofTimezoneFromLocation: spoofTimezoneFromLocation,
+        liveLocationGranularity: liveLocationGranularity,
+        webRtcPolicy: effectiveWebRtcPolicy,
+        proxySettings: outboundProxySettings,
+        notificationsEnabled: effectiveNotificationsEnabled,
+        backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
+        userScripts: combineUserScripts(globalUserScripts),
+        httpAuthMemory: effectiveHttpAuthMemory,
+        currentCameraMode: () => effectiveCameraMode,
+        currentMicrophoneMode: () => effectiveMicrophoneMode,
+        cookieSiteId: siteId,
+      );
+
   Widget getWebView(
     LaunchUrlFunc launchUrlFunc,
     CookieManager cookieManager,

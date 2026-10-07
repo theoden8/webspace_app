@@ -84,6 +84,21 @@ class BackgroundTaskService {
       }
       return null;
     });
+    // Android: an engine the refresh worker started for a wake (NOTIF-016)
+    // sends the refresh only once this handler is installed.
+    if (hostIsAndroid) unawaited(_announceReady());
+  }
+
+  Future<void> _announceReady() async {
+    try {
+      await _channel.invokeMethod('backgroundRefreshReady');
+    } on PlatformException catch (e) {
+      BackgroundLog.instance.record(
+        'BackgroundTask',
+        'backgroundRefreshReady failed: ${e.message}',
+        level: LogLevel.warning,
+      );
+    }
   }
 
   Future<void> beginGracePeriod() async {

@@ -102,6 +102,9 @@ import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/timezone_location_service.dart';
+import 'package:webspace/services/launch_context.dart';
+import 'package:webspace/services/wake_baseline_store.dart';
+import 'package:webspace/services/wake_candidates.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -619,7 +622,8 @@ Future<void> _runTimed(String label, AsyncStep step) async {
   }
 }
 
-void main() async {
+void main([List<String> args = const []]) async {
+  launchedForBackgroundWake = args.contains(kBackgroundWakeArg);
   WidgetsFlutterBinding.ensureInitialized();
 
   // Debug-only startup phase timing (see 'Startup' tag in the log screen /
@@ -1988,6 +1992,10 @@ class _WebSpacePageState extends State<WebSpacePage>
       // app-lifecycle resume must finish before a shortcut intent switches
       // sites, or the two race over _currentIndex and webview pause/resume.
       unawaited(_onResumed());
+      // A wake's headless checks end here: on Android the site the user
+      // opens next moves the one process-wide proxy, and a check still
+      // loading would follow it (NOTIF-016).
+      unawaited(_activeWake?.closeAllHeadless());
       // Release the iOS grace-period background task. Foregrounded again,
       // so we don't need the extension; iOS auto-ends after the expiration
       // handler fires, but explicit end is cleaner.
@@ -5977,7 +5985,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // shortcut target. In legacy (non-container) mode they must load pre-paint
     // so `_setCurrentIndex`'s conflict-unload can arbitrate same-base-domain
     // collisions; preload each one's HTML so its first build's getHtmlSync hits.
-    if (!_useContainers) {
+    if (!_useContainers && !launchedForBackgroundWake) {
       for (int i = 0; i < _webViewModels.length; i++) {
         if (_webViewModels[i].effectiveNotificationsEnabled) {
           await _ensureSiteHtml(i);
@@ -6075,7 +6083,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // is decrypted before it enters _loadedIndices so its build's getHtmlSync
     // hits; doing it here keeps a large notif import from blocking the shortcut
     // target's first paint. (Legacy mode already loaded them pre-paint above.)
-    if (_useContainers) {
+    if (_useContainers && !launchedForBackgroundWake) {
       unawaited(DeferredStartupEngine.autoLoadNotificationSites(this)
           .then((_) => _updateBackgroundRefreshSchedule()));
     }
@@ -6142,14 +6150,20 @@ class _WebSpacePageState extends State<WebSpacePage>
     // lifecycle hook handles the warm path.
     unawaited(_handleShareIntent());
 
+    // Before the handler below: a wake in a process the OS launched for it
+    // compares against what the last process saw (NOTIF-014).
+    _wakeEngine.restoreBaselines(await WakeBaselineStore.read());
+
     // Register the native background-refresh handler. Android's WorkManager
     // tick fires whenever the Flutter engine is reachable, the foreground
     // included, so never reload the site the user is looking at in that
-    // state; a true background refresh still reloads every notification site.
-    BackgroundTaskService.instance.onBackgroundRefresh = () =>
-        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed
-            ? _refreshNotificationSites(excludeActive: true)
-            : _backgroundWake();
+    // state; a true background refresh still checks every notification site.
+    // iOS runs a refresh task only in the background, and a process it
+    // launched for one has seen no lifecycle event to say so.
+    BackgroundTaskService.instance.onBackgroundRefresh = () => !hostIsIOS &&
+            WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed
+        ? _refreshNotificationSites(excludeActive: true)
+        : _backgroundWake();
     BackgroundTaskService.instance.initialize();
     BackgroundLog.instance.appState = () {
       final counts = _notificationSiteCounts();
@@ -6394,22 +6408,19 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   /// NOTIF-005-{I,A}: ensure a background refresh is scheduled iff at
-  /// least one notification site is loaded. iOS uses `BGAppRefreshTask`,
+  /// least one site has notifications on, loaded or not: a wake checks the
+  /// unloaded ones headless (NOTIF-016). iOS uses `BGAppRefreshTask`,
   /// Android uses a `WorkManager` `PeriodicWorkRequest` (15-min minimum).
   /// Both submissions are idempotent — the platform replaces any existing
   /// pending request for the same identifier / unique-work name.
   Future<void> _updateBackgroundRefreshSchedule() async {
     if (!hostIsIOS && !hostIsAndroid) return;
     final counts = _notificationSiteCounts();
-    final any = counts.loaded > 0;
-    // A site with notifications on that is not loaded is one no wake will
-    // reload, and with none loaded nothing wakes the app at all.
+    final any = counts.enabled > 0;
     BackgroundLog.instance.record(
       'BackgroundTask',
       '${any ? "schedule" : "cancel"} refresh — '
-          'notif sites: ${counts.enabled} enabled, ${counts.loaded} loaded'
-          '${counts.loaded < counts.enabled ? ' (unloaded ones are not woken)' : ''}',
-      level: counts.loaded < counts.enabled ? LogLevel.warning : LogLevel.info,
+          'notif sites: ${counts.enabled} enabled, ${counts.loaded} loaded',
     );
     if (any) {
       await BackgroundTaskService.instance.scheduleNextRefresh();
@@ -6436,8 +6447,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     return (enabled: enabled, loaded: loaded, live: live);
   }
 
-  /// A notification site that leaves `_loadedIndices` is reloaded by no wake
-  /// and stays out until it is opened or the app restarts; say so in the
+  /// A notification site that leaves `_loadedIndices` is checked headless by
+  /// the next wake rather than reloaded (NOTIF-016); say so in the
   /// background log (DEVTOOLS-011). Call after the removal.
   void _noteNotificationSiteUnloaded(WebViewModel m, String reason) {
     if (!m.effectiveNotificationsEnabled) return;
@@ -6445,8 +6456,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     BackgroundLog.instance.record(
       'SiteUnload',
       'notification site unloaded ($reason); '
-          '${counts.loaded} of ${counts.enabled} still loaded',
-      level: LogLevel.warning,
+          '${counts.loaded} of ${counts.enabled} still loaded, '
+          'the rest are checked headless',
       sensitive: 'unloaded notification site "${m.name}" '
           '(siteId ${m.siteId}): $reason',
     );
@@ -6519,6 +6530,10 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   final BackgroundWakeEngine _wakeEngine = BackgroundWakeEngine();
 
+  /// The wake in progress, so a return to the foreground can close its
+  /// headless checks (NOTIF-016).
+  _WakeHost? _activeWake;
+
   /// NOTIF-013/014: what an OS background wake runs. Returns once the
   /// reloaded pages have settled, which is what ends the OS task.
   Future<void> _backgroundWake() async {
@@ -6527,23 +6542,47 @@ class _WebSpacePageState extends State<WebSpacePage>
       'BackgroundTask',
       'background wake: notif sites ${counts.enabled} enabled, '
           '${counts.loaded} loaded, ${counts.live} with a live webview',
-      level: counts.live < counts.enabled ? LogLevel.warning : LogLevel.info,
     );
     // A wake resumes the process without the app coming back to the
     // foreground, so the resume check tor's listener needs has not run yet
     // (TOR-024), and a Tor notification site would reload through a dead one.
     await TorService.instance.revive();
-    final report = await _wakeEngine.wake(_WakeHost(this));
+    final host = _WakeHost(this);
+    _activeWake = host;
+    final WakeReport report;
+    try {
+      report = await _wakeEngine.wake(host);
+    } finally {
+      if (identical(_activeWake, host)) _activeWake = null;
+    }
     for (var i = 0; i < report.sites.length; i++) {
-      final line = describeWakeSite(report.sites[i], i + 1, report.sites.length);
-      BackgroundLog.instance
-          .record('BackgroundTask', line.normal, sensitive: line.sensitive);
+      final o = report.sites[i];
+      final line = describeWakeSite(o, i + 1, report.sites.length);
+      BackgroundLog.instance.record('BackgroundTask', line.normal,
+          level: o.skip == null ? LogLevel.info : LogLevel.warning,
+          sensitive: line.sensitive);
     }
     BackgroundLog.instance.record(
       'BackgroundTask',
-      'background wake done: unread fallback posts=${report.posted}, '
+      'background wake done: ${report.count(WakeMode.live)} live, '
+          '${report.count(WakeMode.headless)} headless, '
+          '${report.skipped} skipped, unread fallback posts=${report.posted}, '
           'took ${(report.elapsed.inMilliseconds / 1000).toStringAsFixed(1)}s',
     );
+    await _persistWakeBaselines();
+  }
+
+  /// NOTIF-014: the baselines the next process compares against. Incognito
+  /// sites keep theirs in memory only.
+  Future<void> _persistWakeBaselines() async {
+    if (isDemoMode) return;
+    await WakeBaselineStore.write(
+        _wakeEngine.baselinesOf({
+          for (final m in _webViewModels)
+            if (m.effectiveNotificationsEnabled && !m.effectiveIncognito)
+              m.siteId,
+        }),
+      );
   }
 
   /// Record each loaded notification site's unread count while the user can
@@ -6551,16 +6590,18 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// (NOTIF-014).
   void _noteWakeBaselines() {
     _wakeEngine.forget({for (final m in _webViewModels) m.siteId});
+    final reads = <Future<void>>[];
     for (final i in _loadedIndices) {
       if (i < 0 || i >= _webViewModels.length) continue;
       final m = _webViewModels[i];
       final c = m.controller;
       if (!m.effectiveNotificationsEnabled || c == null) continue;
-      unawaited(c
+      reads.add(c
           .getTitle()
           .then((t) => _wakeEngine.noteBaseline(m.siteId, t))
           .catchError((_) {}));
     }
+    unawaited(Future.wait(reads).then((_) => _persistWakeBaselines()));
   }
 
   /// A post from the background told the user about what the site's title
@@ -6574,9 +6615,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     Future<void>.delayed(const Duration(seconds: 1), () async {
       for (final m in _webViewModels) {
         if (m.siteId != siteId) continue;
+        // A post from a headless check (NOTIF-016) has no controller here;
+        // the wake reads that page's title itself before closing it.
+        final c = m.controller;
+        if (c == null) return;
         try {
-          _wakeEngine.noteBaseline(siteId, await m.controller?.getTitle());
+          _wakeEngine.noteBaseline(siteId, await c.getTitle());
         } catch (_) {}
+        unawaited(_persistWakeBaselines());
         return;
       }
     });
@@ -12223,6 +12269,9 @@ class _WakeHost implements BackgroundWakeHost {
 
   final _WebSpacePageState _state;
 
+  /// The headless webviews this wake opened (NOTIF-016), by site.
+  final Map<String, HeadlessSiteCheck> _headless = {};
+
   WebViewModel? _model(String siteId) {
     for (final m in _state._webViewModels) {
       if (m.siteId == siteId) return m;
@@ -12230,18 +12279,34 @@ class _WakeHost implements BackgroundWakeHost {
     return null;
   }
 
+  /// Android outside router mode: one proxy override for the process.
+  static bool get _proxyIsGlobal =>
+      hostIsAndroid && !ProxyRouterService.instance.isActive;
+
   @override
-  List<WakeSite> wakeSites() => [
-        for (final i in _state._loadedIndices)
-          if (i >= 0 &&
-              i < _state._webViewModels.length &&
-              _state._webViewModels[i].effectiveNotificationsEnabled &&
-              _state._webViewModels[i].controller != null)
-            WakeSite(
-              siteId: _state._webViewModels[i].siteId,
-              name: _state._webViewModels[i].name,
-            ),
-      ];
+  List<WakeCandidate> wakeCandidates() {
+    final env = WakeEnvironment(
+      containers: _state._useContainers,
+      torUp: TorService.instance.status.isUp,
+      proxyIsGlobal: _proxyIsGlobal,
+    );
+    final models = _state._webViewModels;
+    return [
+      for (var i = 0; i < models.length; i++)
+        wakeCandidateFor(
+          models[i],
+          loaded: _state._loadedIndices.contains(i),
+          hasWebview: models[i].controller != null,
+          proxyBindable: !WebViewFactory.storeBinding(
+            siteId: models[i].siteId,
+            archiveContainerId: models[i].archiveContainerId,
+            incognito: models[i].effectiveIncognito,
+            proxySettings: models[i].outboundProxySettings,
+          ).proxyUnavailable,
+          env: env,
+        ),
+    ];
+  }
 
   @override
   Future<void> reload(String siteId) async {
@@ -12251,13 +12316,109 @@ class _WakeHost implements BackgroundWakeHost {
   }
 
   @override
+  Future<bool> applyRoute(String siteId) async {
+    final m = _model(siteId);
+    if (m == null) return false;
+    try {
+      if (_proxyIsGlobal) {
+        await ProxyManager().setProxySettings(m.proxySettings, siteId: m.siteId);
+      }
+      if (TorService.instance.isAvailable &&
+          SiteUnloadEngine.torExitConstraint(m) != null) {
+        // Tor holds its `up` status while a new pin is applied, so up again
+        // means this site's exit country is in force (TOR-014).
+        _state._syncTorExitPin({_state._webViewModels.indexOf(m)});
+        if (!await _torUpWithin(_torPinDeadline)) return false;
+      }
+      return true;
+    } on Exception catch (e) {
+      BackgroundLog.instance.record(
+        'BackgroundTask',
+        'could not apply the route for a headless check: ${e.runtimeType}',
+        level: LogLevel.warning,
+        sensitive: 'route for "${m.name}" failed: $e',
+      );
+      return false;
+    }
+  }
+
+  static const Duration _torPinDeadline = Duration(seconds: 10);
+
+  static Future<bool> _torUpWithin(Duration deadline) async {
+    if (TorService.instance.status.isUp) return true;
+    try {
+      await TorService.instance.statusStream
+          .firstWhere((s) => s.isUp)
+          .timeout(deadline);
+      return true;
+    } on TimeoutException {
+      return false;
+    } on StateError {
+      return false;
+    }
+  }
+
+  @override
+  Future<void> releaseRoute() async {
+    // Android needs nothing: the next webview built applies its own proxy
+    // before it loads (WebViewModel.setController). Tor's exit country is
+    // put back to what the loaded sites agree on (TOR-014).
+    if (TorService.instance.isAvailable) {
+      _state._syncTorExitPin({..._state._loadedIndices});
+    }
+  }
+
+  @override
+  Future<WakeSkip?> openHeadless(String siteId) async {
+    final m = _model(siteId);
+    if (m == null) return WakeSkip.headlessFailed;
+    if (_foreground) return WakeSkip.appInForeground;
+    final (check, skip) = await WebViewFactory.openHeadlessCheck(
+        m.headlessCheckConfig(globalUserScripts: _state._globalUserScripts));
+    if (check == null) return skip;
+    if (_foreground) {
+      await check.dispose();
+      return WakeSkip.appInForeground;
+    }
+    _headless[siteId] = check;
+    return null;
+  }
+
+  @override
+  Future<void> closeHeadless(String siteId) async {
+    await _headless.remove(siteId)?.dispose();
+  }
+
+  /// Set once the app is back on screen: no further check opens.
+  bool _foreground = false;
+
+  Future<void> closeAllHeadless() async {
+    _foreground = true;
+    final open = [..._headless.values];
+    _headless.clear();
+    for (final c in open) {
+      await c.dispose();
+    }
+  }
+
+  @override
   bool? isLoading(String siteId) {
+    final headless = _headless[siteId];
+    if (headless != null) return headless.isLoading;
     final m = _model(siteId);
     return m == null || m.controller == null ? null : m.isLoading;
   }
 
   @override
   Future<String?> title(String siteId) async {
+    final headless = _headless[siteId];
+    if (headless != null) {
+      try {
+        return await headless.title();
+      } on PlatformException {
+        return null;
+      }
+    }
     try {
       return await _model(siteId)?.controller?.getTitle();
     } catch (_) {

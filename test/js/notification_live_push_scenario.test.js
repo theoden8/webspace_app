@@ -81,7 +81,7 @@ test('the wake, not a reload alone, is what has to notify', () => {
   assert.match(scenario, /wait_for_new_notification push-wake /);
   assert.match(scenario, /if \[ "\$loads_after" -le "\$loads_before" \]; then/,
     'the scenario must fail when the notification did not follow a wake reload');
-  assert.match(scenario, /background wake done: unread fallback posts=1/,
+  assert.match(scenario, /background wake done: \.\*unread fallback posts=1/,
     'the scenario must see the wake post on behalf of the silent page (NOTIF-014)');
 });
 

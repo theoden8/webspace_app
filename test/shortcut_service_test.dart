@@ -197,7 +197,10 @@ void main() {
     test('getPinnedSiteIds leaves disabled tiles out', () {
       final start = source.indexOf('"getPinnedSiteIds" ->');
       final branch = source.substring(start, source.indexOf('else ->', start));
-      expect(branch, contains('it.isEnabled'),
+      expect(branch, contains('pinnedSiteIds('));
+      final fn = source.indexOf('internal fun pinnedSiteIds(');
+      expect(fn, greaterThanOrEqualTo(0));
+      expect(source.substring(fn), contains('it.isEnabled'),
           reason: 'A disabled tile counted as pinned hides the Home Shortcut '
               'menu item that would re-enable it.');
     });

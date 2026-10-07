@@ -82,6 +82,8 @@ void main() {
   testWidgets('copying entries that name sites asks first', (tester) async {
     DeveloperModeService.instance.debugSet(true);
     await BackgroundLog.instance.setRecording(true);
+    BackgroundLog.instance.appState =
+        () => const [MapEntry('app.notificationSitesEnabled', '1')];
     BackgroundLog.instance.record('BackgroundTask', 'wake site 1/1: loaded',
         sensitive: 'wake site 1/1 is "Mail"');
     await pump(tester, startOnBackground: true);
@@ -91,6 +93,8 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
     expect(clipboard.single, contains('wake site 1/1: loaded'));
     expect(clipboard.single.contains('Mail'), isFalse);
+    expect(clipboard.single, contains('app.notificationSitesEnabled: 1'),
+        reason: 'a shared log carries the gates that explain it');
 
     await tester.tap(find.byKey(const Key('background-log-sensitive')));
     await tester.pumpAndSettle();

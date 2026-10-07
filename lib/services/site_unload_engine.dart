@@ -211,6 +211,8 @@ class SiteUnloadEngine {
   /// Read off the *effective* settings, so a site on DEFAULT inherits the
   /// global proxy's country, and a country left over on a site since
   /// switched to SOCKS5 constrains nothing.
+  static String? torExitConstraint(WebViewModel model) => _torExitPin(model);
+
   static String? _torExitPin(WebViewModel model) {
     final effective = resolveEffectiveProxy(model.proxySettings);
     if (effective.type != ProxyType.TOR) return null;

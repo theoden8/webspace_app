@@ -174,10 +174,19 @@ On iOS, the OS suspends apps within seconds of backgrounding. The system SHALL:
 **And** the app is in the background and has been suspended (~30s grace period elapsed)
 **When** iOS opportunistically fires the registered `BGAppRefreshTask`
 **Then** the app is woken with ~30 seconds of CPU time
-**And** Site A's webview is reloaded and the wake waits for the load to settle (NOTIF-013)
+**And** Site A's webview is reloaded, or opened headless when it has none (NOTIF-016), and the wake waits for the load to settle (NOTIF-013)
 **And** Site A's normal page JS runs and may fire notifications via the polyfill
 **And** if it posts nothing while its title's unread count rose, the app posts one for it (NOTIF-014)
 **And** only then does the app call `task.setTaskCompleted(success: true)`; the next refresh is rescheduled when the task arrives
+
+#### Scenario: BGAppRefreshTask launches the app in the background
+
+**Given** the platform is iOS
+**And** iOS had terminated the app, and Site A has notifications on
+**When** iOS launches the app in the background to run the refresh task
+**Then** the task waits for Dart to start: the channel buffers `onBackgroundRefresh` until `BackgroundTaskService` installs its handler
+**And** Site A, which has no webview in a process that draws no frames, is checked headless (NOTIF-016)
+**And** its unread baseline is the one recorded before the app was terminated (NOTIF-014)
 
 #### Scenario: User is informed of iOS background limitations
 
@@ -196,10 +205,10 @@ The `ProxyController` is a process-wide singleton, so concurrent background-poll
 
 The request SHALL carry an initial delay of one interval. WorkManager treats the first period of a `PeriodicWorkRequest` as due at enqueue time (`WorkSpec.calculateNextRunTime` returns `lastEnqueueTime` while `periodCount == 0`), so without the delay the refresh fires seconds after the first notification site is loaded and reloads the page the user just opened — the native refresh path does not exclude the active site, and `reloadAndRepaint` drops its painted frame. Nothing is lost by waiting: while a site is loaded its page JS is running and fires notifications live through the polyfill; the refresh only matters once the app has been backgrounded for a while.
 
-#### Scenario: At least one notification site loaded — refresh is scheduled
+#### Scenario: At least one notification site — refresh is scheduled
 
 **Given** the platform is Android
-**And** Site A has notifications enabled and is loaded
+**And** Site A has notifications enabled, loaded or not (a wake checks it either way, NOTIF-016)
 **When** the app enters the background
 **Then** a `WorkManager` `PeriodicWorkRequest` is enqueued under the unique name `webspace-notification-refresh` with a 15-minute interval, a 15-minute initial delay, and `NetworkType.CONNECTED` constraint
 **And** no foreground service is started
@@ -219,18 +228,21 @@ The request SHALL carry an initial delay of one interval. WorkManager treats the
 **Given** the periodic refresh fires
 **And** the app's Flutter engine is still alive (cached or warm)
 **When** the worker invokes `onBackgroundRefresh` over the method channel
-**Then** every loaded notification site is reloaded sequentially
+**Then** every notification site is checked: a loaded one with a live webview is reloaded in place, any other one in a headless webview (NOTIF-016)
 **And** the page JS runs and may fire notifications via the polyfill
 **And** the wake waits for the loads to settle (NOTIF-013) and posts for a silent site whose unread count rose (NOTIF-014)
 **And** the worker returns `Result.success()` and the next refresh remains scheduled
 
-#### Scenario: WorkManager fires after the process was killed — refresh is a no-op
+#### Scenario: WorkManager fires with no Flutter engine — the worker starts one
 
-**Given** Android killed the app process for memory pressure
+**Given** Android killed the app process, or the activity was destroyed and its engine with it
 **When** the periodic refresh fires
-**Then** the worker observes that no Flutter engine is reachable
-**And** the worker returns `Result.success()` without reloading any sites
-**And** the next app launch re-enqueues the periodic refresh with `ExistingPeriodicWorkPolicy.UPDATE`
+**Then** the worker starts a Flutter engine of its own, with no activity, running the app's own entrypoint and the plugins that need no activity
+**And** it runs the same wake (NOTIF-013, NOTIF-014), which checks each notification site in a headless webview (NOTIF-016)
+**And** the engine is destroyed once Dart reports the wake complete or the worker's deadline passes
+**And** if the user opens the app while that engine runs, the activity destroys it before building its own, so two copies of the app's Dart state never run at once
+
+The worker used to return `Result.success()` here without checking any site, so once Android had reclaimed the process no notification arrived until the user opened the app again.
 
 #### Scenario: Conflicting proxy disables background-poll toggle
 
@@ -252,12 +264,13 @@ The request SHALL carry an initial delay of one interval. WorkManager treats the
 **And** Site B's webview runs normally and may fire notifications via the polyfill in real-time
 **And** when the user switches away from Site B, its webview is paused and notifications stop until next visit
 
-#### Scenario: Last background-poll site unloaded — refresh is cancelled
+#### Scenario: Last notification site turned off — refresh is cancelled
 
-**Given** a `WorkManager` periodic refresh is enqueued because Site A had `backgroundPoll == true`
-**When** Site A's `backgroundPoll` is disabled (or Site A is deleted)
-**And** no other background-poll sites are eligible
+**Given** a `WorkManager` periodic refresh is enqueued because Site A has notifications on
+**When** Site A's notifications are turned off (or Site A is deleted)
+**And** no other site has notifications on
 **Then** the periodic refresh is cancelled via `WorkManager.cancelUniqueWork("webspace-notification-refresh")`
+**And** unloading Site A alone does not cancel it: the next wake checks Site A headless (NOTIF-016)
 
 #### Scenario: User is informed of Android background limitations
 
@@ -325,8 +338,8 @@ The two foreground triggers below are developer affordances: they SHALL appear o
 #### Scenario: Every hop logs a trace line
 
 **Given** a background refresh runs (real OS task or simulated)
-**Then** the schedule/cancel decision logs the enabled and loaded notification-site counts
-**And** the reload pass logs how many sites were reloaded versus skipped (unloaded / no controller)
+**Then** the schedule/cancel decision logs the enabled notification-site count
+**And** the wake logs, per site, whether it was reloaded live, checked headless or skipped, and why it was skipped (NOTIF-016)
 **And** the native bridge logs task receipt, dispatch reachability, completion, expiration, and timeout (iOS `NSLog`, Android `Log` under tag `WebspaceBgRefresh`)
 
 #### Scenario: The trace outlives the process that wrote it
@@ -497,16 +510,22 @@ parenthesised integer: `(3) WhatsApp`, `Inbox (12) - Gmail`, `(99+)`) and
 post one notification when it is higher than the baseline: the count
 recorded when the app last left the screen, or at the previous wake. The
 notification's title is the site's name and its body the page's own title,
-tagged so a later rise replaces it. No baseline (the first wake after a cold
-launch) posts nothing. A notification the site posts while the app is in the
-background re-records its baseline a second later (the page may update its
-title after posting), so a wake does not announce again what the site
-already did.
+tagged so a later rise replaces it. No baseline posts nothing: the count
+may be unread the user already knew about. A notification the site posts
+while the app is in the background re-records its baseline a second later
+(the page may update its title after posting), so a wake does not announce
+again what the site already did.
 
-Baselines live in memory only (`BackgroundWakeEngine`), so nothing about a
-site is persisted for it; archive-tier sites never reach the wake
-(`effectiveNotificationsEnabled`, ARCH-006). Engine tests:
-`test/background_wake_engine_test.dart`.
+Baselines outlive the process (`WakeBaselineStore`, one plaintext
+SharedPreferences entry mapping `siteId` to a count): iOS terminates a
+suspended app freely and launches it again for the next refresh task, and a
+baseline held only in memory made every such wake the first, which posts
+nothing. Incognito sites keep theirs in memory only (INCOG: nothing derived
+from the site survives a restart), so their first wake after a restart posts
+nothing. Archive-tier sites never reach the wake
+(`effectiveNotificationsEnabled`, ARCH-006), so the entry cannot vary with
+archive presence (ARCH-001). It is machine state, not a setting, and is not
+exported. Engine tests: `test/background_wake_engine_test.dart`.
 
 #### Scenario: A silent site's unread count rose
 
@@ -519,6 +538,12 @@ site is persisted for it; archive-tier sites never reach the wake
 
 **Given** a wake during which site A posts its own notification
 **Then** no unread fallback is posted for site A
+
+#### Scenario: A baseline survives the process
+
+**Given** site A's title read `(2) Chat` when the app was left, and site A is not incognito
+**When** the OS terminates the app and later launches it for a wake, and site A's title now reads `(4) Chat`
+**Then** one notification bodied `(4) Chat` is posted for site A
 
 ### Requirement: NOTIF-015 - No foreground service for notifications
 
@@ -557,3 +582,99 @@ do it, not a process kept alive.
 **Given** a change that declares a foreground service to keep notification sites running
 **When** the JS tier runs
 **Then** `notification_no_foreground_service.test.js` fails and names the manifest
+
+### Requirement: NOTIF-016 - A wake checks every notification site
+
+A background wake SHALL check every site whose notifications are on
+(`effectiveNotificationsEnabled`), whether or not it has a webview. A site
+whose webview is live is reloaded in place. Any other site is opened in a
+headless webview for the wake and closed when the wake ends, however it ends.
+
+The wake used to check only loaded sites with a live webview, and the spec
+accepted that (an Android worker with no engine was a no-op). So the sites a
+wake most needs to check were the ones it skipped: a site evicted by the LRU
+cap or memory pressure, every site in a process iOS launched for the refresh
+task (it draws no frames, so no webview is ever built), and every site after
+Android reclaimed the process. Reported from a device whose background log
+showed wakes with notification sites enabled and none checked.
+
+The headless webview is built from the same per-site fields as the site's
+own webview (`WebViewModel.headlessCheckConfig`, held to `getWebView` by
+`test/js/headless_check_config_parity.test.js`), so it runs in the site's
+container with its proxy, language, location, user agent, shims, user
+scripts and blockers, and the notification polyfill reports through the
+same handler (NOTIF-002, NOTIF-010). It has no user and shows nothing, so it
+is stricter than the site's own webview: a main-frame navigation off the
+site is cancelled rather than opened nested, no window opens, every
+permission is denied, downloads are dropped, a JS dialog is dismissed, an
+untrusted certificate is refused unless already pinned (TLS-trust-prompt),
+and an HTTP auth challenge is answered only from saved sign-ins.
+
+A site is skipped, and the background log says why, when checking it could
+send its traffic somewhere the user did not ask for:
+
+- the app runs the legacy cookie engine, where sites share one cookie jar
+  (the toggle is hidden there, NOTIF-001);
+- its proxy cannot be bound (SEC-009);
+- it routes through Tor and Tor is not up (TOR-008);
+- on Android outside router mode, its effective proxy differs from the one
+  the wake runs under (PROXY-008): the live sites' proxy, or with none live,
+  the first headless site's, applied before any headless load;
+- on Android, the native interceptor did not attach to the headless webview
+  while the site blocks DNS, filters content or serves LocalCDN: its
+  sub-resources would otherwise load unfiltered, so its load never starts;
+- it is an imported page, with nothing to fetch.
+
+A post made while the app is off screen reads the OS notification
+permission and never asks for it: a prompt needs the app on screen, and on
+Android the request goes through the activity, which the worker's own engine
+does not have, so asking threw and ended the wake before its first post.
+
+When the app returns to the foreground during a wake, its open headless
+checks are closed at once and no further one opens: on Android the site the
+user opens next moves the one process-wide proxy, and a check still loading
+would follow it.
+
+With HTTPS upgrade on (HTTPS-001) a headless check loads the site over https
+and cancels plaintext main-frame navigations, with no http fallback: a check
+that cannot reach the site over https fails rather than going out in clear.
+
+On Android the worker's own engine (NOTIF-005-A) is told by an entrypoint
+argument that it runs for a wake, and its startup auto-loads no site: with no
+activity the native interceptor could find a site's own webview in no view
+tree, so every check there is headless, attached by the headless webview's
+id.
+
+Selection is the engine's (`BackgroundWakeEngine.plan`), so a test drives
+the selection the app runs rather than a copy of it. The symptom's lineage
+is [BUG-024](../../../docs/bugs/024-background-notifications-never-arrive.md). Engine tests:
+`test/background_wake_engine_test.dart` and `test/wake_candidates_test.dart`;
+headless policy: `test/js/page_bridge_authority.test.js`; the Android
+worker's own engine: `test/js/background_wake_cold_engine.test.js` and
+emulator Scenario P2.
+
+#### Scenario: A notification site with no webview is checked headless
+
+**Given** site A has notifications on and no live webview
+**When** a background wake runs
+**Then** site A is opened in a headless webview bound to its container and proxy
+**And** the wake waits for its load to settle and reads its title as for a live site (NOTIF-013, NOTIF-014)
+**And** the headless webview is disposed before the wake returns
+
+#### Scenario: A wake in a process launched for it
+
+**Given** the OS started the process for the wake (an iOS background launch, or the Android worker's own engine)
+**When** the wake runs
+**Then** every notification site is checked headless, none is reported as skipped for having no webview
+
+#### Scenario: A headless page cannot leave its site
+
+**Given** a headless check of site A
+**When** the page navigates its main frame to another site, opens a window or asks for a permission
+**Then** the navigation is cancelled, no window opens and the permission is denied
+
+#### Scenario: A headless check never goes out through another site's proxy
+
+**Given** Android outside router mode, site A loaded with proxy P, and site B with notifications on, no webview and proxy Q
+**When** a background wake runs
+**Then** site B is skipped with the reason logged, and site A is reloaded under P

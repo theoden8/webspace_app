@@ -3,6 +3,7 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart' show SchedulerBinding;
+import 'dart:ui' show AppLifecycleState;
 import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:webspace/services/background_log.dart';
@@ -171,9 +172,59 @@ class NotificationService {
     }
   }
 
+  /// A prompt needs the app on screen, and on Android the plugin asks through
+  /// the activity, which an engine started for a background wake does not
+  /// have (NOTIF-016): there the request throws. Off screen the state is read,
+  /// never asked for.
+  @visibleForTesting
+  static bool mayPromptForPermission(AppLifecycleState? lifecycle) =>
+      lifecycle == AppLifecycleState.resumed;
+
   Future<void> _ensurePermission() async {
     if (_permissionGranted == true) return;
+    if (!mayPromptForPermission(SchedulerBinding.instance.lifecycleState)) {
+      await _readPermission();
+      return;
+    }
     await requestPermission();
+  }
+
+  Future<void> _readPermission() async {
+    bool? granted;
+    try {
+      if (hostIsAndroid) {
+        granted = await _plugin
+            .resolvePlatformSpecificImplementation<
+                AndroidFlutterLocalNotificationsPlugin>()
+            ?.areNotificationsEnabled();
+      } else if (hostIsIOS) {
+        granted = (await _plugin
+                .resolvePlatformSpecificImplementation<
+                    IOSFlutterLocalNotificationsPlugin>()
+                ?.checkPermissions())
+            ?.isEnabled;
+      } else if (hostIsMacOS) {
+        granted = (await _plugin
+                .resolvePlatformSpecificImplementation<
+                    MacOSFlutterLocalNotificationsPlugin>()
+                ?.checkPermissions())
+            ?.isEnabled;
+      }
+    } on PlatformException catch (e) {
+      BackgroundLog.instance.record(
+        'Notification',
+        'OS permission could not be read: ${e.code}',
+        level: LogLevel.warning,
+      );
+    }
+    final value = granted ?? false;
+    final changed = _permissionGranted != value;
+    _permissionGranted = value;
+    BackgroundLog.instance.record(
+        'Notification', 'OS permission read off screen: '
+            '${value ? "granted" : "not granted"}',
+        level: value ? LogLevel.info : LogLevel.warning);
+    if (changed) _notifyPermissionListeners();
   }
 
   Future<void> show({

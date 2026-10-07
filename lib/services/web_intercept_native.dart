@@ -255,6 +255,32 @@ class WebInterceptNative {
 
   // ========== Shared ==========
 
+  /// Attaches the interceptor to the headless webview [headlessId] alone
+  /// (NOTIF-016). A headless webview is in no view tree when no activity is
+  /// running, which is where [attachToWebViews] looks. True once attached.
+  static Future<bool> attachToHeadless({
+    required String headlessId,
+    String? siteId,
+    int? dnsLevel,
+  }) async {
+    if (!isSupported) return false;
+    try {
+      final attached = await _channel.invokeMethod<bool>('attachToHeadless', {
+        'headlessId': headlessId,
+        if (siteId != null) 'siteId': siteId,
+        if (dnsLevel != null) 'dnsLevel': dnsLevel,
+      });
+      return attached ?? false;
+    } on PlatformException catch (e) {
+      LogService.instance.log('WebIntercept',
+          'Failed to attach native interceptor to a headless webview: $e',
+          level: LogLevel.error);
+      return false;
+    } on MissingPluginException {
+      return false;
+    }
+  }
+
   /// [dnsLevel] is the severity level this site blocks at (0 = the site has
   /// DNS blocking off). The interceptor applies it per request, which is the
   /// only place Android sub-resources learn about a site's DNS posture — the
