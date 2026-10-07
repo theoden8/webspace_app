@@ -34,9 +34,7 @@ import 'package:webspace/services/log_service.dart';
 /// [`inapp.InAppWebViewSettings.containerId`] (read by the fork's
 /// `prepare()` / `preWKWebViewConfiguration` before any session-bound
 /// op locks the WebView to the default store). There is no post-hoc
-/// bind path — [bindContainerToWebView] is a no-op kept only so the
-/// engine's interface stays uniform across the legacy and container
-/// modes.
+/// bind path.
 ///
 /// "Clear Site Data" routes through [clearContainerData], which on
 /// iOS/macOS maps to `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`
@@ -65,11 +63,6 @@ abstract class ContainerNative {
   /// pure-Dart and synchronous in practice.
   Future<String> getOrCreateContainer(String siteId);
 
-  /// Returns 0. Bind happens at WebView construction via
-  /// [`inapp.InAppWebViewSettings.containerId`]; there is no post-hoc
-  /// bind path. Kept on the interface so the engine signature is
-  /// uniform across legacy / container modes.
-  Future<int> bindContainerToWebView(String siteId);
 
   /// Deletes the named container outright. Use for site deletion and
   /// orphan GC, NOT for "Clear Site Data" — on iOS/macOS the underlying
@@ -183,9 +176,6 @@ class _ContainerNative implements ContainerNative {
   Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
 
   @override
-  Future<int> bindContainerToWebView(String siteId) async => 0;
-
-  @override
   Future<bool> deleteContainer(String siteId) async {
     try {
       return await inapp.ContainerController.instance()
@@ -238,9 +228,6 @@ class _StubContainerNative implements ContainerNative {
 
   @override
   Future<String> getOrCreateContainer(String siteId) async => 'ws-$siteId';
-
-  @override
-  Future<int> bindContainerToWebView(String siteId) async => 0;
 
   @override
   Future<bool> deleteContainer(String siteId) async => false;

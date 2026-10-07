@@ -3,25 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 
 void main() {
-  group('mustRepaint coverage contract', () {
-    test('every surface-attach transition owes a repaint; appBackground does not',
-        () {
-      for (final t in SurfaceTransition.values) {
-        final expected = t != SurfaceTransition.appBackground;
-        expect(SurfaceRepaintEngine.mustRepaint(t), expected, reason: '$t');
-      }
-    });
-
-    test('back and forward owe a repaint (PAUSE-018 / BUG-001)', () {
-      expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.back), isTrue);
-      expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.forward), isTrue);
-    });
-
-    test('reload owes a repaint (PAUSE-021 / BUG-001)', () {
-      expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.reload), isTrue);
-    });
-  });
-
   group('coalescing tick machine', () {
     test('first request starts the loop and drains to a settled zero inset', () {
       final e = SurfaceRepaintEngine();

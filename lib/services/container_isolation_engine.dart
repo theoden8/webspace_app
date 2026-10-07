@@ -38,20 +38,6 @@ class ContainerIsolationEngine {
     }
   }
 
-  /// Ensures the container exists, then attempts to bind every live
-  /// flutter_inappwebview WebView created for [siteId] to that container.
-  /// Returns the number of webviews actually bound. Safe to call from
-  /// `onWebViewCreated` — the underlying native bind is wrapped in a
-  /// try/catch so a single race against `loadUrl` doesn't fail the
-  /// batch or throw to Dart.
-  Future<int> bindForSite(String siteId) async {
-    if (!await containerNative.isSupported()) return 0;
-    await ensureContainer(siteId);
-    final bound = await containerNative.bindContainerToWebView(siteId);
-    LogTag.container.debug(
-        'Bound container ws-$siteId to $bound webview(s)', sensitive: true);
-    return bound;
-  }
 
   /// Deletes [siteId]'s container outright. Caller MUST have already
   /// disposed the site's webview — `deleteContainer` no-ops on iOS /

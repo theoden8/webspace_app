@@ -139,7 +139,7 @@ Each site gets a named profile. Lifecycle:
 |---|---|
 | App startup, after restoring sites | Cache `ContainerNative.isSupported()` once. Sweep profiles whose owning site no longer exists (`ContainerIsolationEngine.garbageCollectOrphans`), then drop every incognito site's container outright with `onSiteDeleted` (pre-bind, `deleteContainer` is reliable here). |
 | Site activated | `ContainerIsolationEngine.ensureContainer(siteId)` (idempotent). |
-| WebView created (`onWebViewCreated`) | `ContainerNative.bindContainerToWebView(siteId)` — native side walks the activity view tree and calls `WebViewCompat.setProfile` on every flutter_inappwebview WebView for that siteId. |
+| WebView created | Nothing to do: the WebView was built with `InAppWebViewSettings.containerId`, which the fork reads before any session-bound operation (CONT-005). |
 | User taps "Clear Site Data" | `ContainerIsolationEngine.clearForSite(siteId)` → fork's `clearContainerData` (Apple: `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)`). Container stays in place; only its contents go. `disposeWebView` afterwards forces a fresh InAppWebView so the user sees a clean page. The app-side per-`siteId` residue the container never held — saved nav state and the HTML snapshot — is dropped alongside it in both engine modes ([tracking-protection](../tracking-protection/spec.md) ETP-022). |
 | Site deleted | `ContainerIsolationEngine.onSiteDeleted(siteId)` after `disposeWebView`. |
 | Profile API not supported (iOS, macOS, legacy Android) | `_useContainers` is false; engine selection at the call site falls through to `CookieIsolationEngine`. No cross-engine state leaks. |
@@ -200,8 +200,7 @@ check resolved at app startup.
 **Then** `_useContainers` resolves to `false`
 **And** `_setCurrentIndex` runs the existing capture-nuke-restore flow
   unchanged
-**And** `ContainerIsolationEngine.bindForSite` is a no-op (returns 0
-  without touching ProfileStore)
+**And** `ContainerIsolationEngine` touches no ProfileStore
 
 ### Requirement: CONT-002 — Profile Lifecycle
 
@@ -621,7 +620,7 @@ runs against the built F-Droid APK and fails the build on any hit.
 
 - [`ContainerIsolationEngine`](../../../lib/services/container_isolation_engine.dart)
   — pure-Dart engine. Methods: `ensureContainer(siteId)`,
-  `bindForSite(siteId)`, `onSiteDeleted(siteId)`,
+  `clearForSite(siteId)`, `onSiteDeleted(siteId)`,
   `garbageCollectOrphans(activeSiteIds)`. No Flutter imports, no
   `setState`, no `context`. Constructor takes a [`ContainerNative`]
   instance so tests can inject a mock.
@@ -694,11 +693,6 @@ populated during `_restoreAppState` (the same pass that resolves
 then no site has been activated yet, so this case never fires in
 practice.
 
-The legacy [`ContainerNative.bindContainerToWebView`](../../../lib/services/container_native.dart)
-post-hoc bind method remains in the engine for diagnostics and the
-mock used by tests, but the production webview-construction path no
-longer calls it; the native plugin does the bind during `prepare()`.
-
 `Future.microtask` is still used for
 `WebInterceptNative.attachToWebViews`, which is race-insensitive
 (the ContentBlockerHandler can be set post-load).
@@ -725,9 +719,8 @@ JS gets injected*.
 - `lib/main.dart` — caches `_useContainers`, gates engine selection in
   `_setCurrentIndex` and `_deleteSite`, runs orphan GC in
   `_restoreAppState`
-- `lib/services/webview.dart` — calls
-  `ContainerNative.instance.getOrCreateContainer + bindContainerToWebView`
-  in `onWebViewCreated`
+- `lib/services/webview.dart` — sets `InAppWebViewSettings.containerId`
+  (`containerIdFor`) when it builds a site's WebView
 
 ### Created
 - `android/app/src/main/kotlin/.../WebSpaceContainerPlugin.kt` —
@@ -785,9 +778,7 @@ When iOS plumbing lands:
 3. Adjust the bind call site: iOS needs the data store assigned to
    `WKWebViewConfiguration` *before* construction, so the
    Dart-side path threads `websiteDataStoreId` into
-   `InAppWebViewSettings` rather than calling
-   `bindContainerToWebView` after the fact. The engine's
-   `bindForSite` API absorbs this — only the platform impl differs.
+   `InAppWebViewSettings` rather than binding after the fact.
 4. iOS-specific test: verify `websiteDataStoreId` is threaded into
    the settings dict for activation paths.
 
@@ -803,8 +794,7 @@ Engine tests cover:
 
 - Unsupported-platform short-circuit (no native ProfileStore is
   touched when `isSupported() == false`)
-- Create-then-bind sequencing of `bindForSite`
-- Idempotency of repeated `bindForSite` calls
+- Idempotency of repeated `ensureContainer` calls
 - `onSiteDeleted` only drops the named site
 - Orphan GC against the live siteId set
 - Empty-active-set GC (every profile dropped)

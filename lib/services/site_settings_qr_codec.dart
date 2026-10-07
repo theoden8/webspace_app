@@ -293,11 +293,6 @@ class SiteSettingsQrCodec {
     return proxy.type == ProxyType.DEFAULT ? null : proxy;
   }
 
-  /// True if [input] looks like a webspace QR URI (any version).
-  static bool looksLikeQrPayload(String input) {
-    return _parse(input.trim()) != null;
-  }
-
   static _ParsedQr? _parse(String input) {
     final prefix = '$_scheme://$_path/v';
     if (!input.startsWith(prefix)) return null;

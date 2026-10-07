@@ -75,14 +75,6 @@ where `<base64url>` is gzip-compressed UTF-8 JSON of a
 **Then** the decoder reapplies `=` padding to a multiple of 4 before
 base64url-decoding the payload
 
-#### Scenario: looksLikeQrPayload is permissive on version
-
-**Given** an input string whose prefix matches `webspace://qr/site/v<any-int>/<non-empty>`
-**When** `SiteSettingsQrCodec.looksLikeQrPayload` is called
-**Then** it returns true regardless of whether the inner payload would
-successfully decode — this is the cheap pre-flight signal used by
-external-scheme handlers, not a validity check.
-
 ---
 
 ### Requirement: QR-002 - Shareable Subset
@@ -498,7 +490,7 @@ subset with the empty placeholders `WebViewModel.fromJson` requires
 
 ### Added
 - `lib/services/site_settings_qr_codec.dart` — encode/decode, whitelist,
-  hydrate helper, `looksLikeQrPayload` signal
+  hydrate helper
 - `lib/screens/site_settings_qr.dart` — Share QR dialog (sender),
   paste-fallback dialog (receiver), platform-aware apply entry point
 - `lib/screens/site_settings_qr_scanner.dart` — flutter_zxing camera

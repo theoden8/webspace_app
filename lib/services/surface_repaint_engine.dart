@@ -1,30 +1,16 @@
 /// Pure-Dart model of the Android surface-repaint nudge (PAUSE-015/017/018),
-/// the runtime counterpart of `formal/kernel.tla`'s repaint machine. It owns
-/// two decisions and no side effects: (1) which transitions re-attach the
-/// visible hybrid-composition SurfaceView and therefore owe a repaint, and
-/// (2) the coalescing tick loop that drives `_nudgeSurfaceRepaint`. The host
-/// supplies the clock (`Future.delayed`) and the side effect (`setState` of the
-/// 1px inset); this class never imports Flutter, so it is unit- and
-/// interleaving-testable. See test/surface_repaint_engine_test.dart.
+/// the runtime counterpart of `formal/kernel.tla`'s repaint machine. Every
+/// (re)attach of the visible hybrid-composition SurfaceView owes a repaint
+/// (activate, resume, a fresh controller, back/forward from bfcache, reload,
+/// first visible commit, a route returning, go home, renderer rebuild:
+/// PAUSE-015/017/018/021/024/031); going to the background does not. That
+/// coverage is gated in test/js/surface_repaint_funnel.test.js. This class owns
+/// the coalescing tick loop that drives `_nudgeSurfaceRepaint` and the repaint
+/// owed after an attach, with no side effects: the host supplies the clock
+/// (`Future.delayed`) and the side effect (`setState` of the 1px inset). It
+/// never imports Flutter, so it is unit- and interleaving-testable. See
+/// test/surface_repaint_engine_test.dart.
 library;
-
-/// Surface lifecycle transitions on the visible site. Every value except
-/// [appBackground] (re)attaches the SurfaceView and must be followed by a
-/// repaint nudge — that is the coverage contract behind BUG-001. A new
-/// surface-attach path MUST be added here and routed through the host nudge.
-enum SurfaceTransition {
-  activate, // _setCurrentIndex (PAUSE-015)
-  resume, // _onResumed (PAUSE-015)
-  controllerAttach, // fresh controller mounts a new SurfaceView (PAUSE-017)
-  back, // bfcache restore reuses the controller (PAUSE-018)
-  forward, // bfcache restore reuses the controller (PAUSE-018)
-  reload, // reload discards the painted frame, recommits later (PAUSE-021)
-  pageCommitVisible, // the renderer produced its first visible frame (PAUSE-031)
-  routeReturn, // an opaque route above popped, re-attaching the view (PAUSE-024)
-  goHome, // dispose + rebuild at initUrl (PAUSE-017)
-  rendererRebuilt, // renderer-gone recovery rebuild (PAUSE-017)
-  appBackground, // app going to background: no attach, no repaint owed
-}
 
 /// The action the host applies for one tick: render [inset] (the 1px inset
 /// state) via setState, then schedule the next tick unless [done].
@@ -63,11 +49,6 @@ class SurfaceRepaintEngine {
   void attach() {
     _owed = true;
   }
-
-  /// True iff [t] re-attaches the visible surface and so must be followed by a
-  /// repaint. The complete set is the contract; mirrors `Attach` in kernel.tla.
-  static bool mustRepaint(SurfaceTransition t) =>
-      t != SurfaceTransition.appBackground;
 
   bool _commitPending = false;
 

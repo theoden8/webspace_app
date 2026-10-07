@@ -95,7 +95,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     with WidgetsBindingObserver, RouteAware
     implements SurfaceHost {
   WebViewController? _controller;
-  String? title;
   late String _currentUrl;
   late final PullToRefreshGate? _pullToRefreshGate;
 
@@ -195,7 +194,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    title = widget.homeTitle;
     _currentUrl = widget.url;
     _showUrlBar = widget.showUrlBar;
     _devToolsHost = NestedDevToolsHost(
@@ -415,12 +413,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     _controller?.setTextZoom(WebViewFactory.systemTextZoomPercent());
   }
 
-  void updateTitle(String newTitle) {
-    setState(() {
-      title = newTitle;
-    });
-  }
-
   /// This screen runs as the site that opened it, or as the one outbound
   /// routing picked (LIR-015); the sheet says which, and which container it
   /// binds, by the rule the factory bound it with.
@@ -564,25 +556,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     }
   }
 
-  void removeAllCookies(WebViewController controller) async {
-    String script = '''
-      (function() {
-        var cookies = document.cookie.split("; ");
-        for (var i = 0; i < cookies.length; i++) {
-          var cookie = cookies[i];
-          var domain = cookie.match(/domain=[^;]+/);
-          if (domain) {
-            var domainValue = domain[0].split("=")[1];
-            var cookieName = cookie.split("=")[0];
-            document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=" + domainValue;
-          }
-        }
-      })();
-    ''';
-
-    await controller.evaluateJavascript(script);
-  }
-
   /// Icon and label of [action] in the overflow menu, or null where the menu
   /// does not offer it.
   (IconData, String)? _menuEntry(
@@ -676,7 +649,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           tooltip: MaterialLocalizations.of(context).backButtonTooltip,
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(title ?? loc.inappBrowserDefaultTitle),
+        title: Text(widget.homeTitle ?? loc.inappBrowserDefaultTitle),
         actions: [
           const DownloadButton(),
           PopupMenuButton<_NestedMenuAction>(

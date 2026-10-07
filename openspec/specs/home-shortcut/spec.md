@@ -605,8 +605,7 @@ On app start and on `onNewIntent` (app already running), read the launch
    HS-012); dangling rebind targets are pruned at startup and the ledger
    is reconciled to the pinned set.
 
-`resolveLaunchTarget` is retained as the siteId-only view (direct hit or
-null). Both rules are exercised headlessly in
+The rule is exercised headlessly in
 [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart);
 no widget tree required.
 
@@ -614,7 +613,7 @@ no widget tree required.
 
 #### New
 - `lib/services/shortcut_service.dart` — Flutter wrapper around the platform channel (Android pin + iOS sync/launch)
-- `lib/services/startup_restore_engine.dart` — `resolveLaunchTarget` shortcut→index resolution
+- `lib/services/startup_restore_engine.dart` — `resolveLaunch` shortcut→site resolution (HS-011)
 - `ios/Runner/WebSpaceAppIntents.swift` — `SiteEntity`, `SiteEntityQuery`, `OpenSiteIntent`, `WebSpaceShortcuts` (iOS 16+)
 - `ios/Runner/ShortcutsPlugin.swift` — iOS method-channel handler + `ShortcutsLinkViewFactory`/`ShortcutsLinkNativeView` platform view hosting the HS-010 `ShortcutsUIButton`
 - `test/startup_restore_engine_test.dart` — unit tests for the resolution rule
