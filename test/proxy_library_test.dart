@@ -84,7 +84,7 @@ void main() {
 
   group('resolution (PROXY-030)', () {
     test('a saved proxy of shared entries takes both', () {
-      final route = resolveEffectiveProxy(_proxy('work'));
+      final route = resolveEffectiveProxy(_proxy('work'), siteId: null);
       expect(route.type, ProxyType.SOCKS5);
       expect(route.address, 'us.gw:1080');
       expect(route.username, 'alice');
@@ -92,14 +92,17 @@ void main() {
     });
 
     test('a plain saved proxy is just its fields', () {
-      final route = resolveEffectiveProxy(_proxy('plain'));
+      final route = resolveEffectiveProxy(_proxy('plain'), siteId: null);
       expect(route.type, ProxyType.HTTP);
       expect(route.address, '10.0.0.1:3128');
       expect(route.password, 'plain-secret');
     });
 
     test('a site picks a gateway and credentials that list it', () {
-      final route = resolveEffectiveProxy(_gateway('de', credentialsId: 'mail'));
+      final route = resolveEffectiveProxy(
+        _gateway('de', credentialsId: 'mail'),
+        siteId: null,
+      );
       expect(route.address, 'de.gw:1080');
       expect(route.username, 'alice-session-mail');
     });
@@ -110,14 +113,14 @@ void main() {
         gatewayId: 'de',
         username: 'typed',
         password: 'typed-secret',
-      ));
+      ), siteId: null);
       expect(route.address, 'de.gw:1080');
       expect(route.username, 'typed');
     });
 
     test('a plain typed proxy is untouched', () {
       final own = UserProxySettings(type: ProxyType.SOCKS5, address: 'a:1');
-      expect(identical(resolveEffectiveProxy(own), own), isTrue);
+      expect(identical(resolveEffectiveProxy(own, siteId: null), own), isTrue);
     });
 
     test('an edit to a shared entry reaches everything that uses it', () {
@@ -125,7 +128,7 @@ void main() {
       lib.gateway('us')!.address = 'us2.gw:1080';
       lib.credentialsById('alice')!.password = 'rotated';
       ProxyLibrary.setInMemory(lib);
-      final route = resolveEffectiveProxy(_proxy('work'));
+      final route = resolveEffectiveProxy(_proxy('work'), siteId: null);
       expect(route.address, 'us2.gw:1080');
       expect(route.password, 'rotated');
     });
@@ -133,7 +136,8 @@ void main() {
     test('a DEFAULT site inherits an app-wide proxy from the library', () {
       GlobalOutboundProxy.setForTest(_gateway('de', credentialsId: 'mail'));
       final route =
-          resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT));
+          resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT),
+              siteId: null);
       expect(route.address, 'de.gw:1080');
       expect(route.username, 'alice-session-mail');
     });
@@ -149,10 +153,13 @@ void main() {
       final resolved = resolveLibrary(s);
       expect(resolved.problem, problem);
       expect(resolved.route.type, ProxyType.SAVED);
-      expect(resolveEffectiveProxy(s).address, isNull);
+      expect(resolveEffectiveProxy(s, siteId: null).address, isNull);
       expect(const DefaultOutboundHttpFactory().clientFor(s),
           isA<OutboundClientBlocked>());
-      expect(userProxyToInappProxy(resolveEffectiveProxy(s)), isNull);
+      expect(
+        userProxyToInappProxy(resolveEffectiveProxy(s, siteId: null)),
+        isNull,
+      );
     }
 
     test('a missing saved proxy', () {
@@ -190,7 +197,7 @@ void main() {
 
     test('a reference keeps no leftover manual address', () {
       final s = _gateway('gone')..address = '9.9.9.9:1080';
-      expect(resolveEffectiveProxy(s).address, isNull);
+      expect(resolveEffectiveProxy(s, siteId: null).address, isNull);
     });
   });
 

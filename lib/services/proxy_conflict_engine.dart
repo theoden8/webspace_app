@@ -27,7 +27,7 @@ class ProxyConflictEngine {
   /// a DEFAULT site and one set to the proxy it inherits agree, and two
   /// sites naming different saved proxies do not.
   static ProxyRouteKey fingerprint(UserProxySettings p) =>
-      resolveEffectiveProxy(p).routeKey;
+      resolveEffectiveProxy(p, siteId: null).routeKey;
 
   /// True iff the candidate site can be flipped to background-poll
   /// without breaking the process-wide proxy constraint.

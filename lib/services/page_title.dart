@@ -23,7 +23,10 @@ Future<String?> getPageTitle(String url, {UserProxySettings? proxy}) async {
   }
 
   final clientResult = outboundHttp.clientFor(
-    resolveEffectiveProxy(proxy ?? UserProxySettings(type: ProxyType.DEFAULT)),
+    resolveEffectiveProxy(
+      proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
+      siteId: null,
+    ),
   );
   if (clientResult is! OutboundClientReady) {
     LogService.instance.log(

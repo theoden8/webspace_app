@@ -756,7 +756,8 @@ class WebViewModel implements MediaGrantRecord {
   WebRtcPolicy get effectiveWebRtcPolicy => resolveWebRtcPolicy(
         stored: webRtcPolicy,
         trackingProtectionEnabled: trackingProtectionEnabled,
-        proxied: resolveEffectiveProxy(proxySettings).type != ProxyType.DEFAULT,
+        proxied: resolveEffectiveProxy(proxySettings, siteId: siteId).type !=
+            ProxyType.DEFAULT,
       );
 
   /// Effective protected-content (Widevine/EME) decision. Archive-tier

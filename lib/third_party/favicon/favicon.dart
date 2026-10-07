@@ -88,7 +88,7 @@ class FaviconFinder {
 
     final effectiveProxy = proxy == null
         ? GlobalOutboundProxy.current
-        : resolveEffectiveProxy(proxy);
+        : resolveEffectiveProxy(proxy, siteId: null);
     final clientResult = outboundHttp.clientFor(effectiveProxy);
     if (clientResult is! OutboundClientReady) {
       return favicons; // proxy could not be honored — fail closed

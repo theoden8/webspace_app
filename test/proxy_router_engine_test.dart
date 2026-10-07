@@ -216,6 +216,23 @@ void main() {
       expect(b.upstream.address, 'proxy.example.com:8080');
     });
 
+    test('two Tor sites route under their own isolation tags (TOR-003)', () {
+      // The route table carries the stored settings, not the stamped
+      // outbound ones, so the site id has to reach the resolver here or
+      // every Tor site presents the app-global credential and shares one
+      // circuit through the router.
+      final state = ProxyRouterState();
+      final routes = ProxyRouterEngine.buildRoutes(
+        perSiteProxies: {
+          'a': proxy(ProxyType.TOR, null),
+          'b': proxy(ProxyType.TOR, null),
+        },
+        tokens: {'a': state.tokenFor('a'), 'b': state.tokenFor('b')},
+      );
+      expect(routes[state.credentialFor('a')]!.upstream.username, 'a');
+      expect(routes[state.credentialFor('b')]!.upstream.username, 'b');
+    });
+
     test('a DEFAULT site gets a direct route, not an absent one', () {
       // ProxyController points the whole process at the relay, so an
       // unproxied site's traffic arrives there too and must be routed

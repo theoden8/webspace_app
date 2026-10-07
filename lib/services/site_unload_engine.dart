@@ -576,7 +576,8 @@ class SiteUnloadEngine {
   static String? torExitConstraint(WebViewModel model) => _torExitPin(model);
 
   static String? _torExitPin(WebViewModel model) {
-    final effective = resolveEffectiveProxy(model.proxySettings);
+    final effective =
+        resolveEffectiveProxy(model.proxySettings, siteId: model.siteId);
     if (effective.type != ProxyType.TOR) return null;
     return effective.exitNodesValue ?? _torUnpinned;
   }

@@ -33,10 +33,12 @@ import 'package:webspace/services/proxy_library.dart';
 /// DEFAULT that inherits a global TOR gets the app-global tag instead of its
 /// own — inheriting the app's default proxy is not the same request as
 /// opting into per-site isolation, and conflating them would hand every
-/// uncustomized site a circuit of its own (PROXY-011).
+/// uncustomized site a circuit of its own (PROXY-011). Null names no site:
+/// app-global traffic, or settings that already carry their tag
+/// (`WebViewModel.outboundProxySettings`).
 UserProxySettings resolveEffectiveProxy(
   UserProxySettings perSite, {
-  String? siteId,
+  required String? siteId,
 }) {
   if (perSite.type == ProxyType.DEFAULT) {
     final global = resolveLibraryProxy(GlobalOutboundProxy.current);

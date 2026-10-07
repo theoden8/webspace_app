@@ -86,8 +86,11 @@ class FaviconUrlCache {
 /// the preview is a convenience, and losing it costs the user nothing but a
 /// preview card that stays up for a host that turns out not to exist.
 bool addSitePreviewMayResolveLocally() =>
-    resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT)).type ==
-        ProxyType.DEFAULT;
+    resolveEffectiveProxy(
+      UserProxySettings(type: ProxyType.DEFAULT),
+      siteId: null,
+    ).type ==
+    ProxyType.DEFAULT;
 
 // Unified favicon widget with progressive loading
 // Icons update as better quality versions are found:

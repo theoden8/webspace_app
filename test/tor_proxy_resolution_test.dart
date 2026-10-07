@@ -63,6 +63,7 @@ void main() {
       GlobalOutboundProxy.setForTest(_tor());
       final resolved = resolveEffectiveProxy(
         UserProxySettings(type: ProxyType.DEFAULT),
+        siteId: null,
       );
       expect(resolved.username, kTorAppGlobalTag);
     });

@@ -22,7 +22,7 @@ import '../third_party/favicon/favicon.dart';
 /// the global proxy.
 UserProxySettings _resolve(UserProxySettings? perSite) {
   if (perSite == null) return GlobalOutboundProxy.current;
-  return resolveEffectiveProxy(perSite);
+  return resolveEffectiveProxy(perSite, siteId: null);
 }
 
 /// Acquire an HTTP client honoring [proxy], or null when the proxy cannot

@@ -335,6 +335,7 @@ class MediaSessionService {
     if (isPrivateOrLoopbackHost(uri.host.toLowerCase())) return null;
     final effective = resolveEffectiveProxy(
       proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
+      siteId: null,
     );
     // The artwork URL comes from the page's own media-session metadata, so a
     // name pointing into the LAN turns this into a blind request the site

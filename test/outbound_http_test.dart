@@ -121,7 +121,7 @@ void main() {
         address: '10.0.0.1:3128',
       ));
       final perSite = UserProxySettings(type: ProxyType.DEFAULT);
-      final effective = resolveEffectiveProxy(perSite);
+      final effective = resolveEffectiveProxy(perSite, siteId: null);
       expect(effective.type, ProxyType.HTTP);
       expect(effective.address, '10.0.0.1:3128');
     });
@@ -135,14 +135,14 @@ void main() {
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       );
-      final effective = resolveEffectiveProxy(perSite);
+      final effective = resolveEffectiveProxy(perSite, siteId: null);
       expect(effective.type, ProxyType.SOCKS5);
       expect(effective.address, '127.0.0.1:9050');
     });
 
     test('per-site DEFAULT and global DEFAULT yields DEFAULT', () {
       final perSite = UserProxySettings(type: ProxyType.DEFAULT);
-      final effective = resolveEffectiveProxy(perSite);
+      final effective = resolveEffectiveProxy(perSite, siteId: null);
       expect(effective.type, ProxyType.DEFAULT);
     });
   });

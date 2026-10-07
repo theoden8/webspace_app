@@ -165,6 +165,7 @@ Future<({String? source, String? error})> fetchUserScriptSource(
 }) async {
   final effective = resolveEffectiveProxy(
     proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
+    siteId: null,
   );
   Future<bool> allowed(String candidate) async =>
       classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
@@ -363,7 +364,8 @@ class UserScriptService {
     // refused outright, never offered to the user as a choice. The dialog
     // shows a URL, and `http://cdn.evil.example/lib.js` reads as a CDN
     // whatever it resolves to.
-    if (!await _resolvedTargetAllowed(url, resolveEffectiveProxy(_proxy))) {
+    if (!await _resolvedTargetAllowed(
+        url, resolveEffectiveProxy(_proxy, siteId: null))) {
       return false;
     }
     if (status == ScriptFetchUrlStatus.requiresConfirmation) {
@@ -409,7 +411,7 @@ class UserScriptService {
         );
         final http.Client client;
         switch (outboundHttp.clientFor(
-          resolveEffectiveProxy(_proxy),
+          resolveEffectiveProxy(_proxy, siteId: null),
         )) {
           case OutboundClientBlocked(:final reason):
             LogService.instance.log(
@@ -481,7 +483,7 @@ class UserScriptService {
       callback: (args) async {
         if (args.isEmpty || args[0] is! String) return {'status': 400};
         final url = args[0] as String;
-        final effective = resolveEffectiveProxy(_proxy);
+        final effective = resolveEffectiveProxy(_proxy, siteId: null);
         Future<bool> reachable(String candidate) async =>
             classifyScriptFetchUrl(candidate) !=
                 ScriptFetchUrlStatus.blocked &&

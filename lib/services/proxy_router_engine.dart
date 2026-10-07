@@ -174,7 +174,7 @@ class ProxyRouterEngine {
       if (token == null) continue;
       routes[credentialFor(siteId: siteId, token: token)] = ProxyRoute(
         siteId: siteId,
-        upstream: resolveEffectiveProxy(entry.value),
+        upstream: resolveEffectiveProxy(entry.value, siteId: siteId),
       );
     }
     return routes;

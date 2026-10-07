@@ -686,7 +686,7 @@ class ProxyManager {
   /// it every Tor site would present the app-global credential, and the one
   /// rule in force would put them all on one circuit.
   Future<void> setProxySettings(UserProxySettings settings,
-      {String? siteId}) async {
+      {required String siteId}) async {
     if (!PlatformInfo.isProxySupported) {
       LogService.instance.log(
         'Proxy',

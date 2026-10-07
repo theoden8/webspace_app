@@ -1518,6 +1518,9 @@ port this one can dial. The tor's address, `externalTorAddress`
   SHALL NOT both poll for notifications, since one rule carries one
   credential (PROXY-008). Gated by
   `test/js/process_wide_tor_isolation.test.js`.
+- **Through the router.** Where the router serves the process (PROXY-013),
+  each site's route SHALL resolve with that site's id, so every Tor site
+  presents its own credential to the tor behind it (BUG-029).
 
 #### Scenario: Orbot gives each site its own credential
 
