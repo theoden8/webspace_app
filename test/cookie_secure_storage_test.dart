@@ -8,6 +8,29 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'helpers/mock_secure_storage.dart';
 
+/// A site as builds before secure storage kept cookies in `webViewModels`,
+/// holding one [cookie] on [url]'s host.
+String _legacySite(String url, String name, String pageTitle,
+        Map<String, String> cookie) =>
+    jsonEncode({
+      'initUrl': url,
+      'currentUrl': url,
+      'name': name,
+      'pageTitle': pageTitle,
+      'cookies': [cookie],
+      'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
+      'javascriptEnabled': true,
+      'userAgent': '',
+      'thirdPartyCookiesEnabled': false,
+    });
+
+void _seedLegacySites(List<String> sites) =>
+    SharedPreferences.setMockInitialValues({'webViewModels': sites});
+
+/// The cookie names under [key] in a stored JSON blob.
+List<Object?> _names(Map<String, dynamic> json, String key) =>
+    [for (final c in json[key] as List) (c as Map)['name']];
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -24,36 +47,40 @@ void main() {
     mockSecureStorage.clear();
   });
 
+  Future<void> seedSecure(Map<String, Object> json) =>
+      mockSecureStorage.write(key: 'secure_cookies', value: jsonEncode(json));
+  Map<String, dynamic>? secureJson() {
+    final raw = mockSecureStorage.storage['secure_cookies'];
+    return raw == null ? null : jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>?> fallbackJson() async {
+    final raw =
+        (await SharedPreferences.getInstance()).getString('cookies_fallback');
+    return raw == null ? null : jsonDecode(raw) as Map<String, dynamic>;
+  }
+
   group('CookieSecureStorage', () {
     test('should save cookies to secure storage keyed by domain', () async {
       // Note: With COOKIE-006, only isSecure=true cookies go to secure storage
-      final cookies = {
+      await cookieSecureStorage.saveCookies({
         'example.com': [
           Cookie(name: 'session', value: 'abc123', domain: 'example.com', isSecure: true),
           Cookie(name: 'token', value: 'xyz789', domain: 'example.com', isSecure: true),
         ],
-      };
+      });
 
-      await cookieSecureStorage.saveCookies(cookies);
-
-      final storedData = mockSecureStorage.storage['secure_cookies'];
-      expect(storedData, isNotNull);
-
-      final decoded = jsonDecode(storedData!) as Map<String, dynamic>;
-      expect(decoded['example.com'], hasLength(2));
+      final decoded = secureJson();
+      expect(decoded, isNotNull);
+      expect(decoded!['example.com'], hasLength(2));
     });
 
     test('should load cookies from secure storage keyed by domain', () async {
-      // Pre-populate secure storage with domain-based keys
-      final cookiesJson = {
+      await seedSecure({
         'example.com': [
           {'name': 'session', 'value': 'abc123', 'domain': 'example.com'},
         ],
-      };
-      await mockSecureStorage.write(
-        key: 'secure_cookies',
-        value: jsonEncode(cookiesJson),
-      );
+      });
 
       final loaded = await cookieSecureStorage.loadCookies();
 
@@ -63,71 +90,42 @@ void main() {
     });
 
     test('should convert URL keys to domain keys when loading', () async {
-      // Pre-populate secure storage with old URL-based keys
-      final cookiesJson = {
+      await seedSecure({
         'https://example.com/path': [
           {'name': 'session', 'value': 'abc123', 'domain': 'example.com'},
         ],
-      };
-      await mockSecureStorage.write(
-        key: 'secure_cookies',
-        value: jsonEncode(cookiesJson),
-      );
+      });
 
       final loaded = await cookieSecureStorage.loadCookies();
 
-      // Should be converted to domain key
       expect(loaded['example.com'], hasLength(1));
       expect(loaded['example.com']![0].name, equals('session'));
     });
 
     test('should merge cookies when multiple URL keys resolve to same domain', () async {
-      // Pre-populate secure storage with multiple URLs for same domain
-      final cookiesJson = {
+      await seedSecure({
         'https://example.com': [
           {'name': 'cookie1', 'value': 'value1', 'domain': 'example.com'},
         ],
         'https://example.com/other': [
           {'name': 'cookie2', 'value': 'value2', 'domain': 'example.com'},
         ],
-      };
-      await mockSecureStorage.write(
-        key: 'secure_cookies',
-        value: jsonEncode(cookiesJson),
-      );
+      });
 
       final loaded = await cookieSecureStorage.loadCookies();
 
-      // Should merge into single domain key
       expect(loaded['example.com'], hasLength(2));
       expect(loaded['example.com']!.map((c) => c.name).toSet(), equals({'cookie1', 'cookie2'}));
     });
 
     test('should migrate cookies from SharedPreferences to secure storage with domain keys', () async {
-      // Set up SharedPreferences with cookies in webViewModels (old URL-based format)
-      // Note: Legacy cookies without isSecure flag are treated as non-secure (COOKIE-006)
-      // and stored in SharedPreferences, not secure storage
-      final webViewModelsJson = [
-        jsonEncode({
-          'initUrl': 'https://example.com',
-          'currentUrl': 'https://example.com',
-          'name': 'Example',
-          'pageTitle': 'Example Site',
-          'cookies': [
-            {'name': 'legacy_cookie', 'value': 'old_value', 'domain': 'example.com'},
-          ],
-          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-        }),
-      ];
+      // Legacy cookies without isSecure flag are treated as non-secure
+      // (COOKIE-006) and stored in SharedPreferences, not secure storage.
+      _seedLegacySites([
+        _legacySite('https://example.com', 'Example', 'Example Site',
+            {'name': 'legacy_cookie', 'value': 'old_value', 'domain': 'example.com'}),
+      ]);
 
-      SharedPreferences.setMockInitialValues({
-        'webViewModels': webViewModelsJson,
-      });
-
-      // Load cookies - should migrate from SharedPreferences with domain-based keys
       final loaded = await cookieSecureStorage.loadCookies();
 
       // Should be keyed by domain, not URL
@@ -135,90 +133,36 @@ void main() {
       expect(loaded['example.com']![0].name, equals('legacy_cookie'));
       expect(loaded['example.com']![0].value, equals('old_value'));
 
-      // Legacy cookies without isSecure go to SharedPreferences cookies_fallback (COOKIE-006)
+      expect(await fallbackJson(), isNotNull);
       final prefs = await SharedPreferences.getInstance();
-      final prefsData = prefs.getString('cookies_fallback');
-      expect(prefsData, isNotNull);
-
-      // Verify migration flag was set
       expect(prefs.getBool('cookies_migrated_to_secure'), isTrue);
     });
 
     test('should merge cookies during migration when multiple sites share domain', () async {
-      // Set up SharedPreferences with two sites on same domain
-      final webViewModelsJson = [
-        jsonEncode({
-          'initUrl': 'https://github.com',
-          'currentUrl': 'https://github.com',
-          'name': 'GitHub',
-          'pageTitle': 'GitHub',
-          'cookies': [
-            {'name': 'cookie1', 'value': 'value1', 'domain': 'github.com'},
-          ],
-          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-        }),
-        jsonEncode({
-          'initUrl': 'https://github.com/org',
-          'currentUrl': 'https://github.com/org',
-          'name': 'GitHub Org',
-          'pageTitle': 'GitHub Org',
-          'cookies': [
-            {'name': 'cookie2', 'value': 'value2', 'domain': 'github.com'},
-          ],
-          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-        }),
-      ];
-
-      SharedPreferences.setMockInitialValues({
-        'webViewModels': webViewModelsJson,
-      });
+      _seedLegacySites([
+        _legacySite('https://github.com', 'GitHub', 'GitHub',
+            {'name': 'cookie1', 'value': 'value1', 'domain': 'github.com'}),
+        _legacySite('https://github.com/org', 'GitHub Org', 'GitHub Org',
+            {'name': 'cookie2', 'value': 'value2', 'domain': 'github.com'}),
+      ]);
 
       final loaded = await cookieSecureStorage.loadCookies();
 
-      // Should be merged under single domain key
       expect(loaded['github.com'], hasLength(2));
       expect(loaded['github.com']!.map((c) => c.name).toSet(), equals({'cookie1', 'cookie2'}));
     });
 
     test('should prefer secure storage over SharedPreferences', () async {
-      // Set up both secure storage and SharedPreferences with different cookies
-      final secureCookiesJson = {
+      await seedSecure({
         'example.com': [
           {'name': 'secure_cookie', 'value': 'secure_value', 'domain': 'example.com'},
         ],
-      };
-      await mockSecureStorage.write(
-        key: 'secure_cookies',
-        value: jsonEncode(secureCookiesJson),
-      );
-
-      final webViewModelsJson = [
-        jsonEncode({
-          'initUrl': 'https://example.com',
-          'currentUrl': 'https://example.com',
-          'name': 'Example',
-          'pageTitle': 'Example Site',
-          'cookies': [
-            {'name': 'legacy_cookie', 'value': 'old_value', 'domain': 'example.com'},
-          ],
-          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-        }),
-      ];
-
-      SharedPreferences.setMockInitialValues({
-        'webViewModels': webViewModelsJson,
       });
+      _seedLegacySites([
+        _legacySite('https://example.com', 'Example', 'Example Site',
+            {'name': 'legacy_cookie', 'value': 'old_value', 'domain': 'example.com'}),
+      ]);
 
-      // Load cookies - should prefer secure storage
       final loaded = await cookieSecureStorage.loadCookies();
 
       expect(loaded['example.com'], hasLength(1));
@@ -293,7 +237,6 @@ void main() {
     });
 
     test('should handle corrupted secure storage gracefully', () async {
-      // Write invalid JSON to secure storage
       await mockSecureStorage.write(key: 'secure_cookies', value: 'not valid json');
 
       // Should fall back to SharedPreferences
@@ -358,33 +301,15 @@ void main() {
     });
 
     test('should report migration status correctly', () async {
-      // Initially not migrated
       expect(await cookieSecureStorage.isMigrationComplete(), isFalse);
 
-      // Trigger migration by loading from SharedPreferences
-      final webViewModelsJson = [
-        jsonEncode({
-          'initUrl': 'https://example.com',
-          'currentUrl': 'https://example.com',
-          'name': 'Example',
-          'pageTitle': 'Example Site',
-          'cookies': [
-            {'name': 'cookie', 'value': 'value', 'domain': 'example.com'},
-          ],
-          'proxySettings': {'type': 'DEFAULT', 'host': '', 'port': 0},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-        }),
-      ];
-
-      SharedPreferences.setMockInitialValues({
-        'webViewModels': webViewModelsJson,
-      });
+      _seedLegacySites([
+        _legacySite('https://example.com', 'Example', 'Example Site',
+            {'name': 'cookie', 'value': 'value', 'domain': 'example.com'}),
+      ]);
 
       await cookieSecureStorage.loadCookies();
 
-      // Now should be migrated
       expect(await cookieSecureStorage.isMigrationComplete(), isTrue);
 
       // Verify migrated with domain key
@@ -404,7 +329,6 @@ void main() {
         ],
       });
 
-      // Load cookies for specific site
       final site1Cookies = await cookieSecureStorage.loadCookiesForSite('site-id-1');
       final site2Cookies = await cookieSecureStorage.loadCookiesForSite('site-id-2');
       final unknownSiteCookies = await cookieSecureStorage.loadCookiesForSite('unknown-site');
@@ -419,12 +343,9 @@ void main() {
     });
 
     test('should save cookies for specific siteId with mixed secure flags', () async {
-      // Save cookies for first site (secure cookie)
       await cookieSecureStorage.saveCookiesForSite('site-id-1', [
         Cookie(name: 'session1', value: 'value1', domain: 'github.com', isSecure: true),
       ]);
-
-      // Save cookies for second site (non-secure cookie)
       await cookieSecureStorage.saveCookiesForSite('site-id-2', [
         Cookie(name: 'theme2', value: 'value2', domain: 'github.com', isSecure: false),
       ]);
@@ -447,14 +368,12 @@ void main() {
         Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
       ]);
 
-      // Verify saved
       var loaded = await cookieSecureStorage.loadCookiesForSite('site-id-1');
       expect(loaded, hasLength(2));
 
       // Save empty list - should remove from both storages
       await cookieSecureStorage.saveCookiesForSite('site-id-1', []);
 
-      // Verify removed
       loaded = await cookieSecureStorage.loadCookiesForSite('site-id-1');
       expect(loaded, isEmpty);
     });
@@ -486,106 +405,67 @@ void main() {
 
   group('COOKIE-006: Secure Flag Enforcement', () {
     test('secure cookies stored in secure storage, non-secure in SharedPreferences', () async {
-      final secureStorage = MockFlutterSecureStorage();
-      final storage = CookieSecureStorage(secureStorage: secureStorage);
-      SharedPreferences.setMockInitialValues({});
-
-      // Save a mix of secure and non-secure cookies
-      await storage.saveCookies({
+      await cookieSecureStorage.saveCookies({
         'github.com': [
           Cookie(name: 'session', value: 'secret123', domain: 'github.com', isSecure: true),
           Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
         ],
       });
 
-      // Verify secure cookie is in secure storage
-      final secureData = secureStorage.storage['secure_cookies'];
-      expect(secureData, isNotNull);
-      final secureDecoded = jsonDecode(secureData!) as Map<String, dynamic>;
-      expect(secureDecoded['github.com'], hasLength(1));
-      expect(secureDecoded['github.com'][0]['name'], equals('session'));
+      final secure = secureJson();
+      expect(secure, isNotNull);
+      expect(_names(secure!, 'github.com'), ['session']);
 
-      // Verify non-secure cookie is in SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final prefsJson = prefs.getString('cookies_fallback');
-      expect(prefsJson, isNotNull);
-      final prefsDecoded = jsonDecode(prefsJson!) as Map<String, dynamic>;
-      expect(prefsDecoded['github.com'], hasLength(1));
-      expect(prefsDecoded['github.com'][0]['name'], equals('theme'));
+      final fallback = await fallbackJson();
+      expect(fallback, isNotNull);
+      expect(_names(fallback!, 'github.com'), ['theme']);
     });
 
     test('loading merges cookies from both storages', () async {
-      final secureStorage = MockFlutterSecureStorage();
-      final storage = CookieSecureStorage(secureStorage: secureStorage);
-
-      // Pre-populate secure storage with secure cookie
-      await secureStorage.write(
-        key: 'secure_cookies',
-        value: jsonEncode({
-          'github.com': [{'name': 'session', 'value': 'secret', 'domain': 'github.com', 'isSecure': true}],
-        }),
-      );
-
-      // Pre-populate SharedPreferences with non-secure cookie
+      await seedSecure({
+        'github.com': [{'name': 'session', 'value': 'secret', 'domain': 'github.com', 'isSecure': true}],
+      });
       SharedPreferences.setMockInitialValues({
         'cookies_fallback': jsonEncode({
           'github.com': [{'name': 'theme', 'value': 'dark', 'domain': 'github.com', 'isSecure': false}],
         }),
       });
 
-      // Load should merge both
-      final loaded = await storage.loadCookies();
+      final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded['github.com'], hasLength(2));
       expect(loaded['github.com']!.map((c) => c.name).toSet(), equals({'session', 'theme'}));
     });
 
     test('secure cookies NOT stored in SharedPreferences even if secure storage fails', () async {
-      final failingSecureStorage = MockFlutterSecureStorage()
+      mockSecureStorage
         ..throwOnRead = true
         ..throwOnWrite = true;
-      final storage = CookieSecureStorage(secureStorage: failingSecureStorage);
-      SharedPreferences.setMockInitialValues({});
 
-      await storage.saveCookies({
+      await cookieSecureStorage.saveCookies({
         'github.com': [
           Cookie(name: 'session', value: 'secret', domain: 'github.com', isSecure: true),
           Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
         ],
       });
 
-      // Only non-secure cookie should be in SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final prefsJson = prefs.getString('cookies_fallback');
-      expect(prefsJson, isNotNull);
-      final decoded = jsonDecode(prefsJson!) as Map<String, dynamic>;
-      expect(decoded['github.com'], hasLength(1));
-      expect(decoded['github.com'][0]['name'], equals('theme'));
+      final fallback = await fallbackJson();
+      expect(fallback, isNotNull);
+      expect(_names(fallback!, 'github.com'), ['theme']);
     });
 
     test('site with only secure cookies has no entry in SharedPreferences', () async {
-      final secureStorage = MockFlutterSecureStorage();
-      final storage = CookieSecureStorage(secureStorage: secureStorage);
-      SharedPreferences.setMockInitialValues({});
-
-      await storage.saveCookies({
+      await cookieSecureStorage.saveCookies({
         'github.com': [
           Cookie(name: 'session', value: 'secret', domain: 'github.com', isSecure: true),
           Cookie(name: 'auth', value: 'token', domain: 'github.com', isSecure: true),
         ],
       });
 
-      // SharedPreferences should have no github.com entry
-      final prefs = await SharedPreferences.getInstance();
-      final prefsJson = prefs.getString('cookies_fallback');
-      expect(prefsJson, isNull); // No non-secure cookies at all
+      expect(await fallbackJson(), isNull); // No non-secure cookies at all
     });
 
     test('multiple sites with mixed secure cookies split correctly', () async {
-      final secureStorage = MockFlutterSecureStorage();
-      final storage = CookieSecureStorage(secureStorage: secureStorage);
-      SharedPreferences.setMockInitialValues({});
-
-      await storage.saveCookies({
+      await cookieSecureStorage.saveCookies({
         'github.com': [
           Cookie(name: 'session', value: 'secret', domain: 'github.com', isSecure: true),
           Cookie(name: 'theme', value: 'dark', domain: 'github.com', isSecure: false),
@@ -598,25 +478,15 @@ void main() {
         ],
       });
 
-      // Check secure storage
-      final secureData = secureStorage.storage['secure_cookies'];
-      final secureDecoded = jsonDecode(secureData!) as Map<String, dynamic>;
-      expect(secureDecoded['github.com'], hasLength(1));
-      expect(secureDecoded['github.com'][0]['name'], equals('session'));
-      expect(secureDecoded['gitlab.com'], hasLength(1));
-      expect(secureDecoded['gitlab.com'][0]['name'], equals('auth'));
-      expect(secureDecoded.containsKey('example.com'), isFalse); // No secure cookies
+      final secure = secureJson()!;
+      expect(_names(secure, 'github.com'), ['session']);
+      expect(_names(secure, 'gitlab.com'), ['auth']);
+      expect(secure.containsKey('example.com'), isFalse);
 
-      // Check SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      final prefsJson = prefs.getString('cookies_fallback');
-      final prefsDecoded = jsonDecode(prefsJson!) as Map<String, dynamic>;
-      expect(prefsDecoded['github.com'], hasLength(1));
-      expect(prefsDecoded['github.com'][0]['name'], equals('theme'));
-      expect(prefsDecoded['example.com'], hasLength(1));
-      expect(prefsDecoded['example.com'][0]['name'], equals('prefs'));
-      expect(prefsDecoded.containsKey('gitlab.com'), isFalse); // No non-secure cookies
+      final fallback = (await fallbackJson())!;
+      expect(_names(fallback, 'github.com'), ['theme']);
+      expect(_names(fallback, 'example.com'), ['prefs']);
+      expect(fallback.containsKey('gitlab.com'), isFalse);
     });
   });
 }
-

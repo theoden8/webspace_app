@@ -10,6 +10,23 @@ import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/capture_fakes.dart';
 
+const _url = 'https://example.com';
+
+/// A stored site as builds before the per-site toggles wrote it, plus [extra].
+Map<String, dynamic> _bareJson([Map<String, dynamic> extra = const {}]) => {
+      'initUrl': _url,
+      'cookies': [],
+      'proxySettings': {'type': 0, 'address': null},
+      'javascriptEnabled': true,
+      'userAgent': '',
+      'thirdPartyCookiesEnabled': false,
+      ...extra,
+    };
+
+/// [_bareJson] with the current URL its last session left.
+Map<String, dynamic> _legacyJson([Map<String, dynamic> extra = const {}]) =>
+    _bareJson({'currentUrl': _url, ...extra});
+
 void main() {
   group('WebViewModel', () {
     test('should initialize with default values', () {
@@ -473,33 +490,43 @@ void main() {
       expect(restored.fullscreenMode, equals(original.fullscreenMode));
     });
 
-    test('clearUrlEnabled defaults to true when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
+    for (final (key, byDefault, read, build) in <(
+      String,
+      bool,
+      bool Function(WebViewModel),
+      WebViewModel Function(bool),
+    )>[
+      ('clearUrlEnabled', true, (m) => m.clearUrlEnabled,
+          (v) => WebViewModel(initUrl: _url, clearUrlEnabled: v)),
+      ('dnsBlockEnabled', true, (m) => m.dnsBlockEnabled,
+          (v) => WebViewModel(initUrl: _url, dnsBlockEnabled: v)),
+      ('contentBlockEnabled', true, (m) => m.contentBlockEnabled,
+          (v) => WebViewModel(initUrl: _url, contentBlockEnabled: v)),
+      // Backward-compat: existing sites stored before this field was
+      // added must opt INTO Enhanced Tracking Protection on next launch
+      // (default true) so anti-fingerprinting + forced tracker blocking
+      // is on by default for upgraders, matching the constructor default.
+      ('trackingProtectionEnabled', true, (m) => m.trackingProtectionEnabled,
+          (v) => WebViewModel(initUrl: _url, trackingProtectionEnabled: v)),
+      ('localCdnEnabled', true, (m) => m.localCdnEnabled,
+          (v) => WebViewModel(initUrl: _url, localCdnEnabled: v)),
+      ('fullscreenMode', false, (m) => m.fullscreenMode,
+          (v) => WebViewModel(initUrl: _url, fullscreenMode: v)),
+      ('htmlCachingEnabled', false, (m) => m.htmlCachingEnabled,
+          (v) => WebViewModel(initUrl: _url, htmlCachingEnabled: v)),
+      ('notificationsEnabled', false, (m) => m.notificationsEnabled,
+          (v) => WebViewModel(initUrl: _url, notificationsEnabled: v)),
+    ]) {
+      test('$key defaults to $byDefault when missing from JSON', () {
+        expect(read(WebViewModel.fromJson(_legacyJson(), null)), byDefault);
+      });
 
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.clearUrlEnabled, isTrue);
-    });
-
-    test('clearUrlEnabled false is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        clearUrlEnabled: false,
-      );
-
-      final json = model.toJson();
-      expect(json['clearUrlEnabled'], equals(false));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.clearUrlEnabled, isFalse);
-    });
+      test('$key ${!byDefault} is preserved through serialization', () {
+        final json = build(!byDefault).toJson();
+        expect(json[key], !byDefault);
+        expect(read(WebViewModel.fromJson(json, null)), !byDefault);
+      });
+    }
 
     test('zoomPercent defaults to 100 and is omitted from JSON at default', () {
       final model = WebViewModel(initUrl: 'https://example.com');
@@ -525,109 +552,11 @@ void main() {
     });
 
     test('zoomPercent out of range is clamped on deserialization', () {
-      Map<String, dynamic> jsonWithZoom(int zoom) => {
-            'initUrl': 'https://example.com',
-            'cookies': [],
-            'proxySettings': {'type': 0, 'address': null},
-            'javascriptEnabled': true,
-            'userAgent': '',
-            'thirdPartyCookiesEnabled': false,
-            'zoomPercent': zoom,
-          };
-
-      final tooHigh = WebViewModel.fromJson(jsonWithZoom(5000), null);
-      expect(tooHigh.zoomPercent, equals(kMaxZoomPercent));
-
-      final tooLow = WebViewModel.fromJson(jsonWithZoom(1), null);
-      expect(tooLow.zoomPercent, equals(kMinZoomPercent));
-    });
-
-    test('dnsBlockEnabled defaults to true when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.dnsBlockEnabled, isTrue);
-    });
-
-    test('dnsBlockEnabled false is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        dnsBlockEnabled: false,
-      );
-
-      final json = model.toJson();
-      expect(json['dnsBlockEnabled'], equals(false));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.dnsBlockEnabled, isFalse);
-    });
-
-    test('contentBlockEnabled defaults to true when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.contentBlockEnabled, isTrue);
-    });
-
-    test('contentBlockEnabled false is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        contentBlockEnabled: false,
-      );
-
-      final json = model.toJson();
-      expect(json['contentBlockEnabled'], equals(false));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.contentBlockEnabled, isFalse);
-    });
-
-    test('trackingProtectionEnabled defaults to true when missing from JSON', () {
-      // Backward-compat: existing sites stored before this field was
-      // added must opt INTO Enhanced Tracking Protection on next launch
-      // (default true) so anti-fingerprinting + forced tracker blocking
-      // is on by default for upgraders, matching the constructor default.
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.trackingProtectionEnabled, isTrue);
-    });
-
-    test('trackingProtectionEnabled false is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        trackingProtectionEnabled: false,
-      );
-
-      final json = model.toJson();
-      expect(json['trackingProtectionEnabled'], equals(false));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.trackingProtectionEnabled, isFalse);
+      int zoomOf(int zoom) =>
+          WebViewModel.fromJson(_bareJson({'zoomPercent': zoom}), null)
+              .zoomPercent;
+      expect(zoomOf(5000), equals(kMaxZoomPercent));
+      expect(zoomOf(1), equals(kMinZoomPercent));
     });
 
     test('tracking protection forces third-party cookies off (ETP-024)', () {
@@ -766,62 +695,6 @@ void main() {
       expect(m.fingerprintResetNonce, isNot(equals(first)));
     });
 
-    test('localCdnEnabled defaults to true when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.localCdnEnabled, isTrue);
-    });
-
-    test('localCdnEnabled false is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        localCdnEnabled: false,
-      );
-
-      final json = model.toJson();
-      expect(json['localCdnEnabled'], equals(false));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.localCdnEnabled, isFalse);
-    });
-
-    test('fullscreenMode defaults to false when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.fullscreenMode, isFalse);
-    });
-
-    test('fullscreenMode true is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        fullscreenMode: true,
-      );
-
-      final json = model.toJson();
-      expect(json['fullscreenMode'], equals(true));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.fullscreenMode, isTrue);
-    });
-
     test('blockScreenshots is off and unwritten by default', () {
       final model = WebViewModel(initUrl: 'https://example.com');
       expect(model.blockScreenshots, isFalse);
@@ -848,62 +721,6 @@ void main() {
         'blockScreenshots': 'yes',
       }, null);
       expect(model.blockScreenshots, isFalse);
-    });
-
-    test('htmlCachingEnabled defaults to false when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.htmlCachingEnabled, isFalse);
-    });
-
-    test('htmlCachingEnabled true is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        htmlCachingEnabled: true,
-      );
-
-      final json = model.toJson();
-      expect(json['htmlCachingEnabled'], equals(true));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.htmlCachingEnabled, isTrue);
-    });
-
-    test('notificationsEnabled defaults to false when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
-      final model = WebViewModel.fromJson(json, null);
-      expect(model.notificationsEnabled, isFalse);
-    });
-
-    test('notificationsEnabled true is preserved through serialization', () {
-      final model = WebViewModel(
-        initUrl: 'https://example.com',
-        notificationsEnabled: true,
-      );
-
-      final json = model.toJson();
-      expect(json['notificationsEnabled'], equals(true));
-
-      final restored = WebViewModel.fromJson(json, null);
-      expect(restored.notificationsEnabled, isTrue);
     });
 
     test('protectedContentAllowed defaults to null (ask) and toJson omits it',
@@ -985,17 +802,7 @@ void main() {
       // Sites stored under the previous schema (separate backgroundPoll
       // toggle, notifications off) should still be polled and able to
       // fire notifications after upgrade.
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-        'backgroundPoll': true,
-      };
-
+      final json = _legacyJson({'backgroundPoll': true});
       final model = WebViewModel.fromJson(json, null);
       expect(model.notificationsEnabled, isTrue);
     });
@@ -1048,16 +855,7 @@ void main() {
 
     test('liveLocationGranularity defaults to gps when absent from JSON', () {
       // Older backups predate the field — they must rehydrate as gps.
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-        'locationMode': 'live',
-      };
+      final json = _legacyJson({'locationMode': 'live'});
       final model = WebViewModel.fromJson(json, null);
       expect(model.liveLocationGranularity, equals(LocationGranularity.gps));
     });
@@ -1066,17 +864,8 @@ void main() {
       // Backups written before #326 used the old enum names. Reading
       // them must map "fine" → gps and "coarse" → gsm so existing users
       // don't silently land on the wrong tier on upgrade.
-      Map<String, dynamic> base(String value) => {
-            'initUrl': 'https://example.com',
-            'currentUrl': 'https://example.com',
-            'cookies': [],
-            'proxySettings': {'type': 0, 'address': null},
-            'javascriptEnabled': true,
-            'userAgent': '',
-            'thirdPartyCookiesEnabled': false,
-            'locationMode': 'live',
-            'liveLocationGranularity': value,
-          };
+      Map<String, dynamic> base(String value) =>
+          _legacyJson({'locationMode': 'live', 'liveLocationGranularity': value});
       expect(
           WebViewModel.fromJson(base('fine'), null).liveLocationGranularity,
           equals(LocationGranularity.gps));
@@ -1114,16 +903,7 @@ void main() {
     });
 
     test('location spoof fields default when missing from JSON', () {
-      final json = {
-        'initUrl': 'https://example.com',
-        'currentUrl': 'https://example.com',
-        'cookies': [],
-        'proxySettings': {'type': 0, 'address': null},
-        'javascriptEnabled': true,
-        'userAgent': '',
-        'thirdPartyCookiesEnabled': false,
-      };
-
+      final json = _legacyJson();
       final model = WebViewModel.fromJson(json, null);
       expect(model.locationMode, equals(LocationMode.off));
       expect(model.spoofLatitude, isNull);
@@ -1262,17 +1042,7 @@ void main() {
       });
 
       test('alwaysOpenHome defaults to false when missing from JSON', () {
-        final json = {
-          'initUrl': 'https://example.com',
-          'currentUrl': 'https://example.com',
-          'cookies': [],
-          'proxySettings': {'type': 0, 'address': null},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-        };
-
-        final model = WebViewModel.fromJson(json, null);
+        final model = WebViewModel.fromJson(_legacyJson(), null);
         expect(model.alwaysOpenHome, isFalse);
       });
 
@@ -1359,15 +1129,8 @@ void main() {
   });
 
   group('fromJson siteId path-traversal hardening', () {
-    Map<String, dynamic> baseJson(String? siteId) => {
-          'initUrl': 'https://example.com',
-          'cookies': <dynamic>[],
-          'proxySettings': {'type': 0, 'address': null},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-          if (siteId != null) 'siteId': siteId,
-        };
+    Map<String, dynamic> baseJson(String siteId) =>
+        _bareJson({'siteId': siteId});
 
     test('a valid minted-format siteId is preserved', () {
       final m = WebViewModel.fromJson(baseJson('abc123-x9y'), null);
@@ -1399,15 +1162,8 @@ void main() {
   });
 
   group('fromJson language header-injection hardening', () {
-    Map<String, dynamic> baseJson(String? language) => {
-          'initUrl': 'https://example.com',
-          'cookies': <dynamic>[],
-          'proxySettings': {'type': 0, 'address': null},
-          'javascriptEnabled': true,
-          'userAgent': '',
-          'thirdPartyCookiesEnabled': false,
-          if (language != null) 'language': language,
-        };
+    Map<String, dynamic> baseJson(String language) =>
+        _bareJson({'language': language});
 
     test('a valid BCP-47 language tag is preserved', () {
       for (final ok in ['en', 'fr', 'zh-CN', 'zh-TW', 'pt-BR']) {
