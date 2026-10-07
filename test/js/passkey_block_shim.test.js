@@ -17,7 +17,7 @@ const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 const { makeDom, readFixture } = require('./helpers/load_shim');
-const { read, blockAfter, dartFiles, code } = require('./helpers/source');
+const { read, blockAfter, code } = require('./helpers/source');
 
 const SHIM = readFixture('passkey/block_shim.js');
 
@@ -223,15 +223,4 @@ test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in 
       + "pageShim('passkey_block', buildPasskeyBlockShim(), frames: ShimFrames.all)"),
     'the shim goes wherever passkeys are off on iOS and macOS, in every frame '
       + '(WebKit answers a same-origin subframe too), before page script runs');
-});
-
-test('PASSKEY-001: webviews get their passkey access from one rule', () => {
-  const offenders = dartFiles().filter((rel) => rel !== 'lib/services/passkey_engine.dart'
-    && /\bPasskeyAccess\(/.test(readDart(rel)));
-  assert.deepEqual(offenders, [],
-    'build PasskeyAccess through PasskeyAccess.forHost: a hand-built one skips the per-host '
-    + 'backend, and on iOS/macOS a site with passkeys off must get null so it is blocked');
-  for (const rel of ['lib/web_view_model.dart', 'lib/screens/inappbrowser.dart']) {
-    assert.ok(readDart(rel).includes('PasskeyAccess.forHost('), `${rel} no longer uses forHost`);
-  }
 });

@@ -261,15 +261,14 @@ class SiteNetworkController {
   }
 
   /// How a proxy is scoped on this host right now (PROXY-008, PROXY-013).
-  /// Linux has no router. A site without a container profile runs in the
-  /// default one, so under the router it still shares a cached credential.
-  ProxyTopology get topology {
-    if (hostIsLinux) return const ProcessGlobalProxy();
-    if (ProxyRouterService.instance.isActive) {
-      return RoutedProxy((m) => !ownsContainerProfile(m));
-    }
-    return hostIsAndroid ? const ProcessGlobalProxy() : const PerSessionProxy();
-  }
+  /// A site without a container profile runs in the default one, so under
+  /// the router it still shares a cached credential.
+  ProxyTopology get topology => ProxyTopology.of(
+        linux: hostIsLinux,
+        android: hostIsAndroid,
+        routerActive: ProxyRouterService.instance.isActive,
+        sharesDefaultSession: (m) => !ownsContainerProfile(m),
+      );
 
   /// Whether [model] gets a container profile, and so a Chromium network
   /// session, of its own.

@@ -44,6 +44,7 @@ import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/camera_permission_service.dart';
+import 'package:webspace/services/capture_permission_engine.dart';
 import 'package:webspace/services/capture_shim.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
@@ -3528,83 +3529,45 @@ class WebViewFactory {
                       : inapp.PermissionResponseAction.DENY,
                 );
               }
-              // Audio capture. The resolver applies the per-site decision,
-              // the on-screen gate and the archive-tier fold, so `real` here
-              // means the user allowed this site and is looking at it. Every
-              // other answer is an explicit DENY rather than the PROMPT
-              // fallback, which iOS 15+/macOS 12+ render as WebKit's own
-              // per-site prompt: a second decision the app does not control
-              // and cannot reconcile with the one it just made.
-              //
-              // The combined resource iOS and macOS report cannot be
-              // half-granted, so it needs both features to say `real`. A page
-              // the microphone shim reached never produces one (the shim
-              // splits the request and asks for audio only), so this is the
-              // backstop for a frame the shim missed or a build without it.
-              Future<bool> opensDevice(
-                CaptureKind kind,
-                String origin, {
-                required bool isTopFrame,
-              }) async =>
-                  opensRealDevice((await grants.capture(kind, origin,
-                          isTopFrame: isTopFrame))
-                      .mode
-                      .state);
-              final wantsMicrophone = request.resources
-                  .contains(inapp.PermissionResourceType.MICROPHONE);
-              final wantsBoth = request.resources.contains(
-                  inapp.PermissionResourceType.CAMERA_AND_MICROPHONE);
-              if (wantsMicrophone || wantsBoth) {
-                final topOrigin = await _promptOrigin(controller, config);
-                final requestOrigin = request.origin.toString();
-                final isTopFrame = _sameOrigin(topOrigin, requestOrigin);
-                final origin = isTopFrame ? topOrigin : requestOrigin;
-                bool granted = await opensDevice(
-                    CaptureKind.microphone, origin,
-                    isTopFrame: isTopFrame);
-                if (granted && wantsBoth) {
-                  granted = await opensDevice(CaptureKind.camera, origin,
+              // Asked lazily: a request the app leaves to the platform needs
+              // no origin.
+              late final where = () async {
+                final top = await _promptOrigin(controller, config);
+                final from = request.origin.toString();
+                final isTopFrame = _sameOrigin(top, from);
+                return (origin: isTopFrame ? top : from, isTopFrame: isTopFrame);
+              }();
+              final cameraAndMicrophone =
+                  inapp.PermissionResourceType.CAMERA_AND_MICROPHONE;
+              final resources = request.resources;
+              final answer = await CapturePermissionEngine.answer((
+                camera: resources.contains(inapp.PermissionResourceType.CAMERA) ||
+                    resources.contains(cameraAndMicrophone),
+                microphone:
+                    resources.contains(inapp.PermissionResourceType.MICROPHONE) ||
+                        resources.contains(cameraAndMicrophone),
+                other: resources.any((r) =>
+                    r != inapp.PermissionResourceType.CAMERA &&
+                    r != inapp.PermissionResourceType.MICROPHONE &&
+                    r != cameraAndMicrophone),
+              ), (
+                opensDevice: (kind) async {
+                  final (:origin, :isTopFrame) = await where;
+                  final grant = await grants.capture(kind, origin,
                       isTopFrame: isTopFrame);
-                }
-                if (granted) {
-                  granted = await MicrophonePermissionService.ensurePermission();
-                }
-                if (granted && wantsBoth) {
-                  granted = await CameraPermissionService.ensurePermission();
-                }
-                return inapp.PermissionResponse(
-                  resources: request.resources,
-                  action: granted
-                      ? inapp.PermissionResponseAction.GRANT
-                      : inapp.PermissionResponseAction.DENY,
-                );
-              }
-              final wantsCameraOnly = request.resources.length == 1 &&
-                  request.resources
-                      .contains(inapp.PermissionResourceType.CAMERA);
-              if (wantsCameraOnly) {
-                final requestOrigin = request.origin.toString();
-                bool granted = await opensDevice(
-                  CaptureKind.camera,
-                  requestOrigin,
-                  isTopFrame: _sameOrigin(
-                    await _promptOrigin(controller, config),
-                    requestOrigin,
-                  ),
-                );
-                if (granted) {
-                  granted = await CameraPermissionService.ensurePermission();
-                }
-                return inapp.PermissionResponse(
-                  resources: [inapp.PermissionResourceType.CAMERA],
-                  action: granted
-                      ? inapp.PermissionResponseAction.GRANT
-                      : inapp.PermissionResponseAction.DENY,
-                );
-              }
+                  return opensRealDevice(grant.mode.state);
+                },
+                cameraPermission: CameraPermissionService.ensurePermission,
+                microphonePermission:
+                    MicrophonePermissionService.ensurePermission,
+              ));
               return inapp.PermissionResponse(
-                resources: request.resources,
-                action: inapp.PermissionResponseAction.PROMPT,
+                resources: resources,
+                action: switch (answer) {
+                  DeviceAnswer.grant => inapp.PermissionResponseAction.GRANT,
+                  DeviceAnswer.deny => inapp.PermissionResponseAction.DENY,
+                  DeviceAnswer.prompt => inapp.PermissionResponseAction.PROMPT,
+                },
               );
             },
       // Android's WebChromeClient asks the app before the WebView reaches the

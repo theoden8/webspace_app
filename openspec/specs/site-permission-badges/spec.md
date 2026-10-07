@@ -70,7 +70,7 @@ the Permissions row, which shows it only there. Notifications carry no engine
 gate: the polyfill answers `granted` whenever the flag is on.
 
 A capture badge at a `real` mode, the microphone's included, SHALL be treated
-as real device access by the badge's `_isRealDeviceAccess`, so it renders in
+as real device access by the badge's `isRealDeviceAccess`, so it renders in
 the theme's error colour alongside `realLocation`. This badge is not decoration: MIC-014 lists
 visibility as one of the clauses that make holding the recording capability
 defensible, and the drawer is the only surface that shows a grant the user

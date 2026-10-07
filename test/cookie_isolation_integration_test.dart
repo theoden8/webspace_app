@@ -46,7 +46,9 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
       : SiteRetentionPriority.loaded;
 
   @override
-  ProxyTopology get proxyTopology => const PerSessionProxy();
+  ProxyTopology get proxyTopology => ProxyTopology.of(
+      linux: false, android: false, routerActive: false,
+      sharesDefaultSession: (_) => false);
 
   @override
   bool get torAvailable => false;

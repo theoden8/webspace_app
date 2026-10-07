@@ -133,7 +133,12 @@ void main() {
         key: ValueKey('passkey-$siteId'),
         posture: barePosture(_rp, siteId: siteId),
         initialUrl: _rp,
-        passkeys: PasskeyAccess(isOnScreen: () => true, backend: backend),
+        passkeys: PasskeyAccess.forHost(
+          enabled: true,
+          isOnScreen: () => true,
+          android: backend == PasskeyBackend.credentialManager,
+          apple: backend == PasskeyBackend.webView,
+        ),
       );
 
   Widget host(List<({WebViewConfig config, void Function(WebViewController) onController})> views) =>

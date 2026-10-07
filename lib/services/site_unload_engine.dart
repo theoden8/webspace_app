@@ -160,21 +160,37 @@ final class ResidencyPlan {
 }
 
 /// How the host scopes a proxy, which decides who contends for it when a
-/// site with another proxy activates (PROXY-008, PROXY-013).
+/// site with another proxy activates (PROXY-008, PROXY-013). Built only by
+/// [ProxyTopology.of], so no caller can name a topology the host and the
+/// router state did not produce.
 sealed class ProxyTopology {
   const ProxyTopology();
+
+  /// Linux has no router. Android is process-global until the router runs;
+  /// [sharesDefaultSession] then names the sites that still share one
+  /// credential. iOS and macOS bind per session.
+  factory ProxyTopology.of({
+    required bool linux,
+    required bool android,
+    required bool routerActive,
+    required bool Function(WebViewModel model) sharesDefaultSession,
+  }) {
+    if (linux) return const ProcessGlobalProxy._();
+    if (routerActive) return RoutedProxy._(sharesDefaultSession);
+    return android ? const ProcessGlobalProxy._() : const PerSessionProxy._();
+  }
 }
 
 /// iOS and macOS bind a proxy per session: nothing contends.
 final class PerSessionProxy extends ProxyTopology {
-  const PerSessionProxy();
+  const PerSessionProxy._();
 }
 
 /// Android without the router, and Linux: one process-global,
 /// last-write-wins override (`ProxyController` fanned across sessions).
 /// Every loaded site contends.
 final class ProcessGlobalProxy extends ProxyTopology {
-  const ProcessGlobalProxy();
+  const ProcessGlobalProxy._();
 }
 
 /// Router mode (PROXY-013): the process-wide rule names the loopback relay
@@ -183,7 +199,7 @@ final class ProcessGlobalProxy extends ProxyTopology {
 /// cached credential every other such site presents too, so exactly that
 /// group still contends.
 final class RoutedProxy extends ProxyTopology {
-  const RoutedProxy(this.sharesDefaultSession);
+  const RoutedProxy._(this.sharesDefaultSession);
 
   final bool Function(WebViewModel model) sharesDefaultSession;
 }

@@ -554,7 +554,12 @@ does not control and cannot reconcile with the per-site one it just made.
 A request reporting `CAMERA_AND_MICROPHONE` (the single resource iOS and macOS
 report for a combined capture) cannot be half-granted, so it SHALL be granted
 only when the effective camera **and** microphone modes are both `real` and
-the site is active, and denied otherwise. MIC-004 covers what the
+the site is active, and denied otherwise. Android reports the same request as
+`CAMERA` plus `MICROPHONE`, and SHALL be answered the same way: the response
+names both resources, so granting it on the microphone decision alone would
+hand over a camera the site was never allowed. The decision is
+`CapturePermissionEngine.answer`, tested in
+`test/capture_permission_engine_test.dart`. MIC-004 covers what the
 page sees in the mixed pairings, which never reach this path.
 
 #### Scenario: An allowed site reaches the device
@@ -573,6 +578,12 @@ page sees in the mixed pairings, which never reach this path.
 
 **Given** a site with `microphoneMode == real` and `cameraMode == block`
 **When** a `CAMERA_AND_MICROPHONE` request arrives on iOS or macOS
+**Then** it is denied
+
+#### Scenario: Android's camera-plus-microphone pair is one request
+
+**Given** a site with `microphoneMode == real` and `cameraMode == block`
+**When** a request naming `CAMERA` and `MICROPHONE` arrives on Android
 **Then** it is denied
 
 ---

@@ -203,7 +203,9 @@ void main() {
               WebViewModel(initUrl: 'https://example.com/', proxySettings: p),
           ],
           loadedIndices: {for (var i = 1; i < proxies.length; i++) i},
-          topology: const ProcessGlobalProxy(),
+          topology: ProxyTopology.of(
+              linux: true, android: false, routerActive: false,
+              sharesDefaultSession: (_) => false),
         );
 
     test('sites on one saved proxy load together', () {

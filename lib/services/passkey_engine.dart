@@ -35,9 +35,10 @@ enum PasskeyBackend {
   webView,
 }
 
-/// A webview's passkey access (PASSKEY-001).
+/// A webview's passkey access (PASSKEY-001). Built only by [forHost], so no
+/// webview skips the per-host backend.
 class PasskeyAccess {
-  const PasskeyAccess({
+  const PasskeyAccess._({
     required this.isOnScreen,
     this.backend = PasskeyBackend.credentialManager,
   });
@@ -53,9 +54,9 @@ class PasskeyAccess {
     bool? apple,
   }) {
     if (!enabled) return null;
-    if (android ?? hostIsAndroid) return PasskeyAccess(isOnScreen: isOnScreen);
+    if (android ?? hostIsAndroid) return PasskeyAccess._(isOnScreen: isOnScreen);
     if (apple ?? hostIsApple) {
-      return PasskeyAccess(
+      return PasskeyAccess._(
           isOnScreen: isOnScreen, backend: PasskeyBackend.webView);
     }
     return null;
