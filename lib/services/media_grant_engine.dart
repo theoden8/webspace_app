@@ -18,11 +18,10 @@ import 'package:webspace/utils/concurrency.dart';
 abstract interface class MediaPrompter {
   /// Shows the popup, or the picker for a site already set to `virtual` with
   /// no file, and returns the answer. `ask` means dismissed.
-  Future<CaptureGrant<M, S>>
-  capture<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
+  Future<CaptureGrant> capture(
+    CaptureKind kind,
     String origin,
-    M current,
+    CaptureMode current,
   );
 
   /// The Allow/Block popup for Widevine/EME (`PROTECTED_MEDIA_ID`).
@@ -57,14 +56,14 @@ sealed class GrantStore {
   /// One popup per burst: capture libraries retry `getUserMedia`. Keyed by
   /// prompt origin, so a subframe never rides the answer the user gave for
   /// the top document.
-  final _inFlight = SingleFlight<(CaptureKind, String), AnyCaptureGrant>();
+  final _inFlight = SingleFlight<(CaptureKind, String), CaptureGrant>();
 
   /// A subframe's answer is not persisted, but it has to outlive its popup by
   /// a moment: allowing a frame makes the shim call the real `getUserMedia`,
   /// and the platform permission request that follows arrives milliseconds
   /// later for the same origin. Keyed by prompt origin, so it only hands back
   /// the answer given for that exact frame.
-  final _recentSubframe = <(CaptureKind, String), (DateTime, AnyCaptureGrant)>{};
+  final _recentSubframe = <(CaptureKind, String), (DateTime, CaptureGrant)>{};
 
   static const Duration _subframeGrace = Duration(seconds: 30);
 
@@ -88,50 +87,43 @@ sealed class GrantStore {
   /// so a subframe does not inherit it and is asked under its own origin,
   /// and a subframe's answer is never written back to the site (CAM-014 /
   /// MIC-016). The device-free answers are inherited as they are.
-  Future<AnyCaptureGrant> capture(
+  Future<CaptureGrant> capture(
     CaptureKind kind,
     String origin, {
     required bool isTopFrame,
-  }) {
-    Future<AnyCaptureGrant> decide<M extends CaptureMode, S extends VirtualSource>(
-      CaptureKind<M, S> kind,
-    ) async {
-      if (!isSiteActive()) return (mode: kind.block, source: null);
-      final current = kind.grantOf(media.capture);
-      final settled = _settled(current, isTopFrame: isTopFrame);
-      if (settled != null) return settled;
-      final key = (kind, origin);
-      if (!isTopFrame) {
-        final recent = _takeRecentSubframe(key);
-        if (recent != null) return recent;
-      }
-      return _inFlight.run(key, () async {
-        final answer = await prompter.capture(kind, origin, current.mode);
-        if (isTopFrame) {
-          _recordCaptures((stored) => kind.withGrant(stored, (
-            mode: answer.mode,
-            source: answer.source ?? kind.grantOf(stored).source,
-          )));
-          await _save();
-        } else {
-          _recentSubframe[key] = (DateTime.now(), answer);
-        }
-        // A cancelled pick falls back to the file already on record rather
-        // than serving nothing.
-        return (
-          mode: answer.mode,
-          source: answer.source ?? kind.grantOf(media.capture).source,
-        );
-      });
+  }) async {
+    if (!isSiteActive()) return (mode: kind.block, source: null);
+    final current = kind.grantOf(media.capture);
+    final settled = _settled(current, isTopFrame: isTopFrame);
+    if (settled != null) return settled;
+    final key = (kind, origin);
+    if (!isTopFrame) {
+      final recent = _takeRecentSubframe(key);
+      if (recent != null) return recent;
     }
-
-    return kind.open(decide);
+    return _inFlight.run(key, () async {
+      final answer = await prompter.capture(kind, origin, current.mode);
+      if (isTopFrame) {
+        _recordCaptures((stored) => kind.withGrant(stored, (
+          mode: answer.mode,
+          source: answer.source ?? kind.grantOf(stored).source,
+        )));
+        await _save();
+      } else {
+        _recentSubframe[key] = (DateTime.now(), answer);
+      }
+      // A cancelled pick falls back to the file already on record rather
+      // than serving nothing.
+      return (
+        mode: answer.mode,
+        source: answer.source ?? kind.grantOf(media.capture).source,
+      );
+    });
   }
 
   /// The answer that needs no popup, or null when the user must be asked.
-  static CaptureGrant<M, S>?
-  _settled<M extends CaptureMode, S extends VirtualSource>(
-    CaptureGrant<M, S> grant, {
+  static CaptureGrant? _settled(
+    CaptureGrant grant, {
     required bool isTopFrame,
   }) => switch (grant.mode.state) {
     SitePermissionState.blocked => (mode: grant.mode, source: null),
@@ -142,7 +134,7 @@ sealed class GrantStore {
   };
 
   /// Expired entries are dropped as they are found rather than on a timer.
-  AnyCaptureGrant? _takeRecentSubframe((CaptureKind, String) key) {
+  CaptureGrant? _takeRecentSubframe((CaptureKind, String) key) {
     final now = DateTime.now();
     _recentSubframe.removeWhere(
       (_, e) => now.difference(e.$1) > _subframeGrace,

@@ -12,6 +12,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Full-screen picker for [LocationPickerResult] (lat/lng + accuracy).
 ///
@@ -169,45 +170,34 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     if (!mounted) return;
     final loc = AppLocalizations.of(context);
     setState(() => _fetchingLocation = false);
-    switch (res.status) {
-      case CurrentLocationStatus.ok:
-        final fix = res.fix!;
-        setState(() {
-          _latController.text = fix.latitude.toStringAsFixed(6);
-          _lngController.text = fix.longitude.toStringAsFixed(6);
-          if (fix.accuracy > 0) {
-            _accController.text = fix.accuracy.toStringAsFixed(1);
-          }
-        });
-        if (_mapLoaded) {
-          try {
-            _mapController.move(LatLng(fix.latitude, fix.longitude), 14.0);
-          } catch (_) {}
-        }
-        break;
-      case CurrentLocationStatus.permissionDenied:
-        _showSnack(loc.locationPickerPermissionDenied);
-        break;
-      case CurrentLocationStatus.permissionDeniedForever:
-        _showSnack(loc.locationPickerPermissionDeniedForever);
-        break;
-      case CurrentLocationStatus.serviceDisabled:
-        _showSnack(loc.locationPickerServiceDisabled);
-        break;
-      case CurrentLocationStatus.timeout:
-        _showSnack(loc.locationPickerTimeout);
-        break;
-      case CurrentLocationStatus.unsupported:
-        _showSnack(loc.locationPickerUnsupported);
-        break;
-      case CurrentLocationStatus.error:
-        _showSnack(res.message ?? loc.locationPickerError);
-        break;
+    final failure = switch (res.status) {
+      CurrentLocationStatus.ok => null,
+      CurrentLocationStatus.permissionDenied =>
+        loc.locationPickerPermissionDenied,
+      CurrentLocationStatus.permissionDeniedForever =>
+        loc.locationPickerPermissionDeniedForever,
+      CurrentLocationStatus.serviceDisabled => loc.locationPickerServiceDisabled,
+      CurrentLocationStatus.timeout => loc.locationPickerTimeout,
+      CurrentLocationStatus.unsupported => loc.locationPickerUnsupported,
+      CurrentLocationStatus.error => res.message ?? loc.locationPickerError,
+    };
+    if (failure != null) {
+      ScaffoldMessenger.of(context).toast(failure);
+      return;
     }
-  }
-
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    final fix = res.fix!;
+    setState(() {
+      _latController.text = fix.latitude.toStringAsFixed(6);
+      _lngController.text = fix.longitude.toStringAsFixed(6);
+      if (fix.accuracy > 0) {
+        _accController.text = fix.accuracy.toStringAsFixed(1);
+      }
+    });
+    if (_mapLoaded) {
+      try {
+        _mapController.move(LatLng(fix.latitude, fix.longitude), 14.0);
+      } catch (_) {}
+    }
   }
 
   String _hostOfTileUrl() {
@@ -234,8 +224,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             onPressed: () {
               final p = _currentLatLng();
               if (p == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(loc.locationPickerEnterValidCoords)),
+                ScaffoldMessenger.of(context).toast(
+                  loc.locationPickerEnterValidCoords,
                 );
                 return;
               }
@@ -369,11 +359,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               label: Text(loc.locationPickerLoadMap),
               onPressed: () {
                 if (!_ensureTileClient()) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_tileBlockedReason ??
-                          loc.locationPickerTilesBlocked),
-                    ),
+                  ScaffoldMessenger.of(context).toast(
+                    _tileBlockedReason ?? loc.locationPickerTilesBlocked,
                   );
                   return;
                 }

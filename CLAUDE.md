@@ -60,7 +60,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js, frames:)`; `ShimFrames` has no default |
 | `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |
 | `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |
-| `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | generic enum with typed lenses; sealed `GrantStore` |
+| `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | enum over three mode enums, `grantOf`/`withGrant` switches; sealed `GrantStore` |
 | `AppPref` (`settings/app_prefs.dart`) | every global pref, its default, what a backup carries | `AppPref.x.value` / `.set(v)`; backups iterate `AppPref.values` |
 | `SecureJsonStore` / `Keystores` / `KeychainAead` | secrets at rest and their keychain options | `SecureJsonStore<T>` on a `Keystores` set |
 | `host_platform` (`platform/`) | dart:io primitives, importable from plain Dart | conditional export |
@@ -76,7 +76,7 @@ Debt, files importing upward (the gate's list, target 0): services → model (en
 | per-site field | 3 | ~7 edits, 4 files | `SitePosture` group; debt: a field registry for the model's constructor, `toJson`, `fromJson` |
 | pref | 2 | 2 | `AppPref` |
 | capture kind | ~5 files | ~5 files | `CaptureKind` |
-| settings row | 1–3 lines | 1–3 | `SettingTile` / `EnumTile` |
+| settings row | 1–3 lines | 1–3 | `SettingTile` / `ChoiceTile` |
 | secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
 
 Flag for review before changing: persisted formats, the Dart to page-script bridge, any join above.
@@ -446,12 +446,13 @@ Build the row from [lib/widgets/setting_tile.dart](lib/widgets/setting_tile.dart
 `SettingTile(title:, hint:, subtitle:, control:, lock:)`, or `HintedTitle` where
 a row is not a list tile. `hint` is required (pass `null` for none), `control`
 is `Toggle`/`Opens`/`Trailing`, and a row another setting decides takes a
-sealed `Lock` (Tracking Protection, archive, app-wide, not downloaded,
-platform), which disables it and puts the reason in the subtitle. A mode picker
-is an `EnumTile` labelled by a `switch` extension in
+`Lock` (`TrackingProtectionLock`, `ArchiveLock`, or `Lock.because(text)`),
+which disables it and puts the reason in the subtitle. A mode picker
+is a `ChoiceTile` labelled by a `switch` extension in
 [lib/settings/setting_labels.dart](lib/settings/setting_labels.dart); a
 per-site value that may follow the app-wide one is a `Scoped<T>`
-(`FollowApp`/`Own`). Yes/no dialogs go through `confirm()`, and a screen with a
+(`FollowApp`/`Own`). Yes/no dialogs go through `confirm()`, SnackBars through
+`toast` ([lib/widgets/toast.dart](lib/widgets/toast.dart)), and a screen with a
 Save action mixes in `DirtyGuard` (a record snapshot), which
 `test/js/site_settings_dirty_snapshot.test.js` enforces.
 
@@ -539,7 +540,7 @@ DNS blocklist, content blocker, LocalCDN need a downloaded blob.
 
 - **Per-site strength**: both blockers are also adjustable per site, as masks over the app-wide configuration — `WebViewModel.dnsBlockLevel` (null = follow the app level) and `disabledFilterLists`. A mask can only relax: a level's list is fetched on demand and falls back to the app level until it lands, and a filter list not enabled app-wide is not in the engine at all. **The Hagezi levels do not nest** (21,921 of 297,756 domains drop out of a higher level), so each domain carries a bit per level that names it rather than a single "lowest level"; anything else makes the app-wide level's behaviour depend on which per-site levels were downloaded. See [dns_level_mask_engine.dart](lib/services/dns_level_mask_engine.dart) and [filter_list_mask.dart](lib/services/filter_list_mask.dart).
 - **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, its row sets `SettingTile.missingData`: a warning icon beside the title and an amber "Not configured" subtitle (also on the Tracking Protection card when a forced dep is unconfigured).
-- **LocalCDN**: still hard-gated by a `NotDownloadedLock` — it can't serve anything without a cache, so the switch is greyed and its `value` forced off.
+- **LocalCDN**: still hard-gated by a `Lock` — it can't serve anything without a cache, so the switch is greyed and its `value` forced off.
 - See [lib/screens/site_privacy.dart](lib/screens/site_privacy.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.
 - **App Settings rows for the data**: each dataset is a `DownloadableDataset` adapter in [lib/settings/datasets.dart](lib/settings/datasets.dart) rendered by one `DatasetTile`, which owns the busy state, the date line, the buttons and the SnackBar. A new downloaded dataset is a new adapter, not a new row.
 

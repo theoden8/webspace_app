@@ -47,7 +47,8 @@ order location, camera, microphone, screen sharing, notifications, protected
 content, background audio. That is every grant the site settings'
 Permissions row counts as held, in the row's order, plus background audio:
 a user who sees a grant listed in the row finds the same grant badged in the
-drawer.
+drawer. Both are built by `heldBadges(HeldGrants)`, the row passing a subset
+of what the drawer does, so the row cannot list a grant the drawer lacks.
 
 | Badge | Condition |
 |---|---|

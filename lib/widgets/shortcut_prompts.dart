@@ -4,6 +4,7 @@ import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// [ShortcutPrompts] as dialogs over the page that owns [context].
 class DialogShortcutPrompts implements ShortcutPrompts {
@@ -14,27 +15,13 @@ class DialogShortcutPrompts implements ShortcutPrompts {
   AppLocalizations get _loc => AppLocalizations.of(context);
 
   @override
-  Future<bool> confirmOpen(String siteName) async {
-    final loc = _loc;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeShortcutConfirmOpenTitle),
-        content: Text(loc.homeShortcutConfirmOpenBody(siteName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(loc.commonOpen),
-          ),
-        ],
-      ),
-    );
-    return ok == true;
-  }
+  Future<bool> confirmOpen(String siteName) => confirm(
+    context,
+    title: _loc.homeShortcutConfirmOpenTitle,
+    body: _loc.homeShortcutConfirmOpenBody(siteName),
+    confirmLabel: _loc.commonOpen,
+    destructive: false,
+  );
 
   @override
   Future<MissingShortcutChoice?> missingSite(String url) {
@@ -171,27 +158,13 @@ class DialogShortcutPrompts implements ShortcutPrompts {
   }
 
   @override
-  Future<bool> confirmMacosShortcut(String siteName) async {
-    final loc = _loc;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeAddShortcutTitleMacos),
-        content: Text(loc.homeAddShortcutMacosBody(siteName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(loc.homeOpenShortcuts),
-          ),
-        ],
-      ),
-    );
-    return confirmed == true;
-  }
+  Future<bool> confirmMacosShortcut(String siteName) => confirm(
+    context,
+    title: _loc.homeAddShortcutTitleMacos,
+    body: _loc.homeAddShortcutMacosBody(siteName),
+    confirmLabel: _loc.homeOpenShortcuts,
+    destructive: false,
+  );
 }
 
 /// HS-010: native AppIntents `ShortcutsUIButton` (iOS 16+) that opens

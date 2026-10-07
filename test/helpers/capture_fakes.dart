@@ -5,9 +5,9 @@ import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/web_view_model.dart';
 
-/// A file of [kind]'s medium, at [kind]'s own source type.
-S pickedFor<M extends CaptureMode, S extends VirtualSource>(
-  CaptureKind<M, S> kind, {
+/// A file of [kind]'s medium.
+VirtualSource pickedFor(
+  CaptureKind kind, {
   String fileName = 'picked.bin',
 }) => kind.medium.fromPick((
   dataUrl: 'data:application/octet-stream;base64,AAAA',
@@ -55,11 +55,10 @@ final class FakePrompter implements MediaPrompter {
   int drmAsked = 0;
 
   @override
-  Future<CaptureGrant<M, S>>
-  capture<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
+  Future<CaptureGrant> capture(
+    CaptureKind kind,
     String origin,
-    M current,
+    CaptureMode current,
   ) async {
     asked.add((kind, origin, current));
     final choice = answer;

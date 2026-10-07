@@ -6,6 +6,32 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/proxy_library.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 
+/// What a proxy form asks for under each type. Exhaustive, so a new type
+/// says here whether it carries an address before any form can offer it.
+extension ProxyTypeForm on ProxyType {
+  /// Whether the manual route fields show. TOR supplies its own loopback
+  /// address and stream-isolation auth, and a saved proxy its whole route,
+  /// so the fields are inert under either: hidden, not cleared, so a stored
+  /// SOCKS5 config survives the trip (PROXY-010).
+  bool get showsRouteFields => switch (this) {
+    ProxyType.HTTP ||
+    ProxyType.HTTPS ||
+    ProxyType.SOCKS5 ||
+    ProxyType.GATEWAY => true,
+    ProxyType.DEFAULT || ProxyType.TOR || ProxyType.SAVED => false,
+  };
+
+  /// Whether the form checks a typed address. A saved proxy or gateway was
+  /// checked where it was saved; TOR has no address to type.
+  bool get typesAddress => switch (this) {
+    ProxyType.HTTP || ProxyType.HTTPS || ProxyType.SOCKS5 => true,
+    ProxyType.DEFAULT ||
+    ProxyType.TOR ||
+    ProxyType.SAVED ||
+    ProxyType.GATEWAY => false,
+  };
+}
+
 /// What a proxy picker chose: a type, and the library entry it names under
 /// [ProxyType.SAVED] or [ProxyType.GATEWAY].
 class ProxyChoice {

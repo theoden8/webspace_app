@@ -13,6 +13,7 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Turns developer mode on or off, with everything it decides.
 Future<void> setDeveloperMode(bool value) async {
@@ -116,7 +117,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
     final messenger = ScaffoldMessenger.of(context);
     final cleared = AppLocalizations.of(context).appSettingsIconCacheCleared;
     await FaviconUrlCache.resetAll();
-    messenger.showSnackBar(SnackBar(content: Text(cleared)));
+    messenger.toast(cleared);
   }
 
   @override
@@ -126,23 +127,23 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
       appBar: AppBar(title: Text(loc.appSettingsDeveloper)),
       body: ListView(
         children: [
-          SwitchListTile(
-            secondary: const Icon(Icons.developer_mode),
-            title: HintedTitle(loc.appSettingsDeveloperMode,
-                hint: loc.appSettingsDeveloperModeHint),
-            value: !_turningOff,
-            onChanged: _turningOff
-                ? null
-                : (value) {
-                    if (!value) _turnOff();
-                  },
+          SettingTile(
+            leading: const Icon(Icons.developer_mode),
+            title: loc.appSettingsDeveloperMode,
+            hint: loc.appSettingsDeveloperModeHint,
+            lock: _turningOff ? const Lock.because(null) : null,
+            control: Toggle(!_turningOff, (value) {
+              if (!value) _turnOff();
+            }),
           ),
           SettingsSection(loc.devToolsTabLogs),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.article_outlined),
-            title: Text(loc.appSettingsAppLogs),
-            subtitle: Text(loc.appSettingsAppLogsSubtitle),
-            onTap: () => guardedOpen(() => openAppLogs(context)),
+            title: loc.appSettingsAppLogs,
+            hint: null,
+            subtitle: loc.appSettingsAppLogsSubtitle,
+            control: Trailing(null,
+                onTap: () => guardedOpen(() => openAppLogs(context))),
           ),
           SettingTile(
             key: const Key('app-settings-background-log'),

@@ -18,6 +18,7 @@ import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
 /// The App Settings summary of the app-wide route: where traffic goes, and
@@ -138,15 +139,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
 
   String? _validateOutboundProxyAddress(String value) {
     final loc = AppLocalizations.of(context);
-    // TOR carries no address of its own, so there is nothing to type and
-    // nothing to validate. Without this the save below refuses an empty
-    // field and global Tor cannot be turned on at all.
-    if (_outboundProxy.type == ProxyType.DEFAULT ||
-        _outboundProxy.type == ProxyType.TOR ||
-        _outboundProxy.type == ProxyType.SAVED ||
-        _outboundProxy.type == ProxyType.GATEWAY) {
-      return null;
-    }
+    if (!_outboundProxy.type.typesAddress) return null;
     final trimmed = value.trim();
     if (trimmed.isEmpty) return loc.appSettingsProxyAddressRequired;
     final parts = trimmed.split(':');
@@ -187,7 +180,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     if (_outboundProxy.type != ProxyType.DEFAULT) {
       final err = _validateOutboundProxyAddress(address);
       if (err != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+        ScaffoldMessenger.of(context).toast(err);
         return;
       }
     }
@@ -245,9 +238,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     }
     if (mounted && changed) {
       final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsOutboundProxyUpdated)),
-      );
+      ScaffoldMessenger.of(context).toast(loc.appSettingsOutboundProxyUpdated);
     }
   }
 
@@ -318,9 +309,10 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
               subtitle: loc.savedProxiesCount(ProxyLibrary.data.length),
               control: Opens(() => guardedOpen(_openSavedProxies)),
             ),
-            ListTile(
-              title: Text(loc.appSettingsProxyType),
-              trailing: ProxyChoiceDropdown(
+            SettingTile(
+              title: loc.appSettingsProxyType,
+              hint: null,
+              control: Trailing(ProxyChoiceDropdown(
                 type: _outboundProxy.type,
                 savedProxyId: _outboundProxy.savedProxyId,
                 gatewayId: _outboundProxy.gatewayId,
@@ -347,7 +339,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                   });
                   _saveOutboundProxy();
                 },
-              ),
+              )),
             ),
             if (_outboundProxy.type == ProxyType.SAVED ||
                 _outboundProxy.type == ProxyType.GATEWAY)
@@ -364,9 +356,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                   );
                 }),
               ),
-            if (_outboundProxy.type != ProxyType.DEFAULT &&
-                _outboundProxy.type != ProxyType.TOR &&
-                _outboundProxy.type != ProxyType.SAVED)
+            if (_outboundProxy.type.showsRouteFields)
               ProxyRouteFields(
                 type: _outboundProxy.type,
                 gatewayId: _outboundProxy.gatewayId,

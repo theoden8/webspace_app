@@ -8,9 +8,11 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// The app-wide filter lists every site's content blocker draws on: which are
 /// on, adding and importing lists, and how `$redirect` rules are served.
@@ -49,14 +51,12 @@ class _ContentBlockerSettingsScreenState
       if (success) {
         final list = ContentBlockerService.instance.lists
             .firstWhere((l) => l.id == id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(loc.appSettingsFilterListRules(
-                  list.name, compactCount(list.ruleCount)))),
+        ScaffoldMessenger.of(context).toast(
+          loc.appSettingsFilterListRules(list.name, compactCount(list.ruleCount)),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.appSettingsFilterListDownloadFailed)),
+        ScaffoldMessenger.of(context).toast(
+          loc.appSettingsFilterListDownloadFailed,
         );
       }
     }
@@ -75,8 +75,8 @@ class _ContentBlockerSettingsScreenState
       });
 
       final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsFilterListsUpdated(count))),
+      ScaffoldMessenger.of(context).toast(
+        loc.appSettingsFilterListsUpdated(count),
       );
     }
   }
@@ -238,8 +238,7 @@ class _ContentBlockerSettingsScreenState
     }
     final backup = text == null ? null : UboBackup.parse(text);
     if (backup == null) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(loc.appSettingsUboNotABackup)));
+      messenger.toast(loc.appSettingsUboNotABackup);
       return;
     }
     if (!mounted) return;
@@ -256,8 +255,7 @@ class _ContentBlockerSettingsScreenState
     setState(() => _downloadingListId = null);
 
     if (plan.isEmpty) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(loc.appSettingsUboImportNothing)));
+      messenger.toast(loc.appSettingsUboImportNothing);
       return;
     }
 
@@ -284,49 +282,38 @@ class _ContentBlockerSettingsScreenState
         loc.appSettingsUboImportDroppedRules(plan.droppedRuleCount),
     ];
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.appSettingsUboImportTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (listCount > 0) Text(loc.appSettingsUboImportLists(listCount)),
-              if (plan.userFilters != null) ...[
-                const SizedBox(height: 8),
-                Text(loc.appSettingsUboImportUserFilters(userRuleCount)),
-              ],
-              if (sites.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(loc.appSettingsUboImportTrustedSites(siteNames)),
-              ],
-              if (skipped.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(loc.appSettingsUboImportSkippedHeader,
-                    style: Theme.of(context).textTheme.titleSmall),
-                for (final line in skipped) ...[
-                  const SizedBox(height: 4),
-                  Text(line, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ],
+    final theme = Theme.of(context).textTheme;
+    final confirmed = await confirm(
+      context,
+      title: loc.appSettingsUboImportTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (listCount > 0) Text(loc.appSettingsUboImportLists(listCount)),
+          if (plan.userFilters != null) ...[
+            const SizedBox(height: 8),
+            Text(loc.appSettingsUboImportUserFilters(userRuleCount)),
+          ],
+          if (sites.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(loc.appSettingsUboImportTrustedSites(siteNames)),
+          ],
+          if (skipped.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(loc.appSettingsUboImportSkippedHeader,
+                style: theme.titleSmall),
+            for (final line in skipped) ...[
+              const SizedBox(height: 4),
+              Text(line, style: theme.bodySmall),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.homeImportAction),
-          ),
+          ],
         ],
       ),
+      confirmLabel: loc.homeImportAction,
+      destructive: false,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     setState(() => _downloadingListId = '__all__');
     final toDownload = await service.applyUboImport(plan,
@@ -340,9 +327,9 @@ class _ContentBlockerSettingsScreenState
     }
     if (!mounted) return;
     setState(() => _downloadingListId = null);
-    messenger.showSnackBar(SnackBar(
-        content: Text(
-            loc.appSettingsUboImportDone(downloaded, toDownload.length))));
+    messenger.toast(
+      loc.appSettingsUboImportDone(downloaded, toDownload.length),
+    );
   }
 
   @override
@@ -478,7 +465,7 @@ class _ContentBlockerSettingsScreenState
             hint: loc.appSettingsUboRedirectStubsSubtitle,
             lock: ContentBlockerService.instance.rustEngineSupportedOnPlatform
                 ? null
-                : PlatformLock(loc.appSettingsUboRedirectStubsUnavailable),
+                : Lock.because(loc.appSettingsUboRedirectStubsUnavailable),
             control: Toggle(ContentBlockerService.instance.useUboResources,
                 (value) async {
               await ContentBlockerService.instance.setUseUboResources(value);

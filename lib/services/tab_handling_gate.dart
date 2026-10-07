@@ -16,18 +16,30 @@ import 'dart:async';
 
 import 'package:webspace/services/reentry_guard.dart';
 
-class TabHandlingGate extends ReentryGuard {
+final class TabHandlingGate {
   TabHandlingGate(this._schedule);
 
   /// How deferred work is run once the gate is released: a microtask in the
   /// app, so it never runs inside the releasing handler's `finally`.
   final void Function(void Function() run) _schedule;
 
+  final _guard = ReentryGuard();
   void Function()? _deferred;
   Completer<void>? _idle;
 
-  @override
-  void onReleased() {
+  bool get busy => _guard.busy;
+
+  /// [ReentryGuard.run], then wakes what waited for the release.
+  Future<bool> run(Future<void> Function() body) async {
+    if (busy) return false;
+    try {
+      return await _guard.run(body);
+    } finally {
+      _released();
+    }
+  }
+
+  void _released() {
     final waiting = _idle;
     _idle = null;
     waiting?.complete();

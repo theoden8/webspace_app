@@ -8,6 +8,7 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart' show SiteIdLine;
@@ -36,7 +37,7 @@ class SiteBehaviourValues {
     this.searchAddress,
     this.searchesWeb = false,
     this.searchSites = const [],
-    this.searchDefault,
+    this.searchDefault = const FollowApp(),
   });
 
   /// Not edited here: an archive-tier site runs with the archive's posture
@@ -55,7 +56,7 @@ class SiteBehaviourValues {
   final String? searchAddress;
   final bool searchesWeb;
   final List<String> searchSites;
-  final String? searchDefault;
+  final Scoped<String> searchDefault;
 
   static const Object _keep = Object();
 
@@ -71,7 +72,7 @@ class SiteBehaviourValues {
     Object? searchAddress = _keep,
     bool? searchesWeb,
     List<String>? searchSites,
-    Object? searchDefault = _keep,
+    Scoped<String>? searchDefault,
   }) =>
       SiteBehaviourValues(
         archived: archived,
@@ -88,9 +89,7 @@ class SiteBehaviourValues {
             : searchAddress as String?,
         searchesWeb: searchesWeb ?? this.searchesWeb,
         searchSites: searchSites ?? this.searchSites,
-        searchDefault: identical(searchDefault, _keep)
-            ? this.searchDefault
-            : searchDefault as String?,
+        searchDefault: searchDefault ?? this.searchDefault,
       );
 
   bool effectiveAlwaysOpenHome(bool incognito) => resolveAlwaysOpenHome(
@@ -187,7 +186,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         title: loc.siteSettingsAlwaysOpenHome,
         hint: loc.siteSettingsAlwaysOpenHomeHint,
         lock: widget.incognito
-            ? RequiresLock(loc.siteSettingsAlwaysOpenHomeForced)
+            ? Lock.because(loc.siteSettingsAlwaysOpenHomeForced)
             : null,
         control: Toggle(_values.effectiveAlwaysOpenHome(widget.incognito),
             (value) => _update(_values.copyWith(alwaysOpenHome: value))),
@@ -247,7 +246,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
             : loc.siteSettingsRouteOutboundLinksHint,
         lock: widget.containersActive
             ? null
-            : PlatformLock(loc.siteSettingsRouteOutboundLinksNeedsContainers),
+            : Lock.because(loc.siteSettingsRouteOutboundLinksNeedsContainers),
         control: Toggle(_values.routeOutboundLinks,
             (value) => _update(_values.copyWith(routeOutboundLinks: value))),
       );
@@ -283,7 +282,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        EnumTile(
+        ChoiceTile(
           title: loc.siteSettingsExternalLinks,
           hint: loc.siteSettingsExternalLinksHint,
           values: ExternalLinkMode.values,
@@ -381,7 +380,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
   }
 
   Widget _searchDefaultRow(AppLocalizations loc) {
-    final name = _nameOf(_values.searchDefault);
+    final name = _nameOf(_values.searchDefault.stored);
     return SettingTile(
       title: loc.webSearchFromSiteTitle,
       hint: loc.webSearchFromSiteHint,
@@ -393,7 +392,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           builder: (ctx) => SearchSiteChoiceDialog(
             title: loc.webSearchFromSiteTitle,
             noneLabel: loc.webSearchUseAppDefault,
-            selected: _values.searchDefault ?? appDefault,
+            selected: _values.searchDefault.resolve(appDefault),
             sites: [
               for (final m in _webSearchSites)
                 (
@@ -406,7 +405,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         );
         if (picked == null) return;
         _update(_values.copyWith(
-          searchDefault: picked == appDefault ? null : picked,
+          searchDefault: picked == appDefault ? const FollowApp() : Own(picked),
         ));
       }),
     );
@@ -432,14 +431,15 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           ),
         );
         if (picked == null) return;
-        final def = _values.searchDefault;
         _update(_values.copyWith(
           searchSites: picked,
           // A default the list no longer offers falls back to the app's.
-          searchDefault:
-              def != null && picked.isNotEmpty && !picked.contains(def)
-                  ? null
-                  : def,
+          searchDefault: switch (_values.searchDefault) {
+            Own(:final value)
+                when picked.isNotEmpty && !picked.contains(value) =>
+              const FollowApp(),
+            final kept => kept,
+          },
         ));
       }),
     );

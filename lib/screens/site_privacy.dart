@@ -15,6 +15,7 @@ import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/widgets/level_slider.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/stat_chip.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Everything the privacy screen may change, in one value so the caller can
 /// apply a whole edit in a single `setState`.
@@ -160,10 +161,8 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   /// would read as the feature being broken.
   void _warnNotConfigured(String feature) {
     final loc = AppLocalizations.of(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(loc.siteSettingsBlockerNotConfiguredWarning(feature)),
-      ),
+    ScaffoldMessenger.of(context).toast(
+      loc.siteSettingsBlockerNotConfiguredWarning(feature),
     );
   }
 
@@ -339,16 +338,14 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
   /// and evaluating against the tiers anyway would block nothing.
   Future<void> _downloadLevel(int level) async {
     setState(() => _downloadingLevel = level);
-    _snack(AppLocalizations.of(context).siteSettingsDnsLevelDownloading);
+    final loc = AppLocalizations.of(context);
+    ScaffoldMessenger.of(context).toast(loc.siteSettingsDnsLevelDownloading);
     final ok = await DnsBlockService.instance.downloadLevel(level);
     if (!mounted) return;
     setState(() => _downloadingLevel = null);
-    if (!ok) _snack(AppLocalizations.of(context).siteSettingsDnsLevelDownloadFailed);
-  }
-
-  void _snack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    if (!ok) {
+      ScaffoldMessenger.of(context).toast(loc.siteSettingsDnsLevelDownloadFailed);
+    }
   }
 
   Widget _contentBlockerLists(AppLocalizations loc) {
@@ -418,7 +415,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
       subtitle: loc.siteSettingsLocalCdnResourceCount(
           LocalCdnService.instance.resourceCount),
       lock: !hasCache
-          ? NotDownloadedLock(loc.siteSettingsLocalCdnNeedsCache)
+          ? Lock.because(loc.siteSettingsLocalCdnNeedsCache)
           : _values.archived
               ? const ArchiveLock()
               : _umbrella(TrackingProtectionForce.localCdn),
@@ -460,7 +457,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
         hint: loc.siteSettingsWindowSizeHelper,
         lock: _values.trackingProtectionEnabled
             ? null
-            : RequiresLock(loc.siteSettingsNeedsTrackingProtection),
+            : Lock.because(loc.siteSettingsNeedsTrackingProtection),
         control: Toggle(
             _values.letterboxEnabled && _values.trackingProtectionEnabled,
             (value) => _update(_values.copyWith(letterboxEnabled: value))),
@@ -505,7 +502,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
         title: loc.siteSettingsBlockScreenshots,
         hint: loc.siteSettingsBlockScreenshotsHint,
         lock: AppPref.blockScreenshots.value
-            ? AppWideLock(loc.siteSettingsBlockScreenshotsAppWide)
+            ? Lock.because(loc.siteSettingsBlockScreenshotsAppWide)
             : null,
         control: Toggle(_values.effectiveBlockScreenshots,
             (value) => _update(_values.copyWith(blockScreenshots: value))),

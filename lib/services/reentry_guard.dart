@@ -1,7 +1,7 @@
 /// Re-entry guard for an async handler that can be entered again before its
 /// first call resolves: a double tap, a lifecycle event firing twice. [run]
 /// owns the `finally` that releases it, so no exit path leaves it held.
-class ReentryGuard {
+final class ReentryGuard {
   bool _busy = false;
 
   bool get busy => _busy;
@@ -14,11 +14,7 @@ class ReentryGuard {
       await body();
     } finally {
       _busy = false;
-      onReleased();
     }
     return true;
   }
-
-  /// Called after every release.
-  void onReleased() {}
 }

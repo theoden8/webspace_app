@@ -11,6 +11,7 @@ import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// The edit the user saved: the trimmed name, the URL with its scheme
 /// inferred, and the icon only when one was picked or reset.
@@ -37,20 +38,13 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
   late Uint8List? _icon = widget.site.customIconPng;
   var _iconChanged = false;
   final _iconPick = ReentryGuard();
-  var _refreshing = false;
+  final _refresh = ReentryGuard();
 
   @override
   void dispose() {
     _name.dispose();
     _url.dispose();
     super.dispose();
-  }
-
-  void _toast(String Function(AppLocalizations loc) message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message(AppLocalizations.of(context)))),
-    );
   }
 
   Future<void> _pickIcon() => _iconPick.run(() async {
@@ -68,11 +62,13 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
     final processed = raw == null
         ? null
         : await processCustomIconImageAsync(raw);
+    if (!mounted) return;
     if (processed == null) {
-      _toast((loc) => loc.addSiteFileReadError);
+      ScaffoldMessenger.of(context).toast(
+        AppLocalizations.of(context).addSiteFileReadError,
+      );
       return;
     }
-    if (!mounted) return;
     setState(() {
       _icon = processed;
       _iconChanged = true;
@@ -80,20 +76,21 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
   });
 
   Future<void> _refreshTitleAndIcon() async {
-    setState(() => _refreshing = true);
-    final site = widget.site;
-    // Invalidating the favicon cache re-fetches the preview
-    // (UnifiedFaviconImage listens for it); the fetched title lands in the
-    // name field, applied on Save like any other edit.
-    await FaviconUrlCache.invalidate(site.initUrl);
-    final title = await getPageTitle(site.initUrl, proxy: site.proxySettings);
-    if (!mounted) return;
-    final found = title != null && title.isNotEmpty;
-    setState(() {
-      if (found) _name.text = title;
-      _refreshing = false;
+    await _refresh.run(() async {
+      setState(() {});
+      final site = widget.site;
+      // Invalidating the favicon cache re-fetches the preview
+      // (UnifiedFaviconImage listens for it); the fetched title lands in the
+      // name field, applied on Save like any other edit.
+      await FaviconUrlCache.invalidate(site.initUrl);
+      final title = await getPageTitle(site.initUrl, proxy: site.proxySettings);
+      if (!mounted || title == null || title.isEmpty) return;
+      _name.text = title;
+      ScaffoldMessenger.of(context).toast(
+        AppLocalizations.of(context).homeTitleUpdatedTo(title),
+      );
     });
-    if (found) _toast((loc) => loc.homeTitleUpdatedTo(title));
+    if (mounted) setState(() {});
   }
 
   @override
@@ -180,7 +177,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TextButton.icon(
-              icon: _refreshing
+              icon: _refresh.busy
                   ? const SizedBox(
                       width: 18,
                       height: 18,
@@ -188,7 +185,7 @@ class _EditSiteDialogState extends State<EditSiteDialog> {
                     )
                   : const Icon(Icons.refresh),
               label: Text(loc.homeRefreshTitleAndIcon),
-              onPressed: _refreshing ? null : _refreshTitleAndIcon,
+              onPressed: _refresh.busy ? null : _refreshTitleAndIcon,
             ),
           ),
         ],

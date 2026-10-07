@@ -4,6 +4,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Data the app fetches only when the user asks: a blocklist, a rule set, a
 /// polygon file. One [DatasetTile] renders any of them.
@@ -87,7 +88,7 @@ class _DatasetTileState<D extends DownloadableDataset>
     final message = await action(loc);
     if (mounted) setState(() => _busy = false);
     if (message != null) {
-      messenger.showSnackBar(SnackBar(content: Text(message)));
+      messenger.toast(message);
     }
   }
 

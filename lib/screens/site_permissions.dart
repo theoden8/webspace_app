@@ -13,6 +13,7 @@ import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/widgets/site_permission_chip.dart';
+import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/virtual_source_preview.dart';
 
 /// Everything the permission screen may change, in one value so the caller can
@@ -242,30 +243,22 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
 
   /// Picks [kind]'s file; a picked one becomes the site's source, a rejected
   /// one is named in a SnackBar, and a cancelled pick changes nothing.
-  Future<void> _pickSource<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
-  ) async {
+  Future<void> _pickSource(CaptureKind kind) async {
     final result = await VirtualMediaPicker.pick(kind.medium);
     if (!mounted) return;
     if (result.source case final source?) {
       final grant = kind.grantOf(_values.captures);
       _setGrant(kind, (mode: grant.mode, source: source));
     } else if (result.error case final error?) {
-      _snack(kind.text(AppLocalizations.of(context)).pickError(error));
+      ScaffoldMessenger.of(context).toast(
+        kind.text(AppLocalizations.of(context)).pickError(error),
+      );
     }
   }
 
-  void _setGrant<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
-    CaptureGrant<M, S> grant,
-  ) => _update(
+  void _setGrant(CaptureKind kind, CaptureGrant grant) => _update(
     _values.copyWith(captures: kind.withGrant(_values.captures, grant)),
   );
-
-  void _snack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
 
   // --- Capability descriptors ---------------------------------------------
 
@@ -286,10 +279,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         ...unavailable,
       ]..sort((a, b) => a.state.index.compareTo(b.state.index));
 
-  Future<void> _selectCapture<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
-    M mode,
-  ) async {
+  Future<void> _selectCapture(CaptureKind kind, CaptureMode mode) async {
     final source = kind.grantOf(_values.captures).source;
     _setGrant(kind, (mode: mode, source: source));
     if (mode == kind.virtual && source == null) await _pickSource(kind);
@@ -308,9 +298,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     }
   }
 
-  _Capability _capture<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
-  ) {
+  _Capability _capture(CaptureKind kind) {
     final loc = AppLocalizations.of(context);
     final text = kind.text(loc);
     final stored = kind.grantOf(_values.captures);
@@ -752,7 +740,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       );
 
   List<_Capability> _capabilities(AppLocalizations loc) => [
-        for (final kind in CaptureKind.values) kind.open(_capture),
+        for (final kind in CaptureKind.values) _capture(kind),
         _location(loc),
         if (widget.showNotifications) _notifications(loc),
         _protectedContent(loc),
@@ -768,7 +756,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           SettingsNote.host(widget.host),
           const Divider(height: 1),
           SettingsSection(loc.permissionsGroupDeviceAccess),
-          for (final kind in CaptureKind.values) _row(kind.open(_capture)),
+          for (final kind in CaptureKind.values) _row(_capture(kind)),
           _row(_location(loc)),
           SettingsNote(loc.permissionsRealDeviceNote),
           SettingsSection(loc.permissionsGroupBackground),

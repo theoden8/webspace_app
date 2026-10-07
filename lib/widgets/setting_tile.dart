@@ -59,9 +59,10 @@ class MissingDataIcon extends StatelessWidget {
 }
 
 /// Why a row cannot be changed here. The row renders disabled; the reason, if
-/// any, takes the subtitle's place.
-sealed class Lock {
-  const Lock([this._text]);
+/// any, takes the subtitle's place. Null when the row that decides this one
+/// sits right above.
+class Lock {
+  const Lock.because(this._text);
 
   final String? _text;
 
@@ -71,7 +72,7 @@ sealed class Lock {
 /// Tracking Protection holds the setting at [forcedTo]. Forcing on needs no
 /// note, a greyed-on switch says it; taking something away does.
 final class TrackingProtectionLock extends Lock {
-  const TrackingProtectionLock({required this.forcedTo});
+  const TrackingProtectionLock({required this.forcedTo}) : super.because(null);
 
   final bool forcedTo;
 
@@ -82,31 +83,10 @@ final class TrackingProtectionLock extends Lock {
 
 /// The archive the site is in decides the setting (ARCH-006).
 final class ArchiveLock extends Lock {
-  const ArchiveLock();
+  const ArchiveLock() : super.because(null);
 
   @override
   String reason(AppLocalizations loc) => loc.settingLockedByArchive;
-}
-
-/// An app-wide setting already covers every site.
-final class AppWideLock extends Lock {
-  const AppWideLock(String super.text);
-}
-
-/// The setting cannot act until data is downloaded.
-final class NotDownloadedLock extends Lock {
-  const NotDownloadedLock(String super.text);
-}
-
-/// The platform or engine cannot honour the setting.
-final class PlatformLock extends Lock {
-  const PlatformLock(String super.text);
-}
-
-/// Another setting decides this one while it is on. Without a reason when the
-/// deciding row sits right above.
-final class RequiresLock extends Lock {
-  const RequiresLock([super.text]);
 }
 
 /// What sits at the trailing end of a row and what tapping it does.
@@ -365,10 +345,6 @@ class SummaryNavRow extends StatelessWidget {
     );
   }
 }
-
-/// A [ChoiceTile] over an enum, whose [ChoiceTile.label] is usually a
-/// `switch` extension so a new value does not compile until it has a name.
-typedef EnumTile<T extends Enum> = ChoiceTile<T>;
 
 /// Label above a group of rows, optionally with a hint and a trailing action.
 class SettingsSection extends StatelessWidget {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/proxy_test_service.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -32,29 +33,24 @@ class ProxyTestTile extends StatefulWidget {
 }
 
 class _ProxyTestTileState extends State<ProxyTestTile> {
-  bool _running = false;
+  final _guard = ReentryGuard();
   ProxyTestResult? _result;
 
+  /// The button disables itself while a test is in flight, but a second tap
+  /// can land before that frame is painted.
   Future<void> _run() async {
-    // The button disables itself while a test is in flight, but a second tap
-    // can land before that frame is painted.
-    if (_running) return;
-    setState(() {
-      _running = true;
-      _result = null;
-    });
-    final settings = widget.settings();
-    try {
+    await _guard.run(() async {
+      setState(() => _result = null);
+      final settings = widget.settings();
       final result = await testProxyConnection(
         settings,
         target: widget.target,
         siteId: widget.siteId,
       );
       logProxyTest(settings, result);
-      if (mounted) setState(() => _result = result);
-    } finally {
-      if (mounted) setState(() => _running = false);
-    }
+      _result = result;
+    });
+    if (mounted) setState(() {});
   }
 
   ({IconData icon, Color color, String message}) _describe(
@@ -117,7 +113,7 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
             runSpacing: Spacing.xs,
             children: [
               OutlinedButton.icon(
-                onPressed: _running ? null : _run,
+                onPressed: _guard.busy ? null : _run,
                 icon: const Icon(Icons.network_check, size: IconSizes.action),
                 label: Text(loc.proxyTestRun),
               ),
@@ -125,7 +121,7 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
                 title: loc.proxyTestRun,
                 description: loc.proxyTestHint,
               ),
-              if (_running)
+              if (_guard.busy)
                 const SizedBox(
                   width: IconSizes.action,
                   height: IconSizes.action,

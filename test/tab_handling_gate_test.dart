@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tab_handling_gate.dart';
 
 /// The guard every tab handler holds across its awaits, and the work that
@@ -22,7 +21,7 @@ void main() {
   }
 
   /// Holds the gate until the returned completer completes.
-  (Future<bool>, Completer<void>) hold(ReentryGuard guard) {
+  (Future<bool>, Completer<void>) hold(TabHandlingGate guard) {
     final release = Completer<void>();
     return (guard.run(() => release.future), release);
   }

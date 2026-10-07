@@ -11,6 +11,7 @@ import 'package:webspace/screens/site_settings_qr_scanner.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Camera scanning is wired up only where flutter_zxing's `ReaderWidget`
 /// has a working camera path. On desktop (Linux, macOS, Windows) and web
@@ -77,8 +78,8 @@ Future<void> showSiteSettingsQrShareDialog(
             await Clipboard.setData(ClipboardData(text: encoded));
             if (!ctx.mounted) return;
             Navigator.of(ctx).pop();
-            rootScaffoldMessengerKey.currentState?.showSnackBar(
-              SnackBar(content: Text(loc.qrShareCopiedToClipboard)),
+            rootScaffoldMessengerKey.currentState?.toast(
+              loc.qrShareCopiedToClipboard,
             );
           },
         ),

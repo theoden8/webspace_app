@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Screen for managing user scripts.
 ///
@@ -288,8 +290,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
       _syncGlobal();
       if (_isPerSiteMode) _syncEnabledGlobalIds();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.userScriptsMovedToGlobal(script.name))),
+        ScaffoldMessenger.of(context).toast(
+          loc.userScriptsMovedToGlobal(script.name),
         );
       }
     }
@@ -530,7 +532,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
   String? _urlSource;
   String? _originalUrl;
   bool _downloading = false;
-  bool _saving = false;
+  final _saveGuard = ReentryGuard();
   String? _runOutput;
 
   @override
@@ -575,22 +577,12 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
   }
 
   Future<void> _save() async {
-    if (_saving) return;
-    _saving = true;
-    try {
-      await _saveInner();
-    } finally {
-      _saving = false;
-    }
-  }
-
-  Future<void> _saveInner() async {
     final loc = AppLocalizations.of(context);
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(loc.userScriptsNameRequired)));
+      ).toast(loc.userScriptsNameRequired);
       return;
     }
     final url = _urlController.text.trim();
@@ -604,10 +596,8 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
         setState(() {
           _downloading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.userScriptsUrlDownloadFailed(result.error ?? '')),
-          ),
+        ScaffoldMessenger.of(context).toast(
+          loc.userScriptsUrlDownloadFailed(result.error ?? ''),
         );
         return;
       }
@@ -681,7 +671,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
             ),
           IconButton(
             icon: const Icon(Icons.save),
-            onPressed: _save,
+            onPressed: () => _saveGuard.run(_save),
             tooltip: loc.commonSave,
           ),
         ],

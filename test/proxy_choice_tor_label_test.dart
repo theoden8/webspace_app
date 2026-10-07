@@ -21,6 +21,15 @@ Widget _picker({required bool external}) => localizedApp(Scaffold(
 ), locale: const Locale('en'));
 
 void main() {
+  test('TOR has no address to check and no fields to show (TOR-007, PROXY-010)',
+      () {
+    expect(ProxyType.TOR.typesAddress, isFalse);
+    expect(ProxyType.TOR.showsRouteFields, isFalse);
+    expect(ProxyType.SOCKS5.typesAddress, isTrue);
+    expect(ProxyType.GATEWAY.typesAddress, isFalse);
+    expect(ProxyType.GATEWAY.showsRouteFields, isTrue);
+  });
+
   testWidgets('the built-in tor is TOR', (tester) async {
     await tester.pumpWidget(_picker(external: false));
     expect(find.text('TOR'), findsOneWidget);

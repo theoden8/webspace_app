@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// One log line as the App Logs and Background tabs show it: coloured by
 /// level, with sensitive entries marked and edged so they are never mistaken
@@ -82,6 +83,6 @@ Future<void> saveLogText(
   }
 
   if (outputPath != null) {
-    messenger.showSnackBar(SnackBar(content: Text(loc.devToolsLogsExported)));
+    messenger.toast(loc.devToolsLogsExported);
   }
 }

@@ -19,6 +19,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridges.dart' show bridgesMayHelp;
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/tor_status_card.dart'
@@ -47,7 +48,7 @@ class TorBootstrapPlaceholder extends StatefulWidget {
 class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
   StreamSubscription<TorStatus>? _sub;
   TorStatus _status = const TorStopped();
-  bool _retrying = false;
+  final _retryGuard = ReentryGuard();
 
   @override
   void initState() {
@@ -73,13 +74,11 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
   }
 
   Future<void> _retry() async {
-    if (_retrying) return;
-    setState(() => _retrying = true);
-    try {
+    await _retryGuard.run(() async {
+      setState(() {});
       await TorService.instance.restart();
-    } finally {
-      if (mounted) setState(() => _retrying = false);
-    }
+    });
+    if (mounted) setState(() {});
   }
 
   @override
@@ -198,13 +197,13 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
           alignment: WrapAlignment.center,
           children: [
             TextButton.icon(
-              onPressed: _retrying ? null : _retry,
+              onPressed: _retryGuard.busy ? null : _retry,
               icon: const Icon(Icons.refresh, size: IconSizes.action),
               label: Text(loc.commonRetry),
             ),
             if (bridgesMayHelp(s.failure.kind))
               TextButton.icon(
-                onPressed: _retrying
+                onPressed: _retryGuard.busy
                     ? null
                     : () => Navigator.of(context).push(
                         MaterialPageRoute<void>(

@@ -177,10 +177,11 @@ still works and a frame quietly gets a grant:
    own bridge preamble and reaches Dart behind the bridge secret, so page
    script can neither forge it nor call the handler around it.
 
-All three follow `CaptureKind.screenShare.reachesSubframes`, which
-`test/capture_test.dart` pins to false (and the camera's and microphone's to
-true, so a "make them consistent" edit cannot silently narrow them); the
-wiring is gated structurally by `test/js/screen_share_top_frame_only.test.js`.
+All three follow `CaptureKind.screenShare.frames`, which
+`test/capture_test.dart` pins to `ShimFrames.top` (and the camera's and
+microphone's to `ShimFrames.all`, so a "make them consistent" edit cannot
+silently narrow them); the shim and handler halves are gated structurally by
+`test/js/screen_share_top_frame_only.test.js`.
 
 #### Scenario: A cross-origin iframe is refused
 

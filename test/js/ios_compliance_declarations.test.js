@@ -196,7 +196,9 @@ test('TOR-001: nothing hardcodes Tor\'s default SOCKS port', () => {
 // Both render it through ProxyChoiceDropdown now, which also offers the proxy
 // library. A raw DropdownButton<ProxyType> is gated too, unless it lists a
 // fixed subset without TOR (the gateway form offers kGatewayTypes), and so is
-// a picker that offers gateways only (the saved proxy form).
+// a picker that offers gateways only (the saved proxy form). Whether a type
+// has an address to validate and fields to show is ProxyTypeForm's exhaustive
+// switch, so what is left here is that a screen asks whether Tor runs.
 test('TOR-007: every ProxyType dropdown handles TOR', () => {
   const screens = [];
   for (const dir of ['lib/screens', 'lib/widgets']) {
@@ -226,26 +228,11 @@ test('TOR-007: every ProxyType dropdown handles TOR', () => {
   );
   for (const rel of screens) {
     const src = read(rel);
-
     assert.match(
       src, /TorService\.instance\.isAvailable/,
       `${rel} renders a ProxyType dropdown but never consults ` +
       'TorService.isAvailable, so it offers TOR on platforms with no Tor ' +
       'runtime (TOR-007).',
-    );
-    // The address validator must exempt TOR, or selecting it blocks the save.
-    assert.match(
-      src, /type == ProxyType\.DEFAULT \|\|\s*\n?\s*.*type == ProxyType\.TOR|ProxyType\.TOR\) \{\s*\n\s*return null/,
-      `${rel} validates a proxy address without exempting TOR. TOR carries ` +
-      'no address, so the validator rejects the empty field and the save ' +
-      'never lands.',
-    );
-    // And the inert manual fields must be hidden, not written back.
-    assert.match(
-      src, /!= ProxyType\.TOR/,
-      `${rel} never branches on ProxyType.TOR when showing or persisting the ` +
-      'manual address/credential fields; under TOR they are inert and must ' +
-      'be preserved, not overwritten (PROXY-010).',
     );
   }
 });

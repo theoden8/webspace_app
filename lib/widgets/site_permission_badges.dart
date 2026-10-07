@@ -68,46 +68,84 @@ extension CaptureKindIcon on CaptureKind {
   };
 }
 
-/// Badges held by [model], in a stable display order (the Permissions row's
-/// order, then background playback). Reads the `effective*` getters, so an
-/// archive-tier site shows no badge even when the stored mode says otherwise
-/// (ARCH-006). [protectedContentApplies] defaults to the host check the
-/// Permissions row uses.
+/// What a site runs with, the archive and Tracking Protection applied: the
+/// one input the drawer's badges and the settings' Permissions row share, so
+/// the row cannot list a grant the drawer does not badge (PERMBADGE-001).
+typedef HeldGrants = ({
+  LocationMode location,
+  CaptureGrants captures,
+  bool notifications,
+  bool protectedContent,
+  bool backgroundAudio,
+});
+
+/// Badges for [held], in a stable display order (the Permissions row's
+/// order, then background playback).
+List<SitePermissionBadge> heldBadges(HeldGrants held) => [
+  switch (held.location) {
+    LocationMode.live => GrantBadge.realLocation,
+    LocationMode.spoof => GrantBadge.spoofLocation,
+    LocationMode.off => null,
+  },
+  for (final kind in CaptureKind.values)
+    if (kind.grantOf(held.captures).mode case final mode
+        when mode.state == SitePermissionState.allowed ||
+            mode.state == SitePermissionState.simulated)
+      CaptureBadge(kind, mode),
+  if (held.notifications) GrantBadge.notifications,
+  if (held.protectedContent) GrantBadge.protectedContent,
+  if (held.backgroundAudio) GrantBadge.backgroundAudio,
+].nonNulls.toList();
+
+/// Badges held by [model]. Reads the `effective*` getters, so an archive-tier
+/// site shows no badge even when the stored mode says otherwise (ARCH-006).
+/// [protectedContentApplies] defaults to the host check the Permissions row
+/// uses.
 List<SitePermissionBadge> sitePermissionBadges(
   WebViewModel model, {
   bool? protectedContentApplies,
-}) {
-  final captures = model.effectiveCaptures;
-  return [
-    switch (model.locationMode) {
-      LocationMode.live => GrantBadge.realLocation,
-      LocationMode.spoof => GrantBadge.spoofLocation,
-      LocationMode.off => null,
-    },
-    for (final kind in CaptureKind.values)
-      if (kind.grantOf(captures).mode case final mode
-          when mode.state == SitePermissionState.allowed ||
-              mode.state == SitePermissionState.simulated)
-        CaptureBadge(kind, mode),
-    if (model.effectiveNotificationsEnabled) GrantBadge.notifications,
-    if ((protectedContentApplies ?? hostIsAndroid) &&
-        model.effectiveProtectedContentAllowed == true)
-      GrantBadge.protectedContent,
-    if (model.effectiveBackgroundAudioEnabled) GrantBadge.backgroundAudio,
-  ].nonNulls.toList();
-}
+}) => heldBadges((
+  location: model.locationMode,
+  captures: model.effectiveCaptures,
+  notifications: model.effectiveNotificationsEnabled,
+  protectedContent: (protectedContentApplies ?? hostIsAndroid) &&
+      model.effectiveProtectedContentAllowed == true,
+  backgroundAudio: model.effectiveBackgroundAudioEnabled,
+));
 
 /// True when the badge means a real device or capability is handed to the
 /// site, as opposed to a synthetic stream or a background-playback exemption.
 /// Matches the Permissions row, which draws the same grants in the error
 /// colour.
-bool _isRealDeviceAccess(SitePermissionBadge badge) => switch (badge) {
+bool isRealDeviceAccess(SitePermissionBadge badge) => switch (badge) {
   CaptureBadge(:final mode) => opensRealDevice(mode.state),
   GrantBadge.realLocation ||
   GrantBadge.notifications ||
   GrantBadge.protectedContent => true,
   GrantBadge.spoofLocation || GrantBadge.backgroundAudio => false,
 };
+
+/// The state the Permissions row names a held grant by.
+SitePermissionState sitePermissionBadgeState(SitePermissionBadge badge) =>
+    switch (badge) {
+      CaptureBadge(:final mode) => mode.state,
+      GrantBadge.spoofLocation => SitePermissionState.simulated,
+      GrantBadge.realLocation ||
+      GrantBadge.notifications ||
+      GrantBadge.protectedContent ||
+      GrantBadge.backgroundAudio => SitePermissionState.allowed,
+    };
+
+/// The setting a badge mirrors, as its settings row titles it.
+String sitePermissionBadgeTitle(AppLocalizations loc, SitePermissionBadge badge) =>
+    switch (badge) {
+      CaptureBadge(:final kind) => kind.text(loc).title,
+      GrantBadge.realLocation ||
+      GrantBadge.spoofLocation => loc.siteSettingsGeolocation,
+      GrantBadge.notifications => loc.siteSettingsNotifications,
+      GrantBadge.protectedContent => loc.siteSettingsProtectedContent,
+      GrantBadge.backgroundAudio => loc.siteSettingsBackgroundAudio,
+    };
 
 /// Filled glyph for a real device, outlined for a synthetic stream.
 IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
@@ -125,19 +163,16 @@ IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
 /// new copy, so the badge and the settings screen can never drift apart.
 String sitePermissionBadgeLabel(AppLocalizations loc, SitePermissionBadge badge) {
   const separator = ': ';
-  return switch (badge) {
-    CaptureBadge(:final kind, :final mode) =>
-      '${kind.text(loc).title}$separator${mode.label(loc)}',
-    GrantBadge.realLocation =>
-      '${loc.siteSettingsGeolocation}$separator${loc.siteSettingsLocationLive}',
-    GrantBadge.spoofLocation =>
-      '${loc.siteSettingsGeolocation}$separator${loc.siteSettingsLocationStatic}',
-    GrantBadge.notifications =>
-      '${loc.siteSettingsNotifications}$separator${loc.siteSettingsProtectedContentAllow}',
-    GrantBadge.protectedContent =>
-      '${loc.siteSettingsProtectedContent}$separator${loc.siteSettingsProtectedContentAllow}',
-    GrantBadge.backgroundAudio => loc.siteSettingsBackgroundAudio,
+  final title = sitePermissionBadgeTitle(loc, badge);
+  final value = switch (badge) {
+    CaptureBadge(:final mode) => mode.label(loc),
+    GrantBadge.realLocation => loc.siteSettingsLocationLive,
+    GrantBadge.spoofLocation => loc.siteSettingsLocationStatic,
+    GrantBadge.notifications ||
+    GrantBadge.protectedContent => loc.siteSettingsProtectedContentAllow,
+    GrantBadge.backgroundAudio => null,
   };
+  return value == null ? title : '$title$separator$value';
 }
 
 /// Permission badges for [model], or an empty box when the site holds none.
@@ -182,7 +217,7 @@ class SitePermissionBadges extends StatelessWidget {
             sitePermissionBadgeIcon(badge),
             size: iconSize,
             semanticLabel: sitePermissionBadgeLabel(loc, badge),
-            color: _isRealDeviceAccess(badge)
+            color: isRealDeviceAccess(badge)
                 ? theme.colorScheme.error
                 : theme.colorScheme.onSurfaceVariant,
           ),

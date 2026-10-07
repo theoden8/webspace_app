@@ -2809,11 +2809,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// app-level camera permission is handled at grant time by
   /// `CameraPermissionService`.
   @override
-  Future<CaptureGrant<M, S>>
-  capture<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
+  Future<CaptureGrant> capture(
+    CaptureKind kind,
     String origin,
-    M current,
+    CaptureMode current,
   ) async {
     if (!mounted) return (mode: kind.block, source: null);
     if (current == kind.virtual) return _pickVirtualOrKeep(kind, current);
@@ -2850,10 +2849,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Runs the picker. On success returns `virtual` with the source; on cancel
   /// or error returns [fallback] with no source, so the stored mode survives
   /// and the request is denied this once.
-  Future<CaptureGrant<M, S>>
-  _pickVirtualOrKeep<M extends CaptureMode, S extends VirtualSource>(
-    CaptureKind<M, S> kind,
-    M fallback,
+  Future<CaptureGrant> _pickVirtualOrKeep(
+    CaptureKind kind,
+    CaptureMode fallback,
   ) async {
     final result = await VirtualMediaPicker.pick(kind.medium);
     if (result.source case final source?) {

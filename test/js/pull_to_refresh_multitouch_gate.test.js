@@ -2,31 +2,16 @@
 //
 // Neither Android's SwipeRefreshLayout nor iOS's UIRefreshControl looks at the
 // pointer count, so a two-finger pinch at scroll top fires a refresh. The fix
-// lives in PullToRefreshGate. WebViewConfig takes the gate and no controller,
-// and the gate is the only way to build one, so a surface cannot hand the
-// webview a controller without it.
+// lives in PullToRefreshGate, whose state machine
+// test/pull_to_refresh_gate_test.dart drives through a fake control.
+// WebViewConfig takes the gate and no controller, and the gate is the only way
+// to build one, so a surface cannot hand the webview a controller without it.
+// What is left here is the wiring no Dart test reaches: the factory feeding the
+// gate from a raw Listener.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read } = require('./helpers/source');
-
-const GATE = 'lib/services/pull_to_refresh_gate.dart';
-
-test('the gate disables the control on a second pointer', () => {
-  const src = read(GATE);
-  assert.match(src, /_pointers\.length\s*<\s*2/,
-    'the gate must key off the pointer count');
-  assert.match(src, /_setEnabled\(false\)/,
-    'a second pointer must disable the refresh control');
-});
-
-test('the gate swallows a refresh that outran the disable', () => {
-  const src = read(GATE);
-  assert.match(src, /suppressesRefresh/,
-    'runRefresh must consult the multi-touch state');
-  assert.match(src, /endRefreshing/,
-    'a swallowed refresh must still stop the spinner');
-});
 
 test('the factory feeds the gate from a raw pointer Listener', () => {
   const src = read('lib/services/webview.dart');

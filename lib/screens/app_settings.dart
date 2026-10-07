@@ -23,6 +23,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// App Settings: an index of categories, each a screen of its own, like the
 /// Site rows in site settings. Every row says what its category is set to.
@@ -173,11 +174,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     if (!mounted) return;
     // Replace rather than queue: taps arrive faster than a snackbar's life, so
     // queueing would leave the countdown showing a number several taps stale.
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
-      );
+    ScaffoldMessenger.of(context).toast(
+      message,
+      duration: const Duration(seconds: 1),
+      replace: true,
+    );
   }
 
   /// Opens a category and, once it closes, redraws the summaries from what it
@@ -372,17 +373,20 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               onTap: _openDeveloper,
             )
           else
-            ListTile(
+            SettingTile(
               leading: const Icon(Icons.article_outlined),
-              title: Text(loc.appSettingsAppLogs),
-              subtitle: Text(loc.appSettingsAppLogsSubtitle),
-              onTap: () => guardedOpen(() => openAppLogs(context)),
+              title: loc.appSettingsAppLogs,
+              hint: null,
+              subtitle: loc.appSettingsAppLogsSubtitle,
+              control: Trailing(null,
+                  onTap: () => guardedOpen(() => openAppLogs(context))),
             ),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.info_outline),
-            title: Text(loc.appSettingsLicenses),
-            subtitle: Text(loc.appSettingsLicensesSubtitle),
-            onTap: () => guardedOpen(() async {
+            title: loc.appSettingsLicenses,
+            hint: null,
+            subtitle: loc.appSettingsLicensesSubtitle,
+            control: Trailing(null, onTap: () => guardedOpen(() async {
               final packageInfo = await PackageInfo.fromPlatform();
               if (!context.mounted) return;
               showLicensePage(
@@ -391,13 +395,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 applicationVersion: packageInfo.version,
                 applicationLegalese: '© 2023 Kirill Rodriguez',
               );
-            }),
+            })),
           ),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.tag),
-            title: Text(loc.appSettingsVersion),
-            subtitle: _appVersion == null ? null : Text(_appVersion!),
-            onTap: _onVersionTapped,
+            title: loc.appSettingsVersion,
+            hint: null,
+            subtitle: _appVersion,
+            control: Trailing(null, onTap: _onVersionTapped),
           ),
         ],
       ),

@@ -7,11 +7,12 @@
 //
 // Three separate mechanisms carry it, and losing any one of them is silent —
 // the app still works, the suite still passes, and a frame quietly gets a
-// grant. So each is pinned structurally here:
+// grant. The first is a type; the other two are pinned structurally here:
 //
 //   1. The shim is injected `forMainFrameOnly: true`, unlike the camera and
-//      microphone shims: `CaptureKind.screenShare.reachesSubframes` is false
-//      (asserted in test/capture_test.dart) and the injection reads it. On
+//      microphone shims: `CaptureKind.screenShare.frames` is `ShimFrames.top`
+//      (asserted in test/capture_test.dart), and `pageShim` takes it as a
+//      `ShimFrames`, so the injection passes it whole with nothing to map. On
 //      Android the plugin implements that by wrapping the source in
 //      `if (window === window.top) {...}`; on iOS/macOS WebKit enforces it
 //      natively.
@@ -33,19 +34,6 @@ const { read } = require('./helpers/source');
 
 const webview = read('lib/services/webview.dart');
 const shim = read('test/js_fixtures/screen_share/shim.js');
-
-test('a capture shim is main-frame-only exactly when its kind says so', () => {
-  const at = webview.indexOf('kind.shimGroup,');
-  assert.notEqual(at, -1, 'the capture shims are no longer injected per kind');
-  const block = webview.slice(at, webview.indexOf('));', at));
-  assert.match(
-    block,
-    /frames: kind\.reachesSubframes \? ShimFrames\.all : ShimFrames\.top/,
-    'the injection must follow the kind: a hard-coded false would install ' +
-      'getDisplayMedia in every frame, so a third-party iframe could ask for ' +
-      "and be served the surface the user granted the host site (SHARE-005).",
-  );
-});
 
 test('the shim refuses a subframe on its own, before the bridge', () => {
   assert.match(shim, /globalThis\.top === globalThis/,
@@ -70,7 +58,7 @@ test('the Dart handler denies a subframe with data the page cannot forge', () =>
       '(args) one cannot see which frame called, so the deny would exist ' +
       'only in the page\'s own realm.',
   );
-  const denyAt = block.indexOf('if (!kind.reachesSubframes && !data.isMainFrame)');
+  const denyAt = block.indexOf('if (kind.frames == ShimFrames.top && !data.isMainFrame)');
   const resolveAt = block.indexOf('grants.capture(');
   assert.notEqual(denyAt, -1, 'no !isMainFrame deny in the handler');
   assert.notEqual(resolveAt, -1, 'the handler never resolves a decision');

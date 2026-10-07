@@ -32,13 +32,13 @@ final class _Host {
   late final GrantStore store;
   bool active = true;
 
-  Future<AnyCaptureGrant> ask(
+  Future<CaptureGrant> ask(
     CaptureKind kind, {
     String origin = _top,
     bool isTopFrame = true,
   }) => store.capture(kind, origin, isTopFrame: isTopFrame);
 
-  AnyCaptureGrant stored(CaptureKind kind) =>
+  CaptureGrant stored(CaptureKind kind) =>
       kind.grantOf(store.media.capture);
 }
 

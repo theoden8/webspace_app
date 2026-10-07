@@ -54,21 +54,20 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SwitchListTile(
-          title: HintedTitle(loc.appSettingsExperimentalExternalTor,
-            hint: loc.appSettingsExperimentalExternalTorHint),
-          secondary: const Icon(Icons.security_outlined),
-          value: _switch,
-          onChanged: _setSwitch,
+        SettingTile(
+          leading: const Icon(Icons.security_outlined),
+          title: loc.appSettingsExperimentalExternalTor,
+          hint: loc.appSettingsExperimentalExternalTorHint,
+          control: Toggle(_switch, _setSwitch),
         ),
         if (_switch)
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.lan_outlined),
-            title: HintedTitle(loc.externalTorAddress,
-              hint: loc.externalTorAddressHint),
-            subtitle: Text(_address),
-            trailing: const Icon(Icons.edit_outlined),
-            onTap: _editAddress,
+            title: loc.externalTorAddress,
+            hint: loc.externalTorAddressHint,
+            subtitle: _address,
+            control: Trailing(const Icon(Icons.edit_outlined),
+                onTap: _editAddress),
           ),
       ],
     );

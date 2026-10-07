@@ -4,6 +4,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
 import 'package:webspace/widgets/dirty_guard.dart';
+import 'package:webspace/widgets/toast.dart';
 
 class WebspaceDetailScreen extends StatefulWidget {
   final Webspace webspace;
@@ -64,12 +65,7 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
     final trimmedName = _nameController.text.trim();
 
     if (trimmedName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.webspaceDetailNameEmptyError),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context).toast(loc.webspaceDetailNameEmptyError);
       return;
     }
 

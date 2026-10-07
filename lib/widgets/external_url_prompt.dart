@@ -6,11 +6,13 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart' show WebViewController;
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/widgets/root_messenger.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Shared per-route guard so rapid-fire redirects (Google Maps can hit the
 /// webview with several intent:// bursts in a row) only surface one dialog.
-bool _isConfirming = false;
+final _confirming = ReentryGuard();
 
 /// Strips ClearURLs tracking query params from a URL, regardless of scheme,
 /// by reconstructing it as an https URL (which the ClearURLs ruleset
@@ -108,9 +110,7 @@ Future<void> confirmAndLaunchExternalUrl(
     );
     return;
   }
-  if (_isConfirming) return;
-  _isConfirming = true;
-  try {
+  await _confirming.run(() async {
     final hasRules = ClearUrlService.instance.hasRules;
     final cleanedLaunchUrl = _stripTrackingFromIntent(info.url);
     final cleanedFallback = _cleanFallback(info.fallbackUrl);
@@ -259,9 +259,7 @@ Future<void> confirmAndLaunchExternalUrl(
         await _launchInApp(cleanedLaunchUrl, cleanedFallback, info.scheme);
         return;
     }
-  } finally {
-    _isConfirming = false;
-  }
+  });
 }
 
 /// Hands [url] to the system's default browser (or whichever app handles
@@ -280,13 +278,11 @@ void showExternalLinkBlocked(String url) {
   if (messengerContext == null || messenger == null) return;
   final host = Uri.tryParse(url)?.host ?? '';
   final target = host.isEmpty ? url : host;
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content:
-          Text(AppLocalizations.of(messengerContext).externalLinkBlocked(target)),
-      duration: const Duration(seconds: 2),
-    ));
+  messenger.toast(
+    AppLocalizations.of(messengerContext).externalLinkBlocked(target),
+    duration: const Duration(seconds: 2),
+    replace: true,
+  );
 }
 
 /// Hands [url] to the OS via url_launcher so the system browser (or
@@ -318,9 +314,7 @@ Future<bool> _launchExternally(String url, {required String label}) async {
       final message = messengerContext != null
           ? AppLocalizations.of(messengerContext).externalUrlPromptNoAppAvailable(url)
           : 'No app available to open: $url';
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      rootScaffoldMessengerKey.currentState?.toast(message);
     }
     return launched;
   } catch (e) {
@@ -333,9 +327,7 @@ Future<bool> _launchExternally(String url, {required String label}) async {
     final message = messengerContext != null
         ? AppLocalizations.of(messengerContext).externalUrlPromptCouldNotOpen(url)
         : 'Could not open: $url';
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    rootScaffoldMessengerKey.currentState?.toast(message);
     return false;
   }
 }

@@ -2465,7 +2465,7 @@ class WebViewFactory {
         userScripts.add(pageShim(
           kind.shimGroup,
           buildCaptureShim(kind),
-          frames: kind.reachesSubframes ? ShimFrames.all : ShimFrames.top,
+          frames: kind.frames,
         ));
       }
     }
@@ -2810,7 +2810,7 @@ class WebViewFactory {
         controller.addJavaScriptHandler(
           handlerName: kind.requestHandler,
           callback: (inapp.JavaScriptHandlerFunctionData data) async {
-            if (!kind.reachesSubframes && !data.isMainFrame) {
+            if (kind.frames == ShimFrames.top && !data.isMainFrame) {
               return const {'mode': 'block'};
             }
             final grant = await grants.capture(

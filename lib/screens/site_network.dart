@@ -75,21 +75,14 @@ class SiteNetworkValues {
       );
 }
 
-/// The address check the save path runs. Lives beside the field so the rule
-/// and the field it guards cannot drift apart. TOR supplies its own address
-/// once the runtime is up, and a saved proxy or gateway was checked where it
-/// was saved, so for these there is nothing to type and nothing to validate.
+/// The address check the save path runs; [ProxyTypeForm.typesAddress] says
+/// which types have an address to check.
 String? validateProxyAddress(
   AppLocalizations loc,
   ProxyType type,
   String? value,
 ) {
-  if (type == ProxyType.DEFAULT ||
-      type == ProxyType.TOR ||
-      type == ProxyType.SAVED ||
-      type == ProxyType.GATEWAY) {
-    return null;
-  }
+  if (!type.typesAddress) return null;
   if (value == null || value.isEmpty) {
     return loc.siteSettingsProxyAddressRequired;
   }
@@ -340,13 +333,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         _torExitCountry(loc),
       if (type == ProxyType.SAVED || type == ProxyType.GATEWAY)
         _libraryRoute(loc),
-      // TOR supplies its own loopback address and stream-isolation auth, and
-      // a saved proxy its whole route, so the manual fields are inert while
-      // either is selected. Hidden, not cleared: PROXY-010 requires a stored
-      // SOCKS5 config to survive the trip and come back on switch-out.
-      if (type != ProxyType.DEFAULT &&
-          type != ProxyType.TOR &&
-          type != ProxyType.SAVED)
+      if (type.showsRouteFields)
         ProxyRouteFields(
           type: type,
           gatewayId: _values.gatewayId,
@@ -377,7 +364,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     );
     // Shows the forced value; re-picking it is not a change, so turning the
     // umbrella off later restores Default rather than a stored copy of it.
-    return EnumTile(
+    return ChoiceTile(
       title: loc.siteSettingsWebRtcPolicy,
       hintTitle: loc.siteSettingsWebRtcHintTitle,
       hint: loc.siteSettingsWebRtcHintBody,

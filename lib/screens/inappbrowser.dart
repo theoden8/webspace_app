@@ -16,6 +16,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -29,6 +30,7 @@ import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
+import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
@@ -127,11 +129,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   bool _isLoading = false;
   int _loadingProgress = 0;
 
-  /// Race guard for the PopScope handler. Async swipe gestures (iOS edge
-  /// swipe) can re-enter `onPopInvokedWithResult` while the previous
-  /// invocation is still awaiting `goBack()` / URL diff, which would
-  /// double-pop the route or fire `goBack()` twice. Cleared in `finally`.
-  bool _isBackHandling = false;
+  /// Async swipe gestures (iOS edge swipe) can re-enter
+  /// `onPopInvokedWithResult` while the previous invocation is still awaiting
+  /// `goBack()` / URL diff, which would double-pop the route or fire
+  /// `goBack()` twice.
+  final _backGuard = ReentryGuard();
 
   /// Destination this screen refused to navigate to because the app could not
   /// establish that it would go through the site's proxy (LEAK-010).
@@ -577,8 +579,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       await launchUrl(uri);
     } else {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.inappBrowserCouldNotLaunch(url))),
+        ScaffoldMessenger.of(context).toast(
+          loc.inappBrowserCouldNotLaunch(url),
         );
       }
     }
@@ -615,12 +617,11 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       // comparison since WKWebView's canGoBack() lies for pushState SPAs.
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop || _isBackHandling) return;
-        _isBackHandling = true;
+        if (didPop) return;
         // Capture navigator before any awaits so we don't touch BuildContext
         // across async gaps after the route may have been disposed.
         final navigator = Navigator.of(context);
-        try {
+        await _backGuard.run(() async {
           final controller = _controller;
           if (controller == null) {
             if (mounted) navigator.pop();
@@ -659,9 +660,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
               sensitivity: LogSensitivity.sensitive,
             );
           }
-        } finally {
-          _isBackHandling = false;
-        }
+        });
       },
       child: Scaffold(
       appBar: AppBar(

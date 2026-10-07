@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/widgets/toast.dart';
 import '../main.dart' show extractDomain;
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, IconReload, iconReloads, reloadAllIcons, usableIconUrl;
@@ -549,9 +550,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       } else {
         if (mounted) {
           final loc = AppLocalizations.of(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(loc.addSiteFileReadError)),
-          );
+          ScaffoldMessenger.of(context).toast(loc.addSiteFileReadError);
         }
         return;
       }
@@ -567,8 +566,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     } catch (e) {
       if (mounted) {
         final loc = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.addSiteImportFailed(e.toString()))),
+        ScaffoldMessenger.of(context).toast(
+          loc.addSiteImportFailed(e.toString()),
         );
       }
     }

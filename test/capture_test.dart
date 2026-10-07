@@ -3,6 +3,7 @@ import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/virtual_media_picker.dart';
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/shim_frames.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -45,13 +46,13 @@ void main() {
       expect(CaptureKind.screenShare.real, isNull);
       expect(CaptureKind.screenShare.modes.map((m) => m.state),
           isNot(contains(SitePermissionState.allowed)));
-      expect(CaptureKind.screenShare.reachesSubframes, isFalse);
+      expect(CaptureKind.screenShare.frames, ShimFrames.top);
     });
 
     test('the camera and microphone keep reaching cross-origin frames', () {
       // A QR scanner embedded in a frame is the case they exist for.
-      expect(CaptureKind.camera.reachesSubframes, isTrue);
-      expect(CaptureKind.microphone.reachesSubframes, isTrue);
+      expect(CaptureKind.camera.frames, ShimFrames.all);
+      expect(CaptureKind.microphone.frames, ShimFrames.all);
     });
 
     test('each mode enum projects onto the shared states one to one', () {

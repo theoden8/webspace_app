@@ -9,6 +9,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:share_plus/share_plus.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -25,6 +26,7 @@ import 'package:webspace/widgets/background_log_view.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/log_entry_line.dart';
 import 'package:webspace/widgets/stat_chip.dart';
+import 'package:webspace/widgets/toast.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
 
@@ -221,7 +223,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
 
   /// Guards `_copyLogs` against re-entry: a second tap while its confirmation
   /// dialog is up would stack a second dialog (or pop the first).
-  bool _isCopyingLogs = false;
+  final _copyLogsGuard = ReentryGuard();
 
   bool _isSearchVisible = false;
   String _searchQuery = '';
@@ -493,8 +495,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                         .map((e) => '[${_formatTime(e.timestamp)}] [${_consoleLevelName(e.level)}] ${e.message}')
                         .join('\n');
                     Clipboard.setData(ClipboardData(text: text));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(loc.devToolsConsoleCopied(logs.length))),
+                    ScaffoldMessenger.of(context).toast(
+                      loc.devToolsConsoleCopied(logs.length),
                     );
                   },
             icon: const Icon(Icons.copy, size: 18),
@@ -765,8 +767,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 final json = cookies.map((c) => c.toJson()).toList();
                 Clipboard.setData(
                     ClipboardData(text: const JsonEncoder.withIndent('  ').convert(json)));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(loc.devToolsCookiesCopiedJson(cookies.length))),
+                ScaffoldMessenger.of(context).toast(
+                  loc.devToolsCookiesCopiedJson(cookies.length),
                 );
               },
               icon: const Icon(Icons.copy, size: 18),
@@ -842,8 +844,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       );
     }
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).devToolsCookieDeleted(cookie.name))),
+      ScaffoldMessenger.of(context).toast(
+        AppLocalizations.of(context).devToolsCookieDeleted(cookie.name),
       );
       _refreshCookies();
     }
@@ -865,8 +867,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     });
     await widget.onSave?.call();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).devToolsCookieUnblocked(rule.name))),
+      ScaffoldMessenger.of(context).toast(
+        AppLocalizations.of(context).devToolsCookieUnblocked(rule.name),
       );
     }
   }
@@ -1095,8 +1097,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                                     tooltip: loc.devToolsScriptCopySource,
                                     onPressed: () {
                                       Clipboard.setData(ClipboardData(text: script.source));
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text(loc.devToolsScriptCopied(script.name))),
+                                      ScaffoldMessenger.of(context).toast(
+                                        loc.devToolsScriptCopied(script.name),
                                       );
                                     },
                                     visualDensity: VisualDensity.compact,
@@ -1195,8 +1197,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       final html = await controller.getHtml();
       if (html == null || html.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(AppLocalizations.of(context).devToolsNoHtmlContent)),
+          ScaffoldMessenger.of(context).toast(
+            AppLocalizations.of(context).devToolsNoHtmlContent,
           );
         }
         return null;
@@ -1205,8 +1207,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       return html;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).devToolsHtmlFetchFailed(e.toString()))),
+        ScaffoldMessenger.of(context).toast(
+          AppLocalizations.of(context).devToolsHtmlFetchFailed(e.toString()),
         );
       }
       return null;
@@ -1250,14 +1252,14 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       }
 
       if (mounted && outputPath != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).devToolsHtmlSaved)),
+        ScaffoldMessenger.of(context).toast(
+          AppLocalizations.of(context).devToolsHtmlSaved,
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).devToolsSaveFailed(e.toString()))),
+        ScaffoldMessenger.of(context).toast(
+          AppLocalizations.of(context).devToolsSaveFailed(e.toString()),
         );
       }
     }
@@ -1268,8 +1270,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (html == null || !mounted) return;
     Clipboard.setData(ClipboardData(text: html));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context).devToolsHtmlCopied)),
+      ScaffoldMessenger.of(context).toast(
+        AppLocalizations.of(context).devToolsHtmlCopied,
       );
     }
   }
@@ -1282,9 +1284,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final host = widget.host!;
     final loc = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(
-      SnackBar(content: Text(loc.devToolsPreparingIcon)),
-    );
+    messenger.toast(loc.devToolsPreparingIcon);
     try {
       final png = await displayedSiteIconAsPng(
         host.iconUrl,
@@ -1294,9 +1294,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       );
       if (!mounted) return;
       if (png == null) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(loc.devToolsNoIconToSave)),
-        );
+        messenger.toast(loc.devToolsNoIconToSave);
         return;
       }
 
@@ -1315,15 +1313,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       }
 
       if (mounted && outputPath != null) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(loc.devToolsIconSaved)),
-        );
+        messenger.toast(loc.devToolsIconSaved);
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(
-          SnackBar(content: Text(loc.devToolsSaveFailed(e.toString()))),
-        );
+        messenger.toast(loc.devToolsSaveFailed(e.toString()));
       }
     } finally {
       if (mounted) setState(() => _isSavingIcon = false);
@@ -1423,8 +1417,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                             '[${_formatTimeMs(e.timestamp)}] ${e.blocked ? 'BLOCKED' : 'ALLOWED'} ${e.domain}')
                         .join('\n');
                     Clipboard.setData(ClipboardData(text: text));
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(loc.devToolsDnsLogCopied)),
+                    ScaffoldMessenger.of(context).toast(
+                      loc.devToolsDnsLogCopied,
                     );
                   },
             icon: const Icon(Icons.copy, size: 18),
@@ -1641,9 +1635,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     await cb();
     if (!mounted) return;
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(loc.devToolsSimulateRefreshDone)),
-    );
+    ScaffoldMessenger.of(context).toast(loc.devToolsSimulateRefreshDone);
   }
 
   Future<void> _sendTestNotification() async {
@@ -1658,9 +1650,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
     if (!mounted) return;
     setState(() {});
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(loc.devToolsTestNotificationSent)),
-    );
+    ScaffoldMessenger.of(context).toast(loc.devToolsTestNotificationSent);
   }
 
   Widget _buildNotificationDiagnostics() {
@@ -1715,38 +1705,31 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   /// is consent to display them, not to hand them to clipboard history, a
   /// cloud clipboard or a third-party keyboard. Files written by Export never
   /// carry them at all.
-  Future<void> _copyLogs(List<LogEntry> filtered) async {
-    if (_isCopyingLogs) return;
+  Future<void> _copyLogs(List<LogEntry> filtered) =>
+      _copyLogsGuard.run(() async {
     final loc = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final sensitive =
         filtered.where((e) => e.sensitivity == LogSensitivity.sensitive).length;
     var includeSensitive = false;
-    _isCopyingLogs = true;
-    try {
-      if (sensitive > 0) {
-        final confirmed = await confirm(
-          context,
-          title: loc.devToolsLogsCopySensitiveTitle,
-          body: loc.devToolsLogsCopySensitiveBody(sensitive),
-          confirmLabel: loc.devToolsCopy,
-          destructive: false,
-        );
-        if (!confirmed || !mounted) return;
-        includeSensitive = true;
-      }
-      await Clipboard.setData(ClipboardData(
-        text: LogService.formatForClipboard(filtered,
-            includeSensitive: includeSensitive),
-      ));
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(loc.devToolsLogsCopied(filtered.length))),
+    if (sensitive > 0) {
+      final confirmed = await confirm(
+        context,
+        title: loc.devToolsLogsCopySensitiveTitle,
+        body: loc.devToolsLogsCopySensitiveBody(sensitive),
+        confirmLabel: loc.devToolsCopy,
+        destructive: false,
       );
-    } finally {
-      _isCopyingLogs = false;
+      if (!confirmed || !mounted) return;
+      includeSensitive = true;
     }
-  }
+    await Clipboard.setData(ClipboardData(
+      text: LogService.formatForClipboard(filtered,
+          includeSensitive: includeSensitive),
+    ));
+    if (!mounted) return;
+    messenger.toast(loc.devToolsLogsCopied(filtered.length));
+  });
 
   Widget _buildLogActions(List<LogEntry> filtered) {
     final loc = AppLocalizations.of(context);

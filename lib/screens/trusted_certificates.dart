@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Lists every (host, port, sha256) the user has approved via the
 /// "Untrusted certificate" prompt. Each entry has an "Untrust" action
@@ -170,11 +171,9 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
                         icon: const Icon(Icons.copy, size: 18),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: formatted));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(loc.trustedCertCopied),
-                              duration: const Duration(seconds: 2),
-                            ),
+                          ScaffoldMessenger.of(context).toast(
+                            loc.trustedCertCopied,
+                            duration: const Duration(seconds: 2),
                           );
                         },
                       ),

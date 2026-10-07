@@ -6,8 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/log_entry_line.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// DEVTOOLS-011: the Background tab of Developer Tools. Shows what the
 /// background log kept, across restarts and native steps, under the OS state
@@ -32,7 +34,7 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
   List<LogEntry> _entries = const [];
   List<MapEntry<String, String>> _state = const [];
   bool _loaded = false;
-  bool _isCopying = false;
+  final _copyGuard = ReentryGuard();
   Timer? _reloadDebounce;
   int _loadGeneration = 0;
 
@@ -82,44 +84,36 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
   /// Sensitive entries reach the clipboard only through this confirmation:
   /// the switch is consent to show them, not to hand them to clipboard
   /// history or a cloud clipboard.
-  Future<void> _copy(List<LogEntry> visible) async {
-    if (_isCopying) return;
+  Future<void> _copy(List<LogEntry> visible) => _copyGuard.run(() async {
     final loc = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
     final sensitive = visible
         .where((e) => e.sensitivity == LogSensitivity.sensitive)
         .length;
     var includeSensitive = false;
-    _isCopying = true;
-    try {
-      if (sensitive > 0) {
-        final confirmed = await confirm(
-          context,
-          title: loc.devToolsLogsCopySensitiveTitle,
-          body: loc.devToolsBackgroundCopySensitiveBody(sensitive),
-          confirmLabel: loc.devToolsCopy,
-          destructive: false,
-        );
-        if (!confirmed || !mounted) return;
-        includeSensitive = true;
-      }
-      await Clipboard.setData(
-        ClipboardData(
-          text: BackgroundLog.format(
-            visible,
-            includeSensitive: includeSensitive,
-            state: _state,
-          ),
-        ),
+    if (sensitive > 0) {
+      final confirmed = await confirm(
+        context,
+        title: loc.devToolsLogsCopySensitiveTitle,
+        body: loc.devToolsBackgroundCopySensitiveBody(sensitive),
+        confirmLabel: loc.devToolsCopy,
+        destructive: false,
       );
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(loc.devToolsLogsCopied(visible.length))),
-      );
-    } finally {
-      _isCopying = false;
+      if (!confirmed || !mounted) return;
+      includeSensitive = true;
     }
-  }
+    await Clipboard.setData(
+      ClipboardData(
+        text: BackgroundLog.format(
+          visible,
+          includeSensitive: includeSensitive,
+          state: _state,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    messenger.toast(loc.devToolsLogsCopied(visible.length));
+  });
 
   Future<void> _export() async {
     final entries = await _log.entries(includeSensitive: false);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// [ArchivePrompts] as dialogs over the page that owns [context].
 class DialogArchivePrompts implements ArchivePrompts {
@@ -63,46 +64,25 @@ class DialogArchivePrompts implements ArchivePrompts {
       PassphrasePurpose.restoreSections =>
         loc.homeNoMatchingArchiveCreateBody,
     };
-    final create = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeNoMatchingArchiveTitle),
-        content: Text(body),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.homeCreateAction),
-          ),
-        ],
-      ),
+    return confirm(
+      context,
+      title: loc.homeNoMatchingArchiveTitle,
+      body: body,
+      confirmLabel: loc.homeCreateAction,
+      destructive: false,
     );
-    return create == true;
   }
 
   @override
-  Future<bool> includeOpenArchives(int count) async {
+  Future<bool> includeOpenArchives(int count) {
     final loc = AppLocalizations.of(context);
-    final include = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeIncludeOpenArchivesTitle),
-        content: Text(loc.homeIncludeOpenArchivesBody(count)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.homeExcludeAction),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.homeIncludeAction),
-          ),
-        ],
-      ),
+    return confirm(
+      context,
+      title: loc.homeIncludeOpenArchivesTitle,
+      body: loc.homeIncludeOpenArchivesBody(count),
+      confirmLabel: loc.homeIncludeAction,
+      cancelLabel: loc.homeExcludeAction,
+      destructive: false,
     );
-    return include == true;
   }
 }

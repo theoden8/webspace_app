@@ -1,8 +1,8 @@
 /// Per-site capture: the camera, the microphone and screen sharing, written
 /// once over [CaptureKind].
 ///
-/// Each kind keeps its own mode enum, so a mode cannot be stored under the
-/// wrong kind and screen sharing's missing `real` stays a compile-time fact.
+/// Each kind keeps its own mode enum, so screen sharing's missing `real` stays
+/// a compile-time fact.
 /// Everything else (the stored grant, the answer handed to the page, the JSON,
 /// the bridge, the nested and archive rules) is stated here once and reached
 /// through the kind.
@@ -13,6 +13,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
+import 'package:webspace/settings/shim_frames.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
 /// A capture mode of any kind. Sealed, so a `switch` over the modes of every
@@ -213,34 +214,28 @@ typedef PickedMedia = ({String dataUrl, String fileName, bool isVideo});
 
 /// What a kind serves in place of its device: which files the picker offers,
 /// and the source a stored or picked file becomes.
-enum CaptureMedium<S extends VirtualSource> {
-  visual<VirtualVisualSource>(
+enum CaptureMedium {
+  visual(
     parse: VirtualVisualSource.fromJson,
     fromPick: VirtualVisualSource.fromPick,
   ),
-  audio<VirtualAudioSource>(
+  audio(
     parse: VirtualAudioSource.fromJson,
     fromPick: VirtualAudioSource.fromPick,
   );
 
   const CaptureMedium({required this.parse, required this.fromPick});
 
-  final S? Function(Object? json) parse;
-  final S Function(PickedMedia picked) fromPick;
+  final VirtualSource? Function(Object? json) parse;
+  final VirtualSource Function(PickedMedia picked) fromPick;
 }
 
 /// A site's decision for one kind: the mode, and the file a `virtual` mode
 /// serves. Also the answer to one request, where `ask` means the popup was
 /// dismissed: denied this once and asked again next time.
-typedef CaptureGrant<M extends CaptureMode, S extends VirtualSource> = ({
-  M mode,
-  S? source,
-});
+typedef CaptureGrant = ({CaptureMode mode, VirtualSource? source});
 
-/// A grant of any kind.
-typedef AnyCaptureGrant = CaptureGrant<CaptureMode, VirtualSource>;
-
-extension CaptureGrantBridge on AnyCaptureGrant {
+extension CaptureGrantBridge on CaptureGrant {
   /// The `{mode, source?}` the shim reads. `ask` degrades to `block`: an
   /// unresolved decision must never read as a grant.
   Map<String, Object> toBridgeJson() => switch (mode.state) {
@@ -261,35 +256,29 @@ typedef _CaptureJsonKeys = ({String mode, String source});
 /// the site's mode from before deciding to publish it.
 typedef PublishedDevice = ({String deviceKind, String modeHandler});
 
-/// The capture kinds, each carrying what is fixed about it. The type
-/// arguments tie a kind to its mode enum and its source, so code handed
-/// `CaptureKind.camera` reads and writes camera values without a cast.
-enum CaptureKind<M extends CaptureMode, S extends VirtualSource> {
-  camera<CameraAccessMode, VirtualVisualSource>(
+/// The capture kinds, each carrying what is fixed about it.
+enum CaptureKind {
+  camera(
     modes: CameraAccessMode.values,
     ask: CameraAccessMode.ask,
     virtual: CameraAccessMode.virtual,
     block: CameraAccessMode.block,
     real: CameraAccessMode.real,
     medium: CaptureMedium.visual,
-    of: _camera,
-    put: _withCamera,
     json: (mode: 'cameraMode', source: 'virtualCameraSource'),
     legacyAllowedKey: 'cameraAllowed',
     requestHandler: 'webCameraRequest',
     publishedDevice: (deviceKind: 'videoinput', modeHandler: 'webCameraMode'),
     shimGroup: 'camera_stream',
-    reachesSubframes: true,
+    frames: ShimFrames.all,
   ),
-  microphone<MicrophoneAccessMode, VirtualAudioSource>(
+  microphone(
     modes: MicrophoneAccessMode.values,
     ask: MicrophoneAccessMode.ask,
     virtual: MicrophoneAccessMode.virtual,
     block: MicrophoneAccessMode.block,
     real: MicrophoneAccessMode.real,
     medium: CaptureMedium.audio,
-    of: _microphone,
-    put: _withMicrophone,
     json: (mode: 'microphoneMode', source: 'virtualMicrophoneSource'),
     legacyAllowedKey: null,
     requestHandler: 'webMicrophoneRequest',
@@ -298,27 +287,25 @@ enum CaptureKind<M extends CaptureMode, S extends VirtualSource> {
       modeHandler: 'webMicrophoneMode',
     ),
     shimGroup: 'microphone_stream',
-    reachesSubframes: true,
+    frames: ShimFrames.all,
   ),
 
   /// Top-level document only (SHARE-005): a screen share is the grant a user
   /// is least willing to have redirected, and a third-party frame is not who
   /// they answered the popup for.
-  screenShare<ScreenShareMode, VirtualVisualSource>(
+  screenShare(
     modes: ScreenShareMode.values,
     ask: ScreenShareMode.ask,
     virtual: ScreenShareMode.virtual,
     block: ScreenShareMode.block,
     real: null,
     medium: CaptureMedium.visual,
-    of: _screenShare,
-    put: _withScreenShare,
     json: (mode: 'screenShareMode', source: 'virtualScreenSource'),
     legacyAllowedKey: null,
     requestHandler: 'webScreenShareRequest',
     publishedDevice: null,
     shimGroup: 'screen_share',
-    reachesSubframes: false,
+    frames: ShimFrames.top,
   );
 
   const CaptureKind({
@@ -328,27 +315,23 @@ enum CaptureKind<M extends CaptureMode, S extends VirtualSource> {
     required this.block,
     required this.real,
     required this.medium,
-    required CaptureGrant<M, S> Function(CaptureGrants) of,
-    required CaptureGrants Function(CaptureGrants, CaptureGrant<M, S>) put,
     required _CaptureJsonKeys json,
     required this.legacyAllowedKey,
     required this.requestHandler,
     required this.publishedDevice,
     required this.shimGroup,
-    required this.reachesSubframes,
-  }) : _of = of,
-       _put = put,
-       _json = json;
+    required this.frames,
+  }) : _json = json;
 
-  final List<M> modes;
-  final M ask;
-  final M virtual;
-  final M block;
+  final List<CaptureMode> modes;
+  final CaptureMode ask;
+  final CaptureMode virtual;
+  final CaptureMode block;
 
   /// The mode that hands over the device; null where none may exist.
-  final M? real;
+  final CaptureMode? real;
 
-  final CaptureMedium<S> medium;
+  final CaptureMedium medium;
 
   /// A boolean the mode replaced, read when no mode is stored: true meant
   /// allow, false block.
@@ -364,42 +347,28 @@ enum CaptureKind<M extends CaptureMode, S extends VirtualSource> {
   /// The `UserScript` group the kind's shim is injected under.
   final String shimGroup;
 
-  /// Whether the shim and its bridge serve subframes. A cross-origin frame
-  /// still never inherits a `real` grant (CAM-014 / MIC-016).
-  final bool reachesSubframes;
+  /// The frames the shim and its bridge serve. A cross-origin frame still
+  /// never inherits a `real` grant (CAM-014 / MIC-016).
+  final ShimFrames frames;
 
-  // Read only through `this`: from a receiver typed with the bounds, the
-  // contravariant [_put] fails Dart's covariance check.
-  final CaptureGrant<M, S> Function(CaptureGrants) _of;
-  final CaptureGrants Function(CaptureGrants, CaptureGrant<M, S>) _put;
   final _CaptureJsonKeys _json;
 
-  CaptureGrant<M, S> grantOf(CaptureGrants grants) => _of(grants);
+  CaptureGrant grantOf(CaptureGrants grants) => switch (this) {
+    camera => grants.camera,
+    microphone => grants.microphone,
+    screenShare => grants.screenShare,
+  };
 
-  CaptureGrants withGrant(CaptureGrants grants, CaptureGrant<M, S> grant) =>
-      _put(grants, grant);
-
-  /// Calls [use] with this kind at its own type arguments, which code holding
-  /// a kind from [values] cannot name.
-  R open<R>(
-    R Function<M2 extends CaptureMode, S2 extends VirtualSource>(
-      CaptureKind<M2, S2> kind,
-    ) use,
-  ) => use<M, S>(this);
-
-  CaptureGrants _map(CaptureGrants grants, M Function(M mode) f) {
-    final grant = _of(grants);
-    return _put(grants, (mode: f(grant.mode), source: grant.source));
+  CaptureGrants withGrant(CaptureGrants grants, CaptureGrant grant) {
+    assert(modes.contains(grant.mode), '$name cannot hold ${grant.mode}');
+    return switch (this) {
+      camera => grants.copyWith(camera: grant),
+      microphone => grants.copyWith(microphone: grant),
+      screenShare => grants.copyWith(screenShare: grant),
+    };
   }
 
-  CaptureGrants _blocked(CaptureGrants grants) => _map(grants, (_) => block);
-
-  CaptureGrants _unreal(CaptureGrants grants) => _map(
-    grants,
-    (mode) => mode.state == SitePermissionState.allowed ? ask : mode,
-  );
-
-  CaptureGrants _read(CaptureGrants grants, Map<String, dynamic> json) {
+  CaptureGrant _fromJson(Map<String, dynamic> json) {
     final legacy = legacyAllowedKey == null ? null : json[legacyAllowedKey];
     final mode = modes.asNameMap()[json[_json.mode]] ??
         switch (legacy) {
@@ -407,44 +376,21 @@ enum CaptureKind<M extends CaptureMode, S extends VirtualSource> {
           false => block,
           _ => ask,
         };
-    return _put(grants, (mode: mode, source: medium.parse(json[_json.source])));
+    return (mode: mode, source: medium.parse(json[_json.source]));
   }
 
   /// Only what differs from an untouched site, so its JSON stays as it was.
-  Map<String, Object> _write(CaptureGrants grants) {
-    final grant = _of(grants);
-    return {
-      if (grant.mode != ask) _json.mode: grant.mode.name,
-      if (grant.source case final source?) _json.source: source.toJson(),
-    };
-  }
+  Map<String, Object> _toJson(CaptureGrant grant) => {
+    if (grant.mode != ask) _json.mode: grant.mode.name,
+    if (grant.source case final source?) _json.source: source.toJson(),
+  };
 
   /// The keys a site's JSON carries for this kind.
   List<String> get jsonKeys => [_json.mode, _json.source];
 }
 
-CaptureGrant<CameraAccessMode, VirtualVisualSource> _camera(CaptureGrants g) =>
-    g.camera;
-CaptureGrant<MicrophoneAccessMode, VirtualAudioSource> _microphone(
-  CaptureGrants g,
-) => g.microphone;
-CaptureGrant<ScreenShareMode, VirtualVisualSource> _screenShare(
-  CaptureGrants g,
-) => g.screenShare;
-CaptureGrants _withCamera(
-  CaptureGrants g,
-  CaptureGrant<CameraAccessMode, VirtualVisualSource> v,
-) => g.copyWith(camera: v);
-CaptureGrants _withMicrophone(
-  CaptureGrants g,
-  CaptureGrant<MicrophoneAccessMode, VirtualAudioSource> v,
-) => g.copyWith(microphone: v);
-CaptureGrants _withScreenShare(
-  CaptureGrants g,
-  CaptureGrant<ScreenShareMode, VirtualVisualSource> v,
-) => g.copyWith(screenShare: v);
-
-/// A site's decision for every kind.
+/// A site's decision for every kind. Written through
+/// [CaptureKind.withGrant], which checks the mode belongs to the kind.
 @immutable
 final class CaptureGrants {
   const CaptureGrants({
@@ -460,14 +406,14 @@ final class CaptureGrants {
     screenShare: (mode: ScreenShareMode.ask, source: null),
   );
 
-  final CaptureGrant<CameraAccessMode, VirtualVisualSource> camera;
-  final CaptureGrant<MicrophoneAccessMode, VirtualAudioSource> microphone;
-  final CaptureGrant<ScreenShareMode, VirtualVisualSource> screenShare;
+  final CaptureGrant camera;
+  final CaptureGrant microphone;
+  final CaptureGrant screenShare;
 
   CaptureGrants copyWith({
-    CaptureGrant<CameraAccessMode, VirtualVisualSource>? camera,
-    CaptureGrant<MicrophoneAccessMode, VirtualAudioSource>? microphone,
-    CaptureGrant<ScreenShareMode, VirtualVisualSource>? screenShare,
+    CaptureGrant? camera,
+    CaptureGrant? microphone,
+    CaptureGrant? screenShare,
   }) => CaptureGrants(
     camera: camera ?? this.camera,
     microphone: microphone ?? this.microphone,
@@ -477,20 +423,28 @@ final class CaptureGrants {
   /// Reads the keys [CaptureKind] owns; a wrong-typed or unknown value reads
   /// as absent. `cameraAllowed` is the legacy boolean the camera mode
   /// replaced.
-  static CaptureGrants fromJson(Map<String, dynamic> json) =>
-      CaptureKind.values.fold(none, (g, kind) => kind._read(g, json));
+  static CaptureGrants fromJson(Map<String, dynamic> json) => CaptureKind
+      .values
+      .fold(none, (g, kind) => kind.withGrant(g, kind._fromJson(json)));
 
   Map<String, Object> toJson() => {
-    for (final kind in CaptureKind.values) ...kind._write(this),
+    for (final kind in CaptureKind.values) ...kind._toJson(kind.grantOf(this)),
   };
 
   /// Every kind blocked, the stored files kept.
-  CaptureGrants blocked() =>
-      CaptureKind.values.fold(this, (g, kind) => kind._blocked(g));
+  CaptureGrants blocked() => _mapModes((kind, _) => kind.block);
 
   /// Every `real` grant back to `ask`; the device-free answers kept.
-  CaptureGrants withoutRealGrants() =>
-      CaptureKind.values.fold(this, (g, kind) => kind._unreal(g));
+  CaptureGrants withoutRealGrants() => _mapModes(
+    (kind, mode) => mode.state == SitePermissionState.allowed ? kind.ask : mode,
+  );
+
+  CaptureGrants _mapModes(
+    CaptureMode Function(CaptureKind kind, CaptureMode mode) f,
+  ) => CaptureKind.values.fold(this, (g, kind) {
+    final grant = kind.grantOf(g);
+    return kind.withGrant(g, (mode: f(kind, grant.mode), source: grant.source));
+  });
 
   @override
   bool operator ==(Object other) =>

@@ -5,6 +5,7 @@ import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Global "Link handling" screen (LIR-008): master toggle + routing
 /// overview + manual test entry. Tapping a site row opens [onOpenSiteEditor]
@@ -71,7 +72,7 @@ class _LinkHandlingSettingsScreenState
           SettingTile(
             title: loc.linkHandlingClaimDomainsToggleTitle,
             hint: loc.linkHandlingClaimDomainsToggleHint,
-            lock: enabled ? null : const RequiresLock(),
+            lock: enabled ? null : const Lock.because(null),
             control: const PrefToggle(AppPref.linkHandlingClaimDomains),
           ),
           const Divider(height: 1),
@@ -137,9 +138,7 @@ class _LinkHandlingSettingsScreenState
     final parsed = Uri.tryParse(raw);
     if (parsed == null) {
       final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.linkHandlingParseError)),
-      );
+      ScaffoldMessenger.of(context).toast(loc.linkHandlingParseError);
       return;
     }
     await widget.onManualDispatch?.call(parsed);

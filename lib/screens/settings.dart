@@ -9,7 +9,6 @@ import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/setting_labels.dart';
-import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/global_outbound_proxy.dart';
@@ -43,7 +42,8 @@ import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/setting_tile.dart';
-import 'package:webspace/widgets/site_permission_badges.dart' show CaptureKindIcon;
+import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/widgets/site_permission_badges.dart';
 
 // Supported languages for webview
 const List<MapEntry<String?, String>> _languages = [
@@ -534,8 +534,8 @@ class _SettingsScreenState extends State<SettingsScreen>
       final proxyError = validateProxyAddress(
           loc, _proxySettings.type, _proxyAddressController.text);
       if (proxyError != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.siteSettingsProxyError(proxyError))),
+        ScaffoldMessenger.of(context).toast(
+          loc.siteSettingsProxyError(proxyError),
         );
         return;
       }
@@ -685,17 +685,15 @@ class _SettingsScreenState extends State<SettingsScreen>
       // assertion in NavigatorState.build.
       if (!await popClean()) return;
 
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text(loc.siteSettingsSavedSnack)),
-      );
+      rootScaffoldMessengerKey.currentState?.toast(loc.siteSettingsSavedSnack);
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         widget.onSettingsSaved?.call();
       });
     } catch (e) {
       final errorText = '$e';
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text(loc.siteSettingsSaveError(errorText))),
+      rootScaffoldMessengerKey.currentState?.toast(
+        loc.siteSettingsSaveError(errorText),
       );
     }
   }
@@ -767,38 +765,17 @@ class _SettingsScreenState extends State<SettingsScreen>
   Widget _buildPermissionsRow() {
     final loc = AppLocalizations.of(context);
     final v = _permissionValues;
-    final entries = <(SitePermissionState, String, IconData)>[
-      (
-        locationPermissionState(_effectiveLocationMode),
-        loc.siteSettingsGeolocation,
-        Icons.location_on_outlined
-      ),
-      for (final kind in CaptureKind.values)
-        (
-          kind.grantOf(v.effectiveCaptures).mode.state,
-          kind.text(loc).title,
-          kind.icon(real: false)
-        ),
-      if (widget.useContainers)
-        (
-          notificationPermissionState(v.effectiveNotifications),
-          loc.siteSettingsNotifications,
-          Icons.notifications_none
-        ),
-      if (hostIsAndroid)
-        (
-          protectedContentPermissionState(v.effectiveProtectedContent(
-              trackingProtection: _trackingProtectionEnabled)),
-          loc.siteSettingsProtectedContent,
-          Icons.shield_outlined
-        ),
-    ];
-
-    final held = entries
-        .where((e) =>
-            e.$1 == SitePermissionState.allowed ||
-            e.$1 == SitePermissionState.simulated)
-        .toList();
+    final held = heldBadges((
+      location: _effectiveLocationMode,
+      captures: v.effectiveCaptures,
+      notifications: widget.useContainers && v.effectiveNotifications,
+      protectedContent: hostIsAndroid &&
+          v.effectiveProtectedContent(
+                  trackingProtection: _trackingProtectionEnabled) ==
+              true,
+      // Not a grant (the Permissions screen says so under its switch).
+      backgroundAudio: false,
+    ));
     final scheme = Theme.of(context).colorScheme;
     return SummaryNavRow(
       // A key, not a shield: the Privacy row directly above leads with a
@@ -807,16 +784,20 @@ class _SettingsScreenState extends State<SettingsScreen>
       title: loc.permissionsTitle,
       summary: summariseSettings(
         loc,
-        [for (final e in held) '${e.$2}: ${e.$1.label(loc)}'],
+        [
+          for (final b in held)
+            '${sitePermissionBadgeTitle(loc, b)}: '
+                '${sitePermissionBadgeState(b).label(loc)}',
+        ],
         none: loc.permissionsSummaryNothingGranted,
       ),
       marks: [
-        for (final e in held)
+        for (final b in held)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: Icon(e.$3,
+            child: Icon(sitePermissionBadgeIcon(b),
                 size: 16,
-                color: opensRealDevice(e.$1)
+                color: isRealDeviceAccess(b)
                     ? scheme.error
                     : scheme.onSurfaceVariant),
           ),
@@ -902,7 +883,7 @@ class _SettingsScreenState extends State<SettingsScreen>
         searchAddress: _searchAddress,
         searchesWeb: _searchesWeb,
         searchSites: _searchSites,
-        searchDefault: _searchDefault,
+        searchDefault: Scoped.fromStored(_searchDefault),
       );
 
   /// One of the four rows that open a screen of their own. Behaviour is what
@@ -970,7 +951,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               _searchAddress = values.searchAddress;
               _searchesWeb = values.searchesWeb;
               _searchSites = values.searchSites;
-              _searchDefault = values.searchDefault;
+              _searchDefault = values.searchDefault.stored;
             });
           },
         ),
@@ -1313,13 +1294,11 @@ class _SettingsScreenState extends State<SettingsScreen>
               },
             ),
           ),
-          ListTile(
-            title: Text(loc.siteSettingsUserScripts),
-            subtitle: Text(
-              _userScriptsSubtitle(),
-            ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
+          SettingTile(
+            title: loc.siteSettingsUserScripts,
+            hint: null,
+            subtitle: _userScriptsSubtitle(),
+            control: Opens(() {
               Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -1356,7 +1335,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   ),
                 ),
               );
-            },
+            }),
           ),
           SettingsSection(loc.siteSettingsSectionSite),
           _buildBehaviourRow(),
@@ -1392,9 +1371,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     if (confirmed) {
                       widget.onClearCookies!();
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(snack)),
-                        );
+                        ScaffoldMessenger.of(context).toast(snack);
                       }
                     }
                   },

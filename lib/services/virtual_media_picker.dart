@@ -21,9 +21,12 @@ extension CapturePickErrorText on CaptureText {
 
 /// A pick: the [source], a file the picker refused ([error]), or a dismissed
 /// picker (both null).
-typedef VirtualMediaPickResult<S> = ({S? source, VirtualMediaPickError? error});
+typedef VirtualMediaPickResult = ({
+  VirtualSource? source,
+  VirtualMediaPickError? error,
+});
 
-typedef _Pick = VirtualMediaPickResult<PickedMedia>;
+typedef _Pick = ({PickedMedia? source, VirtualMediaPickError? error});
 
 /// Picks the file a capture kind serves in place of its device.
 ///
@@ -54,9 +57,7 @@ abstract final class VirtualMediaPicker {
     'weba',
   ];
 
-  static Future<VirtualMediaPickResult<S>> pick<S extends VirtualSource>(
-    CaptureMedium<S> medium,
-  ) async {
+  static Future<VirtualMediaPickResult> pick(CaptureMedium medium) async {
     final picked = switch (medium) {
       CaptureMedium.visual => await _visual(),
       CaptureMedium.audio => await _audio(),

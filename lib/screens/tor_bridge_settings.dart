@@ -21,6 +21,7 @@ import 'package:webspace/services/tor_moat_client.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// Message for a rejected paste. Kept next to the parse result so the screen
 /// never has to say a generic "invalid bridge" — a half-copied line has a
@@ -267,32 +268,26 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
           ? const Center(child: CircularProgressIndicator())
           : ListView(
               children: [
-                SwitchListTile(
-                  title: Text(loc.torBridgesEnable),
-                  value: _config.enabled,
-                  onChanged: _busy
-                      ? null
-                      : (v) => _commit(_config.copyWith(enabled: v)),
+                SettingTile(
+                  title: loc.torBridgesEnable,
+                  hint: null,
+                  lock: _busy ? const Lock.because(null) : null,
+                  control: Toggle(_config.enabled,
+                      (v) => _commit(_config.copyWith(enabled: v))),
                 ),
                 // Everything below the switch configures bridges, and with
                 // the switch off none of it is in force. Showing it anyway
                 // reads as a set of live settings that silently do nothing,
                 // so the screen collapses to the one control that matters.
                 if (_config.enabled) ...[
-                  ListTile(
-                    title: Text(loc.torBridgesTransport),
-                    trailing: DropdownButton<TorTransport>(
-                      value: _config.transport,
-                      onChanged: _busy
-                          ? null
-                          : (v) => v == null
-                              ? null
-                              : _commit(_config.copyWith(transport: v)),
-                      items: [
-                        for (final t in TorTransport.values)
-                          DropdownMenuItem(value: t, child: Text(t.wireName)),
-                      ],
-                    ),
+                  ChoiceTile<TorTransport>(
+                    title: loc.torBridgesTransport,
+                    hint: null,
+                    values: TorTransport.values,
+                    label: (t) => t.wireName,
+                    value: _config.transport,
+                    lock: _busy ? const Lock.because(null) : null,
+                    onChanged: (v) => _commit(_config.copyWith(transport: v)),
                   ),
                   if (_restartNeeded)
                     _notice(theme, loc.torBridgesRestartNeeded,
