@@ -1,4 +1,4 @@
-# BUG-028 — A change that moves rows leaves positions naming other sites
+# BUG-029 — A change that moves rows leaves positions naming other sites
 
 Status: closed
 

@@ -509,7 +509,7 @@ Argon2id derivation costs ~1s on target hardware. Keep it off the UI thread on s
 
 Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/proxy-password-secure-storage/spec.md). Template: `ProxyPasswordSecureStorage`.
 
-- **Storage**: a `SecureJsonStore` ([keystore.dart](lib/services/keystore.dart)) on `Keystores.credentials`, keyed by `siteId` (per-site) or a fixed reserved key (global). Never a new `FlutterSecureStorage` option set: on Apple the accessibility class is part of the keychain query, so changing it makes existing entries unreadable ([BUG-026](docs/bugs/026-aead-keys-unreadable-on-locked-wake.md)). An encrypted blob on disk takes its key from `KeychainAead`.
+- **Storage**: a `SecureJsonStore` ([keystore.dart](lib/services/keystore.dart)) on `Keystores.credentials`, keyed by `siteId` (per-site) or a fixed reserved key (global). Never a new `FlutterSecureStorage` option set: on Apple the accessibility class is part of the keychain query, so changing it makes existing entries unreadable ([BUG-027](docs/bugs/027-aead-keys-unreadable-on-locked-wake.md)). An encrypted blob on disk takes its key from `KeychainAead`.
 - **Never serialise to JSON**: `toJson` omits the field. No `includeSecrets` opt-in. Same rule as `isSecure=true` cookies. Backup files get emailed/synced — they must not carry secrets.
 - **Hydrate on load** alongside per-site/global hydration in `SiteListStore.load` and `GlobalOutboundProxy.initialize`.
 - **Migrate legacy plaintext** with the idempotent pre-pass in `ProxyPasswordSecureStorage.migrateLegacyPassword`.
@@ -554,7 +554,7 @@ background wake opens) is built from one `SitePosture`
 `launchUrl` → `InAppWebViewScreen` → `WebViewConfig`. Every field is required
 with no default, so a field the chain forgets does not compile, and a hostile
 outbound link cannot drop the site's posture. Spec: NESTED-010; history:
-[BUG-024](docs/bugs/024-nested-posture-drift.md).
+[BUG-025](docs/bugs/025-nested-posture-drift.md).
 
 When you add a per-site field:
 
@@ -577,7 +577,7 @@ surface sets. What the host answers (prompts, popups, capture resolvers,
 cookie jars, routing) is one `WebViewHostHooks`
 ([webview_host_hooks.dart](lib/services/webview_host_hooks.dart)) that
 `main.dart` builds once and both surfaces take whole; a new host answer is a
-required field there (BUG-027).
+required field there (BUG-028).
 
 If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., frames: ShimFrames.all)` ([page_shim.dart](lib/services/page_shim.dart)) so the shim reaches cross-origin iframes.
 

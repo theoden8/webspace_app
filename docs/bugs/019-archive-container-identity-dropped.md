@@ -14,7 +14,7 @@ opaque id; only the resolver builds a posture),
 `test/js/archive_container_identity.test.js` (the close-time sweep),
 `test/js/site_info_container_source.test.js` (the binding and the info sheet
 read the same posture)
-**Related:** [BUG-024](024-nested-posture-drift.md), the class this is one
+**Related:** [BUG-025](025-nested-posture-drift.md), the class this is one
 instance of
 **Security review:** [2026-09-10](../security/2026-09-10-review.md) SEC-002, SEC-014
 
@@ -70,7 +70,7 @@ named profile.
    that repeats the mistake. *Why partial:* see below.
 
 4. **2026-10-06, #680,
-   BUG-024 attempt 6.** *What:* the per-site chain became one `SitePosture`
+   BUG-025 attempt 6.** *What:* the per-site chain became one `SitePosture`
    value, required by `WebViewConfig`, `InAppWebViewScreen` and `launchUrl`,
    with `archiveContainerId` in its container group; `storeBinding` and the
    router identity read the binding from it. *Why:* gap 1 below said nothing

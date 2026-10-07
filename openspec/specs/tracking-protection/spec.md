@@ -896,7 +896,7 @@ and `trackingProtectionEnabled: true`
 **When** its settings are saved with the polygon dataset loaded
 **Then** the stored `spoofTimezone` is `'Europe/Paris'`
 **And** the site's webview and every nested webview it opens report
-`Europe/Paris` (BUG-024: the nested one used to report the device zone)
+`Europe/Paris` (BUG-025: the nested one used to report the device zone)
 
 #### Scenario: No coords leaves timezone untouched
 

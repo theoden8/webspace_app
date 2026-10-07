@@ -59,7 +59,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
       await _open();
     } finally {
       // Kept even when the open failed: a store opened later in the process
-      // would overwrite the detail this process never read (BUG-026).
+      // would overwrite the detail this process never read (BUG-027).
       _initialized = true;
     }
   }

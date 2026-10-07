@@ -167,7 +167,7 @@ class SiteNetworkController {
       if (!_pinnedBy(model, host, entry.port)) continue;
       HtmlCacheService.instance.deleteCache(model.siteId);
       // Outside the unload funnel on purpose: the session is wiped so the
-      // next load re-handshakes (BUG-025).
+      // next load re-handshakes (BUG-026).
       if (_sites.loaded.contains(i)) {
         model.disposeWebView();
         _sites.loaded.remove(i);

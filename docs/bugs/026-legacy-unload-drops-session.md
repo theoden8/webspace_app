@@ -1,4 +1,4 @@
-# BUG-025 — An unload under the legacy engine drops what the site just set
+# BUG-026 — An unload under the legacy engine drops what the site just set
 
 Status: closed
 

@@ -229,7 +229,7 @@ required with no default, so the chain cannot drop one, and the nested screen
 SHALL NOT re-derive a value the resolver already resolved (the umbrella's
 forcing, the archive overrides, the timezone). The one difference the nested
 screen has is `SitePosture.forNested()`: a `real` capture grant is asked again
-(CAM-005 / MIC-005). History: [BUG-024](../../../docs/bugs/024-nested-posture-drift.md).
+(CAM-005 / MIC-005). History: [BUG-025](../../../docs/bugs/025-nested-posture-drift.md).
 
 A dropped field is not a cosmetic gap. `shouldOverrideUrlLoading` is null
 unless the nested screen has a reason to build one, and null means allow — so
@@ -282,7 +282,7 @@ load, exactly as the parent does
 those coordinates resolve to stored in `spoofTimezone`
 **When** it opens an outbound link in a nested webview
 **Then** the nested page reports that zone, the same one the site's own
-webview reports (BUG-024)
+webview reports (BUG-025)
 
 #### Scenario: A forced camera block survives the hop
 

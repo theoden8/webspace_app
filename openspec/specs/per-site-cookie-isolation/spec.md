@@ -61,7 +61,7 @@ exit-country mismatch, the loaded-site cap, memory pressure, a home reset).
 Every activation empties the shared jar after saving it for the loaded sites
 only, so a site unloaded without the capture loses what it set since its own
 activation. All unloads go through `SiteUnloadEngine.unload`. Lineage:
-[BUG-025](../../../docs/bugs/025-legacy-unload-drops-session.md).
+[BUG-026](../../../docs/bugs/026-legacy-unload-drops-session.md).
 
 #### Scenario: Capture cookies before switch
 

@@ -192,7 +192,7 @@ void main() {
     });
 
     test('TP with picked coordinates keeps the resolved zone one hop out '
-        '(BUG-024)', () {
+        '(BUG-025)', () {
       final root = _posture(_site(tp: true, archived: false));
       expect(root.location.timezone, 'Europe/Berlin');
       expect(root.forNested().location.timezone, 'Europe/Berlin');

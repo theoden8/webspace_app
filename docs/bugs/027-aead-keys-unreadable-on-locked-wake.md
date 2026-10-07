@@ -1,4 +1,4 @@
-# BUG-026 — A background launch with the screen locked disables the encrypted caches
+# BUG-027 — A background launch with the screen locked disables the encrypted caches
 
 Status: **open.** Recorded before any fix; nothing below has shipped.
 
@@ -53,7 +53,7 @@ for the life of the process.**
    `first_unlock` store whose reader cached a failure, now answers a refused
    read with null (`TorBridgeSecureStorage.loadIfReadable`), and `TorEngine`
    stays un-hydrated on null so the next start asks again. Regression tests:
-   "a refused read gives the engine nothing to keep (BUG-026)" and "a keystore
+   "a refused read gives the engine nothing to keep (BUG-027)" and "a keystore
    that refuses leaves tor startable, and retries later". *Why:* the engine's
    retry path caught a throw the store never raises: `SecureJsonStore.read`
    turns a refusal into the default, bridges off, which the engine then kept

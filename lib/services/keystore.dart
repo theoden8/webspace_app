@@ -43,7 +43,7 @@ abstract final class Keystores {
 
   /// The AES keys of the encrypted on-disk caches (`KeychainAead`). iOS
   /// default `unlocked`, so a wake with the screen locked cannot read them
-  /// (BUG-026).
+  /// (BUG-027).
   static const FlutterSecureStorage aeadKeys = FlutterSecureStorage();
 }
 

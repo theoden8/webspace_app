@@ -500,7 +500,7 @@ class TorEngine {
   /// A keystore that refused leaves the default (bridges off) for this start
   /// rather than refusing to start Tor, and stays un-hydrated so a later
   /// start asks again rather than keeping bridges off for the process
-  /// lifetime (BUG-026).
+  /// lifetime (BUG-027).
   Future<void> _hydrateBridges() async {
     if (_bridgesHydrated) return;
     final loader = _bridgeLoader;

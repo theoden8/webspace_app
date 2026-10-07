@@ -611,7 +611,7 @@ Otherwise a site could defeat the spoof by linking to a detection page (e.g. bro
 
 **Given** site "Acme" has Tracking Protection on, picked coordinates in Paris, and `spoofTimezone = 'Europe/Paris'` resolved at save
 **When** the user follows a cross-domain link from Acme into a nested `InAppWebViewScreen`
-**Then** `Intl.DateTimeFormat().resolvedOptions().timeZone` in the nested page is `Europe/Paris`, not the device's zone (BUG-024)
+**Then** `Intl.DateTimeFormat().resolvedOptions().timeZone` in the nested page is `Europe/Paris`, not the device's zone (BUG-025)
 
 #### Scenario: Iframe sees the spoof
 

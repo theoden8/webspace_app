@@ -1,4 +1,4 @@
-# BUG-027 — A site webview is built without some of the host's prompts
+# BUG-028 — A site webview is built without some of the host's prompts
 
 Status: **closed.** Every site webview, the root one whichever path builds it
 first and the nested screen, takes one `WebViewHostHooks`
@@ -11,7 +11,7 @@ cannot leave a prompt out.
 [external-scheme-handling](../../openspec/specs/external-scheme-handling/spec.md),
 [web-microphone-access](../../openspec/specs/web-microphone-access/spec.md) MIC-014,
 [link-intent-routing](../../openspec/changes/route-outbound-via-lir/specs/link-intent-routing/spec.md) LIR-014
-**Related:** [BUG-024](024-nested-posture-drift.md), the same shape for the
+**Related:** [BUG-025](025-nested-posture-drift.md), the same shape for the
 site's posture rather than the host's answers
 
 ## Symptom

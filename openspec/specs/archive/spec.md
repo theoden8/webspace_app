@@ -255,7 +255,7 @@ The archive open/close lifecycle SHALL keep `MK_arch` in memory only, persisting
 **Then** the same app-tier sites stay loaded and the same one stays on screen
 **And** a site of the archive that was on screen leaves the page on the webspace list
 **And** a Tor site of the archive no longer holds the Tor runtime up (TOR-002)
-**Because** the close goes through `_commitSites(ArchiveClosed(...))`, whose `SiteRuntime.apply` removes each row through `SiteLifecycleEngine.computeDeletionPatch`, and which reconciles the Tor refcount after every change (BUG-028)
+**Because** the close goes through `_commitSites(ArchiveClosed(...))`, whose `SiteRuntime.apply` removes each row through `SiteLifecycleEngine.computeDeletionPatch`, and which reconciles the Tor refcount after every change (BUG-029)
 
 #### Scenario: Close on process exit
 

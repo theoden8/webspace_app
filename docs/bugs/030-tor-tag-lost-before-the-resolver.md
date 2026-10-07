@@ -1,4 +1,4 @@
-# BUG-029 — A Tor site's isolation tag is lost before its proxy is resolved
+# BUG-030 — A Tor site's isolation tag is lost before its proxy is resolved
 
 Status: **open, narrowed.** `resolveEffectiveProxy` and
 `ProxyManager.setProxySettings` take a required `siteId`, so no call site can

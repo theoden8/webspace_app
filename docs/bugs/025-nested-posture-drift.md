@@ -1,4 +1,4 @@
-# BUG-024 — A nested webview runs under a posture other than its site's
+# BUG-025 — A nested webview runs under a posture other than its site's
 
 Status: **closed.** Every webview that runs as a site, the nested screen and
 the popup included, is built from one `SitePosture` that `WebViewModel.sitePosture`

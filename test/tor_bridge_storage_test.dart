@@ -80,7 +80,7 @@ void main() {
           reason: 'the caller must be able to tell this apart from "none set"');
     });
 
-    test('a refused read gives the engine nothing to keep (BUG-026)',
+    test('a refused read gives the engine nothing to keep (BUG-027)',
         () async {
       // The engine's loader: a configuration it would hydrate from and never
       // read again, so a refusal has to come back as no answer.
