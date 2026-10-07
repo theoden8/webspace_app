@@ -1385,7 +1385,45 @@ class WebViewModel {
         (hosted || runsForeignTab) &&
         onReturnToOwner != null &&
         getNormalizedDomain(url) == ownerDomain;
-    void returnToOwner(String url) => onReturnToOwner?.call(url);
+    // Carries out a navigation decision, for a tap and a redirect alike:
+    // false when this webview must not load [url]. The host's outbound hook
+    // may take a leaving link over first (LIR-014) and hears of a blocked one
+    // (NESTED-009).
+    bool dispatch(NavigationDecision decision, String url, bool hadGesture,
+        {required String via}) {
+      LogService.instance.log('WebView', '$via -> ${decision.name} $url',
+          sensitivity: LogSensitivity.sensitive);
+      if (NavigationDecisionEngine.stepFor(decision,
+              returnsToOwner: returnsToOwner(url)) ==
+          NavigationStep.returnToOwner) {
+        onReturnToOwner?.call(url);
+        return false;
+      }
+      bool takenOver() =>
+          onOutboundLink?.call(url, decision, hadGesture) ?? false;
+      switch (decision) {
+        case NavigationDecision.allow:
+          return true;
+        case NavigationDecision.blockSilent:
+        case NavigationDecision.blockSuppressed:
+          return false;
+        case NavigationDecision.blockOpenNested:
+          if (!takenOver()) {
+            launchUrlFunc(
+              url,
+              id.sitePosture(globalUserScripts: globalUserScripts),
+              homeTitle: id.name,
+            );
+          }
+          return false;
+        case NavigationDecision.blockOpenExternal:
+          if (!takenOver()) launchUrlInSystemBrowser(url);
+          return false;
+        case NavigationDecision.blockOutbound:
+          takenOver();
+          return false;
+      }
+    }
     // Fail closed while Tor is still bootstrapping (TOR-008), for explicit
     // Tor sites and for DEFAULT sites inheriting a global Tor (PROXY-011).
     // Constructing an InAppWebView here with a null proxy binds its
@@ -1416,9 +1454,8 @@ class WebViewModel {
         'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
         sensitivity: LogSensitivity.sensitive,
       );
-      final bool isMobile = hostIsIOS || hostIsAndroid;
       final pullToRefreshGate =
-          isMobile ? PullToRefreshGate.create(onRefresh: userDrivenReload) : null;
+          PullToRefreshGate.forHost(onRefresh: userDrivenReload);
       // Track last user gesture on same-domain navigation, so we can
       // propagate it to cross-domain redirects (e.g., search engine
       // redirect links like DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
@@ -1524,7 +1561,6 @@ class WebViewModel {
                     isActive: isActive,
                     saveFunc: saveFunc,
                   ),
-          pullToRefreshController: pullToRefreshGate?.controller,
           pullToRefreshGate: pullToRefreshGate,
           onWindowRequested: onWindowRequested,
           onUnproxiedNavigationBlocked: (blocked) {
@@ -1537,85 +1573,21 @@ class WebViewModel {
               'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
               sensitivity: LogSensitivity.sensitive,
             );
+            final now = DateTime.now();
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
               targetUrl: url,
               initUrl: navHome,
               hasGesture: hasGesture,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
-              now: DateTime.now(),
+              now: now,
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
             );
-            switch (result.gestureUpdate) {
-              case GestureStateUpdate.record:
-                lastSameDomainGestureTime = DateTime.now();
-                break;
-              case GestureStateUpdate.consume:
-                lastSameDomainGestureTime = null;
-                break;
-              case null:
-                break;
-            }
-            if (NavigationDecisionEngine.stepFor(result.decision,
-                    returnsToOwner: returnsToOwner(url)) ==
-                NavigationStep.returnToOwner) {
-              returnToOwner(url);
-              return false;
-            }
-            switch (result.decision) {
-              case NavigationDecision.allow:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> ALLOW',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                return true;
-              case NavigationDecision.blockSilent:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (auto-redirect blocked, no user gesture)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                return false;
-              case NavigationDecision.blockSuppressed:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (background site, suppressing nested webview)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                return false;
-              case NavigationDecision.blockOpenNested:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (opening nested webview)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlFunc(
-                  url,
-                  id.sitePosture(globalUserScripts: globalUserScripts),
-                  homeTitle: id.name,
-                );
-                return false;
-              case NavigationDecision.blockOpenExternal:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (opening system browser)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlInSystemBrowser(url);
-                return false;
-              case NavigationDecision.blockOutbound:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (external links blocked)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                onOutboundLink?.call(url, result.decision, result.hadGesture);
-                return false;
-            }
+            lastSameDomainGestureTime =
+                result.gestureUpdate.applyTo(lastSameDomainGestureTime, now);
+            return dispatch(result.decision, url, result.hadGesture,
+                via: 'shouldOverrideUrlLoading');
           },
           onReloadIssued: () => onReloadIssued?.call(),
           onMainFrameLoad: resumeReload.noteLoad,
@@ -1642,121 +1614,38 @@ class WebViewModel {
             stateSetterF?.call();
           },
           onUrlChanged: (url) async {
-            // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
-            // (e.g., server-side 302 from search engine redirect pages like
-            // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
-            final initDomain = getNormalizedDomain(navHome);
+            // A server-side redirect (DuckDuckGo's /l/?uddg=, Google's
+            // /url?q=) arrives here without passing shouldOverrideUrlLoading.
+            final now = DateTime.now();
             final handled = NavigationDecisionEngine.handleOnUrlChanged(
               newUrl: url,
               initUrl: navHome,
               isSiteActive: isActive?.call() ?? true,
               lastSameDomainGestureTime: lastSameDomainGestureTime,
-              now: DateTime.now(),
+              now: now,
               isCaptchaChallenge: (u) =>
                   WebViewFactory.isCaptchaChallenge(u, siteUrl: navHome),
               state: urlChangedState,
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
             );
-            switch (handled.gestureUpdate) {
-              case GestureStateUpdate.record:
-                lastSameDomainGestureTime = DateTime.now();
-                break;
-              case GestureStateUpdate.consume:
-                lastSameDomainGestureTime = null;
-                break;
-              case null:
-                break;
-            }
+            lastSameDomainGestureTime =
+                handled.gestureUpdate.applyTo(lastSameDomainGestureTime, now);
             urlChangedState = handled.state;
-            // Navigate-back was previously fired here when a cross-domain
-            // URL was confirmed via `controller.getUrl()`. Removed: even
-            // the conservative `stopLoading()` + `Future.microtask` +
-            // `loadUrl(prev)` sequence still races chromium's in-flight
-            // cross-origin redirect handling on the broken Android
-            // System WebView build that surfaces a dangling-raw_ptr
-            // SIGTRAP at `partition_alloc_support.cc:770`. Real-device
-            // logs reproduced the crash on the LinkedIn safety/go →
-            // reddit redirect sequence with cached-HTML and WebGL paths
-            // already mitigated; the only remaining suspect is our own
-            // loadUrl-during-redirect.
-            //
-            // Trade-off: when a cross-domain server-side redirect bypasses
-            // shouldOverrideUrlLoading, the parent webview briefly
-            // displays the redirect target until the next user-initiated
-            // navigation. The nested webview still opens (handled below)
-            // so the user sees the destination they actually wanted.
-            // That visual artifact is preferable to crashing the
-            // renderer.
-            if (handled.decision != null &&
-                handled.decision != NavigationDecision.allow) {
-              switch (handled.decision!) {
-                case NavigationDecision.blockSilent:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  return;
-                case NavigationDecision.blockSuppressed:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect suppressed (background site): $url',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  return;
-                case NavigationDecision.blockOpenNested:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  if (handled.launchNestedUrl != null) {
-                    if (returnsToOwner(handled.launchNestedUrl!)) {
-                      returnToOwner(handled.launchNestedUrl!);
-                      return;
-                    }
-                    if (onOutboundLink?.call(handled.launchNestedUrl!, NavigationDecision.blockOpenNested, handled.hadGesture) ?? false) return;
-                    launchUrlFunc(
-                      handled.launchNestedUrl!,
-                      id.sitePosture(globalUserScripts: globalUserScripts),
-                      homeTitle: id.name,
-                    );
-                  }
-                  return;
-                case NavigationDecision.blockOpenExternal:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect to system browser: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  if (handled.launchExternalUrl != null) {
-                    if (returnsToOwner(handled.launchExternalUrl!)) {
-                      returnToOwner(handled.launchExternalUrl!);
-                      return;
-                    }
-                    if (onOutboundLink?.call(handled.launchExternalUrl!, NavigationDecision.blockOpenExternal, handled.hadGesture) ?? false) return;
-                    launchUrlInSystemBrowser(handled.launchExternalUrl!);
-                  }
-                  return;
-                case NavigationDecision.blockOutbound:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect blocked by external-link mode: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  onOutboundLink?.call(url, NavigationDecision.blockOutbound, handled.hadGesture);
-                  return;
-                case NavigationDecision.allow:
-                  break;
-              }
+            // No navigate-back to the last same-domain page: even
+            // stopLoading + microtask + loadUrl(prev) races Chromium's
+            // in-flight cross-origin redirect on the Android WebView build
+            // that SIGTRAPs at `partition_alloc_support.cc:770` (LinkedIn's
+            // safety/go -> reddit). The parent shows the redirect target
+            // until the next navigation; the nested webview still opens.
+            final decision = handled.decision;
+            if (decision != null &&
+                !dispatch(decision, url, handled.hadGesture,
+                    via: 'onUrlChanged')) {
+              return;
             }
-            // State committed; sync currentUrl to the state's view of it.
             currentUrl = urlChangedState.currentUrl;
-            // Trigger UI rebuild so URL bar updates
-            if (stateSetterF != null) {
-              stateSetterF!();
-            }
+            stateSetterF?.call();
             // Get page title and update name if we have a title.
             // Skip the title + theme IPCs when the URL didn't actually
             // advance — this is the duplicate event from the other of

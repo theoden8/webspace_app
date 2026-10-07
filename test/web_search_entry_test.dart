@@ -217,7 +217,7 @@ void main() {
       final body = model.substring(
           start, model.indexOf('  WebViewController? getController('));
       expect(count(body, 'id.sitePosture(globalUserScripts: globalUserScripts)'),
-          3, reason: 'the webview and both nested launches run as the identity');
+          2, reason: 'the webview and the nested launch run as the identity');
       for (final field in [
         'posture: posture,',
         'initUrl: navHome',
@@ -233,8 +233,12 @@ void main() {
       final start = model.indexOf('  Widget getWebView(');
       final body = model.substring(
           start, model.indexOf('  WebViewController? getController('));
-      expect(count(body, 'returnsToOwner('), greaterThanOrEqualTo(4),
-          reason: 'the tap and both redirect launches ask first');
+      expect(
+          body,
+          contains('if (NavigationDecisionEngine.stepFor(decision,\n'
+              '              returnsToOwner: returnsToOwner(url)) ==\n'
+              '          NavigationStep.returnToOwner) {'),
+          reason: 'every way out, on the tap and the redirect path, asks first');
       expect(main, contains('Future<void> _returnToOwner(WebViewModel model, String url) =>\n      _openChildTab(model, url);'));
     });
   });

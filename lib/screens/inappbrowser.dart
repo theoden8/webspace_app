@@ -261,9 +261,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
       siteId: widget.posture.siteId,
       currentUrl: widget.url,
     );
-    final bool isMobile = hostIsIOS || hostIsAndroid;
     _pullToRefreshGate =
-        isMobile ? PullToRefreshGate.create(onRefresh: _reloadAndRepaint) : null;
+        PullToRefreshGate.forHost(onRefresh: _reloadAndRepaint);
     // Defer InAppWebView construction while Tor is not up (TOR-008). Building
     // it here binds its WKWebsiteDataStore to a null proxy for the widget's
     // lifetime, so a later Up transition would leak — the nested twin of the
@@ -417,7 +416,6 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   }
                 }
               },
-        pullToRefreshController: _pullToRefreshGate?.controller,
         pullToRefreshGate: _pullToRefreshGate,
         onUrlChanged: (url) {
           _devToolsHost.currentUrl = url;
@@ -477,16 +475,8 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             now: DateTime.now(),
             externalLinkMode: p.page.externalLinks,
           );
-          switch (result.gestureUpdate) {
-            case GestureStateUpdate.record:
-              _lastSameDomainGestureTime = DateTime.now();
-              break;
-            case GestureStateUpdate.consume:
-              _lastSameDomainGestureTime = null;
-              break;
-            case null:
-              break;
-          }
+          _lastSameDomainGestureTime = result.gestureUpdate
+              .applyTo(_lastSameDomainGestureTime, DateTime.now());
           if (_handedOffToTab) return false;
           switch (result.decision) {
             case NavigationDecision.allow:

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
+import 'package:webspace/platform/host_platform.dart';
 
 /// The slice of [inapp.PullToRefreshController] the gate drives, kept as an
 /// interface so the state machine can be exercised without a platform channel.
@@ -38,10 +39,14 @@ class _ControllerRefreshControl implements RefreshControl {
 class PullToRefreshGate {
   PullToRefreshGate._(this._control, this.controller, this._now);
 
-  /// Builds the refresh controller together with the gate guarding it.
-  factory PullToRefreshGate.create({
+  /// The refresh controller and the gate guarding it, on the platforms with
+  /// a pull-to-refresh control (Android, iOS); null elsewhere.
+  static PullToRefreshGate? forHost({
     required Future<void> Function() onRefresh,
-  }) {
+  }) =>
+      hostIsAndroid || hostIsIOS ? PullToRefreshGate._create(onRefresh) : null;
+
+  factory PullToRefreshGate._create(Future<void> Function() onRefresh) {
     late final PullToRefreshGate gate;
     final controller = inapp.PullToRefreshController(
       settings: inapp.PullToRefreshSettings(enabled: true),

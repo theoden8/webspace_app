@@ -30,34 +30,36 @@ function previousLine(text, index) {
   return lines.length ? lines[lines.length - 1] : '';
 }
 
-test('every launch in getWebView asks the outbound hook first', () => {
+test('the tap and the redirect path carry out decisions in one place', () => {
+  const calls = [...getWebView.matchAll(/\bdispatch\(\w+\.decision|\bdispatch\(decision,/g)];
+  assert.equal(calls.length, 2,
+    'shouldOverrideUrlLoading and onUrlChanged both go through dispatch');
+});
+
+test('every launch asks the outbound hook first', () => {
+  assert.match(getWebView,
+    /bool takenOver\(\) =>\s*onOutboundLink\?\.call\(url, decision, hadGesture\) \?\? false;/,
+    'the hook is asked about the link being launched');
   const launches = [...getWebView.matchAll(
-    /\b(launchUrlFunc|launchUrlInSystemBrowser)\(([^,)]+)/g)];
-  assert.ok(launches.length >= 4,
-    'getWebView should launch nested and external on both navigation paths');
+    /\b(launchUrlFunc|launchUrlInSystemBrowser)\(/g)];
+  assert.equal(launches.length, 2, 'one nested and one external launch');
   for (const m of launches) {
-    const prev = previousLine(getWebView, m.index);
-    assert.match(prev, /onOutboundLink\?\.call\(/,
-      `${m[1]}(${m[2]}...) is not guarded by onOutboundLink; a routed link ` +
-      'would open with the source posture');
-    assert.ok(prev.includes(m[2].trim()),
-      `the hook before ${m[1]}(${m[2]}...) is asked about a different URL`);
-    assert.match(prev, /\?\? false\) return/,
-      'a link the hook took over must not also be launched');
+    const prev = previousLine(getWebView, m.index + m[0].length) + getWebView
+      .slice(getWebView.lastIndexOf('\n', m.index), m.index);
+    assert.match(prev, /if \(!takenOver\(\)\)/,
+      `${m[1]} is not guarded by the outbound hook; a routed link would ` +
+      'open with the source posture, or open twice');
   }
 });
 
-test('every blocked outbound link reaches the hook, and nothing launches', () => {
-  const blocks = [...getWebView.matchAll(/case NavigationDecision\.blockOutbound:/g)];
-  assert.equal(blocks.length, 2,
-    'getWebView should block on both the tap and the redirect path');
-  for (const m of blocks) {
-    const branch = getWebView.slice(m.index, getWebView.indexOf('return', m.index));
-    assert.match(branch, /onOutboundLink\?\.call\(url, (result\.decision|NavigationDecision\.blockOutbound), (result|handled)\.hadGesture\)/,
-      'a blocked link must reach the host, which tells the user about a tap');
-    assert.doesNotMatch(branch, /launchUrlFunc|launchUrlInSystemBrowser/,
-      'a blocked link must not open anywhere');
-  }
+test('a blocked outbound link reaches the hook, and nothing launches', () => {
+  const at = getWebView.indexOf('case NavigationDecision.blockOutbound:');
+  assert.notEqual(at, -1, 'the blocked branch is gone');
+  const branch = getWebView.slice(at, getWebView.indexOf('return', at));
+  assert.match(branch, /takenOver\(\);/,
+    'a blocked link must reach the host, which tells the user about a tap');
+  assert.doesNotMatch(branch, /launchUrlFunc|launchUrlInSystemBrowser/,
+    'a blocked link must not open anywhere');
 });
 
 test('getController forwards the hook to the webview it builds', () => {

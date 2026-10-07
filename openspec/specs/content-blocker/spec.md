@@ -233,6 +233,10 @@ rules match exactly as before
 **When** a sub-resource request is blocked
 **Then** the interceptor attributes the hit to `dns` (DNS is checked first)
 **And** the ABP block counter is not incremented for that request
+**And** every path that blocks or counts a request (navigations, popups,
+`blockCheck`, the PerformanceObserver batch, page-icon fetches) takes this
+order through `BlockDecision.decide`, which asks the engine nothing about a
+request DNS already blocked
 
 #### Scenario: Per-source counters preserved in stats
 
@@ -614,8 +618,8 @@ or `https`
 
 Every network-block decision the engine makes SHALL be folded into the
 DevTools ABP tab's counters, regardless of which consult path produced
-it: `isBlocked` (main-doc navigations, JS-bridge `blockCheck`,
-legacy single-URL reports), `isHostBlocked` (PerformanceObserver
+it: `isBlocked` (main-doc navigations, JS-bridge `blockCheck`),
+`isHostBlocked` (PerformanceObserver
 per-host attribution), and blocks decided by the Android native JNI
 engine (drained `abp`-sourced block events). The blocked/allowed
 tallies SHALL be cumulative since timing was enabled — they MUST NOT

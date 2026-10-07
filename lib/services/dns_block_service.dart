@@ -12,11 +12,9 @@ import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/utils/concurrency.dart';
+import 'package:webspace/services/block_decision.dart';
 
-/// Which blocklist attributed a block decision. Allowed requests have no
-/// source. Stats preserve this so the UI can show a merged count while
-/// still disentangling DNS vs ABP hits when needed.
-enum BlockSource { dns, abp }
+export 'package:webspace/services/block_decision.dart' show BlockSource;
 
 /// A single request log entry (allowed or blocked).
 class DnsLogEntry {
@@ -462,6 +460,17 @@ class DnsBlockService {
   /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
     return _siteStats.putIfAbsent(siteId, () => DnsStats());
+  }
+
+  /// Records [verdict] for [query] against [siteId].
+  void recordVerdict(String siteId, BlockQuery query, BlockVerdict verdict) {
+    final source = verdict.source;
+    switch (query) {
+      case UrlQuery(:final url):
+        recordRequest(siteId, url, source != null, source: source);
+      case HostQuery(:final host):
+        recordHostRequest(siteId, host, source != null, source: source);
+    }
   }
 
   /// Record a request (allowed or blocked) for a site. [source] identifies

@@ -61,6 +61,15 @@ enum GestureStateUpdate {
   consume,
 }
 
+extension GestureStateUpdateApply on GestureStateUpdate? {
+  /// The caller's stored same-domain gesture time after this update.
+  DateTime? applyTo(DateTime? last, DateTime now) => switch (this) {
+        GestureStateUpdate.record => now,
+        GestureStateUpdate.consume => null,
+        null => last,
+      };
+}
+
 class NavigationDecisionResult {
   final NavigationDecision decision;
 

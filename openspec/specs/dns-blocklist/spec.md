@@ -327,7 +327,7 @@ Dart maintains a single `_domainCache: Map<String, bool>` keyed by host (NOT
 per-site — trackers and CDNs are shared across sites, so one site learning
 about `googleapis.com` benefits all sites). Updated transparently via
 `recordRequest` whenever any webview reports a block decision (via native
-handler, JS `blockCheck`, or JS `blockResourceLoaded`). Persisted in
+handler, JS `blockCheck`, or the JS `blockResourceLoadedBatch` observer). Persisted in
 SharedPreferences under `dns_domain_cache`, write-debounced to 2 seconds.
 Capped at 5000 entries with FIFO eviction. Invalidated (cleared) when the
 blocklist changes, since cached decisions may become stale.
@@ -346,7 +346,7 @@ for k hash functions. JS implementation byte-compatible with Dart
 `BloomFilter` class. Rebuilt lazily; invalidated whenever either the DNS
 blocklist or the aggregated ABP rule set changes.
 
-- Bloom says "definitely not" → allow without roundtrip, record via `blockResourceLoaded`, add to JS cache
+- Bloom says "definitely not" → allow without roundtrip (the PerformanceObserver batch records it), add to JS cache
 - Bloom says "possibly yes" → roundtrip to Dart `blockCheck` handler for confirmation, add result to JS cache
 
 **3. Dart authoritative check** — handles false positives + blocks:
@@ -1170,18 +1170,15 @@ skipping `contentBlockerHandler.checkUrl()` entirely.
 ### Recording Hooks
 
 **shouldOverrideUrlLoading** (all platforms) — navigation blocking + recording:
-```dart
-if (DnsBlockService.instance.hasBlocklist) {
-  DnsBlockService.instance.recordRequest(siteId, url, blocked);
-  if (blocked && config.dnsBlockEnabled) return CANCEL;
-}
-```
+one `BlockDecision.decide` verdict at the site's own level
+([block_decision.dart](../../../lib/services/block_decision.dart)), recorded
+once through `DnsBlockService.recordVerdict`, whether or not a list is loaded.
 
 **onLoadStart** (all platforms) — records page URL for immediate banner display.
 
 **PerformanceObserver JS** (iOS/macOS) — injected at `DOCUMENT_START` with
 `buffered: true`, records all completed resources via Resource Timing API.
-Reports back to Dart via `addJavaScriptHandler('blockResourceLoaded')`.
+Reports each host once, in batches, via `addJavaScriptHandler('blockResourceLoadedBatch')`.
 
 ### Storage
 

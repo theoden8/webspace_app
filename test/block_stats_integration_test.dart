@@ -4,6 +4,7 @@
 // recording funnels, which is where a silent zero hides.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -49,6 +50,31 @@ void main() {
           source: BlockSource.abp);
 
       expect(stats.engine.allTimeTotals[BlockCategory.filterList], 1);
+    });
+
+    test('a verdict is one request: a filter-list block is not also allowed',
+        () {
+      // Navigations used to record a DNS "allowed" and then, separately, the
+      // filter-list block, counting one blocked request as two.
+      final svc = DnsBlockService.instance;
+      svc.recordVerdict(
+          'site-1',
+          const UrlQuery('https://ads.example/a',
+              sourceUrl: 'https://site.example/', requestType: 'document'),
+          const Blocked(BlockSource.abp));
+      svc.recordVerdict(
+          'site-1', const HostQuery('cdn.example'), const Allowed());
+      svc.recordVerdict(
+          'site-1',
+          const UrlQuery('https://ads.example/gtm.js',
+              sourceUrl: 'https://site.example/', requestType: 'other'),
+          const Redirect('data:text/javascript,'));
+
+      final perSite = svc.statsForSite('site-1');
+      expect(perSite.blocked, 2);
+      expect(perSite.blockedByAbp, 2);
+      expect(perSite.allowed, 1);
+      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 2);
     });
 
     test('allowed requests move no report counter', () {

@@ -13,6 +13,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/background_wake_engine.dart';
 import 'package:webspace/services/blob_url_capture.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/block_interceptor_shim.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/clearurl_share_shim.dart';
@@ -477,18 +478,50 @@ bool _pageIconRequestAllowed(
   Uri target,
   String documentUrl, {
   String requestType = 'image',
-}) {
-  final url = target.toString();
-  if (DnsBlockService.instance
-      .isBlockedAtLevel(url, config.effectiveDnsLevel)) {
-    return false;
-  }
-  return !(config.posture.blocking.contentBlock &&
-      ContentBlockerService.instance.isBlocked(
-        url,
-        sourceUrl: documentUrl,
-        requestType: requestType,
-      ));
+}) =>
+    _verdictFor(
+      config,
+      UrlQuery(target.toString(),
+          sourceUrl: documentUrl, requestType: requestType),
+    ) is Allowed;
+
+final class _LiveBlockLists implements BlockLists {
+  const _LiveBlockLists();
+
+  @override
+  bool dnsBlocksUrl(String url, int level) =>
+      DnsBlockService.instance.isBlockedAtLevel(url, level);
+
+  @override
+  bool dnsBlocksHost(String host, int level) =>
+      DnsBlockService.instance.isHostBlockedAtLevel(host, level);
+
+  @override
+  bool abpBlocksUrl(String url,
+          {required String sourceUrl, required String requestType}) =>
+      ContentBlockerService.instance
+          .isBlocked(url, sourceUrl: sourceUrl, requestType: requestType);
+
+  @override
+  bool abpBlocksHost(String host) =>
+      ContentBlockerService.instance.isHostBlocked(host);
+
+  @override
+  String? abpRedirect(String url,
+          {required String sourceUrl, required String requestType}) =>
+      ContentBlockerService.instance
+          .redirectFor(url, sourceUrl: sourceUrl, requestType: requestType);
+}
+
+BlockVerdict _verdictFor(WebViewConfig config, BlockQuery query) =>
+    BlockDecision.decide(query, config.blockPolicy, const _LiveBlockLists());
+
+/// [_verdictFor], counted in the site's block stats.
+BlockVerdict _judgeAndRecord(WebViewConfig config, BlockQuery query) {
+  final verdict = _verdictFor(config, query);
+  DnsBlockService.instance
+      .recordVerdict(config.posture.siteId, query, verdict);
+  return verdict;
 }
 
 /// The identity a site presents to the proxy router (PROXY-013).
@@ -1044,6 +1077,10 @@ class WebViewConfig {
   int get effectiveDnsLevel => posture.blocking.dns
       ? DnsBlockService.instance.effectiveLevelFor(posture.blocking.dnsLevel)
       : kDnsLevelOff;
+  BlockPolicy get blockPolicy => (
+        dnsLevel: effectiveDnsLevel,
+        contentBlock: posture.blocking.contentBlock,
+      );
   /// Callback for JS console messages.
   final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
   /// Callback to confirm fetching a script from a non-whitelisted URL.
@@ -1076,11 +1113,8 @@ class WebViewConfig {
   /// (HTTPAUTH-003). Null leaves every such challenge to the platform, which
   /// cancels and shows the server's error body.
   final HttpAuthPrompt? onHttpAuthRequest;
-  /// Optional pull-to-refresh controller for enabling pull-to-refresh gesture.
-  final inapp.PullToRefreshController? pullToRefreshController;
-  /// Guards [pullToRefreshController] against two-finger gestures. Owns the
-  /// pointer bookkeeping the platform refresh controls lack; the factory
-  /// feeds it from a [Listener] wrapped around the webview.
+  /// Pull-to-refresh, with the gate that keeps a pinch from firing it
+  /// (NAV-006); the factory feeds it from a [Listener] around the webview.
   final PullToRefreshGate? pullToRefreshGate;
   /// Fires when the underlying renderer terminates unexpectedly. On Android
   /// this maps to `WebView.onRenderProcessGone` — the OS sometimes kills the
@@ -1197,7 +1231,6 @@ class WebViewConfig {
     this.onLinkLongPress,
     this.onUntrustedCertificate,
     this.onHttpAuthRequest,
-    this.pullToRefreshController,
     this.pullToRefreshGate,
     this.onRendererGone,
     this.onPageCommitVisible,
@@ -2274,27 +2307,14 @@ class WebViewFactory {
     required bool allowCaptcha,
     bool refusePlainHttp = false,
   }) {
-    final siteId = config.posture.siteId;
     final url = navigationAction.request.url?.toString() ?? '';
     if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
     if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
-    if (url.startsWith('http')) {
-      final blocked = DnsBlockService.instance
-          .isBlockedAtLevel(url, config.effectiveDnsLevel);
-      DnsBlockService.instance.recordRequest(siteId, url, blocked,
-          source: blocked ? BlockSource.dns : null);
-      if (blocked) return inapp.NavigationActionPolicy.CANCEL;
-    }
-    if (config.posture.blocking.contentBlock &&
-        ContentBlockerService.instance.isBlocked(
-          url,
-          sourceUrl: config.initialUrl,
-          requestType: 'document',
-        )) {
-      DnsBlockService.instance.recordRequest(siteId, url, true,
-          source: BlockSource.abp);
-      return inapp.NavigationActionPolicy.CANCEL;
-    }
+    final verdict = _judgeAndRecord(
+      config,
+      UrlQuery(url, sourceUrl: config.initialUrl, requestType: 'document'),
+    );
+    if (verdict is! Allowed) return inapp.NavigationActionPolicy.CANCEL;
     if (navigationAction.isForMainFrame == false) {
       return inapp.NavigationActionPolicy.ALLOW;
     }
@@ -3044,109 +3064,31 @@ class WebViewFactory {
         return args.isNotEmpty ? args[0] : '';
       });
     }
-    // Block stats: register handler for resource observer JS. Always
-    // registered so allowed requests are tallied regardless of whether any
-    // blocklist is populated — the JS checks below decide how to attribute
-    // a block, and a request with neither list matching is simply recorded
-    // as allowed.
-    // Batched per-host allowed/blocked report from
-    // PerformanceObserver. JS dedupes by host across the entire
-    // page lifetime and flushes batches every 250ms (or 64 hosts).
-    // Each host walks the blocklists once and gets a single log
-    // entry — no per-URL Dart roundtrip.
+    // Registered whether or not a list is loaded, so allowed requests are
+    // tallied too. One verdict per host the page loaded from.
     controller.addJavaScriptHandler(handlerName: 'blockResourceLoadedBatch', callback: (args) {
       if (args.isEmpty || args[0] is! List) return null;
-      final hosts = args[0] as List;
-      final dnsSvc = DnsBlockService.instance;
-      final abpSvc = ContentBlockerService.instance;
-      final dnsLevel = config.effectiveDnsLevel;
-      for (final h in hosts) {
+      for (final h in args[0] as List) {
         if (h is! String || h.isEmpty) continue;
-        final dnsBlocked = dnsSvc.isHostBlockedAtLevel(h, dnsLevel);
-        final abpBlocked = !dnsBlocked &&
-            config.posture.blocking.contentBlock &&
-            abpSvc.isHostBlocked(h);
-        final blocked = dnsBlocked || abpBlocked;
-        final source = dnsBlocked
-            ? BlockSource.dns
-            : (abpBlocked ? BlockSource.abp : null);
-        dnsSvc.recordHostRequest(config.posture.siteId, h, blocked, source: source);
+        _judgeAndRecord(config, HostQuery(h));
       }
       return null;
     });
-    // Backwards-compat: legacy single-URL report path. The JS
-    // interceptor no longer fires this, but stale injected scripts
-    // (cached service workers, in-page bookmarklets) might. Treat
-    // it the same as a one-host batch.
-    controller.addJavaScriptHandler(handlerName: 'blockResourceLoaded', callback: (args) {
-      if (args.isEmpty || args[0] is! String) return null;
-      final url = args[0] as String;
-      final dnsBlocked = config.posture.blocking.dns &&
-          DnsBlockService.instance.isBlocked(url);
-      // Pass the page URL as sourceUrl so the engine can fire
-      // `$domain=` rules. [sourceUrl] is the most recent
-      // URL that triggered onLoadStart — the page hosting this
-      // sub-resource. Empty fallback degrades to host-only
-      // matching which still works for plain `||domain^` rules.
-      final abpBlocked = !dnsBlocked &&
-          config.posture.blocking.contentBlock &&
-          ContentBlockerService.instance.isBlocked(
-            url,
-            sourceUrl: sourceUrl() ?? '',
-          );
-      final blocked = dnsBlocked || abpBlocked;
-      final source = dnsBlocked
-          ? BlockSource.dns
-          : (abpBlocked ? BlockSource.abp : null);
-      DnsBlockService.instance
-          .recordRequest(config.posture.siteId, url, blocked, source: source);
-      return null;
-    });
-    // iOS sub-resource blocking: per-URL check from JS interceptor.
-    // Only the bloom-hit minority of requests hits this path.
     if (!hostIsAndroid) {
+      // The WebKit interceptor's question about a Bloom hit. [sourceUrl] is
+      // the hosting page, so `$domain=` rules apply.
       controller.addJavaScriptHandler(handlerName: 'blockCheck', callback: (args) {
-        // Return value contract for the JS shim:
-        //   false       — allow (call origSet / origFetch as-is)
-        //   true        — block (drop the request)
-        //   String      — block + redirect; the string is a
-        //                 `data:` URL the shim should swap the
-        //                 request URL with so the page sees the
-        //                 neutered uBO stub body instead of an
-        //                 empty 200. Maintains stats parity:
-        //                 we still record the block before
-        //                 returning the redirect URL.
         if (args.isEmpty || args[0] is! String) return false;
-        final url = args[0] as String;
-        final dnsSvc = DnsBlockService.instance;
-        final abpSvc = ContentBlockerService.instance;
-        // Consult the ABP engine up front (not after a DNS early
-        // return) so the engine decision is recorded for the ABP
-        // dev-tools stats even when the DNS list also blocks this
-        // host. Otherwise, with a DNS blocklist on, the engine is
-        // never asked about the hosts both lists share and the ABP
-        // tab reads zero blocks. sourceUrl is the hosting page so
-        // `$domain=` modifiers apply.
-        final abpBlocked = config.posture.blocking.contentBlock &&
-            abpSvc.isBlocked(url, sourceUrl: sourceUrl() ?? '');
-        if (dnsSvc.isBlockedAtLevel(url, config.effectiveDnsLevel)) {
-          dnsSvc.recordRequest(config.posture.siteId, url, true,
-              source: BlockSource.dns);
-          return true;
-        }
-        if (abpBlocked) {
-          dnsSvc.recordRequest(config.posture.siteId, url, true,
-              source: BlockSource.abp);
-          // Try the engine's $redirect= lookup. Only meaningful
-          // when the engine is on; returns null otherwise.
-          final redirect = abpSvc.redirectFor(
-            url,
-            sourceUrl: sourceUrl() ?? '',
-          );
-          return redirect ?? true;
-        }
-        dnsSvc.recordRequest(config.posture.siteId, url, false);
-        return false;
+        final verdict = _judgeAndRecord(
+          config,
+          UrlQuery(args[0] as String,
+              sourceUrl: sourceUrl() ?? '', requestType: 'other'),
+        );
+        return switch (verdict) {
+          Allowed() => false,
+          Blocked() => true,
+          Redirect(:final url) => url,
+        };
       });
       // One-shot merged Bloom filter delivery to JS. Bloom bits only: the
       // handler is reachable from any page, so nothing host-identifying
@@ -3684,7 +3626,7 @@ class WebViewFactory {
         encoding: 'utf-8',
         baseUrl: inapp.WebUri(config.initialUrl),
       ) : null,
-      pullToRefreshController: config.pullToRefreshController,
+      pullToRefreshController: config.pullToRefreshGate?.controller,
       initialUserScripts: UnmodifiableListView(userScripts),
       initialSettings: settings,
       // Web permission requests. Two per-site flows route through here:
@@ -4107,39 +4049,14 @@ class WebViewFactory {
           }
           return inapp.NavigationActionPolicy.CANCEL;
         }
-        // DNS blocklist check + record navigation for stats. Record for
-        // every http navigation so the per-site log works even when no
-        // blocklist is populated; isBlocked is a cheap set lookup. The
-        // verbose `[Navigation] $url` log was dropped — `LogService.log`
-        // calls `notifyListeners()` which triggers a setState rebuild
-        // on the dev tools log tab for every single navigation.
-        if (url.startsWith('http')) {
-          // At the site's own level, so the recorded stat is the decision
-          // the navigation actually got rather than the app-wide one.
-          final blocked = DnsBlockService.instance
-              .isBlockedAtLevel(url, config.effectiveDnsLevel);
-          DnsBlockService.instance.recordRequest(config.posture.siteId, url, blocked,
-              source: blocked ? BlockSource.dns : null);
-          if (blocked) {
-            return inapp.NavigationActionPolicy.CANCEL;
-          }
-        }
-        // Content blocker domain check (main-doc navigation; sub-resources
-        // are caught by the native / JS interceptor). requestType
-        // 'document' tells the engine this is a top-level load, so
-        // any `$~document` modifiers are honoured. The source URL is
-        // the previous page (`lastLoadStartUrl`) — the page that
-        // initiated this navigation.
-        if (config.posture.blocking.contentBlock &&
-            ContentBlockerService.instance.isBlocked(
-              url,
-              sourceUrl: lastLoadStartUrl ?? '',
-              requestType: 'document',
-            )) {
-          DnsBlockService.instance.recordRequest(config.posture.siteId, url, true,
-              source: BlockSource.abp);
-          return inapp.NavigationActionPolicy.CANCEL;
-        }
+        // Counted even with no list loaded, so the per-site log reflects
+        // the visit. The source is the page that started the navigation.
+        final verdict = _judgeAndRecord(
+          config,
+          UrlQuery(url,
+              sourceUrl: lastLoadStartUrl ?? '', requestType: 'document'),
+        );
+        if (verdict is! Allowed) return inapp.NavigationActionPolicy.CANCEL;
         // Cross-domain → nested-webview routing applies to MAIN-FRAME
         // navigations only. On Android API 24+ chromium fires
         // shouldOverrideUrlLoading for child-frame (iframe) navigations
@@ -4507,31 +4424,12 @@ class WebViewFactory {
         // Track that this URL has a real page load (not SPA navigation)
         lastLoadStartUrl = url?.toString();
         failedNavUrl = null;
-        // Record the page navigation for the block stats banner so it
-        // appears immediately. Tag the source (DNS or ABP) so the log
-        // keeps the attribution even for main-doc loads. Recorded for
-        // every http load so the per-site log reflects activity even
-        // when no blocklist is populated.
-        if (url != null &&
-            url.toString().startsWith('http')) {
-          final urlStr = url.toString();
-          final dnsBlocked = DnsBlockService.instance.isBlocked(urlStr);
-          // We're inside onLoadStart for `urlStr`, so this IS the
-          // page URL — use it as both the URL under check and the
-          // source. requestType 'document' since this is a top-level
-          // load.
-          final abpBlocked = !dnsBlocked &&
-              ContentBlockerService.instance.isBlocked(
-                urlStr,
-                sourceUrl: urlStr,
-                requestType: 'document',
-              );
-          final blocked = dnsBlocked || abpBlocked;
-          final source = dnsBlocked
-              ? BlockSource.dns
-              : (abpBlocked ? BlockSource.abp : null);
-          DnsBlockService.instance
-              .recordRequest(config.posture.siteId, urlStr, blocked, source: source);
+        // Counted here too, so the stats banner shows a cached-HTML load
+        // that never reached shouldOverrideUrlLoading.
+        if (url != null && url.toString().startsWith('http')) {
+          final page = url.toString();
+          _judgeAndRecord(config,
+              UrlQuery(page, sourceUrl: page, requestType: 'document'));
         }
         // Batch the early-injected helpers (content-blocker CSS,
         // ClearURLs share-API shim) into a single evaluateJavascript
@@ -4595,7 +4493,7 @@ class WebViewFactory {
           WebViewFactory.httpsUpgrade.onLoadFinished(url.toString());
         }
         // End pull-to-refresh animation
-        config.pullToRefreshController?.endRefreshing();
+        config.pullToRefreshGate?.controller?.endRefreshing();
         // Notify the call site that this navigation finished loading
         // (or was canceled) so the Stop button can swap back to
         // Refresh. Fired regardless of whether `url` is renderable —

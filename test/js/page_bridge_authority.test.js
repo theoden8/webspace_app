@@ -298,7 +298,7 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
   assert.notEqual(gateAt, -1, '_onSiteNavigationPolicy is gone');
   const gate = WEBVIEW.slice(gateAt, WEBVIEW.indexOf('\n  }\n', gateAt));
   for (const check of [
-    'DnsBlockService.instance',
+    '_judgeAndRecord(',
     "requestType: 'document'",
     'navigationAction.isForMainFrame == false',
     'isCaptchaChallenge(url, siteUrl: config.initialUrl)',

@@ -2,19 +2,15 @@
 //
 // Neither Android's SwipeRefreshLayout nor iOS's UIRefreshControl looks at the
 // pointer count, so a two-finger pinch at scroll top fires a refresh. The fix
-// lives in PullToRefreshGate, which both webview surfaces must go through: a
-// bare PullToRefreshController anywhere else reintroduces the bug on that
-// surface, and a controller handed to InAppWebView without its gate leaves the
-// pointer stream unwatched.
+// lives in PullToRefreshGate. WebViewConfig takes the gate and no controller,
+// and the gate is the only way to build one, so a surface cannot hand the
+// webview a controller without it.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read } = require('./helpers/source');
 
 const GATE = 'lib/services/pull_to_refresh_gate.dart';
-// The surfaces that own a refresh controller: the main webview and the nested
-// cross-domain one.
-const SURFACES = ['lib/web_view_model.dart', 'lib/screens/inappbrowser.dart'];
 
 test('the gate disables the control on a second pointer', () => {
   const src = read(GATE);
@@ -31,33 +27,6 @@ test('the gate swallows a refresh that outran the disable', () => {
   assert.match(src, /endRefreshing/,
     'a swallowed refresh must still stop the spinner');
 });
-
-for (const rel of SURFACES) {
-  const src = read(rel);
-
-  test(`${rel}: the refresh controller is built by the gate`, () => {
-    assert.match(src, /PullToRefreshGate\.create\(/,
-      'build the controller through PullToRefreshGate.create');
-  });
-
-  test(`${rel}: no bare PullToRefreshController (NAV-006 gate)`, () => {
-    const offenders = src
-      .split('\n')
-      .map((l, i) => [l, i + 1])
-      .filter(([l]) => /(?:inapp\.)?PullToRefreshController\(/.test(l))
-      .map(([, n]) => n);
-    assert.deepEqual(offenders, [],
-      `bare PullToRefreshController at line(s) ${offenders.join(', ')}. ` +
-        'Route it through PullToRefreshGate.create (NAV-006).');
-  });
-
-  test(`${rel}: the controller ships with its gate`, () => {
-    assert.match(src, /pullToRefreshController:\s*\S*[Gg]ate\?\.controller/,
-      'the config must take the controller off the gate');
-    assert.match(src, /pullToRefreshGate:\s*\S*[Gg]ate/,
-      'the config must carry the gate so the factory can feed it pointers');
-  });
-}
 
 test('the factory feeds the gate from a raw pointer Listener', () => {
   const src = read('lib/services/webview.dart');
