@@ -155,14 +155,18 @@
     if (!(window.flutter_inappwebview && window.flutter_inappwebview.callHandler)) {
       return Promise.resolve(false);
     }
-    return window.flutter_inappwebview.callHandler('blockCheck', url).then(function(blocked) {
+    return window.flutter_inappwebview.callHandler('blockCheck', url).then(function(decision) {
+      // A redirect is the verdict of a path rule, so it is never this
+      // host's, and coercing it to a bool would drop the request the rule
+      // meant to serve a stub to (CB-010).
+      if (isRedirect(decision)) return decision;
       if (cacheable) {
         try {
           var host = new URL(url).hostname;
-          if (host) cachePut(host, !!blocked);
+          if (host) cachePut(host, !!decision);
         } catch (e) {}
       }
-      return !!blocked;
+      return !!decision;
     });
   }
 

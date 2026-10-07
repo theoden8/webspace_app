@@ -65,6 +65,22 @@ test('a blocked fetch rejects and never goes out', async () => {
   assert.deepEqual(fetched, []);
 });
 
+test('a redirect verdict fetches the stub body instead', async () => {
+  const { w, fetched } = await setup(SATURATED);
+  await w.fetch('https://redirect.example/ads.js');
+  assert.deepEqual(fetched, [REDIRECT]);
+});
+
+test('a redirect verdict rewrites an image src', async () => {
+  const { w } = await setup(SATURATED);
+  const img = w.document.createElement('img');
+  img.src = 'https://redirect.example/pixel.gif';
+  assert.equal(img.getAttribute('src'), null,
+    'the assignment waits for the verdict');
+  await tick();
+  assert.equal(img.getAttribute('src'), REDIRECT);
+});
+
 test('a blocked image src is never assigned', async () => {
   const { w } = await setup(SATURATED);
   const img = w.document.createElement('img');

@@ -60,6 +60,9 @@ const BRIDGE = `
         return Promise.resolve({ bits: new Array(8).fill(255), bitCount: 64, k: 1 });
       }
       if (name === 'blockCheck') {
+        if (arg.indexOf('redirect.invalid') >= 0) {
+          return Promise.resolve('data:text/plain,stub');
+        }
         return Promise.resolve(arg.indexOf('blocked.invalid') >= 0);
       }
       return Promise.resolve(null);
@@ -78,6 +81,17 @@ test('the interceptor drops a blocked fetch and lets the rest through', async (t
       }, host.url.replace(/\/$/, ''));
       assert.equal(out.ok, 200);
       assert.match(out.blocked, /^Blocked: /);
+    });
+});
+
+test('a redirect verdict serves the stub body (CB-010)', async (t) => {
+  await withPage(t, [BRIDGE, readFixture('block_interceptor/interceptor.js')],
+    async (page) => {
+      const body = await page.evaluate(async () => {
+        await new Promise((r) => setTimeout(r, 50));
+        return fetch('https://redirect.invalid/gtm.js').then((r) => r.text());
+      });
+      assert.equal(body, 'stub');
     });
 });
 
