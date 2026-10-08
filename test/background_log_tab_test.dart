@@ -8,7 +8,7 @@ import 'package:webspace/services/log_service.dart';
 import 'helpers/mock_cookie_manager.dart';
 import 'helpers/localized.dart';
 
-/// DEVTOOLS-011: the Background tab exists only in developer mode, shows what
+/// DEVTOOLS-012: the Background tab exists only in developer mode, shows what
 /// the background log kept, and keeps entries that name sites behind the
 /// switch and the copy confirmation.
 void main() {

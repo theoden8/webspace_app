@@ -27,7 +27,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 /**
- * Native half of the background log (DEVTOOLS-011): JSON lines under
+ * Native half of the background log (DEVTOOLS-012): JSON lines under
  * `filesDir`, written by [BackgroundTaskAndroidPlugin] and
  * [NotificationRefreshWorker] and appended to from Dart. The file exists only
  * while developer mode is on, and its existence is the switch, so a worker in

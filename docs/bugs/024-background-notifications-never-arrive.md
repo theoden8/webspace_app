@@ -71,7 +71,7 @@ what it finds.**
    in memory, so a wake in a new process had nothing to compare against.
 
 7. **2026-10-06 — PR #670.** A background log kept on disk in developer mode
-   (DEVTOOLS-011). *Why*: the user had no computer to read logs from. *Why
+   (DEVTOOLS-012). *Why*: the user had no computer to read logs from. *Why
    partial*: diagnostics only. Its first logs from a device showed iOS wakes
    with notification sites enabled and none checked, which is attempt 8.
 

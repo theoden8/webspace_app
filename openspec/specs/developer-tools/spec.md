@@ -390,7 +390,7 @@ Diagnostics accumulate. A blank-screen repaint action (`webview-pause-lifecycle`
 
 ---
 
-### Requirement: DEVTOOLS-011 - Background Log
+### Requirement: DEVTOOLS-012 - Background Log
 
 The app SHALL keep a **background log** while developer mode (DEVTOOLS-010) is on: a record of what happened while the app was not on screen, readable on the device itself, so a user whose notifications never arrived can see where the chain stopped without logcat or Console.app.
 
@@ -486,7 +486,7 @@ The app SHALL provide a JavaScript evaluation input in the Console tab, allowing
 |------|------|
 | `lib/services/log_service.dart` | LogService singleton, LogEntry, LogLevel enum |
 | `lib/screens/dev_tools.dart` | DevToolsScreen plus DevToolsHost abstraction (WebViewModelDevToolsHost, NestedDevToolsHost). Tabs/actions are gated on `host != null` (Console, Share HTML, Save Icon) and `host.blockedCookies != null` (Cookies, DNS, Scripts). |
-| `lib/services/background_log.dart` | DEVTOOLS-011 `BackgroundLog`: records background lines (normal to the native file, sensitive companions in memory), merges the native file with this process, exposes the system-state rows. |
+| `lib/services/background_log.dart` | DEVTOOLS-012 `BackgroundLog`: records background lines (normal to the native file, sensitive companions in memory), merges the native file with this process, exposes the system-state rows. |
 | `lib/widgets/background_log_view.dart` | The Background tab: system state, the log, the sensitive switch, Refresh / Export / Copy / Clear. |
 | `android/.../BackgroundLogFile.kt`, `ios/Runner/BackgroundTaskPlugin.swift` (`BackgroundLogFile`) | Native background-log file, single-owner executor / queue, and the system-state query. |
 | `lib/services/icon_png_export.dart` | The icon the drawer shows, as PNG (`displayedSiteIconAsPng`); resolves a site favicon, fetches it via the proxy-aware icon client, and normalizes any source (PNG/ICO/JPEG/SVG) to PNG bytes (`exportIconAsPng`). |

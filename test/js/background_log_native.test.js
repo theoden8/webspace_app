@@ -1,4 +1,4 @@
-// Background log native-store gate (DEVTOOLS-011, BUG-007).
+// Background log native-store gate (DEVTOOLS-012, BUG-007).
 //
 // The native half of the background log is a file touched from the platform
 // thread (channel calls), the WorkManager coroutine / BGTaskScheduler queue

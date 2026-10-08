@@ -9,7 +9,7 @@ import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/widgets/dev_tools_parts.dart';
 import 'package:webspace/widgets/log_entry_line.dart';
 
-/// DEVTOOLS-011: the Background tab of Developer Tools. Shows what the
+/// DEVTOOLS-012: the Background tab of Developer Tools. Shows what the
 /// background log kept, across restarts and native steps, under the OS state
 /// a refresh and a notification depend on.
 class BackgroundLogView extends StatefulWidget {

@@ -32,7 +32,7 @@ class DeveloperModeService {
     if (enabled == on) return;
     await AppPref.developerMode.set(on);
     LogTag.developerMode.debug(on ? 'enabled' : 'disabled');
-    // DEVTOOLS-011: the background log exists only while developer mode is
+    // DEVTOOLS-012: the background log exists only while developer mode is
     // on; turning it off deletes what was recorded.
     await BackgroundLog.instance.setRecording(on: on);
   }

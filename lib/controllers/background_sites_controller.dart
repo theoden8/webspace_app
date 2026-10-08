@@ -153,7 +153,7 @@ class BackgroundSitesController {
   }
 
   /// A notification site leaving the loaded set is checked headless by the
-  /// next wake rather than reloaded (NOTIF-016, DEVTOOLS-011). Call after the
+  /// next wake rather than reloaded (NOTIF-016, DEVTOOLS-012). Call after the
   /// removal.
   void noteUnloaded(WebViewModel m, {required String reason}) {
     if (!m.effectiveNotificationsEnabled) return;

@@ -179,7 +179,7 @@ class DevToolsScreen extends StatefulWidget {
   /// the top-level (per-site) launch; null for nested webviews.
   final VoidAsyncCallback? onSimulateBackgroundRefresh;
 
-  /// Open on the Background tab (DEVTOOLS-011) when developer mode shows it.
+  /// Open on the Background tab (DEVTOOLS-012) when developer mode shows it.
   final bool startOnBackground;
 
   const DevToolsScreen({
