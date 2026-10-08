@@ -25,7 +25,7 @@ void main() {
 
   setUpAll(() {
     files = {
-      for (final rel in ['lib/main.dart', tabsRel])
+      for (final rel in ['lib/screens/webspace_page.dart', tabsRel])
         rel: File(rel).readAsStringSync().split('\n'),
     };
     lines = files[tabsRel]!;

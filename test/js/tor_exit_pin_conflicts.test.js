@@ -11,7 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, blockAfter } = require('./helpers/source');
 
-const rel = 'lib/main.dart';
+const rel = 'lib/screens/webspace_page.dart';
 const src = read(rel);
 const engineRel = 'lib/services/site_unload_engine.dart';
 const plan = blockAfter(read(engineRel), 'static ResidencyPlan plan(', undefined, engineRel);

@@ -70,8 +70,8 @@ test('only the settings row may ask with the experiment assumed on', () => {
   assert.match(declaration(src, 'canRunHere'), /experimentEnabled: true/);
   const callers = dartFiles()
     .filter((f) => read(f).includes('ProxyRouterService.canRunHere('));
-  assert.deepStrictEqual(callers, ['lib/main.dart']);
-  const main = read('lib/main.dart');
+  assert.deepStrictEqual(callers, ['lib/screens/webspace_page.dart']);
+  const main = read('lib/screens/webspace_page.dart');
   const uses = [...main.matchAll(/ProxyRouterService\.canRunHere\(/g)];
   assert.strictEqual(uses.length, 1);
   assert.match(main.slice(uses[0].index - 40, uses[0].index),

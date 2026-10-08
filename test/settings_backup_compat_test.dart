@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/main.dart' show AccentColor, AppThemeSettings;
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';

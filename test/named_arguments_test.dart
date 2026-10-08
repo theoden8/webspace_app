@@ -23,7 +23,7 @@ const _roots = ['lib', 'test', 'integration_test', 'test_driver', 'tool'];
 /// Declarations torn off as a callback whose type is not ours, which fixes
 /// their shape. Each names that type.
 const _fixedFromOutside = {
-  'lib/main.dart _onSystemUiChange': 'SystemUiChangeCallback',
+  'lib/screens/webspace_page.dart _onSystemUiChange': 'SystemUiChangeCallback',
   'lib/services/block_stats_detail.dart _byCountThenRecency': 'List.sort',
   'lib/widgets/external_tor_tiles.dart _setSwitch': 'ValueChanged<bool>',
   'test/settings_backup_compat_test.dart _compareTags': 'List.sort',

@@ -14,7 +14,7 @@ void main() {
   late String links;
 
   setUpAll(() {
-    source = File('lib/main.dart').readAsStringSync();
+    source = File('lib/screens/webspace_page.dart').readAsStringSync();
     tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });

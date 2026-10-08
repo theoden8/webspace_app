@@ -17,7 +17,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, blockAfter } = require('./helpers/source');
 
-const rel = 'lib/main.dart';
+const rel = 'lib/screens/webspace_page.dart';
 const src = read(rel);
 
 const setCurrentIndex = blockAfter(

@@ -15,7 +15,7 @@ const assert = require('node:assert/strict');
 const { read, blockAfter } = require('./helpers/source');
 
 const modelRel = 'lib/web_view_model.dart';
-const mainRel = 'lib/main.dart';
+const mainRel = 'lib/screens/webspace_page.dart';
 const linksRel = 'lib/controllers/link_controller.dart';
 const model = read(modelRel);
 const main = read(mainRel);

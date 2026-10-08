@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/main.dart' as app;
+import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -22,7 +22,7 @@ void main() {
       await openWebspace(tester, name: 'All');
       await openSiteFromDrawer(tester, name: 'Site');
 
-      final menu = find.byType(PopupMenuButton<app.SiteMenuAction>);
+      final menu = find.byType(PopupMenuButton<SiteMenuAction>);
       expect(menu, findsOneWidget);
       if (tabStrip) {
         expect(find.byTooltip('Menu'), findsOneWidget);

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart' show ThemeMode;
-import 'package:webspace/main.dart' show AccentColor, AppThemeSettings;
+import 'package:webspace/theme/app_theme.dart' show AccentColor, AppThemeSettings;
 
 int shimThemeIndex(String themeMode, {required String accentColor}) =>
     AppThemeSettings(

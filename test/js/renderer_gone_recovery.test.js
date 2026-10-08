@@ -41,7 +41,7 @@ test('the proactive probe runs on >=2 activation paths (PAUSE-014)', () => {
   const lifecycle = read('lib/controllers/app_lifecycle_controller.dart');
   assert.match(lifecycle, /probeRenderer\(_sites\.models\[probeIdx\], trigger: 'resume'\)/,
     'the resume must probe the site on screen');
-  assert.match(read('lib/main.dart'), /_lifecycle\.probeRenderer\(target, trigger: 'site-switch'\)/,
+  assert.match(read('lib/screens/webspace_page.dart'), /_lifecycle\.probeRenderer\(target, trigger: 'site-switch'\)/,
     'every activation must probe its target');
 });
 

@@ -119,7 +119,7 @@ void main() {
   });
 
   group('call sites', () {
-    final host = File('lib/main.dart').readAsStringSync();
+    final host = File('lib/screens/webspace_page.dart').readAsStringSync();
 
     String body(String signature) {
       final start = host.indexOf(signature);

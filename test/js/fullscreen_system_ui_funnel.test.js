@@ -33,8 +33,8 @@ test('every setEnabledSystemUIMode call leaves the immersive mode to the funnel'
   );
 });
 
-test('main.dart hides bars the user revealed under immersive', () => {
-  const src = read('lib/main.dart');
+test('the page hides bars the user revealed under immersive', () => {
+  const src = read('lib/screens/webspace_page.dart');
   assert.match(src, /SystemChrome\.setSystemUIChangeCallback\(_onSystemUiChange\)/);
   assert.match(src, /SystemChrome\.setSystemUIChangeCallback\(null\)/);
 });

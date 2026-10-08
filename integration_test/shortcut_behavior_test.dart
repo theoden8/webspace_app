@@ -4,7 +4,7 @@
 // The resolution rules themselves (StartupRestoreEngine.resolveLaunch, the
 // ledger reconcile, the effective-pinned widening) are unit-tested in
 // test/startup_restore_engine_test.dart. What no headless test reaches is the
-// *wiring* in lib/main.dart: which prompt a resolution raises, what the user's
+// *wiring* in lib/screens/webspace_page.dart: which prompt a resolution raises, what the user's
 // answer persists, whether the menu item is offered, and what the delete flow
 // does with the launcher tiles that still point at the site. That is what this
 // suite drives, through the real widget tree.
@@ -45,6 +45,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
+import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
@@ -257,7 +258,7 @@ void main() {
     }
   }
 
-  List<WebViewModel> models() => app.debugWebViewModels ?? const [];
+  List<WebViewModel> models() => debugWebViewModels ?? const [];
 
   bool siteIsMounted(String siteId) =>
       find.byKey(ValueKey(siteId), skipOffstage: false).evaluate().isNotEmpty;
@@ -292,7 +293,7 @@ void main() {
   }
 
   Future<void> openOverflowMenu(WidgetTester tester) async {
-    final button = find.byType(PopupMenuButton<app.SiteMenuAction>);
+    final button = find.byType(PopupMenuButton<SiteMenuAction>);
     expect(
       button,
       findsWidgets,
@@ -346,7 +347,7 @@ Future<void> tapDialogButton(WidgetTester tester,
   await pumpFor(tester, total: const Duration(seconds: 1));
 }
 
-  // The shortcut paths in lib/main.dart are Platform.isAndroid-gated; the
+  // The shortcut paths in lib/screens/webspace_page.dart are Platform.isAndroid-gated; the
   // desktop integration loops skip this file by basename as well.
   final skipOffAndroid = !Platform.isAndroid;
 

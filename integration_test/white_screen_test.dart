@@ -55,6 +55,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
+import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/settings.dart';
@@ -302,13 +303,13 @@ Future<WindowRegionSample> pollSite(
         await tester.pump();
         return;
       }
-      if (find.byType(PopupMenuItem<app.SiteMenuAction>).evaluate().isNotEmpty) {
+      if (find.byType(PopupMenuItem<SiteMenuAction>).evaluate().isNotEmpty) {
         // Menu is open without the action: dismiss and reopen next pass.
         await tester.tapAt(const Offset(5, 5));
       } else {
         final menuButton = find.descendant(
             of: find.byType(AppBar),
-            matching: find.byType(PopupMenuButton<app.SiteMenuAction>));
+            matching: find.byType(PopupMenuButton<SiteMenuAction>));
         if (menuButton.evaluate().isNotEmpty) {
           await tester.tap(menuButton.first);
         }

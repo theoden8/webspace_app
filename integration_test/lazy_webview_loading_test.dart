@@ -1,7 +1,7 @@
 // Lazy webview loading integration test (LAZY-002 / LAZY-003).
 //
 // Drives the IndexedStack-of-placeholders contract in
-// lib/main.dart: the IndexedStack is only rendered once at least one
+// lib/screens/webspace_page.dart: the IndexedStack is only rendered once at least one
 // site has been visited, and slots for never-visited sites stay as
 // `SizedBox.shrink()` placeholders (no `ValueKey(siteId)`). The
 // per-slot key is the only public signal that a webview was actually
@@ -64,7 +64,7 @@ void main() {
     }
 
     // LAZY-001: at app start with no site activated, the IndexedStack
-    // itself is gated on `_loadedIndices.isNotEmpty` (lib/main.dart),
+    // itself is gated on `_loadedIndices.isNotEmpty` (lib/screens/webspace_page.dart),
     // so no per-slot keys are in the tree yet — check including
     // offstage descendants since IndexedStack hides non-visible
     // children behind Offstage.

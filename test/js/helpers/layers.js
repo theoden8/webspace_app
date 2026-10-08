@@ -5,7 +5,7 @@ const { read, files } = require('./source');
 const RANK = { platform: 0, values: 1, services: 2, model: 3, ui: 4 };
 
 function layerOf(path) {
-  if (/^lib\/(screens|widgets|controllers|theme|design_gallery|design_app)\//.test(path) || path === 'lib/main.dart') return 'ui';
+  if (/^lib\/(screens|widgets|controllers|theme|design_gallery|design_app)\//.test(path) || path === 'lib/main.dart' || path === 'lib/app.dart') return 'ui';
   if (['lib/web_view_model.dart', 'lib/demo_data.dart', 'lib/diag_seed.dart'].includes(path)) return 'model';
   // A Webspace is a persisted value (id, name, siteIds) importing only uuid.
   if (path === 'lib/webspace_model.dart') return 'values';

@@ -12,7 +12,7 @@ void main() {
   late String nested;
 
   setUpAll(() {
-    main = File('lib/main.dart').readAsStringSync();
+    main = File('lib/screens/webspace_page.dart').readAsStringSync();
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
     nested = File('lib/screens/inappbrowser.dart').readAsStringSync();
   });

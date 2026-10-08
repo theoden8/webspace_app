@@ -18,7 +18,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, blockAfter } = require('./helpers/source');
 
-const mainRel = 'lib/main.dart';
+const mainRel = 'lib/screens/webspace_page.dart';
 const main = read(mainRel);
 const engineRel = 'lib/services/tor_engine.dart';
 const engine = read(engineRel);

@@ -1,25 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/settings/app_locale.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/theme/accent_theme.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/theme_mode_button.dart';
-
-const Map<AccentColor, Color> _accentColors = {
-  AccentColor.blue: accentBlue,
-  AccentColor.green: accentGreen,
-  AccentColor.purple: accentPurple,
-  AccentColor.orange: accentOrange,
-  AccentColor.red: accentRed,
-  AccentColor.pink: accentPink,
-  AccentColor.teal: accentTeal,
-  AccentColor.yellow: accentYellow,
-};
 
 /// The label a theme mode goes by, on its chip and in the App Settings row.
 String themeModeLabel(AppLocalizations loc, {required ThemeMode mode}) =>
@@ -182,7 +170,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
 
   Widget _buildAccentColorSwatch(AccentColor color) {
     final isSelected = _settings.accentColor == color;
-    final displayColor = _accentColors[color]!;
+    final displayColor = color.color;
     final label = color.name[0].toUpperCase() + color.name.substring(1);
 
     return GestureDetector(

@@ -29,6 +29,7 @@ const plugins = read(`${kt}/EnginePlugins.kt`);
 const activity = read(`${kt}/MainActivity.kt`);
 const taskPlugin = read(`${kt}/BackgroundTaskAndroidPlugin.kt`);
 const main = read('lib/main.dart');
+const page = read('lib/screens/webspace_page.dart');
 const launch = read('lib/services/launch_context.dart');
 const service = read('lib/services/background_task_service.dart');
 const lifecycle = read('lib/controllers/app_lifecycle_controller.dart');
@@ -75,9 +76,9 @@ test('main knows it runs for a wake and builds no site webview', () => {
     'the worker engine must pass the argument main looks for');
   assert.match(engine, /executeDartEntrypoint\(\s*DartExecutor\.DartEntrypoint\.createDefault\(\),\s*listOf\(BACKGROUND_WAKE_ARG\)/);
   assert.match(main, /void main\(\[List<String> args = const \[\]\]\) async \{\s*launchedForBackgroundWake = args\.contains\(kBackgroundWakeArg\);/);
-  assert.match(main, /if \(!_sites\.useContainers && !launchedForBackgroundWake\) \{/,
+  assert.match(page, /if \(!_sites\.useContainers && !launchedForBackgroundWake\) \{/,
     'the legacy pre-paint auto-load must not run in the wake engine');
-  assert.match(main,
+  assert.match(page,
     /if \(_sites\.useContainers && !launchedForBackgroundWake\) \{\s*unawaited\(DeferredStartupEngine\.autoLoadNotificationSites/,
     'the container auto-load must not run in the wake engine');
 });

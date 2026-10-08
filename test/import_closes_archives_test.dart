@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// and the next close sealed the emptiness over the slot (ARCH-010); the
 /// commit seals them first (test/js/site_set_commit.test.js).
 void main() {
-  final host = File('lib/main.dart').readAsStringSync();
+  final host = File('lib/screens/webspace_page.dart').readAsStringSync();
 
   String body(String signature) {
     final start = host.indexOf(signature);

@@ -118,7 +118,7 @@ void main() {
     await tester.tap(deleteIcon);
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
-    // Confirmation dialog (lib/main.dart `_deleteWebspace` shows
+    // Confirmation dialog (lib/screens/webspace_page.dart `_deleteWebspace` shows
     // a generic confirm dialog with Cancel / Delete buttons).
     final confirmDelete = find.widgetWithText(TextButton, 'Delete');
     if (confirmDelete.evaluate().isEmpty) {

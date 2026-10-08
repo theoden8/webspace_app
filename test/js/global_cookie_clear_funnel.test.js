@@ -72,11 +72,11 @@ test('the sweep funnel is still routed through the engine', () => {
     'OrphanSweepEngine must only clear the legacy jar when containers are off',
   );
 
-  const main = read('lib/main.dart');
+  const main = read('lib/screens/webspace_page.dart');
   const directCalls = main.match(/clearLegacyGlobalCookieJar\(\)/g) ?? [];
   assert.equal(
     directCalls.length,
     1,
-    'main.dart should only define the funnel override, never call it directly',
+    'the page should only define the funnel override, never call it directly',
   );
 });

@@ -4,7 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 
-import 'package:webspace/main.dart' show AccentColor, recolorLogoPixels;
+import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/widgets/accent_logo.dart';
 
 /// Load a PNG asset and return its raw RGBA pixels + dimensions.
 (Uint8List pixels, int width, int height) _loadIcon(String path) {

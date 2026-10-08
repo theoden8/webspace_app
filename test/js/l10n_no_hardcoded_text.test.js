@@ -13,7 +13,7 @@ const { read, exists, dartFiles, code, lineAt } = require('./helpers/source');
 
 const exempt = new Set([]);
 
-const scanned = ['lib/main.dart', ...dartFiles('lib/screens'), ...dartFiles('lib/widgets')];
+const scanned = ['lib/main.dart', 'lib/app.dart', ...dartFiles('lib/screens'), ...dartFiles('lib/widgets')];
 
 // Display sinks that put a string directly on screen. A quoted literal
 // opening immediately inside any of these is unkeyed text.

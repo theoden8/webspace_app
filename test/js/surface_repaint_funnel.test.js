@@ -7,7 +7,7 @@
 // but a static gate can. Attempts 2–5 in docs/bugs/001-white-screen.md each
 // left one such path; this makes a new one fail CI.
 //
-// Covers the main page (lib/main.dart) and the nested InAppWebViewScreen
+// Covers the main page (lib/screens/webspace_page.dart) and the nested InAppWebViewScreen
 // (lib/screens/inappbrowser.dart) — the latter was BUG-001 gap #1. Both drive
 // one SurfaceRepaintController (lib/controllers/surface_repaint_controller.dart),
 // so the funnel's own properties are checked there once, and each host is
@@ -19,7 +19,7 @@ const path = require('node:path');
 const { read, methodBody } = require('./helpers/source');
 
 // Files that host an Android webview back path and so must have the funnel.
-const GUARDED = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
+const GUARDED = ['lib/screens/webspace_page.dart', 'lib/screens/inappbrowser.dart'];
 const CONTROLLER = 'lib/controllers/surface_repaint_controller.dart';
 const controllerMethod = (name) => methodBody(name, { file: CONTROLLER });
 
@@ -135,11 +135,11 @@ for (const rel of GUARDED) {
     });
   }
 
-  // main.dart holds no controller of its own — it reloads through the model —
+  // The page holds no controller of its own — it reloads through the model —
   // so its obligation is to hand every loaded site's hooks to the repaint
   // controller, whose watch wires them to the engine.
-  test('lib/main.dart: reload hooks drive the surface repaint engine', () => {
-    const src = linesOf('lib/main.dart').join('\n');
+  test('the page: reload hooks drive the surface repaint engine', () => {
+    const src = linesOf('lib/screens/webspace_page.dart').join('\n');
     assert.match(methodBody('_wireSite'), /_surface\.watch\(site,/,
       'every loaded site must be watched by the repaint controller');
     assert.match(methodBody('_buildBodyWithBottomBar'), /_wireSite\(/,
@@ -151,7 +151,7 @@ for (const rel of GUARDED) {
     assert.match(watch, /site\.onLoadSettled\s*=[^;]*loadSettled\(\)/s,
       'the settled load must re-nudge (PAUSE-021)');
     const offenders = [];
-    linesOf('lib/main.dart').forEach((l, i) => {
+    linesOf('lib/screens/webspace_page.dart').forEach((l, i) => {
       if (/\.controller\?\.reload\(\)/.test(l)) offenders.push(i + 1);
     });
     assert.deepEqual(offenders, [],
@@ -167,7 +167,7 @@ for (const rel of GUARDED) {
 // post-resume window. This gate keeps that wiring from being silently dropped;
 // its ordering is proved in formal/warmstart.tla and test/surface_repaint_engine_test.dart.
 {
-  const lines = linesOf('lib/main.dart');
+  const lines = linesOf('lib/screens/webspace_page.dart');
   const src = lines.join('\n');
 
   test('lib/main.dart: didChangeMetrics re-nudges within the post-resume window', () => {
@@ -202,7 +202,7 @@ for (const rel of GUARDED) {
 // both the Padding and the scope must read the same value — a second, unpublished
 // inset would reproduce the jitter.
 {
-  const lines = linesOf('lib/main.dart');
+  const lines = linesOf('lib/screens/webspace_page.dart');
   const src = lines.join('\n');
 
   test('lib/main.dart: the nudge inset is published to SurfaceNudgeScope', () => {
@@ -241,8 +241,8 @@ for (const rel of GUARDED) {
 // navigation, no lifecycle event — so every webview-hosting screen must be
 // RouteAware and nudge in didPopNext.
 {
-  test('lib/main.dart: the app registers the surface route observer', () => {
-    const src = linesOf('lib/main.dart').join('\n');
+  test('lib/app.dart: the app registers the surface route observer', () => {
+    const src = linesOf('lib/app.dart').join('\n');
     assert.match(src, /navigatorObservers:\s*\[[^\]]*surfaceRouteObserver/,
       'MaterialApp must register surfaceRouteObserver, or no screen is notified');
   });

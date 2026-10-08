@@ -1,7 +1,7 @@
 // Safari-style navigation restore integration test.
 //
 // Exercises the cross-restart back/forward restore wiring in
-// lib/main.dart + lib/web_view_model.dart: a webview's navigation state
+// lib/screens/webspace_page.dart + lib/web_view_model.dart: a webview's navigation state
 // is captured (`controller.saveState()`) on app background and re-applied
 // (`controller.restoreState()`) when the site is re-activated after a
 // cold start. Spec: openspec/specs/per-site-cookie-isolation has the
@@ -41,6 +41,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
+import 'package:webspace/app.dart';
+import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -65,7 +67,7 @@ void main() {
     // WebSpaceApp tree re-reads it on cold start) and is directly
     // inspectable, without needing a platform keychain backend.
     store = InMemoryWebViewStateStorage();
-    app.debugWebViewStateStorageOverride = store;
+    debugWebViewStateStorageOverride = store;
 
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     listenFixture(server, onEvent: (req) {
@@ -98,7 +100,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    app.debugWebViewStateStorageOverride = null;
+    debugWebViewStateStorageOverride = null;
     await server.close(force: true);
   });
 
@@ -124,7 +126,7 @@ void main() {
     }
 
     WebViewModel? site() {
-      for (final m in app.debugWebViewModels ?? const <WebViewModel>[]) {
+      for (final m in debugWebViewModels ?? const <WebViewModel>[]) {
         if (m.siteId == _siteId) return m;
       }
       return null;
@@ -263,7 +265,7 @@ void main() {
     // macOS/mobile only (Linux returned above). WKWebView tears down async,
     // so disposing the run-1 platform view inside pumpWidget doesn't block.
     log('run2: pumpWidget(WebSpaceApp) restart');
-    await tester.pumpWidget(app.WebSpaceApp());
+    await tester.pumpWidget(WebSpaceApp());
     await pumpFor(tester, total: const Duration(seconds: 5));
     log('run2: restarted');
 
