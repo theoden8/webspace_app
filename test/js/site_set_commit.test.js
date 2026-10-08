@@ -40,7 +40,7 @@ test('the funnel runs its steps in one fixed order', () => {
     '_network.syncTorHolders()',
     '_network.refreshRoutes()',
     '_persistSites()',
-    '_saveWebspaces()',
+    '_shell.saveWebspaces()',
     '_background.reschedule()',
     '_sweepOrphans()',
   ], '_commitSites');

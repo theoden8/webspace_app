@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -14,6 +13,7 @@ import 'package:webspace/controllers/link_controller.dart';
 import 'package:webspace/controllers/site_network_controller.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
+import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
@@ -99,13 +99,11 @@ import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/pref_read.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
-import 'package:webspace/settings/user_script.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
@@ -199,7 +197,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     proxyPasswords: _proxyPasswordStorage,
     navStates: _stateStorage,
   );
-  AppThemeSettings _themeSettings = const AppThemeSettings();
+  late final ShellStore _shell = ShellStore(_sites);
   final CookieManager _cookieManager = CookieManager();
   final CookieSecureStorage _cookieSecureStorage = CookieSecureStorage();
   late final SiteListStore _siteStore = SiteListStore(
@@ -289,10 +287,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   final NavStateCaptureDebouncer _navStateDebouncer =
       NavStateCaptureDebouncer();
 
-  List<SiteSuggestion> _suggestedSites = [];
-
-  List<UserScriptConfig> _globalUserScripts = [];
-
   // KIOSK-002: set when the current session entered via a home-shortcut tap
   // targeting a kiosk-mode site. While true the app shell hides all navigation
   // and configuration affordances (drawer, tab strip, app-bar actions, context
@@ -353,10 +347,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                 .toList(growable: false),
             useContainers: _sites.useContainers,
             notificationsBlockedBySite: _background.notificationsBlockedBy(model),
-            globalUserScripts: _globalUserScripts,
+            globalUserScripts: _shell.globalUserScripts,
             onGlobalUserScriptsChanged: (scripts) {
-              _globalUserScripts = scripts;
-              _saveGlobalUserScripts();
+              _shell.globalUserScripts = scripts;
+              _shell.saveGlobalUserScripts();
               _resetAllWebViews();
             },
             onScriptsChanged: _resetCurrentSiteWebView,
@@ -561,7 +555,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   }) =>
       launchUrl(
         url,
-        posture: model.sitePosture(globalUserScripts: _globalUserScripts),
+        posture: model.sitePosture(globalUserScripts: _shell.globalUserScripts),
         opensFromTab: opensFromTab,
         homeTitle: model.name,
       );
@@ -582,7 +576,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     setState(() {
       _sites.selectedWebspaceId = kAllWebspaceId;
     });
-    await _saveSelectedWebspaceId();
+    await _shell.saveSelectedWebspaceId();
     _toast((loc) => loc.homeSwitchedToAllToOpen(model.getDisplayName()));
   }
 
@@ -594,13 +588,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Before the first build: initialHtml reads currentTheme to pick the dark
     // prelude for cached HTML (file:// imports especially, which never reload
     // to live), and the model defaults to WebViewTheme.light.
-    await model.setTheme(_themeSettings.themeMode.webViewTheme);
+    await model.setTheme(_shell.theme.themeMode.webViewTheme);
     await _commitSites(SiteAdded(model));
     if (!activate || !mounted) return;
     await _setCurrentIndex(_sites.models.indexOf(model));
     if (!mounted) return;
     setState(() {});
-    await _saveCurrentIndex();
+    await _shell.saveCurrentIndex();
   }
 
   /// TAB-018: give every app-tier site without a container colour the least
@@ -676,7 +670,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!mounted) return;
     }
     if (_sites.selectedWebspaceId != selectionBefore) {
-      unawaited(_saveSelectedWebspaceId());
+      unawaited(_shell.saveSelectedWebspaceId());
     }
     // Before the demo-mode bail in the writes: the refcount tracks runtime
     // intent, not persistence, and a demo session that pinned Tor up would
@@ -684,7 +678,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _network.syncTorHolders();
     unawaited(_network.refreshRoutes());
     if (effects.persists) await _persistSites();
-    if (effects.savesWebspaces) await _saveWebspaces();
+    if (effects.savesWebspaces) await _shell.saveWebspaces();
     if (effects.reschedulesBackground) {
       unawaited(_background.reschedule());
       unawaited(_background.updateAudioSession());
@@ -721,18 +715,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     return masks;
   }
 
-  Future<void> _saveCurrentIndex() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('currentIndex', _sites.current == null ? 10000 : _sites.current!);
-  }
-
-  Future<void> _saveThemeSettings() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('themeSettings', _themeSettings.toStorageIndex());
-  }
-
   /// Corner for the currently active site: its remembered per-site choice,
   /// falling back to the app-wide legacy bottom-corner default.
   TabBarCorner get _tabBarButtonCornerEffective {
@@ -766,51 +748,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
       ),
     );
-  }
-
-  Future<void> _saveGlobalUserScripts() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final json = _globalUserScripts.map((s) => jsonEncode(s.toJson())).toList();
-    await prefs.setStringList('globalUserScripts', json);
-  }
-
-  Future<void> _loadGlobalUserScripts() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    final json = prefs.getStringList('globalUserScripts');
-    if (json == null) return;
-    final loaded = <UserScriptConfig>[];
-    for (var i = 0; i < json.length; i++) {
-      try {
-        loaded.add(UserScriptConfig.fromJson(
-          jsonDecode(json[i]) as Map<String, dynamic>,
-        ));
-      } catch (e) {
-        LogTag.boot.warning(
-            'Skipped malformed global user script at index $i: $e');
-      }
-    }
-    _globalUserScripts = loaded;
-  }
-
-  /// Migrate pre-opt-in data: older builds ran every enabled global script
-  /// on every site. After switching to per-site opt-in, sites that haven't
-  /// declared [WebViewModel.enabledGlobalScriptIds] would silently lose
-  /// their global scripts. For each site with an empty opt-in set, opt it
-  /// into all currently-defined globals once. A marker key prevents this
-  /// running again after the user starts curating per-site opt-ins.
-  Future<void> _migrateGlobalScriptOptIn() async {
-    if (_globalUserScripts.isEmpty || _sites.models.isEmpty) return;
-    final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool('globalUserScriptsOptInMigrated') == true) return;
-    final allIds = _globalUserScripts.map((s) => s.id).toSet();
-    for (final model in _sites.models) {
-      if (model.enabledGlobalScriptIds.isEmpty) {
-        model.enabledGlobalScriptIds = {...allIds};
-      }
-    }
-    await prefs.setBool('globalUserScriptsOptInMigrated', true);
-    await _commitSites(const SitesEdited());
   }
 
   /// Drop the cached HTML snapshot for a site so the next webview rebuild
@@ -903,34 +840,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         model.disposeWebView();
       }
     });
-  }
-
-  Set<String> get _archivedSiteIds => {
-        for (final m in _sites.models)
-          if (m.isArchiveTier) m.siteId,
-      };
-
-  Future<void> _saveWebspaces() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    // Archive-tier collections and archived siteIds live in `_sites.webspaces`
-    // for rendering while open but must not enter app-tier persistence
-    // (the archive's own encrypted state carries them).
-    List<String> webspacesJson = ArchiveMembershipEngine.persistable(
-      _sites.webspaces,
-      archivedSiteIds: _archivedSiteIds,
-    ).map((webspace) => jsonEncode(webspace.toJson())).toList();
-    await prefs.setStringList('webspaces', webspacesJson);
-  }
-
-  Future<void> _saveSelectedWebspaceId() async {
-    if (isDemoMode) return;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (_sites.selectedWebspaceId != null) {
-      await prefs.setString('selectedWebspaceId', _sites.selectedWebspaceId!);
-    } else {
-      await prefs.remove('selectedWebspaceId');
-    }
   }
 
   /// Set the current index and mark it as loaded for lazy webview creation.
@@ -1288,94 +1197,19 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  Future<void> _loadWebspaces() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String>? webspacesJson = prefs.getStringList('webspaces');
-
-    if (webspacesJson != null) {
-      final loadedWebspaces = <Webspace>[];
-      for (var i = 0; i < webspacesJson.length; i++) {
-        try {
-          loadedWebspaces.add(Webspace.fromJson(jsonDecode(webspacesJson[i])));
-        } catch (e) {
-          LogTag.boot.warning('Skipped malformed webspace at index $i: $e');
-        }
-      }
-
-      setState(() {
-        _sites.webspaces.addAll(loadedWebspaces);
-      });
-    }
-
-    _ensureAllWebspaceExists();
-
-    _sites.selectedWebspaceId = prefs.getString('selectedWebspaceId');
-
-    if (_sites.selectedWebspaceId == null) {
-      _sites.selectedWebspaceId = kAllWebspaceId;
-    }
-  }
-
-  void _ensureAllWebspaceExists() {
-    final hasAll = _sites.webspaces.any((ws) => ws.id == kAllWebspaceId);
-
-    if (!hasAll) {
-      setState(() {
-        _sites.webspaces.insert(0, Webspace.all());
-      });
-    } else {
-      // Ensure "All" is at the beginning
-      final allIndex = _sites.webspaces.indexWhere((ws) => ws.id == kAllWebspaceId);
-      if (allIndex > 0) {
-        setState(() {
-          final allWebspace = _sites.webspaces.removeAt(allIndex);
-          _sites.webspaces.insert(0, allWebspace);
-        });
-      }
-    }
-  }
-
   Future<void> _restoreAppState() async {
     final activationVersionAtRestore = _sites.activationVersion;
     final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
     SharedPreferences prefs = await SharedPreferences.getInstance();
     AppPref.loadAll(prefs);
     setState(() {
-      // Load theme settings, with migration from old formats
-      final savedThemeSettings = readPrefAs<int>(prefs, key: 'themeSettings');
-      if (savedThemeSettings != null) {
-        _themeSettings = AppThemeSettings.fromStorageIndex(savedThemeSettings);
-      } else {
-        // Try to migrate from old appTheme format
-        final savedAppTheme = readPrefAs<int>(prefs, key: 'appTheme');
-        if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
-          _themeSettings = AppTheme.values[savedAppTheme].settings;
-        } else {
-          // Migrate from old themeMode if exists
-          final oldThemeMode = readPrefAs<int>(prefs, key: 'themeMode');
-          if (oldThemeMode != null) {
-            // Map old ThemeMode to new settings (assuming green was the old color)
-            switch (oldThemeMode) {
-              case 0: // ThemeMode.system
-                _themeSettings = AppThemeSettings(themeMode: ThemeMode.system, accentColor: AccentColor.green);
-                break;
-              case 1: // ThemeMode.light
-                _themeSettings = AppThemeSettings(themeMode: ThemeMode.light, accentColor: AccentColor.green);
-                break;
-              case 2: // ThemeMode.dark
-                _themeSettings = AppThemeSettings(themeMode: ThemeMode.dark, accentColor: AccentColor.green);
-                break;
-              default:
-                _themeSettings = const AppThemeSettings();
-            }
-          }
-        }
-      }
+      _shell.loadTheme(prefs);
       _shortcuts.load(prefs);
-      widget.onThemeSettingsChanged(_themeSettings);
+      widget.onThemeSettingsChanged(_shell.theme);
     });
-    await _loadWebspaces();
-    await _loadGlobalUserScripts();
+    await _shell.loadWebspaces();
+    _rebuild();
+    await _shell.loadGlobalUserScripts();
     // Before the sites are committed: whether hosted tabs can exist at all
     // depends on the engine (LIR-019), and the commit settles them. Every
     // path downstream branches on it synchronously. False on Android System
@@ -1396,14 +1230,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     // Legacy positional membership resolves against the restored order,
     // before the commit rebuilds every webspace's positions from siteIds.
     if (promoteLegacySiteIndices(_sites.webspaces, sites: restored)) {
-      await _saveWebspaces();
+      await _shell.saveWebspaces();
     }
     // Sites restored with ProxyType.TOR need the runtime coming up before
     // their first navigation, or each opens on the bootstrap interstitial;
     // the commit's Tor sync does that.
     await _commitSites(SitesLoaded(restored));
-    await _migrateGlobalScriptOptIn();
-    _suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
+    if (await _shell.migrateGlobalScriptOptIn()) {
+      await _commitSites(const SitesEdited());
+    }
+    _shell.suggestedSites = await suggested_sites.getEffectiveSuggestedSites();
 
     await _network.activateRouter();
 
@@ -1475,7 +1311,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // auto-loaded notification sites) need it now; the rest are themed after
     // paint — their controllers aren't created until activated, and
     // setController re-applies the theme then.
-    final webViewTheme = _themeSettings.themeMode.webViewTheme;
+    final webViewTheme = _shell.theme.themeMode.webViewTheme;
     final preThemeIndices = <int>{
       ..._sites.loaded,
       ?indexToRestore,
@@ -1672,7 +1508,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   Future<void> applyTheme(String siteId) async {
     final m = _sites.byId(siteId);
     if (m != null) {
-      await m.setTheme(_themeSettings.themeMode.webViewTheme);
+      await m.setTheme(_shell.theme.themeMode.webViewTheme);
     }
   }
 
@@ -1780,7 +1616,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   late final WebViewHostHooks _webViewHooks = WebViewHostHooks(
     cookieManager: _cookieManager,
     containerCookieManager: _containerCookieManager,
-    globalUserScripts: () => _globalUserScripts,
+    globalUserScripts: () => _shell.globalUserScripts,
     save: () => _commitSites(const SitesEdited()),
     rebuild: () {
       if (mounted) setState(() {});
@@ -1983,7 +1819,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               _sites.webspaces.add(updatedWebspace.copyWith(siteIds: selectedSiteIds));
               _sites.resolveWebspaceIndices();
             });
-            _saveWebspaces();
+            _shell.saveWebspaces();
           },
         ),
       ),
@@ -2027,7 +1863,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 _sites.resolveWebspaceIndices();
               }
             });
-            _saveWebspaces();
+            _shell.saveWebspaces();
           },
         ),
       ),
@@ -2075,9 +1911,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       await _setCurrentIndex(null);
       if (!mounted) return;
     }
-    await _saveWebspaces();
-    await _saveSelectedWebspaceId();
-    await _saveCurrentIndex();
+    await _shell.saveWebspaces();
+    await _shell.saveSelectedWebspaceId();
+    await _shell.saveCurrentIndex();
   }
 
   void _selectWebspace(Webspace webspace) async {
@@ -2127,8 +1963,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
 
       setState(() {});
-      await _saveSelectedWebspaceId();
-      await _saveCurrentIndex();
+      await _shell.saveSelectedWebspaceId();
+      await _shell.saveCurrentIndex();
     } finally {
       completer.complete();
       if (_webspaceSwitchCompleter == completer) {
@@ -2148,7 +1984,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       final webspace = _sites.webspaces.removeAt(oldIndex);
       _sites.webspaces.insert(newIndex, webspace);
     });
-    _saveWebspaces();
+    _shell.saveWebspaces();
   }
 
   Future<void> _exportSettings() async {
@@ -2170,19 +2006,19 @@ class _WebSpacePageState extends State<WebSpacePage>
       webViewModels: appTierModels,
       webspaces: ArchiveMembershipEngine.persistable(
         _sites.webspaces,
-        archivedSiteIds: _archivedSiteIds,
+        archivedSiteIds: _shell.archivedSiteIds,
       ),
-      themeMode: _themeSettings.toStorageIndex(),
+      themeMode: _shell.theme.toStorageIndex(),
       globalPrefs: readExportedAppPrefs(prefs),
       selectedWebspaceId: _sites.selectedWebspaceId,
       currentIndex: _sites.current != null &&
               _sites.current! < appTierModels.length
           ? _sites.current
           : null,
-      suggestedSites: _suggestedSites
+      suggestedSites: _shell.suggestedSites
           .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
           .toList(),
-      globalUserScripts: _globalUserScripts.map((s) => s.toJson()).toList(),
+      globalUserScripts: _shell.globalUserScripts.map((s) => s.toJson()).toList(),
       // User intent for the downloaded-data blockers: the chosen DNS
       // severity level and the content-blocker list selection. The blobs
       // themselves stay machine state; the user re-downloads after import.
@@ -2336,7 +2172,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           .importListSelection(plan.contentBlockerLists!);
     }
     if (!mounted) return;
-    _themeSettings = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
+    _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
     await _commitSites(SitesReplaced(
       sites: plan.sites,
       webspaces: plan.webspaces,
@@ -2356,7 +2192,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _setCurrentIndex(indexToRestore);
     if (!mounted) return;
     setState(() {});
-    widget.onThemeSettingsChanged(_themeSettings);
+    widget.onThemeSettingsChanged(_shell.theme);
 
     final importedCounts = _background.counts();
     if (importedCounts.enabled > 0) {
@@ -2368,24 +2204,24 @@ class _WebSpacePageState extends State<WebSpacePage>
         level: LogLevel.warning,
       );
     }
-    await _saveThemeSettings();
-    await _saveSelectedWebspaceId();
-    await _saveCurrentIndex();
+    await _shell.saveTheme();
+    await _shell.saveSelectedWebspaceId();
+    await _shell.saveCurrentIndex();
 
     if (plan.globalUserScripts != null) {
-      _globalUserScripts = plan.globalUserScripts!;
+      _shell.globalUserScripts = plan.globalUserScripts!;
     }
-    await _saveGlobalUserScripts();
+    await _shell.saveGlobalUserScripts();
 
     if (plan.suggestedSites != null) {
-      _suggestedSites = [
+      _shell.suggestedSites = [
         for (final s in plan.suggestedSites!)
           SiteSuggestion(name: s.name, url: s.url, domain: s.domain),
       ];
-      await suggested_sites.saveSuggestedSites(_suggestedSites);
+      await suggested_sites.saveSuggestedSites(_shell.suggestedSites);
     }
 
-    final webViewTheme = _themeSettings.themeMode.webViewTheme;
+    final webViewTheme = _shell.theme.themeMode.webViewTheme;
     for (var webViewModel in _sites.models) {
       await webViewModel.setTheme(webViewTheme);
     }
@@ -2878,12 +2714,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   String _getThemeTooltip(AppLocalizations loc) {
-    final modeName = _themeSettings.themeMode == ThemeMode.system
+    final modeName = _shell.theme.themeMode == ThemeMode.system
         ? loc.homeThemeModeSystem
-        : _themeSettings.themeMode == ThemeMode.light
+        : _shell.theme.themeMode == ThemeMode.light
             ? loc.homeThemeModeLight
             : loc.homeThemeModeDark;
-    final colorName = _themeSettings.accentColor == AccentColor.blue
+    final colorName = _shell.theme.accentColor == AccentColor.blue
         ? loc.homeThemeColorBlue
         : loc.homeThemeColorGreen;
     return loc.homeThemeTooltip(modeName, colorName);
@@ -2892,9 +2728,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// The one way the theme changes: the app, its saved settings and every
   /// site's webview follow.
   Future<void> _applyThemeSettings(AppThemeSettings next) async {
-    setState(() => _themeSettings = next);
+    setState(() => _shell.theme = next);
     widget.onThemeSettingsChanged(next);
-    await _saveThemeSettings();
+    await _shell.saveTheme();
     if (!mounted) return;
     final webViewTheme = next.themeMode.webViewTheme;
     for (final model in List.of(_sites.models)) {
@@ -2907,7 +2743,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       context,
       MaterialPageRoute(
         builder: (context) => AppSettingsScreen(
-          currentSettings: _themeSettings,
+          currentSettings: _shell.theme,
           proxyRouterRunsHere: ProxyRouterService.canRunHere(
               useContainers: _sites.useContainers),
           externalTorRunsHere: externalTorRunsHere,
@@ -2937,10 +2773,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                       : null,
                 ),
           ],
-          globalUserScripts: _globalUserScripts,
+          globalUserScripts: _shell.globalUserScripts,
           onGlobalUserScriptsChanged: (scripts) {
-            _globalUserScripts = scripts;
-            _saveGlobalUserScripts();
+            _shell.globalUserScripts = scripts;
+            _shell.saveGlobalUserScripts();
             _resetAllWebViews();
           },
           onOutboundProxyChanged: _resetAllWebViews,
@@ -3017,10 +2853,10 @@ class _WebSpacePageState extends State<WebSpacePage>
           ),
         const DownloadButton(),
         ThemeModeButton(
-          mode: _themeSettings.themeMode,
+          mode: _shell.theme.themeMode,
           tooltip: _getThemeTooltip(loc),
           onChanged: (mode) => _applyThemeSettings(
-              _themeSettings.copyWith(themeMode: mode)),
+              _shell.theme.copyWith(themeMode: mode)),
         ),
         // Protection report shield, badged with the week's block count.
         // Same visibility rule as the settings gear: the webspaces list is
@@ -3177,7 +3013,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         setState(() {
           _tabBarOverlayVisible = false;
         });
-        _saveCurrentIndex();
+        _shell.saveCurrentIndex();
       }();
     }
 
@@ -3526,8 +3362,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _setCurrentIndex(null);
         if (!mounted) return;
         setState(() {});
-        await _saveSelectedWebspaceId();
-        await _saveCurrentIndex();
+        await _shell.saveSelectedWebspaceId();
+        await _shell.saveCurrentIndex();
       case SiteMenuAction.search:
         _toggleFind();
       case SiteMenuAction.webSearch:
@@ -3550,7 +3386,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               cookieManager: _cookieManager,
               containerCookieManager: _containerCookieManager,
               onSave: () => _commitSites(const SitesEdited()),
-              globalUserScripts: _globalUserScripts,
+              globalUserScripts: _shell.globalUserScripts,
               onSimulateBackgroundRefresh: _background.wake,
             ),
           ),
@@ -3577,12 +3413,12 @@ class _WebSpacePageState extends State<WebSpacePage>
         context,
         MaterialPageRoute(
           builder: (context) => AddSiteScreen(
-            themeMode: _themeSettings.themeMode,
+            themeMode: _shell.theme.themeMode,
             onThemeModeChanged: (mode) => _applyThemeSettings(
-                _themeSettings.copyWith(themeMode: mode)),
-            suggestions: _suggestedSites,
+                _shell.theme.copyWith(themeMode: mode)),
+            suggestions: _shell.suggestedSites,
             onSuggestionsChanged: (sites) {
-              _suggestedSites = sites;
+              _shell.suggestedSites = sites;
               suggested_sites.saveSuggestedSites(sites);
             },
             initialUrl: initialUrl,
@@ -3886,7 +3722,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       webspace.siteIds.insert(newListIndex, movedSiteId);
       _sites.resolveWebspaceIndices();
     });
-    _saveWebspaces();
+    _shell.saveWebspaces();
   }
 
   /// Moves the site at [oldModelIndex] to [newModelIndex] in the "All"
@@ -3898,7 +3734,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (newModelIndex < 0 || newModelIndex >= _sites.models.length) return;
     if (oldModelIndex == newModelIndex) return;
     await _commitSites(SitesMoved(oldModelIndex, to: newModelIndex));
-    await _saveCurrentIndex();
+    await _shell.saveCurrentIndex();
   }
 
   /// What a deleted site leaves outside the list: its webview, the tabs it
@@ -3989,7 +3825,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _setCurrentIndex(index);
     if (!mounted) return;
     setState(() {});
-    await _saveCurrentIndex();
+    await _shell.saveCurrentIndex();
   }
 
   /// `siteId` -> display name for the sites the protection report may name.
@@ -4067,7 +3903,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     webspaces: _sites.webspaces,
                     selectedWebspaceId: _sites.selectedWebspaceId,
                     totalSitesCount: _sites.models.length,
-                    accentColor: _themeSettings.accentColor,
+                    accentColor: _shell.theme.accentColor,
                     onSelectWebspace: _selectWebspace,
                     onAddWebspace: _addWebspace,
                     onEditWebspace: _editWebspace,
@@ -4228,8 +4064,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                         await _setCurrentIndex(null);
                         if (!mounted) return;
                         setState(() {});
-                        await _saveSelectedWebspaceId();
-                        await _saveCurrentIndex();
+                        await _shell.saveSelectedWebspaceId();
+                        await _shell.saveCurrentIndex();
                         if (!mounted) return;
                         _scaffoldKey.currentState?.closeDrawer();
                       },
@@ -4238,7 +4074,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                         child: Column(
                           children: [
                             AccentLogo(
-                              accentColor: _themeSettings.accentColor,
+                              accentColor: _shell.theme.accentColor,
                               size: 72,
                               brightness: Theme.of(context).brightness,
                             ),
@@ -4267,8 +4103,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                           await _setCurrentIndex(null);
                           if (!mounted) return;
                           setState(() {});
-                          await _saveSelectedWebspaceId();
-                          await _saveCurrentIndex();
+                          await _shell.saveSelectedWebspaceId();
+                          await _shell.saveCurrentIndex();
                           if (!mounted) return;
                           _scaffoldKey.currentState?.closeDrawer();
                         },
@@ -4675,10 +4511,10 @@ class _PageHost
   void evictCache(String siteId) => _s._evictCacheIfOnline(siteId);
 
   @override
-  Future<void> saveCurrentIndex() => _s._saveCurrentIndex();
+  Future<void> saveCurrentIndex() => _s._shell.saveCurrentIndex();
 
   @override
-  Future<void> saveSelectedWebspace() => _s._saveSelectedWebspaceId();
+  Future<void> saveSelectedWebspace() => _s._shell.saveSelectedWebspaceId();
 
   @override
   Future<void> revealSite(WebViewModel model, {required int index}) =>
