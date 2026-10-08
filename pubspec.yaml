@@ -100,6 +100,9 @@ dev_dependencies:
   # test/helpers/real_app.dart registers the Android webview platform to pump
   # the shipped app; the fork's ref is pinned by the overrides below.
   flutter_inappwebview_android: any
+  # test/named_arguments_test.dart parses every Dart source to hold CLAUDE.md
+  # rule 2 (named arguments past the first).
+  analyzer: ^10.0.1
 
 # Per-site container isolation requires APIs not present in upstream
 # flutter_inappwebview. We maintain a fork that adds a first-class
