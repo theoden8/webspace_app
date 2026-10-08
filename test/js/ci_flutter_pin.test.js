@@ -1,4 +1,4 @@
-// Structural gate: every CI Flutter bootstrap pins the version `.fvmrc` pins.
+// Structural gate: every CI Flutter bootstrap takes its version from `.fvmrc`.
 //
 // The workflows install Flutter twice over. `subosito/flutter-action` is only
 // a bootstrap -- the step is named "Setup Flutter (for Dart SDK)" and exists
@@ -8,15 +8,15 @@
 //
 // It is still a floating dependency on whatever `channel: stable` resolves to
 // that day, which can break `pub global activate fvm` with no change in the
-// repo, and it silently diverged: one job pinned 3.38.6 while another floated
-// and ran 3.47.2. Pinning it puts the version in three places, so this test is
-// what keeps those three and `.fvmrc` from drifting apart.
+// repo, and a literal pin silently diverged: one job pinned 3.38.6 while
+// another floated and ran 3.47.2. So the bootstrap reads `.fvmrc` through
+// `flutter-version-file`, and `.fvmrc` is the one place the version lives.
+// A workflow is YAML no type checks, so this test is what keeps a literal
+// `flutter-version:` from coming back.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, files } = require('./helpers/source');
-
-const pinned = JSON.parse(read('.fvmrc')).flutter;
 
 // Each `uses: subosito/flutter-action` line plus the `with:` block under it.
 // `with:` is a sibling key at the same indent as `uses:`, so the step ends at
@@ -48,19 +48,22 @@ test('the workflows still bootstrap Flutter through the action', () => {
   assert.ok(steps.length > 0, 'no subosito/flutter-action step found');
 });
 
-test('every Flutter bootstrap pins the version from .fvmrc', () => {
+test('every Flutter bootstrap reads its version from .fvmrc', () => {
+  const pinned = JSON.parse(read('.fvmrc')).flutter;
   assert.match(pinned, /^\d+\.\d+\.\d+$/, `.fvmrc pin is not a version: ${pinned}`);
   for (const step of steps) {
-    const found = step.body.match(/^\s*flutter-version:\s*'?([^'\s]+)'?/m);
-    assert.ok(
-      found,
-      `${step.file}:${step.line} does not pin flutter-version; it would float ` +
-        `to whatever the stable channel resolves to`,
-    );
+    const file = step.body.match(/^\s*flutter-version-file:\s*'?([^'\s]+)'?/m);
     assert.equal(
-      found[1],
-      pinned,
-      `${step.file}:${step.line} pins ${found[1]} but .fvmrc pins ${pinned}`,
+      file?.[1],
+      '.fvmrc',
+      `${step.file}:${step.line} must take flutter-version-file: '.fvmrc'; ` +
+        `without it the bootstrap floats to whatever stable resolves to`,
+    );
+    assert.doesNotMatch(
+      step.body,
+      /^\s*flutter-version:/m,
+      `${step.file}:${step.line} names a Flutter version of its own; ` +
+        `.fvmrc is the one place it lives`,
     );
   }
 });
