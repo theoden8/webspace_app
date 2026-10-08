@@ -8,8 +8,6 @@
 // can't simulate honestly belongs here.
 
 const test = require('node:test');
-const fs = require('node:fs');
-const path = require('node:path');
 
 let puppeteer;
 try {
@@ -18,11 +16,7 @@ try {
   // Whole tier becomes inert; requireBrowser handles the message.
 }
 
-const FIXTURES_ROOT = path.resolve(__dirname, '..', '..', 'js_fixtures');
-
-function readFixture(rel) {
-  return fs.readFileSync(path.join(FIXTURES_ROOT, rel), 'utf8');
-}
+const { pageJs } = require('../../js/helpers/page_js');
 
 // Register before/after hooks at module load so each test file gets
 // its own Chromium process. Returns a state object the tests close
@@ -68,4 +62,4 @@ function requireBrowser(state, t) {
   return false;
 }
 
-module.exports = { setupBrowser, requireBrowser, readFixture };
+module.exports = { setupBrowser, requireBrowser, pageJs };

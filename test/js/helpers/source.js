@@ -35,6 +35,9 @@ function files(dir, re) {
 const dartFiles = (dir = 'lib') =>
   files(dir, /\.dart$/).filter((f) => !f.startsWith('lib/l10n/gen/'));
 
+/** The scripts the app runs in pages (lib/js, read through PageJs). */
+const jsFiles = () => files('lib/js', /\.js$/);
+
 /**
  * `src` with comments blanked, and string literal contents too when
  * `strings` is set. Knows Dart/Kotlin/Swift/JS strings well enough that a
@@ -230,6 +233,7 @@ module.exports = {
   read,
   files,
   dartFiles,
+  jsFiles,
   code,
   lineAt,
   enclosed,

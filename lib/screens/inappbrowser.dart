@@ -39,6 +39,7 @@ import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// Identifies the nested webview's slot, the counterpart of the main page's
 /// per-site `ValueKey(siteId)` slot. The BUG-001 pixel suite samples the
@@ -372,16 +373,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // it routinely settles after this nudge drains (PAUSE-025).
         _surface.armCommitLatch();
         _surface.nudge('controller-attach');
-        controller.evaluateJavascript('''
-          (function() {
-            var cookies = document.cookie.split("; ");
-            for (var i = 0; i < cookies.length; i++) {
-              var cookie = cookies[i];
-              var cookieName = cookie.split("=")[0];
-              document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            }
-          })();
-        ''');
+        controller.evaluateJavascript(PageJs.expirePageCookies.script);
       },
     );
   }

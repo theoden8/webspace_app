@@ -1,12 +1,11 @@
 // jsdom tier for the ClearURLs copy/share shim
-// (lib/services/clearurl_share_shim.dart, dumped to
-// test/js_fixtures/clearurl_share/shim.js).
+// (lib/js/clearurl_share.js).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
-const SHIM = readFixture('clearurl_share/shim.js');
+const SHIM = pageJs('clearurl_share');
 const CLEAN = 'https://shop.example/item';
 
 function setup() {

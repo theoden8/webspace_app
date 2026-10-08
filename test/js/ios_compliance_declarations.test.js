@@ -41,7 +41,7 @@ function stringForKey(plist, key) {
 /** Fastlane lane bodies keyed by lane name. */
 function lanes(fastfile) {
   return Object.fromEntries(
-    fastfile.split(/^  lane :/m).slice(1)
+    fastfile.split(/^ {2}lane :/m).slice(1)
       .map((part) => [part.match(/^(\w+)/)[1], part]),
   );
 }

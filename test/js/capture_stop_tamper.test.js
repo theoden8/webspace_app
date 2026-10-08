@@ -20,9 +20,10 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const CAPTURE = require('./helpers/capture_shims');
+const { makeDom, runInDom } = require('./helpers/load_shim');
 
-const CAMERA = readFixture('camera_stream/shim.js');
+const CAMERA = CAPTURE.CAMERA;
 
 const _openDoms = [];
 afterEach(() => {

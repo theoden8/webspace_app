@@ -32,9 +32,11 @@ import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   final applies = hostIsIOS || hostIsMacOS;
 

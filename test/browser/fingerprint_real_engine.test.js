@@ -18,33 +18,29 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const LOC = require('../js/helpers/location_configs');
 const path = require('node:path');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 
 const FP_BUNDLE = path.resolve(
   __dirname, '..', '..',
   'node_modules/@fingerprintjs/fingerprintjs/dist/fp.umd.min.js');
 
-const LINUX = readFixture('desktop_mode/linux.js');
-const MACOS = readFixture('desktop_mode/macos.js');
-const WINDOWS = readFixture('desktop_mode/windows.js');
-const TZ_TOKYO = readFixture('location_spoof/timezone_only_tokyo.js');
-const FULL_COMBO = readFixture('location_spoof/full_combo.js');
-const STATIC_TOKYO = readFixture('location_spoof/static_tokyo.js');
+const LINUX = pageJs('desktop_mode', { platform: 'Linux x86_64' });
+const MACOS = pageJs('desktop_mode', { platform: 'MacIntel' });
+const WINDOWS = pageJs('desktop_mode', { platform: 'Win32' });
+const TZ_TOKYO = LOC.TIMEZONE_ONLY_TOKYO;
+const FULL_COMBO = LOC.FULL_COMBO;
 
-// Issue #327 fixtures: same siteId ('alpha-fixture-seed'), two
-// different process-lifetime nonces. Building these in the Dart fixture
-// dumper (tool/dump_shim_js.dart) keeps the seed strings under spec
-// control and prevents this test from accidentally generating its own
-// shim with a divergent JS-side hashing rule.
+// Issue #327: same siteId ('alpha-fixture-seed'), two different
+// process-lifetime nonces, as computeAntiFingerprintingSeed joins them
+// (`<siteId>:<launchNonce>`).
 const ANTI_FP_LAUNCH_ONE =
-    readFixture('anti_fingerprinting/shim_seed_alpha_launch_one.js');
+    pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed:nonce-launch-one', letterbox: false });
 const ANTI_FP_LAUNCH_TWO =
-    readFixture('anti_fingerprinting/shim_seed_alpha_launch_two.js');
+    pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed:nonce-launch-two', letterbox: false });
 const ANTI_FP_STABLE =
-    readFixture('anti_fingerprinting/shim_seed_alpha.js');
+    pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: false });
 
 const browser = setupBrowser();
 
@@ -55,7 +51,7 @@ const browser = setupBrowser();
 async function runFingerprintJS(page) {
   await page.addScriptTag({ path: FP_BUNDLE });
   return page.evaluate(async () => {
-    const fp = await FingerprintJS.load();
+    const fp = await window.FingerprintJS.load();
     const r = await fp.get();
     const out = {};
     for (const k of Object.keys(r.components)) {
@@ -239,7 +235,7 @@ test('FingerprintJS: shim survives full report without throwing',
     await withShim(t, FULL_COMBO, async (page) => {
       await page.addScriptTag({ path: FP_BUNDLE });
       const errors = await page.evaluate(async () => {
-        const fp = await FingerprintJS.load();
+        const fp = await window.FingerprintJS.load();
         const r = await fp.get();
         const out = {};
         for (const k of Object.keys(r.components)) {

@@ -1,6 +1,5 @@
 // Real-Chromium proof for the media-session bridge shim (BGAUDIO-006,
-// lib/services/media_session_shim.dart, dumped to
-// test/js_fixtures/media_session/shim.js).
+// lib/js/media_session.js).
 //
 // The Dart tier (test/media_session_shim_test.dart) only asserts substrings of
 // the builder's output, which passes whether or not the shim ever reports
@@ -37,7 +36,7 @@ test('reports playing:true with page metadata once audio actually plays', async 
       document.title = 'Fallback Title';
       const a = document.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(2);
+      a.src = window.wsMakeSilentWav(2);
       document.body.appendChild(a);
       navigator.mediaSession.metadata = new MediaMetadata({
         title: 'Track One',
@@ -91,7 +90,7 @@ test('falls back to document.title when the page declares no metadata', async (t
       document.title = 'Radio Station';
       const a = document.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(2);
+      a.src = window.wsMakeSilentWav(2);
       document.body.appendChild(a);
       await a.play();
     });
@@ -117,7 +116,7 @@ test('picks up an element created and played before it enters the DOM', async (t
       document.title = 'Detached Player';
       const a = document.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(2);
+      a.src = window.wsMakeSilentWav(2);
       window.__detached = a;
       await a.play();
     });
@@ -140,7 +139,7 @@ test('transport control round-trip drives the element and re-reports', async (t)
       document.title = 'Transport';
       const a = document.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(2);
+      a.src = window.wsMakeSilentWav(2);
       document.body.appendChild(a);
       await a.play();
     });
@@ -193,7 +192,7 @@ test('a transport that reaches nothing is reported, not swallowed', async (t) =>
 
     const refused = await page.evaluate(async () => {
       const a = document.createElement('audio');
-      a.src = wsMakeSilentWav(2);
+      a.src = window.wsMakeSilentWav(2);
       document.body.appendChild(a);
       // Reject the way a suspended/blocked engine does, which is the state
       // the iOS lockscreen play lands in.
@@ -223,7 +222,7 @@ test('does not re-report unchanged state', async (t) => {
       document.title = 'Steady';
       const a = document.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(2);
+      a.src = window.wsMakeSilentWav(2);
       document.body.appendChild(a);
       await a.play();
     });
@@ -249,7 +248,7 @@ test('reports metadata that arrives after playback started', async (t) => {
       document.title = 'Before Metadata';
       const a = document.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(2);
+      a.src = window.wsMakeSilentWav(2);
       document.body.appendChild(a);
       await a.play();
     });

@@ -20,10 +20,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadShim, readFixture, runInDom } = require('./helpers/load_shim');
+const { loadShim, runInDom, pageJs } = require('./helpers/load_shim');
 
-const IIFE = readFixture('blob_url_capture/download_iife.js');
-// The dumped IIFE bakes in this URL — the polyfill in helpers/load_shim.js
+const IIFE = pageJs('blob_download', {
+  blobUrl: 'blob:https://example.test/test-blob-1',
+  suggestedFilename: 'hello.txt',
+  taskId: 'task-fixture',
+});
+// The download config names this URL — the polyfill in helpers/load_shim.js
 // returns it for the first createObjectURL call so the fast-path test
 // can mint a real Blob and have the IIFE find it.
 const FIXTURE_URL = 'blob:https://example.test/test-blob-1';
@@ -67,7 +71,7 @@ function waitForCall(calls, name, timeoutMs = 2000) {
 }
 
 test('fast path: reads captured Blob via FileReader, reports base64', async () => {
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const calls = installBridge(dom);
   // Sentinel: assert fetch is NOT called on the fast path.
   let fetchCalls = 0;
@@ -79,7 +83,7 @@ test('fast path: reads captured Blob via FileReader, reports base64', async () =
   const blob = new dom.window.Blob(['hello world'], { type: 'text/plain' });
   const url = dom.window.URL.createObjectURL(blob);
   assert.equal(url, FIXTURE_URL,
-    'polyfill must mint the URL the dumped IIFE references');
+    'polyfill must mint the URL the download config names');
 
   runInDom(dom, IIFE);
   await waitForCall(calls, '_webspaceBlobDownload');
@@ -106,7 +110,7 @@ test('fast path: reads captured Blob via FileReader, reports base64', async () =
 test('fallback: when URL is not captured, IIFE calls fetch and reads result', async () => {
   // Same dom but DO NOT mint via createObjectURL — leaves __webspaceBlobs
   // empty for the fixture URL, forcing the fallback branch.
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const calls = installBridge(dom);
 
   const fetched = [];
@@ -137,7 +141,7 @@ test('fallback: fetch rejection routes through _webspaceBlobDownloadError', asyn
   // Production failure mode under CSP `connect-src` that blocks blob:.
   // The IIFE must not silently drop the error — Dart needs the rejection
   // to fail the DownloadTask.
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const calls = installBridge(dom);
 
   dom.window.fetch = function fetchStub() {
@@ -162,7 +166,7 @@ test('fast path: synchronous throw routes through _webspaceBlobDownloadError', a
   // If the captured Blob is somehow mutated into something readBlob can't
   // handle, the synchronous catch in the IIFE must fire the error
   // handler — not crash silently.
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const calls = installBridge(dom);
 
   // Mint the URL so the fast path engages, then break FileReader so

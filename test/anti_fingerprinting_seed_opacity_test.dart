@@ -17,7 +17,7 @@ void main() {
       expect(js, isNot(contains('site-A')));
       expect(js, isNot(contains('reset-xyz')));
       expect(js, isNot(contains('nonce-1')));
-      expect(js, contains('var SEED = "'));
+      expect(js, contains('"seed":"'));
     });
 
     test('the seed is a digest, not an encoding of the input', () {
@@ -36,8 +36,8 @@ void main() {
     });
 
     test('two incognito sites in one launch share no seed material', () {
-      final a = RegExp(r'var SEED = "([0-9a-f]+)"').firstMatch(source(siteId: 'site-A'))!.group(1)!;
-      final b = RegExp(r'var SEED = "([0-9a-f]+)"').firstMatch(source(siteId: 'site-B'))!.group(1)!;
+      final a = RegExp(r'"seed":"([0-9a-f]+)"').firstMatch(source(siteId: 'site-A'))!.group(1)!;
+      final b = RegExp(r'"seed":"([0-9a-f]+)"').firstMatch(source(siteId: 'site-B'))!.group(1)!;
       expect(a, isNot(equals(b)));
       expect(a.substring(0, 8), isNot(equals(b.substring(0, 8))));
     });

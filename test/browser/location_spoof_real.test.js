@@ -1,6 +1,5 @@
 // Real-Chromium tests for the location-spoof shim
-// (lib/services/location_spoof_service.dart, dumped to
-// test/js_fixtures/location_spoof/*.js).
+// (lib/js/location_spoof.js).
 //
 // jsdom does not implement Intl timezone arithmetic against arbitrary
 // IANA zones (it falls back to the host's TZ for getTimezoneOffset),
@@ -30,17 +29,16 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const LOC = require('../js/helpers/location_configs');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startBlankServer, originOf } = require('./helpers/blank_server');
 
-const FULL_COMBO = readFixture('location_spoof/full_combo.js');
-const STATIC_TOKYO = readFixture('location_spoof/static_tokyo.js');
-const TZ_ONLY_TOKYO = readFixture('location_spoof/timezone_only_tokyo.js');
-const WRTC_DISABLED = readFixture('location_spoof/webrtc_disabled.js');
-const WRTC_RELAY = readFixture('location_spoof/webrtc_relay.js');
-const BLOCKED = readFixture('location_spoof/blocked.js');
+const FULL_COMBO = LOC.FULL_COMBO;
+const STATIC_TOKYO = LOC.STATIC_TOKYO;
+const TZ_ONLY_TOKYO = LOC.TIMEZONE_ONLY_TOKYO;
+const WRTC_DISABLED = LOC.WEBRTC_DISABLED;
+const WRTC_RELAY = LOC.WEBRTC_RELAY;
+const BLOCKED = LOC.BLOCKED;
 
 const browser = setupBrowser();
 
@@ -287,7 +285,7 @@ test('WRTC=relay — config.iceTransportPolicy is forced to relay',
     // relay branch reads `_RealRTC = window.RTCPeerConnection` at
     // install time, then constructs an instance per call after
     // mutating the config in place.
-    const FAKE = `
+    function fakeRtc() {
       window.__rtcEvents = [];
       class FakeRTC {
         constructor(config) {
@@ -308,7 +306,7 @@ test('WRTC=relay — config.iceTransportPolicy is forced to relay',
       }
       window.RTCPeerConnection = FakeRTC;
       window.webkitRTCPeerConnection = FakeRTC;
-    `;
+    }
     await withShim(t, WRTC_RELAY, async (page) => {
       const events = await page.evaluate(() => {
         new RTCPeerConnection({
@@ -324,12 +322,12 @@ test('WRTC=relay — config.iceTransportPolicy is forced to relay',
       assert.deepEqual(ctor.config.iceServers,
         [{ urls: 'stun:example.test' }],
         'other config fields must be preserved');
-    }, { preInit: FAKE });
+    }, { preInit: fakeRtc });
   });
 
 test('WRTC=relay — setLocalDescription strips non-relay candidates',
   async (t) => {
-    const FAKE = `
+    function fakeRtc() {
       window.__rtcEvents = [];
       class FakeRTC {
         constructor(config) { this.__config = config; }
@@ -340,7 +338,7 @@ test('WRTC=relay — setLocalDescription strips non-relay candidates',
         close() {}
       }
       window.RTCPeerConnection = FakeRTC;
-    `;
+    }
     await withShim(t, WRTC_RELAY, async (page) => {
       const sdp = await page.evaluate(async () => {
         const pc = new RTCPeerConnection({});
@@ -369,20 +367,20 @@ test('WRTC=relay — setLocalDescription strips non-relay candidates',
       // Non-candidate lines must survive unmolested.
       assert.ok(/^v=0/m.test(sdp));
       assert.ok(/^m=audio/m.test(sdp));
-    }, { preInit: FAKE });
+    }, { preInit: fakeRtc });
   });
 
 test('WRTC=relay — Function.prototype.toString hides the wrapper',
   async (t) => {
-    const FAKE = `
+    function fakeRtc() {
       class FakeRTC { constructor() {} close() {} }
       window.RTCPeerConnection = FakeRTC;
-    `;
+    }
     await withShim(t, WRTC_RELAY, async (page) => {
       const s = await page.evaluate(() =>
         Function.prototype.toString.call(window.RTCPeerConnection));
       assert.equal(s, 'function RTCPeerConnection() { [native code] }');
-    }, { preInit: FAKE });
+    }, { preInit: fakeRtc });
   });
 
 // ---------- IP-leakage premise: WebRTC without the shim ----------

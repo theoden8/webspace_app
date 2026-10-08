@@ -17,7 +17,6 @@ import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/link_routing_service.dart' show LinkRoutingService;
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
-import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/opensearch_engine.dart'
@@ -58,6 +57,7 @@ import 'package:webspace/services/page_zoom_shim.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/blocked_cookie.dart';
+import 'package:webspace/services/page_js.dart';
 
 export 'package:webspace/services/url_host.dart'
     show extractDomain, getBaseDomain, getNormalizedDomain;
@@ -1687,7 +1687,7 @@ bool dispatch(NavigationDecision decision,
   /// subframe is accepted degradation, as in BGAUDIO-008.
   Future<void> pauseMediaPlayback() async {
     if (effectiveBackgroundAudioEnabled) return;
-    await controller?.evaluateJavascript(buildMediaPauseJs());
+    await controller?.evaluateJavascript(PageJs.mediaPause.script);
   }
 
   Future<void> resumeWebView() async {

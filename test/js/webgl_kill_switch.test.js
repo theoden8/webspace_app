@@ -9,9 +9,9 @@
 const test = require('node:test');
 const vm = require('node:vm');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
-const SHIM = 'webgl_kill_switch/shim.js';
+const SHIM = pageJs('webgl_kill_switch');
 
 function seedGpuSurface(window) {
   class WebGLRenderingContext {}
@@ -36,7 +36,7 @@ function seedGpuSurface(window) {
 function shimmed() {
   const dom = makeDom();
   seedGpuSurface(dom.window);
-  runInDom(dom, readFixture(SHIM));
+  runInDom(dom, SHIM);
   return dom;
 }
 
@@ -92,7 +92,7 @@ test('WORK-002: the kill switch installs in a worker scope, where there is no wi
     navigator: Object.create(navProto),
     WorkerGlobalScope: class {},
   });
-  assert.doesNotThrow(() => vm.runInContext(readFixture(SHIM), ctx));
+  assert.doesNotThrow(() => vm.runInContext(SHIM, ctx));
   assert.equal(vm.runInContext('typeof WebGLRenderingContext', ctx), 'undefined');
   assert.equal(vm.runInContext('typeof GPU', ctx), 'undefined');
   assert.equal(vm.runInContext("new OffscreenCanvas().getContext('webgl')", ctx), null);

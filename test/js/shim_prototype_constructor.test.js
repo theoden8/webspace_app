@@ -8,14 +8,13 @@
 // worker, `new (RTCPeerConnection.prototype.constructor)(cfg)` a peer
 // connection that gathers host candidates outside the proxy.
 //
-// Structural, not behavioural: it reads the Dart shim sources, so it fires on
-// a NEW wrapper written the same way rather than only on the four that were
-// fixed. Sources rather than test/js_fixtures/, so a stale fixture dump cannot
-// make it pass or fail.
+// Structural, not behavioural: it reads the shim sources (lib/js, and any Dart
+// file that still holds JS), so it fires on a NEW wrapper written the same way
+// rather than only on the four that were fixed.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read, dartFiles, escapeRe } = require('./helpers/source');
+const { read, dartFiles, jsFiles, escapeRe } = require('./helpers/source');
 
 // How far below the assignment the re-point may sit. Enough for a comment
 // explaining why, not enough to be somewhere else entirely.
@@ -30,7 +29,7 @@ const TAKES_NATIVE_PROTOTYPE =
 const offenders = [];
 const sites = [];
 
-for (const rel of dartFiles()) {
+for (const rel of [...dartFiles(), ...jsFiles()]) {
   const lines = read(rel).split('\n');
   lines.forEach((line, i) => {
     const m = TAKES_NATIVE_PROTOTYPE.exec(line);
@@ -63,9 +62,9 @@ test('the scan still finds the known wrapper sites', () => {
   // Guards the guard: a regex that stops matching would make the gate above
   // vacuously green. These four are the wrappers BUG-009 attempt 3 fixed.
   const expected = [
-    'lib/services/worker_shim.dart',
-    'lib/services/language_shim.dart',
-    'lib/services/location_spoof_service.dart',
+    'lib/js/_worker_installer.js',
+    'lib/js/language.js',
+    'lib/js/location_spoof.js',
   ];
   for (const file of expected) {
     assert.ok(
@@ -81,7 +80,7 @@ test('the re-point is guarded so it cannot silence the rest of the payload', () 
   // (a frozen prototype, a non-configurable `constructor`) would take every
   // later shim with it.
   const unguarded = [];
-  for (const rel of dartFiles()) {
+  for (const rel of [...dartFiles(), ...jsFiles()]) {
     const lines = read(rel).split('\n');
     lines.forEach((line, i) => {
       if (!/defineProperty\(\s*[A-Za-z_$][\w$]*\.prototype\s*,\s*['"]constructor['"]/.test(line)) {

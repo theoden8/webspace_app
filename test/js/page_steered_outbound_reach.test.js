@@ -19,7 +19,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const path = require('node:path');
 const { read, dartFiles } = require('./helpers/source');
 
 const SEAMS = ['outboundHttp.clientFor', 'fetchViaAppProxy('];

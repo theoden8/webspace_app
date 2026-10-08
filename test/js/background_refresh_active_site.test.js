@@ -28,7 +28,7 @@ test('the foreground branch reloads around the site on screen', () => {
   // parameter whose default reloaded the page the user was reading.
   assert.match(assignment[1], /AppLifecycleState\.resumed\s*\?\s*refreshSites\(\)/,
     `${rel} must reload through refreshSites while resumed`);
-  const refresh = /Future<void> refreshSites\(\) async \{([\s\S]*?)\n  \}/.exec(src);
+  const refresh = /Future<void> refreshSites\(\) async \{([\s\S]*?)\n {2}\}/.exec(src);
   assert.ok(refresh, `${rel} must define refreshSites`);
   assert.match(refresh[1], /ForegroundPollEngine\.plan\([\s\S]*currentIndex: _sites\.current,/,
     'refreshSites must plan with the site on screen');
@@ -41,7 +41,7 @@ test('the foreground branch reloads around the site on screen', () => {
 test('the backgrounded branch runs the wake that waits for the pages', () => {
   assert.match(assignment[1], /:\s*wake\(\)/,
     `${rel} must run wake when the app is not resumed`);
-  const wake = /Future<void> wake\(\) async \{([\s\S]*?)\n  \}/.exec(src);
+  const wake = /Future<void> wake\(\) async \{([\s\S]*?)\n {2}\}/.exec(src);
   assert.ok(wake, `${rel} must define wake`);
   assert.match(wake[1], /await _wakeEngine\.wake\(/,
     'wake must await the engine, or it returns before the pages settle');

@@ -1,5 +1,4 @@
-// Tier 2: the icon-link watcher (lib/services/icon_link_watcher_shim.dart,
-// dumped to test/js_fixtures/icon_link_watcher/shim.js) against Chrome's own
+// Tier 2: the icon-link watcher (lib/js/icon_link_watcher.js) against Chrome's own
 // favicon requests.
 //
 // The watcher tells the site-icon engine three things Blink decides:
@@ -21,43 +20,45 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { listen, originOf } = require('./helpers/blank_server');
 
-const SHIM = readFixture('icon_link_watcher/shim.js');
+const SHIM = pageJs('icon_link_watcher', { documentLoadedHandler: 'wsIconDocumentLoaded', linksHandler: 'wsIconLinks', linksChangedHandler: 'wsIconLinksChanged' });
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   'base64');
 
-const afterLoad = (js) =>
-  `<script>addEventListener('load', () => setTimeout(() => { ${js} }, 300));</script>`;
+// A page script that runs [fn] a beat after the load event.
+const afterLoad = (fn) =>
+  `<script>addEventListener('load', () => setTimeout(${fn}, 300));</script>`;
 
 const PAGES = {
   '/badge.html': `<head><link rel="icon" href="/badge/a.png"></head><body>
-    ${afterLoad(`
-      document.querySelector('link[rel=icon]').remove();
-      const l = document.createElement('link');
-      l.rel = 'icon'; l.href = '/badge/b.png';
-      document.head.append(l);`)}</body>`,
+    ${afterLoad(() => {
+    document.querySelector('link[rel=icon]').remove();
+    const l = document.createElement('link');
+    l.rel = 'icon'; l.href = '/badge/b.png';
+    document.head.append(l);
+  })}</body>`,
   '/preload.html': `<head><link rel="icon" href="/preload/a.png"></head><body>
     <script>document.querySelector('link[rel=icon]').href = '/preload/b.png';</script>
     </body>`,
   '/spa.html': `<head></head><body>
-    ${afterLoad(`
-      const l = document.createElement('link');
-      l.rel = 'icon'; l.href = '/spa/app.png';
-      document.head.append(l);`)}</body>`,
+    ${afterLoad(() => {
+    const l = document.createElement('link');
+    l.rel = 'icon'; l.href = '/spa/app.png';
+    document.head.append(l);
+  })}</body>`,
   '/body.html': `<head><link rel="icon" href="/body/a.png"></head><body>
-    ${afterLoad(`
-      const l = document.createElement('link');
-      l.rel = 'icon'; l.href = '/body/b.png';
-      document.body.append(l);`)}</body>`,
+    ${afterLoad(() => {
+    const l = document.createElement('link');
+    l.rel = 'icon'; l.href = '/body/b.png';
+    document.body.append(l);
+  })}</body>`,
   '/frame.html': `<head><link rel="icon" href="/frame/top.png"></head><body>
     <iframe src="/frame-child.html"></iframe></body>`,
   '/frame-child.html': `<head><link rel="icon" href="/frame/c1.png"></head><body>
-    ${afterLoad(`document.querySelector('link[rel=icon]').href = '/frame/c2.png';`)}
+    ${afterLoad(() => { document.querySelector('link[rel=icon]').href = '/frame/c2.png'; })}
     </body>`,
   '/plain.html': '<head></head><body>no icon</body>',
 };

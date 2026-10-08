@@ -13,7 +13,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
-const { readFixture } = require('./helpers/load_shim');
+const { pageJs } = require('./helpers/load_shim');
 
 // Stubs for browser APIs jsdom omits. Each stub records every call onto
 // `window.__calls` so tests can assert the wrapper actually invoked the
@@ -216,10 +216,10 @@ function makeDom({ url = 'https://example.com/' } = {}) {
   return dom;
 }
 
-function loadShim(rel, options, prepare) {
+function loadShim(source, options, prepare) {
   const dom = makeDom(options);
   if (prepare) prepare(dom.window);
-  dom.window.eval(readFixture(rel));
+  dom.window.eval(source);
   return dom;
 }
 
@@ -305,9 +305,9 @@ function navKeys(navigator) {
   return seen;
 }
 
-const ALPHA = 'anti_fingerprinting/shim_seed_alpha.js';
-const BETA = 'anti_fingerprinting/shim_seed_beta.js';
-const ALPHA_LETTERBOX = 'anti_fingerprinting/shim_seed_alpha_letterbox.js';
+const ALPHA = pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: false });
+const BETA = pageJs('anti_fingerprinting', { seed: 'beta-fixture-seed', letterbox: false });
+const ALPHA_LETTERBOX = pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: true });
 
 // --- screen.* ---
 
@@ -535,7 +535,7 @@ test('the shim introduces no navigator property the engine lacks', () => {
   // is the same leak as an own-property override and needs no measurement.
   const dom = makeDom();
   const before = navKeys(dom.window.navigator);
-  dom.window.eval(readFixture(ALPHA));
+  dom.window.eval(ALPHA);
   const added = [...navKeys(dom.window.navigator)].filter((k) => !before.has(k));
   assert.deepEqual(added, [], `shim added ${added.join(', ')} to navigator`);
 });
@@ -626,7 +626,7 @@ test('OffscreenCanvasRenderingContext2D.getImageData is noised like the on-scree
   const a = read(ALPHA);
   assert.ok(a.some((v, i) => i % 4 === 0 && v !== 100), 'no pixel was touched');
   assert.deepEqual(a, read(ALPHA), 'the noise must be stable per site');
-  assert.notDeepEqual(a, read('anti_fingerprinting/shim_seed_beta.js'));
+  assert.notDeepEqual(a, read(BETA));
 });
 
 test('OffscreenCanvas.convertToBlob nudges the canvas once (SEC-018)', async () => {
@@ -966,9 +966,9 @@ test('re-running the shim does not double-wrap (idempotent)', () => {
   // on every frame. The guard `__ws_anti_fp_shim__` must short-circuit
   // the second run so wrappers don't wrap themselves.
   const dom = makeDom();
-  dom.window.eval(readFixture(ALPHA));
+  dom.window.eval(ALPHA);
   const beforeWidth = new dom.window.CanvasRenderingContext2D().measureText('x').width;
-  dom.window.eval(readFixture(ALPHA));  // re-run
+  dom.window.eval(ALPHA);  // re-run
   const afterWidth = new dom.window.CanvasRenderingContext2D().measureText('x').width;
   // If re-running double-wrapped, the jitter would compound. Re-entrance
   // guard makes the second run a no-op so the width is identical.

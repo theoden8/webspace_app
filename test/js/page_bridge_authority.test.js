@@ -483,7 +483,7 @@ test('CAM-012 / MIC-012: the capture stop is out of the page\'s reach', () => {
   // The hook is the only thing that ends a device capture on deactivation, and
   // Dart can only reach it by name from the page's own realm. Reachable is
   // fine; replaceable is not, and neither is a registry the page can empty.
-  const registry = read('lib/services/capture_track_registry.dart');
+  const registry = read('lib/js/_capture_prelude.js');
   assert.match(registry, /writable: false,\s*\n\s*enumerable: false,\s*\n\s*configurable: false,/,
     'the hook must be installed non-writable and non-configurable');
   assert.ok(!/globalThis\.__wsRealTracks\s*=/.test(registry),
@@ -497,11 +497,11 @@ test('CAM-012 / MIC-012: the capture stop is out of the page\'s reach', () => {
   assert.match(registry, /postMessage\(RELAY, '\*'\)/,
     'the stop must relay to subframes: Dart evaluates in the main frame only, ' +
     'and a subframe granted a device track holds its own registry');
-  for (const shim of ['capture_shim_prelude', 'camera_stream_shim',
-    'microphone_stream_shim', 'screen_share_shim']) {
-    const src = read(`lib/services/${shim}.dart`);
+  for (const shim of ['_capture_prelude', 'camera_stream',
+    'microphone_stream', 'screen_share']) {
+    const src = read(`lib/js/${shim}.js`);
     assert.ok(!src.includes('__wsSyntheticTracks'),
-      `${shim}.dart must reach the registry through the shared block, not a global`);
+      `${shim}.js must reach the registry through the shared block, not a global`);
   }
 });
 

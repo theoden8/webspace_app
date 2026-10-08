@@ -49,10 +49,10 @@ const CROSS_SITE_ARGS = [
 const browser = setupBrowser({ args: CROSS_SITE_ARGS });
 const blocked = setupBrowser({ args: [...CROSS_SITE_ARGS, '--block-third-party-cookies'] });
 
-const PROBE = `(() => {
+function probe() {
   try { return JSON.stringify(document.cookie); }
   catch (e) { return 'THREW ' + e.name + ': ' + e.message; }
-})()`;
+}
 
 async function startServer() {
   const server = await listen((req, res) => {
@@ -99,7 +99,7 @@ test('a document with no cookie-capable origin gives the reported wording', asyn
   if (!requireBrowser(browser, t)) return;
   const page = await browser.browser.newPage();
   await page.goto('about:blank');
-  const result = await page.evaluate(PROBE);
+  const result = await page.evaluate(probe);
   await page.close();
   assert.match(result, /^THREW SecurityError/);
   assert.ok(result.includes(DENIED), `expected the generic denial, got: ${result}`);
@@ -136,7 +136,7 @@ test("a data: document is named as such, not denied generically", async (t) => {
   if (!requireBrowser(browser, t)) return;
   const page = await browser.browser.newPage();
   await page.goto('data:text/html,<title>d</title>');
-  const result = await page.evaluate(PROBE);
+  const result = await page.evaluate(probe);
   await page.close();
   assert.match(result, /^THREW SecurityError/);
   assert.match(result, /Cookies are disabled inside 'data:' URLs/);
@@ -154,7 +154,7 @@ test('a page-opened about:blank popup inherits the opener and keeps cookies', as
   const page = await browser.browser.newPage();
   try {
     await page.goto(`http://a.test:${server.address().port}/`);
-    assert.equal(await page.evaluate(PROBE), '"sid=abc"');
+    assert.equal(await page.evaluate(probe), '"sid=abc"');
 
     const [popup] = await Promise.all([
       new Promise((resolve) => {
@@ -163,7 +163,7 @@ test('a page-opened about:blank popup inherits the opener and keeps cookies', as
       page.evaluate(() => window.open('about:blank', '_blank')),
     ]);
     assert.ok(popup, 'no popup page');
-    assert.equal(await popup.evaluate(PROBE), '"sid=abc"');
+    assert.equal(await popup.evaluate(probe), '"sid=abc"');
     await popup.close();
   } finally {
     await page.close();

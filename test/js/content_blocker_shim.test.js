@@ -13,11 +13,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadShim, makeDom, runInDom, readFixture } = require('./helpers/load_shim');
-
-const EARLY_CSS = readFixture('content_blocker/early_css.js');
-const COSMETIC = readFixture('content_blocker/cosmetic.js');
-const COSMETIC_MULTI = readFixture('content_blocker/cosmetic_multi.js');
+const { loadShim, makeDom, runInDom } = require('./helpers/load_shim');
+const {
+  EARLY_CSS, COSMETIC, COSMETIC_MULTI, earlyCss, cosmetic,
+} = require('./helpers/content_blocker_samples');
 
 // Shared HTML covering the same selectors the dumper bakes in.
 // Includes both selectors that match and ones that don't, plus a
@@ -260,3 +259,67 @@ test('cosmetic_multi: MutationObserver re-applies text rules to dynamic DOM',
     assert.equal(late.style.display, 'none',
       'MutationObserver must re-run text rules on later inserts');
   });
+
+// ---------- the stylesheet a config builds ----------
+
+const STYLE_ID = '_webspace_content_blocker_style';
+const styleText = (js) =>
+  loadShim(js).window.document.getElementById(STYLE_ID).textContent;
+
+test('one display:none rule per selector', () => {
+  const css = styleText(earlyCss(['.ad', 'div.banner']));
+  assert.ok(css.includes('.ad { display: none !important; }'), css);
+  assert.ok(css.includes('div.banner { display: none !important; }'), css);
+});
+
+test(':style() rules apply their own declarations, never display:none', () => {
+  // If both were emitted the cascade would still hide the element
+  // (display:none wins), defeating uBO `:style()` entirely.
+  const css = styleText(earlyCss([], [
+    { selector: '.banner', declarations: 'height: 1px !important' },
+  ]));
+  assert.ok(css.includes('.banner { height: 1px !important }'), css);
+  assert.ok(!css.includes('display: none'), ':style() must not hide');
+});
+
+test('selectors and :style() rules share one <style> tag', () => {
+  const css = styleText(earlyCss(['.ad'], [
+    { selector: '.banner', declarations: 'visibility: hidden' },
+  ]));
+  assert.ok(css.includes('.ad { display: none !important; }'), css);
+  assert.ok(css.includes('.banner { visibility: hidden }'), css);
+});
+
+test('a declaration carrying a quote or a newline stays data', () => {
+  const css = styleText(earlyCss([], [
+    { selector: '.x', declarations: "content: 'ad'" },
+    { selector: '.y', declarations: 'color: red;\n} body { display: none' },
+  ]));
+  assert.ok(css.includes("content: 'ad'"), css);
+  assert.ok(css.includes('color: red;\n}'), css);
+});
+
+test('cosmetic: :style() rules alone still inject the stylesheet', () => {
+  const css = styleText(cosmetic([], {
+    styleRules: [{ selector: '.banner', declarations: 'opacity: 0' }],
+  }));
+  assert.ok(css.includes('.banner { opacity: 0 }'), css);
+});
+
+test('cosmetic: the MutationObserver runs only when there are text rules', () => {
+  // The selector path is owned entirely by the <style> tag; an observer with
+  // no text rules would bring back the per-mutation work the 2026 perf fix
+  // removed.
+  const observers = (js) => {
+    const dom = makeDom();
+    let made = 0;
+    const Real = dom.window.MutationObserver;
+    dom.window.MutationObserver = function (cb) { made++; return new Real(cb); };
+    runInDom(dom, js);
+    return made;
+  };
+  assert.equal(observers(cosmetic(['.ad'])), 0);
+  assert.equal(observers(cosmetic([], {
+    textRules: [{ sel: 'p.notice', pats: ['Sponsored'] }],
+  })), 1);
+});

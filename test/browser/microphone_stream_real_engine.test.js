@@ -1,11 +1,10 @@
 // Real-Chromium proof for the virtual microphone shim
-// (lib/services/microphone_stream_shim.dart, dumped to
-// test/js_fixtures/microphone_stream/shim.js).
+// (lib/js/microphone_stream.js).
 //
 // The jsdom tier (test/js/microphone_stream_shim.test.js) stubs WebAudio, so
 // it proves the decision funnel but not that the synthetic track actually
 // carries the picked clip, nor that the clip REPEATS — the headline claim of
-// the feature. This test runs the exact dumped shim in real headless Chromium
+// the feature. This test runs the exact shim in real headless Chromium
 // and samples the served track back through an AnalyserNode.
 //
 // getUserMedia needs a secure context, so the page is served from 127.0.0.1
@@ -13,10 +12,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const CAPTURE = require('../js/helpers/capture_shims');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const SHIM = readFixture('microphone_stream/shim.js');
+const SHIM = CAPTURE.MICROPHONE;
 
 const browser = setupBrowser();
 

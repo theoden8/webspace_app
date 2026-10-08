@@ -14,7 +14,6 @@ const { read, code, blockAfter, methodBody } = require('./helpers/source');
 const swift = code(read('ios/Runner/TorControllerPlugin.swift'));
 const engine = code(read('lib/services/tor_engine.dart'));
 const service = code(read('lib/services/tor_service.dart'));
-const main = code(read('lib/main.dart'));
 const workflow = read('.github/workflows/build-and-test.yml');
 
 test('tor\'s control channel is a Unix socket, the kind a suspension spares', () => {

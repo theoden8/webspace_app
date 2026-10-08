@@ -1,10 +1,9 @@
 // Real-Chromium proof for the virtual camera shim
-// (lib/services/camera_stream_shim.dart, dumped to
-// test/js_fixtures/camera_stream/shim.js).
+// (lib/js/camera_stream.js).
 //
 // The jsdom tier (test/js/camera_stream_shim.test.js) stubs canvas /
 // captureStream, so it proves the decision funnel but not that the synthetic
-// stream actually carries the picked image. This test runs the exact dumped
+// stream actually carries the picked image. This test runs the exact
 // shim in real headless Chromium and asserts a scanner can DECODE A QR CODE
 // off the getUserMedia stream — the end-to-end claim the feature makes.
 //
@@ -13,12 +12,13 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const CAPTURE = require('../js/helpers/capture_shims');
 const fs = require('node:fs');
 const path = require('node:path');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const SHIM = readFixture('camera_stream/shim.js');
+const SHIM = CAPTURE.CAMERA;
 const JSQR = fs.readFileSync(
   path.resolve(__dirname, '..', '..', 'node_modules', 'jsqr', 'dist', 'jsQR.js'),
   'utf8',
@@ -40,7 +40,7 @@ test('virtual camera stream carries a decodable QR under real Chromium', async (
 
   try {
     // Bridge stub returns whatever source the page stashes (built from the
-    // QR below); the dumped shim and jsQR are injected before any page load.
+    // QR below); the shim and jsQR are injected before any page load.
     await page.evaluateOnNewDocument(() => {
       window.__wsCamSource = null;
       window.flutter_inappwebview = {

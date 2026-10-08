@@ -1,6 +1,5 @@
 // Real-Chromium proof for the simulated screen-sharing shim
-// (lib/services/screen_share_shim.dart, dumped to
-// test/js_fixtures/screen_share/shim.js).
+// (lib/js/screen_share.js).
 //
 // The jsdom tier (test/js/screen_share_shim.test.js) stubs canvas /
 // captureStream, so it proves the decision funnel but not that the served
@@ -13,10 +12,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const CAPTURE = require('../js/helpers/capture_shims');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const SHIM = readFixture('screen_share/shim.js');
+const SHIM = CAPTURE.SCREEN_SHARE;
 
 // A surface the test can recognise pixel-by-pixel: solid, unmistakable, and
 // nothing a real screen capture of a blank page would ever produce.
@@ -24,7 +24,7 @@ const SURFACE_RGB = [0, 128, 255];
 
 const browser = setupBrowser();
 
-// Installs the bridge stub + the dumped shim before any document loads.
+// Installs the bridge stub + the shim before any document loads.
 async function armPage(page, decisionFactory) {
   await page.evaluateOnNewDocument((rgb) => {
     window.__wsSurface = null;
@@ -44,7 +44,7 @@ async function armPage(page, decisionFactory) {
 
 // Paints a solid canvas and hands back its data: URL, so the served frames
 // have a known colour.
-const MAKE_SURFACE = `
+function makeSurface() {
   window.__wsMakeSurface = function (w, h) {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
@@ -54,12 +54,12 @@ const MAKE_SURFACE = `
     ctx.fillRect(0, 0, w, h);
     return { kind: 'image', dataUrl: c.toDataURL('image/png') };
   };
-`;
+}
 
 // Reads one frame off a stream into a canvas and returns its centre pixel.
 // Retried across frames: the first frame a canvas-capture <video> presents
 // can be blank before the stream commits.
-const SAMPLE_STREAM = `
+function sampleStream() {
   window.__wsSample = async function (stream) {
     const video = document.createElement('video');
     video.muted = true;
@@ -85,7 +85,7 @@ const SAMPLE_STREAM = `
     }
     return { rgb: null };
   };
-`;
+}
 
 test('a virtual grant serves the picked surface under real Chromium',
   async (t) => {
@@ -96,8 +96,8 @@ test('a virtual grant serves the picked surface under real Chromium',
     try {
       await armPage(page);
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-      await page.evaluate(MAKE_SURFACE);
-      await page.evaluate(SAMPLE_STREAM);
+      await page.evaluate(makeSurface);
+      await page.evaluate(sampleStream);
 
       const result = await page.evaluate(async () => {
         window.__wsDecision = {
@@ -221,7 +221,7 @@ test('a cross-origin iframe cannot obtain the surface (SHARE-005)',
 
       // The top-level document still works, so the deny is about the frame
       // rather than a shim that failed to install.
-      await page.evaluate(MAKE_SURFACE);
+      await page.evaluate(makeSurface);
       const top = await page.evaluate(async () => {
         window.__wsDecision = {
           mode: 'virtual',

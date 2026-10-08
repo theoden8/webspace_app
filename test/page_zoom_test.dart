@@ -94,26 +94,6 @@ void main() {
     });
   });
 
-  group('scale formatting', () {
-    test('drops trailing zeros and the bare decimal point', () {
-      expect(trimZoomNum(0.8), '0.8');
-      expect(trimZoomNum(1.0), '1');
-      expect(trimZoomNum(1.25), '1.25');
-      expect(trimZoomNum(0.5), '0.5');
-      expect(trimZoomNum(2.5), '2.5');
-      expect(trimZoomNum(0.33), '0.33');
-    });
-
-    test('never emits exponent or long-tail float noise', () {
-      for (var percent = 25; percent <= 300; percent += 5) {
-        final s = trimZoomNum(percent / 100);
-        expect(s, matches(RegExp(r'^\d+(\.\d{1,4})?$')),
-            reason: '$percent% formatted as "$s"');
-        expect(double.parse(s), closeTo(percent / 100, 0.0001));
-      }
-    });
-  });
-
   group('viewport meta builder', () {
     String android(int percent) => buildPageZoomViewportShim(
           zoomPercent: percent,
@@ -129,21 +109,21 @@ void main() {
         );
 
     test('carries the scale as a decimal factor, not a percentage', () {
-      expect(android(80), contains('var SCALE=0.8;'));
-      expect(android(125), contains('var SCALE=1.25;'));
-      expect(webkit(50), contains('var SCALE=0.5;'));
+      expect(android(80), contains('"scale":0.8'));
+      expect(android(125), contains('"scale":1.25'));
+      expect(webkit(50), contains('"scale":0.5'));
     });
 
     test('the Android build emits a width directive; WebKit does not', () {
       expect(android(80), contains("'width='+w+', initial-scale='"));
-      expect(android(80), contains('var PIN=true;'));
-      expect(webkit(80), contains('var PIN=false;'));
+      expect(android(80), contains('"pinLayoutWidth":true'));
+      expect(webkit(80), contains('"pinLayoutWidth":false'));
     });
 
     test('the width is derived from the device, never from a constant', () {
       final js = android(80);
-      expect(js, contains('var PORTRAIT=393;'));
-      expect(js, contains('var LANDSCAPE=851;'));
+      expect(js, contains('"portraitWidth":393'));
+      expect(js, contains('"landscapeWidth":851'));
       expect(js, contains('window.innerWidth'));
       expect(js, contains('Math.floor'));
     });
@@ -155,8 +135,9 @@ void main() {
       final screenAccess = RegExp(
           r'(window|globalThis)\s*\.\s*screen|\bScreen\s*\.\s*prototype'
           r'|[^a-z]screen\s*\.\s*(width|height|avail)');
+      final comment = RegExp(r'^\s*//.*$', multiLine: true);
       for (final js in [android(80), android(150), webkit(80)]) {
-        expect(screenAccess.hasMatch(js), isFalse);
+        expect(screenAccess.hasMatch(js.replaceAll(comment, '')), isFalse);
       }
     });
 
@@ -168,8 +149,8 @@ void main() {
         portraitWidth: 392.7,
         landscapeWidth: 850.2,
       );
-      expect(js, contains('var PORTRAIT=392;'));
-      expect(js, contains('var LANDSCAPE=850;'));
+      expect(js, contains('"portraitWidth":392'));
+      expect(js, contains('"landscapeWidth":850'));
     });
 
     test('missing view extents degrade to the innerWidth sample', () {
@@ -177,8 +158,8 @@ void main() {
         zoomPercent: 80,
         pinLayoutWidth: true,
       );
-      expect(js, contains('var PORTRAIT=0;'));
-      expect(js, contains('var LANDSCAPE=0;'));
+      expect(js, contains('"portraitWidth":0'));
+      expect(js, contains('"landscapeWidth":0'));
       expect(js, contains('window.innerWidth'));
     });
 

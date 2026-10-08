@@ -1,7 +1,7 @@
 # BUG-031 — The content blocker's early `<style>` becomes the document root
 
 Status: **open, fix in review.** The shim waits for the root and a gate runs
-every dumped shim on a rootless document; open until the reporter of
+every page script on a rootless document; open until the reporter of
 [#405](https://github.com/theoden8/webspace_app/issues/405) confirms on a
 release.
 
@@ -75,6 +75,16 @@ document-start scripts once the document element exists. Puppeteer's
    covers both copies and any later caller. *Why partial:* the gate sees only
    shims dumped by `tool/dump_shim_js.dart`; a page script never dumped as a
    fixture is outside it.
+2. **2026-10-08, branch `refactor/page-js-files` (#687).** *What:* every page
+   script moved out of Dart strings into `lib/js/`, read through `PageJs`; the
+   dumper and its fixtures are gone. The gate now runs every script there with
+   a sample config (`test/js/helpers/page_js_samples.js`), and
+   `test/js/page_js.test.js` fails on a script that has no sample and on a
+   multi-line JS string left in a Dart file. *Why:* the gap in attempt 1 was
+   scripts the dumper did not know about (the nested browser's cookie script
+   was one); with one directory of scripts and a sample required for each,
+   there is no second list to fall out of step. *Why partial:* user scripts
+   are still outside it (gap 1).
 
 ## Known open gaps
 

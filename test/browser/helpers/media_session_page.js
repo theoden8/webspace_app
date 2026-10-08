@@ -1,14 +1,13 @@
 // Shared page harness for the media-session browser tiers (BGAUDIO-006/007/008,
-// lib/services/media_session_shim.dart, dumped to
-// test/js_fixtures/media_session/shim.js).
+// lib/js/media_session.js).
 //
 // Split across two test files because node:test's per-file timeout applies to
 // the file-level test as well as each subtest, and real playback costs seconds
 // per case. Everything the two share lives here.
 
-const { readFixture } = require('./launch');
+const { pageJs } = require('./launch');
 
-const SHIM = readFixture('media_session/shim.js');
+const SHIM = pageJs('media_session');
 
 // Event-driven reports clear a 300ms debounce; anything that has to wait for
 // the shim's own 3s reconcile tick uses RECONCILE_MS.
@@ -17,8 +16,8 @@ const RECONCILE_MS = 4000;
 
 // 2s of silence as a WAV blob. A data: URI would work too, but building the
 // buffer in-page keeps the fixture readable and the duration explicit.
-const MAKE_AUDIO = `
-  function wsMakeSilentWav(seconds) {
+function installSilentWav() {
+  window.wsMakeSilentWav = function (seconds) {
     var sr = 8000, n = sr * seconds;
     var buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf);
     function str(o, s) {
@@ -30,8 +29,8 @@ const MAKE_AUDIO = `
     dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true);
     dv.setUint16(34, 16, true); str(36, 'data'); dv.setUint32(40, n * 2, true);
     return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
-  }
-`;
+  };
+}
 
 // Autoplay is forced on because the app sets
 // `mediaPlaybackRequiresUserGesture = false` (lib/services/webview.dart).
@@ -64,7 +63,7 @@ async function newShimPage(browser) {
       },
     };
   });
-  await page.evaluateOnNewDocument(MAKE_AUDIO);
+  await page.evaluateOnNewDocument(installSilentWav);
   await page.evaluateOnNewDocument(SHIM);
   await page.goto('about:blank', { waitUntil: 'load' });
   return page;

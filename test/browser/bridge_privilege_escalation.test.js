@@ -27,67 +27,69 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { startVictim, startThirdParty } = require('./helpers/attacker_server');
+const { scriptOf } = require('../js/helpers/script_of');
 
-// Handler names are baked into the dumped fixture.
-const SHIM = readFixture('user_script/shim.js');
 const INLINE_HANDLER = '__ws_i_test';
 const FETCH_HANDLER = '__ws_f_test';
+const SHIM = pageJs('user_script', {
+  scriptHandler: '__ws_s_test',
+  fetchHandler: FETCH_HANDLER,
+  inlineScriptHandler: INLINE_HANDLER,
+  whitelist: ['cdn.jsdelivr.net'],
+});
 
 const EXFIL = 'window.__pwned = true;';
 
 // Stands in for the native bridge. Records every call so a test can see
 // what crossed into Dart, and answers the fetch handler with the shape
 // the real handler returns.
-const BRIDGE_STUB = `
-window.__calls = [];
-window.flutter_inappwebview = {
-  callHandler: function (name) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    window.__calls.push({ name: name, args: args });
-    if (name === ${JSON.stringify(FETCH_HANDLER)}) {
-      return Promise.resolve({
-        status: 200,
-        body: window.__bridgeBody,
-        contentType: 'application/json',
-      });
-    }
-    return Promise.resolve(true);
-  },
-};`;
+function bridgeStub(fetchHandler, body) {
+  window.__calls = [];
+  window.__bridgeBody = body;
+  window.flutter_inappwebview = {
+    callHandler: function (name) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      window.__calls.push({ name: name, args: args });
+      if (name === fetchHandler) {
+        return Promise.resolve({
+          status: 200,
+          body: window.__bridgeBody,
+          contentType: 'application/json',
+        });
+      }
+      return Promise.resolve(true);
+    },
+  };
+}
 
 const browser = setupBrowser();
 
 // Page script that mimics an injection sink: build an inline <script>
 // and put it in the document. Under `script-src 'self'` the browser
 // must refuse to run it.
-const ATTACK_INLINE = `
-window.__attack = (function () {
+// [sink] is the DOM entry point the script goes in through; [type], when
+// set, is its `type` attribute.
+function attack(exfil, { sink = 'appendChild', type } = {}) {
   var s = document.createElement('script');
-  s.textContent = ${JSON.stringify(EXFIL)};
-  document.head.appendChild(s);
-  return { inDom: document.documentElement.outerHTML.indexOf('__pwned') !== -1 };
-})();`;
-
-function typedAttack(type) {
-  return `
-window.__attack = (function () {
-  var s = document.createElement('script');
-  s.type = ${JSON.stringify(type)};
-  s.textContent = ${JSON.stringify(EXFIL)};
-  document.head.appendChild(s);
-  return {};
-})();`;
+  if (type) s.type = type;
+  s.textContent = exfil;
+  if (sink === 'insertBefore') document.head.insertBefore(s, document.head.firstChild);
+  else if (sink === 'append') document.head.append(s);
+  else document.head.appendChild(s);
+  window.__attack = { inDom: document.documentElement.outerHTML.indexOf('__pwned') !== -1 };
 }
+
+const ATTACK_INLINE = scriptOf(attack, EXFIL);
+const typedAttack = (type) => scriptOf(attack, EXFIL, { type });
 
 async function withVictim(t, { csp, scripts, shim = true, body }, fn) {
   if (!requireBrowser(browser, t)) return;
   const victim = await startVictim({ csp, scripts });
   const page = await browser.browser.newPage();
   try {
-    await page.evaluateOnNewDocument(
-      `${BRIDGE_STUB}\nwindow.__bridgeBody = ${JSON.stringify(body || '')};`);
+    await page.evaluateOnNewDocument(bridgeStub, FETCH_HANDLER, body || '');
     if (shim) await page.evaluateOnNewDocument(SHIM);
     await page.goto(victim.url, { waitUntil: 'load' });
     await fn(page, victim);
@@ -163,20 +165,9 @@ test('every patched DOM sink reaches the privileged handler', async (t) => {
   // last is a separate path in the DOM impl, not a wrapper over
   // appendChild). An injection sink that uses any of them escalates the
   // same way, so all three belong in the blast radius.
-  const sinks = {
-    appendChild: 'document.head.appendChild(s);',
-    insertBefore: 'document.head.insertBefore(s, document.head.firstChild);',
-    append: 'document.head.append(s);',
-  };
-  for (const [name, call] of Object.entries(sinks)) {
-    const attack = `
-window.__attack = (function () {
-  var s = document.createElement('script');
-  s.textContent = ${JSON.stringify(EXFIL)};
-  ${call}
-  return {};
-})();`;
-    await withVictim(t, { scripts: { 'attack.js': attack } }, async (page) => {
+  for (const name of ['appendChild', 'insertBefore', 'append']) {
+    const script = scriptOf(attack, EXFIL, { sink: name });
+    await withVictim(t, { scripts: { 'attack.js': script } }, async (page) => {
       const bridged = await page.evaluate(
         (h) => window.__calls.filter((c) => c.name === h).map((c) => c.args[0]),
         INLINE_HANDLER);
@@ -356,7 +347,7 @@ test('a subframe does not inherit the bridge globals when injection is '
     const page = await browser.browser.newPage();
     try {
       await page.goto(victim.url, { waitUntil: 'load' });
-      await page.evaluate(BRIDGE_STUB);
+      await page.evaluate(bridgeStub, FETCH_HANDLER);
       await page.evaluate(SHIM);
       await page.evaluate((src) => new Promise((resolve) => {
         const f = document.createElement('iframe');
@@ -394,7 +385,7 @@ test('a cross-origin subframe cannot reach the parent capability', async (t) => 
   });
   const page = await browser.browser.newPage();
   try {
-    await page.evaluateOnNewDocument(BRIDGE_STUB);
+    await page.evaluateOnNewDocument(bridgeStub, FETCH_HANDLER);
     await page.evaluateOnNewDocument(SHIM);
     await page.goto(victim.url, { waitUntil: 'load' });
     await page.evaluate((src) => new Promise((resolve) => {

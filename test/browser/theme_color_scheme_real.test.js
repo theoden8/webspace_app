@@ -1,6 +1,5 @@
 // Tier 2 — real-Chromium tests for the theme/color-scheme shim
-// (lib/services/theme_color_scheme_shim.dart, dumped to
-// test/js_fixtures/theme_color_scheme/*.js).
+// (lib/js/theme_color_scheme.js).
 //
 // jsdom's matchMedia stub returns {matches:false} for everything, so
 // the Tier 1 tests can only assert the shim's wrapper logic.
@@ -19,13 +18,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 
-const LIGHT = readFixture('theme_color_scheme/light.js');
-const DARK = readFixture('theme_color_scheme/dark.js');
-const SYSTEM = readFixture('theme_color_scheme/system.js');
+const LIGHT = pageJs('theme_color_scheme', { theme: 'light' });
+const DARK = pageJs('theme_color_scheme', { theme: 'dark' });
+const SYSTEM = pageJs('theme_color_scheme', { theme: 'system' });
 
 const browser = setupBrowser();
 

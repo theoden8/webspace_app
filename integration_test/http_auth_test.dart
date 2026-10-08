@@ -31,6 +31,7 @@ import 'fixture_server.dart';
 import 'secure_storage_fake.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 const _user = 'alice';
 const _password = 's3cret';
@@ -64,6 +65,7 @@ const _probeJs = '''
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   late HttpServer server;
   late String base;

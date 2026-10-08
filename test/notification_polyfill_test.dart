@@ -8,8 +8,8 @@ void main() {
         siteId: 'abc123',
         notificationsEnabled: true,
       );
-      expect(script, contains("permission = 'granted'"));
-      expect(script, contains('SITE_ID = "abc123"'));
+      expect(script, contains('"notificationsEnabled":true'));
+      expect(script, contains('"siteId":"abc123"'));
     });
 
     test('covers page-context ServiceWorkerRegistration.showNotification', () {
@@ -37,8 +37,8 @@ void main() {
         siteId: 'xyz789',
         notificationsEnabled: false,
       );
-      expect(script, contains("permission = 'denied'"));
-      expect(script, contains('SITE_ID = "xyz789"'));
+      expect(script, contains('"notificationsEnabled":false'));
+      expect(script, contains('"siteId":"xyz789"'));
     });
 
     test('a siteId is embedded as a JS string literal', () {
@@ -46,7 +46,7 @@ void main() {
         siteId: 'a"b\\c',
         notificationsEnabled: true,
       );
-      expect(script, contains(r'SITE_ID = "a\"b\\c"'));
+      expect(script, contains(r'"siteId":"a\"b\\c"'));
     });
 
     test('script defines window.Notification', () {

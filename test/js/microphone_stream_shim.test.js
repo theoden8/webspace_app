@@ -1,6 +1,5 @@
 // Tier 1 — jsdom assertions for the virtual microphone shim
-// (lib/services/microphone_stream_shim.dart, dumped to
-// test/js_fixtures/microphone_stream/shim.js).
+// (lib/js/microphone_stream.js).
 //
 // jsdom has no WebAudio and no getUserMedia, so we stub the minimum surface
 // the shim drives and assert *routing + shape*:
@@ -19,9 +18,10 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const CAPTURE = require('./helpers/capture_shims');
+const { makeDom, runInDom } = require('./helpers/load_shim');
 
-const SHIM = readFixture('microphone_stream/shim.js');
+const SHIM = CAPTURE.MICROPHONE;
 
 const _openDoms = [];
 afterEach(() => {

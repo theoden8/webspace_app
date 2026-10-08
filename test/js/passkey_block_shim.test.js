@@ -1,6 +1,5 @@
 // Tier 1 — jsdom assertions for the passkey block shim
-// (buildPasskeyBlockShim in lib/services/passkey_shim.dart, dumped to
-// test/js_fixtures/passkey/block_shim.js).
+// (lib/js/passkey_block.js).
 //
 // On iOS and macOS the WebView is WebKit, which answers WebAuthn itself
 // through AuthenticationServices in the app's process. Where a site's
@@ -16,10 +15,11 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, pageJs } = require('./helpers/load_shim');
 const { read, blockAfter, code } = require('./helpers/source');
+const { scriptOf } = require('./helpers/script_of');
 
-const SHIM = readFixture('passkey/block_shim.js');
+const SHIM = pageJs('passkey_block');
 
 const _doms = [];
 afterEach(() => {
@@ -37,66 +37,81 @@ const STATICS = [
   'signalCurrentUserDetails',
 ];
 
+// What WebKit exposes, with every entry point recording its calls.
+function installEngine() {
+  class Credential {}
+  class CredentialsContainer {}
+  CredentialsContainer.prototype.create = function create() {
+    window.__engineCalls.push('create');
+    return Promise.resolve({ engine: 'create' });
+  };
+  CredentialsContainer.prototype.get = function get() {
+    window.__engineCalls.push('get');
+    return Promise.resolve({ engine: 'get' });
+  };
+  window.Credential = Credential;
+  window.CredentialsContainer = CredentialsContainer;
+}
+
+function installCredentials() {
+  Object.defineProperty(navigator, 'credentials',
+    { value: new window.CredentialsContainer(), configurable: true });
+}
+
+// A PublicKeyCredential with [statics] answering as an entitled build would,
+// each keeping the engine's name and arity.
+function installPublicKeyCredential(statics) {
+  class PublicKeyCredential extends window.Credential {}
+  window.PublicKeyCredential = PublicKeyCredential;
+  statics.forEach(function (name) {
+    var answer = name.indexOf('is') === 0 ? true
+      : name === 'getClientCapabilities' ? { passkeyPlatformAuthenticator: true } : undefined;
+    var record = function () {
+      window.__engineCalls.push(name);
+      return Promise.resolve(answer);
+    };
+    PublicKeyCredential[name] = name.indexOf('signal') === 0
+      ? { [name]: function (options) { return record(); } }[name]
+      : { [name]: function () { return record(); } }[name];
+  });
+}
+
 function setup({ credentials = true, pkc = true, statics = STATICS } = {}) {
   const dom = makeDom({ url: 'https://login.example.com/' });
   _doms.push(dom);
   const { window } = dom;
   window.__engineCalls = [];
-  window.eval(`
-    class Credential {}
-    class CredentialsContainer {}
-    CredentialsContainer.prototype.create = function create() {
-      __engineCalls.push('create');
-      return Promise.resolve({ engine: 'create' });
-    };
-    CredentialsContainer.prototype.get = function get() {
-      __engineCalls.push('get');
-      return Promise.resolve({ engine: 'get' });
-    };
-    window.Credential = Credential;
-    window.CredentialsContainer = CredentialsContainer;
-  `);
-  if (credentials) {
-    window.eval(`Object.defineProperty(navigator, 'credentials',
-      { value: new CredentialsContainer(), configurable: true });`);
-  }
-  if (pkc) {
-    window.eval(`
-      class PublicKeyCredential extends Credential {}
-      window.PublicKeyCredential = PublicKeyCredential;
-    `);
-    for (const name of statics) {
-      window.eval(`PublicKeyCredential.${name} = function ${name}(${name.startsWith('signal') ? 'options' : ''}) {
-        __engineCalls.push(${JSON.stringify(name)});
-        return Promise.resolve(${name.startsWith('is') ? 'true' : name === 'getClientCapabilities' ? '{ passkeyPlatformAuthenticator: true }' : 'undefined'});
-      };`);
-    }
-  }
+  window.eval(scriptOf(installEngine));
+  if (credentials) window.eval(scriptOf(installCredentials));
+  if (pkc) window.eval(scriptOf(installPublicKeyCredential, statics));
   window.eval(SHIM);
   const plain = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
-  const run = (code) => {
-    const v = window.eval(code);
+  // [code] is an expression, or a function run in the page with [args].
+  const run = (code, ...args) => {
+    const v = window.eval(typeof code === 'function' ? scriptOf(code, ...args) : code);
     return v && typeof v.then === 'function' ? v.then(plain) : plain(v);
   };
-  const outcome = (code) => run(`(${code}).then(
-    function (v) { return { ok: true, value: v }; },
-    function (e) { return { ok: false, name: e && e.name, message: e && e.message }; })`);
+  const outcome = (code, ...args) => run(code, ...args).then(
+    (v) => ({ ok: true, value: v }),
+    (e) => ({ ok: false, name: e && e.name, message: e && e.message }));
   const engineCalls = () => Array.from(window.__engineCalls);
   return { window, run, outcome, engineCalls };
 }
 
-const CREATE = `navigator.credentials.create({ publicKey: {
-  rp: { name: 'Example' },
-  user: { id: new Uint8Array([1]), name: 'alice', displayName: 'Alice' },
-  challenge: new Uint8Array([1, 2, 3]),
-  pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
-} })`;
+function create() {
+  return navigator.credentials.create({ publicKey: {
+    rp: { name: 'Example' },
+    user: { id: new Uint8Array([1]), name: 'alice', displayName: 'Alice' },
+    challenge: new Uint8Array([1, 2, 3]),
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+  } });
+}
 
-const GET = `navigator.credentials.get({ publicKey: { challenge: new Uint8Array([1, 2, 3]) } })`;
+const GET = 'navigator.credentials.get({ publicKey: { challenge: new Uint8Array([1, 2, 3]) } })';
 
 test('a public-key create is refused before WebKit sees it', async () => {
   const { outcome, engineCalls } = setup();
-  const out = await outcome(CREATE);
+  const out = await outcome(create);
   assert.equal(out.ok, false);
   assert.equal(out.name, 'NotAllowedError');
   assert.deepEqual(engineCalls(), []);
@@ -113,11 +128,11 @@ test('a public-key get is refused, conditional mediation included', async () => 
 
 test('an aborted signal rejects with its reason, as the engine would', async () => {
   const { outcome, engineCalls } = setup();
-  const out = await outcome(`(function () {
+  const out = await outcome(function () {
     var c = new AbortController();
     c.abort(new DOMException('page gave up', 'AbortError'));
     return navigator.credentials.get({ signal: c.signal, publicKey: { challenge: new Uint8Array([1]) } });
-  })()`);
+  });
   assert.equal(out.name, 'AbortError');
   assert.equal(out.message, 'page gave up');
   assert.deepEqual(engineCalls(), []);
@@ -170,7 +185,7 @@ test('adds nothing an older WebKit lacks', () => {
 
 test('still refuses where the engine has no PublicKeyCredential', async () => {
   const { outcome, engineCalls } = setup({ pkc: false });
-  assert.equal((await outcome(CREATE)).name, 'NotAllowedError');
+  assert.equal((await outcome(create)).name, 'NotAllowedError');
   assert.deepEqual(engineCalls(), []);
 });
 
@@ -220,7 +235,7 @@ test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in 
   const shims = webview.slice(at, webview.indexOf('];', at)).replace(/\s+/g, ' ');
   assert.ok(shims.includes(
     "if (passkeys == null && PasskeyAccess.hostIsApple) "
-      + "pageShim('passkey_block', js: buildPasskeyBlockShim(), frames: ShimFrames.all)"),
+      + "pageShim('passkey_block', js: PageJs.passkeyBlock.script, frames: ShimFrames.all)"),
     'the shim goes wherever passkeys are off on iOS and macOS, in every frame '
       + '(WebKit answers a same-origin subframe too), before page script runs');
 });

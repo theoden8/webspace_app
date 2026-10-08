@@ -11,17 +11,17 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadShim, readFixture } = require('./helpers/load_shim');
+const { loadShim, pageJs } = require('./helpers/load_shim');
 
 test('createObjectURL returns the original URL string', () => {
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const blob = new dom.window.Blob(['hello'], { type: 'text/plain' });
   const url = dom.window.URL.createObjectURL(blob);
   assert.match(url, /^blob:/, 'url should be a blob: URL');
 });
 
 test('window.__webspaceBlobs.get returns the captured Blob', () => {
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const blob = new dom.window.Blob(['hello'], { type: 'text/plain' });
   const url = dom.window.URL.createObjectURL(blob);
   const captured = dom.window.__webspaceBlobs.get(url);
@@ -36,7 +36,7 @@ test('revokeObjectURL keeps the map entry alive — github race fix', () => {
   // re-enters JS to read the blob, revoke has run. The shim must
   // hold the Blob across revoke so the IIFE's fast-path lookup
   // still hits and FileReader can read the bytes.
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const blob = new dom.window.Blob(['hello']);
   const url = dom.window.URL.createObjectURL(blob);
   assert.ok(dom.window.__webspaceBlobs.get(url), 'preconditioned: blob in map');
@@ -46,7 +46,7 @@ test('revokeObjectURL keeps the map entry alive — github race fix', () => {
 });
 
 test('createObjectURL with a non-Blob (e.g. MediaSource) is not tracked', () => {
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const fake = { not: 'a blob' };
   const url = dom.window.URL.createObjectURL(fake);
   // Original behaviour: still returns a URL string. Map: not tracked.
@@ -55,18 +55,18 @@ test('createObjectURL with a non-Blob (e.g. MediaSource) is not tracked', () => 
 });
 
 test('shim is idempotent — second run does not re-wrap or reset state', () => {
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const blob = new dom.window.Blob(['hello']);
   const url = dom.window.URL.createObjectURL(blob);
   // Re-eval the same shim. The early `if (window.__webspaceBlobs) return`
   // guard must keep the existing map intact.
-  dom.window.eval(readFixture('blob_url_capture/shim.js'));
+  dom.window.eval(pageJs('blob_url_capture'));
   assert.equal(dom.window.__webspaceBlobs.get(url), blob,
     'previously-captured blob still resolvable after re-eval');
 });
 
 test('map is bounded — oldest entries evicted past MAX (64)', () => {
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   // Register 65 blobs. The first one should have been evicted by the time
   // the 65th is registered.
   const urls = [];
@@ -85,7 +85,7 @@ test('map is bounded — oldest entries evicted past MAX (64)', () => {
 test('window.__webspaceBlobs is non-enumerable', () => {
   // Page scripts iterating window keys (e.g. for fingerprinting) should
   // not stumble over our shim.
-  const dom = loadShim('blob_url_capture/shim.js');
+  const dom = loadShim(pageJs('blob_url_capture'));
   const desc = Object.getOwnPropertyDescriptor(
     dom.window, '__webspaceBlobs');
   assert.ok(desc, 'descriptor should exist');

@@ -22,7 +22,7 @@ void main() {
       );
     });
 
-    test('embeds the rule list as a JS string literal', () {
+    test('hands the page the decoded rules as data', () {
       final shim = buildProceduralCosmeticShim([
         '{"selector":[{"type":"css-selector","arg":".feed"},'
             '{"type":"has-text","arg":"Sponsored"}],"action":"remove"}',
@@ -78,20 +78,11 @@ void main() {
       expect(shim, contains('subtree'));
     });
 
-    test('escapes single quotes in rule JSON to keep the literal valid', () {
-      // A has-text with an apostrophe would break the JS string if
-      // not escaped. (We aren't building that input here — the
-      // engine wouldn't normally emit it — but the escape is the
-      // shim's invariant and worth pinning.)
+    test('an apostrophe in a rule stays data', () {
       final shim = buildProceduralCosmeticShim([
         "{\"selector\":[{\"type\":\"has-text\",\"arg\":\"can't\"}]}",
       ])!;
-      // The embedded literal should not contain an unescaped ' that
-      // would terminate JSON.parse('...').
-      // The shim wraps with JSON.parse('<escaped>') — count single
-      // quotes outside the JS source structure.
-      expect(shim, contains("can\\'t"),
-          reason: 'apostrophe in arg must be backslash-escaped for JS string');
+      expect(shim, contains('"arg":"can\'t"'));
     });
   });
 }

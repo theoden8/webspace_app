@@ -1,6 +1,5 @@
 // Real-Chromium proof for background playback masking (BGAUDIO-012,
-// lib/services/media_session_shim.dart, dumped to
-// test/js_fixtures/media_session/shim.js).
+// lib/js/media_session.js).
 //
 // Keeping the app alive is not enough for a site that stops itself: a
 // backgrounded app's page is told it is hidden, and players built for a tab
@@ -26,7 +25,7 @@ async function playPauseOnHidePlayer(page) {
   await page.evaluate(async () => {
     const a = document.createElement('audio');
     a.loop = true;
-    a.src = wsMakeSilentWav(6);
+    a.src = window.wsMakeSilentWav(6);
     document.body.appendChild(a);
     window.__el = a;
     window.__pauseOnHideRan = 0;

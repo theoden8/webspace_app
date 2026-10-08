@@ -1387,8 +1387,7 @@ in `AppPref` is needed.
 - `lib/services/anti_fingerprinting_shim.dart` — Pure-Dart shim builder.
 - `test/anti_fingerprinting_shim_test.dart` — Dart shape tests.
 - `test/js/anti_fingerprinting_shim.test.js` — Node + jsdom behavioural tests.
-- `test/js_fixtures/anti_fingerprinting/shim_seed_alpha.js`
-- `test/js_fixtures/anti_fingerprinting/shim_seed_beta.js`
+- `lib/js/anti_fingerprinting.js` — the shim itself.
 - `openspec/specs/tracking-protection/spec.md` — This spec.
 - `lib/screens/site_privacy.dart` — The Privacy screen (ETP-017):
   `SitePrivacyValues` plus the umbrella card and its three groups.
@@ -1432,7 +1431,8 @@ in `AppPref` is needed.
   what remains on the screen is grouped under Content / Behaviour /
   Network headings. Protected content moved earlier to the permissions
   screen (ETP-023).
-- `tool/dump_shim_js.dart` — Two pinned-seed fixtures.
+- `lib/js/anti_fingerprinting.js` — the shim, run by the Node tiers with two
+  pinned seeds.
 - `test/web_view_model_test.dart` — Round-trip + default tests for the
   new field.
 
@@ -1446,7 +1446,6 @@ in `AppPref` is needed.
 fvm flutter test test/anti_fingerprinting_shim_test.dart
 fvm flutter test test/web_view_model_test.dart
 fvm flutter test test/site_privacy_screen_test.dart
-fvm flutter test test/js_fixtures_drift_test.dart
 ```
 
 ### jsdom behavioural

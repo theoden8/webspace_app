@@ -26,14 +26,14 @@
 //      forge it nor call the handler around it.
 //
 // The behavioural half lives in test/js/screen_share_shim.test.js, which runs
-// the dumped shim inside a real jsdom iframe.
+// the shim inside a real jsdom iframe.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read } = require('./helpers/source');
 
 const webview = read('lib/services/page_handlers.dart');
-const shim = read('test/js_fixtures/screen_share/shim.js');
+const shim = read('lib/js/screen_share.js');
 
 test('the shim refuses a subframe on its own, before the bridge', () => {
   assert.match(shim, /globalThis\.top === globalThis/,

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/user_agent_classifier.dart';
@@ -47,74 +45,80 @@ void main() {
     });
   });
 
-  group('buildUserAgentIdentityShim', () {
+  group('uaIdentityFor', () {
     test('returns null when the engine is unclassifiable', () {
-      expect(buildUserAgentIdentityShim(''), isNull);
+      expect(uaIdentityFor(''), isNull);
+      expect(uaIdentityFor('curl/8.0'), isNull);
       expect(buildUserAgentIdentityShim('curl/8.0'), isNull);
     });
 
     test('Gecko mobile (Firefox-Android): empty vendor, gecko productSub, '
         'frozen oscpu/buildID, mobile platform', () {
-      final s = buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!;
-      expect(s, contains("def('vendor', \"\");"));
-      expect(s, contains("def('vendorSub', '');"));
-      expect(s, contains("def('productSub', \"20100101\");"));
-      expect(s, contains("def('oscpu', \"Linux armv8l\");"));
-      expect(s, contains("def('buildID', '20181001000000');"));
-      expect(s, contains("def('platform', \"Linux armv8l\");"));
-      expect(s, contains('__ws_ua_identity_shim__'));
-      // The builder must NOT append the evaluator-return; the call site does.
-      expect(s.trimRight().endsWith('})();'), isTrue);
+      expect(uaIdentityFor(buildFirefoxAndroidUserAgent('152.0')), (
+        vendor: '',
+        productSub: '20100101',
+        oscpu: 'Linux armv8l',
+        buildID: '20181001000000',
+        platform: 'Linux armv8l',
+        removeUserAgentData: true,
+      ));
     });
 
     test('Gecko desktop: desktop oscpu + platform (workers never get '
-        'desktop_mode_shim, so identity must carry platform)', () {
-      final s = buildUserAgentIdentityShim(firefoxLinuxDesktopUserAgent)!;
-      expect(s, contains("def('oscpu', \"Linux x86_64\");"));
-      expect(s, contains("def('buildID', '20181001000000');"));
-      expect(s, contains("def('platform', \"Linux x86_64\");"));
+        'desktop_mode.js, so identity must carry platform)', () {
+      final id = uaIdentityFor(firefoxLinuxDesktopUserAgent)!;
+      expect(id.oscpu, 'Linux x86_64');
+      expect(id.buildID, '20181001000000');
+      expect(id.platform, 'Linux x86_64');
     });
 
-    test('desktop platform matches what desktop_mode_shim emits', () {
+    test('desktop platform matches what the desktop-mode shim emits', () {
       for (final ua in [
         firefoxLinuxDesktopUserAgent,
         firefoxMacosDesktopUserAgent,
         firefoxWindowsDesktopUserAgent,
       ]) {
-        final expected =
-            navigatorPlatformFor(inferDesktopUaPlatform(ua));
-        expect(buildUserAgentIdentityShim(ua)!,
-            contains("def('platform', ${jsonEncode(expected)});"));
+        expect(uaIdentityFor(ua)!.platform,
+            navigatorPlatformFor(inferDesktopUaPlatform(ua)));
       }
     });
 
     test('Gecko desktop windows/macos oscpu tokens', () {
-      expect(buildUserAgentIdentityShim(firefoxWindowsDesktopUserAgent)!,
-          contains("def('oscpu', \"Windows NT 10.0; Win64; x64\");"));
-      expect(buildUserAgentIdentityShim(firefoxMacosDesktopUserAgent)!,
-          contains("def('oscpu', \"Intel Mac OS X 10.15\");"));
+      expect(uaIdentityFor(firefoxWindowsDesktopUserAgent)!.oscpu,
+          'Windows NT 10.0; Win64; x64');
+      expect(uaIdentityFor(firefoxMacosDesktopUserAgent)!.oscpu,
+          'Intel Mac OS X 10.15');
     });
 
     test('WebKit mobile (FxiOS): Apple vendor, webkit productSub, '
         'oscpu/buildID/userAgentData removed, iPhone platform', () {
-      final s = buildUserAgentIdentityShim(buildFirefoxIosUserAgent('152.0'))!;
-      expect(s, contains("def('vendor', \"Apple Computer, Inc.\");"));
-      expect(s, contains("def('productSub', \"20030107\");"));
-      expect(s, contains("removeProp('oscpu');"));
-      expect(s, contains("removeProp('buildID');"));
-      expect(s, contains("removeProp('userAgentData');"));
-      expect(s, contains("def('platform', \"iPhone\");"));
+      expect(uaIdentityFor(buildFirefoxIosUserAgent('152.0')), (
+        vendor: 'Apple Computer, Inc.',
+        productSub: '20030107',
+        oscpu: null,
+        buildID: null,
+        platform: 'iPhone',
+        removeUserAgentData: true,
+      ));
     });
 
     test('Blink mobile (Chrome-Android): Google vendor, webkit productSub, '
         'no oscpu, keeps userAgentData', () {
-      final s = buildUserAgentIdentityShim(_chromeAndroid)!;
-      expect(s, contains("def('vendor', \"Google Inc.\");"));
-      expect(s, contains("def('productSub', \"20030107\");"));
-      expect(s, contains("removeProp('oscpu');"));
-      expect(s, contains("def('platform', \"Linux armv8l\");"));
-      // Blink keeps userAgentData — it must NOT be removed.
-      expect(s, isNot(contains("removeProp('userAgentData')")));
+      expect(uaIdentityFor(_chromeAndroid), (
+        vendor: 'Google Inc.',
+        productSub: '20030107',
+        oscpu: null,
+        buildID: null,
+        platform: 'Linux armv8l',
+        removeUserAgentData: false,
+      ));
+    });
+
+    test('the shim carries the identity as its config', () {
+      final s = buildUserAgentIdentityShim(buildFirefoxIosUserAgent('152.0'))!;
+      expect(s, contains('"vendor":"Apple Computer, Inc."'));
+      expect(s, contains('"oscpu":null'));
+      expect(s, contains('__ws_ua_identity_shim__'));
     });
   });
 }

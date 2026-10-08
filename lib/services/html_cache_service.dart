@@ -187,7 +187,7 @@ class HtmlCacheService {
   /// Minimum interval between successful saves for a given siteId.
   /// onLoadStop fires multiple times per page (initial commit, SPA
   /// pseudo-navigations, BFCache restorations) and each save reads the
-  /// live DOM via `htmlSnapshotScript` — an IPC into the chromium
+  /// live DOM via `PageJs.htmlSnapshot.script` — an IPC into the chromium
   /// renderer that races frame-lifecycle teardown if the page is
   /// transitioning. Debouncing collapses the storm of saves into one
   /// per page-settled window, dropping the per-onLoadStop renderer

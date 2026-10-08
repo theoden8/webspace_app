@@ -1,5 +1,5 @@
 // Tier 1 — jsdom assertions for the passkey shim
-// (lib/services/passkey_shim.dart, dumped to test/js_fixtures/passkey/shim.js).
+// (lib/js/passkey.js).
 //
 // jsdom has no WebAuthn and no Credential Management API, so the realm is
 // given what Android System WebView exposes with WebAuthn disabled: a
@@ -14,9 +14,10 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, pageJs } = require('./helpers/load_shim');
+const { scriptOf } = require('./helpers/script_of');
 
-const SHIM = readFixture('passkey/shim.js');
+const SHIM = pageJs('passkey');
 
 const _doms = [];
 afterEach(() => {
@@ -25,6 +26,17 @@ afterEach(() => {
   }
 });
 
+// What the WebView exposes: a CredentialsContainer and no WebAuthn interfaces.
+function installEngine() {
+  class Credential {}
+  class CredentialsContainer {}
+  CredentialsContainer.prototype.create = function create() { return Promise.resolve({ engine: 'create' }); };
+  CredentialsContainer.prototype.get = function get() { return Promise.resolve({ engine: 'get' }); };
+  window.Credential = Credential;
+  window.CredentialsContainer = CredentialsContainer;
+  Object.defineProperty(navigator, 'credentials', { value: new CredentialsContainer(), configurable: true });
+}
+
 // `respond(name, args)` stands in for the Dart handlers; the default answers
 // webauthnStatus with available:true and fails every ceremony.
 function setup({ respond, noBridge = false, secure = true, url = 'https://login.example.com/' } = {}) {
@@ -32,15 +44,7 @@ function setup({ respond, noBridge = false, secure = true, url = 'https://login.
   _doms.push(dom);
   const { window } = dom;
   Object.defineProperty(window, 'isSecureContext', { value: secure, configurable: true });
-  window.eval(`
-    class Credential {}
-    class CredentialsContainer {}
-    CredentialsContainer.prototype.create = function create() { return Promise.resolve({ engine: 'create' }); };
-    CredentialsContainer.prototype.get = function get() { return Promise.resolve({ engine: 'get' }); };
-    window.Credential = Credential;
-    window.CredentialsContainer = CredentialsContainer;
-    Object.defineProperty(navigator, 'credentials', { value: new CredentialsContainer(), configurable: true });
-  `);
+  window.eval(scriptOf(installEngine));
   const calls = [];
   if (!noBridge) {
     window.flutter_inappwebview = {
@@ -57,8 +61,9 @@ function setup({ respond, noBridge = false, secure = true, url = 'https://login.
   // Results cross from the jsdom realm, whose Object and Array prototypes are
   // not Node's, so compare them as plain data.
   const plain = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
-  const run = (code) => {
-    const v = window.eval(code);
+  // [code] is an expression, or a function run in the page with [args].
+  const run = (code, ...args) => {
+    const v = window.eval(typeof code === 'function' ? scriptOf(code, ...args) : code);
     return v && typeof v.then === 'function' ? v.then(plain) : plain(v);
   };
   return { window, calls, run };
@@ -95,17 +100,6 @@ const ASSERTION = {
   clientExtensionResults: { prf: { results: { first: b64u([8, 8]) } } },
 };
 
-const CREATE_OPTIONS = `({ publicKey: {
-  rp: { name: 'Example' },
-  user: { id: new Uint8Array([1, 2, 3, 4]).buffer, name: 'alice', displayName: 'Alice' },
-  challenge: new Uint8Array([0, 1, 2, 250, 251, 255]),
-  pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
-  excludeCredentials: [{ type: 'public-key', id: new Uint8Array([9, 9, 9]), transports: ['internal'] }],
-  authenticatorSelection: { residentKey: 'preferred', userVerification: 'preferred', bogus: 1 },
-  attestation: 'none',
-  extensions: { credProps: true, prf: { eval: { first: new Uint8Array([1]) } } },
-} })`;
-
 test('installs the WebAuthn interfaces the WebView leaves out', () => {
   const { window, run } = setup();
   for (const name of ['PublicKeyCredential', 'AuthenticatorResponse',
@@ -138,24 +132,35 @@ test('create sends WebAuthn-JSON and resolves a real-looking credential', async 
   const { calls, run } = setup({
     respond: (n) => (n === 'webauthnRequest' ? { ok: true, credential: REGISTRATION } : undefined),
   });
-  const out = await run(`navigator.credentials.create(${CREATE_OPTIONS}).then(function (c) {
-    return {
-      isPkc: c instanceof PublicKeyCredential,
-      isAtt: c.response instanceof AuthenticatorAttestationResponse,
-      id: c.id, type: c.type,
-      rawId: Array.from(new Uint8Array(c.rawId)),
-      sameRawId: c.rawId === c.rawId,
-      ownKeys: Object.keys(c),
-      clientData: String.fromCharCode.apply(null, new Uint8Array(c.response.clientDataJSON)),
-      transports: c.response.getTransports(),
-      alg: c.response.getPublicKeyAlgorithm(),
-      pk: Array.from(new Uint8Array(c.response.getPublicKey())),
-      authData: Array.from(new Uint8Array(c.response.getAuthenticatorData())),
-      attachment: c.authenticatorAttachment,
-      ext: c.getClientExtensionResults(),
-      json: c.toJSON(),
-    };
-  })`);
+  const out = await run(function () {
+    return navigator.credentials.create({ publicKey: {
+      rp: { name: 'Example' },
+      user: { id: new Uint8Array([1, 2, 3, 4]).buffer, name: 'alice', displayName: 'Alice' },
+      challenge: new Uint8Array([0, 1, 2, 250, 251, 255]),
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+      excludeCredentials: [{ type: 'public-key', id: new Uint8Array([9, 9, 9]), transports: ['internal'] }],
+      authenticatorSelection: { residentKey: 'preferred', userVerification: 'preferred', bogus: 1 },
+      attestation: 'none',
+      extensions: { credProps: true, prf: { eval: { first: new Uint8Array([1]) } } },
+    } }).then(function (c) {
+      return {
+        isPkc: c instanceof PublicKeyCredential,
+        isAtt: c.response instanceof AuthenticatorAttestationResponse,
+        id: c.id, type: c.type,
+        rawId: Array.from(new Uint8Array(c.rawId)),
+        sameRawId: c.rawId === c.rawId,
+        ownKeys: Object.keys(c),
+        clientData: String.fromCharCode.apply(null, new Uint8Array(c.response.clientDataJSON)),
+        transports: c.response.getTransports(),
+        alg: c.response.getPublicKeyAlgorithm(),
+        pk: Array.from(new Uint8Array(c.response.getPublicKey())),
+        authData: Array.from(new Uint8Array(c.response.getAuthenticatorData())),
+        attachment: c.authenticatorAttachment,
+        ext: c.getClientExtensionResults(),
+        json: c.toJSON(),
+      };
+    });
+  });
   assert.equal(out.isPkc, true);
   assert.equal(out.isAtt, true);
   assert.equal(out.type, 'public-key');
@@ -191,19 +196,21 @@ test('get resolves an assertion with its buffers and extension results', async (
   const { calls, run } = setup({
     respond: (n) => (n === 'webauthnRequest' ? { ok: true, credential: ASSERTION } : undefined),
   });
-  const out = await run(`navigator.credentials.get({ publicKey: {
-    challenge: new Uint8Array([1, 2, 3]), rpId: 'example.com', userVerification: 'required',
-    allowCredentials: [{ type: 'public-key', id: new Uint8Array([9, 9, 9]) }],
-  } }).then(function (c) {
-    return {
-      isAssert: c.response instanceof AuthenticatorAssertionResponse,
-      sig: Array.from(new Uint8Array(c.response.signature)),
-      user: Array.from(new Uint8Array(c.response.userHandle)),
-      auth: Array.from(new Uint8Array(c.response.authenticatorData)),
-      prf: Array.from(new Uint8Array(c.getClientExtensionResults().prf.results.first)),
-      attachment: c.authenticatorAttachment,
-    };
-  })`);
+  const out = await run(function () {
+    return navigator.credentials.get({ publicKey: {
+      challenge: new Uint8Array([1, 2, 3]), rpId: 'example.com', userVerification: 'required',
+      allowCredentials: [{ type: 'public-key', id: new Uint8Array([9, 9, 9]) }],
+    } }).then(function (c) {
+      return {
+        isAssert: c.response instanceof AuthenticatorAssertionResponse,
+        sig: Array.from(new Uint8Array(c.response.signature)),
+        user: Array.from(new Uint8Array(c.response.userHandle)),
+        auth: Array.from(new Uint8Array(c.response.authenticatorData)),
+        prf: Array.from(new Uint8Array(c.getClientExtensionResults().prf.results.first)),
+        attachment: c.authenticatorAttachment,
+      };
+    });
+  });
   assert.equal(out.isAssert, true);
   assert.deepEqual(out.sig, [6, 6, 6]);
   assert.deepEqual(out.user, [1, 2, 3, 4]);
@@ -224,26 +231,39 @@ test('a refusal surfaces as the DOMException Dart named', async () => {
     respond: (n) => (n === 'webauthnRequest'
       ? { ok: false, name: 'InvalidStateError', message: 'excluded' } : undefined),
   });
-  const err = await run(`navigator.credentials.create(${CREATE_OPTIONS}).then(null, function (e) {
-    return { isDom: e instanceof DOMException, name: e.name, message: e.message };
-  })`);
+  const err = await run(function () {
+    return navigator.credentials.create({ publicKey: {
+      rp: { name: 'Example' },
+      user: { id: new Uint8Array([1]), name: 'alice', displayName: 'Alice' },
+      challenge: new Uint8Array([1]),
+      pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+    } }).then(null, function (e) {
+      return { isDom: e instanceof DOMException, name: e.name, message: e.message };
+    });
+  });
   assert.deepEqual(err, { isDom: true, name: 'InvalidStateError', message: 'excluded' });
 
   const typeErr = setup({
     respond: (n) => (n === 'webauthnRequest' ? { ok: false, name: 'TypeError', message: 'bad' } : undefined),
   });
-  assert.equal(await typeErr.run(`navigator.credentials.get({ publicKey: { challenge: new Uint8Array([1]) } })
-    .then(null, function (e) { return e instanceof TypeError; })`), true);
+  assert.equal(await typeErr.run(function () {
+    return navigator.credentials.get({ publicKey: { challenge: new Uint8Array([1]) } })
+      .then(null, function (e) { return e instanceof TypeError; });
+  }), true);
 });
 
 test('a malformed request is a TypeError and never reaches the bridge', async () => {
   const { calls, run } = setup();
-  const name = await run(`navigator.credentials.create({ publicKey: {
-    rp: { name: 'x' }, challenge: new Uint8Array([1]), pubKeyCredParams: [] } })
-    .then(null, function (e) { return e instanceof TypeError ? 'TypeError' : e.name; })`);
+  const name = await run(function () {
+    return navigator.credentials.create({ publicKey: {
+      rp: { name: 'x' }, challenge: new Uint8Array([1]), pubKeyCredParams: [] } })
+      .then(null, function (e) { return e instanceof TypeError ? 'TypeError' : e.name; });
+  });
   assert.equal(name, 'TypeError');
-  const notBuffer = await run(`navigator.credentials.get({ publicKey: { challenge: 'abc' } })
-    .then(null, function (e) { return e instanceof TypeError ? 'TypeError' : e.name; })`);
+  const notBuffer = await run(function () {
+    return navigator.credentials.get({ publicKey: { challenge: 'abc' } })
+      .then(null, function (e) { return e instanceof TypeError ? 'TypeError' : e.name; });
+  });
   assert.equal(notBuffer, 'TypeError');
   assert.equal(calls.filter((c) => c.name === 'webauthnRequest').length, 0);
 });
@@ -257,8 +277,10 @@ test('non-publicKey requests stay with the engine', async () => {
 
 test('conditional mediation is refused without asking the bridge', async () => {
   const { calls, run } = setup();
-  const name = await run(`navigator.credentials.get({ mediation: 'conditional',
-    publicKey: { challenge: new Uint8Array([1]) } }).then(null, function (e) { return e.name; })`);
+  const name = await run(function () {
+    return navigator.credentials.get({ mediation: 'conditional',
+      publicKey: { challenge: new Uint8Array([1]) } }).then(null, function (e) { return e.name; });
+  });
   assert.equal(name, 'NotSupportedError');
   assert.equal(calls.filter((c) => c.name === 'webauthnRequest').length, 0);
 });
@@ -269,17 +291,21 @@ test('an abort rejects at once and cancels the native ceremony', async () => {
     respond: (n) => (n === 'webauthnRequest'
       ? new Promise((r) => { release = r; }) : undefined),
   });
-  const pre = await run(`(function () { var c = new AbortController(); c.abort();
+  const pre = await run(function () {
+    var c = new AbortController(); c.abort();
     return navigator.credentials.get({ signal: c.signal, publicKey: { challenge: new Uint8Array([1]) } })
-      .then(null, function (e) { return e.name; }); })()`);
+      .then(null, function (e) { return e.name; });
+  });
   assert.equal(pre, 'AbortError');
   assert.equal(calls.filter((c) => c.name === 'webauthnRequest').length, 0);
 
-  const mid = await run(`(function () { var c = new AbortController();
+  const mid = await run(function () {
+    var c = new AbortController();
     var p = navigator.credentials.get({ signal: c.signal, publicKey: { challenge: new Uint8Array([1]) } })
       .then(function () { return 'resolved'; }, function (e) { return e.name; });
     setTimeout(function () { c.abort(); }, 0);
-    return p; })()`);
+    return p;
+  });
   assert.equal(mid, 'AbortError');
   const request = calls.find((c) => c.name === 'webauthnRequest').args[0];
   const cancel = calls.find((c) => c.name === 'webauthnCancel');
@@ -290,8 +316,10 @@ test('an abort rejects at once and cancels the native ceremony', async () => {
 
 test('no bridge fails closed', async () => {
   const { run } = setup({ noBridge: true });
-  assert.equal(await run(`navigator.credentials.get({ publicKey: { challenge: new Uint8Array([1]) } })
-    .then(null, function (e) { return e.name; })`), 'NotSupportedError');
+  assert.equal(await run(function () {
+    return navigator.credentials.get({ publicKey: { challenge: new Uint8Array([1]) } })
+      .then(null, function (e) { return e.name; });
+  }), 'NotSupportedError');
 });
 
 test('an insecure context gets no WebAuthn at all', () => {
@@ -301,20 +329,23 @@ test('an insecure context gets no WebAuthn at all', () => {
 
 test('parse*FromJSON turn WebAuthn-JSON back into buffers', () => {
   const { run } = setup();
-  const out = run(`(function () {
+  const out = run(function (id) {
     var c = PublicKeyCredential.parseCreationOptionsFromJSON({
-      rp: { name: 'x' }, user: { id: '${b64u([1, 2])}', name: 'a', displayName: 'A' },
-      challenge: '${b64u([3, 4])}', pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
-      excludeCredentials: [{ type: 'public-key', id: '${b64u([5])}' }] });
+      rp: { name: 'x' }, user: { id: id.user, name: 'a', displayName: 'A' },
+      challenge: id.challenge, pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
+      excludeCredentials: [{ type: 'public-key', id: id.exclude }] });
     var g = PublicKeyCredential.parseRequestOptionsFromJSON({
-      challenge: '${b64u([6])}', allowCredentials: [{ type: 'public-key', id: '${b64u([7])}' }] });
+      challenge: id.getChallenge, allowCredentials: [{ type: 'public-key', id: id.allow }] });
     return {
       user: Array.from(new Uint8Array(c.user.id)), challenge: Array.from(new Uint8Array(c.challenge)),
       exclude: Array.from(new Uint8Array(c.excludeCredentials[0].id)),
       getChallenge: Array.from(new Uint8Array(g.challenge)),
       allow: Array.from(new Uint8Array(g.allowCredentials[0].id)),
     };
-  })()`);
+  }, {
+    user: b64u([1, 2]), challenge: b64u([3, 4]), exclude: b64u([5]),
+    getChallenge: b64u([6]), allow: b64u([7]),
+  });
   assert.deepEqual(out, { user: [1, 2], challenge: [3, 4], exclude: [5], getChallenge: [6], allow: [7] });
 });
 

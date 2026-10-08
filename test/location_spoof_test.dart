@@ -32,9 +32,9 @@ void main() {
       // only pass-through one. It now refuses every request on every
       // platform.
       ('off mode blocks instead of passing through to the platform', _loc(), [
-        'var BLOCK_LOC = true',
-        'var STATIC_LOC = false',
-        'var LIVE_LOC = false',
+        '"blockLocation":true',
+        '"staticLocation":false',
+        '"liveLocation":false',
         'function deniedError()',
       ]),
       // LOC-OFF-002. Reachable from a hand-edited or partially-restored
@@ -42,38 +42,38 @@ void main() {
       // which is the opposite of what the site is configured for.
       ('spoof mode without coordinates fails closed',
           _loc(mode: LocationMode.spoof),
-          ['var BLOCK_LOC = true', 'var STATIC_LOC = false']),
+          ['"blockLocation":true', '"staticLocation":false']),
       // STATIC_LOC must be false — the shim should not embed any static
       // coords. LIVE_LOC must be true so the JS code path calls back into
       // Dart for fresh fixes via flutter_inappwebview.callHandler.
       ('live mode emits a shim that flips LIVE_LOC and not STATIC_LOC',
           _loc(mode: LocationMode.live), [
-        'var STATIC_LOC = false',
-        'var LIVE_LOC = true',
+        '"staticLocation":false',
+        '"liveLocation":true',
         "callHandler('getRealLocation')",
       ]),
       ('geolocation shim embeds the coordinates',
           _loc(mode: LocationMode.spoof, lat: 35.6762, lng: 139.6503,
               accuracy: 25.0), [
-        'var STATIC_LOC = true',
-        'var LAT = 35.6762',
-        'var LNG = 139.6503',
-        'var ACC = 25.0',
-        'var TZ = null',
-        'var WRTC = "default"',
+        '"staticLocation":true',
+        '"latitude":35.6762',
+        '"longitude":139.6503',
+        '"accuracy":25.0',
+        '"timezone":null',
+        '"webRtc":"default"',
       ]),
       ('timezone-only shim still emits script without static_loc',
           _loc(tz: 'Asia/Tokyo'),
-          ['var STATIC_LOC = false', 'var TZ = "Asia/Tokyo"']),
+          ['"staticLocation":false', '"timezone":"Asia/Tokyo"']),
       ('webrtc relay-only shim sets WRTC=relay',
           _loc(webRtc: WebRtcPolicy.relayOnly), [
-        'var WRTC = "relay"',
+        '"webRtc":"relay"',
         "iceTransportPolicy = 'relay'",
         'typ relay',
       ]),
       ('webrtc disabled shim sets WRTC=off and neuters RTCPeerConnection',
           _loc(webRtc: WebRtcPolicy.disabled),
-          ['var WRTC = "off"', 'WebRTC disabled']),
+          ['"webRtc":"off"', 'WebRTC disabled']),
       ('shim patches prototype methods not just instance',
           _loc(mode: LocationMode.spoof, lat: 0.0, lng: 0.0, tz: 'UTC'), [
         'Geolocation.prototype',
@@ -113,25 +113,25 @@ void main() {
       // opt-in only via approximate/gsm.
       ('live mode without granularity defaults to gps (no snap)',
           _loc(mode: LocationMode.live), [
-        'var LIVE_LOC = true',
-        'var SNAP_STEP_DEG = 0.0',
-        'var SNAP_MIN_ACC_M = 0.0',
+        '"liveLocation":true',
+        '"snapStepDeg":0.0',
+        '"snapMinAccM":0.0',
       ]),
       // `snapFix` is the grid snapping in the live-mode shim.
       ('live mode with approximate granularity snaps to a ~110 m grid',
           _loc(mode: LocationMode.live,
               granularity: LocationGranularity.approximate), [
-        'var LIVE_LOC = true',
-        'var SNAP_STEP_DEG = 0.001',
-        'var SNAP_MIN_ACC_M = 110.0',
+        '"liveLocation":true',
+        '"snapStepDeg":0.001',
+        '"snapMinAccM":110.0',
         'snapFix',
       ]),
       ('live mode with gsm granularity snaps to a ~1.1 km grid',
           _loc(mode: LocationMode.live, granularity: LocationGranularity.gsm),
           [
-        'var LIVE_LOC = true',
-        'var SNAP_STEP_DEG = 0.01',
-        'var SNAP_MIN_ACC_M = 1100.0',
+        '"liveLocation":true',
+        '"snapStepDeg":0.01',
+        '"snapMinAccM":1100.0',
         'snapFix',
       ]),
       // Static spoof coords reflect what the user typed/picked; the
@@ -140,10 +140,10 @@ void main() {
       ('granularity is ignored for spoof mode (static coords are user-chosen)',
           _loc(mode: LocationMode.spoof, lat: 35.6762, lng: 139.6503,
               accuracy: 25.0, granularity: LocationGranularity.gsm), [
-        'var STATIC_LOC = true',
-        'var LIVE_LOC = false',
-        'var SNAP_STEP_DEG = 0.0',
-        'var SNAP_MIN_ACC_M = 0.0',
+        '"staticLocation":true',
+        '"liveLocation":false',
+        '"snapStepDeg":0.0',
+        '"snapMinAccM":0.0',
       ]),
       ('installs only once via window flag',
           _loc(mode: LocationMode.spoof, lat: 1.0, lng: 2.0),
@@ -164,7 +164,7 @@ void main() {
       ]) {
         final script = LocationSpoofService.buildScript(
             _loc(mode: grant.$1, lat: grant.$2, lng: grant.$3));
-        expect(script, contains('var BLOCK_LOC = false'),
+        expect(script, contains('"blockLocation":false'),
             reason: '${grant.$1} is a grant and must not block');
       }
     });

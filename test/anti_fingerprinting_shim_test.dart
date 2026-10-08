@@ -6,11 +6,6 @@ void main() {
   group('buildAntiFingerprintingShim', () {
     final js = buildAntiFingerprintingShim('alpha-fixture-seed');
 
-    test('runs as an IIFE so locals do not leak to the global scope', () {
-      expect(js.trim(), startsWith('(function() {'));
-      expect(js.trim(), endsWith('})();'));
-    });
-
     test('installs a re-entrance guard so re-runs do not double-wrap', () {
       // Android System WebView and WKWebView both re-run initialUserScripts
       // on every frame load. Without the guard, every wrapper would wrap
@@ -151,7 +146,7 @@ void main() {
     test('default (non-letterbox) pins fixed screen dimensions', () {
       // ETP-010: with letterboxing off, screen.* reports a fixed desktop
       // 1920x1080 and the window is left untouched.
-      expect(js, contains('var LETTERBOX = false'));
+      expect(js, contains('"letterbox":false'));
       expect(js, contains('1920'));
       expect(js, contains('1080'));
     });
@@ -161,7 +156,7 @@ void main() {
       // The WebView is physically letterboxed by Flutter, so window.inner* is
       // already truthful; screen.* mirrors it rather than faking 1920x1080.
       final lb = buildAntiFingerprintingShim('alpha-fixture-seed', letterbox: true);
-      expect(lb, contains('var LETTERBOX = true'));
+      expect(lb, contains('"letterbox":true'));
       // `globalThis.inner*`, not `window.inner*`: this source is also injected
       // into worker scopes, where `window` is a ReferenceError.
       expect(lb, contains('globalThis.innerWidth'));
@@ -494,8 +489,8 @@ void main() {
         launchNonce: LaunchNonce.value,
         letterbox: false,
       );
-      expect(lb, contains('var LETTERBOX = true'));
-      expect(normal, contains('var LETTERBOX = false'));
+      expect(lb, contains('"letterbox":true'));
+      expect(normal, contains('"letterbox":false'));
     });
   });
 }

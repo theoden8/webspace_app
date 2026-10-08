@@ -7,7 +7,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture, runInDom } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
 const HANDLER = 'wsSearchLinks';
 
@@ -25,7 +25,7 @@ function boot(headHtml = '', { url = 'https://searx.lan/search?q=x' } = {}) {
       return Promise.resolve();
     },
   };
-  runInDom(dom, readFixture('search_link_watcher/shim.js'));
+  runInDom(dom, pageJs('search_link_watcher', { handler: 'wsSearchLinks' }));
   return { dom, calls, fetches };
 }
 
@@ -102,7 +102,7 @@ test('a subframe reports nothing', async () => {
     callHandler(name) { calls.push(name); return Promise.resolve(); },
   };
   frame.document.head.innerHTML = SEARX_HEAD;
-  frame.eval(readFixture('search_link_watcher/shim.js'));
+  frame.eval(pageJs('search_link_watcher', { handler: 'wsSearchLinks' }));
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(calls, []);
 });

@@ -29,6 +29,7 @@ import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 // Cell width in CSS px, and the box the webview is mounted in. The cell
 // is small enough that a zoom step moves the count by more than the
@@ -79,6 +80,7 @@ const String _kProbeJs = '''
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   late HttpServer server;
   late String base;

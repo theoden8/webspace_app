@@ -4,11 +4,9 @@
 ! testing. Mirrors real EasyList rule shapes; one of each
 ! pseudo-class / modifier we want to assert against.
 !
-! Stability contract: this file is the input to the
-! `easylist_sample_*.js` fixtures emitted by tool/dump_shim_js.dart
-! and exercised by test/js/content_blocker_easylist_sample.test.js.
-! Adding/removing rules requires re-running the dumper and updating
-! the test's expectations.
+! Stability contract: this file is the input to
+! test/adblock_engine_test.dart and test/content_blocker_service_test.dart.
+! Adding/removing rules requires updating those tests' expectations.
 
 ! ---- Network blocks (||domain^) ----
 ||doubleclick.net^

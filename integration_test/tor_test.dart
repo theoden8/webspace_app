@@ -45,6 +45,7 @@ import 'bare_site.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
 final bool torRequired = Platform.environment['WEBSPACE_TOR_NETWORK'] == '1';
@@ -396,6 +397,7 @@ class TorProbe {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   late StreamSubscription<TorStatus> sub;
   final seen = <TorStatus>[];

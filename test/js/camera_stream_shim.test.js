@@ -1,6 +1,5 @@
 // Tier 1 — jsdom assertions for the virtual camera shim
-// (lib/services/camera_stream_shim.dart, dumped to
-// test/js_fixtures/camera_stream/shim.js).
+// (lib/js/camera_stream.js).
 //
 // jsdom has no getUserMedia, no canvas.captureStream, and no image decode,
 // so we stub the minimum surface the shim wraps and assert *routing + shape*:
@@ -16,9 +15,10 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const CAPTURE = require('./helpers/capture_shims');
+const { makeDom, runInDom } = require('./helpers/load_shim');
 
-const SHIM = readFixture('camera_stream/shim.js');
+const SHIM = CAPTURE.CAMERA;
 
 // The virtual path arms a setInterval to keep repainting the capture canvas;
 // a real page clears it on track.stop(). In jsdom the timer would keep the

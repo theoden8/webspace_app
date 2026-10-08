@@ -1,5 +1,5 @@
 // Behavioural tests for Worker/SharedWorker shim propagation
-// (lib/services/worker_shim.dart, dumped to test/js_fixtures/worker_shim/*.js).
+// (lib/js/worker_shim.js).
 //
 // Two tiers, because the feature has two halves:
 //
@@ -14,12 +14,14 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const WORKER = require('./helpers/worker_shims');
 const vm = require('node:vm');
 const { JSDOM } = require('jsdom');
-const { readFixture } = require('./helpers/load_shim');
+const { pageJs } = require('./helpers/load_shim');
+const { scriptOf } = require('./helpers/script_of');
 
-const COMBINED = 'worker_shim/installer_combined.js';
-const LANGUAGE_ONLY = 'worker_shim/installer_language_only.js';
+const COMBINED = WORKER.INSTALLER_COMBINED;
+const LANGUAGE_ONLY = WORKER.INSTALLER_LANGUAGE_ONLY;
 
 // A jsdom page whose Blob/URL/Worker are recording stubs. Returns handles to
 // everything the installer touches so tests can inspect the generated wrapper.
@@ -86,7 +88,7 @@ function pageWithStubs(fixture, { refuseBlobWorkers = false } = {}) {
   w.Worker = recorder('Worker');
   w.SharedWorker = recorder('SharedWorker');
 
-  w.eval(readFixture(fixture));
+  w.eval(fixture);
   return { dom, window: w, blobs, created };
 }
 
@@ -357,7 +359,7 @@ test('a refused shim import still leaves the original script loading', () => {
 
 test('re-running the installer does not double-wrap', () => {
   const ctx = pageWithStubs(COMBINED);
-  ctx.window.eval(readFixture(COMBINED));
+  ctx.window.eval(COMBINED);
   new ctx.window.Worker('/app/w.js');
   const wrapper = wrapperFor(ctx);
   // A double patch would produce a wrapper that imports another wrapper.
@@ -367,11 +369,48 @@ test('re-running the installer does not double-wrap', () => {
 test('installer is absent when there are no shims to propagate', () => {
   // buildWorkerShimScript returns null for an empty shim list, so no fixture
   // exists for that case; assert the builder contract via the two that do.
-  assert.ok(readFixture(LANGUAGE_ONLY).includes('__wsInstallWorkerWrap'));
-  assert.ok(readFixture(COMBINED).includes('__wsInstallWorkerWrap'));
+  assert.ok(LANGUAGE_ONLY.includes('__wsInstallWorkerWrap'));
+  assert.ok(COMBINED.includes('__wsInstallWorkerWrap'));
 });
 
 // --- Worker-scope payload, executed in a simulated WorkerGlobalScope ---
+
+// What a WorkerGlobalScope has and a window lacks, on a bare vm context.
+function simulateWorkerScope() {
+  globalThis.WorkerGlobalScope = function WorkerGlobalScope() {};
+  // The shims test scope with `globalThis instanceof WorkerGlobalScope`;
+  // the context global cannot literally be one, so answer the brand check.
+  Object.defineProperty(WorkerGlobalScope, Symbol.hasInstance, {
+    value: function() { return true; },
+  });
+  globalThis.WorkerNavigator = function WorkerNavigator() {};
+  Object.defineProperties(WorkerNavigator.prototype, {
+    appCodeName: { value: 'Mozilla', configurable: true },
+    appName: { value: 'Netscape', configurable: true },
+    appVersion: { value: '5.0 (Macintosh)', configurable: true },
+    product: { value: 'Gecko', configurable: true },
+    productSub: { value: '20030107', configurable: true },
+    vendor: { value: 'Apple Computer, Inc.', configurable: true },
+    vendorSub: { value: '', configurable: true },
+    platform: { value: 'iPhone', configurable: true },
+    userAgent: { value: 'stub', configurable: true },
+    language: { get() { return 'es-ES'; }, configurable: true },
+    languages: { get() { return ['es-ES', 'en']; }, configurable: true },
+    hardwareConcurrency: { value: 10, configurable: true },
+    deviceMemory: { value: 2, configurable: true },
+    onLine: { value: true, configurable: true },
+  });
+  globalThis.navigator = new WorkerNavigator();
+  globalThis.self = globalThis;
+  globalThis.location = { href: 'https://example.com/app/w.js' };
+  globalThis.performance = { now: function() { return 1234.5678; } };
+}
+
+// A Blink host's worker navigator.
+function addUserAgentData() {
+  Object.defineProperty(WorkerNavigator.prototype, 'userAgentData',
+    { value: { brands: [] }, configurable: true });
+}
 
 // Build a context that looks like a real worker global: no window, no
 // Navigator/Screen/document/Element, navigator is a WorkerNavigator carrying
@@ -382,39 +421,8 @@ function workerContext({ userAgentData = false } = {}) {
   const ctx = vm.createContext({ URL: URL });
   const run = (src) => vm.runInContext(src, ctx);
 
-  run(`
-    globalThis.WorkerGlobalScope = function WorkerGlobalScope() {};
-    // The shims test scope with \`globalThis instanceof WorkerGlobalScope\`;
-    // the context global cannot literally be one, so answer the brand check.
-    Object.defineProperty(WorkerGlobalScope, Symbol.hasInstance, {
-      value: function() { return true; },
-    });
-    globalThis.WorkerNavigator = function WorkerNavigator() {};
-    Object.defineProperties(WorkerNavigator.prototype, {
-      appCodeName: { value: 'Mozilla', configurable: true },
-      appName: { value: 'Netscape', configurable: true },
-      appVersion: { value: '5.0 (Macintosh)', configurable: true },
-      product: { value: 'Gecko', configurable: true },
-      productSub: { value: '20030107', configurable: true },
-      vendor: { value: 'Apple Computer, Inc.', configurable: true },
-      vendorSub: { value: '', configurable: true },
-      platform: { value: 'iPhone', configurable: true },
-      userAgent: { value: 'stub', configurable: true },
-      language: { get() { return 'es-ES'; }, configurable: true },
-      languages: { get() { return ['es-ES', 'en']; }, configurable: true },
-      hardwareConcurrency: { value: 10, configurable: true },
-      deviceMemory: { value: 2, configurable: true },
-      onLine: { value: true, configurable: true },
-    });
-    globalThis.navigator = new WorkerNavigator();
-    globalThis.self = globalThis;
-    globalThis.location = { href: 'https://example.com/app/w.js' };
-    globalThis.performance = { now: function() { return 1234.5678; } };
-  `);
-  if (userAgentData) {
-    run(`Object.defineProperty(WorkerNavigator.prototype, 'userAgentData',
-      { value: { brands: [] }, configurable: true });`);
-  }
+  run(scriptOf(simulateWorkerScope));
+  if (userAgentData) run(scriptOf(addUserAgentData));
   return { run };
 }
 
@@ -425,7 +433,7 @@ function loadPayloadInWorker(opts = {}) {
   new page.window.Worker('/app/w.js');
   const { shimUrl, payload } = shimFor(page);
   const worker = workerContext(opts);
-  if (opts.prelude) worker.run(opts.prelude);
+  if (opts.prelude) worker.run(scriptOf(opts.prelude));
   worker.run(`self.__wsShimUrl = ${JSON.stringify(shimUrl)};`);
   worker.run(payload);
   return { worker, page, shimUrl };
@@ -448,8 +456,8 @@ test('worker Intl FORMATS in the spoofed locale (the CreepJS worker leak)', () =
   const { worker } = loadPayloadInWorker();
   assert.equal(worker.run('new Intl.NumberFormat().format(0.5)'), '0.5');
   assert.equal(
-    worker.run(`new Intl.DateTimeFormat(undefined, {timeZone:'UTC', month:'long'})
-      .format(new Date(Date.UTC(2020, 6, 1)))`),
+    worker.run(scriptOf(() => new Intl.DateTimeFormat(undefined, { timeZone: 'UTC', month: 'long' })
+      .format(new Date(Date.UTC(2020, 6, 1))))),
     'July');
 });
 
@@ -479,7 +487,7 @@ test('worker hardware values are the spoofed ones, matching the page', () => {
   // agreement the test is about cannot be read off them.
   Object.defineProperty(Object.getPrototypeOf(pageDom.window.navigator),
     'deviceMemory', { value: 2, configurable: true });
-  pageDom.window.eval(readFixture('anti_fingerprinting/shim_seed_alpha.js'));
+  pageDom.window.eval(pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: false }));
   assert.equal(worker.run('navigator.hardwareConcurrency'),
     pageDom.window.navigator.hardwareConcurrency);
   assert.equal(worker.run('navigator.deviceMemory'),
@@ -520,20 +528,23 @@ test('a Blink-host worker gets userAgentData removed under a Gecko UA', () => {
   assert.equal(worker.run("'userAgentData' in navigator"), false);
 });
 
+// Records the nested worker the payload builds and the wrapper it hands it.
+function stubNestedWorker() {
+  globalThis.__nested = [];
+  globalThis.Worker = function Worker(s) { globalThis.__nested.push(String(s)); };
+  globalThis.Blob = function Blob(parts) { this.__text = parts.join(''); };
+  // Augment the real URL rather than replacing it — wrap() needs the
+  // constructor to absolutize the script specifier.
+  globalThis.URL.createObjectURL = function(b) {
+    globalThis.__nestedWrapper = b.__text;
+    return 'blob:nested-1';
+  };
+}
+
 test('payload re-installs the patch for nested workers', () => {
   // A worker spawning a worker must stay covered, else it is a trivial bypass.
   const { worker, shimUrl } = loadPayloadInWorker({
-    prelude: `
-      globalThis.__nested = [];
-      globalThis.Worker = function Worker(s) { globalThis.__nested.push(String(s)); };
-      globalThis.Blob = function Blob(parts) { this.__text = parts.join(''); };
-      // Augment the real URL rather than replacing it — wrap() needs the
-      // constructor to absolutize the script specifier.
-      globalThis.URL.createObjectURL = function(b) {
-        globalThis.__nestedWrapper = b.__text;
-        return 'blob:nested-1';
-      };
-    `,
+    prelude: stubNestedWorker,
   });
   worker.run("new Worker('/app/inner.js')");
   assert.equal(worker.run("globalThis.__nested.join(',')"), 'blob:nested-1');

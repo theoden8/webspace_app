@@ -31,6 +31,7 @@ import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 const _gate = bool.fromEnvironment('PASSKEY_GATE');
 const _phase = String.fromEnvironment('PASSKEY_GATE_PHASE', defaultValue: 'main');
@@ -38,6 +39,7 @@ const _rp = String.fromEnvironment('PASSKEY_GATE_RP', defaultValue: 'http://loca
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   void report(String what, {required Object? value}) {
     // ignore: avoid_print

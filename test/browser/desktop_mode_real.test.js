@@ -1,6 +1,5 @@
 // Real-Chromium tests for the desktop-mode shim
-// (lib/services/desktop_mode_shim.dart, dumped to
-// test/js_fixtures/desktop_mode/{linux,macos,windows}.js).
+// (lib/js/desktop_mode.js).
 //
 // jsdom's matchMedia is a stub returning {matches:false} for every
 // query — the test/js/desktop_mode_shim.test.js file can only assert
@@ -12,21 +11,19 @@
 // MutationObserver-driven viewport rewrite (relies on real
 // HTMLMetaElement attribute mutation), and `'ontouchstart' in window`.
 //
-// These tests load the dumped fixture into Chromium via
+// These tests load the script into Chromium via
 // evaluateOnNewDocument (matches DOCUMENT_START injection in the real
 // WebView) and assert the post-injection state of a freshly loaded
 // page.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { startBlankServer, originOf } = require('./helpers/blank_server');
 
-const LINUX = readFixture('desktop_mode/linux.js');
-const MACOS = readFixture('desktop_mode/macos.js');
-const WINDOWS = readFixture('desktop_mode/windows.js');
+const LINUX = pageJs('desktop_mode', { platform: 'Linux x86_64' });
+const MACOS = pageJs('desktop_mode', { platform: 'MacIntel' });
+const WINDOWS = pageJs('desktop_mode', { platform: 'Win32' });
 
 const browser = setupBrowser();
 
@@ -280,7 +277,6 @@ test('shim is idempotent — second injection is a no-op', async (t) => {
     const flag = await page.evaluate((shim) => {
       const before = window.__ws_desktop_shim__;
       // Re-run the shim. The guard at the top should bail.
-      // eslint-disable-next-line no-eval
       eval(shim);
       // matchMedia must still produce the same answer; if the wrapper
       // wrapped itself it would still work but we'd recurse on bind.

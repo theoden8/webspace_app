@@ -23,18 +23,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const CAPTURE = require('../js/helpers/capture_shims');
+const LOC = require('../js/helpers/location_configs');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const LINUX = readFixture('desktop_mode/linux.js');
-const FULL_COMBO = readFixture('location_spoof/full_combo.js');
-const THEME_DARK = readFixture('theme_color_scheme/dark.js');
-const BLOB_SHIM = readFixture('blob_url_capture/shim.js');
-const CAMERA_SHIM = readFixture('camera_stream/shim.js');
-const MICROPHONE_SHIM = readFixture('microphone_stream/shim.js');
-const AF_ALPHA = readFixture('anti_fingerprinting/shim_seed_alpha.js');
+const LINUX = pageJs('desktop_mode', { platform: 'Linux x86_64' });
+const FULL_COMBO = LOC.FULL_COMBO;
+const THEME_DARK = pageJs('theme_color_scheme', { theme: 'dark' });
+const BLOB_SHIM = pageJs('blob_url_capture');
+const CAMERA_SHIM = CAPTURE.CAMERA;
+const MICROPHONE_SHIM = CAPTURE.MICROPHONE;
+const AF_ALPHA = pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: false });
 
 const browser = setupBrowser();
 

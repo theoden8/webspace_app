@@ -16,7 +16,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const path = require('node:path');
 const { read, methodBody } = require('./helpers/source');
 
 // Files that host an Android webview back path and so must have the funnel.
@@ -150,7 +149,6 @@ for (const screen of GUARDED) {
   // so its obligation is to hand every loaded site's hooks to the repaint
   // controller, whose watch wires them to the engine.
   test('the page: reload hooks drive the surface repaint engine', () => {
-    const src = linesOf('lib/screens/webspace_page.dart').join('\n');
     assert.match(methodBody('_wireSite'), /_surface\.watch\(site,/,
       'every loaded site must be watched by the repaint controller');
     assert.match(methodBody('_buildBodyWithBottomBar'), /_wireSite\(/,
@@ -179,7 +177,6 @@ for (const screen of GUARDED) {
 // its ordering is proved in formal/warmstart.tla and test/surface_repaint_engine_test.dart.
 {
   const lines = linesOf('lib/screens/webspace_page.dart');
-  const src = lines.join('\n');
 
   test('lib/main.dart: didChangeMetrics re-nudges within the post-resume window', () => {
     const defIdx = lines.findIndex((l) => /void\s+didChangeMetrics\s*\(/.test(l));
@@ -315,7 +312,6 @@ for (const screen of GUARDED) {
 // toggles an inset around an IndexedStack sitting under this route.
 {
   const lines = linesOf('lib/screens/inappbrowser.dart');
-  const src = lines.join('\n');
 
   test('lib/screens/inappbrowser.dart: a resume repaints the nested surface', () => {
     const defIdx = lines.findIndex((l) =>

@@ -12,7 +12,7 @@
 //     parse time — fallback path landed in Dart, but neither tier
 //     exercised the resulting JSON-to-DOM run.
 //
-// This file runs the dumped fixture through jsdom against per-row
+// This file runs the runner through jsdom against per-row
 // sample markup — the same one Section 1C of abp_rule_probe.html
 // uses. Any future regression in either layer (Dart parser dropping
 // rules, JS shim mis-splitting pseudos, action handler not firing)
@@ -20,9 +20,19 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
-const PROCEDURAL = readFixture('content_blocker/procedural_actions.js');
+// Every rule shape Section 1C of abp_rule_probe.html tests: :remove(),
+// :upward():remove(), :style(...), :remove-attr(), :remove-class(). Each has
+// an ABP pseudo embedded in the css-selector arg (:has-text(...)), so the
+// page-side splitter runs too.
+const PROCEDURAL = pageJs('procedural_cosmetic', { rules: [
+  { selector: [{ type: 'css-selector', arg: 'div.fp_probe_proc_remove:has-text(REMOVE-ME)' }], action: 'remove' },
+  { selector: [{ type: 'css-selector', arg: 'div.fp_probe_proc_upward:has-text(LEAF):upward(1)' }], action: 'remove' },
+  { selector: [{ type: 'css-selector', arg: 'div.fp_probe_proc_style:has-text(Sponsored)' }], action: { type: 'style', arg: 'outline: 2px solid red !important' } },
+  { selector: [{ type: 'css-selector', arg: 'div.fp_probe_proc_remove_attr[data-tracker]' }], action: { type: 'remove-attr', arg: 'data-tracker' } },
+  { selector: [{ type: 'css-selector', arg: 'div.fp_probe_proc_remove_class.fp_probe_remove_me' }], action: { type: 'remove-class', arg: 'fp_probe_remove_me' } },
+] });
 
 // One section per rule shape. `match` is the markup the rule should
 // hit; `nonMatch` is markup deliberately crafted to look similar but
@@ -141,8 +151,7 @@ for (const row of ROWS) {
 test('shim handles a malformed selector without throwing', () => {
   // Defensive: a future filter list with an unbalanced paren or
   // an unsupported operator must not poison the rest of the rules.
-  // We can't easily inject malformed rules via the dumped fixture,
-  // so just verify the shim source itself runs against a clean DOM.
+  // Here the runner itself runs against a clean DOM.
   const dom = makeDom({ url: 'https://example.com/', html:
     '<!doctype html><html><body><div>safe</div></body></html>' });
   assert.doesNotThrow(() => runInDom(dom, PROCEDURAL));
