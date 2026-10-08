@@ -556,7 +556,7 @@ sites. `OrphanSweepEngine` sweeps every per-site store, including
 not live. It runs:
 - After the first paint of a launch (`sweepOrphanStorage`), followed by the
   legacy global jar clear
-- On site deletion (in `_deleteSite`)
+- On site deletion (in `SiteEditingController.deleteSite`)
 - On settings import (in backup restore)
 
 The native cookie jar is GC'd by `deleteAllCookies()` at the same boundaries

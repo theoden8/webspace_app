@@ -116,7 +116,7 @@ class SimWebView {
 
 /// Test harness for profile-mode site activation. Mirrors the
 /// `_useProfiles == true` branch of `SiteActivationController.setCurrentIndex`
-/// and `_deleteSite`: skips conflict-find/unload, ensures the profile,
+/// and `SiteEditingController.deleteSite`: skips conflict-find/unload, ensures the profile,
 /// marks loaded, simulates webview construction triggering a native
 /// bind. Delegates the real work to [ContainerIsolationEngine] so tests
 /// exercise production code rather than a parallel implementation —
@@ -160,7 +160,7 @@ class ContainerIsolationTestHarness with SiteListState {
         target.siteId, () => SimWebView(target.siteId, native: native));
   }
 
-  /// Mirrors `_deleteSite` for the profile-mode branch: drop the
+  /// Mirrors `SiteEditingController.deleteSite` for the profile-mode branch: drop the
   /// webview, drop the profile (which evicts every cookie / storage
   /// blob owned by the site), shift indices.
   Future<void> deleteSite(int index) async {

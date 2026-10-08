@@ -95,7 +95,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     loadedIndices.add(index);
   }
 
-  /// Mirrors `_deleteSite` cookie/storage/state bookkeeping.
+  /// Mirrors `SiteEditingController.deleteSite` cookie/storage/state bookkeeping.
   Future<void> deleteSite(int index) async {
     final deletedModel = sites[index];
     await engine.preDeleteCookieCleanup(

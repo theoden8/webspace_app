@@ -246,7 +246,7 @@ void main() {
       // Let anything the last action left in flight drain before the tree goes
       // away: an app handler that resumes after its widget is gone throws on
       // the first `context` it touches (observed as `Navigator.pop` inside
-      // `_deleteSite` failing its null check). Tests that can name their own
+      // `SiteEditingController.deleteSite` failing its null check). Tests that can name their own
       // completion signal should still wait on it; this is the backstop.
       await pumpFor(tester, total: const Duration(seconds: 2));
     } finally {
@@ -324,7 +324,7 @@ void main() {
     );
   }
 
-  /// Wait out a deletion: `_deleteSite` closes the drawer as its very last
+  /// Wait out a deletion: `SiteEditingController.deleteSite` closes the drawer as its very last
   /// statement, so a closed drawer is the signal that its whole async tail
   /// (storage sweeps, cache deletes, the HS-013 prompt) has drained. Without
   /// this the test can finish while the tail is still running, and tearing the

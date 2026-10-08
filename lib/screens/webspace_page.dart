@@ -17,6 +17,7 @@ import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
+import 'package:webspace/controllers/site_editing_controller.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
@@ -26,7 +27,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
-import 'package:webspace/screens/add_site.dart' show AddSiteScreen, FaviconUrlCache;
+import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/block_stats.dart';
@@ -38,6 +39,7 @@ import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/site_drawer.dart';
+import 'package:webspace/widgets/site_editing_prompts.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
@@ -59,7 +61,6 @@ import 'package:webspace/services/archive.dart' show ArchiveHandle;
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
-import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
@@ -69,7 +70,6 @@ import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/orphan_sweep_engine.dart';
-import 'package:webspace/services/page_title.dart';
 import 'package:webspace/controllers/site_list_store.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/nav_state_capture_debouncer.dart';
@@ -96,10 +96,8 @@ import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/settings/proxy.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
-import 'package:webspace/widgets/edit_site_dialog.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/site_webview_stack.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
@@ -197,6 +195,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     prompts: DialogWebspacePrompts(context),
     shell: _shell,
     activation: _activation,
+  );
+  late final SiteEditingController _editing = SiteEditingController(
+    _sites,
+    host: _PageHost(this),
+    prompts: DialogSiteEditingPrompts(context,
+        shell: _shell, applyTheme: _applyThemeSettings),
+    shell: _shell,
+    shortcuts: _shortcuts,
   );
   late final BackupController _backup = BackupController(
     _sites,
@@ -566,23 +572,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         homeTitle: model.name,
       );
 
-  /// Adds [model] to the selected named webspace too, persists, and with
-  /// [activate] puts it on screen. Pass false when the app, not the user,
-  /// chose to create it: an unattended entry point must not put a stranger's
-  /// page on screen.
-  Future<void> _registerNewSite(WebViewModel model, {bool activate = true}) async {
-    // Before the first build: initialHtml reads currentTheme to pick the dark
-    // prelude for cached HTML (file:// imports especially, which never reload
-    // to live), and the model defaults to WebViewTheme.light.
-    await model.setTheme(_shell.theme.themeMode.webViewTheme);
-    await _commitSites(SiteAdded(model));
-    if (!activate || !mounted) return;
-    await _activation.setCurrentIndex(_sites.models.indexOf(model));
-    if (!mounted) return;
-    setState(() {});
-    await _shell.saveCurrentIndex();
-  }
-
   /// TAB-018: give every app-tier site without a container colour the least
   /// used one. Only app-tier sites count, so what the app-tier list stores
   /// never depends on an archive being open (ARCH-001).
@@ -725,7 +714,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             final idx = _sites.models.indexOf(site);
             if (idx >= 0) {
               Navigator.of(ctx).pop();
-              unawaited(_editSite(idx));
+              unawaited(_editing.editSite(idx));
             }
           },
           onManualDispatch: (uri) async {
@@ -2193,221 +2182,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  /// [deepLinkQrSettings] is a decoded `webspace://qr/` payload that arrived
-  /// from outside the app. Both QR entry points (this one and the in-app
-  /// scanner, which returns `{'qrSettings': ...}` from `AddSiteScreen`) pass
-  /// through the same review gate below, and a payload the app did not ask
-  /// for never becomes the visible site.
-  Future<void> _addSite({
-    String? initialUrl,
-    Map<String, dynamic>? deepLinkQrSettings,
-  }) async {
-    Object? result;
-    if (deepLinkQrSettings != null) {
-      result = {'qrSettings': deepLinkQrSettings};
-    } else {
-      result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AddSiteScreen(
-            themeMode: _shell.theme.themeMode,
-            onThemeModeChanged: (mode) => _applyThemeSettings(
-                _shell.theme.copyWith(themeMode: mode)),
-            suggestions: _shell.suggestedSites,
-            onSuggestionsChanged: (sites) {
-              _shell.suggestedSites = sites;
-              suggested_sites.saveSuggestedSites(sites);
-            },
-            initialUrl: initialUrl,
-          ),
-        ),
-      );
-    }
-    if (result == null || result is! Map<String, dynamic>) return;
-    if (!mounted) return;
-
-    final stateSetter = () { setState((){}); };
-    late WebViewModel model;
-    final resultQrSettings = result['qrSettings'] as Map<String, dynamic>?;
-
-    if (resultQrSettings != null) {
-      final accepted = await _confirmQrSiteSettings(resultQrSettings);
-      if (!accepted || !mounted) return;
-      model = WebViewModel.fromJson(
-        SiteSettingsQrCodec.hydrateForFromJson(resultQrSettings),
-        stateSetterF: stateSetter,
-      );
-      if (model.name.isEmpty) {
-        final pageTitle = await getPageTitle(
-          model.initUrl,
-          proxy: model.outboundProxySettings,
-        );
-        if (!mounted) return;
-        if (pageTitle != null && pageTitle.isNotEmpty) {
-          model.name = pageTitle;
-          model.pageTitle = pageTitle;
-        }
-      } else {
-        model.pageTitle = model.name;
-      }
-    } else {
-      final url = result['url'] as String;
-      final customName = result['name'] as String;
-      final incognito = result['incognito'] as bool? ?? false;
-      final htmlContent = result['htmlContent'] as String?;
-
-      // Try to fetch page title if custom name not provided (skip for local files)
-      String? pageTitle;
-      if (customName.isEmpty && htmlContent == null) {
-        pageTitle = await getPageTitle(url);
-        if (!mounted) return;
-      }
-
-      model = WebViewModel(
-        initUrl: url,
-        incognito: incognito,
-        stateSetterF: stateSetter,
-      );
-      if (customName.isNotEmpty) {
-        model.name = customName;
-        model.pageTitle = customName;
-      } else if (pageTitle != null && pageTitle.isNotEmpty) {
-        model.name = pageTitle;
-        model.pageTitle = pageTitle;
-      }
-
-      // Imported HTML files are the only copy of the user's data, so they
-      // go into HtmlImportStorage (persistent) rather than HtmlCacheService
-      // (cleared on app upgrade). The webview reads from the import store
-      // for `initialHtml` on creation.
-      if (htmlContent != null && !incognito) {
-        await HtmlImportStorage.instance
-            .saveHtml(model.siteId, html: htmlContent, url: url);
-      }
-    }
-
-    await _registerNewSite(model, activate: deepLinkQrSettings == null);
-  }
-
-  /// Mandatory review of a QR-borne site configuration before it is created.
-  /// The payload is authored by whoever printed the code, reaches us from any
-  /// app or web page via the exported `webspace://` scheme, and can turn every
-  /// protection off, point the site at a proxy, and name it anything.
-  Future<bool> _confirmQrSiteSettings(Map<String, dynamic> qr) async {
-    final loc = AppLocalizations.of(context);
-    final url = qr['initUrl'] as String? ?? '';
-    final name = (qr['name'] as String?) ?? extractDomain(url);
-    final proxy = SiteSettingsQrCodec.reviewProxy(qr);
-    final proxyAddress = proxy?.address ?? '';
-    final proxyLabel = proxy == null
-        ? null
-        : proxy.type == ProxyType.TOR
-            ? loc.torStatusTitle
-            : proxyAddress.isNotEmpty
-                ? proxyAddress
-                : proxy.type.name;
-    bool turnsOff(String key) => qr[key] == false;
-    bool turnsOn(String key) => qr[key] == true;
-    final weakened = <String>[
-      if (turnsOff('trackingProtectionEnabled')) loc.siteSettingsTrackingProtection,
-      if (turnsOff('clearUrlEnabled')) loc.siteSettingsClearUrls,
-      if (turnsOff('dnsBlockEnabled')) loc.siteSettingsDnsBlocklist,
-      if (turnsOff('contentBlockEnabled')) loc.siteSettingsContentBlocker,
-      if (turnsOff('localCdnEnabled')) loc.siteSettingsLocalCdn,
-      // A level below the app-wide one, or a filter list switched off, weakens
-      // the blockers without turning either toggle off. Unnamed, a QR could
-      // relax protection while the review reported nothing.
-      if (qr['dnsBlockLevel'] is int &&
-          (qr['dnsBlockLevel'] as int) < DnsBlockService.instance.level)
-        loc.siteSettingsDnsBlocklistLevel,
-      if (qr['disabledFilterLists'] is List &&
-          (qr['disabledFilterLists'] as List).isNotEmpty)
-        loc.siteSettingsContentBlockerLists,
-    ];
-    final granted = <String>[
-      if (turnsOn('thirdPartyCookiesEnabled')) loc.siteSettingsThirdPartyCookies,
-      if (turnsOn('notificationsEnabled')) loc.siteSettingsNotifications,
-      if (turnsOn('backgroundAudioEnabled')) loc.siteSettingsBackgroundAudio,
-      if (turnsOn('kioskMode')) loc.siteSettingsKioskMode,
-      if (qr['locationMode'] is String && qr['locationMode'] != LocationMode.off.name)
-        loc.siteSettingsGeolocation,
-    ];
-    final accepted = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.homeQrReviewTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(loc.homeQrReviewBody),
-              SizedBox(height: 12),
-              Text(loc.homeQrReviewUrl(url)),
-              Text(loc.homeQrReviewName(name)),
-              if (proxyLabel != null) Text(loc.homeQrReviewProxy(proxyLabel)),
-              if (weakened.isNotEmpty) ...[
-                SizedBox(height: 12),
-                Text(loc.homeQrReviewTurnsOff(weakened.join(', '))),
-              ],
-              if (granted.isNotEmpty) ...[
-                SizedBox(height: 12),
-                Text(loc.homeQrReviewTurnsOn(granted.join(', '))),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.qrApplyConfirm),
-          ),
-        ],
-      ),
-    );
-    return accepted == true;
-  }
-
-  Future<void> _editSite(int index) async {
-    final model = _sites.models[index];
-    final result = await showEditSiteDialog(context, site: model);
-    if (result == null || !mounted) return;
-    // Apply by the captured model identity, not the index: a concurrent
-    // delete of a lower-indexed site while the dialog was open shifts
-    // positions, so `index` could now target a different site. Bail if this
-    // model was deleted meanwhile.
-    if (!_sites.models.contains(model)) return;
-
-    final (:name, :url, :icon) = result;
-    if (icon != null) {
-      setState(() => model.customIconPng = icon.png);
-    }
-    if (name.isNotEmpty) {
-      setState(() => model.name = name);
-    }
-
-    if (url != model.initUrl) {
-      // Snapshot belongs to the old URL; deleteCache must run before the
-      // rebuild's getHtmlSync, which is why the sync in-memory eviction
-      // (inside deleteCache) is fired before setState rather than awaited.
-      final siteId = model.siteId;
-      final deleteCache = HtmlCacheService.instance.deleteCache(siteId);
-      setState(() {
-        model.initUrl = url;
-        model.currentUrl = url;
-        model.webview = null; // Force recreation with new URL
-        model.controller = null;
-      });
-      await deleteCache;
-    }
-
-    await _commitSites(const SitesEdited());
-  }
-
   void _showSiteContextMenu(BuildContext context,
       {required int index, required Offset position}) {
     final filteredIndices = _sites.filteredIndices();
@@ -2472,9 +2246,9 @@ class _WebSpacePageState extends State<WebSpacePage>
         case _SiteListAction.closeArchive:
           if (site != null) await _archives.closeArchiveOf(site);
         case _SiteListAction.edit:
-          await _editSite(index);
+          await _editing.editSite(index);
         case _SiteListAction.delete:
-          await _deleteSite(context, index: index);
+          await _editing.deleteSite(index);
         case _SiteListAction.moveUp:
           _webspaces.reorderSite(listIndex, newListIndex: listIndex - 1);
         case _SiteListAction.moveDown:
@@ -2518,48 +2292,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     await HtmlCacheService.instance.deleteCache(site.siteId);
     await HtmlImportStorage.instance.deleteImport(site.siteId);
-  }
-
-  Future<void> _deleteSite(BuildContext context, {required int index}) async {
-    final loc = AppLocalizations.of(context);
-    final siteName = _sites.models[index].getDisplayName();
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeDeleteSiteTitle),
-        content: Text(loc.homeDeleteSiteConfirm(siteName)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.commonDelete),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-    if (index >= _sites.models.length) return;
-
-    final deletedModel = _sites.models[index];
-    // HS-013: the tiles reaching the site, read before it goes.
-    final reachingTiles = await _shortcuts.tilesReaching(deletedModel);
-    if (!mounted) return;
-    await _commitSites(SiteRemoved(deletedModel));
-    await _shortcuts.siteDeleted(deletedModel, tiles: reachingTiles);
-
-    if (!mounted) return;
-    // closeDrawer() (not Navigator.pop): `context` belongs to the drawer tile
-    // of the site just removed, so by now its element can be defunct and
-    // Navigator.of would fail its null check — deterministically so when the
-    // deleted site was the last tile. Idempotent, like the other drawer taps.
-    _scaffoldKey.currentState?.closeDrawer();
   }
 
   /// The selected webspace's name, or null while none is selected.
@@ -2826,16 +2558,14 @@ class _WebSpacePageState extends State<WebSpacePage>
         onReorder: _webspaces.canReorderView
             ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
             : null,
-        onAddSite: () => unawaited(_addSite()),
+        onAddSite: () => unawaited(_editing.addSite()),
       ),
       body: _buildBodyWithBottomBar(),
       bottomNavigationBar: _buildTabStrip(),
       floatingActionButton:
           !(_sites.current == null || _sites.current! >= _sites.models.length) ? null
           : FloatingActionButton(
-              onPressed: () async {
-                _addSite();
-              },
+              onPressed: () => unawaited(_editing.addSite()),
               child: Icon(Icons.add),
             ),
     ),
@@ -3010,7 +2740,8 @@ class _PageHost
         FullscreenHost,
         ActivationHost,
         BackupHost,
-        WebspacesHost {
+        WebspacesHost,
+        SiteEditingHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -3062,6 +2793,9 @@ class _PageHost
 
   @override
   Future<void> activate(int? index) => _s._activation.setCurrentIndex(index);
+
+  @override
+  void closeDrawer() => _s._scaffoldKey.currentState?.closeDrawer();
 
   @override
   void openDrawer() => _s._scaffoldKey.currentState?.openDrawer();
@@ -3123,11 +2857,11 @@ class _PageHost
 
   @override
   Future<void> registerSite(WebViewModel model, {bool activate = true}) =>
-      _s._registerNewSite(model, activate: activate);
+      _s._editing.registerSite(model, activate: activate);
 
   @override
   Future<void> addSiteFromQr(Map<String, dynamic> settings) =>
-      _s._addSite(deepLinkQrSettings: settings);
+      _s._editing.addSite(deepLinkQrSettings: settings);
 
   @override
   WebViewController? controllerOf(WebViewModel model) =>

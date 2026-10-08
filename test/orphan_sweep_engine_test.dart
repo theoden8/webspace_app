@@ -136,10 +136,11 @@ void main() {
           File('lib/controllers/backup_controller.dart').readAsStringSync();
       expect(backup.substring(backup.indexOf('Future<void> import() async {')),
           contains('await _host.commitSites(SitesReplaced('));
+      final editing =
+          File('lib/controllers/site_editing_controller.dart').readAsStringSync();
       expect(
-          body('Future<void> _deleteSite(BuildContext context, '
-              '{required int index}) async {'),
-          contains('await _commitSites(SiteRemoved(deletedModel));'));
+          editing.substring(editing.indexOf('Future<void> deleteSite(int index) async {')),
+          contains('await _host.commitSites(SiteRemoved(deletedModel));'));
     });
 
     test('no store is swept outside the engine binding', () {

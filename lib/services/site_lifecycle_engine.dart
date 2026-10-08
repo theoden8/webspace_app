@@ -17,7 +17,7 @@ class SiteDeletionPatch {
   /// from this map were unaffected.
   final Map<String, List<int>> newSiteIndicesByWebspaceId;
 
-  /// Updated value for `_currentIndex`. Semantics mirror `_deleteSite`:
+  /// Updated value for `_currentIndex`. Semantics mirror `SiteEditingController.deleteSite`:
   ///   * deletedIndex == currentIndex       → null (cleared; caller must
   ///                                          call `setCurrentIndex(null)`)
   ///   * deletedIndex <  currentIndex       → currentIndex - 1

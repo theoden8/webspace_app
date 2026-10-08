@@ -304,7 +304,7 @@ Every unload goes through `SiteUnloadEngine.unload`, whose `UnloadReason` decide
 
 **Given** site A is in `savedForRestore` with bytes in storage
 **When** the user deletes A from the site list
-**Then** the orphan sweep at the end of `_deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
+**Then** the orphan sweep at the end of `SiteEditingController.deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
 **And** A's state bytes are reaped (siteId no longer in active set)
 
 ### Requirement: PAUSE-008 — State Storage Persists in Encrypted On-Disk Cache
@@ -423,7 +423,7 @@ State files SHALL be reaped when their owning site is deleted, not when the user
 **Then** A's state is *added* to storage (defensively captured) — not removed
 
 **When** the user later deletes site A from the site list
-**Then** the orphan sweep at the end of `_deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
+**Then** the orphan sweep at the end of `SiteEditingController.deleteSite` calls `_stateStorage.removeOrphans(activeSiteIds)`
 **And** A's state file is reaped (siteId no longer in active set)
 
 ### Requirement: PAUSE-019 — Cold-Start Restore for Auto-Loaded Sites

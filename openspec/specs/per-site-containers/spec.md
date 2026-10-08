@@ -717,7 +717,7 @@ JS gets injected*.
 - `android/app/src/main/kotlin/.../MainActivity.kt` —
   instantiates `WebSpaceContainerPlugin`
 - `lib/main.dart` — caches `_useContainers`, gates engine selection in
-  `setCurrentIndex` and `_deleteSite`, runs orphan GC in
+  `setCurrentIndex` and `SiteEditingController.deleteSite`, runs orphan GC in
   `_restoreAppState`
 - `lib/services/webview.dart` — sets `InAppWebViewSettings.containerId`
   (`containerIdFor`) when it builds a site's WebView
