@@ -6,7 +6,10 @@ import 'package:webspace/services/outbound_http_types.dart'
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/webview_proxy.dart'
+    show PlatformInfo, containerIdFor;
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart'
     show
@@ -80,6 +83,34 @@ class SiteInfo {
     if (incognito) return SiteContainerKind.ephemeral;
     return SiteContainerKind.shared;
   }
+}
+
+/// The sheet for [site]'s slot, which binds the container of the site it
+/// runs as (LIR-018): the inputs are that site's, read the way the factory
+/// binds, so the sheet names the container the page uses (NAV-011).
+Future<void> showSiteInfoFor(
+  BuildContext context, {
+  required WebViewModel site,
+  required bool useContainers,
+}) {
+  final id = site.runningIdentity;
+  return showSiteInfoSheet(
+    context,
+    info: SiteInfo(
+      siteName: id.getDisplayName(),
+      tabOf: identical(id, site) ? null : site.getDisplayName(),
+      pageUrl: site.currentUrl,
+      proxy: PlatformInfo.isProxySupported ? id.proxySettings : null,
+      siteId: id.siteId,
+      containerId: containerIdFor(
+        siteId: id.siteId,
+        archiveContainerId: id.archiveContainerId,
+        incognito: id.effectiveIncognito,
+      ),
+      incognito: id.effectiveIncognito,
+      containerColor: useContainers ? id.drawnContainerColor : null,
+    ),
+  );
 }
 
 Future<void> showSiteInfoSheet(BuildContext context,

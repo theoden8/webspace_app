@@ -237,9 +237,10 @@ void main() {
 
     test('site info shows the colour only where containers exist', () {
       expect(
-        main,
-        contains('containerColor: _sites.useContainers\n'),
+        File('lib/widgets/site_info_sheet.dart').readAsStringSync(),
+        contains('containerColor: useContainers ? id.drawnContainerColor : null,'),
       );
+      expect(main, contains('useContainers: _sites.useContainers'));
     });
   });
 }

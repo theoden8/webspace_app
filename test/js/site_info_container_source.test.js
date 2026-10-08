@@ -68,8 +68,11 @@ test('the main sheet reads the inputs of the site webview posture', () => {
   assert.match(resolver, /archiveContainerId: archiveContainerId,/);
   assert.match(resolver, /incognito: effectiveIncognito,/);
   const bar = callArgs(main, main.search(/\bUrlBar\(/));
-  assert.match(bar, /final id = model\.runningIdentity;/);
-  const rule = callArgs(bar, bar.indexOf('containerIdFor('));
+  assert.match(bar, /onSiteInfo: \(\) => showSiteInfoFor\(context,\s*site: model,/);
+  const sheetRel = 'lib/widgets/site_info_sheet.dart';
+  const sheet = blockAfter(read(sheetRel), 'Future<void> showSiteInfoFor(', '}) {', sheetRel);
+  assert.match(sheet, /final id = site\.runningIdentity;/);
+  const rule = callArgs(sheet, sheet.indexOf('containerIdFor('));
   assert.match(rule, /siteId: id\.siteId/);
   assert.match(rule, /archiveContainerId: id\.archiveContainerId/);
   assert.match(rule, /incognito: id\.effectiveIncognito/);

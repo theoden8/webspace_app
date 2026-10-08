@@ -100,7 +100,6 @@ import 'package:webspace/widgets/webspace_prompts.dart';
 import 'package:webspace/widgets/webview_prompts.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/cookie_manager.dart';
-import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
 
 /// Test seam: when set, the page state uses this store instead of
@@ -1288,28 +1287,8 @@ class _WebSpacePageState extends State<WebSpacePage>
                 ? null
                 : (query, {required siteId}) =>
                     _links.searchFromUrlBar(model, query: query, siteId: siteId),
-            onSiteInfo: () {
-              final id = model.runningIdentity;
-              showSiteInfoSheet(
-                context,
-                info: SiteInfo(
-                  siteName: id.getDisplayName(),
-                  tabOf: identical(id, model) ? null : model.getDisplayName(),
-                  pageUrl: model.currentUrl,
-                  proxy: PlatformInfo.isProxySupported
-                      ? id.proxySettings
-                      : null,
-                  siteId: id.siteId,
-                  containerId: containerIdFor(
-                    siteId: id.siteId,
-                    archiveContainerId: id.archiveContainerId,
-                    incognito: id.effectiveIncognito,
-                  ),
-                  incognito: id.effectiveIncognito,
-                  containerColor: _sites.useContainers ? id.drawnContainerColor : null,
-                ),
-              );
-            },
+            onSiteInfo: () => showSiteInfoFor(context,
+                site: model, useContainers: _sites.useContainers),
             onUrlSubmitted: (url) => _links.openTypedAddress(model, url: url),
           ),
       ],
