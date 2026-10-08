@@ -134,6 +134,15 @@ Puppeteer).
 - **WHEN** `npm run test:js` runs `test/js/page_js.test.js`
 - **THEN** the test for that script fails
 
+#### Scenario: Every script passes ESLint as injected
+
+- **GIVEN** a script under `lib/js/` that reads a name nothing defines,
+  after its parts are included and its `CONFIG` wrapper applied
+- **WHEN** `npm run test:js` runs `test/js/page_js_lint.test.js`
+- **THEN** ESLint's `no-undef` fails the test for that script; the
+  worker payload is one script of concatenated IIFEs, so such a
+  `ReferenceError` would silence every shim after it
+
 #### Scenario: Node tests run early in the Build Linux job
 
 - **GIVEN** the `Build Linux` CI job
@@ -168,7 +177,9 @@ plumbing.
 
 - **GIVEN** a new file `lib/js/xyz.js`
 - **WHEN** the developer adds `xyz('xyz')` to `PageJs`
-- **THEN** the app loads it at startup and the parse gate covers it
+- **THEN** the app loads it at startup, and once its sample config is in
+  `test/js/helpers/page_js_samples.js` the parse, lint and rootless-document
+  gates cover it
 - **AND** a new `test/js/<xyz>.test.js` can run it with
   `pageJs('xyz', config)` without changes to `helpers/load_shim.js`
   (unless a new browser API needs polyfilling)
@@ -412,6 +423,8 @@ parse gate; behaviourally, among others:
 - `test/flutter_test_config.dart` — loads `lib/js` for the Dart tests
 - `test/page_js_test.dart` — the loader's contract
 - `test/js/page_js.test.js` — parse gate, inline-JS gate, reader parity
+- `test/js/page_js_lint.test.js` — ESLint over every script as injected
+- `test/js/helpers/page_js_samples.js` — one sample config per script
 - `test/js/` — Tier 1 jsdom test files
 - `test/js/helpers/page_js.js` — reads `lib/js` the way `PageJs` does
 - `test/js/helpers/load_shim.js` — jsdom loader + polyfills

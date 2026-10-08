@@ -81,7 +81,7 @@ Debt, files importing upward (the gate's list, target 0): services → model (en
 | pref | 2 | 2 | `AppPref` |
 | capture kind | ~5 files | ~5 files | `CaptureKind` |
 | settings row | 1–3 lines | 1–3 | `SettingTile` / `ChoiceTile` |
-| page script | 2 | 2 (the file, a `PageJs` value) | `PageJs` |
+| page script | 3 | 3 (the file, a `PageJs` value, a sample in `test/js/helpers/page_js_samples.js`) | `PageJs` |
 | release | 3 | 3 (version, changelog, fixtures) | the `pubspec.yaml` version line; the changelog and fixture gates key off it ([docs/releasing.md](docs/releasing.md)) |
 | secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
 
@@ -115,7 +115,8 @@ Health, monthly: `node tool/architecture_health.js` prints files per fix commit,
   script's text. A one-line expression that calls into an installed script
   (`__wsStopRealCapture()`) may stay inline. Gate:
   [test/js/page_js.test.js](test/js/page_js.test.js) (rung 5: no type says a
-  Dart string is not JavaScript).
+  Dart string is not JavaScript); every script also passes ESLint as injected
+  ([test/js/page_js_lint.test.js](test/js/page_js_lint.test.js)).
 - **No catch-alls.** Catch the types the call is known to throw (`on SocketException`,
   `test: (e) => e is SocksClientException`), never `catch (_)`, `on Object` or
   `onError: (_) {}`: those also swallow `Error`s, which are bugs, and leave nothing
@@ -430,7 +431,7 @@ Every page script is a file in `lib/js/` (Style above). Spec: [js-shim-tests](op
 - **Dart** — `test/*_test.dart` asserts the config a builder derives from a site's settings; [test/page_js_test.dart](test/page_js_test.dart) holds `PageJs`'s own contract. `test/flutter_test_config.dart` loads `lib/js` for every Dart test.
 - **Node** — `test/js/*.test.js` runs the script in jsdom through `pageJs(name, config)` ([test/js/helpers/page_js.js](test/js/helpers/page_js.js)), which reads `lib/js` the way `PageJs` does. No Flutter needed.
 
-Workflow: edit `lib/js/<name>.js` → `npm run test:js`. A new script is the file plus a `PageJs` value. A value it needs is a `CONFIG.<key>` read, passed by `withConfig({...})` in its Dart builder; code several scripts share is a `_<name>.js` part pulled in with `// @include _<name>.js`. Configs more than one test uses live in `test/js/helpers/` (`location_configs.js`, `capture_shims.js`, `ua_identities.js`, `worker_shims.js`, `content_blocker_samples.js`).
+Workflow: edit `lib/js/<name>.js` → `npm run test:js`, which also runs ESLint over every script with its parts included. A new script is the file, a `PageJs` value and a sample config in [page_js_samples.js](test/js/helpers/page_js_samples.js), which the all-scripts gates run. A value it needs is a `CONFIG.<key>` read, passed by `withConfig({...})` in its Dart builder; code several scripts share is a `_<name>.js` part pulled in with `// @include _<name>.js`. Configs more than one test uses live in `test/js/helpers/` (`location_configs.js`, `capture_shims.js`, `ua_identities.js`, `worker_shims.js`, `content_blocker_samples.js`).
 
 **Shims that also run in workers** (anything in `workerScopeBodies` in [worker_shim.dart](lib/services/worker_shim.dart); the scripts themselves are in `lib/js/` — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
 
