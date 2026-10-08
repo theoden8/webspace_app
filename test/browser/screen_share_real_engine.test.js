@@ -44,7 +44,7 @@ async function armPage(page, decisionFactory) {
 
 // Paints a solid canvas and hands back its data: URL, so the served frames
 // have a known colour.
-const MAKE_SURFACE = `
+function makeSurface() {
   window.__wsMakeSurface = function (w, h) {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
@@ -54,12 +54,12 @@ const MAKE_SURFACE = `
     ctx.fillRect(0, 0, w, h);
     return { kind: 'image', dataUrl: c.toDataURL('image/png') };
   };
-`;
+}
 
 // Reads one frame off a stream into a canvas and returns its centre pixel.
 // Retried across frames: the first frame a canvas-capture <video> presents
 // can be blank before the stream commits.
-const SAMPLE_STREAM = `
+function sampleStream() {
   window.__wsSample = async function (stream) {
     const video = document.createElement('video');
     video.muted = true;
@@ -85,7 +85,7 @@ const SAMPLE_STREAM = `
     }
     return { rgb: null };
   };
-`;
+}
 
 test('a virtual grant serves the picked surface under real Chromium',
   async (t) => {
@@ -96,8 +96,8 @@ test('a virtual grant serves the picked surface under real Chromium',
     try {
       await armPage(page);
       await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: 'load' });
-      await page.evaluate(MAKE_SURFACE);
-      await page.evaluate(SAMPLE_STREAM);
+      await page.evaluate(makeSurface);
+      await page.evaluate(sampleStream);
 
       const result = await page.evaluate(async () => {
         window.__wsDecision = {
@@ -221,7 +221,7 @@ test('a cross-origin iframe cannot obtain the surface (SHARE-005)',
 
       // The top-level document still works, so the deny is about the frame
       // rather than a shim that failed to install.
-      await page.evaluate(MAKE_SURFACE);
+      await page.evaluate(makeSurface);
       const top = await page.evaluate(async () => {
         window.__wsDecision = {
           mode: 'virtual',

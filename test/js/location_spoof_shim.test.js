@@ -12,6 +12,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const LOC = require('./helpers/location_configs');
 const { loadShim, makeDom, runInDom, pageJs } = require('./helpers/load_shim');
+const { scriptOf } = require('./helpers/script_of');
 
 test('webrtc_disabled: new RTCPeerConnection() throws "WebRTC disabled"', () => {
   const dom = loadShim(LOC.WEBRTC_DISABLED);
@@ -310,13 +311,9 @@ test('a zero-offset zone reports +0, never negative zero', () => {
   // zero, which the quantized clock makes common — so probe both boundary and
   // non-boundary instants.
   const dom = loadShim(LOC.TIMEZONE_ONLY_UTC);
-  const r = dom.window.eval(`(() => {
-    const out = [];
-    for (const ms of [0, 1, 500, 999, 1000, 1700000000000, 1700000000123]) {
-      out.push(Object.is(new Date(ms).getTimezoneOffset(), -0));
-    }
-    return out;
-  })()`);
+  const r = dom.window.eval(scriptOf((instants) =>
+    instants.map((ms) => Object.is(new Date(ms).getTimezoneOffset(), -0)),
+  [0, 1, 500, 999, 1000, 1700000000000, 1700000000123]));
   assert.deepEqual(Array.from(r), [false, false, false, false, false, false, false],
     'no instant may produce a negative-zero offset');
   assert.equal(dom.window.eval("new Date(0).getTimezoneOffset()"), 0);

@@ -3,6 +3,7 @@
 // content_blocker_early_css.js and content_blocker_cosmetic.js.
 
 const { pageJs } = require('./page_js');
+const { scriptOf } = require('./script_of');
 
 // Class selectors, attribute selectors, and a text-match rule that catches
 // sponsor content whose markup carries no stable class.
@@ -60,7 +61,62 @@ const ABP_RULES = cosmetic(['div.post:has(.ad-tag)', '.banner'], {
   ],
 });
 
+// The CSS-only cosmetic shape both equivalence tiers compare the shipped shim
+// against: the same <style> injection, no runtime selector sweep, and an
+// observer that only re-runs the text rules. Its selectors are the samples'
+// with their element and host narrowed, as the old shape matched them.
+function cosmeticCssOnly() {
+  var ID = '_webspace_content_blocker_style';
+  if (!document.getElementById(ID)) {
+    var s = document.createElement('style');
+    s.id = ID;
+    s.textContent =
+      '.ad-banner { display: none !important; } ' +
+      '.sponsored { display: none !important; } ' +
+      '#sidebar-ad { display: none !important; } ' +
+      '[data-ad-slot] { display: none !important; } ' +
+      'a[href*="track."] { display: none !important; } ';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  // Text rules (CSS can't match on text content): keep the observer,
+  // scoped to whole-document re-scan on debounce. Same shape as the
+  // shipped shim's hideText path.
+  var TEXT_RULES = [{ sel: 'div.article > p', pats: ['Sponsored content'] }];
+  function hideText() {
+    for (var i = 0; i < TEXT_RULES.length; i++) {
+      var r = TEXT_RULES[i];
+      try {
+        document.querySelectorAll(r.sel).forEach(function(el) {
+          var text = el.textContent || '';
+          for (var j = 0; j < r.pats.length; j++) {
+            if (text.indexOf(r.pats[j]) !== -1) {
+              el.style.display = 'none';
+              break;
+            }
+          }
+        });
+      } catch (e) {}
+    }
+  }
+  hideText();
+  var t = null;
+  var obs = new MutationObserver(function() {
+    if (t) clearTimeout(t);
+    t = setTimeout(hideText, 50);
+  });
+  if (document.body) {
+    obs.observe(document.body, { childList: true, subtree: true });
+  } else {
+    document.addEventListener('DOMContentLoaded', function() {
+      hideText();
+      obs.observe(document.body, { childList: true, subtree: true });
+    });
+  }
+}
+const COSMETIC_CSS_ONLY = scriptOf(cosmeticCssOnly);
+
 module.exports = {
+  COSMETIC_CSS_ONLY,
   SAMPLE_SELECTORS,
   SAMPLE_TEXT_RULES,
   earlyCss,

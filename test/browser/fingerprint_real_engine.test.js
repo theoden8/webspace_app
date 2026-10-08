@@ -31,7 +31,6 @@ const MACOS = pageJs('desktop_mode', { platform: 'MacIntel' });
 const WINDOWS = pageJs('desktop_mode', { platform: 'Win32' });
 const TZ_TOKYO = LOC.TIMEZONE_ONLY_TOKYO;
 const FULL_COMBO = LOC.FULL_COMBO;
-const STATIC_TOKYO = LOC.STATIC_TOKYO;
 
 // Issue #327: same siteId ('alpha-fixture-seed'), two different
 // process-lifetime nonces, as computeAntiFingerprintingSeed joins them
@@ -52,7 +51,7 @@ const browser = setupBrowser();
 async function runFingerprintJS(page) {
   await page.addScriptTag({ path: FP_BUNDLE });
   return page.evaluate(async () => {
-    const fp = await FingerprintJS.load();
+    const fp = await window.FingerprintJS.load();
     const r = await fp.get();
     const out = {};
     for (const k of Object.keys(r.components)) {
@@ -236,7 +235,7 @@ test('FingerprintJS: shim survives full report without throwing',
     await withShim(t, FULL_COMBO, async (page) => {
       await page.addScriptTag({ path: FP_BUNDLE });
       const errors = await page.evaluate(async () => {
-        const fp = await FingerprintJS.load();
+        const fp = await window.FingerprintJS.load();
         const r = await fp.get();
         const out = {};
         for (const k of Object.keys(r.components)) {

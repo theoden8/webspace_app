@@ -37,10 +37,6 @@ const calls = (src, method) =>
 // the engine, so the call site may only call its event surface; reaching for a
 // primitive means a branch has moved back into a closure where the only
 // possible cover is a regex like the ones this file used to carry.
-const EVENTS = [
-  'onNavigation', 'onLoadStarted', 'onLoadFinished', 'onLoadFailed',
-  'onCertificateRejected', 'onDeadline',
-];
 const PRIMITIVES = [
   'upgradeFor', 'fallbackFor', 'fallbackForHost', 'fallbackForTimeout',
   'recordUpgradeSuccess', 'recordUpgradeFailure', 'noteUpgradeResponded',

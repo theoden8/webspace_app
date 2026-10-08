@@ -271,7 +271,7 @@ test('the track reports a display surface, not a camera', async () => {
 });
 
 test('a track the shim did not create keeps its real label and settings', () => {
-  const { window, calls } = setupShareDom({ decision: { mode: 'block' } });
+  const { calls } = setupShareDom({ decision: { mode: 'block' } });
   const foreign = new calls.MediaStreamTrack();
   assert.equal(foreign.label, '');
   assert.deepEqual(foreign.getSettings(), {});

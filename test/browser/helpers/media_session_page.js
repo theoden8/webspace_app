@@ -16,8 +16,8 @@ const RECONCILE_MS = 4000;
 
 // 2s of silence as a WAV blob. A data: URI would work too, but building the
 // buffer in-page keeps the fixture readable and the duration explicit.
-const MAKE_AUDIO = `
-  function wsMakeSilentWav(seconds) {
+function installSilentWav() {
+  window.wsMakeSilentWav = function (seconds) {
     var sr = 8000, n = sr * seconds;
     var buf = new ArrayBuffer(44 + n * 2), dv = new DataView(buf);
     function str(o, s) {
@@ -29,8 +29,8 @@ const MAKE_AUDIO = `
     dv.setUint32(28, sr * 2, true); dv.setUint16(32, 2, true);
     dv.setUint16(34, 16, true); str(36, 'data'); dv.setUint32(40, n * 2, true);
     return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
-  }
-`;
+  };
+}
 
 // Autoplay is forced on because the app sets
 // `mediaPlaybackRequiresUserGesture = false` (lib/services/webview.dart).
@@ -63,7 +63,7 @@ async function newShimPage(browser) {
       },
     };
   });
-  await page.evaluateOnNewDocument(MAKE_AUDIO);
+  await page.evaluateOnNewDocument(installSilentWav);
   await page.evaluateOnNewDocument(SHIM);
   await page.goto('about:blank', { waitUntil: 'load' });
   return page;

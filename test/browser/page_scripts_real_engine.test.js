@@ -51,7 +51,7 @@ test('the text zoom installs its size adjust', async (t) => {
 });
 
 // The bridge stub, installed ahead of the shims as the plugin's is.
-const BRIDGE = `
+function bridge() {
   window.__calls = [];
   window.flutter_inappwebview = {
     callHandler: function (name, arg) {
@@ -67,10 +67,11 @@ const BRIDGE = `
       }
       return Promise.resolve(null);
     },
-  };`;
+  };
+}
 
 test('the interceptor drops a blocked fetch and lets the rest through', async (t) => {
-  await withPage(t, [BRIDGE, pageJs('block_js_interceptor')],
+  await withPage(t, [bridge, pageJs('block_js_interceptor')],
     async (page) => {
       const out = await page.evaluate(async (origin) => {
         await new Promise((r) => setTimeout(r, 50));
@@ -85,7 +86,7 @@ test('the interceptor drops a blocked fetch and lets the rest through', async (t
 });
 
 test('a redirect verdict serves the stub body (CB-010)', async (t) => {
-  await withPage(t, [BRIDGE, pageJs('block_js_interceptor')],
+  await withPage(t, [bridge, pageJs('block_js_interceptor')],
     async (page) => {
       const body = await page.evaluate(async () => {
         await new Promise((r) => setTimeout(r, 50));
@@ -96,7 +97,7 @@ test('a redirect verdict serves the stub body (CB-010)', async (t) => {
 });
 
 test('the observer reports the hosts the page loaded from', async (t) => {
-  await withPage(t, [BRIDGE, pageJs('block_resource_observer')],
+  await withPage(t, [bridge, pageJs('block_resource_observer')],
     async (page) => {
       await new Promise((r) => setTimeout(r, 400));
       const batches = await page.evaluate(() => window.__calls

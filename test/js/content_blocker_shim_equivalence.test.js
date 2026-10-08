@@ -34,67 +34,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { makeDom, runInDom } = require('./helpers/load_shim');
-const { COSMETIC } = require('./helpers/content_blocker_samples');
-
-
-// Build a minimal CSS-only cosmetic shim equivalent to what we'd ship.
-// Same `<style>` injection as the current shim, but no runtime
-// `hideCSS()` and the MutationObserver only re-runs text rules.
-//
-// Selectors and text rules are the shared sample config's
-// (helpers/content_blocker_samples.js). Hardcoding them here is acceptable
-// for an equivalence test: if the samples change, this file changes with
-// them.
-const COSMETIC_CSS_ONLY = `
-(function() {
-  var ID = '_webspace_content_blocker_style';
-  if (!document.getElementById(ID)) {
-    var s = document.createElement('style');
-    s.id = ID;
-    s.textContent =
-      '.ad-banner { display: none !important; } ' +
-      '.sponsored { display: none !important; } ' +
-      '#sidebar-ad { display: none !important; } ' +
-      '[data-ad-slot] { display: none !important; } ' +
-      'a[href*="track."] { display: none !important; } ';
-    (document.head || document.documentElement).appendChild(s);
-  }
-  // Text rules (CSS can't match on text content): keep the observer,
-  // scoped to whole-document re-scan on debounce. Same shape as
-  // current shim's hideText path.
-  var TEXT_RULES = [{sel:'div.article > p', pats:['Sponsored content']}];
-  function hideText() {
-    for (var i = 0; i < TEXT_RULES.length; i++) {
-      var r = TEXT_RULES[i];
-      try {
-        document.querySelectorAll(r.sel).forEach(function(el) {
-          var text = el.textContent || '';
-          for (var j = 0; j < r.pats.length; j++) {
-            if (text.indexOf(r.pats[j]) !== -1) {
-              el.style.display = 'none';
-              break;
-            }
-          }
-        });
-      } catch (e) {}
-    }
-  }
-  hideText();
-  var t = null;
-  var obs = new MutationObserver(function() {
-    if (t) clearTimeout(t);
-    t = setTimeout(hideText, 50);
-  });
-  if (document.body) {
-    obs.observe(document.body, { childList: true, subtree: true });
-  } else {
-    document.addEventListener('DOMContentLoaded', function() {
-      hideText();
-      obs.observe(document.body, { childList: true, subtree: true });
-    });
-  }
-})();
-`;
+const { COSMETIC, COSMETIC_CSS_ONLY } = require('./helpers/content_blocker_samples');
 
 const HOST_HTML = `<!doctype html><html><body>
   <div class="ad-banner" id="ad1">ad</div>

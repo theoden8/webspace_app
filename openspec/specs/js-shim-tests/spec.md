@@ -143,6 +143,16 @@ Puppeteer).
   worker payload is one script of concatenated IIFEs, so such a
   `ReferenceError` would silence every shim after it
 
+#### Scenario: The test code passes ESLint
+
+- **GIVEN** a file under `test/js/` or `test/browser/` that reads a
+  name nothing defines, or writes code it runs in a page, worker or
+  jsdom realm as a multi-line template rather than a function
+- **WHEN** `npm run test:js` runs `test/js/test_js_lint.test.js` with
+  `eslint.config.js`
+- **THEN** the test fails, naming the file and line
+- **AND** an HTML page a test serves keeps its script tags
+
 #### Scenario: Node tests run early in the Build Linux job
 
 - **GIVEN** the `Build Linux` CI job
@@ -424,6 +434,10 @@ parse gate; behaviourally, among others:
 - `test/page_js_test.dart` — the loader's contract
 - `test/js/page_js.test.js` — parse gate, inline-JS gate, reader parity
 - `test/js/page_js_lint.test.js` — ESLint over every script as injected
+- `eslint.config.js`, `test/js/test_js_lint.test.js` — ESLint over the
+  test files themselves
+- `test/js/helpers/script_of.js` — a test function as script text, for
+  code that crosses into another realm as a string
 - `test/js/helpers/page_js_samples.js` — one sample config per script
 - `test/js/` — Tier 1 jsdom test files
 - `test/js/helpers/page_js.js` — reads `lib/js` the way `PageJs` does

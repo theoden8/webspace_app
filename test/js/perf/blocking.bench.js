@@ -299,7 +299,7 @@ async function main() {
     const tDrain = performance.now();
     await Promise.all(settled);
     const drain = performance.now() - tDrain;
-    return { sync, drain };
+    return { sync, drain, allowed: counter };
   }
   async function setterPhasesNew() {
     let counter = 0;
@@ -322,7 +322,7 @@ async function main() {
     const tDrain = performance.now();
     await Promise.all(settled);
     const drain = performance.now() - tDrain;
-    return { sync, drain };
+    return { sync, drain, allowed: counter };
   }
 
   // Warm up.
@@ -335,6 +335,10 @@ async function main() {
   for (let i = 0; i < 7; i++) {
     oldPhases.push(await setterPhasesOld());
     newPhases.push(await setterPhasesNew());
+  }
+  if (oldPhases[0].allowed !== newPhases[0].allowed) {
+    throw new Error(`the old interceptor let ${oldPhases[0].allowed} setters through `
+      + `and the new one ${newPhases[0].allowed}: the phases time different work`);
   }
   function median(values) {
     const sorted = [...values].sort((a, b) => a - b);

@@ -139,11 +139,6 @@ function fmt(ms) {
   return `${ms.toFixed(2)}ms`;
 }
 
-function median(values) {
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[(sorted.length / 2) | 0];
-}
-
 function bench(label, fn, { warmup = 1, iters = 5 } = {}) {
   for (let i = 0; i < warmup; i++) fn();
   const samples = [];
@@ -320,11 +315,8 @@ function main() {
     'cold cache, non-block URLs (50K) -> sync false (no roundtrip)',
     () => {
       const i = freshInterceptor();
-      let undecided = 0;
-      for (const u of nonBlockUrls) {
-        if (i.checkSync(u) === undefined) undecided++;
-      }
-      // We expect ~bloom FP rate to be undecided.
+      // About the bloom filter's false-positive rate come back undecided.
+      for (const u of nonBlockUrls) i.checkSync(u);
     },
     { iters: 5 },
   );

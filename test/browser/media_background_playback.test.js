@@ -25,7 +25,7 @@ async function playPauseOnHidePlayer(page) {
   await page.evaluate(async () => {
     const a = document.createElement('audio');
     a.loop = true;
-    a.src = wsMakeSilentWav(6);
+    a.src = window.wsMakeSilentWav(6);
     document.body.appendChild(a);
     window.__el = a;
     window.__pauseOnHideRan = 0;

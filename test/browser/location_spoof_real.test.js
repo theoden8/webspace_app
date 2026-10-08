@@ -285,7 +285,7 @@ test('WRTC=relay — config.iceTransportPolicy is forced to relay',
     // relay branch reads `_RealRTC = window.RTCPeerConnection` at
     // install time, then constructs an instance per call after
     // mutating the config in place.
-    const FAKE = `
+    function fakeRtc() {
       window.__rtcEvents = [];
       class FakeRTC {
         constructor(config) {
@@ -306,7 +306,7 @@ test('WRTC=relay — config.iceTransportPolicy is forced to relay',
       }
       window.RTCPeerConnection = FakeRTC;
       window.webkitRTCPeerConnection = FakeRTC;
-    `;
+    }
     await withShim(t, WRTC_RELAY, async (page) => {
       const events = await page.evaluate(() => {
         new RTCPeerConnection({
@@ -322,12 +322,12 @@ test('WRTC=relay — config.iceTransportPolicy is forced to relay',
       assert.deepEqual(ctor.config.iceServers,
         [{ urls: 'stun:example.test' }],
         'other config fields must be preserved');
-    }, { preInit: FAKE });
+    }, { preInit: fakeRtc });
   });
 
 test('WRTC=relay — setLocalDescription strips non-relay candidates',
   async (t) => {
-    const FAKE = `
+    function fakeRtc() {
       window.__rtcEvents = [];
       class FakeRTC {
         constructor(config) { this.__config = config; }
@@ -338,7 +338,7 @@ test('WRTC=relay — setLocalDescription strips non-relay candidates',
         close() {}
       }
       window.RTCPeerConnection = FakeRTC;
-    `;
+    }
     await withShim(t, WRTC_RELAY, async (page) => {
       const sdp = await page.evaluate(async () => {
         const pc = new RTCPeerConnection({});
@@ -367,20 +367,20 @@ test('WRTC=relay — setLocalDescription strips non-relay candidates',
       // Non-candidate lines must survive unmolested.
       assert.ok(/^v=0/m.test(sdp));
       assert.ok(/^m=audio/m.test(sdp));
-    }, { preInit: FAKE });
+    }, { preInit: fakeRtc });
   });
 
 test('WRTC=relay — Function.prototype.toString hides the wrapper',
   async (t) => {
-    const FAKE = `
+    function fakeRtc() {
       class FakeRTC { constructor() {} close() {} }
       window.RTCPeerConnection = FakeRTC;
-    `;
+    }
     await withShim(t, WRTC_RELAY, async (page) => {
       const s = await page.evaluate(() =>
         Function.prototype.toString.call(window.RTCPeerConnection));
       assert.equal(s, 'function RTCPeerConnection() { [native code] }');
-    }, { preInit: FAKE });
+    }, { preInit: fakeRtc });
   });
 
 // ---------- IP-leakage premise: WebRTC without the shim ----------

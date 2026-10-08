@@ -23,6 +23,8 @@ const WORKER = require('../js/helpers/worker_shims');
 
 const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startVictim } = require('./helpers/attacker_server');
+const { recordCspViolations } = require('./helpers/page_probes');
+const { scriptOf } = require('../js/helpers/script_of');
 
 const INSTALLER = WORKER.INSTALLER_COMBINED;
 
@@ -41,48 +43,36 @@ const CSP = "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob
 // Reports its own scope's fingerprint, then optionally spawns a nested
 // worker and reports that one too. The leaf URL is passed in because a
 // wrapped worker's base URL is the blob, not the origin.
-const PROBE_WORKER = `
-function scopeVals() {
-  return {
-    hardwareConcurrency: navigator.hardwareConcurrency,
-    deviceMemory: navigator.deviceMemory,
-    language: navigator.language,
-    shimInstalled: !!globalThis.__ws_anti_fp_shim__,
-    wrapperInstalled: !!globalThis.__ws_worker_shim__,
+function probeWorker() {
+  function scopeVals() {
+    return {
+      hardwareConcurrency: navigator.hardwareConcurrency,
+      deviceMemory: navigator.deviceMemory,
+      language: navigator.language,
+      shimInstalled: !!globalThis.__ws_anti_fp_shim__,
+      wrapperInstalled: !!globalThis.__ws_worker_shim__,
+    };
+  }
+  self.onmessage = function (ev) {
+    var leaf = ev.data && ev.data.leaf;
+    var mine = scopeVals();
+    if (!leaf) { postMessage({ mine: mine, nested: null }); return; }
+    var reply = function (nested) { postMessage({ mine: mine, nested: nested }); };
+    try {
+      var w = new Worker(leaf);
+      var timer = setTimeout(function () { reply({ error: 'timeout' }); }, 8000);
+      w.onmessage = function (e) { clearTimeout(timer); reply(e.data); };
+      w.onerror = function (e) { clearTimeout(timer); reply({ error: e.message || 'error' }); };
+      w.postMessage('go');
+    } catch (e) {
+      reply({ error: String(e) });
+    }
   };
 }
-self.onmessage = function (ev) {
-  var leaf = ev.data && ev.data.leaf;
-  var mine = scopeVals();
-  if (!leaf) { postMessage({ mine: mine, nested: null }); return; }
-  var reply = function (nested) { postMessage({ mine: mine, nested: nested }); };
-  try {
-    var w = new Worker(leaf);
-    var timer = setTimeout(function () { reply({ error: 'timeout' }); }, 8000);
-    w.onmessage = function (e) { clearTimeout(timer); reply(e.data); };
-    w.onerror = function (e) { clearTimeout(timer); reply({ error: e.message || 'error' }); };
-    w.postMessage('go');
-  } catch (e) {
-    reply({ error: String(e) });
-  }
-};`;
 
-const LEAF_WORKER = `
-self.onmessage = function () {
-  postMessage({
-    hardwareConcurrency: navigator.hardwareConcurrency,
-    deviceMemory: navigator.deviceMemory,
-    language: navigator.language,
-    shimInstalled: !!globalThis.__ws_anti_fp_shim__,
-    wrapperInstalled: !!globalThis.__ws_worker_shim__,
-  });
-};`;
-
-const SHARED_WORKER = `
-self.onconnect = function (ev) {
-  var port = ev.ports[0];
-  port.onmessage = function () {
-    port.postMessage({
+function leafWorker() {
+  self.onmessage = function () {
+    postMessage({
       hardwareConcurrency: navigator.hardwareConcurrency,
       deviceMemory: navigator.deviceMemory,
       language: navigator.language,
@@ -90,29 +80,45 @@ self.onconnect = function (ev) {
       wrapperInstalled: !!globalThis.__ws_worker_shim__,
     });
   };
-  port.start();
-};`;
+}
+
+function sharedWorker() {
+  self.onconnect = function (ev) {
+    var port = ev.ports[0];
+    port.onmessage = function () {
+      port.postMessage({
+        hardwareConcurrency: navigator.hardwareConcurrency,
+        deviceMemory: navigator.deviceMemory,
+        language: navigator.language,
+        shimInstalled: !!globalThis.__ws_anti_fp_shim__,
+        wrapperInstalled: !!globalThis.__ws_worker_shim__,
+      });
+    };
+    port.start();
+  };
+}
 
 // Answers on a port the page transferred to it, which is the thing a
 // MessageChannel in the middle can silently drop: a MessagePort cannot be
 // cloned, so a forward that leaves the transfer list behind throws.
-const PORT_SHARED_WORKER = `
-self.onconnect = function (ev) {
-  var port = ev.ports[0];
-  port.onmessage = function (e) {
-    var given = e.ports && e.ports[0];
-    if (!given) { port.postMessage('no-port'); return; }
-    given.postMessage('through-the-transferred-port');
-    given.start();
+function portSharedWorker() {
+  self.onconnect = function (ev) {
+    var port = ev.ports[0];
+    port.onmessage = function (e) {
+      var given = e.ports && e.ports[0];
+      if (!given) { port.postMessage('no-port'); return; }
+      given.postMessage('through-the-transferred-port');
+      given.start();
+    };
+    port.start();
   };
-  port.start();
-};`;
+}
 
 const ASSETS = {
-  'probe.js': PROBE_WORKER,
-  'leaf.js': LEAF_WORKER,
-  'shared.js': SHARED_WORKER,
-  'shared_port.js': PORT_SHARED_WORKER,
+  'probe.js': scriptOf(probeWorker),
+  'leaf.js': scriptOf(leafWorker),
+  'shared.js': scriptOf(sharedWorker),
+  'shared_port.js': scriptOf(portSharedWorker),
 };
 
 const browser = setupBrowser();
@@ -307,8 +313,7 @@ test('the installer markers are enumerable in worker scope too', async (t) => {
 // Models an engine that refuses a blob: worker at construction time
 // rather than asynchronously. Installed before the installer so it is
 // what the installer captures as the real constructor.
-const SYNC_REFUSING_ENGINE = `
-(function () {
+function syncRefusingEngine() {
   var Real = globalThis.Worker;
   function Refusing(script, options) {
     if (String(script).indexOf('blob:') === 0) {
@@ -318,10 +323,11 @@ const SYNC_REFUSING_ENGINE = `
   }
   Refusing.prototype = Real.prototype;
   globalThis.Worker = Refusing;
-})();`;
+}
 
-const CREATE_OBJECT_URL_THROWS = `
-URL.createObjectURL = function () { throw new Error('refused'); };`;
+function createObjectUrlThrows() {
+  URL.createObjectURL = function () { throw new Error('refused'); };
+}
 
 test('WORK-006 fail-open yields a working but UNSHIMMED worker', async (t) => {
   // Which failure mode an engine picks is native and outside this tier:
@@ -337,8 +343,8 @@ test('WORK-006 fail-open yields a working but UNSHIMMED worker', async (t) => {
   // real hardware while the document reports the spoof, which is exactly
   // the WORK-002 disagreement a fingerprinter looks for.
   const triggers = {
-    'engine refuses blob: at construction': SYNC_REFUSING_ENGINE,
-    'URL.createObjectURL throws': CREATE_OBJECT_URL_THROWS,
+    'engine refuses blob: at construction': syncRefusingEngine,
+    'URL.createObjectURL throws': createObjectUrlThrows,
   };
 
   for (const [name, inject] of Object.entries(triggers)) {
@@ -350,9 +356,9 @@ test('WORK-006 fail-open yields a working but UNSHIMMED worker', async (t) => {
       // The engine stub has to precede the installer; the
       // createObjectURL stub has to follow it, since wrap() reads
       // URL.createObjectURL at call time.
-      if (inject === SYNC_REFUSING_ENGINE) await page.evaluateOnNewDocument(inject);
+      if (inject === syncRefusingEngine) await page.evaluateOnNewDocument(inject);
       await page.evaluateOnNewDocument(INSTALLER);
-      if (inject === CREATE_OBJECT_URL_THROWS) await page.evaluateOnNewDocument(inject);
+      if (inject === createObjectUrlThrows) await page.evaluateOnNewDocument(inject);
       await page.goto(victim.url, { waitUntil: 'load' });
 
       const doc = await pageVals(page);
@@ -372,21 +378,19 @@ test('WORK-006 fail-open yields a working but UNSHIMMED worker', async (t) => {
 
 const NO_BLOB_CSP = "default-src 'self'; script-src 'self'; worker-src 'self'";
 
-// Registered ahead of the installer so the probe's own violation, which
+// The violations recorded so far, as directive and blocked URI. The recorder
+// is registered ahead of the installer so the probe's own violation, which
 // fires at document start, is recorded too.
-const RECORD_VIOLATIONS = `
-globalThis.__wsViolations = [];
-document.addEventListener('securitypolicyviolation', function (e) {
-  globalThis.__wsViolations.push(
-    { directive: e.violatedDirective, blocked: e.blockedURI });
-}, true);`;
+function violations() {
+  return window.__cspViolations.map((v) => ({ directive: v.directive, blocked: v.blocked }));
+}
 
 async function withShimmedPage(t, csp, fn, { early = null } = {}) {
   if (!requireBrowser(browser, t)) return;
   const victim = await startVictim({ csp, assets: ASSETS });
   const page = await browser.browser.newPage();
   try {
-    await page.evaluateOnNewDocument(RECORD_VIOLATIONS);
+    await page.evaluateOnNewDocument(recordCspViolations);
     await page.evaluateOnNewDocument(PAYLOAD);
     await page.evaluateOnNewDocument(INSTALLER);
     // Runs in the same turn as the installer, which is what an inline script
@@ -404,15 +408,16 @@ async function withShimmedPage(t, csp, fn, { early = null } = {}) {
 // Builds its worker before the probe can have answered, keeps whatever the
 // page's own error handler is given, and posts a message the worker has to
 // answer — a wrapper that never loads swallows both.
-const EARLY_WORKER = `
-globalThis.__earlyErrors = [];
-globalThis.__early = new Promise(function (resolve) {
-  var w = new Worker('/probe.js');
-  w.onerror = function (e) { globalThis.__earlyErrors.push(e.message || '(no message)'); };
-  var t = setTimeout(function () { resolve({ error: 'timeout' }); }, 8000);
-  w.onmessage = function (e) { clearTimeout(t); resolve(e.data); };
-  w.postMessage({ leaf: null });
-});`;
+function earlyWorker() {
+  globalThis.__earlyErrors = [];
+  globalThis.__early = new Promise(function (resolve) {
+    var w = new Worker('/probe.js');
+    w.onerror = function (e) { globalThis.__earlyErrors.push(e.message || '(no message)'); };
+    var t = setTimeout(function () { resolve({ error: 'timeout' }); }, 8000);
+    w.onmessage = function (e) { clearTimeout(t); resolve(e.data); };
+    w.postMessage({ leaf: null });
+  });
+}
 
 async function earlyResult(page) {
   return {
@@ -427,7 +432,7 @@ test('a document that builds no worker never touches the CSP', async (t) => {
   // A first party sees that (a securitypolicyviolation listener, a report-uri)
   // and nothing in a stock browser does it, so it announced the app.
   await withShimmedPage(t, NO_BLOB_CSP, async (page) => {
-    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()), [],
+    assert.deepEqual(await page.evaluate(violations), [],
       'nothing may be asked of the policy before the page wants a worker');
   });
 });
@@ -456,7 +461,7 @@ test('a blob-less CSP costs the shim, not the site\'s workers', async (t) => {
         `${kind}: the fallback worker is the one leaking real values`);
     }
 
-    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()),
+    assert.deepEqual(await page.evaluate(violations),
       [{ directive: 'worker-src', blocked: 'blob' }],
       'one refusal buys the answer; nothing after it may be wrapped');
   });
@@ -475,9 +480,9 @@ test('the worker an inline script builds at document start is rebuilt', async (t
       "the refused wrapper's error belongs to a worker the page never had");
     assert.equal(result.mine.shimInstalled, false, 'expected the unshimmed rebuild');
     assert.notEqual(result.mine.hardwareConcurrency, doc.hardwareConcurrency);
-    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()),
+    assert.deepEqual(await page.evaluate(violations),
       [{ directive: 'worker-src', blocked: 'blob' }]);
-  }, { early: EARLY_WORKER });
+  }, { early: earlyWorker });
 });
 
 test('PREMISE: the same early worker is wrapped and shimmed where blob: is allowed', async (t) => {
@@ -491,8 +496,8 @@ test('PREMISE: the same early worker is wrapped and shimmed where blob: is allow
     assert.deepEqual(errors, []);
     assert.equal(result.mine.shimInstalled, true, 'it does get a wrapper');
     assert.equal(result.mine.hardwareConcurrency, doc.hardwareConcurrency);
-    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()), []);
-  }, { early: EARLY_WORKER });
+    assert.deepEqual(await page.evaluate(violations), []);
+  }, { early: earlyWorker });
 });
 
 test('a SharedWorker survives the refusal too', async (t) => {
@@ -531,7 +536,7 @@ test('PREMISE: that SharedWorker is wrapped and shimmed where blob: is allowed',
     assert.ok(r.mine, 'the shared worker must start here too');
     assert.equal(r.mine.shimInstalled, true, 'it does get a wrapper');
     assert.equal(r.mine.hardwareConcurrency, doc.hardwareConcurrency);
-    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()), []);
+    assert.deepEqual(await page.evaluate(violations), []);
   });
 });
 
@@ -573,7 +578,7 @@ test('a CSP that only sets script-src is answered by the same worker', async (t)
     // reports the effective directive instead, and only the directives that
     // govern worker scripts are read as an answer — so pin the name the
     // engine actually emits.
-    assert.deepEqual(await page.evaluate(() => globalThis.__wsViolations.slice()),
+    assert.deepEqual(await page.evaluate(violations),
       [{ directive: 'worker-src', blocked: 'blob' }]);
   });
 });
@@ -597,7 +602,7 @@ test('an unrelated blob: refusal says nothing about workers', async (t) => {
         img.src = url;
         document.body.appendChild(img);
       });
-      return globalThis.__wsViolations.slice();
+      return window.__cspViolations.slice();
     });
     assert.ok(before.some((v) => /^img-src/.test(v.directive)),
       'the premise: the page really did get a blob: image refused, saw ' +

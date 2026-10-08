@@ -72,8 +72,7 @@ test('synthetic MediaQueryList carries addEventListener / removeEventListener', 
 test('addEventListener registers a change listener for theme flips', () => {
   const dom = loadShim(pageJs('theme_color_scheme', { theme: 'dark' }));
   const mql = dom.window.matchMedia('(prefers-color-scheme: dark)');
-  let called = 0;
-  mql.addEventListener('change', () => { called++; });
+  mql.addEventListener('change', () => {});
   // The shim queues listeners on window.__themeChangeListeners and
   // fires them when the theme changes (driven by re-injection in
   // production). Verify the queue picked up the listener.

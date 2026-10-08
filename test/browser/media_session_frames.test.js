@@ -58,7 +58,7 @@ test('a frame with no media of its own never reports', async (t) => {
       // 4s wait meant a stall at the loop boundary on a loaded machine showed
       // up as a genuine playing:false from the *main* frame, failing an
       // assertion whose message blamed the iframe.
-      a.src = wsMakeSilentWav(30);
+      a.src = window.wsMakeSilentWav(30);
       document.body.appendChild(a);
       await a.play();
       const d = document.querySelector('iframe').contentDocument;

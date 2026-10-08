@@ -95,7 +95,7 @@ test('every heavy job is gated on the plan job', () => {
     const block = header.slice(0, header.indexOf('\n    steps:'));
     assert.match(
       block,
-      /\n    needs: plan\n/,
+      /\n {4}needs: plan\n/,
       `${job} does not depend on the plan job, so its guard cannot be read`,
     );
     assert.match(
@@ -135,7 +135,7 @@ test('the Android job runs the passkey gate', () => {
   const start = text.indexOf('\n  build-android:\n');
   assert.notEqual(start, -1, 'build-android job not found');
   const rest = text.slice(start + 1);
-  const next = rest.search(/\n  [a-z][a-z-]*:\n/);
+  const next = rest.search(/\n {2}[a-z][a-z-]*:\n/);
   const job = next === -1 ? rest : rest.slice(0, next);
   assert.ok(
     /\n +bash scripts\/run_android_passkey_tests\.sh\n/.test(job),

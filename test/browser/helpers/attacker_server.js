@@ -11,21 +11,13 @@
 // policy, which is all these tests need.
 
 const http = require('node:http');
+const { scriptOf } = require('../../js/helpers/script_of');
+const { recordCspViolations } = require('./page_probes');
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
-// Records CSP violations so a test can prove the *premise* — that the
-// browser really did refuse the injected script — rather than assuming
-// it. Must be an external script: the pages under test forbid inline.
-const VIOLATION_RECORDER = `
-window.__cspViolations = [];
-document.addEventListener('securitypolicyviolation', function (e) {
-  window.__cspViolations.push({
-    directive: e.violatedDirective,
-    blocked: e.blockedURI,
-    sample: e.sample,
-  });
-});`;
+// Served as an external script: the pages under test forbid inline ones.
+const VIOLATION_RECORDER = scriptOf(recordCspViolations);
 
 function listen(server) {
   return new Promise((resolve) => {

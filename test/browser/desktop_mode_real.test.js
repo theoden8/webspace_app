@@ -277,7 +277,6 @@ test('shim is idempotent — second injection is a no-op', async (t) => {
     const flag = await page.evaluate((shim) => {
       const before = window.__ws_desktop_shim__;
       // Re-run the shim. The guard at the top should bail.
-      // eslint-disable-next-line no-eval
       eval(shim);
       // matchMedia must still produce the same answer; if the wrapper
       // wrapped itself it would still work but we'd recurse on bind.

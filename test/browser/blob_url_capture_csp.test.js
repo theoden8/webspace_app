@@ -49,15 +49,16 @@ function buildIife(blobUrl) {
 // Common page setup: install a recording stub for
 // flutter_inappwebview.callHandler so the test can read every handler
 // invocation back as plain data.
-const BRIDGE_STUB = `
-window.__calls = [];
-window.flutter_inappwebview = {
-  callHandler(name) {
-    var args = Array.prototype.slice.call(arguments, 1);
-    window.__calls.push({ name: name, args: args });
-    return Promise.resolve();
-  },
-};`;
+function bridgeStub() {
+  window.__calls = [];
+  window.flutter_inappwebview = {
+    callHandler(name) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      window.__calls.push({ name: name, args: args });
+      return Promise.resolve();
+    },
+  };
+}
 
 let browser;
 let server;
@@ -118,7 +119,7 @@ test('PREMISE: without the shim, fetch(blob:) is blocked by CSP connect-src',
       assert.ok(blobUrl.startsWith('blob:'),
         'page must have minted a real blob URL');
 
-      await page.evaluate(BRIDGE_STUB);
+      await page.evaluate(bridgeStub);
       await page.evaluate(buildIife(blobUrl));
 
       // FileReader / fetch are async; wait for either handler.
@@ -379,7 +380,7 @@ test('FIX: with the shim installed, the captured-blob path bypasses CSP',
         !!(window.__webspaceBlobs && window.__webspaceBlobs.get(url)), blobUrl);
       assert.ok(captured, 'shim must have captured the page-minted Blob');
 
-      await page.evaluate(BRIDGE_STUB);
+      await page.evaluate(bridgeStub);
       // Sentinel: assert fetch is never called when the shim is active.
       // We replace fetch with a flag-setter; if the IIFE wrongly took
       // the fallback branch the assertion below would catch it.

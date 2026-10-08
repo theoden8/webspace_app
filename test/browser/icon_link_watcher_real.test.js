@@ -28,33 +28,37 @@ const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   'base64');
 
-const afterLoad = (js) =>
-  `<script>addEventListener('load', () => setTimeout(() => { ${js} }, 300));</script>`;
+// A page script that runs [fn] a beat after the load event.
+const afterLoad = (fn) =>
+  `<script>addEventListener('load', () => setTimeout(${fn}, 300));</script>`;
 
 const PAGES = {
   '/badge.html': `<head><link rel="icon" href="/badge/a.png"></head><body>
-    ${afterLoad(`
-      document.querySelector('link[rel=icon]').remove();
-      const l = document.createElement('link');
-      l.rel = 'icon'; l.href = '/badge/b.png';
-      document.head.append(l);`)}</body>`,
+    ${afterLoad(() => {
+    document.querySelector('link[rel=icon]').remove();
+    const l = document.createElement('link');
+    l.rel = 'icon'; l.href = '/badge/b.png';
+    document.head.append(l);
+  })}</body>`,
   '/preload.html': `<head><link rel="icon" href="/preload/a.png"></head><body>
     <script>document.querySelector('link[rel=icon]').href = '/preload/b.png';</script>
     </body>`,
   '/spa.html': `<head></head><body>
-    ${afterLoad(`
-      const l = document.createElement('link');
-      l.rel = 'icon'; l.href = '/spa/app.png';
-      document.head.append(l);`)}</body>`,
+    ${afterLoad(() => {
+    const l = document.createElement('link');
+    l.rel = 'icon'; l.href = '/spa/app.png';
+    document.head.append(l);
+  })}</body>`,
   '/body.html': `<head><link rel="icon" href="/body/a.png"></head><body>
-    ${afterLoad(`
-      const l = document.createElement('link');
-      l.rel = 'icon'; l.href = '/body/b.png';
-      document.body.append(l);`)}</body>`,
+    ${afterLoad(() => {
+    const l = document.createElement('link');
+    l.rel = 'icon'; l.href = '/body/b.png';
+    document.body.append(l);
+  })}</body>`,
   '/frame.html': `<head><link rel="icon" href="/frame/top.png"></head><body>
     <iframe src="/frame-child.html"></iframe></body>`,
   '/frame-child.html': `<head><link rel="icon" href="/frame/c1.png"></head><body>
-    ${afterLoad(`document.querySelector('link[rel=icon]').href = '/frame/c2.png';`)}
+    ${afterLoad(() => { document.querySelector('link[rel=icon]').href = '/frame/c2.png'; })}
     </body>`,
   '/plain.html': '<head></head><body>no icon</body>',
 };

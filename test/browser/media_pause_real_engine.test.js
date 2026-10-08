@@ -17,7 +17,7 @@ const PAUSE_JS = pageJs('media_pause');
 const browser = setupBrowser(LAUNCH_ARGS);
 
 // The page harness is shared with the BGAUDIO-006 tiers: it installs the
-// bridge stub and `wsMakeSilentWav`. The media-session shim it also installs
+// bridge stub and `window.wsMakeSilentWav`. The media-session shim it also installs
 // is inert here — it only reports, it never pauses anything.
 const newPage = () => newShimPage(browser);
 
@@ -30,7 +30,7 @@ test('a playing element is paused and stops advancing', async (t) => {
     const played = await page.evaluate(async () => {
       const a = document.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(4);
+      a.src = window.wsMakeSilentWav(4);
       document.body.appendChild(a);
       window.__el = a;
       try {
@@ -81,7 +81,7 @@ test('every playing element is caught, video included', async (t) => {
       for (let i = 0; i < 2; i++) {
         const a = document.createElement('audio');
         a.loop = true;
-        a.src = wsMakeSilentWav(4);
+        a.src = window.wsMakeSilentWav(4);
         document.body.appendChild(a);
         window.__els.push(a);
       }
@@ -128,7 +128,7 @@ test('a player in a same-origin iframe is caught too', async (t) => {
       const d = f.contentDocument;
       const a = d.createElement('audio');
       a.loop = true;
-      a.src = wsMakeSilentWav(4);
+      a.src = window.wsMakeSilentWav(4);
       d.body.appendChild(a);
       await a.play().catch(() => {});
     });
@@ -156,7 +156,7 @@ test('an already-paused element is left alone and no media is fine', async (t) =
 
     await page.evaluate(async () => {
       const a = document.createElement('audio');
-      a.src = wsMakeSilentWav(4);
+      a.src = window.wsMakeSilentWav(4);
       document.body.appendChild(a);
       window.__el = a;
       await a.play().catch(() => {});
