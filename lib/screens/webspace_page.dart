@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/controllers/app_lifecycle_controller.dart';
 import 'package:webspace/controllers/archive_controller.dart';
+import 'package:webspace/controllers/back_gesture_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/deferred_startup_controller.dart';
 import 'package:webspace/controllers/page_orphan_sweep.dart';
@@ -66,7 +67,6 @@ import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
-import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/container_color_engine.dart';
@@ -148,6 +148,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     repaints: hostIsAndroid,
     traceSuffix: '',
   );
+  late final BackGestureController _back =
+      BackGestureController(host: _PageHost(this), surface: _surface);
   late final FullscreenController _fullscreen =
       FullscreenController(host: _PageHost(this), surface: _surface);
   late final SiteActivationController _activation = SiteActivationController(
@@ -260,7 +262,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   late final ContainerCookieManager? _containerCookieManager;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final _backGuard = ReentryGuard();
   final _siteSettingsGuard = ReentryGuard();
   bool _isFindVisible = false;
   /// When true, a full-screen opaque mask covers every webview so the
@@ -269,21 +270,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// archive is open; cleared on `resumed`. Apps without an open
   /// archive get the normal screenshot.
   bool _maskBackground = false;
-  // NAV-009: what the back gesture does at the start of a site's history.
-  // Off by default — the gesture only walks webview history (issue #369);
-  // turning it on opens the drawer there, and again to leave the app (#431).
-  // Pinned off where the setting is not offered.
-  BackAtHistoryStart get _backAtHistoryStart =>
-      _backAtHistoryStartOffered && AppPref.backOpensMenu.value
-          ? BackAtHistoryStart.openMenu
-          : BackAtHistoryStart.ignore;
-  bool get _backAtHistoryStartOffered => backAtHistoryStartConfigurable(
-        isIOS: hostIsIOS,
-        isMacOS: hostIsMacOS,
-      );
-  // True while the drawer showing is the one the back gesture itself opened.
-  // Only that drawer escalates to leaving the app on the next gesture.
-  bool _drawerOpenedByBackGesture = false;
 
   // Drops concurrent `_handleMemoryPressure` invocations. The OS may
   // fire `didHaveMemoryPressure` repeatedly under sustained pressure;
@@ -1198,120 +1184,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     return model.getController(_webViewHooks);
   }
 
-  void _openDrawerFromBackGesture(ScaffoldState? scaffoldState) {
-    if (scaffoldState == null) return;
-    _drawerOpenedByBackGesture = true;
-    scaffoldState.openDrawer();
-  }
-
-  /// Resolve one back gesture: the Android system back button, or a pushable
-  /// route's pop.
-  Future<void> _handleBackGesture() async {
-    await _backGuard.run(() async {
-      final scaffoldState = _scaffoldKey.currentState;
-      final drawerOpen = scaffoldState?.isDrawerOpen ?? false;
-      final controller = getController();
-      // Android's canGoBack() is reliable (including for pushState/SPA
-      // entries on Chromium). Trust it directly: URL-comparison can
-      // false-positive when goBack() succeeds but the navigation
-      // hasn't propagated within the timeout. iOS/macOS decide from the
-      // URL diff instead, so they don't sample it at all.
-      final canGoBack = !drawerOpen && controller != null && hostIsAndroid
-          ? await controller.canGoBack()
-          : false;
-      if (!mounted) return;
-      final action = decideBackGesture(
-        drawerOpen: drawerOpen,
-        drawerOpenedByGesture: _drawerOpenedByBackGesture,
-        drawerAvailable: !_kioskLocked,
-        hasWebView: controller != null,
-        trustsCanGoBack: hostIsAndroid,
-        canGoBack: canGoBack,
-        atHistoryStart: _backAtHistoryStart,
-        canExitApp: hostIsAndroid,
-      );
-      // At the start of the page history the gesture is still spendable: a
-      // tab the user opened from another tab closes and hands back to it
-      // (TAB-007). Only then does NAV-001 / NAV-009 get the gesture.
-      if ((action == BackGestureAction.ignore ||
-              action == BackGestureAction.openDrawer) &&
-          controller != null &&
-          !drawerOpen) {
-        if (await _tabs.backAtTabStart()) return;
-        if (!mounted) return;
-      }
-      switch (action) {
-        case BackGestureAction.ignore:
-          LogTag.navigation.debug('Back gesture: nothing to do, ignoring');
-          break;
-        case BackGestureAction.closeDrawer:
-          LogTag.navigation.debug('Back gesture: closing open drawer');
-          _scaffoldKey.currentState?.closeDrawer();
-          break;
-        case BackGestureAction.closeDrawerAndExit:
-          LogTag.navigation.debug(
-              'Back gesture: closing drawer and leaving app');
-          _scaffoldKey.currentState?.closeDrawer();
-          await SystemNavigator.pop();
-          break;
-        case BackGestureAction.openDrawer:
-          LogTag.navigation.debug('Back gesture: no history, opening drawer');
-          _openDrawerFromBackGesture(scaffoldState);
-          break;
-        case BackGestureAction.exitApp:
-          LogTag.navigation.debug('Back gesture: no site shown, leaving app');
-          await SystemNavigator.pop();
-          break;
-        case BackGestureAction.goBack:
-          await _goBackAndRepaint(controller!);
-          LogTag.navigation.debug('Back gesture: navigated back (canGoBack)');
-          break;
-        case BackGestureAction.attemptGoBack:
-          // iOS/macOS: canGoBack() can return false for pushState
-          // entries, so attempt goBack() unconditionally and use URL
-          // comparison as the authoritative check.
-          final urlBefore = (await controller!.getUrl())?.toString();
-          await controller.goBack();
-          // Give the native webview time to process the navigation
-          await Future.delayed(const Duration(milliseconds: 150));
-          if (!mounted) return;
-          final urlAfter = (await controller.getUrl())?.toString();
-          final urlChanged = urlBefore != urlAfter;
-          LogTag.navigation.debug(urlChanged
-              ? 'Back gesture: navigated back from $urlBefore to $urlAfter'
-              : 'Back gesture: URL unchanged ($urlAfter)', sensitive: true);
-          if (!urlChanged) {
-            // Same rule as the Android branch above, reached the only way
-            // Apple can reach it: the URL did not move, so the tab is at the
-            // start of its own history.
-            if (await _tabs.backAtTabStart()) return;
-            if (!mounted) return;
-          }
-          final next = decideAfterAttemptedGoBack(
-            urlChanged: urlChanged,
-            drawerAvailable: !_kioskLocked,
-            atHistoryStart: _backAtHistoryStart,
-          );
-          if (next == BackGestureAction.openDrawer) {
-            LogTag.navigation.debug('Back gesture: no history, opening drawer');
-            _openDrawerFromBackGesture(_scaffoldKey.currentState);
-          }
-          break;
-      }
-    });
-  }
-
-  /// Navigate the visible webview back one history entry, then recomposite the
-  /// Android surface. A back/forward-cache restore re-attaches a fresh
-  /// hybrid-composition SurfaceView that can come back blank-white, and back
-  /// navigation passes through neither `setCurrentIndex` nor `onControllerReady`
-  /// (the existing nudge chokepoints), so it would otherwise stay uncovered.
-  /// No-op off Android.
-  Future<void> _goBackAndRepaint(WebViewController controller) async {
-    await controller.goBack();
-    _surface.nudge('back');
-  }
-
   /// User-driven reload of the current site (Refresh button, Clear-cookies).
   /// Delegates to [WebViewModel.userDrivenReload] which drops the
   /// HtmlCacheService snapshot and the chromium HTTP cache before the
@@ -1929,7 +1801,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           },
         ),
         nav: (
-          back: () => unawaited(_goBackIfPossible()),
+          back: () => unawaited(_back.goBackIfPossible()),
           home: _goHome,
           share: () {
             if (_sites.shown case final model?) {
@@ -1948,12 +1820,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         ),
         onSelected: _onSiteMenuAction,
       );
-
-  Future<void> _goBackIfPossible() async {
-    final controller = getController();
-    if (controller == null || !await controller.canGoBack()) return;
-    await _goBackAndRepaint(controller);
-  }
 
   Future<void> _onSiteMenuAction(SiteMenuAction action) async {
     final index = _sites.current;
@@ -2310,14 +2176,14 @@ class _WebSpacePageState extends State<WebSpacePage>
       canPop: hostIsAndroid ? false : !webviewIsVisible,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
-        await _handleBackGesture();
+        await _back.handle();
       },
       child: Scaffold(
       key: _scaffoldKey,
       // Clearing on close covers every way the drawer goes away; a drawer
       // opened by any other affordance therefore starts with the flag down.
       onDrawerChanged: (isOpen) {
-        if (!isOpen) _drawerOpenedByBackGesture = false;
+        _back.drawerChanged(open: isOpen);
       },
       // Disable the drawer edge-swipe whenever a webview is active so the back
       // gesture never opens the drawer. The drawer is reached via the AppBar
@@ -2477,7 +2343,8 @@ class _PageHost
         ActivationHost,
         BackupHost,
         WebspacesHost,
-        SiteEditingHost {
+        SiteEditingHost,
+        BackGestureHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -2529,6 +2396,15 @@ class _PageHost
 
   @override
   Future<void> activate(int? index) => _s._activation.setCurrentIndex(index);
+
+  @override
+  ScaffoldState? get scaffold => _s._scaffoldKey.currentState;
+
+  @override
+  WebViewController? get shownController => _s.getController();
+
+  @override
+  Future<bool> backAtTabStart() => _s._tabs.backAtTabStart();
 
   @override
   void closeDrawer() => _s._scaffoldKey.currentState?.closeDrawer();

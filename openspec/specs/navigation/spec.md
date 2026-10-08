@@ -560,14 +560,16 @@ Home button pressed
   NAV-009 setting. `backAtHistoryStartConfigurable` says where that setting is
   offered at all. Tests: [test/back_gesture_engine_test.dart](../../../test/back_gesture_engine_test.dart)
 
-#### `lib/main.dart`
+#### `lib/controllers/back_gesture_controller.dart`
 - `_backGuard` — `ReentryGuard` for the PopScope handler
 - `_backAtHistoryStart` — NAV-009 setting, mirrored from the `backOpensMenu` pref
   on load and import, and pinned to `ignore` where `_backAtHistoryStartOffered`
   is false (iOS/macOS)
 - `_drawerOpenedByBackGesture` — set when the handler opens the drawer, cleared by
-  `Scaffold.onDrawerChanged` on every close, so only a gesture-opened drawer escalates
+  `Scaffold.onDrawerChanged` (`drawerChanged`) on every close, so only a gesture-opened drawer escalates
 - `_openDrawerFromBackGesture()` — the one place that opens the drawer for NAV-009
+
+#### `lib/screens/webspace_page.dart`
 - `_goHome()` — synchronous: dispose webview, reset URL, trigger rebuild
 - `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (so back never exits the app), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison, navigating webview history only
 - `drawerEdgeDragWidth` — `0` whenever a webview is visible (drawer edge swipe disabled on all platforms); `null` otherwise

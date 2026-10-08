@@ -7,7 +7,8 @@
 // but a static gate can. Attempts 2–5 in docs/bugs/001-white-screen.md each
 // left one such path; this makes a new one fail CI.
 //
-// Covers the main page (lib/screens/webspace_page.dart) and the nested InAppWebViewScreen
+// Covers the main page, whose back gesture lives in
+// lib/controllers/back_gesture_controller.dart, and the nested InAppWebViewScreen
 // (lib/screens/inappbrowser.dart) — the latter was BUG-001 gap #1. Both drive
 // one SurfaceRepaintController (lib/controllers/surface_repaint_controller.dart),
 // so the funnel's own properties are checked there once, and each host is
@@ -22,6 +23,8 @@ const { read, methodBody } = require('./helpers/source');
 const GUARDED = ['lib/screens/webspace_page.dart', 'lib/screens/inappbrowser.dart'];
 // Where a screen's overflow menu is built, when not in the screen itself.
 const MENU_OF = { 'lib/screens/webspace_page.dart': 'lib/widgets/site_menu.dart' };
+// Where a screen's back navigation lives, when not in the screen itself.
+const BACK_OF = { 'lib/screens/webspace_page.dart': 'lib/controllers/back_gesture_controller.dart' };
 const CONTROLLER = 'lib/controllers/surface_repaint_controller.dart';
 const controllerMethod = (name) => methodBody(name, { file: CONTROLLER });
 
@@ -34,7 +37,8 @@ function context(lines, i, before, after) {
   return lines.slice(Math.max(0, i - before), i + after + 1).join('\n');
 }
 
-for (const rel of GUARDED) {
+for (const screen of GUARDED) {
+  const rel = BACK_OF[screen] ?? screen;
   const lines = linesOf(rel);
   const src = lines.join('\n');
   const near = (i, b, a) =>
@@ -58,6 +62,11 @@ for (const rel of GUARDED) {
 
   test(`${rel}: no raw controller.goBack() on the Android path (PAUSE-018 gate)`, () => {
     const offenders = [];
+    if (rel !== screen) {
+      linesOf(screen).forEach((l, i) => {
+        if (/\.goBack\(\)/.test(l)) offenders.push(`${screen}:${i + 1}`);
+      });
+    }
     lines.forEach((l, i) => {
       if (!/controller\.goBack\(\)/.test(l)) return;
       // Exempt the funnel definition itself (goBack sits 1–3 lines under the sig).

@@ -125,10 +125,15 @@ void main() {
 
     test('Back at the start of a tab tries the way back before closing it '
         '(TAB-019, TAB-007)', () {
-      expect(RegExp(r'await _tabs\.backAtTabStart\(\)').allMatches(source),
+      expect(
+          RegExp(r'await _host\.backAtTabStart\(\)').allMatches(
+              File('lib/controllers/back_gesture_controller.dart')
+                  .readAsStringSync()),
           hasLength(2),
           reason: 'Android\'s canGoBack path and the attempt-then-compare '
               'path of every other host');
+      expect(source,
+          contains('Future<bool> backAtTabStart() => _s._tabs.backAtTabStart();'));
       expect(
           RegExp(r'(?<!Future<bool> )_closeChildTabOnBack\(\)')
               .allMatches(tabs),
