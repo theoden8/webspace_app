@@ -21,65 +21,23 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { callSites, enclosed } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-
-function dartFiles(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...dartFiles(full));
-    else if (entry.name.endsWith('.dart')) out.push(full);
-  }
-  return out;
-}
-
-/// The text enclosed by the first [opener] at or after [from], balanced.
-function enclosedAt(text, from, opener) {
-  const open = text.indexOf(opener, from);
-  if (open < 0) return null;
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    const c = text[i];
-    if (c === '(' || c === '[' || c === '{') depth++;
-    else if (c === ')' || c === ']' || c === '}') {
-      depth--;
-      if (depth === 0) return text.slice(open + 1, i);
-    }
-  }
-  return null;
-}
-
-const callSites = [];
-for (const file of dartFiles(path.join(repoRoot, 'lib'))) {
-  const text = fs
-    .readFileSync(file, 'utf8')
-    .replace(/^\s*\/\/.*$/gm, '');
-  const re = /\.setProxyOverride\s*\(/g;
-  for (let m = re.exec(text); m !== null; m = re.exec(text)) {
-    callSites.push({
-      rel: path.relative(repoRoot, file),
-      line: text.slice(0, m.index).split('\n').length,
-      args: enclosedAt(text, m.index, '('),
-    });
-  }
-}
+const sites = callSites('.setProxyOverride');
 
 test('the app still sets a process-wide proxy override', () => {
   // Guards the scan: if the call moves or is renamed, the assertions below
   // would pass while checking nothing.
   assert.ok(
-    callSites.length > 0,
+    sites.length > 0,
     'no setProxyOverride call found under lib/; has the Android proxy path ' +
       'moved? Point this gate at it rather than deleting it',
   );
 });
 
 test('every proxy override names at least one rule', () => {
-  for (const site of callSites) {
-    const where = `${site.rel}:${site.line}`;
+  for (const site of sites) {
+    const where = `${site.file}:${site.line}`;
     assert.ok(site.args, `${where}: could not read the call's arguments`);
     assert.match(
       site.args,
@@ -88,7 +46,7 @@ test('every proxy override names at least one rule', () => {
         'with no rules is not a no-op: it installs "no proxy" process-wide ' +
         'and reports success (BUG-014 instance 6)',
     );
-    const list = enclosedAt(site.args, site.args.indexOf('proxyRules:'), '[');
+    const list = enclosed(site.args, site.args.indexOf('proxyRules:'), '[').body;
     assert.ok(
       list !== null && /ProxyRule\s*\(/.test(list),
       `${where} builds its proxyRules without a literal ProxyRule. If the ` +

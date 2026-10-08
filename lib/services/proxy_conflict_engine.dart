@@ -1,3 +1,5 @@
+import 'package:webspace/services/outbound_http_types.dart'
+    show resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';
 
 /// Pure-Dart engine for the Android process-wide proxy constraint
@@ -8,9 +10,9 @@ import 'package:webspace/settings/proxy.dart';
 ///
 /// The engine exposes two pure functions:
 ///
-///   - [fingerprint] — collapses a [UserProxySettings] into a single
-///     string. Sites with identical fingerprints can run as
-///     background-poll concurrently; differing fingerprints conflict.
+///   - [fingerprint] — the route a site's traffic takes. Sites with equal
+///     fingerprints can run as background-poll concurrently; differing
+///     fingerprints conflict.
 ///
 ///   - [canEnable] — answers "can this site become a background-poll
 ///     site without violating the constraint?" given the proxies of the
@@ -20,19 +22,12 @@ import 'package:webspace/settings/proxy.dart';
 /// pure Dart and so [CookieIsolationEngine]-style behavior can be unit-
 /// covered without spinning up the Android channel.
 class ProxyConflictEngine {
-  /// Collapse a [UserProxySettings] into the fingerprint that
-  /// `ProxyController.setProxyOverride` actually distinguishes on. All
-  /// `DEFAULT` proxies are equivalent (no override applied); custom
-  /// proxies hash their full tuple including credentials, since
-  /// [ProxyController] differentiates them.
-  static String fingerprint(UserProxySettings p) {
-    if (p.type == ProxyType.DEFAULT) return 'default';
-    final type = p.type.toString().split('.').last;
-    final addr = p.address ?? '';
-    final user = p.username ?? '';
-    final pwd = p.password ?? '';
-    return '$type|$addr|$user|$pwd';
-  }
+  /// The route `ProxyController.setProxyOverride` would apply for a site
+  /// set to [p]: its effective proxy, the same one PROXY-008 compares, so
+  /// a DEFAULT site and one set to the proxy it inherits agree, and two
+  /// sites naming different saved proxies do not.
+  static ProxyRouteKey fingerprint(UserProxySettings p) =>
+      resolveEffectiveProxy(p, siteId: null).routeKey;
 
   /// True iff the candidate site can be flipped to background-poll
   /// without breaking the process-wide proxy constraint.
@@ -54,27 +49,28 @@ class ProxyConflictEngine {
     required UserProxySettings targetProxy,
     required Iterable<UserProxySettings> otherEnabledProxies,
     bool routerActive = false,
-  }) {
-    if (routerActive) return true;
-    final targetFp = fingerprint(targetProxy);
-    for (final other in otherEnabledProxies) {
-      if (fingerprint(other) != targetFp) return false;
-    }
-    return true;
-  }
+  }) =>
+      firstConflict(
+        targetProxy: targetProxy,
+        others: otherEnabledProxies,
+        proxyOf: (p) => p,
+        routerActive: routerActive,
+      ) ==
+      null;
 
-  /// First conflicting fingerprint, for human-readable explanatory
-  /// subtitles ("Cannot enable: another site is already polling with a
-  /// different proxy"). Returns null when [canEnable] would return true.
-  static UserProxySettings? firstConflict({
+  /// The first of [others] whose route differs from [targetProxy], for the
+  /// explanation that names who blocks the toggle ("Cannot enable: Site A
+  /// polls with a different proxy"). Null when [canEnable] would be true.
+  static T? firstConflict<T>({
     required UserProxySettings targetProxy,
-    required Iterable<UserProxySettings> otherEnabledProxies,
+    required Iterable<T> others,
+    required UserProxySettings Function(T other) proxyOf,
     bool routerActive = false,
   }) {
     if (routerActive) return null;
-    final targetFp = fingerprint(targetProxy);
-    for (final other in otherEnabledProxies) {
-      if (fingerprint(other) != targetFp) return other;
+    final target = fingerprint(targetProxy);
+    for (final other in others) {
+      if (fingerprint(proxyOf(other)) != target) return other;
     }
     return null;
   }

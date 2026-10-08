@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late DnsBlockService service;
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     // Create a fresh instance for each test (bypass singleton for isolation)
     service = DnsBlockService.instance;
     // Clear any prior state

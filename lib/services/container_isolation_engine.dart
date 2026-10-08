@@ -9,15 +9,13 @@ import 'package:webspace/services/log_service.dart';
 /// 2. "Clear Site Data" routes through [clearForSite], which on
 ///    iOS/macOS maps to `WKWebsiteDataStore.removeData(...)` — the
 ///    one primitive Apple actually supports while a WKWebView is
-///    bound. The fork's pre-privacy-v2 `deleteContainer` silently
-///    no-oped in that case (#360); we now keep [deleteContainer] for
-///    site deletion / orphan GC only, both of which run when no
-///    WebView is bound.
+///    bound. `deleteContainer` silently no-ops in that case (#360), so
+///    it is kept for site deletion / orphan GC only, both of which run
+///    when no WebView is bound.
 /// 3. Containers are deleted when their owning site is deleted.
 /// 4. Orphaned containers (whose owning site no longer exists — e.g.
-///    a site deleted in a previous session, or a rev'd container left
-///    on disk by a now-removed app-side workaround) are swept on app
-///    startup against the live siteId set.
+///    a site deleted in a previous session) are swept on app startup
+///    against the live siteId set.
 ///
 /// The engine is stateless beyond [containerNative]; tests inject a mock
 /// that models per-container cookie partitioning, the same pattern as
@@ -35,32 +33,11 @@ class ContainerIsolationEngine {
     try {
       await containerNative.getOrCreateContainer(siteId);
     } catch (e) {
-      LogService.instance.log(
-        'Container',
-        'ensureContainer($siteId) failed: $e',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.container.error(
+          'ensureContainer($siteId) failed: $e', sensitive: true);
     }
   }
 
-  /// Ensures the container exists, then attempts to bind every live
-  /// flutter_inappwebview WebView created for [siteId] to that container.
-  /// Returns the number of webviews actually bound. Safe to call from
-  /// `onWebViewCreated` — the underlying native bind is wrapped in a
-  /// try/catch so a single race against `loadUrl` doesn't fail the
-  /// batch or throw to Dart.
-  Future<int> bindForSite(String siteId) async {
-    if (!await containerNative.isSupported()) return 0;
-    await ensureContainer(siteId);
-    final bound = await containerNative.bindContainerToWebView(siteId);
-    LogService.instance.log(
-      'Container',
-      'Bound container ws-$siteId to $bound webview(s)',
-      sensitivity: LogSensitivity.sensitive,
-    );
-    return bound;
-  }
 
   /// Deletes [siteId]'s container outright. Caller MUST have already
   /// disposed the site's webview — `deleteContainer` no-ops on iOS /
@@ -70,11 +47,8 @@ class ContainerIsolationEngine {
   Future<void> onSiteDeleted(String siteId) async {
     if (!await containerNative.isSupported()) return;
     final deleted = await containerNative.deleteContainer(siteId);
-    LogService.instance.log(
-      'Container',
-      'Deleted container ws-$siteId (success=$deleted)',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.container.debug(
+        'Deleted container ws-$siteId (success=$deleted)', sensitive: true);
   }
 
   /// Wipes [siteId]'s container data (cookies, localStorage, IndexedDB,
@@ -90,7 +64,7 @@ class ContainerIsolationEngine {
     if (!await containerNative.isSupported()) return false;
     final ok = await containerNative.clearContainerData(siteId);
     LogService.instance.log(
-      'Container',
+      LogTag.container,
       ok
           ? 'Cleared container ws-$siteId'
           : 'clearContainerData(ws-$siteId) reported failure',
@@ -103,10 +77,7 @@ class ContainerIsolationEngine {
   /// Sweeps containers whose owning site no longer exists in
   /// [activeSiteIds]. Returns the number of containers deleted. Run at
   /// app startup, after the active site set is known but before any
-  /// site is activated. Also cleans up any leftover rev'd-name
-  /// containers from an earlier app-side workaround — they won't
-  /// match a current siteId, so the parser-less check still drops
-  /// them.
+  /// site is activated.
   Future<int> garbageCollectOrphans(Set<String> activeSiteIds) async {
     if (!await containerNative.isSupported()) return 0;
     final stored = await containerNative.listContainers();
@@ -118,10 +89,7 @@ class ContainerIsolationEngine {
       }
     }
     if (deleted > 0) {
-      LogService.instance.log(
-        'Container',
-        'GC: deleted $deleted orphan container(s)',
-      );
+      LogTag.container.debug('GC: deleted $deleted orphan container(s)');
     }
     return deleted;
   }

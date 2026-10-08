@@ -497,17 +497,5 @@ void main() {
       expect(lb, contains('var LETTERBOX = true'));
       expect(normal, contains('var LETTERBOX = false'));
     });
-
-    test('script source carries the InAppWebView return-value sentinel', () {
-      // WebViewFactory.createWebView appends `\n;null;` to every shim
-      // source so the evaluator returns null instead of the IIFE return
-      // value (which the platform channel cannot serialize for some
-      // shapes). Keep that contract pinned in the helper.
-      LaunchNonce.overrideForTesting('pinned-nonce');
-      final src = scriptFor(
-        siteId: 'site-A', trackingProtectionEnabled: true, incognito: false,
-      );
-      expect(src, endsWith('\n;null;'));
-    });
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/dns_block_service.dart';
 
 /// Tests for [DnsStats] after switching the log to a fixed-size ring
@@ -140,31 +141,31 @@ void main() {
     });
   });
 
-  group('DnsBlockService.recordHostRequest', () {
+  group('DnsBlockService.recordVerdict', () {
     setUp(() {
       DnsBlockService.instance.loadDomainsFromString('');
       DnsBlockService.instance.clearStatsForSite('site-A');
     });
 
     test('skips empty host', () {
-      DnsBlockService.instance.recordHostRequest('site-A', '', false);
+      DnsBlockService.instance.recordVerdict('site-A',
+          const HostQuery(''), const Allowed());
       final stats = DnsBlockService.instance.statsForSite('site-A');
       expect(stats.total, equals(0));
     });
 
     test('records with count', () {
-      DnsBlockService.instance.recordHostRequest(
-          'site-A', 'cdn.example.com', false,
-          count: 25);
+      DnsBlockService.instance.recordVerdict('site-A',
+          const HostQuery('cdn.example.com'), const Allowed(), count: 25);
       final stats = DnsBlockService.instance.statsForSite('site-A');
       expect(stats.allowed, equals(25));
       expect(stats.log, hasLength(1));
     });
 
     test('records source-attributed block with count', () {
-      DnsBlockService.instance.recordHostRequest(
-          'site-A', 'ad.example.com', true,
-          source: BlockSource.abp, count: 7);
+      DnsBlockService.instance.recordVerdict('site-A',
+          const HostQuery('ad.example.com'), const Blocked(BlockSource.abp),
+          count: 7);
       final stats = DnsBlockService.instance.statsForSite('site-A');
       expect(stats.blocked, equals(7));
       expect(stats.blockedByAbp, equals(7));
@@ -177,7 +178,7 @@ void main() {
       DnsBlockService.instance.clearStatsForSite('site-N');
     });
 
-    test('many recordHostRequest calls fire one listener per microtask', () async {
+    test('many recordVerdict calls fire one listener per microtask', () async {
       var notifications = 0;
       void listener() {
         notifications++;
@@ -189,7 +190,7 @@ void main() {
         // microtask flush, not once per recorded request.
         for (var i = 0; i < 50; i++) {
           DnsBlockService.instance
-              .recordHostRequest('site-N', 'h$i.com', false);
+              .recordVerdict('site-N', HostQuery('h$i.com'), const Allowed());
         }
         expect(notifications, equals(0),
             reason: 'notification deferred to next microtask');
@@ -201,7 +202,7 @@ void main() {
         // A second burst after the flush goes into a fresh microtask.
         for (var i = 0; i < 10; i++) {
           DnsBlockService.instance
-              .recordHostRequest('site-N', 'x$i.com', false);
+              .recordVerdict('site-N', HostQuery('x$i.com'), const Allowed());
         }
         await Future<void>.delayed(Duration.zero);
         expect(notifications, equals(2));
@@ -213,7 +214,8 @@ void main() {
     test('listener registration with no prior listener does not retroactively notify', () async {
       // Record before any listener is attached — these should not fire.
       for (var i = 0; i < 5; i++) {
-        DnsBlockService.instance.recordHostRequest('site-N', 'pre$i.com', false);
+        DnsBlockService.instance.recordVerdict('site-N',
+            HostQuery('pre$i.com'), const Allowed());
       }
       var notifications = 0;
       DnsBlockService.instance.addDnsLogListener(() => notifications++);

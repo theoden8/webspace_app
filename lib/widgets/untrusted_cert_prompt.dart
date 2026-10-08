@@ -3,6 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// Re-entrancy guard: a single TLS challenge can fire repeatedly while
 /// the dialog is still on screen (e.g. parallel sub-resources). Without
@@ -37,53 +38,36 @@ Future<bool> promptUntrustedCertificate(
     final issuedTo = certificate?.issuedTo?.CName?.trim();
     final issuedBy = certificate?.issuedBy?.CName?.trim();
     final notAfter = certificate?.validNotAfterDate;
-    final approved = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.untrustedCertTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                loc.untrustedCertBody(host, port),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                loc.untrustedCertWarning,
-              ),
-              const SizedBox(height: 12),
-              if (issuedTo != null && issuedTo.isNotEmpty)
-                _CertField(label: loc.untrustedCertIssuedTo, value: issuedTo),
-              if (issuedBy != null && issuedBy.isNotEmpty)
-                _CertField(label: loc.untrustedCertIssuedBy, value: issuedBy),
-              if (notAfter != null)
-                _CertField(
-                  label: loc.untrustedCertExpires,
-                  value: notAfter.toIso8601String().split('T').first,
-                ),
-              if (fingerprint != null)
-                _CertField(
-                  label: loc.untrustedCertSha256,
-                  value: _formatFingerprint(fingerprint),
-                ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.untrustedCertTrustConfirm),
-          ),
+    return await confirm(
+      context,
+      title: loc.untrustedCertTitle,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(loc.untrustedCertBody(host, port)),
+          const SizedBox(height: 8),
+          Text(loc.untrustedCertWarning),
+          const SizedBox(height: 12),
+          if (issuedTo != null && issuedTo.isNotEmpty)
+            _CertField(label: loc.untrustedCertIssuedTo, value: issuedTo),
+          if (issuedBy != null && issuedBy.isNotEmpty)
+            _CertField(label: loc.untrustedCertIssuedBy, value: issuedBy),
+          if (notAfter != null)
+            _CertField(
+              label: loc.untrustedCertExpires,
+              value: notAfter.toIso8601String().split('T').first,
+            ),
+          if (fingerprint != null)
+            _CertField(
+              label: loc.untrustedCertSha256,
+              value: _formatFingerprint(fingerprint),
+            ),
         ],
       ),
+      confirmLabel: loc.untrustedCertTrustConfirm,
+      destructive: false,
     );
-    return approved ?? false;
   } finally {
     _pendingPrompts.remove(key);
   }
@@ -115,10 +99,7 @@ class _CertField extends StatelessWidget {
 
 String _formatFingerprint(String sha256Hex) {
   final upper = sha256Hex.toUpperCase();
-  final buf = StringBuffer();
-  for (var i = 0; i < upper.length; i += 2) {
-    if (i > 0) buf.write(':');
-    buf.write(upper.substring(i, i + 2));
-  }
-  return buf.toString();
+  return [
+    for (var i = 0; i < upper.length; i += 2) upper.substring(i, i + 2),
+  ].join(':');
 }

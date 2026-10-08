@@ -18,8 +18,13 @@ projection ([formal/README.md](../../formal/README.md)); this class is guarded i
 [test/js/native_bgtask_completion_funnel.test.js](../../test/js/native_bgtask_completion_funnel.test.js)
 (structural gate: completion only through the funnel) and
 [test/js/tor_bootstrap_observability.test.js](../../test/js/tor_bootstrap_observability.test.js)
-(structural gate: one `TorThread` per process, reached only through the exit wait). The
-intercept cache (attempt 3) has no dedicated guard yet — see open gaps.
+(structural gate: one `TorThread` per process, reached only through the exit wait) and
+[test/js/native_shared_state.test.js](../../test/js/native_shared_state.test.js)
+(structural gate: Android Kotlin state shared across threads only through `Guarded`,
+`SiteEventInbox` or a `@Volatile` immutable snapshot) and
+[SiteEventInboxTest.kt](../../android/app/src/test/kotlin/org/codeberg/theoden8/webspace/SiteEventInboxTest.kt) /
+[HostDecisionCacheConcurrencyTest.kt](../../android/app/src/test/kotlin/org/codeberg/theoden8/webspace/HostDecisionCacheConcurrencyTest.kt)
+(the IO-thread inbox and the intercept cache under concurrent load).
 
 ## Symptom
 
@@ -217,23 +222,78 @@ integration leg on macOS that restarts inside the handshake window; iOS, where t
 observed, still has no tier that runs the plugin at all, so the first evidence remains a
 device.
 
+### Attempt 8 — One guard type for Android native state, gated for the whole class
+**Date:** 2026-10-07 · **PR:** #680 · **Files:**
+`android/app/src/main/kotlin/.../Guarded.kt`, `SiteEventInbox.kt`, `WebInterceptPlugin.kt`,
+`test/js/native_shared_state.test.js`, `SiteEventInboxTest.kt`,
+`HostDecisionCacheConcurrencyTest.kt`
+**What it did:** `WebInterceptPlugin.kt` held state shared with chromium's IO threads five
+ways at once (`synchronized` blocks on the collections themselves, `ConcurrentHashMap`s of
+`Collections.synchronized*` collections, `AtomicBoolean` signal flags, a lock object beside
+the cache, `@Volatile` scalars), and carried two near-copies of a per-site inbox with its
+signal flag, `mainHandler.post` and anonymous `MethodChannel.Result`. Every mutable
+collection now lives in one of two shapes. `Guarded<T>` keeps its state reachable only
+inside `with { }`, under one monitor, so no access can skip the lock: the host-decision
+cache is one (evicting through `removeEldestEntry`), and `SiteEventInbox<E>` (both inboxes,
+one implementation) is built on it. What Dart replaces whole, the LocalCDN patterns and
+index, is an immutable snapshot behind a `@Volatile` reference (`LocalCdnTables`), so the
+size checks of gap 3 read a table that cannot change under them. The class-level guard is
+structural: `native_shared_state.test.js` fails CI on a `Collections.synchronized*` or
+concurrent collection, on any Kotlin property holding a bare mutable collection that is not
+`Guarded` and not named in its `CONFINED` list with the one thread that touches it, on a
+swapped collection `var` without `@Volatile`, and on a raw lock outside four named files
+(`Guarded`, `DnsHostBlocklist`'s wait/notify, `AdblockEngineNative`'s RW-lock,
+`ProxyRelay`'s serialised writers). Verified by mutation: a synchronized wrapper, a
+concurrent map, an unguarded cache, a non-volatile snapshot, a mutable constructor
+parameter, a stray `synchronized(this)` and a stale exemption each turn it red; so does the
+pre-change file. Behind it, JVM tests drive the inbox protocol, including 8 recorder
+threads against a draining main thread that must see every event in exactly one drain
+(it fails with `Guarded`'s monitor removed), and 8 `checkUrl` threads against the
+1,024-entry cache with 4,000 hosts and a concurrent clear. The cache test is the first the
+attempt-3 cache has had, but it is a smoke test like attempt 1's: it passes against an
+unlocked map too, because HotSpot rarely corrupts a `LinkedHashMap` visibly under that
+load, so what holds the cache to the lock is the gate.
+
+Three defects of the same file came out on the way. Attempt 3 says it made `checkCount` an
+`AtomicInteger`; only the import landed, and the counter stayed a plain `var` incremented
+from concurrent IO threads. The signal flag was cleared only when Dart's reply to
+`blockEventsReady` arrived, which is after Dart's fetch had drained, so an event recorded in
+between found the flag still set, sent nothing, and waited for the next event on that site;
+on a page that had gone quiet, that was never (DNS-017). A drain now retires the outstanding
+wake, and a reply retires it only when no drain has. And block events were keyed by host
+alone, so the first verdict in a drain window absorbed every later request to that host: a
+host whose page assets were allowed and whose ad paths the engine blocked reported all of
+them allowed, which undercounts exactly as BUG-004 describes. They are keyed by host,
+verdict and source now. The never-written LocalCDN kill switch, an `AtomicBoolean` threaded
+into every interceptor, is gone: Dart pushing an empty pattern list already makes LocalCDN
+inert app-wide.
+**Why:** gap 1. Each earlier attempt guarded its own instance, and the intercept cache not
+even that, so the next Kotlin plugin to share a collection with an IO thread would have
+recurred silently.
+**Why it was partial:** the gate reads shapes, not threads. It trusts `CONFINED`'s claim
+that a field stays on one thread, it cannot follow a mutable collection that escapes through
+a local captured by a `Thread {}` or through a class that extends a collection, and it
+covers this repo's Kotlin only: the Swift plugins still rest on their per-file gates
+(attempts 2, 6, 7), the fork (gap 2) is untouched, and gap 5's unbounded write-lock latency
+is unchanged.
 
 ## Known open gaps
 
-1. **No universal structural guard.** Each instance got its own guard (or none, for the
-   intercept cache). A new native plugin that shares mutable state across a callback/IO
-   thread and another path can reintroduce the class silently. Mitigation is process: the
-   CLAUDE.md "Adding native code that mutates shared state" checklist points here; hold every
-   new native component to the invariant above.
+1. **No universal structural guard for Swift.** Android Kotlin has one since attempt 8
+   (`native_shared_state.test.js`). The Swift plugins still have one gate each, written for
+   the instance it fixed, so a new Swift plugin that shares state across a callback queue
+   and the main thread can reintroduce the class silently. Mitigation there is still
+   process: the CLAUDE.md "Adding native code that mutates shared state" checklist points
+   here.
 2. **Fork `ContainerManager.swift` registry lost-update.** The `id → uuid` map's
    read-modify-write (`loadIdMap` → mutate → `saveIdMap`) is guarded by `sharedStoresLock`
    only inside `getOrCreateDataStore`; the same sequence in `deleteContainer`'s completion
    handler and `registerContainerBinding` runs without the lock. Same class, lives in the
    flutter_inappwebview fork (out of this repo's tree), not yet fixed. Consequence is a
    stale/missing registry entry, not a crash. Fix before the next fork tag.
-3. **`WebInterceptPlugin` unsynchronized size checks.** The `cdnPatterns.isNotEmpty()` /
-   `cdnCacheIndex.isNotEmpty()` reads sit outside the `synchronized` blocks that guard their
-   real reads/writes. Benign (`isEmpty` can't throw), same class — fold into the lock.
+3. ~~**`WebInterceptPlugin` unsynchronized size checks.**~~ Closed by attempt 8: the
+   LocalCDN tables are immutable snapshots, so a size check reads the same table the lookup
+   does.
 4. **CONT-005 silent degrade-to-shared.** If the native `containerId` bind ever fails, the
    site falls back to the default store; the engine tolerates a zero-bind result but can't
    detect the degraded (isolation-lost) state. Wants a native post-bind assertion.

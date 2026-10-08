@@ -97,7 +97,7 @@ void main() {
         'initUrl': 'https://example.com',
       });
       expect(encoded, startsWith('webspace://qr/site/v1/'));
-      expect(SiteSettingsQrCodec.looksLikeQrPayload(encoded), isTrue);
+      expect(SiteSettingsQrCodec.decode(encoded), isNotNull);
     });
 
     test('proxy password and secure cookies never appear in encoded output',
@@ -213,15 +213,9 @@ void main() {
           SiteSettingsQrCodec.decode('webspace://qr/site/v999/$body'), isNull);
     });
 
-    test('looksLikeQrPayload is strict about the prefix', () {
-      expect(
-          SiteSettingsQrCodec.looksLikeQrPayload(
-              'webspace://qr/site/v1/abc'),
-          isTrue);
-      expect(
-          SiteSettingsQrCodec.looksLikeQrPayload('https://example.com'),
-          isFalse);
-      expect(SiteSettingsQrCodec.looksLikeQrPayload(''), isFalse);
+    test('decode refuses anything outside the QR prefix', () {
+      expect(SiteSettingsQrCodec.decode('https://example.com'), isNull);
+      expect(SiteSettingsQrCodec.decode(''), isNull);
     });
 
     test('every WebViewModel.toJson key is classified', () {

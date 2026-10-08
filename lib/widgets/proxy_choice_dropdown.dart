@@ -3,8 +3,34 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
+
+/// What a proxy form asks for under each type. Exhaustive, so a new type
+/// says here whether it carries an address before any form can offer it.
+extension ProxyTypeForm on ProxyType {
+  /// Whether the manual route fields show. TOR supplies its own loopback
+  /// address and stream-isolation auth, and a saved proxy its whole route,
+  /// so the fields are inert under either: hidden, not cleared, so a stored
+  /// SOCKS5 config survives the trip (PROXY-010).
+  bool get showsRouteFields => switch (this) {
+    ProxyType.HTTP ||
+    ProxyType.HTTPS ||
+    ProxyType.SOCKS5 ||
+    ProxyType.GATEWAY => true,
+    ProxyType.DEFAULT || ProxyType.TOR || ProxyType.SAVED => false,
+  };
+
+  /// Whether the form checks a typed address. A saved proxy or gateway was
+  /// checked where it was saved; TOR has no address to type.
+  bool get typesAddress => switch (this) {
+    ProxyType.HTTP || ProxyType.HTTPS || ProxyType.SOCKS5 => true,
+    ProxyType.DEFAULT ||
+    ProxyType.TOR ||
+    ProxyType.SAVED ||
+    ProxyType.GATEWAY => false,
+  };
+}
 
 /// What a proxy picker chose: a type, and the library entry it names under
 /// [ProxyType.SAVED] or [ProxyType.GATEWAY].
@@ -18,18 +44,17 @@ class ProxyChoice {
 
 /// The label a library entry goes by: its name, or what it holds when it has
 /// none, so two unnamed entries can still be told apart.
-String savedProxyLabel(SavedProxy proxy) => proxy.name.trim().isNotEmpty
-    ? proxy.name.trim()
-    : (proxy.settings.address ?? proxy.settings.type.name);
+String savedProxyLabel(SavedProxy proxy) =>
+    _nameOr(proxy.name, proxy.settings.address ?? proxy.settings.type.name);
 
-String gatewayLabel(SavedGateway gateway) => gateway.name.trim().isNotEmpty
-    ? gateway.name.trim()
-    : (gateway.address ?? gateway.type.name);
+String gatewayLabel(SavedGateway gateway) =>
+    _nameOr(gateway.name, gateway.address ?? gateway.type.name);
 
 String credentialsLabel(SavedCredentials credentials) =>
-    credentials.name.trim().isNotEmpty
-        ? credentials.name.trim()
-        : (credentials.username ?? credentials.id);
+    _nameOr(credentials.name, credentials.username ?? credentials.id);
+
+String _nameOr(String name, String fallback) =>
+    name.trim().isEmpty ? fallback : name.trim();
 
 /// Why a route taken from the library does not resolve, as the user reads it.
 String libraryProblemLabel(AppLocalizations loc, LibraryProblem problem) =>
@@ -42,7 +67,18 @@ String libraryProblemLabel(AppLocalizations loc, LibraryProblem problem) =>
         loc.proxyLibraryCredentialsMismatch,
     };
 
-/// A route as data (LOC-002): the type name and the address.
+/// What a saved proxy or gateway route goes by: its entry's label, or why it
+/// does not resolve (PROXY-030).
+String libraryRouteLabel(AppLocalizations loc, UserProxySettings route) {
+  assert(route.type == ProxyType.SAVED || route.type == ProxyType.GATEWAY,
+      'only a library route names an entry');
+  final problem = resolveLibrary(route).problem;
+  if (problem != LibraryProblem.none) return libraryProblemLabel(loc, problem);
+  return route.type == ProxyType.SAVED
+      ? savedProxyLabel(ProxyLibrary.proxy(route.savedProxyId)!)
+      : gatewayLabel(ProxyLibrary.gateway(route.gatewayId)!);
+}
+
 /// What a TOR route is called: TOR, or "Tor (external)" where this launch
 /// rides an external tor (TOR-025), so no picker or summary passes one off as
 /// the other. [external] defaults to the running service.
@@ -51,6 +87,7 @@ String torRouteLabel(AppLocalizations loc, {bool? external}) =>
         ? loc.appSettingsExperimentalExternalTor
         : ProxyType.TOR.name;
 
+/// A route as data (LOC-002): the type name and the address.
 String routeLabel(UserProxySettings route) =>
     '${route.type.name} ${route.address ?? ''}'.trim();
 
@@ -59,11 +96,19 @@ String routeLabel(UserProxySettings route) =>
 // phone screen.
 const double _maxLabelWidth = 160;
 
-DropdownMenuItem<String> _item(String key, String label) => DropdownMenuItem(
+DropdownMenuItem<String> _item(
+  String key,
+  String label, {
+  bool enabled = true,
+  TextStyle? style,
+}) =>
+    DropdownMenuItem(
       value: key,
+      enabled: enabled,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: _maxLabelWidth),
-        child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
+        child: Text(label,
+            maxLines: 1, overflow: TextOverflow.ellipsis, style: style),
       ),
     );
 
@@ -71,22 +116,13 @@ DropdownMenuItem<String> _header(
   BuildContext context,
   String key,
   String label,
-) =>
-    DropdownMenuItem(
-      value: key,
+) {
+  final theme = Theme.of(context);
+  return _item(key, label,
       enabled: false,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: _maxLabelWidth),
-        child: Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-        ),
-      ),
-    );
+      style: theme.textTheme.labelSmall
+          ?.copyWith(color: theme.colorScheme.primary));
+}
 
 /// The proxy picker: the plain types, and the library's saved proxies and
 /// gateways by name, each under its heading (PROXY-030). Shared by the

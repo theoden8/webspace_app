@@ -130,18 +130,9 @@ class NavigationTestHarness {
       _urlChangedState[siteIndex] ??
       OnUrlChangedState.initial(sites[siteIndex].initUrl);
 
-  void _applyGestureUpdate(int siteIndex, GestureStateUpdate? update) {
-    switch (update) {
-      case GestureStateUpdate.record:
-        _lastSameDomainGestureTime[siteIndex] = DateTime.now();
-        break;
-      case GestureStateUpdate.consume:
-        _lastSameDomainGestureTime[siteIndex] = null;
-        break;
-      case null:
-        break;
-    }
-  }
+  void _applyGestureUpdate(int siteIndex, GestureStateUpdate? update) =>
+      _lastSameDomainGestureTime[siteIndex] = update.applyTo(
+          _lastSameDomainGestureTime[siteIndex], DateTime.now());
 
   void clearLaunchUrlCalls() {
     launchUrlCalls.clear();

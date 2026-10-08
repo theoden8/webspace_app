@@ -47,17 +47,14 @@ order location, camera, microphone, screen sharing, notifications, protected
 content, background audio. That is every grant the site settings'
 Permissions row counts as held, in the row's order, plus background audio:
 a user who sees a grant listed in the row finds the same grant badged in the
-drawer.
+drawer. Both are built by `heldBadges(HeldGrants)`, the row passing a subset
+of what the drawer does, so the row cannot list a grant the drawer lacks.
 
 | Badge | Condition |
 |---|---|
 | `realLocation` | `locationMode == LocationMode.live` |
 | `spoofLocation` | `locationMode == LocationMode.spoof` |
-| `realCamera` | `effectiveCameraMode == CameraAccessMode.real` |
-| `virtualCamera` | `effectiveCameraMode == CameraAccessMode.virtual` |
-| `realMicrophone` | `effectiveMicrophoneMode == MicrophoneAccessMode.real` |
-| `virtualMicrophone` | `effectiveMicrophoneMode == MicrophoneAccessMode.virtual` |
-| `virtualScreenShare` | `effectiveScreenShareMode == ScreenShareMode.virtual` |
+| `CaptureBadge(kind, mode)` | for each `CaptureKind`, its mode in `effectiveCaptures` is `real` (camera, microphone) or `virtual` |
 | `notifications` | `effectiveNotificationsEnabled` |
 | `protectedContent` | `effectiveProtectedContentAllowed == true`, on an Android host |
 | `backgroundAudio` | `effectiveBackgroundAudioEnabled` |
@@ -72,9 +69,9 @@ is badged only on Android, the only host that consults the setting, matching
 the Permissions row, which shows it only there. Notifications carry no engine
 gate: the polyfill answers `granted` whenever the flag is on.
 
-`realMicrophone` SHALL be treated as real device access by the badge's
-`_isRealDeviceAccess`, so it renders in the theme's error colour alongside
-`realLocation` and `realCamera`. This badge is not decoration: MIC-014 lists
+A capture badge at a `real` mode, the microphone's included, SHALL be treated
+as real device access by the badge's `isRealDeviceAccess`, so it renders in
+the theme's error colour alongside `realLocation`. This badge is not decoration: MIC-014 lists
 visibility as one of the clauses that make holding the recording capability
 defensible, and the drawer is the only surface that shows a grant the user
 settled months ago without their opening the site's settings.
@@ -122,13 +119,20 @@ grant on any platform.
 **Then** no badge is drawn, because the effective values are `block` / `block` / `block` / off / `false` / off
 **And** the stored modes are unchanged for when the site leaves the archive
 
+#### Scenario: The Permissions row and screen agree with the badges
+
+**Given** the same archive-tier site
+**When** its settings open
+**Then** the Permissions row lists none of those grants
+**And** on the Permissions screen each of those capabilities reads Blocked, dimmed and locked, saying the archive fixes it
+
 ### Requirement: PERMBADGE-002 — Real Device Access Reads Differently From Simulated
 
 A badge for a grant that hands the site a real device or capability
-(`realLocation`, `realCamera`, `realMicrophone`, `notifications`,
+(`realLocation`, a capture badge at `real`, `notifications`,
 `protectedContent`) SHALL render with the filled glyph in
 `ColorScheme.error`, as the Permissions row draws the same grants; a badge for a grant the app satisfies synthetically
-(`spoofLocation`, `virtualCamera`, `virtualMicrophone`) and the
+(`spoofLocation`, a capture badge at `virtual`) and the
 background-audio badge SHALL render with an outlined glyph in
 `ColorScheme.onSurfaceVariant`. No two badges SHALL share a glyph.
 
@@ -159,8 +163,8 @@ with them.
 
 ### Requirement: PERMBADGE-004 — Both Drawer Tile Paths Show Badges
 
-The drawer renders site tiles through one shared content builder
-(`_buildSiteGridTileContent` in [lib/main.dart](../../../lib/main.dart)),
+The drawer renders site tiles through one shared content widget
+(`_SiteGridTileContent` in [lib/widgets/site_grid_tile.dart](../../../lib/widgets/site_grid_tile.dart)),
 used by both the reorderable (drag-enabled) and static tile paths, so a
 grant is equally visible whichever path is active and in either tile
 layout (narrow icon-over-name, wide icon-beside-name). In the narrow

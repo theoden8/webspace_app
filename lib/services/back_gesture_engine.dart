@@ -16,7 +16,6 @@ enum BackGestureAction {
   /// `canGoBack()` under-reports `pushState` entries (NAV-002, iOS/macOS).
   attemptGoBack,
 
-  /// Close the open drawer.
   closeDrawer,
 
   /// Close the open drawer and leave the app (NAV-009).

@@ -3,15 +3,17 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/site_list_state.dart';
+
 /// In-memory model of the native Profile API with **per-profile cookie
 /// storage**, so the central spec claim — sites in different profiles do
 /// not see each other's cookies — can actually be asserted, not just
 /// assumed. Every cookie write goes through a [SimWebView] that is
-/// scoped to a profile via [bindContainerToWebView]; reads from the wrong
-/// profile see nothing.
+/// scoped to its site's profile from construction (CONT-005); reads from
+/// the wrong profile see nothing.
 ///
 /// Mirrors the [MockCookieManager] pattern in
-/// [test/cookie_isolation_integration_test.dart] — modeling the engine's
+/// [test/helpers/mock_cookie_manager.dart] — modeling the engine's
 /// actual contract end-to-end, not stubbing it.
 class MockContainerNative implements ContainerNative {
   bool supported;
@@ -26,16 +28,8 @@ class MockContainerNative implements ContainerNative {
   /// leaks fail the assertion that the owning site's cookie is intact.
   final Map<String, Map<String, String>> cookiesByContainer = {};
 
-  /// Records every native call so tests can assert sequencing (the
-  /// create-then-bind ordering matters; setProfile throws if the profile
-  /// doesn't exist yet).
+  /// Records every native call so tests can assert which ones ran.
   final List<String> calls = [];
-
-  /// When non-null, [bindContainerToWebView] returns this instead of the
-  /// real bound count. Tests use it to model the CONT-005 race where the
-  /// native side caught `IllegalStateException` and the bind silently
-  /// failed.
-  int? overrideBindCount;
 
   MockContainerNative({this.supported = true});
 
@@ -57,17 +51,6 @@ class MockContainerNative implements ContainerNative {
     return name;
   }
 
-  @override
-  Future<int> bindContainerToWebView(String siteId) async {
-    calls.add('bindContainerToWebView($siteId)');
-    if (!containers.containsKey(siteId)) {
-      throw StateError(
-        'bind called before getOrCreateContainer($siteId) — '
-        'production engine must always create-then-bind',
-      );
-    }
-    return overrideBindCount ?? 1;
-  }
 
   @override
   Future<bool> deleteContainer(String siteId) async {
@@ -137,14 +120,16 @@ class SimWebView {
 /// bind. Delegates the real work to [ContainerIsolationEngine] so tests
 /// exercise production code rather than a parallel implementation —
 /// same DRY rule as [CookieIsolationTestHarness].
-class ContainerIsolationTestHarness {
+class ContainerIsolationTestHarness with SiteListState {
   final MockContainerNative native = MockContainerNative();
   late final ContainerIsolationEngine engine =
       ContainerIsolationEngine(containerNative: native);
-  final List<WebViewModel> sites = [];
-  final Set<int> loadedIndices = {};
-  final Map<int, SimWebView> webViews = {};
-  int? currentIndex;
+  final Map<String, SimWebView> _webViewsBySiteId = {};
+
+  Map<int, SimWebView> get webViews => {
+        for (var i = 0; i < sites.length; i++)
+          i: ?_webViewsBySiteId[sites[i].siteId],
+      };
 
   void addSite(String url, {String? name}) {
     sites.add(WebViewModel(initUrl: url, name: name));
@@ -156,8 +141,8 @@ class ContainerIsolationTestHarness {
   ///      anyone (CONT-003).
   ///   2. Ensure the profile exists in `ProfileStore`.
   ///   3. Mark the index loaded.
-  ///   4. Simulate `flutter_inappwebview` constructing the WebView and
-  ///      `onWebViewCreated` triggering `bindForSite`.
+  ///   4. Simulate `flutter_inappwebview` constructing the WebView with
+  ///      `containerId` set, which binds it to the profile (CONT-005).
   Future<void> switchToSite(int index) async {
     if (index < 0 || index >= sites.length) return;
 
@@ -170,8 +155,8 @@ class ContainerIsolationTestHarness {
     // Construct the simulated webview the first time the site is
     // visited; reuse on later activations (the lazy-load behavior in
     // _WebSpacePageState).
-    webViews.putIfAbsent(index, () => SimWebView(target.siteId, native));
-    await engine.bindForSite(target.siteId);
+    _webViewsBySiteId.putIfAbsent(
+        target.siteId, () => SimWebView(target.siteId, native));
   }
 
   /// Mirrors `_deleteSite` for the profile-mode branch: drop the
@@ -179,29 +164,9 @@ class ContainerIsolationTestHarness {
   /// blob owned by the site), shift indices.
   Future<void> deleteSite(int index) async {
     final deleted = sites[index];
-    webViews.remove(index);
+    _webViewsBySiteId.remove(deleted.siteId);
     await engine.onSiteDeleted(deleted.siteId);
-
-    sites.removeAt(index);
-    loadedIndices.remove(index);
-    loadedIndices.removeWhere((i) => i >= sites.length);
-    final shifted = loadedIndices.map((i) => i > index ? i - 1 : i).toSet();
-    loadedIndices
-      ..clear()
-      ..addAll(shifted);
-    final shiftedWebViews = <int, SimWebView>{};
-    webViews.forEach((i, sim) {
-      shiftedWebViews[i > index ? i - 1 : i] = sim;
-    });
-    webViews
-      ..clear()
-      ..addAll(shiftedWebViews);
-
-    if (currentIndex == index) {
-      currentIndex = null;
-    } else if (currentIndex != null && currentIndex! > index) {
-      currentIndex = currentIndex! - 1;
-    }
+    removeSiteAt(index);
   }
 
   /// Mirrors the startup GC in `_restoreAppState`: sweep profiles that
@@ -216,25 +181,14 @@ class ContainerIsolationTestHarness {
 
 void main() {
   group('CONT-002 — Profile lifecycle', () {
-    test('first activation creates the profile and binds the webview', () async {
+    test('first activation creates the profile', () async {
       final h = ContainerIsolationTestHarness();
       h.addSite('https://github.com/personal');
 
       await h.switchToSite(0);
 
       expect(h.native.containers.values, contains('ws-${h.sites[0].siteId}'));
-      // create-then-bind ordering — required by WebViewCompat.setProfile
-      // (binding before the profile exists throws on the native side).
-      final keyCalls = h.native.calls
-          .where((c) =>
-              c.startsWith('getOrCreateContainer') ||
-              c.startsWith('bindContainerToWebView'))
-          .toList();
-      expect(keyCalls.first, startsWith('getOrCreateContainer'));
-      expect(
-        keyCalls.indexWhere((c) => c.startsWith('bindContainerToWebView')),
-        greaterThan(keyCalls.indexWhere((c) => c.startsWith('getOrCreateContainer'))),
-      );
+      expect(h.native.calls, contains('getOrCreateContainer(${h.sites[0].siteId})'));
     });
 
     test('re-activation reuses the same profile (idempotent)', () async {
@@ -389,6 +343,23 @@ void main() {
       expect(h.native.cookiesByContainer['ws-$bSiteId'], {'session': 'bob'});
     });
 
+    test('a loaded site after the deleted one stays loaded at its new index',
+        () async {
+      final h = ContainerIsolationTestHarness();
+      h.addSite('https://github.com/personal');
+      h.addSite('https://github.com/work');
+      h.addSite('https://example.com');
+      await h.switchToSite(0);
+      await h.switchToSite(2);
+      await h.webViews[2]!.setCookie('session', 'carol');
+
+      await h.deleteSite(0);
+
+      expect(h.loadedIndices, {1});
+      expect(h.currentIndex, 1);
+      expect(await h.webViews[1]!.getCookie('session'), 'carol');
+    });
+
     test('re-adding a deleted site starts with an empty profile', () async {
       final h = ContainerIsolationTestHarness();
       h.addSite('https://linkedin.com');
@@ -460,43 +431,6 @@ void main() {
       expect(deleted, 2);
       expect(h.native.containers, isEmpty);
       expect(h.native.cookiesByContainer, isEmpty);
-    });
-  });
-
-  group('CONT-005 — Bind race tolerance', () {
-    test('a 0-bind result (native caught IllegalStateException) does not '
-        'derail subsequent activations', () async {
-      final h = ContainerIsolationTestHarness();
-      h.addSite('https://github.com');
-      // Simulate the production race: native catches
-      // IllegalStateException and returns 0 — the WebView fell back to
-      // the default profile for this session. The engine MUST NOT throw
-      // and MUST NOT mark this fatal.
-      h.native.overrideBindCount = 0;
-
-      await h.switchToSite(0);
-      // Engine completed; site is loaded; profile exists. The lost-bind
-      // case is observable but not a hard failure — same UX cost as
-      // capture-nuke-restore's worst case.
-      expect(h.loadedIndices, contains(0));
-      expect(h.native.containers[h.sites[0].siteId], isNotNull);
-    });
-
-    test('subsequent webviews for the same site can succeed even after a '
-        'lost bind', () async {
-      final h = ContainerIsolationTestHarness();
-      h.addSite('https://github.com');
-
-      h.native.overrideBindCount = 0;
-      await h.switchToSite(0);
-
-      // The page reloads (e.g. user pulls to refresh); the next
-      // construction wins the race and binds successfully.
-      h.native.overrideBindCount = 1;
-      await h.engine.bindForSite(h.sites[0].siteId);
-
-      // Profile still single-instance; no duplicate entries.
-      expect(h.native.containers.length, 1);
     });
   });
 

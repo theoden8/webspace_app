@@ -1,11 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/widgets/dev_tools_parts.dart';
 import 'package:webspace/widgets/log_entry_line.dart';
 
 /// DEVTOOLS-011: the Background tab of Developer Tools. Shows what the
@@ -31,7 +32,7 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
   List<LogEntry> _entries = const [];
   List<MapEntry<String, String>> _state = const [];
   bool _loaded = false;
-  bool _isCopying = false;
+  final _copyGuard = ReentryGuard();
   Timer? _reloadDebounce;
   int _loadGeneration = 0;
 
@@ -68,7 +69,6 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
 
   List<LogEntry> get _visible {
     final q = widget.searchQuery.toLowerCase();
-    if (q.isEmpty) return _entries;
     return _entries
         .where(
           (e) =>
@@ -78,57 +78,18 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
         .toList();
   }
 
-  /// Sensitive entries reach the clipboard only through this confirmation:
-  /// the switch is consent to show them, not to hand them to clipboard
-  /// history or a cloud clipboard.
-  Future<void> _copy(List<LogEntry> visible) async {
-    if (_isCopying) return;
-    final loc = AppLocalizations.of(context);
-    final messenger = ScaffoldMessenger.of(context);
-    final sensitive = visible
-        .where((e) => e.sensitivity == LogSensitivity.sensitive)
-        .length;
-    var includeSensitive = false;
-    _isCopying = true;
-    try {
-      if (sensitive > 0) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(loc.devToolsLogsCopySensitiveTitle),
-            content: Text(loc.devToolsBackgroundCopySensitiveBody(sensitive)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: Text(loc.commonCancel),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: Text(loc.devToolsCopy),
-              ),
-            ],
-          ),
-        );
-        if (confirmed != true || !mounted) return;
-        includeSensitive = true;
-      }
-      await Clipboard.setData(
-        ClipboardData(
-          text: BackgroundLog.format(
-            visible,
-            includeSensitive: includeSensitive,
-            state: _state,
-          ),
-        ),
-      );
-      if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(content: Text(loc.devToolsLogsCopied(visible.length))),
-      );
-    } finally {
-      _isCopying = false;
-    }
-  }
+  Future<void> _copy(List<LogEntry> visible) => _copyGuard.run(
+    () => copyLogs(
+      context,
+      visible,
+      consent: AppLocalizations.of(context).devToolsBackgroundCopySensitiveBody,
+      format: (includeSensitive) => BackgroundLog.format(
+        visible,
+        includeSensitive: includeSensitive,
+        state: _state,
+      ),
+    ),
+  );
 
   Future<void> _export() async {
     final entries = await _log.entries(includeSensitive: false);
@@ -163,64 +124,40 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8.0,
-                      vertical: 4.0,
+                  ToolActions(wrap: true, [
+                    toolButton(
+                      Icons.refresh,
+                      loc.devToolsRefresh,
+                      () => _load(withState: true),
+                      key: const Key('background-log-refresh'),
                     ),
-                    child: Wrap(
-                      spacing: 4,
-                      children: [
-                        TextButton.icon(
-                          key: const Key('background-log-refresh'),
-                          onPressed: () => _load(withState: true),
-                          icon: const Icon(Icons.refresh, size: 18),
-                          label: Text(loc.devToolsRefresh),
-                        ),
-                        TextButton.icon(
-                          onPressed: _entries.isEmpty ? null : _export,
-                          icon: const Icon(Icons.save, size: 18),
-                          label: Text(loc.devToolsExport),
-                        ),
-                        TextButton.icon(
-                          key: const Key('background-log-copy'),
-                          onPressed: visible.isEmpty
-                              ? null
-                              : () => _copy(visible),
-                          icon: const Icon(Icons.copy, size: 18),
-                          label: Text(loc.devToolsCopy),
-                        ),
-                        TextButton.icon(
-                          onPressed: _entries.isEmpty ? null : _clear,
-                          icon: const Icon(Icons.delete_outline, size: 18),
-                          label: Text(loc.devToolsClear),
-                        ),
-                      ],
+                    toolButton(
+                      Icons.save,
+                      loc.devToolsExport,
+                      _entries.isEmpty ? null : _export,
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                    child: Row(
-                      children: [
-                        Switch(
-                          key: const Key('background-log-sensitive'),
-                          value: _showSensitive,
-                          onChanged: (v) {
-                            setState(() => _showSensitive = v);
-                            unawaited(_load());
-                          },
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            _showSensitive
-                                ? loc.devToolsBackgroundSensitiveShowing
-                                : loc.devToolsBackgroundSensitiveShow,
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                      ],
+                    toolButton(
+                      Icons.copy,
+                      loc.devToolsCopy,
+                      visible.isEmpty ? null : () => _copy(visible),
+                      key: const Key('background-log-copy'),
                     ),
+                    toolButton(
+                      Icons.delete_outline,
+                      loc.devToolsClear,
+                      _entries.isEmpty ? null : _clear,
+                    ),
+                  ]),
+                  SensitiveSwitch(
+                    switchKey: const Key('background-log-sensitive'),
+                    value: _showSensitive,
+                    onChanged: (v) {
+                      setState(() => _showSensitive = v);
+                      unawaited(_load());
+                    },
+                    label: _showSensitive
+                        ? loc.devToolsBackgroundSensitiveShowing
+                        : loc.devToolsBackgroundSensitiveShow,
                   ),
                   if (_state.isNotEmpty)
                     ExpansionTile(
@@ -239,26 +176,14 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
           Expanded(
             child: !_loaded
                 ? const Center(child: CircularProgressIndicator())
-                : visible.isEmpty
-                ? Center(
-                    child: Text(
-                      widget.searchQuery.isEmpty
-                          ? loc.devToolsBackgroundEmpty
-                          : loc.devToolsNoMatches,
+                : LogLines(
+                    lines: visible,
+                    searching: widget.searchQuery.isNotEmpty,
+                    empty: loc.devToolsBackgroundEmpty,
+                    line: (entry) => LogEntryLine(
+                      entry: entry,
+                      time: BackgroundLog.formatShortTimestamp(entry.timestamp),
                     ),
-                  )
-                : ListView.builder(
-                    reverse: widget.searchQuery.isEmpty,
-                    itemCount: visible.length,
-                    itemBuilder: (context, index) {
-                      final entry = visible[visible.length - 1 - index];
-                      return LogEntryLine(
-                        entry: entry,
-                        time: BackgroundLog.formatShortTimestamp(
-                          entry.timestamp,
-                        ),
-                      );
-                    },
                   ),
           ),
         ],

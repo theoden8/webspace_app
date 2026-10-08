@@ -25,8 +25,10 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'socks5_fixture.dart';
+import 'helpers/ui.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -116,14 +118,10 @@ void main() {
               key: key,
               child: WebViewFactory.createWebView(
                 config: WebViewConfig(
-                  siteId: siteId,
+                  hooks: bareHooks(),
+                  posture: barePosture(url,
+                      siteId: siteId, proxy: proxySettings),
                   initialUrl: url,
-                  proxySettings: proxySettings,
-                  clearUrlEnabled: false,
-                  dnsBlockEnabled: false,
-                  contentBlockEnabled: false,
-                  trackingProtectionEnabled: false,
-                  localCdnEnabled: false,
                 ),
                 onControllerCreated: (c) => controller = c,
               ),
@@ -145,28 +143,7 @@ void main() {
           if (r.endsWith(' ${syntheticOrigin(dest)}$path')) r,
       ];
 
-  /// Wall-clock wait: a live compositing platform view blocks `pump()`.
-  Future<bool> waitReal(
-    WidgetTester tester,
-    bool Function() done, {
-    required String label,
-    Duration timeout = const Duration(seconds: 20),
-  }) async {
-    var ok = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        if (done()) {
-          ok = true;
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      ok = done();
-    });
-    log('$label -> ${ok ? "ok" : "timeout"}');
-    return ok;
-  }
+  final waitReal = RealWait(log: log, timeout: Duration(seconds: 20));
 
   testWidgets('after a proxy change, nothing rides a connection from the old route',
       (tester) async {

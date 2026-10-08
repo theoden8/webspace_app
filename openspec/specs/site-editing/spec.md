@@ -176,11 +176,14 @@ app-bar back, iOS edge swipe) with a confirmation dialog offering "Keep
 editing" and "Discard".
 
 Every form field assigned in `_loadFromModel` MUST be registered in the
-`_currentSnapshot` map, except fields fully derived from an
+screen's `snapshot()` record (the `DirtyGuard` mixin,
+`lib/widgets/dirty_guard.dart`), except fields fully derived from an
 already-registered field. This registration is enforced structurally by
 `test/js/site_settings_dirty_snapshot.test.js` (runs in CI via
 `npm run test:js`); a derived-field exemption lives in that test's
-allowlist with a written justification.
+allowlist with a written justification. Every other screen with a Save
+action (the proxy library editors, the user script editor, the webspace
+editor) MUST guard its edits the same way, through the same mixin.
 
 History: [docs/bugs/006-settings-silent-discard.md](../../../docs/bugs/006-settings-silent-discard.md).
 
@@ -203,7 +206,7 @@ History: [docs/bugs/006-settings-silent-discard.md](../../../docs/bugs/006-setti
 
 **Given** a developer adds a new per-site setting to the settings form,
 loading it in `_loadFromModel`
-**When** the field is not registered in `_currentSnapshot` (and not
+**When** the field is not registered in `snapshot()` (and not
 allowlisted as derived)
 **Then** `test/js/site_settings_dirty_snapshot.test.js` fails CI naming the
 field

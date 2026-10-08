@@ -1,30 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/settings/camera.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/site_permission_state.dart';
 
 void main() {
   group('SitePermissionState projection', () {
-    test('camera covers all four states', () {
-      expect(cameraPermissionState(CameraAccessMode.ask), SitePermissionState.ask);
-      expect(cameraPermissionState(CameraAccessMode.real),
-          SitePermissionState.allowed);
-      expect(cameraPermissionState(CameraAccessMode.virtual),
-          SitePermissionState.simulated);
-      expect(cameraPermissionState(CameraAccessMode.block),
-          SitePermissionState.blocked);
-    });
-
-    test('microphone reports allowed only for real (MIC-002)', () {
-      for (final mode in MicrophoneAccessMode.values) {
-        expect(
-            microphonePermissionState(mode) == SitePermissionState.allowed,
-            mode == MicrophoneAccessMode.real,
-            reason: '$mode');
-      }
-    });
-
     test('location off is blocked, not a pass-through state', () {
       // LOC-OFF-001: `off` refuses. Projecting it to anything softer would put
       // the interface back to describing a pass-through that no longer exists.
@@ -55,20 +34,7 @@ void main() {
       }
     });
 
-    test('every mode of every capability projects to some state', () {
-      // Guards the exhaustiveness the switch expressions give us today: adding
-      // an enum value without deciding its state fails to compile, and this
-      // catches the case where someone adds a default arm instead.
-      expect(CameraAccessMode.values.map(cameraPermissionState).toSet().length,
-          4);
-      expect(
-          MicrophoneAccessMode.values.map(microphonePermissionState).toSet(),
-          {
-            SitePermissionState.ask,
-            SitePermissionState.allowed,
-            SitePermissionState.simulated,
-            SitePermissionState.blocked,
-          });
+    test('location projects each mode to its own state', () {
       expect(LocationMode.values.map(locationPermissionState).toSet().length, 3);
     });
   });

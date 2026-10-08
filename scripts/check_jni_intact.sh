@@ -85,7 +85,9 @@ CLASS_METHODS="$(printf '%s\n' "$DEX_TREE" \
 
 missing=()
 for m in "${EXPECTED[@]}"; do
-  if ! printf '%s\n' "$CLASS_METHODS" | grep -qE "[[:space:]]${m}\("; then
+  # A here-string, not printf | grep -q: under pipefail, grep -q exiting on its
+  # first match makes printf die on SIGPIPE and the method reads as missing.
+  if ! grep -qE "[[:space:]]${m}\(" <<<"$CLASS_METHODS"; then
     missing+=("$m")
   fi
 done

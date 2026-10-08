@@ -15,16 +15,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
+const source = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const dir = path.join(repoRoot, 'integration_test');
-
-const files = fs
-  .readdirSync(dir)
-  .filter((f) => f.endsWith('_test.dart'))
-  .map((f) => ({ name: f, text: fs.readFileSync(path.join(dir, f), 'utf8') }));
+const files = source.files('integration_test', /_test\.dart$/)
+  .filter((f) => path.dirname(f) === 'integration_test')
+  .map((f) => ({ name: path.basename(f), text: source.read(f) }));
 
 const withFixtures = files.filter((f) =>
   /\b(?:HttpServer|ServerSocket)\.bind\b/.test(f.text),

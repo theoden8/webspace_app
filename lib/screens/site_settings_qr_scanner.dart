@@ -31,9 +31,8 @@ class _SiteSettingsQrScannerScreenState
     if (text == null || text.isEmpty) return;
     final decoded = SiteSettingsQrCodec.decode(text);
     if (decoded == null) {
-      setState(() {
-        _lastError = AppLocalizations.of(context).qrScannerInvalidCode;
-      });
+      setState(
+          () => _lastError = AppLocalizations.of(context).qrScannerInvalidCode);
       return;
     }
     _handled = true;

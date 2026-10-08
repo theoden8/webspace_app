@@ -6,13 +6,13 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:webspace/services/log_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 TorGeoIpStore? createTorGeoIpStore() => IoTorGeoIpStore();
-
-const String _logTag = 'TorGeoIP';
 
 /// [TorGeoIpStore] over `<app cache>/tor_geoip/`.
 ///
@@ -26,7 +26,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
 
   final Directory? _overrideRoot;
   final DateTime Function() _clock;
-  Future<TorGeoIpTable?>? _inFlight;
+  final SingleFlight<(), TorGeoIpTable?> _downloads = SingleFlight();
   var _circuits = 0;
 
   Future<Directory> _directory() async {
@@ -52,45 +52,40 @@ class IoTorGeoIpStore implements TorGeoIpStore {
 
   @override
   Future<TorGeoIpTable?> download(UserProxySettings via) =>
-      _inFlight ??= _download(via).whenComplete(() => _inFlight = null);
+      _downloads.run((), () => _download(via));
 
   Future<TorGeoIpTable?> _download(UserProxySettings via) async {
     for (var pass = 0; pass < kTorGeoIpPasses; pass++) {
       for (final url in kTorGeoIpUrls) {
-        final result = outboundHttp.clientFor(_freshCircuit(via));
-        if (result is OutboundClientBlocked) {
-          LogService.instance.log(_logTag, 'Download blocked: ${result.reason}',
-              level: LogLevel.warning);
-          return null;
+        final http.Client client;
+        switch (outboundHttp.clientFor(_freshCircuit(via))) {
+          case OutboundClientBlocked(:final reason):
+            LogTag.torGeoIp.warning('Download blocked: $reason');
+            return null;
+          case OutboundClientReady(client: final ready):
+            client = ready;
         }
-        final client = (result as OutboundClientReady).client;
-        final host = Uri.parse(url).host;
+        final uri = Uri.parse(url);
+        final host = uri.host;
         try {
-          final response =
-              await client.get(Uri.parse(url)).timeout(kTorGeoIpTimeout);
+          final response = await client.get(uri).timeout(kTorGeoIpTimeout);
           if (response.statusCode != 200) {
-            LogService.instance.log(
-                _logTag, '$host answered HTTP ${response.statusCode}',
-                level: LogLevel.warning);
+            LogTag.torGeoIp.warning(
+                '$host answered HTTP ${response.statusCode}');
             continue;
           }
           final bytes = response.bodyBytes;
           if (!await Isolate.run(() => _isTable(bytes))) {
-            LogService.instance.log(
-                _logTag,
+            LogTag.torGeoIp.warning(
                 '$host answered ${bytes.length} bytes that are not a GeoIP '
-                'table under $kTorGeoIpLicence',
-                level: LogLevel.warning);
+                'table under $kTorGeoIpLicence');
             continue;
           }
           final table = await _keep(bytes);
-          LogService.instance.log(
-              _logTag, 'Fetched ${bytes.length} bytes from $host',
-              level: LogLevel.info);
+          LogTag.torGeoIp.info('Fetched ${bytes.length} bytes from $host');
           return table;
-        } catch (e) {
-          LogService.instance.log(_logTag, '$host failed: $e',
-              level: LogLevel.warning);
+        } on Exception catch (e) {
+          LogTag.torGeoIp.warning('$host failed: $e');
         } finally {
           client.close();
         }
@@ -133,7 +128,9 @@ class IoTorGeoIpStore implements TorGeoIpStore {
       if (entry.path == file.path) continue;
       try {
         await entry.delete();
-      } catch (_) {}
+      } on FileSystemException catch (e) {
+        LogTag.torGeoIp.warning('Could not drop an old table: $e');
+      }
     }
     return TorGeoIpTable(
         file.path, DateTime.fromMillisecondsSinceEpoch(

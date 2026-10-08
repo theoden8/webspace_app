@@ -35,17 +35,17 @@ class UrlBar extends StatefulWidget {
   final FutureOr<void> Function(String query, String? siteId)? onSearch;
 
   const UrlBar({
-    Key? key,
+    super.key,
     required this.currentUrl,
     required this.onUrlSubmitted,
     this.onSiteInfo,
     this.searchSites = const [],
     this.defaultSearchSiteId,
     this.onSearch,
-  }) : super(key: key);
+  });
 
   @override
-  _UrlBarState createState() => _UrlBarState();
+  State<UrlBar> createState() => _UrlBarState();
 }
 
 class _UrlBarState extends State<UrlBar> {
@@ -81,7 +81,6 @@ class _UrlBarState extends State<UrlBar> {
   @override
   void didUpdateWidget(UrlBar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Update the displayed URL when navigating (but not while editing)
     if (!_isEditing && widget.currentUrl != oldWidget.currentUrl) {
       _urlController.text = widget.currentUrl;
     }
@@ -103,13 +102,6 @@ class _UrlBarState extends State<UrlBar> {
     return sites.isEmpty ? null : sites.first.id;
   }
 
-  UrlBarSearchSite? _site(String? id) {
-    for (final s in widget.searchSites) {
-      if (s.id == id) return s;
-    }
-    return null;
-  }
-
   /// What Enter does with the text as typed: search, or open an address.
   bool get _submitSearches {
     if (!_canSearch) return false;
@@ -118,8 +110,10 @@ class _UrlBarState extends State<UrlBar> {
     return text.isNotEmpty && !looksLikeAddress(text);
   }
 
-  UrlBarSearchSite? get _searchSite =>
-      _site(_searchMode ? _searchSiteId : _defaultSiteId);
+  UrlBarSearchSite? get _searchSite {
+    final id = _searchMode ? _searchSiteId : _defaultSiteId;
+    return widget.searchSites.where((s) => s.id == id).firstOrNull;
+  }
 
   void _startSearch() {
     setState(() {
@@ -177,13 +171,10 @@ class _UrlBarState extends State<UrlBar> {
       return;
     }
 
-    // Infer protocol if not specified
     final url = ensureUrlScheme(typed);
 
     _focusNode.unfocus();
-    setState(() {
-      _isEditing = false;
-    });
+    setState(() => _isEditing = false);
     // A submit that does not navigate this webview (a cross-domain URL opens
     // a nested screen) leaves currentUrl unchanged, so didUpdateWidget never
     // fires and the typed text would outlive the nested screen.
@@ -204,6 +195,14 @@ class _UrlBarState extends State<UrlBar> {
     final searchLabel = searchSite == null
         ? loc.webSearchMenu
         : loc.webSearchFieldHint(searchSite.name);
+    Widget button(IconData icon, VoidCallback? onPressed, String tooltip) =>
+        IconButton(
+          icon: Icon(icon, size: IconSizes.action),
+          onPressed: onPressed,
+          padding: EdgeInsets.all(Spacing.xs),
+          constraints: BoxConstraints(),
+          tooltip: tooltip,
+        );
 
     final Widget leading;
     if (!_searchMode) {
@@ -217,30 +216,27 @@ class _UrlBarState extends State<UrlBar> {
             ? SecurityIndicator.secure
             : SecurityIndicator.insecure,
       );
-    } else if (widget.searchSites.length > 1) {
-      leading = Builder(
-        builder: (anchor) => InkWell(
-          onTap: () => _pickSearchSite(anchor),
-          borderRadius: BorderRadius.circular(Radii.md),
-          child: Tooltip(
-            message: loc.urlBarSearchSiteTooltip,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.search,
-                    size: IconSizes.inline,
-                    color: theme.colorScheme.primary),
-                Icon(Icons.arrow_drop_down,
-                    size: IconSizes.inline,
-                    color: theme.colorScheme.primary),
-              ],
-            ),
-          ),
-        ),
-      );
     } else {
-      leading = Icon(Icons.search,
+      Icon glyph(IconData icon) => Icon(icon,
           size: IconSizes.inline, color: theme.colorScheme.primary);
+      leading = widget.searchSites.length <= 1
+          ? glyph(Icons.search)
+          : Builder(
+              builder: (anchor) => InkWell(
+                onTap: () => _pickSearchSite(anchor),
+                borderRadius: BorderRadius.circular(Radii.md),
+                child: Tooltip(
+                  message: loc.urlBarSearchSiteTooltip,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      glyph(Icons.search),
+                      glyph(Icons.arrow_drop_down),
+                    ],
+                  ),
+                ),
+              ),
+            );
     }
 
     return Container(
@@ -264,9 +260,7 @@ class _UrlBarState extends State<UrlBar> {
               focusNode: _focusNode,
               onTap: () {
                 if (_searchMode) return;
-                setState(() {
-                  _isEditing = true;
-                });
+                setState(() => _isEditing = true);
                 _urlController.selection = TextSelection(
                   baseOffset: 0,
                   extentOffset: _urlController.text.length,
@@ -295,31 +289,14 @@ class _UrlBarState extends State<UrlBar> {
             ),
           ),
           if (_isEditing)
-            IconButton(
-              icon: Icon(_submitSearches ? Icons.search : Icons.check,
-                  size: IconSizes.action),
-              onPressed: _handleSubmit,
-              padding: EdgeInsets.all(Spacing.xs),
-              constraints: BoxConstraints(),
-              tooltip: _submitSearches ? searchLabel : loc.urlBarGoTooltip,
-            )
+            _submitSearches
+                ? button(Icons.search, _handleSubmit, searchLabel)
+                : button(Icons.check, _handleSubmit, loc.urlBarGoTooltip)
           else ...[
             if (_canSearch)
-              IconButton(
-                icon: Icon(Icons.search, size: IconSizes.action),
-                onPressed: _startSearch,
-                padding: EdgeInsets.all(Spacing.xs),
-                constraints: BoxConstraints(),
-                tooltip: loc.webSearchMenu,
-              ),
+              button(Icons.search, _startSearch, loc.webSearchMenu),
             if (widget.onSiteInfo != null)
-              IconButton(
-                icon: Icon(Icons.info_outline, size: IconSizes.action),
-                onPressed: widget.onSiteInfo,
-                padding: EdgeInsets.all(Spacing.xs),
-                constraints: BoxConstraints(),
-                tooltip: loc.siteInfoTitle,
-              ),
+              button(Icons.info_outline, widget.onSiteInfo, loc.siteInfoTitle),
           ],
         ],
       ),

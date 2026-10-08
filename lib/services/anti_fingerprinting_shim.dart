@@ -85,9 +85,8 @@ String computeAntiFingerprintingSeed({
   return incognito ? '$base:$launchNonce' : base;
 }
 
-/// Compose the full anti-fingerprinting `UserScript.source` (shim body
-/// plus the trailing `\n;null;` evaluator-return) for the given site
-/// configuration, or `null` if the umbrella is off / no siteId is set.
+/// The anti-fingerprinting shim for the given site configuration, or `null`
+/// if the umbrella is off / no siteId is set.
 ///
 /// Lives alongside [computeAntiFingerprintingSeed] so the entire chain —
 /// gate → seed derivation → shim text — is exercisable from `flutter test`
@@ -107,7 +106,8 @@ String? buildAntiFingerprintingScriptSource({
     launchNonce: launchNonce,
     resetNonce: resetNonce,
   );
-  return '${buildAntiFingerprintingShim(opaqueAntiFingerprintingSeed(seed), letterbox: letterbox)}\n;null;';
+  return buildAntiFingerprintingShim(opaqueAntiFingerprintingSeed(seed),
+      letterbox: letterbox);
 }
 
 /// The seed the page actually sees. [computeAntiFingerprintingSeed] names
@@ -209,9 +209,7 @@ String buildAntiFingerprintingShim(
   var SCREEN_W = 1920;
   var SCREEN_H = 1080;
   var COLOR_DEPTH = 24;
-  // hardwareConcurrency in [4, 8]
   var HW_CONCURRENCY = 4 + (Math.floor(_baseRng() * 5) | 0);
-  // deviceMemory ∈ {4, 8}
   var DEVICE_MEMORY = (_baseRng() < 0.5) ? 4 : 8;
 
   // Correct only what the engine already exposes. Defining a property the

@@ -7,9 +7,9 @@
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/services/tor_engine.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 
 /// Resolve the effective proxy for a per-site outbound call.
 ///
@@ -33,10 +33,12 @@ import 'package:webspace/settings/proxy_library.dart';
 /// DEFAULT that inherits a global TOR gets the app-global tag instead of its
 /// own — inheriting the app's default proxy is not the same request as
 /// opting into per-site isolation, and conflating them would hand every
-/// uncustomized site a circuit of its own (PROXY-011).
+/// uncustomized site a circuit of its own (PROXY-011). Null names no site:
+/// app-global traffic, or settings that already carry their tag
+/// (`WebViewModel.outboundProxySettings`).
 UserProxySettings resolveEffectiveProxy(
   UserProxySettings perSite, {
-  String? siteId,
+  required String? siteId,
 }) {
   if (perSite.type == ProxyType.DEFAULT) {
     final global = resolveLibraryProxy(GlobalOutboundProxy.current);
@@ -77,11 +79,9 @@ UserProxySettings _torTagged(UserProxySettings s, String? siteId) {
 /// Split a `host:port` proxy address, or null if it is not one.
 ///
 /// Splits on the LAST colon so a bracketed IPv6 literal (`[::1]:8080`)
-/// keeps its host. Both per-site proxy mechanisms parse addresses through
-/// here: the native per-WebView binding and the Android router's route
-/// table used to carry separate copies of this, and they disagreed on
-/// IPv6 -- the router routed it while the native path returned null and
-/// blocked the site. Parity is a property of there being one rule.
+/// keeps its host. Both per-site proxy mechanisms, the native per-WebView
+/// binding and the Android router's route table, parse addresses through
+/// here, so they cannot disagree on IPv6.
 ({String host, int port})? splitProxyAddress(String? address) {
   if (address == null || address.isEmpty) return null;
   final separator = address.lastIndexOf(':');

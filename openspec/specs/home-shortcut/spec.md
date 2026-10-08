@@ -205,7 +205,7 @@ Available on iOS 16+ / macOS 13+. On older OS versions the intent type is compil
 
 ### Requirement: HS-009 - Site List Synced to App Group
 
-The system SHALL keep the App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_saveWebViewModels`) and once per launch after `_restoreAppState` finishes loading models, the system SHALL write the current `[{id, name}]` list to the shared App Group `UserDefaults` (suite `group.org.codeberg.theoden8.webspace` on iOS; the team-prefixed `<TEAMID>.group.org.codeberg.theoden8.webspace` on sandboxed macOS) under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
+The system SHALL keep the App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_persistSites`) and once per launch after `_restoreAppState` finishes loading models, the system SHALL write the current `[{id, name}]` list to the shared App Group `UserDefaults` (suite `group.org.codeberg.theoden8.webspace` on iOS; the team-prefixed `<TEAMID>.group.org.codeberg.theoden8.webspace` on sandboxed macOS) under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
 
 #### Scenario: Site added
 
@@ -552,7 +552,7 @@ Both Android and iOS share the channel `MethodChannel('org.codeberg.theoden8.web
 
 Methods:
 - `pinShortcut({siteId, label, iconUrl})` — **Android**: requests a pinned shortcut via `ShortcutManagerCompat.requestPinShortcut()`. **macOS 13+**: opens `shortcuts://` (the Dart UI shows the HS-010 instructional dialog first). **iOS**: retained fallback that opens `shortcuts://`; the HS-010 dialog no longer calls it — its embedded `ShortcutsUIButton` opens WebSpace's App Shortcuts page directly.
-- `removeShortcut(siteId)` — Android: removes any dynamic shortcut copy but leaves the pinned launcher tile ENABLED, so an HS-011 tap on the now-orphaned shortcut still launches the app and re-routes via the ledger. (It MUST NOT call `disableShortcuts`, which makes the launcher reject the tap with "shortcut isn't available".) iOS: no-op (the App Intents site list is recomputed from `_webViewModels` on every save via HS-009).
+- `removeShortcut(siteId)` — Android: removes any dynamic shortcut copy but leaves the pinned launcher tile ENABLED, so an HS-011 tap on the now-orphaned shortcut still launches the app and re-routes via the ledger. (It MUST NOT call `disableShortcuts`, which makes the launcher reject the tap with "shortcut isn't available".) iOS: no-op (the App Intents site list is recomputed from `_sites.models` on every save via HS-009).
 - `getLaunchSiteId()` — **Android**: returns the bare `siteId` string from the launch intent extra, then drains it (`intent.removeExtra("siteId")`) so it fires once per tap. **iOS**: drains `pending_shortcut_site_id` + `pending_shortcut_url` from App Group UserDefaults (written by `OpenSiteIntent.perform()`) and returns a `{siteId, url}` map. Both platforms MUST consume-on-read: `_handleShortcutIntent` re-polls on every `AppLifecycleState.resumed`, so a non-draining read would re-navigate to the pinned site on a plain background/return with no new tap. The Dart `ShortcutService.getLaunch()` tolerates both shapes (`ShortcutLaunch`); for HS-011 the caller uses `launch.url ?? shortcutUrlLedger[siteId]` (iOS carries the url, Android supplies it from the ledger).
 - `getPinnedSiteIds()` — Android: returns the set of `siteId`s currently pinned, derived from `ShortcutManagerCompat.getShortcuts(FLAG_MATCH_PINNED)` by stripping the `site_` prefix. iOS: always returns an empty list (no public API for pin-state introspection).
 - `disableShortcut(siteId)` — **Android only** (HS-013): `ShortcutManagerCompat.disableShortcuts` greys out a pinned tile when the user opts to kill a deleted site's shortcut. No-op elsewhere.
@@ -561,14 +561,15 @@ Methods:
 
 ### iOS App Intents
 
-`ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, *)`):
+`ios/Runner/WebSpaceAppIntents.swift` defines (all `@available(iOS 16, macOS 13, *)`;
+the macOS project compiles the same file):
 
 - `SiteEntity: AppEntity` — one synced site with `id: String` (siteId), `name: String`, and `url: String?` (so a tombstone-resolved deleted site can route by domain, HS-011/HS-014). `displayRepresentation` MUST use `DisplayRepresentation(title: LocalizedStringResource("%@", defaultValue: String.LocalizationValue(name)))`. The static `"%@"` key is stable for the compile-time App Intents metadata extractor while the runtime `defaultValue` still resolves to each site's name. Two earlier forms both collapse the materialized parameterized App Shortcuts (one per entity) down to a single visible entry in Shortcuts.app: `DisplayRepresentation(title: "\(name)")` (interpolation renders the literal `%@`), and `DisplayRepresentation(stringLiteral: name)` (resolves in the live picker but not in the materialized tiles, since a runtime string can't be a compile-time title key — the surviving tile also keeps a stale bound target).
 - `SiteEntityQuery: EntityQuery` — `suggestedEntities()` returns `shortcut_sites` (live only) so the picker / materialized App Shortcuts stay clean; `entities(for:)` resolves **every** requested id from `shortcut_sites` ∪ `shortcut_tombstones`, falling back to a placeholder `SiteEntity` for any unknown id so a tile never reads "no longer available" (HS-014).
 - `OpenSiteIntent: AppIntent, OpenIntent` — parameterized on `SiteEntity`. `openAppWhenRun = true` foregrounds WebSpace; `perform()` writes the chosen siteId to `pending_shortcut_site_id` and its url to `pending_shortcut_url` in App Group UserDefaults.
 - `WebSpaceShortcuts: AppShortcutsProvider` — declares the discoverable "Open Site" App Shortcut with phrase template `"Open \(\.$target) in WebSpace"`.
 
-The Swift method-channel handler lives in `ios/Runner/ShortcutsPlugin.swift` and is registered alongside the other plugins in `AppDelegate.application(_:didFinishLaunchingWithOptions:)`.
+The Swift method-channel handler lives in `ios/Runner/ShortcutsPlugin.swift`, also compiled by the macOS project, and is registered alongside the other plugins in each `AppDelegate`. The App Group id (team-prefixed on macOS) and the keys above are declared once, in `ios/Runner/AppGroup.swift`.
 
 ### Shortcut Intent
 
@@ -604,8 +605,7 @@ On app start and on `onNewIntent` (app already running), read the launch
    HS-012); dangling rebind targets are pruned at startup and the ledger
    is reconciled to the pinned set.
 
-`resolveLaunchTarget` is retained as the siteId-only view (direct hit or
-null). Both rules are exercised headlessly in
+The rule is exercised headlessly in
 [test/startup_restore_engine_test.dart](../../../test/startup_restore_engine_test.dart);
 no widget tree required.
 
@@ -613,7 +613,7 @@ no widget tree required.
 
 #### New
 - `lib/services/shortcut_service.dart` — Flutter wrapper around the platform channel (Android pin + iOS sync/launch)
-- `lib/services/startup_restore_engine.dart` — `resolveLaunchTarget` shortcut→index resolution
+- `lib/services/startup_restore_engine.dart` — `resolveLaunch` shortcut→site resolution (HS-011)
 - `ios/Runner/WebSpaceAppIntents.swift` — `SiteEntity`, `SiteEntityQuery`, `OpenSiteIntent`, `WebSpaceShortcuts` (iOS 16+)
 - `ios/Runner/ShortcutsPlugin.swift` — iOS method-channel handler + `ShortcutsLinkViewFactory`/`ShortcutsLinkNativeView` platform view hosting the HS-010 `ShortcutsUIButton`
 - `test/startup_restore_engine_test.dart` — unit tests for the resolution rule

@@ -8,8 +8,11 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/dataset_tile.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// The app-wide filter lists every site's content blocker draws on: which are
 /// on, adding and importing lists, and how `$redirect` rules are served.
@@ -33,110 +36,74 @@ class _ContentBlockerSettingsScreenState
   String? _downloadingListId;
 
   Future<void> _downloadContentList(String id) async {
-    setState(() {
-      _downloadingListId = id;
-    });
-
+    setState(() => _downloadingListId = id);
     final success = await ContentBlockerService.instance.downloadList(id);
-
-    if (mounted) {
-      setState(() {
-        _downloadingListId = null;
-      });
-
-      final loc = AppLocalizations.of(context);
-      if (success) {
-        final list = ContentBlockerService.instance.lists
-            .firstWhere((l) => l.id == id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              content: Text(loc.appSettingsFilterListRules(
-                  list.name, formatSettingsCount(list.ruleCount)))),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.appSettingsFilterListDownloadFailed)),
-        );
-      }
+    if (!mounted) return;
+    setState(() => _downloadingListId = null);
+    final loc = AppLocalizations.of(context);
+    if (!success) {
+      ScaffoldMessenger.of(context).toast(loc.appSettingsFilterListDownloadFailed);
+      return;
     }
+    final list =
+        ContentBlockerService.instance.lists.firstWhere((l) => l.id == id);
+    ScaffoldMessenger.of(context).toast(
+        loc.appSettingsFilterListRules(list.name, compactCount(list.ruleCount)));
   }
 
   Future<void> _downloadAllContentLists() async {
-    setState(() {
-      _downloadingListId = '__all__';
-    });
-
+    setState(() => _downloadingListId = '__all__');
     final count = await ContentBlockerService.instance.downloadAllLists();
+    if (!mounted) return;
+    setState(() => _downloadingListId = null);
+    ScaffoldMessenger.of(context)
+        .toast(AppLocalizations.of(context).appSettingsFilterListsUpdated(count));
+  }
 
-    if (mounted) {
-      setState(() {
-        _downloadingListId = null;
-      });
+  /// Runs a change to the lists, then shows what it left.
+  Future<void> _refreshAfter(Future<void> change) async {
+    await change;
+    if (mounted) setState(() {});
+  }
 
-      final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsFilterListsUpdated(count))),
+  /// The name field both list dialogs open with.
+  Widget _nameField(AppLocalizations loc, TextEditingController controller) =>
+      TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: loc.appSettingsCustomListNameLabel,
+          hintText: loc.appSettingsCustomListNameHint,
+        ),
       );
-    }
-  }
-
-  Future<void> _toggleContentList(String id, bool enabled) async {
-    await ContentBlockerService.instance.toggleList(id, enabled);
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _removeContentList(String id) async {
-    await ContentBlockerService.instance.removeList(id);
-    if (mounted) setState(() {});
-  }
 
   Future<void> _showAddCustomListDialog() async {
     final nameController = TextEditingController();
     final urlController = TextEditingController();
-
     final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.appSettingsAddCustomListTitle),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: loc.appSettingsCustomListNameLabel,
-                hintText: loc.appSettingsCustomListNameHint,
-              ),
+    const urlHint = 'https://example.com/filters.txt';
+    final result = await confirm(
+      context,
+      title: loc.appSettingsAddCustomListTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _nameField(loc, nameController),
+          const SizedBox(height: 8),
+          TextField(
+            controller: urlController,
+            decoration: InputDecoration(
+              labelText: loc.appSettingsCustomListUrlLabel,
+              hintText: urlHint,
             ),
-            const SizedBox(height: 8),
-            Builder(builder: (context) {
-              const urlHint = 'https://example.com/filters.txt';
-              return TextField(
-                controller: urlController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsCustomListUrlLabel,
-                  hintText: urlHint,
-                ),
-                keyboardType: TextInputType.url,
-              );
-            }),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.commonAdd),
+            keyboardType: TextInputType.url,
           ),
         ],
       ),
+      confirmLabel: loc.commonAdd,
+      destructive: false,
     );
 
-    if (result == true &&
+    if (result &&
         nameController.text.isNotEmpty &&
         urlController.text.isNotEmpty) {
       final id = await ContentBlockerService.instance
@@ -151,71 +118,50 @@ class _ContentBlockerSettingsScreenState
   Future<void> _showLocalListDialog({FilterList? existing}) async {
     final nameController = TextEditingController(text: existing?.name);
     final rulesController = TextEditingController(text: existing?.rules);
-
     final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(existing == null
-            ? loc.appSettingsAddLocalListTitle
-            : loc.appSettingsEditLocalListTitle),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsCustomListNameLabel,
-                  hintText: loc.appSettingsCustomListNameHint,
-                ),
+    final result = await confirm(
+      context,
+      title: existing == null
+          ? loc.appSettingsAddLocalListTitle
+          : loc.appSettingsEditLocalListTitle,
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _nameField(loc, nameController),
+            const SizedBox(height: 8),
+            TextField(
+              controller: rulesController,
+              decoration: InputDecoration(
+                labelText: loc.appSettingsLocalListRulesLabel,
+                hintText: loc.appSettingsLocalListRulesHint,
+                alignLabelWithHint: true,
+                border: const OutlineInputBorder(),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: rulesController,
-                decoration: InputDecoration(
-                  labelText: loc.appSettingsLocalListRulesLabel,
-                  hintText: loc.appSettingsLocalListRulesHint,
-                  alignLabelWithHint: true,
-                  border: const OutlineInputBorder(),
-                ),
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-                keyboardType: TextInputType.multiline,
-                autocorrect: false,
-                enableSuggestions: false,
-                minLines: 6,
-                maxLines: 14,
-              ),
-            ],
-          ),
+              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+              keyboardType: TextInputType.multiline,
+              autocorrect: false,
+              enableSuggestions: false,
+              minLines: 6,
+              maxLines: 14,
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(existing == null ? loc.commonAdd : loc.commonSave),
-          ),
-        ],
       ),
+      confirmLabel: existing == null ? loc.commonAdd : loc.commonSave,
+      destructive: false,
     );
 
     final name = nameController.text.trim();
     final rules = rulesController.text;
     nameController.dispose();
     rulesController.dispose();
-    if (result != true || name.isEmpty) return;
-
-    if (existing == null) {
-      await ContentBlockerService.instance.addLocalList(name, rules);
-    } else {
-      await ContentBlockerService.instance
-          .updateLocalList(existing.id, name, rules);
-    }
-    if (mounted) setState(() {});
+    if (!result || name.isEmpty) return;
+    final service = ContentBlockerService.instance;
+    await _refreshAfter(existing == null
+        ? service.addLocalList(name, rules)
+        : service.updateLocalList(existing.id, name, rules));
   }
 
   Future<void> _importUboBackup() async {
@@ -232,13 +178,11 @@ class _ContentBlockerSettingsScreenState
         text = await hostReadFileText(file.path!);
       }
     } catch (e) {
-      LogService.instance.log('ContentBlocker', 'uBO backup read failed: $e',
-          level: LogLevel.warning);
+      LogTag.contentBlocker.warning('uBO backup read failed: $e');
     }
     final backup = text == null ? null : UboBackup.parse(text);
     if (backup == null) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(loc.appSettingsUboNotABackup)));
+      messenger.toast(loc.appSettingsUboNotABackup);
       return;
     }
     if (!mounted) return;
@@ -255,8 +199,7 @@ class _ContentBlockerSettingsScreenState
     setState(() => _downloadingListId = null);
 
     if (plan.isEmpty) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(loc.appSettingsUboImportNothing)));
+      messenger.toast(loc.appSettingsUboImportNothing);
       return;
     }
 
@@ -283,49 +226,38 @@ class _ContentBlockerSettingsScreenState
         loc.appSettingsUboImportDroppedRules(plan.droppedRuleCount),
     ];
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.appSettingsUboImportTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (listCount > 0) Text(loc.appSettingsUboImportLists(listCount)),
-              if (plan.userFilters != null) ...[
-                const SizedBox(height: 8),
-                Text(loc.appSettingsUboImportUserFilters(userRuleCount)),
-              ],
-              if (sites.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(loc.appSettingsUboImportTrustedSites(siteNames)),
-              ],
-              if (skipped.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Text(loc.appSettingsUboImportSkippedHeader,
-                    style: Theme.of(context).textTheme.titleSmall),
-                for (final line in skipped) ...[
-                  const SizedBox(height: 4),
-                  Text(line, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ],
+    final theme = Theme.of(context).textTheme;
+    final confirmed = await confirm(
+      context,
+      title: loc.appSettingsUboImportTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (listCount > 0) Text(loc.appSettingsUboImportLists(listCount)),
+          if (plan.userFilters != null) ...[
+            const SizedBox(height: 8),
+            Text(loc.appSettingsUboImportUserFilters(userRuleCount)),
+          ],
+          if (sites.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(loc.appSettingsUboImportTrustedSites(siteNames)),
+          ],
+          if (skipped.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(loc.appSettingsUboImportSkippedHeader,
+                style: theme.titleSmall),
+            for (final line in skipped) ...[
+              const SizedBox(height: 4),
+              Text(line, style: theme.bodySmall),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.homeImportAction),
-          ),
+          ],
         ],
       ),
+      confirmLabel: loc.homeImportAction,
+      destructive: false,
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     setState(() => _downloadingListId = '__all__');
     final toDownload = await service.applyUboImport(plan,
@@ -339,97 +271,89 @@ class _ContentBlockerSettingsScreenState
     }
     if (!mounted) return;
     setState(() => _downloadingListId = null);
-    messenger.showSnackBar(SnackBar(
-        content: Text(
-            loc.appSettingsUboImportDone(downloaded, toDownload.length))));
+    messenger.toast(
+      loc.appSettingsUboImportDone(downloaded, toDownload.length),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final busy = _downloadingListId != null;
+    const spinner = SizedBox(
+      width: 24,
+      height: 24,
+      child: CircularProgressIndicator(strokeWidth: 2),
+    );
+    final service = ContentBlockerService.instance;
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.appSettingsContentBlocker),
         actions: [
-          if (ContentBlockerService.instance.lists.any((l) => l.enabled))
+          if (service.lists.any((l) => l.enabled))
             _downloadingListId == '__all__'
                 ? const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                    child: spinner,
                   )
                 : IconButton(
                     icon: const Icon(Icons.sync),
                     tooltip: loc.appSettingsUpdateAllLists,
-                    onPressed: _downloadingListId != null
-                        ? null
-                        : _downloadAllContentLists,
+                    onPressed: busy ? null : _downloadAllContentLists,
                   ),
         ],
       ),
       body: ListView(
         children: [
-          ...ContentBlockerService.instance.lists.map((list) {
+          ...service.lists.map((list) {
             final isDownloading = _downloadingListId == list.id ||
                 _downloadingListId == '__all__';
-            final isDefault = !list.id.startsWith('custom_');
-
             return ListTile(
               leading: Switch(
                 value: list.enabled,
                 onChanged: list.lastUpdated != null && !isDownloading
-                    ? (value) => _toggleContentList(list.id, value)
+                    ? (value) =>
+                        _refreshAfter(service.toggleList(list.id, value))
                     : null,
               ),
               title: Text(list.name),
               subtitle: Text(
                 list.lastUpdated != null
-                    ? loc.appSettingsRulesCount(
-                        formatSettingsCount(list.ruleCount))
+                    ? loc.appSettingsRulesCount(compactCount(list.ruleCount))
                     : loc.appSettingsNotDownloaded,
               ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (isDownloading)
-                    const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                    spinner
                   else if (list.isLocal)
                     IconButton(
                       icon: const Icon(Icons.edit_outlined),
                       tooltip: loc.commonEdit,
-                      onPressed: _downloadingListId != null
+                      onPressed: busy
                           ? null
                           : () => guardedOpen(
                               () => _showLocalListDialog(existing: list)),
                     )
                   else
                     IconButton(
-                      icon: Icon(
-                        list.lastUpdated != null
-                            ? Icons.sync
-                            : Icons.download,
-                      ),
+                      icon: Icon(list.lastUpdated != null
+                          ? Icons.sync
+                          : Icons.download),
                       tooltip: list.lastUpdated != null
                           ? loc.appSettingsRefresh
                           : loc.appSettingsDownload,
-                      onPressed: _downloadingListId != null
-                          ? null
-                          : () => _downloadContentList(list.id),
+                      onPressed:
+                          busy ? null : () => _downloadContentList(list.id),
                     ),
-                  if (!isDefault)
+                  if (list.id.startsWith('custom_'))
                     IconButton(
                       icon: const Icon(Icons.delete_outline),
                       tooltip: loc.commonRemove,
-                      onPressed: _downloadingListId != null
+                      onPressed: busy
                           ? null
-                          : () => _removeContentList(list.id),
+                          : () => _refreshAfter(service.removeList(list.id)),
                     ),
                 ],
               ),
@@ -442,28 +366,20 @@ class _ContentBlockerSettingsScreenState
               spacing: 8,
               runSpacing: 8,
               children: [
-                OutlinedButton.icon(
-                  onPressed: _downloadingListId != null
-                      ? null
-                      : () => guardedOpen(_showAddCustomListDialog),
-                  icon: const Icon(Icons.add),
-                  label: Text(loc.appSettingsAddCustomList),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _downloadingListId != null
-                      ? null
-                      : () => guardedOpen(_showLocalListDialog),
-                  icon: const Icon(Icons.edit_note),
-                  label: Text(loc.appSettingsAddLocalList),
-                ),
-                OutlinedButton.icon(
-                  onPressed:
-                      _downloadingListId != null
-                          ? null
-                          : () => guardedOpen(_importUboBackup),
-                  icon: const Icon(Icons.file_open_outlined),
-                  label: Text(loc.appSettingsImportUboBackup),
-                ),
+                for (final (icon, label, open) in [
+                  (Icons.add, loc.appSettingsAddCustomList, _showAddCustomListDialog),
+                  (Icons.edit_note, loc.appSettingsAddLocalList, _showLocalListDialog),
+                  (
+                    Icons.file_open_outlined,
+                    loc.appSettingsImportUboBackup,
+                    _importUboBackup,
+                  ),
+                ])
+                  OutlinedButton.icon(
+                    onPressed: busy ? null : () => guardedOpen(open),
+                    icon: Icon(icon),
+                    label: Text(label),
+                  ),
               ],
             ),
           ),
@@ -472,29 +388,14 @@ class _ContentBlockerSettingsScreenState
           // body. Some ad/tracker sites detect the missing API surface
           // and break (white page, infinite spinner), so default on.
           // Greyed out on platforms that don't ship the engine library.
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsUboRedirectStubs)),
-                HintButton(
-                  title: loc.appSettingsUboRedirectStubs,
-                  description: loc.appSettingsUboRedirectStubsSubtitle,
-                ),
-              ],
-            ),
-            subtitle:
-                !ContentBlockerService.instance.rustEngineSupportedOnPlatform
-                    ? Text(loc.appSettingsUboRedirectStubsUnavailable)
-                    : null,
-            value: ContentBlockerService.instance.useUboResources,
-            onChanged: ContentBlockerService.instance
-                    .rustEngineSupportedOnPlatform
-                ? (value) async {
-                    await ContentBlockerService.instance
-                        .setUseUboResources(value);
-                    if (mounted) setState(() {});
-                  }
-                : null,
+          SettingTile(
+            title: loc.appSettingsUboRedirectStubs,
+            hint: loc.appSettingsUboRedirectStubsSubtitle,
+            lock: service.rustEngineSupportedOnPlatform
+                ? null
+                : Lock.because(loc.appSettingsUboRedirectStubsUnavailable),
+            control: Toggle(service.useUboResources,
+                (value) => _refreshAfter(service.setUseUboResources(value))),
           ),
           const SizedBox(height: 24),
         ],

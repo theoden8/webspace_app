@@ -32,7 +32,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/settings/app_prefs.dart';
+import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 class _Req {
   _Req(this.path, this.xrw);
@@ -52,7 +55,7 @@ void main() {
   late HttpServer server;
   late int port;
   final requests = <_Req>[];
-  final bool savedBfcache = WebViewFactory.backForwardCacheEnabled;
+  final bool savedBfcache = AppPref.backForwardCacheEnabled.value;
 
   void log(String m) {
     // ignore: avoid_print
@@ -72,7 +75,7 @@ void main() {
   });
 
   tearDownAll(() async {
-    WebViewFactory.backForwardCacheEnabled = savedBfcache;
+    AppPref.backForwardCacheEnabled.debugValue = savedBfcache;
     await server.close(force: true);
   });
 
@@ -81,16 +84,7 @@ void main() {
   String url(String path) => 'http://127.0.0.1:$port$path';
   int countFor(String path) => requests.where((r) => r.path == path).length;
 
-  Future<void> waitReal(WidgetTester tester, bool Function() done,
-      {Duration timeout = const Duration(seconds: 30)}) async {
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        await Future<void>.delayed(const Duration(milliseconds: 300));
-        if (done()) return;
-      }
-    });
-  }
+  const waitReal = RealWait(interval: Duration(milliseconds: 300));
 
   // Mount one webview through the real factory and wait (wall-clock) for its
   // initial request to reach the loopback server. Frames are pumped only to
@@ -109,8 +103,17 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
+                hooks: bareHooks(),
+                posture: barePosture(
+                  url(path),
+                  siteId: 'privacy-settings',
+                  adjust: (site) => site
+                    ..clearUrlEnabled = true
+                    ..dnsBlockEnabled = true
+                    ..contentBlockEnabled = true
+                    ..trackingProtectionEnabled = trackingProtection,
+                ),
                 initialUrl: url(path),
-                trackingProtectionEnabled: trackingProtection,
               ),
               onControllerCreated: (c) {
                 if (!ctrl.isCompleted) ctrl.complete(c);
@@ -163,7 +166,7 @@ void main() {
     // the back entry is restored from cache (no new request); without it the
     // engine re-fetches A.
     Future<bool> backRefetches(bool bfcache) async {
-      WebViewFactory.backForwardCacheEnabled = bfcache;
+      AppPref.backForwardCacheEnabled.debugValue = bfcache;
       final tag = bfcache ? 'on' : 'off';
       final aPath = '/bfa-$tag';
       final bPath = '/bfb-$tag';

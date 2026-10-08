@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart';
+import 'helpers/localized.dart';
 
 final _work = WebViewModel(
   siteId: 'work',
@@ -22,20 +22,16 @@ Future<DispatchChoice? Function()> _open(
   DispatchPickerSheet sheet,
 ) async {
   DispatchChoice? result;
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: Builder(
-      builder: (context) => TextButton(
-        onPressed: () async {
-          result = await showModalBottomSheet<DispatchChoice>(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => sheet,
-          );
-        },
-        child: const Text('open'),
-      ),
+  await pumpLocalized(tester, Builder(
+    builder: (context) => TextButton(
+      onPressed: () async {
+        result = await showModalBottomSheet<DispatchChoice>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => sheet,
+        );
+      },
+      child: const Text('open'),
     ),
   ));
   await tester.tap(find.text('open'));

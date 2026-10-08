@@ -9,38 +9,30 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/services/proxy_library.dart';
+import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
 /// The App Settings summary of the app-wide route: where traffic goes, and
 /// how many saved proxies the library holds.
 String appNetworkSummary(AppLocalizations loc) {
   final current = GlobalOutboundProxy.current;
-  final String? route;
-  if (current.type == ProxyType.DEFAULT) {
-    route = null;
-  } else if (current.type == ProxyType.TOR) {
-    route = torRouteLabel(loc);
-  } else if (current.type == ProxyType.SAVED ||
-      current.type == ProxyType.GATEWAY) {
-    final problem = resolveLibrary(current).problem;
-    if (problem != LibraryProblem.none) {
-      route = libraryProblemLabel(loc, problem);
-    } else if (current.type == ProxyType.SAVED) {
-      route = savedProxyLabel(ProxyLibrary.proxy(current.savedProxyId)!);
-    } else {
-      route = gatewayLabel(ProxyLibrary.gateway(current.gatewayId)!);
-    }
-  } else {
-    route = routeLabel(current);
-  }
+  final route = switch (current.type) {
+    ProxyType.DEFAULT => null,
+    ProxyType.TOR => torRouteLabel(loc),
+    ProxyType.SAVED || ProxyType.GATEWAY => libraryRouteLabel(loc, current),
+    ProxyType.HTTP ||
+    ProxyType.HTTPS ||
+    ProxyType.SOCKS5 => routeLabel(current),
+  };
   final saved = ProxyLibrary.data.length;
   return [
     route ?? loc.networkSummaryDefault,
@@ -88,7 +80,7 @@ class AppNetworkScreen extends StatefulWidget {
 }
 
 class _AppNetworkScreenState extends State<AppNetworkScreen>
-    with SettingsOpenGuard {
+    with SettingsOpenGuard, DirtyGuard<AppNetworkScreen> {
   // Global outbound proxy state. Mirrors the per-site proxy UI in
   // [lib/screens/site_network.dart] but applies to *every* Dart-side outbound
   // call (DNS blocklist downloads, ClearURLs rules, content blocker rules,
@@ -96,39 +88,27 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
   // also acts as the fallthrough for any per-site proxy whose type is
   // [ProxyType.DEFAULT].
   late UserProxySettings _outboundProxy;
-  late TextEditingController _outboundProxyAddressController;
-  late TextEditingController _outboundProxyUsernameController;
-  late TextEditingController _outboundProxyPasswordController;
-  /// Snapshot of the outbound proxy fields at last persisted state. Most
-  /// of App Settings auto-applies on change, but the proxy text fields only
-  /// flush via `onEditingComplete` / `onFieldSubmitted`, so a user who
-  /// types a partial value and pops via the system back gesture would
-  /// silently lose the edit. [_isOutboundProxyDirty] drives the PopScope
-  /// guard so we prompt instead.
-  late Map<String, Object?> _initialOutboundProxy;
+  final _outboundProxyAddressController = TextEditingController();
+  final _outboundProxyUsernameController = TextEditingController();
+  final _outboundProxyPasswordController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    final current = GlobalOutboundProxy.current;
     _outboundProxy = UserProxySettings(
-      type: GlobalOutboundProxy.current.type,
-      address: GlobalOutboundProxy.current.address,
-      username: GlobalOutboundProxy.current.username,
-      password: GlobalOutboundProxy.current.password,
-      savedProxyId: GlobalOutboundProxy.current.savedProxyId,
-      gatewayId: GlobalOutboundProxy.current.gatewayId,
-      credentialsId: GlobalOutboundProxy.current.credentialsId,
+      type: current.type,
+      address: current.address,
+      username: current.username,
+      password: current.password,
+      savedProxyId: current.savedProxyId,
+      gatewayId: current.gatewayId,
+      credentialsId: current.credentialsId,
     );
-    _outboundProxyAddressController = TextEditingController(
-      text: _outboundProxy.address ?? '',
-    );
-    _outboundProxyUsernameController = TextEditingController(
-      text: _outboundProxy.username ?? '',
-    );
-    _outboundProxyPasswordController = TextEditingController(
-      text: _outboundProxy.password ?? '',
-    );
-    _initialOutboundProxy = _currentOutboundProxySnapshot();
+    _outboundProxyAddressController.text = current.address ?? '';
+    _outboundProxyUsernameController.text = current.username ?? '';
+    _outboundProxyPasswordController.text = current.password ?? '';
+    markClean();
     _outboundProxyAddressController.addListener(_onProxyFieldChanged);
     _outboundProxyUsernameController.addListener(_onProxyFieldChanged);
     _outboundProxyPasswordController.addListener(_onProxyFieldChanged);
@@ -144,15 +124,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
 
   String? _validateOutboundProxyAddress(String value) {
     final loc = AppLocalizations.of(context);
-    // TOR carries no address of its own, so there is nothing to type and
-    // nothing to validate. Without this the save below refuses an empty
-    // field and global Tor cannot be turned on at all.
-    if (_outboundProxy.type == ProxyType.DEFAULT ||
-        _outboundProxy.type == ProxyType.TOR ||
-        _outboundProxy.type == ProxyType.SAVED ||
-        _outboundProxy.type == ProxyType.GATEWAY) {
-      return null;
-    }
+    if (!_outboundProxy.type.typesAddress) return null;
     final trimmed = value.trim();
     if (trimmed.isEmpty) return loc.appSettingsProxyAddressRequired;
     final parts = trimmed.split(':');
@@ -189,41 +161,25 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
   }
 
   Future<void> _saveOutboundProxyOnce() async {
-    final address = _outboundProxyAddressController.text.trim();
     if (_outboundProxy.type != ProxyType.DEFAULT) {
-      final err = _validateOutboundProxyAddress(address);
+      final err =
+          _validateOutboundProxyAddress(_outboundProxyAddressController.text);
       if (err != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+        ScaffoldMessenger.of(context).toast(err);
         return;
       }
     }
-    final settings = applyProxyForm(
-      stored: GlobalOutboundProxy.current,
-      fields: ProxyFormFields(
-        type: _outboundProxy.type,
-        address: address,
-        username: _outboundProxyUsernameController.text,
-        password: _outboundProxyPasswordController.text,
-        savedProxyId: _outboundProxy.savedProxyId,
-        gatewayId: _outboundProxy.gatewayId,
-        credentialsId: _outboundProxy.credentialsId,
-      ),
-    );
-    final previous = GlobalOutboundProxy.current;
-    final changed = previous.type != settings.type ||
-        previous.address != settings.address ||
-        previous.username != settings.username ||
-        previous.password != settings.password ||
-        previous.savedProxyId != settings.savedProxyId ||
-        previous.gatewayId != settings.gatewayId ||
-        previous.credentialsId != settings.credentialsId;
+    final settings = _formProxy();
+    Record key(UserProxySettings s) => (s.type, s.address, s.username,
+        s.password, s.savedProxyId, s.gatewayId, s.credentialsId);
+    final changed = key(GlobalOutboundProxy.current) != key(settings);
     await GlobalOutboundProxy.update(settings);
     // Stored either way; only the form is gone if the screen was left during
     // the write. The webview reset below must still run.
     if (mounted) {
       setState(() {
         _outboundProxy = settings;
-        _initialOutboundProxy = _currentOutboundProxySnapshot();
+        markClean();
       });
     }
     // Force every loaded webview to be rebuilt so the new global proxy
@@ -234,32 +190,24 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     // never modified) so we don't churn webviews while the user is
     // tabbing through.
     if (changed) {
-      LogService.instance.log(
-        'Proxy',
-        'Outbound proxy changed; resetting all loaded webviews so the new '
-            'value is applied on next render',
-        level: LogLevel.info,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.info(
+          'Outbound proxy changed; resetting all loaded webviews so the new '
+          'value is applied on next render', sensitive: true);
       widget.onOutboundProxyChanged?.call();
     } else {
-      LogService.instance.log(
-        'Proxy',
-        'Outbound proxy save invoked but settings unchanged; skipping webview reset',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.debug(
+          'Outbound proxy save invoked but settings unchanged; skipping webview reset',
+          sensitive: true);
     }
     if (mounted && changed) {
       final loc = AppLocalizations.of(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(loc.appSettingsOutboundProxyUpdated)),
-      );
+      ScaffoldMessenger.of(context).toast(loc.appSettingsOutboundProxyUpdated);
     }
   }
 
   /// Exactly what a save would store, so the test answers for the address
   /// the user just typed rather than the one last saved.
-  UserProxySettings _currentOutboundProxyForTest() => applyProxyForm(
+  UserProxySettings _formProxy() => applyProxyForm(
         stored: GlobalOutboundProxy.current,
         fields: ProxyFormFields(
           type: _outboundProxy.type,
@@ -276,23 +224,19 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     if (mounted) setState(() {});
   }
 
-  Map<String, Object?> _currentOutboundProxySnapshot() => {
-        'type': _outboundProxy.type,
-        'savedProxyId': _outboundProxy.savedProxyId,
-        'gatewayId': _outboundProxy.gatewayId,
-        'credentialsId': _outboundProxy.credentialsId,
-        'address': _outboundProxyAddressController.text,
-        'username': _outboundProxyUsernameController.text,
-        'password': _outboundProxyPasswordController.text,
-      };
-
-  bool _isOutboundProxyDirty() {
-    final cur = _currentOutboundProxySnapshot();
-    for (final key in _initialOutboundProxy.keys) {
-      if (cur[key] != _initialOutboundProxy[key]) return true;
-    }
-    return false;
-  }
+  /// The rest of App Settings applies on change, but the proxy text fields
+  /// only flush on editing complete, so a back gesture mid-edit would drop
+  /// them.
+  @override
+  Record snapshot() => (
+        type: _outboundProxy.type,
+        savedProxyId: _outboundProxy.savedProxyId,
+        gatewayId: _outboundProxy.gatewayId,
+        credentialsId: _outboundProxy.credentialsId,
+        address: _outboundProxyAddressController.text,
+        username: _outboundProxyUsernameController.text,
+        password: _outboundProxyPasswordController.text,
+      );
 
   Future<void> _openSavedProxies() async {
     await Navigator.push<void>(
@@ -309,84 +253,29 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
     if (mounted) setState(() {});
   }
 
-  /// Set while the discard prompt is up, so a second back press does not
-  /// stack a second prompt over it.
-  bool _confirmingDiscard = false;
-
-  Future<bool> _confirmDiscardProxy() async {
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.appSettingsDiscardChangesTitle),
-        content: Text(loc.appSettingsDiscardProxyBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.appSettingsKeepEditing),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              loc.appSettingsDiscard,
-              style: const TextStyle(color: Colors.red),
-            ),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    return PopScope(
-      canPop: !_isOutboundProxyDirty(),
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop || _confirmingDiscard) return;
-        final navigator = Navigator.of(context);
-        _confirmingDiscard = true;
-        final bool discard;
-        try {
-          discard = await _confirmDiscardProxy();
-        } finally {
-          _confirmingDiscard = false;
-        }
-        if (discard != true || !mounted) return;
-        setState(() {
-          _initialOutboundProxy = _currentOutboundProxySnapshot();
-        });
-        await WidgetsBinding.instance.endOfFrame;
-        if (!mounted || ModalRoute.isCurrentOf(context) != true) return;
-        navigator.pop();
-      },
+    return guardPop(
       child: Scaffold(
         appBar: AppBar(title: Text(loc.appSettingsNetwork)),
         body: ListView(
           children: [
-            SettingsGroupHeader(
+            SettingsSection(
               loc.appSettingsOutboundProxy,
               hint: loc.appSettingsOutboundProxyHint,
             ),
-            ListTile(
+            SettingTile(
               leading: const Icon(Icons.vpn_lock_outlined),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.savedProxiesTitle)),
-                  HintButton(
-                    title: loc.savedProxiesTitle,
-                    description: loc.savedProxiesHint,
-                  ),
-                ],
-              ),
-              subtitle: Text(loc.savedProxiesCount(ProxyLibrary.data.length)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => guardedOpen(_openSavedProxies),
+              title: loc.savedProxiesTitle,
+              hint: loc.savedProxiesHint,
+              subtitle: loc.savedProxiesCount(ProxyLibrary.data.length),
+              control: Opens(() => guardedOpen(_openSavedProxies)),
             ),
-            ListTile(
-              title: Text(loc.appSettingsProxyType),
-              trailing: ProxyChoiceDropdown(
+            SettingTile(
+              title: loc.appSettingsProxyType,
+              hint: null,
+              control: Trailing(ProxyChoiceDropdown(
                 type: _outboundProxy.type,
                 savedProxyId: _outboundProxy.savedProxyId,
                 gatewayId: _outboundProxy.gatewayId,
@@ -413,7 +302,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                   });
                   _saveOutboundProxy();
                 },
-              ),
+              )),
             ),
             if (_outboundProxy.type == ProxyType.SAVED ||
                 _outboundProxy.type == ProxyType.GATEWAY)
@@ -421,7 +310,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Builder(builder: (context) {
                   final resolved =
-                      resolveLibrary(_currentOutboundProxyForTest());
+                      resolveLibrary(_formProxy());
                   return ProxyStatusIndicator(
                     proxy: resolved.route,
                     problem: resolved.problem == LibraryProblem.none
@@ -430,9 +319,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                   );
                 }),
               ),
-            if (_outboundProxy.type != ProxyType.DEFAULT &&
-                _outboundProxy.type != ProxyType.TOR &&
-                _outboundProxy.type != ProxyType.SAVED)
+            if (_outboundProxy.type.showsRouteFields)
               ProxyRouteFields(
                 type: _outboundProxy.type,
                 gatewayId: _outboundProxy.gatewayId,
@@ -454,7 +341,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
               ),
             if (_outboundProxy.type != ProxyType.DEFAULT)
               ProxyTestTile(
-                settings: _currentOutboundProxyForTest,
+                settings: _formProxy,
                 target: kDefaultProxyTestTarget,
               ),
             // Directly under the proxy block it reports on: the dropdown is
@@ -479,26 +366,18 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
             // Apple platforms, but the rare "inspect-imported-pins-on-
             // iOS" case doesn't justify an always-empty settings tile.
             if (hostIsAndroid || hostIsLinux) ...[
-              SettingsGroupHeader(loc.appSettingsGroupCertificates),
-              ListTile(
+              SettingsSection(loc.appSettingsGroupCertificates),
+              SettingTile(
                 leading: const Icon(Icons.lock_outline),
-                title: Row(
-                  children: [
-                    Flexible(child: Text(loc.appSettingsTrustedCertificates)),
-                    HintButton(
-                      title: loc.appSettingsTrustedCertificates,
-                      description: loc.appSettingsTrustedCertificatesHint,
-                    ),
-                  ],
-                ),
-                subtitle: Text(loc.appSettingsTrustedCertificatesSubtitle),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => guardedOpen(() => Navigator.push<void>(
+                title: loc.appSettingsTrustedCertificates,
+                hint: loc.appSettingsTrustedCertificatesHint,
+                subtitle: loc.appSettingsTrustedCertificatesSubtitle,
+                control: Opens(() => guardedOpen(() => Navigator.push<void>(
                       context,
                       MaterialPageRoute(
                         builder: (_) => const TrustedCertificatesScreen(),
                       ),
-                    )),
+                    ))),
               ),
             ],
             const SizedBox(height: 24),

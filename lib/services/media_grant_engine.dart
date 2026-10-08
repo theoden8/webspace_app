@@ -1,115 +1,214 @@
-/// Pure orchestration shared by the per-site capture grants (camera,
-/// microphone): decide → coalesce → persist.
+/// Per-site capture and protected-content requests, decided the same way for
+/// every webview that runs as a site: decide, coalesce, persist.
 ///
-/// Both the parent webview (`WebViewModel.getWebView`) and the transient
-/// nested screen (`InAppWebViewScreen`) route capture requests through one
-/// instance per feature, so the flow lives in exactly one place — only the
-/// collaborators differ (the parent persists onto the model and saves; the
-/// nested screen keeps its answer in memory). No Flutter imports, no
-/// `setState`, no `BuildContext`: the host passes the model/state accessors
-/// as closures, matching the engine convention in `cookie_isolation.dart`.
-///
-/// [M] is the feature's mode enum, [S] its picked source, [D] its decision.
-class MediaGrantEngine<M, S, D> {
-  /// Coalesces a burst of requests (capture libraries retry `getUserMedia`)
-  /// onto a single popup / file-pick. Keyed by prompt origin so a subframe
-  /// never rides the answer the user gave for the top document, and cleared
-  /// once each decision settles.
-  final Map<String, Future<D>> _inFlight = {};
+/// Only the storage differs, which is what [GrantStore]'s two cases are:
+/// [PersistedGrantStore] for the site's own webview writes through to the
+/// model, and [InMemoryGrantStore] for a nested screen keeps its answers for
+/// the screen's lifetime. No Flutter imports: the host passes the model and
+/// its popups as interfaces, matching the engine convention in
+/// `cookie_isolation.dart`.
+library;
 
-  /// A subframe's answer is deliberately not persisted, but it still has to
-  /// outlive the popup that produced it by a moment: allowing a frame makes the
-  /// shim call the real `getUserMedia`, and the platform permission request
-  /// that follows arrives milliseconds later for the same origin. Without a
-  /// grace window the user answers the same question twice, once in our popup
-  /// and once behind it. Keyed by prompt origin, so it can only ever hand back
+import 'package:webspace/services/site_posture.dart';
+import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/site_permission_state.dart';
+import 'package:webspace/utils/concurrency.dart';
+
+/// The popups and pickers that answer an unresolved request.
+abstract interface class MediaPrompter {
+  /// Shows the popup, or the picker for a site already set to `virtual` with
+  /// no file, and returns the answer. `ask` means dismissed.
+  Future<CaptureGrant> capture(
+    CaptureKind kind,
+    String origin,
+    CaptureMode current,
+  );
+
+  /// The Allow/Block popup for Widevine/EME (`PROTECTED_MEDIA_ID`).
+  Future<bool> protectedContent(String origin);
+}
+
+/// The model a [PersistedGrantStore] writes through to.
+abstract interface class MediaGrantRecord {
+  abstract CaptureGrants captures;
+  abstract bool? protectedContentAllowed;
+
+  /// What the site runs with, the archive tier and Tracking Protection
+  /// applied.
+  SiteMedia get effectiveMedia;
+}
+
+/// Where one webview's media decisions are read and recorded.
+sealed class GrantStore {
+  GrantStore({required this.prompter, required this.isSiteActive});
+
+  final MediaPrompter prompter;
+
+  /// Whether the requesting site is the one on screen. A backgrounded site is
+  /// denied outright (CAM-011 / MIC-011 / SHARE-011): its popup would be read
+  /// as coming from the site the user is looking at, and a remembered grant
+  /// would start capture with nothing on screen to attribute it to. Required
+  /// so no host can wire a store without answering it. Only the grant is
+  /// gated: [mode] is not, since the shims cache it per document and gating
+  /// it would strand a site that enumerated while backgrounded.
+  final bool Function() isSiteActive;
+
+  /// One popup per burst: capture libraries retry `getUserMedia`. Keyed by
+  /// prompt origin, so a subframe never rides the answer the user gave for
+  /// the top document.
+  final _inFlight = SingleFlight<(CaptureKind, String), CaptureGrant>();
+
+  /// A subframe's answer is not persisted, but it has to outlive its popup by
+  /// a moment: allowing a frame makes the shim call the real `getUserMedia`,
+  /// and the platform permission request that follows arrives milliseconds
+  /// later for the same origin. Keyed by prompt origin, so it only hands back
   /// the answer given for that exact frame.
-  final Map<String, (DateTime, D)> _recentSubframe = {};
+  final _recentSubframe = <(CaptureKind, String), (DateTime, CaptureGrant)>{};
 
   static const Duration _subframeGrace = Duration(seconds: 30);
 
-  /// Resolve a request for [origin].
+  /// A page fires several `PROTECTED_MEDIA_ID` requests while EME starts.
+  final _protectedContentInFlight = SingleFlight<(), bool>();
+
+  SiteMedia get media;
+
+  void _recordCaptures(CaptureGrants Function(CaptureGrants stored) update);
+
+  void _recordProtectedContent(bool allowed);
+
+  Future<void> _save();
+
+  /// The site's [kind] mode, never prompting: what `enumerateDevices` reads.
+  CaptureMode mode(CaptureKind kind) => kind.grantOf(media.capture).mode;
+
+  /// Resolves a [kind] request from [origin].
   ///
-  /// - [isSiteActive]: whether the requesting site is the one on screen. A
-  ///   backgrounded site is denied outright (CAM-011 / MIC-011): its popup
-  ///   would be read as coming from the site the user is looking at, and a
-  ///   remembered grant would start capture with nothing on screen to
-  ///   attribute it to. Required rather than optional so a new capture
-  ///   feature — or a new call site for an existing one — cannot be wired up
-  ///   without answering it. Only the grant is gated: the non-prompting mode
-  ///   read behind `enumerateDevices` does not come through here, since the
-  ///   shims cache it per document and gating it would strand a site that
-  ///   enumerated while backgrounded.
-  /// - [denied]: the decision handed back for a backgrounded site.
-  /// - [isTopFrame]: whether the request came from the top document. A
-  ///   subframe's answer is used for that request and never written back to
-  ///   the site: the popup the user answered named the frame, not the site,
-  ///   so it cannot be what flips the site's own mode (CAM-014 / MIC-016).
-  /// - [effectiveMode]: the site's current mode with archive-tier already
-  ///   applied by the caller.
-  /// - [settled]: maps a (mode, source) pair to the decision that needs no
-  ///   UI, or null when the host must be asked.
-  /// - [currentSource]: reads the site's picked source (may change after
-  ///   [persist]).
-  /// - [resolve]: host UI — shows the popup or the file picker and returns
-  ///   the user's choice. Only invoked when [settled] returned null.
-  /// - [persist]: applies the resolved decision to the host's storage.
-  /// - [finalize]: builds the decision handed back to the page, given the
-  ///   resolved one and the source already on file (so a cancelled pick
-  ///   falls back to the prior source rather than serving nothing).
-  /// - [save]: flushes the host's storage (no-op for nested screens).
-  Future<D> decide({
-    required String origin,
-    required bool Function() isSiteActive,
+  /// [isTopFrame]: a `real` grant answered a popup naming the top document,
+  /// so a subframe does not inherit it and is asked under its own origin,
+  /// and a subframe's answer is never written back to the site (CAM-014 /
+  /// MIC-016). The device-free answers are inherited as they are.
+  Future<CaptureGrant> capture(
+    CaptureKind kind,
+    String origin, {
     required bool isTopFrame,
-    required D Function() denied,
-    required M effectiveMode,
-    required D? Function(M mode, S? source) settled,
-    required S? Function() currentSource,
-    required Future<D> Function(String origin, M current) resolve,
-    required void Function(D resolved) persist,
-    required D Function(D resolved, S? fallbackSource) finalize,
-    required Future<void> Function() save,
   }) async {
-    if (!isSiteActive()) return denied();
-    final immediate = settled(effectiveMode, currentSource());
-    if (immediate != null) return immediate;
+    if (!isSiteActive()) return (mode: kind.block, source: null);
+    final current = kind.grantOf(media.capture);
+    final settled = _settled(current, isTopFrame: isTopFrame);
+    if (settled != null) return settled;
+    final key = (kind, origin);
     if (!isTopFrame) {
-      final recent = _takeRecentSubframe(origin);
+      final recent = _takeRecentSubframe(key);
       if (recent != null) return recent;
     }
-    final pending = _inFlight[origin] ??= () async {
-      final resolved = await resolve(origin, effectiveMode);
+    return _inFlight.run(key, () async {
+      final answer = await prompter.capture(kind, origin, current.mode);
       if (isTopFrame) {
-        persist(resolved);
-        await save();
+        _recordCaptures((stored) => kind.withGrant(stored, (
+          mode: answer.mode,
+          source: answer.source ?? kind.grantOf(stored).source,
+        )));
+        await _save();
       } else {
-        _recentSubframe[origin] = (DateTime.now(), resolved);
+        _recentSubframe[key] = (DateTime.now(), answer);
       }
-      return finalize(resolved, currentSource());
-    }();
-    try {
-      return await pending;
-    } finally {
-      _inFlight.remove(origin);
-    }
+      // A cancelled pick falls back to the file already on record rather
+      // than serving nothing.
+      return (
+        mode: answer.mode,
+        source: answer.source ?? kind.grantOf(media.capture).source,
+      );
+    });
   }
 
-  /// The answer given for [origin] inside the grace window, if any. Expired
-  /// entries are dropped as they are found rather than on a timer.
-  D? _takeRecentSubframe(String origin) {
+  /// The answer that needs no popup, or null when the user must be asked.
+  static CaptureGrant? _settled(
+    CaptureGrant grant, {
+    required bool isTopFrame,
+  }) => switch (grant.mode.state) {
+    SitePermissionState.blocked => (mode: grant.mode, source: null),
+    SitePermissionState.allowed =>
+      isTopFrame ? (mode: grant.mode, source: null) : null,
+    SitePermissionState.simulated => grant.source == null ? null : grant,
+    SitePermissionState.ask => null,
+  };
+
+  /// Expired entries are dropped as they are found rather than on a timer.
+  CaptureGrant? _takeRecentSubframe((CaptureKind, String) key) {
     final now = DateTime.now();
     _recentSubframe.removeWhere(
       (_, e) => now.difference(e.$1) > _subframeGrace,
     );
-    final hit = _recentSubframe[origin];
-    return hit == null ? null : hit.$2;
+    return _recentSubframe[key]?.$2;
+  }
+
+  /// Resolves a protected-content request: the remembered answer, or one
+  /// popup for the burst.
+  Future<bool> protectedContent(String origin) async {
+    final remembered = media.protectedContent;
+    if (remembered != null) return remembered;
+    return _protectedContentInFlight.run((), () async {
+      final granted = await prompter.protectedContent(origin);
+      _recordProtectedContent(granted);
+      await _save();
+      return granted;
+    });
   }
 }
 
-/// The mode a nested screen starts from. `real` is the one answer that opens
-/// the device, and the popup that produced it named the parent's top
-/// document; a page reached through a link is asked for itself
-/// (CAM-005 / MIC-005). Every other mode is inherited as it is.
-T nestedSeedMode<T>(T mode, {required T real, required T ask}) =>
-    mode == real ? ask : mode;
+/// The site's own webview: its answers are the model's, saved with it.
+final class PersistedGrantStore extends GrantStore {
+  PersistedGrantStore(
+    this._model, {
+    required super.prompter,
+    required super.isSiteActive,
+    required Future<void> Function() save,
+  }) : _saveModel = save;
+
+  final MediaGrantRecord _model;
+  final Future<void> Function() _saveModel;
+
+  @override
+  SiteMedia get media => _model.effectiveMedia;
+
+  @override
+  void _recordCaptures(CaptureGrants Function(CaptureGrants) update) =>
+      _model.captures = update(_model.captures);
+
+  @override
+  void _recordProtectedContent(bool allowed) =>
+      _model.protectedContentAllowed = allowed;
+
+  @override
+  Future<void> _save() => _saveModel();
+}
+
+/// A nested screen: no persisted model, so its answers live as long as the
+/// screen. Seeded from the opening site's nested posture, where a `real`
+/// grant is already back to `ask` (CAM-005 / MIC-005, SEC-007).
+final class InMemoryGrantStore extends GrantStore {
+  InMemoryGrantStore(
+    SiteMedia nested, {
+    required super.prompter,
+    required super.isSiteActive,
+  }) : _media = nested;
+
+  SiteMedia _media;
+
+  @override
+  SiteMedia get media => _media;
+
+  @override
+  void _recordCaptures(CaptureGrants Function(CaptureGrants) update) =>
+      _media = (
+        capture: update(_media.capture),
+        protectedContent: _media.protectedContent,
+      );
+
+  @override
+  void _recordProtectedContent(bool allowed) =>
+      _media = (capture: _media.capture, protectedContent: allowed);
+
+  @override
+  Future<void> _save() async {}
+}

@@ -1,23 +1,11 @@
 import 'package:webspace/services/site_retention_priority.dart';
 
-SiteRetentionResolver _legacyPromotionResolver({
-  Set<int> protectedIndices = const <int>{},
-  Set<int> preferKeepIndices = const <int>{},
-}) {
-  return (int index) {
-    if (protectedIndices.contains(index)) return SiteRetentionPriority.active;
-    if (preferKeepIndices.contains(index)) return SiteRetentionPriority.webspace;
-    return SiteRetentionPriority.loaded;
-  };
-}
-
 /// Tiered lifecycle for loaded webviews under memory pressure.
 ///
 /// As OS memory pressure escalates, each `didHaveMemoryPressure` event
-/// promotes one loaded site one tier deeper. The active site is
-/// excluded (via `protectedIndices`); within a tier, the LRU site is
-/// picked, with out-of-active-webspace candidates evicted before
-/// in-webspace candidates (`preferKeepIndices`).
+/// promotes one loaded site one tier deeper. The active and activating
+/// sites are excluded; within a tier, the lowest [SiteRetentionPriority]
+/// goes first and the LRU site within that.
 ///
 /// Tier order (least → most aggressive):
 ///
@@ -64,9 +52,7 @@ enum SiteLifecycleState {
   /// visible active site (controller resumed) and any backgrounded
   /// loaded site (controller paused). The distinction between
   /// resumed/paused is orthogonal to memory tier and tracked via the
-  /// controller's pause/resume state, not here. Renamed from `live`
-  /// because backgrounded loaded sites are paused — "live" implied
-  /// activity that doesn't apply.
+  /// controller's pause/resume state, not here.
   resident,
 
   /// Webview is in memory but `clearCache()` has been called. The
@@ -90,7 +76,6 @@ class SiteTierCounts {
   /// Sites at [SiteLifecycleState.resident] minus the active one.
   final int resident;
 
-  /// Sites at [SiteLifecycleState.cacheCleared].
   final int cacheCleared;
 
   /// Sites at [SiteLifecycleState.savedForRestore]. Includes sites
@@ -125,9 +110,8 @@ class SiteLifecyclePromotionEngine {
   }
 
   /// Picks the next loaded site to promote one tier under memory
-  /// pressure, or null when nothing is safely promotable (everything
-  /// in [loadedIndices] is in [protectedIndices], or the loaded set is
-  /// empty).
+  /// pressure, or null when nothing is safely promotable (every site in
+  /// [loadedIndices] is active or activating, or the loaded set is empty).
   ///
   /// Selection rules, applied in order:
   ///
@@ -138,49 +122,30 @@ class SiteLifecyclePromotionEngine {
   ///      promoted to `savedForRestore`. This gives the OS gradual
   ///      relief — clearing cache on every loaded site (~10-50 MB
   ///      each) often satisfies pressure without disposing anything.
-  ///   2. **Within a tier, out-of-keep before in-keep.** A site
-  ///      outside `preferKeepIndices` (typically the active webspace)
-  ///      gets promoted before a site inside, so the user's current
-  ///      workspace stays at the freshest tier.
-  ///   3. **Within a (tier, keep) bucket, oldest LRU first.** Caller
+  ///   2. **Within a tier, lowest retention priority first.** A site
+  ///      outside the selected webspace gets promoted before a site
+  ///      inside, so the user's current workspace stays at the freshest
+  ///      tier.
+  ///   3. **Within a (tier, priority) bucket, oldest LRU first.** Caller
   ///      treats [loadedIndices] as access-ordered (newest at end);
   ///      iteration picks the oldest first.
-  ///   4. **Always exclude `protectedIndices`** (the active site, plus
-  ///      the in-flight activation target). [SiteLifecycleState.savedForRestore]
+  ///   4. **Always exclude the active site and the in-flight activation
+  ///      target.** [SiteLifecycleState.savedForRestore]
   ///      sites are also skipped defensively (they shouldn't be in
   ///      `loadedIndices` anyway, since the webview is disposed).
   static int? pickPromotionTarget({
     required Set<int> loadedIndices,
     required Map<int, SiteLifecycleState> states,
-    SiteRetentionResolver? priorityOf,
-    Set<int> protectedIndices = const <int>{},
-    Set<int> preferKeepIndices = const <int>{},
+    required SiteRetentionResolver priorityOf,
   }) {
-    final resolver = priorityOf ??
-        _legacyPromotionResolver(
-          protectedIndices: protectedIndices,
-          preferKeepIndices: preferKeepIndices,
-        );
     for (final tier in [
       SiteLifecycleState.resident,
       SiteLifecycleState.cacheCleared,
     ]) {
-      final candidates = <int>[];
-      for (final i in loadedIndices) {
-        final p = resolver(i);
-        if (p == SiteRetentionPriority.active ||
-            p == SiteRetentionPriority.activating) continue;
-        final s = states[i] ?? SiteLifecycleState.resident;
-        if (s != tier) continue;
-        candidates.add(i);
-      }
-      if (candidates.isEmpty) continue;
-      candidates.sort((a, b) {
-        final pa = resolver(a).index;
-        final pb = resolver(b).index;
-        return pb.compareTo(pa);
-      });
-      return candidates.first;
+      final inTier = loadedIndices
+          .where((i) => (states[i] ?? SiteLifecycleState.resident) == tier);
+      final pick = evictionOrder(inTier, priorityOf).firstOrNull;
+      if (pick != null) return pick;
     }
     return null;
   }
@@ -189,9 +154,8 @@ class SiteLifecyclePromotionEngine {
   /// [SiteLifecycleState.resident] to [SiteLifecycleState.cacheCleared]
   /// so that no more than [maxResidentSites] sites remain at the `live`
   /// tier. Selection uses the same priority hierarchy as
-  /// [pickPromotionTarget]: out-of-`preferKeepIndices` sites are
-  /// promoted before in-keep sites, oldest-LRU-first within each
-  /// bucket. [protectedIndices] (active + activation-in-flight) are
+  /// [pickPromotionTarget]: lowest retention priority first,
+  /// oldest-LRU-first within each bucket, active and activating sites
   /// excluded entirely.
   ///
   /// Caller invokes after each activation so the threshold is
@@ -207,41 +171,16 @@ class SiteLifecyclePromotionEngine {
     required Set<int> loadedIndices,
     required Map<int, SiteLifecycleState> states,
     required int maxResidentSites,
-    SiteRetentionResolver? priorityOf,
-    Set<int> protectedIndices = const <int>{},
-    Set<int> preferKeepIndices = const <int>{},
+    required SiteRetentionResolver priorityOf,
   }) {
-    var residentCount = 0;
-    for (final i in loadedIndices) {
-      final s = states[i] ?? SiteLifecycleState.resident;
-      if (s == SiteLifecycleState.resident) residentCount++;
-    }
-    if (residentCount <= maxResidentSites) return const [];
-    final excess = residentCount - maxResidentSites;
-
-    final resolver = priorityOf ??
-        _legacyPromotionResolver(
-          protectedIndices: protectedIndices,
-          preferKeepIndices: preferKeepIndices,
-        );
-    final candidates = <int>[];
-    for (final i in loadedIndices) {
-      final p = resolver(i);
-      if (p == SiteRetentionPriority.active ||
-          p == SiteRetentionPriority.activating) continue;
-      final s = states[i] ?? SiteLifecycleState.resident;
-      if (s != SiteLifecycleState.resident) continue;
-      candidates.add(i);
-    }
-    candidates.sort((a, b) {
-      final pa = resolver(a).index;
-      final pb = resolver(b).index;
-      return pb.compareTo(pa);
-    });
-
-    return candidates.length <= excess
-        ? candidates
-        : candidates.sublist(0, excess);
+    final resident = loadedIndices
+        .where((i) =>
+            (states[i] ?? SiteLifecycleState.resident) ==
+            SiteLifecycleState.resident)
+        .toList();
+    final excess = resident.length - maxResidentSites;
+    if (excess <= 0) return const [];
+    return evictionOrder(resident, priorityOf).take(excess).toList();
   }
 
   /// Tier-count snapshot. The `active` count is whichever loaded

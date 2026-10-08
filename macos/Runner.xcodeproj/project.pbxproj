@@ -30,6 +30,9 @@
 		7AC2A0000000000000000002 /* ShortcutsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000001 /* ShortcutsPlugin.swift */; };
 		7AC2A0000000000000000T02 /* TorControllerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000T01 /* TorControllerPlugin.swift */; };
 		7AC2A0000000000000000004 /* WebSpaceAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000003 /* WebSpaceAppIntents.swift */; };
+		7AC2A0000000000000000006 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000005 /* AppGroup.swift */; };
+		7AC2A0000000000000000009 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000005 /* AppGroup.swift */; };
+		7AC2A0000000000000000008 /* ShareIntentPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2A0000000000000000007 /* ShareIntentPlugin.swift */; };
 		BAD4A6ABA9F68FDD7BBA2F60 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0266C30107C75BF1C1D6CA07 /* Pods_RunnerTests.framework */; };
 		D250C5AD4C555C05347D37AA /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FCD7097E9429D61CF36E47F0 /* Pods_Runner.framework */; };
 		7B0F0000000000000000001E /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0F0000000000000000000A /* ShareViewController.swift */; };
@@ -97,9 +100,11 @@
 		33CC10F52044A3C60003C045 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = Base; path = Base.lproj/MainMenu.xib; sourceTree = "<group>"; };
 		33CC10F72044A3C60003C045 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; name = Info.plist; path = Runner/Info.plist; sourceTree = "<group>"; };
 		33CC11122044BFA00003C045 /* MainFlutterWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainFlutterWindow.swift; sourceTree = "<group>"; };
-		7AC2A0000000000000000001 /* ShortcutsPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShortcutsPlugin.swift; sourceTree = "<group>"; };
+		7AC2A0000000000000000001 /* ShortcutsPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ShortcutsPlugin.swift; path = ../ios/Runner/ShortcutsPlugin.swift; sourceTree = SOURCE_ROOT; };
 		7AC2A0000000000000000T01 /* TorControllerPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = TorControllerPlugin.swift; path = ../ios/Runner/TorControllerPlugin.swift; sourceTree = SOURCE_ROOT; };
-		7AC2A0000000000000000003 /* WebSpaceAppIntents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebSpaceAppIntents.swift; sourceTree = "<group>"; };
+		7AC2A0000000000000000003 /* WebSpaceAppIntents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = WebSpaceAppIntents.swift; path = ../ios/Runner/WebSpaceAppIntents.swift; sourceTree = SOURCE_ROOT; };
+		7AC2A0000000000000000005 /* AppGroup.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = AppGroup.swift; path = ../ios/Runner/AppGroup.swift; sourceTree = SOURCE_ROOT; };
+		7AC2A0000000000000000007 /* ShareIntentPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; name = ShareIntentPlugin.swift; path = ../ios/Runner/ShareIntentPlugin.swift; sourceTree = SOURCE_ROOT; };
 		33CEB47222A05771004F2AC0 /* Flutter-Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Debug.xcconfig"; sourceTree = "<group>"; };
 		33CEB47422A05771004F2AC0 /* Flutter-Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = "Flutter-Release.xcconfig"; sourceTree = "<group>"; };
 		33CEB47722A0578A004F2AC0 /* Flutter-Generated.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "Flutter-Generated.xcconfig"; path = "ephemeral/Flutter-Generated.xcconfig"; sourceTree = "<group>"; };
@@ -229,6 +234,8 @@
 				7AC2A0000000000000000001 /* ShortcutsPlugin.swift */,
 				7AC2A0000000000000000T01 /* TorControllerPlugin.swift */,
 				7AC2A0000000000000000003 /* WebSpaceAppIntents.swift */,
+				7AC2A0000000000000000005 /* AppGroup.swift */,
+				7AC2A0000000000000000007 /* ShareIntentPlugin.swift */,
 				33E51913231747F40026EE4D /* DebugProfile.entitlements */,
 				33E51914231749380026EE4D /* Release.entitlements */,
 				33CC11242044D66E0003C045 /* Resources */,
@@ -525,6 +532,8 @@
 				7AC2A0000000000000000002 /* ShortcutsPlugin.swift in Sources */,
 				7AC2A0000000000000000T02 /* TorControllerPlugin.swift in Sources */,
 				7AC2A0000000000000000004 /* WebSpaceAppIntents.swift in Sources */,
+				7AC2A0000000000000000006 /* AppGroup.swift in Sources */,
+				7AC2A0000000000000000008 /* ShareIntentPlugin.swift in Sources */,
 				335BBD1B22A9A15E00E9071D /* GeneratedPluginRegistrant.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -534,6 +543,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7B0F0000000000000000001E /* ShareViewController.swift in Sources */,
+				7AC2A0000000000000000009 /* AppGroup.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

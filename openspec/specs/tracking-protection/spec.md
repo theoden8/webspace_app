@@ -42,9 +42,9 @@ Add a per-site `trackingProtectionEnabled` boolean (default true) to
 
 * The four pre-existing toggles (`clearUrlEnabled`, `dnsBlockEnabled`,
   `contentBlockEnabled`, `localCdnEnabled`) behave as ON regardless of
-  their stored value — `WebViewModel.getWebView` and
-  `InAppWebViewScreen` compute `effective = stored ||
-  trackingProtectionEnabled` and pass that to `WebViewConfig`.
+  their stored value — `WebViewModel.sitePosture` computes `effective =
+  stored || trackingProtectionEnabled` once, into the `SitePosture` every
+  webview of the site is built from, the nested and popup ones included.
 * When a static spoof location is set, the timezone is forced to
   "from picked location" so `Date` / `Intl` match the spoofed geo.
   The geolocation mode itself (`off` / `spoof` / `live`) is NOT
@@ -867,16 +867,18 @@ seeded noise per frame.
 When `trackingProtectionEnabled` is true the umbrella SHALL, if a
 static spoof location is set (`spoofLatitude` and `spoofLongitude`
 both non-null), force the effective timezone to "from picked location"
-(`spoofTimezoneFromLocation: true`, `spoofTimezone: null`) so spoofed
-`Date` / `Intl.DateTimeFormat` values match the spoofed geo. With no
+so spoofed `Date` / `Intl.DateTimeFormat` values match the spoofed
+geo. The forcing is applied where the zone is resolved
+(`derivesTimezoneFromLocation`, at settings save and on startup for a site
+saved before that), which stores the zone the coordinates fall in as
+`spoofTimezone`; every webview of the site, root, nested and popup, applies
+that stored zone through its `SitePosture` and none re-derives it. With no
 spoof location set the umbrella SHALL leave the timezone untouched.
 The umbrella SHALL NOT modify `locationMode`: `off` / `spoof` / `live`
-flow to `WebViewConfig` verbatim because legitimate use cases (maps,
+flow into the posture verbatim because legitimate use cases (maps,
 navigation, weather) need real GPS even under tracker-blocking, and
-the geolocation mode is the user's per-site choice. Stored fields on
-`WebViewModel` are unchanged; only the `WebViewConfig` sees the
-forced timezone values, and the same forcing applies to nested
-webviews via `InAppWebViewScreen.initState`.
+the geolocation mode is the user's per-site choice. The stored
+`spoofTimezoneFromLocation` choice is not modified.
 
 #### Scenario: Live location is independent of the umbrella
 
@@ -891,9 +893,10 @@ webviews via `InAppWebViewScreen.initState`.
 **Given** a site with `spoofLatitude: 48.8`, `spoofLongitude: 2.3`,
 `spoofTimezone: 'America/New_York'`, `spoofTimezoneFromLocation: false`,
 and `trackingProtectionEnabled: true`
-**When** the webview is constructed
-**Then** the `WebViewConfig` has `spoofTimezone: null`
-**And** `spoofTimezoneFromLocation: true`
+**When** its settings are saved with the polygon dataset loaded
+**Then** the stored `spoofTimezone` is `'Europe/Paris'`
+**And** the site's webview and every nested webview it opens report
+`Europe/Paris` (BUG-025: the nested one used to report the device zone)
 
 #### Scenario: No coords leaves timezone untouched
 
@@ -901,8 +904,7 @@ and `trackingProtectionEnabled: true`
 `spoofTimezone: 'Europe/London'`, `spoofTimezoneFromLocation: false`,
 and `trackingProtectionEnabled: true`
 **When** the webview is constructed
-**Then** the `WebViewConfig` has `spoofTimezone: 'Europe/London'`
-**And** `spoofTimezoneFromLocation: false`
+**Then** its `SitePosture` has `location.timezone: 'Europe/London'`
 
 #### Scenario: Settings UI keeps Live selectable under the umbrella
 
@@ -919,16 +921,15 @@ editable
 
 ### Requirement: ETP-016 - Nested webview propagation
 
-The system SHALL propagate `trackingProtectionEnabled` to every nested `InAppWebViewScreen` opened via `launchUrl` so a nested page sees the same umbrella posture as the parent (shim injected and subordinates forced when true; subordinates passed verbatim and shim NOT injected when false).
+The system SHALL propagate `trackingProtectionEnabled` to every nested `InAppWebViewScreen` opened via `launchUrl` so a nested page sees the same umbrella posture as the parent (shim injected and subordinates forced when true; subordinates passed verbatim and shim NOT injected when false). The nested screen is built from the parent's `SitePosture`, so the forcing arrives already applied (NESTED-010).
 
 #### Scenario: Umbrella propagates to nested
 
 **Given** the parent site has `trackingProtectionEnabled: true`
 **When** a nested webview is opened via `launchUrl`
-**Then** the constructed `InAppWebViewScreen.trackingProtectionEnabled`
-is `true`
-**And** the constructed `WebViewConfig.trackingProtectionEnabled` is
-`true`
+**Then** the nested `WebViewConfig.posture` has
+`fingerprint.trackingProtection: true`
+**And** its blocking group is the parent's, forced subordinates included
 
 ---
 
@@ -1376,7 +1377,7 @@ if (config.trackingProtectionEnabled && config.siteId != null) {
 
 `trackingProtectionEnabled` is a per-site field on `WebViewModel.toJson`,
 so it rides through the settings backup path automatically — no entry
-in `kExportedAppPrefs` is needed.
+in `AppPref` is needed.
 
 ---
 

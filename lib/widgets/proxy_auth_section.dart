@@ -38,28 +38,10 @@ class ProxyAuthSection extends StatefulWidget {
 
 class _ProxyAuthSectionState extends State<ProxyAuthSection> {
   bool _obscurePassword = true;
-  late final bool _initiallyExpanded;
 
-  @override
-  void initState() {
-    super.initState();
-    // Read once: recomputing it per build would fold the section shut under
-    // the user as soon as they cleared the last character of a field.
-    _initiallyExpanded = widget.initiallyExpanded || _hasAny;
-    widget.usernameController.addListener(_onFieldChanged);
-    widget.passwordController.addListener(_onFieldChanged);
-  }
-
-  @override
-  void dispose() {
-    widget.usernameController.removeListener(_onFieldChanged);
-    widget.passwordController.removeListener(_onFieldChanged);
-    super.dispose();
-  }
-
-  void _onFieldChanged() {
-    if (mounted) setState(() {});
-  }
+  // Read once: recomputing it per build would fold the section shut under
+  // the user as soon as they cleared the last character of a field.
+  late final bool _initiallyExpanded = widget.initiallyExpanded || _hasAny;
 
   String get _username => widget.usernameController.text;
   String get _password => widget.passwordController.text;
@@ -67,47 +49,62 @@ class _ProxyAuthSectionState extends State<ProxyAuthSection> {
   bool get _hasBoth => _username.isNotEmpty && _password.isNotEmpty;
 
   @override
-  Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
-    final scheme = Theme.of(context).colorScheme;
-    // Only one of the two filled is not a configuration the proxy client
-    // will ever use: it authenticates on both or on neither. Saying so here
-    // is the difference between a silent no-auth connection and a fixable
-    // mistake.
-    final incomplete = _hasAny && !_hasBoth;
-    final subtitle = incomplete
-        ? loc.proxyAuthIncomplete
-        : (_hasBoth ? _username : loc.proxyAuthNone);
-
-    return ExpansionTile(
-      title: Text(loc.proxyAuthTitle),
-      subtitle: Text(
-        subtitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: incomplete ? TextStyle(color: scheme.error) : null,
-      ),
-      initiallyExpanded: _initiallyExpanded,
-      childrenPadding: const EdgeInsets.fromLTRB(
-          Spacing.lg, Spacing.sm, Spacing.lg, Spacing.md),
-      children: [
-        TextFormField(
-          controller: widget.usernameController,
-          decoration: InputDecoration(
-            labelText: loc.proxyAuthUsername,
-            border: const OutlineInputBorder(),
-          ),
-          onEditingComplete: widget.onEditingComplete,
-          onFieldSubmitted:
-              widget.onEditingComplete == null ? null : (_) => widget.onEditingComplete!(),
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([
+      widget.usernameController,
+      widget.passwordController,
+    ]),
+    builder: (context, _) {
+      final loc = AppLocalizations.of(context);
+      final scheme = Theme.of(context).colorScheme;
+      // Only one of the two filled is not a configuration the proxy client
+      // will ever use: it authenticates on both or on neither. Saying so here
+      // is the difference between a silent no-auth connection and a fixable
+      // mistake.
+      final incomplete = _hasAny && !_hasBoth;
+      final subtitle = incomplete
+          ? loc.proxyAuthIncomplete
+          : (_hasBoth ? _username : loc.proxyAuthNone);
+      final done = widget.onEditingComplete;
+      Widget field(
+        TextEditingController controller,
+        String label, {
+        bool obscure = false,
+        Widget? suffixIcon,
+      }) => TextFormField(
+        controller: controller,
+        obscureText: obscure,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          suffixIcon: suffixIcon,
         ),
-        const SizedBox(height: Spacing.md),
-        TextFormField(
-          controller: widget.passwordController,
-          obscureText: _obscurePassword,
-          decoration: InputDecoration(
-            labelText: loc.proxyAuthPassword,
-            border: const OutlineInputBorder(),
+        onEditingComplete: done,
+        onFieldSubmitted: done == null ? null : (_) => done(),
+      );
+
+      return ExpansionTile(
+        title: Text(loc.proxyAuthTitle),
+        subtitle: Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: incomplete ? TextStyle(color: scheme.error) : null,
+        ),
+        initiallyExpanded: _initiallyExpanded,
+        childrenPadding: const EdgeInsets.fromLTRB(
+          Spacing.lg,
+          Spacing.sm,
+          Spacing.lg,
+          Spacing.md,
+        ),
+        children: [
+          field(widget.usernameController, loc.proxyAuthUsername),
+          const SizedBox(height: Spacing.md),
+          field(
+            widget.passwordController,
+            loc.proxyAuthPassword,
+            obscure: _obscurePassword,
             suffixIcon: IconButton(
               icon: Icon(
                 _obscurePassword ? Icons.visibility : Icons.visibility_off,
@@ -116,11 +113,8 @@ class _ProxyAuthSectionState extends State<ProxyAuthSection> {
                   setState(() => _obscurePassword = !_obscurePassword),
             ),
           ),
-          onEditingComplete: widget.onEditingComplete,
-          onFieldSubmitted:
-              widget.onEditingComplete == null ? null : (_) => widget.onEditingComplete!(),
-        ),
-      ],
-    );
-  }
+        ],
+      );
+    },
+  );
 }

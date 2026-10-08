@@ -23,7 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
-import 'package:webspace/demo_data.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -68,7 +68,7 @@ void main() {
 
     // PWD-005: password lives in secure storage, never in JSON. Seed it
     // through the real platform channel so the app's hydration path
-    // (loadAll inside _loadWebViewModels) finds it.
+    // (loadAll inside SiteListStore.load) finds it.
     await secure.write(
       key: 'proxy_passwords',
       value: jsonEncode({'proxy-1': 'sekret-pass'}),

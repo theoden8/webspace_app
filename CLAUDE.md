@@ -2,6 +2,88 @@
 
 WebSpace: Flutter app managing multiple websites with per-site cookie isolation via flutter_inappwebview. Platforms: iOS, Android, macOS, Linux (WPE WebKit fork).
 
+## Coding principles
+
+Simplicity comes first: every structure here exists to make the code easier to hold in the head; one that makes it harder has failed, however correct it is. Within that: one owner per fact, joins are types, and every invariant is caught at the earliest point it can be violated. A bug then has one suspect.
+
+### The ladder
+
+Each invariant sits on one rung. Put it on the highest rung Dart allows; step down only with a one-line reason next to the check.
+
+| Rung | Caught by | Dart form |
+|---|---|---|
+| 0 | decided before run time | `const` data; `extension type` ids; enum with fields; one field registry every serializer iterates |
+| 1 | the compiler | `sealed` + exhaustive `switch`, no `default` or `_`; records with `required` fields; a scope object that does in the constructor and undoes in `dispose` |
+| 2 | an assert at the owner | `assert(cond, 'why')` on entry to the compartment that owns the fact |
+| 3 | a self-check | the owner recomputes its result independently and compares |
+| 4 | a boundary test | the compartment driven through its public type with a fake that models the other side |
+| 5 | a gate | a test over source text; its header says what a type could not express |
+| 6 | prose | a paragraph here or a doc comment; catches nothing |
+
+An invariant written as a comment is on rung 6. `tab_lifecycle_engine.dart` says in a `///` that a tree has "an `activeTabId` that names a member"; as `assert(tabs.any((t) => t.id == activeTabId), 'activeTabId names a member')` the comment goes. A swallowed error (`catch (_)`) is below rung 6.
+
+**Check**: break the invariant on purpose. If a reviewer or a grep is what catches it, it is on the wrong rung.
+
+### Rules
+
+1. **One owner.** A fact is computed in one place; everything else reads it. Two places agreeing today is still a bug. The UI never restates a rule. A decision has one owner too: a job this codebase already does (a guard, a dialog, a store, a "follow app" choice, a sync primitive) is done the way the map or the existing code does it. A second way needs one line saying why, and then replaces the first everywhere in the same change, or is listed as debt. *Check*: a bug fix that edits two compartments means the fact had two owners; a new idiom beside an old one for the same job is a fork; fix the ownership.
+2. **Small typed joins.** Between compartments passes a record, class or sealed type, never a parameter list, map or string. More than four parameters is a missing type. A reader needs about four entities to follow a change; more means a join is misplaced. An abstraction earns its place by removing a copy, a forgotten-item failure or a parameter list; one that only adds a hop (a single caller, a generic parameter nobody varies, a wrapper that renames) is inlined. Every hop is a join that has to be proven valid too (a type, an assert, a boundary test), so an unneeded one is paid for twice: once in reading, once in validation. *Check*: did a join in the map change shape? One line why.
+3. **Fixed cost per axis.** Adding one item (a per-site field, a pref, a capture kind, a settings row) touches a fixed set of places through one funnel, and forgetting it anywhere fails to compile. *Check*: edit sites against the budget table; over budget, build the funnel first in its own commit.
+4. **Layers point down.** UI → model → services → values → platform (the map lists the directories). A file imports its own layer or lower. Engines (`*_engine.dart`) decide and are pure: no Flutter import, no I/O, no `context`; tests import them with fakes that model the interface. *Check*: [`test/js/layers.test.js`](test/js/layers.test.js) (rung 5: Dart has no module boundary a type can enforce); its debt list only shrinks.
+5. **Ids are types.** `extension type SiteId(String raw) {}`; a `String siteId` parameter is a square where a move was meant (`Host` in `services/url_host.dart` is the model). Constant data is `const`; a field is declared once and every serializer iterates the declaration. *Check*: any new `String` id, startup-built table, or hand-written per-field line?
+
+### Fixing a bug
+
+Name the fact and its owner. No single owner: that is the bug; pick one and delete the copy. Owner exists: fix it there, never a reader. Then lift the invariant one rung so this class cannot recur. Recurring: append to `docs/bugs/`.
+
+### Before finishing
+
+- Each new type explains itself in one sentence and removes more than it adds for a reader.
+- One compartment touched, or one line why not.
+- No join changed shape, or one line why.
+- A forgotten item would fail to compile.
+- Imports point down; new logic is a pure engine with a boundary test.
+- Nothing new on rung 5 or 6 without the line that names what would lift it.
+
+### This section
+
+Rules are fixed; a new one replaces one. The map grows one row per item. No recipes: a numbered list of edit sites is an axis without a funnel and belongs in the budget table as debt (the recipes further down this file are listed there). No restating a spec, type or test; link it. Area detail goes in `lib/<area>/CLAUDE.md`. When a gate becomes a type, delete the gate and its paragraph in the same commit.
+
+### Map
+
+| Compartment | Owns | Join |
+|---|---|---|
+| `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture, {homeTitle})`; `WebViewConfig.posture` |
+| `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
+| `WebViewHostHooks` | the host's answers to every site webview: prompts, outbound links, capture | one required-field class, passed whole |
+| `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
+| `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js, frames:)`; `ShimFrames` has no default |
+| `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |
+| `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |
+| `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | enum over three mode enums, `grantOf`/`withGrant` switches; sealed `GrantStore` |
+| `AppPref` (`settings/app_prefs.dart`) | every global pref, its default, what a backup carries | `AppPref.x.value` / `.set(v)`; backups iterate `AppPref.values` |
+| `SecureJsonStore` / `Keystores` / `KeychainAead` | secrets at rest and their keychain options | `SecureJsonStore<T>` on a `Keystores` set |
+| `host_platform` (`platform/`) | dart:io primitives, importable from plain Dart | conditional export |
+| `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
+| `LogTag` (`services/log_service.dart`) | every log tag and the label it shows | `LogTag.x.debug(msg, sensitive: true)`; `LogService.log` takes a `LogTag` |
+| `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
+
+Layers: UI `screens`, `widgets`, `controllers`, `main.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.
+
+Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`).
+
+| Axis | Budget | Now | Funnel |
+|---|---|---|---|
+| per-site field | 3 | ~7 edits, 4 files | `SitePosture` group; debt: a field registry for the model's constructor, `toJson`, `fromJson` |
+| pref | 2 | 2 | `AppPref` |
+| capture kind | ~5 files | ~5 files | `CaptureKind` |
+| settings row | 1–3 lines | 1–3 | `SettingTile` / `ChoiceTile` |
+| secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
+
+Flag for review before changing: persisted formats, the Dart to page-script bridge, any join above.
+
+Health, monthly: `node tool/architecture_health.js` prints files per fix commit, gates, `catch (_)`, asserts per 1k lines, comment share, `String` ids, hand-kept `toJson`/`fromJson` classes and layer violations, each with the direction it should move.
+
 ## Style (output, code, commits)
 
 - No preamble, no closing fluff, no em-dashes, no emoji.
@@ -21,6 +103,12 @@ WebSpace: Flutter app managing multiple websites with per-site cookie isolation 
   owner (a future dart:io observes, a request that reports it), don't add a
   second listener to silence it; restructure so there is one. The existing
   `catch (_)` sites predate this rule; don't copy them.
+
+## Subagents
+
+- Never spawn a subagent on a Fable model (`model: "fable"`, or a workflow
+  `agent()` call that picks one) unless the user has explicitly allowed it in
+  the current conversation. Omit `model` or pick another one instead.
 
 ## Shipping macOS
 
@@ -84,8 +172,8 @@ curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bas
 export NVM_DIR="$HOME/.nvm"; [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 nvm install --lts
 
-# Swift — only to run tool/swift_typecheck/check.sh, which type-checks the two
-# Apple plugins no other tier compiles. It exits 0 with "no swiftc on PATH,
+# Swift — only to run tool/swift_typecheck/check.sh, which type-checks the
+# Apple plugin sources no other tier compiles. It exits 0 with "no swiftc on PATH,
 # skipping" when Swift is absent, so without this the gate is silently not a
 # gate, which is how `proxyConfigurations?.count` reached CI once.
 curl -fsSLO https://download.swift.org/swiftly/linux/swiftly-$(uname -m).tar.gz
@@ -126,16 +214,18 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 - `WebViewModel` ([lib/web_view_model.dart](lib/web_view_model.dart)) — site with URL, cookies, per-site settings (language, incognito, proxy, etc.). Unique `siteId` keys cookie isolation.
 - `Webspace` ([lib/webspace_model.dart](lib/webspace_model.dart)) — named collection of site indices. `__all_webspace__` shows all.
 
-**Main** — [lib/main.dart](lib/main.dart): `WebSpaceApp` (root MaterialApp) and `WebSpacePage` holding `_webViewModels`, `_webspaces`, `_loadedIndices`, isolation orchestration.
+**Main** — [lib/main.dart](lib/main.dart): `WebSpaceApp` (root MaterialApp) and `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, loaded positions, current site, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (shortcuts, archives, surface repaint, background sites, app lifecycle, site network, tabs, links). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of main.dart; `lib/services` never imports a controller.
+
+**Site-set changes** — every add, delete, move, edit, import, archive open/close goes through `_commitSites(SiteSetChange)` ([site_set_change.dart](lib/controllers/site_set_change.dart)). The sealed change's `effects` record (every field required) decides what follows it, and the funnel runs those steps in one fixed order, so a new kind of change does not compile until it answers each one.
 
 **Services** ([lib/services/](lib/services/)) — `cookie_secure_storage`, `html_cache_service` (AES, clears on upgrade), `icon_service`, `dns_block_service`, `webview` (CookieManager wrapper, WebViewTheme).
 
-**Cookie isolation — two engines, runtime-selected.** `_WebSpacePageState` caches `bool _useContainers = await ContainerNative.isSupported()` at startup and gates the path.
+**Cookie isolation — two engines, runtime-selected.** `SiteRuntime.useContainers` caches `await ContainerNative.instance.isSupported()` at startup and gates the path.
 
 - **Container engine** ([container_isolation_engine.dart](lib/services/container_isolation_engine.dart)) — Android System WebView reporting `MULTI_PROFILE` (runtime-detected, no published milestone version), iOS 17+, macOS 14+, Linux WPE WebKit 2.40+. Each `siteId` → native container `ws-<siteId>` (`androidx.webkit.Profile` / `WKWebsiteDataStore(forIdentifier:)` / `WebKitNetworkSession` cached under `<XDG_DATA_HOME>/flutter_inappwebview/containers/`) owning its cookies, localStorage, IDB, ServiceWorkers, HTTP cache. Same-base-domain sites load concurrently — no conflict-unload, no capture-nuke-restore. Bridge: [`ContainerNative`](lib/services/container_native.dart). Lifecycle ops route through fork's `inapp.ContainerController`; only the Android `MULTI_PROFILE` feature gate lives in [`WebSpaceContainerPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/WebSpaceContainerPlugin.kt). Bind happens in `InAppWebView.prepare()` / `preWKWebViewConfiguration` / Linux `webkit_web_view_set_property("network-session", ...)`, driven by stock `inapp.InAppWebViewSettings.containerId` set by `WebViewFactory.createWebView`. Spec: [openspec/specs/per-site-containers/spec.md](openspec/specs/per-site-containers/spec.md).
 - **Legacy engine** ([cookie_isolation.dart](lib/services/cookie_isolation.dart)) — Windows, web, anywhere `ContainerController.isClassSupported` is false. Sites with matching base domains can't load simultaneously; switching unloads the conflict and runs capture-nuke-restore on the shared cookie jar. Spec: [openspec/specs/per-site-cookie-isolation/spec.md](openspec/specs/per-site-cookie-isolation/spec.md).
 
-**Other patterns** — Lazy webview loading (`_loadedIndices`); `isDemoMode` flag (no persistence, seeded data).
+**Other patterns** — Lazy webview loading (`SiteRuntime.loaded`); `isDemoMode` flag (no persistence, seeded data).
 
 **flutter_inappwebview fork** — adds containers + per-site iOS/macOS proxy. Monorepo: <https://github.com/theoden8/flutter_inappwebview>. `dependency_overrides` in [pubspec.yaml](pubspec.yaml) pin every platform plugin to one git ref. Pub caches under `~/.pub-cache/git/`. Currently a mutable branch — tag it before each release. Surface area: `grep -rn '\[WebSpace fork patch\]' ~/.pub-cache/git/flutter_inappwebview-*/`.
 
@@ -326,17 +416,19 @@ Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` and sibling des
 
 ## Adding a new global app setting
 
-User-facing global pref persisted to SharedPreferences MUST round-trip through the export/import registry, else it drops out of backups.
+A user-facing global pref is one entry of the `AppPref` enum; persistence, backup export/import, the demo-mode guard and the live value come with it.
 
-- Add key + default to `kExportedAppPrefs` in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart) (single source of truth).
-- The integrity test in [test/settings_backup_test.dart](test/settings_backup_test.dart) iterates the registry — no test edit needed for `bool|int|double|String|List<String>`.
-- Don't add per-pref params to `SettingsBackupService.createBackup`; main.dart already does `readExportedAppPrefs` / `writeExportedAppPrefs`.
+1. Declare it in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart): `name('sharedPrefsKey', default)`, a `bool`, `int` or `String` (a const assert rejects anything else). Declaration order is the order a backup lists it.
+2. Bind its row: a switch is `SettingTile(..., control: const PrefToggle(AppPref.name))`; anything else reads `AppPref.name.value` and writes `AppPref.name.set(v)`. Code with a side effect listens on `AppPref.name.listenable`; main.dart rebuilds on `AppPref.anyChange`.
+
+- No per-pref constructor params, `_saveX` methods or second cache of the value: `set` persists (except in demo mode) and every reader sees the same notifier. `writeExportedAppPrefs` applies an import to disk and to the running app.
+- The integrity test in [test/settings_backup_test.dart](test/settings_backup_test.dart) iterates `AppPref.values` — no test edit needed.
 - Don't register: migration flags, download timestamps, cache indices, machine state from downloaded data (DNS blocklist, content blocker, localcdn).
 - Per-site settings ride `WebViewModel.toJson` automatically — keep them on the model.
 - Touched export/import? Re-run `flutter test test/settings_backup_test.dart test/settings_backup_compat_test.dart`.
 - Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `_importSettings` only applies the plan (BACKUP-013).
-- Renaming a persisted key (site JSON, backup field, SharedPreferences key) keeps reading the old name and carries the value over; dropping one is declared with its reason (`_renamedKeys` / `_retiredKeys` in the compat test, `RETIRED` in `test/js/prefs_key_history.test.js`). Both tests hold every release's writes against today's reads (BACKUP-012, BACKUP-014).
-- A new `fromJson` field reads a wrong-typed value as absent, never with a bare cast: a site whose JSON throws is dropped at startup and deleted by the next save. Read a `kExportedAppPrefs` key with `readPrefAs<T>`, never `prefs.getBool` and friends (gated).
+- Renaming a persisted key (site JSON, backup field, SharedPreferences key) keeps reading the old name and carries the value over (for an `AppPref`, `legacyKey: 'old'`); dropping one is declared with its reason (`_renamedKeys` / `_retiredKeys` in the compat test, `RETIRED` in `test/js/prefs_key_history.test.js`). Both tests hold every release's writes against today's reads (BACKUP-012, BACKUP-014).
+- A new `fromJson` field reads a wrong-typed value as absent, never with a bare cast: a site whose JSON throws is dropped at startup and deleted by the next save. An `AppPref` coerces its stored value itself; never read one with `prefs.getBool(AppPref.x.key)` and friends (gated by `test/js/prefs_key_history.test.js`).
 - On release day (version bumped in `pubspec.yaml`), run `tool/backup_compat/generate.sh HEAD` and commit the new `test/fixtures/backup_compat/v<version>/`; the compat test fails without it.
 
 ## Settings rows: state in the subtitle, explanation in the hint
@@ -347,9 +439,23 @@ A settings row has three places text can go and they are not interchangeable.
 - **Title** — what the setting is.
 - **Subtitle** — what it is set to, or a status that moves: a value, a count,
   `Not configured`, `System`, `Forced off by Tracking Protection`. Often absent.
-- **`HintButton`** ([lib/widgets/hint_button.dart](lib/widgets/hint_button.dart)) —
-  what it does, what it costs, when to want it. Sits next to the title, opens a
-  dialog, and costs one icon of layout however long the text is.
+- **Hint** — what it does, what it costs, when to want it. A `HintButton`
+  beside the title opens it as a dialog, at one icon of layout however long the
+  text is.
+
+Build the row from [lib/widgets/setting_tile.dart](lib/widgets/setting_tile.dart):
+`SettingTile(title:, hint:, subtitle:, control:, lock:)`, or `HintedTitle` where
+a row is not a list tile. `hint` is required (pass `null` for none), `control`
+is `Toggle`/`Opens`/`Trailing`, and a row another setting decides takes a
+`Lock` (`TrackingProtectionLock`, `ArchiveLock`, or `Lock.because(text)`),
+which disables it and puts the reason in the subtitle. A mode picker
+is a `ChoiceTile` labelled by a `switch` extension in
+[lib/settings/setting_labels.dart](lib/settings/setting_labels.dart); a
+per-site value that may follow the app-wide one is a `Scoped<T>`
+(`FollowApp`/`Own`). Yes/no dialogs go through `confirm()`, SnackBars through
+`toast` ([lib/widgets/toast.dart](lib/widgets/toast.dart)), and a screen with a
+Save action mixes in `DirtyGuard` (a record snapshot), which
+`test/js/site_settings_dirty_snapshot.test.js` enforces.
 
 Explanation goes in the hint, never the subtitle. A sentence that is one tidy
 line of English is four wrapped lines of Malay under a switch, and nothing
@@ -364,8 +470,9 @@ overflows, so no render test sees it — the list just goes ragged.
   (`<setting>Subtitle` → `<setting>Hint`) across all `lib/l10n/app_*.arb`,
   keeping every translation. Delete it instead only when an existing hint on
   the same row already says it.
-- The `HintButton`'s `title` is the row's own title, and the label beside it is
-  `Flexible` (gated by `test/js/settings_title_row_overflow.test.js`).
+- The hint dialog's title is the row's own title, and `HintedTitle` keeps the
+  label `Flexible`. A bare `HintButton` is allowed only where it shares no row
+  with a label (`test/js/settings_title_row_overflow.test.js` lists them).
 
 ## Adding user-facing strings (localization)
 
@@ -375,7 +482,7 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
 - **Commit the 66 translated ARBs separately from the code** (see Git above): code + `app_en.arb` first, translations second, pushed together.
 - Generated code lives in `lib/l10n/gen/` and is **gitignored** — regenerated by `generate: true` on `pub get`/build, or `fvm flutter gen-l10n`. Don't commit it.
 - Pure-data display (e.g. `host:port`) goes into a local variable first; never a string literal inside `Text(`/`tooltip:` etc., or the LOC-002 guard fails.
-- Migration is phased: when you finish routing a file's strings, move it from `pending` to `migrated` in [test/js/l10n_no_hardcoded_text.test.js](test/js/l10n_no_hardcoded_text.test.js). A new UI file under `lib/{main.dart,screens,widgets}` must be classified in that test or it fails.
+- [test/js/l10n_no_hardcoded_text.test.js](test/js/l10n_no_hardcoded_text.test.js) and [design_tokens_no_literals](test/js/design_tokens_no_literals.test.js) scan every file under `lib/{main.dart,screens,widgets}`, so a new UI file needs no edit there. Each keeps a shrinking exemption list: drop a file from it once converted.
 - Every key MUST carry a non-empty `description` (enforced by [test/js/l10n_coverage.test.js](test/js/l10n_coverage.test.js)) — that description is the context a translator/general model uses, so write it for someone who can't see the screen.
 - To add a locale: hand `app_en.arb` (values + descriptions) to any general-purpose model, ask it to translate the values keeping `{placeholder}` tokens verbatim, save as `app_<locale>.arb`. No committed script or API key. Coverage (key + placeholder parity, no empties) is enforced by [test/js/l10n_coverage.test.js](test/js/l10n_coverage.test.js).
 - Language identity (file actually written in its claimed language, not left in English or swapped) is enforced by [test/js/l10n_language.test.js](test/js/l10n_language.test.js) (runs under `npm run test:js`, no VRAM). Three checks, all backed by [test/js/helpers/l10n_language.js](test/js/helpers/l10n_language.js):
@@ -388,7 +495,7 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
     Simplified) — gen_l10n cannot express a `zh_Hant`-only setup.
   - **Per-string**: flags individual values left untranslated (in English) when neighbours were translated — CLD3 is unreliable on single short strings, so this uses heuristics (non-Latin: a Latin-only multi-word value where the locale's script is expected; Latin: a value whose words are almost all English-source vocabulary plus an unambiguous English stopword). No allowlist — translate the offender. Run `node tool/check_l10n_language.js --per-string [locale]` for the report.
 - Nested-webview rule applies to copy too: localized strings in `launchUrl`/`InAppWebViewScreen` flow through `BuildContext`, so resolve them at the call site.
-- Widget tests that `pumpWidget(MaterialApp(...))` a migrated screen/widget MUST set `localizationsDelegates: AppLocalizations.localizationsDelegates` + `supportedLocales: AppLocalizations.supportedLocales`, or `AppLocalizations.of(context)` null-crashes.
+- Widget tests pump a screen/widget through `pumpLocalized(tester, child)` or wrap it in `localizedApp(child)` ([test/helpers/localized.dart](test/helpers/localized.dart)); a bare `MaterialApp` leaves `AppLocalizations.of(context)` null.
 
 ## Touching the webspace archive
 
@@ -403,11 +510,11 @@ Argon2id derivation costs ~1s on target hardware. Keep it off the UI thread on s
 
 Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/proxy-password-secure-storage/spec.md). Template: `ProxyPasswordSecureStorage`.
 
-- **Storage**: `flutter_secure_storage`, keyed by `siteId` (per-site) or fixed reserved key (global).
+- **Storage**: a `SecureJsonStore` ([keystore.dart](lib/services/keystore.dart)) on `Keystores.credentials`, keyed by `siteId` (per-site) or a fixed reserved key (global). Never a new `FlutterSecureStorage` option set: on Apple the accessibility class is part of the keychain query, so changing it makes existing entries unreadable ([BUG-027](docs/bugs/027-aead-keys-unreadable-on-locked-wake.md)). An encrypted blob on disk takes its key from `KeychainAead`.
 - **Never serialise to JSON**: `toJson` omits the field. No `includeSecrets` opt-in. Same rule as `isSecure=true` cookies. Backup files get emailed/synced — they must not carry secrets.
-- **Hydrate on load** alongside per-site/global hydration in `_loadWebViewModels` and `GlobalOutboundProxy.initialize`.
+- **Hydrate on load** alongside per-site/global hydration in `SiteListStore.load` and `GlobalOutboundProxy.initialize`.
 - **Migrate legacy plaintext** with the idempotent pre-pass in `ProxyPasswordSecureStorage.migrateLegacyPassword`.
-- **Wire orphan cleanup** at the same three GC sites in [lib/main.dart](lib/main.dart): startup, post-import, post-delete.
+- **Wire orphan cleanup**: add the store to `OrphanStore` in [orphan_sweep_engine.dart](lib/services/orphan_sweep_engine.dart) with its scope (session residue or configuration). `_OrphanSweepTargets` in main.dart does not compile until it sweeps the store; startup, post-import and post-delete all run the engine.
 - **Tell the user post-import** (snackbar in `_importSettings`) if the related non-secret field was set — otherwise restored proxy silently fails auth.
 - **Regression test**: assert the secret string never appears in `SettingsBackupService.exportToJson(...)` output. Template: "proxy passwords never appear in exports (PWD-005)".
 - Update the spec, then `npx openspec validate --no-interactive --all`.
@@ -416,51 +523,76 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 
 `notificationsEnabled` (per-site) folds three behaviors so a single user toggle keeps notifications reliable:
 
-- **Polyfill**: JS `Notification` constructor + `requestPermission()` are polyfilled at `DOCUMENT_START` (`forMainFrameOnly: false`); calls bridge to `NotificationService` via `addJavaScriptHandler('webNotification', ...)`.
+- **Polyfill**: JS `Notification` constructor + `requestPermission()` are polyfilled at `DOCUMENT_START` (`ShimFrames.all`); calls bridge to `NotificationService` via `addJavaScriptHandler('webNotification', ...)`.
 - **No per-instance pause**: `WebViewModel.pauseWebView()` early-returns for notification sites — iOS's `pauseTimers()` alert hack would freeze the JS thread between site switches and queue setTimeouts into one burst on resume.
 - **No app-background JS pause while one is loaded** (NOTIF-011): Android's `pauseTimers()` is process-global, so any loaded notification site vetoes it, not only an active one.
-- **Auto-load + retention priority**: notification sites are added to `_loadedIndices` on startup and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
+- **Auto-load + retention priority**: notification sites are added to `SiteRuntime.loaded` on startup and tier `notification` in `SiteRetentionPriority` so OS memory pressure evicts other sites first.
 - **iOS background contract** (NOTIF-005-I): `BackgroundTaskService` calls `UIApplication.beginBackgroundTask` on app-pause for a ~30s grace window and registers a `BGAppRefreshTask` (`org.codeberg.theoden8.webspace.notification-refresh`) that reloads notif sites opportunistically. Native bridge: [`ios/Runner/BackgroundTaskPlugin.swift`](ios/Runner/BackgroundTaskPlugin.swift).
-- **A wake ends when its pages have loaded** (NOTIF-013): returning from `onBackgroundRefresh` completes the OS task, so `_backgroundWake` awaits `BackgroundWakeEngine`, which waits for the reloads to settle. A reload shows what arrived but a site need not notify for it, so a site that stayed silent while its title's unread count rose gets one post on its behalf (NOTIF-014). iOS has no way to run a page between wakes: no foreground service, no Web Push in WKWebView apps, and keep-awake tricks fail App Store review.
-- **A wake checks every notification site** (NOTIF-016), not only loaded ones with a webview: in a process the OS launched for the wake there is no webview at all. `BackgroundWakeEngine.plan` decides from `wakeCandidateFor` (live: reload; else `WebViewFactory.openHeadlessCheck` with `WebViewModel.headlessCheckConfig`, held to `getWebView` by `test/js/headless_check_config_parity.test.js`; else skip with a `WakeSkip` reason). A new per-site field goes into `headlessCheckConfig` too. Lineage: [BUG-024](docs/bugs/024-background-notifications-never-arrive.md).
+- **A wake ends when its pages have loaded** (NOTIF-013): returning from `onBackgroundRefresh` completes the OS task, so `BackgroundSitesController.wake` awaits `BackgroundWakeEngine`, which waits for the reloads to settle. A reload shows what arrived but a site need not notify for it, so a site that stayed silent while its title's unread count rose gets one post on its behalf (NOTIF-014). iOS has no way to run a page between wakes: no foreground service, no Web Push in WKWebView apps, and keep-awake tricks fail App Store review.
+- **A wake checks every notification site** (NOTIF-016), not only loaded ones with a webview: in a process the OS launched for the wake there is no webview at all. `BackgroundWakeEngine.plan` decides from `wakeCandidateFor` (live: reload; else `WebViewFactory.openHeadlessCheck` with `WebViewModel.headlessCheckConfig`, which takes the site's `SitePosture` as `getWebView` does and the host hooks `unattended()`; else skip with a `WakeSkip` reason). Lineage: [BUG-024](docs/bugs/024-background-notifications-never-arrive.md).
 - **Android background contract** (NOTIF-005-A): same `BackgroundTaskService` — Android side uses `WorkManager` `PeriodicWorkRequest` (15-min minimum, 15-min initial delay so the first period is not due at enqueue time, unique-work `webspace-notification-refresh`) and no foreground service: apps that notify from the background are woken by a push channel rather than staying resident, and `FOREGROUND_SERVICE_SPECIAL_USE` is intractable for Play review. A keep-alive `specialUse` service was built and withdrawn for this reason: a foreground service for notifications is off limits (NOTIF-015, gated by `test/js/notification_no_foreground_service.test.js`). When no Flutter engine is reachable the worker starts one with no activity (`WorkerFlutterEngine`, plugins from `EnginePlugins`, `main` told by `--background-wake` to build no site webview), waits for Dart's `backgroundRefreshReady`, and destroys it after; `MainActivity.provideFlutterEngine` stops it first if the app is opened. Native bridge: [`android/app/src/main/kotlin/.../BackgroundTaskAndroidPlugin.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundTaskAndroidPlugin.kt) + [`NotificationRefreshWorker.kt`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/NotificationRefreshWorker.kt). One-time background-limits info dialog shows on first toggle on either platform. The CI lifecycle tier runs the worker through `NotificationRefreshDebugReceiver` (`android/app/src/debug/`, debug builds only) — `cmd jobscheduler run -f` cannot drive periodic work, since WorkManager refuses a `WorkSpec` executed before its next run time.
 - **Test delivery the way sites deliver** (NOTIF-012): a fixture that posts on page load proves only that a reload happened. Scenario P in the lifecycle tier serves a page whose unread count lives on the server and which posts only when the server sends it something; it checks the live path with the site behind a plain one, then records a message while the app sits in the background past the freezer, drives the wake, and requires the wake's fallback post.
 
-When adding a notification-related code path, prefer extending `NotificationService` / `BackgroundTaskService` over reaching into `_WebSpacePageState`.
+When adding a notification-related code path, prefer extending `NotificationService` / `BackgroundTaskService` / [`BackgroundSitesController`](lib/controllers/background_sites_controller.dart) over reaching into `_WebSpacePageState`.
 
 ## Per-site toggles backed by downloaded data
 
 DNS blocklist, content blocker, LocalCDN need a downloaded blob.
 
 - **Per-site strength**: both blockers are also adjustable per site, as masks over the app-wide configuration — `WebViewModel.dnsBlockLevel` (null = follow the app level) and `disabledFilterLists`. A mask can only relax: a level's list is fetched on demand and falls back to the app level until it lands, and a filter list not enabled app-wide is not in the engine at all. **The Hagezi levels do not nest** (21,921 of 297,756 domains drop out of a higher level), so each domain carries a bit per level that names it rather than a single "lowest level"; anything else makes the app-wide level's behaviour depend on which per-site levels were downloaded. See [dns_level_mask_engine.dart](lib/services/dns_level_mask_engine.dart) and [filter_list_mask.dart](lib/services/filter_list_mask.dart).
-- **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnBlockerNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, `_notConfiguredWarnIcon` renders next to the tile title and the "Not configured" subtitle turns amber (also on the Tracking Protection tile when a forced dep is unconfigured).
-- **LocalCDN**: still hard-gated (`onChanged: ... hasCache ? (v) => ... : null` grays the switch) — it can't serve anything without a cache and its `value` is forced off.
-- See [lib/screens/settings.dart](lib/screens/settings.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.
+- **DNS blocklist / content blocker**: the switch stays interactive when the service has no data. Enabling it flips the setting (it takes effect once the data is downloaded) and fires `_warnNotConfigured` — a SnackBar naming the feature and pointing at App Settings. Tracking Protection's toggle fires the same warning for each unconfigured feature it forces on. While a blocker is effectively on without data, its row sets `SettingTile.missingData`: a warning icon beside the title and an amber "Not configured" subtitle (also on the Tracking Protection card when a forced dep is unconfigured).
+- **LocalCDN**: still hard-gated by a `Lock` — it can't serve anything without a cache, so the switch is greyed and its `value` forced off.
+- See [lib/screens/site_privacy.dart](lib/screens/site_privacy.dart): `DnsBlockService.hasBlocklist`, `ContentBlockerService.hasRules`, `LocalCdnService.hasCache`.
+- **App Settings rows for the data**: each dataset is a `DownloadableDataset` adapter in [lib/widgets/datasets.dart](lib/widgets/datasets.dart) rendered by one `DatasetTile`, which owns the busy state, the date line, the buttons and the SnackBar. A new downloaded dataset is a new adapter, not a new row.
 
 ## Per-site settings MUST apply to nested webviews
 
-Cross-domain navs open a new `InAppWebViewScreen` via `launchUrl` in [lib/main.dart](lib/main.dart) with its own `WebViewConfig` — that config MUST carry every per-site field (cookie isolation, language, geo/tz, WebRTC, user scripts, content blocker, ClearURLs, DNS blocklist, desktop mode, …), or a hostile outbound link silently bypasses the user's privacy posture.
+Every webview that runs as a site (its own, the nested `InAppWebViewScreen` a
+cross-domain link opens, a popup either spawns, the headless check a
+background wake opens) is built from one `SitePosture`
+([lib/services/site_posture.dart](lib/services/site_posture.dart)), resolved by
+`WebViewModel.sitePosture` and handed whole through `LaunchUrlFunc` →
+`launchUrl` → `InAppWebViewScreen` → `WebViewConfig`. Every field is required
+with no default, so a field the chain forgets does not compile, and a hostile
+outbound link cannot drop the site's posture. Spec: NESTED-010; history:
+[BUG-025](docs/bugs/025-nested-posture-drift.md).
 
 When you add a per-site field:
 
 1. `WebViewModel.toJson`/`fromJson`.
-2. `WebViewConfig` in `WebViewModel.getWebView` ([lib/web_view_model.dart](lib/web_view_model.dart)).
-3. `launchUrl` signature in [lib/main.dart](lib/main.dart).
-4. `InAppWebViewScreen` ctor in [lib/screens/inappbrowser.dart](lib/screens/inappbrowser.dart) + its `WebViewConfig`.
-5. `launchUrlFunc` typedef + both call sites in [lib/web_view_model.dart](lib/web_view_model.dart).
-6. `WebViewModel.headlessCheckConfig`, the background wake's headless check (gated by `test/js/headless_check_config_parity.test.js`).
+2. A field in the matching `SitePosture` group, resolved in
+   `WebViewModel.sitePosture` ([lib/web_view_model.dart](lib/web_view_model.dart)).
+   An archive-tier or Tracking Protection override is applied there, through
+   an `effective*` getter, never at a consumer. The rule itself lives in
+   [lib/services/site_overrides.dart](lib/services/site_overrides.dart), which
+   the settings screens also read, so a screen shows what the webview runs.
+3. Its consumer reads `config.posture.<group>.<field>` (the factory in
+   [webview.dart](lib/services/webview.dart)) or `widget.posture` (the nested
+   screen).
 
-If the field controls JS in `initialUserScripts`, set `forMainFrameOnly: false` (iOS default is main-frame-only) so the shim reaches cross-origin iframes.
+A nested screen differs from the site's own webview only where
+`SitePosture.forNested()` says so. Wiring that belongs to a surface rather than
+the site (callbacks, `backForwardGestures`, the slot's `backgroundAudioEnabled`,
+the site icon and search targets) stays a `WebViewConfig` field the owning
+surface sets. What the host answers (prompts, popups, capture resolvers,
+cookie jars, routing) is one `WebViewHostHooks`
+([webview_host_hooks.dart](lib/services/webview_host_hooks.dart)) that
+`main.dart` builds once and both surfaces take whole; a new host answer is a
+required field there (BUG-028).
+
+If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., frames: ShimFrames.all)` ([page_shim.dart](lib/services/page_shim.dart)) so the shim reaches cross-origin iframes.
 
 ## Logic engine vs rendering engine
 
 Orchestration (which sites unload on switch, how indices shift after delete, what cookies move during activation) → pure-Dart engine in `lib/services/*_engine.dart`. Template: [cookie_isolation.dart](lib/services/cookie_isolation.dart). Native webview / platform channels / `setState` stays at the call site.
 
-- Mutating `_webViewModels`/`_loadedIndices`/`_webspaces` with >1 line of index arithmetic? Engine.
+- Mutating `SiteRuntime`'s models, loaded positions or webspaces with >1 line of index arithmetic? Engine.
+- Which loaded sites go, and why? A `ResidencyEvent` case in `SiteUnloadEngine.plan` ([site_unload_engine.dart](lib/services/site_unload_engine.dart)), run by `SiteUnloadEngine.apply`; every eviction picks through `evictionOrder`. Never unload from a loop at a call site.
 - `await native_call` then mutate shared state with scenario-dependent logic? Engine.
 - Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
 - Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
 - Tests import the engine directly with in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart).
+- One fake per interface, in [test/helpers/](test/helpers/) (`MockCookieManager`, `MockFlutterSecureStorage`, `FakeTorRuntime`, `FakeOutbound`, `FakePathProvider`, `FakeWebViewController`). Extend it when a test needs a new knob; never redefine it in a test file, and never import another `*_test.dart` for its fakes.
 
 ## Adding native code that mutates shared state (BUG-007)
 
@@ -475,7 +607,13 @@ observe:
 
 - **Total synchronization or none-shared.** Either single-owner / immutable-snapshot /
   message-passed, or *every* read, write, and eviction under one monitor / serial queue /
-  RW-lock. A lock on the writer but not the reader is BUG-007 — don't.
+  RW-lock. A lock on the writer but not the reader is BUG-007 — don't. In Kotlin that means
+  [`Guarded<T>`](android/app/src/main/kotlin/org/codeberg/theoden8/webspace/Guarded.kt)
+  (state reachable only inside `with { }`), `SiteEventInbox` for IO-thread events Dart
+  drains, or an immutable snapshot behind a `@Volatile var`;
+  [`test/js/native_shared_state.test.js`](test/js/native_shared_state.test.js) fails on any
+  other property holding a mutable collection, and on a raw lock, unless it is named there
+  with its reason.
 - **One-shot resources are idempotent + identity-guarded.** A freed pointer or a completed
   task: guard the second call to a no-op (`guard pendingRefreshTask === task`). Never
   free/complete by re-reading shared state.
@@ -483,24 +621,15 @@ observe:
   across a blocking call (read under lock, compute outside, write under lock).
 - **Encode a class-level guard** (practice, not optional): a JVM concurrency/stress test or a
   structural CI gate so the *next* instance fails, not just this one. Templates:
-  `AdblockEngineNativeTest.kt`, `test/js/native_bgtask_completion_funnel.test.js`.
+  `AdblockEngineNativeTest.kt`, `SiteEventInboxTest.kt`,
+  `test/js/native_bgtask_completion_funnel.test.js`.
 - **Record recurrence in BUG-007**, not a new file — append a dated fix attempt with *why it
   was partial* (which path it covered, which it missed). Cross-link the spec that owns the
   state.
 
-## Logic engine vs rendering engine
-
-Orchestration (which sites unload on switch, how indices shift after delete, what cookies move during activation) → pure-Dart engine in `lib/services/*_engine.dart`. Template: [cookie_isolation.dart](lib/services/cookie_isolation.dart). Native webview / platform channels / `setState` stays at the call site.
-
-- Mutating `_webViewModels`/`_loadedIndices`/`_webspaces` with >1 line of index arithmetic? Engine.
-- `await native_call` then mutate shared state with scenario-dependent logic? Engine.
-- Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
-- Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
-- Tests import the engine directly with in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart).
-
 ## DRY: tests delegate, don't reimplement
 
-Test harness re-implementing `switchToSite`/`deleteSite` = un-extracted engine. Wrap the real engine; never re-write the flow in a test. See [test/cookie_isolation_integration_test.dart:174-238](test/cookie_isolation_integration_test.dart).
+Test harness re-implementing `switchToSite`/`deleteSite` = un-extracted engine. Wrap the real engine; never re-write the flow in a test. See `CookieIsolationTestHarness` in [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart), whose deletion goes through `SiteListState` ([test/helpers/site_list_state.dart](test/helpers/site_list_state.dart)) and so through `SiteLifecycleEngine`.
 
 ## Code flows new → stable
 
@@ -511,6 +640,6 @@ New features extend the engine (or add one alongside). Never inline a feature-sp
 Async UI handlers (button callbacks, `onPopInvokedWithResult`, gestures) get re-entered before the first call resolves.
 
 - **Rapid input**: a handler that `await`s before acting can be entered twice concurrently.
-- **Guard**: boolean flag (`_isHandling`), cleared in `finally`.
+- **Guard**: a [`ReentryGuard`](lib/services/reentry_guard.dart) field, `await _guard.run(() async {...})`; `run` owns the `finally`, so no exit path leaves it held.
 - **State across awaits**: re-check `mounted`, indices, shared state — another handler may have mutated.
 - **Drawer/dialog flash**: opening UI in an unguarded async callback lets a second tap close it immediately.

@@ -8,6 +8,7 @@ import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_detail_storage.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Persistent, app-wide block statistics behind the protection report
 /// (STATS-001).
@@ -57,8 +58,8 @@ class BlockStatsService {
   final Set<VoidCallback> _listeners = <VoidCallback>{};
   Timer? _idleFlushTimer;
   Timer? _maxFlushTimer;
-  Future<void> _flushChain = Future<void>.value();
-  Future<void>? _initFuture;
+  final SerialQueue _flushes = SerialQueue();
+  final SingleFlight<(), void> _init = SingleFlight();
   bool _notifyScheduled = false;
   bool _initialized = false;
 
@@ -69,8 +70,6 @@ class BlockStatsService {
   /// category per day.
   BlockStatsDetail get detail => _detail;
 
-  bool get isInitialized => _initialized;
-
   /// Load the persisted counters and the encrypted detail. Safe to call more
   /// than once: concurrent callers await the same load, and later calls are
   /// no-ops, so a re-entrant startup path cannot replace an engine that has
@@ -78,11 +77,11 @@ class BlockStatsService {
   Future<void> initialize({
     @visibleForTesting BlockStatsDetailStore? detailStore,
   }) {
-    return _initFuture ??= _initialize(detailStore);
+    if (_initialized) return Future.value();
+    return _init.run((), () => _initialize(detailStore));
   }
 
   Future<void> _initialize(BlockStatsDetailStore? detailStore) async {
-    _initialized = true;
     _detailStore = detailStore ?? SecureBlockStatsDetailStore();
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -94,14 +93,14 @@ class BlockStatsService {
         }
       }
     } catch (e) {
-      LogService.instance.log('BlockStats', 'Failed to load stats: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Failed to load stats: $e');
       _engine = BlockStatsEngine();
     }
     await _loadDetail();
     // Both, then decide: `||` would short-circuit the detail out of every
     // launch that pruned a counter bucket.
     final pruned = _engine.prune() + _detail.prune();
+    _initialized = true;
     if (pruned > 0) {
       unawaited(flush());
     }
@@ -117,8 +116,7 @@ class BlockStatsService {
         _detail.mergeFromJson(decoded);
       }
     } catch (e) {
-      LogService.instance.log('BlockStats', 'Failed to load detail: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Failed to load detail: $e');
     }
   }
 
@@ -140,9 +138,6 @@ class BlockStatsService {
       _contributingSiteIds.remove(siteId);
     }
   }
-
-  @visibleForTesting
-  bool siteContributes(String siteId) => _contributingSiteIds.contains(siteId);
 
   /// Record [count] block events of [category] attributed to [siteId].
   /// Ignored for sites that have not been declared app-tier. [label] names
@@ -176,10 +171,10 @@ class BlockStatsService {
     // Serialised rather than concurrent: two flushes encoding the same
     // counters can land the older payload last, which drops the difference
     // until something else marks the engine dirty again.
-    final next =
-        _flushChain.then((_) => _flushCounters()).then((_) => _flushDetail());
-    _flushChain = next.catchError((_) {});
-    return next;
+    return _flushes.run(() async {
+      await _flushCounters();
+      await _flushDetail();
+    });
   }
 
   Future<void> _flushCounters() async {
@@ -195,8 +190,7 @@ class BlockStatsService {
       // recorded while it was in flight is not in the payload at all.
       engine.markCleanAt(revision);
     } catch (e) {
-      LogService.instance.log('BlockStats', 'Failed to persist stats: $e',
-          level: LogLevel.warning);
+      LogTag.blockStats.warning('Failed to persist stats: $e');
     }
   }
 

@@ -1,43 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
-
-/// Records every controller method invocation in order.
-///
-/// We extend [Fake] so only the methods we override are exposed; any other
-/// [WebViewController] method called on this fake throws via [noSuchMethod],
-/// which is exactly what we want — the contract under test is "pause/resume
-/// touches only the pause-related controller methods, nothing else".
-class _RecordingController extends Fake implements WebViewController {
-  final List<String> calls = [];
-  final List<String> js = [];
-
-  @override
-  Future<void> pause() async {
-    calls.add('pause');
-  }
-
-  @override
-  Future<void> resume() async {
-    calls.add('resume');
-  }
-
-  @override
-  Future<void> pauseAllJsTimers() async {
-    calls.add('pauseAllJsTimers');
-  }
-
-  @override
-  Future<void> resumeAllJsTimers() async {
-    calls.add('resumeAllJsTimers');
-  }
-
-  @override
-  Future<void> evaluateJavascript(String source) async {
-    calls.add('evaluateJavascript');
-    js.add(source);
-  }
-}
+import 'helpers/fake_webview_controller.dart';
 
 WebViewModel _modelWith(
   WebViewController? controller, {
@@ -59,19 +23,19 @@ WebViewModel _modelWith(
 void main() {
   group('WebViewModel pause/resume API split', () {
     test('pauseWebView() invokes only the per-instance pause', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).pauseWebView();
       expect(c.calls, ['pause']);
     });
 
     test('resumeWebView() invokes only the per-instance resume', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).resumeWebView();
       expect(c.calls, ['resume']);
     });
 
     test('pauseWebView() does NOT invoke pauseAllJsTimers (no global timer pause on site switch)', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).pauseWebView();
       expect(c.calls, isNot(contains('pauseAllJsTimers')),
           reason: 'pauseTimers() is process-global on Android — calling it from '
@@ -79,19 +43,19 @@ void main() {
     });
 
     test('pauseForAppLifecycle() invokes per-instance pause AND global timer pause, in order', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).pauseForAppLifecycle();
       expect(c.calls, ['pause', 'pauseAllJsTimers']);
     });
 
     test('resumeFromAppLifecycle() invokes per-instance resume AND global timer resume, in order', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).resumeFromAppLifecycle();
       expect(c.calls, ['resume', 'resumeAllJsTimers']);
     });
 
     test('site-switch round trip touches no global timer state', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       final model = _modelWith(c);
       await model.pauseWebView();
       await model.resumeWebView();
@@ -101,7 +65,7 @@ void main() {
     });
 
     test('lifecycle round trip pauses then resumes the global JS timer flag exactly once', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       final model = _modelWith(c);
       await model.pauseForAppLifecycle();
       await model.resumeFromAppLifecycle();
@@ -113,7 +77,7 @@ void main() {
 
   group('WebViewModel pause skips notification sites', () {
     test('pauseWebView() with notificationsEnabled is a no-op', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, notificationsEnabled: true).pauseWebView();
       expect(c.calls, isEmpty,
           reason: 'On iOS, per-instance pause uses pauseTimers() (alert-deadlock '
@@ -127,7 +91,7 @@ void main() {
       // still run — site activation always resumes the new active webview,
       // and skipping it would leave a previously-paused (e.g. via the
       // app-lifecycle path) site frozen.
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, notificationsEnabled: true).resumeWebView();
       expect(c.calls, ['resume']);
     });
@@ -136,21 +100,21 @@ void main() {
   group('BGAUDIO-012 background playback signal', () {
     test('a background-audio site is told the app went to background',
         () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true)
           .setBackgroundPlayback(true);
-      expect(c.js.single, contains('__wsMediaBackground(true)'));
+      expect(c.evaluated.single, contains('__wsMediaBackground(true)'));
     });
 
     test('and told when it comes back', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true)
           .setBackgroundPlayback(false);
-      expect(c.js.single, contains('__wsMediaBackground(false)'));
+      expect(c.evaluated.single, contains('__wsMediaBackground(false)'));
     });
 
     test('a site without the toggle is never told', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).setBackgroundPlayback(true);
       expect(c.calls, isEmpty,
           reason: 'masking page visibility for a site the user did not opt in '
@@ -158,33 +122,33 @@ void main() {
     });
 
     test('an archive-tier site is never told', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
           .setBackgroundPlayback(true);
       expect(c.calls, isEmpty);
     });
 
     test('the call is guarded against a missing hook', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true)
           .setBackgroundPlayback(true);
-      expect(c.js.single, startsWith('if(window.__wsMediaBackground)'));
+      expect(c.evaluated.single, startsWith('if(window.__wsMediaBackground)'));
     });
   });
 
   group('BGAUDIO-009 media pause when a site loses the screen', () {
     test('pauseMediaPlayback() pauses the page media of an ordinary site',
         () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).pauseMediaPlayback();
       expect(c.calls, ['evaluateJavascript']);
-      expect(c.js.single, contains("querySelectorAll('audio,video')"));
-      expect(c.js.single, contains('.pause()'));
+      expect(c.evaluated.single, contains("querySelectorAll('audio,video')"));
+      expect(c.evaluated.single, contains('.pause()'));
     });
 
     test('pauseMediaPlayback() with backgroundAudioEnabled is a no-op',
         () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true).pauseMediaPlayback();
       expect(c.calls, isEmpty,
           reason: 'That toggle exists to keep this site sounding after it '
@@ -194,14 +158,14 @@ void main() {
     test('an archive-tier site is not exempt', () async {
       // ARCH-006: the effective getter folds archive tier to false, so the
       // media stop applies as it does to any ordinary site.
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
           .pauseMediaPlayback();
       expect(c.calls, ['evaluateJavascript']);
     });
 
     test('pauseMediaPlayback() does not touch the pause API', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c).pauseMediaPlayback();
       expect(c.calls, isNot(contains('pause')));
       expect(c.calls, isNot(contains('pauseAllJsTimers')));
@@ -214,7 +178,7 @@ void main() {
 
   group('BGAUDIO-001 pause skips background-audio sites', () {
     test('pauseWebView() with backgroundAudioEnabled is a no-op', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true).pauseWebView();
       expect(c.calls, isEmpty,
           reason: 'On iOS, per-instance pause uses pauseTimers() (alert-deadlock '
@@ -224,7 +188,7 @@ void main() {
     });
 
     test('resumeWebView() still resumes a background-audio site', () async {
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true).resumeWebView();
       expect(c.calls, ['resume']);
     });
@@ -233,7 +197,7 @@ void main() {
       // ARCH-006: an archive-tier site audibly playing while the app looks
       // idle would reveal an open archive; the effective getter forces the
       // exemption off.
-      final c = _RecordingController();
+      final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
           .pauseWebView();
       expect(c.calls, ['pause']);

@@ -41,14 +41,15 @@ import 'package:image/image.dart' as img;
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
-import 'package:webspace/demo_data.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'fixtures/virtual_camera_video.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 // A colour Flutter never draws and no real camera would produce, so a match
 // proves the sampled pixel came from the picked image.
@@ -57,6 +58,9 @@ const int _kSourceG = 0xC8;
 const int _kSourceB = 0x7A;
 
 /// Solid-colour PNG used as the virtual camera source, as a `data:` URL.
+CaptureGrants _camera(CameraAccessMode mode, [VirtualVisualSource? source]) =>
+    CaptureGrants.none.copyWith(camera: (mode: mode, source: source));
+
 String _sourceImageDataUrl() {
   final image = img.Image(width: 320, height: 240);
   img.fill(image, color: img.ColorRgb8(_kSourceR, _kSourceG, _kSourceB));
@@ -218,7 +222,7 @@ void main() {
     });
     final base = 'http://127.0.0.1:${server!.port}';
 
-    final source = VirtualCameraSource(
+    final source = VirtualVisualSource(
       kind: 'image',
       dataUrl: _sourceImageDataUrl(),
       fileName: 'source.png',
@@ -228,31 +232,32 @@ void main() {
       siteId: 'ws-cam-virtual',
       initUrl: '$base/probe.html?site=virtual',
       name: 'CamVirtual',
-      cameraMode: CameraAccessMode.virtual,
-      virtualCameraSource: source,
+      captures: _camera(CameraAccessMode.virtual, source),
     );
     final video = WebViewModel(
       siteId: 'ws-cam-video',
       initUrl: '$base/probe.html?site=video',
       name: 'CamVideo',
-      cameraMode: CameraAccessMode.virtual,
-      virtualCameraSource: const VirtualCameraSource(
-        kind: 'video',
-        dataUrl: kVirtualCameraVideoDataUrl,
-        fileName: 'clip.webm',
+      captures: _camera(
+        CameraAccessMode.virtual,
+        const VirtualVisualSource(
+          kind: 'video',
+          dataUrl: kVirtualCameraVideoDataUrl,
+          fileName: 'clip.webm',
+        ),
       ),
     );
     final blocked = WebViewModel(
       siteId: 'ws-cam-block',
       initUrl: '$base/probe.html?site=block',
       name: 'CamBlock',
-      cameraMode: CameraAccessMode.block,
+      captures: _camera(CameraAccessMode.block),
     );
     final real = WebViewModel(
       siteId: 'ws-cam-real',
       initUrl: '$base/probe.html?site=real',
       name: 'CamReal',
-      cameraMode: CameraAccessMode.real,
+      captures: _camera(CameraAccessMode.real),
     );
 
     SharedPreferences.setMockInitialValues({
@@ -296,41 +301,6 @@ void main() {
         'usually means the page never ran: check the site loaded at all.');
   }
 
-  Future<void> openSiteDrawer(WidgetTester tester) async {
-    for (var attempt = 0; attempt < 3; attempt++) {
-      if (find.byType(Drawer).evaluate().isNotEmpty) return;
-      final menuIcon = find.byIcon(Icons.menu);
-      if (menuIcon.evaluate().isNotEmpty) {
-        await tester.tap(menuIcon.first);
-      } else {
-        for (final element in find.byType(Scaffold).evaluate()) {
-          final state = tester.state<ScaffoldState>(
-              find.byWidget(element.widget as Scaffold));
-          if (state.hasDrawer) {
-            state.openDrawer();
-            break;
-          }
-        }
-      }
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-    }
-    expect(find.byType(Drawer), findsOneWidget,
-        reason: 'site drawer should open for switching sites');
-  }
-
-  Future<void> tapSite(WidgetTester tester, String siteName) async {
-    final drawer = find.byType(Drawer);
-    final tile = drawer.evaluate().isNotEmpty
-        ? find.descendant(of: drawer, matching: find.text(siteName))
-        : find.text(siteName);
-    if (tile.evaluate().isEmpty) dumpDiagnostics('site tile "$siteName" missing');
-    expect(tile, findsWidgets, reason: '$siteName should be in the site list');
-    await tester.tap(tile.first);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-  }
-
   bool near(int actual, int expected, {int tolerance = 24}) =>
       (actual - expected).abs() <= tolerance;
 
@@ -342,7 +312,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
     // --- Scenario 1: virtual mode serves the picked image ------------------
-    await tapSite(tester, 'CamVirtual');
+    await tapSite(tester, 'CamVirtual', diagnose: dumpDiagnostics);
     final virtualReport = await awaitReport(tester, 'virtual');
     if (virtualReport['ok'] != true) {
       dumpDiagnostics('virtual mode produced no frame: $virtualReport');
@@ -368,7 +338,7 @@ void main() {
     // The clip alternates two colours on every frame, so a stream that is
     // merely frozen on the first decoded frame reports zero transitions.
     await openSiteDrawer(tester);
-    await tapSite(tester, 'CamVideo');
+    await tapSite(tester, 'CamVideo', diagnose: dumpDiagnostics);
     final videoReport = await awaitReport(tester, 'video');
     if (videoReport['ok'] != true) {
       dumpDiagnostics('video source produced no frame: $videoReport');
@@ -408,7 +378,7 @@ void main() {
 
     // --- Scenario 3: block mode denies (control for scenario 1) ------------
     await openSiteDrawer(tester);
-    await tapSite(tester, 'CamBlock');
+    await tapSite(tester, 'CamBlock', diagnose: dumpDiagnostics);
     final blockReport = await awaitReport(tester, 'block');
     expect(blockReport['ok'], isFalse,
         reason: 'a blocked site must not receive a camera stream');
@@ -420,7 +390,7 @@ void main() {
     // Emulated cameras are an AVD option, not a guarantee: treat "no camera
     // on this runner" as a skip and everything else as a failure.
     await openSiteDrawer(tester);
-    await tapSite(tester, 'CamReal');
+    await tapSite(tester, 'CamReal', diagnose: dumpDiagnostics);
     final realReport = await awaitReport(tester, 'real');
     final realError = (realReport['error'] ?? '').toString();
     // No camera device on this runner, or the app-level CAMERA permission was

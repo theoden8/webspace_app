@@ -22,17 +22,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const classifierSrc = fs.readFileSync(
-  path.join(__dirname, '..', '..', 'lib', 'services', 'user_agent_classifier.dart'),
-  'utf8',
-);
-const serviceSrc = fs.readFileSync(
-  path.join(__dirname, '..', '..', 'lib', 'services', 'firefox_user_agent_service.dart'),
-  'utf8',
-);
+const classifierSrc = read('lib/services/user_agent_classifier.dart');
+const serviceSrc = read('lib/services/firefox_user_agent_service.dart');
 
 // Extracts a Dart string constant, joining adjacent-string concatenation
 // ('https://…' '…';) the way the Dart compiler does.

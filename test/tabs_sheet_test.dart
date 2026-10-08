@@ -9,6 +9,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
+import 'helpers/localized.dart';
 
 /// A site with [urls] as tabs. The first is the active one; every later tab is
 /// a child of the one before it, so the fixture is a chain three deep.
@@ -37,30 +38,22 @@ Future<void> pumpSheet(
   Locale? locale,
   double width = 400,
 }) async {
-  tester.view.physicalSize = Size(width, 900);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    locale: locale,
-    home: Scaffold(
-      key: UniqueKey(),
-      body: TabsSheet(
-        sites: sites,
-        currentIndex: 0,
-        onOpenTab: onOpenTab ?? (_, _) {},
-        onNewTab: onNewTab ?? (_) {},
-        onWebSearch: onWebSearch,
-        onCloseTab: onCloseTab ?? (_, _) {},
-        onCloseSubtree: onCloseSubtree ?? (_, _) {},
-        onMoveTab: onMoveTab,
-        onMoveSite: onMoveSite,
-        wayBack: wayBack,
-      ),
+  setViewSize(tester, Size(width, 900));
+  await pumpLocalized(tester, Scaffold(
+    key: UniqueKey(),
+    body: TabsSheet(
+      sites: sites,
+      currentIndex: 0,
+      onOpenTab: onOpenTab ?? (_, _) {},
+      onNewTab: onNewTab ?? (_) {},
+      onWebSearch: onWebSearch,
+      onCloseTab: onCloseTab ?? (_, _) {},
+      onCloseSubtree: onCloseSubtree ?? (_, _) {},
+      onMoveTab: onMoveTab,
+      onMoveSite: onMoveSite,
+      wayBack: wayBack,
     ),
-  ));
+  ), locale: locale);
   await tester.pump();
 }
 
@@ -924,27 +917,23 @@ void main() {
     testWidgets('a double tap on a row opens the tab once and pops only the '
         'sheet', (tester) async {
       final opened = <String>[];
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: TextButton(
-                onPressed: () => showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (_) => TabsSheet(
-                    sites: sites(),
-                    currentIndex: 0,
-                    onOpenTab: (_, id) => opened.add(id),
-                    onNewTab: (_) {},
-                    onCloseTab: (_, _) {},
-                    onCloseSubtree: (_, _) {},
-                  ),
+      await pumpLocalized(tester, Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => TabsSheet(
+                  sites: sites(),
+                  currentIndex: 0,
+                  onOpenTab: (_, id) => opened.add(id),
+                  onNewTab: (_) {},
+                  onCloseTab: (_, _) {},
+                  onCloseSubtree: (_, _) {},
                 ),
-                child: const Text('open sheet'),
               ),
+              child: const Text('open sheet'),
             ),
           ),
         ),

@@ -17,8 +17,7 @@
 //   * Windows: not supported in the current spec
 //
 // On platforms that don't ship the library, [AdblockEngine.load]
-// returns null — callers MUST handle that case (the legacy Dart
-// content-blocker engine remains the fallback).
+// returns null — callers MUST handle that case.
 
 import 'dart:convert';
 import 'dart:ffi' as ffi;
@@ -27,7 +26,7 @@ import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 
-// ---------- C function signatures ----------
+import 'package:webspace/services/adblock_engine.dart' show AdblockEngineApi;
 
 typedef _EngineNewC = ffi.Pointer<ffi.Void> Function(
     ffi.Pointer<Utf8>, ffi.UintPtr, ffi.Bool);
@@ -245,7 +244,7 @@ class _Bindings {
 }
 
 /// Engine instance. Owns native memory; call [dispose] to release.
-class AdblockEngine {
+class AdblockEngine implements AdblockEngineApi {
   final _Bindings _b;
   ffi.Pointer<ffi.Void> _handle;
 
@@ -310,6 +309,7 @@ class AdblockEngine {
   ///
   /// Returns null on any error (panic, OOM). Caller treats null as
   /// "don't write a cache file this rebuild".
+  @override
   Uint8List? serialize() {
     if (_handle == ffi.nullptr) return null;
     final lenPtr = malloc.allocate<ffi.UintPtr>(1);
@@ -340,7 +340,6 @@ class AdblockEngine {
   ///
   /// Returns an empty list when the native library can't be loaded
   /// on this platform — same fallback shape as the engine itself.
-  /// Static — no engine instance required.
   static List<Map<String, dynamic>> depLicenses() {
     final lib = _tryOpenLibrary();
     if (lib == null) return const [];
@@ -353,13 +352,14 @@ class AdblockEngine {
     try {
       final decoded = jsonDecode(json);
       if (decoded is! List) return const [];
-      return decoded.cast<Map<String, dynamic>>();
-    } catch (_) {
+      return decoded.whereType<Map<String, dynamic>>().toList();
+    } on FormatException {
       return const [];
     }
   }
 
   /// Engine library version string, for diagnostics.
+  @override
   String get version {
     final ptr = _b.engineVersion();
     if (ptr == ffi.nullptr) return '<unknown>';
@@ -374,6 +374,7 @@ class AdblockEngine {
   /// `requestType` follows ABP's resource-type taxonomy:
   /// `document|subdocument|stylesheet|script|image|font|media|xhr|other`.
   /// `other` is the safe default for "we don't know".
+  @override
   bool shouldBlock(
     String url, {
     String sourceUrl = '',
@@ -430,6 +431,7 @@ class AdblockEngine {
   ///
   /// Returns an empty list on FFI error (instead of throwing) so the
   /// caller can degrade gracefully.
+  @override
   List<String> hiddenClassIdSelectors(
     Set<String> classes,
     Set<String> ids, {
@@ -484,6 +486,7 @@ class AdblockEngine {
   /// the JS interceptor can swap the request URL with the data URL
   /// instead of dropping it. Same FFI symbol the JNI bridge calls
   /// on Android (`ws_engine_redirect_for`).
+  @override
   String? redirectFor(
     String url, {
     String sourceUrl = '',
@@ -532,6 +535,7 @@ class AdblockEngine {
   /// This is independent of [shouldBlock]: a URL can be both blocked
   /// AND rewritten. Callers typically check block first; if not
   /// blocked, check rewritten then issue the rewritten URL.
+  @override
   String? rewrittenUrl(
     String url, {
     String sourceUrl = '',
@@ -552,6 +556,7 @@ class AdblockEngine {
   /// (Android, where we control sub-resource responses) or as a
   /// `<meta http-equiv="Content-Security-Policy">` tag injected at
   /// DOCUMENT_START (Apple, where we can't rewrite headers).
+  @override
   String? cspFor(
     String url, {
     String sourceUrl = '',
@@ -622,8 +627,9 @@ class AdblockEngine {
   ///
   /// The shape mirrors `adblock::Engine::url_cosmetic_resources`:
   /// hide selectors (domain-specific only — generic class/id rules
-  /// need a separate scan-and-query pass that's not wired up yet),
-  /// procedural actions, exceptions, injected_script, generichide.
+  /// come from [hiddenClassIdSelectors]), procedural actions,
+  /// exceptions, injected_script, generichide.
+  @override
   Map<String, dynamic>? cosmeticResources(String url) {
     final urlBytes = utf8.encode(url);
     final urlPtr = malloc.allocate<ffi.Uint8>(urlBytes.length);
@@ -675,6 +681,7 @@ class AdblockEngine {
   }
 
   /// Release the engine. Safe to call multiple times.
+  @override
   void dispose() {
     if (_handle == ffi.nullptr) return;
     _b.engineFree(_handle);
@@ -682,9 +689,6 @@ class AdblockEngine {
   }
 }
 
-/// Resolve the native library on the current platform. Returns null
-/// when the library isn't shipped — callers must fall back to the
-/// legacy Dart engine in that case.
 /// Resolve the FFI bindings, or null when the library is present as a handle
 /// but carries none of our symbols.
 ///
@@ -716,7 +720,8 @@ ffi.DynamicLibrary? _tryOpenLibrary() {
     for (final candidate in _testCandidatePaths()) {
       try {
         return ffi.DynamicLibrary.open(candidate);
-      } catch (_) {
+      } on ArgumentError {
+        // dart:ffi's report of a library that is not there.
         continue;
       }
     }
@@ -734,7 +739,7 @@ ffi.DynamicLibrary? _tryOpenLibrary() {
       // running unbundled from `flutter run`).
       try {
         return ffi.DynamicLibrary.open('libwebspace_adblock.so');
-      } catch (_) {
+      } on ArgumentError {
         final exeDir = File(Platform.resolvedExecutable).parent.path;
         return ffi.DynamicLibrary.open('$exeDir/lib/libwebspace_adblock.so');
       }
@@ -749,7 +754,7 @@ ffi.DynamicLibrary? _tryOpenLibrary() {
       // takes their addresses at compile time to defeat dead_strip.
       return ffi.DynamicLibrary.process();
     }
-  } catch (_) {
+  } on ArgumentError {
     return null;
   }
   return null;

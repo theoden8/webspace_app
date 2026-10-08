@@ -6,11 +6,13 @@ import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/hint_button.dart';
 
 SiteBehaviourValues _values({
+  bool archived = false,
   bool alwaysOpenHome = false,
   bool kioskMode = false,
   bool fullscreenMode = false,
@@ -25,6 +27,7 @@ SiteBehaviourValues _values({
   String? searchDefault,
 }) =>
     SiteBehaviourValues(
+      archived: archived,
       alwaysOpenHome: alwaysOpenHome,
       kioskMode: kioskMode,
       fullscreenMode: fullscreenMode,
@@ -36,7 +39,7 @@ SiteBehaviourValues _values({
       searchAddress: searchAddress,
       searchesWeb: searchesWeb,
       searchSites: searchSites,
-      searchDefault: searchDefault,
+      searchDefault: Scoped.fromStored(searchDefault),
     );
 
 Future<void> _pump(
@@ -633,7 +636,7 @@ void main() {
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(seen!.searchSites, ['ddg']);
-      expect(seen!.searchDefault, isNull);
+      expect(seen!.searchDefault, const FollowApp<String>());
       expect(find.text('App default'), findsOneWidget);
     });
   });

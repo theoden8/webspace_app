@@ -10,25 +10,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, enclosed } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'ios/Runner/TorControllerPlugin.swift';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const src = read(rel);
 
 function body(signature) {
   const start = src.indexOf(signature);
   assert.notEqual(start, -1, `${rel} lost ${signature}`);
   // Past the type annotation, which is itself `[[AnyHashable: Any]]`.
   const value = src.slice(start).search(/\{|=/) + start;
-  const open = src.indexOf('[', value);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '[') depth++;
-    if (src[i] === ']' && --depth === 0) return src.slice(open, i + 1);
-  }
-  throw new Error(`unterminated ${signature}`);
+  const { open, close } = enclosed(src, value, '[', rel);
+  return src.slice(open, close + 1);
 }
 
 test('the pin sets ExitNodes, StrictNodes 1 and ConfluxEnabled 0 together', () => {

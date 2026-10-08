@@ -47,11 +47,9 @@ class MethodChannelBackgroundLogNative implements BackgroundLogNative {
     try {
       return await _channel.invokeMethod<T>(method, args);
     } on PlatformException catch (e) {
-      LogService.instance.log('BackgroundLog', '$method failed: ${e.message}',
-          level: LogLevel.warning);
+      LogTag.backgroundLog.warning('$method failed: ${e.message}');
     } on MissingPluginException {
-      LogService.instance.log('BackgroundLog', '$method: no native handler',
-          level: LogLevel.warning);
+      LogTag.backgroundLog.warning('$method: no native handler');
     }
     return null;
   }
@@ -167,7 +165,7 @@ class BackgroundLog extends ChangeNotifier {
   }
 
   void record(
-    String tag,
+    LogTag tag,
     String message, {
     LogLevel level = LogLevel.info,
     String? sensitive,
@@ -180,14 +178,14 @@ class BackgroundLog extends ChangeNotifier {
     if (!_recording) return;
     final now = DateTime.now();
     final entry =
-        LogEntry(timestamp: now, tag: tag, message: message, level: level);
+        LogEntry(timestamp: now, tag: tag.label, message: message, level: level);
     _push(_entries, entry);
     if (sensitive != null) {
       _push(
           _sensitive,
           LogEntry(
             timestamp: now,
-            tag: tag,
+            tag: tag.label,
             message: sensitive,
             level: level,
             sensitivity: LogSensitivity.sensitive,

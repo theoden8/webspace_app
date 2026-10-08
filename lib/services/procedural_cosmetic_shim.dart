@@ -46,7 +46,9 @@ String? buildProceduralCosmeticShim(List<String> proceduralActions) {
     try {
       final m = jsonDecode(raw);
       if (m is Map<String, dynamic>) decoded.add(m);
-    } catch (_) {/* skip — adblock-rust may emit a shape we don't yet handle */}
+    } on FormatException {
+      // adblock-rust may emit a shape we don't yet handle.
+    }
   }
   if (decoded.isEmpty) return null;
   final rulesJson = jsonEncode(decoded);

@@ -1,71 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/domain_claim.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 
 void main() {
   group('LinkHandlingSettingsScreen — LIR-008', () {
-    testWidgets('master switch flips and notifies', (tester) async {
-      bool? lastValue;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: LinkHandlingSettingsScreen(
-          enabled: true,
-          onEnabledChanged: (v) => lastValue = v,
-          claimDomains: false,
-          onClaimDomainsChanged: (_) {},
-          sites: const [],
-          onOpenSiteEditor: (_) {},
-        ),
-      ));
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      AppPref.loadAll(await SharedPreferences.getInstance());
+    });
+
+    Future<void> pumpScreen(
+      WidgetTester tester, {
+      List<WebViewModel> sites = const [],
+      void Function(WebViewModel site)? onOpenSiteEditor,
+    }) =>
+        tester.pumpWidget(MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: LinkHandlingSettingsScreen(
+            sites: sites,
+            onOpenSiteEditor: onOpenSiteEditor ?? (_) {},
+          ),
+        ));
+
+    bool switchAt(WidgetTester tester, int i) =>
+        tester.widget<Switch>(find.byType(Switch).at(i)).value;
+
+    // The screen used to be pushed with the values of the moment, so a switch
+    // kept drawing them after a tap until something rebuilt the route.
+    testWidgets('master switch sets the pref and shows what it set',
+        (tester) async {
+      await pumpScreen(tester);
       expect(find.text('Handle shared links'), findsOneWidget);
       await tester.tap(find.byType(Switch).first);
       await tester.pump();
-      expect(lastValue, false);
+      expect(AppPref.linkHandlingEnabled.value, isFalse);
+      expect(switchAt(tester, 0), isFalse);
     });
 
-    testWidgets('claim-domains switch defaults off, flips and notifies',
+    testWidgets('claim-domains switch defaults off, flips and shows it',
         (tester) async {
-      bool? lastValue;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: LinkHandlingSettingsScreen(
-          enabled: true,
-          onEnabledChanged: (_) {},
-          claimDomains: false,
-          onClaimDomainsChanged: (v) => lastValue = v,
-          sites: const [],
-          onOpenSiteEditor: (_) {},
-        ),
-      ));
+      await pumpScreen(tester);
       expect(find.text('Claim domains from shared links'), findsOneWidget);
+      expect(switchAt(tester, 1), isFalse);
       await tester.tap(find.byType(Switch).at(1));
       await tester.pump();
-      expect(lastValue, true);
+      expect(AppPref.linkHandlingClaimDomains.value, isTrue);
+      expect(switchAt(tester, 1), isTrue);
     });
 
     testWidgets('claim-domains switch is disabled while master is off',
         (tester) async {
-      bool changed = false;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: LinkHandlingSettingsScreen(
-          enabled: false,
-          onEnabledChanged: (_) {},
-          claimDomains: false,
-          onClaimDomainsChanged: (_) => changed = true,
-          sites: const [],
-          onOpenSiteEditor: (_) {},
-        ),
-      ));
+      AppPref.linkHandlingEnabled.debugValue = false;
+      await pumpScreen(tester);
       await tester.tap(find.byType(Switch).at(1));
       await tester.pump();
-      expect(changed, isFalse);
+      expect(AppPref.linkHandlingClaimDomains.value, isFalse);
     });
 
     testWidgets('routing overview lists each site with claims as chips',
@@ -76,18 +71,7 @@ void main() {
           DomainClaim.exactHost('mastodon.social'),
           DomainClaim.wildcardSubdomain('mastodon.social'),
         ];
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: LinkHandlingSettingsScreen(
-          enabled: true,
-          onEnabledChanged: (_) {},
-          claimDomains: false,
-          onClaimDomainsChanged: (_) {},
-          sites: [a, b],
-          onOpenSiteEditor: (_) {},
-        ),
-      ));
+      await pumpScreen(tester, sites: [a, b]);
       // Auto-synthesised baseDomain claim shows up as `twitter.com (base)`.
       expect(find.text('twitter.com (base)'), findsOneWidget);
       // Explicit claims for site B are rendered verbatim with the
@@ -102,18 +86,8 @@ void main() {
       final a = WebViewModel(initUrl: 'https://twitter.com/');
       a.name = 'Twitter';
       WebViewModel? tappedSite;
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: LinkHandlingSettingsScreen(
-          enabled: true,
-          onEnabledChanged: (_) {},
-          claimDomains: false,
-          onClaimDomainsChanged: (_) {},
-          sites: [a],
-          onOpenSiteEditor: (s) => tappedSite = s,
-        ),
-      ));
+      await pumpScreen(tester,
+          sites: [a], onOpenSiteEditor: (s) => tappedSite = s);
       await tester.tap(find.text('Twitter'));
       await tester.pump();
       expect(tappedSite, same(a));
@@ -124,18 +98,8 @@ void main() {
         (tester) async {
       final a = WebViewModel(initUrl: 'https://twitter.com/');
       a.name = 'Twitter';
-      await tester.pumpWidget(MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: LinkHandlingSettingsScreen(
-          enabled: false,
-          onEnabledChanged: (_) {},
-          claimDomains: false,
-          onClaimDomainsChanged: (_) {},
-          sites: [a],
-          onOpenSiteEditor: (_) {},
-        ),
-      ));
+      AppPref.linkHandlingEnabled.debugValue = false;
+      await pumpScreen(tester, sites: [a]);
       expect(find.text('Twitter'), findsOneWidget);
     });
   });

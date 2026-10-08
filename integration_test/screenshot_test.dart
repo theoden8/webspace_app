@@ -198,7 +198,7 @@ void main() {
 
           // Screenshot 1: Open Settings from toolbar menu
           print('Opening toolbar menu to access Settings...');
-          final popupMenuButton = find.byType(PopupMenuButton<String>);
+          final popupMenuButton = find.byType(PopupMenuButton<app.SiteMenuAction>);
           if (popupMenuButton.evaluate().isNotEmpty) {
             print('Found popup menu button, tapping...');
             await tester.tap(popupMenuButton.first);

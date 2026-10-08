@@ -36,7 +36,7 @@ Two changes in `lib/services/webview.dart` and one in `lib/widgets/external_url_
    - Return `null` for everything else (zxing, custom app schemes, file://, etc.).
 2. **At every intent intercept point** (`shouldOverrideUrlLoading`, `onCreateWindow`, `onReceivedError`):
    - If `intentToWebUrl` returns non-null → call back into `config.shouldOverrideUrlLoading(resolved, hasGesture)`. Same base domain → `controller.loadUrl(resolved)` here. Cross-domain → the callback already issued `launchUrl(resolved)` for a nested webview. No prompt.
-   - If `intentToWebUrl` returns null → fall through to `config.onExternalSchemeUrl(url, info)`, the existing prompt flow.
+   - If `intentToWebUrl` returns null → fall through to `config.hooks.externalScheme(info, controller)`, the existing prompt flow.
 3. **"Open in browser" loads in this webview.** `confirmAndLaunchExternalUrl` accepts an optional `WebViewController? loadInWebView`. When non-null and the cleaned fallback is non-empty, the button calls `loadInWebView.loadUrl(cleanedFallback)`; on failure (or when no controller is available, e.g. tel:/mailto: with no fallback), it falls back to `url_launcher.launchUrl(…, externalApplication)`.
 
 ### Why route through the existing `shouldOverrideUrlLoading` callback
@@ -155,13 +155,13 @@ The webview SHALL silently route resolvable intent fallbacks through the standar
 
 ### Requirement: EXT-004 - Prompt Path Preserved for Unresolvable Intents
 
-When `intentToWebUrl` returns `null`, the webview SHALL fall through to the existing `config.onExternalSchemeUrl` callback so the host can show the confirmation dialog and let the user pick an action.
+When `intentToWebUrl` returns `null`, the webview SHALL fall through to the host hook `config.hooks.externalScheme` so the host can show the confirmation dialog and let the user pick an action.
 
 #### Scenario: Scanner intent prompts the user
 
 **Given** the webview intercepts `intent://scan/#Intent;scheme=zxing;package=com.google.zxing.client.android;end`
 **When** `intentToWebUrl` returns `null`
-**Then** the webview calls `config.onExternalSchemeUrl(url, info)`
+**Then** the webview calls `config.hooks.externalScheme(info, controller)`
 **And** the host shows the Cancel / Open in browser / Open in app dialog
 **And** the original navigation is `CANCEL`led
 
@@ -169,7 +169,7 @@ When `intentToWebUrl` returns `null`, the webview SHALL fall through to the exis
 
 **Given** the webview intercepts `tel:+14155551234`
 **When** `ExternalUrlParser.parse` returns a non-intent `ExternalUrlInfo`
-**Then** the webview skips the intent-resolve branch and calls `config.onExternalSchemeUrl(url, info)`
+**Then** the webview skips the intent-resolve branch and calls `config.hooks.externalScheme(info, controller)`
 **And** the existing dialog is shown
 
 ---

@@ -178,7 +178,7 @@ const FRAMES = 24;
 const List<int> kVirtualCameraVideoColorA = [${COLOR_A.join(', ')}];
 const List<int> kVirtualCameraVideoColorB = [${COLOR_B.join(', ')}];
 
-/// The clip as a \`data:\` URL, ready to hand to \`VirtualCameraSource\`.
+/// The clip as a \`data:\` URL, ready to hand to \`VirtualVisualSource\`.
 const String kVirtualCameraVideoDataUrl =
     'data:video/webm;base64,'
     '${base64}';

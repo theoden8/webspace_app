@@ -13,8 +13,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { startBlankServer } = require('./helpers/blank_server');
 
 const SHIM = readFixture('microphone_stream/shim.js');
 
@@ -47,19 +47,9 @@ function makeWavDataUrl({ seconds = 0.25, freq = 440, rate = 44100 } = {}) {
   return 'data:audio/wav;base64,' + buf.toString('base64');
 }
 
-function startServer() {
-  return new Promise((resolve) => {
-    const server = http.createServer((_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<!doctype html><html><head></head><body></body></html>');
-    });
-    server.listen(0, '127.0.0.1', () => resolve(server));
-  });
-}
-
 // Boots a page with the shim installed and the bridge answering `decision`.
 async function openPage(decision) {
-  const server = await startServer();
+  const server = await startBlankServer();
   const { port } = server.address();
   const page = await browser.browser.newPage();
   await page.evaluateOnNewDocument((d) => {

@@ -2,8 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 
 /// Encode/decode the QR-shareable subset of a [WebViewModel] JSON dict.
 ///
@@ -73,7 +74,7 @@ class SiteSettingsQrCodec {
 
   /// Per-site keys deliberately stripped on share. Listed so the drift
   /// test can detect a brand-new key that the dev forgot to classify.
-  static const Set<String> excludedKeys = {
+  static final Set<String> excludedKeys = {
     'siteId',
     'currentUrl',
     'pageTitle',
@@ -84,15 +85,10 @@ class SiteSettingsQrCodec {
     'enabledGlobalScriptIds',
     'blockedCookies',
     // Remembered permission decisions are trust the user gave one device's
-    // popup, not shareable configuration; the virtual camera/microphone
-    // sources are user-picked local media that would also blow QR capacity.
+    // popup, not shareable configuration; the virtual capture sources are
+    // user-picked local media that would also blow QR capacity.
     'protectedContentAllowed',
-    'cameraMode',
-    'virtualCameraSource',
-    'microphoneMode',
-    'virtualMicrophoneSource',
-    'screenShareMode',
-    'virtualScreenSource',
+    for (final kind in CaptureKind.values) ...kind.jsonKeys,
     // Base64 PNG bytes: would blow QR capacity, and an icon is
     // device-local cosmetics, not shareable configuration.
     'customIconPng',
@@ -170,12 +166,6 @@ class SiteSettingsQrCodec {
     return '$_scheme://$_path/v$currentVersion/$payload';
   }
 
-  /// Decode a `webspace://qr/site/vN/<payload>` URI back to a shareable
-  /// subset. Returns null if the input is malformed, the version is newer
-  /// than [currentVersion], the payload fails gunzip, or `initUrl` is
-  /// missing. Any keys outside [includedKeys] in a successfully decoded
-  /// payload are dropped — a hostile sender cannot smuggle, e.g.,
-  /// `cookies` past the receiver's strip filter.
   // A per-site settings payload is a few hundred bytes; these ceilings leave
   // generous headroom while bounding a decompression bomb.
   static const int _kMaxCompressedBytes = 64 * 1024;
@@ -204,12 +194,18 @@ class SiteSettingsQrCodec {
         conv.add(compressed.sublist(i, end));
       }
       conv.close();
-    } catch (_) {
+    } on FormatException {
       return null;
     }
     return overflow ? null : out.takeBytes();
   }
 
+  /// Decode a `webspace://qr/site/vN/<payload>` URI back to a shareable
+  /// subset. Returns null if the input is malformed, the version is newer
+  /// than [currentVersion], the payload fails gunzip, or `initUrl` is
+  /// missing. Any keys outside [includedKeys] in a successfully decoded
+  /// payload are dropped — a hostile sender cannot smuggle, e.g.,
+  /// `cookies` past the receiver's strip filter.
   static Map<String, dynamic>? decode(String input) {
     final parsed = _parse(input.trim());
     if (parsed == null) return null;
@@ -279,7 +275,7 @@ class SiteSettingsQrCodec {
         return null;
       }
       return out;
-    } catch (_) {
+    } on FormatException {
       return null;
     }
   }
@@ -295,11 +291,6 @@ class SiteSettingsQrCodec {
         if (e.key is String) e.key as String: e.value,
     });
     return proxy.type == ProxyType.DEFAULT ? null : proxy;
-  }
-
-  /// True if [input] looks like a webspace QR URI (any version).
-  static bool looksLikeQrPayload(String input) {
-    return _parse(input.trim()) != null;
   }
 
   static _ParsedQr? _parse(String input) {

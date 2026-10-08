@@ -7,17 +7,11 @@ import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 
 import 'helpers/memory_block_stats_store.dart';
+import 'helpers/localized.dart';
 
 Future<void> _pump(WidgetTester tester, Map<String, String> siteNames) async {
-  tester.view.physicalSize = const Size(1000, 2400);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: BlockStatsScreen(siteNames: siteNames),
-  ));
+  await pumpLocalized(tester, BlockStatsScreen(siteNames: siteNames),
+      size: const Size(1000, 2400));
   await tester.pumpAndSettle();
 }
 

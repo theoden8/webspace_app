@@ -177,9 +177,11 @@ still works and a frame quietly gets a grant:
    own bridge preamble and reaches Dart behind the bridge secret, so page
    script can neither forge it nor call the handler around it.
 
-Gated structurally by `test/js/screen_share_top_frame_only.test.js`, which also
-pins the camera and microphone shims as all-frames so a "make them consistent"
-edit cannot silently narrow them.
+All three follow `CaptureKind.screenShare.frames`, which
+`test/capture_test.dart` pins to `ShimFrames.top` (and the camera's and
+microphone's to `ShimFrames.all`, so a "make them consistent" edit cannot
+silently narrow them); the shim and handler halves are gated structurally by
+`test/js/screen_share_top_frame_only.test.js`.
 
 #### Scenario: A cross-origin iframe is refused
 
@@ -192,7 +194,8 @@ edit cannot silently narrow them.
 
 ### Requirement: SHARE-006 — Archive-tier sites deny silently
 
-`effectiveScreenShareMode` SHALL be `block` for archive-tier sites regardless of
+The screen-sharing effective mode (`WebViewModel.effectiveCaptures`, folded by
+`ArchiveFold.captures`) SHALL be `block` for archive-tier sites regardless of
 stored value (ARCH-006: the popup and the file picker are OS-level UI). No popup
 is shown; the stored mode and any picked source are preserved for when the site
 leaves the archive, and the site shows no drawer badge.
@@ -346,7 +349,7 @@ A screen sharing request from a site that is not the active one SHALL be denied
 without prompting, whatever its stored `screenShareMode`, and SHALL leave the
 stored mode and picked source untouched. This is CAM-011 applied to the display,
 and it is carried by the same code: the gate is a required `isSiteActive`
-predicate on the shared `MediaGrantEngine`.
+predicate on the one `GrantStore` every capture kind decides through.
 
 CAM-011's first reason transfers exactly and is enough: a "share your screen?"
 dialog naming an origin the user is not looking at reads as belonging to the
@@ -362,7 +365,7 @@ next request from the now-backgrounded site is denied like any other.
 
 `required` forces a call site to pass a predicate, not a correct one.
 `test/capture_request_wiring_test.dart` drives the model's own
-`resolveScreenShareRequest`, and `test/js/capture_active_gate.test.js`
+`WebViewModel.grantStore`, and `test/js/capture_active_gate.test.js`
 structurally rejects a constant at every `isSiteActive` call site.
 
 #### Scenario: Background site cannot raise the popup

@@ -136,7 +136,7 @@ The system SHALL persist `kioskMode` as a per-site field via
 `WebViewModel.toJson` / `fromJson`, defaulting to `false` for sites
 and for legacy JSON that predates the field. Because it is per-site, it
 rides the model serialization and SHALL NOT be added to the app-global
-export registry (`kExportedAppPrefs`).
+export registry (`AppPref`).
 
 #### Scenario: Round-trips through JSON
 

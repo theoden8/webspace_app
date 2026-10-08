@@ -152,6 +152,13 @@ When a site is deleted, all webspace indices SHALL be automatically updated.
 **Then** "Work" indices become [0]
 **And** "Personal" indices become [2] (shifted from [3])
 
+#### Scenario: Deleting an earlier site keeps the active and loaded sites
+
+**Given** sites [A, B, C, D] with A and C loaded and C active
+**When** A is deleted from the drawer
+**Then** C stays loaded and active at index 1 (`_sites.loaded` and `_sites.current` follow it)
+**And** neither D nor an empty slot is shown in C's place
+
 ---
 
 ### Requirement: WEBSPACE-011 - Reorder Sites by Dragging
@@ -172,10 +179,10 @@ does not move the webspace cards themselves (WEBSPACE-009 still holds — the
 
 #### Scenario: Reorder sites within the "All" webspace
 
-**Given** the "All" webspace is selected showing every site in `_webViewModels` order
+**Given** the "All" webspace is selected showing every site in `_sites.models` order
 **When** the user drags a site to a new position in the tab strip or drawer grid
-**Then** `_webViewModels` is reordered to match
-**And** the active site stays active (its `_currentIndex` follows it to its new position)
+**Then** `_sites.models` is reordered to match
+**And** the active site stays active (its `_sites.current` follows it to its new position)
 **And** any loaded webviews keep their in-memory state (IndexedStack children are keyed by `siteId`, not position)
 **And** the new order is persisted
 
@@ -228,11 +235,16 @@ production):
   - `cleanupWebspaceIndices({webspaces, siteCount})` — strips
     out-of-bounds entries in place.
 - [`SiteUnloadEngine`](../../../lib/services/site_unload_engine.dart):
+  - `plan(host, ResidencyEvent)` — every rule that unloads a loaded site,
+    one `ResidencyEvent` case each (`Activating`, `MemoryPressure`,
+    `WebspaceSwitched`, `TorExitSettled`, `NestedOpening`,
+    `SlotIdentityChanged`); the rules below are its parts. `apply` runs
+    the plan through the one unload, following each site by identity.
   - `indicesToUnloadOnWebspaceSwitch({useContainers, ...})` — returns
     `{}` under container mode (sites are isolated and stay loaded);
     delegates to `WebspaceSelectionEngine` in legacy mode.
   - `indicesToUnloadForProxyMismatch({targetIndex, models, loadedIndices,
-    proxyIsGlobal})` — on Android (process-global proxy), returns the
+    topology})` — on Android (process-global proxy), returns the
     loaded sites whose effective proxy differs from the activating
     site's. Their next request would silently route through the new
     proxy (last-write-wins on `inapp.ProxyController`), so they are
@@ -241,32 +253,23 @@ production):
     DEFAULT sites are equivalent regardless of the global value. Returns
     `{}` on platforms with true per-site proxy (iOS 17+ / macOS 14+).
   - `indicesToEvictForLruCap({targetIndex, loadedIndices, maxLoadedSites,
-    protectedIndices, preferKeepIndices})` — bounds the number of
-    concurrently loaded webviews at
+    priorityOf})` — bounds the number of concurrently loaded webviews at
     [`kMaxLoadedSites`](../../../lib/services/site_unload_engine.dart)
     (currently 20); treats `loadedIndices` as access-ordered (caller
-    bumps to end on activation). Two-tier eviction: out-of-keep
-    candidates first (oldest first), then in-keep candidates (oldest
-    first), with `protectedIndices` (typically the active site)
-    excluded entirely. The caller passes the active webspace's site
-    indices as `preferKeepIndices`, so context-relevant sites are
-    evicted last.
-  - `indexToEvictForMemoryPressure({loadedIndices, protectedIndices,
-    preferKeepIndices})` — picks one site to evict in response to an
-    OS memory pressure signal (`didHaveMemoryPressure`). Same two-tier
-    policy as `indicesToEvictForLruCap`. One victim per event lets the
-    OS clamp the loaded count to whatever the device can carry,
-    instead of guessing a target up front; if pressure persists the
-    callback fires again and the next victim is picked.
+    bumps to end on activation). Evicts the lowest
+    `SiteRetentionPriority` first (oldest first within a priority), and
+    never an `active` or `activating` site. The active webspace's sites
+    rank `webspace`, above other loaded sites, so context-relevant
+    sites are evicted last.
 - [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart)
   — returns the rewritten `siteIndices` for every affected webspace
-  when a site is removed from `_webViewModels`, implementing
+  when a site is removed from `_sites.models`, implementing
   WEBSPACE-010. The rewrite drops the deleted index and shifts every
   `i > deletedIndex` down by one.
 - [`SiteLifecycleEngine.computeReorderPatch`](../../../lib/services/site_lifecycle_engine.dart)
   — implements the "All" branch of WEBSPACE-011. Given a move of the
   model at `oldIndex` to `newIndex` (`removeAt` + `insert`), it remaps
-  `_loadedIndices` and `_currentIndex` to the positions their elements
+  `_sites.loaded` and `_sites.current` to the positions their elements
   occupy after the move, so the active site and every loaded webview
   keep pointing at the same `siteId`. Reordering within a named
   webspace needs no engine: it rewrites the webspace's siteId-keyed

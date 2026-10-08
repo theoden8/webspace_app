@@ -3,7 +3,7 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// Admission and routing policy for the Android per-site proxy router
@@ -214,6 +214,23 @@ void main() {
       expect(a.siteId, 'a');
       expect(a.upstream.type, ProxyType.SOCKS5);
       expect(b.upstream.address, 'proxy.example.com:8080');
+    });
+
+    test('two Tor sites route under their own isolation tags (TOR-003)', () {
+      // The route table carries the stored settings, not the stamped
+      // outbound ones, so the site id has to reach the resolver here or
+      // every Tor site presents the app-global credential and shares one
+      // circuit through the router.
+      final state = ProxyRouterState();
+      final routes = ProxyRouterEngine.buildRoutes(
+        perSiteProxies: {
+          'a': proxy(ProxyType.TOR, null),
+          'b': proxy(ProxyType.TOR, null),
+        },
+        tokens: {'a': state.tokenFor('a'), 'b': state.tokenFor('b')},
+      );
+      expect(routes[state.credentialFor('a')]!.upstream.username, 'a');
+      expect(routes[state.credentialFor('b')]!.upstream.username, 'b');
     });
 
     test('a DEFAULT site gets a direct route, not an absent one', () {
@@ -538,11 +555,11 @@ void main() {
   group('attribution predicate (PROXY-015)', () {
     test('holds when every nonce comes back stamped with its own site', () {
       expect(
-        ProxyRouterEngine.attributionHolds(
+        ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1', 'b': 'n2'},
           observed: {'n1': 'a', 'n2': 'b'},
         ),
-        isTrue,
+        isEmpty,
       );
     });
 
@@ -550,13 +567,6 @@ void main() {
       // Both containers replayed whichever credential was cached first,
       // so both probes came back stamped 'a'. Nothing errors on such a
       // device; this predicate is the only thing that notices.
-      expect(
-        ProxyRouterEngine.attributionHolds(
-          expected: {'a': 'n1', 'b': 'n2'},
-          observed: {'n1': 'a', 'n2': 'a'},
-        ),
-        isFalse,
-      );
       expect(
         ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1', 'b': 'n2'},
@@ -568,29 +578,29 @@ void main() {
 
     test('fails when an observation is missing', () {
       expect(
-        ProxyRouterEngine.attributionHolds(
+        ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1', 'b': 'n2'},
           observed: {'n1': 'a'},
         ),
-        isFalse,
+        ['b'],
         reason: 'unproven must not read as proven',
       );
     });
 
     test('fails when a nonce is stamped with an unrelated site', () {
       expect(
-        ProxyRouterEngine.attributionHolds(
+        ProxyRouterEngine.attributionFailures(
           expected: {'a': 'n1'},
           observed: {'n1': 'somebody-else'},
         ),
-        isFalse,
+        ['a'],
       );
     });
 
     test('vacuously holds with no sites', () {
       expect(
-        ProxyRouterEngine.attributionHolds(expected: {}, observed: {}),
-        isTrue,
+        ProxyRouterEngine.attributionFailures(expected: {}, observed: {}),
+        isEmpty,
       );
     });
 

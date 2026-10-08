@@ -3,7 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/bloom_filter.dart';
@@ -12,11 +11,10 @@ import 'package:webspace/services/host_lookup.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/utils/concurrency.dart';
+import 'package:webspace/services/block_decision.dart';
 
-/// Which blocklist attributed a block decision. Allowed requests have no
-/// source. Stats preserve this so the UI can show a merged count while
-/// still disentangling DNS vs ABP hits when needed.
-enum BlockSource { dns, abp }
+export 'package:webspace/services/block_decision.dart' show BlockSource;
 
 /// A single request log entry (allowed or blocked).
 class DnsLogEntry {
@@ -124,7 +122,6 @@ class DnsStats {
   }
 }
 
-/// Level names for DNS blocklist severity levels (0-5).
 const List<String> dnsBlockLevelNames = [
   'Off',
   'Light',
@@ -200,13 +197,7 @@ class DnsBlockService {
   // awaits. Overlapping calls (two downloads, or a download racing an import)
   // could otherwise leave the file, level, and in-memory set from different
   // calls — the wrong list loading under the wrong label after restart.
-  Future<void> _mutationChain = Future<void>.value();
-
-  Future<T> _serializeMutation<T>(Future<T> Function() action) {
-    final result = _mutationChain.then((_) => action());
-    _mutationChain = result.then((_) {}, onError: (_) {});
-    return result;
-  }
+  final SerialQueue _mutations = SerialQueue();
 
   /// Per-site DNS statistics, keyed by siteId.
   final Map<String, DnsStats> _siteStats = {};
@@ -214,7 +205,6 @@ class DnsBlockService {
   /// Listeners notified when a DNS request is logged (for live UI updates).
   final List<VoidCallback> _dnsLogListeners = [];
 
-  /// Whether a blocklist is loaded and active.
   bool get hasBlocklist => !_levelSets.isEmpty;
 
   /// The app-wide severity level (0-5). Sites that don't set their own run
@@ -223,9 +213,6 @@ class DnsBlockService {
 
   /// Number of domains across every downloaded level.
   int get domainCount => _levelSets.domainCount;
-
-  /// Every blocked domain, across every downloaded level.
-  Iterable<String> get blockedDomains => _levelSets.domains;
 
   /// Levels whose list has been fetched, so a site may run at them.
   Set<int> get downloadedLevels => _levelSets.levels;
@@ -267,10 +254,6 @@ class DnsBlockService {
 
   void addBlocklistChangedListener(VoidCallback listener) {
     _blocklistChangedListeners.add(listener);
-  }
-
-  void removeBlocklistChangedListener(VoidCallback listener) {
-    _blocklistChangedListeners.remove(listener);
   }
 
   void _notifyBlocklistChanged() {
@@ -359,11 +342,11 @@ class DnsBlockService {
   }
 
   /// Record a confirmed merged decision for a host. Persists asynchronously.
-  /// Called from [recordRequest] — caller has already merged DNS+ABP signals.
+  /// Called from [recordVerdict] — caller has already merged DNS+ABP signals.
   void recordDomainDecision(String host, bool blocked) {
     if (host.isEmpty) return;
     final prev = _domainCache[host];
-    if (prev == blocked) return; // no change, no write
+    if (prev == blocked) return;
     _putCappedHostDecision(_domainCache, host, blocked);
     _schedulePersistDomainCache();
   }
@@ -380,7 +363,7 @@ class DnsBlockService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_domainCacheKey, jsonEncode(_domainCache));
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Failed to persist domain cache: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Failed to persist domain cache: $e');
     }
   }
 
@@ -400,7 +383,7 @@ class DnsBlockService {
         _domainCache[e.key] = e.value as bool;
       }
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Failed to load domain cache: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Failed to load domain cache: $e');
     }
   }
 
@@ -411,10 +394,8 @@ class DnsBlockService {
   Future<void> _clearDomainCache() async {
     _domainCache.clear();
     _persistTimer?.cancel();
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_domainCacheKey);
-    } catch (_) {}
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_domainCacheKey);
   }
 
   /// Get (and cache) a Bloom filter built from all DNS-blocked domains.
@@ -425,9 +406,8 @@ class DnsBlockService {
     final sw = Stopwatch()..start();
     _bloomFilter = BloomFilter.build(_levelSets.domains, fpRate: 0.05);
     sw.stop();
-    LogService.instance.log('DnsBlock',
-        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_levelSets.domainCount} domains in ${sw.elapsedMilliseconds}ms',
-        level: LogLevel.info);
+    LogTag.dnsBlock.info(
+        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_levelSets.domainCount} domains in ${sw.elapsedMilliseconds}ms');
     return _bloomFilter!;
   }
 
@@ -456,73 +436,65 @@ class DnsBlockService {
     }
     _mergedBloomFilter = BloomFilter.build(union, fpRate: 0.05);
     sw.stop();
-    LogService.instance.log(
-        'BlockBloom',
+    LogTag.blockBloom.info(
         'Built merged bloom: ${_mergedBloomFilter!.sizeInBytes} bytes, k=${_mergedBloomFilter!.k}, '
         'from ${_levelSets.domainCount} DNS + ${_abpNetworkHosts.length} ABP '
-        'host(s) ($unionCount unique) in ${sw.elapsedMilliseconds}ms',
-        level: LogLevel.info);
+        'host(s) ($unionCount unique) in ${sw.elapsedMilliseconds}ms');
     return _mergedBloomFilter!;
   }
 
-  /// Get DNS stats for a specific site. Creates on first access.
   DnsStats statsForSite(String siteId) {
     return _siteStats.putIfAbsent(siteId, () => DnsStats());
   }
 
-  /// Record a request (allowed or blocked) for a site. [source] identifies
-  /// which blocklist attributed the block (`dns` vs `abp`); null for
-  /// allowed requests.
+  /// Records [verdict] for [query] against [siteId]. [count] folds repeats
+  /// the Android interceptor deduplicated into one log entry.
   ///
   /// Also updates the global per-domain cache so other webviews skip
   /// re-checking the same host. The domain cache only persists the
   /// blocked-or-not bit — the DNS vs ABP distinction is recovered on the
   /// next request because both services can answer independently.
-  void recordRequest(String siteId, String url, bool wasBlocked,
-      {BlockSource? source}) {
-    final host = extractHost(url);
+  void recordVerdict(
+    String siteId,
+    BlockQuery query,
+    BlockVerdict verdict, {
+    int count = 1,
+  }) {
+    final host = switch (query) {
+      UrlQuery(:final url) => extractHost(url),
+      HostQuery(:final host) => host,
+    };
     if (host == null || host.isEmpty) return;
-    recordHostRequest(siteId, host, wasBlocked, source: source);
-  }
-
-  /// Like [recordRequest] but the caller already has a host (e.g. the
-  /// Android native interceptor reports `host` directly). Skips
-  /// `Uri.tryParse` and the URL synthesis roundtrip. [count] folds
-  /// dedup'd repeat requests into the per-site totals without growing
-  /// the log by [count].
-  void recordHostRequest(String siteId, String host, bool wasBlocked,
-      {BlockSource? source, int count = 1}) {
-    if (host.isEmpty) return;
-    statsForSite(siteId).record(host, wasBlocked, source: source, count: count);
+    final source = verdict.source;
+    final blocked = source != null;
+    statsForSite(siteId).record(host, blocked, source: source, count: count);
     // Single funnel for the persisted app-wide report (STATS-002): every
     // DNS/ABP block on every platform passes through here, so the aggregate
     // cannot drift from the per-site counters.
-    if (wasBlocked && source != null) {
+    if (source != null) {
       BlockStatsService.instance.record(
         siteId,
-        source == BlockSource.dns
-            ? BlockCategory.dnsBlocklist
-            : BlockCategory.filterList,
+        switch (source) {
+          BlockSource.dns => BlockCategory.dnsBlocklist,
+          BlockSource.abp => BlockCategory.filterList,
+        },
         count: count,
         label: host,
       );
     }
-    recordDomainDecision(host, wasBlocked);
+    recordDomainDecision(host, blocked);
     _scheduleNotifyDnsLogListeners();
   }
 
-  /// Clear stats for a specific site.
   void clearStatsForSite(String siteId) {
     _siteStats[siteId]?.clear();
     _scheduleNotifyDnsLogListeners();
   }
 
-  /// Add a listener for DNS log changes (live UI updates).
   void addDnsLogListener(VoidCallback listener) {
     _dnsLogListeners.add(listener);
   }
 
-  /// Remove a DNS log listener.
   void removeDnsLogListener(VoidCallback listener) {
     _dnsLogListeners.remove(listener);
   }
@@ -558,16 +530,14 @@ class DnsBlockService {
 
       await _loadFromDisk(prefs);
       if (!_levelSets.isEmpty) {
-        LogService.instance.log(
-            'DnsBlock',
+        LogTag.dnsBlock.info(
             'Loaded ${_levelSets.domainCount} domains from cache '
             '(level $_level, levels ${_levelSets.levels.toList()..sort()}, '
-            '${_levelSets.groupCount} group(s))',
-            level: LogLevel.info);
+            '${_levelSets.groupCount} group(s))');
       }
       await _loadDomainCache();
     } catch (e) {
-      LogService.instance.log('DnsBlock', 'Error loading cached blocklist: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Error loading cached blocklist: $e');
     }
   }
 
@@ -665,7 +635,7 @@ class DnsBlockService {
   /// app-wide level. Tries each mirror URL in order. Level 0 clears every
   /// downloaded level. Returns true on success, false on failure.
   Future<bool> downloadList(int level) =>
-      _serializeMutation(() => _downloadListInner(level));
+      _mutations.run(() => _downloadListInner(level));
 
   Future<bool> _downloadListInner(int level) async {
     if (level < 0 || level > kDnsMaxLevel) return false;
@@ -679,7 +649,7 @@ class DnsBlockService {
         await prefs.remove(_lastUpdatedKey);
         await _persistDownloadedLevels(prefs, const <int>{});
       } catch (e) {
-        LogService.instance.log('DnsBlock', 'Error clearing blocklist: $e', level: LogLevel.error);
+        LogTag.dnsBlock.error('Error clearing blocklist: $e');
       }
       _level = 0;
       await _clearDomainCache();
@@ -694,10 +664,9 @@ class DnsBlockService {
     await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
     await _persistDownloadedLevels(prefs, _levelSets.levels);
     await _clearDomainCache();
-    LogService.instance.log('DnsBlock',
+    LogTag.dnsBlock.info(
         'Downloaded level $level (${_levelSets.domainCount} domains across '
-        '${_levelSets.groupCount} group(s))',
-        level: LogLevel.info);
+        '${_levelSets.groupCount} group(s))');
     return true;
   }
 
@@ -705,7 +674,7 @@ class DnsBlockService {
   /// the app-wide level. Idempotent: a level already downloaded succeeds
   /// without a request.
   Future<bool> downloadLevel(int level) =>
-      _serializeMutation(() => _downloadLevelInner(level));
+      _mutations.run(() => _downloadLevelInner(level));
 
   Future<bool> _downloadLevelInner(int level) async {
     if (level < 1 || level > kDnsMaxLevel) return false;
@@ -714,10 +683,9 @@ class DnsBlockService {
     final prefs = await SharedPreferences.getInstance();
     await _persistDownloadedLevels(prefs, _levelSets.levels);
     await _clearDomainCache();
-    LogService.instance.log('DnsBlock',
+    LogTag.dnsBlock.info(
         'Added level $level (${_levelSets.domainCount} domains across '
-        '${_levelSets.groupCount} group(s))',
-        level: LogLevel.info);
+        '${_levelSets.groupCount} group(s))');
     return true;
   }
 
@@ -725,7 +693,7 @@ class DnsBlockService {
   /// [requiredDnsLevels]; the app-wide level is always in it. A domain no
   /// remaining level names falls out with its last bit.
   Future<void> pruneLevels(Set<int> keep) =>
-      _serializeMutation(() => _pruneLevelsInner(keep));
+      _mutations.run(() => _pruneLevelsInner(keep));
 
   Future<void> _pruneLevelsInner(Set<int> keep) async {
     final drop = _levelSets.levels.where((l) => !keep.contains(l)).toSet();
@@ -740,10 +708,9 @@ class DnsBlockService {
     await _persistDownloadedLevels(prefs, pruned.levels);
     await _clearDomainCache();
     _applyLevelSets(pruned);
-    LogService.instance.log('DnsBlock',
+    LogTag.dnsBlock.info(
         'Dropped unused blocklist levels ${drop.toList()..sort()} '
-        '(${pruned.domainCount} domains left)',
-        level: LogLevel.info);
+        '(${pruned.domainCount} domains left)');
   }
 
   /// Download [level]'s list and fold it into the partition, setting its bit
@@ -778,57 +745,24 @@ class DnsBlockService {
     final filePath = _levelFiles[level];
     if (filePath == null) return null;
 
-    // Route through the app-global outbound proxy (HTTP/HTTPS findProxy on
-    // dart:io's HttpClient, or the SOCKS5 tunnel from socks5_proxy when the
-    // user picks SOCKS5). Fail-closed on a malformed config rather than
-    // leaking the IP via direct.
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-        'DnsBlock',
-        'Skipped download: ${clientResult.reason}',
-        level: LogLevel.warning,
-      );
-      return null;
-    }
-    final client = (clientResult as OutboundClientReady).client;
-    try {
-      for (final baseUrl in _mirrorBaseUrls) {
-        try {
-          final url = '$baseUrl$filePath';
-          LogService.instance.log('DnsBlock', 'Trying mirror: $url');
-
-          final response = await client.get(Uri.parse(url)).timeout(
-            const Duration(seconds: 15),
-          );
-
-          if (response.statusCode != 200) {
-            LogService.instance.log('DnsBlock', 'Mirror failed: HTTP ${response.statusCode}', level: LogLevel.error);
-            continue;
-          }
-
-          final domains = _extractDomains(response.body);
-          if (!looksLikeDomainList(domains)) {
-            LogService.instance.log(
-                'DnsBlock',
-                'Mirror returned ${response.body.length} bytes yielding '
-                '${domains.length} usable entries, not a domain list. Skipping.',
-                level: LogLevel.error);
-            continue;
-          }
-
-          return response.body;
-        } catch (e) {
-          LogService.instance.log('DnsBlock', 'Mirror error: $e', level: LogLevel.error);
+    for (final baseUrl in _mirrorBaseUrls) {
+      final url = '$baseUrl$filePath';
+      LogTag.dnsBlock.debug('Trying mirror: $url');
+      switch (await fetchViaAppProxy(Uri.parse(url), tag: LogTag.dnsBlock)) {
+        case FetchRefused():
+          return null;
+        case FetchFailed():
           continue;
-        }
+        case Fetched(:final response):
+          final domains = _extractDomains(response.body);
+          if (looksLikeDomainList(domains)) return response.body;
+          LogTag.dnsBlock.error(
+              'Mirror returned ${response.body.length} bytes yielding '
+              '${domains.length} usable entries, not a domain list. Skipping.');
       }
-
-      LogService.instance.log('DnsBlock', 'All mirrors failed for level $level', level: LogLevel.error);
-      return null;
-    } finally {
-      client.close();
     }
+    LogTag.dnsBlock.error('All mirrors failed for level $level');
+    return null;
   }
 
   /// Check if a URL should be blocked by the DNS blocklist. Synchronous
@@ -846,9 +780,7 @@ class DnsBlockService {
   bool isBlocked(String url) => isBlockedAtLevel(url, _level);
 
   /// Like [isBlocked] but skips URL parsing — caller already has the host
-  /// (e.g. native interceptor bridge passing `host` directly). Hot-path
-  /// callers should prefer this over `recordRequest('https://$host/', ...)`
-  /// which round-trips through `Uri.tryParse` just to recover the host.
+  /// (e.g. native interceptor bridge passing `host` directly).
   bool isHostBlocked(String host) => isHostBlockedAtLevel(host, _level);
 
   /// [isBlocked] at a specific severity level — what a site with its own
@@ -861,7 +793,6 @@ class DnsBlockService {
     return isHostBlockedAtLevel(host, level);
   }
 
-  /// [isHostBlocked] at a specific severity level.
   bool isHostBlockedAtLevel(String host, int level) {
     if (level <= kDnsLevelOff || level > kDnsMaxLevel) return false;
     if (_levelSets.isEmpty || host.isEmpty) return false;
@@ -893,7 +824,7 @@ class DnsBlockService {
   /// force, are no-ops. Tiers no site wants are reclaimed by the startup
   /// sweep rather than here.
   Future<void> applyImportedLevel(int level) =>
-      _serializeMutation(() => _applyImportedLevelInner(level));
+      _mutations.run(() => _applyImportedLevelInner(level));
 
   Future<void> _applyImportedLevelInner(int level) async {
     if (level < 0 || level > kDnsMaxLevel) return;
@@ -906,8 +837,7 @@ class DnsBlockService {
       await prefs.remove(_lastUpdatedKey);
       await _persistDownloadedLevels(prefs, const <int>{});
     } catch (e) {
-      LogService.instance.log('DnsBlock',
-          'Error applying imported level: $e', level: LogLevel.error);
+      LogTag.dnsBlock.error('Error applying imported level: $e');
     }
     _level = level;
     await _clearDomainCache();
@@ -923,7 +853,7 @@ class DnsBlockService {
   }
 
   /// Load one level's domains from a raw string, as if it had just been
-  /// downloaded at [level] and made the app-wide level. Exposed for testing.
+  /// downloaded at [level] and made the app-wide level.
   @visibleForTesting
   void loadDomainsFromString(String data, {int level = 1}) {
     final domains = _extractDomains(data);
@@ -940,7 +870,7 @@ class DnsBlockService {
   }
 
   /// Load several levels at once, as if each had been downloaded. Keys are
-  /// levels, values raw list bodies. Exposed for testing.
+  /// levels, values raw list bodies.
   @visibleForTesting
   void loadLevelsFromStrings(Map<int, String> byLevel, {int? globalLevel}) {
     final levels = byLevel.keys.toList()..sort();

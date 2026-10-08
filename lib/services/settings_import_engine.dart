@@ -17,13 +17,9 @@ import 'package:webspace/services/dns_level_mask_engine.dart'
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart'
-    show kGlobalOutboundProxyKey;
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart'
-    show ProxyLibraryData, kProxyLibraryKey, resolveLibrary;
+import 'package:webspace/services/proxy_library.dart'
+    show ProxyLibraryData, resolveLibrary;
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
@@ -41,7 +37,7 @@ class SettingsImportPlan {
   /// In the current `themeMode * 10 + accent` encoding.
   final int themeStorageIndex;
 
-  /// Every `kExportedAppPrefs` key with a value of the registry's type.
+  /// Every `AppPref` key with a value of its declared type.
   final Map<String, Object> appPrefs;
 
   final String selectedWebspaceId;
@@ -132,11 +128,10 @@ SettingsImportPlan planSettingsImport(
     site.pruneSearchReferences(known.contains);
   }
   final appPrefs = resolveExportedAppPrefs(backup.globalPrefs);
-  final searchDefault = appPrefs[kWebSearchDefaultSiteKey];
-  if (searchDefault is String &&
-      searchDefault.isNotEmpty &&
-      !known.contains(searchDefault)) {
-    appPrefs[kWebSearchDefaultSiteKey] = '';
+  final searchDefault =
+      AppPref.webSearchDefaultSite.fromBackup(backup.globalPrefs);
+  if (searchDefault.isNotEmpty && !known.contains(searchDefault)) {
+    appPrefs[AppPref.webSearchDefaultSite.key] = '';
   }
 
   final selected = backup.selectedWebspaceId;
@@ -158,7 +153,8 @@ SettingsImportPlan planSettingsImport(
     globalUserScripts: backup.globalUserScripts == null
         ? null
         : [
-            for (final e in backup.globalUserScripts!) ?_scriptOrNull(e),
+            for (final e in backup.globalUserScripts!)
+              UserScriptConfig.fromJson(e)..enabled = false,
           ],
     suggestedSites: backup.suggestedSites == null
         ? null
@@ -217,12 +213,7 @@ void sanitizeImportedSites(List<WebViewModel> sites) {
     // user gave on the exporting device. Reset each to the state that asks
     // again (or, where the capability has no prompt, to off); simulated and
     // blocked states grant nothing and stay.
-    if (site.cameraMode == CameraAccessMode.real) {
-      site.cameraMode = CameraAccessMode.ask;
-    }
-    if (site.microphoneMode == MicrophoneAccessMode.real) {
-      site.microphoneMode = MicrophoneAccessMode.ask;
-    }
+    site.captures = site.captures.withoutRealGrants();
     if (site.locationMode == LocationMode.live) {
       site.locationMode = LocationMode.off;
     }
@@ -267,7 +258,7 @@ int normalizeBackupThemeIndex(int raw, List<Map<String, dynamic>> sites) {
 /// `host:port` of the app-wide proxy [backup] would install, or null when it
 /// sets none. Shown in the import confirmation.
 String? backupGlobalProxyAddress(SettingsBackup backup) {
-  final proxy = _decodeProxyPref(backup.globalPrefs[kGlobalOutboundProxyKey]);
+  final proxy = _decodeProxyPref(backup.globalPrefs[AppPref.globalOutboundProxy.key]);
   if (proxy == null) return null;
   final type = proxy['type'];
   if (type is! int || type == ProxyType.DEFAULT.index) return null;
@@ -276,7 +267,7 @@ String? backupGlobalProxyAddress(SettingsBackup backup) {
   if (type == ProxyType.SAVED.index || type == ProxyType.GATEWAY.index) {
     return resolveLibrary(
       UserProxySettings.fromJson(proxy),
-      ProxyLibraryData.decode(backup.globalPrefs[kProxyLibraryKey]),
+      ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]),
     ).route.address;
   }
   final address = proxy['address'];
@@ -299,7 +290,7 @@ Map<String, dynamic>? _decodeProxyPref(Object? raw) {
   try {
     final decoded = jsonDecode(raw);
     return decoded is Map<String, dynamic> ? decoded : null;
-  } catch (_) {
+  } on FormatException {
     return null;
   }
 }
@@ -310,23 +301,15 @@ bool _backupNamesProxyUsername(SettingsBackup backup) {
       proxy['username'] is String &&
       (proxy['username'] as String).isNotEmpty;
   return backup.sites.any((s) => named(s['proxySettings'])) ||
-      named(_decodeProxyPref(backup.globalPrefs[kGlobalOutboundProxyKey])) ||
+      named(_decodeProxyPref(backup.globalPrefs[AppPref.globalOutboundProxy.key])) ||
       _libraryNamesUsername(
-          ProxyLibraryData.decode(backup.globalPrefs[kProxyLibraryKey]));
+          ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]));
 }
 
 bool _libraryNamesUsername(ProxyLibraryData lib) {
   bool named(String? u) => u != null && u.isNotEmpty;
   return lib.credentials.any((c) => named(c.username)) ||
       lib.proxies.any((p) => named(p.settings.username));
-}
-
-UserScriptConfig? _scriptOrNull(Map<String, dynamic> json) {
-  try {
-    return UserScriptConfig.fromJson(json)..enabled = false;
-  } catch (_) {
-    return null;
-  }
 }
 
 /// A repeated id would make selection and edits land on whichever copy is

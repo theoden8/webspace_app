@@ -92,8 +92,7 @@ class SiteLifecycleEngine {
   ///     filter anything that would be out-of-bounds in the post-removal list.
   ///   * Each webspace's `siteIndices`: drop any entry equal to `deletedIndex`,
   ///     shift `i > deletedIndex` to `i - 1`. Out-of-bounds entries are filtered
-  ///     as a defensive measure (the pre-existing `_cleanupWebspaceIndices`
-  ///     semantics).
+  ///     as a defensive measure.
   ///   * `currentIndex`: cleared if equal to `deletedIndex`, shifted down by
   ///     one if strictly greater, unchanged otherwise.
   ///

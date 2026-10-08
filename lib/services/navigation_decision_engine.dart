@@ -1,7 +1,6 @@
 import 'package:webspace/settings/external_links.dart';
-import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/url_host.dart';
 
-/// The outcome of a navigation-interception decision.
 enum NavigationDecision {
   /// Let the navigation proceed in the current webview (same-domain, or
   /// inline/about/captcha special cases that don't count as cross-domain).
@@ -59,6 +58,15 @@ enum GestureStateUpdate {
   /// was allowed or blocked). Single-use on purpose: a stale gesture
   /// must not unlock repeated redirects.
   consume,
+}
+
+extension GestureStateUpdateApply on GestureStateUpdate? {
+  /// The caller's stored same-domain gesture time after this update.
+  DateTime? applyTo(DateTime? last, DateTime now) => switch (this) {
+        GestureStateUpdate.record => now,
+        GestureStateUpdate.consume => null,
+        null => last,
+      };
 }
 
 class NavigationDecisionResult {
@@ -170,17 +178,6 @@ class OnUrlChangedHandled {
 /// repeated redirects.
 const _gesturePropagationWindowSeconds = 10;
 
-/// Logic for cross-domain navigation interception, extracted from
-/// `WebViewModel.getWebView`'s `shouldOverrideUrlLoading` / `onUrlChanged`
-/// closures and from the matching inline copy in
-/// `test/nested_webview_navigation_test.dart`'s `NavigationTestHarness`
-/// (which previously carried a comment saying it "replicates the exact
-/// logic from WebViewModel.getWebView"). Both sites now delegate here
-/// so the rule can't drift.
-///
-/// The engine is stateless. Gesture state lives on the caller as a
-/// mutable `DateTime?`; the engine reads it as an input and returns an
-/// optional update descriptor the caller applies after the call.
 /// What a navigation the user asked for does once its [NavigationDecision]
 /// is made, in the order every way of opening a URL applies it: a link in the
 /// page and an address typed in the URL bar alike.
@@ -200,6 +197,9 @@ enum NavigationStep {
   route,
 }
 
+/// The engine is stateless. Gesture state lives on the caller as a
+/// mutable `DateTime?`; the engine reads it as an input and returns an
+/// optional update descriptor the caller applies after the call.
 class NavigationDecisionEngine {
   /// The step [decision] leads to. [returnsToOwner] is whether the URL is in
   /// the owner's domain while the slot runs a hosted or foreign tab.

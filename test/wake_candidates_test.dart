@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/background_wake_engine.dart';
-import 'package:webspace/services/wake_candidates.dart';
+import 'package:webspace/controllers/wake_candidates.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -132,7 +132,7 @@ void main() {
           site('https://a.test',
               proxy: UserProxySettings(type: ProxyType.TOR)),
           proxyIsGlobal: false),
-      startsWith('exit='),
+      isA<WakeRoute>().having((r) => r.torExit, 'torExit', isNotNull),
     );
   });
 }

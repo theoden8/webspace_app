@@ -233,6 +233,10 @@ rules match exactly as before
 **When** a sub-resource request is blocked
 **Then** the interceptor attributes the hit to `dns` (DNS is checked first)
 **And** the ABP block counter is not incremented for that request
+**And** every path that blocks or counts a request (navigations, popups,
+`blockCheck`, the PerformanceObserver batch, page-icon fetches) takes this
+order through `BlockDecision.decide`, which asks the engine nothing about a
+request DNS already blocked
 
 #### Scenario: Per-source counters preserved in stats
 
@@ -503,7 +507,7 @@ The system SHALL gate `adblock-rust`'s uBO web_accessible_resources/ pool behind
 
 ### Requirement: CB-011 - Settings Backup Round-Trip
 
-The `useUboResources` preference SHALL round-trip through settings export/import via the `kExportedAppPrefs` registry. The retired `useRustAdblockEngine` toggle SHALL NOT round-trip.
+The `useUboResources` preference SHALL round-trip through settings export/import via the `AppPref` registry. The retired `useRustAdblockEngine` toggle SHALL NOT round-trip.
 
 The filter-list selection SHALL also round-trip, as user intent: each
 list's `id`, `name`, `url`, and `enabled` flag ride a dedicated
@@ -511,7 +515,7 @@ list's `id`, `name`, `url`, and `enabled` flag ride a dedicated
 skipped counts, last-updated timestamps) and the cached rule blobs SHALL
 NOT be exported — they are machine state, repopulated by re-downloading
 after import. The selection rides a dedicated field rather than the
-`kExportedAppPrefs` registry because applying it on import must run
+`AppPref` registry because applying it on import must run
 through `ContentBlockerService` (replacing `_lists` and rebuilding the
 engine), which the registry's blind pref-write path cannot do.
 
@@ -614,8 +618,8 @@ or `https`
 
 Every network-block decision the engine makes SHALL be folded into the
 DevTools ABP tab's counters, regardless of which consult path produced
-it: `isBlocked` (main-doc navigations, JS-bridge `blockCheck`,
-legacy single-URL reports), `isHostBlocked` (PerformanceObserver
+it: `isBlocked` (main-doc navigations, JS-bridge `blockCheck`),
+`isHostBlocked` (PerformanceObserver
 per-host attribution), and blocks decided by the Android native JNI
 engine (drained `abp`-sourced block events). The blocked/allowed
 tallies SHALL be cumulative since timing was enabled — they MUST NOT

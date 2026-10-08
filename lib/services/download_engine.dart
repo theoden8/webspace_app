@@ -4,11 +4,9 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import 'package:webspace/platform/host_platform.dart';
-import 'package:webspace/services/download_client.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
 
-/// Result of a successful download fetch.
 class DownloadResult {
   final Uint8List bytes;
   final String filename;
@@ -21,7 +19,6 @@ class DownloadResult {
   });
 }
 
-/// Thrown when a download cannot be completed.
 class DownloadException implements Exception {
   final String message;
   DownloadException(this.message);
@@ -61,7 +58,7 @@ class DownloadEngine {
   })  : _client = client ?? _defaultClient(proxy),
         _maxBytes = maxBytes,
         _outboundResult = client == null && proxy != null
-            ? outboundHttp.clientFor(resolveEffectiveProxy(proxy))
+            ? outboundHttp.clientFor(resolveEffectiveProxy(proxy, siteId: null))
             : null;
 
   /// Default HTTP client with gzip auto-decompression DISABLED so the
@@ -78,7 +75,7 @@ class DownloadEngine {
   /// request — see [_blockedClient] / [fetch].
   static http.Client _defaultClient(UserProxySettings? proxy) {
     if (proxy != null) {
-      final resolved = resolveEffectiveProxy(proxy);
+      final resolved = resolveEffectiveProxy(proxy, siteId: null);
       if (resolved.type != ProxyType.DEFAULT) {
         final result = outboundHttp.clientFor(resolved);
         if (result is OutboundClientReady) return result.client;
@@ -87,7 +84,7 @@ class DownloadEngine {
         }
       }
     }
-    return createDirectDownloadClient();
+    return hostDirectDownloadClient();
   }
 
   /// RFC 6265 `Cookie:` header value from an ordered list of name/value
@@ -112,18 +109,31 @@ class DownloadEngine {
     final s = (suggested ?? '').trim();
     if (s.isNotEmpty) return _sanitize(s);
 
-    try {
-      final uri = Uri.parse(url);
-      for (int i = uri.pathSegments.length - 1; i >= 0; i--) {
-        final seg = uri.pathSegments[i];
-        if (seg.trim().isEmpty) continue;
-        final decoded = Uri.decodeComponent(seg);
-        if (decoded.trim().isNotEmpty) return _sanitize(decoded);
+    final segments = Uri.tryParse(url)?.pathSegments ?? const <String>[];
+    for (final seg in segments.reversed) {
+      if (seg.trim().isEmpty) continue;
+      final String decoded;
+      try {
+        decoded = Uri.decodeComponent(seg);
+      } on ArgumentError {
+        // How the SDK reports a malformed %-escape.
+        continue;
       }
-    } catch (_) {}
+      if (decoded.trim().isNotEmpty) return _sanitize(decoded);
+    }
 
     final ext = _extensionForMime(mimeType);
     return 'download${ext ?? ''}';
+  }
+
+  /// Drain [response] so its connection returns to the pool. Its status has
+  /// already decided what happens next, so a failure here changes nothing.
+  static Future<void> _discard(http.StreamedResponse response) async {
+    try {
+      await response.stream.drain<void>();
+    } on Exception {
+      // Nothing to report; see above.
+    }
   }
 
   /// Fetch [url], following up to [maxRedirects] redirects by hand.
@@ -155,12 +165,8 @@ class DownloadEngine {
     if (client is _BlockedHttpClient) {
       throw DownloadException(client.reason);
     }
-    final Uri uri;
-    try {
-      uri = Uri.parse(url);
-    } catch (_) {
-      throw DownloadException('Invalid URL: $url');
-    }
+    final uri = Uri.tryParse(url);
+    if (uri == null) throw DownloadException('Invalid URL: $url');
     if (uri.scheme != 'http' && uri.scheme != 'https') {
       throw DownloadException('Unsupported scheme: ${uri.scheme}');
     }
@@ -202,9 +208,7 @@ class DownloadEngine {
       }
       if (!_isRedirect(response.statusCode)) break;
       final location = response.headers['location'];
-      try {
-        await response.stream.drain<void>();
-      } catch (_) {}
+      await _discard(response);
       if (location == null || location.isEmpty) {
         throw DownloadException('HTTP ${response.statusCode}');
       }
@@ -223,18 +227,13 @@ class DownloadEngine {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      // Drain the body so the connection can be returned to the pool.
-      try {
-        await response.stream.drain<void>();
-      } catch (_) {}
+      await _discard(response);
       throw DownloadException('HTTP ${response.statusCode}');
     }
 
     final total = response.contentLength;
     if (total != null && total > _maxBytes) {
-      try {
-        await response.stream.drain<void>();
-      } catch (_) {}
+      await _discard(response);
       throw DownloadException('Download exceeds size limit');
     }
     onProgress?.call(0, total);

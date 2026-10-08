@@ -38,7 +38,7 @@ party, and a created passkey lives in the provider, outside the archive's
 keyspace (ARCH-006). `WebViewModel.effectivePasskeysEnabled` is the one reading
 of that rule, and nested webviews receive it through `launchUrl`.
 `PasskeyAccess.forHost` turns it into a webview's access, and no webview builds
-one another way.
+one another way: the constructor is private to it.
 
 There is no switch. On Android, without the shim a site sees the WebView's
 default, no `PublicKeyCredential` at all, and a sign-in that probes for

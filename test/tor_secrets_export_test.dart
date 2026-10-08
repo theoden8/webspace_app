@@ -15,7 +15,6 @@
 // The needle is proved live before it is looked for: an absence test whose
 // secret was never in play passes against an app that leaks a different one.
 
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -24,53 +23,20 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-
-class _Runtime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-
-  @override
-  bool get isAvailable => true;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-  Future<void> dispose() => _events.close();
-}
+import 'helpers/fake_tor_runtime.dart';
 
 void main() {
   const sessionSecret = 'tor-session-needle-9b2e';
   const socksPort = 41337;
 
-  late _Runtime runtime;
+  late FakeTorRuntime runtime;
 
   setUp(() async {
-    runtime = _Runtime();
+    runtime = FakeTorRuntime();
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: sessionSecret),
     );
@@ -86,7 +52,7 @@ void main() {
   });
 
   test('Tor secrets never appear in exports (TOR-009)', () async {
-    await TorService.instance.syncHolders({'tor-site'});
+    await TorService.instance.syncHolders({TorSiteHolder('tor-site')});
     runtime.emit(const TorUp('127.0.0.1', socksPort));
     await Future<void>.delayed(Duration.zero);
 
@@ -116,7 +82,7 @@ void main() {
       webspaces: [Webspace.all()],
       themeMode: 0,
       globalPrefs: <String, Object?>{
-        kGlobalOutboundProxyKey:
+        AppPref.globalOutboundProxy.key:
             jsonEncode(UserProxySettings(type: ProxyType.TOR).toJson()),
       },
     );

@@ -1,11 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// A parsed ClearURLs provider that matches URLs and strips tracking parameters.
@@ -42,7 +41,6 @@ class ClearUrlService {
 
   List<ClearUrlProvider> _providers = [];
 
-  /// Whether rules have been loaded and are available.
   bool get hasRules => _providers.isNotEmpty;
 
   /// Initialize the service by loading cached rules from disk (no network).
@@ -53,10 +51,11 @@ class ClearUrlService {
       if (contents != null) {
         final json = jsonDecode(contents) as Map<String, dynamic>;
         _parseRules(json);
-        LogService.instance.log('ClearURLs', 'Loaded ${_providers.length} providers from cache', level: LogLevel.info);
+        LogTag.clearUrls.info(
+            'Loaded ${_providers.length} providers from cache');
       }
     } catch (e) {
-      LogService.instance.log('ClearURLs', 'Error loading cached rules: $e', level: LogLevel.error);
+      LogTag.clearUrls.error('Error loading cached rules: $e');
     }
   }
 
@@ -68,46 +67,25 @@ class ClearUrlService {
   /// malformed and cannot be honored, this returns false without making the
   /// request — falling back to direct would leak the device IP.
   Future<bool> downloadRules() async {
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-        'ClearURLs',
-        'Skipped download: ${clientResult.reason}',
-        level: LogLevel.warning,
-      );
-      return false;
-    }
-    final client = (clientResult as OutboundClientReady).client;
+    final response = switch (
+        await fetchViaAppProxy(Uri.parse(_rulesUrl), tag: LogTag.clearUrls)) {
+      Fetched(:final response) => response,
+      FetchRefused() || FetchFailed() => null,
+    };
+    if (response == null) return false;
     try {
-      final response = await client.get(Uri.parse(_rulesUrl)).timeout(
-        const Duration(seconds: 15),
-      );
-
-      if (response.statusCode != 200) {
-        LogService.instance.log('ClearURLs', 'Download failed: HTTP ${response.statusCode}', level: LogLevel.error);
-        return false;
-      }
-
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-
-      // Save to disk
+      final json = jsonDecode(response.body);
+      if (json is! Map<String, dynamic>) return false;
       await hostWriteDocumentText(_rulesFileName, response.body);
-
-      // Save timestamp
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
-
-      // Parse
       _parseRules(json);
-
-      LogService.instance.log('ClearURLs', 'Downloaded and parsed ${_providers.length} providers', level: LogLevel.info);
-
+      LogTag.clearUrls.info(
+          'Downloaded and parsed ${_providers.length} providers');
       return true;
-    } catch (e) {
-      LogService.instance.log('ClearURLs', 'Download error: $e', level: LogLevel.error);
+    } on Exception catch (e) {
+      LogTag.clearUrls.error('Download error: $e');
       return false;
-    } finally {
-      client.close();
     }
   }
 
@@ -132,13 +110,10 @@ class ClearUrlService {
     for (final provider in _providers) {
       if (!provider.urlPattern.hasMatch(url)) continue;
 
-      // Check exceptions - skip this provider if URL matches an exception
       if (provider.exceptions.any((e) => e.hasMatch(url))) continue;
 
-      // Block entirely if completeProvider
       if (provider.completeProvider) return '';
 
-      // Check redirections - extract redirect target
       for (final redirection in provider.redirections) {
         final match = redirection.firstMatch(url);
         if (match != null && match.groupCount >= 1) {
@@ -155,7 +130,6 @@ class ClearUrlService {
         }
       }
 
-      // Strip query params matching rules
       var uri = Uri.tryParse(url);
       if (uri == null) continue;
 
@@ -167,7 +141,6 @@ class ClearUrlService {
 
         if (cleanedParams.length != uri.queryParameters.length) {
           if (cleanedParams.isEmpty) {
-            // Remove query string entirely
             uri = uri.replace(query: '');
             url = uri.toString();
             // Remove trailing '?' left by empty query
@@ -181,7 +154,6 @@ class ClearUrlService {
         }
       }
 
-      // Apply rawRules - regex replacements on the full URL string
       for (final rawRule in provider.rawRules) {
         url = url.replaceAll(rawRule, '');
       }
@@ -210,7 +182,6 @@ class ClearUrlService {
     return removed.join(', ');
   }
 
-  /// Load rules from a parsed JSON map. Exposed for testing.
   @visibleForTesting
   void loadRulesFromJson(Map<String, dynamic> json) {
     _parseRules(json);
@@ -269,7 +240,7 @@ class ClearUrlService {
           redirections: redirections,
         ));
       } catch (e) {
-        LogService.instance.log('ClearURLs', 'Error parsing provider "${entry.key}": $e', level: LogLevel.error);
+        LogTag.clearUrls.error('Error parsing provider "${entry.key}": $e');
       }
     }
 
@@ -338,7 +309,7 @@ class ClearUrlService {
         try {
           result.add(RegExp(item, caseSensitive: false));
         } catch (e) {
-          LogService.instance.log('ClearURLs', 'Invalid regex "$item": $e', level: LogLevel.error);
+          LogTag.clearUrls.error('Invalid regex "$item": $e');
         }
       }
     }

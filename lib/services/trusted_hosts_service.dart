@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/log_service.dart';
 
 /// SharedPreferences key holding the encoded trusted-cert pin list.
-/// Round-tripped through settings export/import via [kExportedAppPrefs].
+/// Never rides a settings backup (BACKUP-010, TLS-007).
 const String kTrustedHostsKey = 'trustedHosts';
 
 /// One pinned (host, port, sha256) triple. Pinning the cert fingerprint
@@ -158,23 +158,17 @@ class TrustedHostsService {
     final removed = _byHostPort.remove(_key(host, port));
     if (removed != null) {
       await _persist();
-      LogService.instance.log(
-        'TLS',
-        'untrust($host:$port) removed pin; emitting on untrustChanges',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug(
+          'untrust($host:$port) removed pin; emitting on untrustChanges',
+          sensitive: true);
       _untrustController.add(TrustedHostEntry(
         host: host,
         port: port,
         sha256Hex: removed,
       ));
     } else {
-      LogService.instance.log(
-        'TLS',
-        'untrust($host:$port) no-op (no matching pin); '
-            'in-memory keys: ${_byHostPort.keys.toList()}',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.tls.debug('untrust($host:$port) no-op (no matching pin); '
+          'in-memory keys: ${_byHostPort.keys.toList()}', sensitive: true);
     }
   }
 

@@ -58,7 +58,6 @@ class DownloadsService extends ChangeNotifier {
 
   List<DownloadTask> get tasks => List.unmodifiable(_tasks);
   bool get hasActive => _tasks.any((t) => t.isActive);
-  int get activeCount => _tasks.where((t) => t.isActive).length;
 
   /// Creates and registers a new task. Returns the task so the caller can
   /// mutate it directly; after any mutation call [emit] to notify
@@ -124,7 +123,6 @@ class DownloadsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Remove all non-active tasks.
   void clearCompleted() {
     _tasks.removeWhere((t) => !t.isActive);
     notifyListeners();

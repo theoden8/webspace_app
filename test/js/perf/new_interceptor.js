@@ -1,5 +1,5 @@
 // New iOS JS interceptor logic, mirroring the rewrite in
-// `lib/services/webview.dart` (the `block_js_interceptor` user script).
+// `lib/services/block_interceptor_shim.dart` (`blockJsInterceptorScript`).
 //
 //   * `checkSync(url)` returns true / false / undefined — no Promise
 //     wrapping on the bloom-miss / cache-hit fast path.
@@ -8,7 +8,7 @@
 //   * Cache is one map keyed by host (not two parallel objects), with
 //     FIFO eviction.
 //
-// Standalone for benching — kept in sync with webview.dart manually.
+// Standalone for benching — kept in sync with block_interceptor_shim.dart manually.
 
 'use strict';
 

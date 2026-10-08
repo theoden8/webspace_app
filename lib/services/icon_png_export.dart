@@ -61,7 +61,7 @@ Future<Uint8List?> exportIconAsPng(
     if (decoded == null) return null;
     return Uint8List.fromList(img.encodePng(decoded));
   } catch (e) {
-    LogService.instance.log('Icon', 'PNG export failed: $e', level: LogLevel.error);
+    LogTag.icon.error('PNG export failed: $e');
     return null;
   }
 }

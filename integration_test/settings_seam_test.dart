@@ -53,6 +53,8 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
+import 'helpers/ui.dart';
 
 /// One field's trip across the channel.
 class _Field {
@@ -142,26 +144,26 @@ void main() {
             height: 480,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
-                siteId: siteId,
+                hooks: bareHooks(),
+                posture: barePosture(
+                  'about:blank',
+                  siteId: siteId,
+                  proxy: UserProxySettings(
+                    type: ProxyType.SOCKS5,
+                    address: proxyAddress,
+                  ),
+                  adjust: (site) => site
+                    ..userAgent = sentUserAgent
+                    ..javascriptEnabled = javascriptEnabled
+                    ..incognito = incognito
+                    // Native default is true, so `false` is the value that
+                    // can tell a parsed field from a skipped one.
+                    ..thirdPartyCookiesEnabled = false,
+                ),
                 // No network: the seam is about what crossed the channel, and
                 // a destination would only add a way for this to fail for an
                 // unrelated reason.
                 initialUrl: 'about:blank',
-                userAgent: sentUserAgent,
-                javascriptEnabled: javascriptEnabled,
-                incognito: incognito,
-                // Native default is true, so `false` is the value that can
-                // tell a parsed field from a skipped one.
-                thirdPartyCookiesEnabled: false,
-                proxySettings: UserProxySettings(
-                  type: ProxyType.SOCKS5,
-                  address: proxyAddress,
-                ),
-                clearUrlEnabled: false,
-                dnsBlockEnabled: false,
-                contentBlockEnabled: false,
-                trackingProtectionEnabled: false,
-                localCdnEnabled: false,
               ),
               onControllerCreated: (c) => controller = c,
             ),
@@ -173,27 +175,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
   }
 
-  Future<bool> waitReal(
-    WidgetTester tester,
-    bool Function() done, {
-    required String label,
-    Duration timeout = const Duration(seconds: 20),
-  }) async {
-    var ok = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        if (done()) {
-          ok = true;
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      ok = done();
-    });
-    log('$label -> ${ok ? "ok" : "timeout"}');
-    return ok;
-  }
+  final waitReal = RealWait(log: log, timeout: Duration(seconds: 20));
 
   /// Compares [fields] against [live], printing every one either way, and
   /// fails naming those that did not survive.

@@ -55,7 +55,13 @@ Only ONE webview per second-level domain SHALL be active at a time.
 
 ### Requirement: ISO-002 - Cookie Capture on Unload
 
-The system SHALL capture cookies before unloading a webview due to domain conflict.
+The system SHALL capture cookies before unloading a webview, whatever the
+reason it is unloaded (domain conflict, webspace switch, proxy or Tor
+exit-country mismatch, the loaded-site cap, memory pressure, a home reset).
+Every activation empties the shared jar after saving it for the loaded sites
+only, so a site unloaded without the capture loses what it set since its own
+activation. All unloads go through `SiteUnloadEngine.unload`. Lineage:
+[BUG-026](../../../docs/bugs/026-legacy-unload-drops-session.md).
 
 #### Scenario: Capture cookies before switch
 
@@ -63,6 +69,13 @@ The system SHALL capture cookies before unloading a webview due to domain confli
 **When** Site A is unloaded due to domain conflict
 **Then** Site A's current cookies are captured from CookieManager
 **And** cookies are persisted to secure storage by siteId
+
+#### Scenario: Capture cookies before a webspace switch unload
+
+**Given** Site A was activated, and the user then signed in on it
+**When** the user switches to a webspace without A, which unloads it
+**And** then activates another site
+**Then** A's sign-in cookies are in secure storage under A's siteId
 
 ### Requirement: ISO-003 - Cookie Restoration on Load
 
@@ -83,7 +96,7 @@ a capture → nuke → restore cycle:
    restore every other still-loaded site's cookies (parallel-loaded sites
    share the same native jar).
 
-All async steps SHALL check `_setCurrentIndexVersion` and early-return if a
+All async steps SHALL check `SiteRuntime.activationVersion` and early-return if a
 newer `_setCurrentIndex` invocation has started, to prevent concurrent
 cookie mutations from interleaving under rapid tab switching.
 
@@ -159,7 +172,7 @@ Every guard in `CookieIsolationEngine` SHALL read
 `WebViewModel.effectiveIncognito`, never the stored `incognito` field.
 `effectiveIncognito` is forced true for archive-tier sites, and the engine
 is the only writer of `CookieSecureStorage` that runs underneath
-`_saveWebViewModels`'s `!isArchiveTier` filter — so a raw read put an
+`_persistSites`'s `!isArchiveTier` filter — so a raw read put an
 archive site's non-Secure cookies into plaintext SharedPreferences
 (`cookies_fallback`) keyed by its cleartext `siteId`, breaking ARCH-001
 byte-identity the moment an archive was opened. The hazard is called out
@@ -416,8 +429,10 @@ The boundaries:
 
 **Given** the user deletes a site
 **When** the delete flow completes
-**Then** `removeOrphanedCookies` runs with the updated active siteId set
-**And** `removeOrphanedCaches` runs with the updated active siteId set
+**Then** `OrphanSweepEngine` runs every store against the updated site set
+  (the non-incognito one for session stores such as cookies and HTML cache,
+  per incognito-mode INC-006)
+**And** the shared cookie jar is not cleared
 **And** any encrypted-storage or HTML-cache entries not referenced by a
   surviving site are removed
 
@@ -445,7 +460,7 @@ stays at the `_WebSpacePageState` call site.
   diverge between prod and tests.
 - [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart) —
   pure index-rewrite transform applied during site deletion (ISO-010);
-  shifts `_loadedIndices` and every webspace's `siteIndices` down when
+  shifts `_sites.loaded` and every webspace's `siteIndices` down when
   an earlier index is removed, so references don't drift.
 
 ### Domain Comparison for Cookie Isolation
@@ -536,10 +551,11 @@ activation through the same path and MUST NOT nuke afterwards.
 ### Orphan GC
 
 Per-siteId encrypted storage and HTML cache accumulate entries for deleted
-sites. `CookieSecureStorage.removeOrphanedCookies(activeSiteIds)` and
-`HtmlCacheService.removeOrphanedCaches(activeSiteIds)` sweep entries whose
-siteId is not in the active set. These run:
-- On app startup (in `_restoreAppState`)
+sites. `OrphanSweepEngine` sweeps every per-site store, including
+`CookieSecureStorage` and `HtmlCacheService`, for entries whose siteId is
+not live. It runs:
+- After the first paint of a launch (`sweepOrphanStorage`), followed by the
+  legacy global jar clear
 - On site deletion (in `_deleteSite`)
 - On settings import (in backup restore)
 
@@ -597,7 +613,7 @@ IndexedStack(
 
 ### Modified
 - `lib/web_view_model.dart` - siteId, domain functions, captureCookies(), disposeWebView()
-- `lib/main.dart` - Domain conflict detection, async _setCurrentIndex(), _unloadSiteForDomainSwitch()
+- `lib/main.dart` - Domain conflict detection, async _setCurrentIndex(), _unloadSite()
 - `lib/services/webview.dart` - deleteAllCookies() method on CookieManager
 - `lib/services/cookie_secure_storage.dart` - loadCookiesForSite(), saveCookiesForSite(), removeOrphanedCookies()
 

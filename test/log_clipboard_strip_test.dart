@@ -51,9 +51,8 @@ void main() {
 
   test('export never ships sensitive entries', () {
     LogService.instance.resetForTest();
-    LogService.instance.log('Nav', 'app started');
-    LogService.instance.log('Cookie', 'siteId=abc',
-        sensitivity: LogSensitivity.sensitive);
+    LogTag.nav.debug('app started');
+    LogTag.cookie.debug('siteId=abc', sensitive: true);
 
     final out = LogService.instance.export();
 

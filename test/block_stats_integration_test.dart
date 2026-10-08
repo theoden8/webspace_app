@@ -4,6 +4,7 @@
 // recording funnels, which is where a silent zero hides.
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -28,49 +29,81 @@ void main() {
 
   group('DnsBlockService funnel feeds the report', () {
     test('a DNS-attributed block increments the DNS category', () {
-      DnsBlockService.instance.recordHostRequest(
-          'site-1', 'tracker.example', true,
-          source: BlockSource.dns, count: 3);
+      DnsBlockService.instance.recordVerdict('site-1',
+          const HostQuery('tracker.example'), const Blocked(BlockSource.dns),
+          count: 3);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.dnsBlocklist], 3);
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist), 3);
       expect(stats.engine.allTimeTotal, 3);
     });
 
     test('an ABP-attributed block increments the filter-list category', () {
-      DnsBlockService.instance.recordHostRequest('site-1', 'ads.example', true,
-          source: BlockSource.abp, count: 5);
+      DnsBlockService.instance.recordVerdict('site-1',
+          const HostQuery('ads.example'), const Blocked(BlockSource.abp),
+          count: 5);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 5);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 5);
     });
 
     test('the URL-shaped funnel lands the same way', () {
-      DnsBlockService.instance.recordRequest(
-          'site-1', 'https://ads.example/pixel.gif', true,
-          source: BlockSource.abp);
+      DnsBlockService.instance.recordVerdict(
+          'site-1',
+          const UrlQuery('https://ads.example/pixel.gif',
+              sourceUrl: '', requestType: 'image'),
+          const Blocked(BlockSource.abp));
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 1);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 1);
+    });
+
+    test('a verdict is one request: a filter-list block is not also allowed',
+        () {
+      // Navigations used to record a DNS "allowed" and then, separately, the
+      // filter-list block, counting one blocked request as two.
+      final svc = DnsBlockService.instance;
+      svc.recordVerdict(
+          'site-1',
+          const UrlQuery('https://ads.example/a',
+              sourceUrl: 'https://site.example/', requestType: 'document'),
+          const Blocked(BlockSource.abp));
+      svc.recordVerdict(
+          'site-1', const HostQuery('cdn.example'), const Allowed());
+      svc.recordVerdict(
+          'site-1',
+          const UrlQuery('https://ads.example/gtm.js',
+              sourceUrl: 'https://site.example/', requestType: 'other'),
+          const Redirect('data:text/javascript,'));
+
+      final perSite = svc.statsForSite('site-1');
+      expect(perSite.blocked, 2);
+      expect(perSite.blockedByAbp, 2);
+      expect(perSite.allowed, 1);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 2);
     });
 
     test('allowed requests move no report counter', () {
       DnsBlockService.instance
-          .recordHostRequest('site-1', 'cdn.example', false, count: 9);
+          .recordVerdict('site-1',
+              const HostQuery('cdn.example'), const Allowed(), count: 9);
 
       expect(stats.engine.allTimeTotal, 0);
     });
 
     test('the report never disagrees with the per-site counters', () {
-      DnsBlockService.instance.recordHostRequest('site-1', 'a.example', true,
-          source: BlockSource.dns, count: 2);
-      DnsBlockService.instance.recordHostRequest('site-1', 'b.example', true,
-          source: BlockSource.abp, count: 7);
+      DnsBlockService.instance.recordVerdict('site-1',
+          const HostQuery('a.example'), const Blocked(BlockSource.dns),
+          count: 2);
+      DnsBlockService.instance.recordVerdict('site-1',
+          const HostQuery('b.example'), const Blocked(BlockSource.abp),
+          count: 7);
       DnsBlockService.instance
-          .recordHostRequest('site-1', 'c.example', false, count: 4);
+          .recordVerdict('site-1',
+              const HostQuery('c.example'), const Allowed(), count: 4);
 
       final perSite = DnsBlockService.instance.statsForSite('site-1');
       expect(stats.engine.allTimeTotal, perSite.blocked);
-      expect(stats.engine.allTimeTotals[BlockCategory.dnsBlocklist],
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist),
           perSite.blockedByDns);
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList],
+      expect(stats.engine.allTimeFor(BlockCategory.filterList),
           perSite.blockedByAbp);
     });
   });
@@ -88,17 +121,18 @@ void main() {
         {'host': 'cdn.example', 'blocked': false, 'count': 30},
       ]);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 12);
-      expect(stats.engine.allTimeTotals[BlockCategory.dnsBlocklist], 4);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 12);
+      expect(stats.engine.allTimeFor(BlockCategory.dnsBlocklist), 4);
       expect(stats.engine.allTimeTotal, 16);
     });
 
-    test('a source-less block is counted per-site but not categorised', () {
+    test('a block that names no list is skipped as malformed', () {
+      // The native Decision enum pairs every block with `dns` or `abp`.
       WebInterceptNative.applyBlockEvents('site-1', [
         {'host': 'ads.example', 'blocked': true, 'count': 6},
       ]);
 
-      expect(DnsBlockService.instance.statsForSite('site-1').blocked, 6);
+      expect(DnsBlockService.instance.statsForSite('site-1').total, 0);
       expect(stats.engine.allTimeTotal, 0);
     });
 
@@ -109,7 +143,7 @@ void main() {
         'not-a-map',
       ]);
 
-      expect(stats.engine.allTimeTotals[BlockCategory.filterList], 2);
+      expect(stats.engine.allTimeFor(BlockCategory.filterList), 2);
     });
 
     test('an archive-tier site drains without moving the report', () {
@@ -129,15 +163,15 @@ void main() {
       LocalCdnService.instance.recordReplacement('site-1');
       LocalCdnService.instance.recordReplacement('site-1');
 
-      expect(stats.engine.allTimeTotals[BlockCategory.localCdn], 2);
+      expect(stats.engine.allTimeFor(BlockCategory.localCdn), 2);
     });
   });
 
   group('the funnels name what they stopped (STATS-008)', () {
     test('a blocked host arrives as the detail item', () {
-      DnsBlockService.instance.recordHostRequest(
-          'site-1', 'Tracker.Example', true,
-          source: BlockSource.dns, count: 2);
+      DnsBlockService.instance.recordVerdict('site-1',
+          const HostQuery('Tracker.Example'), const Blocked(BlockSource.dns),
+          count: 2);
 
       final items = stats.detail.topItems(BlockCategory.dnsBlocklist);
       expect(items.single.label, 'tracker.example');
@@ -167,7 +201,11 @@ void main() {
       LocalCdnService.instance.recordReplacement('site-1');
 
       expect(stats.detail.topItems(BlockCategory.localCdn), isEmpty);
-      expect(stats.detail.totalFor(BlockCategory.localCdn), 1);
+      expect(
+          stats.detail
+              .siteCounts(BlockCategory.localCdn)
+              .map((e) => (e.key, e.value)),
+          [('site-1', 1)]);
     });
   });
 }

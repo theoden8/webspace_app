@@ -33,13 +33,13 @@ class CookieIsolationEngine {
     required this.storage,
   });
 
-  /// Captures the conflicting site's cookies to siteId-keyed storage (last
-  /// chance — the webview is about to be disposed), then disposes it and
-  /// removes it from `loadedIndices`.
+  /// Captures the site's cookies to siteId-keyed storage, then disposes its
+  /// webview and removes it from `loadedIndices`; every unload reason comes
+  /// through here (ISO-002).
   ///
-  /// The native cookie jar is NOT nuked here. Callers MUST invoke
-  /// [restoreCookiesForSite] immediately after so the jar is wiped and the
-  /// target's cookies are restored in the same transaction.
+  /// The native jar keeps the site's cookies until the next activation's
+  /// [restoreCookiesForSite], which attributes the jar to the loaded sites
+  /// only and then empties it, so this capture is all the site keeps.
   Future<void> unloadSiteForDomainSwitch({
     required int index,
     required List<WebViewModel> models,
@@ -48,11 +48,9 @@ class CookieIsolationEngine {
     if (index < 0 || index >= models.length) return;
 
     final model = models[index];
-    LogService.instance.log(
-      'CookieIsolation',
-      'Unloading site $index: "${model.name}" (siteId: ${model.siteId})',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieIsolation.debug(
+        'Unloading site $index: "${model.name}" (siteId: ${model.siteId})',
+        sensitive: true);
 
     if (!model.effectiveIncognito) {
       // Snapshot the full native jar and attribute by base-domain so
@@ -67,19 +65,14 @@ class CookieIsolationEngine {
           .where((c) => cookieMatchesBaseDomain(c, base))
           .toList();
       await storage.saveCookiesForSite(model.siteId, model.cookies);
-      LogService.instance.log(
-        'CookieIsolation',
-        'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.cookieIsolation.debug(
+          'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
+          sensitive: true);
     }
 
     model.disposeWebView();
-    LogService.instance.log(
-      'CookieIsolation',
-      'Disposed webview for site $index',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieIsolation.debug(
+        'Disposed webview for site $index', sensitive: true);
     loadedIndices.remove(index);
   }
 
@@ -165,11 +158,9 @@ class CookieIsolationEngine {
     final cookies = await storage.loadCookiesForSite(model.siteId);
     model.cookies = cookies;
 
-    LogService.instance.log(
-      'CookieIsolation',
-      'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieIsolation.debug(
+        'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})',
+        sensitive: true);
 
     await _setCookies(model, cookies);
 
@@ -252,16 +243,7 @@ class CookieIsolationEngine {
       final base = getBaseDomain(m.initUrl);
       if (base.isNotEmpty) urls.add('https://$base/');
     }
-    return urls
-        .map((s) {
-          try {
-            return Uri.parse(s);
-          } catch (_) {
-            return null;
-          }
-        })
-        .whereType<Uri>()
-        .toList();
+    return urls.map(Uri.tryParse).whereType<Uri>().toList();
   }
 
   Future<void> _setCookies(WebViewModel model, List<Cookie> cookies) async {

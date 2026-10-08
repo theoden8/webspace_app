@@ -6,8 +6,8 @@ Implemented; manual hardware validation pending. All requirements
 ARCH-001 through ARCH-009 are wired end-to-end:
 
 - **ARCH-001 (active-state neutrality):** enforced by filtering on
-  `WebViewModel.isArchiveTier` in `_saveWebViewModels`,
-  `_syncShortcutSites`, and `_exportSettings`. Regression tests in
+  `WebViewModel.isArchiveTier` in `_persistSites`,
+  `ShortcutController.syncSites`, and `_exportSettings`. Regression tests in
   `test/archive_neutrality_test.dart`.
 - **ARCH-002 (passphrase KDF):** `ArchiveStorage.ensureKdfSalt` (16 random
   bytes per install, minted with the slot pool) + `ArchiveCrypto.deriveKey`
@@ -17,11 +17,12 @@ ARCH-001 through ARCH-009 are wired end-to-end:
 - **ARCH-003 (fixed slot pool):** 16 slots × 128 KiB each in
   `flutter_secure_storage`; slot bytes = full AEAD wire size with
   length-prefixed plaintext padding.
-- **ARCH-004 (open/close lifecycle):** `_openArchive` / `_createArchive`
-  / `_closeArchive` / `_closeAllArchives` on `_WebSpacePageState`.
-  In-memory key only; zeroed on close.
+- **ARCH-004 (open/close lifecycle):** `ArchiveController.open` /
+  `create` / `close` / `closeAll` (`lib/controllers/archive_controller.dart`),
+  each committing its rows through the page's `_commitSites`. In-memory key
+  only; zeroed on close.
 - **ARCH-005 (multi-archive concurrency):** per-handle slices in
-  `_archiveSlices`; closing one leaves the others intact.
+  `ArchiveController`; closing one leaves the others intact.
 - **ARCH-006 (per-site override matrix):** `effectiveNotificationsEnabled`
   / `effectiveLocalCdnEnabled` getters; home-shortcut menu hides for
   archive-tier sites; persistence and iOS App Intents shortcut sync
@@ -40,7 +41,7 @@ ARCH-001 through ARCH-009 are wired end-to-end:
   at least one archive is open.
 
 **Archive-tier collections:** an open archive's named collections are
-materialised into `_webspaces` (marked `isArchiveTier`, a runtime-only
+materialised into `_sites.webspaces` (marked `isArchiveTier`, a runtime-only
 flag) so a restored archive keeps its grouping. `_saveWebspaces`
 filters on the flag so they never enter app-tier SharedPreferences;
 their membership rides the archive's own encrypted state and is
@@ -110,15 +111,15 @@ The active app state SHALL be byte-identical regardless of whether the device ha
 **And** a snapshot of the SharedPreferences XML on disk after first launch
 **When** the user creates an archive, adds a site to it, closes it, reopens it, and closes it again
 **Then** the SharedPreferences XML on disk equals the snapshot byte-for-byte
-**And** the `kExportedAppPrefs` registry contains no archive-related key
+**And** the `AppPref` registry contains no archive-related key
 
 #### Scenario: app-tier WebViewModel collection unchanged
 
-**Given** a process with M app-tier sites in `_webViewModels`
+**Given** a process with M app-tier sites in `_sites.models`
 **When** the user opens an archive, switches between its sites, and closes the archive
-**Then** `_webViewModels.length == M` before and after
-**And** `_loadedIndices` for app-tier indices is unchanged
-**And** the selected app-tier index and `_selectedWebspaceId` are unchanged
+**Then** `_sites.models.length == M` before and after
+**And** `_sites.loaded` for app-tier indices is unchanged
+**And** the selected app-tier index and `_sites.selectedWebspaceId` are unchanged
 
 #### Scenario: settings-backup export bytes equal across archive operations
 
@@ -247,6 +248,15 @@ The archive open/close lifecycle SHALL keep `MK_arch` in memory only, persisting
 **And** `MK_arch` is zero-filled in memory
 **And** the switcher no longer shows the archive's webspaces
 
+#### Scenario: Closing keeps the app-tier sites where they were
+
+**Given** a site moved into an open archive keeps its row above app-tier sites, and app-tier sites below it are loaded, one of them on screen
+**When** the archive is closed
+**Then** the same app-tier sites stay loaded and the same one stays on screen
+**And** a site of the archive that was on screen leaves the page on the webspace list
+**And** a Tor site of the archive no longer holds the Tor runtime up (TOR-002)
+**Because** the close goes through `_commitSites(ArchiveClosed(...))`, whose `SiteRuntime.apply` removes each row through `SiteLifecycleEngine.computeDeletionPatch`, and which reconciles the Tor refcount after every change (BUG-029)
+
 #### Scenario: Close on process exit
 
 **Given** an archive is open
@@ -294,19 +304,19 @@ The override matrix:
 | Home-shortcut action | unavailable | Pinning to launcher writes a system-level shortcut visible in launcher state. |
 | File-imported sites | unavailable | `HtmlCacheService` lands HTML in the app-tier encrypted store keyed by app-tier paths. |
 | Per-site authenticated proxies | password not persisted | `ProxyPasswordSecureStorage` keys by `siteId` in app-tier secure storage; unauthenticated (host/port-only) proxies are fine. |
-| Auto-load at startup | never | Archive `siteId`s never enter `_loadedIndices` at startup regardless of any per-site flag — loading happens only after archive open. |
+| Auto-load at startup | never | Archive `siteId`s never enter `_sites.loaded` at startup regardless of any per-site flag — loading happens only after archive open. |
 | Tracking-protection's LocalCDN sub-component | silently no-op | The umbrella ETP feature still applies (ClearURLs, DNS, content blocker, fingerprinting shim — all runtime-only); only the LocalCDN sub-component is skipped. |
-| HTML cache (`HtmlCacheService.saveHtml` / `getHtmlSync`) | disabled | The cache file path is keyed by `siteId`; even though the bytes are AES-encrypted, the file's existence correlates to specific archive sites on disk inspection. Gated by `effectiveHtmlCachingEnabled` (false for archive-tier) in the `onHtmlLoaded` / `shouldFetchHtml` / `initialHtml` paths in `lib/main.dart`. Archive sites always load live from URL; first paint is slightly slower but on-disk footprint stays empty. |
-| Webview navigation state (`SecureWebViewStateStorage.saveState` / `loadState`) | disabled | Same shape as HTML cache: per-`siteId` encrypted file containing `controller.saveState()` bytes (back/forward URL stack, Apple form data). Gated by an explicit `isArchiveTier` check in `_captureStateBytes` and the load path in `_setCurrentIndex`. Archive sites lose the in-process back/forward stack on memory-pressure eviction; acceptable trade for not leaking the URL stack to disk. `_closeArchive` calls `removeState(siteId)` for every owned site as a defensive back-erasure pass — covers any pre-fix bytes plus future code paths that forget the gate. |
-| `cameraMode` (web camera access) | effectively `block` | `effectiveCameraMode` denies without prompting: the Block/Use-file/Allow popup, the file picker, and Android's OS permission dialog are OS-level UI, and a real grant lights the system camera indicator. Stored mode and any picked `virtualCameraSource` preserved for when the site leaves the archive. See [web-camera-access](../web-camera-access/spec.md) CAM-006. |
-| Cookie persistence in the legacy engine | never written | `CookieIsolationEngine` reads `effectiveIncognito`, not the raw `incognito` field, at every guard. The raw field made an archive site's non-Secure cookies land in plaintext SharedPreferences (`cookies_fallback`) keyed by its cleartext `siteId` — underneath `_saveWebViewModels`'s `!isArchiveTier` filter, and a direct ARCH-001 break. See [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md) ISO-005. |
+| HTML cache (`HtmlCacheService.saveHtml` / `getHtmlSync`) | disabled | The cache file path is keyed by `siteId`; even though the bytes are AES-encrypted, the file's existence correlates to specific archive sites on disk inspection. Gated by `htmlSourceFor` ([html_source.dart](../../../lib/services/html_source.dart)), which returns `HtmlSource.none` for archive-tier sites, read by the HTML save path in `lib/main.dart` and the first-paint path in `lib/widgets/site_webview_stack.dart`. Archive sites always load live from URL; first paint is slightly slower but on-disk footprint stays empty. |
+| Webview navigation state (`SecureWebViewStateStorage.saveState` / `loadState`) | disabled | Same shape as HTML cache: per-`siteId` encrypted file containing `controller.saveState()` bytes (back/forward URL stack, Apple form data). Gated by an explicit `isArchiveTier` check in `_captureStateBytes` and the load path in `_setCurrentIndex`. Archive sites lose the in-process back/forward stack on memory-pressure eviction; acceptable trade for not leaking the URL stack to disk. `ArchiveController.close` calls `removeState(siteId)` for every owned site as a defensive back-erasure pass — covers any pre-fix bytes plus future code paths that forget the gate. |
+| `cameraMode` (web camera access) | effectively `block` | `effectiveCaptures` (`ArchiveFold.captures`, every capture kind) denies without prompting: the Block/Use-file/Allow popup, the file picker, and Android's OS permission dialog are OS-level UI, and a real grant lights the system camera indicator. Stored mode and any picked `virtualCameraSource` preserved for when the site leaves the archive. See [web-camera-access](../web-camera-access/spec.md) CAM-006. |
+| Cookie persistence in the legacy engine | never written | `CookieIsolationEngine` reads `effectiveIncognito`, not the raw `incognito` field, at every guard. The raw field made an archive site's non-Secure cookies land in plaintext SharedPreferences (`cookies_fallback`) keyed by its cleartext `siteId` — underneath `_persistSites`'s `!isArchiveTier` filter, and a direct ARCH-001 break. See [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md) ISO-005. |
 | Tor exit-country pin | uses a kept GeoIP table, never downloads one | The table a pin needs (TOR-014) is a file outside the archive's keyspace; downloaded for an archived site alone, its presence and timestamp would say one pinned a country. `SiteUnloadEngine.torExitPinIsArchiveOnly` decides it. With no table kept, the pin fails closed (`exitCountryData`) rather than being dropped, since dropping it would route the site through a country it did not ask for. |
-| Page icon from the webview (`SiteIconStore`, [icon-fetching](../icon-fetching/spec.md) ICON-009, ICON-013) | memory only | The file is named by a hash of the site's home URL, so its existence would name the archived site on disk. `WebViewModel` offers the icon with `persist: !effectiveIncognito`, and `_closeArchive` / `_moveSiteToArchive` drop it through `FaviconUrlCache.invalidate`. |
+| Page icon from the webview (`SiteIconStore`, [icon-fetching](../icon-fetching/spec.md) ICON-009, ICON-013) | memory only | The file is named by a hash of the site's home URL, so its existence would name the archived site on disk. `WebViewModel` offers the icon with `persist: !effectiveIncognito`, and `ArchiveController.close` / `moveIn` drop it through `FaviconUrlCache.invalidate`. |
 | Passkeys ([passkey-support](../passkey-support/spec.md) PASSKEY-001, PASSKEY-013) | never offered | `effectivePasskeysEnabled` is false, so no bridge shim or handler is installed, and on iOS and macOS the block shim hides WebKit's own WebAuthn: the system passkey sheet is OS-level UI naming the relying party, and a passkey the site created would live in the credential provider, outside the archive's keyspace. |
 | Search address from the site's pages ([link-intent-routing](../../changes/web-search/specs/link-intent-routing/spec.md) LIR-035) | archive state only | Stored as a site field, which for an archive site is written only into the archive. The description is fetched through the site's proxy and blockers and nothing is cached on disk. |
 | Container colour (TAB-018) | archive state only | Kept inside the archive so the site comes back with it; never counted by the app tier, so no app-tier colour depends on an archive. |
-| Nested webviews (`InAppWebViewScreen`) | inherit the effective values | The two `launchUrlFunc` call sites pass `effectiveNotificationsEnabled` / `effectiveCameraMode` / `effectiveMicrophoneMode` / `effectiveProtectedContentAllowed` / `effectiveIncognito`, not the stored fields. Passing a raw value let an archive site post OS notifications naming itself from a nested webview, and those persist in the shade after the archive is closed. |
-| Logging that mentions any per-`siteId` identifier | `LogSensitivity.sensitive` | The tier-aware [`LogService`](../../../lib/services/log_service.dart) routes sensitive entries to a memory-only ring; they never reach disk, `debugPrint`, exports, or `adb logcat` / Console.app. Any new log call that includes a `siteId`, container name, cookie hostname, URL, or page title MUST be tagged sensitive (audit per #354 already covers every existing call site in `lib/`). The archive runtime flow (`_materialiseArchive`, `_openArchive`, `_closeArchive`, `_moveSiteToArchive`, `_promptRestoreArchive`) adds no log calls at all — strongest possible posture. |
+| Nested webviews (`InAppWebViewScreen`) | inherit the effective values | Every surface is built from the `SitePosture` that `WebViewModel.sitePosture` resolves through `effectiveNotificationsEnabled` / `effectiveCameraMode` / `effectiveMicrophoneMode` / `effectiveProtectedContentAllowed` / `effectiveIncognito`, not the stored fields (`test/js/effective_getter_boundary.test.js`). Passing a raw value let an archive site post OS notifications naming itself from a nested webview, and those persist in the shade after the archive is closed. |
+| Logging that mentions any per-`siteId` identifier | `LogSensitivity.sensitive` | The tier-aware [`LogService`](../../../lib/services/log_service.dart) routes sensitive entries to a memory-only ring; they never reach disk, `debugPrint`, exports, or `adb logcat` / Console.app. Any new log call that includes a `siteId`, container name, cookie hostname, URL, or page title MUST be tagged sensitive (audit per #354 already covers every existing call site in `lib/`). The archive runtime flow (`ArchiveController`) adds no log calls at all — strongest possible posture. |
 
 Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site checklist gains an explicit "archive-tier compatibility" item.
 
@@ -317,7 +327,7 @@ Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site 
 **Then** the effective `notificationsEnabled` is `false`
 **And** the JS Notification polyfill is not injected for that site
 **And** the site is not added to the `BGAppRefreshTask` / `WorkManager` periodic refresh set
-**And** the site does not enter `_loadedIndices` at startup
+**And** the site does not enter `_sites.loaded` at startup
 
 #### Scenario: Legacy cookie engine writes nothing for an archive site
 
@@ -337,7 +347,7 @@ cookies normally
 
 **Given** an archive-tier site whose stored `notificationsEnabled` is `true`
 **When** it opens an outbound link in an `InAppWebViewScreen`
-**Then** the nested `WebViewConfig.notificationsEnabled` is `false`
+**Then** the nested `WebViewConfig.posture.page.notifications` is `false`
 **And** the `webNotification` JavaScript handler is not registered, so
 nothing reaches `NotificationService`
 
@@ -438,25 +448,25 @@ When at least one archive is open and the app is backgrounded, the visible UI SH
 
 ### Requirement: ARCH-010 — Settings export/import never includes archives without explicit opt-in
 
-`SettingsBackupService.createBackup` / `exportToJson` SHALL operate exclusively on the app-tier `_webViewModels` and `kExportedAppPrefs`. Archive-tier state is not included in exports by default. A user-controlled "include open archives" tick on the export dialog MAY add archive blobs to the export file at the user's explicit request; the resulting file's archive section is itself encrypted under each included archive's `MK_arch`.
+`SettingsBackupService.createBackup` / `exportToJson` SHALL operate exclusively on the app-tier `_sites.models` and `AppPref` values. Archive-tier state is not included in exports by default. A user-controlled "include open archives" tick on the export dialog MAY add archive blobs to the export file at the user's explicit request; the resulting file's archive section is itself encrypted under each included archive's `MK_arch`.
 
 #### Scenario: Default export excludes archives entirely
 
 **Given** an archive is open with sites
 **When** the user exports settings without ticking "include open archives"
-**Then** the export JSON contains only app-tier sites, app-tier webspaces, and `kExportedAppPrefs`
+**Then** the export JSON contains only app-tier sites, app-tier webspaces, and `AppPref` values
 **And** the export bytes are equal to the bytes a user without any archives would produce with identical app-tier state
 
 #### Scenario: Default import targets only app-tier
 
 **Given** the user imports a backup JSON
 **When** the import flow runs
-**Then** the restored webspaces and sites enter `_webViewModels` (app-tier)
+**Then** the restored webspaces and sites enter `_sites.models` (app-tier)
 **And** no archive is created or opened by the import flow
 
 #### Scenario: Import while an archive is open
 
-**Given** an archive is open with sites materialised in `_webViewModels`
+**Given** an archive is open with sites materialised in `_sites.models`
 **When** the user confirms a settings import
 **Then** every open archive is closed and sealed as it stands before the runtime lists are cleared
 **And** a close that finds fewer of its rows in the runtime than the archive opened with leaves the sealed state as opened rather than sealing the truncated set
@@ -528,9 +538,9 @@ class Archive {
 
 ### Runtime integration
 
-`_WebSpacePageState` gains a separate `List<WebViewModel> _archiveWebViewModels` and `List<Webspace> _archiveWebspaces`. These are parallel to `_webViewModels` / `_webspaces` and never merged in persistence or export paths. The UI's switcher concatenates the two for display (app-tier first, archive-tier appended in archive-open order). When an archive closes, only its slice of the archive-tier collections is removed; the app-tier slice is byte-untouched (see ARCH-001).
+`_WebSpacePageState` gains a separate `List<WebViewModel> _archiveWebViewModels` and `List<Webspace> _archiveWebspaces`. These are parallel to `_sites.models` / `_sites.webspaces` and never merged in persistence or export paths. The UI's switcher concatenates the two for display (app-tier first, archive-tier appended in archive-open order). When an archive closes, only its slice of the archive-tier collections is removed; the app-tier slice is byte-untouched (see ARCH-001).
 
-The archive-tier flag is a single boolean on `WebViewModel` (`isArchiveTier`), defaulted to false and never serialized. It's set when the archive's plaintext is materialized into `WebViewModel` instances on open. The override matrix in ARCH-006 reads this flag in `WebViewModel.toWebViewConfig` (and in the per-site settings sheet builder) to clamp the per-site fields.
+The archive-tier flag is a single boolean on `WebViewModel` (`isArchiveTier`), defaulted to false and never serialized. It's set when the archive's plaintext is materialized into `WebViewModel` instances on open. The override matrix in ARCH-006 reads this flag in the `effective*` getters that `WebViewModel.sitePosture` resolves every webview's posture through (and in the per-site settings sheet builder) to clamp the per-site fields.
 
 ### Container lifecycle
 
@@ -564,7 +574,7 @@ The per-webspace long-press menu adds "Close this archive" when the webspace's h
 `test/archive_neutrality_test.dart` runs the following with an injected `FakeFlutterSecureStorage` + `MemoryArchiveStorage`:
 
 - Initial SharedPreferences snapshot vs post-archive-cycle snapshot — assert byte-equal.
-- `_webViewModels` length, `_loadedIndices`, `_selectedWebspaceId` before / after archive ops — assert equal.
+- `_sites.models` length, `_sites.loaded`, `_sites.selectedWebspaceId` before / after archive ops — assert equal.
 - `SettingsBackupService.exportToJson` before / after archive ops with `exportedAt` pinned — assert byte-equal.
 - A "feature-not-used" run (no passphrase ever entered) vs a "feature-used" run that opens and closes archives — assert app-tier state files identical.
 
@@ -631,7 +641,7 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 ### Modified
 
 - `pubspec.yaml` — adds `cryptography: ^2.7.0`
-- `lib/web_view_model.dart` — `isArchiveTier` flag (runtime-only, never serialized) + override matrix in `toWebViewConfig`
+- `lib/web_view_model.dart` — `isArchiveTier` flag (runtime-only, never serialized) + override matrix in the `effective*` getters, applied by `sitePosture`
 - `lib/services/cookie_secure_storage.dart` — archive-aware variants
 - `lib/services/container_isolation_engine.dart` — `ensureArchiveContainer` / `tearDownArchiveContainers`
 - `lib/main.dart` — `_archiveWebViewModels` / `_archiveWebspaces` parallel collections, runtime integration, background-snapshot mask

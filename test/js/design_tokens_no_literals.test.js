@@ -3,67 +3,20 @@
 // lib/theme/accent_theme.dart (anything accent-derived), so a designer has one
 // file to edit rather than a literal buried in a widget.
 //
-// MIGRATED files must not reintroduce raw literals for those values. PENDING
-// files have not been converted yet; a new file under lib/widgets or
-// lib/screens must be classified either way, which is what stops the list
-// silently going stale. Same structure as l10n_no_hardcoded_text.test.js.
+// Every Dart file under lib/main.dart, lib/screens and lib/widgets is
+// enforced, so a new UI file is covered without an edit here. EXEMPT names
+// the files not converted yet; it only shrinks. Same structure as
+// l10n_no_hardcoded_text.test.js.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, exists, dartFiles } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-
-const MIGRATED = [
-  // Platform-split favicon rendering: geometry comes from the caller, so
-  // there is nothing here to tokenise.
-  'lib/screens/favicon_image.dart',
-  'lib/screens/favicon_image_io.dart',
-  'lib/screens/favicon_image_web.dart',
-  'lib/widgets/url_bar.dart',
-  'lib/widgets/dispatch_picker_sheet.dart',
-  'lib/widgets/site_info_sheet.dart',
-  'lib/widgets/hint_button.dart',
-  'lib/widgets/http_auth_prompt.dart',
-  'lib/widgets/level_slider.dart',
-  'lib/screens/site_network.dart',
-  'lib/screens/tor_status.dart',
-  'lib/widgets/container_mark.dart',
-  'lib/widgets/search_site_picker.dart',
-  'lib/widgets/site_search_list_tile.dart',
-  'lib/widgets/tab_bar_corner_button.dart',
-  'lib/widgets/tabs_sheet.dart',
-  'lib/widgets/tor_bootstrap.dart',
-  'lib/widgets/web_search_sheet.dart',
-  // Ambient layout state, no painting: nothing to tokenise.
-  'lib/widgets/surface_nudge_scope.dart',
-  'lib/widgets/external_tor_tiles.dart',
-  'lib/widgets/tor_status_card.dart',
-  'lib/widgets/unproxied_block.dart',
-  'lib/widgets/proxy_auth_section.dart',
-  'lib/widgets/proxy_test_tile.dart',
-  'lib/widgets/proxy_choice_dropdown.dart',
-  'lib/widgets/proxy_status_indicator.dart',
-  'lib/screens/saved_proxies.dart',
-  'lib/widgets/background_log_view.dart',
-  'lib/widgets/log_entry_line.dart',
-  'lib/widgets/settings_rows.dart',
-  'lib/screens/app_settings.dart',
-  'lib/screens/app_appearance.dart',
-  'lib/screens/app_backup.dart',
-  'lib/screens/app_behaviour.dart',
-  'lib/screens/app_developer.dart',
-  'lib/screens/app_network.dart',
-  'lib/screens/app_privacy.dart',
-  'lib/screens/content_blocker_settings.dart',
-];
-
-const PENDING = [
+const EXEMPT = new Set([
+  'lib/main.dart',
   'lib/widgets/download_button.dart',
   'lib/widgets/external_url_prompt.dart',
   'lib/widgets/find_toolbar.dart',
-  'lib/widgets/firefox_version_tile.dart',
   'lib/widgets/root_messenger.dart',
   'lib/widgets/site_permission_badges.dart',
   'lib/widgets/site_permission_chip.dart',
@@ -87,7 +40,9 @@ const PENDING = [
   'lib/screens/user_scripts.dart',
   'lib/screens/webspace_detail.dart',
   'lib/screens/webspaces_list.dart',
-];
+]);
+
+const SCANNED = ['lib/main.dart', ...dartFiles('lib/screens'), ...dartFiles('lib/widgets')];
 
 // Each rule names the token that replaces it, so a failure says what to do.
 const RULES = [
@@ -96,13 +51,9 @@ const RULES = [
   { re: /Duration\(\s*milliseconds:\s*\d/g, token: 'Motion.*' },
 ];
 
-function read(rel) {
-  return fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-}
-
-test('migrated files carry no raw design literals', () => {
+test('UI files carry no raw design literals', () => {
   const offences = [];
-  for (const rel of MIGRATED) {
+  for (const rel of SCANNED.filter((f) => !EXEMPT.has(f))) {
     const src = read(rel);
     for (const { re, token } of RULES) {
       for (const match of src.match(re) || []) {
@@ -113,16 +64,8 @@ test('migrated files carry no raw design literals', () => {
   assert.deepEqual(offences, []);
 });
 
-test('every UI file is classified as migrated or pending', () => {
-  const listed = new Set([...MIGRATED, ...PENDING]);
-  const found = [];
-  for (const dir of ['lib/widgets', 'lib/screens']) {
-    for (const file of fs.readdirSync(path.join(repoRoot, dir))) {
-      if (file.endsWith('.dart')) found.push(`${dir}/${file}`);
-    }
-  }
-  assert.deepEqual(found.filter((f) => !listed.has(f)), [], 'add new UI files to MIGRATED or PENDING');
-  assert.deepEqual([...listed].filter((f) => !found.includes(f)), [], 'remove deleted files from the lists');
+test('exempt files still exist', () => {
+  assert.deepEqual([...EXEMPT].filter((f) => !exists(f)), [], 'remove deleted files from EXEMPT');
 });
 
 test('the token file is the only home for fixed chrome colours', () => {

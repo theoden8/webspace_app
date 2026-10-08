@@ -8,14 +8,19 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import '../main.dart' show extractDomain;
+import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/toast.dart';
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, IconReload, iconReloads, reloadAllIcons, usableIconUrl;
+import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
 import '../settings/proxy.dart';
+import '../settings/site_suggestion.dart';
 import '../utils/url_utils.dart';
+import '../web_view_model.dart' show WebViewModel;
 import 'site_settings_qr.dart';
+import '../widgets/theme_mode_button.dart';
 
 /// Persistent cache for favicon URLs and SVG content
 class FaviconUrlCache {
@@ -25,23 +30,18 @@ class FaviconUrlCache {
 
   static Future<void> initialize() async {
     _prefs ??= await SharedPreferences.getInstance();
-    // Wire up SVG content persistence
-    onSvgContentCached = (url, content) async {
-      await setSvg(url, content);
-    };
+    onSvgContentCached = setSvg;
   }
 
-  static String? get(String siteUrl) {
-    return usableIconUrl(_prefs?.getString('$_prefix$siteUrl'));
-  }
+  static String? get(String siteUrl) =>
+      usableIconUrl(_prefs?.getString('$_prefix$siteUrl'));
 
   static Future<void> set(String siteUrl, String faviconUrl) async {
     await _prefs?.setString('$_prefix$siteUrl', faviconUrl);
   }
 
-  static String? getSvg(String faviconUrl) {
-    return _prefs?.getString('$_svgPrefix$faviconUrl');
-  }
+  static String? getSvg(String faviconUrl) =>
+      _prefs?.getString('$_svgPrefix$faviconUrl');
 
   static Future<void> setSvg(String faviconUrl, String svgContent) async {
     await _prefs?.setString('$_svgPrefix$faviconUrl', svgContent);
@@ -58,7 +58,6 @@ class FaviconUrlCache {
       await _prefs?.remove('$_svgPrefix$oldUrl');
     }
     if (!keepSiteIcon) await SiteIconStore.instance.remove(siteUrl);
-    // Also clear in-memory caches
     invalidateFaviconFor(siteUrl);
   }
 
@@ -84,20 +83,11 @@ class FaviconUrlCache {
 /// the preview is a convenience, and losing it costs the user nothing but a
 /// preview card that stays up for a host that turns out not to exist.
 bool addSitePreviewMayResolveLocally() =>
-    resolveEffectiveProxy(UserProxySettings(type: ProxyType.DEFAULT)).type ==
-        ProxyType.DEFAULT;
-
-class SiteSuggestion {
-  final String name;
-  final String url;
-  final String domain;
-
-  const SiteSuggestion({
-    required this.name,
-    required this.url,
-    required this.domain,
-  });
-}
+    resolveEffectiveProxy(
+      UserProxySettings(type: ProxyType.DEFAULT),
+      siteId: null,
+    ).type ==
+    ProxyType.DEFAULT;
 
 // Unified favicon widget with progressive loading
 // Icons update as better quality versions are found:
@@ -109,7 +99,6 @@ class SiteSuggestion {
 class UnifiedFaviconImage extends StatefulWidget {
   final String url;
   final double size;
-  final String? domain;
   /// Per-site proxy of the site this favicon belongs to. When null (e.g. for
   /// search-suggestion thumbnails with no specific site context), the
   /// app-global outbound proxy applies. When set, [resolveEffectiveProxy]
@@ -127,13 +116,21 @@ class UnifiedFaviconImage extends StatefulWidget {
   final bool persist;
 
   const UnifiedFaviconImage({
+    super.key,
     required this.url,
     required this.size,
-    this.domain,
     this.proxy,
     this.customIcon,
     this.persist = true,
   });
+
+  /// [site]'s own icon: the one the user picked if any, fetched through the
+  /// site's proxy, and never written to disk for an archive-tier site.
+  UnifiedFaviconImage.site(WebViewModel site, {super.key, required this.size})
+      : url = site.initUrl,
+        proxy = site.outboundProxySettings,
+        customIcon = site.customIconPng,
+        persist = !site.isArchiveTier;
 
   @override
   State<UnifiedFaviconImage> createState() => _UnifiedFaviconImageState();
@@ -150,9 +147,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   StreamSubscription<String?>? _siteIconSub;
   StreamSubscription<IconReload>? _reloadSub;
 
-  bool _isSvgUrl(String url) {
-    return url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
-  }
+  bool _isSvgUrl(String url) =>
+      url.toLowerCase().endsWith('.svg') || url.contains('.svg?');
 
   @override
   void initState() {
@@ -237,10 +233,8 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       return;
     }
 
-    // Check persistent cache first
     final cachedUrl = FaviconUrlCache.get(widget.url);
     if (cachedUrl != null) {
-      // Use cached URL immediately, skip icon_service
       _currentIconUrl = cachedUrl;
       _currentQuality = 100;
       _isLoading = false;
@@ -252,23 +246,17 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       return;
     }
 
-    // No cache - fetch via icon_service
     _startIconStream();
   }
 
   Future<void> _fetchSvgContent(String url) async {
-    final persisted = FaviconUrlCache.getSvg(url);
     final content = await getSvgContent(
       url,
-      persistedContent: persisted,
+      persistedContent: FaviconUrlCache.getSvg(url),
       proxy: widget.proxy,
       persist: widget.persist,
     );
-    if (mounted) {
-      setState(() {
-        _svgContent = content;
-      });
-    }
+    if (mounted) setState(() => _svgContent = content);
   }
 
   void _startIconStream() {
@@ -281,151 +269,78 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
             _currentQuality = update.quality;
             if (update.isFinal) {
               _isLoading = false;
-              if (widget.persist) {
-                FaviconUrlCache.set(widget.url, update.url);
-              }
+              if (widget.persist) FaviconUrlCache.set(widget.url, update.url);
             }
           });
-          if (_isSvgUrl(update.url)) {
-            _fetchSvgContent(update.url);
-          }
+          if (_isSvgUrl(update.url)) _fetchSvgContent(update.url);
         }
       },
       onDone: () {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-          if (_currentIconUrl != null && widget.persist) {
-            FaviconUrlCache.set(widget.url, _currentIconUrl!);
-          }
-        }
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        final url = _currentIconUrl;
+        if (url != null && widget.persist) FaviconUrlCache.set(widget.url, url);
       },
       onError: (e) {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+        if (mounted) setState(() => _isLoading = false);
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final customIcon = widget.customIcon;
-    if (customIcon != null) {
-      return Image.memory(
-        customIcon,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        gaplessPlayback: true,
-        errorBuilder: (context, error, stackTrace) => Icon(
+    Widget fallback(BuildContext context) => Icon(
           Icons.language,
           size: widget.size,
           color: Theme.of(context).colorScheme.primary,
-        ),
-      );
-    }
-
-    final siteIcon = SiteIconStore.instance.get(widget.url);
-    if (siteIcon != null) {
-      return Image.memory(
-        siteIcon,
-        width: widget.size,
-        height: widget.size,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        gaplessPlayback: true,
-        errorBuilder: (context, error, stackTrace) => Icon(
-          Icons.language,
-          size: widget.size,
-          color: Theme.of(context).colorScheme.primary,
-        ),
-      );
-    }
-
-    // Show current best icon, or loading indicator if nothing yet
-    if (_currentIconUrl == null) {
-      if (_isLoading) {
-        return SizedBox(
+        );
+    Widget spinner(BuildContext context) => SizedBox(
           width: widget.size,
           height: widget.size,
           child: CircularProgressIndicator(strokeWidth: 2),
         );
-      } else {
-        // No favicon found
-        return Icon(
-          Icons.language,
-          size: widget.size,
-          color: Theme.of(context).colorScheme.primary,
-        );
-      }
+
+    final bytes = widget.customIcon ?? SiteIconStore.instance.get(widget.url);
+    if (bytes != null) {
+      return Image.memory(
+        bytes,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        gaplessPlayback: true,
+        errorBuilder: (context, _, _) => fallback(context),
+      );
     }
 
-    final iconUrl = _currentIconUrl!;
-
-    // Use SvgPicture for SVG files, CachedNetworkImage for others
-    if (_isSvgUrl(iconUrl)) {
-      if (_svgContent == null) {
-        // SVG not cached yet — show placeholder, never use SvgPicture.network
-        return Icon(
-          Icons.language,
-          size: widget.size,
-          color: Theme.of(context).colorScheme.primary,
-        );
-      }
-      // Wrap in MediaQuery to pass app theme to SVG's CSS media queries
-      // (e.g., @media (prefers-color-scheme: dark) in codeberg's favicon)
-      return MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          platformBrightness: Theme.of(context).brightness,
-        ),
-        child: SvgPicture.string(
-          _svgContent!,
-          width: widget.size,
-          height: widget.size,
-          fit: BoxFit.contain,
-        ),
-      );
-    } else {
+    final iconUrl = _currentIconUrl;
+    if (iconUrl == null) {
+      return _isLoading ? spinner(context) : fallback(context);
+    }
+    if (!_isSvgUrl(iconUrl)) {
       return faviconNetworkImage(
         url: iconUrl,
         size: widget.size,
         proxy: widget.proxy,
-        placeholder: (context) => SizedBox(
-          width: widget.size,
-          height: widget.size,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        error: (context) => Icon(
-          Icons.language,
-          size: widget.size,
-          color: Theme.of(context).colorScheme.primary,
-        ),
+        placeholder: spinner,
+        error: fallback,
       );
     }
-  }
-}
-
-// Keep old FaviconImage for backward compatibility (just wraps UnifiedFaviconImage)
-class FaviconImage extends StatelessWidget {
-  final String domain;
-  final double size;
-
-  const FaviconImage({
-    required this.domain,
-    required this.size,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return UnifiedFaviconImage(
-      url: 'https://$domain',
-      size: size,
-      domain: domain,
+    final svg = _svgContent;
+    // SVG not cached yet — show placeholder, never use SvgPicture.network
+    if (svg == null) return fallback(context);
+    // Wrap in MediaQuery to pass app theme to SVG's CSS media queries
+    // (e.g., @media (prefers-color-scheme: dark) in codeberg's favicon)
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        platformBrightness: Theme.of(context).brightness,
+      ),
+      child: SvgPicture.string(
+        svg,
+        width: widget.size,
+        height: widget.size,
+        fit: BoxFit.contain,
+      ),
     );
   }
 }
@@ -476,57 +391,32 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
 
   void _onUrlChanged() {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 600), () {
-      _updatePreview();
-    });
+    _debounceTimer = Timer(const Duration(milliseconds: 600), _updatePreview);
   }
 
   /// Check if a host is an IP address or localhost (no DNS needed)
-  bool _isDirectHost(String host) {
-    return host == 'localhost' ||
-        host.contains(':') || // IPv6
-        RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(host); // IPv4
-  }
+  bool _isDirectHost(String host) =>
+      host == 'localhost' ||
+      host.contains(':') || // IPv6
+      RegExp(r'^(\d{1,3}\.){3}\d{1,3}$').hasMatch(host); // IPv4
 
   Future<void> _updatePreview() async {
-    final text = _urlController.text.trim();
-    if (text.isEmpty) {
-      if (_previewUrl != null) {
-        setState(() => _previewUrl = null);
-      }
-      return;
+    final uri = Uri.tryParse(ensureUrlScheme(_urlController.text.trim()));
+    final host = uri?.host ?? '';
+    String? preview;
+    if (host.contains('.') || host.contains(':') || host == 'localhost') {
+      // Skip DNS check for IP addresses, localhost, and whenever an outbound
+      // proxy is configured: the probe runs on the device's own resolver, so
+      // under Tor it would hand the local resolver and the ISP every site the
+      // user is about to add (LEAK-006). The proxy resolves the name itself
+      // when the site is actually loaded.
+      final resolves = _isDirectHost(host) ||
+          !addSitePreviewMayResolveLocally() ||
+          await hostCanResolve(host);
+      if (resolves) preview = '${uri!.scheme}://$host';
     }
-
-    String url = ensureUrlScheme(text);
-
-    final uri = Uri.tryParse(url);
-    if (uri == null || uri.host.isEmpty ||
-        !(uri.host.contains('.') || uri.host.contains(':') || uri.host == 'localhost')) {
-      if (_previewUrl != null) {
-        setState(() => _previewUrl = null);
-      }
-      return;
-    }
-
-    // Skip DNS check for IP addresses, localhost, and whenever an outbound
-    // proxy is configured: the probe runs on the device's own resolver, so
-    // under Tor it would hand the local resolver and the ISP every site the
-    // user is about to add (LEAK-006). The proxy resolves the name itself
-    // when the site is actually loaded.
-    if (!_isDirectHost(uri.host) && addSitePreviewMayResolveLocally()) {
-      if (!await hostCanResolve(uri.host)) {
-        // DNS lookup failed — domain doesn't exist
-        if (mounted && _previewUrl != null) {
-          setState(() => _previewUrl = null);
-        }
-        return;
-      }
-    }
-
-    if (!mounted) return;
-    final newPreview = '${uri.scheme}://${uri.host}';
-    if (_previewUrl != newPreview) {
-      setState(() => _previewUrl = newPreview);
+    if (mounted && _previewUrl != preview) {
+      setState(() => _previewUrl = preview);
     }
   }
 
@@ -547,52 +437,32 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       if (result == null || result.files.isEmpty) return;
 
       final file = result.files.first;
-      String htmlContent;
-
-      if (file.bytes != null) {
-        htmlContent = String.fromCharCodes(file.bytes!);
-      } else if (file.path != null) {
-        htmlContent = await hostReadFileText(file.path!);
-      } else {
-        if (mounted) {
-          final loc = AppLocalizations.of(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(loc.addSiteFileReadError)),
-          );
-        }
+      final bytes = file.bytes;
+      final path = file.path;
+      final htmlContent = bytes != null
+          ? String.fromCharCodes(bytes)
+          : path != null
+              ? await hostReadFileText(path)
+              : null;
+      if (!mounted) return;
+      if (htmlContent == null) {
+        ScaffoldMessenger.of(context)
+            .toast(AppLocalizations.of(context).addSiteFileReadError);
         return;
       }
 
-      if (!mounted) return;
-
-      // Use filename (without extension) as the site name
-      final fileName = file.name;
-      final nameWithoutExt = fileName.replaceAll(RegExp(r'\.(html?|htm)$', caseSensitive: false), '');
-
-      // Three slashes (empty authority) — `file://name.html` would parse
-      // with `name.html` as the host and chromium then rejects it as
-      // ERR_INVALID_URL whenever the cached HTML is unavailable
-      // (incognito, post-upgrade cache wipe, etc).
+      final site = importedFileSite(file.name);
       Navigator.pop(context, {
-        'url': 'file:///$fileName',
-        'name': nameWithoutExt,
+        'url': site.url,
+        'name': site.name,
         'htmlContent': htmlContent,
       });
     } catch (e) {
       if (mounted) {
-        final loc = AppLocalizations.of(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(loc.addSiteImportFailed(e.toString()))),
-        );
+        ScaffoldMessenger.of(context)
+            .toast(AppLocalizations.of(context).addSiteImportFailed('$e'));
       }
     }
-  }
-
-  void _removeSuggestion(int index) {
-    setState(() {
-      _suggestions.removeAt(index);
-    });
-    widget.onSuggestionsChanged(_suggestions);
   }
 
   void _showAddSuggestionDialog() {
@@ -649,9 +519,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                   domain: uri.host,
                 );
                 Navigator.of(context).pop();
-                setState(() {
-                  _suggestions.add(suggestion);
-                });
+                setState(() => _suggestions.add(suggestion));
                 widget.onSuggestionsChanged(_suggestions);
               },
               child: Text(loc.commonAdd),
@@ -691,11 +559,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                           color: incognito ? Theme.of(context).colorScheme.primary : null,
                         ),
                         tooltip: incognito ? loc.addSiteIncognitoOn : loc.addSiteIncognitoOff,
-                        onPressed: () {
-                          setDialogState(() {
-                            incognito = !incognito;
-                          });
-                        },
+                        onPressed: () =>
+                            setDialogState(() => incognito = !incognito),
                       ),
                     ),
                   ),
@@ -703,16 +568,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
+                  onPressed: () => Navigator.of(context).pop(),
                   child: Text(loc.commonCancel),
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    String url = urlController.text.trim();
-                    // If no protocol specified, default to https
-                    url = ensureUrlScheme(url);
+                    final url = ensureUrlScheme(urlController.text.trim());
                     Navigator.of(context).pop();
                     Navigator.of(context).pop({'url': url, 'name': '', 'incognito': incognito});
                   },
@@ -726,44 +587,6 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     );
   }
 
-  IconData _getThemeIcon() {
-    switch (widget.themeMode) {
-      case ThemeMode.light:
-        return Icons.wb_sunny;
-      case ThemeMode.dark:
-        return Icons.nights_stay;
-      case ThemeMode.system:
-        return Icons.brightness_auto;
-    }
-  }
-
-  String _getThemeTooltip(AppLocalizations loc) {
-    switch (widget.themeMode) {
-      case ThemeMode.light:
-        return loc.addSiteThemeLight;
-      case ThemeMode.dark:
-        return loc.addSiteThemeDark;
-      case ThemeMode.system:
-        return loc.addSiteThemeSystem;
-    }
-  }
-
-  void _toggleTheme() {
-    ThemeMode newMode;
-    switch (widget.themeMode) {
-      case ThemeMode.light:
-        newMode = ThemeMode.dark;
-        break;
-      case ThemeMode.dark:
-        newMode = ThemeMode.system;
-        break;
-      case ThemeMode.system:
-        newMode = ThemeMode.light;
-        break;
-    }
-    widget.onThemeModeChanged(newMode);
-  }
-
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
@@ -771,10 +594,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
       appBar: AppBar(
         title: Text(loc.addSiteScreenTitle),
         actions: [
-          IconButton(
-            icon: Icon(_getThemeIcon()),
-            tooltip: _getThemeTooltip(loc),
-            onPressed: _toggleTheme,
+          ThemeModeButton(
+            mode: widget.themeMode,
+            tooltip: switch (widget.themeMode) {
+              ThemeMode.light => loc.addSiteThemeLight,
+              ThemeMode.dark => loc.addSiteThemeDark,
+              ThemeMode.system => loc.addSiteThemeSystem,
+            },
+            onChanged: widget.onThemeModeChanged,
           ),
         ],
       ),
@@ -783,7 +610,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final tileSize = (constraints.maxWidth - 36) / 4; // 4 columns with 12px spacing
-            final iconSize = tileSize * 0.7; // Icon takes 70% of tile size
+            final iconSize = tileSize * 0.7;
 
             return CustomScrollView(
               slivers: [
@@ -824,12 +651,10 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         children: [
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () {
-                                String url = _urlController.text.trim();
-                                // If no protocol specified, default to https
-                                url = ensureUrlScheme(url);
-                                Navigator.pop(context, {'url': url, 'name': ''});
-                              },
+                              onPressed: () => Navigator.pop(context, {
+                                'url': ensureUrlScheme(_urlController.text.trim()),
+                                'name': '',
+                              }),
                               child: Text(loc.addSiteAddSiteButton),
                             ),
                           ),
@@ -883,27 +708,17 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                         final suggestion = _suggestions[index];
                         return InkWell(
                           onTap: () => _showSuggestionDialog(suggestion),
-                          onLongPress: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: Text(loc.addSiteRemoveSuggestionTitle(suggestion.name)),
-                                content: Text(loc.addSiteRemoveSuggestionBody),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.of(context).pop(),
-                                    child: Text(loc.commonCancel),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.of(context).pop();
-                                      _removeSuggestion(index);
-                                    },
-                                    child: Text(loc.commonRemove),
-                                  ),
-                                ],
-                              ),
+                          onLongPress: () async {
+                            final remove = await confirm(
+                              context,
+                              title: loc.addSiteRemoveSuggestionTitle(suggestion.name),
+                              body: loc.addSiteRemoveSuggestionBody,
+                              confirmLabel: loc.commonRemove,
+                              destructive: false,
                             );
+                            if (!remove || !mounted) return;
+                            setState(() => _suggestions.removeAt(index));
+                            widget.onSuggestionsChanged(_suggestions);
                           },
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
@@ -921,8 +736,8 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                                 children: [
                                   Expanded(
                                     child: Center(
-                                      child: FaviconImage(
-                                        domain: suggestion.domain,
+                                      child: UnifiedFaviconImage(
+                                        url: 'https://${suggestion.domain}',
                                         size: iconSize,
                                       ),
                                     ),

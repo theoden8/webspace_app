@@ -5,12 +5,15 @@ import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
+import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/settings/external_links.dart';
+import 'package:webspace/settings/scoped.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/container_mark.dart' show SiteIdLine;
-import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// Everything the behaviour screen may change, in one value so the caller can
 /// apply a whole edit in a single `setState`.
@@ -22,6 +25,7 @@ import 'package:webspace/widgets/search_site_picker.dart';
 /// get dropped (BUG-006).
 class SiteBehaviourValues {
   const SiteBehaviourValues({
+    required this.archived,
     required this.alwaysOpenHome,
     required this.kioskMode,
     required this.fullscreenMode,
@@ -33,9 +37,12 @@ class SiteBehaviourValues {
     this.searchAddress,
     this.searchesWeb = false,
     this.searchSites = const [],
-    this.searchDefault,
+    this.searchDefault = const FollowApp(),
   });
 
+  /// Not edited here: an archive-tier site runs with the archive's posture
+  /// for the settings ARCH-006 folds.
+  final bool archived;
   final bool alwaysOpenHome;
   final bool kioskMode;
   final bool fullscreenMode;
@@ -49,7 +56,7 @@ class SiteBehaviourValues {
   final String? searchAddress;
   final bool searchesWeb;
   final List<String> searchSites;
-  final String? searchDefault;
+  final Scoped<String> searchDefault;
 
   static const Object _keep = Object();
 
@@ -65,9 +72,10 @@ class SiteBehaviourValues {
     Object? searchAddress = _keep,
     bool? searchesWeb,
     List<String>? searchSites,
-    Object? searchDefault = _keep,
+    Scoped<String>? searchDefault,
   }) =>
       SiteBehaviourValues(
+        archived: archived,
         alwaysOpenHome: alwaysOpenHome ?? this.alwaysOpenHome,
         kioskMode: kioskMode ?? this.kioskMode,
         fullscreenMode: fullscreenMode ?? this.fullscreenMode,
@@ -81,23 +89,23 @@ class SiteBehaviourValues {
             : searchAddress as String?,
         searchesWeb: searchesWeb ?? this.searchesWeb,
         searchSites: searchSites ?? this.searchSites,
-        searchDefault: identical(searchDefault, _keep)
-            ? this.searchDefault
-            : searchDefault as String?,
+        searchDefault: searchDefault ?? this.searchDefault,
       );
 
-  /// Incognito drops the stored URL on every restart, so the site opens at its
-  /// home page whatever this stores. Mirrors `WebViewModel.toJson`'s `dropUrl`,
-  /// which is what actually decides it.
-  bool effectiveAlwaysOpenHome(bool incognito) => incognito || alwaysOpenHome;
+  bool effectiveAlwaysOpenHome(bool incognito) => resolveAlwaysOpenHome(
+      alwaysOpenHome: alwaysOpenHome, incognito: incognito);
 
-  /// Mirrors `WebViewModel.effectiveTabsEnabled` (TAB-013).
-  bool get effectiveTabsEnabled => tabsEnabled && !kioskMode;
+  bool get effectiveTabsEnabled =>
+      resolveTabs(tabs: tabsEnabled, kiosk: kioskMode);
 
-  /// Routing is an option of the in-app mode (LIR-014); mirrors
-  /// `WebViewModel.effectiveRouteOutboundLinks`.
-  bool get effectiveRouteOutboundLinks =>
-      routeOutboundLinks && externalLinkMode == ExternalLinkMode.inApp;
+  bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
+      route: routeOutboundLinks, mode: externalLinkMode);
+
+  bool get effectiveHtmlCaching =>
+      ArchiveFold.htmlCaching(htmlCachingEnabled, archived: archived);
+
+  ExternalLinkMode get effectiveExternalLinkMode =>
+      ArchiveFold.externalLinks(externalLinkMode, archived: archived);
 }
 
 /// Per-site behaviour screen: how the app hosts the site — where it opens, how
@@ -172,89 +180,6 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     widget.onChanged(next);
   }
 
-  Widget _groupHeader(String title) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
-        child: Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      );
-
-  Widget _tile({
-    required String title,
-    required bool value,
-    required ValueChanged<bool>? onChanged,
-    String? hintTitle,
-    String? hint,
-    String? subtitle,
-  }) =>
-      SwitchListTile(
-        title: hint == null
-            ? Text(title)
-            : Row(
-                children: [
-                  Flexible(child: Text(title)),
-                  HintButton(title: hintTitle ?? title, description: hint),
-                ],
-              ),
-        subtitle: subtitle == null ? null : Text(subtitle),
-        value: value,
-        onChanged: onChanged,
-      );
-
-  // --- Opening and display -------------------------------------------------
-
-  Widget _alwaysOpenHome(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsAlwaysOpenHome,
-        subtitle: widget.incognito
-            ? loc.siteSettingsAlwaysOpenHomeForced
-            : loc.siteSettingsAlwaysOpenHomeSubtitle,
-        value: _values.effectiveAlwaysOpenHome(widget.incognito),
-        onChanged: widget.incognito
-            ? null
-            : (value) => _update(_values.copyWith(alwaysOpenHome: value)),
-      );
-
-  Widget _kioskMode(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsKioskMode,
-        hint: loc.siteSettingsKioskModeHint,
-        value: _values.kioskMode,
-        onChanged: (value) => _update(_values.copyWith(kioskMode: value)),
-      );
-
-  Widget _fullscreen(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsFullscreen,
-        hintTitle: loc.siteSettingsFullscreenHintTitle,
-        hint: loc.siteSettingsFullscreenHint,
-        subtitle: loc.siteSettingsFullscreenSubtitle,
-        value: _values.fullscreenMode,
-        onChanged: (value) => _update(_values.copyWith(fullscreenMode: value)),
-      );
-
-  /// Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode off,
-  /// and Kiosk mode on shows tabs off without forgetting the stored choice.
-  Widget _tabs(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsTabs,
-        hint: loc.siteSettingsTabsHint,
-        value: _values.effectiveTabsEnabled,
-        onChanged: (value) => _update(value
-            ? _values.copyWith(tabsEnabled: true, kioskMode: false)
-            : _values.copyWith(tabsEnabled: false)),
-      );
-
-  Widget _htmlCaching(AppLocalizations loc) => _tile(
-        title: loc.siteSettingsHtmlCaching,
-        hintTitle: loc.siteSettingsHtmlCachingHintTitle,
-        hint: loc.siteSettingsHtmlCachingHint,
-        value: _values.htmlCachingEnabled,
-        onChanged: (value) =>
-            _update(_values.copyWith(htmlCachingEnabled: value)),
-      );
-
   // --- Link handling -------------------------------------------------------
 
   bool get _tabsAvailable =>
@@ -264,40 +189,38 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
 
   /// With tabs, the switch also decides which container a link's tab runs in
   /// (LIR-034), so the hint says so where that applies.
-  Widget _routeOutboundLinks(AppLocalizations loc) => _tile(
+  Widget _routeOutboundLinks(AppLocalizations loc) => SettingTile(
         title: loc.siteSettingsRouteOutboundLinks,
         hint: _tabsAvailable && _values.effectiveTabsEnabled
             ? '${loc.siteSettingsRouteOutboundLinksHint}\n\n'
                 '${loc.siteSettingsRouteOutboundLinksTabsHint}'
             : loc.siteSettingsRouteOutboundLinksHint,
-        subtitle: widget.containersActive
+        lock: widget.containersActive
             ? null
-            : loc.siteSettingsRouteOutboundLinksNeedsContainers,
-        value: _values.routeOutboundLinks,
-        onChanged: widget.containersActive
-            ? (value) => _update(_values.copyWith(routeOutboundLinks: value))
-            : null,
+            : Lock.because(loc.siteSettingsRouteOutboundLinksNeedsContainers),
+        control: Toggle(_values.routeOutboundLinks,
+            (value) => _update(_values.copyWith(routeOutboundLinks: value))),
       );
 
   Widget _outboundPreferences(AppLocalizations loc) {
     final count = _values.outboundPreferences.length;
-    return ListTile(
-      title: Text(loc.outboundPreferencesTitle),
-      subtitle: Text(count == 0
+    return SettingTile(
+      title: loc.outboundPreferencesTitle,
+      hint: null,
+      subtitle: count == 0
           ? loc.outboundPreferencesGlobalOnly
-          : loc.outboundPreferencesCount(count)),
-      trailing: const Icon(Icons.chevron_right, size: 18),
-      onTap: () => Navigator.push<void>(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OutboundPreferencesScreen(
-            preferences: _values.outboundPreferences,
-            targets: widget.routingTargets,
-            onChanged: (next) =>
-                _update(_values.copyWith(outboundPreferences: next)),
-          ),
-        ),
-      ),
+          : loc.outboundPreferencesCount(count),
+      control: Opens(() => Navigator.push<void>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => OutboundPreferencesScreen(
+                preferences: _values.outboundPreferences,
+                targets: widget.routingTargets,
+                onChanged: (next) =>
+                    _update(_values.copyWith(outboundPreferences: next)),
+              ),
+            ),
+          )),
     );
   }
 
@@ -306,55 +229,18 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
   /// opening them in the app, so its rows sit indented under this one and
   /// only while that is the choice.
   Widget _externalLinks(AppLocalizations loc) {
-    final mode = _values.externalLinkMode;
-    final labels = {
-      ExternalLinkMode.inApp: loc.siteSettingsExternalLinksInApp,
-      ExternalLinkMode.browser: loc.siteSettingsExternalLinksBrowser,
-      ExternalLinkMode.block: loc.siteSettingsExternalLinksBlock,
-    };
+    final mode = _values.effectiveExternalLinkMode;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
-          title: Row(
-            children: [
-              Flexible(child: Text(loc.siteSettingsExternalLinks)),
-              HintButton(
-                title: loc.siteSettingsExternalLinks,
-                description: loc.siteSettingsExternalLinksHint,
-              ),
-            ],
-          ),
-          // Capped so a long label (Greek runs to 32 characters) cannot
-          // squeeze the title; the open menu is wider and shows it whole.
-          trailing: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 160),
-            child: DropdownButton<ExternalLinkMode>(
-              value: mode,
-              isExpanded: true,
-              menuWidth: 280,
-              onChanged: (value) {
-                if (value != null) {
-                  _update(_values.copyWith(externalLinkMode: value));
-                }
-              },
-              selectedItemBuilder: (context) => [
-                for (final m in ExternalLinkMode.values)
-                  Align(
-                    alignment: AlignmentDirectional.centerEnd,
-                    child: Text(
-                      labels[m]!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-              ],
-              items: [
-                for (final m in ExternalLinkMode.values)
-                  DropdownMenuItem(value: m, child: Text(labels[m]!)),
-              ],
-            ),
-          ),
+        ChoiceTile(
+          title: loc.siteSettingsExternalLinks,
+          hint: loc.siteSettingsExternalLinksHint,
+          values: ExternalLinkMode.values,
+          label: (m) => m.label(loc),
+          value: mode,
+          offered: (m) => !_values.archived || m != ExternalLinkMode.browser,
+          onChanged: (m) => _update(_values.copyWith(externalLinkMode: m)),
         ),
         if (mode == ExternalLinkMode.inApp)
           Padding(
@@ -398,13 +284,6 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         _webSearchSites.map((m) => m.getDisplayName()));
   }
 
-  Widget _titleWithHint(String title, String hint) => Row(
-        children: [
-          Flexible(child: Text(title)),
-          HintButton(title: title, description: hint),
-        ],
-      );
-
   /// What the site searches with without an address of its own: what its
   /// host is known for, else what its pages declared, else what the site
   /// search list names.
@@ -419,11 +298,11 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
 
   Widget _searchAddressRow(AppLocalizations loc) {
     final effective = _values.searchAddress ?? _knownSearch?.template;
-    return ListTile(
-      title: _titleWithHint(loc.webSearchTemplateLabel, loc.webSearchAddressHint),
-      subtitle: Text(effective ?? loc.siteSettingsNotConfigured),
-      trailing: const Icon(Icons.chevron_right, size: 18),
-      onTap: () => _editSearchAddress(effective),
+    return SettingTile(
+      title: loc.webSearchTemplateLabel,
+      hint: loc.webSearchAddressHint,
+      subtitle: effective ?? loc.siteSettingsNotConfigured,
+      control: Opens(() => _editSearchAddress(effective)),
     );
   }
 
@@ -452,20 +331,19 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
   }
 
   Widget _searchDefaultRow(AppLocalizations loc) {
-    final name = _nameOf(_values.searchDefault);
-    return ListTile(
-      title:
-          _titleWithHint(loc.webSearchFromSiteTitle, loc.webSearchFromSiteHint),
-      subtitle: Text(name ?? loc.webSearchUseAppDefault),
-      trailing: const Icon(Icons.chevron_right, size: 18),
-      onTap: () async {
+    final name = _nameOf(_values.searchDefault.stored);
+    return SettingTile(
+      title: loc.webSearchFromSiteTitle,
+      hint: loc.webSearchFromSiteHint,
+      subtitle: name ?? loc.webSearchUseAppDefault,
+      control: Opens(() async {
         const appDefault = '';
         final picked = await showDialog<String>(
           context: context,
           builder: (ctx) => SearchSiteChoiceDialog(
             title: loc.webSearchFromSiteTitle,
             noneLabel: loc.webSearchUseAppDefault,
-            selected: _values.searchDefault ?? appDefault,
+            selected: _values.searchDefault.resolve(appDefault),
             sites: [
               for (final m in _webSearchSites)
                 (
@@ -478,9 +356,9 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         );
         if (picked == null) return;
         _update(_values.copyWith(
-          searchDefault: picked == appDefault ? null : picked,
+          searchDefault: picked == appDefault ? const FollowApp() : Own(picked),
         ));
-      },
+      }),
     );
   }
 
@@ -490,11 +368,11 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     ];
     // Data, not copy: site names joined with punctuation (LOC-002).
     final summary = names.join(', ');
-    return ListTile(
-      title: _titleWithHint(loc.webSearchOfferedTitle, loc.webSearchOfferedHint),
-      subtitle: Text(names.isEmpty ? loc.webSearchOfferedAll : summary),
-      trailing: const Icon(Icons.chevron_right, size: 18),
-      onTap: () async {
+    return SettingTile(
+      title: loc.webSearchOfferedTitle,
+      hint: loc.webSearchOfferedHint,
+      subtitle: names.isEmpty ? loc.webSearchOfferedAll : summary,
+      control: Opens(() async {
         final picked = await showDialog<List<String>>(
           context: context,
           builder: (ctx) => _SearchSitesDialog(
@@ -504,16 +382,17 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           ),
         );
         if (picked == null) return;
-        final def = _values.searchDefault;
         _update(_values.copyWith(
           searchSites: picked,
           // A default the list no longer offers falls back to the app's.
-          searchDefault:
-              def != null && picked.isNotEmpty && !picked.contains(def)
-                  ? null
-                  : def,
+          searchDefault: switch (_values.searchDefault) {
+            Own(:final value)
+                when picked.isNotEmpty && !picked.contains(value) =>
+              const FollowApp(),
+            final kept => kept,
+          },
         ));
-      },
+      }),
     );
   }
 
@@ -524,27 +403,57 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
       appBar: AppBar(title: Text(loc.behaviourTitle)),
       body: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: Text(
-              widget.host,
-              style: TextStyle(
-                fontSize: 13,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
+          SettingsNote.host(widget.host),
+          SettingsSection(loc.behaviourGroupOpening),
+          SettingTile(
+            title: loc.siteSettingsAlwaysOpenHome,
+            hint: loc.siteSettingsAlwaysOpenHomeHint,
+            lock: widget.incognito
+                ? Lock.because(loc.siteSettingsAlwaysOpenHomeForced)
+                : null,
+            control: Toggle(_values.effectiveAlwaysOpenHome(widget.incognito),
+                (value) => _update(_values.copyWith(alwaysOpenHome: value))),
           ),
-          _groupHeader(loc.behaviourGroupOpening),
-          _alwaysOpenHome(loc),
-          _kioskMode(loc),
-          _fullscreen(loc),
-          if (_tabsAvailable) _tabs(loc),
-          _htmlCaching(loc),
-          _groupHeader(loc.linkHandlingScreenTitle),
+          SettingTile(
+            title: loc.siteSettingsKioskMode,
+            hint: loc.siteSettingsKioskModeHint,
+            control: Toggle(_values.kioskMode,
+                (value) => _update(_values.copyWith(kioskMode: value))),
+          ),
+          SettingTile(
+            title: loc.siteSettingsFullscreen,
+            hintTitle: loc.siteSettingsFullscreenHintTitle,
+            hint: loc.siteSettingsFullscreenHint,
+            subtitle: loc.siteSettingsFullscreenSubtitle,
+            control: Toggle(_values.fullscreenMode,
+                (value) => _update(_values.copyWith(fullscreenMode: value))),
+          ),
+          // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
+          // off, and Kiosk mode on shows tabs off without forgetting the
+          // stored choice.
+          if (_tabsAvailable)
+            SettingTile(
+              title: loc.siteSettingsTabs,
+              hint: loc.siteSettingsTabsHint,
+              control: Toggle(
+                  _values.effectiveTabsEnabled,
+                  (value) => _update(value
+                      ? _values.copyWith(tabsEnabled: true, kioskMode: false)
+                      : _values.copyWith(tabsEnabled: false))),
+            ),
+          SettingTile(
+            title: loc.siteSettingsHtmlCaching,
+            hintTitle: loc.siteSettingsHtmlCachingHintTitle,
+            hint: loc.siteSettingsHtmlCachingHint,
+            lock: _values.archived ? const ArchiveLock() : null,
+            control: Toggle(_values.effectiveHtmlCaching,
+                (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
+          ),
+          SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
           if (_tabsAvailable) ...[
-            _groupHeader(loc.webSearchGroup),
+            SettingsSection(loc.webSearchGroup),
             _searchAddressRow(loc),
             _searchDefaultRow(loc),
             _searchOfferedRow(loc),

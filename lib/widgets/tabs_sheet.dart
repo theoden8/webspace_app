@@ -261,25 +261,19 @@ class _TabsSheetState extends State<TabsSheet> {
       if (needed() > constraints.maxWidth) newTabLabel = false;
 
       Widget action(IconData icon, String label, bool withLabel,
-          VoidCallback onPressed) {
-        void run() {
-          Navigator.of(context).pop();
-          onPressed();
-        }
-
-        return withLabel
-            ? TextButton.icon(
-                onPressed: run,
-                icon: Icon(icon, size: IconSizes.action),
-                label: Text(label),
-              )
-            : IconButton(
-                onPressed: run,
-                tooltip: label,
-                icon: Icon(icon, size: IconSizes.action),
-                color: theme.colorScheme.primary,
-              );
-      }
+              VoidCallback onPressed) =>
+          withLabel
+              ? TextButton.icon(
+                  onPressed: _closing(onPressed),
+                  icon: Icon(icon, size: IconSizes.action),
+                  label: Text(label),
+                )
+              : IconButton(
+                  onPressed: _closing(onPressed),
+                  tooltip: label,
+                  icon: Icon(icon, size: IconSizes.action),
+                  color: theme.colorScheme.primary,
+                );
 
       return Row(
         children: [
@@ -445,17 +439,8 @@ class _TabsSheetState extends State<TabsSheet> {
 
     return DragTarget<_DraggedSite>(
       onWillAcceptWithDetails: (d) => d.data.siteId != id,
-      onMove: (_) {
-        if (_dropKey != key) {
-          setState(() {
-            _dropKey = key;
-            _dropZone = null;
-          });
-        }
-      },
-      onLeave: (_) {
-        if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
-      },
+      onMove: (_) => _hover(key),
+      onLeave: (_) => _unhover(key),
       onAcceptWithDetails: (d) => _dropSite(d.data.siteId, id),
       builder: (context, candidates, _) {
         final from = candidates.isEmpty ? null : candidates.first?.siteId;
@@ -491,6 +476,25 @@ class _TabsSheetState extends State<TabsSheet> {
       },
     );
   }
+
+  /// Marks [key], and [zone] in it, as where the drag in progress would land.
+  void _hover(String key, [TabDropZone? zone]) {
+    if (_dropKey == key && _dropZone == zone) return;
+    setState(() {
+      _dropKey = key;
+      _dropZone = zone;
+    });
+  }
+
+  void _unhover(String key) {
+    if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
+  }
+
+  /// Closes the sheet, then hands [action] to the host.
+  VoidCallback _closing(VoidCallback action) => () {
+        Navigator.of(context).pop();
+        action();
+      };
 
   void _dropSite(String siteId, String ontoSiteId) {
     _stopAutoScroll();
@@ -555,11 +559,17 @@ class _TabsSheetState extends State<TabsSheet> {
     final collapseKey = _keyOf(site, tab.id);
     final collapsed = _collapsed.contains(collapseKey);
     final shape = BorderRadius.circular(Radii.lg);
+    Widget close(String tooltip, IconData icon,
+            void Function(int siteIndex, String tabId) onClose) =>
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          iconSize: IconSizes.action,
+          tooltip: tooltip,
+          icon: Icon(icon),
+          onPressed: _closing(() => onClose(site.index, tab.id)),
+        );
     final rowBody = InkWell(
-      onTap: () {
-        Navigator.of(context).pop();
-        widget.onOpenTab(site.index, tab.id);
-      },
+      onTap: _closing(() => widget.onOpenTab(site.index, tab.id)),
       borderRadius: shape,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
@@ -596,13 +606,7 @@ class _TabsSheetState extends State<TabsSheet> {
                   children: [
                     ContainerMark(site: identity),
                     const SizedBox(width: Spacing.xs),
-                    UnifiedFaviconImage(
-                      url: identity.initUrl,
-                      size: IconSizes.inline,
-                      proxy: identity.outboundProxySettings,
-                      customIcon: identity.customIconPng,
-                      persist: !identity.isArchiveTier,
-                    ),
+                    UnifiedFaviconImage.site(identity, size: IconSizes.inline),
                     const SizedBox(width: Spacing.sm),
                     Expanded(
                       child: Column(
@@ -638,26 +642,9 @@ class _TabsSheetState extends State<TabsSheet> {
               ),
             ),
             if (row.childCount > 0)
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                iconSize: IconSizes.action,
-                tooltip: loc.tabsCloseSubtree,
-                icon: const Icon(Icons.layers_clear_outlined),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  widget.onCloseSubtree(site.index, tab.id);
-                },
-              ),
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              iconSize: IconSizes.action,
-              tooltip: loc.tabsCloseTab,
-              icon: const Icon(Icons.close),
-              onPressed: () {
-                Navigator.of(context).pop();
-                widget.onCloseTab(site.index, tab.id);
-              },
-            ),
+              close(loc.tabsCloseSubtree, Icons.layers_clear_outlined,
+                  widget.onCloseSubtree),
+            close(loc.tabsCloseTab, Icons.close, widget.onCloseTab),
           ],
         ),
       ),
@@ -713,18 +700,9 @@ class _TabsSheetState extends State<TabsSheet> {
     return DragTarget<_DraggedTab>(
       onWillAcceptWithDetails: (d) => accepts(d.data),
       onMove: (d) {
-        if (!accepts(d.data)) return;
-        final zone = zoneAt(d.offset);
-        if (_dropKey != key || _dropZone != zone) {
-          setState(() {
-            _dropKey = key;
-            _dropZone = zone;
-          });
-        }
+        if (accepts(d.data)) _hover(key, zoneAt(d.offset));
       },
-      onLeave: (_) {
-        if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
-      },
+      onLeave: (_) => _unhover(key),
       onAcceptWithDetails: (d) {
         final zone = zoneAt(d.offset);
         _drop(d.data, TabDrop.onto(tab.id, zone, targetExpanded: expanded),
@@ -784,17 +762,8 @@ class _TabsSheetState extends State<TabsSheet> {
     final key = 'end:${site.model.siteId}';
     return DragTarget<_DraggedTab>(
       onWillAcceptWithDetails: (d) => d.data.siteIndex == site.index,
-      onMove: (_) {
-        if (_dropKey != key) {
-          setState(() {
-            _dropKey = key;
-            _dropZone = null;
-          });
-        }
-      },
-      onLeave: (_) {
-        if (_dropKey == key) setState(() => _dropKey = _dropZone = null);
-      },
+      onMove: (_) => _hover(key),
+      onLeave: (_) => _unhover(key),
       onAcceptWithDetails: (d) => _drop(d.data, const TabDrop.toEnd()),
       builder: (context, candidates, _) => SizedBox(
         height: Spacing.xl,

@@ -216,16 +216,16 @@ SharedPreferences and gives each test a deterministic starting state.
 #### Scenario: Persistence is skipped
 
 - **Given** `isDemoMode = true`
-- **When** the app would otherwise save any setting via
-  `_save<X>` methods in `_WebSpacePageState`
-- **Then** the write is short-circuited by the `if (isDemoMode) return;`
-  guard
+- **When** the app would otherwise save any setting, through a `_save<X>`
+  method in `_WebSpacePageState` or an app pref through `AppPref.set`
+- **Then** the write is short-circuited by the `isDemoMode` guard (for app
+  prefs, `test/app_prefs_test.dart`)
 - **And** the test does not pollute SharedPreferences across runs
 
 #### Scenario: Initial state seeded for the test
 
 - **Given** the test pre-seeds
-  `SharedPreferences.setMockInitialValues({kGlobalOutboundProxyKey: jsonEncode({...})})`
+  `SharedPreferences.setMockInitialValues({AppPref.globalOutboundProxy.key: jsonEncode({...})})`
 - **When** `app.main()` runs
 - **Then** `GlobalOutboundProxy.initialize` reads the seeded entry
 - **And** the in-memory `GlobalOutboundProxy.current` reflects the seeded
@@ -1242,7 +1242,7 @@ macOS runner exercises the failure assertions for real.
   scenario (NOTIF-005-A); INTEG-013: warm home-shortcut taps. Frame
   classifier:
   [`scripts/classify_window_pixels.py`](../../../scripts/classify_window_pixels.py);
-  launch seeding: [`lib/services/diag_seed.dart`](../../../lib/services/diag_seed.dart)
+  launch seeding: [`lib/diag_seed.dart`](../../../lib/diag_seed.dart)
   (`getDiagSeed` in MainActivity, debuggable builds only; parsing
   unit-tested in [`test/diag_seed_test.dart`](../../../test/diag_seed_test.dart))
 - [`integration_test/camera_test.dart`](../../../integration_test/camera_test.dart)

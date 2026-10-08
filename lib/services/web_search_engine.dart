@@ -5,7 +5,7 @@
 /// user does not have, except as an offer to add one.
 library;
 
-import 'package:webspace/web_view_model.dart' show getNormalizedDomain;
+import 'package:webspace/services/url_host.dart';
 
 /// The token a search address carries where the query goes.
 const String kSearchQueryToken = '%s';
@@ -295,6 +295,10 @@ class SearchOption {
   const SearchOption(this.site, {required this.scoped});
 }
 
+/// The sites a search involves, by siteId: the one that searches, the one
+/// whose slot it starts from, and the one that slot is running as.
+typedef SearchParties = ({String search, String owner, String identity});
+
 /// Where a search's results open.
 enum SearchLanding {
   /// The site on screen searches itself, with tabs off: in its page.
@@ -343,8 +347,8 @@ class WebSearchEngine {
       'site:$host ${query.trim()}';
 
   static KnownSearchHost? knownFor(String initUrl) {
-    final host = Uri.tryParse(initUrl)?.host.toLowerCase() ?? '';
-    if (host.isEmpty) return null;
+    final host = Host.inUrl(initUrl);
+    if (host == null) return null;
     for (final k in kKnownSearchHosts) {
       if (k.matches(host)) return k;
     }
@@ -375,8 +379,8 @@ class WebSearchEngine {
       );
     }
     final known = knownFor(initUrl);
-    if (known != null) {
-      final host = Uri.parse(initUrl).host.toLowerCase();
+    final host = Host.inUrl(initUrl);
+    if (known != null && host != null) {
       return SearchCapability(
         template: known.template(host),
         kind: known.kind,
@@ -415,8 +419,7 @@ class WebSearchEngine {
   static bool discovers({required String initUrl, String? searchAddress}) {
     final custom = searchAddress?.trim();
     if (custom != null && custom.isNotEmpty) return false;
-    final host = Uri.tryParse(initUrl)?.host ?? '';
-    return host.isNotEmpty && knownFor(initUrl) == null;
+    return Host.inUrl(initUrl) != null && knownFor(initUrl) == null;
   }
 
   /// The known engines the empty state offers to add in [scope]: the web
@@ -531,20 +534,18 @@ class WebSearchEngine {
     return buildUrl(template, q);
   }
 
-  /// Where a search by [searchSiteId] lands, from a slot owned by
-  /// [ownerSiteId] and running as [identitySiteId].
-  static SearchLanding land({
-    required String searchSiteId,
-    required String ownerSiteId,
-    required String identitySiteId,
+  /// Where a search by `sites.search` lands, from a slot owned by
+  /// `sites.owner` and running as `sites.identity`.
+  static SearchLanding land(
+    SearchParties sites, {
     required bool tabsEnabled,
     required bool canHost,
     required bool urlInSearchSiteDomain,
   }) {
-    if (searchSiteId == identitySiteId) {
+    if (sites.search == sites.identity) {
       return tabsEnabled ? SearchLanding.childTab : SearchLanding.inPlace;
     }
-    if (searchSiteId == ownerSiteId) {
+    if (sites.search == sites.owner) {
       return tabsEnabled ? SearchLanding.childTab : SearchLanding.inSearchSite;
     }
     if (tabsEnabled && canHost && urlInSearchSiteDomain) {

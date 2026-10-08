@@ -4,7 +4,7 @@
 
 Each site SHALL carry a `routeOutboundLinks` boolean (default `false`) and an `outboundPreferences` list of `(DomainClaim claim, String targetSiteId)` entries (default empty). Routing is an option of the in-app external-link mode (NESTED-009): it takes effect only while the site's `externalLinkMode` is `inApp` (`WebViewModel.effectiveRouteOutboundLinks`), and in the browser and block modes the stored value is kept and inert. While routing is not in effect, the site's cross-domain navigation SHALL behave exactly as it did before this change: a `blockOpenNested` decision from `NavigationDecisionEngine` opens a nested `InAppWebViewScreen` with the site's own posture, a `blockOpenExternal` decision hands the URL to the system browser, and a `blockOutbound` decision opens nothing. `WebViewModel.toJson` SHALL omit `routeOutboundLinks` when `false` and `outboundPreferences` when empty, so the on-disk JSON of a user who never enables the feature is unchanged.
 
-Both fields SHALL ride settings backup through `WebViewModel.toJson` and SHALL NOT be registered in `kExportedAppPrefs`. The site QR share (site-settings-qr) SHALL carry `routeOutboundLinks` and SHALL NOT carry `outboundPreferences`: every entry names a device-local `siteId`, the same reason QR-003 refuses `siteId` itself.
+Both fields SHALL ride settings backup through `WebViewModel.toJson` and SHALL NOT be registered in `AppPref`. The site QR share (site-settings-qr) SHALL carry `routeOutboundLinks` and SHALL NOT carry `outboundPreferences`: every entry names a device-local `siteId`, the same reason QR-003 refuses `siteId` itself.
 
 #### Scenario: Legacy site loads with defaults
 

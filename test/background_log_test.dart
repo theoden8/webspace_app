@@ -66,7 +66,7 @@ void main() {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
       await log.setRecording(false);
-      log.record('BackgroundTask', 'wake', sensitive: 'site "Mail"');
+      log.record(LogTag.backgroundTask, 'wake', sensitive: 'site "Mail"');
       expect(native.appended, isEmpty);
       expect(await log.entries(includeSensitive: true), isEmpty);
       // App Logs still sees the line.
@@ -77,7 +77,7 @@ void main() {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
       await log.setRecording(true);
-      log.record('BackgroundTask', 'schedule refresh');
+      log.record(LogTag.backgroundTask, 'schedule refresh');
       await Future<void>.delayed(Duration.zero);
       expect(native.file, hasLength(1));
       final entries = await log.entries(includeSensitive: false);
@@ -88,7 +88,7 @@ void main() {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
       await log.setRecording(true);
-      log.record('BackgroundTask', 'one', sensitive: 'site "Mail"');
+      log.record(LogTag.backgroundTask, 'one', sensitive: 'site "Mail"');
       await log.setRecording(false);
       expect(native.file, isNull);
       await log.setRecording(true);
@@ -101,7 +101,7 @@ void main() {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
       await log.setRecording(true);
-      log.record('Notification', 'notification posted (page, untagged)',
+      log.record(LogTag.notification, 'notification posted (page, untagged)',
           sensitive: 'Showed notification: "Hi Bob" for siteId: abc123');
       await Future<void>.delayed(Duration.zero);
       final onDisk = native.file!.join('\n');
@@ -114,7 +114,7 @@ void main() {
     test('shown only on request, right after the line it explains', () async {
       final log = BackgroundLog(native: _FakeNative());
       await log.setRecording(true);
-      log.record('BackgroundTask', 'wake site 1/1: loaded',
+      log.record(LogTag.backgroundTask, 'wake site 1/1: loaded',
           sensitive: 'wake site 1/1 is "Mail"');
       await Future<void>.delayed(Duration.zero);
       expect((await log.entries(includeSensitive: false)).map((e) => e.message),
@@ -128,7 +128,7 @@ void main() {
     test('format drops sensitive entries unless asked', () async {
       final log = BackgroundLog(native: _FakeNative());
       await log.setRecording(true);
-      log.record('BackgroundTask', 'normal line', sensitive: 'names "Mail"');
+      log.record(LogTag.backgroundTask, 'normal line', sensitive: 'names "Mail"');
       await Future<void>.delayed(Duration.zero);
       final all = await log.entries(includeSensitive: true);
       expect(BackgroundLog.format(all), isNot(contains('Mail')));
@@ -161,7 +161,7 @@ void main() {
       final native = _FakeNative()..failReads = true;
       final log = BackgroundLog(native: native);
       await log.setRecording(true);
-      log.record('Lifecycle', 'App background');
+      log.record(LogTag.lifecycle, 'App background');
       expect((await log.entries(includeSensitive: false)).single.message,
           'App background');
     });
@@ -171,7 +171,7 @@ void main() {
       final native = _FakeNative(available: false);
       final log = BackgroundLog(native: native);
       await log.setRecording(true);
-      log.record('Lifecycle', 'App background');
+      log.record(LogTag.lifecycle, 'App background');
       expect(native.appended, isEmpty);
       expect((await log.entries(includeSensitive: false)).single.message,
           'App background');
@@ -181,11 +181,11 @@ void main() {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
       await log.setRecording(true);
-      log.record('Lifecycle', 'one');
+      log.record(LogTag.lifecycle, 'one');
       await Future<void>.delayed(Duration.zero);
       await log.clear();
       expect(native.file, isEmpty);
-      log.record('Lifecycle', 'two');
+      log.record(LogTag.lifecycle, 'two');
       await Future<void>.delayed(Duration.zero);
       expect((await log.entries(includeSensitive: false)).single.message, 'two');
     });

@@ -104,7 +104,8 @@ class ExternalUrlParser {
           case 'S.browser_fallback_url':
             try {
               fallbackUrl = Uri.decodeComponent(value);
-            } catch (_) {
+            } on ArgumentError {
+              // How the SDK reports a malformed %-escape.
               fallbackUrl = value;
             }
             break;
@@ -212,13 +213,6 @@ class ExternalUrlSuppressor {
   /// expired.
   static bool isSuppressedInfo(ExternalUrlInfo info) =>
       _checkExpiry(_keyForInfo(info));
-
-  /// URL-keyed variant — convenience for callers that only have the raw
-  /// URL string (e.g. `onReceivedError` in webview.dart).
-  static bool isSuppressedUrl(String url) {
-    final info = ExternalUrlParser.parse(url);
-    return info == null ? false : isSuppressedInfo(info);
-  }
 
   static void mark(
     ExternalUrlInfo info, {

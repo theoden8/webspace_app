@@ -3,7 +3,6 @@
 // engine: those answer the narrower "does this build have a tor to talk to",
 // which the engine's own tests exercise against a fake.
 
-import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -11,54 +10,13 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
-
-/// A runtime that records what the engine asked it to do, so a test
-/// can tell "refused at the gate" from "asked and got nothing".
-class _Runtime implements TorRuntime {
-  _Runtime({this.isAvailable = true});
-
-  final _events = StreamController<TorStatus>.broadcast();
-  int startCalls = 0;
-  int stopCalls = 0;
-  final applied = <String?>[];
-
-  @override
-  final bool isAvailable;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async => startCalls++;
-
-  @override
-  Future<void> stop() async => stopCalls++;
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async =>
-      applied.add(exitNodes);
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-  Future<void> dispose() => _events.close();
-}
+import 'helpers/fake_tor_runtime.dart';
 
 void main() {
-  late _Runtime runtime;
+  late FakeTorRuntime runtime;
 
   void install({bool available = true}) {
-    runtime = _Runtime(isAvailable: available);
+    runtime = FakeTorRuntime(isAvailable: available);
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: 'secret'),
     );
@@ -75,14 +33,14 @@ void main() {
   test('developer mode does not gate Tor', () async {
     DeveloperModeService.instance.debugSet(false);
     expect(TorService.instance.isAvailable, isTrue);
-    await TorService.instance.syncHolders({'site-a'});
+    await TorService.instance.syncHolders({TorSiteHolder('site-a')});
     expect(runtime.startCalls, 1,
         reason: 'a site pinned to Tor starts it with developer mode off');
   });
 
   test('turning developer mode off keeps Tor sites routed', () async {
     DeveloperModeService.instance.debugSet(true);
-    await TorService.instance.syncHolders({'site-a'});
+    await TorService.instance.syncHolders({TorSiteHolder('site-a')});
     runtime.emit(const TorUp('127.0.0.1', 41337));
     await Future<void>.delayed(Duration.zero);
 
@@ -102,15 +60,15 @@ void main() {
     });
 
     test('never spawns tor', () async {
-      await TorService.instance.maybeStart('site-a');
-      await TorService.instance.syncHolders({'site-a', 'site-b'});
+      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
+      await TorService.instance.syncHolders({TorSiteHolder('site-a'), TorSiteHolder('site-b')});
       await TorService.instance.restart();
       expect(runtime.startCalls, 0);
     });
 
     test('never reaches tor with an exit pin', () async {
       await TorService.instance.setExitCountry('{de}');
-      expect(runtime.applied, isEmpty);
+      expect(runtime.appliedExitNodes, isEmpty);
     });
 
     test('socksFor fails closed rather than falling back to direct', () {
@@ -121,7 +79,7 @@ void main() {
   });
 
   test('the SOCKS settings carry the isolation tag', () async {
-    await TorService.instance.syncHolders({'site-a'});
+    await TorService.instance.syncHolders({TorSiteHolder('site-a')});
     runtime.emit(const TorUp('127.0.0.1', 41337));
     await Future<void>.delayed(Duration.zero);
 

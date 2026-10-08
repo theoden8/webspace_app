@@ -17,11 +17,9 @@ class ImageCacheService {
     final lastVersion = prefs.getString(_lastVersionKey);
 
     if (lastVersion != null && lastVersion != currentVersion) {
-      // Version changed - clear the image cache
       await DefaultCacheManager().emptyCache();
     }
 
-    // Store current version
     await prefs.setString(_lastVersionKey, currentVersion);
   }
 }

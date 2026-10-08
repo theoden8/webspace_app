@@ -1,38 +1,17 @@
-// Tracking-protection umbrella funnel gate (ETP-024, ETP-031 and the four
-// forced-on subordinates). The umbrella is only as strong as the weakest path
-// that reaches a webview: a new call site that passes the *stored* value of a
-// forced setting silently reopens the hole the umbrella exists to close, and
-// nothing at runtime says so. Third-party cookies are the reason this gate
-// exists: they sat outside the umbrella through several releases while it
-// forced the four list-based blockers on.
+// Tracking-protection umbrella funnel gate (ETP-024).
 //
-// The rule: anywhere under lib/ that hands a per-site posture to a webview,
-// a forced setting must be spelled as its forcing expression, never as the
-// raw stored field.
+// Every surface that runs as a site is built from one SitePosture, which
+// WebViewModel.sitePosture resolves with the umbrella applied, so the compiler
+// and test/site_posture_test.dart hold the forced settings there. What is left
+// is the one place the model re-applies settings to a live controller
+// (setController), which reads the model rather than a posture: third-party
+// cookies there must go through the effective getter, never the stored field.
+// They are the reason this gate exists: they sat outside the umbrella through
+// several releases while it forced the four list-based blockers on.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-
-// Every file that builds a WebViewConfig or forwards posture to one.
-const CARRIERS = [
-  'lib/web_view_model.dart',
-  'lib/screens/inappbrowser.dart',
-  'lib/main.dart',
-];
-
-// Forced ON while the umbrella is on: the stored value may only widen, never
-// narrow, what the umbrella already guarantees.
-const FORCED_ON = [
-  'clearUrlEnabled',
-  'dnsBlockEnabled',
-  'contentBlockEnabled',
-  'localCdnEnabled',
-];
+const { read } = require('./helpers/source');
 
 // Forced OFF while the umbrella is on. The one subordinate that inverts:
 // third-party cookies are the oldest cross-site tracking channel, so the
@@ -43,32 +22,11 @@ const FORCED_OFF = 'thirdPartyCookiesEnabled';
 const FORCED_OFF_OK = [
   // The model's effective getter.
   /^\s*(?:\w+\.)?effectiveThirdPartyCookiesEnabled\s*$/,
-  // An inline conjunction with the umbrella negated, for the nested screen,
-  // which has no model to ask.
-  /!\s*(?:widget\.)?trackingProtectionEnabled/,
   // Deserialization: reading the stored value back is not a call site.
   /^\s*json\[/,
   // The same read through `WebViewModel.fromJson`'s tolerant field reader.
   /^\s*field<bool>\(\s*'thirdPartyCookiesEnabled'\s*\)/,
 ];
-
-// Raised from Default to Relay only while the umbrella is on and a proxy
-// carries the site (ETP-031): a direct ICE candidate is the device IP.
-const FORCED_FLOOR = 'webRtcPolicy';
-
-const FORCED_FLOOR_OK = [
-  /^\s*(?:\w+\.)?effectiveWebRtcPolicy\s*$/,
-  // The nested screen, which has no model to ask.
-  /^\s*resolveWebRtcPolicy\(/,
-  /^\s*WebRtcPolicy\.values\.firstWhere\(/,
-];
-
-// `launchUrl` in main.dart forwards its own same-named parameter onward; the
-// caller resolved the value already, so that one hop is not a raw read.
-// Everywhere else the bare identifier is the stored field.
-const bareForward = (rel, value, name = FORCED_OFF) =>
-  rel === 'lib/main.dart'
-  && new RegExp(`^\\s*${name}\\s*$`).test(value);
 
 // Every `name: <value>` argument in `src`, with the value read to the comma
 // that closes it at argument depth. Comments and strings are skipped so a
@@ -109,29 +67,22 @@ function namedArgs(src, name) {
   return out;
 }
 
+const MODEL = 'lib/web_view_model.dart';
+
 test('the funnel test can actually see arguments (self-check)', () => {
   // Guards against the parser silently matching nothing, which would make
   // every assertion below vacuously true.
-  const src = read('lib/screens/inappbrowser.dart');
   assert.ok(
-    namedArgs(src, FORCED_OFF).length > 0,
+    namedArgs(read(MODEL), FORCED_OFF).length > 0,
     `no ${FORCED_OFF}: arguments found; the parser is broken, not the code`,
   );
 });
 
-test('the funnel test can see WebRTC policy arguments (self-check)', () => {
-  const src = read('lib/screens/inappbrowser.dart');
-  assert.ok(
-    namedArgs(src, FORCED_FLOOR).length > 0,
-    `no ${FORCED_FLOOR}: arguments found; the parser is broken, not the code`,
-  );
-});
-
 test('the model exposes an effective getter for the forced-off setting', () => {
-  const src = read('lib/web_view_model.dart');
+  const src = read(MODEL);
   assert.match(
     src,
-    /bool get effectiveThirdPartyCookiesEnabled\s*=>\s*\n?\s*trackingProtectionEnabled \? false : thirdPartyCookiesEnabled;/,
+    /bool get effectiveThirdPartyCookiesEnabled\s*=>\s*_forcedByTrackingProtection\(\s*TrackingProtectionForce\.thirdPartyCookies,\s*thirdPartyCookiesEnabled\);/,
     'WebViewModel must derive third-party cookies from the umbrella',
   );
   // Stored separately from effective, so turning the umbrella off restores
@@ -140,51 +91,15 @@ test('the model exposes an effective getter for the forced-off setting', () => {
   assert.match(src, /'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,/);
 });
 
-for (const rel of CARRIERS) {
-  const src = read(rel);
-
-  test(`${rel}: forced-off setting never passes its stored value`, () => {
-    for (const value of namedArgs(src, FORCED_OFF)) {
-      const collapsed = value.replace(/\s+/g, ' ').trim();
-      // Declarations and the model's own storage are not call sites.
-      if (/^(bool|final|this\.)/.test(collapsed) || collapsed === '') continue;
-      if (bareForward(rel, value)) continue;
-      assert.ok(
-        FORCED_OFF_OK.some((re) => re.test(value)),
-        `${rel}: ${FORCED_OFF} passed as "${collapsed}". It must go through `
-          + 'effectiveThirdPartyCookiesEnabled, or negate the umbrella inline.',
-      );
-    }
-  });
-
-  test(`${rel}: WebRTC policy never passes its stored value`, () => {
-    for (const value of namedArgs(src, FORCED_FLOOR)) {
-      const collapsed = value.replace(/\s+/g, ' ').trim();
-      if (/^(WebRtcPolicy|final|this\.)/.test(collapsed) || collapsed === '') continue;
-      if (bareForward(rel, value, FORCED_FLOOR)) continue;
-      assert.ok(
-        FORCED_FLOOR_OK.some((re) => re.test(value)),
-        `${rel}: ${FORCED_FLOOR} passed as "${collapsed}". It must go through `
-          + 'effectiveWebRtcPolicy, or resolveWebRtcPolicy with the umbrella.',
-      );
-    }
-  });
-
-  test(`${rel}: forced-on settings keep the umbrella term`, () => {
-    for (const name of FORCED_ON) {
-      for (const value of namedArgs(src, name)) {
-        const collapsed = value.replace(/\s+/g, ' ').trim();
-        if (/^(bool|final|this\.)/.test(collapsed) || collapsed === '') continue;
-        // A bare field forward inside main.dart's launchUrl signature is
-        // fine: inappbrowser.dart applies the umbrella at the config it
-        // builds, which its own case above covers.
-        if (rel !== 'lib/screens/inappbrowser.dart') continue;
-        assert.match(
-          value,
-          /\|\|\s*(?:widget\.)?trackingProtectionEnabled/,
-          `${rel}: ${name} passed as "${collapsed}" without the umbrella term.`,
-        );
-      }
-    }
-  });
-}
+test(`${MODEL}: forced-off setting never passes its stored value`, () => {
+  for (const value of namedArgs(read(MODEL), FORCED_OFF)) {
+    const collapsed = value.replace(/\s+/g, ' ').trim();
+    // Declarations and the model's own storage are not call sites.
+    if (/^(bool|final|this\.)/.test(collapsed) || collapsed === '') continue;
+    assert.ok(
+      FORCED_OFF_OK.some((re) => re.test(value)),
+      `${MODEL}: ${FORCED_OFF} passed as "${collapsed}". It must go through `
+        + 'effectiveThirdPartyCookiesEnabled.',
+    );
+  }
+});

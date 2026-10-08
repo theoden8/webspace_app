@@ -9,22 +9,23 @@
 //     points at. `http://evil.example/` whose A record is `127.0.0.1` passes
 //     every literal check ever written; only a resolution catches it.
 //
-// The lookup rides a conditional import because `InternetAddress.lookup` is
+// The lookup comes from host_platform because `InternetAddress.lookup` is
 // dart:io, and this file sits under widgets/screens' import closure
 // (DESIGN-001). The web half reports "cannot resolve" rather than lying.
 
 import 'package:meta/meta.dart';
 
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 
-import 'package:webspace/services/host_resolution_web.dart'
-    if (dart.library.io) 'package:webspace/services/host_resolution_io.dart';
+import 'package:webspace/platform/host_platform.dart'
+    show hostLookupAddresses;
 
 /// Resolves [host] to its addresses, or null when this build has no resolver.
 /// Throws when the name does not resolve.
 typedef HostLookup = Future<List<String>?> Function(String host);
 
-HostLookup _lookup = lookupHostAddresses;
+HostLookup _lookup = hostLookupAddresses;
 
 /// The installed resolver. Swap in tests; DNS in a unit test would be a
 /// network dependency and an unpredictable answer.
@@ -34,7 +35,7 @@ HostLookup get hostLookup => _lookup;
 set hostLookup(HostLookup f) => _lookup = f;
 
 @visibleForTesting
-void resetHostLookup() => _lookup = lookupHostAddresses;
+void resetHostLookup() => _lookup = hostLookupAddresses;
 
 /// Whether [host] is a literal address in a range an outbound call driven by
 /// page JS must never reach: loopback, RFC1918 private, unique-local,
@@ -44,7 +45,8 @@ void resetHostLookup() => _lookup = lookupHostAddresses;
 /// Literals only. A hostname that *resolves* into one of these ranges walks
 /// straight through — pair it with [hostLookup] where the caller is about to
 /// connect through the device's own resolver.
-bool isPrivateOrLoopbackHost(String host) {
+bool isPrivateOrLoopbackHost(String raw) {
+  final host = Host(raw);
   if (host == 'localhost' || host.endsWith('.localhost')) return true;
 
   // IPv6 literal (Uri.host strips the surrounding brackets).
@@ -110,13 +112,15 @@ Future<HostRangeVerdict> classifyResolvedHost(String host) async {
   final List<String>? addresses;
   try {
     addresses = await _lookup(host);
-  } catch (_) {
+  } on Exception {
+    // The resolver's own failure (a SocketException natively). Errors are
+    // bugs and still reach the caller.
     return HostRangeVerdict.unresolvable;
   }
   if (addresses == null) return HostRangeVerdict.notResolvedHere;
   if (addresses.isEmpty) return HostRangeVerdict.unresolvable;
   for (final a in addresses) {
-    if (isPrivateOrLoopbackHost(a.toLowerCase())) {
+    if (isPrivateOrLoopbackHost(a)) {
       return HostRangeVerdict.private;
     }
   }
@@ -141,7 +145,7 @@ Future<HostRangeVerdict> classifyOutboundTarget(
   UserProxySettings effective,
 ) async {
   if (effective.type != ProxyType.DEFAULT) return HostRangeVerdict.notResolvedHere;
-  final host = Uri.tryParse(url)?.host.toLowerCase();
-  if (host == null || host.isEmpty) return HostRangeVerdict.unresolvable;
+  final host = Host.inUrl(url);
+  if (host == null) return HostRangeVerdict.unresolvable;
   return classifyResolvedHost(host);
 }

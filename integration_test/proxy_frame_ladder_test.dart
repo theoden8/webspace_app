@@ -22,6 +22,7 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'socks5_fixture.dart';
+import 'helpers/ui.dart';
 
 /// One rung: how long after frame 1 its store is mounted and navigated.
 /// `null` means "in frame 1 itself", which is the control.
@@ -151,23 +152,7 @@ void main() {
         ),
       );
 
-  Future<void> waitReal(WidgetTester tester, bool Function() done,
-      {required String label,
-      Duration timeout = const Duration(seconds: 30)}) async {
-    var ok = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        if (done()) {
-          ok = true;
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      ok = done();
-    });
-    log('$label -> ${ok ? "ok" : "timeout"}');
-  }
+  final waitReal = RealWait(log: log);
 
   testWidgets('how far past frame 1 a per-site proxy survives',
       (tester) async {

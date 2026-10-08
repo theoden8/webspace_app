@@ -152,9 +152,6 @@
 
 ## Code Review - Key Safety Features
 
-### `_cleanupWebspaceIndices()`
-Ensures all webspace indices are valid after changes.
-
 ### `_getFilteredSiteIndices()`
 Returns only valid indices for current webspace:
 ```dart

@@ -213,7 +213,7 @@ that forgets to declare fails closed (undercount) rather than open (leak).
 
 ### Requirement: STATS-006 - Excluded from Settings Backup
 
-The report SHALL NOT be registered in `kExportedAppPrefs`, and the detail blob SHALL
+The report SHALL NOT be registered in `AppPref`, and the detail blob SHALL
 NOT be serialised into a backup at all. Backup files are emailed and synced; block
 volume over time is browsing-activity history, not a user setting, and restoring one
 device's activity onto another would be wrong regardless.
@@ -399,7 +399,7 @@ load is still in flight
 ## Implementation Notes
 
 - **Single funnel.** DNS/ABP block accounting on every platform already passes through
-  `DnsBlockService.recordHostRequest` (the Android native interceptor drains into it,
+  `DnsBlockService.recordVerdict` (the Android native interceptor drains into it,
   the iOS/macOS JS bridge calls it per URL, navigation checks call it). The report
   hooks that one place, so the aggregate cannot drift from the per-site counters.
 - **No siteId reaches plaintext.** Only per-category daily totals go to
@@ -418,8 +418,9 @@ load is still in flight
   `lib/screens/block_stats.dart`. Tests: `test/block_stats_engine_test.dart`,
   `test/block_stats_service_test.dart`, `test/block_stats_detail_test.dart`,
   `test/block_stats_detail_storage_test.dart`, `test/block_stats_screen_test.dart`.
-  Structural gate for STATS-007: `test/js/nested_webview_posture_parity.test.js`
-  (`contributesBlockStats` is POSTURE); for the STATS-002 lifecycle flush:
+  STATS-007 holds by construction: `contributesBlockStats` is part of the
+  `SitePosture` every webview of the site, nested included, is built from
+  (`test/site_posture_test.dart`); for the STATS-002 lifecycle flush:
   `test/js/block_stats_flush_lifecycle.test.js`.
 - **Why the flush is not on `paused` alone.** `paused` is the Android/iOS
   backgrounding signal; desktop delivers `inactive`/`hidden`/`detached` instead, and

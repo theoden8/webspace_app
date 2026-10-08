@@ -19,8 +19,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { startBlankServer } = require('./helpers/blank_server');
 
 const CAMERA_SHIM = readFixture('camera_stream/shim.js');
 const MICROPHONE_SHIM = readFixture('microphone_stream/shim.js');
@@ -37,16 +37,6 @@ const browser = setupBrowser({
     '--use-fake-ui-for-media-stream',
   ],
 });
-
-function startServer() {
-  return new Promise((resolve) => {
-    const server = http.createServer((_req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html' });
-      res.end('<!doctype html><html><head></head><body></body></html>');
-    });
-    server.listen(0, '127.0.0.1', () => resolve(server));
-  });
-}
 
 // A site with `microphoneMode == real` and `cameraMode == virtual`: the audio
 // half comes from the device, the video half from a picked file. `order` names
@@ -80,7 +70,7 @@ for (const order of ['microphone last', 'camera last']) {
   test(`the stop ends the device audio and spares the simulated video (${order})`,
     async (t) => {
       if (!requireBrowser(browser, t)) return;
-      const server = await startServer();
+      const server = await startBlankServer();
       const page = await openPage(server.address().port, order);
       try {
         const r = await page.evaluate(async () => {
@@ -120,7 +110,7 @@ test('a second stop is a no-op once the device half is already ended',
     // away from twice without capturing in between. A registry that kept dead
     // refs would report a phantom stop each time.
     if (!requireBrowser(browser, t)) return;
-    const server = await startServer();
+    const server = await startBlankServer();
     const page = await openPage(server.address().port, 'microphone last');
     try {
       const r = await page.evaluate(async () => {

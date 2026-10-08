@@ -217,7 +217,7 @@ Future<bool> _run() async {
     return false;
   }
   const reason = 'suspend-probe';
-  await TorService.instance.maybeStart(reason);
+  await TorService.instance.maybeStart(const TorSiteHolder(reason));
   final up = await _waitFor(
       () => TorService.instance.status is TorUp, const Duration(minutes: 4));
   check(up, 'tor bootstrapped (${TorService.instance.status})');

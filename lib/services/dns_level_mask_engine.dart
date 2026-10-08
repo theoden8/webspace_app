@@ -94,11 +94,6 @@ class DnsLevelSets {
     }
     return mask;
   }
-
-  bool blockedAt(String host, int level) {
-    if (level <= kDnsLevelOff || level > kDnsMaxLevel) return false;
-    return maskOf(host) & dnsLevelBit(level) != 0;
-  }
 }
 
 /// Accumulates the level groups one level at a time.

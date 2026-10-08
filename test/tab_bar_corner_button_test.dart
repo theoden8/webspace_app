@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
 void main() {
@@ -102,5 +103,38 @@ void main() {
     expect(begins, hasLength(1));
     await gesture.up();
     await tester.pump();
+  });
+
+  testWidgets('the overlay carries the button and reports the nearest corner',
+      (tester) async {
+    final chosen = <TabBarCorner>[];
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Stack(
+          children: [
+            Positioned.fill(
+              child: TabBarCornerOverlay(
+                corner: TabBarCorner.bottomRight,
+                onTap: () {},
+                onCornerChosen: chosen.add,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ));
+    final start = tester.getCenter(find.byType(TabBarCornerButton));
+    final area = tester.getRect(find.byType(TabBarCornerOverlay));
+    expect(start.dx, greaterThan(area.center.dx), reason: 'rests bottom right');
+    expect(start.dy, greaterThan(area.center.dy));
+
+    final gesture = await tester.startGesture(start);
+    await gesture.moveTo(area.topLeft + const Offset(60, 60));
+    await tester.pump();
+    final carried = tester.getCenter(find.byType(TabBarCornerButton));
+    expect(carried.dx, lessThan(area.center.dx), reason: 'follows the drag');
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(chosen, [TabBarCorner.topLeft]);
   });
 }

@@ -19,7 +19,10 @@ Uint8List? processCustomIconImage(
   img.Image? decoded;
   try {
     decoded = img.decodeImage(raw);
-  } catch (_) {
+  } on img.ImageException {
+    return null;
+  } on RangeError {
+    // The decoders read past the end of truncated input instead of failing.
     return null;
   }
   if (decoded == null) return null;

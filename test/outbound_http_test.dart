@@ -1,37 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/mock_secure_storage.dart';
-
-/// Records every [UserProxySettings] passed to it so call-site tests can
-/// assert that a per-site proxy actually reaches [outboundHttp]. Returns
-/// either a fixed [http.MockClient] (when permitted) or a Blocked result.
-class RecordingOutboundFactory implements OutboundHttpFactory {
-  final List<UserProxySettings> queries = [];
-  final http.Client Function() clientBuilder;
-  final bool blockSocks5;
-
-  RecordingOutboundFactory({
-    http.Client Function()? clientBuilder,
-    this.blockSocks5 = true,
-  }) : clientBuilder = clientBuilder ?? (() => MockClient((_) async => http.Response('', 200)));
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    queries.add(settings);
-    if (blockSocks5 && settings.type == ProxyType.SOCKS5) {
-      return const OutboundClientBlocked('SOCKS5 unsupported (test fake)');
-    }
-    return OutboundClientReady(clientBuilder());
-  }
-}
+import 'helpers/fake_outbound.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -144,7 +121,7 @@ void main() {
         address: '10.0.0.1:3128',
       ));
       final perSite = UserProxySettings(type: ProxyType.DEFAULT);
-      final effective = resolveEffectiveProxy(perSite);
+      final effective = resolveEffectiveProxy(perSite, siteId: null);
       expect(effective.type, ProxyType.HTTP);
       expect(effective.address, '10.0.0.1:3128');
     });
@@ -158,14 +135,14 @@ void main() {
         type: ProxyType.SOCKS5,
         address: '127.0.0.1:9050',
       );
-      final effective = resolveEffectiveProxy(perSite);
+      final effective = resolveEffectiveProxy(perSite, siteId: null);
       expect(effective.type, ProxyType.SOCKS5);
       expect(effective.address, '127.0.0.1:9050');
     });
 
     test('per-site DEFAULT and global DEFAULT yields DEFAULT', () {
       final perSite = UserProxySettings(type: ProxyType.DEFAULT);
-      final effective = resolveEffectiveProxy(perSite);
+      final effective = resolveEffectiveProxy(perSite, siteId: null);
       expect(effective.type, ProxyType.DEFAULT);
     });
   });
@@ -216,14 +193,14 @@ void main() {
         password: 'top-secret',
       ));
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(kGlobalOutboundProxyKey)!;
+      final raw = prefs.getString(AppPref.globalOutboundProxy.key)!;
       expect(raw.contains('top-secret'), isFalse,
           reason: 'plaintext password leaked into SharedPreferences');
     });
 
     test('readGlobalOutboundProxy falls back to default on malformed JSON', () async {
       SharedPreferences.setMockInitialValues({
-        kGlobalOutboundProxyKey: '{not-valid-json',
+        AppPref.globalOutboundProxy.key: '{not-valid-json',
       });
       final prefs = await SharedPreferences.getInstance();
       final settings = readGlobalOutboundProxy(prefs);
@@ -233,7 +210,7 @@ void main() {
 
   group('outboundHttp test override', () {
     test('outboundHttp setter replaces the global factory', () {
-      final fake = RecordingOutboundFactory();
+      final fake = FakeOutbound();
       outboundHttp = fake;
       addTearDown(resetOutboundHttp);
 
@@ -254,13 +231,7 @@ void main() {
       // Dart-side outbound call (downloads, blocklist updates, favicon
       // probes, user-script fetches) must advertise that on the wire
       // even when the caller didn't set the headers explicitly.
-      late http.BaseRequest captured;
-      final fake = RecordingOutboundFactory(
-        clientBuilder: () => MockClient((req) async {
-          captured = req;
-          return http.Response('', 200);
-        }),
-      );
+      final fake = FakeOutbound();
       outboundHttp = fake;
       addTearDown(resetOutboundHttp);
 
@@ -272,20 +243,14 @@ void main() {
       addTearDown(client.close);
       await client.get(Uri.parse('https://example.com/'));
 
-      expect(captured.headers['DNT'], '1');
-      expect(captured.headers['Sec-GPC'], '1');
+      expect(fake.requests.single.headers['DNT'], '1');
+      expect(fake.requests.single.headers['Sec-GPC'], '1');
     });
 
     test('caller-supplied DNT header is preserved (no double-set)', () async {
       // The wrapper uses putIfAbsent so a test or odd-server probe that
       // explicitly sets a different DNT value keeps it.
-      late http.BaseRequest captured;
-      final fake = RecordingOutboundFactory(
-        clientBuilder: () => MockClient((req) async {
-          captured = req;
-          return http.Response('', 200);
-        }),
-      );
+      final fake = FakeOutbound();
       outboundHttp = fake;
       addTearDown(resetOutboundHttp);
 
@@ -299,8 +264,8 @@ void main() {
         headers: {'DNT': '0'},
       );
 
-      expect(captured.headers['DNT'], '0');
-      expect(captured.headers['Sec-GPC'], '1');
+      expect(fake.requests.single.headers['DNT'], '0');
+      expect(fake.requests.single.headers['Sec-GPC'], '1');
     });
   });
 }

@@ -4,24 +4,20 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
+import 'helpers/localized.dart';
 
 Widget _host(TextEditingController user, TextEditingController password,
         {VoidCallback? onEditingComplete}) =>
-    MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: ListView(children: [
-          ProxyAuthSection(
-            usernameController: user,
-            passwordController: password,
-            onEditingComplete: onEditingComplete,
-          ),
-        ]),
-      ),
-    );
+    localizedApp(Scaffold(
+      body: ListView(children: [
+        ProxyAuthSection(
+          usernameController: user,
+          passwordController: password,
+          onEditingComplete: onEditingComplete,
+        ),
+      ]),
+    ));
 
 /// The fold's subtitle, read off the tile rather than by text search: a
 /// username also appears in the field below it once the section is open.

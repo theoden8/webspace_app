@@ -7,13 +7,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 
 UserProxySettings _tor() => UserProxySettings(type: ProxyType.TOR);
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
     // Stand in for a bootstrapped runtime on a port nothing hardcodes.
@@ -63,6 +64,7 @@ void main() {
       GlobalOutboundProxy.setForTest(_tor());
       final resolved = resolveEffectiveProxy(
         UserProxySettings(type: ProxyType.DEFAULT),
+        siteId: null,
       );
       expect(resolved.username, kTorAppGlobalTag);
     });
@@ -213,8 +215,8 @@ void main() {
       expect(TorService.instance.isAvailable, isFalse);
       expect(TorService.instance.status, isA<TorStopped>());
       expect(TorService.instance.socksEndpoint, isNull);
-      await TorService.instance.maybeStart('site-a');
-      await TorService.instance.syncHolders({'site-a', 'site-b'});
+      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
+      await TorService.instance.syncHolders({TorSiteHolder('site-a'), TorSiteHolder('site-b')});
       expect(TorService.instance.socksFor(siteId: 'site-a'), isNull);
     });
 

@@ -3,8 +3,8 @@
 // Mobile engines own page scale through `<meta name="viewport">`, so the
 // zoom feature drives `initial-scale` rather than CSS `zoom` there
 // (BUG-008: any other channel is engine-version dependent). Desktop
-// engines ignore the meta and keep the CSS `zoom` path in
-// `lib/services/webview.dart`.
+// engines ignore the meta and keep the CSS `zoom` path
+// ([buildPageZoomCssShim]).
 //
 // Two layout-width regimes, one per engine:
 //
@@ -255,3 +255,108 @@ String buildPageZoomViewportShim({
   }catch(e){}
 })();''';
 }
+
+/// Per-site page zoom through CSS `zoom`, for the engines that ignore the
+/// viewport meta (desktop) or where desktop mode owns it. Chromium and
+/// WebKit 17+ / WPE 2.40+ reflow the layout to fill the window.
+String buildPageZoomCssShim(int zoomPercent) => _styleShim(
+      '__webspace_page_zoom__',
+      'html{zoom:$zoomPercent% !important;}',
+      // Root `zoom` applied at document start can leave Blink on a blank
+      // frame until a layout invalidation lands; force one.
+      relayout: '''
+  function relayout(){
+    apply();
+    try{void document.documentElement.offsetHeight;}catch(e){}
+    try{window.dispatchEvent(new Event('resize'));}catch(e){}
+  }
+  window.addEventListener('DOMContentLoaded',relayout);
+  window.addEventListener('load',relayout);''',
+    );
+
+/// The OS text size on WebKit, which has no `textZoom` setting:
+/// `-webkit-text-size-adjust` scales text without resizing images. A site
+/// that pins it to 100% still wins.
+String buildTextZoomShim(int zoomPercent) => _styleShim(
+      '__webspace_text_zoom__',
+      'html{-webkit-text-size-adjust:$zoomPercent% !important;}',
+      relayout: '',
+    );
+
+/// One `<style>` element, re-applied by id so a same-document navigation
+/// keeps it.
+String _styleShim(String id, String css, {required String relayout}) => '''
+(function(){
+  var id='$id';
+  var css='$css';
+  function apply(){
+    var el=document.getElementById(id);
+    if(!el){
+      el=document.createElement('style');
+      el.id=id;
+      (document.head||document.documentElement).appendChild(el);
+    }
+    el.textContent=css;
+  }
+  if(document.documentElement){apply();}
+  else{document.addEventListener('DOMContentLoaded',apply);}${relayout.isEmpty ? '' : '\n$relayout'}
+})();''';
+
+/// Gives every viewport meta an `initial-scale`, adding
+/// `width=device-width, initial-scale=1` when the page ships none.
+///
+/// WebKit lays a page that reaches first layout without one out at ~980px
+/// and zooms it to fit, then latches that fractional scale (0.73 on
+/// github.com) when the real meta arrives: a Turbo/PJAX re-navigation or the
+/// Universal-Link reissue, whose meta has not parsed yet. A MutationObserver
+/// fixes the meta the instant it is inserted, ahead of the latch, which a
+/// DOMContentLoaded pass is not. Android pins the scale natively
+/// (useWideViewPort), so this is WebKit-only.
+const String defaultViewportScript = r'''
+(function(){
+  function normalize(meta){
+    var c=(meta.getAttribute('content')||'').trim();
+    if(/initial-scale/i.test(c))return;
+    if(c===''){c='width=device-width, initial-scale=1';}
+    else{
+      c=c.replace(/\s*,?\s*$/,'')+', initial-scale=1';
+      if(!/width\s*=/i.test(c)){c='width=device-width, '+c;}
+    }
+    meta.setAttribute('content',c);
+  }
+  function ensure(){
+    var metas=document.querySelectorAll('meta[name="viewport" i]');
+    if(!metas.length){
+      var m=document.createElement('meta');
+      m.setAttribute('name','viewport');
+      m.setAttribute('content','width=device-width, initial-scale=1');
+      (document.head||document.documentElement).appendChild(m);
+      return;
+    }
+    for(var i=0;i<metas.length;i++){normalize(metas[i]);}
+  }
+  ensure();
+  try{
+    var mo=new MutationObserver(function(muts){
+      for(var i=0;i<muts.length;i++){
+        var mu=muts[i], tgt=mu.target;
+        if(mu.type==='attributes'&&tgt&&tgt.tagName==='META'){
+          var n=tgt.getAttribute&&tgt.getAttribute('name');
+          if(n&&n.toLowerCase()==='viewport'){normalize(tgt);}
+        }
+        var add=mu.addedNodes;
+        if(add){for(var j=0;j<add.length;j++){
+          var el=add[j];
+          if(el&&el.nodeType===1&&el.tagName==='META'){
+            var n2=el.getAttribute&&el.getAttribute('name');
+            if(n2&&n2.toLowerCase()==='viewport'){normalize(el);}
+          }
+        }}
+      }
+    });
+    if(document.documentElement){
+      mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['content','name']});
+    }
+  }catch(e){}
+  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ensure,{once:true});}
+})();''';

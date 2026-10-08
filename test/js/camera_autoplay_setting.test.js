@@ -10,19 +10,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-
-function stripComments(src) {
-  return src.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-}
+const { read, code } = require('./helpers/source');
 
 test('the main webview allows media to autoplay so camera streams render', () => {
-  const src = stripComments(
-    fs.readFileSync(path.join(repoRoot, 'lib/services/webview.dart'), 'utf8'),
-  );
+  const src = code(read('lib/services/webview.dart'));
   assert.match(
     src,
     /mediaPlaybackRequiresUserGesture\s*=\s*false/,
@@ -33,10 +24,7 @@ test('the main webview allows media to autoplay so camera streams render', () =>
 });
 
 test('the virtual-camera preview also allows autoplay so the loop plays', () => {
-  const src = stripComments(
-    fs.readFileSync(
-      path.join(repoRoot, 'lib/widgets/virtual_source_preview.dart'), 'utf8'),
-  );
+  const src = code(read('lib/widgets/virtual_source_preview.dart'));
   assert.match(src, /mediaPlaybackRequiresUserGesture\s*:\s*false/,
     'the preview WebView must autoplay so the looped clip plays without a tap.');
 });

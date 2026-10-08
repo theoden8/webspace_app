@@ -370,9 +370,7 @@ void main() {
       bool inDomain = true,
     }) =>
         WebSearchEngine.land(
-          searchSiteId: search,
-          ownerSiteId: owner,
-          identitySiteId: identity,
+          (search: search, owner: owner, identity: identity),
           tabsEnabled: tabs,
           canHost: canHost,
           urlInSearchSiteDomain: inDomain,

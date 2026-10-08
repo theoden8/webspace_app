@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/screens/add_site.dart' show SiteSuggestion;
+import 'package:webspace/settings/site_suggestion.dart';
 
 /// Default suggested sites for non-fdroid builds.
 const List<SiteSuggestion> kDefaultSuggestions = [
@@ -30,13 +30,11 @@ const List<SiteSuggestion> kDefaultSuggestions = [
 
 const String _prefsKey = 'suggested_sites';
 
-/// Whether the current build is the fdroid flavor.
 bool get isFdroidFlavor {
   const flavor = String.fromEnvironment('FLUTTER_APP_FLAVOR');
   return flavor == 'fdroid';
 }
 
-/// Returns the flavor-appropriate default suggestions.
 List<SiteSuggestion> get flavorDefaultSuggestions =>
     isFdroidFlavor ? const [] : kDefaultSuggestions;
 
@@ -46,21 +44,24 @@ Future<List<SiteSuggestion>?> loadSuggestedSites() async {
   final prefs = await SharedPreferences.getInstance();
   final json = prefs.getString(_prefsKey);
   if (json == null) return null;
+  final Object? list;
   try {
-    final list = jsonDecode(json) as List<dynamic>;
-    return list
-        .map((e) => SiteSuggestion(
-              name: e['name'] as String,
-              url: e['url'] as String,
-              domain: e['domain'] as String,
-            ))
-        .toList();
-  } catch (_) {
+    list = jsonDecode(json);
+  } on FormatException {
     return null;
   }
+  if (list is! List) return null;
+  return [
+    for (final e in list)
+      if (e case {
+        'name': final String name,
+        'url': final String url,
+        'domain': final String domain,
+      })
+        SiteSuggestion(name: name, url: url, domain: domain),
+  ];
 }
 
-/// Save user-customized suggested sites to SharedPreferences.
 Future<void> saveSuggestedSites(List<SiteSuggestion> sites) async {
   final prefs = await SharedPreferences.getInstance();
   final json = jsonEncode(sites
@@ -69,13 +70,6 @@ Future<void> saveSuggestedSites(List<SiteSuggestion> sites) async {
   await prefs.setString(_prefsKey, json);
 }
 
-/// Reset suggested sites to flavor defaults (removes customization).
-Future<void> resetSuggestedSites() async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.remove(_prefsKey);
-}
-
-/// Get the effective suggested sites list: user-customized or flavor default.
 Future<List<SiteSuggestion>> getEffectiveSuggestedSites() async {
   final custom = await loadSuggestedSites();
   return custom ?? flavorDefaultSuggestions;

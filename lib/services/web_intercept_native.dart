@@ -2,6 +2,7 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/localcdn_service.dart';
@@ -13,11 +14,6 @@ import 'package:webspace/services/log_service.dart';
 /// resources for sub-resource requests — the Dart shouldInterceptRequest
 /// callback only fires for the main document on modern Chromium WebView,
 /// so any sub-resource interception has to happen natively.
-///
-/// **Currently inert** — the native side has the kill-switch hard-forced
-/// ON (see WebInterceptPlugin.kt) while we localize a System WebView
-/// dangling-raw_ptr crash on Chrome_IOThread. DNS / ABP / LocalCDN are
-/// all bypassed at the native layer until the upstream issue is found.
 class WebInterceptNative {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/web_intercept');
@@ -37,15 +33,10 @@ class WebInterceptNative {
         case 'log':
           final args = call.arguments;
           if (args is Map) {
-            final tag = (args['tag'] as String?) ?? 'WebIntercept';
-            final message = (args['message'] as String?) ?? '';
             // Native bridge messages may carry per-site hosts / URLs.
             // Treat as sensitive so they stay out of adb logcat.
-            LogService.instance.log(
-              tag,
-              message,
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webIntercept
+                .debug((args['message'] as String?) ?? '', sensitive: true);
           }
           break;
       }
@@ -59,7 +50,9 @@ class WebInterceptNative {
           await _channel.invokeMethod('fetchBlockEvents', {'siteId': siteId});
       if (list is! List) return;
       applyBlockEvents(siteId, list);
-    } catch (_) {}
+    } on PlatformException {
+      // A failed drain loses one window of counts; the next drain resumes.
+    }
   }
 
   /// Decode one drained batch and apply it to the stats funnels.
@@ -71,32 +64,28 @@ class WebInterceptNative {
   @visibleForTesting
   static void applyBlockEvents(String siteId, List<dynamic> list) {
     for (final entry in list) {
-      if (entry is Map) {
-        final host = entry['host'] as String?;
-        final blocked = entry['blocked'] as bool?;
-        if (host == null || blocked == null) continue;
-        final sourceStr = entry['source'] as String?;
-        final source = switch (sourceStr) {
-          'dns' => BlockSource.dns,
-          'abp' => BlockSource.abp,
-          _ => null,
-        };
-        // Native dedupes by host across the drain window. `count` is
-        // the number of repeat requests since the last drain; default
-        // 1 if absent (older codec / no dedup). Pass it straight to
-        // the host-level recorder so the per-site Total/Allowed/
-        // Blocked counts stay accurate while the log keeps a single
-        // entry per host.
-        final count = (entry['count'] as int?) ?? 1;
-        DnsBlockService.instance
-            .recordHostRequest(siteId, host, blocked, source: source, count: count);
-        // Engine blocks decided natively never pass through
-        // ContentBlockerService.isBlocked, so fold them into the
-        // DevTools ABP counters here or the ABP tab undercounts.
-        if (blocked && source == BlockSource.abp) {
-          ContentBlockerService.instance
-              .recordNativeEngineBlock(host, count: count);
-        }
+      if (entry is! Map) continue;
+      final host = entry['host'];
+      // `WebInterceptPlugin.Decision` pairs every block with its list, so a
+      // block naming none is as malformed as a row without a host.
+      final verdict = switch ((entry['blocked'], entry['source'])) {
+        (false, _) => const Allowed(),
+        (true, 'dns') => const Blocked(BlockSource.dns),
+        (true, 'abp') => const Blocked(BlockSource.abp),
+        _ => null,
+      };
+      if (host is! String || verdict == null) continue;
+      // Native dedupes by host across the drain window: `count` is the
+      // repeats since the last drain, absent from an older codec.
+      final count = entry['count'] is int ? entry['count'] as int : 1;
+      DnsBlockService.instance
+          .recordVerdict(siteId, HostQuery(host), verdict, count: count);
+      // Engine blocks decided natively never pass through
+      // ContentBlockerService.isBlocked, so fold them into the
+      // DevTools ABP counters here or the ABP tab undercounts.
+      if (verdict.source == BlockSource.abp) {
+        ContentBlockerService.instance
+            .recordNativeEngineBlock(host, count: count);
       }
     }
   }
@@ -113,10 +102,10 @@ class WebInterceptNative {
             : null;
         LocalCdnService.instance.recordReplacement(siteId, url: url);
       }
-    } catch (_) {}
+    } on PlatformException {
+      // A failed drain loses one window of counts; the next drain resumes.
+    }
   }
-
-  // ========== Domain blocklists ==========
 
   /// Push the DNS blocklist to the native interceptor, grouped by which
   /// levels name each domain, so the Android side can answer at each site's
@@ -151,15 +140,11 @@ class WebInterceptNative {
       await _channel.invokeMethod('setDnsBlockedDomains', {
         'domains': blob,
       });
-      LogService.instance.log(
-          'DnsBlock',
+      LogTag.dnsBlock.info(
           'Queued $total DNS domains across ${masks.length} group(s) for native build '
-              '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)',
-          level: LogLevel.info);
+          '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)');
     } catch (e) {
-      LogService.instance.log('DnsBlock',
-          'Failed to send DNS domains to native: $e',
-          level: LogLevel.error);
+      LogTag.dnsBlock.error('Failed to send DNS domains to native: $e');
     }
   }
 
@@ -186,17 +171,12 @@ class WebInterceptNative {
       final map = (raw as Map?)
           ?.map((k, v) => MapEntry(k.toString(), v == true)) ??
           const {};
-      LogService.instance.log(
-          'ContentBlocker',
-          'Native adblock engine: '
-              'supported=${map['supported']}, active=${map['active']} '
-              '(${rulesText.length} bytes pushed)',
-          level: LogLevel.info);
+      LogTag.contentBlocker.info('Native adblock engine: '
+          'supported=${map['supported']}, active=${map['active']} '
+          '(${rulesText.length} bytes pushed)');
       return map;
     } catch (e) {
-      LogService.instance.log('ContentBlocker',
-          'Failed to send engine rules to native: $e',
-          level: LogLevel.error);
+      LogTag.contentBlocker.error('Failed to send engine rules to native: $e');
       return null;
     }
   }
@@ -209,12 +189,10 @@ class WebInterceptNative {
     try {
       final raw = await _channel.invokeMethod('isAdblockEngineSupported');
       return raw == true;
-    } catch (_) {
+    } on PlatformException {
       return false;
     }
   }
-
-  // ========== LocalCDN ==========
 
   /// Push the CDN URL regex patterns to the native interceptor. Each
   /// pattern must expose groups 1/2/3 = library/version/file (matching
@@ -225,13 +203,9 @@ class WebInterceptNative {
       final count = await _channel.invokeMethod('setCdnPatterns', {
         'patterns': patterns,
       });
-      LogService.instance.log('LocalCDN',
-          'Sent $count CDN patterns to native handler',
-          level: LogLevel.info);
+      LogTag.localCdn.info('Sent $count CDN patterns to native handler');
     } catch (e) {
-      LogService.instance.log('LocalCDN',
-          'Failed to send CDN patterns to native: $e',
-          level: LogLevel.error);
+      LogTag.localCdn.error('Failed to send CDN patterns to native: $e');
     }
   }
 
@@ -243,38 +217,33 @@ class WebInterceptNative {
       final count = await _channel.invokeMethod('setCdnCacheIndex', {
         'index': index,
       });
-      LogService.instance.log('LocalCDN',
-          'Sent $count cached CDN entries to native handler',
-          level: LogLevel.info);
+      LogTag.localCdn.info('Sent $count cached CDN entries to native handler');
     } catch (e) {
-      LogService.instance.log('LocalCDN',
-          'Failed to send CDN cache index to native: $e',
-          level: LogLevel.error);
+      LogTag.localCdn.error('Failed to send CDN cache index to native: $e');
     }
   }
-
-  // ========== Shared ==========
 
   /// Attaches the interceptor to the headless webview [headlessId] alone
   /// (NOTIF-016). A headless webview is in no view tree when no activity is
   /// running, which is where [attachToWebViews] looks. True once attached.
   static Future<bool> attachToHeadless({
     required String headlessId,
-    String? siteId,
-    int? dnsLevel,
+    required String siteId,
+    required int dnsLevel,
+    required bool localCdn,
   }) async {
     if (!isSupported) return false;
     try {
       final attached = await _channel.invokeMethod<bool>('attachToHeadless', {
         'headlessId': headlessId,
-        if (siteId != null) 'siteId': siteId,
-        if (dnsLevel != null) 'dnsLevel': dnsLevel,
+        'siteId': siteId,
+        'dnsLevel': dnsLevel,
+        'localCdn': localCdn,
       });
       return attached ?? false;
     } on PlatformException catch (e) {
-      LogService.instance.log('WebIntercept',
-          'Failed to attach native interceptor to a headless webview: $e',
-          level: LogLevel.error);
+      LogTag.webIntercept.error(
+          'Failed to attach native interceptor to a headless webview: $e');
       return false;
     } on MissingPluginException {
       return false;
@@ -284,25 +253,27 @@ class WebInterceptNative {
   /// [dnsLevel] is the severity level this site blocks at (0 = the site has
   /// DNS blocking off). The interceptor applies it per request, which is the
   /// only place Android sub-resources learn about a site's DNS posture — the
-  /// blocklist itself is app-wide.
-  static Future<int> attachToWebViews({String? siteId, int? dnsLevel}) async {
+  /// blocklist itself is app-wide. [localCdn] is whether this site's
+  /// sub-resources may be served from the app-wide LocalCDN cache (LCDN-007).
+  static Future<int> attachToWebViews({
+    String? siteId,
+    int? dnsLevel,
+    bool? localCdn,
+  }) async {
     if (!isSupported) return 0;
     try {
       final count = await _channel.invokeMethod('attachToWebViews', {
-        if (siteId != null) 'siteId': siteId,
-        if (dnsLevel != null) 'dnsLevel': dnsLevel,
+        'siteId': ?siteId,
+        'dnsLevel': ?dnsLevel,
+        'localCdn': ?localCdn,
       });
-      LogService.instance.log(
-        'WebIntercept',
-        'Attached native interceptor to $count webviews '
-        '(siteId: $siteId, dnsLevel: $dnsLevel)',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.webIntercept.debug(
+          'Attached native interceptor to $count webviews '
+          '(siteId: $siteId, dnsLevel: $dnsLevel, localCdn: $localCdn)',
+          sensitive: true);
       return count as int;
     } catch (e) {
-      LogService.instance.log('WebIntercept',
-          'Failed to attach native interceptor: $e',
-          level: LogLevel.error);
+      LogTag.webIntercept.error('Failed to attach native interceptor: $e');
       return 0;
     }
   }

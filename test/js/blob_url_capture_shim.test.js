@@ -11,7 +11,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadShim } = require('./helpers/load_shim');
+const { loadShim, readFixture } = require('./helpers/load_shim');
 
 test('createObjectURL returns the original URL string', () => {
   const dom = loadShim('blob_url_capture/shim.js');
@@ -60,13 +60,7 @@ test('shim is idempotent — second run does not re-wrap or reset state', () => 
   const url = dom.window.URL.createObjectURL(blob);
   // Re-eval the same shim. The early `if (window.__webspaceBlobs) return`
   // guard must keep the existing map intact.
-  const fs = require('node:fs');
-  const path = require('node:path');
-  const src = fs.readFileSync(
-    path.join(__dirname, '..', 'js_fixtures', 'blob_url_capture', 'shim.js'),
-    'utf8',
-  );
-  dom.window.eval(src);
+  dom.window.eval(readFixture('blob_url_capture/shim.js'));
   assert.equal(dom.window.__webspaceBlobs.get(url), blob,
     'previously-captured blob still resolvable after re-eval');
 });

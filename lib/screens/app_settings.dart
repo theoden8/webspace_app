@@ -3,7 +3,6 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/main.dart' show AppThemeSettings;
-import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/screens/app_appearance.dart';
 import 'package:webspace/screens/app_backup.dart';
 import 'package:webspace/screens/app_behaviour.dart';
@@ -11,15 +10,18 @@ import 'package:webspace/screens/app_developer.dart';
 import 'package:webspace/screens/app_network.dart';
 import 'package:webspace/screens/app_privacy.dart';
 import 'package:webspace/screens/user_scripts.dart';
-import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/developer_unlock_engine.dart';
+import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/settings/app_locale.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// App Settings: an index of categories, each a screen of its own, like the
 /// Site rows in site settings. Every row says what its category is set to.
@@ -55,36 +57,7 @@ class AppSettingsScreen extends StatefulWidget {
   /// its absence does not indicate whether any archives exist on disk.
   final bool hasOpenArchives;
   final VoidCallback? onCloseAllArchives;
-  final bool showTabStrip;
-  final ValueChanged<bool> onShowTabStripChanged;
-  final bool tabStripInFullscreen;
-  final ValueChanged<bool> onTabStripInFullscreenChanged;
-  final bool fullscreenOnShortcut;
-  final ValueChanged<bool> onFullscreenOnShortcutChanged;
-  /// NAV-009: back gesture opens the drawer where a site has no page left to
-  /// go back to (and leaves the app on the press after that). Off by default.
-  final bool backOpensMenu;
-  final ValueChanged<bool> onBackOpensMenuChanged;
-  final bool tabBarButton;
-  final ValueChanged<bool> onTabBarButtonChanged;
-  final int tabMaxWidth;
-  final ValueChanged<int> onTabMaxWidthChanged;
-  final bool showStatsBanner;
-  final ValueChanged<bool> onShowStatsBannerChanged;
-  /// HTTPS-005: app-wide default for retrying a plain-http navigation over
-  /// https. A site can override it; Tracking Protection forces it on.
-  final bool httpsUpgradeEnabled;
-  final ValueChanged<bool> onHttpsUpgradeEnabledChanged;
-  /// SCREENBLOCK-002: withhold the whole app from screen capture.
-  final bool blockScreenshots;
-  final ValueChanged<bool>? onBlockScreenshotsChanged;
-  /// Current UI language override as a locale tag ('' = follow system).
-  final String localeOverride;
-  final ValueChanged<String> onLocaleOverrideChanged;
-  /// LIR-008: master "Handle shared links" switch + entry into the
-  /// routing overview screen. The wrapping page handles persistence.
-  final bool linkHandlingEnabled;
-  final ValueChanged<bool> onLinkHandlingEnabledChanged;
+  /// LIR-008: entry into the routing overview screen.
   final VoidCallback onOpenLinkHandlingSettings;
 
   /// The user's web search sites outside every archive (LIR-029), each with
@@ -129,28 +102,6 @@ class AppSettingsScreen extends StatefulWidget {
     this.onRestoreArchive,
     this.hasOpenArchives = false,
     this.onCloseAllArchives,
-    required this.showTabStrip,
-    required this.onShowTabStripChanged,
-    required this.tabStripInFullscreen,
-    required this.onTabStripInFullscreenChanged,
-    required this.fullscreenOnShortcut,
-    required this.onFullscreenOnShortcutChanged,
-    required this.backOpensMenu,
-    required this.onBackOpensMenuChanged,
-    required this.tabBarButton,
-    required this.onTabBarButtonChanged,
-    required this.tabMaxWidth,
-    required this.onTabMaxWidthChanged,
-    required this.showStatsBanner,
-    required this.onShowStatsBannerChanged,
-    required this.httpsUpgradeEnabled,
-    required this.onHttpsUpgradeEnabledChanged,
-    this.blockScreenshots = false,
-    this.onBlockScreenshotsChanged,
-    required this.localeOverride,
-    required this.onLocaleOverrideChanged,
-    required this.linkHandlingEnabled,
-    required this.onLinkHandlingEnabledChanged,
     required this.onOpenLinkHandlingSettings,
     this.webSearchSites = const [],
     this.globalUserScripts = const [],
@@ -165,40 +116,26 @@ class AppSettingsScreen extends StatefulWidget {
 }
 
 class _AppSettingsScreenState extends State<AppSettingsScreen>
-    with SettingsOpenGuard {
-  // Copies of what the category screens change, kept current through their
-  // callbacks so the row summaries answer without reopening them.
+    with SettingsOpenGuard, RebuildOnAppPref {
+  /// The theme the Appearance screen last set, for its row's summary. The
+  /// rest of the summaries read app prefs, which [RebuildOnAppPref] follows.
   late AppThemeSettings _settings = widget.currentSettings;
-  late String _localeOverride = widget.localeOverride;
-  late bool _showTabStrip = widget.showTabStrip;
-  late bool _tabStripInFullscreen = widget.tabStripInFullscreen;
-  late bool _tabBarButton = widget.tabBarButton;
-  late int _tabMaxWidth = widget.tabMaxWidth;
-  late bool _fullscreenOnShortcut = widget.fullscreenOnShortcut;
-  late bool _backOpensMenu = widget.backOpensMenu;
-  late bool _showStatsBanner = widget.showStatsBanner;
-  late bool _httpsUpgradeEnabled = widget.httpsUpgradeEnabled;
-  late bool _blockScreenshots = widget.blockScreenshots;
 
   /// `version+build` from the platform package, null until it resolves.
   String? _appVersion;
   /// Running tap count on the version row; the developer-options gesture.
   int _versionTaps = 0;
-  bool _developerMode = DeveloperModeService.instance.enabled;
-  /// Set while the seventh tap is turning developer mode on, so taps landing
+  bool get _developerMode => DeveloperModeService.instance.enabled;
+  /// Held while the seventh tap is turning developer mode on, so taps landing
   /// during that await neither count nor unlock a second time.
-  bool _unlocking = false;
+  final _unlocking = ReentryGuard();
 
   @override
   void initState() {
     super.initState();
-    _loadAppVersion();
-  }
-
-  Future<void> _loadAppVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (!mounted) return;
-    setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _appVersion = '${info.version}+${info.buildNumber}');
+    });
   }
 
   /// One tap on the version row: the Android developer-options gesture, which
@@ -207,7 +144,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   /// user and confusing to meet by accident, but a user reporting a bug has
   /// to be able to reach them without a debug build.
   Future<void> _onVersionTapped() async {
-    if (_unlocking) return;
+    if (_unlocking.busy) return;
     final loc = AppLocalizations.of(context);
     final step = DeveloperUnlockEngine.tap(
       taps: _versionTaps,
@@ -223,27 +160,19 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       case DeveloperUnlockOutcome.alreadyEnabled:
         message = loc.appSettingsDeveloperModeAlreadyOn;
       case DeveloperUnlockOutcome.unlocked:
-        _unlocking = true;
-        try {
-          await setDeveloperMode(true);
-        } finally {
-          _unlocking = false;
-        }
+        await _unlocking.run(() => setDeveloperMode(true));
         if (!mounted) return;
-        setState(() {
-          _developerMode = true;
-          _versionTaps = 0;
-        });
+        setState(() => _versionTaps = 0);
         message = loc.appSettingsDeveloperModeEnabled;
     }
     if (!mounted) return;
     // Replace rather than queue: taps arrive faster than a snackbar's life, so
     // queueing would leave the countdown showing a number several taps stale.
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
-      );
+    ScaffoldMessenger.of(context).toast(
+      message,
+      duration: const Duration(seconds: 1),
+      replace: true,
+    );
   }
 
   /// Opens a category and, once it closes, redraws the summaries from what it
@@ -254,111 +183,11 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
           context,
           MaterialPageRoute(builder: (_) => screen),
         );
-        if (!mounted) return;
-        setState(() => _developerMode = DeveloperModeService.instance.enabled);
+        if (mounted) setState(() {});
       });
 
-  /// Keeps a summary current from a category screen's callback. The screen
-  /// sits above this one, but an async callback can still land after both
-  /// were torn down.
-  void _track(VoidCallback fn) {
-    if (mounted) setState(fn);
-  }
-
-  void _openAppearance() => _open(AppAppearanceScreen(
-        settings: _settings,
-        onSettingsChanged: (settings) {
-          _track(() => _settings = settings);
-          widget.onSettingsChanged(settings);
-        },
-        localeOverride: _localeOverride,
-        onLocaleOverrideChanged: (tag) {
-          _track(() => _localeOverride = tag);
-          widget.onLocaleOverrideChanged(tag);
-        },
-      ));
-
-  void _openBehaviour() => _open(AppBehaviourScreen(
-        showTabStrip: _showTabStrip,
-        onShowTabStripChanged: (value) {
-          _track(() => _showTabStrip = value);
-          widget.onShowTabStripChanged(value);
-        },
-        tabStripInFullscreen: _tabStripInFullscreen,
-        onTabStripInFullscreenChanged: (value) {
-          _track(() => _tabStripInFullscreen = value);
-          widget.onTabStripInFullscreenChanged(value);
-        },
-        tabBarButton: _tabBarButton,
-        onTabBarButtonChanged: (value) {
-          _track(() => _tabBarButton = value);
-          widget.onTabBarButtonChanged(value);
-        },
-        tabMaxWidth: _tabMaxWidth,
-        onTabMaxWidthChanged: (value) {
-          _track(() => _tabMaxWidth = value);
-          widget.onTabMaxWidthChanged(value);
-        },
-        fullscreenOnShortcut: _fullscreenOnShortcut,
-        onFullscreenOnShortcutChanged: (value) {
-          _track(() => _fullscreenOnShortcut = value);
-          widget.onFullscreenOnShortcutChanged(value);
-        },
-        backOpensMenu: _backOpensMenu,
-        onBackOpensMenuChanged: (value) {
-          _track(() => _backOpensMenu = value);
-          widget.onBackOpensMenuChanged(value);
-        },
-        linkHandlingEnabled: widget.linkHandlingEnabled,
-        onOpenLinkHandlingSettings: widget.onOpenLinkHandlingSettings,
-        webSearchSites: widget.webSearchSites,
-      ));
-
-  void _openNetwork() => _open(AppNetworkScreen(
-        siteNames: widget.siteNames,
-        onOutboundProxyChanged: widget.onOutboundProxyChanged,
-        siteProxies: widget.siteProxies,
-        onSavedProxiesChanged: widget.onSavedProxiesChanged,
-      ));
-
-  void _openPrivacy() => _open(AppPrivacyScreen(
-        siteNames: widget.siteNames,
-        showStatsBanner: _showStatsBanner,
-        onShowStatsBannerChanged: (value) {
-          _track(() => _showStatsBanner = value);
-          widget.onShowStatsBannerChanged(value);
-        },
-        httpsUpgradeEnabled: _httpsUpgradeEnabled,
-        onHttpsUpgradeEnabledChanged: (value) {
-          _track(() => _httpsUpgradeEnabled = value);
-          widget.onHttpsUpgradeEnabledChanged(value);
-        },
-        blockScreenshots: _blockScreenshots,
-        onBlockScreenshotsChanged: widget.onBlockScreenshotsChanged == null
-            ? null
-            : (value) {
-                _track(() => _blockScreenshots = value);
-                widget.onBlockScreenshotsChanged!(value);
-              },
-        onTrustUboHosts: widget.onTrustUboHosts,
-      ));
-
-  void _openUserScripts() => _open(UserScriptsScreen(
-        title: 'Global User Scripts',
-        userScripts: widget.globalUserScripts,
-        onSave: (scripts) {
-          widget.onGlobalUserScriptsChanged?.call(scripts);
-        },
-        isGlobalLibrary: true,
-      ));
-
-  void _openDeveloper() => _open(AppDeveloperScreen(
-        proxyRouterRunsHere: widget.proxyRouterRunsHere,
-        externalTorRunsHere: widget.externalTorRunsHere,
-      ));
-
   /// Export, import and the archive actions run on the main page, so settings
-  /// closes before each one, as it did when they were rows of their own.
+  /// closes before each one.
   Future<void> _openBackup() => guardedOpen(() async {
         final action = await Navigator.push<AppBackupAction>(
           context,
@@ -372,7 +201,16 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
         );
         if (action == null || !mounted) return;
         _closeSelf();
-        _runBackupAction(action);
+        switch (action) {
+          case AppBackupAction.export:
+            widget.onExportSettings();
+          case AppBackupAction.import:
+            widget.onImportSettings();
+          case AppBackupAction.restoreArchive:
+            widget.onRestoreArchive?.call();
+          case AppBackupAction.closeAllArchives:
+            widget.onCloseAllArchives?.call();
+        }
       });
 
   /// Leaves settings for the main page. Pops only this route: if anything
@@ -389,44 +227,25 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
     }
   }
 
-  void _runBackupAction(AppBackupAction action) {
-    switch (action) {
-      case AppBackupAction.export:
-        widget.onExportSettings();
-      case AppBackupAction.import:
-        widget.onImportSettings();
-      case AppBackupAction.restoreArchive:
-        widget.onRestoreArchive?.call();
-      case AppBackupAction.closeAllArchives:
-        widget.onCloseAllArchives?.call();
-    }
-  }
-
   String _appearanceSummary(AppLocalizations loc) => [
         themeModeLabel(loc, _settings.themeMode),
-        if (_localeOverride.isNotEmpty) languageLabelForTag(_localeOverride),
+        if (AppPref.appLocaleOverride.value case final tag
+            when tag.isNotEmpty)
+          languageLabelForTag(tag),
       ].join(' · ');
 
-  String _behaviourSummary(AppLocalizations loc) {
-    final backOpensMenuOffered = backAtHistoryStartConfigurable(
-      isIOS: hostIsIOS,
-      isMacOS: hostIsMacOS,
-    );
-    return summariseSettings(
-      loc,
-      [
-        if (tabStripMode(
-                showTabStrip: _showTabStrip, tabBarButton: _tabBarButton) !=
-            0)
-          loc.appSettingsSiteTabStrip,
-        if (_fullscreenOnShortcut) loc.appSettingsFullscreenOnShortcut,
-        if (backOpensMenuOffered && _backOpensMenu)
-          loc.appSettingsBackOpensMenu,
-        if (widget.linkHandlingEnabled) loc.appSettingsLinkHandling,
-      ],
-      none: loc.behaviourSummaryNothingOn,
-    );
-  }
+  String _behaviourSummary(AppLocalizations loc) => summariseSettings(
+        loc,
+        [
+          if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
+          if (AppPref.fullscreenOnShortcut.value)
+            loc.appSettingsFullscreenOnShortcut,
+          if (backOpensMenuOffered() && AppPref.backOpensMenu.value)
+            loc.appSettingsBackOpensMenu,
+          if (AppPref.linkHandlingEnabled.value) loc.appSettingsLinkHandling,
+        ],
+        none: loc.behaviourSummaryNothingOn,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -437,59 +256,81 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       ),
       body: ListView(
         children: [
-          SettingsGroupHeader(loc.appSettingsGroupApp),
-          SettingsCategoryRow(
-            icon: Icons.palette_outlined,
+          SettingsSection(loc.appSettingsGroupApp),
+          SummaryNavRow(
+            leading: const Icon(Icons.palette_outlined),
             title: loc.appSettingsAppearance,
             summary: _appearanceSummary(loc),
-            onTap: _openAppearance,
+            onTap: () => _open(AppAppearanceScreen(
+              settings: _settings,
+              onSettingsChanged: (settings) {
+                // The screen sits above this one, but the callback can still
+                // land after both were torn down.
+                if (mounted) setState(() => _settings = settings);
+                widget.onSettingsChanged(settings);
+              },
+            )),
           ),
-          SettingsCategoryRow(
-            icon: Icons.tune,
+          SummaryNavRow(
+            leading: const Icon(Icons.tune),
             title: loc.appSettingsBehaviour,
             summary: _behaviourSummary(loc),
-            onTap: _openBehaviour,
+            onTap: () => _open(AppBehaviourScreen(
+              onOpenLinkHandlingSettings: widget.onOpenLinkHandlingSettings,
+              webSearchSites: widget.webSearchSites,
+            )),
           ),
-          SettingsGroupHeader(loc.appSettingsGroupSites),
-          SettingsCategoryRow(
-            icon: Icons.lan_outlined,
+          SettingsSection(loc.appSettingsGroupSites),
+          SummaryNavRow(
+            leading: const Icon(Icons.lan_outlined),
             title: loc.appSettingsNetwork,
             summary: appNetworkSummary(loc),
-            onTap: _openNetwork,
+            onTap: () => _open(AppNetworkScreen(
+              siteNames: widget.siteNames,
+              onOutboundProxyChanged: widget.onOutboundProxyChanged,
+              siteProxies: widget.siteProxies,
+              onSavedProxiesChanged: widget.onSavedProxiesChanged,
+            )),
           ),
-          SettingsCategoryRow(
-            icon: Icons.verified_user_outlined,
+          SummaryNavRow(
+            leading: const Icon(Icons.verified_user_outlined),
             title: loc.appSettingsPrivacy,
             summary: summariseSettings(
               loc,
-              appPrivacyOn(
-                loc,
-                httpsUpgradeEnabled: _httpsUpgradeEnabled,
-                blockScreenshots: _blockScreenshots,
-              ),
+              appPrivacyOn(loc),
               none: loc.privacySummaryNothingOn,
             ),
-            onTap: _openPrivacy,
+            onTap: () => _open(AppPrivacyScreen(
+              siteNames: widget.siteNames,
+              onTrustUboHosts: widget.onTrustUboHosts,
+            )),
           ),
-          SettingsCategoryRow(
-            icon: Icons.code,
+          SummaryNavRow(
+            leading: const Icon(Icons.code),
             title: loc.appSettingsUserScripts,
             summary: widget.globalUserScripts.isEmpty
                 ? loc.appSettingsNoGlobalScripts
                 : loc.appSettingsScriptsDefined(widget.globalUserScripts.length),
-            onTap: _openUserScripts,
+            onTap: () => _open(UserScriptsScreen(
+              title: 'Global User Scripts',
+              userScripts: widget.globalUserScripts,
+              onSave: (scripts) =>
+                  widget.onGlobalUserScriptsChanged?.call(scripts),
+              isGlobalLibrary: true,
+            )),
           ),
-          SettingsGroupHeader(loc.appSettingsData),
-          SettingsCategoryRow(
-            icon: Icons.settings_backup_restore,
+          SettingsSection(loc.appSettingsData),
+          SummaryNavRow(
+            leading: const Icon(Icons.settings_backup_restore),
             title: loc.appSettingsBackupAndArchives,
+            summary: null,
             onTap: _openBackup,
           ),
-          SettingsGroupHeader(loc.appSettingsAbout),
+          SettingsSection(loc.appSettingsAbout),
           // Next to the version row whose taps turn it on.
           if (_developerMode)
-            SettingsCategoryRow(
-              icon: Icons.developer_mode,
+            SummaryNavRow(
+              leading: const Icon(Icons.developer_mode),
               title: loc.appSettingsDeveloper,
               summary: summariseSettings(
                 loc,
@@ -497,20 +338,26 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                     proxyRouterRunsHere: widget.proxyRouterRunsHere),
                 none: loc.behaviourSummaryNothingOn,
               ),
-              onTap: _openDeveloper,
+              onTap: () => _open(AppDeveloperScreen(
+                proxyRouterRunsHere: widget.proxyRouterRunsHere,
+                externalTorRunsHere: widget.externalTorRunsHere,
+              )),
             )
           else
-            ListTile(
+            SettingTile(
               leading: const Icon(Icons.article_outlined),
-              title: Text(loc.appSettingsAppLogs),
-              subtitle: Text(loc.appSettingsAppLogsSubtitle),
-              onTap: () => guardedOpen(() => openAppLogs(context)),
+              title: loc.appSettingsAppLogs,
+              hint: null,
+              subtitle: loc.appSettingsAppLogsSubtitle,
+              control: Trailing(null,
+                  onTap: () => guardedOpen(() => openAppLogs(context))),
             ),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.info_outline),
-            title: Text(loc.appSettingsLicenses),
-            subtitle: Text(loc.appSettingsLicensesSubtitle),
-            onTap: () => guardedOpen(() async {
+            title: loc.appSettingsLicenses,
+            hint: null,
+            subtitle: loc.appSettingsLicensesSubtitle,
+            control: Trailing(null, onTap: () => guardedOpen(() async {
               final packageInfo = await PackageInfo.fromPlatform();
               if (!context.mounted) return;
               showLicensePage(
@@ -519,13 +366,14 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
                 applicationVersion: packageInfo.version,
                 applicationLegalese: '© 2023 Kirill Rodriguez',
               );
-            }),
+            })),
           ),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.tag),
-            title: Text(loc.appSettingsVersion),
-            subtitle: _appVersion == null ? null : Text(_appVersion!),
-            onTap: _onVersionTapped,
+            title: loc.appSettingsVersion,
+            hint: null,
+            subtitle: _appVersion,
+            control: Trailing(null, onTap: _onVersionTapped),
           ),
         ],
       ),

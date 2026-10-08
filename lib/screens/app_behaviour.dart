@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -7,20 +6,36 @@ import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/pref_read.dart';
-import 'package:webspace/widgets/hint_button.dart';
+import 'package:webspace/widgets/datasets.dart';
+import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
-import 'package:webspace/widgets/site_search_list_tile.dart';
 
-/// How the site tab strip is presented, as one mutually-exclusive choice:
-/// 0 = hidden, 1 = always pinned, 2 = revealed on demand by the floating
-/// button. The button and the strip are the same feature (the button reveals
-/// the strip), so they are one control, not two independent toggles.
-int tabStripMode({required bool showTabStrip, required bool tabBarButton}) {
-  if (tabBarButton) return 2;
-  if (showTabStrip) return 1;
-  return 0;
+/// How the site tab strip is reached. The floating button is the on-demand
+/// presentation of the strip, so the three are one choice, not two toggles.
+enum TabStrip {
+  hidden,
+  pinned,
+  button;
+
+  static TabStrip get current => AppPref.tabBarButton.value
+      ? button
+      : (AppPref.showTabStrip.value ? pinned : hidden);
+}
+
+extension on TabStrip {
+  IconData get icon => switch (this) {
+        TabStrip.hidden => Icons.visibility_off,
+        TabStrip.pinned => Icons.visibility,
+        TabStrip.button => Icons.smart_button,
+      };
+
+  String tooltip(AppLocalizations loc) => switch (this) {
+        TabStrip.hidden => loc.appSettingsFullscreenTabStripHidden,
+        TabStrip.pinned => loc.appSettingsFullscreenTabStripAlways,
+        TabStrip.button => loc.appSettingsFullscreenTabStripButton,
+      };
 }
 
 /// Whether the Default search row and the site search list are offered: web
@@ -30,47 +45,21 @@ bool webSearchSettingsOffered() =>
     DeveloperModeService.instance.enabled &&
     ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.siteTabs);
 
+/// Apple has no back gesture the app can act on (NAV-009), so the Back opens
+/// menu setting is absent there rather than present and inert.
+bool backOpensMenuOffered() =>
+    backAtHistoryStartConfigurable(isIOS: hostIsIOS, isMacOS: hostIsMacOS);
+
 /// How the app hosts sites: the tab strip, full screen, the back gesture and
 /// where shared links and searches go.
 class AppBehaviourScreen extends StatefulWidget {
   const AppBehaviourScreen({
     super.key,
-    required this.showTabStrip,
-    required this.onShowTabStripChanged,
-    required this.tabStripInFullscreen,
-    required this.onTabStripInFullscreenChanged,
-    required this.tabBarButton,
-    required this.onTabBarButtonChanged,
-    required this.tabMaxWidth,
-    required this.onTabMaxWidthChanged,
-    required this.fullscreenOnShortcut,
-    required this.onFullscreenOnShortcutChanged,
-    required this.backOpensMenu,
-    required this.onBackOpensMenuChanged,
-    required this.linkHandlingEnabled,
     required this.onOpenLinkHandlingSettings,
     this.webSearchSites = const [],
   });
 
-  final bool showTabStrip;
-  final ValueChanged<bool> onShowTabStripChanged;
-  final bool tabStripInFullscreen;
-  final ValueChanged<bool> onTabStripInFullscreenChanged;
-  final bool tabBarButton;
-  final ValueChanged<bool> onTabBarButtonChanged;
-  final int tabMaxWidth;
-  final ValueChanged<int> onTabMaxWidthChanged;
-  final bool fullscreenOnShortcut;
-  final ValueChanged<bool> onFullscreenOnShortcutChanged;
-
-  /// NAV-009: back gesture opens the drawer where a site has no page left to
-  /// go back to (and leaves the app on the press after that). Off by default.
-  final bool backOpensMenu;
-  final ValueChanged<bool> onBackOpensMenuChanged;
-
-  /// LIR-008: entry into the routing overview screen. The wrapping page
-  /// handles persistence.
-  final bool linkHandlingEnabled;
+  /// LIR-008: entry into the routing overview screen.
   final VoidCallback onOpenLinkHandlingSettings;
 
   /// The user's web search sites outside every archive (LIR-029), each with
@@ -82,70 +71,57 @@ class AppBehaviourScreen extends StatefulWidget {
 }
 
 class _AppBehaviourScreenState extends State<AppBehaviourScreen>
-    with SettingsOpenGuard {
-  late bool _showTabStrip = widget.showTabStrip;
-  late bool _tabStripInFullscreen = widget.tabStripInFullscreen;
-  late bool _tabBarButton = widget.tabBarButton;
-  late double _tabMaxWidth = widget.tabMaxWidth.toDouble();
-  late bool _fullscreenOnShortcut = widget.fullscreenOnShortcut;
-  late bool _backOpensMenu = widget.backOpensMenu;
-  String _webSearchDefault = '';
+    with SettingsOpenGuard, RebuildOnAppPref {
+  /// The tab width while its slider is dragged; persisted on release.
+  double? _tabWidthDrag;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadWebSearchDefault();
+  void _setTabStrip(TabStrip mode) {
+    AppPref.showTabStrip.set(mode == TabStrip.pinned);
+    AppPref.tabBarButton.set(mode == TabStrip.button);
+    // "Keep in full screen" only applies to a pinned strip. Leaving it set
+    // in button mode would pin the strip in full screen and hide the button
+    // there; clear it whenever we leave the pinned mode.
+    if (mode != TabStrip.pinned) AppPref.tabStripInFullscreen.set(false);
   }
 
-  int get _tabStripMode =>
-      tabStripMode(showTabStrip: _showTabStrip, tabBarButton: _tabBarButton);
+  /// A title with its control at the end of the row.
+  Widget _row(Widget title, Widget trailing) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Row(children: [Expanded(child: title), trailing]),
+      );
 
-  void _setTabStripMode(int mode) {
-    setState(() {
-      _showTabStrip = mode == 1;
-      _tabBarButton = mode == 2;
-      // "Keep in full screen" only applies to a pinned strip. Leaving it set
-      // in button mode would pin the strip in full screen and hide the button
-      // there; clear it whenever we leave the pinned mode.
-      if (mode != 1) _tabStripInFullscreen = false;
-    });
-    widget.onShowTabStripChanged(_showTabStrip);
-    widget.onTabBarButtonChanged(_tabBarButton);
-    if (mode != 1) widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
-  }
-
-  /// Full-screen behavior of the *pinned* tab strip: 0 = hidden, 1 = always
-  /// visible. Only shown when the strip is pinned; button mode reveals the
-  /// strip in full screen on its own.
-  int get _fullscreenTabStripMode => _tabStripInFullscreen ? 1 : 0;
-
-  void _setFullscreenTabStripMode(int mode) {
-    setState(() {
-      _tabStripInFullscreen = mode == 1;
-    });
-    widget.onTabStripInFullscreenChanged(_tabStripInFullscreen);
+  Widget _tabStripPicker(
+    List<TabStrip> modes,
+    TabStrip selected,
+    ValueChanged<TabStrip> onChanged,
+  ) {
+    final loc = AppLocalizations.of(context);
+    return SegmentedButton<TabStrip>(
+      segments: [
+        for (final m in modes)
+          ButtonSegment(value: m, icon: Icon(m.icon), tooltip: m.tooltip(loc)),
+      ],
+      selected: {selected},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) => onChanged(selection.first),
+    );
   }
 
   /// Whether the tab strip can appear at all (pinned out of fullscreen, pinned
   /// in fullscreen, or revealed by the tab-bar button), so the width limit is
   /// meaningful.
   bool get _tabStripCanShow =>
-      _showTabStrip || _tabStripInFullscreen || _tabBarButton;
+      AppPref.showTabStrip.value ||
+      AppPref.tabStripInFullscreen.value ||
+      AppPref.tabBarButton.value;
 
   String? get _webSearchDefaultName {
     final site = widget.webSearchSites
-        .where((s) => s.siteId == _webSearchDefault)
+        .where((s) => s.siteId == AppPref.webSearchDefaultSite.value)
         .firstOrNull;
     if (site == null) return null;
     return searchSiteSummaryName(site.name, site.siteId,
         widget.webSearchSites.map((s) => s.name));
-  }
-
-  Future<void> _loadWebSearchDefault() async {
-    final prefs = await SharedPreferences.getInstance();
-    if (!mounted) return;
-    setState(() => _webSearchDefault =
-        readPrefAs<String>(prefs, kWebSearchDefaultSiteKey) ?? '');
   }
 
   /// LIR-029: which web search site Web search starts with. Only sites outside
@@ -157,16 +133,12 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
       builder: (ctx) => SearchSiteChoiceDialog(
         title: loc.webSearchDefaultTitle,
         sites: widget.webSearchSites,
-        selected: _webSearchDefault,
+        selected: AppPref.webSearchDefaultSite.value,
         emptyText: loc.webSearchNoWebSites,
         cancelLabel: loc.commonCancel,
       ),
     );
-    if (picked == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(kWebSearchDefaultSiteKey, picked);
-    if (!mounted) return;
-    setState(() => _webSearchDefault = picked);
+    if (picked != null) await AppPref.webSearchDefaultSite.set(picked);
   }
 
   @override
@@ -175,199 +147,96 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
     final backOpensMenuHint = hostIsAndroid
         ? '${loc.appSettingsBackOpensMenuHint} ${loc.appSettingsBackOpensMenuHintExit}'
         : loc.appSettingsBackOpensMenuHint;
-    final backOpensMenuOffered = backAtHistoryStartConfigurable(
-      isIOS: hostIsIOS,
-      isMacOS: hostIsMacOS,
-    );
-    final tabWidthLabel = '${_tabMaxWidth.round()} px';
+    final tabWidth = _tabWidthDrag ?? AppPref.tabMaxWidth.value.toDouble();
+    final tabWidthLabel = '${tabWidth.round()} px';
     return Scaffold(
       appBar: AppBar(title: Text(loc.appSettingsBehaviour)),
       body: ListView(
         children: [
-          SettingsGroupHeader(loc.appSettingsGroupTabStrip),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(child: Text(loc.appSettingsSiteTabStrip)),
-                      HintButton(
-                        title: loc.appSettingsSiteTabStrip,
-                        description: loc.appSettingsSiteTabStripSubtitle,
-                      ),
-                    ],
-                  ),
-                ),
-                SegmentedButton<int>(
-                  segments: [
-                    ButtonSegment<int>(
-                      value: 0,
-                      icon: const Icon(Icons.visibility_off),
-                      tooltip: loc.appSettingsFullscreenTabStripHidden,
-                    ),
-                    ButtonSegment<int>(
-                      value: 1,
-                      icon: const Icon(Icons.visibility),
-                      tooltip: loc.appSettingsFullscreenTabStripAlways,
-                    ),
-                    ButtonSegment<int>(
-                      value: 2,
-                      icon: const Icon(Icons.smart_button),
-                      tooltip: loc.appSettingsFullscreenTabStripButton,
-                    ),
-                  ],
-                  selected: {_tabStripMode},
-                  showSelectedIcon: false,
-                  onSelectionChanged: (selection) =>
-                      _setTabStripMode(selection.first),
-                ),
-              ],
-            ),
+          SettingsSection(loc.appSettingsGroupTabStrip),
+          _row(
+            HintedTitle(loc.appSettingsSiteTabStrip,
+                hint: loc.appSettingsSiteTabStripSubtitle),
+            _tabStripPicker(TabStrip.values, TabStrip.current, _setTabStrip),
           ),
           // Pinned mode only: whether the pinned strip stays visible in full
           // screen. Button mode reveals the strip in full screen on its own;
           // hidden mode has nothing to keep.
-          if (_tabStripMode == 1)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(child: Text(loc.appSettingsFullscreenTabStrip)),
-                  SegmentedButton<int>(
-                    segments: [
-                      ButtonSegment<int>(
-                        value: 0,
-                        icon: const Icon(Icons.visibility_off),
-                        tooltip: loc.appSettingsFullscreenTabStripHidden,
-                      ),
-                      ButtonSegment<int>(
-                        value: 1,
-                        icon: const Icon(Icons.visibility),
-                        tooltip: loc.appSettingsFullscreenTabStripAlways,
-                      ),
-                    ],
-                    selected: {_fullscreenTabStripMode},
-                    showSelectedIcon: false,
-                    onSelectionChanged: (selection) =>
-                        _setFullscreenTabStripMode(selection.first),
-                  ),
-                ],
+          if (TabStrip.current == TabStrip.pinned)
+            _row(
+              Text(loc.appSettingsFullscreenTabStrip),
+              _tabStripPicker(
+                const [TabStrip.hidden, TabStrip.pinned],
+                AppPref.tabStripInFullscreen.value
+                    ? TabStrip.pinned
+                    : TabStrip.hidden,
+                (mode) =>
+                    AppPref.tabStripInFullscreen.set(mode == TabStrip.pinned),
               ),
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(child: Text(loc.appSettingsTabMaxWidth)),
-                      HintButton(
-                        title: loc.appSettingsTabMaxWidth,
-                        description: loc.appSettingsTabMaxWidthHint,
-                      ),
-                    ],
-                  ),
-                ),
-                Text(tabWidthLabel),
-              ],
-            ),
+          _row(
+            HintedTitle(loc.appSettingsTabMaxWidth,
+                hint: loc.appSettingsTabMaxWidthHint),
+            Text(tabWidthLabel),
           ),
           Slider(
-            value: _tabMaxWidth,
+            value: tabWidth,
             min: 80,
             max: 320,
             divisions: 24,
             label: tabWidthLabel,
             onChanged: _tabStripCanShow
-                ? (value) {
-                    setState(() {
-                      _tabMaxWidth = value;
-                    });
-                  }
+                ? (value) => setState(() => _tabWidthDrag = value)
                 : null,
             onChangeEnd: _tabStripCanShow
                 ? (value) {
-                    widget.onTabMaxWidthChanged(value.round());
+                    _tabWidthDrag = null;
+                    AppPref.tabMaxWidth.set(value.round());
                   }
                 : null,
           ),
-          SettingsGroupHeader(loc.appSettingsGroupOpening),
-          SwitchListTile(
-            title: Row(
-              children: [
-                Flexible(child: Text(loc.appSettingsFullscreenOnShortcut)),
-                HintButton(
-                  title: loc.appSettingsFullscreenOnShortcut,
-                  description: loc.appSettingsFullscreenOnShortcutHint,
-                ),
-              ],
-            ),
-            value: _fullscreenOnShortcut,
-            onChanged: (value) {
-              setState(() {
-                _fullscreenOnShortcut = value;
-              });
-              widget.onFullscreenOnShortcutChanged(value);
-            },
+          SettingsSection(loc.appSettingsGroupOpening),
+          SettingTile(
+            title: loc.appSettingsFullscreenOnShortcut,
+            hint: loc.appSettingsFullscreenOnShortcutHint,
+            control: const PrefToggle(AppPref.fullscreenOnShortcut),
           ),
-          // Apple has no back gesture the app can act on (NAV-009), so the
-          // setting is absent there rather than present and inert.
-          if (backOpensMenuOffered)
-            SwitchListTile(
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.appSettingsBackOpensMenu)),
-                  HintButton(
-                    title: loc.appSettingsBackOpensMenu,
-                    // The escalation to leaving the app is Android's alone
-                    // (NAV-009), so the sentence describing it stays off every
-                    // other platform.
-                    description: backOpensMenuHint,
-                  ),
-                ],
-              ),
-              value: _backOpensMenu,
-              onChanged: (value) {
-                setState(() {
-                  _backOpensMenu = value;
-                });
-                widget.onBackOpensMenuChanged(value);
-              },
+          if (backOpensMenuOffered())
+            SettingTile(
+              // The escalation to leaving the app is Android's alone
+              // (NAV-009), so the sentence describing it stays off every
+              // other platform.
+              title: loc.appSettingsBackOpensMenu,
+              hint: backOpensMenuHint,
+              control: const PrefToggle(AppPref.backOpensMenu),
             ),
-          ListTile(
+          SettingTile(
             leading: const Icon(Icons.share_outlined),
-            title: Text(loc.appSettingsLinkHandling),
-            subtitle: Text(widget.linkHandlingEnabled
+            title: loc.appSettingsLinkHandling,
+            hint: null,
+            subtitle: AppPref.linkHandlingEnabled.value
                 ? loc.appSettingsLinkHandlingOn
-                : loc.appSettingsLinkHandlingOff),
-            trailing: const Icon(Icons.chevron_right),
+                : loc.appSettingsLinkHandlingOff,
             // The opener pushes synchronously, so the route check in the
             // guard is what drops a second tap.
-            onTap: () => guardedOpen(
-                () async => widget.onOpenLinkHandlingSettings()),
+            control: Opens(() => guardedOpen(
+                () async => widget.onOpenLinkHandlingSettings())),
           ),
           if (webSearchSettingsOffered()) ...[
-            SettingsGroupHeader(loc.webSearchGroup),
-            ListTile(
+            SettingsSection(loc.webSearchGroup),
+            SettingTile(
               leading: const Icon(Icons.travel_explore),
-              title: Row(
-                children: [
-                  Flexible(child: Text(loc.webSearchDefaultTitle)),
-                  HintButton(
-                    title: loc.webSearchDefaultTitle,
-                    description: loc.webSearchDefaultHint,
-                  ),
-                ],
-              ),
-              subtitle: Text(_webSearchDefaultName ??
-                  loc.appSettingsNotConfigured),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => guardedOpen(_pickWebSearchDefault),
+              title: loc.webSearchDefaultTitle,
+              hint: loc.webSearchDefaultHint,
+              subtitle: _webSearchDefaultName ?? loc.appSettingsNotConfigured,
+              control: Opens(() => guardedOpen(_pickWebSearchDefault)),
             ),
-            const SiteSearchListTile(formatCount: formatSettingsCount),
+            DatasetTile(
+              create: SiteSearchListDataset.new,
+              icon: Icons.manage_search,
+              title: loc.webSearchSiteListTitle,
+              hint: loc.webSearchSiteListHint,
+            ),
           ],
           const SizedBox(height: 24),
         ],

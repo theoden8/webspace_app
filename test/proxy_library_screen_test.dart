@@ -6,13 +6,14 @@ import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/proxy_health_service.dart';
 import 'package:webspace/services/proxy_test_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
+import 'helpers/localized.dart';
 
 class _MemoryStore extends ProxyLibraryStore {
   _MemoryStore(this.data);
@@ -62,15 +63,7 @@ ProxyLibraryData _library() => ProxyLibraryData(
     );
 
 Future<void> _pump(WidgetTester tester, Widget home) async {
-  tester.view.physicalSize = const Size(1000, 2400);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-  await tester.pumpWidget(MaterialApp(
-    localizationsDelegates: AppLocalizations.localizationsDelegates,
-    supportedLocales: AppLocalizations.supportedLocales,
-    home: home,
-  ));
+  await pumpLocalized(tester, home, size: const Size(1000, 2400));
   await tester.pumpAndSettle();
 }
 
@@ -469,17 +462,13 @@ void main() {
         probed.add(s.address);
         return const ProxyTestResult(ProxyTestOutcome.reachable);
       });
-      Widget at(String address) => MaterialApp(
-            localizationsDelegates: AppLocalizations.localizationsDelegates,
-            supportedLocales: AppLocalizations.supportedLocales,
-            home: Scaffold(
-              body: ProxyStatusIndicator(
-                service: service,
-                proxy:
-                    UserProxySettings(type: ProxyType.SOCKS5, address: address),
-              ),
-            ),
-          );
+      Widget at(String address) => localizedApp(Scaffold(
+        body: ProxyStatusIndicator(
+          service: service,
+          proxy:
+              UserProxySettings(type: ProxyType.SOCKS5, address: address),
+        ),
+      ));
       await tester.pumpWidget(at('10.0.0.1:1'));
       await tester.pump();
       expect(probed, ['10.0.0.1:1']);

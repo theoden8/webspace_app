@@ -222,7 +222,7 @@ than an error
 ### Requirement: HTTPS-005 - A global default-on knob, with a per-site override
 
 The upgrade SHALL be controlled by a global `httpsUpgradeEnabled` preference
-registered in `kExportedAppPrefs` with the default `true`, and a per-site
+registered in `AppPref` with the default `true`, and a per-site
 `WebViewModel.httpsUpgradeEnabled` override for a site that has no TLS at all.
 
 The per-site value SHALL ride `toJson`/`fromJson`, the `WebViewConfig`, the
@@ -244,6 +244,13 @@ upgrades is the same silent bypass that checklist exists to prevent.
 **Given** a site with `httpsUpgradeEnabled` false and the umbrella off
 **When** it navigates to an http URL
 **Then** the navigation is not upgraded
+
+#### Scenario: A site override goes back to following the app
+
+**Given** a site whose own HTTPS upgrade value is on while the app-wide one is off
+**When** the user picks "App default (Off)" on the site's Privacy screen
+**Then** the site stores no value of its own (`httpsUpgradeEnabled` null)
+**And** it follows the app-wide value from then on, whichever way that changes
 
 #### Scenario: The global default survives a backup round-trip
 

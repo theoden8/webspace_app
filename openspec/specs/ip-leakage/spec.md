@@ -159,8 +159,8 @@ notification, rather than fetching direct
 
 **Given** the app-global outbound proxy is `SOCKS5 127.0.0.1:9050`
 **When** `getPageTitle` runs — from add-site, the title refresh in the site
-editor, the shortcut create-site path, or `_executeCreateSite` handling an
-inbound shared link
+editor, the shortcut create-site path, or `LinkController._executeCreateSite`
+handling an inbound shared link
 **Then** the recording fake observes `clientFor(SOCKS5 127.0.0.1:9050)` for a
 site whose proxy is `DEFAULT`, and the site's own proxy otherwise
 **And** a `Blocked` result skips the title fetch and returns null
@@ -394,7 +394,7 @@ not in the subtitle
 
 The app-global outbound proxy SHALL be persisted under the SharedPreferences
 key `globalOutboundProxy` as a JSON-encoded `UserProxySettings`. The key
-SHALL be registered in `kExportedAppPrefs` so it round-trips through
+SHALL be registered in `AppPref` so it round-trips through
 settings backup / restore. The in-memory cache (`GlobalOutboundProxy.current`)
 SHALL be initialized at app startup before any service that may emit
 outbound traffic runs.
@@ -821,7 +821,7 @@ address.
 ### Created
 - `lib/services/outbound_http.dart` — `OutboundHttpFactory`, default impl,
   `resolveEffectiveProxy`, test override hook.
-- `lib/settings/global_outbound_proxy.dart` — persistence + in-memory
+- `lib/services/global_outbound_proxy.dart` — persistence + in-memory
   cache for the app-global outbound proxy.
 - `test/outbound_http_test.dart` — unit tests for the factory, host:port
   parser, persistence, and `resolveEffectiveProxy`.

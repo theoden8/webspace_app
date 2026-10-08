@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -31,14 +30,15 @@ void main() {
           buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!,
       'anti_fingerprinting': buildAntiFingerprintingShim('seed'),
       'webgl_kill_switch': webGlKillSwitchScript,
-      'location_timezone': LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: 'UTC',
-        webRtcPolicy: WebRtcPolicy.disabled,
-      ),
+      'location_timezone': LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: 'UTC',
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.disabled,
+      )),
     };
 
     for (final entry in workerScopeShims.entries) {
@@ -190,14 +190,15 @@ void main() {
     });
 
     test('the zone-less payload is inert in worker scope', () {
-      final shim = LocationSpoofService.buildScript(
-        locationMode: LocationMode.off,
-        spoofLatitude: null,
-        spoofLongitude: null,
-        spoofAccuracy: 50.0,
-        spoofTimezone: null,
-        webRtcPolicy: WebRtcPolicy.defaultPolicy,
-      );
+      final shim = LocationSpoofService.buildScript((
+        mode: LocationMode.off,
+        latitude: null,
+        longitude: null,
+        accuracy: 50.0,
+        timezone: null,
+        granularity: LocationGranularity.gps,
+        webRtc: WebRtcPolicy.defaultPolicy,
+      ));
       expect(shim, contains('var TZ = null;'));
       // Geolocation is absent from WorkerNavigator and WebRTC is gated on
       // !IS_WORKER, so with TZ off nothing below applies there.
@@ -206,16 +207,32 @@ void main() {
       expect(shim, contains('&& navigator.geolocation) {'));
     });
 
-    test('webview.dart gates the propagation on that', () {
-      final source = File('lib/services/webview.dart').readAsStringSync();
-      final flat = source.replaceAll(RegExp(r'\s+'), ' ');
-      expect(
-        flat,
-        contains('if (LocationSpoofService.affectsWorkerScope('
-            'effectiveSpoofTimezone)) { workerScopeShims.add(locationShim); }'),
-        reason: 'an unguarded add puts the blob wrapper on every site, which '
-            'WORK-006 forbids',
-      );
+    ScopedShims scoped({String? timezone, String? language}) => (
+          webGl: null,
+          antiFingerprinting: null,
+          identity: null,
+          location: 'LOCATION',
+          timezone: timezone,
+          language: language,
+        );
+
+    test('the worker payload carries the location shim only with a zone', () {
+      expect(workerScopeBodies(scoped()), isEmpty,
+          reason: 'an unguarded add puts the blob wrapper on every site');
+      expect(buildWorkerShimScript(workerScopeBodies(scoped())), isNull);
+      expect(workerScopeBodies(scoped(timezone: 'UTC')), ['LOCATION']);
     });
+  });
+
+  test('worker bodies keep page-injection order', () {
+    final bodies = workerScopeBodies((
+      webGl: 'A',
+      antiFingerprinting: 'B',
+      identity: 'C',
+      location: 'D',
+      timezone: 'Asia/Tokyo',
+      language: 'E',
+    ));
+    expect(bodies, ['A', 'B', 'C', 'D', 'E']);
   });
 }

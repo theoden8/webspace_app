@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/http_auth_engine.dart';
+import 'package:webspace/services/url_host.dart';
 
 /// Models the store's contract: one credential per (siteId, host, realm).
 class _MemoryStore implements HttpAuthCredentialStore {
@@ -13,19 +14,19 @@ class _MemoryStore implements HttpAuthCredentialStore {
 
   @override
   Future<HttpAuthCredential?> lookup(
-      String siteId, String host, String realm) async {
+      String siteId, Host host, String realm) async {
     lookups++;
     return entries[_key(siteId, host, realm)];
   }
 
   @override
-  Future<void> save(String siteId, String host, String realm,
+  Future<void> save(String siteId, Host host, String realm,
       HttpAuthCredential credential) async {
     entries[_key(siteId, host, realm)] = credential;
   }
 
   @override
-  Future<void> remove(String siteId, String host, String realm) async {
+  Future<void> remove(String siteId, Host host, String realm) async {
     entries.remove(_key(siteId, host, realm));
   }
 }

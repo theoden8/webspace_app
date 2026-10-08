@@ -11,10 +11,8 @@ import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHostsKey;
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/camera.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/pref_read.dart';
+import 'package:webspace/settings/capture.dart';
+import 'package:webspace/settings/site_permission_state.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/web_view_model.dart';
@@ -169,6 +167,15 @@ Set<String> _readKeys(String text) => {
         (m.group(1) ?? m.group(2))!,
     };
 
+/// The keys [CaptureGrants.fromJson] reads, which come from [CaptureKind]
+/// rather than from literals a scan can find.
+final Set<String> _captureKeysRead = {
+  for (final kind in CaptureKind.values) ...[
+    ...kind.jsonKeys,
+    ?kind.legacyAllowedKey,
+  ],
+};
+
 /// Every JSON key the backup, site, webspace and nested parsers read, taken
 /// from their source so a rename that forgets the old name shows up.
 final Set<String> _keysRead = {
@@ -182,24 +189,28 @@ final Set<String> _keysRead = {
     'lib/services/site_tab.dart',
     'lib/settings/proxy.dart',
     'lib/settings/user_script.dart',
-    'lib/settings/virtual_visual_source.dart',
-    'lib/settings/camera.dart',
-    'lib/settings/microphone.dart',
-    'lib/settings/screen_share.dart',
+    'lib/settings/capture.dart',
   ])
     ..._readKeys(File(f).readAsStringSync()),
+  ..._captureKeysRead,
   ..._readKeys(_region('lib/services/webview.dart', 'Cookie cookieFromJson(', ');\n')),
   ..._matches(
       _region('lib/services/settings_backup.dart', 'for (final key in const [', ']'),
       r"'(\w+)'"),
 };
 
-/// `globalPrefs` keys an import applies: the registry plus the old names
-/// `resolveExportedAppPrefs` still reads.
-final Set<String> _prefKeysRead = {
-  ...kExportedAppPrefs.keys,
-  ..._readKeys(File('lib/settings/app_prefs.dart').readAsStringSync()),
+/// Every registered pref's key and default.
+final Map<String, Object> _defaults = {
+  for (final p in AppPref.values) p.key: p.fallback,
 };
+
+/// The old names `resolveExportedAppPrefs` still reads.
+final Set<String> _legacyPrefKeys = {
+  for (final p in AppPref.values) ?p.legacyKey,
+};
+
+/// `globalPrefs` keys an import applies.
+final Set<String> _prefKeysRead = {..._defaults.keys, ..._legacyPrefKeys};
 
 SettingsBackup _reexport(SettingsImportPlan plan) =>
     SettingsBackupService.createBackup(
@@ -236,9 +247,10 @@ void _expectSanitised(SettingsImportPlan plan, {required String reason}) {
     expect(site.proxySettings.password, isNull, reason: reason);
     expect(site.enabledGlobalScriptIds, isEmpty, reason: reason);
     expect(site.userScripts.where((s) => s.enabled), isEmpty, reason: reason);
-    expect(site.cameraMode, isNot(CameraAccessMode.real), reason: reason);
-    expect(site.microphoneMode, isNot(MicrophoneAccessMode.real),
-        reason: reason);
+    for (final kind in CaptureKind.values) {
+      expect(kind.grantOf(site.captures).mode.state,
+          isNot(SitePermissionState.allowed), reason: reason);
+    }
     expect(site.locationMode, isNot(LocationMode.live), reason: reason);
     expect(site.notificationsEnabled, isFalse, reason: reason);
     expect(site.backgroundAudioEnabled, isFalse, reason: reason);
@@ -248,13 +260,13 @@ void _expectSanitised(SettingsImportPlan plan, {required String reason}) {
       reason: reason);
   expect(plan.appPrefs.containsKey(kTrustedHostsKey), isFalse, reason: reason);
   expect(
-    (plan.appPrefs[kGlobalOutboundProxyKey] as String).contains('"password"'),
+    (plan.appPrefs[AppPref.globalOutboundProxy.key] as String).contains('"password"'),
     isFalse,
     reason: reason,
   );
-  expect(plan.appPrefs.keys.toSet(), kExportedAppPrefs.keys.toSet(),
+  expect(plan.appPrefs.keys.toSet(), _defaults.keys.toSet(),
       reason: reason);
-  for (final e in kExportedAppPrefs.entries) {
+  for (final e in _defaults.entries) {
     expect(plan.appPrefs[e.key].runtimeType, e.value.runtimeType,
         reason: '$reason: ${e.key} has the wrong type');
   }
@@ -309,7 +321,7 @@ void main() {
               if (_retiredKeys.containsKey(key)) continue;
               if (at.endsWith('globalPrefs')) {
                 if (!_prefKeysRead.contains(key)) unread.add(where);
-                if (key == kGlobalOutboundProxyKey && e.value is String) {
+                if (key == AppPref.globalOutboundProxy.key && e.value is String) {
                   walk(jsonDecode(e.value as String), where);
                 }
                 continue;
@@ -444,13 +456,13 @@ void main() {
 
       test('app prefs keep every value the release wrote', () {
         final want = _superset['globalPrefs'] as Map<String, dynamic>;
-        for (final e in kExportedAppPrefs.entries) {
+        for (final e in _defaults.entries) {
           final key = e.key;
           final got = plan.appPrefs[key];
           if (!backup.globalPrefs.containsKey(key)) {
             expect(got, e.value,
                 reason: '$tag: "$key" is absent and must take the default');
-          } else if (key == kGlobalOutboundProxyKey) {
+          } else if (key == AppPref.globalOutboundProxy.key) {
             final proxy = jsonDecode(got as String) as Map<String, dynamic>;
             final wanted = want[key] as Map<String, dynamic>;
             expect(proxy['type'], wanted['type'], reason: tag);
@@ -575,14 +587,18 @@ void main() {
         };
 
     test('cameraAllowed maps to a camera mode, and a grant resets to ask', () {
-      expect(WebViewModel.fromJson(site({'cameraAllowed': true}), null).cameraMode,
+      expect(
+          WebViewModel.fromJson(site({'cameraAllowed': true}), null)
+              .captures
+              .camera
+              .mode,
           CameraAccessMode.real);
       final plan = _planFromJson(backupOf([
         site({'cameraAllowed': true}),
         site({'cameraAllowed': false}),
       ]));
-      expect(plan.sites[0].cameraMode, CameraAccessMode.ask);
-      expect(plan.sites[1].cameraMode, CameraAccessMode.block);
+      expect(plan.sites[0].captures.camera.mode, CameraAccessMode.ask);
+      expect(plan.sites[1].captures.camera.mode, CameraAccessMode.block);
     });
 
     test('backgroundPoll maps to notifications, then resets on import', () {
@@ -785,17 +801,17 @@ void main() {
       expect(p.appPrefs['tabMaxWidth'], 180);
       expect(p.appPrefs['showTabStrip'], false);
       expect(p.appPrefs['appLocaleOverride'], '');
-      expect(p.appPrefs['osmTileUrl'], kExportedAppPrefs['osmTileUrl']);
+      expect(p.appPrefs['osmTileUrl'], _defaults['osmTileUrl']);
       // A file can spell a number JSON-encoding cannot produce.
       final overflow = SettingsBackupService.importFromJson(
           '{"sites": [], "webspaces": [], "globalPrefs": {"tabMaxWidth": 1e400}}');
       expect(planSettingsImport(overflow!).appPrefs['tabMaxWidth'],
-          kExportedAppPrefs['tabMaxWidth']);
+          _defaults['tabMaxWidth']);
       for (final width in [180.5, 'wide', true]) {
         expect(
           plan(backupOf(extra: {'globalPrefs': {'tabMaxWidth': width}}))
               .appPrefs['tabMaxWidth'],
-          kExportedAppPrefs['tabMaxWidth'],
+          _defaults['tabMaxWidth'],
           reason: 'tabMaxWidth $width',
         );
       }
@@ -804,7 +820,7 @@ void main() {
     test('the app-wide proxy cannot bring a password', () {
       final p = plan(backupOf(extra: {
         'globalPrefs': {
-          kGlobalOutboundProxyKey: jsonEncode({
+          AppPref.globalOutboundProxy.key: jsonEncode({
             'type': ProxyType.SOCKS5.index,
             'address': 'attacker.example:1080',
             'username': 'u',
@@ -812,15 +828,15 @@ void main() {
           }),
         },
       }));
-      final stored = p.appPrefs[kGlobalOutboundProxyKey] as String;
+      final stored = p.appPrefs[AppPref.globalOutboundProxy.key] as String;
       expect(stored.contains('global-proxy-password-needle-9e2d'), isFalse);
       expect(jsonDecode(stored)['address'], 'attacker.example:1080');
       expect(p.proxyPasswordsNeeded, isTrue);
       for (final junk in ['', 'not json', '[1]', '42']) {
         final q = plan(backupOf(extra: {
-          'globalPrefs': {kGlobalOutboundProxyKey: junk},
+          'globalPrefs': {AppPref.globalOutboundProxy.key: junk},
         }));
-        expect(q.appPrefs[kGlobalOutboundProxyKey], junk);
+        expect(q.appPrefs[AppPref.globalOutboundProxy.key], junk);
       }
     });
 
@@ -949,7 +965,7 @@ void main() {
       expect(hostile.customIconPng, isNull);
       expect(hostile.dnsBlockLevel, isNull);
       expect(hostile.proxySettings.type, ProxyType.DEFAULT);
-      expect(hostile.virtualCameraSource, isNull);
+      expect(hostile.captures.camera.source, isNull);
       expect(hostile.toJson()['screenShareMode'], isNull,
           reason: 'there is no real screen-share mode to restore');
     });
@@ -1112,32 +1128,21 @@ void main() {
     // JSON type. The typed getters throw on those; startup must not.
     setUp(() {
       SharedPreferences.setMockInitialValues({
-        for (final e in kExportedAppPrefs.entries)
+        for (final e in _defaults.entries)
           e.key: e.value is String ? 42 : 'not-${e.value.runtimeType}',
       });
     });
 
     test('readExportedAppPrefs falls back to every default', () async {
       final prefs = await SharedPreferences.getInstance();
-      expect(readExportedAppPrefs(prefs), kExportedAppPrefs);
+      expect(readExportedAppPrefs(prefs), _defaults);
     });
 
-    test('readPrefAs never throws', () async {
-      final prefs = await SharedPreferences.getInstance();
-      for (final key in kExportedAppPrefs.keys) {
-        expect(readPrefAs<bool>(prefs, key), isNull);
-        expect(readPrefAs<int>(prefs, key), anyOf(isNull, 42));
+    test('the values the app runs with take every default', () async {
+      AppPref.loadAll(await SharedPreferences.getInstance());
+      for (final p in AppPref.values) {
+        expect(p.value, p.fallback, reason: p.key);
       }
-    });
-
-    test('startup reads exported prefs only through readPrefAs', () {
-      final restore = _region('lib/main.dart',
-          'Future<void> _restoreAppState() async {', 'await _loadWebspaces();');
-      expect(
-        RegExp(r'prefs\.get(Bool|Int|Double|String|StringList)\(').hasMatch(restore),
-        isFalse,
-        reason: 'a typed getter throws on a mistyped stored value',
-      );
     });
   });
 
@@ -1154,8 +1159,8 @@ void main() {
       webspaces: [Webspace.all()],
       themeMode: 0,
       globalPrefs: {
-        kGlobalOutboundProxyKey: jsonEncode(
-            (_superset['globalPrefs'] as Map)[kGlobalOutboundProxyKey]),
+        AppPref.globalOutboundProxy.key: jsonEncode(
+            (_superset['globalPrefs'] as Map)[AppPref.globalOutboundProxy.key]),
         kTrustedHostsKey: (_superset['globalPrefs'] as Map)[kTrustedHostsKey],
       },
       globalUserScripts: [
@@ -1219,9 +1224,11 @@ void main() {
             r"'(\w+)'"),
         ..._readKeys(_region(
             'lib/webspace_model.dart', 'factory Webspace.fromJson(', '\n  }\n')),
-        ..._readKeys(File('lib/settings/app_prefs.dart').readAsStringSync()),
+        ..._legacyPrefKeys,
+        ..._captureKeysRead,
       };
       final writes = {
+        for (final kind in CaptureKind.values) ...kind.jsonKeys,
         ..._matches(
             _region('lib/web_view_model.dart', "'siteId': siteId",
                 'factory WebViewModel.fromJson('),
@@ -1234,7 +1241,7 @@ void main() {
             _region('lib/webspace_model.dart', 'Map<String, dynamic> toJson()',
                 '};'),
             r"'(\w+)':"),
-        ...kExportedAppPrefs.keys,
+        ..._defaults.keys,
       };
       final legacy = reads.difference(writes);
       expect(legacy, isNotEmpty, reason: 'the scan found nothing to check');

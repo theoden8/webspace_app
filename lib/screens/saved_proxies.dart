@@ -6,8 +6,10 @@ import 'package:webspace/services/proxy_form_engine.dart';
 import 'package:webspace/services/proxy_health_service.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/dirty_guard.dart';
 import 'package:webspace/widgets/hint_button.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
@@ -309,21 +311,39 @@ class _Edit<E> {
   final bool deleted;
 }
 
+/// What each library editor is handed: the entry, null for a new one, and
+/// what uses it, which the delete confirmation names.
+abstract class _LibraryEditor<E> extends StatefulWidget {
+  const _LibraryEditor({
+    super.key,
+    this.initial,
+    this.usageCount = 0,
+    this.usedByAppWide = false,
+  });
+
+  final E? initial;
+  final int usageCount;
+  final bool usedByAppWide;
+}
+
 /// Shared by the three editors: the name field, the save and delete actions,
 /// the delete confirmation and the guard against losing unsaved edits.
-abstract class _EditorState<W extends StatefulWidget, E> extends State<W> {
+abstract class _EditorState<W extends _LibraryEditor<E>, E> extends State<W>
+    with DirtyGuard<W> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _name;
-  late final Map<String, Object?> _initial;
 
   String get entryId;
   String? get initialName;
-  bool get isNew;
+  bool get isNew => widget.initial == null;
   String newTitle(AppLocalizations loc);
-  int get usageCount;
-  bool get usedByAppWide;
   List<TextEditingController> get fields;
-  Map<String, Object?> snapshot();
+
+  /// The entry's own fields, as a record.
+  Record form();
+
+  @override
+  Record snapshot() => (_name.text, form());
   E entry();
   List<Widget> body(AppLocalizations loc);
 
@@ -334,7 +354,7 @@ abstract class _EditorState<W extends StatefulWidget, E> extends State<W> {
   void initState() {
     super.initState();
     _name = TextEditingController(text: initialName ?? '');
-    _initial = {'name': _name.text, ...snapshot()};
+    markClean();
     for (final c in [_name, ...fields]) {
       c.addListener(_changed);
     }
@@ -354,11 +374,6 @@ abstract class _EditorState<W extends StatefulWidget, E> extends State<W> {
 
   String get name => _name.text.trim();
 
-  bool get _dirty {
-    final now = {'name': _name.text, ...snapshot()};
-    return now.keys.any((k) => now[k] != _initial[k]);
-  }
-
   void _save() {
     final fieldsOk = _formKey.currentState?.validate() ?? false;
     final moreOk = validateMore();
@@ -371,78 +386,26 @@ abstract class _EditorState<W extends StatefulWidget, E> extends State<W> {
 
   Future<void> _delete() async {
     final loc = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.savedProxyDeleteTitle(
-            name.isEmpty ? (initialName ?? '') : name)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(loc.savedProxyDeleteBody(usageCount)),
-            if (usedByAppWide) ...[
-              const SizedBox(height: Spacing.md),
-              Text(loc.savedProxyDeleteAppWide),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              loc.commonDelete,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
+    final confirmed = await confirm(
+      context,
+      title: loc.savedProxyDeleteTitle(
+          name.isEmpty ? (initialName ?? '') : name),
+      body: [
+        loc.savedProxyDeleteBody(widget.usageCount),
+        if (widget.usedByAppWide) loc.savedProxyDeleteAppWide,
+      ].join('\n\n'),
+      confirmLabel: loc.commonDelete,
+      destructive: true,
     );
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       Navigator.pop(context, _Edit<E>.deleted(entryId));
     }
-  }
-
-  Future<bool> _confirmDiscard() async {
-    final loc = AppLocalizations.of(context);
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.appSettingsDiscardChangesTitle),
-        content: Text(loc.appSettingsDiscardProxyBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.appSettingsKeepEditing),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              loc.appSettingsDiscard,
-              style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-            ),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    return PopScope(
-      canPop: !_dirty,
-      onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) return;
-        if (await _confirmDiscard() && context.mounted) {
-          Navigator.of(context).pop();
-        }
-      },
+    return guardPop(
       child: Scaffold(
         appBar: AppBar(
           title: Text(isNew ? newTitle(loc) : (initialName ?? '')),
@@ -488,19 +451,16 @@ abstract class _EditorState<W extends StatefulWidget, E> extends State<W> {
 /// A saved proxy: a gateway (typed, or a saved one) and credentials (typed,
 /// or saved ones that list the gateway). With both typed it is simply a
 /// proxy.
-class SavedProxyEditScreen extends StatefulWidget {
+class SavedProxyEditScreen extends _LibraryEditor<SavedProxy> {
   const SavedProxyEditScreen({
     super.key,
-    this.initial,
+    super.initial,
     required this.library,
-    this.usageCount = 0,
-    this.usedByAppWide = false,
+    super.usageCount,
+    super.usedByAppWide,
   });
 
-  final SavedProxy? initial;
   final ProxyLibraryData library;
-  final int usageCount;
-  final bool usedByAppWide;
 
   @override
   State<SavedProxyEditScreen> createState() => _SavedProxyEditScreenState();
@@ -523,25 +483,19 @@ class _SavedProxyEditScreenState
   @override
   String? get initialName => widget.initial?.name;
   @override
-  bool get isNew => widget.initial == null;
-  @override
   String newTitle(AppLocalizations loc) => loc.savedProxyNew;
-  @override
-  int get usageCount => widget.usageCount;
-  @override
-  bool get usedByAppWide => widget.usedByAppWide;
   @override
   List<TextEditingController> get fields => [_address, _username, _password];
 
   @override
-  Map<String, Object?> snapshot() => {
-        'type': _type,
-        'gatewayId': _gatewayId,
-        'credentialsId': _credentialsId,
-        'address': _address.text,
-        'username': _username.text,
-        'password': _password.text,
-      };
+  Record form() => (
+        type: _type,
+        gatewayId: _gatewayId,
+        credentialsId: _credentialsId,
+        address: _address.text,
+        username: _username.text,
+        password: _password.text,
+      );
 
   UserProxySettings _settings() => applyProxyForm(
         stored: UserProxySettings(type: _type),
@@ -602,17 +556,13 @@ class _SavedProxyEditScreenState
 }
 
 /// A gateway: type and `host:port`.
-class SavedGatewayEditScreen extends StatefulWidget {
+class SavedGatewayEditScreen extends _LibraryEditor<SavedGateway> {
   const SavedGatewayEditScreen({
     super.key,
-    this.initial,
-    this.usageCount = 0,
-    this.usedByAppWide = false,
+    super.initial,
+    super.usageCount,
+    super.usedByAppWide,
   });
-
-  final SavedGateway? initial;
-  final int usageCount;
-  final bool usedByAppWide;
 
   @override
   State<SavedGatewayEditScreen> createState() =>
@@ -630,18 +580,12 @@ class _SavedGatewayEditScreenState
   @override
   String? get initialName => widget.initial?.name;
   @override
-  bool get isNew => widget.initial == null;
-  @override
   String newTitle(AppLocalizations loc) => loc.proxyLibraryNewGateway;
-  @override
-  int get usageCount => widget.usageCount;
-  @override
-  bool get usedByAppWide => widget.usedByAppWide;
   @override
   List<TextEditingController> get fields => [_address];
 
   @override
-  Map<String, Object?> snapshot() => {'type': _type, 'address': _address.text};
+  Record form() => (type: _type, address: _address.text);
 
   @override
   SavedGateway entry() => SavedGateway(
@@ -686,19 +630,16 @@ class _SavedGatewayEditScreenState
 
 /// Credentials: a username and password, and the saved gateways they sign in
 /// on. Nothing pairs them with any other gateway.
-class SavedCredentialsEditScreen extends StatefulWidget {
+class SavedCredentialsEditScreen extends _LibraryEditor<SavedCredentials> {
   const SavedCredentialsEditScreen({
     super.key,
-    this.initial,
+    super.initial,
     required this.gateways,
-    this.usageCount = 0,
-    this.usedByAppWide = false,
+    super.usageCount,
+    super.usedByAppWide,
   });
 
-  final SavedCredentials? initial;
   final List<SavedGateway> gateways;
-  final int usageCount;
-  final bool usedByAppWide;
 
   @override
   State<SavedCredentialsEditScreen> createState() =>
@@ -722,22 +663,16 @@ class _SavedCredentialsEditScreenState
   @override
   String? get initialName => widget.initial?.name;
   @override
-  bool get isNew => widget.initial == null;
-  @override
   String newTitle(AppLocalizations loc) => loc.proxyLibraryNewCredentials;
-  @override
-  int get usageCount => widget.usageCount;
-  @override
-  bool get usedByAppWide => widget.usedByAppWide;
   @override
   List<TextEditingController> get fields => [_username, _password];
 
   @override
-  Map<String, Object?> snapshot() => {
-        'username': _username.text,
-        'password': _password.text,
-        'gateways': (_gatewayIds.toList()..sort()).join(','),
-      };
+  Record form() => (
+        username: _username.text,
+        password: _password.text,
+        gateways: ValueSet(_gatewayIds),
+      );
 
   @override
   bool validateMore() {

@@ -35,9 +35,7 @@ class SiteTeardownResult {
 }
 
 /// Quiesces the site the user is leaving — the step sequence shared by a site
-/// switch and a return to the webspace list, extracted from
-/// `_WebSpacePageState._setCurrentIndex` so the "what may abandon this
-/// sequence, and what may it cost" rules can be exercised headlessly.
+/// switch and a return to the webspace list.
 ///
 /// Every step is a native round-trip that can stall for as long as the page
 /// wants: on iOS the per-instance pause freezes the page's JS thread (the

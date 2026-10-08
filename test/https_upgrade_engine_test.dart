@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/https_upgrade_engine.dart';
-import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -96,6 +95,8 @@ void main() {
       expect(up('http://intranet.example/other'), isNull);
       // Case-insensitively, and for the site's other paths.
       expect(up('http://INTRANET.EXAMPLE/'), isNull);
+      // And in its fully qualified form, which names the same host.
+      expect(up('http://intranet.example./'), isNull);
       // A different host is unaffected.
       expect(up('http://other.example/'), 'https://other.example/');
     });
@@ -279,8 +280,8 @@ void main() {
   // and a site would quietly go back to plaintext the moment its owner turned
   // Tracking Protection on.
   group('HTTPS-005 / ETP-030 the effective decision', () {
-    final appDefault = WebViewFactory.httpsUpgradeEnabled;
-    tearDown(() => WebViewFactory.httpsUpgradeEnabled = appDefault);
+    final appDefault = AppPref.httpsUpgradeEnabled.value;
+    tearDown(() => AppPref.httpsUpgradeEnabled.debugValue = appDefault);
 
     WebViewModel site({bool? override, bool umbrella = false}) => WebViewModel(
           initUrl: 'https://example.com',
@@ -289,21 +290,21 @@ void main() {
         );
 
     test('a site with no override follows the app-wide default', () {
-      WebViewFactory.httpsUpgradeEnabled = true;
+      AppPref.httpsUpgradeEnabled.debugValue = true;
       expect(site().effectiveHttpsUpgradeEnabled, isTrue);
-      WebViewFactory.httpsUpgradeEnabled = false;
+      AppPref.httpsUpgradeEnabled.debugValue = false;
       expect(site().effectiveHttpsUpgradeEnabled, isFalse);
     });
 
     test('an override wins over the app-wide default, both ways', () {
-      WebViewFactory.httpsUpgradeEnabled = false;
+      AppPref.httpsUpgradeEnabled.debugValue = false;
       expect(site(override: true).effectiveHttpsUpgradeEnabled, isTrue);
-      WebViewFactory.httpsUpgradeEnabled = true;
+      AppPref.httpsUpgradeEnabled.debugValue = true;
       expect(site(override: false).effectiveHttpsUpgradeEnabled, isFalse);
     });
 
     test('the umbrella forces it ON, never off', () {
-      WebViewFactory.httpsUpgradeEnabled = false;
+      AppPref.httpsUpgradeEnabled.debugValue = false;
       expect(site(override: false, umbrella: true).effectiveHttpsUpgradeEnabled,
           isTrue,
           reason: 'ETP-030 forces the upgrade on; the third-party-cookie '
@@ -312,7 +313,7 @@ void main() {
     });
 
     test('turning the umbrella off restores the stored value, not false', () {
-      WebViewFactory.httpsUpgradeEnabled = true;
+      AppPref.httpsUpgradeEnabled.debugValue = true;
       expect(site(override: true, umbrella: false).effectiveHttpsUpgradeEnabled,
           isTrue,
           reason: 'turning Tracking Protection off to debug a site must not '
@@ -320,7 +321,7 @@ void main() {
     });
 
     test('the pref the default comes from is registered and on', () {
-      expect(kExportedAppPrefs[kHttpsUpgradeEnabledKey], isTrue);
+      expect(AppPref.httpsUpgradeEnabled.fallback, isTrue);
     });
 
     test('the per-site override round-trips through JSON', () {

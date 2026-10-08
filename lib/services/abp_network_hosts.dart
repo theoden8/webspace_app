@@ -145,8 +145,3 @@ AbpNetworkPrefilter parseAbpNetworkPrefilter(String filterText) {
   }
   return (hosts: hosts, tokens: tokens, hasUntokenizable: hasUntokenizable);
 }
-
-/// Hosts named by anchored `||host^` network-block rules. Thin wrapper
-/// over [parseAbpNetworkPrefilter] for callers that only need hosts.
-Set<String> extractAbpNetworkBlockHosts(String filterText) =>
-    parseAbpNetworkPrefilter(filterText).hosts;

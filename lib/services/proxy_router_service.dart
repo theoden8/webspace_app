@@ -46,10 +46,9 @@ typedef ProxyRouterOverrideBinder = Future<bool> Function(
 /// answering a `407`. The relay itself is the in-process
 /// [`LocalProxyRelay`] instead of the Kotlin plugin.
 ///
-/// This used to add that whether `WKWebsiteDataStore.proxyConfigurations`
-/// carries two different proxies at once was open. It is not: BUG-014
-/// attempt 80 measured four container stores reaching four distinct
-/// upstreams in one frame, two of them separated only by the credential
+/// `WKWebsiteDataStore.proxyConfigurations` carries two different proxies
+/// at once: BUG-014 attempt 80 measured four container stores reaching four
+/// distinct upstreams in one frame, two of them separated only by the credential
 /// they presented to one relay endpoint, which is this design end to end.
 ///
 /// Gated on container mode. Chromium caches a proxy credential per
@@ -74,12 +73,10 @@ class ProxyRouterService {
   String? _host;
   int? _port;
 
-  /// Test seam: swap the platform-channel relay for a fake.
   void setRelayForTest(ProxyRelayApi relay) {
     _relayOverride = relay;
   }
 
-  /// Reset to the pre-activation state. Tests only.
   void resetForTest() {
     _state = null;
     _host = null;
@@ -222,12 +219,9 @@ class ProxyRouterService {
     final state = _state ?? ProxyRouterState();
     final endpoint = await _relay.startRouter(state.realm);
     if (endpoint == null) {
-      LogService.instance.log(
-        'Proxy',
-        'Router relay failed to bind (${_relay.lastError ?? 'no reason reported'}); '
-            'falling back to serialised per-site proxy',
-        level: LogLevel.error,
-      );
+      LogTag.proxy.error(
+          'Router relay failed to bind (${_relay.lastError ?? 'no reason reported'}); '
+          'falling back to serialised per-site proxy');
       return null;
     }
     final port = endpoint.port;
@@ -236,11 +230,8 @@ class ProxyRouterService {
     _port = port;
     final installed = await _installRoutes(perSiteProxies);
     if (!installed) {
-      LogService.instance.log(
-        'Proxy',
-        'Relay rejected the route table; not activating router mode',
-        level: LogLevel.error,
-      );
+      LogTag.proxy.error(
+          'Relay rejected the route table; not activating router mode');
       _host = null;
       _port = null;
       return null;
@@ -250,11 +241,8 @@ class ProxyRouterService {
     // there. Binding afterwards makes every probe fail to resolve and
     // router mode unreachable on every device.
     if (bindOverride != null && !await bindOverride(endpoint.host, port)) {
-      LogService.instance.log(
-        'Proxy',
-        'Proxy override did not apply; not activating router mode',
-        level: LogLevel.error,
-      );
+      LogTag.proxy.error(
+          'Proxy override did not apply; not activating router mode');
       await deactivate();
       return null;
     }
@@ -269,13 +257,8 @@ class ProxyRouterService {
       return null;
     }
 
-    LogService.instance.log(
-      'Proxy',
-      'Router mode active on ${endpoint.host}:$port for '
-          '${perSiteProxies.length} site(s)',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info('Router mode active on ${endpoint.host}:$port for '
+        '${perSiteProxies.length} site(s)', sensitive: true);
     return port;
   }
 
@@ -313,12 +296,9 @@ class ProxyRouterService {
           e.key: ProxyRouterEngine.probeUrlFor(e.value),
       });
     } catch (e) {
-      LogService.instance.log(
-        'Proxy',
-        'Attribution probe failed to run ($e); not activating router mode',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'Attribution probe failed to run ($e); not activating router mode',
+          sensitive: true);
       return false;
     }
 
@@ -328,29 +308,19 @@ class ProxyRouterService {
       observed: observed,
     );
     if (failures.isNotEmpty) {
-      LogService.instance.log(
-        'Proxy',
-        'ATTRIBUTION CHECK FAILED for ${failures.length} of ${sites.length} '
-            'site(s); not activating router mode',
-        level: LogLevel.error,
-      );
-      LogService.instance.log(
-        'Proxy',
-        'ATTRIBUTION CHECK FAILED for ${failures.length} site(s): $failures. '
-            'This device did not give each container its own proxy '
-            'credential, so router mode would route sites through each '
-            "other's proxies. Falling back to serialised per-site proxy.",
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'ATTRIBUTION CHECK FAILED for ${failures.length} of ${sites.length} '
+          'site(s); not activating router mode');
+      LogTag.proxy.error(
+          'ATTRIBUTION CHECK FAILED for ${failures.length} site(s): $failures. '
+          'This device did not give each container its own proxy '
+          'credential, so router mode would route sites through each '
+          "other's proxies. Falling back to serialised per-site proxy.",
+          sensitive: true);
       return false;
     }
-    LogService.instance.log(
-      'Proxy',
-      'Attribution verified for ${sites.length} site(s)',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.info(
+        'Attribution verified for ${sites.length} site(s)', sensitive: true);
     return true;
   }
 
@@ -382,22 +352,15 @@ class ProxyRouterService {
     if (wire.length != routes.length) {
       // A route was dropped for a malformed address. Say so: the site is
       // about to be answered 502 rather than quietly sent out direct.
-      LogService.instance.log(
-        'Proxy',
-        'Dropped ${routes.length - wire.length} malformed route(s); '
-            'those sites will fail closed',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'Dropped ${routes.length - wire.length} malformed route(s); '
+          'those sites will fail closed', sensitive: true);
     }
     final ok = await _relay.setRoutes(wire);
     if (!ok) {
-      LogService.instance.log(
-        'Proxy',
-        'Relay rejected the route table; router mode is not active',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'Relay rejected the route table; router mode is not active',
+          sensitive: true);
     }
     return ok;
   }

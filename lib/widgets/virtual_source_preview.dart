@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/services/webview.dart' show WebViewFactory;
-import 'package:webspace/settings/virtual_visual_source.dart';
+import 'package:webspace/settings/capture.dart';
 
 /// Builds the preview page for a video [VirtualVisualSource].
 ///
@@ -20,6 +20,17 @@ String buildVirtualSourcePreviewHtml(String dataUrl,
       '</head><body>'
       '<video src="$dataUrl" autoplay loop muted playsinline></video>'
       '</body></html>';
+}
+
+extension CaptureKindPreview on CaptureKind {
+  /// How the kind's shim fits a picked file into the stream: a camera fills
+  /// its sensor, so the preview shows the crop; a shared surface is served
+  /// whole.
+  ({double aspectRatio, BoxFit fit}) get previewFrame => switch (this) {
+    CaptureKind.camera ||
+    CaptureKind.microphone => (aspectRatio: 4 / 3, fit: BoxFit.cover),
+    CaptureKind.screenShare => (aspectRatio: 16 / 9, fit: BoxFit.contain),
+  };
 }
 
 /// A small preview of the media a site is served in place of a real visual
@@ -58,18 +69,16 @@ class VirtualSourcePreview extends StatelessWidget {
                       dataUrl: source.dataUrl,
                       objectFit: fit == BoxFit.contain ? 'contain' : 'cover',
                     )
-                  : _imagePreview(),
+                  : switch (source.bytes) {
+                      final bytes? =>
+                        Image.memory(bytes, fit: fit, gaplessPlayback: true),
+                      null => const SizedBox.shrink(),
+                    },
             ),
           ),
         ),
       ),
     );
-  }
-
-  Widget _imagePreview() {
-    final bytes = source.bytes;
-    if (bytes == null) return const SizedBox.shrink();
-    return Image.memory(bytes, fit: fit, gaplessPlayback: true);
   }
 }
 

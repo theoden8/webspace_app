@@ -24,8 +24,11 @@ explanation there: a dialog costs one icon of layout whatever it says, and a
 subtitle costs every character of it, in every language, on every visit.
 
 The label sharing the title row with a `HintButton` MUST be `Flexible` so it
-wraps rather than overflowing — the separate concern gated by
-`test/js/settings_title_row_overflow.test.js`.
+wraps rather than overflowing. Title rows get this by construction from
+`HintedTitle` / `SettingTile` ([lib/widgets/setting_tile.dart](../../../lib/widgets/setting_tile.dart)),
+whose `hint` is a required argument; `test/js/settings_title_row_overflow.test.js`
+holds every title row to them by allowing a bare `HintButton` only where it
+shares no row with a label.
 
 #### Scenario: A new toggle needs explaining
 

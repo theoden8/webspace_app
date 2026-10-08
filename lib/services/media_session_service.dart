@@ -7,8 +7,54 @@ import 'package:flutter/services.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/proxy.dart';
+
+/// One `wsMediaSession` report: what a frame of the page says it is playing.
+/// [frame] is the frame's token; the shim mints one per frame so a sibling
+/// iframe cannot speak for the frame that is actually playing. [isMainFrame]
+/// comes from the bridge, never from the page (BGAUDIO-008).
+class MediaSessionReport {
+  const MediaSessionReport({
+    required this.frame,
+    required this.isMainFrame,
+    required this.playing,
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.artworkUrl,
+  });
+
+  /// Reads the shim's payload. The page writes it, so a field of the wrong
+  /// type reads as absent rather than throwing in the handler.
+  factory MediaSessionReport.fromPage(
+    Map<Object?, Object?> data, {
+    required bool isMainFrame,
+  }) {
+    String text(String key) => switch (data[key]) {
+          final String s => s,
+          _ => '',
+        };
+    return MediaSessionReport(
+      frame: text('frame'),
+      isMainFrame: isMainFrame,
+      playing: data['playing'] == true,
+      title: text('title'),
+      artist: text('artist'),
+      album: text('album'),
+      artworkUrl: text('artwork'),
+    );
+  }
+
+  final String frame;
+  final bool isMainFrame;
+  final bool playing;
+  final String title;
+  final String artist;
+  final String album;
+  final String artworkUrl;
+}
 
 /// BGAUDIO-006 Dart bridge to the native media session. A background-audio
 /// site's page-JS reports its playback state here (via the `wsMediaSession`
@@ -104,7 +150,7 @@ class MediaSessionService {
         final args = call.arguments;
         final message = (args is Map ? args['message'] : null) as String? ?? '';
         if (message.isNotEmpty) {
-          LogService.instance.log('MediaSession', 'Audio session: $message');
+          LogTag.mediaSession.debug('Audio session: $message');
         }
         return null;
       }
@@ -124,22 +170,22 @@ class MediaSessionService {
   }
 
   /// Called from the `wsMediaSession` JS handler for a background-audio site.
-  ///
-  /// [frame] is the reporting frame's token; the shim mints one per frame so a
-  /// sibling iframe cannot speak for the frame that is actually playing.
-  Future<void> report({
-    required String siteId,
-    required String frame,
-    required bool isMainFrame,
+  Future<void> report(
+    String siteId,
+    MediaSessionReport page, {
     required Future<void> Function(String js) runJs,
-    required bool playing,
-    required String title,
-    required String artist,
-    required String album,
-    required String artworkUrl,
-    UserProxySettings? proxy,
+    required UserProxySettings? proxy,
   }) async {
     if (!_enabled) return;
+    final MediaSessionReport(
+      :frame,
+      :isMainFrame,
+      :playing,
+      :title,
+      :artist,
+      :album,
+      :artworkUrl,
+    ) = page;
     if (playing) {
       // Taking the notification over is how a site the user starts playing
       // becomes the one the controls drive. A SUBFRAME doing it is an ad
@@ -172,7 +218,7 @@ class MediaSessionService {
         // Non-sensitive: no site name, URL or track metadata. BGAUDIO-006's
         // observable — the line the integration test and a user bug report
         // both read to tell "the service was asked" from "nothing happened".
-        LogService.instance.log('MediaSession', 'Notification raised');
+        LogTag.mediaSession.debug('Notification raised');
         unawaited(_verifyVisible());
       }
     } else {
@@ -189,7 +235,7 @@ class MediaSessionService {
         'playing': false,
         'artwork': null,
       });
-      LogService.instance.log('MediaSession', 'Playback paused by the page');
+      LogTag.mediaSession.debug('Playback paused by the page');
     }
   }
 
@@ -204,11 +250,8 @@ class MediaSessionService {
     required String error,
   }) async {
     if (!_enabled) return;
-    LogService.instance.log(
-      'MediaSession',
-      'Transport "$action" did not reach playback: $error',
-      level: LogLevel.warning,
-    );
+    LogTag.mediaSession.warning(
+        'Transport "$action" did not reach playback: $error');
   }
 
   /// Clear whatever media surface the OS shows for this app, including one we
@@ -226,7 +269,7 @@ class MediaSessionService {
       _ownerFrame = null;
       _ownerIsMainFrame = false;
       _visibilityChecked = false;
-      LogService.instance.log('MediaSession', 'Notification torn down');
+      LogTag.mediaSession.debug('Notification torn down');
     }
     // `deactivate`: with nothing of ours left playing, giving the audio
     // session up is what actually drops the app out of the OS media surface —
@@ -276,12 +319,9 @@ class MediaSessionService {
     await Future<void>.delayed(debugVisibilityCheckDelay);
     if (!_active) return;
     if (await notificationPosted()) return;
-    LogService.instance.log(
-      'MediaSession',
-      'Notification raised but not posted by the OS — notification permission '
-          'is likely denied; media controls will not be visible',
-      level: LogLevel.warning,
-    );
+    LogTag.mediaSession.warning(
+        'Notification raised but not posted by the OS — notification permission '
+        'is likely denied; media controls will not be visible');
   }
 
   Future<void> _stop() async {
@@ -291,23 +331,25 @@ class MediaSessionService {
     _ownerFrame = null;
     _visibilityChecked = false;
     await _invoke('stop', null);
-    LogService.instance.log('MediaSession', 'Notification torn down');
+    LogTag.mediaSession.debug('Notification torn down');
   }
 
   Future<Object?> _invoke(String method, Map<String, Object?>? args) async {
     try {
       return await _channel.invokeMethod<Object?>(method, args);
     } on PlatformException catch (e) {
-      LogService.instance.log(
-        'MediaSession',
-        '$method failed: ${e.message}',
-        level: LogLevel.warning,
-      );
+      LogTag.mediaSession.warning('$method failed: ${e.message}');
     } on MissingPluginException {
       // Native side not present (older build); harmless.
     }
     return null;
   }
+
+  /// Test seam: parks or short-circuits the artwork fetch so the ownership
+  /// re-check after it can be driven deterministically.
+  @visibleForTesting
+  static Future<Uint8List?> Function(String url, UserProxySettings? proxy)?
+  debugArtworkFetchOverride;
 
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and
   /// timed out. Decoding/scaling happens natively. Null on anything unexpected.
@@ -317,12 +359,6 @@ class MediaSessionService {
   /// (LEAK-002) and fails closed when that proxy cannot be honored, and it
   /// refuses loopback / private / link-local literals so a page cannot use it
   /// to probe the LAN or cloud metadata.
-  /// Test seam: parks or short-circuits the artwork fetch so the ownership
-  /// re-check after it can be driven deterministically.
-  @visibleForTesting
-  static Future<Uint8List?> Function(String url, UserProxySettings? proxy)?
-  debugArtworkFetchOverride;
-
   Future<Uint8List?> _fetchArtwork(String url, UserProxySettings? proxy) async {
     final override = debugArtworkFetchOverride;
     if (override != null) return override(url, proxy);
@@ -331,9 +367,10 @@ class MediaSessionService {
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
       return null;
     }
-    if (isPrivateOrLoopbackHost(uri.host.toLowerCase())) return null;
+    if (isPrivateOrLoopbackHost(uri.host)) return null;
     final effective = resolveEffectiveProxy(
       proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
+      siteId: null,
     );
     // The artwork URL comes from the page's own media-session metadata, so a
     // name pointing into the LAN turns this into a blind request the site
@@ -341,32 +378,28 @@ class MediaSessionService {
     final verdict = await classifyOutboundTarget(url, effective);
     if (verdict != HostRangeVerdict.public &&
         verdict != HostRangeVerdict.notResolvedHere) {
-      LogService.instance.log(
-        'MediaSession',
-        'Artwork fetch skipped: $url does not resolve to a routable address',
-        level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.mediaSession.warning(
+          'Artwork fetch skipped: $url does not resolve to a routable address',
+          sensitive: true);
       return null;
     }
-    final result = outboundHttp.clientFor(effective);
-    if (result is OutboundClientBlocked) {
-      LogService.instance.log(
-        'MediaSession',
-        'Artwork fetch skipped: ${result.reason}',
-        level: LogLevel.warning,
-      );
-      return null;
+    final http.Client client;
+    switch (outboundHttp.clientFor(effective)) {
+      case OutboundClientBlocked(:final reason):
+        LogTag.mediaSession.warning('Artwork fetch skipped: $reason');
+        return null;
+      case OutboundClientReady(client: final ready):
+        client = ready;
     }
-    final client = (result as OutboundClientReady).client;
-    const cap = 1536 * 1024; // 1.5 MB
+    const cap = 1536 * 1024;
     const timeout = Duration(seconds: 5);
     try {
       final response = await client.get(uri).timeout(timeout);
       if (response.statusCode != 200) return null;
       if (response.bodyBytes.length > cap) return null;
       return response.bodyBytes;
-    } catch (_) {
+    } on Exception {
+      // http, SOCKS and TLS failures alike: the notification goes without art.
       return null;
     } finally {
       client.close();

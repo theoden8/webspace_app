@@ -48,25 +48,18 @@ class _StatsBannerState extends State<StatsBanner> {
 
   @override
   Widget build(BuildContext context) {
-    final hasAnyBlocklist = DnsBlockService.instance.hasBlocklist ||
-        ContentBlockerService.instance.hasRules;
-    if (!hasAnyBlocklist) {
+    final dns = DnsBlockService.instance;
+    if (!dns.hasBlocklist && !ContentBlockerService.instance.hasRules) {
       return const SizedBox.shrink();
     }
+    final stats = dns.statsForSite(widget.siteId);
+    if (stats.total == 0) return const SizedBox.shrink();
 
-    final stats = DnsBlockService.instance.statsForSite(widget.siteId);
-    if (stats.total == 0) {
-      return const SizedBox.shrink();
-    }
-
-    // Get the most recent blocked domains (unique, up to 5)
-    final recentBlocked = <String>[];
-    for (int i = stats.log.length - 1; i >= 0 && recentBlocked.length < 5; i--) {
-      final entry = stats.log[i];
-      if (entry.blocked && !recentBlocked.contains(entry.domain)) {
-        recentBlocked.add(entry.domain);
-      }
-    }
+    final recentBlocked = stats.log.reversed
+        .where((e) => e.blocked)
+        .map((e) => e.domain)
+        .toSet()
+        .take(5);
 
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);

@@ -13,31 +13,16 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const { read, code, enclosed, files } = require('./helpers/source');
 
 const ktRel =
   'android/app/src/main/kotlin/org/codeberg/theoden8/webspace/BackgroundLogFile.kt';
 const swiftRel = 'ios/Runner/BackgroundTaskPlugin.swift';
 
-function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-    .replace(/\/\/[^\n]*/g, (m) => ' '.repeat(m.length));
-}
-
 // [start, end) of the brace block opening at or after `from`.
 function blockAt(src, from) {
-  const open = src.indexOf('{', from);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}' && --depth === 0) return [open, i + 1];
-  }
-  throw new Error('unbalanced braces');
+  const { open, close } = enclosed(src, from);
+  return [open, close + 1];
 }
 
 function blocksAfter(src, opener) {
@@ -74,7 +59,7 @@ function offences(src, { executor, ops, helpers, skip = [] }) {
 }
 
 test('Android: every file operation runs on the one executor', () => {
-  const src = stripComments(read(ktRel));
+  const src = code(read(ktRel));
   assert.equal((src.match(/Executors\.newSingleThreadExecutor/g) || []).length, 1,
     `${ktRel} must own exactly one single-thread executor`);
   assert.ok(!/\bsynchronized\s*\(|@Volatile/.test(src),
@@ -87,7 +72,7 @@ test('Android: every file operation runs on the one executor', () => {
 });
 
 test('iOS: every file operation runs on the one serial queue', () => {
-  const all = stripComments(read(swiftRel));
+  const all = code(read(swiftRel));
   const start = all.indexOf('final class BackgroundLogFile');
   assert.notEqual(start, -1, `${swiftRel} must define BackgroundLogFile`);
   const [a, b] = blockAt(all, start);
@@ -106,18 +91,9 @@ test('iOS: every file operation runs on the one serial queue', () => {
 test('only the background-log owners name the file', () => {
   // A second writer elsewhere would be outside the executor by construction.
   const owners = new Set([ktRel, swiftRel]);
-  const hits = [];
-  const walk = (rel) => {
-    for (const e of fs.readdirSync(path.join(repoRoot, rel), { withFileTypes: true })) {
-      const child = `${rel}/${e.name}`;
-      if (e.isDirectory()) walk(child);
-      else if (/\.(kt|swift|dart)$/.test(e.name) &&
-          read(child).includes('background_log.jsonl') && !owners.has(child)) {
-        hits.push(child);
-      }
-    }
-  };
-  for (const root of ['android/app/src', 'ios/Runner', 'macos/Runner', 'lib']) walk(root);
+  const hits = ['android/app/src', 'ios/Runner', 'macos/Runner', 'lib']
+    .flatMap((root) => files(root, /\.(kt|swift|dart)$/))
+    .filter((f) => read(f).includes('background_log.jsonl') && !owners.has(f));
   assert.deepEqual(hits, []);
 });
 
@@ -131,7 +107,7 @@ test('the native file takes only what Dart appends and its own lines', () => {
     swiftRel,
     'ios/Runner/AppDelegate.swift',
   ]) {
-    const src = stripComments(read(rel));
+    const src = code(read(rel));
     for (const m of src.matchAll(/BackgroundLogFile(?:\.shared)?\.record\(([\s\S]*?)\)\s*\n/g)) {
       assert.ok(!/call\.arguments|args\[|args\?\./.test(m[1]),
         `${rel}: a native record() is fed from a channel argument: ${m[1].trim()}`);

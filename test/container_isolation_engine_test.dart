@@ -3,9 +3,8 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 
 /// In-memory model of the native container API: a set of containers
-/// keyed by siteId, with `bindContainerToWebView` simulated as a
-/// binding registry. Mirrors the [MockCookieManager] pattern in
-/// [test/cookie_isolation_integration_test.dart] — the engine is
+/// keyed by siteId. Mirrors the [MockCookieManager] pattern in
+/// [test/helpers/mock_cookie_manager.dart] — the engine is
 /// unaware it is talking to a fake.
 class MockContainerNative implements ContainerNative {
   bool supported;
@@ -19,7 +18,6 @@ class MockContainerNative implements ContainerNative {
 
   /// Last bind count returned per siteId — emulates how many webviews
   /// were found and bound on the most recent bind call.
-  final Map<String, int> webviewsForSite = {};
 
   /// Records every method call so tests can assert sequencing.
   final List<String> calls = [];
@@ -49,24 +47,12 @@ class MockContainerNative implements ContainerNative {
     return name;
   }
 
-  @override
-  Future<int> bindContainerToWebView(String siteId) async {
-    calls.add('bindContainerToWebView($siteId)');
-    if (!profiles.containsKey(siteId)) {
-      throw StateError(
-        'bind called before getOrCreateContainer($siteId) — '
-        'production engine must always create-then-bind',
-      );
-    }
-    return webviewsForSite[siteId] ?? 1;
-  }
 
   @override
   Future<bool> deleteContainer(String siteId) async {
     calls.add('deleteContainer($siteId)');
     final existed = profiles.remove(siteId) != null;
     dataByContainer.remove(siteId);
-    webviewsForSite.remove(siteId);
     return existed;
   }
 
@@ -94,12 +80,10 @@ void main() {
       final engine = ContainerIsolationEngine(containerNative: native);
 
       await engine.ensureContainer('site-A');
-      final bound = await engine.bindForSite('site-A');
       await engine.onSiteDeleted('site-A');
       final cleared = await engine.clearForSite('site-A');
       final gced = await engine.garbageCollectOrphans({'site-A'});
 
-      expect(bound, 0);
       expect(cleared, isFalse);
       expect(gced, 0);
       expect(native.profiles, isEmpty);
@@ -111,35 +95,16 @@ void main() {
     });
   });
 
-  group('ContainerIsolationEngine — bindForSite', () {
-    test('creates the profile then binds in that order', () async {
-      final native = MockContainerNative();
-      final engine = ContainerIsolationEngine(containerNative: native);
-
-      final bound = await engine.bindForSite('site-A');
-
-      expect(bound, 1);
-      expect(native.profiles, {'site-A': 'ws-site-A'});
-      final keyCalls = native.calls
-          .where((c) =>
-              c.startsWith('getOrCreateContainer') ||
-              c.startsWith('bindContainerToWebView'))
-          .toList();
-      expect(keyCalls, [
-        'getOrCreateContainer(site-A)',
-        'bindContainerToWebView(site-A)',
-      ]);
-    });
-
+  group('ContainerIsolationEngine — ensureContainer', () {
     test('is idempotent — repeated calls reuse the same profile', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
 
-      await engine.bindForSite('site-A');
-      await engine.bindForSite('site-A');
-      await engine.bindForSite('site-A');
+      await engine.ensureContainer('site-A');
+      await engine.ensureContainer('site-A');
+      await engine.ensureContainer('site-A');
 
-      expect(native.profiles.keys, ['site-A']);
+      expect(native.profiles, {'site-A': 'ws-site-A'});
     });
   });
 
@@ -147,8 +112,8 @@ void main() {
     test('drops only the named site\'s profile', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.bindForSite('site-A');
-      await engine.bindForSite('site-B');
+      await engine.ensureContainer('site-A');
+      await engine.ensureContainer('site-B');
 
       await engine.onSiteDeleted('site-A');
 
@@ -175,7 +140,7 @@ void main() {
       // is documented as safe while a WKWebView is bound.
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.bindForSite('site-A');
+      await engine.ensureContainer('site-A');
       native.dataByContainer['site-A'] = ['cookie-1', 'localStorage-foo'];
 
       final ok = await engine.clearForSite('site-A');
@@ -190,7 +155,7 @@ void main() {
         () async {
       final native = MockContainerNative()..refuseClearFor = {'site-A'};
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.bindForSite('site-A');
+      await engine.ensureContainer('site-A');
       native.dataByContainer['site-A'] = ['cookie-1'];
 
       final ok = await engine.clearForSite('site-A');
@@ -214,9 +179,9 @@ void main() {
     test('deletes profiles whose owning site no longer exists', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.bindForSite('site-A');
-      await engine.bindForSite('site-B');
-      await engine.bindForSite('site-C');
+      await engine.ensureContainer('site-A');
+      await engine.ensureContainer('site-B');
+      await engine.ensureContainer('site-C');
 
       final deleted =
           await engine.garbageCollectOrphans({'site-A', 'site-C'});
@@ -235,7 +200,7 @@ void main() {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
       // Live container under the current scheme.
-      await engine.bindForSite('site-A');
+      await engine.ensureContainer('site-A');
       // Leftover from the abandoned workaround — name happens to be
       // `<siteId>_r1` which used to be a real key.
       native.profiles['site-A_r1'] = 'ws-site-A_r1';
@@ -249,8 +214,8 @@ void main() {
     test('returns 0 when every profile has a live owner', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.bindForSite('site-A');
-      await engine.bindForSite('site-B');
+      await engine.ensureContainer('site-A');
+      await engine.ensureContainer('site-B');
 
       final deleted =
           await engine.garbageCollectOrphans({'site-A', 'site-B'});
@@ -262,8 +227,8 @@ void main() {
     test('sweeps every profile when the active set is empty', () async {
       final native = MockContainerNative();
       final engine = ContainerIsolationEngine(containerNative: native);
-      await engine.bindForSite('site-A');
-      await engine.bindForSite('site-B');
+      await engine.ensureContainer('site-A');
+      await engine.ensureContainer('site-B');
 
       final deleted = await engine.garbageCollectOrphans({});
 

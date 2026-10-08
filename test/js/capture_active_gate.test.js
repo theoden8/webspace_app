@@ -1,7 +1,7 @@
 // Backgrounded-site gate wiring (CAM-011 / MIC-011 / SHARE-011).
 //
-// The engines take `isSiteActive` as a REQUIRED argument, so the compiler
-// already forces every call site to pass something. What it cannot force is
+// `GrantStore` takes `isSiteActive` as a REQUIRED argument, so the compiler
+// already forces every store to be given something. What it cannot force is
 // that the something is real: `isSiteActive: () => true` compiles, satisfies
 // every engine test, and silently reopens the hole the requirement exists to
 // close — a background site prompting under the visible site's name.
@@ -15,32 +15,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, code } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const SOURCES = ['lib/web_view_model.dart', 'lib/screens/inappbrowser.dart'];
-
-// String-aware comment strip, so prose mentioning `true` in a doc comment
-// above a call site cannot decide the check.
-function stripComments(src) {
-  let out = '';
-  let str = null;
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i], c2 = src[i + 1];
-    if (str) {
-      out += c;
-      if (c === '\\') { out += (c2 ?? ''); i++; continue; }
-      if (c === str) str = null;
-      continue;
-    }
-    if (c === '/' && c2 === '/') { while (i < src.length && src[i] !== '\n') i++; out += '\n'; continue; }
-    if (c === '/' && c2 === '*') { i += 2; while (i < src.length && !(src[i] === '*' && src[i + 1] === '/')) i++; i++; continue; }
-    if (c === '"' || c === "'") { str = c; out += c; continue; }
-    out += c;
-  }
-  return out;
-}
 
 // The argument text after `isSiteActive:`, up to the comma that ends it at
 // bracket depth 0.
@@ -71,14 +48,14 @@ function argumentsAt(src) {
 
 const sites = [];
 for (const rel of SOURCES) {
-  const src = stripComments(fs.readFileSync(path.join(repoRoot, rel), 'utf8'));
+  const src = code(read(rel));
   for (const s of argumentsAt(src)) sites.push({ ...s, rel });
 }
 
 test('the known isSiteActive call sites are present', () => {
-  // Three capture resolvers on the model, three on the nested screen, plus the
-  // navigation engine's. A drop to zero would make this file vacuous.
-  assert.ok(sites.length >= 8,
+  // The model's grant store and the nested screen's, plus the navigation
+  // engine's. A drop to zero would make this file vacuous.
+  assert.ok(sites.length >= 5,
     `expected the known isSiteActive call sites, found ${sites.length}`);
 });
 

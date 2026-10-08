@@ -6,11 +6,14 @@ import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview.dart' show WebViewController;
+import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/root_messenger.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Shared per-route guard so rapid-fire redirects (Google Maps can hit the
 /// webview with several intent:// bursts in a row) only surface one dialog.
-bool _isConfirming = false;
+final _confirming = ReentryGuard();
 
 /// Strips ClearURLs tracking query params from a URL, regardless of scheme,
 /// by reconstructing it as an https URL (which the ClearURLs ruleset
@@ -101,52 +104,31 @@ Future<void> confirmAndLaunchExternalUrl(
   // user gets re-prompted every redirect and the choice they made a
   // moment ago is meaningless.
   if (ExternalUrlSuppressor.isSuppressedInfo(info)) {
-    LogService.instance.log(
-      'ExternalUrl',
-      'suppressed (recently handled): ${info.url}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.externalUrl.debug(
+        'suppressed (recently handled): ${info.url}', sensitive: true);
     return;
   }
-  if (_isConfirming) return;
-  _isConfirming = true;
-  try {
+  await _confirming.run(() async {
     final hasRules = ClearUrlService.instance.hasRules;
     final cleanedLaunchUrl = _stripTrackingFromIntent(info.url);
     final cleanedFallback = _cleanFallback(info.fallbackUrl);
     final urlChanged = cleanedLaunchUrl != info.url;
     final fallbackChanged = cleanedFallback != (info.fallbackUrl ?? '');
-    LogService.instance.log(
-      'ExternalUrl',
-      'prompt: scheme=${info.scheme} package=${info.package} '
-          'clearUrlsLoaded=$hasRules urlCleaned=$urlChanged '
-          'fallbackCleaned=$fallbackChanged',
-      sensitivity: LogSensitivity.sensitive,
-    );
-    LogService.instance.log(
-      'ExternalUrl',
-      '  rawUrl=${info.url}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.externalUrl.debug(
+        'prompt: scheme=${info.scheme} package=${info.package} '
+        'clearUrlsLoaded=$hasRules urlCleaned=$urlChanged '
+        'fallbackCleaned=$fallbackChanged', sensitive: true);
+    LogTag.externalUrl.debug('  rawUrl=${info.url}', sensitive: true);
     if (urlChanged) {
-      LogService.instance.log(
-        'ExternalUrl',
-        '  cleanedUrl=$cleanedLaunchUrl',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.externalUrl.debug(
+          '  cleanedUrl=$cleanedLaunchUrl', sensitive: true);
     }
     if (info.fallbackUrl != null) {
-      LogService.instance.log(
-        'ExternalUrl',
-        '  rawFallback=${info.fallbackUrl}',
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.externalUrl.debug(
+          '  rawFallback=${info.fallbackUrl}', sensitive: true);
       if (fallbackChanged) {
-        LogService.instance.log(
-          'ExternalUrl',
-          '  cleanedFallback=$cleanedFallback',
-          sensitivity: LogSensitivity.sensitive,
-        );
+        LogTag.externalUrl.debug(
+            '  cleanedFallback=$cleanedFallback', sensitive: true);
       }
     }
 
@@ -158,64 +140,47 @@ Future<void> confirmAndLaunchExternalUrl(
         ExternalUrlParser.isLoadableWebUrl(cleanedFallback);
     final loc = AppLocalizations.of(context);
     final packageName = info.package;
-    final choice = await showDialog<_ExternalUrlChoice>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.externalUrlPromptTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(loc.externalUrlPromptBody),
-              const SizedBox(height: 8),
-              SelectableText(
-                cleanedLaunchUrl,
-                style: const TextStyle(fontFamily: 'monospace'),
-              ),
-              if (packageName != null) ...[
-                const SizedBox(height: 8),
-                Text(loc.externalUrlPromptPackage(packageName)),
-              ],
-              if (hasFallback) ...[
-                const SizedBox(height: 8),
-                Text(loc.externalUrlPromptFallback(cleanedFallback)),
-              ],
-            ],
+    final choice = await choose(
+      context,
+      title: loc.externalUrlPromptTitle,
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(loc.externalUrlPromptBody),
+          const SizedBox(height: 8),
+          SelectableText(
+            cleanedLaunchUrl,
+            style: const TextStyle(fontFamily: 'monospace'),
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.cancel),
-            child: Text(loc.commonCancel),
-          ),
-          if (hasFallback)
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInBrowser),
-              child: Text(loc.externalUrlPromptOpenInBrowser),
-            ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, _ExternalUrlChoice.openInApp),
-            child: Text(loc.externalUrlPromptOpenInApp),
-          ),
+          if (packageName != null) ...[
+            const SizedBox(height: 8),
+            Text(loc.externalUrlPromptPackage(packageName)),
+          ],
+          if (hasFallback) ...[
+            const SizedBox(height: 8),
+            Text(loc.externalUrlPromptFallback(cleanedFallback)),
+          ],
         ],
       ),
+      options: [
+        (_ExternalUrlChoice.cancel, loc.commonCancel),
+        if (hasFallback)
+          (_ExternalUrlChoice.openInBrowser, loc.externalUrlPromptOpenInBrowser),
+        (_ExternalUrlChoice.openInApp, loc.externalUrlPromptOpenInApp),
+      ],
     );
 
+    // Every answer, a cancel too, is marked: a script-driven redirect must
+    // not re-prompt the user a second later for the choice they just made.
+    ExternalUrlSuppressor.mark(info);
     switch (choice ?? _ExternalUrlChoice.cancel) {
       case _ExternalUrlChoice.cancel:
-        LogService.instance.log('ExternalUrl', 'user chose: cancel');
-        // Suppress so a script-driven redirect doesn't re-prompt the
-        // user a second later for the choice they just declined.
-        ExternalUrlSuppressor.mark(info);
+        LogTag.externalUrl.debug('user chose: cancel');
         return;
       case _ExternalUrlChoice.openInBrowser:
-        LogService.instance.log(
-          'ExternalUrl',
-          'user chose: open in browser → $cleanedFallback',
-          sensitivity: LogSensitivity.sensitive,
-        );
-        ExternalUrlSuppressor.mark(info);
+        LogTag.externalUrl.debug(
+            'user chose: open in browser → $cleanedFallback', sensitive: true);
         // We are the browser. Load the fallback inside our own webview
         // so per-site settings (cookie isolation, proxy, content blocker
         // etc.) still apply. shouldOverrideUrlLoading then decides
@@ -227,22 +192,17 @@ Future<void> confirmAndLaunchExternalUrl(
         // loading / launching so a future refactor can't reintroduce a
         // file:/javascript:/data: load here.
         if (!ExternalUrlParser.isLoadableWebUrl(cleanedFallback)) {
-          LogService.instance.log(
-            'ExternalUrl',
-            'refused non-http(s) fallback',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.externalUrl.debug(
+              'refused non-http(s) fallback', sensitive: true);
           return;
         }
         if (loadInWebView != null) {
           try {
             await loadInWebView.loadUrl(cleanedFallback);
           } catch (e) {
-            LogService.instance.log(
-              'ExternalUrl',
-              'in-app loadUrl failed ($e), falling back to external launch',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.externalUrl.debug(
+                'in-app loadUrl failed ($e), falling back to external launch',
+                sensitive: true);
             await _launchExternally(cleanedFallback, label: 'browser fallback');
           }
         } else {
@@ -250,18 +210,12 @@ Future<void> confirmAndLaunchExternalUrl(
         }
         return;
       case _ExternalUrlChoice.openInApp:
-        LogService.instance.log(
-          'ExternalUrl',
-          'user chose: open in app → $cleanedLaunchUrl',
-          sensitivity: LogSensitivity.sensitive,
-        );
-        ExternalUrlSuppressor.mark(info);
+        LogTag.externalUrl.debug(
+            'user chose: open in app → $cleanedLaunchUrl', sensitive: true);
         await _launchInApp(cleanedLaunchUrl, cleanedFallback, info.scheme);
         return;
     }
-  } finally {
-    _isConfirming = false;
-  }
+  });
 }
 
 /// Hands [url] to the system's default browser (or whichever app handles
@@ -280,13 +234,11 @@ void showExternalLinkBlocked(String url) {
   if (messengerContext == null || messenger == null) return;
   final host = Uri.tryParse(url)?.host ?? '';
   final target = host.isEmpty ? url : host;
-  messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content:
-          Text(AppLocalizations.of(messengerContext).externalLinkBlocked(target)),
-      duration: const Duration(seconds: 2),
-    ));
+  messenger.toast(
+    AppLocalizations.of(messengerContext).externalLinkBlocked(target),
+    duration: const Duration(seconds: 2),
+    replace: true,
+  );
 }
 
 /// Hands [url] to the OS via url_launcher so the system browser (or
@@ -296,11 +248,8 @@ void showExternalLinkBlocked(String url) {
 Future<bool> _launchExternally(String url, {required String label}) async {
   final uri = Uri.tryParse(url);
   if (uri == null) {
-    LogService.instance.log(
-      'ExternalUrl',
-      '$label: invalid URL, cannot launch — $url',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.externalUrl.debug(
+        '$label: invalid URL, cannot launch — $url', sensitive: true);
     return false;
   }
   try {
@@ -308,36 +257,30 @@ Future<bool> _launchExternally(String url, {required String label}) async {
       uri,
       mode: url_launcher.LaunchMode.externalApplication,
     );
-    LogService.instance.log(
-      'ExternalUrl',
-      '$label: external launch result=$launched url=$url',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.externalUrl.debug(
+        '$label: external launch result=$launched url=$url', sensitive: true);
     if (!launched) {
-      final messengerContext = rootScaffoldMessengerKey.currentContext;
-      final message = messengerContext != null
-          ? AppLocalizations.of(messengerContext).externalUrlPromptNoAppAvailable(url)
-          : 'No app available to open: $url';
-      rootScaffoldMessengerKey.currentState?.showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      _toastFailure((loc) => loc.externalUrlPromptNoAppAvailable(url),
+          'No app available to open: $url');
     }
     return launched;
   } catch (e) {
-    LogService.instance.log(
-      'ExternalUrl',
-      '$label: external launch threw — $e',
-      sensitivity: LogSensitivity.sensitive,
-    );
-    final messengerContext = rootScaffoldMessengerKey.currentContext;
-    final message = messengerContext != null
-        ? AppLocalizations.of(messengerContext).externalUrlPromptCouldNotOpen(url)
-        : 'Could not open: $url';
-    rootScaffoldMessengerKey.currentState?.showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    LogTag.externalUrl.debug(
+        '$label: external launch threw — $e', sensitive: true);
+    _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url),
+        'Could not open: $url');
     return false;
   }
+}
+
+/// On the root messenger, which outlives the page that asked; [fallback]
+/// when no localizations are reachable from it.
+void _toastFailure(
+    String Function(AppLocalizations loc) message, String fallback) {
+  final messengerContext = rootScaffoldMessengerKey.currentContext;
+  rootScaffoldMessengerKey.currentState?.toast(messengerContext == null
+      ? fallback
+      : message(AppLocalizations.of(messengerContext)));
 }
 
 Future<void> _launchInApp(
@@ -353,7 +296,7 @@ Future<void> _launchInApp(
   // (tel:, custom schemes, etc.) _launchExternally already showed a
   // "no app available" snackbar.
   if (cleanedFallback.isNotEmpty) {
-    LogService.instance.log('ExternalUrl', 'app launch failed, opening fallback externally');
+    LogTag.externalUrl.debug('app launch failed, opening fallback externally');
     await _launchExternally(cleanedFallback, label: 'browser fallback after app failure');
   }
 }

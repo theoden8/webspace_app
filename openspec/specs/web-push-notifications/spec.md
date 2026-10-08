@@ -80,7 +80,7 @@ The system SHALL navigate to the originating site when the user taps a notificat
 #### Scenario: User taps a notification for a loaded site
 
 **Given** a native notification was created by Site A
-**And** Site A is still loaded in `_loadedIndices`
+**And** Site A is still loaded in `_sites.loaded`
 **When** the user taps the notification
 **Then** the app opens (or comes to foreground)
 **And** `_setCurrentIndex` is called with Site A's index
@@ -89,9 +89,9 @@ The system SHALL navigate to the originating site when the user taps a notificat
 #### Scenario: User taps a notification for a site that was not yet loaded
 
 **Given** a native notification was created by Site A
-**And** Site A is not in `_loadedIndices` (e.g., app was restarted)
+**And** Site A is not in `_sites.loaded` (e.g., app was restarted)
 **When** the user taps the notification
-**Then** `_setCurrentIndex` adds Site A to `_loadedIndices`
+**Then** `_setCurrentIndex` adds Site A to `_sites.loaded`
 **And** Site A's webview is created with its profile
 **And** Site A becomes the active site
 
@@ -201,7 +201,7 @@ On iOS, the OS suspends apps within seconds of backgrounding. The system SHALL:
 
 On Android, the system SHALL mirror the iOS opportunistic-refresh strategy: schedule a `WorkManager` periodic refresh that wakes the app every 15 minutes (system minimum) and runs the same wake as iOS (NOTIF-013, NOTIF-014). The system SHALL NOT use a foreground service to keep notification sites running (NOTIF-015). Apps that notify from the background are woken by a push channel (FCM, APNs) rather than staying resident, and a resident `specialUse` service also carries the Play review cost of `FOREGROUND_SERVICE_SPECIAL_USE`. So a site's page JS runs while the app is visible and in the short grace before Android freezes the process; after that, the wake is what reaches the user.
 
-The `ProxyController` is a process-wide singleton, so concurrent background-poll sites with different proxy configurations remain unsupported even under the refresh model — proxies thrash when reloads run back-to-back.
+The `ProxyController` is a process-wide singleton, so concurrent background-poll sites with different proxy configurations remain unsupported even under the refresh model — proxies thrash when reloads run back-to-back. Two sites conflict when their effective proxies differ, compared the way PROXY-008 compares them: a site left on DEFAULT by the app-wide proxy it inherits (PROXY-009), a proxy-library reference by the proxy it names (PROXY-030).
 
 The request SHALL carry an initial delay of one interval. WorkManager treats the first period of a `PeriodicWorkRequest` as due at enqueue time (`WorkSpec.calculateNextRunTime` returns `lastEnqueueTime` while `periodCount == 0`), so without the delay the refresh fires seconds after the first notification site is loaded and reloads the page the user just opened — the native refresh path does not exclude the active site, and `reloadAndRepaint` drops its painted frame. Nothing is lost by waiting: while a site is loaded its page JS is running and fires notifications live through the polyfill; the refresh only matters once the app has been backgrounded for a while.
 
@@ -253,6 +253,14 @@ The worker used to return `Result.success()` here without checking any site, so 
 **Then** the `backgroundPoll` toggle is disabled (greyed out)
 **And** explanatory text reads: "Cannot enable: Site A polls with a different proxy. Android applies one proxy at a time process-wide."
 **And** the user can disable Site A's `backgroundPoll` first to free up the slot
+
+#### Scenario: Proxies conflict by the route they take
+
+**Given** the platform is Android and the app-wide proxy is HTTP proxy P1
+**And** Site A has `backgroundPoll` set to `true` with P1 set on the site itself
+**When** the user opens the settings of Site B, which is left on DEFAULT
+**Then** Site B's `backgroundPoll` toggle is not disabled for a proxy conflict
+**And** two sites naming different saved proxies do conflict, although both are stored as SAVED
 
 #### Scenario: Foreground polling still works for proxy-conflicted sites
 
@@ -490,7 +498,7 @@ page had loaded and a wake never ran page JS at all. A load counts as settled
 once it has been seen to start and stop, or when it never started within the
 first second; a webview that goes away mid-wake stops counting. The
 foreground branch (Android's worker firing while the app is visible) keeps
-`_refreshNotificationSites(excludeActive: true)`. Structural gate:
+`BackgroundSitesController.refreshSites(excludeActive: true)`. Structural gate:
 `test/js/background_refresh_active_site.test.js`.
 
 #### Scenario: A wake does not end before the page has loaded
@@ -598,9 +606,8 @@ task (it draws no frames, so no webview is ever built), and every site after
 Android reclaimed the process. Reported from a device whose background log
 showed wakes with notification sites enabled and none checked.
 
-The headless webview is built from the same per-site fields as the site's
-own webview (`WebViewModel.headlessCheckConfig`, held to `getWebView` by
-`test/js/headless_check_config_parity.test.js`), so it runs in the site's
+The headless webview is built from the same `SitePosture` as the site's
+own webview (`WebViewModel.headlessCheckConfig`), so it runs in the site's
 container with its proxy, language, location, user agent, shims, user
 scripts and blockers, and the notification polyfill reports through the
 same handler (NOTIF-002, NOTIF-010). It has no user and shows nothing, so it

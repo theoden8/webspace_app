@@ -259,6 +259,39 @@ test('stopping the track tears the audio graph down', async () => {
   assert.equal(calls.ctxClosed, true);
 });
 
+test('stopping a clone leaves the original clip playing', async () => {
+  const { window, calls } = setupMicDom({
+    decision: { mode: 'virtual', source: AUDIO_SOURCE },
+  });
+  const stream = await window.navigator.mediaDevices.getUserMedia({ audio: true });
+  const track = stream.getAudioTracks()[0];
+  track.clone().stop();
+  assert.equal(calls.ctxClosed, undefined, 'the original still owns the graph');
+  track.stop();
+  assert.equal(calls.ctxClosed, true);
+});
+
+test('a synthetic deviceId is stripped when the user then allows the real mic', async () => {
+  // On a microphone-less device in `ask` mode the shim publishes the
+  // synthetic audioinput, the page selects it by deviceId, and the user
+  // answers "Allow": passed through, the platform rejects the id as
+  // overconstrained.
+  const { window, calls } = setupMicDom({
+    mode: 'ask',
+    decision: { mode: 'real' },
+    realMics: [],
+  });
+  const list = await window.navigator.mediaDevices.enumerateDevices();
+  const syntheticId = list.find((d) => d.kind === 'audioinput').deviceId;
+  await window.navigator.mediaDevices.getUserMedia({
+    audio: { deviceId: { exact: syntheticId }, echoCancellation: false },
+  });
+  assert.equal(calls.realGum, 1);
+  assert.equal(calls.lastConstraints.audio.deviceId, undefined);
+  assert.equal(calls.lastConstraints.audio.echoCancellation, false,
+    'other constraints survive');
+});
+
 test('virtual with no source rejects rather than opening the device', async () => {
   const { window, calls } = setupMicDom({ decision: { mode: 'virtual' } });
   await assert.rejects(

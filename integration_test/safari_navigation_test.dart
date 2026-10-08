@@ -41,12 +41,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
-import 'package:webspace/demo_data.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 const String _siteId = 'safari-nav';
 const String _siteName = 'Safari Nav';
@@ -133,15 +134,6 @@ void main() {
 
     const callTimeout = Duration(seconds: 5);
 
-    // Pump frames only to advance the widget tree (mount, drawer animation).
-    // Bounded — never waits on the live webview.
-    Future<void> pumpFor(Duration total) async {
-      final deadline = DateTime.now().add(total);
-      while (DateTime.now().isBefore(deadline)) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
-    }
-
     // Wait on the live webview WITHOUT pumping frames: real wall-clock poll
     // inside runAsync so WebKit can load/navigate while the Dart side polls
     // platform channels. Returns true if the predicate held before timeout.
@@ -196,7 +188,7 @@ void main() {
       // yet), so pumping to animate it is safe.
       log('activate: open drawer');
       await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
-      await pumpFor(const Duration(seconds: 2));
+      await pumpFor(tester, const Duration(seconds: 2));
       final tile = find.text(_siteName);
       expect(tile, findsOneWidget,
           reason: '$_siteName should appear in the drawer');
@@ -205,7 +197,7 @@ void main() {
       // A few frames to mount the InAppWebView and fire onWebViewCreated.
       // The platform view surface is created here; sustained rendering is
       // then left to WebKit while we wait via runAsync.
-      await pumpFor(const Duration(seconds: 2));
+      await pumpFor(tester, const Duration(seconds: 2));
       log('activate: mounted, controller=${controller() != null}');
     }
 
@@ -223,7 +215,7 @@ void main() {
     app.main();
     // No webview is live until the site is activated, so pumping the boot
     // UI is safe.
-    await pumpFor(const Duration(seconds: 5));
+    await pumpFor(tester, const Duration(seconds: 5));
     log('run1: booted');
 
     await activateSite();
@@ -272,7 +264,7 @@ void main() {
     // so disposing the run-1 platform view inside pumpWidget doesn't block.
     log('run2: pumpWidget(WebSpaceApp) restart');
     await tester.pumpWidget(app.WebSpaceApp());
-    await pumpFor(const Duration(seconds: 5));
+    await pumpFor(tester, const Duration(seconds: 5));
     log('run2: restarted');
 
     await activateSite();

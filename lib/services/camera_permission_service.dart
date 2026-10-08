@@ -13,7 +13,7 @@ import 'package:webspace/services/log_service.dart';
 /// gate, so those platforms report granted here and let the OS handle it.
 ///
 /// The result is deliberately not persisted anywhere: per-site intent lives
-/// on the model (`cameraMode` / `microphoneMode`), while the OS-level state is
+/// on the model (`WebViewModel.captures`), while the OS-level state is
 /// re-checked on every page request, so a permission revoked in system
 /// settings stops the next request and one granted later starts working,
 /// without the user touching the site setting (CAM/MIC-015).
@@ -22,18 +22,18 @@ class CapturePermissionService {
 
   final String _channelName;
   final String _method;
-  final String _tag;
+  final LogTag _tag;
 
   static const camera = CapturePermissionService._(
     'org.codeberg.theoden8.webspace/camera_permission',
     'ensureCameraPermission',
-    'Camera',
+    LogTag.camera,
   );
 
   static const microphone = CapturePermissionService._(
     'org.codeberg.theoden8.webspace/microphone_permission',
     'ensureMicrophonePermission',
-    'Microphone',
+    LogTag.microphone,
   );
 
   /// Returns true when the app may capture. On Android this shows the OS
@@ -44,18 +44,14 @@ class CapturePermissionService {
       final status =
           await MethodChannel(_channelName).invokeMethod<String>(_method);
       if (status != 'granted') {
-        LogService.instance.log(
-          _tag,
-          'App ${_tag.toLowerCase()} permission not granted (status: '
-              '$status); webview request denied.',
-        );
+        _tag.debug(
+            'App ${_tag.label.toLowerCase()} permission not granted (status: '
+            '$status); webview request denied.');
       }
       return status == 'granted';
     } on PlatformException catch (e) {
-      LogService.instance.log(
-        _tag,
-        '${_tag} permission channel failed: ${e.code} ${e.message}',
-      );
+      _tag.debug(
+          '${_tag.label} permission channel failed: ${e.code} ${e.message}');
       return false;
     } on MissingPluginException {
       return false;

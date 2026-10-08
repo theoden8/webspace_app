@@ -259,7 +259,8 @@ which is partitioned per `siteId`
 **When** the user activates Site B
 **Then** Site A remains loaded
 **And** `SiteUnloadEngine.indicesToUnloadForProxyMismatch` is called with
-`proxyIsGlobal: false`
+a `RoutedProxy` topology, under which only sites sharing the default
+profile contend
 
 #### Scenario: Mixing platforms via settings backup
 

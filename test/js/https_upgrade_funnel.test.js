@@ -21,17 +21,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, dartFiles, code, blockAfter } = require('./helpers/source');
 
-const { blockAfter } = require('./helpers/dart_blocks');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const readRaw = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-const stripComments = (src) =>
-  src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
-
-const WEBVIEW = stripComments(readRaw('lib/services/webview.dart'));
+const WEBVIEW = code(read('lib/services/webview.dart'));
 
 // Dart wraps a long call between the receiver and the method, so every check
 // below matches across whitespace. Matching the literal text would make the
@@ -144,28 +136,10 @@ test('HTTPS-002: the failure forward precedes the handler\'s other recoveries', 
 // strictly less, but it acts earlier and costs nothing; turning it off would
 // be a silent downgrade on the two platforms that have it.
 test('HTTPS-006: the app never overrides upgradeKnownHostsToHTTPS', () => {
-  const dartFiles = (dir, out = []) => {
-    for (const e of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-      const rel = path.join(dir, e.name);
-      if (e.isDirectory()) dartFiles(rel, out);
-      else if (e.name.endsWith('.dart')) out.push(rel);
-    }
-    return out;
-  };
-  for (const f of dartFiles('lib')) {
-    const src = stripComments(readRaw(f));
+  for (const f of dartFiles()) {
+    const src = code(read(f));
     assert.ok(!/upgradeKnownHostsToHTTPS\s*[:=]/.test(src),
       `${f} sets upgradeKnownHostsToHTTPS; HTTPS-006 says leave it at its ` +
       'default true');
   }
-});
-
-// HTTPS-005. The default is the whole feature for anyone who never opens
-// settings, so it is worth one line of gate.
-test('HTTPS-005: the global pref is registered and defaults on', () => {
-  const prefs = stripComments(readRaw('lib/settings/app_prefs.dart'));
-  assert.match(prefs, /kHttpsUpgradeEnabledKey:\s*true,/,
-    'registered in kExportedAppPrefs so it rides export/import, and true so ' +
-    'a fresh install is upgraded');
-  assert.match(prefs, /const String kHttpsUpgradeEnabledKey = 'httpsUpgradeEnabled';/);
 });

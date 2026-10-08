@@ -1,10 +1,36 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/widgets/setting_tile.dart';
 
 /// What the Backup and archives screen asks App Settings to do. Each one runs
-/// on the main page once settings has closed, as it did from the single list.
+/// on the main page once settings has closed.
 enum AppBackupAction { export, import, restoreArchive, closeAllArchives }
+
+extension on AppBackupAction {
+  IconData get icon => switch (this) {
+        AppBackupAction.export => Icons.upload,
+        AppBackupAction.import => Icons.download,
+        AppBackupAction.restoreArchive => Icons.archive_outlined,
+        AppBackupAction.closeAllArchives => Icons.lock_outline,
+      };
+
+  String title(AppLocalizations loc) => switch (this) {
+        AppBackupAction.export => loc.appSettingsExportSettings,
+        AppBackupAction.import => loc.appSettingsImportSettings,
+        AppBackupAction.restoreArchive => loc.appSettingsRestoreArchive,
+        AppBackupAction.closeAllArchives => loc.appSettingsCloseAllArchives,
+      };
+
+  String subtitle(AppLocalizations loc) => switch (this) {
+        AppBackupAction.export => loc.appSettingsExportSettingsSubtitle,
+        AppBackupAction.import => loc.appSettingsImportSettingsSubtitle,
+        AppBackupAction.restoreArchive =>
+          loc.appSettingsRestoreArchiveSubtitle,
+        AppBackupAction.closeAllArchives =>
+          loc.appSettingsCloseAllArchivesSubtitle,
+      };
+}
 
 /// Settings export and import, and the passphrase-gated archives.
 ///
@@ -35,31 +61,18 @@ class AppBackupScreen extends StatelessWidget {
       appBar: AppBar(title: Text(loc.appSettingsBackupAndArchives)),
       body: ListView(
         children: [
-          ListTile(
-            leading: const Icon(Icons.upload),
-            title: Text(loc.appSettingsExportSettings),
-            subtitle: Text(loc.appSettingsExportSettingsSubtitle),
-            onTap: () => choose(AppBackupAction.export),
-          ),
-          ListTile(
-            leading: const Icon(Icons.download),
-            title: Text(loc.appSettingsImportSettings),
-            subtitle: Text(loc.appSettingsImportSettingsSubtitle),
-            onTap: () => choose(AppBackupAction.import),
-          ),
-          if (offerRestoreArchive)
-            ListTile(
-              leading: const Icon(Icons.archive_outlined),
-              title: Text(loc.appSettingsRestoreArchive),
-              subtitle: Text(loc.appSettingsRestoreArchiveSubtitle),
-              onTap: () => choose(AppBackupAction.restoreArchive),
-            ),
-          if (offerCloseAllArchives)
-            ListTile(
-              leading: const Icon(Icons.lock_outline),
-              title: Text(loc.appSettingsCloseAllArchives),
-              subtitle: Text(loc.appSettingsCloseAllArchivesSubtitle),
-              onTap: () => choose(AppBackupAction.closeAllArchives),
+          for (final action in [
+            AppBackupAction.export,
+            AppBackupAction.import,
+            if (offerRestoreArchive) AppBackupAction.restoreArchive,
+            if (offerCloseAllArchives) AppBackupAction.closeAllArchives,
+          ])
+            SettingTile(
+              leading: Icon(action.icon),
+              title: action.title(loc),
+              hint: null,
+              subtitle: action.subtitle(loc),
+              control: Trailing(null, onTap: () => choose(action)),
             ),
         ],
       ),

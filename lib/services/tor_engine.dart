@@ -14,7 +14,9 @@ import 'package:crypto/crypto.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_failure.dart';
 import 'package:webspace/services/tor_geoip.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 export 'package:webspace/services/tor_bridges.dart'
     show TorBridgeConfig, TorBridgeLine, TorTransport, parseTorBridgeLine;
@@ -28,7 +30,7 @@ const String kTorAppGlobalTag = '__webspace_app_global__';
 
 /// How long a released runtime is still treated as claimed, so a webspace
 /// switch or a quick toggle-off-toggle-on does not look like an idle
-/// runtime. It no longer ends in a stop: see [TorEngine.release].
+/// runtime. It does not end in a stop: see [TorEngine.release].
 const Duration kTorIdleDebounce = Duration(seconds: 60);
 
 /// How long `bootstrapping` may last before the engine gives up. Past this
@@ -88,7 +90,6 @@ const Duration kTorSuspendedSlack = Duration(seconds: 15);
 /// Whether a SOCKS5 listener at [host]:[port] answers a greeting.
 typedef TorSocksProbe = Future<bool> Function(String host, int port);
 
-/// Observable state of the runtime.
 sealed class TorStatus {
   const TorStatus();
 
@@ -267,7 +268,7 @@ class TorEngine {
     required String sessionSecret,
     Duration idleDebounce = kTorIdleDebounce,
     Duration bootstrapTimeout = kTorBootstrapTimeout,
-    Future<TorBridgeConfig> Function()? bridgeLoader,
+    Future<TorBridgeConfig?> Function()? bridgeLoader,
     TorGeoIpStore? geoIpStore,
     DateTime Function()? clock,
     TorSocksProbe? socksProbe,
@@ -292,7 +293,7 @@ class TorEngine {
   final Duration _idleDebounce;
   final Duration _bootstrapTimeout;
 
-  final Set<String> _holders = <String>{};
+  final Set<TorHolder> _holders = <TorHolder>{};
   final StreamController<TorStatus> _statuses =
       StreamController<TorStatus>.broadcast();
   StreamSubscription<TorStatus>? _sub;
@@ -310,7 +311,7 @@ class TorEngine {
 
   /// Pin changes, one at a time. Two in flight could land in tor out of
   /// order and leave the older one in force.
-  Future<void> _pinQueue = Future<void>.value();
+  final SerialQueue _pins = SerialQueue();
 
   /// Where the GeoIP table for a country pin comes from. Null where the
   /// runtime is expected to have its own.
@@ -342,7 +343,8 @@ class TorEngine {
   TorBridgeConfig _bridges = const TorBridgeConfig();
 
   /// Reads the persisted bridge configuration, or null where nothing
-  /// persists it (tests, and platforms with no runtime).
+  /// persists it (tests, and platforms with no runtime). The read answers
+  /// null when the keystore refused.
   ///
   /// The engine pulls rather than waiting to be pushed. Bridges live in the
   /// keystore precisely so they survive a relaunch, and an in-memory field
@@ -353,7 +355,7 @@ class TorEngine {
   /// "connected". Hydrating here rather than at a startup call site makes
   /// that unmissable, since every start already funnels through
   /// [_applyBridgeConfig].
-  final Future<TorBridgeConfig> Function()? _bridgeLoader;
+  final Future<TorBridgeConfig?> Function()? _bridgeLoader;
 
   /// Whether [_bridges] reflects storage yet. Set by the first load and by
   /// any [setBridges]: an explicit set is the user acting now, so it wins
@@ -364,15 +366,15 @@ class TorEngine {
   TorStatus get status => _status;
   Stream<TorStatus> get statusStream => _statuses.stream;
 
-  /// Reason strings currently pinning the runtime up. Diagnostics only.
-  Set<String> get holders => Set.unmodifiable(_holders);
+  /// What currently pins the runtime up.
+  Set<TorHolder> get holders => Set.unmodifiable(_holders);
 
-  /// Register [reason] as needing Tor, starting the runtime on the 0 -> 1
+  /// Register [holder] as needing Tor, starting the runtime on the 0 -> 1
   /// transition and canceling any pending idle shutdown (TOR-002).
-  Future<void> acquire(String reason) async {
+  Future<void> acquire(TorHolder holder) async {
     if (!_runtime.isAvailable) return;
     final wasEmpty = _holders.isEmpty;
-    if (!_holders.add(reason)) return;
+    if (!_holders.add(holder)) return;
     _idleTimer?.cancel();
     _idleTimer = null;
     if (!wasEmpty) return;
@@ -390,7 +392,7 @@ class TorEngine {
     }
   }
 
-  /// Drop [reason]'s claim.
+  /// Drop [holder]'s claim.
   ///
   /// The runtime is not stopped. tor runs at most once per process — the
   /// second `tor_run_main` dies in `threadpool_new` and never bootstraps
@@ -403,8 +405,8 @@ class TorEngine {
   /// runtime from re-arming a bootstrap timeout mid-flight, and
   /// [_onRuntimeStatus] reads it to tell "nobody wants Tor" from "Tor was
   /// never wanted".
-  void release(String reason) {
-    if (!_holders.remove(reason)) return;
+  void release(TorHolder holder) {
+    if (!_holders.remove(holder)) return;
     if (_holders.isNotEmpty) return;
     _idleTimer?.cancel();
     _idleTimer = Timer(_idleDebounce, () {
@@ -415,8 +417,8 @@ class TorEngine {
   /// Replace the whole holder set in one shot. Used by the startup scan and
   /// after bulk edits (settings import, site deletion) where computing the
   /// delta at the call site would just be a worse version of this.
-  Future<void> syncHolders(Iterable<String> reasons) async {
-    final next = reasons.toSet();
+  Future<void> syncHolders(Iterable<TorHolder> holders) async {
+    final next = holders.toSet();
     for (final gone in _holders.difference(next).toList()) {
       release(gone);
     }
@@ -478,8 +480,6 @@ class TorEngine {
   /// The bridge configuration currently in force, or queued for next start.
   TorBridgeConfig get bridges => _bridges;
 
-  /// Set the bridge configuration.
-  ///
   /// Takes effect on the next start. Returns whether a [restart] is needed
   /// for it to apply — true when tor is already running, since bridges are
   /// only read at bootstrap. The caller decides whether to restart: doing it
@@ -494,10 +494,10 @@ class TorEngine {
   /// Pull the persisted configuration in, once, before the first start that
   /// needs it.
   ///
-  /// A loader that throws leaves the default (bridges off) rather than
-  /// propagating: the alternative is refusing to start Tor at all because
-  /// the keystore was unreadable. It stays un-hydrated so a later start can
-  /// try again rather than caching the failure for the process lifetime.
+  /// A keystore that refused leaves the default (bridges off) for this start
+  /// rather than refusing to start Tor, and stays un-hydrated so a later
+  /// start asks again rather than keeping bridges off for the process
+  /// lifetime (BUG-027).
   Future<void> _hydrateBridges() async {
     if (_bridgesHydrated) return;
     final loader = _bridgeLoader;
@@ -505,12 +505,10 @@ class TorEngine {
       _bridgesHydrated = true;
       return;
     }
-    try {
-      _bridges = await loader();
-      _bridgesHydrated = true;
-    } catch (_) {
-      // Left un-hydrated deliberately; see above.
-    }
+    final loaded = await loader();
+    if (loaded == null) return;
+    _bridges = loaded;
+    _bridgesHydrated = true;
   }
 
   /// Put [_bridges] into force for the start that is about to happen.
@@ -547,8 +545,7 @@ class TorEngine {
   ///
   /// This is what a Retry needs and what [acquire] cannot provide: acquire
   /// returns early whenever the holder set is already non-empty, which it
-  /// always is for a site pinned to TOR, so retrying through it was a no-op
-  /// and the button was left out of the first cut rather than shipped inert.
+  /// always is for a site pinned to TOR, so retrying through it was a no-op.
   /// It does not stop tor first. It cannot: the second `tor_run_main` in a
   /// process dies in `threadpool_new` and never bootstraps (BUG-013), so a
   /// stop here would turn a recoverable failure into a permanent one. A tor
@@ -635,11 +632,7 @@ class TorEngine {
   static const TorStatus _pinHold =
       TorBootstrapping(100, tag: kTorExitPinTag);
 
-  Future<void> _flushExitCountry() {
-    final next = _pinQueue.then((_) => _applyPin());
-    _pinQueue = next.catchError((Object _) {});
-    return next;
-  }
+  Future<void> _flushExitCountry() => _pins.run(_applyPin);
 
   Future<void> _applyPin() async {
     final up = _runtimeUp;
@@ -727,17 +720,21 @@ class TorEngine {
   /// used as it is and refreshed behind it, for the next pin to pick up.
   Future<String?> _geoIpTable(TorGeoIpStore store, TorUp up) async {
     final via = _socksAt(up, kTorGeoIpTag);
-    final kept = await store.newest().catchError((Object _) => null);
+    final kept = await _orNull(store.newest());
     if (kept != null) {
       if (_mayFetchGeoIp && kept.isStale(_clock())) {
-        unawaited(store.download(via).catchError((Object _) => null));
+        unawaited(_orNull(store.download(via)));
       }
       return kept.path;
     }
     if (!_mayFetchGeoIp) return null;
-    final fetched = await store.download(via).catchError((Object _) => null);
-    return fetched?.path;
+    return (await _orNull(store.download(via)))?.path;
   }
+
+  /// The store's disk failures read as "no table"; errors are bugs and are
+  /// not swallowed.
+  static Future<TorGeoIpTable?> _orNull(Future<TorGeoIpTable?> table) =>
+      table.catchError((Object _) => null, test: (e) => e is Exception);
 
   /// Materialize the SOCKS5 settings [reason] should dial (TOR-003).
   ///

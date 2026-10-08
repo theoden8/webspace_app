@@ -7,24 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/proxy_test_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
-
-/// Models the seam rather than stubbing it: the real factory hands back a
-/// sealed result and the caller must cope with both arms, so a fake that
-/// only ever returns a client would test half the contract.
-class _FakeFactory implements OutboundHttpFactory {
-  _FakeFactory(this._build);
-
-  final OutboundClient Function(UserProxySettings) _build;
-  UserProxySettings? lastRequested;
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    lastRequested = settings;
-    return _build(settings);
-  }
-}
+import 'helpers/fake_outbound.dart';
 
 class _ScriptedClient extends http.BaseClient {
   _ScriptedClient(this._respond);
@@ -64,10 +49,8 @@ void main() {
     test('a response through the proxy is reachable, and carries its status',
         () async {
       late _ScriptedClient client;
-      outboundHttp = _FakeFactory((_) {
-        client = _ScriptedClient((_) async => _response(204));
-        return OutboundClientReady(client);
-      });
+      outboundHttp = FakeOutbound(
+          client: () => client = _ScriptedClient((_) async => _response(204)));
 
       final result = await testProxyConnection(_socks5(), target: target);
 
@@ -77,8 +60,8 @@ void main() {
     });
 
     test('a 407 is an auth rejection, not a reachable proxy', () async {
-      outboundHttp = _FakeFactory(
-          (_) => OutboundClientReady(_ScriptedClient((_) async => _response(407))));
+      outboundHttp = FakeOutbound(
+          client: () => _ScriptedClient((_) async => _response(407)));
 
       final result = await testProxyConnection(
         _socks5(username: 'u', password: 'wrong'),
@@ -91,11 +74,10 @@ void main() {
 
     test('a refused tunnel carrying 407 in its message is an auth rejection',
         () async {
-      outboundHttp = _FakeFactory((_) => OutboundClientReady(
-            _ScriptedClient((_) async => throw http.ClientException(
-                'Proxy failed to establish tunnel '
-                '(407 Proxy Authentication Required)')),
-          ));
+      outboundHttp = FakeOutbound(
+          client: () => _ScriptedClient((_) async => throw http.ClientException(
+              'Proxy failed to establish tunnel '
+              '(407 Proxy Authentication Required)')));
 
       final result = await testProxyConnection(
         _socks5(username: 'u', password: 'wrong'),
@@ -107,10 +89,9 @@ void main() {
     });
 
     test('a SOCKS5 authentication failure is an auth rejection', () async {
-      outboundHttp = _FakeFactory((_) => OutboundClientReady(
-            _ScriptedClient(
-                (_) async => throw StateError('SOCKS5 authentication failed')),
-          ));
+      outboundHttp = FakeOutbound(
+          client: () => _ScriptedClient(
+              (_) async => throw Exception('Authentication failed.')));
 
       final result = await testProxyConnection(
         _socks5(username: 'u', password: 'wrong'),
@@ -122,10 +103,9 @@ void main() {
 
     test('a connection error is unreachable and keeps the underlying text',
         () async {
-      outboundHttp = _FakeFactory((_) => OutboundClientReady(
-            _ScriptedClient((_) async =>
-                throw http.ClientException('Connection refused')),
-          ));
+      outboundHttp = FakeOutbound(
+          client: () => _ScriptedClient(
+              (_) async => throw http.ClientException('Connection refused')));
 
       final result = await testProxyConnection(_socks5(), target: target);
 
@@ -134,9 +114,9 @@ void main() {
     });
 
     test('no answer before the deadline times out', () async {
-      outboundHttp = _FakeFactory((_) => OutboundClientReady(
-            _ScriptedClient((_) => Completer<http.StreamedResponse>().future),
-          ));
+      outboundHttp = FakeOutbound(
+          client: () => _ScriptedClient(
+              (_) => Completer<http.StreamedResponse>().future));
 
       final result = await testProxyConnection(
         _socks5(),
@@ -149,8 +129,8 @@ void main() {
 
     test('a blocked seam is reported, never retried without the proxy',
         () async {
-      final factory = _FakeFactory(
-          (_) => const OutboundClientBlocked('Tor is not bootstrapped yet.'));
+      final factory = FakeOutbound(
+          blockWhen: (_) => true, blockReason: 'Tor is not bootstrapped yet.');
       outboundHttp = factory;
 
       final result = await testProxyConnection(
@@ -165,8 +145,7 @@ void main() {
 
     test('a per-site TOR test rides the site\'s own isolation tag (PROXY-011)',
         () async {
-      final factory = _FakeFactory(
-          (_) => const OutboundClientBlocked('not bootstrapped'));
+      final factory = FakeOutbound(blockWhen: (_) => true);
       outboundHttp = factory;
 
       await testProxyConnection(
@@ -175,7 +154,7 @@ void main() {
         siteId: 'site-42',
       );
 
-      expect(factory.lastRequested!.username, 'site-42');
+      expect(factory.lastQuery!.username, 'site-42');
     });
 
     test('DEFAULT falls through to the app-wide proxy (PROXY-009)', () async {
@@ -185,8 +164,8 @@ void main() {
       ));
       addTearDown(() =>
           GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT)));
-      final factory = _FakeFactory(
-          (_) => OutboundClientReady(_ScriptedClient((_) async => _response(200))));
+      final factory = FakeOutbound(
+          client: () => _ScriptedClient((_) async => _response(200)));
       outboundHttp = factory;
 
       await testProxyConnection(
@@ -194,8 +173,8 @@ void main() {
         target: target,
       );
 
-      expect(factory.lastRequested!.type, ProxyType.HTTP);
-      expect(factory.lastRequested!.address, 'global.example:3128');
+      expect(factory.lastQuery!.type, ProxyType.HTTP);
+      expect(factory.lastQuery!.address, 'global.example:3128');
     });
   });
 

@@ -16,10 +16,8 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const { makeDom, readFixture } = require('./helpers/load_shim');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter, code } = require('./helpers/source');
 
 const SHIM = readFixture('passkey/block_shim.js');
 
@@ -209,44 +207,20 @@ test('a second injection does not wrap twice', async () => {
 // The shim only protects a webview it is installed in, so where it goes is
 // call-site wiring rather than a unit: checked on the source.
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const readDart = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8')
-  .split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
+const readDart = (rel) => code(read(rel));
 
 test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in every frame', () => {
-  const pageScripts = blockAfter(readDart('lib/services/webview.dart'),
+  const webview = readDart('lib/services/webview.dart');
+  const pageScripts = blockAfter(webview,
     '_buildPageScripts(WebViewConfig config) {', undefined, 'webview.dart');
-  const at = pageScripts.indexOf('buildPasskeyBlockShim()');
-  assert.notEqual(at, -1,
-    '_buildPageScripts, shared by site and popup webviews, must install the block shim');
-  const guard = pageScripts.lastIndexOf('if (', at);
-  assert.equal(
-    pageScripts.slice(guard, pageScripts.indexOf('{', guard)).replace(/\s+/g, ' ').trim(),
-    'if (config.passkeys == null && PasskeyAccess.hostIsApple)',
-    'the shim goes wherever passkeys are off on iOS and macOS, and nowhere else');
-  const script = pageScripts.slice(pageScripts.lastIndexOf('inapp.UserScript(', at),
-    pageScripts.indexOf('));', at));
-  assert.ok(script.includes('forMainFrameOnly: false'),
-    'WebKit answers a same-origin subframe too, so every frame needs the shim');
-  assert.ok(script.includes('UserScriptInjectionTime.AT_DOCUMENT_START'),
-    'the shim has to be in place before page script can call WebAuthn');
-});
-
-test('PASSKEY-001: webviews get their passkey access from one rule', () => {
-  const offenders = [];
-  const walk = (dir) => {
-    for (const e of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-      const rel = path.join(dir, e.name);
-      if (e.isDirectory()) walk(rel);
-      else if (e.name.endsWith('.dart') && rel !== path.join('lib', 'services', 'passkey_engine.dart')
-          && /\bPasskeyAccess\(/.test(readDart(rel))) offenders.push(rel);
-    }
-  };
-  walk('lib');
-  assert.deepEqual(offenders, [],
-    'build PasskeyAccess through PasskeyAccess.forHost: a hand-built one skips the per-host '
-    + 'backend, and on iOS/macOS a site with passkeys off must get null so it is blocked');
-  for (const rel of ['lib/web_view_model.dart', 'lib/screens/inappbrowser.dart']) {
-    assert.ok(readDart(rel).includes('PasskeyAccess.forHost('), `${rel} no longer uses forHost`);
-  }
+  assert.ok(pageScripts.includes('..._passkeyShims(config.passkeys),'),
+    '_buildPageScripts, shared by site and popup webviews, must install the passkey shims');
+  const at = webview.indexOf('_passkeyShims(PasskeyAccess? passkeys) => [');
+  assert.notEqual(at, -1, 'webview.dart no longer builds the passkey shims');
+  const shims = webview.slice(at, webview.indexOf('];', at)).replace(/\s+/g, ' ');
+  assert.ok(shims.includes(
+    "if (passkeys == null && PasskeyAccess.hostIsApple) "
+      + "pageShim('passkey_block', buildPasskeyBlockShim(), frames: ShimFrames.all)"),
+    'the shim goes wherever passkeys are off on iOS and macOS, in every frame '
+      + '(WebKit answers a same-origin subframe too), before page script runs');
 });

@@ -52,14 +52,15 @@ void main() {
   });
 
   test('location shim json-encodes the spoofed timezone', () {
-    final shim = LocationSpoofService.buildScript(
-      locationMode: LocationMode.spoof,
-      spoofLatitude: 40.0,
-      spoofLongitude: -74.0,
-      spoofAccuracy: 25.0,
-      spoofTimezone: payload,
-      webRtcPolicy: WebRtcPolicy.defaultPolicy,
-    );
+    final shim = LocationSpoofService.buildScript((
+      mode: LocationMode.spoof,
+      latitude: 40.0,
+      longitude: -74.0,
+      accuracy: 25.0,
+      timezone: payload,
+      granularity: LocationGranularity.gps,
+      webRtc: WebRtcPolicy.defaultPolicy,
+    ));
     expectNoBreakout(shim, 'LocationSpoofService.buildScript');
   });
 

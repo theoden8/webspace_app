@@ -129,9 +129,6 @@ class BlockStatsEngine {
     });
   }
 
-  Map<BlockCategory, int> get allTimeTotals =>
-      Map<BlockCategory, int>.unmodifiable(_allTime);
-
   int get allTimeTotal => _allTime.values.fold(0, (a, b) => a + b);
 
   int allTimeFor(BlockCategory category) => _allTime[category] ?? 0;

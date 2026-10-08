@@ -1,9 +1,9 @@
 # BUG-017 — A file import's synthetic URL reaches the engine as a load
 
 Status: **open, narrowed.** Every load and reload the model issues now goes
-through one seam that renders the import instead of fetching its URL. Raw
-native loads inside `WebViewFactory` itself still bypass that seam (see open
-gaps).
+through one seam that renders the import instead of fetching its URL, and so
+do the factory's recovery loads. Its navigation-time reissues still bypass
+that seam (see open gaps).
 
 **Spec:** [file-import-sites](../../openspec/specs/file-import-sites/spec.md)
 IMPORT-003, IMPORT-005; [navigation](../../openspec/specs/navigation/spec.md)
@@ -80,16 +80,25 @@ instance below is a path that did.
    loses the document, or if model code calls `nativeController` loads
    directly. *Why partial*: see open gaps.
 
+4. **2026-10-07 — this branch.** The factory's own recovery
+   paths now load through the same wrapper: the TLS-pin reload and retry, the
+   cached-HTML live swap, the `onReceivedError` external-scheme loads and the
+   https-upgrade certificate fallback all call it, and the "no host UI"
+   `lastStableUrl ?? config.initialUrl` fallback is gone with the nullable
+   prompt it stood in for (`WebViewConfig` takes the host hooks whole).
+   *Why*: the wrapper became the one owner of native-call failure and of the
+   webview's disposal, so routing a recovery load anywhere else re-forked
+   both. *Why partial*: the navigation-time reissues in
+   `shouldOverrideUrlLoading` and `onCreateWindow` (https upgrade, ClearURLs,
+   the iOS universal-link reissue, a same-domain `_blank`) still load on the
+   raw controller; they load the navigation's target, not the import's URL.
+
 ## Known open gaps
 
-- **Raw native loads inside `WebViewFactory`.** The factory holds the raw
-  `inapp.InAppWebViewController` and calls `controller.reload()` /
-  `controller.loadUrl()` on it in its own recovery paths, which the wrapper
-  never sees. The TLS-pin retry after `_promptUntrustedCertificate` reloads
-  natively; on WebKit that is this bug again if an import's page reaches that
-  prompt. The external-scheme fallback in `onReceivedError` loads
-  `lastStableUrl ?? config.initialUrl`, but only when no `onExternalSchemeUrl`
-  host hook is set, which the root site webview always sets.
+- **Navigation-time reissues on the raw controller.** See attempt 4: the
+  reissues inside `shouldOverrideUrlLoading` / `onCreateWindow` bypass the
+  wrapper. Each loads the URL a page navigated to, which is an import's own
+  URL only if the import links to itself.
 - **Failed main-frame loads on WebKit never end the loading UI, whatever the
   URL.** This is a separate defect, not an instance of this bug: an offline
   pull-to-refresh on an ordinary site fails through `onReceivedError` with no

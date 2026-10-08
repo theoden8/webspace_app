@@ -100,7 +100,6 @@ Locale? localeFromTag(String tag) {
   return Locale(parts[0], second);
 }
 
-/// Display label for a locale tag in the picker.
 String languageLabelForTag(String tag) => kLanguageNativeNames[tag] ?? tag;
 
 /// Resolve the device's preferred locales against the [supported] set, falling

@@ -33,6 +33,7 @@ const assert = require('node:assert/strict');
 const {
   setupBrowser, requireBrowser, readFixture,
 } = require('./helpers/launch');
+const { startBlankServer, originOf } = require('./helpers/blank_server');
 
 const FULL_COMBO = readFixture('location_spoof/full_combo.js');
 const STATIC_TOKYO = readFixture('location_spoof/static_tokyo.js');
@@ -458,13 +459,8 @@ async function withGrantedGeolocation(t, shim, fn) {
   const context = browser.browser.defaultBrowserContext();
   // Geolocation needs a secure context; 127.0.0.1 counts as one over plain
   // HTTP, so no certificate is involved.
-  const http = require('node:http');
-  const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/html' });
-    res.end('<!doctype html><title>geo</title>');
-  });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  const origin = `http://127.0.0.1:${server.address().port}`;
+  const server = await startBlankServer('<!doctype html><title>geo</title>');
+  const origin = originOf(server);
   const page = await context.newPage();
   try {
     await context.overridePermissions(origin, ['geolocation']);

@@ -9,6 +9,104 @@ enum LogLevel { debug, info, warning, error }
 /// in-app dev-tools log view when the runtime toggle is on.
 enum LogSensitivity { normal, sensitive }
 
+/// Every subsystem that writes to the app log. The label is what an entry
+/// shows and what Dev Tools filters by.
+enum LogTag {
+  app('App'),
+  archive('Archive'),
+  backgroundLog('BackgroundLog'),
+  backgroundTask('BackgroundTask'),
+  blockBloom('BlockBloom'),
+  blockStats('BlockStats'),
+  boot('Boot'),
+  camera('Camera'),
+  clearUrls('ClearURLs'),
+  container('Container'),
+  containerCookieManager('ContainerCookieManager'),
+  contentBlocker('ContentBlocker'),
+  cookie('Cookie'),
+  cookieIsolation('CookieIsolation'),
+  cookieManager('CookieManager'),
+  cookieStorage('CookieStorage'),
+  demoData('DemoData'),
+  devTools('DevTools'),
+  developerMode('DeveloperMode'),
+  diagSeed('DiagSeed'),
+  dnsBlock('DnsBlock'),
+  download('Download'),
+  experimental('Experimental'),
+  externalUrl('ExternalUrl'),
+  firefoxUa('FirefoxUA'),
+  htmlCache('HtmlCache'),
+  htmlImport('HtmlImport'),
+  httpAuth('HttpAuth'),
+  httpAuthStore('HttpAuthStore'),
+  icon('Icon'),
+  import('Import'),
+  lifecycle('Lifecycle'),
+  linkIntent('LinkIntent'),
+  localCdn('LocalCDN'),
+  mediaSession('MediaSession'),
+  microphone('Microphone'),
+  nav('Nav'),
+  navigation('Navigation'),
+  net('Net'),
+  notification('Notification'),
+  passkey('Passkey'),
+  popupWindow('PopupWindow'),
+  proxy('Proxy'),
+  proxyPwdStore('ProxyPwdStore'),
+  proxyRelay('ProxyRelay'),
+  resumeReload('ResumeReload'),
+  searchList('SearchList'),
+  settingsBackup('SettingsBackup'),
+  shortcut('Shortcut'),
+  siteIcon('SiteIcon'),
+  siteUnload('SiteUnload'),
+  startup('Startup'),
+  surfaceDiag('SurfaceDiag'),
+  tabs('Tabs'),
+  test('Test'),
+  theme('Theme'),
+  title('Title'),
+  tls('TLS'),
+  tor('Tor'),
+  torGeoIp('TorGeoIP'),
+  /// tor's own output, kept apart from [tor] (the runtime's lifecycle) so a
+  /// reader can tell what the app decided from what tor said.
+  torLog('TorLog'),
+  tz('TZ'),
+  userScript('UserScript'),
+  webIntercept('WebIntercept'),
+  webSearch('WebSearch'),
+  webView('WebView'),
+  webViewLifecycle('WebViewLifecycle'),
+  webViewState('WebViewState'),
+  webspaceSwitch('WebspaceSwitch');
+
+  const LogTag(this.label);
+
+  final String label;
+
+  void debug(String message, {bool sensitive = false}) =>
+      _write(LogLevel.debug, message, sensitive);
+
+  void info(String message, {bool sensitive = false}) =>
+      _write(LogLevel.info, message, sensitive);
+
+  void warning(String message, {bool sensitive = false}) =>
+      _write(LogLevel.warning, message, sensitive);
+
+  void error(String message, {bool sensitive = false}) =>
+      _write(LogLevel.error, message, sensitive);
+
+  void _write(LogLevel level, String message, bool sensitive) =>
+      LogService.instance.log(this, message,
+          level: level,
+          sensitivity:
+              sensitive ? LogSensitivity.sensitive : LogSensitivity.normal);
+}
+
 class LogEntry {
   final DateTime timestamp;
   final String tag;
@@ -41,14 +139,14 @@ class LogService extends ChangeNotifier {
   }
 
   void log(
-    String tag,
+    LogTag tag,
     String message, {
     LogLevel level = LogLevel.debug,
     LogSensitivity sensitivity = LogSensitivity.normal,
   }) {
     final entry = LogEntry(
       timestamp: DateTime.now(),
-      tag: tag,
+      tag: tag.label,
       message: message,
       level: level,
       sensitivity: sensitivity,
@@ -80,7 +178,8 @@ class LogService extends ChangeNotifier {
   /// them: this feeds a live view that rebuilds on every new entry, and
   /// sorting 2000 of them per line is not that. [scan] bounds the walk so a
   /// quiet tag cannot make the cost the size of the ring.
-  List<LogEntry> recent(Set<String> tags, {int limit = 6, int scan = 400}) {
+  List<LogEntry> recent(Set<LogTag> tags, {int limit = 6, int scan = 400}) {
+    final labels = {for (final t in tags) t.label};
     final out = <LogEntry>[];
     var i = _entries.length - 1;
     var j = _sensitiveEntries.length - 1;
@@ -103,7 +202,7 @@ class LogService extends ChangeNotifier {
         j--;
       }
       seen++;
-      if (tags.contains(next.tag)) out.add(next);
+      if (labels.contains(next.tag)) out.add(next);
     }
     return out.reversed.toList();
   }

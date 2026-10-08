@@ -16,7 +16,6 @@
 // Driven through a fake TorRuntime rather than by handing the widgets canned
 // state, so what is asserted is what the real status stream produces.
 
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -30,49 +29,13 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
+import 'helpers/fake_tor_runtime.dart';
 
 final bool _writePngs = Platform.environment['WS_TOR_UI_PNG'] == '1';
 
 /// Set once real glyphs are registered. Until then Text must not name a
 /// family, or it resolves to nothing and renders blank.
 bool _fontsLoaded = false;
-
-class _Runtime implements TorRuntime {
-  _Runtime({this.isAvailable = true});
-
-  final _events = StreamController<TorStatus>.broadcast();
-
-  /// Settable so a test can be the platform that ships no Tor at all
-  /// (TOR-022).
-  @override
-  final bool isAvailable;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-}
 
 /// Load real glyphs so a written PNG is readable.
 ///
@@ -140,8 +103,8 @@ void main() {
   // that called listen. Constructed in setUp (the real zone) those
   // deliveries land on a microtask queue tester.pump never drains, and
   // every emit below would silently never arrive.
-  _Runtime installEngine() {
-    final runtime = _Runtime();
+  FakeTorRuntime installEngine() {
+    final runtime = FakeTorRuntime();
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: 'secret'),
     );
@@ -200,7 +163,7 @@ void main() {
     // Hold a refcount: the engine drops non-stopped statuses when nothing
     // holds it (the resurrection guard), so without this the emit below is
     // silently discarded and every assertion reads the wrong state.
-    await TorService.instance.maybeStart('ui-test');
+    await TorService.instance.maybeStart(TorSiteHolder('ui-test'));
     await t.pumpWidget(host(child, size));
     await settle(t);
 
@@ -282,7 +245,7 @@ void main() {
 
     testWidgets('the card is hidden where there is no runtime', (t) async {
       TorService.overrideEngine(
-        TorEngine(runtime: _Runtime(isAvailable: false), sessionSecret: 's'),
+        TorEngine(runtime: FakeTorRuntime(isAvailable: false), sessionSecret: 's'),
       );
       await t.pumpWidget(host(const TorStatusCard(), const Size(430, 300)));
       await settle(t);
@@ -482,7 +445,7 @@ void main() {
     testWidgets('no runtime on this platform points at the site proxy',
         (t) async {
       TorService.overrideEngine(
-        TorEngine(runtime: _Runtime(isAvailable: false), sessionSecret: 's'),
+        TorEngine(runtime: FakeTorRuntime(isAvailable: false), sessionSecret: 's'),
       );
       await t.pumpWidget(
           host(const TorBootstrapPlaceholder(), const Size(430, 430)));

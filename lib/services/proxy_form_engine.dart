@@ -29,13 +29,9 @@ class ProxyFormFields {
 
 /// Fold the form into the settings to store (PROXY-019).
 ///
-/// One rule, two screens. The per-site and app-wide proxy forms each carried
-/// their own copy of this and the copies disagreed: one wrote `''` where the
-/// other wrote `null`, and one cleared credentials whenever a checkbox that
-/// nothing persisted came back unticked. That checkbox was restored from
-/// [UserProxySettings.hasCredentials], an AND over both fields, so a proxy
-/// configured with only one of them reopened unticked and the next save
-/// discarded the other.
+/// One rule, two screens: the per-site and app-wide proxy forms both fold
+/// through here, so they cannot disagree on `''` versus `null` or on when
+/// credentials are cleared.
 ///
 /// The rule:
 ///

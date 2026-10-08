@@ -1,29 +1,8 @@
-import 'dart:async';
-
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
 
 void main() {
-  group('mustRepaint coverage contract', () {
-    test('every surface-attach transition owes a repaint; appBackground does not',
-        () {
-      for (final t in SurfaceTransition.values) {
-        final expected = t != SurfaceTransition.appBackground;
-        expect(SurfaceRepaintEngine.mustRepaint(t), expected, reason: '$t');
-      }
-    });
-
-    test('back and forward owe a repaint (PAUSE-018 / BUG-001)', () {
-      expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.back), isTrue);
-      expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.forward), isTrue);
-    });
-
-    test('reload owes a repaint (PAUSE-021 / BUG-001)', () {
-      expect(SurfaceRepaintEngine.mustRepaint(SurfaceTransition.reload), isTrue);
-    });
-  });
-
   group('coalescing tick machine', () {
     test('first request starts the loop and drains to a settled zero inset', () {
       final e = SurfaceRepaintEngine();
@@ -80,39 +59,8 @@ void main() {
     });
   });
 
-  group('interleaving under FakeAsync (the nudge-loop race)', () {
-    // Host harness mirroring _nudgeSurfaceRepaint but Timer-based (no Flutter):
-    // two nudges fired mid-loop must coalesce onto ONE loop that terminates at a
-    // zero inset — the race attempts 2-3 fixed by making the loop re-entrant.
-    test('two nudges 50ms apart run a single terminating loop', () {
-      fakeAsync((async) {
-        final e = SurfaceRepaintEngine();
-        var rendered = false; // stands in for setState(_repaintNudge = ...)
-        var loopsStarted = 0;
-
-        void nudge() {
-          if (!e.request()) return;
-          loopsStarted++;
-          void tick() {
-            final t = e.tick();
-            rendered = t.inset;
-            if (t.done) return;
-            Future.delayed(const Duration(milliseconds: 100), tick);
-          }
-
-          tick();
-        }
-
-        nudge();
-        Future.delayed(const Duration(milliseconds: 50), nudge);
-        async.elapse(const Duration(seconds: 3));
-
-        expect(loopsStarted, 1, reason: 'coalesced onto a single loop');
-        expect(e.isLooping, isFalse, reason: 'loop terminated');
-        expect(rendered, isFalse, reason: 'settled at zero inset');
-      });
-    });
-  });
+  // The host loop and window run against the real controller in
+  // test/surface_repaint_controller_test.dart.
 
   group('warm-start ordering (BUG-001 Attempt 8 / PAUSE-020)', () {
     // Code-layer mirror of formal/warmstart.tla. The warm-start white screen is
@@ -428,33 +376,6 @@ void main() {
       e.noteCommitPending();
       expect(e.noteLoadSettled(), isTrue);
       expect(e.noteLoadSettled(), isTrue);
-    });
-
-    test('timing-faithful: the host window bounds how long a settle repaints',
-        () {
-      fakeAsync((async) {
-        final e = SurfaceRepaintEngine();
-        // Host harness mirroring _armCommitLatch in main.dart.
-        Timer? window;
-        void arm() {
-          e.noteCommitPending();
-          window?.cancel();
-          window = Timer(SurfaceRepaintEngine.commitWindow, () {
-            window = null;
-            e.closeCommitWindow();
-          });
-        }
-
-        arm();
-        async.elapse(SurfaceRepaintEngine.commitWindow - const Duration(seconds: 1));
-        expect(e.noteLoadSettled(), isTrue,
-            reason: 'a slow recommit inside the window still repaints');
-
-        async.elapse(const Duration(seconds: 2));
-        expect(e.noteLoadSettled(), isFalse,
-            reason: 'an unrelated navigation past the window does not');
-        window?.cancel();
-      });
     });
   });
 }

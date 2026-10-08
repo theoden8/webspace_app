@@ -2,142 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/webview_state_secure_storage.dart';
-
-/// In-memory FlutterSecureStorage for unit tests. The real one binds
-/// to platform keychain/keystore and isn't usable from `flutter test`.
-class _FakeSecureStorage implements FlutterSecureStorage {
-  final Map<String, String> _store = {};
-
-  @override
-  Future<void> write({
-    required String key,
-    required String? value,
-    AndroidOptions? aOptions,
-    AppleOptions? iOptions,
-    AppleOptions? mOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    if (value == null) {
-      _store.remove(key);
-    } else {
-      _store[key] = value;
-    }
-  }
-
-  @override
-  Future<String?> read({
-    required String key,
-    AndroidOptions? aOptions,
-    AppleOptions? iOptions,
-    AppleOptions? mOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    return _store[key];
-  }
-
-  @override
-  Future<void> delete({
-    required String key,
-    AndroidOptions? aOptions,
-    AppleOptions? iOptions,
-    AppleOptions? mOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    WindowsOptions? wOptions,
-  }) async {
-    _store.remove(key);
-  }
-
-  @override
-  Future<bool> containsKey({
-    required String key,
-    AndroidOptions? aOptions,
-    AppleOptions? iOptions,
-    AppleOptions? mOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    WindowsOptions? wOptions,
-  }) async =>
-      _store.containsKey(key);
-
-  @override
-  Future<Map<String, String>> readAll({
-    AndroidOptions? aOptions,
-    AppleOptions? iOptions,
-    AppleOptions? mOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    WindowsOptions? wOptions,
-  }) async =>
-      Map<String, String>.from(_store);
-
-  @override
-  Future<void> deleteAll({
-    AndroidOptions? aOptions,
-    AppleOptions? iOptions,
-    AppleOptions? mOptions,
-    LinuxOptions? lOptions,
-    WebOptions? webOptions,
-    WindowsOptions? wOptions,
-  }) async =>
-      _store.clear();
-
-  // Unused in tests but required by the interface. Default to no-op.
-  @override
-  AndroidOptions get aOptions => AndroidOptions.defaultOptions;
-
-  @override
-  IOSOptions get iOptions => IOSOptions.defaultOptions;
-
-  @override
-  MacOsOptions get mOptions => MacOsOptions.defaultOptions;
-
-  @override
-  LinuxOptions get lOptions => LinuxOptions.defaultOptions;
-
-  @override
-  WebOptions get webOptions => WebOptions.defaultOptions;
-
-  @override
-  WindowsOptions get wOptions => WindowsOptions.defaultOptions;
-
-  @override
-  void registerListener({
-    required String key,
-    required ValueChanged<String?> listener,
-  }) {}
-
-  @override
-  void unregisterListener({
-    required String key,
-    required ValueChanged<String?> listener,
-  }) {}
-
-  @override
-  void unregisterAllListeners() {}
-
-  @override
-  void unregisterAllListenersForKey({required String key}) {}
-
-  @override
-  Map<String, List<ValueChanged<String?>>> get getListeners => const {};
-
-  @override
-  Future<bool?> isCupertinoProtectedDataAvailable() async => true;
-
-  @override
-  Stream<bool> get onCupertinoProtectedDataAvailabilityChanged =>
-      const Stream.empty();
-}
+import 'helpers/mock_secure_storage.dart';
 
 typedef ValueChanged<T> = void Function(T);
 
@@ -190,11 +59,11 @@ class _FlakyEnsureStore implements FileStore {
 
 void main() {
   late Directory tempDir;
-  late _FakeSecureStorage fakeStorage;
+  late MockFlutterSecureStorage fakeStorage;
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('webspace_state_test_');
-    fakeStorage = _FakeSecureStorage();
+    fakeStorage = MockFlutterSecureStorage();
   });
 
   tearDown(() async {

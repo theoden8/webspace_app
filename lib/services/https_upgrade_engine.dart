@@ -13,6 +13,8 @@
 /// host does not pay the same timeout.
 library;
 
+import 'package:webspace/services/url_host.dart';
+
 /// What the call site must do about an event. Every field is an instruction to
 /// a native API, never a decision: `load` is a URL to hand `loadUrl`, `cancel`
 /// answers `shouldOverrideUrlLoading` / the trust challenge, and
@@ -52,8 +54,8 @@ class HttpsUpgradeEngine {
   /// that a blackhole costs a pause rather than a hang.
   final Duration deadline;
 
-  /// Hosts that answered an upgrade attempt with a failure, lowercased.
-  final Set<String> _httpOnlyHosts = <String>{};
+  /// Hosts that answered an upgrade attempt with a failure.
+  final Set<Host> _httpOnlyHosts = <Host>{};
 
   /// Upgraded URL currently in flight -> the http URL it came from. An entry
   /// lives from the moment the call site issues the upgrade until that
@@ -81,7 +83,7 @@ class HttpsUpgradeEngine {
     if (uri == null || uri.scheme != 'http') return null;
     final host = uri.host;
     if (host.isEmpty) return null;
-    if (_httpOnlyHosts.contains(host.toLowerCase())) return null;
+    if (_httpOnlyHosts.contains(Host(host))) return null;
     if (!_canBeExpectedToServeTls(host)) return null;
     // An explicit :80 is the default it would have had anyway, so drop it and
     // upgrade. Any other port is an ad-hoc service that https would not answer.
@@ -103,8 +105,8 @@ class HttpsUpgradeEngine {
     _responded.remove(failedUrl);
     final original = _inFlight.remove(failedUrl);
     if (original == null) return null;
-    final host = Uri.tryParse(failedUrl)?.host;
-    if (host != null && host.isNotEmpty) _httpOnlyHosts.add(host.toLowerCase());
+    final host = Host.inUrl(failedUrl);
+    if (host != null) _httpOnlyHosts.add(host);
     return original;
   }
 
@@ -139,9 +141,9 @@ class HttpsUpgradeEngine {
   /// port that failed, never the URL that asked. Same bookkeeping as
   /// [fallbackFor] otherwise.
   String? fallbackForHost(String host) {
-    final wanted = host.toLowerCase();
+    final wanted = Host(host);
     final matching = _inFlight.keys
-        .where((k) => (Uri.tryParse(k)?.host ?? '').toLowerCase() == wanted)
+        .where((k) => Host.inUrl(k) == wanted)
         .toList(growable: false);
     if (matching.isEmpty) return null;
     // Every upgrade to this host is doomed by the same certificate, so clear
@@ -172,12 +174,12 @@ class HttpsUpgradeEngine {
   /// Mark [host] http-only without having an in-flight upgrade to reverse.
   /// For a call site that learns the host has no TLS by another route.
   void recordUpgradeFailure(String host) {
-    if (host.isNotEmpty) _httpOnlyHosts.add(host.toLowerCase());
+    final h = Host(host);
+    if (h.isNotEmpty) _httpOnlyHosts.add(h);
   }
 
   /// Whether [host] has been recorded http-only this process.
-  bool isKnownHttpOnly(String host) =>
-      _httpOnlyHosts.contains(host.toLowerCase());
+  bool isKnownHttpOnly(String host) => _httpOnlyHosts.contains(Host(host));
 
   /// Test seam: forget every recorded host and in-flight upgrade.
   void reset() {
@@ -186,8 +188,6 @@ class HttpsUpgradeEngine {
     _responded.clear();
   }
 
-  // --- Event surface -------------------------------------------------------
-  //
   // The four platform events that can resolve an upgrade, plus the deadline.
   // The call site forwards each one and obeys the outcome; it holds no state
   // and makes no choice of its own, so every ordering below is reachable from
@@ -208,7 +208,6 @@ class HttpsUpgradeEngine {
     return _nothing;
   }
 
-  /// The main frame finished loading [url].
   UpgradeOutcome onLoadFinished(String url) {
     recordUpgradeSuccess(url);
     return _nothing;

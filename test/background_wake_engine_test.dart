@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/background_wake_engine.dart';
+import 'package:webspace/settings/proxy.dart';
 
 /// A page that loads for [loadTicks] polls after a reload, then shows
 /// [titleAfter], and posts its own notification on load when [postsOnLoad].
@@ -34,7 +35,7 @@ class _Host implements BackgroundWakeHost {
   final Set<String> live;
   final Set<String> notificationsOff;
   final Map<String, WakeSkip> blocked = {};
-  final Map<String, String> routes = {};
+  final Map<String, WakeRoute> routes = {};
   final Map<String, WakeSkip> refuseOpen = {};
   bool routeApplies = true;
   bool titleThrows = false;
@@ -131,6 +132,19 @@ class _Host implements BackgroundWakeHost {
     events.add('delay ${d.inMilliseconds}');
   }
 }
+
+WakeRoute _route(String address) => (
+      proxy: (
+        type: ProxyType.SOCKS5,
+        address: address,
+        username: null,
+        password: null,
+      ),
+      torExit: null,
+    );
+
+final _p = _route('127.0.0.1:1080');
+final _q = _route('127.0.0.1:1081');
 
 void main() {
   group('unreadCountFromTitle', () {
@@ -355,7 +369,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null),
         'c': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'})
-        ..routes.addAll({'a': 'P', 'b': 'Q', 'c': 'P'});
+        ..routes.addAll({'a': _p, 'b': _q, 'c': _p});
       final report = await BackgroundWakeEngine().wake(host);
       final byId = {for (final o in report.sites) o.site.siteId: o};
       expect(byId['a']!.mode, WakeMode.live);
@@ -372,7 +386,7 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null),
         'b': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
-        ..routes.addAll({'a': 'P', 'b': 'Q'});
+        ..routes.addAll({'a': _p, 'b': _q});
       final report = await BackgroundWakeEngine().wake(host);
       expect(host.events.first, 'route a');
       expect(host.events[1], 'open a');
@@ -389,7 +403,7 @@ void main() {
         'a': _Page(titleBefore: null, titleAfter: null),
         'tor': _Page(titleBefore: null, titleAfter: null),
       }, live: {'a'})
-        ..routes['tor'] = 'exit=<unpinned>';
+        ..routes['tor'] = (proxy: null, torExit: 'de');
       final report = await BackgroundWakeEngine().wake(host);
       expect(report.sites[1].mode, WakeMode.headless);
       expect(host.events.first, 'route tor');
@@ -399,7 +413,7 @@ void main() {
       final host = _Host({
         'a': _Page(titleBefore: null, titleAfter: null),
       }, live: {})
-        ..routes['a'] = 'P'
+        ..routes['a'] = _p
         ..routeApplies = false;
       final report = await BackgroundWakeEngine().wake(host);
       expect(report.sites.single.skip, WakeSkip.proxyUnavailable);

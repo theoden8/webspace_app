@@ -271,9 +271,13 @@ void main() {
   });
 
   group('Archive export/import sections', () {
-    test('exportSection then importSectionsWithKey round-trips into a fresh pool', () async {
-      final src = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
-      final handle = await src.createWithKey(_testKey(50));
+    test('exportSection then importSections round-trips into a fresh pool', () async {
+      final deriver = _CountingDeriver();
+      final src = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final handle = await src.create('pw');
       handle.state.sites.add({'siteId': 's1', 'initUrl': 'https://a.test'});
       handle.state.webspaces
           .add({'id': 'w', 'name': 'Group', 'siteIds': ['s1']});
@@ -281,11 +285,14 @@ void main() {
       final blob = await src.exportSection(handle);
       await src.close(handle);
 
-      final dst = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
-      final unmatched = await dst.importSectionsWithKey(_testKey(50), [blob]);
+      final dst = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final unmatched = await dst.importSections('pw', [blob]);
       expect(unmatched, isEmpty);
 
-      final reopened = await dst.tryOpenWithKey(_testKey(50));
+      final reopened = await dst.tryOpen('pw');
       expect(reopened, isNotNull);
       expect(reopened!.state.sites, hasLength(1));
       expect(reopened.state.webspaces, hasLength(1));
@@ -349,18 +356,25 @@ void main() {
       expect(reopened!.state.sites.single['siteId'], equals('s1'));
     });
 
-    test('importSectionsWithKey returns the blob unmatched under a wrong key', () async {
-      final src = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
-      final handle = await src.createWithKey(_testKey(51));
+    test('importSections returns the blob unmatched under a wrong passphrase', () async {
+      final deriver = _CountingDeriver();
+      final src = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final handle = await src.create('right');
       handle.state.sites.add({'siteId': 's1', 'initUrl': 'https://a.test'});
       await src.save(handle);
       final blob = await src.exportSection(handle);
       await src.close(handle);
 
-      final dst = Archive(storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()));
-      final unmatched = await dst.importSectionsWithKey(_testKey(99), [blob]);
+      final dst = Archive(
+        storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
+        deriveKey: deriver.call,
+      );
+      final unmatched = await dst.importSections('wrong', [blob]);
       expect(unmatched, equals([blob]));
-      expect(await dst.tryOpenWithKey(_testKey(99)), isNull);
+      expect(await dst.tryOpen('wrong'), isNull);
     });
   });
 }

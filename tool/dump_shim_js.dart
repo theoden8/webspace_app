@@ -19,11 +19,13 @@
 import 'dart:io';
 
 import 'package:webspace/services/webgl_kill_switch_shim.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
 import 'package:webspace/services/blob_url_capture.dart';
-import 'package:webspace/services/camera_stream_shim.dart';
-import 'package:webspace/services/microphone_stream_shim.dart';
-import 'package:webspace/services/screen_share_shim.dart';
+import 'package:webspace/services/block_interceptor_shim.dart';
+import 'package:webspace/services/capture_shim.dart';
+import 'package:webspace/services/clearurl_share_shim.dart';
+import 'package:webspace/services/notification_polyfill_shim.dart';
 import 'package:webspace/services/passkey_shim.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
@@ -72,108 +74,117 @@ Map<String, String> buildAllFixtures() {
       buildDesktopModeShim(firefoxWindowsDesktopUserAgent);
 
   fixtures['location_spoof/static_tokyo.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.spoof,
-    spoofLatitude: 35.6762,
-    spoofLongitude: 139.6503,
-    spoofAccuracy: 25.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.spoof,
+    latitude: 35.6762,
+    longitude: 139.6503,
+    accuracy: 25.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/live_gps.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.live,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.live,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/live_approximate.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.live,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    liveLocationGranularity: LocationGranularity.approximate,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.live,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.approximate,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/live_gsm.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.live,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    liveLocationGranularity: LocationGranularity.gsm,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
-  fixtures['location_spoof/blocked.js'] = LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.live,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gsm,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
+  fixtures['location_spoof/blocked.js'] = LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   // A spoof site whose coordinates went missing must fail closed, not fall
   // back to the platform fix.
   fixtures['location_spoof/spoof_without_coords.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.spoof,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.spoof,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   // Zero-offset zone: the negative-zero boundary case.
   fixtures['webgl_kill_switch/shim.js'] = webGlKillSwitchScript;
   fixtures['location_spoof/timezone_only_utc.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: 'UTC',
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: 'UTC',
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/timezone_only_tokyo.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: 'Asia/Tokyo',
-    webRtcPolicy: WebRtcPolicy.defaultPolicy,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: 'Asia/Tokyo',
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.defaultPolicy,
+  ));
   fixtures['location_spoof/webrtc_relay.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.relayOnly,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.relayOnly,
+  ));
   fixtures['location_spoof/webrtc_disabled.js'] =
-      LocationSpoofService.buildScript(
-    locationMode: LocationMode.off,
-    spoofLatitude: null,
-    spoofLongitude: null,
-    spoofAccuracy: 50.0,
-    spoofTimezone: null,
-    webRtcPolicy: WebRtcPolicy.disabled,
-  );
-  fixtures['location_spoof/full_combo.js'] = LocationSpoofService.buildScript(
-    locationMode: LocationMode.spoof,
-    spoofLatitude: 48.8566,
-    spoofLongitude: 2.3522,
-    spoofAccuracy: 30.0,
-    spoofTimezone: 'Europe/Paris',
-    webRtcPolicy: WebRtcPolicy.relayOnly,
-  );
+      LocationSpoofService.buildScript((
+    mode: LocationMode.off,
+    latitude: null,
+    longitude: null,
+    accuracy: 50.0,
+    timezone: null,
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.disabled,
+  ));
+  fixtures['location_spoof/full_combo.js'] = LocationSpoofService.buildScript((
+    mode: LocationMode.spoof,
+    latitude: 48.8566,
+    longitude: 2.3522,
+    accuracy: 30.0,
+    timezone: 'Europe/Paris',
+    granularity: LocationGranularity.gps,
+    webRtc: WebRtcPolicy.relayOnly,
+  ));
 
   fixtures['do_not_track/shim.js'] = buildDoNotTrackShim();
 
@@ -241,10 +252,21 @@ Map<String, String> buildAllFixtures() {
       pinLayoutWidth: false,
       portraitWidth: 393,
       landscapeWidth: 851);
+  fixtures['page_zoom/css_zoom_120.js'] = buildPageZoomCssShim(120);
+  fixtures['page_zoom/text_zoom_150.js'] = buildTextZoomShim(150);
+  fixtures['page_zoom/default_viewport.js'] = defaultViewportScript;
 
-  fixtures['camera_stream/shim.js'] = buildCameraStreamShim();
-  fixtures['microphone_stream/shim.js'] = buildMicrophoneStreamShim();
-  fixtures['screen_share/shim.js'] = buildScreenShareShim();
+  fixtures['notification_polyfill/granted.js'] = buildNotificationPolyfillShim(
+      siteId: 'site-fixture', notificationsEnabled: true);
+  fixtures['notification_polyfill/denied.js'] = buildNotificationPolyfillShim(
+      siteId: 'site-fixture', notificationsEnabled: false);
+  fixtures['clearurl_share/shim.js'] = clearUrlShareScript;
+  fixtures['block_interceptor/observer.js'] = blockResourceObserverScript;
+  fixtures['block_interceptor/interceptor.js'] = blockJsInterceptorScript;
+
+  for (final kind in CaptureKind.values) {
+    fixtures['${kind.shimGroup}/shim.js'] = buildCaptureShim(kind);
+  }
   fixtures['passkey/shim.js'] = buildPasskeyShim();
   fixtures['passkey/block_shim.js'] = buildPasskeyBlockShim();
 
@@ -276,14 +298,15 @@ Map<String, String> buildAllFixtures() {
   fixtures['worker_shim/installer_combined.js'] = buildWorkerShimScript([
     buildAntiFingerprintingShim('alpha-fixture-seed'),
     buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!,
-    LocationSpoofService.buildScript(
-      locationMode: LocationMode.off,
-      spoofLatitude: null,
-      spoofLongitude: null,
-      spoofAccuracy: 50.0,
-      spoofTimezone: 'UTC',
-      webRtcPolicy: WebRtcPolicy.disabled,
-    ),
+    LocationSpoofService.buildScript((
+      mode: LocationMode.off,
+      latitude: null,
+      longitude: null,
+      accuracy: 50.0,
+      timezone: 'UTC',
+      granularity: LocationGranularity.gps,
+      webRtc: WebRtcPolicy.disabled,
+    )),
     buildLanguageShim('en'),
   ])!;
 
@@ -343,6 +366,8 @@ Map<String, String> buildAllFixtures() {
   // stubs the bridge handler and asserts the injection happens.
   fixtures['content_blocker/generic_scanner.js'] =
       buildGenericCosmeticScannerShim();
+  fixtures['content_blocker/csp.js'] =
+      buildContentBlockerCspShim("script-src 'none'; img-src 'self'");
 
   // Fixture exercising uBO `:style(...)` rules — the parser emits
   // these instead of `display:none`, and the shim must apply the

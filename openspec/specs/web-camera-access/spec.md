@@ -156,12 +156,13 @@ decision is not inherited across the origin change.
 
 **Given** site "Acme" is set to `real`
 **When** a link on it opens a nested webview on another domain and that page requests the camera
-**Then** the nested screen starts from `ask` (`nestedSeedMode` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
+**Then** the nested screen starts from `ask` (`SitePosture.forNested` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
 **And** the Allow/Block popup names the nested page's origin before the device opens
 
 ### Requirement: CAM-006 — Archive-tier sites deny silently
 
-`effectiveCameraMode` SHALL be `block` for archive-tier sites regardless
+The camera's effective mode (`WebViewModel.effectiveCaptures`, folded by
+`ArchiveFold.captures`) SHALL be `block` for archive-tier sites regardless
 of stored value (ARCH-006: the popup, the file picker, and Android's OS
 permission dialog are OS-level UI). No popup is shown; the stored mode
 and any picked source are preserved for when the site leaves the archive.
@@ -351,8 +352,9 @@ running JS (pause is not a security boundary, see
 this a background site can pop a permission dialog the user reads as
 belonging to the site on screen, or — with a remembered `real`/`virtual`
 grant — start capture with nothing on screen to attribute it to. The gate
-lives in `CameraDecisionEngine.decide` as a required `isSiteActive`
-predicate, so a new call site cannot be wired up without answering it.
+lives in `GrantStore.capture` (`media_grant_engine.dart`), whose
+constructor takes a required `isSiteActive` predicate, so a new store cannot
+be wired up without answering it.
 
 Only the grant is gated. The non-prompting `webCameraMode` read behind
 `enumerateDevices` is not: the shim caches it for the document's lifetime,
@@ -554,7 +556,7 @@ asking the user the same question twice. The window does not persist anything
 and cannot hand back an answer given for a different frame.
 
 Gated by `test/js/page_bridge_authority.test.js` and
-`test/camera_decision_engine_test.dart`.
+`test/media_grant_engine_test.dart`.
 
 #### Scenario: An ad frame does not inherit the site's camera
 
@@ -595,7 +597,8 @@ Gated by `test/js/page_bridge_authority.test.js` and
   camera and its prompt are never touched on any platform. The picked
   source is inlined as a `data:` URL on the model (like `customIconPng`)
   so it rides settings backups and lives inside the encrypted archive
-  slice for archive-tier sites; `VirtualCameraService` caps it at 24 MiB.
+  slice for archive-tier sites; `VirtualMediaPicker` caps a visual source at
+  24 MiB.
 - Tracking Protection does not force-block camera (unlike protected
   content, ETP-023): capture starts only after an explicit per-site Allow
   or a user-picked file, so it is not a silent tracking vector.

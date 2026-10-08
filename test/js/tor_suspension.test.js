@@ -9,12 +9,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-const code = (src) => src.replace(/^\s*\/\/.*$/gm, '');
+const { read, code, blockAfter, methodBody } = require('./helpers/source');
 
 const swift = code(read('ios/Runner/TorControllerPlugin.swift'));
 const engine = code(read('lib/services/tor_engine.dart'));
@@ -22,20 +17,8 @@ const service = code(read('lib/services/tor_service.dart'));
 const main = code(read('lib/main.dart'));
 const workflow = read('.github/workflows/build-and-test.yml');
 
-function body(src, signature) {
-  const at = src.indexOf(signature);
-  assert.ok(at >= 0, `missing ${signature}`);
-  const open = src.indexOf('{', at);
-  let depth = 0;
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++;
-    else if (src[i] === '}' && --depth === 0) return src.slice(open, i + 1);
-  }
-  throw new Error(`unbalanced braces after ${signature}`);
-}
-
 test('tor\'s control channel is a Unix socket, the kind a suspension spares', () => {
-  const launch = body(swift, 'func launchLocked(');
+  const launch = blockAfter(swift, 'func launchLocked(');
   const socket = launch.indexOf('config.controlSocket = socket');
   assert.ok(socket > 0, 'launchLocked must give tor a ControlSocket');
   assert.match(launch, /controlSocketURL\(in: NSTemporaryDirectory\(\)\)/,
@@ -52,11 +35,11 @@ test('tor\'s control channel is a Unix socket, the kind a suspension spares', ()
 test('a dead listener is reopened, not reconfigured', () => {
   // SETCONF SocksPort keeps a listener tor believes is running
   // (socksPortValue says why); only DisableNetwork closes it.
-  const cycle = body(swift, 'func cycleNetwork(');
+  const cycle = blockAfter(swift, 'func cycleNetwork(');
   assert.match(cycle, /for value in \["1", "0"\]/,
     'DisableNetwork 1 closes the dead listener, 0 opens a fresh one');
   assert.match(cycle, /"DisableNetwork"/);
-  const reopen = body(swift, 'func reopenListeners(');
+  const reopen = blockAfter(swift, 'func reopenListeners(');
   assert.match(reopen, /publishLocked\(state: "up"/,
     'the new endpoint is published, so every Tor-bound site rebinds');
   assert.match(reopen, /OneShotResult\(result\)/,
@@ -70,7 +53,7 @@ test('DisableNetwork finds no conflux leg to relaunch', () => {
   // nothing. Seen on the macOS probe. Conflux off from launch is the only
   // state in which no such leg exists.
   assert.match(swift, /static let confluxEnabledValue = "0"/);
-  const launch = body(swift, 'func launchLocked(');
+  const launch = blockAfter(swift, 'func launchLocked(');
   assert.match(launch, /"ConfluxEnabled": Self\.confluxEnabledValue/,
     'tor must start with conflux off, not have it turned off later');
   assert.ok(!/"ConfluxEnabled",\s*"value":\s*"(auto|1)"/.test(swift),
@@ -81,16 +64,16 @@ test('DisableNetwork finds no conflux leg to relaunch', () => {
 });
 
 test('the listener is asked on every way back into the app', () => {
-  const production = body(service, 'static TorService _production(');
+  const production = blockAfter(service, 'static TorService _production(');
   assert.match(production, /socksProbe: createTorSocksProbe\(\)/,
     'the engine needs the probe, or revive() asks nothing');
   assert.match(production, /addObserver\(_TorResumeWatch\(service\)\)/,
     'registered with the singleton, so no screen has to be up for it');
-  const watch = body(service, 'void didChangeAppLifecycleState(');
+  const watch = blockAfter(service, 'void didChangeAppLifecycleState(');
   assert.match(watch, /AppLifecycleState\.resumed[\s\S]*revive\(\)/,
     'a return to the foreground asks the listener');
 
-  const wake = body(main, 'Future<void> _backgroundWake(');
+  const wake = methodBody('wake', { file: 'lib/controllers/background_sites_controller.dart' });
   const revive = wake.indexOf('TorService.instance.revive()');
   assert.ok(revive > 0 && revive < wake.indexOf('_wakeEngine.wake('),
     'a background wake resumes the process without a resumed event, so it '
@@ -98,9 +81,9 @@ test('the listener is asked on every way back into the app', () => {
 });
 
 test('a resume mid-bootstrap and a slept-through deadline are both handled', () => {
-  assert.match(body(engine, 'Future<void> revive('), /_checkNextUp = true/,
+  assert.match(blockAfter(engine, 'Future<void> revive('), /_checkNextUp = true/,
     'a runtime not up yet has its listener asked when it comes up');
-  assert.match(body(engine, 'void _armBootstrapTimeout('), /kTorSuspendedSlack/,
+  assert.match(blockAfter(engine, 'void _armBootstrapTimeout('), /kTorSuspendedSlack/,
     'a deadline firing long after it was due is a suspension, not a failure');
 });
 

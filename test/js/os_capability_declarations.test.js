@@ -20,11 +20,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
 const uniqueSorted = (xs) => [...new Set(xs)].sort();
 
 test('Android declares exactly the permissions it needs', () => {

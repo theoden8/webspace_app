@@ -2,22 +2,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/file_store_io.dart';
 import 'package:webspace/services/html_cache_service.dart';
 
 import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
-
-class _FakePathProvider extends PathProviderPlatform with MockPlatformInterfaceMixin {
-  final Directory _dir;
-  _FakePathProvider(this._dir);
-  @override
-  Future<String?> getApplicationDocumentsPath() async => _dir.path;
-  @override
-  Future<String?> getTemporaryPath() async => _dir.path;
-}
+import 'helpers/fake_path_provider.dart';
 
 /// Tests for the eviction race-condition fix.
 ///
@@ -40,7 +30,7 @@ void main() {
 
   setUp(() async {
     tempDir = await Directory.systemTemp.createTemp('webspace_html_cache_test_');
-    PathProviderPlatform.instance = _FakePathProvider(tempDir);
+    useFakePathProvider(tempDir);
     SharedPreferences.setMockInitialValues({});
     PackageInfo.setMockInitialValues(
       appName: 'webspace',

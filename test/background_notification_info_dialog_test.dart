@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/settings.dart';
+import 'helpers/localized.dart';
 
 /// NOTIF-005-{I,A}: the background-limits info dialog SHALL be shown the
 /// first time the user enables Notifications on any site (on iOS or
@@ -20,15 +20,11 @@ void main() {
   testWidgets('non-mobile hosts: dialog never shows, flag never written',
       (tester) async {
     if (Platform.isIOS || Platform.isAndroid) return;
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Builder(
-        builder: (ctx) => ElevatedButton(
-          onPressed: () =>
-              maybeShowBackgroundNotificationLimitsDialog(ctx),
-          child: const Text('go'),
-        ),
+    await pumpLocalized(tester, Builder(
+      builder: (ctx) => ElevatedButton(
+        onPressed: () =>
+            maybeShowBackgroundNotificationLimitsDialog(ctx),
+        child: const Text('go'),
       ),
     ));
     await tester.tap(find.text('go'));

@@ -6,51 +6,16 @@
 // part that file does not: that merely showing the placeholder is enough to
 // get the runtime started, and that it lets go again on the way out.
 
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
-
-class _Runtime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-  int startCalls = 0;
-  int stopCalls = 0;
-
-  @override
-  bool get isAvailable => true;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async => startCalls++;
-
-  @override
-  Future<void> stop() async => stopCalls++;
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-}
+import 'helpers/fake_tor_runtime.dart';
+import 'helpers/localized.dart';
 
 void main() {
   /// Install a fake-backed engine **from inside the test body**.
@@ -62,8 +27,8 @@ void main() {
   /// `_onRuntimeStatus` deliveries are scheduled on the real microtask
   /// queue, which `tester.pump` never drains — so `runtime.emit(...)`
   /// silently never reaches the engine.
-  _Runtime installEngine() {
-    final runtime = _Runtime();
+  FakeTorRuntime installEngine() {
+    final runtime = FakeTorRuntime();
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: 'secret'),
     );
@@ -85,11 +50,7 @@ void main() {
     await t.pump(const Duration(milliseconds: 10));
   }
 
-  Widget host(Widget child) => MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: child,
-      );
+  Widget host(Widget child) => localizedApp(child);
 
   testWidgets('showing the placeholder is enough to start the runtime',
       (t) async {

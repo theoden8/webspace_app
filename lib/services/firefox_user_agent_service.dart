@@ -3,15 +3,13 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/settings/pref_read.dart';
 
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Upper bound on a plausible scraped Firefox major version. An HTML error
 /// page or a redirected mirror can yield a stray integer; anything past this
@@ -35,13 +33,14 @@ int? parseFirefoxVersionDisplay(String body) {
 /// (`firefox_versions.json`). Used as the fallback source when the raw
 /// source file is unreachable.
 int? parseFirefoxProductDetails(String body) {
+  final Object? json;
   try {
-    final json = jsonDecode(body);
-    if (json is Map && json['LATEST_FIREFOX_VERSION'] is String) {
-      return parseFirefoxVersionDisplay(json['LATEST_FIREFOX_VERSION'] as String);
-    }
-  } catch (_) {}
-  return null;
+    json = jsonDecode(body);
+  } on FormatException {
+    return null;
+  }
+  final version = json is Map ? json['LATEST_FIREFOX_VERSION'] : null;
+  return version is String ? parseFirefoxVersionDisplay(version) : null;
 }
 
 /// Outcome of a user-initiated [FirefoxUserAgentService.refresh].
@@ -59,7 +58,7 @@ enum FirefoxVersionRefreshResult {
 /// Tracks the current Firefox release version by scraping it from Firefox
 /// source. The scrape is performed on explicit user action (a button in app
 /// settings), or at startup when the user has opted in to automatic updates
-/// ([kFirefoxUaAutoRefreshKey], default off, throttled to weekly) — so the
+/// ([AppPref.firefoxUaAutoRefresh], default off, throttled to weekly) — so the
 /// app makes no network request the user did not ask for (an F-Droid
 /// inclusion requirement). Until an update runs, generated per-site
 /// User-Agents render at [kDefaultFirefoxMajorVersion] baked into the build.
@@ -89,7 +88,7 @@ class FirefoxUserAgentService {
 
   int _major = kDefaultFirefoxMajorVersion;
   DateTime? _lastChecked;
-  Future<FirefoxVersionRefreshResult>? _inFlight;
+  SingleFlight<(), FirefoxVersionRefreshResult> _refreshes = SingleFlight();
 
   /// Current Firefox major version (scraped, or the bundled floor).
   int get majorVersion => _major;
@@ -136,8 +135,7 @@ class FirefoxUserAgentService {
       final ts = prefs.getString(_lastCheckedKey);
       if (ts != null) _lastChecked = DateTime.tryParse(ts);
     } catch (e) {
-      LogService.instance
-          .log('FirefoxUA', 'init error: $e', level: LogLevel.error);
+      LogTag.firefoxUa.error('init error: $e');
     }
   }
 
@@ -146,26 +144,20 @@ class FirefoxUserAgentService {
   /// user's opt-in — this is the single network seam of this service.
   /// Concurrent calls share one in-flight request.
   Future<FirefoxVersionRefreshResult> refresh() =>
-      _inFlight ??= _refresh().whenComplete(() {
-        _inFlight = null;
-      });
+      _refreshes.run((), _refresh);
 
   /// Minimum spacing between automatic refreshes. Manual refreshes are
   /// never throttled.
   static const Duration kAutoRefreshInterval = Duration(days: 7);
 
   /// Startup hook for the opt-in automatic update: refreshes only when the
-  /// user has enabled [kFirefoxUaAutoRefreshKey] and the last successful
+  /// user has enabled [AppPref.firefoxUaAutoRefresh] and the last successful
   /// check is older than [kAutoRefreshInterval] (or has never happened).
   /// No-ops otherwise, so the default behavior stays "no network unless
   /// asked". Call after [initialize]; never awaited on the startup path.
   Future<void> maybeAutoRefresh() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (!(readPrefAs<bool>(prefs, kFirefoxUaAutoRefreshKey) ?? false)) return;
-    } catch (_) {
-      return;
-    }
+    final prefs = await SharedPreferences.getInstance();
+    if (!AppPref.firefoxUaAutoRefresh.load(prefs)) return;
     final last = _lastChecked;
     if (last != null && DateTime.now().difference(last) < kAutoRefreshInterval) {
       return;
@@ -185,34 +177,31 @@ class FirefoxUserAgentService {
       if (isNewer) await prefs.setInt(_versionKey, _major);
       await prefs.setString(_lastCheckedKey, _lastChecked!.toIso8601String());
     } catch (e) {
-      LogService.instance
-          .log('FirefoxUA', 'persist error: $e', level: LogLevel.error);
+      LogTag.firefoxUa.error('persist error: $e');
     }
     if (isNewer) {
-      LogService.instance.log(
-          'FirefoxUA', 'Firefox version updated to $_major',
-          level: LogLevel.info);
+      LogTag.firefoxUa.info('Firefox version updated to $_major');
       return FirefoxVersionRefreshResult.updated;
     }
     return FirefoxVersionRefreshResult.unchanged;
   }
 
   Future<int?> _scrapeMajorVersion() async {
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log('FirefoxUA', 'Skipped: ${clientResult.reason}',
-          level: LogLevel.warning);
-      return null;
+    for (final (url, parse) in [
+      (_sourceVersionUrl, parseFirefoxVersionDisplay),
+      (_productDetailsUrl, parseFirefoxProductDetails),
+    ]) {
+      switch (await fetchViaAppProxy(Uri.parse(url), tag: LogTag.firefoxUa)) {
+        case FetchRefused():
+          return null;
+        case FetchFailed():
+          continue;
+        case Fetched(:final response):
+          final major = parse(response.body);
+          if (major != null) return major;
+      }
     }
-    final client = (clientResult as OutboundClientReady).client;
-    try {
-      return await _fetchVersion(
-              client, _sourceVersionUrl, parseFirefoxVersionDisplay) ??
-          await _fetchVersion(
-              client, _productDetailsUrl, parseFirefoxProductDetails);
-    } finally {
-      client.close();
-    }
+    return null;
   }
 
   /// Reset in-memory state to the bundled default. Tests only — the singleton
@@ -221,24 +210,6 @@ class FirefoxUserAgentService {
   void resetForTest() {
     _major = kDefaultFirefoxMajorVersion;
     _lastChecked = null;
-    _inFlight = null;
-  }
-
-  Future<int?> _fetchVersion(
-      http.Client client, String url, int? Function(String) parse) async {
-    try {
-      final resp =
-          await client.get(Uri.parse(url)).timeout(const Duration(seconds: 15));
-      if (resp.statusCode != 200) {
-        LogService.instance.log('FirefoxUA', 'HTTP ${resp.statusCode} from $url',
-            level: LogLevel.warning);
-        return null;
-      }
-      return parse(resp.body);
-    } catch (e) {
-      LogService.instance
-          .log('FirefoxUA', 'fetch $url failed: $e', level: LogLevel.warning);
-      return null;
-    }
+    _refreshes = SingleFlight();
   }
 }

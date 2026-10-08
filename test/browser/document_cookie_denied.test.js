@@ -25,8 +25,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const { setupBrowser, requireBrowser } = require('./helpers/launch');
+const { listen } = require('./helpers/blank_server');
 
 const DENIED = "Failed to read the 'cookie' property from 'Document': " +
   'Access is denied for this document.';
@@ -54,10 +54,8 @@ const PROBE = `(() => {
   catch (e) { return 'THREW ' + e.name + ': ' + e.message; }
 })()`;
 
-function startServer() {
-  let server;
-  return new Promise((resolve) => {
-    server = http.createServer((req, res) => {
+async function startServer() {
+  const server = await listen((req, res) => {
       // Read-only probe. Whether a third-party cookie STICKS depends on
       // SameSite and a secure context; whether reading one THROWS is the
       // question here, and that needs neither.
@@ -77,9 +75,8 @@ function startServer() {
       res.writeHead(200, { 'Content-Type': 'text/html', 'Set-Cookie': 'sid=abc; Path=/' });
       res.end(`<!doctype html><body><iframe${sandbox} src="${src}"></iframe>
         <script>window.__r = new Promise((r) => addEventListener('message', (e) => r(e.data)));</script>`);
-    });
-    server.listen(0, '127.0.0.1', () => resolve(server));
   });
+  return server;
 }
 
 async function frameProbe(state, query) {

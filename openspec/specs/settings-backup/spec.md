@@ -104,7 +104,7 @@ restored, but the user re-downloads the blocklists to activate blocking.
 
 The DNS level and content-blocker list selection ride dedicated backup
 fields (`dnsBlockLevel`, `contentBlockerLists`), not the
-`kExportedAppPrefs` registry, because applying them on import must run
+`AppPref` registry, because applying them on import must run
 through the owning service to keep the persisted level/selection coherent
 with whatever blob the importing device already has on disk.
 
@@ -193,7 +193,7 @@ off
 ### Requirement: BACKUP-010 - Trust-Granting State Never Round-Trips
 
 State that grants trust on restore SHALL NOT be registered in
-`kExportedAppPrefs`. `kTrustedHostsKey` is the worked case: an entry there
+`AppPref`. `kTrustedHostsKey` is the worked case: an entry there
 makes `HttpClient.badCertificateCallback` return true and the webview's
 `onReceivedServerTrustAuthRequest` return PROCEED with no prompt, so a
 backup file naming the key would silently install a man-in-the-middle
@@ -369,8 +369,8 @@ What an upgrade or an import reads SHALL survive any single odd value.
   next save deletes it, so a strict field turned one odd value into a lost
   site. `UserScriptConfig`, `UserProxySettings` and `Webspace` read the same
   way.
-- A `kExportedAppPrefs` key SHALL be read through `readPrefAs`
-  (`lib/settings/pref_read.dart`) or `readExportedAppPrefs`, never a typed
+- An `AppPref` key SHALL be read through `AppPref.stored`/`load`
+  (`lib/settings/app_prefs.dart`) or `readExportedAppPrefs`, never a typed
   `SharedPreferences` getter. Those throw on a stored value of another type,
   and v0.2.2 through v0.3.1 imports stored `globalPrefs` values under the
   file's JSON type; thrown inside `_restoreAppState`, it stopped the sites

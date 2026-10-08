@@ -51,7 +51,6 @@
     // Only intercept whitelisted CDN URLs. Site scripts (e.g.,
     // platform.linkedin.com) fall through to normal DOM behavior.
     if (!isWhitelistedUrl(url)) return null;
-    // If already loaded, just fire onload without re-fetching.
     if (_loadedUrls[url]) {
       var onload = scriptEl.onload;
       if (onload) setTimeout(function() { try { onload.call(scriptEl); } catch(e) { console.error('__ws: dedup onload error:', e); } }, 0);

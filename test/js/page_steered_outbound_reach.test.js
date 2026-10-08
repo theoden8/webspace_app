@@ -10,8 +10,8 @@
 // So this gate does not test the guard. It tests that every outbound seam has
 // been classified: either it routes page-chosen URLs through
 // `classifyOutboundTarget`, or it is listed here with the reason it does not
-// need to. A new `outboundHttp.clientFor` in neither list fails, which puts
-// the decision in front of whoever adds it.
+// need to. A new `outboundHttp.clientFor` or `fetchViaAppProxy` caller in
+// neither list fails, which puts the decision in front of whoever adds it.
 //
 // Cross-links:
 //   docs/bugs/012-page-steered-outbound-reach.md
@@ -19,11 +19,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
 const path = require('node:path');
+const { read, dartFiles } = require('./helpers/source');
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const SEAM = 'outboundHttp.clientFor';
+const SEAMS = ['outboundHttp.clientFor', 'fetchViaAppProxy('];
 const GATE = 'classifyOutboundTarget';
 
 // Seams that take a URL a loaded page chose. Each MUST call the gate.
@@ -35,7 +34,7 @@ const GUARDED = [
 // Seams that do not, and why. A reason is required: "it seemed fine" is how
 // the artwork fetch ended up with half the guard for a fortnight.
 const EXEMPT = {
-  'lib/main.dart':
+  'lib/services/page_title.dart':
     'getPageTitle takes a URL the user is adding as a site or one arriving in '
     + 'a share intent. Attacker-authored, but not chosen by a loaded page, so '
     + 'it is a different surface from this class.',
@@ -58,6 +57,9 @@ const EXEMPT = {
   'lib/services/tor_geoip_io.dart':
     'tor\'s GeoIP table from the Tor Project URLs fixed in kTorGeoIpUrls, '
     + 'through Tor.',
+  'lib/services/outbound_http.dart':
+    'fetchViaAppProxy itself, for downloads the app configures; each of its '
+    + 'callers is classified here on its own.',
   'lib/services/proxy_test_service.dart':
     'The probe target is the site\'s own home URL (typed by the user, not '
     + 'chosen by a loaded page) or the fixed example.com fallback, and '
@@ -74,17 +76,8 @@ const EXEMPT = {
     'Vendored favicon resolution, reached from icon_service; same gap.',
 };
 
-function dartFiles(dir, out = []) {
-  for (const entry of fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true })) {
-    const rel = path.posix.join(dir, entry.name);
-    if (entry.isDirectory()) dartFiles(rel, out);
-    else if (entry.name.endsWith('.dart')) out.push(rel);
-  }
-  return out;
-}
-
 const seams = dartFiles('lib').filter((f) =>
-  fs.readFileSync(path.join(ROOT, f), 'utf8').includes(SEAM));
+  SEAMS.some((seam) => read(f).includes(seam)));
 
 test('every outbound seam is classified', () => {
   const classified = new Set([...GUARDED, ...Object.keys(EXEMPT)]);
@@ -97,12 +90,12 @@ test('every outbound seam is classified', () => {
 test('every classified seam still makes an outbound call', () => {
   // A stale entry is worse than none: it reads as a decision that was made.
   const stale = [...GUARDED, ...Object.keys(EXEMPT)].filter((f) => !seams.includes(f));
-  assert.deepEqual(stale, [], `no longer calls ${SEAM} — drop the entry`);
+  assert.deepEqual(stale, [], `no longer calls ${SEAMS.join(' or ')} — drop the entry`);
 });
 
 for (const file of GUARDED) {
   test(`${file} judges the destination, not the URL string`, () => {
-    const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const src = read(file);
     assert.ok(src.includes(GATE),
       `${file} takes a page-chosen URL, so it must resolve it before it `
       + `connects. Removing the ${GATE} call reopens BUG-012 on this path.`);
@@ -121,7 +114,7 @@ test('every exemption states a reason', () => {
 test('the private-range table lives in exactly one file', () => {
   const marker = 'a == 169 && b == 254';
   const homes = dartFiles('lib').filter((f) =>
-    fs.readFileSync(path.join(ROOT, f), 'utf8').includes(marker));
+    read(f).includes(marker));
   assert.deepEqual(homes, ['lib/services/host_resolution.dart'],
     'do not copy the range table — import isPrivateOrLoopbackHost');
 });

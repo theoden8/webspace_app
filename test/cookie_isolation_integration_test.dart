@@ -1,240 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
-import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/services/site_activation_engine.dart';
+import 'package:webspace/services/site_retention_priority.dart';
+import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
 
-/// In-memory cookie jar that models RFC 6265 domain-match semantics so the
-/// sibling-subdomain scenarios the real fix addresses can actually be
-/// exercised. Implements the real `CookieManager` interface so the engine
-/// under test is unaware that it's talking to a mock.
-///
-/// Cookies are stored as a flat list. `getCookies(url)` returns cookies
-/// whose Domain attribute matches per RFC 6265:
-///   - cookie.domain equals url.host (host-only), OR
-///   - cookie.domain is a parent of url.host (domain cookie — leading
-///     `.` is optional per modern browsers)
-/// plus path matching (cookie.path is a prefix of url.path).
-class MockCookieManager implements CookieManager {
-  final List<Cookie> _cookies = [];
-
-  /// All cookies in the jar (for assertions).
-  List<Cookie> get all => List.unmodifiable(_cookies);
-
-  /// Unique domains present in the jar.
-  Set<String> get domainsWithCookies => {
-        for (final c in _cookies)
-          if (c.domain != null) _canonical(c.domain!),
-      };
-
-  @override
-  Future<List<Cookie>> getCookies({required Uri url}) async {
-    final host = url.host.toLowerCase();
-    final path = url.path.isEmpty ? '/' : url.path;
-    return _cookies.where((c) {
-      if (!_domainMatches(c.domain, host)) return false;
-      if (!_pathMatches(c.path ?? '/', path)) return false;
-      return true;
-    }).toList();
-  }
-
-  @override
-  Future<List<Cookie>> getAllCookies({List<Uri>? candidateUrls}) async {
-    // The real iOS/macOS path ignores candidateUrls. On Android the wrapper
-    // aggregates per-URL; for tests the mock returns everything so we don't
-    // need to thread a platform switch through the tests.
-    return List.from(_cookies);
-  }
-
-  @override
-  Future<void> setCookie({
-    required Uri url,
-    required String name,
-    required String value,
-    String? domain,
-    String? path,
-    int? expiresDate,
-    bool? isSecure,
-    bool? isHttpOnly,
-  }) async {
-    final effectiveDomain = (domain ?? url.host).toLowerCase();
-    final effectivePath = path ?? '/';
-    _cookies.removeWhere((c) =>
-        c.name == name &&
-        _canonical(c.domain ?? '') == _canonical(effectiveDomain) &&
-        (c.path ?? '/') == effectivePath);
-    _cookies.add(Cookie(
-      name: name,
-      value: value,
-      domain: effectiveDomain,
-      path: effectivePath,
-      expiresDate: expiresDate,
-      isSecure: isSecure,
-      isHttpOnly: isHttpOnly,
-    ));
-  }
-
-  @override
-  Future<void> deleteCookie({
-    required Uri url,
-    required String name,
-    String? domain,
-    String? path,
-  }) async {
-    final effectiveDomain = (domain ?? url.host).toLowerCase();
-    final effectivePath = path ?? '/';
-    _cookies.removeWhere((c) =>
-        c.name == name &&
-        _canonical(c.domain ?? '') == _canonical(effectiveDomain) &&
-        (c.path ?? '/') == effectivePath);
-  }
-
-  @override
-  Future<void> deleteAllCookies() async {
-    _cookies.clear();
-  }
-
-  @override
-  Future<void> deleteAllCookiesForUrl(Uri url) async {
-    final cookies = await getCookies(url: url);
-    for (final c in cookies) {
-      await deleteCookie(url: url, name: c.name, domain: c.domain, path: c.path);
-    }
-  }
-
-  /// Strip a leading `.` so `.google.com` and `google.com` compare equal.
-  static String _canonical(String domain) {
-    var d = domain.trim().toLowerCase();
-    if (d.startsWith('.')) d = d.substring(1);
-    return d;
-  }
-
-  /// RFC 6265 §5.1.3 domain-match.
-  static bool _domainMatches(String? cookieDomain, String host) {
-    if (cookieDomain == null || cookieDomain.isEmpty) return false;
-    final d = _canonical(cookieDomain);
-    final h = host.toLowerCase();
-    if (d == h) return true;
-    if (h.endsWith('.$d')) return true;
-    return false;
-  }
-
-  /// RFC 6265 §5.1.4 path-match.
-  static bool _pathMatches(String cookiePath, String requestPath) {
-    if (cookiePath == requestPath) return true;
-    if (requestPath.startsWith(cookiePath)) {
-      if (cookiePath.endsWith('/')) return true;
-      final next = requestPath.length > cookiePath.length
-          ? requestPath[cookiePath.length]
-          : '';
-      if (next == '/') return true;
-    }
-    return false;
-  }
-
-  // CookieManager exposes a handful of other methods this mock doesn't need.
-  // Route unimplemented calls through noSuchMethod so the type-level
-  // `implements CookieManager` contract holds without us having to stub
-  // every member.
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-/// Cookie manager that models ANDROID's URL-scoped native cookie API, unlike
-/// the permissive [MockCookieManager] whose `getAllCookies` returns the whole
-/// jar. On Android the wrapper aggregates `getCookies(url)` over a fixed set
-/// of candidate URLs (there is no "dump every cookie" primitive), so a cookie
-/// on a host that isn't reachable from any candidate URL is invisible to a
-/// capture — and `setCookie` drops a cookie whose Domain isn't a suffix of the
-/// request URL host. This makes the legacy engine's sibling-subdomain
-/// host-only-cookie loss observable in tests instead of hidden.
-///
-/// Legacy engine only: the container engine (the default for Android
-/// `MULTI_PROFILE`,
-/// iOS 17+, macOS 14+, Linux WPE 2.40+ — i.e. most users) owns each site's
-/// cookies in a native per-site store and never runs this URL-scoped
-/// capture-nuke-restore, so it is not subject to this limitation.
-class AndroidScopedCookieManager extends MockCookieManager {
-  @override
-  Future<List<Cookie>> getAllCookies({List<Uri>? candidateUrls}) async {
-    if (candidateUrls == null || candidateUrls.isEmpty) {
-      return super.getAllCookies();
-    }
-    final seen = <String>{};
-    final result = <Cookie>[];
-    for (final url in candidateUrls) {
-      for (final c in await getCookies(url: url)) {
-        if (seen.add('${c.name}|${c.domain}|${c.path}')) result.add(c);
-      }
-    }
-    return result;
-  }
-
-  @override
-  Future<void> setCookie({
-    required Uri url,
-    required String name,
-    required String value,
-    String? domain,
-    String? path,
-    int? expiresDate,
-    bool? isSecure,
-    bool? isHttpOnly,
-  }) async {
-    // Android's CookieManager.setCookie stores against the URL and drops a
-    // cookie whose Domain attribute isn't the URL host or a parent of it.
-    if (domain != null && !MockCookieManager._domainMatches(domain, url.host.toLowerCase())) {
-      return;
-    }
-    await super.setCookie(
-      url: url,
-      name: name,
-      value: value,
-      domain: domain,
-      path: path,
-      expiresDate: expiresDate,
-      isSecure: isSecure,
-      isHttpOnly: isHttpOnly,
-    );
-  }
-}
-
-/// In-memory per-siteId cookie store implementing the real
-/// `CookieSecureStorage` interface. Only the methods the engine touches
-/// are meaningful; everything else routes through `noSuchMethod`.
-class MockCookieSecureStorage implements CookieSecureStorage {
-  final Map<String, List<Cookie>> _storage = {};
-
-  @override
-  Future<List<Cookie>> loadCookiesForSite(String siteId) async {
-    return List.from(_storage[siteId] ?? const []);
-  }
-
-  @override
-  Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) async {
-    if (cookies.isEmpty) {
-      _storage.remove(siteId);
-    } else {
-      _storage[siteId] = List.from(cookies);
-    }
-  }
-
-  @override
-  Future<void> removeOrphanedCookies(Set<String> activeSiteIds) async {
-    _storage.removeWhere((siteId, _) => !activeSiteIds.contains(siteId));
-  }
-
-  Map<String, List<Cookie>> get allStorage => Map.from(_storage);
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
+import 'helpers/mock_cookie_manager.dart';
+import 'helpers/site_list_state.dart';
 
 /// Test harness for cookie isolation. Delegates cookie-jar management to
 /// the REAL [CookieIsolationEngine] — the tests exercise production code,
 /// not duplicated harness code.
-class CookieIsolationTestHarness {
+class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   final MockCookieManager cookieManager;
   final MockCookieSecureStorage storage = MockCookieSecureStorage();
   late final CookieIsolationEngine engine = CookieIsolationEngine(
@@ -244,9 +21,41 @@ class CookieIsolationTestHarness {
 
   CookieIsolationTestHarness({MockCookieManager? cookieManager})
       : cookieManager = cookieManager ?? MockCookieManager();
-  final List<WebViewModel> sites = [];
-  final Set<int> loadedIndices = {};
-  int? currentIndex;
+
+  @override
+  List<WebViewModel> get models => sites;
+
+  @override
+  CookieIsolationEngine get sharedJar => engine;
+
+  final List<WebViewModel> navStateCaptured = [];
+
+  @override
+  Future<void> captureNavState(WebViewModel model) async =>
+      navStateCaptured.add(model);
+
+  @override
+  void noteUnloaded(WebViewModel model, UnloadReason reason) {}
+
+  @override
+  List<WebViewModel> identities({int? except}) => sites;
+
+  @override
+  SiteRetentionPriority priorityOf(int index) => index == currentIndex
+      ? SiteRetentionPriority.active
+      : SiteRetentionPriority.loaded;
+
+  @override
+  ProxyTopology get proxyTopology => ProxyTopology.of(
+      linux: false, android: false, routerActive: false,
+      sharesDefaultSession: (_) => false);
+
+  @override
+  bool get torAvailable => false;
+
+  /// Mirrors `_unloadSite` in main.dart.
+  Future<void> unload(int index, UnloadReason reason) =>
+      SiteUnloadEngine.unload(this, index, reason);
 
   /// Monotonic counter mirroring `_setCurrentIndexVersion` in
   /// `_WebSpacePageState`. Every `switchToSite` call bumps it; the engine
@@ -261,26 +70,17 @@ class CookieIsolationTestHarness {
     ));
   }
 
-  /// Mirrors `_setCurrentIndex` in main.dart: bumps the version, unloads
-  /// any same-base-domain conflicting site, then delegates cookie restore
-  /// to the real engine. Both the conflict-finding and restore steps go
-  /// through the production engines so the harness can't drift from prod.
+  /// Mirrors `_setCurrentIndex` in main.dart: bumps the version, runs the
+  /// activation's residency plan, then delegates cookie restore to the real
+  /// engine, so the harness can't drift from prod.
   Future<void> switchToSite(int index) async {
     if (index < 0 || index >= sites.length) return;
     final v = ++version;
 
-    final conflictIndex = SiteActivationEngine.findDomainConflict(
-      targetIndex: index,
-      models: sites,
-      loadedIndices: loadedIndices,
-    );
-    if (conflictIndex != null) {
-      await engine.unloadSiteForDomainSwitch(
-        index: conflictIndex,
-        models: sites,
-        loadedIndices: loadedIndices,
-      );
-      if (v != version) return;
+    final plan = SiteUnloadEngine.plan(this, Activating(index));
+    if (!await SiteUnloadEngine.apply(this, plan,
+        isStale: () => v != version)) {
+      return;
     }
 
     await engine.restoreCookiesForSite(
@@ -306,19 +106,7 @@ class CookieIsolationTestHarness {
       loadedIndices: loadedIndices,
     );
 
-    sites.removeAt(index);
-    loadedIndices.remove(index);
-    loadedIndices.removeWhere((i) => i >= sites.length);
-    final shifted = loadedIndices.map((i) => i > index ? i - 1 : i).toSet();
-    loadedIndices
-      ..clear()
-      ..addAll(shifted);
-
-    if (currentIndex == index) {
-      currentIndex = null;
-    } else if (currentIndex != null && currentIndex! > index) {
-      currentIndex = currentIndex! - 1;
-    }
+    removeSiteAt(index);
 
     await storage.removeOrphanedCookies(
       sites.map((s) => s.siteId).toSet(),
@@ -359,13 +147,7 @@ class CookieIsolationTestHarness {
   Future<void> simulateSitePurgedFromPriorSession(int index) async {
     final model = sites[index];
     await storage.saveCookiesForSite(model.siteId, const []);
-    sites.removeAt(index);
-    loadedIndices.remove(index);
-    loadedIndices.removeWhere((i) => i >= sites.length);
-    final shifted = loadedIndices.map((i) => i > index ? i - 1 : i).toSet();
-    loadedIndices
-      ..clear()
-      ..addAll(shifted);
+    removeSiteAt(index);
   }
 
   /// Simulate a site receiving cookies (e.g., after login).
@@ -702,6 +484,43 @@ void main() {
     });
   });
 
+  group('Unload (ISO-002)', () {
+    // Every activation empties the shared jar after saving it for the
+    // loaded sites only, so an unloaded site keeps what it set since its own
+    // activation only if its unload captured the jar first. The webspace
+    // switch once unloaded without that capture.
+    for (final reason in UnloadReason.values) {
+      test('a ${reason.label} unload keeps the session the site just set',
+          () async {
+        final harness = CookieIsolationTestHarness();
+        harness.addSite('https://github.com', name: 'GitHub');
+        harness.addSite('https://example.com', name: 'Example');
+        await harness.switchToSite(0);
+        await harness.simulateLogin(0, [
+          Cookie(name: 'session', value: 'fresh', domain: 'github.com'),
+        ]);
+
+        await harness.unload(0, reason);
+        expect(harness.loadedIndices, isNot(contains(0)));
+        await harness.switchToSite(1);
+
+        final saved =
+            await harness.storage.loadCookiesForSite(harness.sites[0].siteId);
+        expect(saved.map((c) => c.value), contains('fresh'));
+      });
+    }
+
+    test('a domain-conflict unload keeps the back stack (PAUSE-007)',
+        () async {
+      final harness = CookieIsolationTestHarness();
+      harness.addSite('https://github.com/personal', name: 'Personal');
+      harness.addSite('https://github.com/work', name: 'Work');
+      await harness.switchToSite(0);
+      await harness.switchToSite(1);
+      expect(harness.navStateCaptured, [harness.sites[0]]);
+    });
+  });
+
   group('Site Deletion Cookie Cleanup', () {
     late CookieIsolationTestHarness harness;
 
@@ -735,6 +554,21 @@ void main() {
       // Secure storage should be cleared for this siteId
       var stored = await harness.storage.loadCookiesForSite(siteId);
       expect(stored, isEmpty);
+    });
+
+    test('deleting a site keeps a loaded site after it loaded at its new index', () async {
+      harness.addSite('https://github.com', name: 'A');
+      harness.addSite('https://example.com', name: 'B');
+      harness.addSite('https://gitlab.com', name: 'C');
+      await harness.switchToSite(0);
+      await harness.switchToSite(2);
+      final c = harness.sites[2];
+
+      await harness.deleteSite(0);
+
+      expect(harness.sites.indexOf(c), 1);
+      expect(harness.loadedIndices, {1});
+      expect(harness.currentIndex, 1);
     });
 
     test('deleting one of multiple same-domain sites preserves surviving site live session', () async {

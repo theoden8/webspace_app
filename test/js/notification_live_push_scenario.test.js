@@ -11,12 +11,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const harnessRel = 'scripts/run_android_lifecycle_tests.sh';
-const harness = fs.readFileSync(path.join(repoRoot, harnessRel), 'utf8');
+const harness = read(harnessRel);
 
 const heredoc = (name) => {
   const m = new RegExp(`cat > "\\$www/${name}" <<'EOF'\\n([\\s\\S]*?)\\nEOF\\n`)

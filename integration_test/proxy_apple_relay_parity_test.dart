@@ -30,7 +30,9 @@ import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 import 'socks5_fixture.dart';
+import 'helpers/ui.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -81,24 +83,7 @@ void main() {
   bool saw(Socks5Fixture f, int dest) =>
       f.targets.any((t) => t.startsWith('${syntheticOrigin(dest)}:'));
 
-  Future<bool> waitReal(WidgetTester tester, bool Function() done,
-      {required String label,
-      Duration timeout = const Duration(seconds: 30)}) async {
-    var ok = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        if (done()) {
-          ok = true;
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      ok = done();
-    });
-    log('$label -> ${ok ? "ok" : "timeout"}');
-    return ok;
-  }
+  final waitReal = RealWait(log: log);
 
   testWidgets('two sites through one relay endpoint reach their own upstreams',
       (tester) async {
@@ -138,24 +123,23 @@ void main() {
     expect(ProxyRouterService.instance.isActive, isTrue);
     log('relay on ${ProxyRouterService.instance.host}:$port');
 
-    Widget pane(String siteId, int dest) => SizedBox(
-          width: 200,
-          height: 90,
-          child: WebViewFactory.createWebView(
-            config: WebViewConfig(
-              siteId: siteId,
-              initialUrl: 'http://${syntheticOrigin(dest)}/$siteId',
-              clearUrlEnabled: false,
-              dnsBlockEnabled: false,
-              contentBlockEnabled: false,
-              trackingProtectionEnabled: false,
-              localCdnEnabled: false,
-            ),
-            onControllerCreated: (_) {},
+    Widget pane(String siteId, int dest) {
+      final url = 'http://${syntheticOrigin(dest)}/$siteId';
+      return SizedBox(
+        width: 200,
+        height: 90,
+        child: WebViewFactory.createWebView(
+          config: WebViewConfig(
+            hooks: bareHooks(),
+            posture: barePosture(url, siteId: siteId),
+            initialUrl: url,
           ),
-        );
+          onControllerCreated: (_) {},
+        ),
+      );
+    }
 
-    // No proxySettings on either config: under router mode the site's own rule
+    // Neither posture names a proxy: under router mode the site's own rule
     // is made at the relay, and every store points at the relay instead.
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(

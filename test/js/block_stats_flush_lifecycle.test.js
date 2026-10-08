@@ -9,12 +9,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const rel = 'lib/main.dart';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const rel = 'lib/controllers/app_lifecycle_controller.dart';
+const src = read(rel);
 
 test('the flush is gated on leaving the foreground, not on one state', () => {
   assert.match(

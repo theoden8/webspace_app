@@ -13,7 +13,7 @@
 (*      background and RE-CREATED on foreground. That re-attach is a         *)
 (*      SEPARATE, asynchronous event -- it does not coincide with the       *)
 (*      `resumed` lifecycle callback and can land a frame or more LATER.     *)
-(*   2. `_nudgeSurfaceRepaint` is not a magic always-available repaint. It   *)
+(*   2. `SurfaceRepaintController.nudge` is not a magic always-available repaint. It   *)
 (*      is a ONE-SHOT tick loop fired by a specific trigger and then         *)
 (*      drains. Once it drains it is gone.                                   *)
 (*                                                                         *)
@@ -77,7 +77,7 @@ Init ==
     /\ resumed = FALSE
     /\ reattached = FALSE
 
-\* App returns to foreground. `_onResumed` fires its single tail nudge
+\* App returns to foreground. `AppLifecycleController._onResumed` fires its single tail nudge
 \* (PAUSE-015): schedule a one-shot loop. The surface has NOT necessarily
 \* re-attached yet -- that is the separate SurfaceReattach below.
 Resume ==
@@ -86,7 +86,7 @@ Resume ==
     /\ nudging' = K
     /\ UNCHANGED << surface, owed, reattached >>
 
-\* One nudge tick (`_nudgeSurfaceRepaint` toggling the 1px inset). A relayout
+\* One nudge tick (`SurfaceRepaintController.nudge` toggling the 1px inset). A relayout
 \* repaints whatever surface is currently attached, so it clears any owed
 \* repaint. When owed is already false this is a harmless no-op tick.
 Tick ==

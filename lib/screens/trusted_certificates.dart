@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Lists every (host, port, sha256) the user has approved via the
 /// "Untrusted certificate" prompt. Each entry has an "Untrust" action
@@ -20,100 +22,60 @@ class TrustedCertificatesScreen extends StatefulWidget {
 }
 
 class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
-  late List<TrustedHostEntry> _entries;
-
-  @override
-  void initState() {
-    super.initState();
-    _entries = _sorted(TrustedHostsService.instance.all());
-  }
-
-  List<TrustedHostEntry> _sorted(List<TrustedHostEntry> list) {
-    list.sort((a, b) {
-      final byHost = a.host.toLowerCase().compareTo(b.host.toLowerCase());
-      if (byHost != 0) return byHost;
-      return a.port.compareTo(b.port);
-    });
-    return list;
-  }
+  List<TrustedHostEntry> get _sortedEntries =>
+      TrustedHostsService.instance.all()
+        ..sort((a, b) {
+          final byHost = a.host.toLowerCase().compareTo(b.host.toLowerCase());
+          return byHost != 0 ? byHost : a.port.compareTo(b.port);
+        });
 
   Future<void> _untrust(TrustedHostEntry entry) async {
     final loc = AppLocalizations.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.trustedCertRevokeDialogTitle),
-        content: Text(
-          loc.trustedCertRevokeDialogBody(entry.host, entry.port),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.trustedCertRevokeConfirm),
-          ),
-        ],
-      ),
+    final ok = await confirm(
+      context,
+      title: loc.trustedCertRevokeDialogTitle,
+      body: loc.trustedCertRevokeDialogBody(entry.host, entry.port),
+      confirmLabel: loc.trustedCertRevokeConfirm,
+      destructive: true,
     );
-    if (ok != true) return;
+    if (!ok) return;
     await TrustedHostsService.instance.untrust(
       host: entry.host,
       port: entry.port,
     );
-    if (!mounted) return;
-    setState(() {
-      _entries = _sorted(TrustedHostsService.instance.all());
-    });
+    if (mounted) setState(() {});
   }
 
   Future<void> _confirmClearAll() async {
     final loc = AppLocalizations.of(context);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(loc.trustedCertRevokeAllDialogTitle),
-        content: Text(loc.trustedCertRevokeAllDialogBody),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(loc.trustedCertRevokeAllConfirm),
-          ),
-        ],
-      ),
+    final ok = await confirm(
+      context,
+      title: loc.trustedCertRevokeAllDialogTitle,
+      body: loc.trustedCertRevokeAllDialogBody,
+      confirmLabel: loc.trustedCertRevokeAllConfirm,
+      destructive: true,
     );
-    if (ok != true) return;
+    if (!ok) return;
     await TrustedHostsService.instance.clear();
-    if (!mounted) return;
-    setState(() {
-      _entries = const [];
-    });
+    if (mounted) setState(() {});
   }
 
   String _formatFingerprint(String sha256Hex) {
     final upper = sha256Hex.toUpperCase();
-    final buf = StringBuffer();
-    for (var i = 0; i < upper.length; i += 2) {
-      if (i > 0) buf.write(':');
-      buf.write(upper.substring(i, i + 2));
-    }
-    return buf.toString();
+    return [
+      for (var i = 0; i < upper.length; i += 2) upper.substring(i, i + 2),
+    ].join(':');
   }
 
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final entries = _sortedEntries;
     return Scaffold(
       appBar: AppBar(
         title: Text(loc.trustedCertScreenTitle),
         actions: [
-          if (_entries.isNotEmpty)
+          if (entries.isNotEmpty)
             IconButton(
               tooltip: loc.trustedCertRevokeAllTooltip,
               icon: const Icon(Icons.delete_sweep),
@@ -121,7 +83,7 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
             ),
         ],
       ),
-      body: _entries.isEmpty
+      body: entries.isEmpty
           ? Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -152,10 +114,10 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
             )
           : ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              itemCount: _entries.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemCount: entries.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
-                final entry = _entries[index];
+                final entry = entries[index];
                 final formatted = _formatFingerprint(entry.sha256Hex);
                 final hostPort = '${entry.host}:${entry.port}';
                 return ListTile(
@@ -191,11 +153,9 @@ class _TrustedCertificatesScreenState extends State<TrustedCertificatesScreen> {
                         icon: const Icon(Icons.copy, size: 18),
                         onPressed: () {
                           Clipboard.setData(ClipboardData(text: formatted));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(loc.trustedCertCopied),
-                              duration: const Duration(seconds: 2),
-                            ),
+                          ScaffoldMessenger.of(context).toast(
+                            loc.trustedCertCopied,
+                            duration: const Duration(seconds: 2),
                           );
                         },
                       ),

@@ -4,27 +4,24 @@
 // mode) hands each cross-domain link it would nest or send to the system
 // browser to the host first, which may open it as the site that claims it.
 // A link the site's external-link mode blocks goes to the same hook, so the
-// host can say it was blocked. The hook is one line in front of each launch in
-// `WebViewModel.getWebView`, and the host only sees it on the webviews it
-// passed it to. A launch added without the line, or a webview built without
-// the hook (`getController` builds one when the frame has not yet), silently
-// opens the link with the source's own posture instead.
+// host can say it was blocked. The hook is a required field of
+// WebViewHostHooks, which every site webview is built from, so no webview
+// lacks it; what remains to check is that each launch in
+// `WebViewModel.getWebView` asks it first. A launch that does not opens the
+// link with the source's own posture instead.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const modelRel = 'lib/web_view_model.dart';
 const mainRel = 'lib/main.dart';
-const model = fs.readFileSync(path.join(repoRoot, modelRel), 'utf8');
-const main = fs.readFileSync(path.join(repoRoot, mainRel), 'utf8');
+const linksRel = 'lib/controllers/link_controller.dart';
+const model = read(modelRel);
+const main = read(mainRel);
+const links = read(linksRel);
 
-const getWebView = blockAfter(model, '  Widget getWebView(', '}) {', modelRel);
-const getController = blockAfter(
-  model, '  WebViewController? getController(', '}) {', modelRel);
+const getWebView = blockAfter(model, '  Widget? getWebView(', '}) {', modelRel);
 
 function previousLine(text, index) {
   const lines = text.slice(0, index).split('\n');
@@ -33,86 +30,62 @@ function previousLine(text, index) {
   return lines.length ? lines[lines.length - 1] : '';
 }
 
-// The argument list of the call whose `(` is the first at or after [from].
-function callText(text, from) {
-  const open = text.indexOf('(', from);
-  let depth = 0;
-  for (let i = open; i < text.length; i++) {
-    if (text[i] === '(') depth++;
-    else if (text[i] === ')' && --depth === 0) return text.slice(open + 1, i);
-  }
-  assert.fail(`unbalanced parentheses at offset ${from}`);
-}
+test('the tap and the redirect path carry out decisions in one place', () => {
+  const calls = [...getWebView.matchAll(/\bdispatch\(\w+\.decision|\bdispatch\(decision,/g)];
+  assert.equal(calls.length, 2,
+    'shouldOverrideUrlLoading and onUrlChanged both go through dispatch');
+});
 
-test('every launch in getWebView asks the outbound hook first', () => {
+test('every launch asks the outbound hook first', () => {
+  assert.match(getWebView,
+    /bool takenOver\(\) =>\s*hooks\.routeOutbound\(this, url, decision, hadGesture\);/,
+    'the hook is asked about the link being launched');
   const launches = [...getWebView.matchAll(
-    /\b(launchUrlFunc|launchUrlInSystemBrowser)\(([^,)]+)/g)];
-  assert.ok(launches.length >= 4,
-    'getWebView should launch nested and external on both navigation paths');
+    /\b(hooks\.launchNested|hooks\.openInBrowser)\(/g)];
+  assert.equal(launches.length, 2, 'one nested and one external launch');
   for (const m of launches) {
-    const prev = previousLine(getWebView, m.index);
-    assert.match(prev, /onOutboundLink\?\.call\(/,
-      `${m[1]}(${m[2]}...) is not guarded by onOutboundLink; a routed link ` +
-      'would open with the source posture');
-    assert.ok(prev.includes(m[2].trim()),
-      `the hook before ${m[1]}(${m[2]}...) is asked about a different URL`);
-    assert.match(prev, /\?\? false\) return/,
-      'a link the hook took over must not also be launched');
+    const prev = previousLine(getWebView, m.index + m[0].length) + getWebView
+      .slice(getWebView.lastIndexOf('\n', m.index), m.index);
+    assert.match(prev, /if \(!takenOver\(\)\)/,
+      `${m[1]} is not guarded by the outbound hook; a routed link would ` +
+      'open with the source posture, or open twice');
   }
 });
 
-test('every blocked outbound link reaches the hook, and nothing launches', () => {
-  const blocks = [...getWebView.matchAll(/case NavigationDecision\.blockOutbound:/g)];
-  assert.equal(blocks.length, 2,
-    'getWebView should block on both the tap and the redirect path');
-  for (const m of blocks) {
-    const branch = getWebView.slice(m.index, getWebView.indexOf('return', m.index));
-    assert.match(branch, /onOutboundLink\?\.call\(url, (result\.decision|NavigationDecision\.blockOutbound), (result|handled)\.hadGesture\)/,
-      'a blocked link must reach the host, which tells the user about a tap');
-    assert.doesNotMatch(branch, /launchUrlFunc|launchUrlInSystemBrowser/,
-      'a blocked link must not open anywhere');
-  }
-});
-
-test('getController forwards the hook to the webview it builds', () => {
-  assert.match(getController, /getWebView\([^;]*onOutboundLink: onOutboundLink/s,
-    'a webview built by getController would never route');
-});
-
-test('every site webview main.dart builds carries the hook', () => {
-  const calls = [...main.matchAll(/\.(getWebView|getController)\(\s*launchUrl\b/g)];
-  assert.ok(calls.length > 0, 'expected site webview builds in main.dart');
-  for (const m of calls) {
-    const call = callText(main, m.index);
-    assert.match(call, /onOutboundLink:\s*_outboundLinkHookFor\(/,
-      `${m[1]} at offset ${m.index} builds a webview without the outbound hook`);
-  }
+test('a blocked outbound link reaches the hook, and nothing launches', () => {
+  const at = getWebView.indexOf('case NavigationDecision.blockOutbound:');
+  assert.notEqual(at, -1, 'the blocked branch is gone');
+  const branch = getWebView.slice(at, getWebView.indexOf('return', at));
+  assert.match(branch, /takenOver\(\);/,
+    'a blocked link must reach the host, which tells the user about a tap');
+  assert.doesNotMatch(branch, /hooks\.launchNested|hooks\.openInBrowser/,
+    'a blocked link must not open anywhere');
 });
 
 test("the link menu's Open routes as a tap would", () => {
-  const open = blockAfter(main, '  Future<void> _openLinkAsTapped(', ') async {', mainRel);
-  const launches = [...open.matchAll(/await (_launchNestedForModel|launchUrlInSystemBrowser)\(/g)];
+  const open = blockAfter(links, '  Future<void> openLinkAsTapped(', ') async {', linksRel);
+  const launches = [...open.matchAll(/await (_host\.launchNestedFor|launchUrlInSystemBrowser)\(/g)];
   assert.equal(launches.length, 2, 'expected a nested and an external launch');
   for (const m of launches) {
     const before = open.slice(0, m.index);
     const lastCase = before.lastIndexOf('case NavigationDecision.');
-    assert.match(before.slice(lastCase), /_routeOutboundLink\(/,
-      `${m[1]} in _openLinkAsTapped runs without asking outbound routing first`);
+    assert.match(before.slice(lastCase), /routeOutbound\(/,
+      `${m[1]} in openLinkAsTapped runs without asking outbound routing first`);
   }
 });
 
 test('routing hands every gate to the engine, with the live values', () => {
-  const route = blockAfter(main, '  bool _routeOutboundLink(', ') {', mainRel);
+  const route = blockAfter(links, '  bool routeOutbound(', ') {', linksRel);
   assert.doesNotMatch(route, /ExperimentalFeature/,
     'link routing shipped: no developer-mode or experimental gate');
   assert.match(route, /LinkIntentDispatchEngine\.routeOutbound\(/,
     'the gates live in the engine, where they are unit-tested');
   for (const [arg, why] of [
     [/routeOutboundLinks: source\.effectiveRouteOutboundLinks/, 'the source opted in, in the in-app mode (LIR-013)'],
-    [/kioskLocked: _kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
+    [/kioskLocked: _host\.kioskLocked/, 'a locked kiosk reaches no other site (KIOSK-002)'],
     [/hadGesture: hadGesture/, 'only a user gesture is routed'],
-    [/containersActive: _useContainers/, 'the legacy engine does not route'],
-    [/_outboundCandidates\(source\)/, 'candidates stay on the source side of the archive boundary'],
+    [/containersActive: _sites\.useContainers/, 'the legacy engine does not route'],
+    [/outboundCandidates\(source\)/, 'candidates stay on the source side of the archive boundary'],
   ]) {
     assert.match(route, arg, `routeOutbound must be given ${why}`);
   }
@@ -131,26 +104,13 @@ test('a nested open runs through the engine, over the source only when routed', 
     'the screen opens through the NESTED-010 funnel');
 });
 
-test('every point that can orphan a preference prunes it (LIR-017)', () => {
-  const prunes = (body) => /_pruneOutboundPreferences\(\)/.test(body);
-  const load = blockAfter(main, '  Future<void> _loadWebViewModels() async {', null, mainRel);
-  assert.ok(prunes(load), 'startup must prune');
-  const del = blockAfter(main, '  Future<void> _deleteSite(', ') async {', mainRel);
-  const pruneAt = del.indexOf('_pruneOutboundPreferences()');
-  assert.ok(pruneAt !== -1 && pruneAt < del.indexOf('await _saveWebViewModels()'),
-    'a delete must prune before it saves');
-  const toArchive = blockAfter(main, '  Future<void> _moveSiteToArchive(', ') async {', mainRel);
-  const at = toArchive.indexOf('_pruneOutboundPreferences()');
-  assert.ok(at !== -1 && at < toArchive.indexOf('target.state.sites.add(model.toJson())'),
-    'a move into an archive must prune before the archived copy is taken');
-  const outOf = blockAfter(main, '  Future<void> _moveSiteOutOfArchive(', ') async {', mainRel);
-  const flip = outOf.indexOf('model.isArchiveTier = false;');
-  const after = outOf.indexOf('_pruneOutboundPreferences()');
-  assert.ok(flip !== -1 && after > flip,
-    'a move out of an archive must prune after the tier flip');
+// Which site-set changes prune (LIR-017) is SiteSetChange.effects, tested in
+// test/site_runtime_test.dart; where the commit prunes is
+// test/js/site_set_commit.test.js. An import prunes earlier, in its plan.
+test('an import prunes inside its plan (LIR-017, BACKUP-013)', () => {
   const importRel = 'lib/services/settings_import_engine.dart';
   const plan = blockAfter(
-    fs.readFileSync(path.join(repoRoot, importRel), 'utf8'),
+    read(importRel),
     'SettingsImportPlan planSettingsImport(', '}) {', importRel);
   assert.match(plan, /OutboundPreferenceGc\.pruneAll/,
     'an import must prune inside the plan (BACKUP-013)');

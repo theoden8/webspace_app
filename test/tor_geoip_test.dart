@@ -8,12 +8,12 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/tor_geoip.dart';
 import 'package:webspace/services/tor_geoip_io.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'helpers/fake_outbound.dart';
 
 String _table({
   String licence = kTorGeoIpLicence,
@@ -29,20 +29,6 @@ String _table({
     b.write('${i * 10},${i * 10 + 9},${i.isEven ? 'BR' : '??'}$eol');
   }
   return b.toString();
-}
-
-class _Factory implements OutboundHttpFactory {
-  _Factory(this.handler);
-  final Future<http.Response> Function(http.Request) handler;
-  final seen = <UserProxySettings>[];
-  bool block = false;
-
-  @override
-  OutboundClient clientFor(UserProxySettings settings) {
-    seen.add(settings);
-    if (block) return const OutboundClientBlocked('no route');
-    return OutboundClientReady(MockClient(handler));
-  }
 }
 
 void main() {
@@ -101,7 +87,7 @@ void main() {
     late DateTime now;
     late List<String> requested;
     late Map<String, http.Response Function()> answers;
-    late _Factory factory;
+    late FakeOutbound factory;
 
     IoTorGeoIpStore store() =>
         IoTorGeoIpStore(overrideRoot: root, clock: () => now);
@@ -111,7 +97,7 @@ void main() {
       now = DateTime.utc(2026, 9, 23);
       requested = [];
       answers = {};
-      factory = _Factory((request) async {
+      factory = FakeOutbound(responder: (request) async {
         final url = request.url.toString();
         requested.add(url);
         final answer = answers[url];
@@ -137,10 +123,10 @@ void main() {
       expect(table, isNotNull);
       expect(requested, [kTorGeoIpUrls.first]);
       expect(Uri.parse(kTorGeoIpUrls.first).host, endsWith('.onion'));
-      expect(factory.seen.single.username, startsWith('$kTorGeoIpTag/'),
+      expect(factory.queries.single.username, startsWith('$kTorGeoIpTag/'),
           reason: 'never a site circuit, never direct');
-      expect(factory.seen.single.address, via.address);
-      expect(factory.seen.single.password, via.password);
+      expect(factory.queries.single.address, via.address);
+      expect(factory.queries.single.password, via.password);
       expect(File(table!.path).readAsStringSync(), _table(),
           reason: 'kept verbatim, licence header and all');
       expect((await store().newest())?.path, table.path);
@@ -164,7 +150,7 @@ void main() {
 
       expect(await store().download(via), isNotNull);
       expect(requested, [...kTorGeoIpUrls, kTorGeoIpUrls.first]);
-      final circuits = factory.seen.map((s) => s.username).toList();
+      final circuits = factory.queries.map((s) => s.username).toList();
       expect(circuits.toSet(), hasLength(circuits.length),
           reason: 'a request went back to a circuit that already failed');
     });
@@ -176,7 +162,7 @@ void main() {
 
       expect(requested,
           hasLength(2 * kTorGeoIpPasses * kTorGeoIpUrls.length));
-      final circuits = factory.seen.map((s) => s.username).toList();
+      final circuits = factory.queries.map((s) => s.username).toList();
       expect(circuits.toSet(), hasLength(circuits.length));
       expect(circuits, everyElement(startsWith('$kTorGeoIpTag/')));
     });

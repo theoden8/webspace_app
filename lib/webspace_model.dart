@@ -2,12 +2,11 @@ import 'package:uuid/uuid.dart';
 
 const _uuid = Uuid();
 
-// Special ID for the "All" webspace that contains all sites
 const String kAllWebspaceId = '__all_webspace__';
 
 class Webspace {
-  String id; // Unique identifier for the webspace
-  String name; // Display name for the webspace
+  String id;
+  String name;
   /// Persisted membership by `siteId`, ordered by display order.
   /// Single source of truth: archive open/close, app-tier index
   /// reshuffling from add/delete, and move-to-archive all preserve
@@ -34,7 +33,6 @@ class Webspace {
         siteIds = siteIds ?? <String>[],
         siteIndices = siteIndices ?? <int>[];
 
-  // Serialization methods
   Map<String, dynamic> toJson() => {
         'id': id,
         'name': name,
@@ -61,7 +59,6 @@ class Webspace {
     );
   }
 
-  // Create a copy of this webspace with updated fields
   Webspace copyWith({
     String? id,
     String? name,
@@ -78,10 +75,8 @@ class Webspace {
     );
   }
 
-  // Check if this is the special "All" webspace
   bool get isAll => id == kAllWebspaceId;
 
-  // Factory method to create the "All" webspace
   factory Webspace.all() {
     return Webspace(
       id: kAllWebspaceId,

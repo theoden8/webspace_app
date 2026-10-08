@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 import 'socks5_fixture.dart';
 
 void main() {
@@ -77,14 +78,10 @@ void main() {
             key: key,
             child: WebViewFactory.createWebView(
               config: WebViewConfig(
-                siteId: siteId,
+                hooks: bareHooks(),
+                posture: barePosture('http://$origin$path',
+                    siteId: siteId, proxy: proxySettings),
                 initialUrl: 'http://$origin$path',
-                proxySettings: proxySettings,
-                clearUrlEnabled: false,
-                dnsBlockEnabled: false,
-                contentBlockEnabled: false,
-                trackingProtectionEnabled: false,
-                localCdnEnabled: false,
               ),
               onControllerCreated: (c) => controller = c,
             ),

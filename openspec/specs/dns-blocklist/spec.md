@@ -326,8 +326,8 @@ To minimize Dart roundtrips, the iOS interceptor uses three tiers:
 Dart maintains a single `_domainCache: Map<String, bool>` keyed by host (NOT
 per-site — trackers and CDNs are shared across sites, so one site learning
 about `googleapis.com` benefits all sites). Updated transparently via
-`recordRequest` whenever any webview reports a block decision (via native
-handler, JS `blockCheck`, or JS `blockResourceLoaded`). Persisted in
+`recordVerdict` whenever any webview reports a block decision (via native
+handler, JS `blockCheck`, or the JS `blockResourceLoadedBatch` observer). Persisted in
 SharedPreferences under `dns_domain_cache`, write-debounced to 2 seconds.
 Capped at 5000 entries with FIFO eviction. Invalidated (cleared) when the
 blocklist changes, since cached decisions may become stale.
@@ -346,7 +346,7 @@ for k hash functions. JS implementation byte-compatible with Dart
 `BloomFilter` class. Rebuilt lazily; invalidated whenever either the DNS
 blocklist or the aggregated ABP rule set changes.
 
-- Bloom says "definitely not" → allow without roundtrip, record via `blockResourceLoaded`, add to JS cache
+- Bloom says "definitely not" → allow without roundtrip (the PerformanceObserver batch records it), add to JS cache
 - Bloom says "possibly yes" → roundtrip to Dart `blockCheck` handler for confirmation, add result to JS cache
 
 **3. Dart authoritative check** — handles false positives + blocks:
@@ -618,7 +618,7 @@ on insert, and cap-enforced on load (corrupted or oversized prefs blobs
 SHALL NOT be allowed to load past the cap).
 
 **Merged cache** (`_domainCache`): keyed by host, value is the merged
-DNS ∪ ABP decision. Populated by `recordRequest` from webview hooks
+DNS ∪ ABP decision. Populated by `recordVerdict` from webview hooks
 after the caller has combined both signals. Persisted to
 SharedPreferences under `dns_domain_cache`. It is app-wide and
 Dart-side only: it SHALL NOT be handed to page JS (DNS-018).
@@ -682,7 +682,7 @@ Light does not
 #### Scenario: Persistence is write-debounced
 
 **Given** many DNS decisions occur in rapid succession
-**When** `recordRequest` is called repeatedly
+**When** `recordVerdict` is called repeatedly
 **Then** SharedPreferences is written once after a 2-second idle window
 **And** individual writes do not block the recording path
 **And** the DNS-only hot-path cache, being in-memory, is not affected
@@ -722,10 +722,12 @@ holds hosts from all of them
 ### Requirement: DNS-017 - Android Pull-Based Event Delivery
 
 The Android native DNS handler SHALL deliver DNS events (both blocked and
-allowed) to Dart using a signal-then-pull pattern: Java accumulates events
-in per-site lists, signals Dart when new events arrive, and Dart pulls the
-batched list in a single call. Duplicate signals SHALL be suppressed while
-one is in flight.
+allowed) to Dart using a signal-then-pull pattern: native code accumulates
+events per site, signals Dart when new events arrive, and Dart pulls the
+batch in a single call. A signal SHALL be suppressed while an earlier one for
+the site is outstanding, and Dart's pull SHALL retire it, so no recorded
+event waits for a later one to be delivered. Repeats SHALL be counted per
+host and verdict, never folded into another verdict's record.
 
 #### Scenario: Both allowed and blocked events captured
 
@@ -747,13 +749,30 @@ one is in flight.
 **When** the first event fires the signal
 **Then** subsequent events append to the per-site list without firing new signals
 **And** Dart's single `fetchEvents` call retrieves all 100 events atomically
-(each as `{host, blocked}`)
+(as `{host, blocked, source, count}` records, one per host and verdict)
 
 #### Scenario: Signal repeats after completion
 
 **Given** Dart has completed a `fetchEvents` call and cleared the list
 **When** a new event occurs
 **Then** a new `blockEventsReady` signal is sent
+
+#### Scenario: An event during Dart's drain is not stranded
+
+**Given** Dart's `blockEventsReady` handler has fetched the site's events but
+has not returned yet
+**When** a new event is recorded for the site
+**Then** a new `blockEventsReady` signal is sent without waiting for that reply
+(regression: `SiteEventInboxTest.anEventAfterTheDrainWakesBeforeDartAnswers`)
+
+#### Scenario: One host, two verdicts
+
+**Given** a host's page assets are allowed and its ad paths are blocked by the
+engine within one drain window
+**When** Dart fetches the events
+**Then** it receives one allowed record and one `abp` record for the host, each
+with its own count
+(regression: `SiteEventInboxTest.oneHostAllowedAndBlockedKeepsBothVerdicts`)
 
 #### Scenario: Stats update without PerformanceObserver lag
 
@@ -1053,7 +1072,7 @@ keeps `isBlocked()` purely synchronous.
 
 **`_domainCache`** (merged DNS ∪ ABP, persisted, iOS JS hydration)
 
-Populated by `recordRequest` from `webview.dart` after the caller has
+Populated by `recordVerdict` from `webview.dart` after the caller has
 combined DNS and ABP signals. Kept as a `Map<String, bool>` because
 it is read and written per host on the Dart side. It stays
 Dart-side: shipping it to page JS would hand any site the hosts every
@@ -1151,18 +1170,15 @@ skipping `contentBlockerHandler.checkUrl()` entirely.
 ### Recording Hooks
 
 **shouldOverrideUrlLoading** (all platforms) — navigation blocking + recording:
-```dart
-if (DnsBlockService.instance.hasBlocklist) {
-  DnsBlockService.instance.recordRequest(siteId, url, blocked);
-  if (blocked && config.dnsBlockEnabled) return CANCEL;
-}
-```
+one `BlockDecision.decide` verdict at the site's own level
+([block_decision.dart](../../../lib/services/block_decision.dart)), recorded
+once through `DnsBlockService.recordVerdict`, whether or not a list is loaded.
 
 **onLoadStart** (all platforms) — records page URL for immediate banner display.
 
 **PerformanceObserver JS** (iOS/macOS) — injected at `DOCUMENT_START` with
 `buffered: true`, records all completed resources via Resource Timing API.
-Reports back to Dart via `addJavaScriptHandler('blockResourceLoaded')`.
+Reports each host once, in batches, via `addJavaScriptHandler('blockResourceLoadedBatch')`.
 
 ### Storage
 

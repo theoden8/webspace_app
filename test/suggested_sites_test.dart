@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/screens/add_site.dart' show SiteSuggestion;
+import 'package:webspace/settings/site_suggestion.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/suggested_sites_service.dart';
 
@@ -93,18 +93,6 @@ void main() {
       expect(loaded, isEmpty);
     });
 
-    test('resetSuggestedSites removes customization', () async {
-      final sites = [
-        const SiteSuggestion(name: 'Test', url: 'https://test.com', domain: 'test.com'),
-      ];
-
-      await saveSuggestedSites(sites);
-      expect(await loadSuggestedSites(), isNotNull);
-
-      await resetSuggestedSites();
-      expect(await loadSuggestedSites(), isNull);
-    });
-
     test('loadSuggestedSites returns null on corrupted JSON', () async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('suggested_sites', 'not valid json');
@@ -149,16 +137,6 @@ void main() {
 
       final result = await getEffectiveSuggestedSites();
       expect(result, isEmpty);
-    });
-
-    test('returns defaults after reset', () async {
-      await saveSuggestedSites([
-        const SiteSuggestion(name: 'Temp', url: 'https://temp.com', domain: 'temp.com'),
-      ]);
-      await resetSuggestedSites();
-
-      final result = await getEffectiveSuggestedSites();
-      expect(result, equals(kDefaultSuggestions));
     });
   });
 

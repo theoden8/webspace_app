@@ -1,34 +1,19 @@
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/webview.dart';
-import 'package:webspace/demo_data.dart' show isDemoMode;
-
-/// Extracts the domain from a URL string.
-/// Returns the host portion of the URL (e.g., "github.com" from "https://github.com/user/repo").
-/// If the input is already a plain domain (no scheme), returns it as-is.
-String extractDomainFromUrl(String url) {
-  if (url.isEmpty) {
-    return url;
-  }
-  try {
-    final uri = Uri.parse(url);
-    // If host is empty, the input might already be a plain domain
-    // (Uri.parse('example.com').host returns empty string)
-    if (uri.host.isEmpty) {
-      return url;
-    }
-    return uri.host;
-  } catch (e) {
-    // If URL parsing fails, return the original string
-    return url;
-  }
-}
+import 'package:webspace/settings/demo_mode.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// Service for securely storing cookies using Flutter Secure Storage.
 /// Supports migration from SharedPreferences for backward compatibility.
-/// Falls back to SharedPreferences if secure storage is unavailable.
+///
+/// isSecure=true cookies live only in the keystore, and are lost rather
+/// than written in plaintext when it is unavailable; the rest live in
+/// SharedPreferences.
 ///
 /// Storage is keyed by siteId for per-site cookie isolation. This allows
 /// multiple sites on the same domain to have separate cookie contexts.
@@ -38,26 +23,25 @@ class CookieSecureStorage {
   static const String _sharedPrefsCookiesKey = 'cookies_fallback';
   static const String _migrationCompleteKey = 'cookies_migrated_to_secure';
 
-  final FlutterSecureStorage _secureStorage;
-  bool _secureStorageAvailable = true;
-
   /// Serializes every cookie-store mutation. Static so it is shared across
   /// instances that write the same keys: a whole-map `saveCookies` rebuilt
   /// from an in-memory snapshot must not interleave with a per-site
   /// `saveCookiesForSite`, or one clobbers the other (dropped session, or an
   /// archive-tier cookie re-persisted into app-tier storage — ARCH-001).
-  static Future<void> _writeLock = Future<void>.value();
+  static final SerialQueue _writes = SerialQueue();
 
-  Future<T> _synchronized<T>(Future<T> Function() action) {
-    final result = _writeLock.then((_) => action());
-    _writeLock = result.then((_) {}, onError: (_) {});
-    return result;
-  }
+  final SecureJsonStore<Map<String, List<Cookie>>> _secure;
 
   CookieSecureStorage({FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ?? const FlutterSecureStorage(
-          aOptions: AndroidOptions(encryptedSharedPreferences: true),
-          iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+      : _secure = SecureJsonStore(
+          keystore: secureStorage ?? Keystores.credentials,
+          key: _secureStorageKey,
+          logTag: LogTag.cookieStorage,
+          decode: _decodeCookies,
+          encode: _encodeCookies,
+          isEmpty: (cookies) => cookies.isEmpty,
+          onFailure: KeystoreFailurePolicy.stopUsing,
+          queue: _writes,
         );
 
   /// Loads cookies for all sites from both storages:
@@ -67,13 +51,11 @@ class CookieSecureStorage {
   Future<Map<String, List<Cookie>>> loadCookies() async {
     final Map<String, List<Cookie>> result = {};
 
-    // Load secure cookies from Flutter Secure Storage
-    final secureCookies = await _loadSecureCookiesOnly();
+    final secureCookies = await _secure.read();
     secureCookies.forEach((url, cookies) {
       result[url] = List.from(cookies);
     });
 
-    // Load non-secure cookies from SharedPreferences
     final nonSecureCookies = await _loadNonSecureCookiesOnly();
     nonSecureCookies.forEach((url, cookies) {
       if (result.containsKey(url)) {
@@ -83,7 +65,6 @@ class CookieSecureStorage {
       }
     });
 
-    // Handle legacy migration if needed
     if (result.isEmpty) {
       final legacyCookies = await _loadLegacyFromSharedPreferences();
       if (legacyCookies.isNotEmpty) {
@@ -102,7 +83,7 @@ class CookieSecureStorage {
   /// - isSecure=true cookies → Flutter Secure Storage only
   /// - isSecure=false cookies → SharedPreferences
   Future<void> saveCookies(Map<String, List<Cookie>> cookiesByUrl) {
-    return _synchronized(() => _saveCookiesUnlocked(cookiesByUrl));
+    return _writes.run(() => _saveCookiesUnlocked(cookiesByUrl));
   }
 
   /// Build the full app-tier cookie map INSIDE the write lock, then persist
@@ -115,81 +96,41 @@ class CookieSecureStorage {
   /// (ARCH-001). `build` runs synchronously at lock-acquisition time, after
   /// any already-committed flip+clear, so the snapshot is always consistent.
   Future<void> saveCookiesBuilt(Map<String, List<Cookie>> Function() build) {
-    return _synchronized(() => _saveCookiesUnlocked(build()));
+    return _writes.run(() => _saveCookiesUnlocked(build()));
   }
 
   Future<void> _saveCookiesUnlocked(Map<String, List<Cookie>> cookiesByUrl) async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
 
-    // Split cookies by security flag
-    final Map<String, List<Map<String, dynamic>>> secureJsonMap = {};
-    final Map<String, List<Map<String, dynamic>>> nonSecureJsonMap = {};
-
+    final Map<String, List<Cookie>> secure = {};
+    final Map<String, List<Cookie>> nonSecure = {};
     cookiesByUrl.forEach((url, cookies) {
       final secureCookies = cookies.where((c) => c.isSecure == true).toList();
       final nonSecureCookies = cookies.where((c) => c.isSecure != true).toList();
-
-      if (secureCookies.isNotEmpty) {
-        secureJsonMap[url] = secureCookies.map((c) => c.toJson()).toList();
-      }
-      if (nonSecureCookies.isNotEmpty) {
-        nonSecureJsonMap[url] = nonSecureCookies.map((c) => c.toJson()).toList();
-      }
+      if (secureCookies.isNotEmpty) secure[url] = secureCookies;
+      if (nonSecureCookies.isNotEmpty) nonSecure[url] = nonSecureCookies;
     });
 
-    // Save secure cookies to Flutter Secure Storage
-    if (_secureStorageAvailable && secureJsonMap.isNotEmpty) {
-      try {
-        await _secureStorage.write(
-          key: _secureStorageKey,
-          value: jsonEncode(secureJsonMap),
-        );
-      } catch (e) {
-        // Secure storage failed - secure cookies are lost (intentional)
-        LogService.instance.log('CookieStorage', 'Secure storage unavailable, secure cookies not persisted: $e', level: LogLevel.error);
-        _secureStorageAvailable = false;
-      }
-    } else if (secureJsonMap.isEmpty && _secureStorageAvailable) {
-      // Clear secure storage if no secure cookies
-      try {
-        await _secureStorage.delete(key: _secureStorageKey);
-      } catch (e) {
-        LogService.instance.log('CookieStorage', 'Failed to clear secure storage: $e', level: LogLevel.error);
-      }
-    }
+    await _secure.write(secure);
 
-    // Save non-secure cookies to SharedPreferences
     final prefs = await SharedPreferences.getInstance();
-    if (nonSecureJsonMap.isNotEmpty) {
-      await prefs.setString(_sharedPrefsCookiesKey, jsonEncode(nonSecureJsonMap));
+    if (nonSecure.isNotEmpty) {
+      await prefs.setString(
+          _sharedPrefsCookiesKey, jsonEncode(_encodeCookies(nonSecure)));
     } else {
       await prefs.remove(_sharedPrefsCookiesKey);
     }
   }
 
-  /// Saves cookies for a single site URL.
-  /// The URL is converted to a domain key before storing.
-  Future<void> saveCookiesForUrl(String url, List<Cookie> cookies) {
-    if (isDemoMode) return Future.value(); // Don't persist in demo mode
-    return _synchronized(() async {
-      final domain = extractDomainFromUrl(url);
-      final existingCookies = await loadCookies();
-      existingCookies[domain] = cookies;
-      await _saveCookiesUnlocked(existingCookies);
-    });
-  }
-
-  /// Loads cookies for a specific site by siteId.
   /// Returns an empty list if no cookies are stored for this site.
   Future<List<Cookie>> loadCookiesForSite(String siteId) async {
     final allCookies = await loadCookies();
     return allCookies[siteId] ?? [];
   }
 
-  /// Saves cookies for a specific site by siteId.
   Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) {
-    if (isDemoMode) return Future.value(); // Don't persist in demo mode
-    return _synchronized(() async {
+    if (isDemoMode) return Future.value();
+    return _writes.run(() async {
       final existingCookies = await loadCookies();
       if (cookies.isEmpty) {
         existingCookies.remove(siteId);
@@ -203,9 +144,9 @@ class CookieSecureStorage {
   /// Removes cookies for siteIds not in the provided set of active siteIds.
   /// This cleans up orphaned cookies after sites are deleted or settings are imported.
   Future<void> removeOrphanedCookies(Set<String> activeSiteIds) async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
     final siteIdsToRemove = <String>[];
-    await _synchronized(() async {
+    await _writes.run(() async {
       final allCookies = await loadCookies();
       siteIdsToRemove.addAll(allCookies.keys
           .where((siteId) => !activeSiteIds.contains(siteId)));
@@ -216,152 +157,87 @@ class CookieSecureStorage {
       await _saveCookiesUnlocked(allCookies);
     });
     if (siteIdsToRemove.isEmpty) return;
-    LogService.instance.log(
-      'CookieStorage',
-      'Removed orphaned cookies for siteIds: $siteIdsToRemove',
-      level: LogLevel.info,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.cookieStorage.info(
+        'Removed orphaned cookies for siteIds: $siteIdsToRemove',
+        sensitive: true);
   }
 
   /// Clears all stored cookies from both secure storage and fallback.
   Future<void> clearCookies() async {
-    if (isDemoMode) return; // Don't persist in demo mode
-    try {
-      await _secureStorage.delete(key: _secureStorageKey);
-    } catch (e) {
-      LogService.instance.log('CookieStorage', 'Failed to clear secure storage cookies: $e', level: LogLevel.error);
-    }
-
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_sharedPrefsCookiesKey);
-    } catch (e) {
-      LogService.instance.log('CookieStorage', 'Failed to clear fallback cookies: $e', level: LogLevel.error);
-    }
-  }
-
-  /// Clears cookies from SharedPreferences after migration.
-  /// This should be called after confirming cookies are safely in secure storage.
-  Future<void> clearSharedPreferencesCookies() async {
-    if (isDemoMode) return; // Don't persist in demo mode
+    if (isDemoMode) return;
+    await _secure.delete();
     final prefs = await SharedPreferences.getInstance();
-    final webViewModelsJson = prefs.getStringList('webViewModels');
-
-    if (webViewModelsJson == null) return;
-
-    // Update each model to remove cookies from SharedPreferences
-    final updatedModels = webViewModelsJson.map((modelJson) {
-      final json = jsonDecode(modelJson) as Map<String, dynamic>;
-      json['cookies'] = []; // Clear cookies from SharedPreferences data
-      return jsonEncode(json);
-    }).toList();
-
-    await prefs.setStringList('webViewModels', updatedModels);
+    await prefs.remove(_sharedPrefsCookiesKey);
   }
 
-  /// Load only secure cookies from Flutter Secure Storage
-  Future<Map<String, List<Cookie>>> _loadSecureCookiesOnly() async {
-    if (!_secureStorageAvailable) return {};
-
-    try {
-      final jsonString = await _secureStorage.read(key: _secureStorageKey);
-      if (jsonString != null && jsonString.isNotEmpty) {
-        return _parseJsonCookies(jsonString);
-      }
-    } catch (e) {
-      LogService.instance.log('CookieStorage', 'Secure storage unavailable for reading: $e', level: LogLevel.error);
-      _secureStorageAvailable = false;
-    }
-    return {};
-  }
-
-  /// Load only non-secure cookies from SharedPreferences
   Future<Map<String, List<Cookie>>> _loadNonSecureCookiesOnly() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_sharedPrefsCookiesKey);
+    if (jsonString == null || jsonString.isEmpty) return {};
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final jsonString = prefs.getString(_sharedPrefsCookiesKey);
-      if (jsonString != null && jsonString.isNotEmpty) {
-        return _parseJsonCookies(jsonString);
-      }
-    } catch (e) {
-      LogService.instance.log('CookieStorage', 'Failed to read non-secure cookies: $e', level: LogLevel.error);
+      return _decodeCookies(jsonDecode(jsonString));
+    } on FormatException {
+      LogTag.cookieStorage.error(
+          'Non-secure cookies are not JSON; reading them as empty');
+      return {};
     }
-    return {};
   }
 
-  Map<String, List<Cookie>> _parseJsonCookies(String jsonString) {
-    final jsonMap = jsonDecode(jsonString) as Map<String, dynamic>;
+  static Object _encodeCookies(Map<String, List<Cookie>> cookiesByUrl) => {
+        for (final MapEntry(:key, :value) in cookiesByUrl.entries)
+          key: [for (final cookie in value) cookie.toJson()],
+      };
+
+  /// Keys written by older builds were URLs; they read back as domains, and
+  /// cookies of one name under two keys that fold together keep the first.
+  static Map<String, List<Cookie>> _decodeCookies(Object? json) {
     final Map<String, List<Cookie>> result = {};
-
-    jsonMap.forEach((key, cookiesJson) {
-      final cookiesList = (cookiesJson as List<dynamic>)
-          .map((c) => cookieFromJson(c as Map<String, dynamic>))
-          .toList();
-
-      // Convert URL keys to domain keys for backward compatibility
-      final domain = extractDomainFromUrl(key);
-
-      // Merge cookies if multiple URL keys resolve to the same domain
-      if (result.containsKey(domain)) {
-        final existingNames = result[domain]!.map((c) => c.name).toSet();
-        for (final cookie in cookiesList) {
-          if (!existingNames.contains(cookie.name)) {
-            result[domain]!.add(cookie);
-            existingNames.add(cookie.name);
-          }
-        }
-      } else {
-        result[domain] = cookiesList;
-      }
-    });
-
+    if (json is! Map) return result;
+    for (final MapEntry(:key, :value) in json.entries) {
+      if (key is! String || value is! List) continue;
+      _mergeByName(result, extractDomain(key), _cookieList(value));
+    }
     return result;
+  }
+
+  static List<Cookie> _cookieList(List<Object?> json) => [
+        for (final c in json) ?tryCookieFromJson(c),
+      ];
+
+  static void _mergeByName(
+    Map<String, List<Cookie>> into,
+    String domain,
+    List<Cookie> cookies,
+  ) {
+    final existing = into[domain];
+    if (existing == null) {
+      into[domain] = cookies;
+      return;
+    }
+    final names = existing.map((c) => c.name).toSet();
+    existing.addAll(cookies.where((c) => names.add(c.name)));
   }
 
   /// Load legacy cookies from webViewModels in SharedPreferences (migration only)
   Future<Map<String, List<Cookie>>> _loadLegacyFromSharedPreferences() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final webViewModelsJson = prefs.getStringList('webViewModels');
+    final prefs = await SharedPreferences.getInstance();
+    final webViewModelsJson = prefs.getStringList('webViewModels');
+    if (webViewModelsJson == null) return {};
 
-      if (webViewModelsJson == null) {
-        return {};
+    final Map<String, List<Cookie>> result = {};
+    for (final modelJson in webViewModelsJson) {
+      final Object? json;
+      try {
+        json = jsonDecode(modelJson);
+      } on FormatException {
+        continue;
       }
-
-      final Map<String, List<Cookie>> result = {};
-
-      for (final modelJson in webViewModelsJson) {
-        final json = jsonDecode(modelJson) as Map<String, dynamic>;
-        final initUrl = json['initUrl'] as String?;
-        final cookiesJson = json['cookies'] as List<dynamic>?;
-
-        if (initUrl != null && cookiesJson != null && cookiesJson.isNotEmpty) {
-          // Use domain as key instead of full URL (migration to new format)
-          final domain = extractDomainFromUrl(initUrl);
-          final cookies = cookiesJson
-              .map((c) => cookieFromJson(c as Map<String, dynamic>))
-              .toList();
-
-          // Merge cookies if multiple sites share the same domain
-          if (result.containsKey(domain)) {
-            final existingNames = result[domain]!.map((c) => c.name).toSet();
-            for (final cookie in cookies) {
-              if (!existingNames.contains(cookie.name)) {
-                result[domain]!.add(cookie);
-                existingNames.add(cookie.name);
-              }
-            }
-          } else {
-            result[domain] = cookies;
-          }
-        }
+      if (json case {'initUrl': final String initUrl, 'cookies': final List<Object?> cookies}
+          when cookies.isNotEmpty) {
+        _mergeByName(result, extractDomain(initUrl), _cookieList(cookies));
       }
-
-      return result;
-    } catch (e) {
-      return {};
     }
+    return result;
   }
 
   Future<void> _markMigrationComplete() async {

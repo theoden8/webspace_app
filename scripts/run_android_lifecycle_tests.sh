@@ -17,6 +17,7 @@
 # whose Dart entrypoint is the *test* main, so this tier always rebuilds
 # and installs the default-entrypoint debug APK before driving it.
 set -euo pipefail
+. "$(dirname "$0")/lib/android_tier.sh"
 
 # Hard wall-clock cap, like the sibling script: a webview mount can
 # deadlock below every polling deadline. Scenario P spends a fixed
@@ -28,12 +29,7 @@ fi
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root"
 
-device_id="${1:-$(adb devices | grep -w 'device' | head -1 | awk '{print $1}' || true)}"
-if [ -z "$device_id" ]; then
-  echo "ERROR: no connected Android device/emulator found" >&2
-  adb devices >&2
-  exit 1
-fi
+pick_device "${1:-}"
 export ANDROID_SERIAL="$device_id"
 
 # `initWith(debug)` -- so the diag seed, the reload extra and the repaint
@@ -295,7 +291,7 @@ blue_site_id="ws-$run_tag-blue"
 b2_site_id="ws-$run_tag-b2"
 b3_site_id="ws-$run_tag-b3"
 
-# Every trigger _nudgeSurfaceRepaint takes, for the control that has to see a
+# Every trigger SurfaceRepaintController.nudge takes, for the control that has to see a
 # blank. Naming only the reload-path ones left `metrics-resume` live, and
 # didChangeMetrics fires throughout a reload: it nudged 17 times and the
 # control measured nothing. A control is only a control if nothing Dart-side
@@ -482,14 +478,14 @@ $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
 }
 
 # The pixel assertions below are close to vacuous on this host. Scenario B3-A
-# suppressed all fourteen `_nudgeSurfaceRepaint` triggers *and* the second
+# suppressed all fourteen `SurfaceRepaintController.nudge` triggers *and* the second
 # repaint path in `_probeRendererAndRecover`, and every surface still came back
 # painted -- so this tier would stay green with the repaint machinery deleted.
 # What it can still check, host-independently, is the wiring: that the app
 # ASKED for a repaint on the path just driven. That is the thing that actually
 # keeps recurring (a new entry path reaches a surface without passing a
 # chokepoint), and it is read from the app's own trace rather than from the
-# compositor. `_traceRepaint` is developer-mode gated and the diag seed turns
+# compositor. the repaint trace is developer-mode gated and the diag seed turns
 # developer mode on, so the lines are there in every seeded run.
 nudge_hits() { # $1 = trigger label
   adb logcat -d 2>/dev/null | grep -cF "trigger=$1" || true
@@ -798,7 +794,7 @@ sleep 20
 fg_beacons_after="$(beacon_hits)"
 if [ "$fg_beacons_after" -gt "$fg_beacons_before" ]; then
   echo "FAIL: the refresh tick reloaded the site the user is looking at"        "(page loads $fg_beacons_before -> $fg_beacons_after)" >&2
-  echo "  This is the v0.3.1 behaviour: _refreshNotificationSites must pass"        "excludeActive when the app is resumed." >&2
+  echo "  This is the v0.3.1 behaviour: _refreshNotificationSites must skip"        "the active site (ForegroundPollEngine) when the app is resumed." >&2
   echo "  WebspaceBgRefresh logcat:" >&2
   bg_log | tail -10 | sed 's/^/    /' >&2
   dump_bg_diagnostics foreground-refresh-reloaded-active

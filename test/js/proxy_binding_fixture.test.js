@@ -23,18 +23,17 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
+const { read, exists, files, code } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const testRel = 'integration_test/proxy_binding_test.dart';
 const fixtureRel = 'integration_test/socks5_fixture.dart';
-const source = fs.readFileSync(path.join(repoRoot, testRel), 'utf8');
-const fixture = fs.readFileSync(path.join(repoRoot, fixtureRel), 'utf8');
+const source = read(testRel);
+const fixture = read(fixtureRel);
 
 /// Code only: the comments in the file under test name the very things
 /// these rules forbid.
-const code = source.replace(/^\s*\/\/.*$/gm, '');
+const testCode = code(source);
 
 // Every proxy arm now builds its destinations from syntheticOrigin(). The
 // quarantine that listed the ones still on the old instrument is empty, and
@@ -50,10 +49,8 @@ const code = source.replace(/^\s*\/\/.*$/gm, '');
 const VOID_INSTRUMENT_ARMS = new Set([]);
 
 test('no proxy arm builds a destination this machine owns', () => {
-  const dir = path.join(repoRoot, 'integration_test');
-  const arms = fs
-    .readdirSync(dir)
-    .filter((f) => f.startsWith('proxy_') && f.endsWith('_test.dart'));
+  const arms = files('integration_test', /^proxy_.*_test\.dart$/)
+    .map((f) => path.basename(f));
   assert.ok(arms.length > 0, 'no proxy arms found');
 
   // Destinations only. A proxy ENDPOINT is always on loopback and that is
@@ -63,9 +60,7 @@ test('no proxy arm builds a destination this machine owns', () => {
 
   for (const arm of arms) {
     if (VOID_INSTRUMENT_ARMS.has(arm)) continue;
-    const armCode = fs
-      .readFileSync(path.join(dir, arm), 'utf8')
-      .replace(/^\s*\/\/.*$/gm, '');
+    const armCode = code(read(`integration_test/${arm}`));
     assert.doesNotMatch(
       armCode,
       /nonLoopbackIPv4\(\)/,
@@ -98,7 +93,7 @@ test('every arm named as void is still present', () => {
   // above rather than leave a stale entry that silently exempts nothing.
   for (const arm of VOID_INSTRUMENT_ARMS) {
     assert.ok(
-      fs.existsSync(path.join(repoRoot, 'integration_test', arm)),
+      exists(`integration_test/${arm}`),
       `${arm} is listed as running on the void instrument but does not ` +
         'exist. Remove it from VOID_INSTRUMENT_ARMS',
     );
@@ -128,13 +123,13 @@ test('the fixture answers its synthetic destinations instead of relaying', () =>
 
 test('a mount that is meant to rebuild the webview gets its own key', () => {
   assert.match(
-    code,
+    testCode,
     /KeyedSubtree\(\s*\n?\s*key:/,
     `${testRel} must key each mount, or a second pumpWidget updates the ` +
       'existing platform view and never issues the load under test',
   );
   assert.match(
-    code,
+    testCode,
     /ValueKey\('webview-\$\{generation\+\+\}'\)/,
     `${testRel} must derive that key from a counter, so two mounts in one ` +
       'scenario are two different subtrees',
@@ -149,12 +144,12 @@ test('the proxied scenarios assert the proxy was used, not that a load failed', 
   // `isNotEmpty`, a count, or a match on the target it recorded.
   const positivePattern = /\.targets\.(isNotEmpty|length|any\()/g;
   assert.match(
-    code,
+    testCode,
     positivePattern,
     `${testRel} must assert the fixture proxy was asked for the origin`,
   );
-  const negatives = code.match(/isNot\(contains\(/g) ?? [];
-  const positives = code.match(positivePattern) ?? [];
+  const negatives = testCode.match(/isNot\(contains\(/g) ?? [];
+  const positives = testCode.match(positivePattern) ?? [];
   assert.ok(
     positives.length >= negatives.length,
     `${testRel} has ${negatives.length} negative assertions and only ` +
@@ -183,9 +178,7 @@ test('the SOCKS5 fixture records what it was asked for before it connects', () =
 // correctly, which is how `crossed=false` came to be read as excluding a
 // shared proxy context when both panes had simply gone direct.
 const simulRel = 'integration_test/proxy_simultaneous_test.dart';
-const simulCode = fs
-  .readFileSync(path.join(repoRoot, simulRel), 'utf8')
-  .replace(/^\s*\/\/.*$/gm, '');
+const simulCode = code(read(simulRel));
 
 test('the simultaneity file addresses destinations this machine does not own', () => {
   assert.match(
@@ -268,9 +261,7 @@ test('every simultaneity pane builds under its own key', () => {
 // suspicion, so rewriting these rules to socks5:// would silently turn the
 // file into a duplicate of its sibling.
 const httpcRel = 'integration_test/proxy_http_connect_test.dart';
-const httpcCode = fs
-  .readFileSync(path.join(repoRoot, httpcRel), 'utf8')
-  .replace(/^\s*\/\/.*$/gm, '');
+const httpcCode = code(read(httpcRel));
 
 test('the HTTP CONNECT file keeps its panes on HTTP CONNECT proxies', () => {
   const firstFrame = httpcCode.slice(
@@ -337,7 +328,7 @@ test('every Apple proxy tier initializes PlatformInfo before reading it', () => 
     'integration_test/proxy_connect_https_test.dart',
   ];
   for (const rel of files) {
-    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    const body = read(rel);
     if (!/PlatformInfo\.isProxySupported/.test(body)) continue;
     assert.match(
       body,
@@ -362,7 +353,7 @@ test('the simultaneity files assert the proxy floor instead of skipping it', () 
     'integration_test/proxy_simultaneous_test.dart',
     'integration_test/proxy_http_connect_test.dart',
   ]) {
-    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    const body = read(rel);
     assert.doesNotMatch(
       body,
       /markTestSkipped\([^)]*floor/,
@@ -386,12 +377,8 @@ test('the simultaneity files assert the proxy floor instead of skipping it', () 
 test('no proxy tier serves TLS by shelling out to a binary', () => {
   const dirs = ['integration_test', 'test'];
   for (const dir of dirs) {
-    for (const name of fs.readdirSync(path.join(repoRoot, dir))) {
-      if (!name.endsWith('.dart')) continue;
-      const rel = `${dir}/${name}`;
-      const body = fs
-        .readFileSync(path.join(repoRoot, rel), 'utf8')
-        .replace(/^\s*\/\/.*$/gm, '');
+    for (const rel of files(dir, /\.dart$/).filter((f) => path.dirname(f) === dir)) {
+      const body = code(read(rel));
       assert.doesNotMatch(
         body,
         /Process\.(run|runSync|start)\(\s*\n?\s*'openssl'/,
@@ -407,9 +394,7 @@ test('the https proxy arms mint their own certificate and serve it', () => {
   for (const rel of [
     'integration_test/proxy_connect_https_test.dart',
   ]) {
-    const body = fs
-      .readFileSync(path.join(repoRoot, rel), 'utf8')
-      .replace(/^\s*\/\/.*$/gm, '');
+    const body = code(read(rel));
     assert.match(
       body,
       /generateSelfSignedCert\(/,
@@ -456,9 +441,7 @@ test('every proxy arm that can read null carries a positive control', () => {
     'integration_test/proxy_connect_https_test.dart',
   ];
   for (const rel of arms) {
-    const body = fs
-      .readFileSync(path.join(repoRoot, rel), 'utf8')
-      .replace(/^\s*\/\/.*$/gm, '');
+    const body = code(read(rel));
     assert.match(
       body,
       /socks5:\/\/127\.0\.0\.1:\$\{controlSocks\.port\}|containerId: 'ws-proxy-rate-control'/,
@@ -494,7 +477,7 @@ test('both proxy fixtures expose the ports they relayed from', () => {
     'integration_test/socks5_fixture.dart',
     'integration_test/http_connect_fixture.dart',
   ]) {
-    const body = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+    const body = read(rel);
     assert.match(
       body,
       /final relayedPorts = <int>\{\};/,
@@ -521,9 +504,7 @@ test('an arm that reloads one destination attributes requests, not connections',
   // CONNECTs, which cannot tell a reused connection from a bypass.
   // proxy_binding is the arm that navigates one store repeatedly: landing
   // page, the link its own page follows, then a loadUrl from Dart.
-  const armCode = fs
-    .readFileSync(path.join(repoRoot, testRel), 'utf8')
-    .replace(/^\s*\/\/.*$/gm, '');
+  const armCode = code(read(testRel));
   const dests = armCode.match(/const \w*Dest = \d+;/g) ?? [];
   assert.ok(
     dests.length >= 3,

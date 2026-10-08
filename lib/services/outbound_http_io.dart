@@ -1,6 +1,5 @@
-// dart:io half of the outbound HTTP seam. Unchanged from when this was one
-// file: the native proxy, SOCKS5 and certificate-pinning behaviour must not
-// vary because the web target exists.
+// dart:io half of the outbound HTTP seam. The native proxy, SOCKS5 and
+// certificate-pinning behaviour must not vary because the web target exists.
 
 import 'dart:io';
 
@@ -12,7 +11,7 @@ import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/services/trusted_hosts_x509.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/settings/proxy_library.dart';
+import 'package:webspace/services/proxy_library.dart';
 
 /// Default factory backed by `dart:io`'s [HttpClient].
 ///
@@ -263,14 +262,7 @@ ConnectionTask<S> _cancellableConnect<S extends Socket>(Future<S> connect) {
 
 /// Whether [host] looks like an IPv4 / IPv6 literal — i.e. safe to pass
 /// directly to [InternetAddress] without a DNS lookup.
-bool _isIpLiteral(String host) {
-  try {
-    InternetAddress(host);
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
+bool _isIpLiteral(String host) => InternetAddress.tryParse(host) != null;
 
 bool _isLocalhost(String host) {
   return host == 'localhost' || host == '127.0.0.1' || host == '::1';

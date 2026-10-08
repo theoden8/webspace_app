@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/main.dart' show extractDomain;
+import 'package:webspace/widgets/theme_mode_button.dart';
 
 // Helper to convert ThemeMode to WebViewTheme (duplicated from main.dart for testing)
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {
@@ -23,51 +24,10 @@ void main() {
       expect(_themeModeToWebViewTheme(ThemeMode.system), WebViewTheme.system);
     });
 
-    test('ThemeMode cycling logic', () {
-      // Simulate the cycling behavior: light → dark → system → light
-      ThemeMode current = ThemeMode.light;
-
-      // Light → Dark
-      switch (current) {
-        case ThemeMode.light:
-          current = ThemeMode.dark;
-          break;
-        case ThemeMode.dark:
-          current = ThemeMode.system;
-          break;
-        case ThemeMode.system:
-          current = ThemeMode.light;
-          break;
-      }
-      expect(current, ThemeMode.dark);
-
-      // Dark → System
-      switch (current) {
-        case ThemeMode.light:
-          current = ThemeMode.dark;
-          break;
-        case ThemeMode.dark:
-          current = ThemeMode.system;
-          break;
-        case ThemeMode.system:
-          current = ThemeMode.light;
-          break;
-      }
-      expect(current, ThemeMode.system);
-
-      // System → Light
-      switch (current) {
-        case ThemeMode.light:
-          current = ThemeMode.dark;
-          break;
-        case ThemeMode.dark:
-          current = ThemeMode.system;
-          break;
-        case ThemeMode.system:
-          current = ThemeMode.light;
-          break;
-      }
-      expect(current, ThemeMode.light);
+    test('the theme button steps light, dark, system, light', () {
+      expect(nextThemeMode(ThemeMode.light), ThemeMode.dark);
+      expect(nextThemeMode(ThemeMode.dark), ThemeMode.system);
+      expect(nextThemeMode(ThemeMode.system), ThemeMode.light);
     });
 
     test('ThemeMode serialization for SharedPreferences', () {
@@ -84,20 +44,9 @@ void main() {
     });
 
     test('Theme icon mapping', () {
-      IconData getThemeIcon(ThemeMode mode) {
-        switch (mode) {
-          case ThemeMode.light:
-            return Icons.wb_sunny;
-          case ThemeMode.dark:
-            return Icons.nights_stay;
-          case ThemeMode.system:
-            return Icons.brightness_auto;
-        }
-      }
-
-      expect(getThemeIcon(ThemeMode.light), Icons.wb_sunny);
-      expect(getThemeIcon(ThemeMode.dark), Icons.nights_stay);
-      expect(getThemeIcon(ThemeMode.system), Icons.brightness_auto);
+      expect(themeModeIcon(ThemeMode.light), Icons.wb_sunny);
+      expect(themeModeIcon(ThemeMode.dark), Icons.nights_stay);
+      expect(themeModeIcon(ThemeMode.system), Icons.brightness_auto);
     });
 
     test('WebViewTheme values exist', () {

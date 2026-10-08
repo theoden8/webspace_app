@@ -14,10 +14,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const {
   setupBrowser, requireBrowser, readFixture,
 } = require('./helpers/launch');
+const { listen } = require('./helpers/blank_server');
 
 const SNAPSHOT = readFixture('html_snapshot/snapshot.js');
 const LEGACY = "window.document.getElementsByTagName('html')[0].outerHTML;";
@@ -32,13 +32,13 @@ const PAGE = `<!doctype html><html><head>
 
 const browser = setupBrowser();
 
-function startServer() {
+async function startServer() {
   const routes = new Map([
     ['/app/page', PAGE],
     ['/app/css/site.css', '#box { width: 123px; }'],
   ]);
   const requests = [];
-  const server = http.createServer((req, res) => {
+  const server = await listen((req, res) => {
     requests.push(req.url);
     const body = routes.get(req.url);
     if (body === undefined) {
@@ -51,9 +51,7 @@ function startServer() {
     res.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
     res.end(body);
   });
-  return new Promise((resolve) => {
-    server.listen(0, '127.0.0.1', () => resolve({ server, routes, requests }));
-  });
+  return { server, routes, requests };
 }
 
 function measure(page) {

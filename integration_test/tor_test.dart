@@ -41,6 +41,7 @@ import 'package:webspace/services/tor_geoip_io.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'bare_site.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
 final bool torRequired = Platform.environment['WEBSPACE_TOR_NETWORK'] == '1';
@@ -405,7 +406,7 @@ void main() {
 
   tearDownAll(() async {
     await sub.cancel();
-    TorService.instance.release('integration');
+    TorService.instance.release(TorSiteHolder('integration'));
   });
 
   /// Poll until [done] or [budget] runs out. A plain `await for` on the
@@ -440,7 +441,7 @@ void main() {
       return;
     }
 
-    await TorService.instance.maybeStart('integration');
+    await TorService.instance.maybeStart(TorSiteHolder('integration'));
 
     // The plugin answering at all. A build where it never registered lands
     // here as an error naming the missing runtime rather than as a hang.
@@ -1033,14 +1034,10 @@ void main() {
                 key: key,
                 child: WebViewFactory.createWebView(
                   config: WebViewConfig(
-                    siteId: site,
+                    hooks: bareHooks(),
+                    posture: barePosture(whereFrom.toString(),
+                        siteId: site, proxy: proxy),
                     initialUrl: whereFrom.toString(),
-                    proxySettings: proxy,
-                    clearUrlEnabled: false,
-                    dnsBlockEnabled: false,
-                    contentBlockEnabled: false,
-                    trackingProtectionEnabled: false,
-                    localCdnEnabled: false,
                   ),
                   onControllerCreated: (c) => controller = c,
                 ),

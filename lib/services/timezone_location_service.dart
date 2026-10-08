@@ -6,8 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
+import 'package:webspace/services/host_storage.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 import 'log_service.dart';
 
 /// Default download URL: the latest `timezones-now` GeoJSON zip from
@@ -57,7 +58,7 @@ class TimezoneLocationService {
 
   List<_ZoneEntry>? _zones;
   bool _loadAttempted = false;
-  Future<int>? _countingFromFile;
+  final SingleFlight<(), int> _countingFromFile = SingleFlight();
 
   /// True iff a polygon dataset is parsed and ready for lookups.
   bool get isReady => _zones != null && _zones!.isNotEmpty;
@@ -85,13 +86,6 @@ class TimezoneLocationService {
     return prefs.getString(_urlPrefKey) ?? _defaultUrl;
   }
 
-  /// Persist a new download URL. Does not trigger a download — the user
-  /// must press "Download" again to fetch from the new URL.
-  Future<void> setUrl(String url) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_urlPrefKey, url);
-  }
-
   /// Last successful download timestamp, or null if never downloaded.
   Future<DateTime?> getLastUpdated() async {
     final prefs = await SharedPreferences.getInstance();
@@ -104,7 +98,7 @@ class TimezoneLocationService {
   Future<bool> hasCachedDataset() async {
     try {
       return await hostFileExists(await _cachePath());
-    } catch (_) {
+    } on Exception {
       return false;
     }
   }
@@ -122,16 +116,13 @@ class TimezoneLocationService {
     // only the number comes back, so the polygons are not kept in memory.
     final path = await _cachePath();
     try {
-      final count =
-          await (_countingFromFile ??= compute(_readAndCountZones, path));
+      final count = await _countingFromFile.run(
+          (), () => compute(_readAndCountZones, path));
       await prefs.setInt(_zoneCountPrefKey, count);
       return count;
     } catch (e) {
-      LogService.instance
-          .log('TZ', 'Failed to count tz cache: $e', level: LogLevel.error);
+      LogTag.tz.error('Failed to count tz cache: $e');
       return 0;
-    } finally {
-      _countingFromFile = null;
     }
   }
 
@@ -154,13 +145,11 @@ class TimezoneLocationService {
       _zones = await compute(_readAndParseZones, path);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_zoneCountPrefKey, _zones!.length);
-      LogService.instance
-          .log('TZ', 'Loaded ${_zones?.length ?? 0} zones from cache');
+      LogTag.tz.debug('Loaded ${_zones?.length ?? 0} zones from cache');
       _notifyListeners();
       return _zones != null;
     } catch (e) {
-      LogService.instance
-          .log('TZ', 'Failed to load tz cache: $e', level: LogLevel.error);
+      LogTag.tz.error('Failed to load tz cache: $e');
       return false;
     }
   }
@@ -170,27 +159,26 @@ class TimezoneLocationService {
   /// large (tens of megabytes); callers should show progress UI.
   Future<bool> download({Duration timeout = const Duration(minutes: 5)}) async {
     final url = await getUrl();
-    final clientResult = outboundHttp.clientFor(GlobalOutboundProxy.current);
-    if (clientResult is OutboundClientBlocked) {
-      LogService.instance.log(
-          'TZ', 'Skipped download: ${clientResult.reason}',
-          level: LogLevel.warning);
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      LogTag.tz.error('Not a URL: $url');
       return false;
     }
-    final client = (clientResult as OutboundClientReady).client;
+    LogTag.tz.debug('Downloading $url');
+    final fetched = await fetchViaAppProxy(
+      uri,
+      tag: LogTag.tz,
+      timeout: timeout,
+      headers: const {
+        'User-Agent': 'Webspace (+https://github.com/theoden8/webspace_app)'
+      },
+    );
+    final response = switch (fetched) {
+      Fetched(:final response) => response,
+      FetchRefused() || FetchFailed() => null,
+    };
+    if (response == null) return false;
     try {
-      LogService.instance.log('TZ', 'Downloading $url');
-      final response = await client.get(
-        Uri.parse(url),
-        headers: const {'User-Agent': 'Webspace (+https://github.com/theoden8/webspace_app)'},
-      ).timeout(timeout);
-      if (response.statusCode != 200) {
-        LogService.instance.log(
-            'TZ', 'Download failed: HTTP ${response.statusCode}',
-            level: LogLevel.error);
-        return false;
-      }
-
       String body;
       if (url.toLowerCase().endsWith('.zip')) {
         // timezone-boundary-builder release zips name the inner file
@@ -217,10 +205,8 @@ class TimezoneLocationService {
         }
         gj ??= largestJson;
         if (gj == null) {
-          LogService.instance.log('TZ',
-              'Zip contains no .geojson or .json file (entries: '
-              '${archive.files.where((f) => f.isFile).map((f) => f.name).join(", ")})',
-              level: LogLevel.error);
+          LogTag.tz.error('Zip contains no .geojson or .json file (entries: '
+              '${archive.files.where((f) => f.isFile).map((f) => f.name).join(", ")})');
           return false;
         }
         body = utf8.decode(gj.content as List<int>);
@@ -238,16 +224,13 @@ class TimezoneLocationService {
       await prefs.setString(
           _lastUpdatedPrefKey, DateTime.now().toIso8601String());
       await prefs.setInt(_zoneCountPrefKey, _zones!.length);
-      LogService.instance.log('TZ',
+      LogTag.tz.debug(
           'Downloaded and parsed ${_zones?.length ?? 0} zones from $url');
       _notifyListeners();
       return true;
-    } catch (e) {
-      LogService.instance
-          .log('TZ', 'Download error: $e', level: LogLevel.error);
+    } on Exception catch (e) {
+      LogTag.tz.error('Download error: $e');
       return false;
-    } finally {
-      client.close();
     }
   }
 
@@ -261,8 +244,7 @@ class TimezoneLocationService {
       await prefs.remove(_lastUpdatedPrefKey);
       await prefs.remove(_zoneCountPrefKey);
     } catch (e) {
-      LogService.instance
-          .log('TZ', 'Clear error: $e', level: LogLevel.error);
+      LogTag.tz.error('Clear error: $e');
     }
     _notifyListeners();
   }

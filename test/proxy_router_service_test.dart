@@ -7,7 +7,7 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/proxy_relay.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// Lifecycle contract of the per-site proxy router (PROXY-013): what gets
@@ -102,7 +102,7 @@ void main() {
     DeveloperModeService.instance.debugSet(false);
     ExperimentalFeaturesService.instance.debugSet(
         ExperimentalFeature.proxyRouter,
-        ExperimentalFeature.proxyRouter.defaultOn);
+        ExperimentalFeature.proxyRouter.pref.fallback);
   });
 
   group('activation', () {

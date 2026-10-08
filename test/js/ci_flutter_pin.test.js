@@ -14,15 +14,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, files } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
-const workflowDir = path.join(repoRoot, '.github', 'workflows');
-
-const pinned = JSON.parse(
-  fs.readFileSync(path.join(repoRoot, '.fvmrc'), 'utf8'),
-).flutter;
+const pinned = JSON.parse(read('.fvmrc')).flutter;
 
 // Each `uses: subosito/flutter-action` line plus the `with:` block under it.
 // `with:` is a sibling key at the same indent as `uses:`, so the step ends at
@@ -45,15 +39,8 @@ function flutterActionSteps(text, file) {
   return steps;
 }
 
-const steps = fs
-  .readdirSync(workflowDir)
-  .filter((f) => f.endsWith('.yml') || f.endsWith('.yaml'))
-  .flatMap((f) =>
-    flutterActionSteps(
-      fs.readFileSync(path.join(workflowDir, f), 'utf8'),
-      path.join('.github', 'workflows', f),
-    ),
-  );
+const steps = files('.github/workflows', /\.ya?ml$/)
+  .flatMap((f) => flutterActionSteps(read(f), f));
 
 test('the workflows still bootstrap Flutter through the action', () => {
   // Guards the extractor: a restructure that matches nothing would make every

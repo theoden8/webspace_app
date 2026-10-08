@@ -15,11 +15,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const ROOT = path.resolve(__dirname, '..', '..');
-const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const { read } = require('./helpers/source');
 
 test('QR-supplied site settings are reviewed before the site is created', () => {
   const src = read('lib/main.dart');
@@ -40,16 +36,27 @@ test('QR-supplied site settings are reviewed before the site is created', () => 
   );
 
   // Every QR entry point has to pass through _addSite to reach that review.
+  const links = read('lib/controllers/link_controller.dart');
   assert.ok(
-    !/webspace:\/\/qr\/[\s\S]{0,600}?_registerNewSite/.test(src),
-    'the webspace://qr/ deep link reaches _registerNewSite without passing through '
+    !/webspace:\/\/qr\/[\s\S]{0,600}?registerSite/.test(links),
+    'the webspace://qr/ deep link registers a site without passing through '
       + '_addSite, bypassing the review dialog',
+  );
+  assert.match(
+    links,
+    /webspace:\/\/qr\/[\s\S]{0,200}?_host\.addSiteFromQr\(decoded\)/,
+    'the webspace://qr/ deep link no longer hands its payload to the add-site flow',
+  );
+  assert.match(
+    src,
+    /Future<void> addSiteFromQr\([^)]*\)\s*=>\s*_s\._addSite\(deepLinkQrSettings: settings\);/,
+    'the page answers a QR deep link with something other than _addSite',
   );
 });
 
 test('the webspace://qr/ deep link is behind the link-handling switch', () => {
-  const src = read('lib/main.dart');
-  // Anchor on the inbound-URL path specifically. _handleShareIntent gates the
+  const src = read('lib/controllers/link_controller.dart');
+  // Anchor on the inbound-URL path specifically. handleShareIntent gates the
   // HTML-share path separately and earlier, so a bare indexOf would match that
   // one and keep passing however the QR branch moves.
   const consumed = src.indexOf('ShareIntentService.consumeLaunchUrl()');
@@ -58,8 +65,8 @@ test('the webspace://qr/ deep link is behind the link-handling switch', () => {
   assert.ok(consumed < qr, 'the QR branch no longer sits on the consumed-URL path');
   assert.match(
     src.slice(consumed, qr),
-    /if \(!_linkHandlingEnabled\)/,
-    'the QR branch runs before the _linkHandlingEnabled check on the inbound-URL '
+    /if \(!AppPref\.linkHandlingEnabled\.value\)/,
+    'the QR branch runs before the linkHandlingEnabled check on the inbound-URL '
       + 'path, so turning link handling off would not stop an inbound QR payload',
   );
 });

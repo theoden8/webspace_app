@@ -13,12 +13,6 @@ import 'dart:typed_data';
 /// re-activation can re-hydrate the back/forward stack and (on
 /// iOS 15+ / macOS 12+) form-field values via `restoreState`.
 ///
-/// The current default implementation is in-memory only — saved bytes
-/// survive webspace switches, LRU evictions, and memory-pressure
-/// disposals within a single app run, but are lost on cold start. A
-/// future on-disk implementation can drop in here without changes to
-/// callers.
-///
 /// Implementations are expected to be idempotent for both
 /// [removeState] and [saveState] (overwrite semantics), and to treat
 /// empty / null bytes as "nothing to save" so a webview that never

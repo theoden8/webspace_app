@@ -1,19 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/settings/setting_labels.dart';
 import 'package:webspace/settings/site_permission_state.dart';
-
-/// Localized one-word label for [state].
-String sitePermissionStateLabel(
-  AppLocalizations loc,
-  SitePermissionState state,
-) =>
-    switch (state) {
-      SitePermissionState.ask => loc.permissionStateAsk,
-      SitePermissionState.allowed => loc.permissionStateAllowed,
-      SitePermissionState.simulated => loc.permissionStateSimulated,
-      SitePermissionState.blocked => loc.permissionStateBlocked,
-    };
 
 /// The trailing state marker on a permission row.
 ///
@@ -35,30 +24,23 @@ class SitePermissionChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final loc = AppLocalizations.of(context);
-    final label = sitePermissionStateLabel(loc, state);
+    final label = state.label(loc);
 
-    Color? background;
-    Color foreground;
-    BoxBorder? border;
-    switch (state) {
-      case SitePermissionState.allowed:
-        background = scheme.errorContainer;
-        foreground = scheme.onErrorContainer;
-        break;
-      case SitePermissionState.simulated:
-        background = scheme.secondaryContainer;
-        foreground = scheme.onSecondaryContainer;
-        break;
-      case SitePermissionState.ask:
-        foreground = scheme.onSurfaceVariant;
-        border = Border.all(color: scheme.outlineVariant);
-        break;
-      case SitePermissionState.blocked:
-        // Deliberately the quietest of the four: nothing is reaching the site,
-        // so nothing should draw the eye.
-        foreground = scheme.onSurfaceVariant;
-        break;
-    }
+    final (Color? background, Color foreground, BoxBorder? border) =
+        switch (state) {
+      SitePermissionState.allowed =>
+        (scheme.errorContainer, scheme.onErrorContainer, null),
+      SitePermissionState.simulated =>
+        (scheme.secondaryContainer, scheme.onSecondaryContainer, null),
+      SitePermissionState.ask => (
+          null,
+          scheme.onSurfaceVariant,
+          Border.all(color: scheme.outlineVariant),
+        ),
+      // Deliberately the quietest of the four: nothing is reaching the site,
+      // so nothing should draw the eye.
+      SitePermissionState.blocked => (null, scheme.onSurfaceVariant, null),
+    };
 
     return Opacity(
       opacity: dimmed ? 0.55 : 1.0,

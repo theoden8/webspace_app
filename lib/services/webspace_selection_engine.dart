@@ -8,6 +8,25 @@ import 'package:webspace/webspace_model.dart';
 /// returns plain collections out. `ConnectivityService` stays at the caller —
 /// offline-vs-online is a policy decision the engine doesn't make.
 class WebspaceSelectionEngine {
+  /// Recomputes each webspace's runtime `siteIndices` from its persisted
+  /// `siteIds` against [siteIdsByPosition], in `siteIds` order; ids with no
+  /// position drop out of the projection. "All" is synthetic and skipped.
+  static void resolveIndices(
+    List<Webspace> webspaces,
+    List<String> siteIdsByPosition,
+  ) {
+    final positionBySiteId = <String, int>{
+      for (var i = 0; i < siteIdsByPosition.length; i++)
+        siteIdsByPosition[i]: i,
+    };
+    for (final ws in webspaces) {
+      if (ws.isAll) continue;
+      ws.siteIndices = [
+        for (final sid in ws.siteIds) ?positionBySiteId[sid],
+      ];
+    }
+  }
+
   /// The indices displayed for `selectedWebspaceId`:
   ///
   ///   * `null`                        → empty list (home screen shows nothing)
@@ -75,19 +94,5 @@ class WebspaceSelectionEngine {
       candidates.addAll(ws.siteIndices);
     }
     return {for (final i in candidates) if (flag(i)) i};
-  }
-
-  /// Strips out-of-bounds `siteIndices` from every webspace in place. Used
-  /// after reorderings or imports where indices may have drifted. No-op for
-  /// webspaces whose indices are already in-bounds.
-  static void cleanupWebspaceIndices({
-    required List<Webspace> webspaces,
-    required int siteCount,
-  }) {
-    for (final ws in webspaces) {
-      ws.siteIndices = ws.siteIndices
-          .where((i) => i >= 0 && i < siteCount)
-          .toList();
-    }
   }
 }

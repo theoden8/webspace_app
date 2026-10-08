@@ -31,11 +31,6 @@ class ScreenCaptureGuard {
   @visibleForTesting
   static bool? debugSupportedOverride;
 
-  /// The app-wide switch. Held here rather than threaded through the site
-  /// settings screens, which read it to show a site's own switch as already
-  /// covered.
-  static bool appWideEnabled = false;
-
   final bool _supported;
   final MethodChannel _channel;
   bool? _requested;

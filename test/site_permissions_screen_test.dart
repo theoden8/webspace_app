@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_permissions.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/location.dart';
-import 'package:webspace/settings/microphone.dart';
-import 'package:webspace/settings/screen_share.dart';
 import 'package:webspace/settings/site_permission_state.dart';
+import 'package:webspace/widgets/site_permission_chip.dart';
 
 SitePermissionValues _values({
+  bool archived = false,
   CameraAccessMode camera = CameraAccessMode.ask,
   MicrophoneAccessMode microphone = MicrophoneAccessMode.ask,
   ScreenShareMode screenShare = ScreenShareMode.ask,
@@ -17,12 +17,12 @@ SitePermissionValues _values({
   bool? protectedContent,
 }) =>
     SitePermissionValues(
-      cameraMode: camera,
-      virtualCameraSource: null,
-      microphoneMode: microphone,
-      virtualMicrophoneSource: null,
-      screenShareMode: screenShare,
-      virtualScreenSource: null,
+      archived: archived,
+      captures: CaptureGrants(
+        camera: (mode: camera, source: null),
+        microphone: (mode: microphone, source: null),
+        screenShare: (mode: screenShare, source: null),
+      ),
       notificationsEnabled: notifications,
       backgroundAudioEnabled: false,
       protectedContentAllowed: protectedContent,
@@ -138,7 +138,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Always block'));
     await tester.pumpAndSettle();
-    expect(reported?.cameraMode, CameraAccessMode.block);
+    expect(reported?.captures.camera.mode, CameraAccessMode.block);
   });
 
   testWidgets('timezone sits inside the location sheet, not in the list',
@@ -197,5 +197,37 @@ void main() {
     );
     expect(field.onChanged, isNull,
         reason: 'forced to follow the spoofed geo, so it must be inert');
+  });
+
+  testWidgets('an archived site shows its grants held off and locked',
+      (tester) async {
+    await _pump(
+      tester,
+      values: _values(
+        archived: true,
+        camera: CameraAccessMode.real,
+        microphone: MicrophoneAccessMode.real,
+        screenShare: ScreenShareMode.virtual,
+        notifications: true,
+      ),
+    );
+    final chips = tester
+        .widgetList<SitePermissionChip>(find.byType(SitePermissionChip))
+        .toList();
+    for (final title in const [
+      'Camera access',
+      'Microphone access',
+      'Screen sharing',
+    ]) {
+      final row = find.ancestor(
+          of: find.text(title), matching: find.byType(ListTile));
+      final chip = tester.widget<SitePermissionChip>(find.descendant(
+          of: row, matching: find.byType(SitePermissionChip)));
+      expect(chip.state, SitePermissionState.blocked, reason: title);
+      expect(chip.dimmed, isTrue, reason: title);
+      expect(tester.widget<ListTile>(row).onTap, isNull, reason: title);
+    }
+    expect(chips, isNotEmpty);
+    expect(find.text('Fixed for sites in an archive'), findsWidgets);
   });
 }

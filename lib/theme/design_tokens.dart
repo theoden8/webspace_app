@@ -81,6 +81,9 @@ abstract final class Motion {
   /// One step of a list scrolling itself while something is dragged at its
   /// edge.
   static const Duration autoScrollTick = Duration(milliseconds: 16);
+
+  /// A released control gliding to where it rests.
+  static const Duration settle = Duration(milliseconds: 250);
 }
 
 abstract final class Elevations {

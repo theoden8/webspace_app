@@ -94,9 +94,9 @@ String buildDesktopModeShim(String userAgent) {
 
   // Remove `'ontouchstart' in window`. Clean desktop Chromium does not
   // expose ontouchstart at all (it's only on Window.prototype on touch
-  // builds), so defining it as undefined is the leak we used to ship —
-  // `'ontouchstart' in window` would still return true for the
-  // own-property. Delete from both window and Window.prototype.
+  // builds), so defining it as undefined would leak: `'ontouchstart' in
+  // window` would still return true for the own-property. Delete from both
+  // window and Window.prototype.
   try { delete window.ontouchstart; } catch (e) {}
   try { delete Window.prototype.ontouchstart; } catch (e) {}
 

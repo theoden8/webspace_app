@@ -11,7 +11,11 @@
 /// in, and a non-null [HttpAuthCredential] out to `PROCEED`.
 library;
 
-import 'package:webspace/web_view_model.dart' show getBaseDomain;
+import 'package:webspace/services/url_host.dart';
+import 'package:webspace/settings/http_auth_memory.dart';
+import 'package:webspace/utils/concurrency.dart';
+
+export 'package:webspace/settings/http_auth_memory.dart';
 
 /// A username / password pair the network stack answers a challenge with.
 class HttpAuthCredential {
@@ -35,34 +39,20 @@ class HttpAuthCredential {
   String toString() => 'HttpAuthCredential(username: $username)';
 }
 
-/// What a site may do with the credentials the user types (HTTPAUTH-004).
-enum HttpAuthMemory {
-  /// Nothing is read from or written to the device: archive-tier sites,
-  /// whose `siteId` must not appear in app-tier secure storage (ARCH-001).
-  off,
-
-  /// Saved credentials answer challenges, but nothing new is saved:
-  /// incognito sites, the way a private window still fills saved passwords.
-  readOnly,
-
-  /// Saved credentials answer challenges and the prompt offers to save.
-  readWrite,
-}
-
 /// Per-site credential storage, keyed by the challenge's protection space.
 ///
 /// The key is (host, realm) and not the origin: Android's callback carries
 /// no port and no scheme (`AwHttpAuthHandler` forwards only host and realm),
 /// so anything finer would never match there.
 abstract class HttpAuthCredentialStore {
-  Future<HttpAuthCredential?> lookup(String siteId, String host, String realm);
+  Future<HttpAuthCredential?> lookup(String siteId, Host host, String realm);
   Future<void> save(
     String siteId,
-    String host,
+    Host host,
     String realm,
     HttpAuthCredential credential,
   );
-  Future<void> remove(String siteId, String host, String realm);
+  Future<void> remove(String siteId, Host host, String realm);
 }
 
 /// The platform's challenge, reduced to what the policy reads.
@@ -153,39 +143,29 @@ class HttpAuthSession {
   final HttpAuthPrompt? prompt;
 
   final Set<String> _supplied = <String>{};
-  final Map<String, Future<HttpAuthCredential?>> _inFlight = {};
+  final SingleFlight<String, HttpAuthCredential?> _answers = SingleFlight();
 
   /// The username last sent for each protection space, so a refused sign-in
   /// reopens with it even when it was not saved. Never the password.
   final Map<String, String> _lastUsername = {};
-
-  static String _normalizeHost(String host) {
-    var h = host.trim().toLowerCase();
-    if (h.startsWith('[') && h.endsWith(']')) {
-      h = h.substring(1, h.length - 1);
-    }
-    if (h.endsWith('.')) h = h.substring(0, h.length - 1);
-    return h;
-  }
 
   /// Whether [host] shares [siteUrl]'s base domain, the unit the app
   /// already isolates cookies and keeps navigations in-webview by. A private
   /// suffix (`github.io`) is not a base domain, so a page on one
   /// `github.io` subdomain cannot raise a prompt for another.
   static bool isSiteHost(String host, String? siteUrl) {
-    if (siteUrl == null) return false;
-    final siteHost = _normalizeHost(Uri.tryParse(siteUrl)?.host ?? '');
-    final h = _normalizeHost(host);
-    if (siteHost.isEmpty || h.isEmpty) return false;
+    final siteHost = Host.inUrl(siteUrl);
+    final h = Host(host);
+    if (siteHost == null || h.isEmpty) return false;
     return getBaseDomain(h) == getBaseDomain(siteHost);
   }
 
   /// The storage key for a challenge's protection space.
-  static ({String host, String realm}) protectionSpace(
+  static ({Host host, String realm}) protectionSpace(
     String host,
     String? realm,
   ) =>
-      (host: _normalizeHost(host), realm: realm ?? '');
+      (host: Host(host), realm: realm ?? '');
 
   /// The credential to answer [challenge] with, or null to leave it to the
   /// platform (which cancels and renders the server's `401` body).
@@ -198,16 +178,12 @@ class HttpAuthSession {
     if (!isSiteHost(challenge.host, siteUrl)) return Future.value(null);
     final space = protectionSpace(challenge.host, challenge.realm);
     final key = '${space.host}\n${space.realm}';
-    final pending = _inFlight[key];
-    if (pending != null) return pending;
-    final result = _resolve(challenge, space, key);
-    _inFlight[key] = result;
-    return result.whenComplete(() => _inFlight.remove(key));
+    return _answers.run(key, () => _resolve(challenge, space, key));
   }
 
   Future<HttpAuthCredential?> _resolve(
     HttpAuthChallengeInfo challenge,
-    ({String host, String realm}) space,
+    ({Host host, String realm}) space,
     String key,
   ) async {
     final owner = siteId;

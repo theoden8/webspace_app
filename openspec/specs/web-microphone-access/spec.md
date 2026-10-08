@@ -38,10 +38,9 @@ prompt for the source file and SHALL show the chosen file's name.
 `WebViewModel.toJson`/`fromJson` (`microphoneMode` serialized only when not
 `ask` so untouched sites keep byte-identical JSON).
 
-`microphonePermissionState` SHALL map `real` to `SitePermissionState.allowed`,
+`MicrophoneAccessMode.real.state` SHALL be `SitePermissionState.allowed`,
 which is what draws the row and its badge in the error colour via
-`opensRealDevice`. The doc comment stating that this function never returns
-`allowed` is removed with the mode it described.
+`opensRealDevice`.
 
 #### Scenario: Reset to Ask
 
@@ -81,12 +80,13 @@ the origin change.
 
 **Given** site "Acme" is set to `real`
 **When** a link on it opens a nested webview on another domain and that page requests audio
-**Then** the nested screen starts from `ask` (`nestedSeedMode` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
+**Then** the nested screen starts from `ask` (`SitePosture.forNested` maps `real` to `ask`; `block` and `virtual` are inherited as they are)
 **And** the popup names the nested page's origin before the microphone opens
 
 ### Requirement: MIC-006 — Archive-tier sites deny silently
 
-`effectiveMicrophoneMode` SHALL be `block` for archive-tier sites regardless
+The microphone's effective mode (`WebViewModel.effectiveCaptures`, folded by
+`ArchiveFold.captures`) SHALL be `block` for archive-tier sites regardless
 of stored value (ARCH-006: the popup and the file picker are OS-level UI). No
 popup is shown; the stored mode and any picked clip are preserved for when the
 site leaves the archive.
@@ -243,8 +243,8 @@ A microphone request from a site that is not the active one SHALL be denied
 without prompting, whatever its stored `microphoneMode`, and SHALL leave the
 stored mode and picked clip untouched. This is CAM-011 applied to audio, and
 it is carried by the same code: the gate is a required `isSiteActive`
-predicate on the shared `MediaGrantEngine`, so neither feature, nor a future
-one, can add a call site without answering it.
+predicate on the one `GrantStore` every capture kind decides through, so
+neither feature, nor a future one, can be wired up without answering it.
 
 Both of CAM-011's reasons now transfer, where previously only one did. "A
 background site's popup reads as belonging to the site on screen" always
@@ -266,8 +266,7 @@ document's lifetime.
 `required` forces a call site to pass a predicate, not a correct one:
 `isSiteActive: () => true` compiles and keeps every engine test green. Two
 further gates close that. `test/capture_request_wiring_test.dart` drives the
-model's own `resolveMicrophoneRequest` / `resolveCameraRequest`, the wiring
-`getWebView` installs, so a model that mistranslates the host predicate or
+model's own `WebViewModel.grantStore`, the store `getWebView` installs, so a model that mistranslates the host predicate or
 drops the archive-tier fold fails. `test/js/capture_active_gate.test.js`
 structurally rejects a constant at every `isSiteActive` call site, which is
 the only reach available for `InAppWebViewScreen`'s `mounted` predicate: no
@@ -541,7 +540,7 @@ becomes a prompt, never the reverse.
 The webview's `onPermissionRequest` SHALL respond to a request whose resources
 include `MICROPHONE`:
 
-- `GRANT`, when the requesting site's `effectiveMicrophoneMode` is `real`, the
+- `GRANT`, when the requesting site's effective microphone mode is `real`, the
   site is the one on screen, and the app-level recording permission is held
   (MIC-015);
 - `DENY` otherwise.
@@ -554,8 +553,13 @@ does not control and cannot reconcile with the per-site one it just made.
 
 A request reporting `CAMERA_AND_MICROPHONE` (the single resource iOS and macOS
 report for a combined capture) cannot be half-granted, so it SHALL be granted
-only when `effectiveCameraMode == real` **and** `effectiveMicrophoneMode ==
-real` and the site is active, and denied otherwise. MIC-004 covers what the
+only when the effective camera **and** microphone modes are both `real` and
+the site is active, and denied otherwise. Android reports the same request as
+`CAMERA` plus `MICROPHONE`, and SHALL be answered the same way: the response
+names both resources, so granting it on the microphone decision alone would
+hand over a camera the site was never allowed. The decision is
+`CapturePermissionEngine.answer`, tested in
+`test/capture_permission_engine_test.dart`. MIC-004 covers what the
 page sees in the mixed pairings, which never reach this path.
 
 #### Scenario: An allowed site reaches the device
@@ -574,6 +578,12 @@ page sees in the mixed pairings, which never reach this path.
 
 **Given** a site with `microphoneMode == real` and `cameraMode == block`
 **When** a `CAMERA_AND_MICROPHONE` request arrives on iOS or macOS
+**Then** it is denied
+
+#### Scenario: Android's camera-plus-microphone pair is one request
+
+**Given** a site with `microphoneMode == real` and `cameraMode == block`
+**When** a request naming `CAMERA` and `MICROPHONE` arrives on Android
 **Then** it is denied
 
 ---
@@ -747,7 +757,7 @@ user twice.
 - **Storage**: the picked clip is inlined as a `data:` URL on the model (like
   `customIconPng` and the virtual-camera source) so it rides settings backups
   and lives inside the encrypted archive slice for archive-tier sites.
-  `VirtualMicrophoneService` caps it at 8 MiB — smaller than the camera's 24
+  `VirtualMediaPicker` caps it at 8 MiB — smaller than the camera's 24
   MiB because the shim decodes the whole clip into an `AudioBuffer` up front,
   which it must, to loop it without a seam.
 - **Autoplay**: Android WebView's `mediaPlaybackRequiresUserGesture = false`
@@ -759,9 +769,9 @@ user twice.
 
 ## Test tiers
 
-- **Dart** — `test/microphone_test.dart` (model, serialization, archive
-  override, QR exclusion), `test/microphone_decision_engine_test.dart`
-  (decide → coalesce → persist against the real engine).
+- **Dart** — `test/capture_test.dart` (model, serialization, archive
+  override, QR exclusion, per kind), `test/media_grant_engine_test.dart`
+  (decide → coalesce → persist against the real engine, per kind).
 - **jsdom** — `test/js/microphone_stream_shim.test.js`: the decision funnel,
   the combined-request split, prototype-level override placement,
   `enumerateDevices` masking. WebAudio is stubbed; nothing about real audio is

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/concurrency.dart';
 
 /// What the connection indicator shows for a proxy (PROXY-031).
 enum ProxyHealthState { checking, reachable, authRejected, unreachable }
@@ -40,8 +41,8 @@ class ProxyHealthService extends ChangeNotifier {
 
   final ProxyProbe _probe;
   final DateTime Function() _now;
-  final Map<_ProxyKey, ProxyHealth> _results = {};
-  final Map<_ProxyKey, Future<ProxyHealth>> _inFlight = {};
+  final Map<ProxyRouteKey, ProxyHealth> _results = {};
+  final SingleFlight<ProxyRouteKey, ProxyHealth> _probes = SingleFlight();
 
   static Future<ProxyTestResult> _defaultProbe(UserProxySettings settings) =>
       testProxyConnection(settings, target: kDefaultProxyTestTarget);
@@ -53,15 +54,15 @@ class ProxyHealthService extends ChangeNotifier {
       settings.type != ProxyType.DEFAULT && settings.type != ProxyType.SAVED;
 
   ProxyHealth? statusOf(UserProxySettings settings) {
-    final key = _keyOf(settings);
-    if (_inFlight.containsKey(key)) {
+    final key = settings.routeKey;
+    if (_probes.isRunning(key)) {
       return const ProxyHealth(ProxyHealthState.checking);
     }
     return _results[key];
   }
 
   bool isFresh(UserProxySettings settings) {
-    final checkedAt = _results[_keyOf(settings)]?.checkedAt;
+    final checkedAt = _results[settings.routeKey]?.checkedAt;
     return checkedAt != null && _now().difference(checkedAt) < freshFor;
   }
 
@@ -72,22 +73,27 @@ class ProxyHealthService extends ChangeNotifier {
   /// where they point, and an unresolved DEFAULT would test the app-wide
   /// proxy instead.
   Future<ProxyHealth> check(UserProxySettings settings, {bool force = false}) {
-    final key = _keyOf(settings);
-    final running = _inFlight[key];
-    if (running != null) return running;
-    if (!force && isFresh(settings)) return Future.value(_results[key]!);
-    final future = _run(key, settings);
-    _inFlight[key] = future;
-    notifyListeners();
-    return future;
+    final key = settings.routeKey;
+    final starting = !_probes.isRunning(key);
+    if (starting && !force && isFresh(settings)) {
+      return Future.value(_results[key]!);
+    }
+    final probe = _probes.run(key, () => _probeHealth(settings));
+    if (starting) {
+      notifyListeners();
+      probe.then((health) {
+        _results[key] = health;
+        notifyListeners();
+      });
+    }
+    return probe;
   }
 
-  Future<ProxyHealth> _run(_ProxyKey key, UserProxySettings settings) async {
-    ProxyHealth health;
+  Future<ProxyHealth> _probeHealth(UserProxySettings settings) async {
     try {
       final result = await _probe(settings);
       logProxyTest(settings, result);
-      health = ProxyHealth(
+      return ProxyHealth(
         switch (result.outcome) {
           ProxyTestOutcome.reachable => ProxyHealthState.reachable,
           ProxyTestOutcome.authRejected => ProxyHealthState.authRejected,
@@ -99,23 +105,12 @@ class ProxyHealthService extends ChangeNotifier {
         checkedAt: _now(),
         detail: result.detail,
       );
-    } catch (e) {
-      health = ProxyHealth(
+    } on Exception catch (e) {
+      return ProxyHealth(
         ProxyHealthState.unreachable,
         checkedAt: _now(),
         detail: '$e',
       );
     }
-    _inFlight.remove(key);
-    _results[key] = health;
-    notifyListeners();
-    return health;
   }
 }
-
-/// A proxy's identity for caching. The password is part of it, so fixing a
-/// rejected password is not answered from the rejection.
-typedef _ProxyKey = (ProxyType, String?, String?, String?);
-
-_ProxyKey _keyOf(UserProxySettings s) =>
-    (s.type, s.address, s.username, s.password);

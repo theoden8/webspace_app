@@ -7,12 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 /// strip is on), and a spec that names "the overflow menu" means both.
 /// "Duplicate tab" is a long press on refresh only, never a menu row.
 /// Structural, because `_WebSpacePageState` is not constructible from a unit
-/// test.
+/// test; the tab flows themselves are `TabsController`'s.
 void main() {
   late String source;
+  late String tabs;
+  late String links;
 
   setUpAll(() {
     source = File('lib/main.dart').readAsStringSync();
+    tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
+    links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
 
   int count(String needle) =>
@@ -20,28 +24,28 @@ void main() {
 
   test('both overflow menus offer New tab and neither offers Duplicate tab',
       () {
-    expect(count('value: "newTab"'), 2);
-    expect(count("case 'newTab':"), 2);
-    expect(count('value: "duplicateTab"'), 0);
-    expect(count("case 'duplicateTab':"), 0);
+    expect(count('_siteMenuItems(context, _SiteMenuPlacement.appBar)'), 1);
+    expect(count('_siteMenuItems(context, _SiteMenuPlacement.bottomBar)'), 1);
+    expect(count('SiteMenuAction.newTab =>'), 1);
+    expect(count('SiteMenuAction.duplicateTab'), 0);
   });
 
-  test('a long press on either refresh button duplicates the tab', () {
+  test('a long press on the menus\' refresh button duplicates the tab', () {
     final refresh = RegExp(
       r'tooltip: loading \? loc\.homeStopTooltip : loc\.homeRefreshTooltip,\s*'
-      r'onLongPress: _tabsEnabledAt\(_currentIndex\)\s*\?\s*\(\) \{[^}]*'
-      r'_duplicateTab\(',
+      r'onLongPress: _tabs\.enabledAt\(_sites\.current\)\s*\?\s*\(\) \{[^}]*'
+      r'_tabs\.duplicateTab\(',
     );
-    expect(refresh.allMatches(source).length, 2);
+    expect(refresh.allMatches(source).length, 1);
   });
 
   test('a duplicate opens parked: it never re-binds the webview', () {
-    final start = source.indexOf('Future<void> _duplicateTab(');
+    final start = tabs.indexOf('Future<void> duplicateTab(');
     expect(start, isNot(-1));
-    final end = source.indexOf('\n  }\n', start);
-    final body = source.substring(start, end);
+    final end = tabs.indexOf('\n  }\n', start);
+    final body = tabs.substring(start, end);
     // The page on screen stays put: no switch, no dispose (TAB-002).
-    expect(body.contains('_switchActiveTab('), isFalse);
+    expect(body.contains('switchActiveTab('), isFalse);
     expect(body.contains('disposeWebView('), isFalse);
     // Its back stack is written under the copy's own key, never the source's.
     expect(body.contains('saveState(copyKey'), isTrue);
@@ -49,7 +53,7 @@ void main() {
   });
 
   group('TAB-012 / TAB-013: tabs are experimental and per site', () {
-    String firstStatement(String signature) {
+    String firstStatement(String source, String signature) {
       final start = source.indexOf(signature);
       expect(start, isNot(-1), reason: '$signature not found');
       // The body's brace, not a named-parameter list's.
@@ -60,40 +64,42 @@ void main() {
 
     test('the gate is the Site tabs switch and the site\'s own Tabs', () {
       expect(
-        RegExp(r'bool get _tabsFeatureEnabled => ExperimentalFeaturesService'
+        RegExp(r'bool get featureEnabled => ExperimentalFeaturesService'
                 r'\.instance\s*\.isEnabled\(ExperimentalFeature\.siteTabs\);')
-            .hasMatch(source),
+            .hasMatch(tabs),
         isTrue,
       );
       expect(
-        RegExp(r'bool _tabsEnabledFor\(WebViewModel model\) =>\s*'
-                r'_tabsFeatureEnabled && model\.effectiveTabsEnabled;')
-            .hasMatch(source),
+        RegExp(r'bool enabledFor\(WebViewModel model\) =>\s*'
+                r'featureEnabled && model\.effectiveTabsEnabled;')
+            .hasMatch(tabs),
         isTrue,
         reason: 'a kiosk or full-screen site has no tabs',
       );
       expect(
-        RegExp(r'bool _tabsEnabledAt\(int\? index\) =>[^;]*'
-                r'_tabsEnabledFor\(_webViewModels\[index\]\);')
-            .hasMatch(source),
+        RegExp(r'bool enabledAt\(int\? index\) =>[^;]*'
+                r'enabledFor\(_sites\.models\[index\]\);')
+            .hasMatch(tabs),
         isTrue,
       );
       expect(RegExp(r'\b_tabsEnabled\b').hasMatch(source), isFalse,
           reason: 'an app-wide gate would let a kiosk site reach its tabs');
+      expect(RegExp(r'\bbool get enabled\b').hasMatch(tabs), isFalse,
+          reason: 'an app-wide gate would let a kiosk site reach its tabs');
     });
 
     test('every way into tabs returns first when they are off', () {
-      for (final (signature, gate) in [
-        ('Future<void> _newTab(', '!_tabsEnabledAt(index)'),
-        ('Future<void> _duplicateTab(', '!_tabsEnabledAt(index)'),
-        ('Future<bool> _closeChildTabOnBack(', '!_tabsEnabledAt(_currentIndex)'),
-        ('Future<bool> _returnFromJumpOnBack(', '!_tabsEnabledAt(_currentIndex)'),
-        ('Future<void> _showTabsSheet(', '!_tabsEnabledAt(_currentIndex)'),
-        ('Future<void> _showLinkLongPressMenu(', '!_tabsEnabledAt(index)'),
-        ('Future<void> _openChildTab(', '!_tabsEnabledFor(owner)'),
-        ('bool _moveTab(', '!_tabsEnabledAt(index)'),
+      for (final (src, signature, gate) in [
+        (tabs, 'Future<void> newTab(', '!enabledAt(index)'),
+        (tabs, 'Future<void> duplicateTab(', '!enabledAt(index)'),
+        (tabs, 'Future<bool> _closeChildTabOnBack(', '!enabledAt(_sites.current)'),
+        (tabs, 'Future<bool> _returnFromJumpOnBack(', '!enabledAt(_sites.current)'),
+        (source, 'Future<void> _showTabsSheet(', '!_tabs.enabledAt(_sites.current)'),
+        (source, 'Future<void> _showLinkLongPressMenu(', '!_tabs.enabledAt(index)'),
+        (tabs, 'Future<void> openChildTab(', '!enabledFor(owner)'),
+        (tabs, 'bool moveTab(', '!enabledAt(index)'),
       ]) {
-        expect(firstStatement(signature), contains(gate),
+        expect(firstStatement(src, signature), contains(gate),
             reason: '$signature must return before doing anything while '
                 'the site it acts on has no tabs');
       }
@@ -102,8 +108,8 @@ void main() {
     test('a hosted tab returns links to its owner only while it has tabs',
         () {
       expect(
-        RegExp(r'webViewModel\.onReturnToOwner =\s*'
-                r'_tabsEnabledFor\(webViewModel\)\s*\?')
+        RegExp(r'site\.onReturnToOwner =\s*'
+                r'_tabs\.enabledFor\(site\)\s*\?')
             .hasMatch(source),
         isTrue,
         reason: 'an owner without tabs has no tree to take the child',
@@ -112,18 +118,18 @@ void main() {
 
     test('Back at the start of a tab tries the way back before closing it '
         '(TAB-019, TAB-007)', () {
-      expect(RegExp(r'await _backAtTabStart\(\)').allMatches(source),
+      expect(RegExp(r'await _tabs\.backAtTabStart\(\)').allMatches(source),
           hasLength(2),
           reason: 'Android\'s canGoBack path and the attempt-then-compare '
               'path of every other host');
       expect(
           RegExp(r'(?<!Future<bool> )_closeChildTabOnBack\(\)')
-              .allMatches(source),
+              .allMatches(tabs),
           hasLength(1),
           reason: 'closing is reached only through the funnel');
-      final funnel = source.substring(
-          source.indexOf('Future<bool> _backAtTabStart('),
-          source.indexOf('Future<bool> _returnFromJumpOnBack('));
+      final funnel = tabs.substring(
+          tabs.indexOf('Future<bool> backAtTabStart('),
+          tabs.indexOf('Future<bool> _returnFromJumpOnBack('));
       expect(funnel.indexOf('_returnFromJumpOnBack()'),
           lessThan(funnel.indexOf('_closeChildTabOnBack()')));
     });
@@ -131,14 +137,14 @@ void main() {
     test('a typed address takes the same steps as a tapped link (LIR-032)',
         () {
       expect(RegExp(r'onUrlSubmitted:').allMatches(source), hasLength(1));
-      expect(source, contains('onUrlSubmitted: (url) => _openTypedAddress(model, url),'));
-      final start = source.indexOf('Future<void> _openTypedAddress(');
-      final body = source.substring(start, source.indexOf('\n  }\n', start));
+      expect(source, contains('onUrlSubmitted: (url) => _links.openTypedAddress(model, url),'));
+      final start = links.indexOf('Future<void> openTypedAddress(');
+      final body = links.substring(start, links.indexOf('\n  }\n', start));
       expect(body, contains('NavigationDecisionEngine.decideShouldOverrideUrlLoading('));
       expect(body, contains('NavigationDecisionEngine.stepFor('));
-      final route = body.indexOf('_routeOutboundLink(model, url, decision, true)');
+      final route = body.indexOf('routeOutbound(model, url, decision, true)');
       expect(route, isNot(-1));
-      expect(body.indexOf('_launchNestedForModel('), greaterThan(route),
+      expect(body.indexOf('_host.launchNestedFor('), greaterThan(route),
           reason: 'a nested screen only for what routing leaves');
       expect(File('lib/web_view_model.dart').readAsStringSync(),
           contains('NavigationDecisionEngine.stepFor('),
@@ -146,24 +152,19 @@ void main() {
     });
 
     test('work that cannot be dropped waits for the tab gate', () {
-      String body(String signature) {
-        final start = source.indexOf(signature);
+      String body(String signature, [String? src]) {
+        final from = src ?? source;
+        final start = from.indexOf(signature);
         expect(start, isNot(-1), reason: signature);
-        return source.substring(start, source.indexOf('\n  }\n', start));
+        return from.substring(start, from.indexOf('\n  }\n', start));
       }
 
-      expect(
-        RegExp(r'while \(_isTabHandling\) \{\s*await _tabGate\.idle\(\);\s*\}\s*'
-                r'_isTabHandling = true;')
-            .hasMatch(body('Future<T> _withTabGate<T>(')),
-        isTrue,
-      );
-      expect(source, contains('_withTabGate(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
-      expect(body('Future<void> _openLinkInNewTab('), contains('await _withTabGate('),
+      expect(tabs, contains('_gate.runWhenIdle(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
+      expect(body('Future<void> openLinkInNewTab(', tabs), contains('await _gate.runWhenIdle('),
           reason: 'a background insert must not be lost to a close in flight');
-      expect(body('Future<void> _executeOpenInMain('),
-          contains('await _withTabGate(() => _switchToOwnerRunTab(model));'));
-      expect(body('Future<void> _openTypedAddress('), contains('await _withTabGate('));
+      expect(body('Future<void> _executeOpenInMain(', links),
+          contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
+      expect(body('Future<void> openTypedAddress(', links), contains('await _tabs.runWhenIdle('));
       expect(body('Future<void> _dismissKeyboard('), contains('.timeout('),
           reason: 'a stuck page must not keep the list from opening');
       expect(body('Future<void> _showTabsSheet('), contains('_isShowingTabsSheet'));
@@ -174,12 +175,12 @@ void main() {
       expect(start, isNot(-1));
       final body = source.substring(start, source.indexOf('\n  }\n', start));
       expect(
-        RegExp(r'for \(final i in view\)\s*if \(_tabsEnabledAt\(i\)\)')
+        RegExp(r'for \(final i in view\)\s*if \(_tabs\.enabledAt\(i\)\)')
             .hasMatch(body),
         isTrue,
       );
       expect(
-        RegExp(r'if \(!shown\.contains\(i\) && _tabsEnabledAt\(i\)\)')
+        RegExp(r'if \(!shown\.contains\(i\) && _tabs\.enabledAt\(i\)\)')
             .hasMatch(body),
         isTrue,
         reason: 'a site the webspace hides is listed for TAB-017 only when '
@@ -190,28 +191,33 @@ void main() {
     test('nothing tab-shaped is drawn while they are off', () {
       expect(
         RegExp(r'if \(currentModel != null && '
-                r'_tabsEnabledAt\(_currentIndex\)\)\s*_buildTabsButton\(')
+                r'_tabs\.enabledAt\(_sites\.current\)\)\s*TabCountButton\(')
             .hasMatch(source),
         isTrue,
         reason: 'the tab count in the app bar',
       );
-      final rows = RegExp(
-        r'if \(_tabsEnabledAt\(_currentIndex\)\) \.\.\.\[\s*'
-        r'PopupMenuItem<String>\(\s*'
-        r'value: "newTab",',
+      expect(
+        source,
+        contains('SiteMenuAction.newTab =>\n'
+            '          _tabs.enabledAt(_sites.current) ? (Icons.add, loc.tabsNewTab) : null,'),
+        reason: 'New tab, in the overflow menus',
       );
-      expect(rows.allMatches(source).length, 2,
-          reason: 'New tab, in both overflow menus');
-      final pills = RegExp(r'(?<!Widget )_tabCountPill\(')
-          .allMatches(source)
-          .toList();
-      expect(pills.length, 3, reason: 'strip chip and both drawer tiles');
-      for (final m in pills) {
-        final before = source.substring(0, m.start);
-        final guard = before.substring(before.lastIndexOf('if ('));
-        expect(guard,
-            matches(RegExp(r'^if \(_tabsEnabled(At\(index\)|For\(siteModel\)) && ')));
+      void guarded(String src, int count, RegExp guard, String reason) {
+        final pills = 'TabCountPill('.allMatches(src).toList();
+        expect(pills.length, count, reason: reason);
+        for (final m in pills) {
+          final before = src.substring(0, m.start);
+          expect(before.substring(before.lastIndexOf('if (')), matches(guard));
+        }
       }
+
+      guarded(source, 1, RegExp(r'^if \(_tabs\.enabledFor\(siteModel\) && '),
+          'the strip chip');
+      expect(source,
+          contains('showTabCount: _tabs.enabledAt(index) &&'),
+          reason: 'the drawer tile');
+      guarded(File('lib/widgets/site_grid_tile.dart').readAsStringSync(), 2,
+          RegExp(r'^if \(showTabCount\)'), 'both drawer tile layouts');
     });
   });
 
@@ -224,23 +230,26 @@ void main() {
 
     test('an always-home site with tabs lands on a home tab, not in place', () {
       final reset = body('Future<void> _resetAlwaysOpenHomeOnShortcut(');
-      expect(reset, contains('if (_tabsEnabledAt(i)) _webViewModels[i]'));
-      expect(reset, contains('await _landOnHomeTab(m);'));
-      expect(body('Future<void> _landOnHomeTab('),
+      expect(reset, contains('if (_tabs.enabledAt(i)) _sites.models[i]'));
+      expect(reset, contains('await _tabs.landOnHomeTab(m);'));
+      final land = tabs.substring(tabs.indexOf('Future<void> landOnHomeTab('));
+      expect(land.substring(0, land.indexOf('\n  }\n')),
           contains('TabLifecycleEngine.homeLanding('));
     });
 
     test('a cold shortcut launch leaves a site with tabs on its last tab', () {
       // HS-006 sends the launched site home; with tabs, TAB-014 decides.
+      final shortcuts =
+          File('lib/controllers/shortcut_controller.dart').readAsStringSync();
       expect(
-        RegExp(r'if \(!_tabsEnabledAt\(indexToRestore\) && '
+        RegExp(r'if \(!_host\.tabsEnabledAt\(index\) && '
                 r'm\.currentUrl != m\.initUrl\)')
-            .hasMatch(source),
+            .hasMatch(shortcuts),
         isTrue,
       );
       expect(
-        RegExp(r'coldLaunch &&\s*!_tabsEnabledAt\(resolution\.index\) &&')
-            .hasMatch(source),
+        RegExp(r'coldLaunch &&\s*!_host\.tabsEnabledAt\(index\) &&')
+            .hasMatch(shortcuts),
         isTrue,
       );
     });

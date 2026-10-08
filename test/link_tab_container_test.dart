@@ -471,17 +471,15 @@ void main() {
 
     test('the import and an archive move-out give released sites a colour',
         () {
-      final main = File('lib/main.dart').readAsStringSync();
-      final import = main.indexOf('_webViewModels.addAll(plan.sites);');
-      expect(import, isNot(-1));
-      expect(
-          main.substring(import, import + 120), contains('_assignContainerColors();'));
-      final moveOut = main.indexOf('Future<void> _moveSiteOutOfArchive(');
-      final body = main.substring(moveOut, main.indexOf('\n  }\n', moveOut));
+      final archives =
+          File('lib/controllers/archive_controller.dart').readAsStringSync();
+      final moveOut = archives.indexOf('Future<void> moveOut(');
+      final body =
+          archives.substring(moveOut, archives.indexOf('\n  }\n', moveOut));
       expect(body, contains('ContainerColorEngine.release('));
       expect(body, contains('if (!m.isArchiveTier && !identical(m, model))'));
-      expect(body, contains('_saveWebViewModels()'),
-          reason: 'the save assigns the released site its colour');
+      expect(body, contains('commitSites(SiteUnarchived(model))'),
+          reason: 'the commit assigns the released site its colour');
     });
   });
 

@@ -19,12 +19,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const kt = 'android/app/src/main/kotlin/org/codeberg/theoden8/webspace';
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
 
 const worker = read(`${kt}/NotificationRefreshWorker.kt`);
 const engine = read(`${kt}/WorkerFlutterEngine.kt`);
@@ -34,6 +31,8 @@ const taskPlugin = read(`${kt}/BackgroundTaskAndroidPlugin.kt`);
 const main = read('lib/main.dart');
 const launch = read('lib/services/launch_context.dart');
 const service = read('lib/services/background_task_service.dart');
+const lifecycle = read('lib/controllers/app_lifecycle_controller.dart');
+const background = read('lib/controllers/background_sites_controller.dart');
 
 test('the worker starts an engine when none is reachable, and stops it after', () => {
   const miss = worker.indexOf('if (!NotificationRefreshDispatcher.dispatch(onComplete)) {');
@@ -76,10 +75,10 @@ test('main knows it runs for a wake and builds no site webview', () => {
     'the worker engine must pass the argument main looks for');
   assert.match(engine, /executeDartEntrypoint\(\s*DartExecutor\.DartEntrypoint\.createDefault\(\),\s*listOf\(BACKGROUND_WAKE_ARG\)/);
   assert.match(main, /void main\(\[List<String> args = const \[\]\]\) async \{\s*launchedForBackgroundWake = args\.contains\(kBackgroundWakeArg\);/);
-  assert.match(main, /if \(!_useContainers && !launchedForBackgroundWake\) \{/,
+  assert.match(main, /if \(!_sites\.useContainers && !launchedForBackgroundWake\) \{/,
     'the legacy pre-paint auto-load must not run in the wake engine');
   assert.match(main,
-    /if \(_useContainers && !launchedForBackgroundWake\) \{\s*unawaited\(DeferredStartupEngine\.autoLoadNotificationSites/,
+    /if \(_sites\.useContainers && !launchedForBackgroundWake\) \{\s*unawaited\(DeferredStartupEngine\.autoLoadNotificationSites/,
     'the container auto-load must not run in the wake engine');
 });
 
@@ -95,12 +94,12 @@ test('the refresh waits for Dart to install its handler', () => {
 // Android has one proxy override. A user who reopens the app mid-wake moves
 // it to the site they open, and a headless check still loading would follow.
 test('a return to the foreground closes the wake headless checks', () => {
-  const resumed = main.indexOf('} else if (state == AppLifecycleState.resumed) {');
-  assert.notEqual(resumed, -1, 'the resumed branch of didChangeAppLifecycleState is gone');
-  const branch = main.slice(resumed, main.indexOf('\n  }\n', resumed));
-  assert.match(branch, /_activeWake\?\.closeAllHeadless\(\)/);
-  const open = main.slice(main.indexOf('Future<WakeSkip?> openHeadless(String siteId) async {'));
-  const body = open.slice(0, open.indexOf('\n  }\n'));
+  assert.match(blockAfter(lifecycle, 'void _foregrounded() {', null, 'app_lifecycle_controller.dart'),
+    /background\.noteResumed\(\)/);
+  assert.match(blockAfter(background, 'void noteResumed() {', null, 'background_sites_controller.dart'),
+    /_activeWake\?\.closeAllHeadless\(\)/);
+  const body = blockAfter(background, 'Future<WakeSkip?> openHeadless(String siteId) async {', null,
+    'background_sites_controller.dart');
   assert.equal((body.match(/if \(_foreground\)/g) || []).length, 2,
     'openHeadless must refuse before building a check and drop one finished after the app came back');
 });

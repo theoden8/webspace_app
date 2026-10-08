@@ -7,7 +7,6 @@
 // the app log, and tor's own output reaches it too — separately tagged and
 // filed as sensitive.
 
-import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -17,40 +16,7 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
-
-class _Runtime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-
-  @override
-  bool get isAvailable => true;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-  Future<void> dispose() => _events.close();
-}
+import 'helpers/fake_tor_runtime.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -126,12 +92,12 @@ void main() {
   });
 
   group('the app log follows the runtime', () {
-    late _Runtime runtime;
+    late FakeTorRuntime runtime;
 
     setUp(() {
       LogService.instance.resetForTest();
       DeveloperModeService.instance.debugSet(true);
-      runtime = _Runtime();
+      runtime = FakeTorRuntime();
       TorService.overrideEngine(
         TorEngine(runtime: runtime, sessionSecret: 'secret'),
       );
@@ -148,7 +114,7 @@ void main() {
         LogService.instance.entries.where((e) => e.tag == 'Tor').toList();
 
     test('every transition is logged, with its phase', () async {
-      await TorService.instance.maybeStart('site:a');
+      await TorService.instance.maybeStart(TorSiteHolder('site:a'));
       runtime.emit(const TorBootstrapping(45,
           tag: 'loading_descriptors', summary: 'Loading relay descriptors'));
       runtime.emit(const TorUp('127.0.0.1', 41337));
@@ -161,7 +127,7 @@ void main() {
     });
 
     test('a failure is logged at error level', () async {
-      await TorService.instance.maybeStart('site:a');
+      await TorService.instance.maybeStart(TorSiteHolder('site:a'));
       runtime.emit(TorErrored('Tor did not finish bootstrapping in time.'));
       await pumpEventQueue();
 
@@ -173,7 +139,7 @@ void main() {
 
     test('status lines are not sensitive, so they show without the toggle',
         () async {
-      await TorService.instance.maybeStart('site:a');
+      await TorService.instance.maybeStart(TorSiteHolder('site:a'));
       await pumpEventQueue();
       expect(torEntries(), isNotEmpty);
       expect(LogService.instance.sensitiveEntries, isEmpty);

@@ -3,6 +3,8 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show UnifiedFaviconImage;
+import 'package:webspace/widgets/dirty_guard.dart';
+import 'package:webspace/widgets/toast.dart';
 
 class WebspaceDetailScreen extends StatefulWidget {
   final Webspace webspace;
@@ -11,27 +13,35 @@ class WebspaceDetailScreen extends StatefulWidget {
   final bool isReadOnly;
 
   const WebspaceDetailScreen({
-    Key? key,
+    super.key,
     required this.webspace,
     required this.allSites,
     required this.onSave,
     this.isReadOnly = false,
-  }) : super(key: key);
+  });
 
   @override
-  _WebspaceDetailScreenState createState() => _WebspaceDetailScreenState();
+  State<WebspaceDetailScreen> createState() => _WebspaceDetailScreenState();
 }
 
-class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
-  late TextEditingController _nameController;
-  late Set<int> _selectedIndices;
+class _WebspaceDetailScreenState extends State<WebspaceDetailScreen>
+    with DirtyGuard<WebspaceDetailScreen> {
+  late final _nameController =
+      TextEditingController(text: widget.webspace.name);
+  late final _selectedIndices = Set<int>.from(widget.webspace.siteIndices);
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.webspace.name);
-    _selectedIndices = Set<int>.from(widget.webspace.siteIndices);
+    markClean();
+    _nameController.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
+
+  @override
+  Record snapshot() =>
+      (name: _nameController.text, sites: ValueSet(_selectedIndices));
 
   @override
   void dispose() {
@@ -39,36 +49,17 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
     super.dispose();
   }
 
-  void _toggleSite(int index) {
-    setState(() {
-      if (_selectedIndices.contains(index)) {
-        _selectedIndices.remove(index);
-      } else {
-        _selectedIndices.add(index);
-      }
-    });
-  }
-
   void _save() {
-    final loc = AppLocalizations.of(context);
     final trimmedName = _nameController.text.trim();
-
-    // Validate that name is not empty
     if (trimmedName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.webspaceDetailNameEmptyError),
-          backgroundColor: Colors.red,
-        ),
-      );
+      ScaffoldMessenger.of(context)
+          .toast(AppLocalizations.of(context).webspaceDetailNameEmptyError);
       return;
     }
-
-    final updatedWebspace = widget.webspace.copyWith(
+    widget.onSave(widget.webspace.copyWith(
       name: trimmedName,
       siteIndices: _selectedIndices.toList()..sort(),
-    );
-    widget.onSave(updatedWebspace);
+    ));
     Navigator.pop(context);
   }
 
@@ -76,7 +67,8 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final selectedCount = _selectedIndices.length;
-    return Scaffold(
+    return guardPop(
+        child: Scaffold(
       appBar: AppBar(
         title: Text(
           widget.isReadOnly
@@ -142,21 +134,17 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
                         checked: isSelected,
                         enabled: !widget.isReadOnly,
                         child: CheckboxListTile(
-                          secondary: UnifiedFaviconImage(
-                            url: site.initUrl,
-                            size: 32,
-                            proxy: site.proxySettings,
-                            customIcon: site.customIconPng,
-                            persist: !site.isArchiveTier,
-                          ),
+                          secondary: UnifiedFaviconImage.site(site, size: 32),
                           title: Text(site.getDisplayName()),
                           subtitle: Text(extractDomain(site.initUrl)),
                           value: isSelected,
                           onChanged: widget.isReadOnly
                               ? null
-                              : (bool? value) {
-                                  _toggleSite(index);
-                                },
+                              : (_) => setState(() {
+                                    if (!_selectedIndices.remove(index)) {
+                                      _selectedIndices.add(index);
+                                    }
+                                  }),
                         ),
                       );
                     },
@@ -164,6 +152,6 @@ class _WebspaceDetailScreenState extends State<WebspaceDetailScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }

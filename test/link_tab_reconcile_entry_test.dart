@@ -2,42 +2,51 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// LIR-034 and TAB-018 wiring in `_WebSpacePageState`: where link tabs pick
-/// up their opener, where a flipped routing switch moves them between
-/// containers, and the races around both. Structural, because the page state
-/// is not constructible from a unit test; the decisions themselves are
-/// `linkTabRunsAs` and `ContainerColorEngine`, tested with the engines, and
-/// the deferral is `TabHandlingGate`, tested on its own.
+/// LIR-034 and TAB-018 wiring in `_WebSpacePageState`, `TabsController` and
+/// `LinkController`:
+/// where link tabs pick up their opener, where a flipped routing switch moves
+/// them between containers, and the races around both. Structural, because
+/// the page state is not constructible from a unit test; the decisions
+/// themselves are `linkTabRunsAs` and `ContainerColorEngine`, tested with the
+/// engines, and the deferral is `TabHandlingGate`, tested on its own.
 void main() {
   late String main;
+  late String tabs;
+  late String links;
 
-  setUpAll(() => main = File('lib/main.dart').readAsStringSync());
+  setUpAll(() {
+    main = File('lib/main.dart').readAsStringSync();
+    tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
+    links = File('lib/controllers/link_controller.dart').readAsStringSync();
+  });
 
-  String bodyOf(String signature) {
-    final start = main.indexOf(signature);
+  String bodyIn(String source, String signature) {
+    final start = source.indexOf(signature);
     expect(start, isNot(-1), reason: '$signature not found');
-    return main.substring(start, main.indexOf('\n  }\n', start));
+    return source.substring(start, source.indexOf('\n  }\n', start));
   }
+
+  String bodyOf(String signature) => bodyIn(main, signature);
+  String tabsBody(String signature) => bodyIn(tabs, signature);
+  String linksBody(String signature) => bodyIn(links, signature);
 
   group('the reconcile (LIR-034)', () {
     late String body;
-    setUp(() => body = bodyOf('Future<void> _reconcileLinkTabs('));
+    setUp(() => body = tabsBody('Future<void> reconcileLinkTabs('));
 
     test('waits for a running tab handler instead of racing it', () {
-      final deferral = body.indexOf('if (_isTabHandling) {');
+      final deferral = body.indexOf('if (_gate.busy) {');
       expect(deferral, isNot(-1));
-      expect(body.indexOf('_tabGate.deferUntilIdle('), greaterThan(deferral));
-      expect(body.indexOf('_isTabHandling = true;'), greaterThan(deferral));
-      expect(body, contains('if (mounted) unawaited(_reconcileLinkTabs());'),
+      expect(body.indexOf('_gate.deferUntilIdle('), greaterThan(deferral));
+      expect(body.indexOf('await _gate.run('), greaterThan(deferral),
+          reason: 'the gate releases in its own finally, or the deferred run '
+              'never comes and every tab handler is locked out');
+      expect(body, contains('if (_host.mounted) unawaited(reconcileLinkTabs());'),
           reason: 'the deferred run must not outlive the page');
-      expect(RegExp(r'finally \{\s*_isTabHandling = false;').hasMatch(body),
-          isTrue,
-          reason: 'every exit releases the gate, or the deferred run never '
-              'comes and every tab handler is locked out');
     });
 
     test('rewrites every tab list in one pass with no await inside', () {
-      final start = body.indexOf('for (final owner in _webViewModels)');
+      final start = body.indexOf('for (final owner in _sites.models)');
       final end = body.indexOf('if (!changed) return;');
       expect(start, isNot(-1));
       expect(end, greaterThan(start));
@@ -52,9 +61,9 @@ void main() {
     test('asks the engine with the opener\'s live switch and its own pick', () {
       for (final arg in [
         'routeOutboundLinks: opener.effectiveRouteOutboundLinks',
-        'containersActive: _useContainers',
+        'containersActive: _sites.useContainers',
         'openerPrefs: opener.outboundPreferences',
-        'hosts: () => _tabHostsIn(owner, opener)',
+        'hosts: () => _host.tabHostsIn(owner, opener)',
         'current: tab.hostSiteId ?? owner.siteId',
       ]) {
         expect(body, contains(arg), reason: arg);
@@ -67,9 +76,9 @@ void main() {
       final key = body.indexOf('dropped.add(owner.stateKeyForTab(tab.id));');
       expect(key, isNot(-1));
       expect(key, lessThan(flip));
-      expect(body, contains('await _stateStorage.removeState(key);'));
+      expect(body, contains('await navStates.removeState(key);'));
       // A pending debounced capture would write the old page's bytes after.
-      final cancel = body.indexOf('_navStateDebouncer.cancel(owner.siteId);');
+      final cancel = body.indexOf('_host.cancelPendingCapture(owner.siteId);');
       expect(cancel, isNot(-1));
       expect(cancel, lessThan(flip));
     });
@@ -79,7 +88,7 @@ void main() {
       final apply = body.indexOf('await _applySlotIdentityChange(model, entry.value)');
       expect(apply, isNot(-1));
       expect(body.indexOf('model.disposeWebView();'), greaterThan(apply));
-      expect(body, contains('if (!_webViewModels.contains(model)) continue;'),
+      expect(body, contains('if (!_sites.models.contains(model)) continue;'),
           reason: 'a site deleted meanwhile is not rebuilt');
     });
 
@@ -92,30 +101,31 @@ void main() {
       );
     });
 
-    test('runs after site settings, at startup and after an import, each '
-        'before ineligible hosted tabs close', () {
-      final calls = RegExp(r'await _reconcileLinkTabs\(\);').allMatches(main);
-      expect(calls, hasLength(3));
-      for (final call in calls) {
-        final after = main.substring(call.end, call.end + 120);
-        expect(after, contains('await _closeIneligibleHostedTabs();'),
-            reason: 'the host a tab now runs as must still be checked');
-      }
+    // Which changes run it is SiteSetChange.effects (site_runtime_test).
+    test('runs in the commit, before ineligible hosted tabs close', () {
+      final calls =
+          RegExp(r'await _tabs\.reconcileLinkTabs\(\);').allMatches(main);
+      expect(calls, hasLength(1));
+      final commit = bodyOf('Future<void> _commitSites(');
+      expect(commit.indexOf('await _tabs.reconcileLinkTabs();'),
+          lessThan(commit.indexOf('await _tabs.closeIneligibleHostedTabs();')),
+          reason: 'the host a tab now runs as must still be checked');
       final settings = bodyOf('Future<void> _openSiteSettings(');
-      expect(settings, contains('await _reconcileLinkTabs();'));
       expect(
-        settings.indexOf('await _reconcileLinkTabs();'),
+        settings.indexOf('_commitSites(const SiteSettingsClosed())'),
         greaterThan(settings.indexOf('await Navigator')),
         reason: 'after the settings screen closes, not when it opens',
       );
     });
 
     test('the gate is the one every tab handler holds', () {
-      expect(main, contains('late final TabHandlingGate _tabGate = TabHandlingGate(scheduleMicrotask);'));
-      expect(main, contains('bool get _isTabHandling => _tabGate.busy;'));
-      expect(main, contains('set _isTabHandling(bool value) => _tabGate.busy = value;'));
-      expect(RegExp(r'\bbool _isTabHandling\b').hasMatch(main), isFalse,
-          reason: 'a second flag would let the reconcile run beside a handler');
+      expect(tabs, contains('late final TabHandlingGate _gate = TabHandlingGate(scheduleMicrotask);'));
+      expect(RegExp(r'\bTabHandlingGate\(').allMatches(main + tabs), hasLength(1),
+          reason: 'one gate for every tab handler');
+      for (final source in [main, tabs]) {
+        expect(RegExp(r'\bbool _isTabHandling\b').hasMatch(source), isFalse,
+            reason: 'a second flag would let the reconcile run beside a handler');
+      }
     });
   });
 
@@ -140,13 +150,13 @@ void main() {
 
   group('every link tab carries its opener (LIR-034)', () {
     test('a link routed into a tab', () {
-      final body = bodyOf('Future<void> _executeTabRoute(');
+      final body = linksBody('Future<void> executeTabRoute(');
       expect(
         RegExp(r'openerSiteId: source\.siteId,\s*homeUrl: url\.toString\(\)')
             .allMatches(body),
         hasLength(1),
       );
-      final picker = bodyOf('Future<void> _showOutboundPicker(');
+      final picker = linksBody('Future<void> showOutboundPicker(');
       expect(
         RegExp(r'openerSiteId: source\.siteId,\s*homeUrl: url\.toString\(\)')
             .allMatches(picker)
@@ -157,7 +167,7 @@ void main() {
     });
 
     test('a duplicate keeps it', () {
-      final body = bodyOf('Future<void> _duplicateTab(');
+      final body = tabsBody('Future<void> duplicateTab(');
       expect(body, contains('openerSiteId: source.openerSiteId,'));
       expect(body, contains('homeUrl: source.homeUrl,'));
       expect(body, contains('hostSiteId: source.hostSiteId,'));
@@ -165,10 +175,10 @@ void main() {
 
     test('the tab builders pass it through to the record', () {
       for (final signature in [
-        'Future<void> _openChildTab(',
-        'Future<void> _openLinkInNewTab(',
+        'Future<void> openChildTab(',
+        'Future<void> openLinkInNewTab(',
       ]) {
-        final body = bodyOf(signature);
+        final body = tabsBody(signature);
         expect(body, contains('String? openerSiteId,'), reason: signature);
         expect(body, contains('openerSiteId: openerSiteId,'), reason: signature);
         expect(body, contains('homeUrl: homeUrl,'), reason: signature);
@@ -184,20 +194,20 @@ void main() {
 
   group('foreign tabs navigate by their own domain (LIR-034)', () {
     test('owner URLs move off a foreign tab first', () {
-      expect(bodyOf('Future<void> _bindOwnerRunTab('),
+      expect(tabsBody('Future<void> bindOwnerRunTab('),
           contains('!model.runsHostedTab && !model.runsForeignTab'));
-      expect(bodyOf('Future<void> _switchToOwnerRunTab('),
+      expect(tabsBody('Future<void> switchToOwnerRunTab('),
           contains('isForeign: model.isForeignTab'));
-      expect(bodyOf('Future<void> _executeOpenInMain('),
+      expect(linksBody('Future<void> _executeOpenInMain('),
           contains('model.runsHostedTab || model.runsForeignTab'));
     });
 
     test('Home and a tapped link use the tab\'s own anchor', () {
       expect(main, contains('model.currentUrl = model.navigationHomeUrl;'));
-      final open = bodyOf('Future<void> _openLinkAsTapped(');
+      final open = linksBody('Future<void> openLinkAsTapped(');
       expect(open, contains('homeUrl: model.navigationHomeUrl'));
       expect(open, contains('matchesClaim: model.navigationMatchesClaim'));
-      expect(main, contains('scopeHost: getNormalizedDomain(owner.navigationHomeUrl)'));
+      expect(links, contains('scopeHost: getNormalizedDomain(owner.navigationHomeUrl)'));
     });
   });
 
@@ -210,23 +220,19 @@ void main() {
     });
 
     test('every site has one before it is written or drawn', () {
-      final save = bodyOf('Future<void> _saveWebViewModels(');
-      final assign = save.indexOf('_assignContainerColors();');
-      expect(assign, isNot(-1));
-      expect(assign, lessThan(save.indexOf('isDemoMode')),
-          reason: 'demo sessions draw marks too');
-      expect(
-        RegExp(r'_webViewModels\.addAll\(loadedWebViewModels\);\s*_assignContainerColors\(\);')
-            .hasMatch(main),
-        isTrue,
-        reason: 'sites loaded from disk before an older build gave them one',
-      );
+      final commit = bodyOf('Future<void> _commitSites(');
+      final assign = commit.indexOf('_assignContainerColors();');
+      expect(assign, greaterThan(commit.indexOf('_sites.apply(change);')),
+          reason: 'every change, startup and import included, colours the '
+              'sites it brings');
+      expect(assign, lessThan(commit.indexOf('_persistSites()')),
+          reason: 'demo sessions, which never write, draw marks too');
     });
 
     test('site info shows the colour only where containers exist', () {
       expect(
         main,
-        contains('containerColor: _useContainers\n'),
+        contains('containerColor: _sites.useContainers\n'),
       );
     });
   });

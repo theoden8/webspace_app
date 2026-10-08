@@ -55,16 +55,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
-import 'package:webspace/demo_data.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 const int _kDarkColor = 0xFF123524;
 const int _kMagentaColor = 0xFF8C1D5A;
@@ -152,7 +154,7 @@ void main() {
     // says the surface is painted, and only the trace says which repaint path
     // painted it — which is what a silently-dropped funnel would change.
     SharedPreferences.setMockInitialValues({
-      kDeveloperModeKey: true,
+      AppPref.developerMode.key: true,
       'webViewModels': [
         jsonEncode(dark.toJson()),
         jsonEncode(white.toJson()),
@@ -271,47 +273,6 @@ void main() {
       pollSlot(tester, find.byKey(ValueKey(siteId)), description, accept,
           timeout: timeout);
 
-  Future<void> openSiteDrawer(WidgetTester tester) async {
-    for (var attempt = 0; attempt < 3; attempt++) {
-      if (find.byType(Drawer).evaluate().isNotEmpty) return;
-      final menuIcon = find.byIcon(Icons.menu);
-      if (menuIcon.evaluate().isNotEmpty) {
-        await tester.tap(menuIcon.first);
-      } else {
-        final scaffolds = find.byType(Scaffold).evaluate();
-        for (final element in scaffolds) {
-          final state = tester.state<ScaffoldState>(
-              find.byWidget(element.widget as Scaffold));
-          if (state.hasDrawer) {
-            state.openDrawer();
-            break;
-          }
-        }
-      }
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-    }
-    expect(find.byType(Drawer), findsOneWidget,
-        reason: 'site drawer should open for switching sites');
-  }
-
-  // The active site's name can also appear in the AppBar title, so scope to
-  // the open drawer when there is one; the drawer tile is the switch target.
-  Future<void> tapSite(WidgetTester tester, String siteName) async {
-    final drawer = find.byType(Drawer);
-    final tile = drawer.evaluate().isNotEmpty
-        ? find.descendant(of: drawer, matching: find.text(siteName))
-        : find.text(siteName);
-    if (tile.evaluate().isEmpty) {
-      dumpDiagnostics(tester, 'site tile "$siteName" not found');
-    }
-    expect(tile, findsWidgets,
-        reason: '$siteName should be visible in the site list');
-    await tester.tap(tile.first);
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 400));
-  }
-
   // Tap an action in the AppBar's overflow popup menu. Menu contents are
   // built at open time and some entries are conditional (Refresh swaps to
   // Stop while a load is in flight), so an absent action means dismiss and
@@ -336,13 +297,13 @@ void main() {
         await tester.pump();
         return;
       }
-      if (find.byType(PopupMenuItem<String>).evaluate().isNotEmpty) {
+      if (find.byType(PopupMenuItem<app.SiteMenuAction>).evaluate().isNotEmpty) {
         // Menu is open without the action: dismiss and reopen next pass.
         await tester.tapAt(const Offset(5, 5));
       } else {
         final menuButton = find.descendant(
             of: find.byType(AppBar),
-            matching: find.byType(PopupMenuButton<String>));
+            matching: find.byType(PopupMenuButton<app.SiteMenuAction>));
         if (menuButton.evaluate().isNotEmpty) {
           await tester.tap(menuButton.first);
         }
@@ -370,7 +331,8 @@ void main() {
       // still end up showing the page.
       await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
       await tester.pumpAndSettle(const Duration(seconds: 5));
-      await tapSite(tester, 'Dark');
+      await tapSite(tester, 'Dark',
+          diagnose: (c) => dumpDiagnostics(tester, c));
       await pollSite(tester, 'ws-dark',
           'scenario 1: fresh activation paints dark content', darkVisible);
 
@@ -382,7 +344,8 @@ void main() {
       // samples as uniform 0x00000000 (alpha 0), which also classifies
       // blank; waiting for white proves the white *content* composited.
       await openSiteDrawer(tester);
-      await tapSite(tester, 'White');
+      await tapSite(tester, 'White',
+          diagnose: (c) => dumpDiagnostics(tester, c));
       await pollSite(
           tester,
           'ws-white',
@@ -395,7 +358,8 @@ void main() {
       // Scenario 3: switch back to an already-loaded site (_setCurrentIndex
       // reuse path, Attempt 3's chokepoint).
       await openSiteDrawer(tester);
-      await tapSite(tester, 'Dark');
+      await tapSite(tester, 'Dark',
+          diagnose: (c) => dumpDiagnostics(tester, c));
       await pollSite(tester, 'ws-dark',
           'scenario 3: loaded-site switch repaints dark content', darkVisible);
 
@@ -434,7 +398,8 @@ void main() {
       // Scenario 6: fresh activation while other webviews are live
       // (controller-attach nudge, Attempt 4's chokepoint).
       await openSiteDrawer(tester);
-      await tapSite(tester, 'Magenta');
+      await tapSite(tester, 'Magenta',
+          diagnose: (c) => dumpDiagnostics(tester, c));
       await pollSite(
           tester,
           'ws-magenta',
@@ -458,7 +423,8 @@ void main() {
       // that can paint it. The deadline is deliberately tight: a blank that
       // clears minutes later, on some unrelated relayout, is still the bug.
       await openSiteDrawer(tester);
-      await tapSite(tester, 'Slow');
+      await tapSite(tester, 'Slow',
+          diagnose: (c) => dumpDiagnostics(tester, c));
       await pollSlot(
           tester,
           find.byKey(const ValueKey('ws-slow')),
@@ -503,7 +469,8 @@ void main() {
       // in the URL bar opens it instead, and that is text input, so no
       // synthetic touch has to reach the platform view.
       await openSiteDrawer(tester);
-      await tapSite(tester, 'Opener');
+      await tapSite(tester, 'Opener',
+          diagnose: (c) => dumpDiagnostics(tester, c));
       await pollSlot(
           tester,
           find.byKey(const ValueKey('ws-opener')),

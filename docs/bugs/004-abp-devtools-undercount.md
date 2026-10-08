@@ -24,8 +24,7 @@ Spec: CB-012 in
 Consult paths as of this writing:
 
 - `isBlocked` — main-doc navigations (`shouldOverrideUrlLoading`,
-  `onLoadStart`), iOS/macOS JS-bridge `blockCheck`, legacy
-  `blockResourceLoaded` reports.
+  `onLoadStart`), iOS/macOS JS-bridge `blockCheck`.
 - `isHostBlocked` — iOS/macOS PerformanceObserver per-host attribution
   (`blockResourceLoadedBatch`), the dominant stats path on those
   platforms.
@@ -59,8 +58,23 @@ Consult paths as of this writing:
    lower bound; if a future platform adds another native consult path it
    must call the recorder itself.
 
+3. **2026-10-07 — #680.** Every Dart path that
+   blocks or counts a request now takes one verdict from
+   `BlockDecision.decide` (`lib/services/block_decision.dart`), DNS first
+   as the CB attribution scenario and Android's native interceptor already
+   ordered it, and the page-reachable legacy `blockResourceLoaded` handler,
+   which nothing called, is gone. That withdraws attempt 1's forced engine
+   consult in `blockCheck`: it was the one path asking the engine about a
+   request DNS had already blocked, so its ABP-tab numbers meant something
+   different from the batch path's and Android's. *Why partial*: it settles
+   what the tab counts (the engine's decisions over what DNS let through,
+   on every path) rather than closing the gaps below.
+
 ## Known open gaps
 
+- A host both lists block reaches the ABP tab on no path, since the engine
+  is not asked about it (CB attribution). With a DNS list on, the tab can
+  still read low next to the merged banner count.
 - Android native allowed-after-consult decisions are invisible — the
   drain protocol would need an `engineConsulted` flag per event.
 - `redirectFor` / `cspFor` / `rewrittenUrl` verdicts are actions, not

@@ -12,11 +12,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/tor_bridges.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_failure.dart';
+import 'package:webspace/services/tor_holders.dart';
 
 // Reuses the engine test's fake rather than a third copy of the same
 // contract: one fake drifting from another is how a test starts passing
 // against behaviour the real runtime does not have.
-import 'tor_engine_test.dart' show FakeTorRuntime;
+import 'helpers/fake_tor_runtime.dart';
 
 // A real-shaped obfs4 line (address and keys are invented).
 const _obfs4 =
@@ -251,7 +252,7 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
 
       expect(runtime.startedTransports, ['obfs4'],
           reason: 'the transport must start before tor, to allocate its port');
@@ -288,7 +289,7 @@ void main() {
       );
 
       // No setBridges anywhere: this is a launch, not an edit.
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
 
       expect(loads, 1);
       expect(runtime.startedTransports, ['obfs4']);
@@ -313,13 +314,13 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
 
       expect(runtime.torrcOptions, contains(('Bridge', _obfs4)));
       await engine.dispose();
     });
 
-    test('a keystore that throws leaves tor startable, and retries later',
+    test('a keystore that refuses leaves tor startable, and retries later',
         () async {
       // Refusing to start Tor because the keychain was unreadable would be
       // worse than starting without bridges, but caching the failure would
@@ -331,7 +332,7 @@ void main() {
         sessionSecret: 's',
         bridgeLoader: () async {
           attempts++;
-          if (attempts == 1) throw StateError('keystore unavailable');
+          if (attempts == 1) return null;
           return TorBridgeConfig(
             enabled: true,
             transport: TorTransport.obfs4,
@@ -340,7 +341,7 @@ void main() {
         },
       );
 
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
       expect(runtime.startCalls, 1, reason: 'tor still starts');
       expect(runtime.torrcOptions, isEmpty);
 
@@ -354,7 +355,7 @@ void main() {
         () async {
       final runtime = FakeTorRuntime();
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
 
       expect(runtime.torrcOptions, isEmpty);
       expect(runtime.startedTransports, isEmpty,
@@ -375,7 +376,7 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
 
       expect(runtime.torrcOptions, isEmpty);
       expect(runtime.startCalls, 1, reason: 'tor still starts, without bridges');
@@ -391,7 +392,7 @@ void main() {
         lines: [line(_obfs4)],
       ));
 
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
 
       expect(runtime.torrcOptions, isEmpty);
       expect(runtime.startCalls, 1);
@@ -404,7 +405,7 @@ void main() {
         () async {
       final runtime = FakeTorRuntime()..transportPort = 47000;
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
       expect(runtime.torrcOptions, isEmpty);
 
       // Edited while running: the change must not silently do nothing.
@@ -427,7 +428,7 @@ void main() {
         () async {
       final runtime = FakeTorRuntime()..transportPort = 47000;
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
-      await engine.acquire('site-a');
+      await engine.acquire(TorSiteHolder('site-a'));
       runtime.bootstrapTo(9999);
       await pumpEventQueue();
 

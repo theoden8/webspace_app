@@ -45,11 +45,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/main.dart' as app;
-import 'package:webspace/demo_data.dart';
+import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'fixture_server.dart';
+import 'helpers/ui.dart';
 
 const _kShortcutChannel = MethodChannel(
   'org.codeberg.theoden8.webspace/shortcuts',
@@ -192,15 +193,6 @@ void main() {
     }
   }
 
-  // pumpAndSettle deadlocks once a webview is live (see
-  // lazy_webview_loading_test), so every wait polls in fixed slices instead.
-  Future<void> pumpFor(WidgetTester tester, Duration total) async {
-    final deadline = DateTime.now().add(total);
-    while (DateTime.now().isBefore(deadline)) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-  }
-
   Future<void> pumpUntilAsync(
     WidgetTester tester,
     Future<bool> Function() predicate, {
@@ -300,7 +292,7 @@ void main() {
   }
 
   Future<void> openOverflowMenu(WidgetTester tester) async {
-    final button = find.byType(PopupMenuButton<String>);
+    final button = find.byType(PopupMenuButton<app.SiteMenuAction>);
     expect(
       button,
       findsWidgets,

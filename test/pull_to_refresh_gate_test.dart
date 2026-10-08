@@ -24,7 +24,7 @@ void main() {
       gate = PullToRefreshGate.forControl(control, now: () => clock);
     });
 
-    // The same entry point `PullToRefreshGate.create` hands the controller.
+    // The same entry point `PullToRefreshGate.forHost` hands the controller.
     Future<bool> refresh() async {
       var ran = false;
       await gate.runRefresh(() async => ran = true);

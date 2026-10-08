@@ -19,28 +19,13 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+const source = require('./helpers/source');
 
-const { blockAfter } = require('./helpers/dart_blocks');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const readRaw = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
-// Strip line comments so prose describing a call does not count as one.
-const stripComments = (src) =>
-  src.split('\n').filter((l) => !l.trim().startsWith('//')).join('\n');
-const read = (rel) => stripComments(readRaw(rel));
+const { blockAfter, dartFiles } = source;
+// Comments blanked so prose describing a call does not count as one.
+const read = (rel) => source.code(source.read(rel));
 
 const WEBVIEW = read('lib/services/webview.dart');
-
-const dartFiles = (dir, out = []) => {
-  for (const e of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-    const rel = path.join(dir, e.name);
-    if (e.isDirectory()) dartFiles(rel, out);
-    else if (e.name.endsWith('.dart')) out.push(rel);
-  }
-  return out;
-};
 
 // --- the navigation decision ---------------------------------------------
 
@@ -107,7 +92,7 @@ test('HTTPS-004: the https upgrade comes after the routing decision', () => {
 // must be one the engine produced from the navigation's own URL, never one a
 // page supplied.
 test('HTTPS-004: the upgraded URL is the engine\'s, not the page\'s', () => {
-  assert.match(NAV, /onNavigation\(url, enabled: config\.httpsUpgradeEnabled\)/,
+  assert.match(NAV, /onNavigation\(url, enabled: config\.posture\.blocking\.httpsUpgrade\)/,
     'the engine must be asked about the navigation URL itself, and about the ' +
     'site\'s own setting');
   const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
@@ -138,12 +123,15 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
     '_buildPageScripts(parent)',   // the same shims as the site webview
     '_bindingFor(parent)',         // the same container + proxy
     '_registerPageHandlers(',      // the Dart side those shims call
-    'parent.userAgent',
-    'parent.incognito',
   ]) {
     assert.ok(body.includes(wiring),
       `createPopupWebView no longer carries ${wiring}`);
   }
+  assert.match(body, /final settings = _siteSettings\(\s*binding,\s*parent\.posture,/,
+    'the popup must take its native settings from the parent posture, '
+    + 'through the builder the site webview uses');
+  assert.ok(body.includes('initialSettings: settings,'),
+    'the popup must be built with those settings');
   assert.ok(WEBVIEW.includes('_popupParentConfigs[windowId] = config;'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
@@ -154,7 +142,7 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
 test('NESTED-013: a subframe cannot steer the top document through an external scheme', () => {
   const at = WEBVIEW.indexOf("'External scheme intercepted: scheme=");
   assert.notEqual(at, -1, 'the external-scheme branch is gone');
-  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('onExternalSchemeUrl', at));
+  const body = WEBVIEW.slice(at, WEBVIEW.indexOf('config.hooks.externalScheme(', at));
   const gate = body.indexOf('navigationAction.isForMainFrame == false');
   const load = body.indexOf('controller.loadUrl(');
   assert.notEqual(gate, -1,
@@ -240,7 +228,7 @@ test('ICON-013: page icon fetches go through the guarded fetch only', () => {
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf(';\n', WEBVIEW.indexOf('SiteIconFetcher(', at)));
   assert.ok(body.includes('fetchPageIconBytes('),
     'page icon links are page-chosen URLs: fetch them through the guarded path');
-  assert.ok(body.includes('proxy: config.proxySettings'),
+  assert.ok(body.includes('proxy: config.posture.container.proxy'),
     "a page icon must go through the site's proxy");
   assert.ok(body.includes('_pageIconRequestAllowed(config, target, documentUrl)'),
     "the site's blockers must see every page icon request");
@@ -290,7 +278,7 @@ test('LIR-035: only the site\'s top document declares its search', () => {
     'a subframe can call the handler; its search is not the site\'s');
   assert.ok(handler.includes('_pageIconRequestAllowed('),
     'the description is fetched through the site\'s blockers');
-  assert.ok(handler.includes('proxy: config.proxySettings'),
+  assert.ok(handler.includes('proxy: config.posture.container.proxy'),
     'the description is fetched through the site\'s proxy');
 });
 
@@ -300,7 +288,11 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
   const at = WEBVIEW.indexOf('static Widget createPopupWebView({');
   assert.notEqual(at, -1, 'createPopupWebView is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
-  assert.ok(body.includes('useShouldOverrideUrlLoading: true'),
+  const settings = blockAfter(WEBVIEW, 'static inapp.InAppWebViewSettings _siteSettings(', '}) {',
+    'webview.dart');
+  assert.ok(body.includes('final settings = _siteSettings(')
+      && body.includes('initialSettings: settings,')
+      && settings.includes('..useShouldOverrideUrlLoading = true'),
     'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
   assert.match(body,
     /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*_onSiteNavigationPolicy\(parent, navigationAction,\s*allowCaptcha: true\)/,
@@ -309,7 +301,7 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
   assert.notEqual(gateAt, -1, '_onSiteNavigationPolicy is gone');
   const gate = WEBVIEW.slice(gateAt, WEBVIEW.indexOf('\n  }\n', gateAt));
   for (const check of [
-    'DnsBlockService.instance',
+    '_judgeAndRecord(',
     "requestType: 'document'",
     'navigationAction.isForMainFrame == false',
     'isCaptchaChallenge(url, siteUrl: config.initialUrl)',
@@ -330,16 +322,18 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
   assert.notEqual(at, -1, 'openHeadlessCheck is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
   assert.match(body,
-    /_onSiteNavigationPolicy\(config, navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: config\.httpsUpgradeEnabled\)/,
+    /_onSiteNavigationPolicy\(config, navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
     'a headless check must run the on-site navigation gate without the captcha exception');
+  assert.match(body, /initialSettings: _siteSettings\(\s*binding,\s*posture,/,
+    'a headless check takes its native settings from the site posture, '
+    + 'through the builder the site webview uses');
   for (const check of [
-    'useShouldOverrideUrlLoading = true',
     'if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);',
     '_registerPageHandlers(',
     'onCreateWindow: (_, _) async => false,',
     'inapp.PermissionResponseAction.DENY',
     'allow: false',
-    '_handleServerTrust(controller, challenge, null)',
+    '_handleServerTrust(null, challenge, null)',
     'WebInterceptNative.attachToHeadless(',
   ]) {
     assert.ok(body.includes(check), `headless check lacks ${check}`);
@@ -416,18 +410,20 @@ test('PASSKEY-015: a ceremony cannot hold the gate past its timeout or its page'
 
 // --- the permission prompts ----------------------------------------------
 
-test('CAM-013 / MIC-013: camera / microphone prompts name an origin read from the webview', () => {
-  for (const handler of ['webCameraRequest', 'webMicrophoneRequest']) {
-    const at = WEBVIEW.indexOf(`handlerName: '${handler}'`);
-    assert.notEqual(at, -1, `${handler} registration is gone`);
-    const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
-    assert.ok(!body.includes('args[0]'),
-      `${handler} must not take the origin from the page: the shim is ` +
-      'injected forMainFrameOnly:false, so any frame can call the handler ' +
-      'directly and name a site it is not');
-    assert.ok(body.includes('_promptOrigin(controller, config, frame: data)'),
-      `${handler} must derive the origin from the controller and the frame`);
-  }
+// Every capture kind's bridge is one registration, looped over CaptureKind.
+const CAPTURE_BRIDGE = (() => {
+  const at = WEBVIEW.indexOf('handlerName: kind.requestHandler');
+  assert.notEqual(at, -1, 'the capture bridge registration is gone');
+  return WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
+})();
+
+test('CAM-013 / MIC-013: capture prompts name an origin read from the webview', () => {
+  assert.ok(!CAPTURE_BRIDGE.includes('args'),
+    'a capture bridge must not take the origin from the page: the camera and ' +
+    'microphone shims are injected forMainFrameOnly:false, so any frame can ' +
+    'call the handler directly and name a site it is not');
+  assert.ok(CAPTURE_BRIDGE.includes('_promptOrigin(controller, config, frame: data)'),
+    'a capture bridge must derive the origin from the controller and the frame');
   assert.match(WEBVIEW,
     /_promptOrigin\([\s\S]{0,400}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
     '_promptOrigin must read the live URL, falling back to the site URL');
@@ -441,30 +437,20 @@ test('CAM-014 / MIC-016: a device grant does not travel to a subframe', () => {
   // cross-origin frame is covered — which also puts an ad frame on the same
   // handler. `real` is the one answer that opens the device, and the popup
   // that produced it named the top document.
-  for (const handler of ['webCameraRequest', 'webMicrophoneRequest']) {
-    const at = WEBVIEW.indexOf(`handlerName: '${handler}'`);
-    const body = WEBVIEW.slice(at, WEBVIEW.indexOf('addJavaScriptHandler', at + 1));
-    assert.ok(body.includes('inapp.JavaScriptHandlerFunctionData data'),
-      `${handler} must use the frame-aware callback: page script can neither ` +
-      'forge isMainFrame nor call the handler around it');
-    assert.ok(body.includes('data.isMainFrame'),
-      `${handler} must hand the frame identity to the resolver`);
-  }
-  for (const [file, engine] of [
-    ['lib/services/camera_decision_engine.dart', 'CameraAccessMode'],
-    ['lib/services/microphone_decision_engine.dart', 'MicrophoneAccessMode'],
-  ]) {
-    const src = read(file);
-    assert.match(src, new RegExp(
-      `if \\(mode == ${engine}\\.real\\) \\{\\s*return isTopFrame`),
-      `${file}: a settled real mode must short-circuit only for the top document`);
-  }
-  // The answer a subframe popup produced is that request's, not the site's.
+  assert.ok(CAPTURE_BRIDGE.includes('inapp.JavaScriptHandlerFunctionData data'),
+    'a capture bridge must use the frame-aware callback: page script can ' +
+    'neither forge isMainFrame nor call the handler around it');
+  assert.ok(CAPTURE_BRIDGE.includes('isTopFrame: data.isMainFrame'),
+    'a capture bridge must hand the frame identity to the store');
   const grant = read('lib/services/media_grant_engine.dart');
-  assert.match(grant, /if \(isTopFrame\) \{\s*persist\(resolved\);/,
+  assert.match(grant, /SitePermissionState\.allowed =>\s*isTopFrame \?/,
+    'media_grant_engine.dart: a settled real mode must short-circuit only for ' +
+    'the top document');
+  // The answer a subframe popup produced is that request's, not the site's.
+  assert.match(grant, /if \(isTopFrame\) \{\s*_recordCaptures\(/,
     'media_grant_engine.dart: a subframe answer must not be written back to ' +
     'the site — one frame cannot flip the whole site to real');
-  assert.match(grant, /_inFlight\[origin\]/,
+  assert.match(grant, /final key = \(kind, origin\);[\s\S]*_inFlight\.run\(key,/,
     'media_grant_engine.dart: coalescing must be keyed by prompt origin, or a ' +
     'subframe rides the answer the user gave for the top document');
 });
@@ -502,8 +488,8 @@ test('CAM-012 / MIC-012: the capture stop is out of the page\'s reach', () => {
   assert.match(registry, /postMessage\(RELAY, '\*'\)/,
     'the stop must relay to subframes: Dart evaluates in the main frame only, ' +
     'and a subframe granted a device track holds its own registry');
-  for (const shim of ['camera_stream_shim', 'microphone_stream_shim',
-    'screen_share_shim']) {
+  for (const shim of ['capture_shim_prelude', 'camera_stream_shim',
+    'microphone_stream_shim', 'screen_share_shim']) {
     const src = read(`lib/services/${shim}.dart`);
     assert.ok(!src.includes('__wsSyntheticTracks'),
       `${shim}.dart must reach the registry through the shared block, not a global`);
@@ -533,26 +519,6 @@ test('DNS-018: the bloom consumer no longer seeds its cache from the response', 
     'the interceptor JS must not read a host list off getBlockBloom');
 });
 
-// --- sub-resource reach ---------------------------------------------------
-
-test('every page shim that must see sub-resources sets forMainFrameOnly: false', () => {
-  // On iOS/macOS the JS interceptor is the ONLY sub-resource blocking (no
-  // shouldInterceptRequest, no WKContentRuleList). UserScript.forMainFrameOnly
-  // defaults to true, so an omission leaves every tracker in a cross-origin
-  // iframe unblocked — and it looks identical to a correct call.
-  for (const group of ['clearurl_share', 'block_resource_observer',
-    'block_js_interceptor']) {
-    const at = WEBVIEW.indexOf(`groupName: '${group}'`);
-    assert.notEqual(at, -1, `the ${group} user script is gone`);
-    // Read from injectionTime rather than the group name: the `source:` in
-    // between is a JS blob whose own braces and parens defeat brace matching.
-    const inj = WEBVIEW.indexOf('injectionTime:', at);
-    const decl = WEBVIEW.slice(inj, inj + 300);
-    assert.ok(decl.includes('forMainFrameOnly: false'),
-      `${group} must be injected into every frame`);
-  }
-});
-
 // --- outbound reach -------------------------------------------------------
 
 test('LEAK-002: the media-session artwork fetch goes through the outbound seam', () => {
@@ -568,7 +534,7 @@ test('LEAK-002: the media-session artwork fetch goes through the outbound seam',
   // The web half survives as a stub that returns null without a request, so
   // it is exempt as a definition — but nothing may call the name.
   const callers = dartFiles('lib')
-    .filter((f) => !f.startsWith(path.join('lib', 'platform', 'host_platform_')))
+    .filter((f) => !f.startsWith('lib/platform/host_platform_'))
     .filter((f) => read(f).includes('hostFetchBounded('));
   assert.deepEqual(callers, [],
     'hostFetchBounded is a direct (unproxied) client; every Dart outbound '

@@ -69,20 +69,12 @@ Future<void> _probeOne(String siteId, String probeUrl) async {
   try {
     await headless.run();
     await done.future.timeout(const Duration(seconds: 10), onTimeout: () {
-      LogService.instance.log(
-        'Proxy',
-        'Attribution probe timed out for $siteId',
-        level: LogLevel.error,
-        sensitivity: LogSensitivity.sensitive,
-      );
+      LogTag.proxy.error(
+          'Attribution probe timed out for $siteId', sensitive: true);
     });
   } catch (e) {
-    LogService.instance.log(
-      'Proxy',
-      'Attribution probe error for $siteId: $e',
-      level: LogLevel.error,
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.proxy.error(
+        'Attribution probe error for $siteId: $e', sensitive: true);
   } finally {
     await headless.dispose();
   }

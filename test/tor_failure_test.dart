@@ -5,11 +5,12 @@
 // matter as much as the positive ones: several signatures overlap, and the
 // wrong precedence tells a user with a wrong clock that they are censored.
 
-import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/services/tor_engine.dart';
+import 'package:webspace/services/tor_holders.dart';
+import 'helpers/fake_tor_runtime.dart';
 
 void main() {
   _authTests();
@@ -160,18 +161,18 @@ void main() {
 // circuit. These pin the derived form.
 void _authTests() {
   group('SOCKS auth per reason', () {
-    late _Runtime runtime;
+    late FakeTorRuntime runtime;
     late TorEngine engine;
 
     setUp(() {
-      runtime = _Runtime();
+      runtime = FakeTorRuntime();
       engine = TorEngine(runtime: runtime, sessionSecret: 'launch-secret');
     });
 
     tearDown(() async => engine.dispose());
 
     Future<void> bringUp() async {
-      await engine.acquire('holder');
+      await engine.acquire(TorSiteHolder('holder'));
       runtime.emit(const TorUp('127.0.0.1', 9999));
       await Future<void>.delayed(Duration.zero);
     }
@@ -196,12 +197,12 @@ void _authTests() {
     test('a new launch secret changes every password', () async {
       await bringUp();
       final first = engine.socksFor('site-a')!.password;
-      final other = TorEngine(runtime: _Runtime(), sessionSecret: 'other');
-      await other.acquire('holder');
+      final other = TorEngine(runtime: FakeTorRuntime(), sessionSecret: 'other');
+      await other.acquire(TorSiteHolder('holder'));
       // Not up, so socksFor is null: assert via a fresh engine that reaches up.
       await other.dispose();
       final second = TorEngine(runtime: runtime, sessionSecret: 'other');
-      await second.acquire('h2');
+      await second.acquire(TorSiteHolder('h2'));
       runtime.emit(const TorUp('127.0.0.1', 9999));
       await Future<void>.delayed(Duration.zero);
       expect(second.socksFor('site-a')!.password, isNot(first),
@@ -216,35 +217,3 @@ void _authTests() {
   });
 }
 
-class _Runtime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-
-  @override
-  bool get isAvailable => true;
-
-  @override
-  Stream<TorStatus> get events => _events.stream;
-
-  @override
-  Future<void> start() async {}
-
-  @override
-  Future<void> stop() async {}
-
-  @override
-  Future<void> rebuildCircuits() async {}
-
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-
-  @override
-  Future<int> startTransport(String transport) async => 0;
-
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-
-  @override
-  Future<void> reopenListeners() async {}
-
-  void emit(TorStatus s) => _events.add(s);
-}

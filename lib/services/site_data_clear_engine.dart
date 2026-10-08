@@ -5,27 +5,6 @@
 /// widget tree. Mirrors the `DispatchAction` pattern in
 /// [link_intent_dispatch_engine.dart]: the engine decides the steps,
 /// the executor in `main.dart` runs them.
-///
-/// History:
-///
-///  - The 0.2.3 bug was that the executor unconditionally ran
-///    `deleteCookies` + `reload()` regardless of engine mode. In
-///    container mode that left localStorage / IndexedDB /
-///    ServiceWorker / HTTP cache resident.
-///  - The #352 fix routed container mode through the fork's
-///    `deleteContainer`. That depended on
-///    `WKWebsiteDataStore.remove(forIdentifier:)` actually completing
-///    while a WKWebView was being torn down — unreliable on iOS/macOS
-///    (#360): pending JS handler callbacks / autorelease pools keep
-///    the data store referenced past the Flutter platform-view
-///    dispose, the remove silently no-ops, and the next bind reads
-///    the same store back.
-///  - This iteration routes container mode through the fork's
-///    `clearContainerData` (privacy-v2 cut), which maps to
-///    `WKWebsiteDataStore.removeData(ofTypes:modifiedSince:)` on
-///    Apple — explicitly safe while a WKWebView is still bound. The
-///    container stays in place; only its data is wiped. No orphan
-///    accumulation, no rev bookkeeping.
 class SiteDataClearPlan {
   /// Container mode: call
   /// [ContainerIsolationEngine.clearForSite] to wipe the live

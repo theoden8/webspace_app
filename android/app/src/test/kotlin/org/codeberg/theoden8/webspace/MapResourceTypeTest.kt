@@ -15,18 +15,15 @@ package org.codeberg.theoden8.webspace
 import com.pichillilorenzo.flutter_inappwebview_android.types.WebResourceRequestExt
 import org.junit.Assert.assertEquals
 import org.junit.Test
-import java.util.concurrent.atomic.AtomicBoolean
 
 class MapResourceTypeTest {
 
     private fun newInterceptor(): FastSubresourceInterceptor =
         FastSubresourceInterceptor(
             dnsBlocklist = DnsHostBlocklist(),
-            cdnPatterns = mutableListOf(),
-            cdnCacheIndex = mutableMapOf(),
-            localCdnDisabled = AtomicBoolean(false),
-            onBlockChecked = { _, _, _ -> },
-            onCdnReplaced = { _, _ -> },
+            cdnTables = LocalCdnTables(),
+            onBlockChecked = {},
+            onCdnReplaced = {},
             onLog = { _, _ -> },
         )
 

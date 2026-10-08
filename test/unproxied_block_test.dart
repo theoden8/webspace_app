@@ -10,21 +10,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
+import 'helpers/localized.dart';
 
 /// The interstitial is a full-screen surface; the default 800x600 test view
 /// puts its last button under the fold, where a tap lands on nothing.
 void _tallView(WidgetTester t) {
-  t.view.physicalSize = const Size(900, 1800);
-  t.view.devicePixelRatio = 1.0;
-  addTearDown(t.view.resetPhysicalSize);
-  addTearDown(t.view.resetDevicePixelRatio);
+  setViewSize(t, const Size(900, 1800));
 }
 
-Widget _host(Widget child) => MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(body: child),
-    );
+Widget _host(Widget child) => localizedApp(Scaffold(body: child));
 
 void main() {
   testWidgets('names the site and the destination it did not request',

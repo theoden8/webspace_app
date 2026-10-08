@@ -18,10 +18,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const http = require('node:http');
 const {
   setupBrowser, requireBrowser, readFixture,
 } = require('./helpers/launch');
+const { startBlankServer, originOf } = require('./helpers/blank_server');
 
 // Matches the view extents baked into the page_zoom fixtures.
 const DEVICE_WIDTH = 393;
@@ -38,16 +38,8 @@ const PAGE = `<!doctype html><html><head>
 
 let host = null;
 test.before(async () => {
-  await new Promise((resolve) => {
-    const s = http.createServer((req, res) => {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(PAGE);
-    });
-    s.listen(0, '127.0.0.1', () => {
-      host = { url: `http://127.0.0.1:${s.address().port}/`, server: s };
-      resolve();
-    });
-  });
+  const server = await startBlankServer(PAGE, 'text/html; charset=utf-8');
+  host = { url: `${originOf(server)}/`, server };
 });
 test.after(async () => {
   if (host) await new Promise((r) => host.server.close(r));

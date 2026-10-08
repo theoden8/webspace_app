@@ -6,16 +6,12 @@ library;
 
 import 'package:webspace/services/web_search_engine.dart'
     show WebSearchEngine, kSearchQueryToken;
-import 'package:webspace/web_view_model.dart' show getNormalizedDomain;
+import 'package:webspace/services/url_host.dart';
 
-/// Where the list is downloaded from.
 const String kSiteSearchListUrl =
     'https://raw.githubusercontent.com/kagisearch/bangs/main/data/bangs.json';
 
 const String _bangQuery = '{{{s}}}';
-
-String _foldWww(String host) =>
-    host.startsWith('www.') ? host.substring(4) : host;
 
 /// The search address [entry], one bang, gives its site, or null when it is
 /// not a plain search of that site: a relative address (a search on Kagi), a
@@ -55,7 +51,7 @@ String? _addressOf(Map entry) {
 /// collection); then the one with fewest parameters; then the shortest
 /// trigger.
 (int, int, int) _rank(Map entry, String address) {
-  final label = _foldWww((entry['d'] as String).toLowerCase()).split('.').first;
+  final label = Host(entry['d'] as String).withoutWww.split('.').first;
   final trigger = entry['t'] is String ? entry['t'] as String : '';
   final aliases = entry['ts'] is List ? entry['ts'] as List : const [];
   final named = trigger == label || aliases.contains(label) ? 0 : 1;
@@ -79,7 +75,7 @@ Map<String, String> siteSearchTable(Object? bangs) {
     if (entry is! Map) continue;
     final address = _addressOf(entry);
     if (address == null) continue;
-    final host = _foldWww((entry['d'] as String).toLowerCase());
+    final host = Host(entry['d'] as String).withoutWww;
     final rank = _rank(entry, address);
     final held = best[host];
     if (held == null || _compare(rank, held.$2) < 0) {
@@ -94,10 +90,10 @@ Map<String, String> siteSearchTable(Object? bangs) {
 /// the site's own domain. Null when the list names none.
 String? listedAddressFor(Map<String, String> table, String initUrl) {
   if (table.isEmpty) return null;
-  final host = Uri.tryParse(initUrl)?.host.toLowerCase() ?? '';
-  if (host.isEmpty) return null;
+  final host = Host.inUrl(initUrl);
+  if (host == null) return null;
   final address =
-      table[_foldWww(host)] ?? table[getNormalizedDomain(initUrl)];
+      table[host.withoutWww] ?? table[getNormalizedDomain(initUrl)];
   if (address == null) return null;
   return WebSearchEngine.acceptsDiscovered(address, initUrl) ? address : null;
 }

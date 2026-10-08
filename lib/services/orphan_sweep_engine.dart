@@ -1,41 +1,59 @@
-/// Storage reclaimed by the post-paint orphan sweep. Each method drops
-/// everything keyed by a siteId outside the live set it is handed.
-///
-/// Two different live sets are in play, and which one a target gets is part
-/// of the contract: session residue (cookies, cached HTML, saved navigation
-/// state) measures against the non-incognito set, so an incognito site's
-/// remnants are reclaimed every launch (issue #298), while configuration
-/// (proxy passwords, saved sign-ins, imported HTML) measures against the full
-/// active set and survives for incognito sites like any other.
-abstract class OrphanSweepTargets {
-  Future<void> removeOrphanedCookies(Set<String> nonIncognitoSiteIds);
-  Future<void> removeOrphanedProxyPasswords(Set<String> activeSiteIds);
-  Future<void> removeOrphanedHttpAuthCredentials(Set<String> activeSiteIds);
-  Future<void> removeOrphanedHtmlCaches(Set<String> nonIncognitoSiteIds);
-  Future<void> removeOrphanedHtmlImports(Set<String> activeSiteIds);
-  Future<void> removeOrphanedWebViewState(Set<String> nonIncognitoSiteIds);
+/// Which live set a store's entries are measured against.
+enum OrphanScope {
+  /// Session residue: an incognito site's entries are orphans too, so
+  /// whatever it left before the toggle is reclaimed (INC-006).
+  session,
 
-  /// Drops the protection report's per-site rows for sites outside the live
-  /// set. Measures against the non-incognito set: an attributed row names a
-  /// site the same way a cookie does, so an incognito site's is reclaimed
-  /// every launch. The category counts it fed are site-less and stay.
-  Future<void> removeOrphanedBlockStatsSites(Set<String> nonIncognitoSiteIds);
+  /// Configuration the user typed: kept for incognito sites like any other.
+  configuration,
+}
+
+/// Every per-site store the sweep reclaims, in sweep order. A new store is
+/// a new value here; [OrphanSweepTargets.removeOrphans] switches over it, so
+/// the binding does not compile until the store is swept.
+enum OrphanStore {
+  cookies(OrphanScope.session),
+  proxyPasswords(OrphanScope.configuration),
+  httpAuthCredentials(OrphanScope.configuration),
+  htmlCaches(OrphanScope.session),
+  htmlImports(OrphanScope.configuration),
+  webViewState(OrphanScope.session),
+
+  /// The protection report's per-site rows. The category counts they fed
+  /// are site-less and stay.
+  blockStatsSites(OrphanScope.session),
+
+  /// Page icons on disk, keyed by home URL (ICON-009).
+  siteIcons(OrphanScope.session);
+
+  const OrphanStore(this.scope);
+
+  final OrphanScope scope;
+}
+
+enum SweepOccasion {
+  /// Post-paint housekeeping of what earlier sessions left.
+  launch,
+
+  /// Sites were deleted or replaced by an import while the app runs.
+  sitesRemoved,
+}
+
+abstract interface class OrphanSweepTargets {
+  /// Drops everything [store] keeps for a siteId outside [liveSiteIds].
+  Future<void> removeOrphans(OrphanStore store, Set<String> liveSiteIds);
 
   /// Empties the single shared cookie jar the legacy engine partitions by
-  /// hand. Only meaningful when [OrphanSweepEngine.sweep] runs with
-  /// `useContainers: false`.
+  /// hand.
   Future<void> clearLegacyGlobalCookieJar();
 }
 
-/// Reclaims storage left behind by sites deleted in previous sessions. Runs
-/// after first paint: the launched site reads its cookies from its own
-/// container (or, under the legacy engine, from its hydrated model), so
-/// nothing here is on the first-paint path.
+/// Reclaims per-site storage whose site no longer exists.
 class OrphanSweepEngine {
   OrphanSweepEngine._();
 
-  /// Sweeps every per-site storage, then clears the shared cookie jar when
-  /// the legacy engine owns it.
+  /// Sweeps every [OrphanStore], then, at launch under the legacy engine,
+  /// clears the shared cookie jar.
   ///
   /// The jar clear is skipped entirely under containers. It would reclaim
   /// nothing there (each site owns its jar, and this call carries no site to
@@ -51,16 +69,26 @@ class OrphanSweepEngine {
     required Set<String> activeSiteIds,
     required Set<String> nonIncognitoSiteIds,
     required bool useContainers,
+    required SweepOccasion occasion,
   }) async {
-    await targets.removeOrphanedCookies(nonIncognitoSiteIds);
-    await targets.removeOrphanedProxyPasswords(activeSiteIds);
-    await targets.removeOrphanedHttpAuthCredentials(activeSiteIds);
-    await targets.removeOrphanedHtmlCaches(nonIncognitoSiteIds);
-    await targets.removeOrphanedHtmlImports(activeSiteIds);
-    await targets.removeOrphanedWebViewState(nonIncognitoSiteIds);
-    await targets.removeOrphanedBlockStatsSites(nonIncognitoSiteIds);
-    if (!useContainers) {
-      await targets.clearLegacyGlobalCookieJar();
+    for (final store in OrphanStore.values) {
+      await targets.removeOrphans(
+        store,
+        switch (store.scope) {
+          OrphanScope.session => nonIncognitoSiteIds,
+          OrphanScope.configuration => activeSiteIds,
+        },
+      );
+    }
+    switch (occasion) {
+      case SweepOccasion.launch:
+        if (!useContainers) {
+          await targets.clearLegacyGlobalCookieJar();
+        }
+      case SweepOccasion.sitesRemoved:
+        // The jar holds the loaded sites' live sessions; a clear here
+        // would sign them out.
+        break;
     }
   }
 }

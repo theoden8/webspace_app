@@ -332,34 +332,6 @@ class Archive {
     return unmatched;
   }
 
-  /// Key-based core of [importSections]. Does not consume or zeroize
-  /// [key] (the caller owns its lifetime). Exposed for tests so they
-  /// can exercise section round-tripping without the per-call Argon2id
-  /// cost; derivation itself is covered by the crypto tests.
-  Future<List<String>> importSectionsWithKey(
-    Uint8List key,
-    List<String> base64Sections,
-  ) async {
-    await ensureInitialized();
-    final unmatched = <String>[];
-    for (final b64 in base64Sections) {
-      final section = _ArchiveSection.parse(b64);
-      if (section == null) {
-        unmatched.add(b64);
-        continue;
-      }
-      final plaintext = await ArchiveCrypto.open(key, section.wire);
-      if (plaintext == null) {
-        unmatched.add(b64);
-        continue;
-      }
-      final stateJson =
-          jsonDecode(utf8.decode(plaintext)) as Map<String, dynamic>;
-      await _writeState(key, ArchiveState.fromJson(stateJson));
-    }
-    return unmatched;
-  }
-
   /// Seals an archive's state into a self-contained base64 blob (no
   /// slot AAD) that [importSections] can later restore under the same
   /// passphrase.
@@ -476,7 +448,7 @@ class _ArchiveSection {
     Uint8List raw;
     try {
       raw = Uint8List.fromList(base64.decode(base64Section));
-    } catch (_) {
+    } on FormatException {
       return null;
     }
     final headerLength = _magic.length + kArchiveSaltLength;

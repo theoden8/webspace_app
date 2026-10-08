@@ -13,6 +13,7 @@ import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/settings/user_script.dart';
 
 import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 void main() {
   setUp(stubHostLookup);
@@ -24,7 +25,7 @@ void main() {
 
   group('__wsFetch resource handler', () {
     test('returns status/body/contentType for an allowed URL', () async {
-      outboundHttp = FakeOutboundFactory(
+      outboundHttp = FakeOutbound(responder: 
         (_) =>
             http.Response('BODY', 200, headers: {'content-type': 'text/css'}),
       );
@@ -40,7 +41,7 @@ void main() {
     });
 
     test('blocks dangerous schemes with 403 without fetching', () async {
-      final factory = FakeOutboundFactory((_) => http.Response('x', 200));
+      final factory = FakeOutbound(responder: (_) => http.Response('x', 200));
       outboundHttp = factory;
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
@@ -52,7 +53,7 @@ void main() {
 
     test('rejects an oversize response with 413', () async {
       final big = 'a' * (5 * 1024 * 1024 + 1);
-      outboundHttp = FakeOutboundFactory((_) => http.Response(big, 200));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response(big, 200));
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
 
@@ -61,7 +62,7 @@ void main() {
     });
 
     test('non-string argument returns a 400', () async {
-      outboundHttp = FakeOutboundFactory((_) => http.Response('x', 200));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('x', 200));
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
 
@@ -72,7 +73,7 @@ void main() {
 
   group('script fetch handler', () {
     test('fetches a whitelisted URL and injects the body', () async {
-      outboundHttp = FakeOutboundFactory(
+      outboundHttp = FakeOutbound(responder: 
         (_) => http.Response('CODE_A();', 200),
       );
       final ctrl = FakeUserScriptController();
@@ -88,7 +89,7 @@ void main() {
     test(
       'blocks a non-whitelisted URL when there is no confirm handler',
       () async {
-        final factory = FakeOutboundFactory((_) => http.Response('CODE;', 200));
+        final factory = FakeOutbound(responder: (_) => http.Response('CODE;', 200));
         outboundHttp = factory;
         final ctrl = FakeUserScriptController();
         serviceWith(oneScript).registerHandlers(ctrl);
@@ -103,7 +104,7 @@ void main() {
     );
 
     test('fetches a non-whitelisted URL after the user confirms', () async {
-      outboundHttp = FakeOutboundFactory(
+      outboundHttp = FakeOutbound(responder: 
         (_) => http.Response('CONFIRMED();', 200),
       );
       final ctrl = FakeUserScriptController();
@@ -115,7 +116,7 @@ void main() {
     });
 
     test('returns false and injects nothing on a non-200 response', () async {
-      outboundHttp = FakeOutboundFactory((_) => http.Response('nope', 404));
+      outboundHttp = FakeOutbound(responder: (_) => http.Response('nope', 404));
       final ctrl = FakeUserScriptController();
       serviceWith(oneScript).registerHandlers(ctrl);
 

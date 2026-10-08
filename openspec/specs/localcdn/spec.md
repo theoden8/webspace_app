@@ -127,6 +127,8 @@ The service SHALL return the correct MIME type for cached resources based on fil
 
 Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls whether LocalCDN is applied. The umbrella `trackingProtectionEnabled` (see [tracking-protection/spec.md](../tracking-protection/spec.md), ETP-002) forces this effectively-on whenever the umbrella is true; the stored field is honoured only when the umbrella is off.
 
+The effective value (`WebViewModel.effectiveLocalCdnEnabled`: forced on by the umbrella, never on for an archive-tier site, ARCH-006) rides the site's `SitePosture` into the Android interceptor when it attaches, and the interceptor serves the app-wide cache only to a site whose value is on. Every surface the site runs on, nested screens and popups included, carries the same value.
+
 #### Scenario: LocalCDN enabled (default)
 
 - **Given** a new site is created
@@ -136,13 +138,20 @@ Each site SHALL have a `localCdnEnabled` boolean (default: `true`) that controls
 #### Scenario: LocalCDN disabled for a site
 
 - **Given** a site with `localCdnEnabled` set to `false` and `trackingProtectionEnabled` set to `false`
-- **When** the webview intercepts a CDN request
+- **When** the webview intercepts a CDN request whose resource is cached
+- **Then** the request passes through to the CDN normally
+- **And** a site with `localCdnEnabled` set to `true` loading the same resource is served the cached copy
+
+#### Scenario: Archive-tier site
+
+- **Given** an archive-tier site with `localCdnEnabled` set to `true`
+- **When** its webview intercepts a CDN request
 - **Then** the request passes through to the CDN normally
 
 #### Scenario: LocalCDN forced on by tracking protection
 
 - **Given** a site with `localCdnEnabled` set to `false` and `trackingProtectionEnabled` set to `true`
-- **When** the `WebViewConfig` is constructed
+- **When** the site's settings screen renders
 - **Then** `localCdnEnabled` is effectively `true`
 
 ### LCDN-008: Per-Site Settings UI

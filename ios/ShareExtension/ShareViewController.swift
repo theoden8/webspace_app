@@ -6,11 +6,6 @@ import UniformTypeIdentifiers
 @objc(ShareViewController)
 final class ShareViewController: UIViewController {
 
-    private static let appGroupId = "group.org.codeberg.theoden8.webspace"
-    private static let pendingUrlKey = "pending_share_url"
-    private static let pendingHtmlFileName = "pending_share.html"
-    private static let pendingHtmlTitleKey = "pending_share_html_title"
-    private static let pendingHtmlSourceKey = "pending_share_html_source"
     private static let hostScheme = "webspace"
     private static let hostShareHost = "share"
     private static let hostHtmlHost = "openhtml"
@@ -202,11 +197,11 @@ final class ShareViewController: UIViewController {
     }
 
     private func handOffUrl(_ url: String, completion: @escaping () -> Void) {
-        if let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) {
-            defaults.set(url, forKey: ShareViewController.pendingUrlKey)
+        if let defaults = AppGroup.defaults {
+            defaults.set(url, forKey: AppGroup.pendingShareUrlKey)
             NSLog("[WebSpace.ShareExt] wrote URL to app group")
         } else {
-            NSLog("[WebSpace.ShareExt] app group \(ShareViewController.appGroupId) unavailable; URL not persisted")
+            NSLog("[WebSpace.ShareExt] app group \(AppGroup.id) unavailable; URL not persisted")
         }
         var components = URLComponents()
         components.scheme = ShareViewController.hostScheme
@@ -225,8 +220,8 @@ final class ShareViewController: UIViewController {
     /// trigger; the app drains the container on its next share poll.
     private func handOffHtml(_ content: String, title: String?, source: String?, completion: @escaping () -> Void) {
         let fm = FileManager.default
-        if let container = fm.containerURL(forSecurityApplicationGroupIdentifier: ShareViewController.appGroupId) {
-            let fileURL = container.appendingPathComponent(ShareViewController.pendingHtmlFileName)
+        if let container = fm.containerURL(forSecurityApplicationGroupIdentifier: AppGroup.id) {
+            let fileURL = container.appendingPathComponent(AppGroup.pendingShareHtmlFile)
             do {
                 try content.data(using: .utf8)?.write(to: fileURL, options: .atomic)
                 NSLog("[WebSpace.ShareExt] wrote HTML to app group container")
@@ -236,16 +231,16 @@ final class ShareViewController: UIViewController {
         } else {
             NSLog("[WebSpace.ShareExt] app group unavailable; HTML not persisted")
         }
-        if let defaults = UserDefaults(suiteName: ShareViewController.appGroupId) {
+        if let defaults = AppGroup.defaults {
             if let title = title {
-                defaults.set(title, forKey: ShareViewController.pendingHtmlTitleKey)
+                defaults.set(title, forKey: AppGroup.pendingShareHtmlTitleKey)
             } else {
-                defaults.removeObject(forKey: ShareViewController.pendingHtmlTitleKey)
+                defaults.removeObject(forKey: AppGroup.pendingShareHtmlTitleKey)
             }
             if let source = source {
-                defaults.set(source, forKey: ShareViewController.pendingHtmlSourceKey)
+                defaults.set(source, forKey: AppGroup.pendingShareHtmlSourceKey)
             } else {
-                defaults.removeObject(forKey: ShareViewController.pendingHtmlSourceKey)
+                defaults.removeObject(forKey: AppGroup.pendingShareHtmlSourceKey)
             }
         }
         var components = URLComponents()

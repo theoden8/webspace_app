@@ -70,9 +70,7 @@
   var SCREEN_W = 1920;
   var SCREEN_H = 1080;
   var COLOR_DEPTH = 24;
-  // hardwareConcurrency in [4, 8]
   var HW_CONCURRENCY = 4 + (Math.floor(_baseRng() * 5) | 0);
-  // deviceMemory ∈ {4, 8}
   var DEVICE_MEMORY = (_baseRng() < 0.5) ? 4 : 8;
 
   // Correct only what the engine already exposes. Defining a property the

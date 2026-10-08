@@ -4,14 +4,15 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/settings/pref_read.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/current_location_service.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/settings/location.dart';
+import 'package:webspace/widgets/toast.dart';
 
 /// Full-screen picker for [LocationPickerResult] (lat/lng + accuracy).
 ///
@@ -33,7 +34,7 @@ class LocationPickerScreen extends StatefulWidget {
     super.key,
     this.initialLatitude,
     this.initialLongitude,
-    this.initialAccuracy = 50.0,
+    this.initialAccuracy = kDefaultSpoofAccuracy,
   });
 
   @override
@@ -53,16 +54,19 @@ class LocationPickerResult {
 }
 
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
-  late TextEditingController _latController;
-  late TextEditingController _lngController;
-  late TextEditingController _accController;
+  late final _latController =
+      TextEditingController(text: widget.initialLatitude?.toString() ?? '');
+  late final _lngController =
+      TextEditingController(text: widget.initialLongitude?.toString() ?? '');
+  late final _accController =
+      TextEditingController(text: widget.initialAccuracy.toString());
 
   bool _mapLoaded = false;
   bool _fetchingLocation = false;
-  String _tileUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  String get _tileUrl => AppPref.osmTileUrl.value;
   // Compliant User-Agent per OSM Tile Usage Policy: clearly identifies the
   // app, includes a contact URL, and avoids the library default. Populated
-  // before the map can mount (see _loadTileUrl).
+  // before the map can mount (see _loadTileUserAgent).
   String _tileUserAgent = 'Webspace (+https://github.com/theoden8/webspace_app)';
   final MapController _mapController = MapController();
   // Held at field scope so the recognizers are only allocated once and
@@ -83,21 +87,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   @override
   void initState() {
     super.initState();
-    _latController = TextEditingController(
-      text: widget.initialLatitude?.toString() ?? '',
-    );
-    _lngController = TextEditingController(
-      text: widget.initialLongitude?.toString() ?? '',
-    );
-    _accController = TextEditingController(
-      text: widget.initialAccuracy.toString(),
-    );
-    _loadTileUrl();
+    _loadTileUserAgent();
   }
 
-  Future<void> _loadTileUrl() async {
-    final prefs = await SharedPreferences.getInstance();
-    final url = readPrefAs<String>(prefs, 'osmTileUrl') ?? _tileUrl;
+  Future<void> _loadTileUserAgent() async {
     String ua = _tileUserAgent;
     try {
       final info = await PackageInfo.fromPlatform();
@@ -107,10 +100,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       // Keep the static fallback if PackageInfo is unavailable.
     }
     if (!mounted) return;
-    setState(() {
-      _tileUrl = url;
-      _tileUserAgent = ua;
-    });
+    setState(() => _tileUserAgent = ua);
   }
 
   @override
@@ -147,12 +137,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     return LatLng(lat, lng);
   }
 
-  void _setPin(LatLng p) {
-    setState(() {
-      _latController.text = p.latitude.toStringAsFixed(6);
-      _lngController.text = p.longitude.toStringAsFixed(6);
-    });
-  }
+  void _setPin(LatLng p, {double accuracy = 0}) => setState(() {
+        _latController.text = p.latitude.toStringAsFixed(6);
+        _lngController.text = p.longitude.toStringAsFixed(6);
+        if (accuracy > 0) _accController.text = accuracy.toStringAsFixed(1);
+      });
 
   void _onCoordTyped(String _) {
     setState(() {});
@@ -174,45 +163,29 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     if (!mounted) return;
     final loc = AppLocalizations.of(context);
     setState(() => _fetchingLocation = false);
-    switch (res.status) {
-      case CurrentLocationStatus.ok:
-        final fix = res.fix!;
-        setState(() {
-          _latController.text = fix.latitude.toStringAsFixed(6);
-          _lngController.text = fix.longitude.toStringAsFixed(6);
-          if (fix.accuracy > 0) {
-            _accController.text = fix.accuracy.toStringAsFixed(1);
-          }
-        });
-        if (_mapLoaded) {
-          try {
-            _mapController.move(LatLng(fix.latitude, fix.longitude), 14.0);
-          } catch (_) {}
-        }
-        break;
-      case CurrentLocationStatus.permissionDenied:
-        _showSnack(loc.locationPickerPermissionDenied);
-        break;
-      case CurrentLocationStatus.permissionDeniedForever:
-        _showSnack(loc.locationPickerPermissionDeniedForever);
-        break;
-      case CurrentLocationStatus.serviceDisabled:
-        _showSnack(loc.locationPickerServiceDisabled);
-        break;
-      case CurrentLocationStatus.timeout:
-        _showSnack(loc.locationPickerTimeout);
-        break;
-      case CurrentLocationStatus.unsupported:
-        _showSnack(loc.locationPickerUnsupported);
-        break;
-      case CurrentLocationStatus.error:
-        _showSnack(res.message ?? loc.locationPickerError);
-        break;
+    final failure = switch (res.status) {
+      CurrentLocationStatus.ok => null,
+      CurrentLocationStatus.permissionDenied =>
+        loc.locationPickerPermissionDenied,
+      CurrentLocationStatus.permissionDeniedForever =>
+        loc.locationPickerPermissionDeniedForever,
+      CurrentLocationStatus.serviceDisabled => loc.locationPickerServiceDisabled,
+      CurrentLocationStatus.timeout => loc.locationPickerTimeout,
+      CurrentLocationStatus.unsupported => loc.locationPickerUnsupported,
+      CurrentLocationStatus.error => res.message ?? loc.locationPickerError,
+    };
+    if (failure != null) {
+      ScaffoldMessenger.of(context).toast(failure);
+      return;
     }
-  }
-
-  void _showSnack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    final fix = res.fix!;
+    final pin = LatLng(fix.latitude, fix.longitude);
+    _setPin(pin, accuracy: fix.accuracy);
+    if (_mapLoaded) {
+      try {
+        _mapController.move(pin, 14.0);
+      } catch (_) {}
+    }
   }
 
   String _hostOfTileUrl() {
@@ -239,18 +212,19 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             onPressed: () {
               final p = _currentLatLng();
               if (p == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(loc.locationPickerEnterValidCoords)),
+                ScaffoldMessenger.of(context).toast(
+                  loc.locationPickerEnterValidCoords,
                 );
                 return;
               }
-              final acc = double.tryParse(_accController.text.trim()) ?? 50.0;
+              final acc = double.tryParse(_accController.text.trim()) ??
+                  kDefaultSpoofAccuracy;
               Navigator.pop(
                 context,
                 LocationPickerResult(
                   latitude: p.latitude,
                   longitude: p.longitude,
-                  accuracy: acc > 0 ? acc : 50.0,
+                  accuracy: acc > 0 ? acc : kDefaultSpoofAccuracy,
                 ),
               );
             },
@@ -271,6 +245,21 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   Widget _buildCoordinateInputs() {
     final loc = AppLocalizations.of(context);
+    // Coordinates are signed and move the pin as they are typed; accuracy is
+    // neither.
+    Widget field(TextEditingController controller, String label,
+            {bool coordinate = true}) =>
+        TextFormField(
+          controller: controller,
+          keyboardType: TextInputType.numberWithOptions(
+              signed: coordinate, decimal: true),
+          decoration: InputDecoration(
+            labelText: label,
+            border: const OutlineInputBorder(),
+            isDense: true,
+          ),
+          onChanged: coordinate ? _onCoordTyped : null,
+        );
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -278,45 +267,16 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           Row(
             children: [
               Expanded(
-                child: TextFormField(
-                  controller: _latController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      signed: true, decimal: true),
-                  decoration: InputDecoration(
-                    labelText: loc.locationPickerLatitudeLabel,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: _onCoordTyped,
-                ),
-              ),
+                  child: field(_latController, loc.locationPickerLatitudeLabel)),
               const SizedBox(width: 8),
               Expanded(
-                child: TextFormField(
-                  controller: _lngController,
-                  keyboardType: const TextInputType.numberWithOptions(
-                      signed: true, decimal: true),
-                  decoration: InputDecoration(
-                    labelText: loc.locationPickerLongitudeLabel,
-                    border: const OutlineInputBorder(),
-                    isDense: true,
-                  ),
-                  onChanged: _onCoordTyped,
-                ),
-              ),
+                  child:
+                      field(_lngController, loc.locationPickerLongitudeLabel)),
             ],
           ),
           const SizedBox(height: 8),
-          TextFormField(
-            controller: _accController,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(
-              labelText: loc.locationPickerAccuracyLabel,
-              border: const OutlineInputBorder(),
-              isDense: true,
-            ),
-          ),
+          field(_accController, loc.locationPickerAccuracyLabel,
+              coordinate: false),
           if (CurrentLocationService.isSupported) ...[
             const SizedBox(height: 8),
             Align(
@@ -373,11 +333,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               label: Text(loc.locationPickerLoadMap),
               onPressed: () {
                 if (!_ensureTileClient()) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(_tileBlockedReason ??
-                          loc.locationPickerTilesBlocked),
-                    ),
+                  ScaffoldMessenger.of(context).toast(
+                    _tileBlockedReason ?? loc.locationPickerTilesBlocked,
                   );
                   return;
                 }
@@ -397,16 +354,21 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   Widget _buildMap() {
     final loc = AppLocalizations.of(context);
-    final initial = _currentLatLng() ?? const LatLng(0, 0);
-    final initialZoom = _currentLatLng() == null ? 2.0 : 10.0;
+    final pin = _currentLatLng();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Wikipedia-style link blue on light, lighter cyan on dark — both meet
+    // WCAG AA on the chosen surface.
+    final linkStyle = TextStyle(
+      color: isDark ? const Color(0xFF6CA0DC) : const Color(0xFF0645AD),
+      decoration: TextDecoration.underline,
+    );
     return Stack(
       children: [
         FlutterMap(
           mapController: _mapController,
           options: MapOptions(
-            initialCenter: initial,
-            initialZoom: initialZoom,
+            initialCenter: pin ?? const LatLng(0, 0),
+            initialZoom: pin == null ? 2.0 : 10.0,
             onTap: (_, p) => _setPin(p),
           ),
           children: [
@@ -432,8 +394,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
               // stay readable; the map gets a flat dark-grey aesthetic
               // that matches Material's dark surfaces.
               tileBuilder: isDark
-                  ? (context, tileWidget, tile) {
-                      return ColorFiltered(
+                  ? (context, tileWidget, tile) => ColorFiltered(
                         colorFilter: const ColorFilter.matrix(<double>[
                           -0.2126, -0.7152, -0.0722, 0, 255,
                           -0.2126, -0.7152, -0.0722, 0, 255,
@@ -441,15 +402,14 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                           0, 0, 0, 1, 0,
                         ]),
                         child: tileWidget,
-                      );
-                    }
+                      )
                   : null,
             ),
-            if (_currentLatLng() != null)
+            if (pin != null)
               MarkerLayer(
                 markers: [
                   Marker(
-                    point: _currentLatLng()!,
+                    point: pin,
                     width: 40,
                     height: 40,
                     child: Icon(
@@ -485,25 +445,13 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   const TextSpan(text: '© '),
                   TextSpan(
                     text: 'OpenStreetMap',
-                    style: TextStyle(
-                      // Wikipedia-style link blue on light, lighter cyan
-                      // on dark — both meet WCAG AA on the chosen surface.
-                      color: isDark
-                          ? const Color(0xFF6CA0DC)
-                          : const Color(0xFF0645AD),
-                      decoration: TextDecoration.underline,
-                    ),
+                    style: linkStyle,
                     recognizer: _osmCopyrightRecognizer,
                   ),
                   TextSpan(text: loc.locationPickerOsmContributors),
                   TextSpan(
                     text: loc.locationPickerReportMapIssue,
-                    style: TextStyle(
-                      color: isDark
-                          ? const Color(0xFF6CA0DC)
-                          : const Color(0xFF0645AD),
-                      decoration: TextDecoration.underline,
-                    ),
+                    style: linkStyle,
                     recognizer: _osmFixmapRecognizer,
                   ),
                 ],

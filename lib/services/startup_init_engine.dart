@@ -12,11 +12,9 @@ class StartupInitEngine {
   /// when all have finished.
   ///
   /// The inits touch disjoint storage and feed independent subsystems, so
-  /// wall-clock stays at ~max(step) instead of sum(step) — the heavy
-  /// adblock-engine/DNS/dataset loads no longer serialize on the cold-launch
-  /// critical path. All still complete before this future resolves (the caller
-  /// awaits it before runApp), so the fail-closed blocking posture is
-  /// unchanged.
+  /// wall-clock stays at ~max(step) instead of sum(step). All still complete
+  /// before this future resolves (the caller awaits it before runApp), so
+  /// blocking stays fail-closed.
   static Future<void> runIndependentInits(
     List<AsyncStep> independentInits, {
     void Function()? bridgeSetup,

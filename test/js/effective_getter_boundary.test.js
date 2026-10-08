@@ -1,59 +1,67 @@
-// Structural gate: archive-sensitive per-site fields must reach WebViewConfig
-// through their `effective*` getter, not the raw stored field.
+// Structural gate: per-site fields with an override (the archive tier,
+// ARCH-006, or Tracking Protection) reach a webview through their `effective*`
+// getter, never the raw stored field.
 //
-// ARCH-006 disables per-site features for archive-tier sites by overriding them
-// on the model (`effectiveIncognito`, `effectiveNotificationsEnabled`, ...).
-// Passing the raw field at the config boundary silently reinstates the feature
-// for an archived site even though every other consumer reads the getter, and
-// nothing downstream re-checks the tier.
+// Every webview surface is built from the SitePosture that
+// `WebViewModel.sitePosture` resolves, so that resolver is the boundary: a raw
+// field read there silently reinstates the feature for an archived site (or
+// under the umbrella) on every surface at once, and nothing downstream
+// re-checks. The model's other config boundary (setController, the root
+// webview's slot-owned settings) passes named arguments, checked the same way.
 
 const test = require('node:test');
 const assert = require('node:assert');
-const fs = require('node:fs');
-const path = require('node:path');
+const { read, blockAfter } = require('./helpers/source');
 
-const ROOT = path.resolve(__dirname, '..', '..');
-const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const MODEL = 'lib/web_view_model.dart';
 
-// Fields whose model getter applies an archive-tier override. Keep in step with
-// the `effective*` getters on WebViewModel.
+// Fields whose model getter applies an override. Keep in step with the
+// `effective*` getters on WebViewModel.
 const OVERRIDDEN = [
   'incognito',
   'notificationsEnabled',
   'backgroundAudioEnabled',
-  'cameraMode',
-  'microphoneMode',
+  'captures',
   'protectedContentAllowed',
   'externalLinkMode',
+  'dnsBlockLevel',
   'localCdnEnabled',
+  'thirdPartyCookiesEnabled',
+  'httpsUpgradeEnabled',
+  'webRtcPolicy',
 ];
 
 const capitalize = (s) => s[0].toUpperCase() + s.slice(1);
 
-test('archive-overridden fields reach WebViewConfig via their effective getter', () => {
-  const src = read('lib/web_view_model.dart');
+test('the effective getters this gate relies on still exist', () => {
+  const src = read(MODEL);
+  const missing = OVERRIDDEN.filter((f) => !src.includes(`get effective${capitalize(f)}`));
+  assert.deepEqual(missing, [], 'OVERRIDDEN names a field with no effective getter');
+});
 
+test('sitePosture reads every overridden field through its getter', () => {
+  const resolver = blockAfter(read(MODEL), 'SitePosture sitePosture({', '}) {', MODEL);
   for (const field of OVERRIDDEN) {
-    const getter = `effective${capitalize(field)}`;
-    if (!src.includes(`get ${getter}`)) continue; // no override defined for this field
-
-    // A named argument passing the bare field, e.g. `notificationsEnabled: notificationsEnabled,`.
-    const raw = new RegExp(`\\b${field}:\\s*${field}\\b`, 'g');
-    const hits = src.match(raw) || [];
-    assert.equal(
-      hits.length,
-      0,
-      `${field} is passed raw at a config boundary in lib/web_view_model.dart; ` +
-        `use ${getter} so archive-tier sites keep the ARCH-006 override`,
+    // The bare identifier as a value; a record label of the same name is not a read.
+    const raw = new RegExp(`(?<![\\w.])${field}\\b(?!\\s*:)`);
+    assert.doesNotMatch(
+      resolver,
+      raw,
+      `sitePosture reads ${field} raw; use effective${capitalize(field)} so the `
+        + 'override reaches every webview surface',
     );
   }
 });
 
-test('the effective getters this gate relies on still exist', () => {
-  const src = read('lib/web_view_model.dart');
-  const found = OVERRIDDEN.filter((f) => src.includes(`get effective${capitalize(f)}`));
-  assert.ok(
-    found.length >= 5,
-    `expected the archive override getters to still be defined, found only ${found.join(', ')}`,
-  );
+test('no named argument in the model passes an overridden field raw', () => {
+  const src = read(MODEL);
+  for (const field of OVERRIDDEN) {
+    const raw = new RegExp(`\\b${field}:\\s*(?:id\\.)?${field}\\b`, 'g');
+    assert.deepEqual(
+      src.match(raw) || [],
+      [],
+      `${field} is passed raw at a config boundary in ${MODEL}; `
+        + `use effective${capitalize(field)}`,
+    );
+  }
 });

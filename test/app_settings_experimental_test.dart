@@ -5,7 +5,6 @@
 // nothing. The status card under the proxy block reports a runtime something
 // uses, so it stays out of the list until something does (TOR-004).
 
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -21,6 +20,7 @@ import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
@@ -31,31 +31,7 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/container_mark.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
-
-/// A runtime that exists, so App settings has Tor to report on.
-class _PresentRuntime implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-  void emit(TorStatus s) => _events.add(s);
-
-  @override
-  bool get isAvailable => true;
-  @override
-  Stream<TorStatus> get events => _events.stream;
-  @override
-  Future<void> start() async {}
-  @override
-  Future<void> stop() async {}
-  @override
-  Future<void> rebuildCircuits() async {}
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async {}
-  @override
-  Future<int> startTransport(String transport) async => 0;
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-  @override
-  Future<void> reopenListeners() async {}
-}
+import 'helpers/fake_tor_runtime.dart';
 
 final Uint8List _png64 =
     Uint8List.fromList(img.encodePng(img.Image(width: 64, height: 64)));
@@ -77,26 +53,6 @@ void main() {
           onSettingsChanged: (_) {},
           onExportSettings: () {},
           onImportSettings: () {},
-          showTabStrip: false,
-          onShowTabStripChanged: (_) {},
-          tabStripInFullscreen: false,
-          onTabStripInFullscreenChanged: (_) {},
-          fullscreenOnShortcut: false,
-          onFullscreenOnShortcutChanged: (_) {},
-          backOpensMenu: false,
-          onBackOpensMenuChanged: (_) {},
-          httpsUpgradeEnabled: true,
-          onHttpsUpgradeEnabledChanged: (_) {},
-          tabBarButton: false,
-          onTabBarButtonChanged: (_) {},
-          tabMaxWidth: 140,
-          onTabMaxWidthChanged: (_) {},
-          showStatsBanner: false,
-          onShowStatsBannerChanged: (_) {},
-          localeOverride: '',
-          onLocaleOverrideChanged: (_) {},
-          linkHandlingEnabled: true,
-          onLinkHandlingEnabledChanged: (_) {},
           onOpenLinkHandlingSettings: () {},
           webSearchSites: webSearchSites,
         ),
@@ -130,7 +86,7 @@ void main() {
   tearDown(() async {
     DeveloperModeService.instance.debugSet(false);
     for (final f in ExperimentalFeature.values) {
-      ExperimentalFeaturesService.instance.debugSet(f, f.defaultOn);
+      ExperimentalFeaturesService.instance.debugSet(f, f.pref.fallback);
     }
     await TorService.reset();
   });
@@ -163,7 +119,7 @@ void main() {
             'blocks nothing');
     expect(DeveloperModeService.instance.enabled, isFalse);
     final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getBool(kDeveloperModeKey), isFalse,
+    expect(prefs.getBool(AppPref.developerMode.key), isFalse,
         reason: 'the flag must survive a restart');
     expect(find.text('Experimental'), findsNothing,
         reason: 'the Developer screen closes with developer mode');
@@ -172,10 +128,10 @@ void main() {
   });
 
   group('Tor in App settings (TOR-004, TOR-007)', () {
-    late _PresentRuntime runtime;
+    late FakeTorRuntime runtime;
 
     setUp(() {
-      runtime = _PresentRuntime();
+      runtime = FakeTorRuntime();
       TorService.overrideEngine(
           TorEngine(runtime: runtime, sessionSecret: 's'));
       DeveloperModeService.instance.debugSet(false);
@@ -211,7 +167,7 @@ void main() {
     testWidgets('the card appears once something starts Tor', (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await TorService.instance.maybeStart('site-a');
+      await TorService.instance.maybeStart(TorSiteHolder('site-a'));
       runtime.emit(const TorUp('127.0.0.1', 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);
@@ -223,7 +179,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host(siteNames: const {'site-a': 'Mail'}));
       await tester.pumpAndSettle();
-      await TorService.instance.syncHolders({'site-a'});
+      await TorService.instance.syncHolders({TorSiteHolder('site-a')});
       runtime.emit(const TorUp('127.0.0.1', 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);
@@ -251,7 +207,7 @@ void main() {
     testWidgets('never offers Tor, even where the runtime exists',
         (tester) async {
       TorService.overrideEngine(
-          TorEngine(runtime: _PresentRuntime(), sessionSecret: 's'));
+          TorEngine(runtime: FakeTorRuntime(), sessionSecret: 's'));
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, 'Developer');
@@ -381,7 +337,7 @@ void main() {
               .isEnabled(ExperimentalFeature.siteTabs),
           isTrue);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalSiteTabsKey), isTrue);
+      expect(prefs.getBool(AppPref.experimentalSiteTabs.key), isTrue);
 
       DeveloperModeService.instance.debugSet(false);
       expect(
@@ -416,7 +372,7 @@ void main() {
               .switchOn(ExperimentalFeature.proxyRouter),
           isFalse);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalProxyRouterKey), isFalse);
+      expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isFalse);
     });
 
     testWidgets('offers Site icons only on every platform, off by default',
@@ -440,7 +396,7 @@ void main() {
               .isEnabled(ExperimentalFeature.siteIconsOnly),
           isTrue);
       final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(kExperimentalSiteIconsOnlyKey), isTrue);
+      expect(prefs.getBool(AppPref.experimentalSiteIconsOnly.key), isTrue);
     });
 
     testWidgets('Reset icon cache forgets every cached icon', (tester) async {
@@ -449,7 +405,7 @@ void main() {
         'favicon_svg_https://a.test/icon.svg': '<svg/>',
         'favicon_url_https://b.test/':
             'https://www.google.com/s2/favicons?domain=b.test&sz=256',
-        kExperimentalProxyRouterKey: true,
+        AppPref.experimentalProxyRouter.key: true,
       });
       await FaviconUrlCache.initialize();
       final files = MemoryFileStore();
@@ -474,11 +430,37 @@ void main() {
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getKeys().where((k) => k.startsWith('favicon_')), isEmpty);
-      expect(prefs.getBool(kExperimentalProxyRouterKey), isTrue,
+      expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isTrue,
           reason: 'only icon entries go');
       expect(SiteIconStore.instance.get('https://a.test/'), isNull);
       expect(await files.list(), isEmpty);
       expect(find.text('Icon cache cleared'), findsOneWidget);
     });
+  });
+
+  // The hint is the only place the auto-update explanation is reachable, so
+  // it has to carry both halves (DM-004).
+  testWidgets('the Firefox version hint explains manual and automatic updates',
+      (tester) async {
+    await tester.pumpWidget(host());
+    await tester.pumpAndSettle();
+    await openCategory(tester, 'Privacy');
+    final row = find.ancestor(
+        of: find.text('Firefox version'), matching: find.byType(ListTile));
+    await tester.scrollUntilVisible(find.text('Firefox version'), 400,
+        scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    await tester.tap(
+        find.descendant(of: row, matching: find.byIcon(Icons.info_outline)));
+    await tester.pumpAndSettle();
+
+    final loc = AppLocalizations.of(tester.element(row));
+    final dialog = tester
+        .widgetList<Text>(find.descendant(
+            of: find.byType(AlertDialog), matching: find.byType(Text)))
+        .map((t) => t.data ?? '')
+        .join('\n');
+    expect(dialog, contains(loc.appSettingsFirefoxVersionHint));
+    expect(dialog, contains(loc.appSettingsFirefoxAutoUpdateHint));
   });
 }

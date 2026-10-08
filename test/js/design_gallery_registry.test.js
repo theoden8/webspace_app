@@ -7,11 +7,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-
-const repoRoot = path.resolve(__dirname, '..', '..');
-const read = (rel) => fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const { read } = require('./helpers/source');
 
 const dartIds = [...read('lib/design_gallery/main.dart').matchAll(/GalleryCard\(id:\s*'([^']+)'/g)].map((m) => m[1]);
 const shootIds = [...read('tool/design_gallery/shoot.js').matchAll(/\{\s*id:\s*'([^']+)'/g)].map((m) => m[1]);

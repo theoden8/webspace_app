@@ -5,6 +5,7 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/site_network.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
@@ -301,8 +302,8 @@ void main() {
           HttpAuthSecureStorage(secureStorage: MockFlutterSecureStorage());
       const c = HttpAuthCredential(username: 'alice', password: 's3cret');
       await tester.runAsync(() async {
-        await store.save('site-1', 'nas.example.com', 'Files', c);
-        await store.save('site-1', 'nas.example.com', 'Admin', c);
+        await store.save('site-1', Host('nas.example.com'), 'Files', c);
+        await store.save('site-1', Host('nas.example.com'), 'Admin', c);
       });
 
       await tester.pumpWidget(MaterialApp(

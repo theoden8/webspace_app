@@ -95,14 +95,12 @@ class ExternalTorRuntime implements TorRuntime {
       _fail('The external Tor address "$address" is not host:port.');
       return;
     }
-    LogService.instance.log(kExternalTorLogTag, 'Asking $address whether it is tor',
-        sensitivity: LogSensitivity.sensitive);
+    LogTag.tor.debug('Asking $address whether it is tor', sensitive: true);
     final answer = await _identify(parsed.host, parsed.port);
     if (attempt != _attempt) return;
     switch (answer) {
       case ExternalTorAnswer.tor:
-        LogService.instance.log(kExternalTorLogTag, '$address answered as tor',
-            sensitivity: LogSensitivity.sensitive);
+        LogTag.tor.debug('$address answered as tor', sensitive: true);
         _events.add(TorUp(parsed.host, parsed.port));
       case ExternalTorAnswer.notTor:
         _fail('Something answers at $address, but not as tor.');
@@ -118,6 +116,3 @@ class ExternalTorRuntime implements TorRuntime {
   }
 }
 
-/// Same tag the embedded runtime's lifecycle notes use, so the interstitial's
-/// log tail shows these too.
-const String kExternalTorLogTag = 'Tor';

@@ -13,6 +13,7 @@ import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/tor_socks_probe_io.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'helpers/fake_tor_runtime.dart';
 
 class _Answers {
   _Answers(this.answer);
@@ -24,38 +25,6 @@ class _Answers {
     asked.add('$host:$port');
     return answer;
   }
-}
-
-/// The embedded runtime as the engine sees it: one start, which comes up.
-class _Embedded implements TorRuntime {
-  final _events = StreamController<TorStatus>.broadcast();
-  int startCalls = 0;
-  int stopCalls = 0;
-  final applied = <String?>[];
-
-  @override
-  bool get isAvailable => true;
-  @override
-  Stream<TorStatus> get events => _events.stream;
-  @override
-  Future<void> start() async {
-    startCalls++;
-    _events.add(const TorUp('127.0.0.1', 39999));
-  }
-
-  @override
-  Future<void> stop() async => stopCalls++;
-  @override
-  Future<void> rebuildCircuits() async {}
-  @override
-  Future<void> applyExitCountry(String? exitNodes, {String? geoipFile}) async =>
-      applied.add(exitNodes);
-  @override
-  Future<int> startTransport(String transport) async => 0;
-  @override
-  Future<void> setTorrcOptions(List<(String, String)> options) async {}
-  @override
-  Future<void> reopenListeners() async {}
 }
 
 Future<void> _settle() async {
@@ -92,7 +61,7 @@ void main() {
   }
 
   test('an external tor that answers comes up at its own address', () async {
-    final s = await settled(() => engine.acquire('site-a'));
+    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
     expect(s, isA<TorUp>());
     expect((s as TorUp).host, '127.0.0.1');
     expect(s.port, 9050);
@@ -100,7 +69,7 @@ void main() {
   });
 
   test('each site presents its own credential to that tor', () async {
-    await settled(() => engine.acquire('site-a'));
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
     final a = engine.socksFor('site-a')!;
     final b = engine.socksFor('site-b')!;
     final global = engine.socksFor(kTorAppGlobalTag)!;
@@ -116,7 +85,7 @@ void main() {
 
   test('nothing answering fails closed', () async {
     answers.answer = ExternalTorAnswer.unreachable;
-    final s = await settled(() => engine.acquire('site-a'));
+    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
     expect(s, isA<TorErrored>());
     expect((s as TorErrored).kind, TorFailureKind.externalUnreachable);
     expect(engine.socksFor('site-a'), isNull);
@@ -124,21 +93,21 @@ void main() {
 
   test('a SOCKS proxy that is not tor is never called Tor', () async {
     answers.answer = ExternalTorAnswer.notTor;
-    final s = await settled(() => engine.acquire('site-a'));
+    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
     expect((s as TorErrored).kind, TorFailureKind.externalUnreachable);
     expect(engine.socksFor('site-a'), isNull);
   });
 
   test('a malformed address is never dialled', () async {
     address = 'localhost';
-    final s = await settled(() => engine.acquire('site-a'));
+    final s = await settled(() => engine.acquire(TorSiteHolder('site-a')));
     expect((s as TorErrored).kind, TorFailureKind.externalUnreachable);
     expect(answers.asked, isEmpty);
   });
 
   test('an exit pin holds the sites rather than leave from any country',
       () async {
-    await settled(() => engine.acquire('site-a'));
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
     final pinned = await settled(() => engine.setExitCountry('{de}'));
     expect((pinned as TorErrored).kind, TorFailureKind.externalExitPin);
     expect(engine.socksFor('site-a'), isNull);
@@ -150,7 +119,7 @@ void main() {
 
   test('a changed address is asked again and its endpoint published',
       () async {
-    await settled(() => engine.acquire('site-a'));
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
     address = '127.0.0.1:9150';
     final s = await settled(runtime.reconnect);
     expect((s as TorUp).port, 9150);
@@ -181,7 +150,7 @@ void main() {
 
   test('a tor that went away while the app was out fails closed on return',
       () async {
-    await settled(() => engine.acquire('site-a'));
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
     listenerAlive = false;
     answers.answer = ExternalTorAnswer.unreachable;
     final s = await settled(engine.revive);
@@ -196,7 +165,7 @@ void main() {
       TorService.overrideEngine(engine, external: runtime);
       expect(TorService.instance.isAvailable, isTrue);
       expect(TorService.instance.isExternal, isTrue);
-      await settled(() => TorService.instance.maybeStart('site-a'));
+      await settled(() => TorService.instance.maybeStart(TorSiteHolder('site-a')));
       final s = TorService.instance.socksFor(siteId: 'site-a')!;
       expect(s.username, 'site-a');
     });
@@ -209,12 +178,13 @@ void main() {
   });
 
   group('switching tor without a relaunch', () {
-    late _Embedded embeddedRuntime;
+    late FakeTorRuntime embeddedRuntime;
     late TorEngine embedded;
     late bool wantExternal;
 
     setUp(() {
-      embeddedRuntime = _Embedded();
+      embeddedRuntime = FakeTorRuntime(
+          onStart: (r) => r.emit(const TorUp('127.0.0.1', 39999)));
       embedded = TorEngine(runtime: embeddedRuntime, sessionSecret: 'e');
       wantExternal = false;
       TorService.wantsExternal = () => wantExternal;
@@ -226,7 +196,7 @@ void main() {
 
     test('the sites move to the external tor and back', () async {
       final tor = TorService.instance;
-      await tor.syncHolders({'site-a', 'site-b'});
+      await tor.syncHolders({TorSiteHolder('site-a'), TorSiteHolder('site-b')});
       await _settle();
       expect(tor.isExternal, isFalse);
       expect(tor.socksFor(siteId: 'site-a')!.address, '127.0.0.1:39999');
@@ -236,14 +206,14 @@ void main() {
       await _settle();
       expect(tor.isExternal, isTrue);
       expect(tor.socksFor(siteId: 'site-a')!.address, '127.0.0.1:9050');
-      expect(engine.holders, {'site-a', 'site-b'});
+      expect(engine.holders, {TorSiteHolder('site-a'), TorSiteHolder('site-b')});
       expect(embedded.holders, isEmpty);
 
       wantExternal = false;
       await tor.runtimeChoiceChanged();
       await _settle();
       expect(tor.socksFor(siteId: 'site-a')!.address, '127.0.0.1:39999');
-      expect(embedded.holders, {'site-a', 'site-b'});
+      expect(embedded.holders, {TorSiteHolder('site-a'), TorSiteHolder('site-b')});
       expect(embeddedRuntime.stopCalls, 0,
           reason: 'TOR-020: the built-in tor runs once per process');
       expect(embeddedRuntime.startCalls, 1,
@@ -254,7 +224,7 @@ void main() {
       final tor = TorService.instance;
       final heard = <TorStatus>[];
       final sub = tor.statusStream.listen(heard.add);
-      await engine.acquire('not-through-the-service');
+      await engine.acquire(TorSiteHolder('not-through-the-service'));
       await _settle();
       expect(heard, isEmpty, reason: 'the external tor is not chosen');
 
@@ -269,10 +239,10 @@ void main() {
     test('a pin asked of the built-in tor holds the sites on the external one',
         () async {
       final tor = TorService.instance;
-      await tor.syncHolders({'site-a'});
+      await tor.syncHolders({TorSiteHolder('site-a')});
       await tor.setExitCountry('{de}');
       await _settle();
-      expect(embeddedRuntime.applied, ['{de}']);
+      expect(embeddedRuntime.appliedExitNodes, ['{de}']);
 
       wantExternal = true;
       await tor.runtimeChoiceChanged();
@@ -283,7 +253,7 @@ void main() {
 
     test('a flip during a flip lands on the last one', () async {
       final tor = TorService.instance;
-      await tor.syncHolders({'site-a'});
+      await tor.syncHolders({TorSiteHolder('site-a')});
       await _settle();
 
       wantExternal = true;
@@ -293,7 +263,7 @@ void main() {
       await Future.wait([first, second]);
       await _settle();
       expect(tor.isExternal, isFalse);
-      expect(embedded.holders, {'site-a'});
+      expect(embedded.holders, {TorSiteHolder('site-a')});
       expect(engine.holders, isEmpty);
     });
   });

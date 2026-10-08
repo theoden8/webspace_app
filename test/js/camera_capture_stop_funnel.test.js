@@ -12,14 +12,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, blockAfter, dartFiles } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const MAIN = 'lib/main.dart';
 
-const src = fs.readFileSync(path.join(repoRoot, MAIN), 'utf8');
+const src = read(MAIN);
 const lines = src.split('\n');
 
 // Every deactivation path (go-home, site switch, the sweep of the sites left
@@ -74,10 +71,7 @@ for (const { line, i } of pauseSites) {
 }
 
 test('WebViewModel.stopRealCapture is not folded into pauseWebView', () => {
-  const model = fs.readFileSync(
-    path.join(repoRoot, 'lib/web_view_model.dart'),
-    'utf8',
-  );
+  const model = read('lib/web_view_model.dart');
   const pauseBody = model.slice(
     model.indexOf('Future<void> pauseWebView()'),
     model.indexOf('Future<void> stopRealCapture()'),
@@ -99,30 +93,25 @@ const SHIMS = [
   'lib/services/camera_stream_shim.dart',
   'lib/services/microphone_stream_shim.dart',
 ];
+const PRELUDE = 'lib/services/capture_shim_prelude.dart';
 const REGISTRY = 'lib/services/capture_track_registry.dart';
 
 test(`${REGISTRY} is the only definer of __wsStopRealCapture`, () => {
-  const definers = [];
-  const walk = (dir) => {
-    for (const entry of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-      const rel = `${dir}/${entry.name}`;
-      if (entry.isDirectory()) walk(rel);
-      else if (entry.name.endsWith('.dart')
-        && /__wsStopRealCapture'\s*,/.test(fs.readFileSync(path.join(repoRoot, rel), 'utf8'))) {
-        definers.push(rel);
-      }
-    }
-  };
-  walk('lib');
+  const definers = dartFiles().filter((rel) => /__wsStopRealCapture'\s*,/.test(read(rel)));
   assert.deepEqual(definers, [REGISTRY],
     'a second definer would clobber the first depending on injection order');
 });
 
+test(`${PRELUDE} embeds the shared registry`, () => {
+  assert.match(read(PRELUDE), /buildRealCaptureRegistry\(\)/,
+    'every capture shim reaches the registry through the shared prelude');
+});
+
 for (const shim of SHIMS) {
   test(`${shim}: device streams go through the shared registry`, () => {
-    const shimSrc = fs.readFileSync(path.join(repoRoot, shim), 'utf8');
-    assert.match(shimSrc, /buildRealCaptureRegistry\(\)/,
-      'the shim must embed the shared registry rather than roll its own');
+    const shimSrc = read(shim);
+    assert.match(shimSrc, /captureShim\(CaptureKind\./,
+      'the shim must be built on the shared prelude rather than roll its own');
     assert.match(shimSrc, /rememberRealTracks\(/,
       'a stream this shim obtained from the platform must be registered, or '
         + 'the deactivation stop cannot end it');

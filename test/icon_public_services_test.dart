@@ -9,9 +9,9 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/outbound_http.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 
-import 'helpers/user_script_bridge_fakes.dart';
+import 'helpers/fake_outbound.dart';
 
 const _site = 'https://example.com/';
 const _google = 'https://www.google.com/s2/favicons?domain=example.com&sz=256';
@@ -19,7 +19,7 @@ const _google = 'https://www.google.com/s2/favicons?domain=example.com&sz=256';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late FakeOutboundFactory factory;
+  late FakeOutbound factory;
 
   Set<String> hosts() => factory.requested.map((u) => u.host).toSet();
 
@@ -33,7 +33,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     GlobalOutboundProxy.resetForTest();
     clearFaviconCache();
-    factory = FakeOutboundFactory(
+    factory = FakeOutbound(responder: 
         (_) => http.Response('<html><head></head></html>', 200));
     outboundHttp = factory;
   });
@@ -52,8 +52,6 @@ void main() {
   test('under Site icons only every request goes to the site', () async {
     siteIconsOnly(true);
     await getFaviconUrlStream(_site).drain<void>();
-    clearFaviconCache();
-    await getFaviconUrl(_site);
     expect(hosts(), {'example.com'});
   });
 
@@ -70,16 +68,15 @@ void main() {
     expect(before.url, _google);
 
     siteIconsOnly(true);
-    factory.requested.clear();
+    factory.requests.clear();
     final after = await getFaviconUrlStream(_site).toList();
     expect(after.map((u) => u.url), isNot(contains(_google)));
-    expect(await getFaviconUrl(_site), isNot(_google));
     expect(hosts(), {'example.com'});
   });
 
   test('the switch turned on while DuckDuckGo answers stops the fetch there',
       () async {
-    outboundHttp = factory = FakeOutboundFactory((req) {
+    outboundHttp = factory = FakeOutbound(responder: (req) {
       if (req.url.host == 'icons.duckduckgo.com') siteIconsOnly(true);
       return http.Response('<html><head></head></html>', 200);
     });
@@ -90,7 +87,7 @@ void main() {
 
   test('a service icon sent before the switch went on is not sent as final',
       () async {
-    outboundHttp = factory = FakeOutboundFactory((req) {
+    outboundHttp = factory = FakeOutbound(responder: (req) {
       if (req.url.host == 'example.com') siteIconsOnly(true);
       return http.Response('<html><head></head></html>', 200);
     });
@@ -98,15 +95,6 @@ void main() {
     expect(
         updates.where((u) => u.isFinal && isPublicIconServiceUrl(u.url)),
         isEmpty);
-  });
-
-  test('getFaviconUrl drops a service answer that lands after the switch',
-      () async {
-    outboundHttp = factory = FakeOutboundFactory((req) {
-      if (req.url.host == 'example.com') siteIconsOnly(true);
-      return http.Response('<html><head></head></html>', 200);
-    });
-    expect(isPublicIconServiceUrl(await getFaviconUrl(_site) ?? ''), isFalse);
   });
 
   test('a service URL kept on disk reads as absent under the switch',

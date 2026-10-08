@@ -5,15 +5,15 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
-    show CookieManager, SslCertificate, WebUri;
+    show CookieManager, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/experimental_features_service.dart';
-import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/http_auth_engine.dart';
@@ -25,15 +25,15 @@ import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/opensearch_engine.dart'
     show DiscoveredSearch, SiteSearchTarget;
-import 'package:webspace/services/camera_decision_engine.dart';
-import 'package:webspace/services/screen_share_decision_engine.dart';
-import 'package:webspace/services/microphone_decision_engine.dart';
+import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
+import 'package:webspace/services/site_overrides.dart';
+import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
@@ -41,20 +41,23 @@ import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
-import 'package:webspace/settings/camera.dart';
+import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/blocked_cookie.dart';
+import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
-import 'package:webspace/settings/screen_share.dart';
-import 'package:webspace/settings/microphone.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/widgets/external_url_prompt.dart' show launchUrlInSystemBrowser;
-import 'package:webspace/widgets/tor_bootstrap.dart';
-import 'package:webspace/widgets/unproxied_block.dart';
+import 'package:webspace/services/url_host.dart';
 
+export 'package:webspace/services/url_host.dart'
+    show extractDomain, getBaseDomain, getNormalizedDomain;
+export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
 
@@ -82,18 +85,19 @@ class ConsoleLogEntry {
 }
 
 
-/// Generates a unique site ID for per-site cookie isolation.
 String _generateSiteId() {
   final now = DateTime.now().microsecondsSinceEpoch;
   final random = Random().nextInt(999999);
-  return '${now.toRadixString(36)}-${random.toRadixString(36)}';
+  final id = '${now.toRadixString(36)}-${random.toRadixString(36)}';
+  assert(_kSiteIdPattern.hasMatch(id), 'a minted siteId is path-safe');
+  return id;
 }
 
 /// A siteId is concatenated into filesystem paths (HTML/import/nav-state cache
 /// filenames, native container names) and secure-storage keys, so an imported
 /// backup must not smuggle path metacharacters. Accept only a path-safe token;
 /// anything else (including `../…` traversal) returns null so the caller mints
-/// a fresh id. Minted ids (`<base36>-<base36>`) always match.
+/// a fresh id.
 final RegExp _kSiteIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
 
 String? sanitizedSiteId(Object? raw) {
@@ -123,351 +127,13 @@ String generateFingerprintResetNonce() {
   return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }
 
-String extractDomain(String url) {
-  Uri uri = Uri.tryParse(url) ?? Uri();
-  String? domain = uri.host;
-  return domain.isEmpty ? url : domain;
-}
-
-/// Common multi-part TLDs (country-code second-level domains)
-/// These need special handling because the TLD is effectively two parts (e.g., .co.uk)
-const Set<String> _multiPartTlds = {
-  'co.uk', 'org.uk', 'me.uk', 'ac.uk', 'gov.uk',
-  'com.au', 'net.au', 'org.au', 'edu.au', 'gov.au',
-  'co.nz', 'net.nz', 'org.nz', 'govt.nz',
-  'co.jp', 'ne.jp', 'or.jp', 'ac.jp', 'go.jp',
-  'com.br', 'net.br', 'org.br', 'gov.br',
-  'co.in', 'net.in', 'org.in', 'gov.in',
-  'com.mx', 'org.mx', 'gob.mx',
-  'co.za', 'org.za', 'gov.za',
-  'com.sg', 'org.sg', 'gov.sg', 'edu.sg',
-  'co.kr', 'or.kr', 'go.kr',
-  'com.cn', 'net.cn', 'org.cn', 'gov.cn',
-  'com.tw', 'org.tw', 'gov.tw',
-  'com.hk', 'org.hk', 'gov.hk',
-  'co.id', 'or.id', 'go.id',
-  'com.ph', 'org.ph', 'gov.ph',
-  'co.th', 'or.th', 'go.th',
-  'com.vn', 'gov.vn',
-  'com.my', 'org.my', 'gov.my',
-  'co.il', 'org.il', 'gov.il',
-  'com.tr', 'org.tr', 'gov.tr',
-  'com.pl', 'org.pl', 'gov.pl',
-  'co.de', 'com.de',
-  'com.fr', 'org.fr', 'gouv.fr',
-  'co.it', 'org.it', 'gov.it',
-  'co.es', 'org.es', 'gob.es',
-  'co.nl', 'org.nl',
-  'com.ar', 'org.ar', 'gov.ar',
-  'com.ru', 'org.ru', 'gov.ru',
-};
-
-/// Private suffixes: single registrants who hand out subdomains to mutually
-/// untrusting third parties. Without these, `victim.github.io` and
-/// `attacker.github.io` share a base domain — same cookie container, and
-/// `NavigationDecisionEngine` reads a hop between them as same-site.
-const Set<String> _privateSuffixes = {
-  'github.io',
-  'pages.dev',
-  'workers.dev',
-  'vercel.app',
-  'netlify.app',
-  'web.app',
-  'firebaseapp.com',
-  'appspot.com',
-  'azurewebsites.net',
-  'herokuapp.com',
-  'myshopify.com',
-  'blogspot.com',
-  'wordpress.com',
-};
-
-/// Second-level labels that a two-letter ccTLD registry almost always
-/// operates as a public suffix (`co.uk`, `com.au`, `ne.jp`, …). Used only
-/// where [_multiPartTlds] has no entry for the pair: guessing that the pair
-/// is registrable would put every registrant under it — `a.com.ke` and
-/// `b.com.ke` — into one site.
-const Set<String> _ambiguousCcTldSecondLevels = {
-  'co', 'com', 'net', 'org', 'edu', 'gov', 'govt',
-  'gob', 'gouv', 'ac', 'ne', 'or', 'go', 'mil', 'int',
-};
-
-/// Checks if a string is an IPv4 address.
-bool _isIPv4Address(String host) {
-  final parts = host.split('.');
-  if (parts.length != 4) return false;
-  for (final part in parts) {
-    final num = int.tryParse(part);
-    if (num == null || num < 0 || num > 255) return false;
-  }
-  return true;
-}
-
-/// Checks if a string is an IPv6 address (with or without brackets).
-bool _isIPv6Address(String host) {
-  // Remove brackets if present (e.g., [::1] -> ::1)
-  final cleaned = host.startsWith('[') && host.endsWith(']')
-      ? host.substring(1, host.length - 1)
-      : host;
-  // Simple check: contains colons and valid hex characters
-  if (!cleaned.contains(':')) return false;
-  final validChars = RegExp(r'^[0-9a-fA-F:]+$');
-  return validChars.hasMatch(cleaned);
-}
-
-/// Extracts the second-level domain (SLD + TLD) from a URL.
-/// Used for cookie isolation - all subdomains of the same second-level domain
-/// will have their webviews mutually excluded.
-/// Handles multi-part TLDs like .co.uk, .com.au, etc.
-/// IP addresses are returned as-is (they don't have subdomains).
-/// Example: 'mail.google.com' -> 'google.com'
-/// Example: 'api.github.com' -> 'github.com'
-/// Example: 'www.google.co.uk' -> 'google.co.uk'
-/// Example: 'victim.github.io' -> 'victim.github.io'
-/// Example: '192.168.1.1' -> '192.168.1.1'
-/// Example: '[::1]' -> '[::1]'
-///
-/// There is no public suffix list here (a vendored PSL would be a committed
-/// derivative). The table covers the common ccTLD second levels plus the
-/// [_privateSuffixes] that hand subdomains to strangers; anything else that
-/// *looks* like a registry suffix resolves to per-host isolation rather than
-/// a guess, since guessing low merges unrelated sites.
-String getBaseDomain(String url) {
-  final host = extractDomain(url);
-
-  // IP addresses should be returned as-is - they're already unique identifiers
-  if (_isIPv4Address(host) || _isIPv6Address(host)) {
-    return host;
-  }
-
-  final parts = host.split('.');
-
-  if (parts.length >= 3) {
-    // Check if the last two parts form a multi-part TLD
-    final possibleTld = '${parts[parts.length - 2]}.${parts.last}';
-    if (_multiPartTlds.contains(possibleTld) ||
-        _privateSuffixes.contains(possibleTld)) {
-      // Return third-to-last part + multi-part TLD (e.g., google.co.uk)
-      return '${parts[parts.length - 3]}.$possibleTld';
-    }
-    // The pair looks like a registry suffix the table doesn't list. Resolve
-    // it the over-isolating way — assume it IS a suffix — so unrelated
-    // registrants never collapse into one site. With no label above it
-    // (`a.com.ke`) that degrades to host equality.
-    if (parts.last.length == 2 &&
-        _ambiguousCcTldSecondLevels.contains(parts[parts.length - 2])) {
-      return '${parts[parts.length - 3]}.$possibleTld';
-    }
-  }
-
-  if (parts.length >= 2) {
-    return '${parts[parts.length - 2]}.${parts.last}';
-  }
-  return host;
-}
-
-/// Domain aliases for treating different domains as equivalent for navigation.
-/// Key is the alias domain, value is the canonical domain.
-/// Used ONLY for nested webview URL blocking (not cookie isolation).
-/// All Google properties (gmail.com, regional domains, etc.) are treated as google.com.
-const Map<String, String> _domainAliases = {
-  'gmail.com': 'google.com',
-  // YouTube is part of Google's SSO family — `accounts.youtube.com/SetSID`
-  // is a mandatory hop when signing into play.google.com, gmail, etc.,
-  // since Google syncs session cookies into the YouTube jar. Without this
-  // alias, the nested-webview guard treats the SetSID redirect as a
-  // cross-domain navigation, opens it in a nested browser, and the main
-  // webview never receives the redirect-back — the user gets stuck
-  // looking "signed out" despite completing the SSO flow.
-  'youtube.com': 'google.com',
-  'youtu.be': 'google.com',
-  'youtube-nocookie.com': 'google.com',
-  // Discord
-  'discordapp.com': 'discord.com',
-  'discord.gg': 'discord.com',
-  // Hugging Face
-  'hf.co': 'huggingface.co',
-  // Anthropic / Claude
-  'claude.ai': 'anthropic.com',
-  // OpenAI / ChatGPT
-  'chatgpt.com': 'openai.com',
-  // Regional Google domains
-  'google.co.uk': 'google.com',
-  'google.com.au': 'google.com',
-  'google.co.jp': 'google.com',
-  'google.co.in': 'google.com',
-  'google.de': 'google.com',
-  'google.fr': 'google.com',
-  'google.es': 'google.com',
-  'google.it': 'google.com',
-  'google.nl': 'google.com',
-  'google.pl': 'google.com',
-  'google.ru': 'google.com',
-  'google.com.br': 'google.com',
-  'google.com.mx': 'google.com',
-  'google.ca': 'google.com',
-  'google.co.kr': 'google.com',
-  'google.com.tw': 'google.com',
-  'google.com.hk': 'google.com',
-  'google.co.id': 'google.com',
-  'google.co.th': 'google.com',
-  'google.com.vn': 'google.com',
-  'google.com.ph': 'google.com',
-  'google.com.my': 'google.com',
-  'google.com.sg': 'google.com',
-  'google.co.nz': 'google.com',
-  'google.co.za': 'google.com',
-  'google.com.ar': 'google.com',
-  'google.cl': 'google.com',
-  'google.com.co': 'google.com',
-  'google.com.tr': 'google.com',
-  'google.co.il': 'google.com',
-  'google.ae': 'google.com',
-  'google.com.sa': 'google.com',
-  'google.com.eg': 'google.com',
-  'google.com.pk': 'google.com',
-  'google.com.ng': 'google.com',
-  'google.be': 'google.com',
-  'google.at': 'google.com',
-  'google.ch': 'google.com',
-  'google.se': 'google.com',
-  'google.no': 'google.com',
-  'google.dk': 'google.com',
-  'google.fi': 'google.com',
-  'google.ie': 'google.com',
-  'google.pt': 'google.com',
-  'google.cz': 'google.com',
-  'google.ro': 'google.com',
-  'google.hu': 'google.com',
-  'google.gr': 'google.com',
-};
-
-/// Normalizes a domain by applying aliases and extracting second-level domain.
-/// Used for nested webview URL blocking - determines if navigation stays in same webview.
-/// Handles multi-part TLDs like .co.uk, .com.au, etc.
-/// Example: 'mail.google.com' -> 'google.com' (second-level)
-/// Example: 'gmail.com' -> 'google.com' (alias)
-/// Example: 'www.google.co.uk' -> 'google.com' (second-level extracted, then aliased)
-String getNormalizedDomain(String url) {
-  final host = extractDomain(url);
-
-  // Check if the full host has an alias
-  if (_domainAliases.containsKey(host)) {
-    return _domainAliases[host]!;
-  }
-
-  // Extract base domain
-  final secondLevel = getBaseDomain(url);
-
-  // Check if the second-level domain has an alias
-  if (_domainAliases.containsKey(secondLevel)) {
-    return _domainAliases[secondLevel]!;
-  }
-
-  return secondLevel;
-}
-
-/// A cookie blocked by name + domain, per-site.
-/// When a cookie matches, it is deleted from the webview after each page load
-/// and skipped during cookie restore.
-class BlockedCookie {
-  final String name;
-  final String domain;
-
-  const BlockedCookie({required this.name, required this.domain});
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is BlockedCookie && name == other.name && domain == other.domain;
-
-  @override
-  int get hashCode => Object.hash(name, domain);
-
-  Map<String, dynamic> toJson() => {'name': name, 'domain': domain};
-
-  factory BlockedCookie.fromJson(Map<String, dynamic> json) =>
-      BlockedCookie(name: json['name'] as String, domain: json['domain'] as String);
-}
-
-/// True if (name, domain) matches one of [blocked]. Domain match is
-/// bidirectional-suffix so a block on `example.com` also covers
-/// `.a.example.com` and vice versa. Free function so the nested webview
-/// screen, which has no [WebViewModel], applies the same rule.
-bool matchesBlockedCookie(
-  Set<BlockedCookie> blocked,
-  String name,
-  String? domain,
-) {
-  if (blocked.isEmpty) return false;
-  return blocked.any((b) =>
-      b.name == name &&
-      (domain != null &&
-          (b.domain == domain ||
-              domain.endsWith('.${b.domain}') ||
-              b.domain.endsWith('.$domain'))));
-}
-
-/// The host's hook into a site's own navigation: called with a link the
-/// navigation engine decided to nest, send to the system browser (outbound
-/// routing, LIR-014) or block (NESTED-009, so the host can say so). True
-/// means the host took the link over and the caller must not also launch it;
-/// false means the caller's own path runs.
-typedef OutboundLinkHandler = bool Function(
-    String url, NavigationDecision decision, bool hadGesture);
-
-/// Opens [url] in a nested `InAppWebViewScreen` carrying the opening site's
-/// posture. Implemented by `_WebSpacePageState.launchUrl`.
-///
-/// Every per-site field the parent webview applies has to appear here, or an
-/// outbound link silently escapes it — see CLAUDE.md, "Per-site settings MUST
-/// apply to nested webviews", for the five call sites a new field touches.
+/// Opens [url] in a nested `InAppWebViewScreen` that runs as the opening
+/// site, under [posture] (see [SitePosture], which a new per-site field joins
+/// rather than this signature). Implemented by `_WebSpacePageState.launchUrl`.
 typedef LaunchUrlFunc = void Function(
-  String url, {
+  String url,
+  SitePosture posture, {
   String? homeTitle,
-  required String? siteId,
-  String? archiveContainerId,
-  required bool incognito,
-  required bool thirdPartyCookiesEnabled,
-  required bool httpsUpgradeEnabled,
-  required bool clearUrlEnabled,
-  required bool dnsBlockEnabled,
-  int? dnsBlockLevel,
-  required bool contentBlockEnabled,
-  Set<String> disabledFilterLists,
-  required bool localCdnEnabled,
-  required bool contributesBlockStats,
-  required bool trackingProtectionEnabled,
-  bool letterboxEnabled,
-  int? spoofWindowWidth,
-  int? spoofWindowHeight,
-  String? fingerprintResetNonce,
-  required String? language,
-  required int zoomPercent,
-  LocationMode locationMode,
-  double? spoofLatitude,
-  double? spoofLongitude,
-  double spoofAccuracy,
-  String? spoofTimezone,
-  bool spoofTimezoneFromLocation,
-  LocationGranularity liveLocationGranularity,
-  WebRtcPolicy webRtcPolicy,
-  String? userAgent,
-  bool javascriptEnabled,
-  required List<UserScriptConfig> userScripts,
-  UserProxySettings? proxySettings,
-  bool notificationsEnabled,
-  ExternalLinkMode externalLinkMode,
-  Set<BlockedCookie> blockedCookies,
-  CameraAccessMode cameraMode,
-  VirtualCameraSource? virtualCameraSource,
-  MicrophoneAccessMode microphoneMode,
-  VirtualMicrophoneSource? virtualMicrophoneSource,
-  ScreenShareMode screenShareMode,
-  VirtualScreenSource? virtualScreenSource,
-  bool? protectedContentAllowed,
-  HttpAuthMemory httpAuthMemory,
-  bool passkeys,
 });
 
 /// Interpret a renderer-health probe result. The probe reads
@@ -479,9 +145,9 @@ typedef LaunchUrlFunc = void Function(
 /// `null` means gone; every numeric value is alive.
 bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;
 
-class WebViewModel {
-  final String siteId; // Unique ID for per-site cookie isolation
-  String initUrl; // Made non-final to allow URL editing
+class WebViewModel implements MediaGrantRecord {
+  final String siteId;
+  String initUrl;
 
   /// This site's tabs, in tree order (a child follows its parent). Never
   /// empty. Exactly one of them — [activeTabId] — is bound to the site's
@@ -492,8 +158,11 @@ class WebViewModel {
   /// The tab the site's webview is showing. Always names a member of [tabs].
   late String activeTabId;
 
-  SiteTab get activeTab =>
-      tabs.firstWhere((t) => t.id == activeTabId, orElse: () => tabs.first);
+  SiteTab get activeTab {
+    final tab = tabs.where((t) => t.id == activeTabId).firstOrNull;
+    assert(tab != null, 'activeTabId $activeTabId is not among the tabs');
+    return tab ?? tabs.first;
+  }
 
   /// The URL this site is showing: the active tab's. A setter rather than a
   /// field so every existing `model.currentUrl = …` writer keeps working and
@@ -587,7 +256,8 @@ class WebViewModel {
 
   /// A kiosk site runs as one page, never with tabs (TAB-013). Turning tabs
   /// off this way keeps the tab list, as the app-wide switch does (TAB-012).
-  bool get effectiveTabsEnabled => tabsEnabled && !kioskMode;
+  bool get effectiveTabsEnabled =>
+      resolveTabs(tabs: tabsEnabled, kiosk: kioskMode);
 
   /// The colour this site's container is drawn in, as an index into the
   /// container palette (TAB-018). Given once, when the site first needs one,
@@ -596,7 +266,7 @@ class WebViewModel {
 
   /// Put a site that has no webview yet on a tab at its home page, as Always
   /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on
-  /// stays in the list; without, that tab is sent home, as before tabs.
+  /// stays in the list; without, that tab is sent home.
   void landAtHome({required bool tabsOn}) {
     if (tabsOn) {
       final landing =
@@ -629,7 +299,7 @@ class WebViewModel {
     activeTab.lastActiveAt = DateTime.now();
   }
 
-  String name; // Custom name for the site
+  String name;
   List<Cookie> cookies;
   Widget? webview;
   /// Destination of the last main-frame navigation this site's webview
@@ -691,15 +361,16 @@ class WebViewModel {
   /// betray that an archive exists: a per-site level pins a downloaded level
   /// file, and a per-site list selection rewrites the shared engine cache
   /// blob. Archive sites run the app-wide posture instead.
-  int? get effectiveDnsBlockLevel => isArchiveTier ? null : dnsBlockLevel;
+  int? get effectiveDnsBlockLevel =>
+      ArchiveFold.dnsBlockLevel(dnsBlockLevel, archived: isArchiveTier);
 
-  Set<String> get effectiveDisabledFilterLists =>
-      isArchiveTier ? const <String>{} : disabledFilterLists;
+  Set<String> get effectiveDisabledFilterLists => ArchiveFold.disabledFilterLists(
+      disabledFilterLists, archived: isArchiveTier);
   /// Umbrella per-site Enhanced Tracking Protection: when true, applies
   /// the anti-fingerprinting JS shim (Canvas/WebGL/audio/fonts/screen/
   /// hardware/timing) AND forces clearUrlEnabled, dnsBlockEnabled, and
   /// contentBlockEnabled to behave as on regardless of their own value.
-  /// When false, the three sub-toggles act independently as before.
+  /// When false, the three sub-toggles act independently.
   bool trackingProtectionEnabled;
   bool localCdnEnabled; // Serve CDN resources from local cache for privacy
   /// Where a cross-domain link that is not covered by this site's domain
@@ -746,63 +417,37 @@ class WebViewModel {
   /// the origin provision a Widevine device identifier, so the default is
   /// "ask" rather than always-on. Android-only: WKWebView (iOS/macOS) has no
   /// EME/Widevine support and never issues this request.
+  @override
   bool? protectedContentAllowed;
-  /// Remembered per-site decision for web camera access (camera-only
-  /// getUserMedia, e.g. a banking site's QR scanner). [CameraAccessMode.ask]
-  /// (default) shows the Block/Use-file/Allow popup on the first request;
-  /// `real` hands over the device camera; `virtual` serves
-  /// [virtualCameraSource] as a synthetic stream; `block` denies silently.
-  /// Only user intent is stored: the app-level CAMERA runtime permission on
-  /// Android is re-checked at every real grant (CameraPermissionService), so
-  /// an OS-level denial never gets frozen into a per-site Block.
-  CameraAccessMode cameraMode;
-  /// Image or looped video served to the page in [CameraAccessMode.virtual].
-  /// Bytes live inline as a `data:` URL so the shim can hand them to an
-  /// `<img>`/`<video>` element. Null until the user picks a file.
-  VirtualCameraSource? virtualCameraSource;
-  /// Remembered per-site decision for web microphone access (any
-  /// `getUserMedia` asking for audio). [MicrophoneAccessMode.ask] (default)
-  /// shows the Block/Use-audio-file popup on the first request; `virtual`
-  /// loops [virtualMicrophoneSource] as the microphone; `block` denies
-  /// silently. There is no mode that opens the real device — the app never
-  /// asks the OS for a recording permission.
-  MicrophoneAccessMode microphoneMode;
-  /// Audio clip looped as the microphone in [MicrophoneAccessMode.virtual].
-  /// Bytes live inline as a `data:` URL so the shim can decode them with
-  /// WebAudio. Null until the user picks a file.
-  VirtualMicrophoneSource? virtualMicrophoneSource;
-  /// Remembered per-site decision for screen sharing (`getDisplayMedia`).
-  /// [ScreenShareMode.ask] (default) shows the Block/Use-file popup on the
-  /// first request; `virtual` serves [virtualScreenSource] as the shared
-  /// surface; `block` denies silently. There is no mode that captures the
-  /// real display — a display capture is whole-surface, so granting one would
-  /// hand the site every other site in the webspace.
-  ScreenShareMode screenShareMode;
-  /// Image or looped video served as the shared surface in
-  /// [ScreenShareMode.virtual]. Bytes live inline as a `data:` URL so the shim
-  /// can hand them to an `<img>`/`<video>` element. Null until the user picks
-  /// a file.
-  VirtualScreenSource? virtualScreenSource;
-  List<UserScriptConfig> userScripts; // Per-site user scripts
+  /// Remembered per-site camera, microphone and screen-sharing decisions,
+  /// with the file each `virtual` mode serves. An untouched kind asks on the
+  /// first request. Only user intent is stored: Android's app-level CAMERA
+  /// permission is re-checked at every real grant, so an OS-level denial is
+  /// never frozen into a per-site Block.
+  @override
+  CaptureGrants captures;
+  List<UserScriptConfig> userScripts;
   /// IDs of global user scripts opted into for this site. Global scripts
   /// are stored once in app state (shared source/URL) and each site
   /// independently enables which ones to inject.
   Set<String> enabledGlobalScriptIds;
-  Set<BlockedCookie> blockedCookies; // Per-site blocked cookies (name + domain)
+  Set<BlockedCookie> blockedCookies;
   LocationMode locationMode;
   double? spoofLatitude;
   double? spoofLongitude;
   /// Coordinate accuracy in meters reported to the spoofed Position.
   double spoofAccuracy;
   /// IANA timezone name to expose via [Intl.DateTimeFormat] and
-  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone.
+  /// [Date.prototype.getTimezoneOffset]. Null leaves the real zone. Holds
+  /// the effective zone, a "From picked location" one included, so every
+  /// webview applies this and nothing else.
   String? spoofTimezone;
-  /// When true, the effective spoof timezone is derived from
-  /// (spoofLatitude, spoofLongitude) at shim-build time via
-  /// [TimezoneLocationService]. [spoofTimezone] is ignored in that case
-  /// (it stays null; the field is mutually exclusive). Resolution happens
-  /// in `webview.dart`, not here, because it depends on a separately-
-  /// loadable polygon dataset that may not be present.
+  /// The user picked "From picked location" rather than a zone. The zone is
+  /// resolved from the coordinates where the polygon dataset is loaded (at
+  /// settings save, and for a site saved before that on startup; Tracking
+  /// Protection forces it when coordinates are set, see
+  /// `derivesTimezoneFromLocation`) and stored in [spoofTimezone]. A UI and
+  /// re-resolution marker only: no webview reads it.
   bool spoofTimezoneFromLocation;
   /// Granularity applied to the real GPS fix surfaced by
   /// [LocationMode.live]. [LocationGranularity.gps] (default) reports
@@ -813,11 +458,6 @@ class WebViewModel {
   /// [LocationMode.spoof].
   LocationGranularity liveLocationGranularity;
   WebRtcPolicy webRtcPolicy;
-  /// User-set window content size reported to the page by the
-  /// anti-fingerprinting shim (`window.innerWidth`/`innerHeight`). Both must
-  /// be set and positive to take effect; when either is null the shim picks
-  /// a stable, plausible desktop window size seeded by [siteId]. Only applied
-  /// when [trackingProtectionEnabled] is on, since the shim is gated on it.
   /// When true, the site's WebView is rendered in a Tor-style letterbox: a
   /// centered box snapped to a 200x100 grid of the available area (or exactly
   /// [spoofWindowWidth] x [spoofWindowHeight] when both are set), with margin
@@ -858,8 +498,14 @@ class WebViewModel {
   bool routeOutboundLinks;
 
   /// This site's own routing rules, consulted before the global claims
-  /// (LIR-014). At most one entry per claim.
-  List<OutboundPreference> outboundPreferences;
+  /// (LIR-014).
+  List<OutboundPreference> get outboundPreferences => _outboundPreferences;
+  set outboundPreferences(List<OutboundPreference> value) {
+    assert(_onePerClaim(value), 'at most one outbound preference per claim');
+    _outboundPreferences = value;
+  }
+
+  List<OutboundPreference> _outboundPreferences;
 
   /// How to search this site (LIR-028): an address with `%s` for the query.
   /// Null means the address its host is known for, if any.
@@ -920,9 +566,9 @@ class WebViewModel {
     return true;
   }
 
-  /// View used by the resolver — always non-empty: returns the explicit
-  /// `domainClaims` if the user has set them, otherwise the synthesized
-  /// `[baseDomain(getBaseDomain(initUrl))]` per LIR-001.
+  /// View used by the resolver: the explicit `domainClaims` if the user has
+  /// set them, otherwise the synthesized `[baseDomain(getBaseDomain(initUrl))]`
+  /// per LIR-001, which is empty for an [initUrl] with no host.
   List<DomainClaim> get effectiveDomainClaims {
     final explicit = domainClaims;
     if (explicit != null && explicit.isNotEmpty) return explicit;
@@ -1013,26 +659,21 @@ class WebViewModel {
   /// polling or `flutter_local_notifications` delivery regardless of
   /// stored value.
   bool get effectiveNotificationsEnabled =>
-      isArchiveTier ? false : notificationsEnabled;
+      ArchiveFold.notifications(notificationsEnabled, archived: isArchiveTier);
 
   /// Effective background-audio enable. Archive-tier sites never opt out
   /// of lifecycle pausing: audibly playing while the app looks idle (and
   /// surfacing in the OS now-playing UI) would reveal an open archive
   /// (ARCH-006).
-  bool get effectiveBackgroundAudioEnabled =>
-      isArchiveTier ? false : backgroundAudioEnabled;
+  bool get effectiveBackgroundAudioEnabled => ArchiveFold.backgroundAudio(
+      backgroundAudioEnabled, archived: isArchiveTier);
 
-  /// Effective LocalCDN cache write enable. Archive-tier sites never
-  /// write the per-site CDN cache to disk regardless of stored value.
-  bool get effectiveLocalCdnEnabled =>
-      isArchiveTier ? false : localCdnEnabled;
-
-  /// Effective HTML-cache enable. Archive-tier sites never write the
-  /// encrypted-at-rest HTML cache (the cache file path is keyed by
-  /// `siteId`, so its existence would correlate to specific archive
-  /// sites on disk inspection — ARCH-006).
-  bool get effectiveHtmlCachingEnabled =>
-      isArchiveTier ? false : htmlCachingEnabled;
+  /// Forced on by Tracking Protection (ETP-002), but the archive fold comes
+  /// last: an archive-tier site never uses LocalCDN (ARCH-006).
+  bool get effectiveLocalCdnEnabled => ArchiveFold.localCdn(
+      _forcedByTrackingProtection(
+          TrackingProtectionForce.localCdn, localCdnEnabled),
+      archived: isArchiveTier);
 
   /// Whether this site's block events roll into the app-wide protection
   /// report. Archive-tier sites never do: the report's counters live in
@@ -1061,7 +702,8 @@ class WebViewModel {
   /// browsing state on disk, contradicting the spec's "nothing survives a
   /// session beyond cookies." The stored value is preserved for when the
   /// site is moved back out of the archive.
-  bool get effectiveIncognito => isArchiveTier ? true : incognito;
+  bool get effectiveIncognito =>
+      ArchiveFold.incognito(incognito, archived: isArchiveTier);
 
   /// What the site may do with sign-ins typed into the HTTP authentication
   /// prompt (HTTPAUTH-004). Archive-tier sites neither read nor save: the
@@ -1078,16 +720,21 @@ class WebViewModel {
   /// list-based subordinates it already forces on, except that this one is
   /// forced *off* rather than on.
   bool get effectiveThirdPartyCookiesEnabled =>
-      trackingProtectionEnabled ? false : thirdPartyCookiesEnabled;
+      _forcedByTrackingProtection(
+          TrackingProtectionForce.thirdPartyCookies, thirdPartyCookiesEnabled);
 
   /// Effective HTTPS upgrade decision. Tracking Protection forces it on
   /// (ETP-030); otherwise the site's own override, or the app-wide default
   /// when it has none. Unlike ETP-002's subordinates this is NOT off when the
   /// umbrella is off: turning the umbrella off to make a site work must not be
   /// what moves a login page to cleartext.
-  bool get effectiveHttpsUpgradeEnabled => trackingProtectionEnabled
-      ? true
-      : (httpsUpgradeEnabled ?? WebViewFactory.httpsUpgradeEnabled);
+  bool get effectiveHttpsUpgradeEnabled => _forcedByTrackingProtection(
+      TrackingProtectionForce.httpsUpgrade,
+      Scoped.fromStored(httpsUpgradeEnabled)
+          .resolve(AppPref.httpsUpgradeEnabled.value));
+
+  bool _forcedByTrackingProtection(TrackingProtectionForce force, bool stored) =>
+      force.resolve(stored, trackingProtection: trackingProtectionEnabled);
 
   /// Tracking Protection on a proxied site never runs direct WebRTC
   /// (ETP-031). "Proxied" follows the same ladder as the webview's own
@@ -1096,7 +743,8 @@ class WebViewModel {
   WebRtcPolicy get effectiveWebRtcPolicy => resolveWebRtcPolicy(
         stored: webRtcPolicy,
         trackingProtectionEnabled: trackingProtectionEnabled,
-        proxied: resolveEffectiveProxy(proxySettings).type != ProxyType.DEFAULT,
+        proxied: resolveEffectiveProxy(proxySettings, siteId: siteId).type !=
+            ProxyType.DEFAULT,
       );
 
   /// Effective protected-content (Widevine/EME) decision. Archive-tier
@@ -1108,38 +756,24 @@ class WebViewModel {
   /// fingerprint randomization and data clears. Both deny without
   /// prompting (false, never null = never "ask"); the stored value is
   /// preserved for when the umbrella is turned off.
-  bool? get effectiveProtectedContentAllowed =>
-      (isArchiveTier || trackingProtectionEnabled)
-          ? false
-          : protectedContentAllowed;
+  bool? get effectiveProtectedContentAllowed => resolveProtectedContent(
+      protectedContentAllowed,
+      archived: isArchiveTier,
+      trackingProtection: trackingProtectionEnabled);
 
-  /// Effective camera-access mode. Archive-tier sites are forced to
-  /// [CameraAccessMode.block] regardless of stored value: the permission
-  /// popup and Android's OS permission dialog are OS-level UI, which
-  /// ARCH-006 forbids for archive sites. Blocked without prompting; the
-  /// stored value is preserved for when the site leaves the archive.
-  /// Unlike protected content, Tracking Protection does not force block:
-  /// capture only starts after an explicit per-site Allow (real) or a
-  /// user-picked file (virtual), so it is not a silent tracking vector the
-  /// umbrella needs to close.
-  CameraAccessMode get effectiveCameraMode =>
-      isArchiveTier ? CameraAccessMode.block : cameraMode;
+  /// What the site captures with. Archive-tier sites are blocked for every
+  /// kind (ARCH-006), the stored decisions and files kept for when the site
+  /// leaves the archive. Tracking Protection forces nothing here: capture
+  /// only starts after an explicit per-site Allow or a user-picked file, so it
+  /// is not a silent tracking vector the umbrella needs to close.
+  CaptureGrants get effectiveCaptures =>
+      ArchiveFold.captures(captures, archived: isArchiveTier);
 
-  /// Effective microphone-access mode. Archive-tier sites are forced to
-  /// [MicrophoneAccessMode.block] regardless of stored value: the permission
-  /// popup and the file picker are OS-level UI, which ARCH-006 forbids for
-  /// archive sites. Blocked without prompting; the stored value and any
-  /// picked clip are preserved for when the site leaves the archive.
-  MicrophoneAccessMode get effectiveMicrophoneMode =>
-      isArchiveTier ? MicrophoneAccessMode.block : microphoneMode;
-
-  /// Effective screen-sharing mode. Archive-tier sites are forced to
-  /// [ScreenShareMode.block] regardless of stored value: the permission popup
-  /// and the file picker are OS-level UI, which ARCH-006 forbids for archive
-  /// sites. Blocked without prompting; the stored value and any picked source
-  /// are preserved for when the site leaves the archive.
-  ScreenShareMode get effectiveScreenShareMode =>
-      isArchiveTier ? ScreenShareMode.block : screenShareMode;
+  @override
+  SiteMedia get effectiveMedia => (
+    capture: effectiveCaptures,
+    protectedContent: effectiveProtectedContentAllowed,
+  );
 
   /// Passkeys (PASSKEY-001): every site but an archive-tier one. The system
   /// passkey sheet is OS-level UI naming the relying party, and a created
@@ -1152,36 +786,79 @@ class WebViewModel {
   /// boundary (ARCH-006), so a stored [ExternalLinkMode.browser] keeps links
   /// in-app there. Blocking crosses nothing and stays in force.
   ExternalLinkMode get effectiveExternalLinkMode =>
-      isArchiveTier && externalLinkMode == ExternalLinkMode.browser
-          ? ExternalLinkMode.inApp
-          : externalLinkMode;
+      ArchiveFold.externalLinks(externalLinkMode, archived: isArchiveTier);
 
   /// Outbound routing is an option of the in-app mode (LIR-014): in any
   /// other mode the switch is hidden and its stored value inert.
-  bool get effectiveRouteOutboundLinks =>
-      routeOutboundLinks && externalLinkMode == ExternalLinkMode.inApp;
+  bool get effectiveRouteOutboundLinks => resolveRouteOutboundLinks(
+      route: routeOutboundLinks, mode: externalLinkMode);
+
+  /// Everything a webview that runs as this site applies (CLAUDE.md, "Per-site
+  /// settings MUST apply to nested webviews"). The archive tier's overrides
+  /// come from the `effective*` getters above; Tracking Protection's forced
+  /// subordinates are applied here, by the rules in site_overrides.dart
+  /// (ETP-002). Read at the moment a surface is built, so a link opened later
+  /// carries the decisions made since. [globalUserScripts] is the app's list,
+  /// of which the site opts into some.
+  SitePosture sitePosture({required List<UserScriptConfig> globalUserScripts}) {
+    final tp = trackingProtectionEnabled;
+    bool forced(TrackingProtectionForce force, bool stored) =>
+        _forcedByTrackingProtection(force, stored);
+    return SitePosture(
+      siteId: siteId,
+      container: (
+        archiveContainerId: archiveContainerId,
+        incognito: effectiveIncognito,
+        proxy: outboundProxySettings,
+        thirdPartyCookies: effectiveThirdPartyCookiesEnabled,
+        httpAuthMemory: effectiveHttpAuthMemory,
+        passkeys: effectivePasskeysEnabled,
+      ),
+      blocking: (
+        clearUrls: forced(TrackingProtectionForce.clearUrls, clearUrlEnabled),
+        dns: forced(TrackingProtectionForce.dnsBlock, dnsBlockEnabled),
+        dnsLevel: effectiveDnsBlockLevel,
+        contentBlock:
+            forced(TrackingProtectionForce.contentBlock, contentBlockEnabled),
+        localCdn: effectiveLocalCdnEnabled,
+        httpsUpgrade: effectiveHttpsUpgradeEnabled,
+        contributesStats: contributesBlockStats,
+        blockedCookies: blockedCookies,
+      ),
+      fingerprint: (
+        trackingProtection: tp,
+        letterbox: letterboxEnabled,
+        windowWidth: spoofWindowWidth,
+        windowHeight: spoofWindowHeight,
+        resetNonce: fingerprintResetNonce,
+      ),
+      location: (
+        mode: locationMode,
+        latitude: spoofLatitude,
+        longitude: spoofLongitude,
+        accuracy: spoofAccuracy,
+        timezone: spoofTimezone,
+        granularity: liveLocationGranularity,
+        webRtc: effectiveWebRtcPolicy,
+      ),
+      media: effectiveMedia,
+      page: (
+        javascript: javascriptEnabled,
+        userAgent: effectiveUserAgentOrNull,
+        language: language,
+        zoomPercent: zoomPercent,
+        userScripts: combineUserScripts(globalUserScripts),
+        externalLinks: effectiveExternalLinkMode,
+        notifications: effectiveNotificationsEnabled,
+      ),
+    );
+  }
 
   final List<ConsoleLogEntry> consoleLogs = [];
   static const _maxConsoleLogs = 500;
   VoidCallback? onConsoleLogChanged;
 
   String? defaultUserAgent;
-  /// In-flight protected-content decision. A page can fire several
-  /// `PROTECTED_MEDIA_ID` requests in a burst while EME initializes; this
-  /// coalesces them onto a single Allow/Block popup instead of stacking
-  /// dialogs. Cleared once [protectedContentAllowed] is recorded.
-  Future<bool>? _protectedMediaDecisionInFlight;
-  /// Orchestrates camera-request resolution (decide → coalesce → persist).
-  /// The engine holds the in-flight future that shares one popup / file-pick
-  /// across a burst of `getUserMedia` retries.
-  final CameraDecisionEngine _cameraEngine = CameraDecisionEngine();
-  /// Orchestrates microphone-request resolution (decide → coalesce →
-  /// persist), same contract as [_cameraEngine].
-  final MicrophoneDecisionEngine _microphoneEngine = MicrophoneDecisionEngine();
-  /// Orchestrates screen-sharing resolution (decide → coalesce → persist),
-  /// same contract as [_cameraEngine].
-  final ScreenShareDecisionEngine _screenShareEngine =
-      ScreenShareDecisionEngine();
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
   /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
@@ -1232,8 +909,7 @@ class WebViewModel {
       : renderUserAgentPreset(
           uaPreset!, FirefoxUserAgentService.instance.versionString);
 
-  /// [effectiveUserAgent] in the null-for-unset form `WebViewConfig` and
-  /// `launchUrlFunc` expect.
+  /// [effectiveUserAgent] in the null-for-unset form the webview expects.
   String? get effectiveUserAgentOrNull {
     final ua = effectiveUserAgent;
     return ua.isEmpty ? null : ua;
@@ -1297,19 +973,14 @@ class WebViewModel {
     this.notificationsEnabled = false,
     this.backgroundAudioEnabled = false,
     this.protectedContentAllowed,
-    this.cameraMode = CameraAccessMode.ask,
-    this.virtualCameraSource,
-    this.microphoneMode = MicrophoneAccessMode.ask,
-    this.virtualMicrophoneSource,
-    this.screenShareMode = ScreenShareMode.ask,
-    this.virtualScreenSource,
+    this.captures = CaptureGrants.none,
     List<UserScriptConfig>? userScripts,
     Set<String>? enabledGlobalScriptIds,
     Set<BlockedCookie>? blockedCookies,
     this.locationMode = LocationMode.off,
     this.spoofLatitude,
     this.spoofLongitude,
-    this.spoofAccuracy = 50.0,
+    this.spoofAccuracy = kDefaultSpoofAccuracy,
     this.spoofTimezone,
     this.spoofTimezoneFromLocation = false,
     this.liveLocationGranularity = LocationGranularity.gps,
@@ -1330,8 +1001,10 @@ class WebViewModel {
     this.searchDefault,
     this.stateSetterF,
     this.isArchiveTier = false,
-  })  : userScripts = userScripts ?? [],
-        outboundPreferences = outboundPreferences ?? [],
+  })  : assert(_onePerClaim(outboundPreferences ?? const []),
+            'at most one outbound preference per claim'),
+        userScripts = userScripts ?? [],
+        _outboundPreferences = outboundPreferences ?? [],
         searchSites = searchSites ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
@@ -1386,7 +1059,6 @@ class WebViewModel {
     fingerprintResetNonce = generateFingerprintResetNonce();
   }
 
-  /// Check if a cookie is blocked by name + domain for this site.
   bool isCookieBlocked(String name, String? domain) =>
       matchesBlockedCookie(blockedCookies, name, domain);
 
@@ -1420,50 +1092,23 @@ class WebViewModel {
     if (_initialLoadDeferredForProxy) {
       _initialLoadDeferredForProxy = false;
       if (proxyApplied && !restorePending) {
-        try {
-          await controller?.loadUrl(currentUrl);
-        } catch (_) {}
+        await controller?.loadUrl(currentUrl);
       }
     }
 
-    // The controller can be disposed across these awaits — a memory-pressure
-    // eviction, a site delete while `onControllerCreated` is still settling, or
-    // widget teardown. `disposeWebView()` nulls the ref, but a widget-level
-    // dispose leaves a non-null ref to a now-dead native controller (asserts
-    // "used after disposed"). Capture the controller and swallow that error:
-    // there's nothing to configure on a dead one.
     final c = controller;
     if (c == null) return;
-    try {
-      final id = runningIdentity;
-      await c.setOptions(
-        javascriptEnabled: id.javascriptEnabled,
-        userAgent: id.effectiveUserAgentOrNull,
-        thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
-        incognito: id.effectiveIncognito,
-      );
-      // Apply current theme preference
-      await c.setThemePreference(_currentTheme);
-      // Don't call loadUrl here - it's already initialized with the URL
-      if (defaultUserAgent == null) {
-        defaultUserAgent = await c.getDefaultUserAgent();
-      }
-    } catch (e) {
-      // Controller disposed mid-setup, or webview not fully initialized
-      // (common in tests). Nothing left to configure.
-      defaultUserAgent ??= '';
-      LogService.instance.log(
-        'WebView',
-        'setController skipped configuring a disposed/unavailable '
-            'controller for "$name": $e',
-        level: LogLevel.warning,
-        sensitivity: LogSensitivity.sensitive,
-      );
-    }
+    final id = runningIdentity;
+    await c.setOptions(
+      javascriptEnabled: id.javascriptEnabled,
+      userAgent: id.effectiveUserAgentOrNull,
+      thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
+      incognito: id.effectiveIncognito,
+    );
+    await c.setThemePreference(_currentTheme);
+    defaultUserAgent ??= await c.getDefaultUserAgent();
   }
 
-  /// Apply proxy settings to the webview.
-  ///
   /// Android: routes through the global `inapp.ProxyController`. Takes
   /// effect on next request without reload.
   ///
@@ -1484,15 +1129,11 @@ class WebViewModel {
       if (release != null) await proxyManager.releaseContainerProxy(release);
       return true;
     } catch (e) {
-      LogService.instance.log(
-        'WebView',
-        'Failed to apply proxy settings: $e',
-        level: LogLevel.error,
-        // Exception text can include proxy host / username / scheme,
-        // which are per-site identifiers for any site with a custom
-        // proxy (including archive-tier sites). Keep in the memory ring.
-        sensitivity: LogSensitivity.sensitive,
-      );
+      // Exception text can include proxy host / username / scheme, which
+      // are per-site identifiers for any site with a custom proxy (including
+      // archive-tier sites). Keep in the memory ring.
+      LogTag.webView
+          .error('Failed to apply proxy settings: $e', sensitive: true);
       // Fail closed: ProxyManager.setProxySettings throws precisely to
       // refuse a direct fallback (relay bind failure, malformed host:port).
       // If the site expected a real proxy, swallowing the throw would let
@@ -1502,10 +1143,8 @@ class WebViewModel {
       // too (LEAK-003).
       if (resolveEffectiveProxy(id.proxySettings, siteId: id.siteId).type !=
           ProxyType.DEFAULT) {
-        try {
-          await controller?.stopLoading();
-          await controller?.loadUrl('about:blank');
-        } catch (_) {}
+        await controller?.stopLoading();
+        await controller?.loadUrl('about:blank');
       }
       return false;
     }
@@ -1534,20 +1173,11 @@ class WebViewModel {
     ];
   }
 
-  /// Apply theme preference to the webview
   Future<void> setTheme(WebViewTheme theme) async {
     _currentTheme = theme;
-    if (controller != null && webview != null) {
-      try {
-        await controller!.setThemePreference(theme);
-      } catch (_) {
-        // Controller may have been disposed during domain conflict unload
-      }
-    }
+    if (webview != null) await controller?.setThemePreference(theme);
   }
 
-  /// Update proxy settings and apply them.
-  ///
   /// On iOS / macOS, the proxy is sealed into the per-site
   /// `WKWebsiteDataStore` at WebView construction time. To pick up the
   /// new value, the live WebView is discarded so the next render
@@ -1563,89 +1193,25 @@ class WebViewModel {
     await _applyProxySettings();
   }
 
-  /// The site's posture for a headless check in a background wake
-  /// (NOTIF-016): every field of [getWebView]'s config that reaches the
-  /// network or the page, for this site as itself, at its home page. The UI
-  /// callbacks are left out, since nothing is on screen. Gated against
-  /// [getWebView] by `test/js/headless_check_config_parity.test.js`.
-  WebViewConfig headlessCheckConfig({
-    List<UserScriptConfig> globalUserScripts = const [],
-  }) =>
-      WebViewConfig(
-        siteId: siteId,
-        archiveContainerId: archiveContainerId,
+  /// The site as itself, at its home page, for a headless check in a
+  /// background wake (NOTIF-016). Built from the same [sitePosture] as
+  /// [getWebView]'s config, so every per-site field reaches the check, under
+  /// [hooks] that answer no one: nothing is on screen.
+  WebViewConfig headlessCheckConfig(WebViewHostHooks hooks) => WebViewConfig(
+        posture: sitePosture(globalUserScripts: hooks.globalUserScripts()),
+        hooks: hooks.unattended(),
         initialUrl: initUrl,
-        javascriptEnabled: javascriptEnabled,
-        userAgent: effectiveUserAgentOrNull,
-        thirdPartyCookiesEnabled: effectiveThirdPartyCookiesEnabled,
-        httpsUpgradeEnabled: effectiveHttpsUpgradeEnabled,
-        incognito: effectiveIncognito,
-        language: language,
-        zoomPercent: zoomPercent,
-        clearUrlEnabled: clearUrlEnabled || trackingProtectionEnabled,
-        dnsBlockEnabled: dnsBlockEnabled || trackingProtectionEnabled,
-        dnsBlockLevel: effectiveDnsBlockLevel,
-        contentBlockEnabled: contentBlockEnabled || trackingProtectionEnabled,
-        disabledFilterLists: effectiveDisabledFilterLists,
-        localCdnEnabled: effectiveLocalCdnEnabled ||
-            (trackingProtectionEnabled && !isArchiveTier),
-        contributesBlockStats: contributesBlockStats,
-        trackingProtectionEnabled: trackingProtectionEnabled,
-        letterboxEnabled: letterboxEnabled,
-        spoofWindowWidth: spoofWindowWidth,
-        spoofWindowHeight: spoofWindowHeight,
-        fingerprintResetNonce: fingerprintResetNonce,
-        locationMode: locationMode,
-        spoofLatitude: spoofLatitude,
-        spoofLongitude: spoofLongitude,
-        spoofAccuracy: spoofAccuracy,
-        spoofTimezone: spoofTimezone,
-        spoofTimezoneFromLocation: spoofTimezoneFromLocation,
-        liveLocationGranularity: liveLocationGranularity,
-        webRtcPolicy: effectiveWebRtcPolicy,
-        proxySettings: outboundProxySettings,
-        notificationsEnabled: effectiveNotificationsEnabled,
-        backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-        userScripts: combineUserScripts(globalUserScripts),
-        httpAuthMemory: effectiveHttpAuthMemory,
-        currentCameraMode: () => effectiveCameraMode,
-        currentMicrophoneMode: () => effectiveMicrophoneMode,
-        cookieSiteId: siteId,
       );
 
-  Widget getWebView(
-    LaunchUrlFunc launchUrlFunc,
-    CookieManager cookieManager,
-    ContainerCookieManager? containerCookieManager,
-    Function saveFunc, {
-    Future<void> Function(int windowId, String url)? onWindowRequested,
-    String? language,
-    Function(String url, String html)? onHtmlLoaded,
-    bool Function()? shouldFetchHtml,
+  /// The slot's webview, built on first call; null while the site waits for
+  /// Tor (TOR-008). [initialHtml] renders before the live load;
+  /// [onHtmlLoaded], gated by [shouldFetchHtml], keeps the offline snapshot.
+  /// All three are the slot's HTML cache, and absent when it has none.
+  Widget? getWebView(
+    WebViewHostHooks hooks, {
     String? initialHtml,
-    bool Function()? isActive,
-    Future<bool> Function(String url)? onConfirmScriptFetch,
-    Future<bool> Function(
-      String host,
-      int port,
-      inapp.SslCertificate? certificate,
-    )? onUntrustedCertificate,
-    HttpAuthPrompt? onHttpAuthRequest,
-    Future<void> Function(String url, ExternalUrlInfo info)? onExternalSchemeUrl,
-    void Function(String url)? onLinkLongPress,
-    Future<bool> Function(String origin)? onProtectedMediaRequest,
-    Future<CameraDecision> Function(String origin, CameraAccessMode current)?
-        onCameraDecision,
-    Future<MicrophoneDecision> Function(
-            String origin, MicrophoneAccessMode current)?
-        onMicrophoneDecision,
-    Future<ScreenShareDecision> Function(
-            String origin, ScreenShareMode current)?
-        onScreenShareDecision,
-    List<UserScriptConfig> globalUserScripts = const [],
-    VoidCallback? onNavigationBlockChanged,
-    VoidCallback? onOpenProxySettings,
-    OutboundLinkHandler? onOutboundLink,
+    void Function(String url, String html)? onHtmlLoaded,
+    bool Function()? shouldFetchHtml,
   }) {
     // LIR-018: a hosted tab runs as its host. Everything that decides the
     // container, the posture and the navigation rules reads [id]; the slot's
@@ -1665,7 +1231,45 @@ class WebViewModel {
         (hosted || runsForeignTab) &&
         onReturnToOwner != null &&
         getNormalizedDomain(url) == ownerDomain;
-    void returnToOwner(String url) => onReturnToOwner?.call(url);
+    bool isActive() => hooks.onScreen(this);
+    final globalUserScripts = hooks.globalUserScripts();
+    // Carries out a navigation decision, for a tap and a redirect alike:
+    // false when this webview must not load [url]. The host's outbound hook
+    // may take a leaving link over first (LIR-014) and hears of a blocked one
+    // (NESTED-009).
+    bool dispatch(NavigationDecision decision, String url, bool hadGesture,
+        {required String via}) {
+      LogTag.webView.debug('$via -> ${decision.name} $url', sensitive: true);
+      if (NavigationDecisionEngine.stepFor(decision,
+              returnsToOwner: returnsToOwner(url)) ==
+          NavigationStep.returnToOwner) {
+        onReturnToOwner?.call(url);
+        return false;
+      }
+      bool takenOver() => hooks.routeOutbound(this, url, decision, hadGesture);
+      switch (decision) {
+        case NavigationDecision.allow:
+          return true;
+        case NavigationDecision.blockSilent:
+        case NavigationDecision.blockSuppressed:
+          return false;
+        case NavigationDecision.blockOpenNested:
+          if (!takenOver()) {
+            hooks.launchNested(
+              url,
+              id.sitePosture(globalUserScripts: globalUserScripts),
+              homeTitle: id.name,
+            );
+          }
+          return false;
+        case NavigationDecision.blockOpenExternal:
+          if (!takenOver()) hooks.openInBrowser(url);
+          return false;
+        case NavigationDecision.blockOutbound:
+          takenOver();
+          return false;
+      }
+    }
     // Fail closed while Tor is still bootstrapping (TOR-008), for explicit
     // Tor sites and for DEFAULT sites inheriting a global Tor (PROXY-011).
     // Constructing an InAppWebView here with a null proxy binds its
@@ -1679,32 +1283,17 @@ class WebViewModel {
       siteId: id.siteId,
       torUp: TorService.instance.status.isUp,
     )) {
-      // Do not cache the placeholder in `webview` — the next getWebView call
-      // after WebSpacePage's Tor listener disposes + setStates must fall
-      // through to real construction.
-      return const TorBootstrapPlaceholder();
+      return null;
     }
     if (webview == null) {
-      // Use this.language directly to ensure we get the current value from WebViewModel
-      final effectiveLanguage = id.language;
-      LogService.instance.log(
-        'WebView',
-        'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
-        '${hosted ? ', running as ${id.siteId}' : ''})',
-        sensitivity: LogSensitivity.sensitive,
-      );
-      LogService.instance.log(
-        'WebView',
-        'Language: $effectiveLanguage (param: $language)',
-      );
-      LogService.instance.log(
-        'WebView',
-        'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-      final bool isMobile = hostIsIOS || hostIsAndroid;
+      LogTag.webView.debug(
+          'Creating webview for "$name" (siteId: $siteId, initUrl: $initUrl'
+          '${hosted ? ', running as ${id.siteId}' : ''})', sensitive: true);
+      LogTag.webView.debug(
+          'Using cached HTML: ${initialHtml != null} (${initialHtml?.length ?? 0} bytes)',
+          sensitive: true);
       final pullToRefreshGate =
-          isMobile ? PullToRefreshGate.create(onRefresh: userDrivenReload) : null;
+          PullToRefreshGate.forHost(onRefresh: userDrivenReload);
       // Track last user gesture on same-domain navigation, so we can
       // propagate it to cross-domain redirects (e.g., search engine
       // redirect links like DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
@@ -1732,12 +1321,8 @@ class WebViewModel {
         isAndroid: hostIsAndroid,
         isFileImport: currentUrl.startsWith('file://'),
       );
-      final storeBinding = WebViewFactory.storeBinding(
-        siteId: id.siteId,
-        archiveContainerId: id.archiveContainerId,
-        incognito: id.effectiveIncognito,
-        proxySettings: id.outboundProxySettings,
-      );
+      final posture = id.sitePosture(globalUserScripts: globalUserScripts);
+      final storeBinding = WebViewFactory.storeBinding(posture);
       _containerProxyToRelease = storeBinding.releasesContainerProxy
           ? storeBinding.containerId
           : null;
@@ -1752,204 +1337,46 @@ class WebViewModel {
       webview = WebViewFactory.createWebView(
         config: WebViewConfig(
           key: UniqueKey(), // Force new widget state when recreating
-          siteId: id.siteId,
-          archiveContainerId: id.archiveContainerId,
+          posture: posture,
+          hooks: hooks,
           initialUrl: currentUrl,
-          javascriptEnabled: id.javascriptEnabled,
-          userAgent: id.effectiveUserAgentOrNull,
-          thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled,
-          httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled,
-          incognito: id.effectiveIncognito,
           // Root site webview sits at the MaterialApp root route: on iOS/macOS
           // there is no Flutter route-pop edge-swipe here, so opt into
           // WKWebView's native back/forward swipe. Nested screens don't (NAV-008).
           backForwardGestures: true,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
-          language: effectiveLanguage, // Use WebViewModel's language, not parameter
-          zoomPercent: id.zoomPercent,
-          // Umbrella `trackingProtectionEnabled`: when on, the four
-          // tracker-protection subordinates behave as ON regardless of
-          // their per-site stored value. The stored values are still
-          // respected when the umbrella is off so users can opt out of
-          // individual paths under a custom posture.
-          clearUrlEnabled: id.clearUrlEnabled || id.trackingProtectionEnabled,
-          dnsBlockEnabled: id.dnsBlockEnabled || id.trackingProtectionEnabled,
-          dnsBlockLevel: id.effectiveDnsBlockLevel,
-          contentBlockEnabled:
-              id.contentBlockEnabled || id.trackingProtectionEnabled,
-          disabledFilterLists: id.effectiveDisabledFilterLists,
-          localCdnEnabled: id.effectiveLocalCdnEnabled ||
-              (id.trackingProtectionEnabled && !id.isArchiveTier),
-          contributesBlockStats: id.contributesBlockStats,
-          trackingProtectionEnabled: id.trackingProtectionEnabled,
-          letterboxEnabled: id.letterboxEnabled,
-          spoofWindowWidth: id.spoofWindowWidth,
-          spoofWindowHeight: id.spoofWindowHeight,
-          fingerprintResetNonce: id.fingerprintResetNonce,
-          // The effective timezone is resolved from the spoofed coords and
-          // persisted into `spoofTimezone` at settings-save time (Tracking
-          // Protection's force-from-location is applied there too), so the
-          // runtime just passes the stored value through — the polygon
-          // dataset never loads on this path.
-          locationMode: id.locationMode,
-          spoofLatitude: id.spoofLatitude,
-          spoofLongitude: id.spoofLongitude,
-          spoofAccuracy: id.spoofAccuracy,
-          spoofTimezone: id.spoofTimezone,
-          spoofTimezoneFromLocation: id.spoofTimezoneFromLocation,
-          liveLocationGranularity: id.liveLocationGranularity,
-          webRtcPolicy: id.effectiveWebRtcPolicy,
-          // Per-site proxy. Honored at WebView construction on iOS 17+ /
-          // macOS 14+ via the patched `preWKWebViewConfiguration` (see
-          // PROXY-002 / PROXY-008). Android ignores this and routes
-          // through the global `ProxyController` in `_applyProxySettings`.
-          proxySettings: id.outboundProxySettings,
-          notificationsEnabled: id.effectiveNotificationsEnabled,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-          userScripts: id.combineUserScripts(globalUserScripts),
-          onConfirmScriptFetch: onConfirmScriptFetch,
-          onUntrustedCertificate: onUntrustedCertificate,
-          onHttpAuthRequest: onHttpAuthRequest,
-          httpAuthMemory: id.effectiveHttpAuthMemory,
-          onExternalSchemeUrl: onExternalSchemeUrl,
-          onLinkLongPress: onLinkLongPress,
-          onProtectedMediaRequest: onProtectedMediaRequest == null
-              ? null
-              : (origin) async {
-                  // Archive-tier and Tracking Protection sites deny without
-                  // prompting; otherwise a previously remembered Allow/Block
-                  // decision short-circuits the popup.
-                  final remembered = id.effectiveProtectedContentAllowed;
-                  if (remembered != null) return remembered;
-                  // Coalesce a burst of requests onto one popup.
-                  _protectedMediaDecisionInFlight ??= () async {
-                    final granted = await onProtectedMediaRequest(origin);
-                    id.protectedContentAllowed = granted;
-                    await saveFunc();
-                    return granted;
-                  }();
-                  try {
-                    return await _protectedMediaDecisionInFlight!;
-                  } finally {
-                    _protectedMediaDecisionInFlight = null;
-                  }
-                },
-          onCameraDecision: onCameraDecision == null
-              ? null
-              : (origin, isTopFrame) => id.resolveCameraRequest(
-                    origin,
-                    resolver: onCameraDecision,
-                    isActive: isActive,
-                    isTopFrame: isTopFrame,
-                    saveFunc: saveFunc,
-                  ),
-          currentCameraMode: () => id.effectiveCameraMode,
-          onMicrophoneDecision: onMicrophoneDecision == null
-              ? null
-              : (origin, isTopFrame) => id.resolveMicrophoneRequest(
-                    origin,
-                    resolver: onMicrophoneDecision,
-                    isActive: isActive,
-                    isTopFrame: isTopFrame,
-                    saveFunc: saveFunc,
-                  ),
-          currentMicrophoneMode: () => id.effectiveMicrophoneMode,
-          onScreenShareDecision: onScreenShareDecision == null
-              ? null
-              : (origin) => id.resolveScreenShareRequest(
-                    origin,
-                    resolver: onScreenShareDecision,
-                    isActive: isActive,
-                    saveFunc: saveFunc,
-                  ),
-          pullToRefreshController: pullToRefreshGate?.controller,
+          onLinkLongPress: (url) => hooks.linkMenu(this, url),
+          grants: PersistedGrantStore(
+            id,
+            prompter: hooks.media,
+            isSiteActive: isActive,
+            save: hooks.save,
+          ),
           pullToRefreshGate: pullToRefreshGate,
-          onWindowRequested: onWindowRequested,
           onUnproxiedNavigationBlocked: (blocked) {
             blockedNavigationUrl = blocked;
-            onNavigationBlockChanged?.call();
+            hooks.rebuild();
           },
           shouldOverrideUrlLoading: (url, hasGesture) {
-            LogService.instance.log(
-              'WebView',
-              'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
-              sensitivity: LogSensitivity.sensitive,
-            );
+            LogTag.webView.debug(
+                'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
+                sensitive: true);
+            final now = DateTime.now();
             final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
               targetUrl: url,
               initUrl: navHome,
               hasGesture: hasGesture,
-              isSiteActive: isActive?.call() ?? true,
+              isSiteActive: isActive(),
               lastSameDomainGestureTime: lastSameDomainGestureTime,
-              now: DateTime.now(),
+              now: now,
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
             );
-            switch (result.gestureUpdate) {
-              case GestureStateUpdate.record:
-                lastSameDomainGestureTime = DateTime.now();
-                break;
-              case GestureStateUpdate.consume:
-                lastSameDomainGestureTime = null;
-                break;
-              case null:
-                break;
-            }
-            if (NavigationDecisionEngine.stepFor(result.decision,
-                    returnsToOwner: returnsToOwner(url)) ==
-                NavigationStep.returnToOwner) {
-              returnToOwner(url);
-              return false;
-            }
-            switch (result.decision) {
-              case NavigationDecision.allow:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> ALLOW',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                return true;
-              case NavigationDecision.blockSilent:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (auto-redirect blocked, no user gesture)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                return false;
-              case NavigationDecision.blockSuppressed:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (background site, suppressing nested webview)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                return false;
-              case NavigationDecision.blockOpenNested:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (opening nested webview)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlFunc(url, homeTitle: id.name, siteId: id.siteId, archiveContainerId: id.archiveContainerId, incognito: id.effectiveIncognito, thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled, clearUrlEnabled: id.clearUrlEnabled, dnsBlockEnabled: id.dnsBlockEnabled, dnsBlockLevel: id.effectiveDnsBlockLevel, contentBlockEnabled: id.contentBlockEnabled, disabledFilterLists: id.effectiveDisabledFilterLists, localCdnEnabled: id.effectiveLocalCdnEnabled, contributesBlockStats: id.contributesBlockStats, trackingProtectionEnabled: id.trackingProtectionEnabled, letterboxEnabled: id.letterboxEnabled, spoofWindowWidth: id.spoofWindowWidth, spoofWindowHeight: id.spoofWindowHeight, fingerprintResetNonce: id.fingerprintResetNonce, language: id.language, zoomPercent: id.zoomPercent, locationMode: id.locationMode, spoofLatitude: id.spoofLatitude, spoofLongitude: id.spoofLongitude, spoofAccuracy: id.spoofAccuracy, spoofTimezone: id.spoofTimezone, spoofTimezoneFromLocation: id.spoofTimezoneFromLocation, liveLocationGranularity: id.liveLocationGranularity, webRtcPolicy: id.effectiveWebRtcPolicy, userAgent: id.effectiveUserAgentOrNull, javascriptEnabled: id.javascriptEnabled, userScripts: id.combineUserScripts(globalUserScripts), proxySettings: id.outboundProxySettings, notificationsEnabled: id.effectiveNotificationsEnabled, externalLinkMode: id.effectiveExternalLinkMode, blockedCookies: id.blockedCookies, cameraMode: id.effectiveCameraMode, virtualCameraSource: id.virtualCameraSource, microphoneMode: id.effectiveMicrophoneMode, virtualMicrophoneSource: id.virtualMicrophoneSource, screenShareMode: id.effectiveScreenShareMode, virtualScreenSource: id.virtualScreenSource, protectedContentAllowed: id.effectiveProtectedContentAllowed, httpAuthMemory: id.effectiveHttpAuthMemory, passkeys: id.effectivePasskeysEnabled);
-                return false;
-              case NavigationDecision.blockOpenExternal:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (opening system browser)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                if (onOutboundLink?.call(url, result.decision, result.hadGesture) ?? false) return false;
-                launchUrlInSystemBrowser(url);
-                return false;
-              case NavigationDecision.blockOutbound:
-                LogService.instance.log(
-                  'WebView',
-                  '  -> CANCEL (external links blocked)',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                onOutboundLink?.call(url, result.decision, result.hadGesture);
-                return false;
-            }
+            lastSameDomainGestureTime =
+                result.gestureUpdate.applyTo(lastSameDomainGestureTime, now);
+            return dispatch(result.decision, url, result.hadGesture,
+                via: 'shouldOverrideUrlLoading');
           },
           onReloadIssued: () => onReloadIssued?.call(),
           onMainFrameLoad: resumeReload.noteLoad,
@@ -1976,118 +1403,38 @@ class WebViewModel {
             stateSetterF?.call();
           },
           onUrlChanged: (url) async {
-            // Detect cross-domain redirects that bypassed shouldOverrideUrlLoading
-            // (e.g., server-side 302 from search engine redirect pages like
-            // DuckDuckGo's /l/?uddg=... or Google's /url?q=...).
-            final initDomain = getNormalizedDomain(navHome);
+            // A server-side redirect (DuckDuckGo's /l/?uddg=, Google's
+            // /url?q=) arrives here without passing shouldOverrideUrlLoading.
+            final now = DateTime.now();
             final handled = NavigationDecisionEngine.handleOnUrlChanged(
               newUrl: url,
               initUrl: navHome,
-              isSiteActive: isActive?.call() ?? true,
+              isSiteActive: isActive(),
               lastSameDomainGestureTime: lastSameDomainGestureTime,
-              now: DateTime.now(),
+              now: now,
               isCaptchaChallenge: (u) =>
                   WebViewFactory.isCaptchaChallenge(u, siteUrl: navHome),
               state: urlChangedState,
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
             );
-            switch (handled.gestureUpdate) {
-              case GestureStateUpdate.record:
-                lastSameDomainGestureTime = DateTime.now();
-                break;
-              case GestureStateUpdate.consume:
-                lastSameDomainGestureTime = null;
-                break;
-              case null:
-                break;
-            }
+            lastSameDomainGestureTime =
+                handled.gestureUpdate.applyTo(lastSameDomainGestureTime, now);
             urlChangedState = handled.state;
-            // Navigate-back was previously fired here when a cross-domain
-            // URL was confirmed via `controller.getUrl()`. Removed: even
-            // the conservative `stopLoading()` + `Future.microtask` +
-            // `loadUrl(prev)` sequence still races chromium's in-flight
-            // cross-origin redirect handling on the broken Android
-            // System WebView build that surfaces a dangling-raw_ptr
-            // SIGTRAP at `partition_alloc_support.cc:770`. Real-device
-            // logs reproduced the crash on the LinkedIn safety/go →
-            // reddit redirect sequence with cached-HTML and WebGL paths
-            // already mitigated; the only remaining suspect is our own
-            // loadUrl-during-redirect.
-            //
-            // Trade-off: when a cross-domain server-side redirect bypasses
-            // shouldOverrideUrlLoading, the parent webview briefly
-            // displays the redirect target until the next user-initiated
-            // navigation. The nested webview still opens (handled below)
-            // so the user sees the destination they actually wanted.
-            // That visual artifact is preferable to crashing the
-            // renderer.
-            if (handled.decision != null &&
-                handled.decision != NavigationDecision.allow) {
-              switch (handled.decision!) {
-                case NavigationDecision.blockSilent:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect blocked: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  return;
-                case NavigationDecision.blockSuppressed:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect suppressed (background site): $url',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  return;
-                case NavigationDecision.blockOpenNested:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect detected: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  if (handled.launchNestedUrl != null) {
-                    if (returnsToOwner(handled.launchNestedUrl!)) {
-                      returnToOwner(handled.launchNestedUrl!);
-                      return;
-                    }
-                    if (onOutboundLink?.call(handled.launchNestedUrl!, NavigationDecision.blockOpenNested, handled.hadGesture) ?? false) return;
-                    launchUrlFunc(handled.launchNestedUrl!, homeTitle: id.name, siteId: id.siteId, archiveContainerId: id.archiveContainerId, incognito: id.effectiveIncognito, thirdPartyCookiesEnabled: id.effectiveThirdPartyCookiesEnabled, httpsUpgradeEnabled: id.effectiveHttpsUpgradeEnabled, clearUrlEnabled: id.clearUrlEnabled, dnsBlockEnabled: id.dnsBlockEnabled, dnsBlockLevel: id.effectiveDnsBlockLevel, contentBlockEnabled: id.contentBlockEnabled, disabledFilterLists: id.effectiveDisabledFilterLists, localCdnEnabled: id.effectiveLocalCdnEnabled, contributesBlockStats: id.contributesBlockStats, trackingProtectionEnabled: id.trackingProtectionEnabled, letterboxEnabled: id.letterboxEnabled, spoofWindowWidth: id.spoofWindowWidth, spoofWindowHeight: id.spoofWindowHeight, fingerprintResetNonce: id.fingerprintResetNonce, language: id.language, zoomPercent: id.zoomPercent, locationMode: id.locationMode, spoofLatitude: id.spoofLatitude, spoofLongitude: id.spoofLongitude, spoofAccuracy: id.spoofAccuracy, spoofTimezone: id.spoofTimezone, spoofTimezoneFromLocation: id.spoofTimezoneFromLocation, liveLocationGranularity: id.liveLocationGranularity, webRtcPolicy: id.effectiveWebRtcPolicy, userAgent: id.effectiveUserAgentOrNull, javascriptEnabled: id.javascriptEnabled, userScripts: id.combineUserScripts(globalUserScripts), proxySettings: id.outboundProxySettings, notificationsEnabled: id.effectiveNotificationsEnabled, externalLinkMode: id.effectiveExternalLinkMode, blockedCookies: id.blockedCookies, cameraMode: id.effectiveCameraMode, virtualCameraSource: id.virtualCameraSource, microphoneMode: id.effectiveMicrophoneMode, virtualMicrophoneSource: id.virtualMicrophoneSource, screenShareMode: id.effectiveScreenShareMode, virtualScreenSource: id.virtualScreenSource, protectedContentAllowed: id.effectiveProtectedContentAllowed, httpAuthMemory: id.effectiveHttpAuthMemory, passkeys: id.effectivePasskeysEnabled);
-                  }
-                  return;
-                case NavigationDecision.blockOpenExternal:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect to system browser: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  if (handled.launchExternalUrl != null) {
-                    if (returnsToOwner(handled.launchExternalUrl!)) {
-                      returnToOwner(handled.launchExternalUrl!);
-                      return;
-                    }
-                    if (onOutboundLink?.call(handled.launchExternalUrl!, NavigationDecision.blockOpenExternal, handled.hadGesture) ?? false) return;
-                    launchUrlInSystemBrowser(handled.launchExternalUrl!);
-                  }
-                  return;
-                case NavigationDecision.blockOutbound:
-                  LogService.instance.log(
-                    'WebView',
-                    'onUrlChanged: cross-domain redirect blocked by external-link mode: $url (expected domain: $initDomain)',
-                    sensitivity: LogSensitivity.sensitive,
-                  );
-                  onOutboundLink?.call(url, NavigationDecision.blockOutbound, handled.hadGesture);
-                  return;
-                case NavigationDecision.allow:
-                  break;
-              }
+            // No navigate-back to the last same-domain page: even
+            // stopLoading + microtask + loadUrl(prev) races Chromium's
+            // in-flight cross-origin redirect on the Android WebView build
+            // that SIGTRAPs at `partition_alloc_support.cc:770` (LinkedIn's
+            // safety/go -> reddit). The parent shows the redirect target
+            // until the next navigation; the nested webview still opens.
+            final decision = handled.decision;
+            if (decision != null &&
+                !dispatch(decision, url, handled.hadGesture,
+                    via: 'onUrlChanged')) {
+              return;
             }
-            // State committed; sync currentUrl to the state's view of it.
             currentUrl = urlChangedState.currentUrl;
-            // Trigger UI rebuild so URL bar updates
-            if (stateSetterF != null) {
-              stateSetterF!();
-            }
-            // Get page title and update name if we have a title.
+            stateSetterF?.call();
             // Skip the title + theme IPCs when the URL didn't actually
             // advance — this is the duplicate event from the other of
             // `onLoadStop` / `onUpdateVisitedHistory` firing for the
@@ -2104,20 +1451,14 @@ class WebViewModel {
               // null `controller`, so we re-check before every native call —
               // calling into a torn-down WebView peer can trip Chromium's
               // dangling raw_ptr detector and SIGTRAP the renderer.
-              try {
-                if (controller == null) return;
-                final title = await controller!.getTitle();
-                if (controller == null) return;
-                if (title != null && title.isNotEmpty) {
-                  pageTitle = title;
-                  // Auto-update name from page title if name is still the default domain
-                  if (!hosted && name == extractDomain(initUrl)) {
-                    name = title;
-                  }
+              if (controller == null) return;
+              final title = await controller!.getTitle();
+              if (controller == null) return;
+              if (title != null && title.isNotEmpty) {
+                pageTitle = title;
+                if (!hosted && name == extractDomain(initUrl)) {
+                  name = title;
                 }
-              } catch (_) {
-                // Controller torn down mid-call — safe to swallow, the next
-                // page load on the new controller will reapply title.
               }
               // Reapply theme after page load (some sites might override it).
               // Fire-and-forget: don't await. The await chained an
@@ -2126,17 +1467,10 @@ class WebViewModel {
               // dying frame when chromium tears down between our request
               // and its dispatch. The theme call doesn't gate any
               // subsequent work — saveFunc below is Dart-only.
-              controller?.setThemePreference(_currentTheme).catchError((_) {});
+              controller?.setThemePreference(_currentTheme);
             }
-            await saveFunc();
+            await hooks.save();
           },
-          // Route the post-load cookie read through whichever
-          // manager is active for this engine. Container mode hits the
-          // per-site container via the fork's `webViewController:`;
-          // legacy mode hits the global jar.
-          cookieManager: cookieManager,
-          containerCookieManager: containerCookieManager,
-          cookieSiteId: id.siteId,
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar. The mirror
             // and the block list are those of the site the slot runs as.
@@ -2144,6 +1478,7 @@ class WebViewModel {
               final blocked = newCookies.where((c) => id.isCookieBlocked(c.name, c.domain)).toList();
               final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : id.initUrl);
               for (final c in blocked) {
+                final containerCookieManager = hooks.containerCookieManager;
                 if (containerCookieManager != null) {
                   await containerCookieManager.deleteCookie(
                     controller: controller,
@@ -2154,7 +1489,7 @@ class WebViewModel {
                     path: c.path ?? '/',
                   );
                 } else {
-                  await cookieManager.deleteCookie(
+                  await hooks.cookieManager.deleteCookie(
                     url: url,
                     name: c.name,
                     domain: c.domain,
@@ -2166,7 +1501,7 @@ class WebViewModel {
             } else {
               id.cookies = newCookies;
             }
-            await saveFunc();
+            await hooks.save();
           },
           onFindResult: (activeMatch, totalMatches) {
             findMatches.activeMatchOrdinal = activeMatch;
@@ -2181,8 +1516,8 @@ class WebViewModel {
           onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
           onPageCommitVisible: () => onPageCommitVisible?.call(),
           passkeys: PasskeyAccess.forHost(
-            enabled: id.effectivePasskeysEnabled,
-            isOnScreen: isActive ?? () => true,
+            enabled: posture.container.passkeys,
+            isOnScreen: isActive,
           ),
           siteIcon: SiteIconTarget(
             siteUrl: iconSiteUrl,
@@ -2201,7 +1536,7 @@ class WebViewModel {
                   onSearch: (found) {
                     if (!id.offerDiscoveredSearch(found)) return;
                     stateSetterF?.call();
-                    unawaited(saveFunc());
+                    unawaited(hooks.save());
                   },
                 )
               : null,
@@ -2218,11 +1553,9 @@ class WebViewModel {
           },
         ),
         onControllerCreated: (ctrl) {
-          LogService.instance.log(
-            'WebView',
-            'onControllerCreated for "$name" (siteId: $siteId)',
-            sensitivity: LogSensitivity.sensitive,
-          );
+          LogTag.webView.debug(
+              'onControllerCreated for "$name" (siteId: $siteId)',
+              sensitive: true);
           controller = ctrl;
           setController();
           unawaited(_pushPendingArchiveCookies(ctrl));
@@ -2257,32 +1590,18 @@ class WebViewModel {
               // The override must land before the restored entry loads;
               // on a proxy failure stay blank (fail closed).
               if (!await proxyReady) return;
-              try {
-                final ok = await ctrl.restoreState(pending);
-                LogService.instance.log(
-                  'WebView',
+              final ok = await ctrl.restoreState(pending);
+              LogTag.webView.debug(
                   'restoreState for "$name" (siteId: $siteId): $ok',
-                  sensitivity: LogSensitivity.sensitive,
-                );
-                if (materialize) {
-                  // ok: reload the restored top entry (keeps the back stack).
-                  // !ok: nothing was restored, so just load the saved URL or
-                  // the suppressed-initial-load webview would stay blank.
-                  if (ok) {
-                    await reloadAndRepaint(ctrl);
-                  } else {
-                    await ctrl.loadUrl(restoreUrl);
-                  }
-                }
-              } catch (_) {
-                // Restore is best-effort. On Apple the page is already
-                // loading from `currentUrl`; on Android the initial load was
-                // suppressed, so fall back to loading it explicitly or the
-                // view would stay blank.
-                if (materialize) {
-                  try {
-                    await ctrl.loadUrl(restoreUrl);
-                  } catch (_) {}
+                  sensitive: true);
+              if (materialize) {
+                // ok: reload the restored top entry (keeps the back stack).
+                // !ok: nothing was restored, so just load the saved URL or
+                // the suppressed-initial-load webview would stay blank.
+                if (ok) {
+                  await reloadAndRepaint(ctrl);
+                } else {
+                  await ctrl.loadUrl(restoreUrl);
                 }
               }
             }());
@@ -2297,47 +1616,11 @@ class WebViewModel {
         },
       );
     }
-    final blocked = blockedNavigationUrl;
-    // Always the same Stack, whether or not the interstitial is in it: a
-    // widget swapped in at this slot would unmount the platform view and
-    // take the page the user is still on with it. `StackFit.expand` keeps
-    // the webview's constraints exactly what they were without it.
-    //
-    // Over the webview rather than instead of it, because the navigation was
-    // cancelled: the document underneath is live, and dismissing the
-    // interstitial is what "go back" means here.
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        webview!,
-        if (blocked != null)
-          Positioned.fill(
-            child: UnproxiedNavigationBlock(
-              siteName: name,
-              blockedUrl: blocked,
-              onGoBack: () {
-                blockedNavigationUrl = null;
-                onNavigationBlockChanged?.call();
-              },
-              onOpenProxySettings: () => onOpenProxySettings?.call(),
-            ),
-          ),
-      ],
-    );
+    return webview;
   }
 
-  WebViewController? getController(
-    LaunchUrlFunc launchUrlFunc,
-    CookieManager cookieManager,
-    ContainerCookieManager? containerCookieManager,
-    Function saveFunc, {
-    List<UserScriptConfig> globalUserScripts = const [],
-    OutboundLinkHandler? onOutboundLink,
-  }) {
-    if (webview == null) {
-      // Create webview with current language setting
-      webview = getWebView(launchUrlFunc, cookieManager, containerCookieManager, saveFunc, language: language, globalUserScripts: globalUserScripts, onOutboundLink: onOutboundLink);
-    }
+  WebViewController? getController(WebViewHostHooks hooks) {
+    if (webview == null) getWebView(hooks);
     if (controller != null) {
       setController();
     }
@@ -2369,10 +1652,9 @@ class WebViewModel {
     cookies = [];
   }
 
-  /// Capture current cookies from CookieManager and store locally.
   /// Used for per-site cookie isolation when switching between same-domain sites.
   Future<void> captureCookies(CookieManager cookieManager) async {
-    if (incognito) return; // Don't capture cookies for incognito sites
+    if (incognito) return;
     final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : initUrl);
     cookies = await cookieManager.getCookies(url: url);
   }
@@ -2387,10 +1669,8 @@ class WebViewModel {
   /// since the process holding them is gone — `currentUrl` is reloaded so
   /// the back-/forward stack is the only thing dropped.
   void handleRendererGone({required bool didCrash}) {
-    LogService.instance.log(
-      'WebView',
-      'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating',
-    );
+    LogTag.webView.debug(
+        'Renderer gone for "$name" (siteId: $siteId, didCrash: $didCrash) — recreating');
     webview = null;
     controller = null;
     resumeReload.reset();
@@ -2423,96 +1703,10 @@ class WebViewModel {
     if (controller == null) return;
     if (notificationsEnabled) return;
     if (effectiveBackgroundAudioEnabled) return;
-    try {
-      await controller!.pause();
-      LogService.instance.log(
-        'WebView',
-        'Paused webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller!.pause();
+    LogTag.webView.debug(
+        'Paused webview for "$name" (siteId: $siteId)', sensitive: true);
   }
-
-  /// Resolve a per-site camera request for [origin] against this model
-  /// (CAM-001, CAM-006, CAM-011).
-  ///
-  /// Named rather than inline in [getWebView] so the wiring is reachable from
-  /// a test: the engine's own tests drive a fake host, which cannot catch this
-  /// model translating [isActive] — or the archive-tier fold — wrongly. A site
-  /// with no activity predicate at all counts as active, which is what the
-  /// nested/standalone callers that never pass one rely on.
-  Future<CameraDecision> resolveCameraRequest(
-    String origin, {
-    required Future<CameraDecision> Function(String, CameraAccessMode) resolver,
-    required bool Function()? isActive,
-    required bool isTopFrame,
-    required Function saveFunc,
-  }) =>
-      _cameraEngine.decide(
-        origin: origin,
-        isSiteActive: () => isActive?.call() ?? true,
-        isTopFrame: isTopFrame,
-        // Archive-tier is folded into effectiveCameraMode.
-        effectiveMode: effectiveCameraMode,
-        currentSource: () => virtualCameraSource,
-        resolve: resolver,
-        persist: (mode, source) {
-          cameraMode = mode;
-          if (source != null) virtualCameraSource = source;
-        },
-        save: () async => saveFunc(),
-      );
-
-  /// Resolve a per-site screen-sharing request for [origin] against this model
-  /// (SHARE-001, SHARE-006, SHARE-011). Same contract as
-  /// [resolveCameraRequest].
-  Future<ScreenShareDecision> resolveScreenShareRequest(
-    String origin, {
-    required Future<ScreenShareDecision> Function(String, ScreenShareMode)
-        resolver,
-    required bool Function()? isActive,
-    required Function saveFunc,
-  }) =>
-      _screenShareEngine.decide(
-        origin: origin,
-        isSiteActive: () => isActive?.call() ?? true,
-        // Archive-tier is folded into effectiveScreenShareMode.
-        effectiveMode: effectiveScreenShareMode,
-        currentSource: () => virtualScreenSource,
-        resolve: resolver,
-        persist: (mode, source) {
-          screenShareMode = mode;
-          if (source != null) virtualScreenSource = source;
-        },
-        save: () async => saveFunc(),
-      );
-
-  /// Resolve a per-site microphone request for [origin] against this model
-  /// (MIC-001, MIC-006, MIC-011). Same contract as [resolveCameraRequest].
-  Future<MicrophoneDecision> resolveMicrophoneRequest(
-    String origin, {
-    required Future<MicrophoneDecision> Function(String, MicrophoneAccessMode)
-        resolver,
-    required bool Function()? isActive,
-    required bool isTopFrame,
-    required Function saveFunc,
-  }) =>
-      _microphoneEngine.decide(
-        origin: origin,
-        isSiteActive: () => isActive?.call() ?? true,
-        isTopFrame: isTopFrame,
-        // Archive-tier is folded into effectiveMicrophoneMode.
-        effectiveMode: effectiveMicrophoneMode,
-        currentSource: () => virtualMicrophoneSource,
-        resolve: resolver,
-        persist: (mode, source) {
-          microphoneMode = mode;
-          if (source != null) virtualMicrophoneSource = source;
-        },
-        save: () async => saveFunc(),
-      );
 
   /// End any device capture this site is running: camera (CAM-012) and
   /// microphone (MIC-012), through one hook over the shims' shared registry.
@@ -2530,16 +1724,10 @@ class WebViewModel {
   ///     notification and background-audio sites. Those sites may keep running
   ///     JS and audio in the background. The camera is not covered by either.
   Future<void> stopRealCapture() async {
-    final c = controller;
-    if (c == null) return;
-    try {
-      await c.evaluateJavascript(
-        "if (typeof globalThis.__wsStopRealCapture === 'function') "
-        'globalThis.__wsStopRealCapture();',
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller?.evaluateJavascript(
+      "if (typeof globalThis.__wsStopRealCapture === 'function') "
+      'globalThis.__wsStopRealCapture();',
+    );
   }
 
   /// Tell a background-audio site's page whether the app is backgrounded
@@ -2551,15 +1739,9 @@ class WebViewModel {
   /// Main frame only — the shim relays the state to its own subframes.
   Future<void> setBackgroundPlayback(bool active) async {
     if (!effectiveBackgroundAudioEnabled) return;
-    final c = controller;
-    if (c == null) return;
-    try {
-      await c.evaluateJavascript(
-        'if(window.__wsMediaBackground)window.__wsMediaBackground($active);',
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller?.evaluateJavascript(
+      'if(window.__wsMediaBackground)window.__wsMediaBackground($active);',
+    );
   }
 
   /// Pause every playing media element in the page's main frame (BGAUDIO-009).
@@ -2579,28 +1761,14 @@ class WebViewModel {
   /// subframe is accepted degradation, as in BGAUDIO-008.
   Future<void> pauseMediaPlayback() async {
     if (effectiveBackgroundAudioEnabled) return;
-    final c = controller;
-    if (c == null) return;
-    try {
-      await c.evaluateJavascript(buildMediaPauseJs());
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller?.evaluateJavascript(buildMediaPauseJs());
   }
 
-  /// Resume a previously paused webview when it becomes active again.
   Future<void> resumeWebView() async {
     if (controller == null) return;
-    try {
-      await controller!.resume();
-      LogService.instance.log(
-        'WebView',
-        'Resumed webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+    await controller!.resume();
+    LogTag.webView.debug(
+        'Resumed webview for "$name" (siteId: $siteId)', sensitive: true);
   }
 
   /// App-lifecycle pause: per-instance pause + process-global JS timer pause.
@@ -2617,17 +1785,11 @@ class WebViewModel {
     // both calls on the same still-live controller.
     final c = controller;
     if (c == null) return;
-    try {
-      await c.pause();
-      await c.pauseAllJsTimers();
-      LogService.instance.log(
-        'WebView',
+    await c.pause();
+    await c.pauseAllJsTimers();
+    LogTag.webView.debug(
         'App-lifecycle paused webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+        sensitive: true);
   }
 
   /// Inverse of [pauseForAppLifecycle].
@@ -2636,27 +1798,18 @@ class WebViewModel {
     // concurrent dispose can't strand the process-global resumeAllJsTimers.
     final c = controller;
     if (c == null) return;
-    try {
-      await c.resume();
-      await c.resumeAllJsTimers();
-      LogService.instance.log(
-        'WebView',
+    await c.resume();
+    await c.resumeAllJsTimers();
+    LogTag.webView.debug(
         'App-lifecycle resumed webview for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed
-    }
+        sensitive: true);
   }
 
-  /// Dispose the webview and controller to release resources.
   /// Used when unloading a site due to domain conflict.
   void disposeWebView() {
-    LogService.instance.log(
-      'WebView',
-      'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
-      sensitivity: LogSensitivity.sensitive,
-    );
+    LogTag.webView.debug(
+        'disposeWebView called for "$name" (siteId: $siteId)\n${StackTrace.current}',
+        sensitive: true);
     webview = null;
     controller = null;
     resumeReload.reset();
@@ -2673,16 +1826,10 @@ class WebViewModel {
   /// (already disposed).
   Future<void> clearWebViewCache() async {
     if (controller == null) return;
-    try {
-      await controller!.clearCache();
-      LogService.instance.log(
-        'WebView',
+    await controller!.clearCache();
+    LogTag.webView.debug(
         'Cleared in-memory cache for "$name" (siteId: $siteId)',
-        sensitivity: LogSensitivity.sensitive,
-      );
-    } catch (_) {
-      // Controller may have been disposed mid-call.
-    }
+        sensitive: true);
   }
 
   /// User-driven hard reload (pull-to-refresh, Refresh button, Clear-cookies).
@@ -2752,16 +1899,11 @@ class WebViewModel {
     final ctrl = target ?? controller;
     if (ctrl == null) return;
     onReloadIssued?.call();
-    try {
-      await ctrl.reload();
-    } catch (_) {
-      // Controller may have been disposed between the cache clear and the
-      // reload. No load will start, so clear the bar [_beginPendingLoad] turned
-      // on rather than leaving the action button stuck on Stop.
-      if (isLoading) {
-        isLoading = false;
-        stateSetterF?.call();
-      }
+    // No load starts, so clear the bar [_beginPendingLoad] turned on rather
+    // than leaving the action button stuck on Stop.
+    if (!await ctrl.reload() && isLoading) {
+      isLoading = false;
+      stateSetterF?.call();
     }
   }
 
@@ -2776,11 +1918,7 @@ class WebViewModel {
     final ctrl = controller;
     if (ctrl == null) return;
     onReloadIssued?.call();
-    try {
-      await ctrl.loadUrl(url, language: language);
-    } catch (_) {
-      // Controller may have been disposed while the retry was in flight.
-    }
+    await ctrl.loadUrl(url, language: language);
   }
 
   /// User tapped the Stop button. Cancels the in-flight load and
@@ -2792,13 +1930,7 @@ class WebViewModel {
   /// guard in [onLoadingChanged] suppresses the duplicate rebuild
   /// when the callback does fire.
   Future<void> userStopLoading() async {
-    if (controller != null) {
-      try {
-        await controller!.stopLoading();
-      } catch (_) {
-        // Controller may have been disposed while the cancel was in flight.
-      }
-    }
+    await controller?.stopLoading();
     if (isLoading) {
       isLoading = false;
       stateSetterF?.call();
@@ -2816,13 +1948,9 @@ class WebViewModel {
   Future<Uint8List?> captureNavigationState() async {
     if (controller == null) return null;
     if (incognito) return null;
-    try {
-      final state = await controller!.saveState();
-      if (state == null || state.isEmpty) return null;
-      return state;
-    } catch (_) {
-      return null;
-    }
+    final state = await controller!.saveState();
+    if (state == null || state.isEmpty) return null;
+    return state;
   }
 
   /// Current memory-tier state. Drives the
@@ -2877,11 +2005,13 @@ class WebViewModel {
     _pendingArchiveCookies = null;
     final mgr = inapp.CookieManager.instance();
     for (final cookie in pending) {
-      if (cookie.value.isEmpty) continue;
+      if (cookie.name.isEmpty || cookie.value.isEmpty) continue;
       final dom = cookie.domain ?? '';
       final cleanDomain = dom.startsWith('.') ? dom.substring(1) : dom;
       if (cleanDomain.isEmpty) continue;
       final path = cookie.path ?? '/';
+      // The plugin asserts both are non-empty.
+      if (path.isEmpty) continue;
       try {
         await mgr.setCookie(
           url: inapp.WebUri('https://$cleanDomain$path'),
@@ -2894,7 +2024,7 @@ class WebViewModel {
           isHttpOnly: cookie.isHttpOnly,
           webViewController: ctrl.nativeController,
         );
-      } catch (_) {
+      } on PlatformException {
         // Best effort. A cookie that fails to insert (malformed
         // attributes from a legacy import, expired, etc.) is simply
         // dropped from the runtime jar; archive state still has it for
@@ -2910,13 +2040,10 @@ class WebViewModel {
     _pendingRestoreState = state;
   }
 
-  /// Get display name - uses the name field (which auto-updates from page title)
   String getDisplayName() {
     return name;
   }
 
-  // Serialization methods
-  ///
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See
   /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
@@ -2976,21 +2103,9 @@ class WebViewModel {
         if (backgroundAudioEnabled) 'backgroundAudioEnabled': true,
         if (protectedContentAllowed != null)
           'protectedContentAllowed': protectedContentAllowed,
-        // Serialized only when the site has been touched, so untouched
-        // sites keep byte-identical JSON. Virtual-source bytes ride the
-        // model like `customIconPng` (backups keep them; archive-tier
-        // sites live only inside the encrypted slice).
-        if (cameraMode != CameraAccessMode.ask) 'cameraMode': cameraMode.name,
-        if (virtualCameraSource != null)
-          'virtualCameraSource': virtualCameraSource!.toJson(),
-        if (microphoneMode != MicrophoneAccessMode.ask)
-          'microphoneMode': microphoneMode.name,
-        if (virtualMicrophoneSource != null)
-          'virtualMicrophoneSource': virtualMicrophoneSource!.toJson(),
-        if (screenShareMode != ScreenShareMode.ask)
-          'screenShareMode': screenShareMode.name,
-        if (virtualScreenSource != null)
-          'virtualScreenSource': virtualScreenSource!.toJson(),
+        // Virtual-source bytes ride the model like `customIconPng` (backups
+        // keep them; archive-tier sites live only inside the encrypted slice).
+        ...captures.toJson(),
         'userScripts': userScripts.map((s) => s.toJson()).toList(),
         if (enabledGlobalScriptIds.isNotEmpty)
           'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
@@ -3090,7 +2205,7 @@ class WebViewModel {
       name: field<String>('name'),
       cookies: isIncognito
           ? const <Cookie>[]
-          : _jsonEntries(json['cookies'], cookieFromJson),
+          : _jsonEntries(json['cookies'], tryCookieFromJson),
       proxySettings: proxy is Map
           ? UserProxySettings.fromJson(Map<String, dynamic>.from(proxy))
           : null,
@@ -3150,17 +2265,7 @@ class WebViewModel {
           false,
       backgroundAudioEnabled: field<bool>('backgroundAudioEnabled') ?? false,
       protectedContentAllowed: field<bool>('protectedContentAllowed'),
-      // `cameraAllowed` is the legacy boolean this field replaced; migrate it.
-      cameraMode:
-          cameraAccessModeFromJson(json['cameraMode'], json['cameraAllowed']),
-      virtualCameraSource:
-          VirtualCameraSource.fromJson(json['virtualCameraSource']),
-      microphoneMode: microphoneAccessModeFromJson(json['microphoneMode']),
-      virtualMicrophoneSource:
-          VirtualMicrophoneSource.fromJson(json['virtualMicrophoneSource']),
-      screenShareMode: screenShareModeFromJson(json['screenShareMode']),
-      virtualScreenSource:
-          VirtualScreenSource.fromJson(json['virtualScreenSource']),
+      captures: CaptureGrants.fromJson(json),
       userScripts:
           _jsonEntries(json['userScripts'], UserScriptConfig.fromJson),
       enabledGlobalScriptIds: {
@@ -3168,14 +2273,15 @@ class WebViewModel {
           if (id is String) id
       },
       blockedCookies:
-          _jsonEntries(json['blockedCookies'], BlockedCookie.fromJson).toSet(),
+          _jsonEntries(json['blockedCookies'], BlockedCookie.tryFromJson).toSet(),
       locationMode: LocationMode.values.firstWhere(
         (m) => m.name == json['locationMode'],
         orElse: () => LocationMode.off,
       ),
       spoofLatitude: finite('spoofLatitude')?.toDouble(),
       spoofLongitude: finite('spoofLongitude')?.toDouble(),
-      spoofAccuracy: finite('spoofAccuracy')?.toDouble() ?? 50.0,
+      spoofAccuracy:
+          finite('spoofAccuracy')?.toDouble() ?? kDefaultSpoofAccuracy,
       spoofTimezone: field<String>('spoofTimezone'),
       spoofTimezoneFromLocation:
           field<bool>('spoofTimezoneFromLocation') ?? false,
@@ -3194,7 +2300,7 @@ class WebViewModel {
       domainClaims: json['domainClaims'] is List
           ? [
               for (final claim
-                  in _jsonEntries(json['domainClaims'], DomainClaim.fromJson))
+                  in _jsonEntries(json['domainClaims'], DomainClaim.tryFromJson))
                 if (claim.value.isNotEmpty) claim,
             ]
           : null,
@@ -3231,28 +2337,25 @@ class WebViewModel {
 
 /// The entries of a JSON list that [parse] accepts. A malformed entry (a
 /// cookie, a script, a claim) is dropped rather than failing its site.
-List<T> _jsonEntries<T>(
+List<T> _jsonEntries<T extends Object>(
   Object? raw,
-  T Function(Map<String, dynamic>) parse,
-) {
-  if (raw is! List) return <T>[];
-  final out = <T>[];
-  for (final entry in raw) {
-    if (entry is! Map) continue;
-    try {
-      out.add(parse(Map<String, dynamic>.from(entry)));
-    } catch (_) {
-      continue;
-    }
-  }
-  return out;
-}
+  T? Function(Map<String, dynamic>) parse,
+) =>
+    raw is List
+        ? [
+            for (final entry in raw)
+              if (entry is Map<String, dynamic>) ?parse(entry),
+          ]
+        : <T>[];
+
+bool _onePerClaim(List<OutboundPreference> prefs) =>
+    prefs.map((p) => p.claim).toSet().length == prefs.length;
 
 Uint8List? _decodeCustomIconPng(Object? raw) {
   if (raw is! String || raw.isEmpty) return null;
   try {
     return base64Decode(raw);
-  } catch (_) {
+  } on FormatException {
     return null;
   }
 }

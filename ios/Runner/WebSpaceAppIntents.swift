@@ -1,34 +1,14 @@
+// One source, both Apple Runners: the macOS project compiles this file from
+// here, as it does TorControllerPlugin.swift (HS-007/HS-011/HS-014).
 import Foundation
 
 #if canImport(AppIntents)
 import AppIntents
 
-/// Key for the JSON-encoded `[{id, name, url}]` live site list in the shared
-/// App Group UserDefaults. Written by Dart via `ShortcutsPlugin.syncSites`;
-/// read by `SiteEntityQuery` for the Shortcuts.app picker.
-let kShortcutSitesKey = "shortcut_sites"
-
-/// Key for the JSON-encoded `[{id, name, url}]` tombstone list — recently
-/// deleted sites. NOT shown in the picker (`suggestedEntities`), but resolved
-/// by `entities(for:)` so a Shortcut tile bound to a deleted site still runs
-/// and routes by domain on the Dart side (HS-011).
-let kShortcutTombstonesKey = "shortcut_tombstones"
-
-/// Key for the pending siteId that an `OpenSiteIntent` has just resolved.
-/// Drained by `ShortcutsPlugin.getLaunchSiteId` (and ultimately by the
-/// Dart-side `_handleShortcutIntent` / `_restoreAppState` paths).
-let kPendingShortcutSiteIdKey = "pending_shortcut_site_id"
-
-/// Key for the pending site url an `OpenSiteIntent` carries alongside the id,
-/// so a deleted-site tap can route by domain (HS-011). Drained with the id.
-let kPendingShortcutUrlKey = "pending_shortcut_url"
-
-let kShortcutAppGroupId = "group.org.codeberg.theoden8.webspace"
-
 /// One synced WebSpace site as it appears to App Intents. Decoded from the
 /// JSON the Dart side writes. `url` lets a deleted-site Shortcut (resolved via
 /// the tombstone list) carry its address so the Dart side can route by domain.
-@available(iOS 16, *)
+@available(iOS 16, macOS 13, *)
 struct SiteEntity: AppEntity {
   let id: String
   let name: String
@@ -60,11 +40,11 @@ struct SiteEntity: AppEntity {
   static var defaultQuery = SiteEntityQuery()
 }
 
-/// Backing query for the `OpenSiteIntent.site` parameter. Reads the synced
+/// Backing query for the `OpenSiteIntent.target` parameter. Reads the synced
 /// site list from App Group UserDefaults so the Shortcuts.app picker shows
 /// real WebSpace sites by name. Returns an empty list if the entitlement is
 /// missing or no sites have been synced yet.
-@available(iOS 16, *)
+@available(iOS 16, macOS 13, *)
 struct SiteEntityQuery: EntityQuery {
   // Resolve EVERY requested id: a live site, then a tombstone, else a
   // placeholder. Returning a placeholder for an unknown id (a Shortcut bound to
@@ -100,15 +80,15 @@ struct SiteEntityQuery: EntityQuery {
   }
 
   static func loadSites() -> [SiteEntity] {
-    load(key: kShortcutSitesKey)
+    load(key: AppGroup.shortcutSitesKey)
   }
 
   static func loadTombstones() -> [SiteEntity] {
-    load(key: kShortcutTombstonesKey)
+    load(key: AppGroup.shortcutTombstonesKey)
   }
 
   static func load(key: String) -> [SiteEntity] {
-    guard let defaults = UserDefaults(suiteName: kShortcutAppGroupId),
+    guard let defaults = AppGroup.defaults,
           let data = defaults.data(forKey: key) ?? defaults.string(forKey: key)?.data(using: .utf8)
     else {
       return []
@@ -129,7 +109,7 @@ struct SiteEntityQuery: EntityQuery {
 /// a specific WebSpace site. Conforming to `OpenIntent` foregrounds the host
 /// app; `perform()` just stashes the chosen siteId in the App Group so the
 /// existing Flutter resume / cold-launch path can route it.
-@available(iOS 16, *)
+@available(iOS 16, macOS 13, *)
 struct OpenSiteIntent: AppIntent, OpenIntent {
   static var title: LocalizedStringResource = "Open Site"
   static var description = IntentDescription("Open a WebSpace site by name.")
@@ -146,26 +126,26 @@ struct OpenSiteIntent: AppIntent, OpenIntent {
 
   func perform() async throws -> some IntentResult {
     NSLog("[WebSpace] OpenSiteIntent.perform id=\(target.id) url=\(target.url ?? "nil")")
-    if let defaults = UserDefaults(suiteName: kShortcutAppGroupId) {
-      defaults.set(target.id, forKey: kPendingShortcutSiteIdKey)
+    if let defaults = AppGroup.defaults {
+      defaults.set(target.id, forKey: AppGroup.pendingShortcutSiteIdKey)
       if let url = target.url, !url.isEmpty {
-        defaults.set(url, forKey: kPendingShortcutUrlKey)
+        defaults.set(url, forKey: AppGroup.pendingShortcutUrlKey)
       } else {
-        defaults.removeObject(forKey: kPendingShortcutUrlKey)
+        defaults.removeObject(forKey: AppGroup.pendingShortcutUrlKey)
       }
     } else {
-      NSLog("[WebSpace] OpenSiteIntent: App Group \(kShortcutAppGroupId) unavailable")
+      NSLog("[WebSpace] OpenSiteIntent: App Group \(AppGroup.id) unavailable")
     }
     return .result()
   }
 }
 
-/// Declares the discoverable App Shortcut iOS surfaces in Shortcuts.app,
-/// Spotlight, and Siri. The phrase template includes the `\(.$target)` slot
-/// so the picker prompts for a site at add-time. Updated dynamically by
-/// `ShortcutsPlugin.syncSites` via `updateAppShortcutParameters()` whenever
-/// the user's site list changes.
-@available(iOS 16, *)
+/// Declares the discoverable App Shortcut iOS and macOS surface in
+/// Shortcuts.app, Spotlight, and Siri. The phrase template includes the
+/// `\(.$target)` slot so the picker prompts for a site at add-time. Updated
+/// dynamically by `ShortcutsPlugin.syncSites` via
+/// `updateAppShortcutParameters()` whenever the user's site list changes.
+@available(iOS 16, macOS 13, *)
 struct WebSpaceShortcuts: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     AppShortcut(

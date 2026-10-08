@@ -36,16 +36,14 @@ void main() {
       // rewrite never runs before the page wires its own click handlers and
       // target="_blank" cross-domain taps go silent again (issue #405).
       final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
-      expect(webviewSrc, contains("groupName: 'target_blank_rewrite'"));
-      final blockStart = webviewSrc.indexOf("groupName: 'target_blank_rewrite'");
+      final blockStart = webviewSrc
+          .indexOf("pageShim('target_blank_rewrite', targetBlankRewriteScript");
       expect(blockStart, greaterThan(0));
-      final blockEnd = webviewSrc.indexOf('));', blockStart);
-      expect(blockEnd, greaterThan(blockStart));
-      final block = webviewSrc.substring(blockStart, blockEnd);
-      expect(block, contains('AT_DOCUMENT_START'));
-      expect(block, contains(r'$targetBlankRewriteScript'));
-      // Must reach iframes too — outbound links live inside embedded frames.
-      expect(block, contains('forMainFrameOnly: false'));
+      final block =
+          webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));
+      expect(block, isNot(contains('ShimTime.end')));
+      // Outbound links live inside embedded frames too.
+      expect(block, contains('ShimFrames.all'));
     });
   });
 }

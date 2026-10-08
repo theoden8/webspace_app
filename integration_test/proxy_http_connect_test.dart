@@ -19,6 +19,7 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'http_connect_fixture.dart';
 import 'socks5_fixture.dart';
+import 'helpers/ui.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -102,27 +103,7 @@ void main() {
     return true;
   }
 
-  Future<bool> waitReal(
-    WidgetTester tester,
-    bool Function() done, {
-    required String label,
-    Duration timeout = const Duration(seconds: 30),
-  }) async {
-    var ok = false;
-    await tester.runAsync(() async {
-      final deadline = DateTime.now().add(timeout);
-      while (DateTime.now().isBefore(deadline)) {
-        if (done()) {
-          ok = true;
-          return;
-        }
-        await Future<void>.delayed(const Duration(milliseconds: 250));
-      }
-      ok = done();
-    });
-    log('$label -> ${ok ? "ok" : "timeout"}');
-    return ok;
-  }
+  final waitReal = RealWait(log: log);
 
   int? proxyThatSaw(String target) {
     for (var f = 0; f < proxies.length; f++) {

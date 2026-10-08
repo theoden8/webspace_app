@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'helpers/localized.dart';
 
 const _ddg = UrlBarSearchSite('ddg', 'DuckDuckGo');
 const _kagi = UrlBarSearchSite('kagi', 'Kagi');
@@ -20,25 +20,21 @@ void main() {
   }) async {
     searches = [];
     opened = [];
-    await tester.pumpWidget(MaterialApp(
-      localizationsDelegates: AppLocalizations.localizationsDelegates,
-      supportedLocales: AppLocalizations.supportedLocales,
-      home: Scaffold(
-        body: Column(
-          children: [
-            const Expanded(child: SizedBox()),
-            UrlBar(
-              currentUrl: 'https://github.com/theoden8',
-              onUrlSubmitted: (url) => opened.add(url),
-              onSiteInfo: () {},
-              searchSites: sites,
-              defaultSearchSiteId: defaultId,
-              onSearch: canSearch
-                  ? (query, siteId) => searches.add((query, siteId))
-                  : null,
-            ),
-          ],
-        ),
+    await pumpLocalized(tester, Scaffold(
+      body: Column(
+        children: [
+          const Expanded(child: SizedBox()),
+          UrlBar(
+            currentUrl: 'https://github.com/theoden8',
+            onUrlSubmitted: (url) => opened.add(url),
+            onSiteInfo: () {},
+            searchSites: sites,
+            defaultSearchSiteId: defaultId,
+            onSearch: canSearch
+                ? (query, siteId) => searches.add((query, siteId))
+                : null,
+          ),
+        ],
       ),
     ));
   }

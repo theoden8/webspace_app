@@ -98,8 +98,6 @@ const String kBuiltInMeekBridge =
     'meek_lite 192.0.2.20:80 url=https://1603026938.rsc.cdn77.org '
     'front=www.phpmyadmin.net utls=HelloRandomizedALPN';
 
-/// One parsed bridge line.
-///
 /// Deliberately not modelled field-by-field beyond the transport: the tail
 /// of a bridge line is transport-defined (obfs4 carries `cert=` and
 /// `iat-mode=`, webtunnel a `url=`, meek a `url=` and `front=`) and tor is
@@ -157,8 +155,6 @@ class TorBridgeParseResult {
 
 final RegExp _hostPort = RegExp(r'^\[?[^\s\]]+\]?:\d{1,5}$');
 
-/// Parse one bridge line.
-///
 /// Accepts the forms people actually paste: with or without a leading
 /// `Bridge ` keyword, and — for obfs4 and friends — with the transport name
 /// first. A bare `host:port` with no transport is *not* accepted: that is a
@@ -244,7 +240,7 @@ class TorBridgeConfig {
   ///
   /// There is deliberately no path from here into settings export: bridge
   /// lines live only in `flutter_secure_storage`, never in SharedPreferences
-  /// and never in `kExportedAppPrefs`. A privately-allocated obfs4 bridge
+  /// and never in an `AppPref`. A privately-allocated obfs4 bridge
   /// identifies its user, and a backup file gets mailed and synced
   /// (the reasoning behind PWD-005, applied to a different secret).
   Map<String, Object?> toJson() => {
@@ -260,8 +256,9 @@ class TorBridgeConfig {
   /// discarded rather than handed to tor, which would fail the whole
   /// configuration and take the working lines down with it.
   static TorBridgeConfig fromJson(Map<String, Object?> json) {
+    final wireName = json['transport'];
     final transport =
-        TorTransport.fromWireName(json['transport'] as String? ?? '') ??
+        TorTransport.fromWireName(wireName is String ? wireName : '') ??
             TorTransport.obfs4;
     final raw = json['lines'];
     final lines = <TorBridgeLine>[];
@@ -295,7 +292,6 @@ class TorBridgeConfig {
 List<(String, String)> torBridgeOptions(
   TorBridgeConfig config, {
   required int transportPort,
-  String transportHost = '127.0.0.1',
 }) {
   if (!config.enabled || !config.isUsable) return const [];
   if (transportPort <= 0) return const [];
@@ -305,7 +301,7 @@ List<(String, String)> torBridgeOptions(
     ('UseBridges', '1'),
     (
       'ClientTransportPlugin',
-      '${t.wireName} socks5 $transportHost:$transportPort',
+      '${t.wireName} socks5 127.0.0.1:$transportPort',
     ),
   ];
 

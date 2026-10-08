@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Type-check ios/Runner/TorControllerPlugin.swift without Xcode.
+# Type-check ios/Runner/TorControllerPlugin.swift, and on Linux the other
+# ios/Runner sources both Apple projects compile, without Xcode.
 #
-# The plugin is the one file in this repo that no test tier compiles: the
-# Dart tiers mock it away and CI builds it only on the Apple job. Two
-# compile errors reached a device build before this existed. It type-checks
+# No test tier compiles these: the Dart tiers mock them away and CI builds
+# them only on the Apple job. Two compile errors reached a device build
+# before this existed. It type-checks
 # against hand-transcribed stub modules (stub_*.swift), so it catches wrong
 # selectors, wrong argument labels and type errors -- not behaviour, and
 # nothing a stub gets wrong.
@@ -30,7 +31,7 @@ modules="Flutter Tor IPtProxy"
 if [ "$(uname -s)" != "Darwin" ]; then
   # Network before WebKit: the WebKit stub types proxyConfigurations in
   # Network's terms, exactly as the SDK has it.
-  modules="$modules Cocoa FlutterMacOS Network WebKit"
+  modules="$modules Cocoa FlutterMacOS Network WebKit UIKit"
 fi
 
 for module in $modules; do
@@ -45,4 +46,22 @@ sed 's/#if canImport(FlutterMacOS)/#if false/' \
 
 "$swiftc" -typecheck -swift-version 5 -I "$work" "$work/plugin.swift"
 echo "swift_typecheck: TorControllerPlugin.swift type-checks"
+
+# The sources both Runners share, once per side of their
+# canImport(FlutterMacOS) switch. Linux only, for the reason the Cocoa stubs
+# are: on macOS the Xcode builds later in the same job compile both sides for
+# real. canImport(AppIntents) is false here, so the intents themselves are
+# not checked, only what the plugins reach outside them.
+if [ "$(uname -s)" != "Darwin" ]; then
+  for side in false true; do
+    mkdir "$work/$side"
+    for name in AppGroup ShareIntentPlugin ShortcutsPlugin WebSpaceAppIntents; do
+      sed "s/#if canImport(FlutterMacOS)/#if $side/" \
+        "$root/ios/Runner/$name.swift" > "$work/$side/$name.swift"
+    done
+    "$swiftc" -typecheck -swift-version 5 -I "$work" \
+      "$work/$side"/*.swift "$here/linux_foundation_gaps.swift"
+  done
+  echo "swift_typecheck: the shared Runner sources type-check for iOS and macOS"
+fi
 

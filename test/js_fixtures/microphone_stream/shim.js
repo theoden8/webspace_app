@@ -1,7 +1,7 @@
 (function() {
   'use strict';
-  if (globalThis.__ws_microphone_shim__) return;
-  globalThis.__ws_microphone_shim__ = true;
+  if (globalThis.__ws_microphone_stream_shim__) return;
+  globalThis.__ws_microphone_stream_shim__ = true;
 
   // `mediaDevices` is window-only; in a worker there is nothing to patch.
   var md = globalThis.navigator && globalThis.navigator.mediaDevices;
@@ -51,113 +51,20 @@
     return err;
   }
 
-  // --- request shape ------------------------------------------------------
-
-  function wantsAudio(constraints) {
-    return !!(constraints && constraints.audio);
-  }
-  function wantsVideo(constraints) {
-    return !!(constraints && constraints.video);
-  }
-
-  // Shallow copy of `constraints` with the audio half removed, for the video
-  // request this shim re-issues.
-  function videoOnly(constraints) {
-    var out = {};
-    for (var k in constraints) {
-      if (k !== 'audio' && Object.prototype.hasOwnProperty.call(constraints, k)) {
-        out[k] = constraints[k];
-      }
-    }
-    return out;
-  }
-
-  // Shallow copy with the video half removed, for the platform audio request
-  // a `real` decision issues. Splitting is what keeps a combined request off
-  // the platform's own combined resource (iOS and macOS report a single
-  // CAMERA_AND_MICROPHONE that cannot be half-granted), so the camera half
-  // stays the camera shim's decision whatever this site's microphone mode is.
-  function audioOnly(constraints) {
-    var out = {};
-    for (var k in constraints) {
-      if (k !== 'video' && Object.prototype.hasOwnProperty.call(constraints, k)) {
-        out[k] = constraints[k];
-      }
-    }
-    return out;
-  }
-
-  // Honours ideal/exact/min/max shapes on a numeric audio constraint.
-  function pickNumber(spec, fallback) {
-    if (typeof spec === 'number') return spec;
-    if (spec && typeof spec === 'object') {
-      var v = spec.ideal !== undefined ? spec.ideal
-            : spec.exact !== undefined ? spec.exact
-            : spec.max !== undefined ? spec.max
-            : spec.min;
-      if (typeof v === 'number') return v;
-    }
-    return fallback;
-  }
-  function pickBoolean(spec, fallback) {
-    if (typeof spec === 'boolean') return spec;
-    if (spec && typeof spec === 'object') {
-      var v = spec.ideal !== undefined ? spec.ideal : spec.exact;
-      if (typeof v === 'boolean') return v;
-    }
-    return fallback;
-  }
-  // A real capture track reports the processing flags it negotiated. Mirror
-  // whatever the page asked for, defaulting the way a phone microphone does.
-  function requestedAudioOptions(constraints) {
-    var a = constraints && constraints.audio;
-    if (!a || a === true) a = {};
-    return {
-      channelCount: Math.max(1, Math.min(2, Math.round(pickNumber(a.channelCount, 1)))),
-      echoCancellation: pickBoolean(a.echoCancellation, true),
-      autoGainControl: pickBoolean(a.autoGainControl, true),
-      noiseSuppression: pickBoolean(a.noiseSuppression, true),
-    };
-  }
-
-  // --- source decision ----------------------------------------------------
-
-  // Reads the site's CURRENT mode without ever prompting. enumerateDevices
-  // must not pop a permission dialog (no browser does), but it does need to
-  // know whether this site is on the virtual microphone. Cached for the
-  // document: the mode only changes from per-site settings, which rebuilds
-  // the webview.
-  var _modePromise = null;
-  function fetchMode() {
-    if (_modePromise) return _modePromise;
-    var iaw = globalThis.flutter_inappwebview;
-    if (!iaw || !iaw.callHandler) return Promise.resolve('block');
-    _modePromise = iaw.callHandler('webMicrophoneMode').then(function(m) {
-      return typeof m === 'string' ? m : 'block';
-    }, function() {
-      return 'block';
-    });
-    return _modePromise;
-  }
-
-  // Asks Dart for this site's microphone decision. Returns a promise
-  // resolving to {mode: 'real'|'virtual'|'block', source?: {dataUrl}}.
+  // Asks Dart for this site's decision: {mode, source?}. The origin the popup
+  // names is read from the webview in Dart, never from here (CAM-013).
   //
-  // Coalesced: a page that calls getUserMedia in a burst (retry loops are
-  // common) must not stack popups. The Dart side also coalesces, but doing it
-  // here too keeps the extra round trips off the bridge entirely.
+  // Coalesced: a page that retries in a burst (capture libraries do) must not
+  // stack popups. The Dart side also coalesces; doing it here too keeps the
+  // extra round trips off the bridge entirely.
   var _decisionInFlight = null;
   function fetchDecision() {
     if (_decisionInFlight) return _decisionInFlight;
     var iaw = globalThis.flutter_inappwebview;
-    if (!iaw || !iaw.callHandler) {
-      // No bridge: fail closed (MIC-010). Without the per-site decision there
-      // is no way to tell a site the user allowed from one they did not.
-      return Promise.resolve({ mode: 'block' });
-    }
-    var origin = '';
-    try { origin = (globalThis.location && globalThis.location.origin) || ''; } catch (e) {}
-    _decisionInFlight = iaw.callHandler('webMicrophoneRequest', origin).then(function(res) {
+    // No bridge: fail closed. Without the per-site decision there is no way to
+    // tell a site the user allowed from one they did not (CAM-009, MIC-010).
+    if (!iaw || !iaw.callHandler) return Promise.resolve({ mode: 'block' });
+    _decisionInFlight = iaw.callHandler("webMicrophoneRequest").then(function(res) {
       _decisionInFlight = null;
       if (!res || typeof res !== 'object') return { mode: 'block' };
       return res;
@@ -168,16 +75,14 @@
     return _decisionInFlight;
   }
 
-  // --- synthetic stream ---------------------------------------------------
-
-  // Synthetic track -> its WebAudio graph + reported settings. A WeakMap so a
+  // Substituted track -> what this shim reports for it. A WeakMap so a
   // dropped stream is collectable.
   var _syntheticTracks = new WeakMap();
 
   // Shared across every capture shim: the tracks any of them substituted, and
   // the DEVICE tracks any of them handed over. A combined audio+video request
   // is served by two shims, so each has to recognise the other's tracks, and
-  // the deactivation stop (MIC-012 / CAM-012) has to end the device half of
+  // the deactivation stop (CAM-012 / MIC-012) has to end the device half of
   // such a stream while leaving the substituted half running.
   if (typeof globalThis.__wsStopRealCapture !== 'function') {
     (function() {
@@ -392,9 +297,214 @@
     try { return _wsCapture.s(track); } catch (e) { return track; }
   }
 
+
+  // Patch the PROTOTYPE, not the `navigator.mediaDevices` instance. Assigning
+  // to the instance leaves the overrides visible in
+  // Object.getOwnPropertyNames(navigator.mediaDevices), where a real browser
+  // defines them only on MediaDevices.prototype: an own-property leak the
+  // repo's lie-detection tier probes for on every shim. Never fall back to
+  // Object.prototype: on a platform with no MediaDevices class (or a stubbed
+  // mediaDevices that owns its methods) that would install the override
+  // globally. Patch the instance there instead.
+  var MDCtor = globalThis.MediaDevices;
+  var mdProto = (MDCtor && MDCtor.prototype && md instanceof MDCtor)
+    ? MDCtor.prototype
+    : null;
+  var patchTarget = mdProto || md;
+  function defineOnProto(name, fn) {
+    try {
+      var prev = Object.getOwnPropertyDescriptor(patchTarget, name);
+      Object.defineProperty(patchTarget, name, {
+        value: fn,
+        writable: prev ? prev.writable !== false : true,
+        enumerable: prev ? prev.enumerable : false,
+        configurable: true,
+      });
+    } catch (e) {}
+  }
+
+  // MediaStreamTrack.prototype methods answer for this shim's tracks only;
+  // every other track reaches the method they replaced, which may be another
+  // shim's. Assigning onto a track instance instead would leave the override
+  // in Object.getOwnPropertyNames(track), where a real track has none.
+  var trackProto = globalThis.MediaStreamTrack && globalThis.MediaStreamTrack.prototype;
+  function overrideTrack(name, wrap) {
+    if (!trackProto || typeof trackProto[name] !== 'function') return;
+    try { trackProto[name] = asNative(wrap(trackProto[name]), name); } catch (e) {}
+  }
+
+  // Registers a substituted track. A clone joins its original (see the clone
+  // override below), and `meta.release()` frees the stream's source once
+  // every track presenting it has stopped or ended: stopping a clone must not
+  // silence the original, any more than it does a device track. A track that
+  // ends without stop() releases too, or a page that drops the stream leaks
+  // the source for the document's lifetime.
+  function presentSynthetic(track, meta) {
+    meta.live = (meta.live || []).concat([track]);
+    _syntheticTracks.set(track, meta);
+    markSyntheticTrack(track);
+    try {
+      track.addEventListener('ended', function() { stopSynthetic(track); });
+    } catch (e) {}
+  }
+  function stopSynthetic(track) {
+    var meta = _syntheticTracks.get(track);
+    if (!meta || meta.released) return;
+    meta.live = meta.live.filter(function(t) { return t !== track; });
+    if (meta.live.length) return;
+    meta.released = true;
+    meta.release();
+  }
+
+  (function patchLabel() {
+    var desc = trackProto && Object.getOwnPropertyDescriptor(trackProto, 'label');
+    if (!desc || !desc.get) return;
+    var origGet = desc.get;
+    // Named 'get label' so Function.prototype.toString reports
+    // `function get label() { [native code] }`, matching a real accessor.
+    var get = asNative(function label() {
+      return _syntheticTracks.has(this) ? DEVICE_LABEL : origGet.call(this);
+    }, 'get label');
+    try {
+      Object.defineProperty(trackProto, 'label', {
+        get: get,
+        set: desc.set,
+        enumerable: desc.enumerable,
+        configurable: true,
+      });
+    } catch (e) {}
+  })();
+
+  // A clone keeps presenting as the same device, and stays exempt from the
+  // deactivation stop; otherwise it would report an empty label and the
+  // underlying track's settings, betraying the original.
+  overrideTrack('clone', function(orig) {
+    return function clone() {
+      var copy = orig.apply(this, arguments);
+      var meta = _syntheticTracks.get(this);
+      if (meta && copy) presentSynthetic(copy, meta);
+      return copy;
+    };
+  });
+
+  overrideTrack('stop', function(orig) {
+    return function stop() {
+      stopSynthetic(this);
+      return orig.call(this);
+    };
+  });
+
+  overrideTrack('getConstraints', function(orig) {
+    return function getConstraints() {
+      var meta = _syntheticTracks.get(this);
+      return meta && meta.constraints ? meta.constraints : orig.call(this);
+    };
+  });
+
   // Per spec a device label is only exposed once the page holds a capture
-  // permission; flipped the first time this shim serves any stream.
+  // permission; flipped the first time this shim serves a stream.
   var _servedStream = false;
+
+  // Reads the site's CURRENT mode without ever prompting. enumerateDevices
+  // must not pop a permission dialog (no browser does), but it does need to
+  // know whether this site is substituting the device. Cached for the
+  // document: the mode only changes from per-site settings, which rebuilds
+  // the webview.
+  var _modePromise = null;
+  function fetchMode() {
+    if (_modePromise) return _modePromise;
+    var iaw = globalThis.flutter_inappwebview;
+    if (!iaw || !iaw.callHandler) return Promise.resolve('block');
+    _modePromise = iaw.callHandler("webMicrophoneMode").then(function(m) {
+      return typeof m === 'string' ? m : 'block';
+    }, function() {
+      return 'block';
+    });
+    return _modePromise;
+  }
+
+  var _origGumFn = typeof patchTarget.getUserMedia === 'function'
+    ? patchTarget.getUserMedia
+    : (md.getUserMedia || null);
+  // `this` is the live MediaDevices when called through the prototype; fall
+  // back to the captured instance for a detached call.
+  function callOrigGum(self, constraints) {
+    if (!_origGumFn) return null;
+    return _origGumFn.call(self || md, constraints);
+  }
+
+  // A page that enumerated while the synthetic device was published may hold
+  // its deviceId. Once the site is on the real device, passing that id through
+  // would make the platform reject the request as overconstrained, so drop
+  // just that constraint from the [key] half and let the OS pick.
+  function withoutSyntheticDeviceId(constraints, key) {
+    var c = constraints && constraints[key];
+    if (!c || c === true || !c.deviceId) return constraints;
+    var d = c.deviceId;
+    var wanted = typeof d === 'string' ? d : (d.exact || d.ideal);
+    if (wanted !== DEVICE_ID) return constraints;
+    var half = {};
+    for (var k in c) {
+      if (k !== 'deviceId' && Object.prototype.hasOwnProperty.call(c, k)) half[k] = c[k];
+    }
+    var out = {};
+    for (var o in constraints) {
+      if (Object.prototype.hasOwnProperty.call(constraints, o)) out[o] = constraints[o];
+    }
+    out[key] = half;
+    return out;
+  }
+
+  function wantsAudio(constraints) {
+    return !!(constraints && constraints.audio);
+  }
+  function wantsVideo(constraints) {
+    return !!(constraints && constraints.video);
+  }
+
+  // Shallow copy of `constraints` without the `drop` half.
+  function without(constraints, drop) {
+    var out = {};
+    for (var k in constraints) {
+      if (k !== drop && Object.prototype.hasOwnProperty.call(constraints, k)) {
+        out[k] = constraints[k];
+      }
+    }
+    return out;
+  }
+
+  // Honours ideal/exact/min/max shapes on a numeric audio constraint.
+  function pickNumber(spec, fallback) {
+    if (typeof spec === 'number') return spec;
+    if (spec && typeof spec === 'object') {
+      var v = spec.ideal !== undefined ? spec.ideal
+            : spec.exact !== undefined ? spec.exact
+            : spec.max !== undefined ? spec.max
+            : spec.min;
+      if (typeof v === 'number') return v;
+    }
+    return fallback;
+  }
+  function pickBoolean(spec, fallback) {
+    if (typeof spec === 'boolean') return spec;
+    if (spec && typeof spec === 'object') {
+      var v = spec.ideal !== undefined ? spec.ideal : spec.exact;
+      if (typeof v === 'boolean') return v;
+    }
+    return fallback;
+  }
+  // A real capture track reports the processing flags it negotiated. Mirror
+  // whatever the page asked for, defaulting the way a phone microphone does.
+  function requestedAudioOptions(constraints) {
+    var a = constraints && constraints.audio;
+    if (!a || a === true) a = {};
+    return {
+      channelCount: Math.max(1, Math.min(2, Math.round(pickNumber(a.channelCount, 1)))),
+      echoCancellation: pickBoolean(a.echoCancellation, true),
+      autoGainControl: pickBoolean(a.autoGainControl, true),
+      noiseSuppression: pickBoolean(a.noiseSuppression, true),
+    };
+  }
 
   var AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext;
 
@@ -489,14 +599,9 @@
         var stream = dest.stream;
         var track = stream.getAudioTracks()[0];
         if (track) {
-          // Register the track; the prototype-level overrides installed below
-          // read this map. Assigning label/getSettings/stop onto the track
-          // instance instead would leave them enumerable in
-          // Object.getOwnPropertyNames(track), where a real MediaStreamTrack
-          // has none — a giveaway a fingerprinter checks for.
-          _syntheticTracks.set(track, {
-            ctx: ctx,
-            src: src,
+          // Engines cap how many AudioContexts a document may hold, so the
+          // graph goes with the last track presenting it.
+          presentSynthetic(track, {
             sampleRate: ctx.sampleRate,
             channelCount: opts.channelCount,
             echoCancellation: opts.echoCancellation,
@@ -504,15 +609,11 @@
             noiseSuppression: opts.noiseSuppression,
             constraints: (constraints && constraints.audio === true)
               ? {} : ((constraints && constraints.audio) || {}),
+            release: function() {
+              try { src.stop(); } catch (e) {}
+              try { ctx.close(); } catch (e) {}
+            },
           });
-          markSyntheticTrack(track);
-          // A track that ends must also tear down the graph, else a page that
-          // discards the stream without calling stop() leaks an AudioContext
-          // (engines cap how many a document may hold) for the document's
-          // lifetime.
-          try {
-            track.addEventListener('ended', function() { teardown(track); });
-          } catch (e) {}
         }
         return stream;
       })
@@ -522,17 +623,9 @@
       });
   }
 
-  function teardown(track) {
-    var meta = _syntheticTracks.get(track);
-    if (!meta || meta.torn) return;
-    meta.torn = true;
-    try { meta.src.stop(); } catch (e) {}
-    try { meta.ctx.close(); } catch (e) {}
-  }
-
-  // Stops every synthetic track in a stream. Used when the other half of a
-  // combined audio+video request fails: handing back nothing while an
-  // AudioContext keeps running is a leak the page cannot clean up.
+  // Stops every track in a stream. Used when the other half of a combined
+  // audio+video request fails: handing back nothing while an AudioContext
+  // keeps running is a leak the page cannot clean up.
   function abandon(stream) {
     if (!stream || !stream.getTracks) return;
     var tracks = stream.getTracks();
@@ -541,161 +634,57 @@
     }
   }
 
-  // --- prototype-level track overrides (installed once) -------------------
+  overrideTrack('getSettings', function(orig) {
+    return function getSettings() {
+      var s = orig.call(this) || {};
+      var meta = _syntheticTracks.get(this);
+      if (!meta) return s;
+      s.deviceId = DEVICE_ID;
+      s.groupId = GROUP_ID;
+      s.sampleRate = meta.sampleRate;
+      s.sampleSize = 16;
+      s.channelCount = meta.channelCount;
+      s.echoCancellation = meta.echoCancellation;
+      s.autoGainControl = meta.autoGainControl;
+      s.noiseSuppression = meta.noiseSuppression;
+      // Reported in seconds; a software capture path lands in this range.
+      s.latency = 0.01;
+      return s;
+    };
+  });
 
-  (function patchTrackPrototype() {
-    var MST = globalThis.MediaStreamTrack;
-    if (!MST || !MST.prototype) return;
-    var proto = MST.prototype;
+  overrideTrack('getCapabilities', function(orig) {
+    return function getCapabilities() {
+      var meta = _syntheticTracks.get(this);
+      if (!meta) return orig.call(this);
+      return {
+        deviceId: DEVICE_ID,
+        groupId: GROUP_ID,
+        echoCancellation: [true, false],
+        autoGainControl: [true, false],
+        noiseSuppression: [true, false],
+        channelCount: { min: 1, max: 2 },
+        sampleRate: { min: meta.sampleRate, max: meta.sampleRate },
+        sampleSize: { min: 16, max: 16 },
+        latency: { min: 0.01, max: 0.02 },
+      };
+    };
+  });
 
-    var labelDesc = Object.getOwnPropertyDescriptor(proto, 'label');
-    if (labelDesc && labelDesc.get) {
-      var origLabelGet = labelDesc.get;
-      // Named 'get label' so Function.prototype.toString reports
-      // `function get label() { [native code] }`, matching a real accessor.
-      var labelGet = asNative(function label() {
-        return _syntheticTracks.has(this) ? DEVICE_LABEL : origLabelGet.call(this);
-      }, 'get label');
-      try {
-        Object.defineProperty(proto, 'label', {
-          get: labelGet,
-          set: labelDesc.set,
-          enumerable: labelDesc.enumerable,
-          configurable: true,
-        });
-      } catch (e) {}
-    }
-
-    if (typeof proto.getSettings === 'function') {
-      var origGetSettings = proto.getSettings;
-      var getSettings = asNative(function getSettings() {
-        var s = origGetSettings.call(this) || {};
-        var meta = _syntheticTracks.get(this);
-        if (!meta) return s;
-        s.deviceId = DEVICE_ID;
-        s.groupId = GROUP_ID;
-        s.sampleRate = meta.sampleRate;
-        s.sampleSize = 16;
-        s.channelCount = meta.channelCount;
-        s.echoCancellation = meta.echoCancellation;
-        s.autoGainControl = meta.autoGainControl;
-        s.noiseSuppression = meta.noiseSuppression;
-        // Reported in seconds; a software capture path lands in this range.
-        s.latency = 0.01;
-        return s;
-      }, 'getSettings');
-      try { proto.getSettings = getSettings; } catch (e) {}
-    }
-
-    if (typeof proto.getCapabilities === 'function') {
-      var origGetCapabilities = proto.getCapabilities;
-      var getCapabilities = asNative(function getCapabilities() {
-        var meta = _syntheticTracks.get(this);
-        if (!meta) return origGetCapabilities.call(this);
-        return {
-          deviceId: DEVICE_ID,
-          groupId: GROUP_ID,
-          echoCancellation: [true, false],
-          autoGainControl: [true, false],
-          noiseSuppression: [true, false],
-          channelCount: { min: 1, max: 2 },
-          sampleRate: { min: meta.sampleRate, max: meta.sampleRate },
-          sampleSize: { min: 16, max: 16 },
-          latency: { min: 0.01, max: 0.02 },
-        };
-      }, 'getCapabilities');
-      try { proto.getCapabilities = getCapabilities; } catch (e) {}
-    }
-
-    if (typeof proto.getConstraints === 'function') {
-      var origGetConstraints = proto.getConstraints;
-      var getConstraints = asNative(function getConstraints() {
-        var meta = _syntheticTracks.get(this);
-        return meta ? meta.constraints : origGetConstraints.call(this);
-      }, 'getConstraints');
-      try { proto.getConstraints = getConstraints; } catch (e) {}
-    }
-
-    if (typeof proto.applyConstraints === 'function') {
-      var origApply = proto.applyConstraints;
-      var applyConstraints = asNative(function applyConstraints(c) {
-        var meta = _syntheticTracks.get(this);
-        if (!meta) return origApply.call(this, c);
-        // A real microphone accepts a re-negotiation of the processing flags;
-        // the underlying WebAudio track would reject it as overconstrained.
-        var opts = requestedAudioOptions({ audio: c || {} });
-        meta.echoCancellation = opts.echoCancellation;
-        meta.autoGainControl = opts.autoGainControl;
-        meta.noiseSuppression = opts.noiseSuppression;
-        meta.constraints = c || {};
-        return Promise.resolve();
-      }, 'applyConstraints');
-      try { proto.applyConstraints = applyConstraints; } catch (e) {}
-    }
-
-    if (typeof proto.clone === 'function') {
-      var origClone = proto.clone;
-      var clone = asNative(function clone() {
-        var copy = origClone.call(this);
-        var meta = _syntheticTracks.get(this);
-        // A clone of a synthetic track must keep presenting as the same
-        // device; without this it would report a real (empty) label and
-        // settings, betraying the original.
-        if (meta && copy) {
-          _syntheticTracks.set(copy, meta);
-          markSyntheticTrack(copy);
-        }
-        return copy;
-      }, 'clone');
-      try { proto.clone = clone; } catch (e) {}
-    }
-
-    if (typeof proto.stop === 'function') {
-      var origStop = proto.stop;
-      var stop = asNative(function stop() {
-        teardown(this);
-        return origStop.call(this);
-      }, 'stop');
-      try { proto.stop = stop; } catch (e) {}
-    }
-  })();
-
-  // --- getUserMedia patch -------------------------------------------------
-
-  // Patch the PROTOTYPE, not the `navigator.mediaDevices` instance. Assigning
-  // to the instance leaves getUserMedia/enumerateDevices visible in
-  // Object.getOwnPropertyNames(navigator.mediaDevices), where a real browser
-  // defines them only on MediaDevices.prototype — an own-property leak the
-  // repo's lie-detection tier probes for on every shim.
-  // Never fall back to Object.prototype: on a platform with no MediaDevices
-  // class (or a stubbed mediaDevices that owns its methods) that would
-  // install the override globally. Patch the instance there instead.
-  var MDCtor = globalThis.MediaDevices;
-  var mdProto = (MDCtor && MDCtor.prototype && md instanceof MDCtor)
-    ? MDCtor.prototype
-    : null;
-  var patchTarget = mdProto || md;
-  function defineOnProto(name, fn) {
-    try {
-      var prev = Object.getOwnPropertyDescriptor(patchTarget, name);
-      Object.defineProperty(patchTarget, name, {
-        value: fn,
-        writable: prev ? prev.writable !== false : true,
-        enumerable: prev ? prev.enumerable : false,
-        configurable: true,
-      });
-    } catch (e) {}
-  }
-
-  var _origGumFn = typeof patchTarget.getUserMedia === 'function'
-    ? patchTarget.getUserMedia
-    : (md.getUserMedia || null);
-  // `this` is the live MediaDevices when called through the prototype; fall
-  // back to the captured instance for a detached call.
-  function callOrigGum(self, constraints) {
-    if (!_origGumFn) return null;
-    return _origGumFn.call(self || md, constraints);
-  }
+  overrideTrack('applyConstraints', function(orig) {
+    return function applyConstraints(c) {
+      var meta = _syntheticTracks.get(this);
+      if (!meta) return orig.call(this, c);
+      // A real microphone accepts a re-negotiation of the processing flags;
+      // the underlying WebAudio track would reject it as overconstrained.
+      var opts = requestedAudioOptions({ audio: c || {} });
+      meta.echoCancellation = opts.echoCancellation;
+      meta.autoGainControl = opts.autoGainControl;
+      meta.noiseSuppression = opts.noiseSuppression;
+      meta.constraints = c || {};
+      return Promise.resolve();
+    };
+  });
 
   // The video half of a combined request goes back through the LIVE public
   // entry point rather than the function captured at install time, so a
@@ -750,7 +739,8 @@
       // combined resource it cannot half-grant. Dart still denies that
       // resource defensively (MIC-003) for a page this shim did not reach.
       var audioPromise = real
-        ? Promise.resolve(callOrigGum(self, audioOnly(constraints)))
+        ? Promise.resolve(callOrigGum(
+              self, withoutSyntheticDeviceId(without(constraints, 'video'), 'audio')))
             .then(function(stream) {
               if (!stream) throw notAllowed('getUserMedia is unavailable');
               return rememberRealTracks(stream);
@@ -762,7 +752,7 @@
         // platform's own list unmasked.
         if (!real) _servedStream = true;
         if (!alsoVideo) return audioStream;
-        return Promise.resolve(delegateVideo(self, videoOnly(constraints)))
+        return Promise.resolve(delegateVideo(self, without(constraints, 'audio')))
           .then(function(videoStream) {
             return combine(audioStream, videoStream);
           }, function(err) {
@@ -779,8 +769,8 @@
 
   // Legacy callback API. Some older bundles still feature-detect it, and
   // leaving it unpatched would route them past every shim. Routed through the
-  // live public entry point so this stays correct no matter which capture
-  // shim installed last.
+  // live public entry point so it stays correct whichever capture shim
+  // installed last.
   var nav = globalThis.navigator;
   if (nav && (nav.getUserMedia || nav.webkitGetUserMedia || nav.mozGetUserMedia)) {
     var legacy = function getUserMedia(constraints, success, failure) {
@@ -796,24 +786,19 @@
     });
   }
 
-  // --- enumerateDevices patch --------------------------------------------
-
-  // In VIRTUAL mode: hide the real microphones (getUserMedia will not open
-  // them, so listing them is a lie the page could catch by selecting one by
-  // deviceId) and publish exactly one synthetic audioinput.
+  // In VIRTUAL mode: hide the real devices of this kind (getUserMedia will not
+  // open them, so listing them is a lie the page could catch by selecting one
+  // by deviceId) and publish exactly one synthetic device.
   //
-  // In ASK mode on a device with NO real microphone, publish the synthetic
-  // one too: otherwise a page that enumerates first concludes there is no
-  // microphone and never calls getUserMedia, so the user is never offered the
-  // "use audio file" popup at all.
+  // In ASK mode on a device with NONE of this kind, publish the synthetic one
+  // too: otherwise a page that enumerates first concludes there is no device
+  // and never calls getUserMedia, so the user is never offered the "use a
+  // file" popup at all.
   //
-  // In REAL and BLOCK mode (and ASK where a real microphone exists): pass the
+  // In REAL and BLOCK mode (and ASK where a real device exists): pass the
   // platform list through untouched. Masking there would break the common
-  // "pick a microphone" UI, and in REAL mode it would misreport the hardware
-  // the user chose to expose (MIC-009).
-  //
-  // Audio OUTPUT devices are left alone throughout — they are speakers, not
-  // capture, and nothing here substitutes them.
+  // "pick a device" UI, and in REAL mode would misreport the hardware the
+  // user chose to expose (MIC-009).
   //
   // Per spec, labels are only exposed once the page holds a capture
   // permission, so the label is blank until this shim has served a stream.
@@ -828,12 +813,11 @@
     return Promise.all([Promise.resolve(base), fetchMode()]).then(function(r) {
       var list = r[0] || [];
       var mode = r[1];
-      var hasRealMic = false;
+      var hasReal = false;
       for (var i = 0; i < list.length; i++) {
-        if (list[i] && list[i].kind === 'audioinput') hasRealMic = true;
+        if (list[i] && list[i].kind === 'audioinput') hasReal = true;
       }
-      var publishSynthetic =
-        mode === 'virtual' || (mode === 'ask' && !hasRealMic);
+      var publishSynthetic = mode === 'virtual' || (mode === 'ask' && !hasReal);
       if (!publishSynthetic) return list;
 
       var out = [];
@@ -859,4 +843,5 @@
     });
   };
   defineOnProto('enumerateDevices', asNative(enumerateDevices, 'enumerateDevices'));
+
 })();

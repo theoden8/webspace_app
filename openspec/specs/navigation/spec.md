@@ -295,7 +295,7 @@ The **AppBar back button** on a nested `InAppWebViewScreen` SHALL always close t
 
 **Given** the user triggers the back gesture twice in quick succession
 **When** the second invocation arrives while the first is still awaiting `goBack()` / URL diff
-**Then** the second invocation drops (guarded by `_isBackHandling`)
+**Then** the second invocation drops (guarded by `_backGuard`)
 **And** at most one `goBack()` per gesture is dispatched
 
 ---
@@ -383,25 +383,25 @@ Apple is excluded because the app cannot see the gesture: the root site webview 
 
 ### Requirement: NAV-010 - Leaving A Site Is Committed Before Its Teardown
 
-Returning to the webspace list SHALL take effect on the user's tap, independently of the teardown of the site being left. `_setCurrentIndex(null)` SHALL assign `_currentIndex` and exit fullscreen **before** it captures nav state, stops a real camera capture, pauses media, or pauses the webview — nothing in that sequence decides where the user ends up.
+Returning to the webspace list SHALL take effect on the user's tap, independently of the teardown of the site being left. `_setCurrentIndex(null)` SHALL assign `_sites.current` and exit fullscreen **before** it captures nav state, stops a real camera capture, pauses media, or pauses the webview — nothing in that sequence decides where the user ends up.
 
 That teardown is best-effort and SHALL be funnelled through `SiteTeardownEngine.quiesceOutgoing` (also used by the site-switch path and the defensive sweep of background sites), which:
 
 - keeps the caller's step order (camera stop and media pause ahead of the pause — CAM-012 / BGAUDIO-009);
 - treats a step that throws as best-effort and runs the ones behind it anyway;
 - gives the whole sequence one budget (`SiteTeardownEngine.defaultBudget`) and returns when it expires, abandoning — not cancelling — the stalled step;
-- re-checks the `_setCurrentIndexVersion` guard before each remaining step, including after the budget expired, so an abandoned sequence whose native reply lands late cannot pause a webview a newer activation has since resumed (PAUSE-005).
+- re-checks the `SiteRuntime.activationVersion` guard before each remaining step, including after the budget expired, so an abandoned sequence whose native reply lands late cannot pause a webview a newer activation has since resumed (PAUSE-005).
 
 Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateStorage` swallows an initialization failure, degrades save/load to no-ops, and clears its memoized in-flight init so a later call retries instead of replaying the failure for the rest of the run.
 
-**Rationale:** each teardown step is a native round-trip, and the commit used to sit behind all four. Any of them throwing (a state-storage init that failed once and then re-threw its memoized failure forever), being superseded (a version bump from a concurrent delete, archive close, or activation), or never answering at all left `_currentIndex` on the site the user asked to leave — "back to webspaces" did nothing, silently, with nothing to retry against. The never-answering case is reachable: on iOS the per-instance pause freezes the page's JS thread (the plugin's withheld-`alert()` hack), so a site left paused by a race-cancelled switch never answers the `evaluateJavascript` that the next teardown opens with.
+**Rationale:** each teardown step is a native round-trip, and the commit used to sit behind all four. Any of them throwing (a state-storage init that failed once and then re-threw its memoized failure forever), being superseded (a version bump from a concurrent delete, archive close, or activation), or never answering at all left `_sites.current` on the site the user asked to leave — "back to webspaces" did nothing, silently, with nothing to retry against. The never-answering case is reachable: on iOS the per-instance pause freezes the page's JS thread (the plugin's withheld-`alert()` hack), so a site left paused by a race-cancelled switch never answers the `evaluateJavascript` that the next teardown opens with.
 
 #### Scenario: A teardown step that never answers still returns the user home
 
 **Given** site A is active and its JS thread is frozen by an earlier pause
 **When** the user taps "Back to Webspaces"
 **And** the media-pause step never answers
-**Then** `_currentIndex` is already null and fullscreen is already exited
+**Then** `_sites.current` is already null and fullscreen is already exited
 **And** the sequence is abandoned once the budget expires
 **And** the webspace list is shown
 
@@ -424,7 +424,7 @@ Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateSto
 #### Scenario: A concurrent delete no longer strands the return
 
 **Given** a return to the webspace list is mid-teardown
-**When** another path bumps `_setCurrentIndexVersion` (site delete, archive close)
+**When** another path bumps `SiteRuntime.activationVersion` (site delete, archive close)
 **Then** the teardown stops early
 **And** the user is still on the webspace list, because the commit already happened
 
@@ -432,9 +432,9 @@ Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateSto
 
 ### Requirement: NAV-012 - A Site Opened During Startup Stays Open
 
-The startup restore SHALL NOT close a site the user opened while it was still running. `_restoreAppState` records `_setCurrentIndexVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
+The startup restore SHALL NOT close a site the user opened while it was still running. `_restoreAppState` records `SiteRuntime.activationVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
 
-**Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `_setCurrentIndex(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_currentIndex` cleared the next memory-pressure event no longer protected it.
+**Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `_setCurrentIndex(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_sites.current` cleared the next memory-pressure event no longer protected it.
 
 #### Scenario: Opening a site during a slow startup
 
@@ -462,17 +462,17 @@ Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/s
 
 ## Race Condition Guards
 
-### Guard: RACE-002 - _isBackHandling Flag
+### Guard: RACE-002 - _backGuard
 
 **Problem:** The PopScope `onPopInvokedWithResult` handler is async. Rapid back gestures could invoke it concurrently, causing double navigation or drawer flash.
 
-**Solution:** Boolean `_isBackHandling` flag drops concurrent invocations. Cleared in a `finally` block to guarantee cleanup.
+**Solution:** A `ReentryGuard` (`_backGuard`) drops concurrent invocations. Its `run` releases it in its own `finally`, so no exit path leaves it held.
 
-### Guard: RACE-003 - _setCurrentIndexVersion Counter
+### Guard: RACE-003 - SiteRuntime.activationVersion Counter
 
 **Problem:** `_setCurrentIndex()` performs multiple async operations (cookie capture, domain conflict resolution, cookie restoration). Rapid site switching could interleave these operations.
 
-**Solution:** Version counter `_setCurrentIndexVersion` is checked after each `await` gap. If the version changed (another `_setCurrentIndex` call started), the stale call returns early.
+**Solution:** Version counter `SiteRuntime.activationVersion` is checked after each `await` gap. If the version changed (another `_setCurrentIndex` call started), the stale call returns early.
 
 ### Guard: RACE-004 - _goHome() Synchronous Execution
 
@@ -503,7 +503,7 @@ on iOS/macOS and while the kiosk shell is locked.
 System back gesture received
   │
   ├─ didPop? ──────────────────── return (system handled it)
-  ├─ _isBackHandling? ─────────── return (drop concurrent)
+  ├─ _backGuard.busy? ────────── return (drop concurrent)
   │
   ├─ Drawer open?
   │   ├─ openMenu && opened by this gesture && Android ─── close drawer + exit app
@@ -545,7 +545,7 @@ Home button pressed
       ├─ model.currentUrl = model.initUrl
       ├─ model.disposeWebView()    ← webview=null, controller=null
       ├─ setState(() {})           ← trigger rebuild
-      └─ _saveWebViewModels()      ← persist reset URL
+      └─ _commitSites(SitesEdited())  ← persist reset URL
       
       Next frame: getWebView() sees webview==null
         → creates fresh webview with UniqueKey
@@ -561,7 +561,7 @@ Home button pressed
   offered at all. Tests: [test/back_gesture_engine_test.dart](../../../test/back_gesture_engine_test.dart)
 
 #### `lib/main.dart`
-- `_isBackHandling` — boolean guard for PopScope handler
+- `_backGuard` — `ReentryGuard` for the PopScope handler
 - `_backAtHistoryStart` — NAV-009 setting, mirrored from the `backOpensMenu` pref
   on load and import, and pinned to `ignore` where `_backAtHistoryStartOffered`
   is false (iOS/macOS)

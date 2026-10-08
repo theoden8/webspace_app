@@ -12,35 +12,32 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { blockAfter } = require('./helpers/dart_blocks');
+const { read, dartFiles, blockAfter } = require('./helpers/source');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
 const rel = 'lib/services/webview.dart';
-const src = fs.readFileSync(path.join(repoRoot, rel), 'utf8');
+const src = read(rel);
 
 const wrapper = blockAfter(
   src, 'class _WebViewController implements WebViewController {', null, rel);
 
 test('reload re-renders the import before it can reach the engine', () => {
-  const body = blockAfter(wrapper, 'Future<void> reload()', null, rel);
+  const body = blockAfter(wrapper, 'Future<bool> reload()', null, rel);
   const guard = body.indexOf('FileImportDocument.rendersOnReload(');
   const native = body.indexOf('_c.reload()');
   assert.notEqual(guard, -1, 'reload() must consult rendersOnReload');
   assert.notEqual(native, -1, 'reload() must still reload natively otherwise');
   assert.ok(guard < native, 'the import check must precede _c.reload()');
-  assert.match(body.slice(guard, native), /loadHtmlString\(\s*fileImport\.html/,
+  assert.match(body.slice(guard, native), /_loadHtml\(\s*fileImport\.html/,
       'the guarded branch must render the import document');
 });
 
 test('a load of the import URL renders the import', () => {
-  const body = blockAfter(wrapper, 'Future<void> loadUrl(', ') {', rel);
+  const body = blockAfter(wrapper, 'Future<void> loadUrl(', ') async {', rel);
   const guard = body.indexOf('.isLoadOf(url)');
   const native = body.indexOf('_c.loadUrl(');
   assert.notEqual(guard, -1, 'loadUrl() must consult isLoadOf');
   assert.ok(native > guard, 'the import check must precede _c.loadUrl()');
-  assert.match(body.slice(guard, native), /loadHtmlString\(\s*fileImport\.html/,
+  assert.match(body.slice(guard, native), /_loadHtml\(\s*fileImport\.html/,
       'the guarded branch must render the import document');
 });
 
@@ -66,21 +63,13 @@ test('initialData and the wrapper render the same import document', () => {
 
 test('model code does not load through the raw native controller', () => {
   const offenders = [];
-  const walk = (dir) => {
-    for (const e of fs.readdirSync(path.join(repoRoot, dir), { withFileTypes: true })) {
-      const r = path.join(dir, e.name);
-      if (e.isDirectory()) walk(r);
-      else if (r.endsWith('.dart') && r !== rel) {
-        const text = fs.readFileSync(path.join(repoRoot, r), 'utf8');
-        text.split('\n').forEach((l, i) => {
-          if (/nativeController\s*\.\s*(loadUrl|reload|loadData|loadFile)\s*\(/.test(l)) {
-            offenders.push(`${r}:${i + 1}`);
-          }
-        });
+  for (const r of dartFiles().filter((f) => f !== rel)) {
+    read(r).split('\n').forEach((l, i) => {
+      if (/nativeController\s*\.\s*(loadUrl|reload|loadData|loadFile)\s*\(/.test(l)) {
+        offenders.push(`${r}:${i + 1}`);
       }
-    }
-  };
-  walk('lib');
+    });
+  }
   assert.deepEqual(offenders, [],
       'route loads through WebViewController so file imports stay covered');
 });

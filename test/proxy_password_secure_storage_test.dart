@@ -3,7 +3,8 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/settings/global_outbound_proxy.dart';
+import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/mock_secure_storage.dart';
@@ -36,22 +37,6 @@ void main() {
       await store.savePassword('site-1', 'shh');
       await store.savePassword('site-1', '');
       expect(await store.loadPassword('site-1'), isNull);
-    });
-
-    test('saveAll replaces the whole map', () async {
-      await store.savePassword('a', '1');
-      await store.savePassword('b', '2');
-      await store.saveAll({'b': '2-updated', 'c': '3'});
-      // 'a' is dropped because saveAll is a wholesale replace.
-      expect(await store.loadPassword('a'), isNull);
-      expect(await store.loadPassword('b'), equals('2-updated'));
-      expect(await store.loadPassword('c'), equals('3'));
-    });
-
-    test('saveAll with empty map deletes the underlying entry', () async {
-      await store.savePassword('a', '1');
-      await store.saveAll({});
-      expect(mockSecureStorage.storage.containsKey('proxy_passwords'), false);
     });
 
     test('removeOrphaned drops site keys not in the active set', () async {
@@ -203,7 +188,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       // Pre-migration state: password lives in plaintext prefs.
       await prefs.setString(
-        kGlobalOutboundProxyKey,
+        AppPref.globalOutboundProxy.key,
         jsonEncode({
           'type': ProxyType.SOCKS5.index,
           'address': '127.0.0.1:9050',
@@ -219,7 +204,7 @@ void main() {
       expect(GlobalOutboundProxy.current.username, equals('tor'));
       // Prefs no longer holds the password.
       final rewritten =
-          jsonDecode(prefs.getString(kGlobalOutboundProxyKey)!) as Map;
+          jsonDecode(prefs.getString(AppPref.globalOutboundProxy.key)!) as Map;
       expect(rewritten.containsKey('password'), isFalse);
       // Secure storage holds it.
       expect(
@@ -239,7 +224,7 @@ void main() {
       ));
 
       // Prefs JSON is sanitised.
-      final raw = prefs.getString(kGlobalOutboundProxyKey)!;
+      final raw = prefs.getString(AppPref.globalOutboundProxy.key)!;
       expect(raw.contains('hunter2'), isFalse);
       final decoded = jsonDecode(raw) as Map;
       expect(decoded['username'], equals('me'));

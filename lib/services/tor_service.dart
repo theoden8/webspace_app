@@ -14,17 +14,18 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
+import 'package:webspace/services/host_storage.dart'
+    show createExternalTorIdentify, createTorGeoIpStore, createTorSocksProbe;
+
 import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_engine.dart';
-import 'package:webspace/services/tor_geoip_web.dart'
-    if (dart.library.io) 'package:webspace/services/tor_geoip_io.dart';
-import 'package:webspace/services/tor_socks_probe_web.dart'
-    if (dart.library.io) 'package:webspace/services/tor_socks_probe_io.dart';
+import 'package:webspace/services/tor_holders.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/proxy.dart';
 
+export 'package:webspace/services/tor_holders.dart';
 export 'package:webspace/services/tor_engine.dart'
     show
         TorStatus,
@@ -43,14 +44,6 @@ export 'package:webspace/services/tor_engine.dart'
 const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
 const String _kEvents = 'org.codeberg.theoden8.webspace/tor/events';
 const String _kLogEvents = 'org.codeberg.theoden8.webspace/tor/logs';
-
-/// Log tag for the runtime's own lifecycle: state transitions and the
-/// plugin's notes about them.
-const String kTorLogTag = 'Tor';
-
-/// Log tag for tor's own output, kept apart from [kTorLogTag] so a reader
-/// can tell what the app decided from what tor said.
-const String kTorDaemonLogTag = 'TorLog';
 
 /// Whether this build has the native runtime behind the channels.
 ///
@@ -239,7 +232,7 @@ class TorLogBridge {
         final line = decodeLogLine(raw);
         if (line == null) return;
         LogService.instance.log(
-          line.fromTor ? kTorDaemonLogTag : kTorLogTag,
+          line.fromTor ? LogTag.torLog : LogTag.tor,
           line.message,
           level: line.level,
           // tor's own output is sensitive and the plugin's notes are not.
@@ -254,11 +247,8 @@ class TorLogBridge {
       // An error on the channel must not tear the subscription down: this
       // is the surface that explains a failing bootstrap, and losing it
       // exactly when tor is unhappy is the case it exists for.
-      onError: (Object error) => LogService.instance.log(
-        kTorLogTag,
-        'Log channel error: $error',
-        level: LogLevel.warning,
-      ),
+      onError: (Object error) => LogTag.tor.warning(
+          'Log channel error: $error'),
       cancelOnError: false,
     );
   }
@@ -300,12 +290,10 @@ class TorService {
     TorEngine? embedded,
     TorEngine? external,
     ExternalTorRuntime? externalRuntime,
-    TorLogBridge? logs,
   })  : assert(embedded != null || external != null),
         _embedded = embedded,
         _externalEngine = external,
-        _externalRuntime = externalRuntime,
-        _logs = logs ?? TorLogBridge() {
+        _externalRuntime = externalRuntime {
     _externalActive = _resolveExternal();
     _logs.start();
     for (final engine in [embedded, external].nonNulls) {
@@ -317,7 +305,6 @@ class TorService {
 
   static TorService? _instance;
 
-  /// The live singleton, created on first touch.
   static TorService get instance => _instance ??= _production();
 
   /// Whether the external tor is wanted (TOR-025). Installed at startup from
@@ -342,7 +329,7 @@ class TorService {
         // call to push them: nothing on a cold start opens the bridge
         // screen, so a pushed-only configuration was simply absent on every
         // relaunch (TOR-016).
-        bridgeLoader: () => TorBridgeSecureStorage().load(),
+        bridgeLoader: () => TorBridgeSecureStorage().loadIfReadable(),
         // Downloaded on the device, never shipped (LICENSE-002).
         geoIpStore: createTorGeoIpStore(),
         socksProbe: createTorSocksProbe(),
@@ -360,11 +347,8 @@ class TorService {
       externalRuntime: externalRuntime,
     );
     // Here rather than in a screen, so every way back into the foreground
-    // reaches it, whatever is on screen (TOR-024). A unit test touching the
-    // singleton with no binding has no lifecycle to watch.
-    try {
-      WidgetsBinding.instance.addObserver(_TorResumeWatch(service));
-    } catch (_) {}
+    // reaches it, whatever is on screen (TOR-024).
+    WidgetsBinding.instance.addObserver(_TorResumeWatch(service));
     return service;
   }
 
@@ -372,11 +356,11 @@ class TorService {
   /// [external] when the engine's runtime is an [ExternalTorRuntime].
   @visibleForTesting
   static void overrideEngine(TorEngine engine,
-      {TorLogBridge? logs, ExternalTorRuntime? external}) {
+      {ExternalTorRuntime? external}) {
     _instance?._cancelSubs();
     _instance = external == null
-        ? TorService._(embedded: engine, logs: logs)
-        : TorService._(external: engine, externalRuntime: external, logs: logs);
+        ? TorService._(embedded: engine)
+        : TorService._(external: engine, externalRuntime: external);
   }
 
   /// Both engines, with [wantsExternal] choosing between them. Tests only.
@@ -385,14 +369,12 @@ class TorService {
     required TorEngine embedded,
     required TorEngine external,
     required ExternalTorRuntime externalRuntime,
-    TorLogBridge? logs,
   }) {
     _instance?._cancelSubs();
     _instance = TorService._(
       embedded: embedded,
       external: external,
       externalRuntime: externalRuntime,
-      logs: logs,
     );
   }
 
@@ -412,7 +394,7 @@ class TorService {
   final TorEngine? _embedded;
   final TorEngine? _externalEngine;
   final ExternalTorRuntime? _externalRuntime;
-  final TorLogBridge _logs;
+  final TorLogBridge _logs = TorLogBridge();
   final List<StreamSubscription<TorStatus>> _engineSubs = [];
   final StreamController<TorStatus> _statuses =
       StreamController<TorStatus>.broadcast();
@@ -442,7 +424,7 @@ class TorService {
   // (TOR-018).
   void _forward(TorStatus s) {
     LogService.instance.log(
-      kTorLogTag,
+      LogTag.tor,
       'State: $s',
       level: s is TorErrored ? LogLevel.error : LogLevel.info,
     );
@@ -486,10 +468,10 @@ class TorService {
     final from = _engine;
     final holders = from.holders.toSet();
     _externalActive = external;
-    LogService.instance.log(kTorLogTag,
+    LogTag.tor.debug(
         'Switched to the ${external ? 'external' : 'built-in'} tor');
     _forward(_engine.status);
-    await from.syncHolders(const <String>[]);
+    await from.syncHolders(const <TorHolder>[]);
     if (!_engine.isAvailable) return;
     final pin = _exitRequest;
     if (pin != null) {
@@ -520,9 +502,8 @@ class TorService {
 
   TorStatus get status => _engine.status;
 
-  /// The reasons holding the runtime up: site ids, the app-wide tag, and the
-  /// prefixed holders in `tor_holders.dart`.
-  Set<String> get holders => _engine.holders;
+  /// What holds the runtime up.
+  Set<TorHolder> get holders => _engine.holders;
   Stream<TorStatus> get statusStream => _statuses.stream;
 
   /// `host:port` of the live SOCKS5 listener, or null when not up.
@@ -531,16 +512,16 @@ class TorService {
     return s is TorUp ? '${s.host}:${s.port}' : null;
   }
 
-  Future<void> maybeStart(String reason) async {
+  Future<void> maybeStart(TorHolder holder) async {
     if (!isAvailable) return;
-    await _engine.acquire(reason);
+    await _engine.acquire(holder);
   }
 
-  void release(String reason) => _engine.release(reason);
+  void release(TorHolder holder) => _engine.release(holder);
 
-  Future<void> syncHolders(Iterable<String> reasons) async {
+  Future<void> syncHolders(Iterable<TorHolder> holders) async {
     if (!isAvailable) return;
-    await _engine.syncHolders(reasons);
+    await _engine.syncHolders(holders);
   }
 
   Future<void> rebuildCircuits() => _engine.rebuildCircuits();
@@ -615,28 +596,4 @@ class _TorResumeWatch with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) unawaited(_service.revive());
   }
-}
-
-/// Resolve [settings] into something dialable, expanding [ProxyType.TOR]
-/// into the live SOCKS5 endpoint tagged for [siteId].
-///
-/// Three outcomes, and callers must distinguish them:
-/// - non-TOR input is returned unchanged,
-/// - TOR with the runtime up returns SOCKS5 settings,
-/// - TOR with the runtime not up returns null, meaning *block*, never
-///   "fall back to direct" (TOR-008).
-UserProxySettings? materializeTorProxy(
-  UserProxySettings settings, {
-  String? siteId,
-}) {
-  if (settings.type != ProxyType.TOR) return settings;
-  final resolved = TorService.instance.socksFor(siteId: siteId);
-  if (resolved == null) {
-    LogService.instance.log(
-      'Tor',
-      'Blocked an outbound request: proxy is TOR but the runtime is '
-          '${TorService.instance.status}.',
-    );
-  }
-  return resolved;
 }

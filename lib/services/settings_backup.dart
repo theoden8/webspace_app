@@ -9,7 +9,6 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
-/// Backup version for compatibility checking
 const int kBackupVersion = 1;
 
 /// Data class representing a backup of app settings.
@@ -157,7 +156,6 @@ class SettingsBackup {
   }
 }
 
-/// Service for exporting and importing app settings
 class SettingsBackupService {
   /// Create a backup from current app state.
   ///
@@ -191,7 +189,6 @@ class SettingsBackupService {
     // password (per PWD-005); we still need to strip secure cookies here.
     final sitesJson = webViewModels.map((model) {
       final json = model.toJson();
-      // Filter to only non-secure cookies (isSecure != true)
       final cookies = json['cookies'] as List<dynamic>;
       json['cookies'] = cookies
           .where((c) => c['isSecure'] != true)
@@ -199,7 +196,6 @@ class SettingsBackupService {
       return json;
     }).toList();
 
-    // Convert webspaces to JSON, excluding the "All" webspace
     final webspacesJson = webspaces
         .where((ws) => ws.id != kAllWebspaceId)
         .map((ws) => ws.toJson())
@@ -227,12 +223,10 @@ class SettingsBackupService {
     );
   }
 
-  /// Export settings to a JSON string
   static String exportToJson(SettingsBackup backup) {
     return const JsonEncoder.withIndent('  ').convert(backup.toJson());
   }
 
-  /// Export settings and save to a file
   static Future<bool> exportAndSave(
     BuildContext context, {
     required List<WebViewModel> webViewModels,
@@ -268,7 +262,6 @@ class SettingsBackupService {
       final timestamp = DateTime.now().toIso8601String().replaceAll(':', '-').split('.')[0];
       final defaultFileName = 'webspace_backup_$timestamp.json';
 
-      // Use FilePicker save dialog
       // On mobile (iOS/Android): bytes parameter is required
       // On desktop (macOS/Linux/Windows): bytes not supported, write manually
       final bool isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
@@ -284,7 +277,6 @@ class SettingsBackupService {
         return false;
       }
 
-      // On desktop, write file manually since bytes param not supported
       if (!isMobile) {
         final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
         await hostWriteFileText(filePath, jsonString);
@@ -297,11 +289,7 @@ class SettingsBackupService {
       }
       return true;
     } catch (e, stack) {
-      LogService.instance.log(
-        'SettingsBackup',
-        'Export failed: $e\n$stack',
-        level: LogLevel.error,
-      );
+      LogTag.settingsBackup.error('Export failed: $e\n$stack');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export failed: $e')),
@@ -311,7 +299,6 @@ class SettingsBackupService {
     }
   }
 
-  /// Import settings from JSON string
   static SettingsBackup? importFromJson(String jsonString) {
     try {
       // A file saved back out of a Windows editor starts with a BOM, which
@@ -326,7 +313,6 @@ class SettingsBackupService {
     }
   }
 
-  /// Pick a file and import settings
   static Future<SettingsBackup?> pickAndImport(BuildContext context) async {
     try {
       final result = await FilePicker.pickFiles(
@@ -346,7 +332,6 @@ class SettingsBackupService {
         // Web or platforms that provide bytes
         jsonString = utf8.decode(file.bytes!);
       } else if (file.path != null) {
-        // Platforms that provide file path
         jsonString = await hostReadFileText(file.path!);
       } else {
         if (context.mounted) {
@@ -378,20 +363,16 @@ class SettingsBackupService {
     }
   }
 
-  /// Convert backup sites to WebViewModel list
   /// Non-secure cookies from the backup are restored.
   static List<WebViewModel> restoreSites(
     SettingsBackup backup,
     Function? stateSetterF,
   ) {
     return backup.sites.map((json) {
-      // Non-secure cookies are preserved from the backup
-      // (secure cookies were already filtered out during export)
       return WebViewModel.fromJson(json, stateSetterF);
     }).toList();
   }
 
-  /// Convert backup webspaces to Webspace list
   static List<Webspace> restoreWebspaces(SettingsBackup backup) {
     final webspaces = <Webspace>[Webspace.all()];
     for (final json in backup.webspaces) {
