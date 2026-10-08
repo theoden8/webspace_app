@@ -342,7 +342,7 @@ neither shows up in any boolean the dialog already reports.
 
 A site created from a deep link SHALL NOT be activated: `_registerNewSite`
 is called with `activate: false`, so the site is added to the list and
-persisted but `_setCurrentIndex` is not called and the current site keeps
+persisted but `setCurrentIndex` is not called and the current site keeps
 the screen. A site created from the in-app scanner IS activated — the user
 went looking for it.
 
@@ -392,7 +392,7 @@ string, so a value `fromJson` would coerce cannot slip past the review
 **Given** the user accepts the review dialog for a deep-link payload
 **When** `_registerNewSite(model, activate: false)` runs
 **Then** the model is appended to `_sites.models` and persisted
-**And** `_setCurrentIndex` is NOT called, so the currently-visible site
+**And** `setCurrentIndex` is NOT called, so the currently-visible site
 stays visible
 
 #### Scenario: Link handling off drops the QR deep link

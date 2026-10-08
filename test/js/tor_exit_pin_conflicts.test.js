@@ -11,7 +11,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, blockAfter } = require('./helpers/source');
 
-const rel = 'lib/screens/webspace_page.dart';
+const rel = 'lib/controllers/site_activation_controller.dart';
 const src = read(rel);
 const engineRel = 'lib/services/site_unload_engine.dart';
 const plan = blockAfter(read(engineRel), 'static ResidencyPlan plan(', undefined, engineRel);
@@ -24,7 +24,7 @@ function planCase(event) {
   return plan.slice(at, next === -1 ? undefined : next);
 }
 
-/** [calls] names how [fn] plans, applies and pins: the page and the network
+/** [calls] names how [fn] plans, applies and pins: activation and the network
  * controller reach the same three through different receivers. */
 function unloadsBeforePin(fn, label, event, calls) {
   const pin = fn.indexOf(calls.pin);
@@ -44,9 +44,9 @@ test('the plan asks Tor which sites disagree with the pin', () => {
 });
 
 test('activating a site unloads the siblings its pin disagrees with first', () => {
-  unloadsBeforePin(blockAfter(src, 'Future<void> _setCurrentIndex(', undefined, rel),
-    '_setCurrentIndex', 'Activating',
-    { plan: '_residencyPlan(', apply: '_applyResidency(', pin: '_network.syncTorExitPin(' });
+  unloadsBeforePin(blockAfter(src, 'Future<void> setCurrentIndex(', undefined, rel),
+    'setCurrentIndex', 'Activating',
+    { plan: 'residencyPlan(', apply: 'applyResidency(', pin: '_host.syncTorExitPin(' });
 });
 
 test('saving settings unloads the sites the new pin disagrees with first', () => {

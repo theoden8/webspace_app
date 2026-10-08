@@ -1,6 +1,6 @@
 // Go-home commit funnel gate (NAV-010).
 //
-// `_setCurrentIndex(null)` is what "back to webspaces" and every other return
+// `setCurrentIndex(null)` is what "back to webspaces" and every other return
 // to the site list run through. Its teardown of the site being left is a chain
 // of native round-trips, and each of them can throw, be superseded by a newer
 // activation, or — on an iOS page whose JS thread an earlier pause froze —
@@ -11,17 +11,17 @@
 // So the home state is committed before the teardown, and the teardown itself
 // is funnelled through `_quiesceOutgoingSite` (bounded + non-fatal, see
 // `SiteTeardownEngine`). A future edit that reintroduces an await ahead of the
-// commit, or dispatches a pause straight from `_setCurrentIndex`, re-opens it.
+// commit, or dispatches a pause straight from `setCurrentIndex`, re-opens it.
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, blockAfter } = require('./helpers/source');
 
-const rel = 'lib/screens/webspace_page.dart';
+const rel = 'lib/controllers/site_activation_controller.dart';
 const src = read(rel);
 
 const setCurrentIndex = blockAfter(
-  src, 'Future<void> _setCurrentIndex(int? index) async {', null, rel);
+  src, 'Future<void> setCurrentIndex(int? index) async {', null, rel);
 const goHome = blockAfter(
   setCurrentIndex,
   'if (index == null || index < 0 || index >= _sites.models.length) {',
@@ -53,11 +53,11 @@ test('outgoing-site teardown is funnelled through _quiesceOutgoingSite', () => {
     /\.stopRealCapture\(\)/,
   ]) {
     assert.ok(!raw.test(setCurrentIndex),
-      `_setCurrentIndex dispatches ${raw} directly; route it through ` +
+      `setCurrentIndex dispatches ${raw} directly; route it through ` +
       '_quiesceOutgoingSite so the sequence stays bounded and non-fatal');
   }
   assert.match(setCurrentIndex, /_quiesceOutgoingSite\(/,
-    '_setCurrentIndex must quiesce the site being left');
+    'setCurrentIndex must quiesce the site being left');
 });
 
 test('the funnel delegates to the bounded engine', () => {

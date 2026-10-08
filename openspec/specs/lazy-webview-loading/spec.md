@@ -152,7 +152,7 @@ final Set<int> _sites.loaded = {};
 ```dart
 /// Set the current index and mark it as loaded for lazy webview creation.
 /// This ensures only visited webviews are created, not all webviews at once.
-void _setCurrentIndex(int? index) {
+void setCurrentIndex(int? index) {
   _sites.current = index;
   if (index != null && index >= 0 && index < _sites.models.length) {
     _sites.loaded.add(index);
@@ -230,7 +230,7 @@ _sites.loaded.addAll(updatedIndices);
 ### Modified
 - `lib/main.dart`
   - Added `_sites.loaded` Set to `_WebSpacePageState`
-  - Added `_setCurrentIndex()` helper method
+  - Added `setCurrentIndex()` helper method
   - Updated all `_sites.current` assignments to use helper
   - Modified `IndexedStack` to check `_sites.loaded` before creating widgets
   - Added index shifting logic in site deletion handler

@@ -788,7 +788,7 @@ class WebViewModel implements MediaGrantRecord {
   /// Android hybrid-composition surface, which can re-attach blank-white
   /// when a new platform view mounts. Re-activation of an already-loaded
   /// webview does NOT recreate the controller, so it does not fire here —
-  /// that path is nudged explicitly by `_setCurrentIndex`.
+  /// that path is nudged explicitly by `setCurrentIndex`.
   Function? onControllerReady;
   /// Host hook fired when a reload is issued for this model's webview
   /// ([reloadAndRepaint], the funnel every reload goes through). A reload
@@ -1538,7 +1538,7 @@ bool dispatch(NavigationDecision decision,
           // recomposite it if this is the visible site (Android blank-white
           // surface recovery). Fires for every fresh controller, so it
           // covers _goHome, renderer-gone rebuild, and savedForRestore
-          // re-creation in one place — paths _setCurrentIndex's own nudge
+          // re-creation in one place — paths setCurrentIndex's own nudge
           // does not reach because they don't go through it.
           onControllerReady?.call();
         },
@@ -1895,7 +1895,7 @@ bool dispatch(NavigationDecision decision,
   /// handler and then cleared, so subsequent activations don't
   /// re-apply stale state.
   ///
-  /// Caller (typically `_setCurrentIndex` in `_WebSpacePageState`)
+  /// Caller (typically `setCurrentIndex` in `_WebSpacePageState`)
   /// fetches bytes from [WebViewStateStorage] before letting the
   /// webview rebuild, so the IndexedStack repaint and the
   /// `restoreState` call land in the same render cycle.

@@ -75,7 +75,7 @@ The system SHALL inject a JavaScript polyfill at `DOCUMENT_START` (with `forMain
 
 ### Requirement: NOTIF-003 - Notification Tap Navigation
 
-The system SHALL navigate to the originating site when the user taps a notification. This routes through `_setCurrentIndex`. In container mode, no domain conflicts occur — the target site simply becomes active.
+The system SHALL navigate to the originating site when the user taps a notification. This routes through `setCurrentIndex`. In container mode, no domain conflicts occur — the target site simply becomes active.
 
 #### Scenario: User taps a notification for a loaded site
 
@@ -83,7 +83,7 @@ The system SHALL navigate to the originating site when the user taps a notificat
 **And** Site A is still loaded in `_sites.loaded`
 **When** the user taps the notification
 **Then** the app opens (or comes to foreground)
-**And** `_setCurrentIndex` is called with Site A's index
+**And** `setCurrentIndex` is called with Site A's index
 **And** Site A becomes the active site
 
 #### Scenario: User taps a notification for a site that was not yet loaded
@@ -91,7 +91,7 @@ The system SHALL navigate to the originating site when the user taps a notificat
 **Given** a native notification was created by Site A
 **And** Site A is not in `_sites.loaded` (e.g., app was restarted)
 **When** the user taps the notification
-**Then** `_setCurrentIndex` adds Site A to `_sites.loaded`
+**Then** `setCurrentIndex` adds Site A to `_sites.loaded`
 **And** Site A's webview is created with its profile
 **And** Site A becomes the active site
 

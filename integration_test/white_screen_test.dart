@@ -14,7 +14,7 @@
 //   2. Detector sensitivity control: a genuinely white page must classify
 //      as uniformBlank, proving the sampler reads webview pixels and the
 //      assertions in the other scenarios are not vacuously green.
-//   3. Loaded-site switch (_setCurrentIndex reuse path, Attempt 3).
+//   3. Loaded-site switch (setCurrentIndex reuse path, Attempt 3).
 //   4. Reload funnel (reloadAndRepaint + load-settled re-nudge, Attempt 9).
 //   5. OS memory pressure against the visible site (Attempt 7).
 //   6. Fresh activation with other sites live (controller-attach nudge,
@@ -364,7 +364,7 @@ Future<WindowRegionSample> pollSite(
               SurfaceDiagNative.classify(s) ==
                   WindowSampleVerdict.uniformBlank);
 
-      // Scenario 3: switch back to an already-loaded site (_setCurrentIndex
+      // Scenario 3: switch back to an already-loaded site (setCurrentIndex
       // reuse path, Attempt 3's chokepoint).
       await openSiteDrawer(tester);
       await tapSite(tester, siteName: 'Dark',

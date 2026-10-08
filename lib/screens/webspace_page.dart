@@ -15,6 +15,7 @@ import 'package:webspace/controllers/site_network_controller.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/shell_store.dart';
+import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
@@ -42,7 +43,6 @@ import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
-import 'package:webspace/services/html_source.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
@@ -59,14 +59,11 @@ import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
-import 'package:webspace/services/site_activation_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_posture.dart';
-import 'package:webspace/services/site_teardown_engine.dart';
 import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
-import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -161,6 +158,14 @@ class _WebSpacePageState extends State<WebSpacePage>
   );
   late final FullscreenController _fullscreen =
       FullscreenController(host: _PageHost(this), surface: _surface);
+  late final SiteActivationController _activation = SiteActivationController(
+    _sites,
+    host: _PageHost(this),
+    residency: _ResidencyHost(this),
+    navStates: _stateStorage,
+    containers: _containerIsolation,
+    surface: _surface,
+  );
   late final BackgroundSitesController _background =
       BackgroundSitesController(_sites, host: _PageHost(this));
   late final AppLifecycleController _lifecycle = AppLifecycleController(
@@ -377,7 +382,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// visible again. While it was covered the platform view was not composited,
   /// so Android detached its SurfaceView and re-attaches it here — blank, and
   /// through none of the other chokepoints: the site did not change
-  /// (`_setCurrentIndex`), the controller was not recreated
+  /// (`setCurrentIndex`), the controller was not recreated
   /// (`onControllerReady`), nothing navigated, and the app never left the
   /// foreground. See PAUSE-024 / BUG-001.
   @override
@@ -431,9 +436,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // The active site and an in-flight activation's target are never
       // picked (PAUSE-006): disposing the soon-to-be-active webview would
       // silently wipe its state.
-      final plan = _residencyPlan(const MemoryPressure());
+      final plan = _activation.residencyPlan(const MemoryPressure());
       if (plan.isEmpty) return;
-      if (!await _applyResidency(plan, isStale: () => !mounted)) return;
+      if (!await _activation.applyResidency(plan, isStale: () => !mounted)) return;
       if (plan.unloads.isNotEmpty) {
         // The pin in force follows the loaded sites (TOR-014). Left for the
         // next activation, the pin of a site evicted here was cleared at
@@ -447,7 +452,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // site: iOS may jettison its frontmost WKWebView's content process, and
       // the Android hybrid-composition SurfaceView can drop its buffer under a
       // low-memory GL reclaim. The active site is hard-protected from eviction,
-      // so neither the promotion above nor `_setCurrentIndex` runs against it —
+      // so neither the promotion above nor `setCurrentIndex` runs against it —
       // it would otherwise stay blank until the next navigation. Probe + nudge
       // it here, covering both outcomes: a dead renderer (recreate) and a
       // live-but-unpainted surface (nudge). See PAUSE-019.
@@ -583,7 +588,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await model.setTheme(_shell.theme.themeMode.webViewTheme);
     await _commitSites(SiteAdded(model));
     if (!activate || !mounted) return;
-    await _setCurrentIndex(_sites.models.indexOf(model));
+    await _activation.setCurrentIndex(_sites.models.indexOf(model));
     if (!mounted) return;
     setState(() {});
     await _shell.saveCurrentIndex();
@@ -658,7 +663,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!mounted) return;
     }
     if (shownBefore != null && !_sites.models.contains(shownBefore)) {
-      await _setCurrentIndex(null);
+      await _activation.setCurrentIndex(null);
       if (!mounted) return;
     }
     if (_sites.selectedWebspaceId != selectionBefore) {
@@ -834,254 +839,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
-  /// Set the current index and mark it as loaded for lazy webview creation.
-  /// This ensures only visited webviews are created, not all webviews at once.
-  /// Also handles domain conflict detection for per-site cookie isolation.
-  Future<void> _setCurrentIndex(int? index) async {
-    final version = ++_sites.activationVersion;
-    // Another site by any way leaves the Tabs sheet's way back behind
-    // (TAB-019); a jump the sheet makes puts its own back once it lands.
-    if (index != _sites.current) _tabs.forgetReturns();
-
-    if (index == null || index < 0 || index >= _sites.models.length) {
-      final leaving = _sites.current != null &&
-              _sites.current! < _sites.models.length &&
-              _sites.loaded.contains(_sites.current)
-          ? _sites.models[_sites.current!]
-          : null;
-      // Going home is committed before the teardown below, never after it
-      // (NAV-010): every step there is a native round-trip that can throw,
-      // be superseded, or never answer at all, and each of those would
-      // abandon the whole call with `_sites.current` still on the site the
-      // user asked to leave — a "back to webspaces" that silently did
-      // nothing. Nothing in the teardown decides where we end up.
-      _sites.current = index;
-      _fullscreen.exit();
-      // Opportunistically capture state for the previously-active site so a
-      // later cold start (or OS-killed-while-backgrounded scenario) can
-      // re-hydrate its back/forward stack and form data on re-activation.
-      // The webview stays loaded (pause-only, not disposed) so a
-      // near-immediate return to the same site keeps its in-memory tab.
-      // Bytes-only capture — `lifecycleState` stays `live` because the
-      // webview is not actually disposed.
-      if (leaving != null) {
-        await _quiesceOutgoingSite(leaving, version: version);
-      }
-      return;
-    }
-
-    final target = _sites.models[index];
-
-    LogTag.cookieIsolation.debug(
-        'Switching to site $index: "${target.name}" (siteId: ${target.siteId})',
-        sensitive: true);
-    LogTag.cookieIsolation.debug(
-        'Target domain: ${getBaseDomain(target.initUrl)}', sensitive: true);
-    LogTag.cookieIsolation.debug('Currently loaded indices: ${_sites.loaded}');
-
-    // Mark this site as activation-in-flight so concurrent OS memory
-    // pressure events can't pick it as a victim before _sites.current
-    // is updated below — disposing the webview mid-activation would
-    // silently wipe its state from under the user.
-    _sites.activating = index;
-    try {
-
-    // Whenever the target is about to be built fresh (not already in
-    // `_sites.loaded`), fetch any saved navigation state and hand it to
-    // the model so the soon-to-be-built controller's onControllerCreated
-    // handler can apply restoreState. This covers both in-session
-    // re-activation of a `savedForRestore` site AND a cold start, where
-    // every site loads from JSON at the default `resident` tier yet the
-    // bytes persisted on the previous run (on navigation / backgrounding)
-    // still sit on disk — that's the cross-restart back/forward restore.
-    //
-    // Skipped when the webview is already loaded (rebuild won't recreate
-    // the controller, so a queued restore would be stale) and for sites
-    // that never persist nav state — incognito (ephemeral) and
-    // archive-tier (ARCH-006: state lives only in the slot ciphertext).
-    if (!_sites.loaded.contains(index) && target.activeTabPersistsNavState) {
-      final bytes = await _stateStorage.loadState(target.activeStateKey);
-      if (version != _sites.activationVersion) return;
-      if (bytes != null) {
-        target.schedulePendingRestoreState(bytes);
-        LogTag.webViewState.debug(
-            'Queued ${bytes.length} restore bytes for "${target.name}" '
-            '(siteId: ${target.siteId})', sensitive: true);
-      }
-    }
-    // The about-to-be-resumed webview is back at the lowest tier; reset
-    // regardless of how it got here (savedForRestore dispose, cacheCleared
-    // promotion, or a fresh cold-start load).
-    if (target.lifecycleState != SiteLifecycleState.resident) {
-      target.lifecycleState = SiteLifecycleState.resident;
-    }
-
-    // The loaded sites the target pushes out and the residents that drop
-    // their cache. Every rule and its order is SiteUnloadEngine.plan's.
-    if (!await _applyResidency(_residencyPlan(Activating(index)),
-        isStale: () => version != _sites.activationVersion)) {
-      return;
-    }
-
-    // Repoint the shared-profile route before this site can issue a
-    // request, not after: the identity is shared, so until this lands the
-    // relay still holds the previous shared-profile site's upstream.
-    if (_network.topology case RoutedProxy(:final sharesDefaultSession)
-        when index >= 0 &&
-            index < _sites.models.length &&
-            sharesDefaultSession(_sites.models[index])) {
-      await _network.refreshRoutes(activeIndex: index);
-      if (version != _sites.activationVersion) return;
-    }
-
-    // Only once the disagreeing siblings are gone: SETCONF takes effect for
-    // the whole runtime the moment it lands, so applying it first would
-    // route their next request through the new country. Not awaited: the
-    // target, if it uses Tor, is held behind the interstitial until the pin
-    // lands, and a target that does not use Tor has no reason to wait on tor
-    // at all.
-    if (TorService.instance.isAvailable) {
-      _network.syncTorExitPin(<int>{index, ..._sites.loaded});
-    }
-
-    // Pause the previously active webview to save resources. Nothing to do
-    // when the user tapped the site they are already on — see the engine.
-    final outgoing = SiteActivationEngine.outgoingSiteToQuiesce(
-      currentIndex: _sites.current,
-      targetIndex: index,
-      siteCount: _sites.models.length,
-      loadedIndices: _sites.loaded,
-    );
-    if (outgoing != null) {
-      await _quiesceOutgoingSite(_sites.models[outgoing], version: version,
-          captureState: false);
-      if (version != _sites.activationVersion) return;
-    }
-
-    if (_sites.useContainers) {
-      // Container path: ensure the named container is recorded.
-      // Materialization happens lazily on the native side when the
-      // WebView binds via `InAppWebViewSettings.containerId`.
-      await _containerIsolation.ensureContainer(target.siteId);
-      if (version != _sites.activationVersion) return;
-    } else {
-      await _restoreCookiesForSite(index);
-      if (version != _sites.activationVersion) return;
-    }
-
-    // Validate index is still in bounds after async gaps
-    if (index >= _sites.models.length) return;
-
-    // Decrypt this site's cached/imported HTML into memory before it enters
-    // _sites.loaded, so the build's synchronous getHtmlSync hits. Idempotent
-    // no-op for sites that have no cached/imported HTML, e.g. a plain URL site.
-    await _ensureSiteHtml(index);
-    if (version != _sites.activationVersion) return;
-
-    _sites.current = index;
-    // Bump to end of insertion order so iteration over _sites.loaded is
-    // least-recently-used first (consumed by the LRU eviction above).
-    _sites.loaded.remove(index);
-    _sites.loaded.add(index);
-
-    await _sites.models[index].resumeWebView();
-
-    // A site that sat offscreen while the OS reclaimed memory can come back
-    // with a dead renderer (iOS content-process jettison whose termination
-    // delegate never fired) or a blank surface (Android hybrid-composition).
-    // Probe and recover so a shortcut tap or tab switch doesn't land on a
-    // black/blank page. See PAUSE-013.
-    unawaited(_lifecycle.probeRenderer(target, trigger: 'site-switch'));
-
-    // Defensive sweep: pause every other loaded webview so background
-    // sites don't run animations / GPS listeners / non-throttled
-    // raf callbacks when the user isn't looking at them. Steady state
-    // already has them paused (each becomes paused when it last lost
-    // active status above), but a path that adds to _sites.loaded
-    // without going through the previous-active pause would leave
-    // it unpaused. pauseWebView() is idempotent.
-    //
-    // unawaited: subsequent activation logic (fullscreen, logging)
-    // doesn't depend on these completing, and a page whose JS thread is
-    // frozen may never answer at all. Race-wise the version guard inside
-    // the teardown is what keeps a sweep still in flight from pausing the
-    // site a newer activation has since resumed.
-    //
-    // (Per-instance pause() doesn't stop JavaScript — see
-    // openspec/specs/webview-pause-lifecycle/spec.md. This is a
-    // CPU/battery optimization, not RAM. The LRU cap and OS memory
-    // pressure handler cover RAM.)
-    final loadedSnapshot = _sites.loaded.toList();
-    for (final i in loadedSnapshot) {
-      if (i == index) continue;
-      if (i < 0 || i >= _sites.models.length) continue;
-      // Camera stop is dispatched before the pause (CAM-012) and covers the
-      // sites pauseWebView() exempts — a notification or background-audio
-      // site keeps its JS running, which is exactly where a forgotten capture
-      // would survive. Bound to a local model: the steps run a microtask
-      // later, by which point _sites.models may have been reindexed.
-      final model = _sites.models[i];
-      unawaited(
-          _quiesceOutgoingSite(model, version: version, captureState: false));
-    }
-
-    if (target.fullscreenMode) {
-      _fullscreen.enter();
-    } else {
-      _fullscreen.exit();
-    }
-
-    LogTag.cookieIsolation.debug(
-        'After switch, loaded indices: ${_sites.loaded}', sensitive: true);
-    // Force the just-activated Android platform-view surface to recomposite.
-    // Bringing a webview onstage (tab tap, shortcut open, cold-start restore)
-    // can re-attach the hybrid-composition SurfaceView blank: the page is alive
-    // (JS runs, DOM serializes) but nothing paints and the native overscroll
-    // gesture is dead, so pull-to-refresh can't recover it — only this relayout
-    // can. _probeRendererAndRecover above only relayouts web content, not the
-    // surface (see its doc), so it does not cover this. No-op off Android.
-    //
-    // Activating a site whose document is still in flight has the PAUSE-021
-    // ordering on top of that: this nudge drains against a surface that has
-    // nothing to show yet, and the commit lands afterwards. Latch it so
-    // onLoadSettled repaints the committed document (PAUSE-025).
-    if (target.isLoading) _surface.armCommitLatch();
-    _surface.nudge('activate');
-    // _sites.loaded may have changed (LRU eviction, conflict unload,
-    // first-load of target), so re-evaluate the background refresh
-    // schedule. No-op on non-iOS / non-Android.
-    unawaited(_background.reschedule());
-    // Same trigger for the iOS audio session: the first load of a
-    // background-audio site must activate `.playback` before the user
-    // starts playback in it.
-    unawaited(_background.updateAudioSession());
-    } finally {
-      // Clear the in-flight marker only if we still own it; a newer
-      // _setCurrentIndex caller will have already overwritten it with
-      // its own target.
-      if (_sites.activating == index) {
-        _sites.activating = null;
-      }
-    }
-  }
-
-  /// Unloads the site at [index] (PAUSE-007, ISO-002); see
-  /// [SiteUnloadEngine.unload].
-  Future<void> _unloadSite(int index, {required UnloadReason reason}) =>
-      SiteUnloadEngine.unload(_ResidencyHost(this),
-          index: index, reason: reason);
-
-  ResidencyPlan _residencyPlan(ResidencyEvent event) =>
-      SiteUnloadEngine.plan(_ResidencyHost(this), event: event);
-
-  /// False when [isStale] turned true partway; see [SiteUnloadEngine.apply].
-  Future<bool> _applyResidency(
-    ResidencyPlan plan, {
-    required bool Function() isStale,
-  }) =>
-      SiteUnloadEngine.apply(_ResidencyHost(this),
-          plan: plan, isStale: isStale);
-
   /// Every navigation-state key that should survive a sweep, for the sites in
   /// [siteIds]. State is per tab, so a site contributes one key per tab it
   /// still has: closing a tab makes its file an orphan, and deleting a site
@@ -1093,101 +850,6 @@ class _WebSpacePageState extends State<WebSpacePage>
           if (siteIds.contains(m.siteId))
             for (final t in m.tabs) m.stateKeyForTab(t.id),
       };
-
-  /// Capture [model]'s navigation state to encrypted on-disk storage.
-  /// Returns true if bytes were captured and persisted. No-op for
-  /// incognito sites or when there's nothing to save.
-  ///
-  /// Does NOT mutate `model.lifecycleState` — callers that are
-  /// disposing the webview should do that themselves (typically
-  /// flipping to [SiteLifecycleState.savedForRestore]); callers that
-  /// are *only* opportunistically persisting (go-home,
-  /// app-background) should leave the state at [SiteLifecycleState.resident]
-  /// since the webview is still in memory.
-  Future<bool> _captureStateBytes(WebViewModel model) async {
-    // Archive-tier (ARCH-006) and incognito sites never persist nav state,
-    // and a hosted tab only when its host would keep it (LIR-022).
-    if (!model.activeTabPersistsNavState) return false;
-    // The key is the one the bytes belong to, read before the capture: a tab
-    // switch or a container flip (LIR-034) landing while it runs would make
-    // the key read afterwards name another tab or another identity, and these
-    // bytes would be restored there.
-    final tabId = model.activeTabId;
-    final key = model.activeStateKey;
-    final bytes = await model.captureNavigationState();
-    if (bytes == null) return false;
-    if (model.activeTabId != tabId || model.activeStateKey != key) {
-      LogTag.webViewState.debug(
-          'Dropped a capture for "${model.name}": its tab changed meanwhile',
-          sensitive: true);
-      return false;
-    }
-    await _stateStorage.saveState(key, state: bytes);
-    LogTag.webViewState.debug(
-        'Captured ${bytes.length} bytes for "${model.name}" '
-        '(state key: $key)', sensitive: true);
-    return true;
-  }
-
-  /// Quiesce the site the user is leaving — a site switch, or a return to the
-  /// webspace list (which also captures nav state).
-  ///
-  /// Ordering is CAM-012 / BGAUDIO-009: on iOS the per-instance pause blocks
-  /// the page's JS thread, so the camera stop and the media pause have to be
-  /// dispatched before it or they sit queued behind it forever. That same
-  /// freeze is why the engine bounds the sequence — a page an earlier pause
-  /// left frozen never answers `evaluateJavascript` again, and the caller's
-  /// own state change must not hang on it (NAV-010).
-  Future<void> _quiesceOutgoingSite(
-    WebViewModel model, {
-    required int version,
-    bool captureState = true,
-  }) async {
-    final result = await SiteTeardownEngine.quiesceOutgoing(
-      superseded: () => version != _sites.activationVersion,
-      steps: [
-        if (captureState)
-          SiteTeardownStep('captureState',
-              run: () => _captureStateBytes(model)),
-        SiteTeardownStep('stopRealCapture', run: model.stopRealCapture),
-        SiteTeardownStep('pauseMediaPlayback', run: model.pauseMediaPlayback),
-        SiteTeardownStep('pauseWebView', run: model.pauseWebView),
-      ],
-    );
-    if (result.isClean) return;
-    LogService.instance.log(
-      LogTag.webView,
-      message: 'Teardown of "${model.name}" ran ${result.ran}'
-          '${result.errors.isEmpty ? '' : ', failed ${result.errors}'}'
-          '${result.stalledOn == null ? '' : ', stalled on ${result.stalledOn}'}'
-          '${result.supersededBefore == null ? '' : ', superseded before ${result.supersededBefore}'}',
-      level: result.stalledOn == null ? LogLevel.info : LogLevel.warning,
-      sensitivity: LogSensitivity.sensitive,
-    );
-  }
-
-  /// Capture state and flip the lifecycle to [SiteLifecycleState.savedForRestore].
-  /// Used by dispose paths (LRU eviction, memory-pressure cascade,
-  /// legacy webspace-switch unload) where the webview is about to be
-  /// torn down.
-  Future<void> _captureStateForRestore(WebViewModel model) async {
-    final ok = await _captureStateBytes(model);
-    if (ok) {
-      model.lifecycleState = SiteLifecycleState.savedForRestore;
-    }
-  }
-
-  /// Restores cookies for a site before activation.
-  Future<void> _restoreCookiesForSite(int index) async {
-    final version = _sites.activationVersion;
-    await _cookieIsolation.restoreCookiesForSite(
-      index: index,
-      models: _sites.models,
-      loadedIndices: _sites.loaded,
-      versionAtEntry: version,
-      currentVersion: () => _sites.activationVersion,
-    );
-  }
 
   Future<void> _restoreAppState() async {
     final activationVersionAtRestore = _sites.activationVersion;
@@ -1278,12 +940,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // the user opening them. In container mode this is deferred to AFTER the
     // launched site paints (below) so a large notif import doesn't block the
     // shortcut target. In legacy (non-container) mode they must load pre-paint
-    // so `_setCurrentIndex`'s conflict-unload can arbitrate same-base-domain
+    // so `setCurrentIndex`'s conflict-unload can arbitrate same-base-domain
     // collisions; preload each one's HTML so its first build's getHtmlSync hits.
     if (!_sites.useContainers && !launchedForBackgroundWake) {
       for (int i = 0; i < _sites.models.length; i++) {
         if (_sites.models[i].effectiveNotificationsEnabled) {
-          await _ensureSiteHtml(i);
+          await _activation.ensureSiteHtml(i);
           // PAUSE-019: same pre-queue as the container-mode deferred
           // path — once in _sites.loaded the activation restore is
           // skipped, so the back/forward stack must be queued now.
@@ -1293,7 +955,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
     }
 
-    // Apply saved theme BEFORE _setCurrentIndex so the first build sees the
+    // Apply saved theme BEFORE setCurrentIndex so the first build sees the
     // right currentTheme — initialHtml reads it to pick the dark prelude for
     // cached HTML (file:// imports especially, which never reload to live and
     // so paint with whatever prelude the first build chose). Models default to
@@ -1344,11 +1006,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       activatedDuringRestore:
           _sites.activationVersion != activationVersionAtRestore,
     )) {
-      await _setCurrentIndex(indexToRestore);
+      await _activation.setCurrentIndex(indexToRestore);
     }
     if (swActivate != null) {
       LogTag.startup.debug(
-          'activate target site (_setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');
+          'activate target site (setCurrentIndex): ${swActivate.elapsedMilliseconds}ms');
     }
     if (!mounted) return;
     // indexToRestore is non-null only for a shortcut cold launch, so apply
@@ -1426,34 +1088,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     unawaited(_links.handleShareIntent());
   }
 
-  /// Decrypt the cached/imported HTML for one site into memory before its
-  /// webview builds, so the build's synchronous `getHtmlSync` hits. Uses the
-  /// same [htmlSourceFor] classification as the build's `initialHtml` read, so
-  /// the preload can never target a different store than the read (a blank
-  /// site). Cheap no-op when the site has nothing on disk.
-  Future<void> _ensureSiteHtml(int index) async {
-    if (index < 0 || index >= _sites.models.length) return;
-    await _ensureSiteHtmlForModel(_sites.models[index]);
-  }
-
-  /// Model-keyed variant — safe to call across `await`s in deferred loops where
-  /// the index may shift (a site added/deleted while it runs), since it doesn't
-  /// re-index `_sites.models`.
-  Future<void> _ensureSiteHtmlForModel(WebViewModel m) async {
-    switch (htmlSourceFor(
-      incognito: m.incognito,
-      isArchiveTier: m.isArchiveTier,
-      initUrl: m.initUrl,
-    )) {
-      case HtmlSource.import:
-        await HtmlImportStorage.instance.preloadOne(m.siteId);
-      case HtmlSource.cache:
-        await HtmlCacheService.instance.preloadOne(m.siteId);
-      case HtmlSource.none:
-        break;
-    }
-  }
-
   // Drives DeferredStartupEngine for the post-paint deferred init (notif
   // auto-load, timezone re-bake). Everything is addressed by siteId and the
   // siteId<->index translation happens fresh per call, so an add/delete while
@@ -1493,7 +1127,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   @override
   Future<void> preloadHtml(String siteId) async {
     final m = _sites.byId(siteId);
-    if (m != null) await _ensureSiteHtmlForModel(m);
+    if (m != null) await _activation.ensureSiteHtmlForModel(m);
   }
 
   @override
@@ -1506,7 +1140,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// PAUSE-019: pre-queue the saved back/forward stack for a site that
   /// is about to enter `_sites.loaded` without going through
-  /// `_setCurrentIndex` (auto-loaded notification sites). Once it's in
+  /// `setCurrentIndex` (auto-loaded notification sites). Once it's in
   /// the set, the activation path skips its restore fetch, so a queue
   /// here is the only chance the bytes get applied on this run.
   @override
@@ -1834,7 +1468,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       }
     });
     if (wasSelected) {
-      await _setCurrentIndex(null);
+      await _activation.setCurrentIndex(null);
       if (!mounted) return;
     }
     await _shell.saveWebspaces();
@@ -1876,11 +1510,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!mounted || version != _selectWebspaceVersion) return;
 
       if (online) {
-        final plan = _residencyPlan(WebspaceSwitched(
+        final plan = _activation.residencyPlan(WebspaceSwitched(
           previous: previousIndices,
           next: newIndices,
         ));
-        if (!await _applyResidency(plan,
+        if (!await _activation.applyResidency(plan,
             isStale: () => !mounted || version != _selectWebspaceVersion)) {
           return;
         }
@@ -2107,7 +1741,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!mounted) return;
 
     final indexToRestore = plan.currentIndex;
-    // With no site activated, _setCurrentIndex never reaches
+    // With no site activated, setCurrentIndex never reaches
     // _restoreCookiesForSite, so the previously active site's cookies would
     // stay in the native jar. Legacy engine only: container-mode sites never
     // shared that jar, and an unscoped clear issued while live containers
@@ -2115,7 +1749,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (indexToRestore == null && !_sites.useContainers) {
       await _cookieManager.deleteAllCookies();
     }
-    await _setCurrentIndex(indexToRestore);
+    await _activation.setCurrentIndex(indexToRestore);
     if (!mounted) return;
     setState(() {});
     widget.onThemeSettingsChanged(_shell.theme);
@@ -2289,7 +1923,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Navigate the visible webview back one history entry, then recomposite the
   /// Android surface. A back/forward-cache restore re-attaches a fresh
   /// hybrid-composition SurfaceView that can come back blank-white, and back
-  /// navigation passes through neither `_setCurrentIndex` nor `onControllerReady`
+  /// navigation passes through neither `setCurrentIndex` nor `onControllerReady`
   /// (the existing nudge chokepoints), so it would otherwise stay uncovered.
   /// No-op off Android.
   Future<void> _goBackAndRepaint(WebViewController controller) async {
@@ -2415,12 +2049,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       // _resetAlwaysOpenHomeForAppClose / _goHome) so the IndexedStack still
       // has a child to rebuild at initUrl. Dropping it black-screens a warm
       // shortcut re-tap of the already-current site: _openShortcutIndex skips
-      // _setCurrentIndex when index == _sites.current, so nothing would re-add
+      // setCurrentIndex when index == _sites.current, so nothing would re-add
       // it or recreate the disposed webview.
       if (i == _sites.current) {
         m.disposeWebView();
       } else {
-        await _unloadSite(i, reason: UnloadReason.homeReset);
+        await _activation.unload(i, reason: UnloadReason.homeReset);
         if (!mounted) return;
       }
     }
@@ -2934,7 +2568,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         return;
       }
       () async {
-        await _setCurrentIndex(siteIndex);
+        await _activation.setCurrentIndex(siteIndex);
         if (!mounted) return;
         setState(() {
           _fullscreen.tabBarOverlayVisible = false;
@@ -3285,7 +2919,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.newTab:
         if (model != null) await _tabs.newTab(index!);
       case SiteMenuAction.backToWebspaces:
-        await _setCurrentIndex(null);
+        await _activation.setCurrentIndex(null);
         if (!mounted) return;
         setState(() {});
         await _shell.saveSelectedWebspaceId();
@@ -3748,7 +3382,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // won't pop the underlying page route once the drawer is already closing.
     _scaffoldKey.currentState?.closeDrawer();
     await _webspaceSwitchCompleter?.future;
-    await _setCurrentIndex(index);
+    await _activation.setCurrentIndex(index);
     if (!mounted) return;
     setState(() {});
     await _shell.saveCurrentIndex();
@@ -3773,7 +3407,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     site.onNavigationCommitted = () {
       _navStateDebouncer.schedule(site.siteId, capture: () {
         if (!mounted || !_sites.models.contains(site)) return;
-        unawaited(_captureStateBytes(site));
+        unawaited(_activation.captureStateBytes(site));
       });
     };
     site.onReturnToOwner = _tabs.enabledFor(site)
@@ -3987,7 +3621,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   children: [
                     InkWell(
                       onTap: () async {
-                        await _setCurrentIndex(null);
+                        await _activation.setCurrentIndex(null);
                         if (!mounted) return;
                         setState(() {});
                         await _shell.saveSelectedWebspaceId();
@@ -4026,7 +3660,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         onPressed: () async {
-                          await _setCurrentIndex(null);
+                          await _activation.setCurrentIndex(null);
                           if (!mounted) return;
                           setState(() {});
                           await _shell.saveSelectedWebspaceId();
@@ -4201,14 +3835,14 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
   @override
   Set<int> mismatchedWith(WebViewModel target) => {
         for (final unload in state
-            ._residencyPlan(NestedOpening(state._sites.models.indexOf(target)))
+            ._activation.residencyPlan(NestedOpening(state._sites.models.indexOf(target)))
             .unloads)
           state._sites.models.indexOf(unload.site),
       };
 
   @override
   Future<void> unload(int index) =>
-      state._unloadSite(index, reason: UnloadReason.proxyMismatch);
+      state._activation.unload(index, reason: UnloadReason.proxyMismatch);
 
   @override
   Future<void> applyProxyOf(WebViewModel target) => ProxyManager()
@@ -4227,7 +3861,7 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
       state._launchNestedForModel(target, url: url, opensFromTab: fromTab);
 
   @override
-  Future<void> activate(int index) => state._setCurrentIndex(index);
+  Future<void> activate(int index) => state._activation.setCurrentIndex(index);
 }
 
 class _ResidencyHost implements ResidencyHost {
@@ -4247,7 +3881,7 @@ class _ResidencyHost implements ResidencyHost {
 
   @override
   Future<void> captureNavState(WebViewModel model) =>
-      state._captureStateForRestore(model);
+      state._activation.captureStateForRestore(model);
 
   @override
   void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
@@ -4312,7 +3946,8 @@ class _PageHost
         LifecycleHost,
         TabsHost,
         LinkHost,
-        FullscreenHost {
+        FullscreenHost,
+        ActivationHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -4363,10 +3998,30 @@ class _PageHost
       Navigator.of(_s.context).popUntil((route) => route.isFirst);
 
   @override
-  Future<void> activate(int index) => _s._setCurrentIndex(index);
+  Future<void> activate(int index) => _s._activation.setCurrentIndex(index);
 
   @override
   void syncTorExitPin(Set<int> indices) => _s._network.syncTorExitPin(indices);
+
+  @override
+  void forgetTabReturns() => _s._tabs.forgetReturns();
+
+  @override
+  void exitFullscreen() => _s._fullscreen.exit();
+
+  @override
+  Future<void> refreshRoutes({int? activeIndex}) =>
+      _s._network.refreshRoutes(activeIndex: activeIndex);
+
+  @override
+  Future<void> probeRenderer(WebViewModel model, {required String trigger}) =>
+      _s._lifecycle.probeRenderer(model, trigger: trigger);
+
+  @override
+  void backgroundSitesChanged() {
+    unawaited(_s._background.reschedule());
+    unawaited(_s._background.updateAudioSession());
+  }
 
   @override
   WebViewHostHooks get webViewHooks => _s._webViewHooks;
@@ -4381,7 +4036,7 @@ class _PageHost
 
   @override
   Future<bool> captureNavState(WebViewModel model) =>
-      _s._captureStateBytes(model);
+      _s._activation.captureStateBytes(model);
 
   @override
   Future<void> handleShareIntent() => _s._links.handleShareIntent();
@@ -4420,7 +4075,7 @@ class _PageHost
 
   @override
   Future<void> unloadSite(int index, {required UnloadReason reason}) =>
-      _s._unloadSite(index, reason: reason);
+      _s._activation.unload(index, reason: reason);
 
   @override
   Future<void> wipeContainer(String siteId) async {

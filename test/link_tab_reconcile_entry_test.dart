@@ -132,7 +132,10 @@ void main() {
 
   group('state capture across a flip', () {
     test('keys the bytes by what the tab was when the capture started', () {
-      final body = bodyOf('Future<bool> _captureStateBytes(');
+      final body = bodyIn(
+          File('lib/controllers/site_activation_controller.dart')
+              .readAsStringSync(),
+          signature: 'Future<bool> captureStateBytes(');
       final key = body.indexOf('final key = model.activeStateKey;');
       final tab = body.indexOf('final tabId = model.activeTabId;');
       final capture = body.indexOf('await model.captureNavigationState()');

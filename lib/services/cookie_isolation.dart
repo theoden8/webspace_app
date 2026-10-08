@@ -105,7 +105,7 @@ class CookieIsolationEngine {
     final model = models[index];
     if (model.effectiveIncognito) return;
 
-    // Snapshot _loadedIndices before iterating: a concurrent _setCurrentIndex
+    // Snapshot _loadedIndices before iterating: a concurrent setCurrentIndex
     // may mutate it via unloadSiteForDomainSwitch between our awaits. The
     // version guard ultimately aborts us, but iterating a mutating Set
     // directly would throw ConcurrentModificationError first.

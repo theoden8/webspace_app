@@ -202,7 +202,7 @@ void main([List<String> args = const []]) async {
   // frame, even when the launched site needs none of them. Instead each site's
   // page is decrypted on demand via `HtmlCacheService.preloadOne` /
   // `HtmlImportStorage.preloadOne` right before it enters `_sites.loaded`
-  // (in `_setCurrentIndex` and the deferred notification-site load), so the
+  // (in `setCurrentIndex` and the deferred notification-site load), so the
   // build's synchronous `getHtmlSync` still hits but only for sites that
   // actually build.
 

@@ -163,11 +163,11 @@ check resolved at app startup.
   reporting `WebViewFeature.MULTI_PROFILE` true
 **When** `_restoreAppState` runs
 **Then** `_useContainers` resolves to `true`
-**And** every subsequent `_setCurrentIndex(index)` skips
+**And** every subsequent `setCurrentIndex(index)` skips
   `SiteActivationEngine.findDomainConflict` and the capture-nuke-
   restore cycle — superseding the legacy
   [ISO-001](../per-site-cookie-isolation/spec.md) mutex
-**And** `_setCurrentIndex(index)` calls
+**And** `setCurrentIndex(index)` calls
   `ContainerIsolationEngine.ensureContainer(target.siteId)` instead
 
 #### Scenario: Profile API supported on iOS / macOS
@@ -198,7 +198,7 @@ check resolved at app startup.
   web (or Linux without the fork override resolved)
 **When** `_restoreAppState` runs
 **Then** `_useContainers` resolves to `false`
-**And** `_setCurrentIndex` runs the existing capture-nuke-restore flow
+**And** `setCurrentIndex` runs the existing capture-nuke-restore flow
   unchanged
 **And** `ContainerIsolationEngine` touches no ProfileStore
 
@@ -351,12 +351,12 @@ under this policy, two backstops apply:
   `didHaveMemoryPressure` between the version bump and the eventual
   webview resume
 **Then** A is NOT picked as the eviction victim
-**Because** `_setCurrentIndex` records its target in
+**Because** `setCurrentIndex` records its target in
   `SiteRuntime.activating` (set in the try block, cleared in
   finally); `SiteRuntime.retentionPriority` ranks it `activating`,
   which no eviction takes, alongside the `active` current site. Without the in-flight
   guard, mid-activation eviction would dispose A's webview, leaving
-  `_setCurrentIndex` to call `resumeWebView()` on a null controller
+  `setCurrentIndex` to call `resumeWebView()` on a null controller
   (no-op) — the IndexedStack would re-create a fresh webview on next
   paint, silently wiping the user's URL/scroll/session.
 
@@ -717,7 +717,7 @@ JS gets injected*.
 - `android/app/src/main/kotlin/.../MainActivity.kt` —
   instantiates `WebSpaceContainerPlugin`
 - `lib/main.dart` — caches `_useContainers`, gates engine selection in
-  `_setCurrentIndex` and `_deleteSite`, runs orphan GC in
+  `setCurrentIndex` and `_deleteSite`, runs orphan GC in
   `_restoreAppState`
 - `lib/services/webview.dart` — sets `InAppWebViewSettings.containerId`
   (`containerIdFor`) when it builds a site's WebView

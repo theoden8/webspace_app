@@ -316,7 +316,7 @@ class SiteNetworkController {
       probe: runAttributionProbe,
     );
     // A null return stands the router down but never clears the override:
-    // the `_setCurrentIndex` that follows re-applies the site's PROXY-008
+    // the `setCurrentIndex` that follows re-applies the site's PROXY-008
     // proxy, and until it does a dead relay port fails closed.
   }
 

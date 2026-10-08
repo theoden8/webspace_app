@@ -116,7 +116,7 @@ is driven by actual playback, in BGAUDIO-010.
 
 Sync points (all idempotent, routed through
 `BackgroundTaskService.setBackgroundAudioActive`): per-site settings save,
-site activation tail (`_setCurrentIndex`), site deletion GC, and the
+site activation tail (`setCurrentIndex`), site deletion GC, and the
 lifecycle `paused` branch.
 
 #### Scenario: Toggling the setting on prepares the audio session

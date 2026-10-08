@@ -57,7 +57,7 @@ class LaunchOfferReroute extends LaunchResolution {
 
 /// Pure helpers for `_WebSpacePageState._restoreAppState`. Only the
 /// straight-line decisions live here; SharedPreferences I/O, native
-/// cookie-jar nuking, and `_setCurrentIndex` chaining stay at the
+/// cookie-jar nuking, and `setCurrentIndex` chaining stay at the
 /// caller because they cross rendering/persistence boundaries.
 class StartupRestoreEngine {
   /// Full shortcut resolution (HS-011). Tries, in order:
@@ -127,7 +127,7 @@ class StartupRestoreEngine {
     return perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut);
   }
 
-  /// Whether the restore's closing `_setCurrentIndex(indexToRestore)` should
+  /// Whether the restore's closing `setCurrentIndex(indexToRestore)` should
   /// still run (NAV-012).
   ///
   /// The home grid takes taps while the restore is still awaiting startup work

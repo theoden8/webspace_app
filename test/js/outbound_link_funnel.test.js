@@ -98,7 +98,7 @@ test('a nested open runs through the engine, over the source only when routed', 
   assert.match(open, /source: a\.sourceIsParent \? source : null/,
     'only a routed open skips the webspace switch and brings its source back');
   const host = blockAfter(main, 'class _NestedOpenHost implements NestedOpenHost<WebViewModel> {', null, mainRel);
-  assert.match(host, /Future<void> activate\(int index\) => state\._setCurrentIndex\(index\);/,
+  assert.match(host, /Future<void> activate\(int index\) => state\._activation\.setCurrentIndex\(index\);/,
     'the source must come back through the full activation, which applies its proxy first');
   assert.match(host, /Future<void> launchNested\([^)]*\)\s*=>\s*state\._launchNestedForModel\(/,
     'the screen opens through the NESTED-010 funnel');

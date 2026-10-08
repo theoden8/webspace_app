@@ -595,7 +595,7 @@ Flutter never draws so a matching dominant color proves the sample
 came from the webview.
 
 The suite SHALL cover at least: fresh first activation (BUG-001 gap
-#7), loaded-site switch (`_setCurrentIndex` reuse), the reload funnel
+#7), loaded-site switch (`setCurrentIndex` reuse), the reload funnel
 (`PAUSE-021`), memory pressure against the visible site
 (`PAUSE-019`), fresh activation with other sites live
 (`PAUSE-017`), the return from a pushed opaque route (`PAUSE-024`),

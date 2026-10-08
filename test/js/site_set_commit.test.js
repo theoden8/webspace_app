@@ -36,7 +36,7 @@ test('the funnel runs its steps in one fixed order', () => {
     '_tabs.reconcileLinkTabs()',
     '_tabs.closeIneligibleHostedTabs()',
     '_archives.recordIn(',
-    '_setCurrentIndex(null)',
+    '_activation.setCurrentIndex(null)',
     '_network.syncTorHolders()',
     '_network.refreshRoutes()',
     '_persistSites()',

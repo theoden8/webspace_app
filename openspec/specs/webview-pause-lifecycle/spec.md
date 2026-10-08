@@ -177,7 +177,7 @@ The OS controls the curve: if pressure persists, the callback fires again and th
 
 **Given** site A is in `savedForRestore` (disposed, but its bytes are in `WebViewStateStorage`)
 **When** the user activates site A
-**Then** `_setCurrentIndex` reads the bytes from storage and queues them on the model via `schedulePendingRestoreState`
+**Then** `setCurrentIndex` reads the bytes from storage and queues them on the model via `schedulePendingRestoreState`
 **And** the model's `lifecycleState` is reset to `resident`
 **And** the webview is rebuilt — `getWebView`'s `onControllerCreated` consumes the pending bytes and calls `controller.restoreState(bytes)`
 **And** the back/forward stack is restored on every supported platform:
@@ -222,12 +222,12 @@ The load ordering differs by platform because the restore APIs differ. On iOS/ma
 #### Scenario: Memory pressure during re-activation does not strand state
 
 **Given** site A is in `savedForRestore`
-**And** the user has just activated A — `_setCurrentIndex` is mid-flight, awaiting `_stateStorage.loadState`
+**And** the user has just activated A — `setCurrentIndex` is mid-flight, awaiting `_stateStorage.loadState`
 **When** `didHaveMemoryPressure` fires
 **Then** the picker excludes A from the candidate iteration
 The handler applies the plan [`SiteUnloadEngine.plan`](../../../lib/services/site_unload_engine.dart) gives for `MemoryPressure`: a cache clear for a `resident` victim, an unload for a `cacheCleared` one. Every other residency decision (activation, a webspace switch, a settled Tor exit, a nested open, a slot's identity change) is a `ResidencyEvent` case of the same plan, applied by `SiteUnloadEngine.apply`, which follows each site by identity and skips one no longer loaded when its turn comes.
 
-**Because** `_setCurrentIndex` records its target in `SiteRuntime.activating` (set synchronously before any await), and `SiteRuntime.retentionPriority` ranks it `activating` alongside the `active` current site. Without the in-flight guard, mid-activation eviction would dispose A's about-to-be-built webview, leaving `restoreState` to no-op against a null controller.
+**Because** `setCurrentIndex` records its target in `SiteRuntime.activating` (set synchronously before any await), and `SiteRuntime.retentionPriority` ranks it `activating` alongside the `active` current site. Without the in-flight guard, mid-activation eviction would dispose A's about-to-be-built webview, leaving `restoreState` to no-op against a null controller.
 
 ### Requirement: PAUSE-012 — Proactive Cache-Clear Threshold
 
@@ -274,7 +274,7 @@ The proactive pass is the last step of the `Activating` plan (`SiteUnloadEngine.
 #### Scenario: Activation race protects newly-cleared candidate
 
 **Given** activation is awaiting `controller.clearCache()` on site X (proactive promotion mid-flight)
-**When** a newer `_setCurrentIndex` call starts and bumps the version counter
+**When** a newer `setCurrentIndex` call starts and bumps the version counter
 **Then** the in-flight activation aborts after the await via the version-mismatch check
 **And** site X's `lifecycleState` is NOT flipped to `cacheCleared` by the aborted activation
 **Because** the post-await guard re-checks `_sites.loaded.contains(i)` and `lifecycleState == resident` before mutating — a newer activation may have demoted, evicted, or promoted X by then
@@ -283,7 +283,7 @@ The proactive pass is the last step of the `Activating` plan (`SiteUnloadEngine.
 
 The system SHALL capture `controller.saveState()` bytes before disposing any non-incognito loaded site, regardless of which path triggered the disposal:
 
-- LRU cap eviction in `_setCurrentIndex` (proxy mismatch + cap overflow)
+- LRU cap eviction in `setCurrentIndex` (proxy mismatch + cap overflow)
 - Domain-conflict unload in legacy (non-container) cookie isolation
 - Webspace switch unload in legacy mode
 - Memory pressure cascade `cacheCleared → savedForRestore`
@@ -355,19 +355,19 @@ State bytes survive cold starts (unlike the in-memory `InMemoryWebViewStateStora
 
 The system SHALL capture `controller.saveState()` bytes opportunistically — without disposing the webview — at three additional lifecycle points beyond the dispose paths:
 
-1. **Go-home** (`_setCurrentIndex(null)`): when the user navigates to the home screen, the previously-active site's state is captured before its webview is paused. The webview stays loaded for fast resume; state is captured defensively in case the OS later reaps the app or the user comes back after a long delay.
+1. **Go-home** (`setCurrentIndex(null)`): when the user navigates to the home screen, the previously-active site's state is captured before its webview is paused. The webview stays loaded for fast resume; state is captured defensively in case the OS later reaps the app or the user comes back after a long delay.
 2. **App-background** (`didChangeAppLifecycleState(paused | inactive)`): the active site's state is captured fire-and-forget alongside the existing `pauseForAppLifecycle` call, so an OS-induced kill while we're backgrounded preserves restorable state.
 3. **Navigation-debounced** (`WebViewModel.onNavigationCommitted` → `NavStateCaptureDebouncer`): each committed navigation in a loaded webview (deduped across the `onLoadStop` / `onUpdateVisitedHistory` double-fire) restarts a per-site trailing debounce window (3s); when a navigation burst settles, that site's state is captured. This covers the kill paths the first two points miss: (a) killing the app from the app switcher delivers only `inactive` — which the lifecycle handler deliberately ignores (issue #308) — so the app-background capture never runs; (b) loaded-but-not-current sites (notification pollers, sites the user switched away from) navigate without ever hitting go-home or a dispose path, leaving their on-disk state stale until an eviction happens to capture them.
 
-None of these paths mutate the model's `lifecycleState` — the field stays at `resident` because the webview is not actually disposed. Capture goes through `_captureStateBytes` (bytes-only) rather than `_captureStateForRestore` (bytes + flip-to-savedForRestore). All three gate on `WebViewModel.persistsNavState` (no capture for incognito or archive-tier sites).
+None of these paths mutate the model's `lifecycleState` — the field stays at `resident` because the webview is not actually disposed. Capture goes through `captureStateBytes` (bytes-only) rather than `captureStateForRestore` (bytes + flip-to-savedForRestore). All three gate on `WebViewModel.persistsNavState` (no capture for incognito or archive-tier sites).
 
 The go-home capture runs *after* the home state is committed, inside the bounded teardown of NAV-010 in [navigation](../navigation/spec.md): it is best-effort and never gates the return to the webspace list.
 
 #### Scenario: Go-home captures state for the previously-active site
 
 **Given** site A is the active site
-**When** the user taps the home / drawer button (triggering `_setCurrentIndex(null)`)
-**Then** `_captureStateBytes(A)` runs before A is paused
+**When** the user taps the home / drawer button (triggering `setCurrentIndex(null)`)
+**Then** `captureStateBytes(A)` runs before A is paused
 **And** A's bytes are persisted to `WebViewStateStorage`
 **And** A's webview is NOT disposed — `_sites.loaded` still contains A
 **And** A's `lifecycleState` stays `resident`
@@ -378,7 +378,7 @@ The go-home capture runs *after* the home state is committed, inside the bounded
 **Given** site A is the active site
 **When** the app goes to background (`AppLifecycleState.paused`)
 **Then** `pauseForAppLifecycle(A)` is invoked synchronously
-**And** `_captureStateBytes(A)` runs fire-and-forget (`unawaited`) so the lifecycle handler returns promptly
+**And** `captureStateBytes(A)` runs fire-and-forget (`unawaited`) so the lifecycle handler returns promptly
 **And** the encrypted state file is updated in the background
 **Because** the OS may grant only a brief window before suspending the process; capture races against that deadline but is best-effort
 
@@ -419,7 +419,7 @@ State files SHALL be reaped when their owning site is deleted, not when the user
 #### Scenario: Site deletion removes state, go-home does not
 
 **Given** site A is in storage
-**When** the user goes home (`_setCurrentIndex(null)`)
+**When** the user goes home (`setCurrentIndex(null)`)
 **Then** A's state is *added* to storage (defensively captured) — not removed
 
 **When** the user later deletes site A from the site list
@@ -428,9 +428,9 @@ State files SHALL be reaped when their owning site is deleted, not when the user
 
 ### Requirement: PAUSE-019 — Cold-Start Restore for Auto-Loaded Sites
 
-Sites that enter `_sites.loaded` without going through `_setCurrentIndex` — notification sites auto-loaded at startup, on both the legacy pre-paint loop in `_restoreAppState` and the container-mode `DeferredStartupEngine.autoLoadNotificationSites` — SHALL have their saved nav-state bytes fetched from `WebViewStateStorage` and queued on the model via `schedulePendingRestoreState` *before* they are marked loaded.
+Sites that enter `_sites.loaded` without going through `setCurrentIndex` — notification sites auto-loaded at startup, on both the legacy pre-paint loop in `_restoreAppState` and the container-mode `DeferredStartupEngine.autoLoadNotificationSites` — SHALL have their saved nav-state bytes fetched from `WebViewStateStorage` and queued on the model via `schedulePendingRestoreState` *before* they are marked loaded.
 
-`_setCurrentIndex` fetches restore bytes only when the target is NOT already in `_sites.loaded` (a loaded webview's controller won't be recreated, so a queued restore would go stale). An auto-loaded site is therefore skipped by the activation-path restore on every subsequent tap; without the pre-queue, its first build consumes no bytes and the previous session's back/forward stack is silently dropped on every cold start — precisely for the sites a user keeps notifications on for. The pre-queue goes through the same gates as the activation path (`persistsNavState`, no live controller) and re-checks site liveness after the disk read.
+`setCurrentIndex` fetches restore bytes only when the target is NOT already in `_sites.loaded` (a loaded webview's controller won't be recreated, so a queued restore would go stale). An auto-loaded site is therefore skipped by the activation-path restore on every subsequent tap; without the pre-queue, its first build consumes no bytes and the previous session's back/forward stack is silently dropped on every cold start — precisely for the sites a user keeps notifications on for. The pre-queue goes through the same gates as the activation path (`persistsNavState`, no live controller) and re-checks site liveness after the disk read.
 
 #### Scenario: Notification site restores history on cold start
 
@@ -438,7 +438,7 @@ Sites that enter `_sites.loaded` without going through `_setCurrentIndex` — no
 **When** the app cold-starts and the auto-load path processes A
 **Then** A's bytes are queued on the model before `markLoaded`
 **And** A's first webview build applies `restoreState` in `onControllerCreated`
-**And** when the user later taps A, `_setCurrentIndex` skips its restore fetch (A is already loaded) but the stack is already live
+**And** when the user later taps A, `setCurrentIndex` skips its restore fetch (A is already loaded) but the stack is already live
 
 #### Scenario: Site deleted during the restore fetch is skipped
 
@@ -453,9 +453,9 @@ Sites that enter `_sites.loaded` without going through `_setCurrentIndex` — no
 Concurrent paths that may capture state for the same site SHALL coexist without corruption:
 
 - Two `_handleMemoryPressure` events firing rapidly: dropped via `_memoryPressureGuard` (the first runs to completion, the next event picks up the new state).
-- App-background `unawaited(_captureStateBytes)` racing with `_setCurrentIndex`: each path operates on per-site state independently; storage writes are last-writer-wins per siteId, both produce valid bytes.
-- Navigation-debounced capture firing while a dispose/pause path captures the same site: both go through `_captureStateBytes`; writes are last-writer-wins per siteId and both produce valid bytes. The debounce callback re-checks `mounted` and model identity (`_sites.models.contains(model)`, not an index) before capturing, so a site deleted or a list reordered during the window is a no-op.
-- Re-activation of a `savedForRestore` site mid-fetch: the in-flight target is `SiteRuntime.activating` (set sync before any await in `_setCurrentIndex`, cleared in finally); `SiteRuntime.retentionPriority` ranks that index `activating`, so the picker excludes it.
+- App-background `unawaited(captureStateBytes)` racing with `setCurrentIndex`: each path operates on per-site state independently; storage writes are last-writer-wins per siteId, both produce valid bytes.
+- Navigation-debounced capture firing while a dispose/pause path captures the same site: both go through `captureStateBytes`; writes are last-writer-wins per siteId and both produce valid bytes. The debounce callback re-checks `mounted` and model identity (`_sites.models.contains(model)`, not an index) before capturing, so a site deleted or a list reordered during the window is a no-op.
+- Re-activation of a `savedForRestore` site mid-fetch: the in-flight target is `SiteRuntime.activating` (set sync before any await in `setCurrentIndex`, cleared in finally); `SiteRuntime.retentionPriority` ranks that index `activating`, so the picker excludes it.
 - Storage initialization concurrency: `if (!_initialized) await initialize()` may run twice on a cold race, but each invocation produces the same key from `FlutterSecureStorage` (existing key on read, generated once on first miss); the second call's redundant writes are no-ops.
 
 #### Scenario: Concurrent didHaveMemoryPressure events do not double-capture
@@ -529,7 +529,7 @@ The system SHALL probe the renderer of a webview when it becomes active and recr
 The host runs the probe `AppLifecycleController.probeRenderer(model)`:
 
 - After resuming the active site on app resume (`AppLifecycleController._resumeAfterPause`).
-- After resuming the newly-activated site on every site switch (`_setCurrentIndex`), which is the path a pinned-shortcut tap funnels through.
+- After resuming the newly-activated site on every site switch (`setCurrentIndex`), which is the path a pinned-shortcut tap funnels through.
 
 The probe evaluates `document.body ? document.body.offsetHeight : -1` via `evaluateJavascriptReturning`. A live renderer returns a number; a dead renderer (whose `evaluateJavascript` throws) is surfaced as a `null` result. `rendererProbeIndicatesGone(result)` returns true only for `null` — every numeric value (`0`, `-1`, positive height) is treated as alive, so a healthy or still-loading page is never recreated. When the probe indicates gone, the host calls `handleRendererGone(didCrash: false)`, joining the same destroy-and-rebuild path as PAUSE-013. The probe is fire-and-forget and a no-op when the model has no controller (a fresh first-load).
 
@@ -540,7 +540,7 @@ On Android the probe doubles as the surface paint nudge: reading `offsetHeight` 
 **Given** site A is loaded but offscreen (the user was on a different site, or the app was backgrounded)
 **And** iOS jettisons site A's web content process to reclaim memory
 **And** `onWebContentProcessDidTerminate` does not fire because site A was not on screen
-**When** the user taps the pinned shortcut for site A, routing through `_setCurrentIndex`
+**When** the user taps the pinned shortcut for site A, routing through `setCurrentIndex`
 **Then** `AppLifecycleController.probeRenderer` evaluates the probe against the dead content process
 **And** `evaluateJavascriptReturning` returns null (the call threw on the dead process)
 **And** `rendererProbeIndicatesGone(null)` is true
@@ -572,7 +572,7 @@ The resume sequence is ordered so the repaint is deterministic. `AppLifecycleCon
 
 - Toggles a transient 1px body inset around the IndexedStack several times over ~0.5s.
 - Each `setState` repaints the Flutter base surface (status-bar strip and chrome); each size flip resizes the webview platform view, forcing its `SurfaceView` to recomposite.
-- The nudge is spread across multiple frames because the recreated surface may not be attached on the first frame after resume — a single rebuild (the one already in `_setCurrentIndex`) fires too early to help.
+- The nudge is spread across multiple frames because the recreated surface may not be attached on the first frame after resume — a single rebuild (the one already in `setCurrentIndex`) fires too early to help.
 - The inset is always 0 in steady state and the nudge is a no-op on non-Android platforms.
 
 This is complementary to PAUSE-014: the probe recreates a *dead* renderer; the surface nudge repaints a *live* renderer whose surface came back blank. A JS `offsetHeight` read addresses neither the Flutter base surface nor the Android `SurfaceView` composition, which is why it is insufficient on its own.
@@ -604,7 +604,7 @@ This is complementary to PAUSE-014: the probe recreates a *dead* renderer; the s
 
 ### Requirement: PAUSE-017 — Surface Repaint On Fresh Controller Attach
 
-On Android, the system SHALL recomposite the surface whenever a **fresh** native controller attaches for the visible site, not only on the resume/re-activation paths of PAUSE-015. Re-activating an already-loaded webview reuses its controller and is covered by `_setCurrentIndex`'s explicit nudge; but a webview that is **recreated from scratch** mounts a brand-new hybrid-composition `SurfaceView` that can likewise attach blank — rendering **white** (the fresh surface's default fill) rather than black. These recreation paths do not run through `_setCurrentIndex` and so were uncovered: `_goHome` (disposes and rebuilds at `initUrl`), renderer-gone recovery (`handleRendererGone` rebuilds at `currentUrl`), and `savedForRestore` re-creation.
+On Android, the system SHALL recomposite the surface whenever a **fresh** native controller attaches for the visible site, not only on the resume/re-activation paths of PAUSE-015. Re-activating an already-loaded webview reuses its controller and is covered by `setCurrentIndex`'s explicit nudge; but a webview that is **recreated from scratch** mounts a brand-new hybrid-composition `SurfaceView` that can likewise attach blank — rendering **white** (the fresh surface's default fill) rather than black. These recreation paths do not run through `setCurrentIndex` and so were uncovered: `_goHome` (disposes and rebuilds at `initUrl`), renderer-gone recovery (`handleRendererGone` rebuilds at `currentUrl`), and `savedForRestore` re-creation.
 
 The host SHALL set `WebViewModel.onControllerReady` for each loaded model in the build (`SurfaceRepaintController.watch`, from the page's `_wireSite`), and `getWebView`'s `onControllerCreated` SHALL invoke it after the controller is wired. The callback fires `SurfaceRepaintController.nudge` only when the model's index equals the live `_sites.current`, so a background site's (re)creation never nudges. Because it keys off controller creation — the single chokepoint every recreation passes through — it covers current and future recreation paths in one place rather than per call site.
 
@@ -625,7 +625,7 @@ The host SHALL set `WebViewModel.onControllerReady` for each loaded model in the
 
 ### Requirement: PAUSE-018 — Surface Repaint After Back/Forward Navigation
 
-On Android, the system SHALL recomposite the surface after a user-driven back navigation of the visible webview. A back/forward-cache restore (the `backForwardCacheEnabled` perf pref defaults on) re-attaches a fresh hybrid-composition `SurfaceView` for the restored page, which can come back blank — rendering **white** like the PAUSE-017 fresh-controller case. Back navigation reuses the existing controller and stays on the same site, so it passes through neither `_setCurrentIndex` (PAUSE-015) nor `onControllerReady` (PAUSE-017) and was uncovered.
+On Android, the system SHALL recomposite the surface after a user-driven back navigation of the visible webview. A back/forward-cache restore (the `backForwardCacheEnabled` perf pref defaults on) re-attaches a fresh hybrid-composition `SurfaceView` for the restored page, which can come back blank — rendering **white** like the PAUSE-017 fresh-controller case. Back navigation reuses the existing controller and stays on the same site, so it passes through neither `setCurrentIndex` (PAUSE-015) nor `onControllerReady` (PAUSE-017) and was uncovered.
 
 Every back-navigation call site on the visible webview SHALL route through `_goBackAndRepaint`, which awaits `controller.goBack()` then fires `SurfaceRepaintController.nudge`. This covers the back gesture and the AppBar back button. The nudge is a no-op off Android and harmless when the page was not served from bfcache.
 
@@ -639,7 +639,7 @@ Every back-navigation call site on the visible webview SHALL route through `_goB
 
 ### Requirement: PAUSE-019 — Recover The Visible Site On Memory Pressure
 
-On a memory-pressure event the system SHALL probe-and-recover the **visible** site's surface, covering both blank outcomes the pressure itself can cause. The `didHaveMemoryPressure` handler evicts a background victim (the active site is hard-protected), but the underlying low-memory condition — not the eviction — can blank the frontmost webview: iOS may jettison the visible `WKWebView`'s content process, and Android's hybrid-composition `SurfaceView` can lose its buffer under a GL reclaim. Because the active site never goes through `_setCurrentIndex` (PAUSE-015), `onControllerReady` (PAUSE-017), the back path (PAUSE-018), or a resume (PAUSE-014/015) as a result of memory pressure, it was uncovered and could stay blank until the next navigation.
+On a memory-pressure event the system SHALL probe-and-recover the **visible** site's surface, covering both blank outcomes the pressure itself can cause. The `didHaveMemoryPressure` handler evicts a background victim (the active site is hard-protected), but the underlying low-memory condition — not the eviction — can blank the frontmost webview: iOS may jettison the visible `WKWebView`'s content process, and Android's hybrid-composition `SurfaceView` can lose its buffer under a GL reclaim. Because the active site never goes through `setCurrentIndex` (PAUSE-015), `onControllerReady` (PAUSE-017), the back path (PAUSE-018), or a resume (PAUSE-014/015) as a result of memory pressure, it was uncovered and could stay blank until the next navigation.
 
 After applying the eviction, the handler SHALL resolve the active loaded index and, when present, run `AppLifecycleController.probeRenderer` (dead renderer → recreate, per PAUSE-013/014) followed by `SurfaceRepaintController.nudge` (live-but-unpainted surface → recomposite, per PAUSE-015). Running both is safe: the probe recreates only on a null result, and the nudge is a no-op off Android and harmless when the surface was already painted.
 
@@ -686,7 +686,7 @@ The ordering is model-checked in [formal/warmstart.tla](../../../formal/warmstar
 
 ### Requirement: PAUSE-021 — Repaint After A Reload
 
-On Android, the system SHALL recomposite the surface after the visible webview reloads, and SHALL do so again when the reloaded document commits. A reload discards the currently painted compositor frame at the moment `reload()` is called and commits the replacement an unbounded time later (network, parse, script). In between, the hybrid-composition `SurfaceView` holds no frame and nothing re-lays it out, so the page renders **white** — the same blank-surface class as PAUSE-015/017/018/020, reached through the reload trigger. A reload keeps the same site and the same controller, so it passes through none of the existing chokepoints: not `_setCurrentIndex` (PAUSE-015), not `onControllerReady` (PAUSE-017), not the back path (PAUSE-018), not a resume (PAUSE-020).
+On Android, the system SHALL recomposite the surface after the visible webview reloads, and SHALL do so again when the reloaded document commits. A reload discards the currently painted compositor frame at the moment `reload()` is called and commits the replacement an unbounded time later (network, parse, script). In between, the hybrid-composition `SurfaceView` holds no frame and nothing re-lays it out, so the page renders **white** — the same blank-surface class as PAUSE-015/017/018/020, reached through the reload trigger. A reload keeps the same site and the same controller, so it passes through none of the existing chokepoints: not `setCurrentIndex` (PAUSE-015), not `onControllerReady` (PAUSE-017), not the back path (PAUSE-018), not a resume (PAUSE-020).
 
 Repainting only when `reload()` is issued is insufficient, and for the same ordering reason as PAUSE-020: the nudge's tick budget (~0.6s) drains against the *old* surface while the new document is still in flight, so a reload slower than the budget leaves the recommitted surface unpainted. The host SHALL therefore latch the reload (`SurfaceRepaintEngine.noteCommitPending`, through the host's `SurfaceRepaintController.armCommitLatch`) and repaint **twice**: once at issue time, and again when the next main-frame load settles (`SurfaceRepaintEngine.noteLoadSettled`, driven by `onLoadingChanged(false)`) — the closest Dart-side signal to the reloaded document committing onto the surface. Arming is bounded by a window rather than one-shot (PAUSE-027), so an ordinary navigation's load-stop outside it does not nudge.
 
@@ -721,7 +721,7 @@ Both nudges SHALL emit a non-sensitive `SurfaceDiag` line (`trigger=reload -> nu
 
 ### Requirement: PAUSE-024 — Surface Repaint On Return From A Pushed Route
 
-On Android, the system SHALL recomposite the surface when an opaque route pushed over a webview screen is popped and the webview becomes visible again. While an opaque `PageRoute` covers the screen its platform view is not composited, and the embedder detaches the hybrid-composition `SurfaceView` from the view hierarchy; the pop re-attaches it, blank, exactly as PAUSE-017's fresh controller does. The pop passes through **none** of the existing chokepoints: the site did not change (`_setCurrentIndex`, PAUSE-015), no controller was created (`onControllerReady`, PAUSE-017), nothing navigated (PAUSE-018/021), and the app never left the foreground (PAUSE-020). Every full-screen route in the app reaches this: site settings, app settings, developer tools, downloads, add-site, the QR scanner, and the nested webview screen.
+On Android, the system SHALL recomposite the surface when an opaque route pushed over a webview screen is popped and the webview becomes visible again. While an opaque `PageRoute` covers the screen its platform view is not composited, and the embedder detaches the hybrid-composition `SurfaceView` from the view hierarchy; the pop re-attaches it, blank, exactly as PAUSE-017's fresh controller does. The pop passes through **none** of the existing chokepoints: the site did not change (`setCurrentIndex`, PAUSE-015), no controller was created (`onControllerReady`, PAUSE-017), nothing navigated (PAUSE-018/021), and the app never left the foreground (PAUSE-020). Every full-screen route in the app reaches this: site settings, app settings, developer tools, downloads, add-site, the QR scanner, and the nested webview screen.
 
 Each webview-hosting screen SHALL be `RouteAware`, subscribe its own `ModalRoute` to the shared `surfaceRouteObserver` in `didChangeDependencies`, unsubscribe in `dispose`, and fire `SurfaceRepaintController.nudge` from `didPopNext`. The observer SHALL be registered on the app's `MaterialApp.navigatorObservers` and SHALL be typed to `PageRoute`, so a dialog or any other `PopupRoute` — which leaves the webview composited underneath and therefore needs no repaint — cannot trigger a nudge. The main page SHALL emit the non-sensitive `SurfaceDiag` line `trigger=route-return -> nudge` (Android only, no site name or URL), the same diagnostic contract as PAUSE-019/020/021. The nudge is a no-op off Android.
 
@@ -765,7 +765,7 @@ This narrows, but does not close, BUG-001 gap #3: `onLoadingChanged(false)` rema
 #### Scenario: Activating a site mid-load
 
 **Given** a site is loading in the background and the user switches to it
-**When** `_setCurrentIndex` nudges and its load settles afterwards
+**When** `setCurrentIndex` nudges and its load settles afterwards
 **Then** the activation armed the latch, so the settled commit repaints
 
 #### Scenario: A background site's fresh controller does not repaint the visible one
@@ -1368,7 +1368,7 @@ bool isEscapedPauseTimersAlert({
 [lib/main.dart](../../lib/main.dart):
 
 - `didChangeAppLifecycleState`: calls `pauseForAppLifecycle()` / `resumeFromAppLifecycle()`.
-- `_setCurrentIndex`: calls `pauseWebView()` / `resumeWebView()`, with the outgoing site named by `SiteActivationEngine.outgoingSiteToQuiesce` (PAUSE-001).
+- `setCurrentIndex`: calls `pauseWebView()` / `resumeWebView()`, with the outgoing site named by `SiteActivationEngine.outgoingSiteToQuiesce` (PAUSE-001).
 
 `WebViewFactory.createWebView` ([lib/services/webview.dart](../../lib/services/webview.dart)):
 
@@ -1402,7 +1402,7 @@ bool isEscapedPauseTimersAlert({
 
 - `lib/services/webview.dart` — split the `WebViewController` interface; `_WebViewController.pause()` no longer calls `pauseTimers()`; `createWebView` wires the PAUSE-030 `onJsAlert` funnel.
 - `lib/web_view_model.dart` — added `pauseForAppLifecycle()` / `resumeFromAppLifecycle()`; updated docs on `pauseWebView()` / `resumeWebView()`.
-- `lib/main.dart` — `didChangeAppLifecycleState` and `AppLifecycleController._resumeAfterPause` use the lifecycle-named methods; `_setCurrentIndex` asks the engine which site to quiesce.
+- `lib/main.dart` — `didChangeAppLifecycleState` and `AppLifecycleController._resumeAfterPause` use the lifecycle-named methods; `setCurrentIndex` asks the engine which site to quiesce.
 - `lib/services/site_activation_engine.dart` — `outgoingSiteToQuiesce`.
 
 ### Added

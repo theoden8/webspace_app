@@ -386,7 +386,7 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 
 ### Site Switching
 
-In `_setCurrentIndex()`:
+In `setCurrentIndex()`:
 - If target site has `fullscreenMode = true`, calls `FullscreenController.enter()`
 - Otherwise, calls `FullscreenController.exit()`
 - Navigating to null index (webspaces list) always exits fullscreen

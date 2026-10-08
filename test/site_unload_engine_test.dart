@@ -131,7 +131,7 @@ void main() {
       expect(main, isNot(contains('_cookieIsolation.unloadSiteForDomainSwitch(')));
       final select = main.substring(main.indexOf('void _selectWebspace('));
       expect(select.substring(0, select.indexOf('\n  }\n')),
-          contains('_residencyPlan(WebspaceSwitched('));
+          contains('_activation.residencyPlan(WebspaceSwitched('));
     });
   });
 
@@ -934,7 +934,7 @@ void unloads(String name,
       (name: 'user re-activates the site that would otherwise be next to evict',
           loaded: {0, 1, 2, 3}, target: 0, cap: 3,
           tiers: tiers(active: {2}, keep: {0, 1}), evicts: [3]),
-      // In production, _setCurrentIndex passes _currentIndex as
+      // In production, setCurrentIndex passes _currentIndex as
       // protectedIndices and _getFilteredSiteIndices() as
       // preferKeepIndices. The active site is typically in the active
       // webspace, so the intersection is non-empty by design. The

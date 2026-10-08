@@ -14,7 +14,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, blockAfter, dartFiles } = require('./helpers/source');
 
-const MAIN = 'lib/screens/webspace_page.dart';
+const MAIN = 'lib/controllers/site_activation_controller.dart';
 
 const src = read(MAIN);
 const lines = src.split('\n');

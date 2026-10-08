@@ -53,12 +53,11 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   @override
   bool get torAvailable => false;
 
-  /// Mirrors `_unloadSite` in main.dart.
+  /// Mirrors `SiteActivationController.unload`.
   Future<void> unload(int index, {required UnloadReason reason}) =>
       SiteUnloadEngine.unload(this, index: index, reason: reason);
 
-  /// Monotonic counter mirroring `_setCurrentIndexVersion` in
-  /// `_WebSpacePageState`. Every `switchToSite` call bumps it; the engine
+  /// Monotonic counter mirroring `SiteRuntime.activationVersion`. Every `switchToSite` call bumps it; the engine
   /// reads it via a closure so concurrent activations can bail.
   int version = 0;
 
@@ -70,7 +69,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     ));
   }
 
-  /// Mirrors `_setCurrentIndex` in main.dart: bumps the version, runs the
+  /// Mirrors `SiteActivationController.setCurrentIndex`: bumps the version, runs the
   /// activation's residency plan, then delegates cookie restore to the real
   /// engine, so the harness can't drift from prod.
   Future<void> switchToSite(int index) async {

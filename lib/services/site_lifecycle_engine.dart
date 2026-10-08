@@ -19,13 +19,13 @@ class SiteDeletionPatch {
 
   /// Updated value for `_currentIndex`. Semantics mirror `_deleteSite`:
   ///   * deletedIndex == currentIndex       → null (cleared; caller must
-  ///                                          call `_setCurrentIndex(null)`)
+  ///                                          call `setCurrentIndex(null)`)
   ///   * deletedIndex <  currentIndex       → currentIndex - 1
   ///   * deletedIndex >  currentIndex, null → unchanged
   final int? newCurrentIndex;
 
   /// True iff the deleted site was the active one. Signals the caller that
-  /// `_setCurrentIndex(null)` must run (which pauses the now-missing webview
+  /// `setCurrentIndex(null)` must run (which pauses the now-missing webview
   /// and clears fullscreen/canGoBack state) before the list is saved.
   final bool wasCurrentIndex;
 

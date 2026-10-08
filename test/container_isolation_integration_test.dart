@@ -115,7 +115,7 @@ class SimWebView {
 }
 
 /// Test harness for profile-mode site activation. Mirrors the
-/// `_useProfiles == true` branch of `_WebSpacePageState._setCurrentIndex`
+/// `_useProfiles == true` branch of `SiteActivationController.setCurrentIndex`
 /// and `_deleteSite`: skips conflict-find/unload, ensures the profile,
 /// marks loaded, simulates webview construction triggering a native
 /// bind. Delegates the real work to [ContainerIsolationEngine] so tests
@@ -136,7 +136,7 @@ class ContainerIsolationTestHarness with SiteListState {
     sites.add(WebViewModel(initUrl: url, name: name));
   }
 
-  /// Mirrors `_setCurrentIndex` for the profile-mode branch:
+  /// Mirrors `setCurrentIndex` for the profile-mode branch:
   ///   1. No `findDomainConflict` call — sites are isolated at the
   ///      engine level, so same-base-domain conflicts don't unload
   ///      anyone (CONT-003).
