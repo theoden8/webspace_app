@@ -13,6 +13,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'features/links.dart';
+import 'features/model.dart';
 import 'features/qr.dart';
 import 'features/registry.dart';
 import 'features/scripts.dart';
@@ -125,8 +126,7 @@ void main() {
 
     final models = <WebViewModel>[
       for (final s in superset['sites'] as List)
-        WebViewModel.fromJson(_map(jsonDecode(jsonEncode(s))),
-            stateSetterF: null),
+        modelFromJson(_map(jsonDecode(jsonEncode(s)))),
     ];
     final webspaces = <Webspace>[
       allWebspace,
