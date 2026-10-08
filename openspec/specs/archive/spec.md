@@ -42,7 +42,7 @@ ARCH-001 through ARCH-009 are wired end-to-end:
 
 **Archive-tier collections:** an open archive's named collections are
 materialised into `_sites.webspaces` (marked `isArchiveTier`, a runtime-only
-flag) so a restored archive keeps its grouping. `_saveWebspaces`
+flag) so a restored archive keeps its grouping. `ShellStore.saveWebspaces`
 filters on the flag so they never enter app-tier SharedPreferences;
 their membership rides the archive's own encrypted state and is
 re-captured on close. Reopening restores the grouping; closing falls

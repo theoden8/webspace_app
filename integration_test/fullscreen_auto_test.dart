@@ -1,8 +1,8 @@
 // Per-site auto-fullscreen integration test (FS-003).
 //
 // Activating a site whose `fullscreenMode = true` SHALL hide the
-// AppBar — the visible signal of `_isFullscreen` (see lib/screens/webspace_page.dart
-// `_enterFullscreen` / `_exitFullscreen`). The inverse (switching to
+// AppBar — the visible signal of `FullscreenController.active` (see
+// lib/controllers/fullscreen_controller.dart `enter` / `exit`). The inverse (switching to
 // a non-fullscreen site brings the AppBar back) was tried as a
 // second-half assertion but reliably reopening the drawer with a
 // live WebView running is its own integration challenge — keep this

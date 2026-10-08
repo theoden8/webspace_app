@@ -561,8 +561,8 @@ class UserScriptConfig {
 
 - Stored in `_WebSpacePageState._globalUserScripts`
 - Persisted to SharedPreferences under `'globalUserScripts'` key
-- Loaded during `_restoreAppState()` via `_loadGlobalUserScripts()`
-- After sites load, `_migrateGlobalScriptOptIn()` one-time-fills empty per-site opt-in sets with all current global ids (gated by the `globalUserScriptsOptInMigrated` SharedPreferences marker)
+- Loaded during `_restoreAppState()` via `ShellStore.loadGlobalUserScripts()`
+- After sites load, `ShellStore.migrateGlobalScriptOptIn()` one-time-fills empty per-site opt-in sets with all current global ids (gated by the `globalUserScriptsOptInMigrated` SharedPreferences marker)
 - Passed through `getWebView()` and `getController()` to the merge site-filter
 - Included in `SettingsBackup` model for export/import. Per-site `enabledGlobalScriptIds` are exported as part of each site's JSON.
 
@@ -732,7 +732,7 @@ At injection time: `fullSource = urlSource + '\n' + source`
 - `lib/screens/user_scripts.dart` — Per-site opt-in Switch for globals, `isGlobalLibrary` mode for App Settings, id-preserving edits
 - `lib/screens/settings.dart` — "User Scripts" tile passes `enabledGlobalScriptIds` and its onChanged callback
 - `lib/screens/app_settings.dart` — "Global User Scripts" section, `isGlobalLibrary: true`
-- `lib/main.dart` — Global user scripts state, persistence, `_migrateGlobalScriptOptIn`, backup/restore integration
+- `lib/controllers/shell_store.dart` — Global user scripts state, persistence, `migrateGlobalScriptOptIn`
 - `lib/services/settings_backup.dart` — Added `globalUserScripts` to SettingsBackup model (per-site opt-ins ride along in each site's JSON)
 
 ---

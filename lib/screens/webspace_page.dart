@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/controllers/app_lifecycle_controller.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
+import 'package:webspace/controllers/fullscreen_controller.dart';
 import 'package:webspace/controllers/link_controller.dart';
 import 'package:webspace/controllers/site_network_controller.dart';
 import 'package:webspace/controllers/shortcut_controller.dart';
@@ -31,7 +32,6 @@ import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
-import 'package:webspace/services/fullscreen_system_ui.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
@@ -159,6 +159,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     repaints: hostIsAndroid,
     traceSuffix: '',
   );
+  late final FullscreenController _fullscreen =
+      FullscreenController(host: _PageHost(this), surface: _surface);
   late final BackgroundSitesController _background =
       BackgroundSitesController(_sites, host: _PageHost(this));
   late final AppLifecycleController _lifecycle = AppLifecycleController(
@@ -225,8 +227,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   final _backGuard = ReentryGuard();
   final _siteSettingsGuard = ReentryGuard();
   bool _isFindVisible = false;
-  bool _isFullscreen = false; // Runtime fullscreen state (hides appBar, tabStrip, system UI)
-  Timer? _revealedBarsHideTimer;
   /// When true, a full-screen opaque mask covers every webview so the
   /// OS task-switcher / recents snapshot doesn't capture archive-tier
   /// content (ARCH-009). Set on `inactive`/`paused` when at least one
@@ -248,9 +248,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   // True while the drawer showing is the one the back gesture itself opened.
   // Only that drawer escalates to leaving the app on the next gesture.
   bool _drawerOpenedByBackGesture = false;
-  // Runtime-only: whether the tab-bar button has revealed the tab strip.
-  // Reset on exiting fullscreen and on site switch; never persisted.
-  bool _tabBarOverlayVisible = false;
 
   Completer<void>? _webspaceSwitchCompleter;
 
@@ -307,11 +304,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shortcuts.refreshPinned();
     _shortcuts.probeAppIntents();
     _network.start();
-    // Only Android's embedder implements the listener; elsewhere registering
-    // it throws MissingPluginException.
-    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      SystemChrome.setSystemUIChangeCallback(_onSystemUiChange);
-    }
+    _fullscreen.start();
   }
 
   void _rebuild() {
@@ -321,8 +314,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   void _onAppPrefChanged() => _rebuild();
 
   void _onTabStripPrefChanged() {
-    if (!AppPref.tabBarButton.value) _tabBarOverlayVisible = false;
-    if (_isFullscreen) _applyFullscreenSystemUi();
+    if (!AppPref.tabBarButton.value) _fullscreen.tabBarOverlayVisible = false;
+    if (_fullscreen.active) _fullscreen.apply();
   }
 
   /// Push the per-site settings screen for the site at [index].
@@ -402,8 +395,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     AppPref.tabStripInFullscreen.listenable
         .removeListener(_onTabStripPrefChanged);
     AppPref.tabBarButton.listenable.removeListener(_onTabStripPrefChanged);
-    _revealedBarsHideTimer?.cancel();
-    SystemChrome.setSystemUIChangeCallback(null);
+    _fullscreen.dispose();
     surfaceRouteObserver.unsubscribe(this);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -814,9 +806,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!mounted) return;
     final model = _sites.shown;
     if (model != null && model.fullscreenMode) {
-      _enterFullscreen();
+      _fullscreen.enter();
     } else {
-      _exitFullscreen();
+      _fullscreen.exit();
     }
     if (model != null) {
       _resetCurrentSiteWebView();
@@ -864,7 +856,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // user asked to leave — a "back to webspaces" that silently did
       // nothing. Nothing in the teardown decides where we end up.
       _sites.current = index;
-      _exitFullscreen();
+      _fullscreen.exit();
       // Opportunistically capture state for the previously-active site so a
       // later cold start (or OS-killed-while-backgrounded scenario) can
       // re-hydrate its back/forward stack and form data on re-activation.
@@ -1034,9 +1026,9 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
 
     if (target.fullscreenMode) {
-      _enterFullscreen();
+      _fullscreen.enter();
     } else {
-      _exitFullscreen();
+      _fullscreen.exit();
     }
 
     LogTag.cookieIsolation.debug(
@@ -1371,7 +1363,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               perSiteFullscreenMode:
                   _sites.models[indexToRestore].fullscreenMode,
             ))) {
-      _enterFullscreen();
+      _fullscreen.enter();
     }
     setState(() {});
     if (swRestore != null) {
@@ -1731,72 +1723,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     setState(() {
       _isFindVisible = !_isFindVisible;
     });
-  }
-
-  void _enterFullscreen() {
-    if (_isFullscreen) {
-      // The mode depends on the kiosk lock and the tab strip prefs, which a
-      // shortcut launch or an import can change while already full screen.
-      _applyFullscreenSystemUi();
-      return;
-    }
-    setState(() {
-      _isFullscreen = true;
-    });
-    _applyFullscreenSystemUi();
-    // Removing the app bar / changing the bottom bar resizes the webview; on
-    // Android the hybrid-composition SurfaceView can come back with a 1px dark
-    // seam at the bottom edge until it recomposites. github #421-followup
-    _surface.nudge('fullscreen-toggle');
-    // KIOSK-003: the hint promises an exit that a locked session won't honor.
-    if (_kioskLocked) return;
-    _toast((loc) => loc.homeExitFullscreenHint,
-        duration: const Duration(seconds: 2), floating: true);
-  }
-
-  void _exitFullscreen() {
-    // KIOSK-003: a locked kiosk session stays fullscreen; the only exit is to
-    // relaunch the app normally (which clears the lock).
-    if (_kioskLocked) return;
-    if (!_isFullscreen) return;
-    _revealedBarsHideTimer?.cancel();
-    setState(() {
-      _isFullscreen = false;
-      _tabBarOverlayVisible = false;
-    });
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-    _surface.nudge('fullscreen-exit');
-  }
-
-  SystemUiMode get _fullscreenSystemUiMode => fullscreenSystemUiMode(
-        tabStripInFullscreen: AppPref.tabStripInFullscreen.value,
-        tabBarButton: AppPref.tabBarButton.value,
-        kioskLocked: _kioskLocked,
-      );
-
-  void _applyFullscreenSystemUi() {
-    SystemChrome.setEnabledSystemUIMode(_fullscreenSystemUiMode);
-  }
-
-  /// Under `immersive` (FS-011) a bar the user swipes in stays until the app
-  /// hides it; the body and the tab strip inset around it meanwhile.
-  Future<void> _onSystemUiChange(bool systemOverlaysAreVisible) async {
-    _revealedBarsHideTimer?.cancel();
-    if (!mounted || !_isFullscreen) return;
-    if (_fullscreenSystemUiMode != SystemUiMode.immersive) return;
-    _surface.nudge('system-bars');
-    if (!systemOverlaysAreVisible) return;
-    _revealedBarsHideTimer = Timer(kRevealedSystemBarsHideDelay, () {
-      if (mounted && _isFullscreen) _applyFullscreenSystemUi();
-    });
-  }
-
-  void _toggleFullscreen() {
-    if (_isFullscreen) {
-      _exitFullscreen();
-    } else {
-      _enterFullscreen();
-    }
   }
 
   void _addWebspace() async {
@@ -2708,7 +2634,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     setState(() {});
     // Re-apply fullscreen for sites with auto-fullscreen after webview recreation
     if (model.fullscreenMode) {
-      _enterFullscreen();
+      _fullscreen.enter();
     }
     _commitSites(const SitesEdited());
   }
@@ -2821,7 +2747,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       automaticallyImplyLeading: !_kioskLocked,
       title: _sites.current != null && _sites.current! < _sites.models.length
           ? GestureDetector(
-              onDoubleTap: _toggleFullscreen,
+              onDoubleTap: _fullscreen.toggle,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2891,11 +2817,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       return false;
     }
     if (_sites.filteredIndices().isEmpty) return false;
-    if (_isFullscreen) {
+    if (_fullscreen.active) {
       if (AppPref.tabStripInFullscreen.value) return true;
-      return AppPref.tabBarButton.value && _tabBarOverlayVisible;
+      return AppPref.tabBarButton.value && _fullscreen.tabBarOverlayVisible;
     }
-    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _tabBarOverlayVisible);
+    return AppPref.showTabStrip.value || (AppPref.tabBarButton.value && _fullscreen.tabBarOverlayVisible);
   }
 
   /// Whether the floating tab-bar button is currently shown. It reveals the
@@ -2910,8 +2836,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       return false;
     }
     if (_sites.filteredIndices().isEmpty) return false;
-    if (_tabBarOverlayVisible) return false;
-    if (_isFullscreen) return !AppPref.tabStripInFullscreen.value;
+    if (_fullscreen.tabBarOverlayVisible) return false;
+    if (_fullscreen.active) return !AppPref.tabStripInFullscreen.value;
     return !AppPref.showTabStrip.value;
   }
 
@@ -2947,14 +2873,14 @@ class _WebSpacePageState extends State<WebSpacePage>
             // When the strip was revealed by the fullscreen tab-bar button,
             // its dismiss control lives inside the bar (not as a separate
             // floating cross above it).
-            if (_tabBarOverlayVisible)
+            if (_fullscreen.tabBarOverlayVisible)
               IconButton(
                 icon: const Icon(Icons.close),
                 iconSize: 20,
                 visualDensity: VisualDensity.compact,
                 onPressed: () {
                   setState(() {
-                    _tabBarOverlayVisible = false;
+                    _fullscreen.tabBarOverlayVisible = false;
                   });
                   _surface.nudge('tab-overlay-hide');
                 },
@@ -3011,7 +2937,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         await _setCurrentIndex(siteIndex);
         if (!mounted) return;
         setState(() {
-          _tabBarOverlayVisible = false;
+          _fullscreen.tabBarOverlayVisible = false;
         });
         _shell.saveCurrentIndex();
       }();
@@ -3131,7 +3057,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Build the URL bar and find toolbar, placed in the body so that
   /// resizeToAvoidBottomInset keeps them above the keyboard.
   Widget? _buildInputBar() {
-    if (_isFullscreen) return null;
+    if (_fullscreen.active) return null;
     if (_sites.current == null || _sites.current! >= _sites.models.length) {
       return null;
     }
@@ -3257,7 +3183,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         SiteMenuAction.toggleUrlBar => AppPref.showUrlBar.value
             ? (Icons.visibility_off, loc.homeHideUrlBarMenu)
             : (Icons.visibility, loc.homeShowUrlBarMenu),
-        SiteMenuAction.fullscreen => _isFullscreen
+        SiteMenuAction.fullscreen => _fullscreen.active
             ? (Icons.fullscreen_exit, loc.homeExitFullScreenMenu)
             : (Icons.fullscreen, loc.homeFullScreenMenu),
         // Manual escape hatch for the recurring Android blank surface
@@ -3371,7 +3297,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       case SiteMenuAction.toggleUrlBar:
         await AppPref.showUrlBar.set(!AppPref.showUrlBar.value);
       case SiteMenuAction.fullscreen:
-        _toggleFullscreen();
+        _fullscreen.toggle();
       case SiteMenuAction.repaint:
         _repaintCurrentSurface();
       case SiteMenuAction.settings:
@@ -3879,15 +3805,15 @@ class _WebSpacePageState extends State<WebSpacePage>
       // both edges so it stays clear of any bars that persist, or that the user
       // revealed under `immersive` (FS-011); when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
-      top: _isFullscreen,
+      top: _fullscreen.active,
       bottom: !hasTabStrip && inputBar == null,
       // Out of fullscreen, inset around a landscape display cutout so chrome
       // and content avoid the notch. In fullscreen let the webview fill the
       // cutout strip (with shortEdges cutout mode the window already extends
       // there); otherwise SafeArea would re-letterbox the space beside the
       // notch with the app background. github #457
-      left: !_isFullscreen,
-      right: !_isFullscreen,
+      left: !_fullscreen.active,
+      right: !_fullscreen.active,
       // Use Stack + Offstage so the IndexedStack (and its webview States)
       // stay mounted when showing the webspace list. Removing the
       // IndexedStack from the tree destroys webview States, losing
@@ -3940,12 +3866,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                 // Full screen has no app bar to host the progress, kiosk-locked
                 // too (fullscreen is forced and held there, KIOSK-003).
                 if (_sites.shown case final shown?
-                    when _isFullscreen && shown.isLoading)
+                    when _fullscreen.active && shown.isLoading)
                   FullscreenLoadBar(progress: shown.loadingProgress),
                 // Back keeps its normal behaviour in full screen. KIOSK-003:
                 // no exit handle in a locked session.
-                if (_isFullscreen && !_kioskLocked)
-                  FullscreenExitHandle(onExit: _exitFullscreen),
+                if (_fullscreen.active && !_kioskLocked)
+                  FullscreenExitHandle(onExit: _fullscreen.exit),
                 // Tab-bar button: a small floating control that reveals the
                 // tab strip (with its overflow menu) on demand, in and out of
                 // fullscreen. Works on its own (no always-on strip needed).
@@ -3956,7 +3882,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     child: TabBarCornerOverlay(
                       corner: _tabBarButtonCornerEffective,
                       onTap: () {
-                        setState(() => _tabBarOverlayVisible = true);
+                        setState(() => _fullscreen.tabBarOverlayVisible = true);
                         _surface.nudge('tab-overlay-show');
                       },
                       // Remembered on the site on screen.
@@ -4046,7 +3972,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // gesture never opens the drawer. The drawer is reached via the AppBar
       // menu button instead.
       drawerEdgeDragWidth: webviewIsVisible ? 0 : null,
-      appBar: _isFullscreen ? null : _buildAppBar(),
+      appBar: _fullscreen.active ? null : _buildAppBar(),
       // KIOSK-002: no drawer when locked — removes the site grid, "back to
       // webspaces", add-site, and the auto app-bar hamburger / edge swipe.
       drawer: _kioskLocked ? null : Drawer(
@@ -4385,7 +4311,8 @@ class _PageHost
         BackgroundSitesHost,
         LifecycleHost,
         TabsHost,
-        LinkHost {
+        LinkHost,
+        FullscreenHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -4400,8 +4327,9 @@ class _PageHost
   void toast(
     String Function(AppLocalizations loc) message, {
     Duration duration = const Duration(seconds: 4),
+    bool floating = false,
   }) =>
-      _s._toast(message, duration: duration);
+      _s._toast(message, duration: duration, floating: floating);
 
   @override
   Future<void> commitSites(SiteSetChange change) => _s._commitSites(change);
@@ -4444,11 +4372,11 @@ class _PageHost
   WebViewHostHooks get webViewHooks => _s._webViewHooks;
 
   @override
-  void enterFullscreen() => _s._enterFullscreen();
+  void enterFullscreen() => _s._fullscreen.enter();
 
   @override
   void reapplyFullscreen() {
-    if (_s._isFullscreen) _s._applyFullscreenSystemUi();
+    if (_s._fullscreen.active) _s._fullscreen.apply();
   }
 
   @override

@@ -714,7 +714,7 @@ setting (`AccessibilityManager.getRecommendedTimeoutMillis`) never reaches
 Flutter. A snack bar that teaches SHALL either carry an action or repeat
 what a labelled control or hint already says.
 
-Status: the fullscreen exit hint (FS-002, `_enterFullscreen` in `main.dart`)
+Status: the fullscreen exit hint (FS-002, `FullscreenController.enter`)
 is a two-second `SnackBar` without an action. The app bar is hidden in
 fullscreen, so the exits it leaves are the top-edge handle and, when shown,
 the floating tabs button that opens the tab strip and its menu. Both are

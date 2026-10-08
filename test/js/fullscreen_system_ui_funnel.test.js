@@ -1,5 +1,5 @@
 // Full-screen system UI funnel gate (FS-011 / BUG-023). Full screen picks its
-// immersive mode in one place, `_fullscreenSystemUiMode`. Android reports
+// immersive mode in one place, `FullscreenController._systemUiMode`. Android reports
 // sticky bars to the app as hidden, so a path that asks for `immersiveSticky`
 // itself puts a swiped-in navigation bar back over a kept tab strip
 // (github #672), the way the resume path would have if it had kept its own
@@ -9,7 +9,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, dartFiles } = require('./helpers/source');
 
-const ALLOWED = new Set(['SystemUiMode.edgeToEdge', '_fullscreenSystemUiMode']);
+const ALLOWED = new Set(['SystemUiMode.edgeToEdge', '_systemUiMode']);
 
 test('every setEnabledSystemUIMode call leaves the immersive mode to the funnel', () => {
   const offenders = [];
@@ -28,13 +28,13 @@ test('every setEnabledSystemUIMode call leaves the immersive mode to the funnel'
   assert.deepEqual(
     offenders,
     [],
-    'full screen must set its mode through _fullscreenSystemUiMode ' +
+    'full screen must set its mode through FullscreenController._systemUiMode ' +
       '(FS-011), not name one itself',
   );
 });
 
-test('the page hides bars the user revealed under immersive', () => {
-  const src = read('lib/screens/webspace_page.dart');
-  assert.match(src, /SystemChrome\.setSystemUIChangeCallback\(_onSystemUiChange\)/);
+test('full screen hides bars the user revealed under immersive', () => {
+  const src = read('lib/controllers/fullscreen_controller.dart');
+  assert.match(src, /SystemChrome\.setSystemUIChangeCallback\(onSystemUiChange\)/);
   assert.match(src, /SystemChrome\.setSystemUIChangeCallback\(null\)/);
 });

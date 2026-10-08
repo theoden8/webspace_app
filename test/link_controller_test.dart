@@ -36,6 +36,7 @@ class _Page implements LinkHost {
   void toast(
     String Function(AppLocalizations loc) message, {
     Duration duration = const Duration(seconds: 4),
+    bool floating = false,
   }) =>
       calls.add('toast');
 
