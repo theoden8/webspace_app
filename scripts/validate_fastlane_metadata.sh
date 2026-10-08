@@ -78,6 +78,19 @@ if [ -d "$CHANGELOGS_DIR" ]; then
         fi
     done
 
+    # The build number after `+` is the versionCode F-Droid names the
+    # changelog by; a bump without one ships an empty "What's new".
+    BUILD=$(sed -n 's/^version: *[^+]*+\([0-9][0-9]*\).*/\1/p' pubspec.yaml)
+    if [ -z "$BUILD" ]; then
+        echo "  ERROR: no build number in pubspec.yaml's version line"
+        CHANGELOG_ERROR=1
+        EXIT_CODE=1
+    elif [ ! -f "$CHANGELOGS_DIR/$BUILD.txt" ]; then
+        echo "  ERROR: pubspec.yaml is build $BUILD but $CHANGELOGS_DIR/$BUILD.txt is missing"
+        CHANGELOG_ERROR=1
+        EXIT_CODE=1
+    fi
+
     if [ "$CHANGELOG_ERROR" -eq 0 ]; then
         echo "  All changelogs OK"
     fi

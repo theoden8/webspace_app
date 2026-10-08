@@ -78,6 +78,7 @@ Debt, files importing upward (the gate's list, target 0): services → model (en
 | pref | 2 | 2 | `AppPref` |
 | capture kind | ~5 files | ~5 files | `CaptureKind` |
 | settings row | 1–3 lines | 1–3 | `SettingTile` / `ChoiceTile` |
+| release | 3 | 3 (version, changelog, fixtures) | the `pubspec.yaml` version line; the changelog and fixture gates key off it ([docs/releasing.md](docs/releasing.md)) |
 | secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
 
 Flag for review before changing: persisted formats, the Dart to page-script bridge, any join above.
@@ -119,6 +120,14 @@ agree with its `ENABLE_*` build setting. Read
 [docs/releasing-macos.md](docs/releasing-macos.md) before touching
 `macos/Runner/Info.plist`, either entitlements file, or the signing settings
 in the Xcode project. Spec: PLATFORM-006.
+
+## Releasing
+
+"Prepare the release" means one PR that bumps `version:` in `pubspec.yaml`
+(the maintainer picks which part moves; ask), adds the changelog for the new
+build number and commits the backup compat fixtures for the new version, then
+is squash-merged and its commit tagged. Steps and the gates that catch a
+missing piece: [docs/releasing.md](docs/releasing.md).
 
 ## Git
 
@@ -412,7 +421,7 @@ jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**,
 
 ## Fastlane changelogs
 
-Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` and sibling descriptions: **changelog + full description ≤ 500 bytes; short_description ≤ 80 bytes (no trailing dot)**. Run [scripts/validate_fastlane_metadata.sh](scripts/validate_fastlane_metadata.sh) before committing — oversize silently breaks F-Droid sync.
+Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` (`<N>` is the build number after `+` in `pubspec.yaml`, and the script fails when its file is missing) and sibling descriptions: **each changelog and the full description ≤ 500 bytes; short_description ≤ 80 bytes (no trailing dot)**. Run [scripts/validate_fastlane_metadata.sh](scripts/validate_fastlane_metadata.sh) before committing — oversize silently breaks F-Droid sync.
 
 ## Adding a new global app setting
 
@@ -429,7 +438,7 @@ A user-facing global pref is one entry of the `AppPref` enum; persistence, backu
 - Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `_importSettings` only applies the plan (BACKUP-013).
 - Renaming a persisted key (site JSON, backup field, SharedPreferences key) keeps reading the old name and carries the value over (for an `AppPref`, `legacyKey: 'old'`); dropping one is declared with its reason (`_renamedKeys` / `_retiredKeys` in the compat test, `RETIRED` in `test/js/prefs_key_history.test.js`). Both tests hold every release's writes against today's reads (BACKUP-012, BACKUP-014).
 - A new `fromJson` field reads a wrong-typed value as absent, never with a bare cast: a site whose JSON throws is dropped at startup and deleted by the next save. An `AppPref` coerces its stored value itself; never read one with `prefs.getBool(AppPref.x.key)` and friends (gated by `test/js/prefs_key_history.test.js`).
-- On release day (version bumped in `pubspec.yaml`), run `tool/backup_compat/generate.sh HEAD` and commit the new `test/fixtures/backup_compat/v<version>/`; the compat test fails without it.
+- A release commits `test/fixtures/backup_compat/v<version>/` ([docs/releasing.md](docs/releasing.md)); the compat test fails without it, and fails on any PR whose new pref or site field `tool/backup_compat/superset.json` leaves out.
 
 ## Settings rows: state in the subtitle, explanation in the hint
 

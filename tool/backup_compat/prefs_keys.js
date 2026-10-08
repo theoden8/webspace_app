@@ -16,7 +16,11 @@ const GETTER_TYPES = { bool: 'Bool', int: 'Int', double: 'Double', String: 'Stri
 const KEY = String.raw`(?:'([^'$]+)'|AppPref\.(\w+)\.key|([A-Za-z_]\w*))`;
 const CALL = new RegExp(String.raw`\.(set|get)(Bool|Int|Double|StringList|String)\(\s*${KEY}`, 'g');
 const READ_PREF_AS = new RegExp(String.raw`readPrefAs<(bool|int|double|String)>\(\s*\w+\s*,\s*(?:key:\s*)?${KEY}`, 'g');
-const CONST = /(?:static\s+)?const\s+String\s+([A-Za-z_]\w*)\s*=\s*'([^'$]+)'/g;
+// An untyped `get` hands back whatever is stored and the caller checks it, so
+// no written type is lost or throws.
+const UNTYPED_GET = new RegExp(String.raw`\.get\(\s*${KEY}\s*\)`, 'g');
+const ALL_TYPES = ['Bool', 'Int', 'Double', 'String', 'StringList'];
+const CONST = /(static\s+)?const\s+String\s+([A-Za-z_]\w*)\s*=\s*'([^'$]+)'/g;
 const TYPED_DECL = /(?:const|final)\s+(String|bool|int|double)\s+([A-Za-z_]\w*)\s*=/g;
 
 function dartFiles(dir) {
@@ -105,8 +109,10 @@ function scan(libDir) {
   for (const file of dartFiles(libDir)) sources[file] = fs.readFileSync(file, 'utf8');
   const globals = {};
   for (const src of Object.values(sources)) {
+    // A static const is in scope bare only inside its class; elsewhere the
+    // same name is a field or a parameter (`AppPref.key`).
     for (const m of src.matchAll(CONST)) {
-      if (!m[1].startsWith('_')) globals[m[1]] = m[2];
+      if (!m[1] && !m[2].startsWith('_')) globals[m[2]] = m[3];
     }
   }
   const registry = scanRegistry(sources, globals);
@@ -115,7 +121,7 @@ function scan(libDir) {
   const typedReads = [];
   for (const [file, src] of Object.entries(sources)) {
     const local = {};
-    for (const m of src.matchAll(CONST)) local[m[1]] = m[2];
+    for (const m of src.matchAll(CONST)) local[m[2]] = m[3];
     const resolve = (literal, pref, ident) =>
       literal ?? registry.names[pref] ?? local[ident] ?? globals[ident];
     for (const m of src.matchAll(CALL)) {
@@ -135,6 +141,10 @@ function scan(libDir) {
     for (const m of src.matchAll(READ_PREF_AS)) {
       const key = resolve(m[2], m[3], m[4]);
       if (key) add(reads, key, GETTER_TYPES[m[1]]);
+    }
+    for (const m of src.matchAll(UNTYPED_GET)) {
+      const key = resolve(m[1], m[2], m[3]);
+      if (key) for (const type of ALL_TYPES) add(reads, key, type);
     }
   }
   for (const [key, type] of Object.entries(registry.types)) {

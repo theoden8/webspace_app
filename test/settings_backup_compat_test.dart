@@ -205,6 +205,24 @@ final Set<String> _keysRead = {
       pattern: r"'(\w+)'"),
 };
 
+/// Every key `WebViewModel.toJson` can write, read from its source because a
+/// site has no field registry to iterate (the per-site field debt in
+/// CLAUDE.md); that registry would turn this scan into a loop over a type.
+final Set<String> _siteKeysWritten = {
+  for (final kind in CaptureKind.values) ...kind.jsonKeys,
+  ..._matches(
+      _region('lib/web_view_model.dart',
+          from: "'siteId': siteId", to: 'factory WebViewModel.fromJson('),
+      pattern: r"'(\w+)':"),
+};
+
+/// Keys a site writes that `superset.json` leaves out, and why.
+const Map<String, String> _supersetOmits = {
+  'uaPreset': 'fromJson recognises it from a generated userAgent, so a '
+      'release that never wrote it imports it anyway and "absent imports as '
+      'the default" cannot hold for it',
+};
+
 /// Every registered pref's key and default.
 final Map<String, Object> _defaults = {
   for (final p in AppPref.values) p.key: p.fallback,
@@ -1208,6 +1226,34 @@ Map<String, dynamic> loaded(Map<String, dynamic> json) =>
       }
     });
 
+    test('superset.json moves every pref and writes every site key', () {
+      // The next release's fixture is the superset run through its code, so
+      // a key left out here is one no fixture proves survives an upgrade.
+      final prefs = _superset['globalPrefs'] as Map<String, dynamic>;
+      final atDefault = [
+        for (final p in AppPref.values)
+          if (!prefs.containsKey(p.key) || prefs[p.key] == p.fallback) p.key,
+      ];
+      expect(atDefault, isEmpty,
+          reason: 'set these away from their default in superset.json');
+
+      final sites = jsonEncode(_superset['sites']);
+      final keys = {
+        ..._siteKeysWritten,
+        ..._matches(
+            _region('lib/services/site_tab.dart',
+                from: 'Map<String, dynamic> toJson() =>', to: '};'),
+            pattern: r"'(\w+)':"),
+      }.difference(_supersetOmits.keys.toSet());
+      final missing = [
+        for (final key in keys)
+          if (!sites.contains('"$key":')) key,
+      ];
+      expect(missing, isEmpty,
+          reason: 'give a superset.json site or tab these keys, or list one '
+              'in _supersetOmits with the reason');
+    });
+
     test('fixtures stay small', () {
       for (final tag in tags) {
         var total = 0;
@@ -1241,11 +1287,7 @@ Map<String, dynamic> loaded(Map<String, dynamic> json) =>
         ..._captureKeysRead,
       };
       final writes = {
-        for (final kind in CaptureKind.values) ...kind.jsonKeys,
-        ..._matches(
-            _region('lib/web_view_model.dart',
-                from: "'siteId': siteId", to: 'factory WebViewModel.fromJson('),
-            pattern: r"'(\w+)':"),
+        ..._siteKeysWritten,
         ..._matches(
             _region('lib/services/settings_backup.dart',
                 from: 'Map<String, dynamic> toJson() => {', to: '};'),
