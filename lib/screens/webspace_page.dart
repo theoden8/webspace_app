@@ -11,6 +11,7 @@ import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/back_gesture_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
 import 'package:webspace/controllers/deferred_startup_controller.dart';
+import 'package:webspace/controllers/nested_open_binding.dart';
 import 'package:webspace/controllers/page_orphan_sweep.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
@@ -549,7 +550,13 @@ class _WebSpacePageState extends State<WebSpacePage>
         _sites.models.indexWhere((m) => m.siteId == a.siteId);
     if (index < 0) return;
     await NestedOpenEngine.run<WebViewModel>(
-      _NestedOpenHost(this, fromTab: a.sourceIsParent && source != null),
+      NestedOpenBinding(
+        _sites,
+        host: _PageHost(this),
+        webspaces: _webspaces,
+        activation: _activation,
+        fromTab: a.sourceIsParent && source != null,
+      ),
       target: _sites.models[index],
       url: a.url,
       source: a.sourceIsParent ? source : null,
@@ -2047,76 +2054,6 @@ class _WebSpacePageState extends State<WebSpacePage>
 }
 
 
-/// Binds [NestedOpenEngine] to the page state.
-class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
-  final _WebSpacePageState state;
-  const _NestedOpenHost(this.state, {required this.fromTab});
-
-  /// The screen opens over the tab on screen (outbound routing), not for a
-  /// share, so a link in it can come back as a tab (LIR-032).
-  final bool fromTab;
-
-  @override
-  bool get mounted => state.mounted;
-
-  // Android/Linux: the proxy is a process-global override that only the
-  // activation path flips. The nested screen is for a site that is not
-  // being activated, so the PROXY-008 sequence runs for it here or it would
-  // load through whatever the active site left behind, bound to this site's
-  // container (LEAK-003).
-  //
-  // Under router mode the eviction set is computed router-aware below: the
-  // rule points at the relay for every site and the nested screen presents
-  // this site's own credential, so `setProxySettings` no-ops and evicting
-  // siblings would only cold-start what PROXY-013 keeps loaded.
-  @override
-  bool get proxyIsProcessGlobal => hostIsAndroid || hostIsLinux;
-
-  @override
-  int indexOf(WebViewModel site) => state._sites.models.indexOf(site);
-
-  @override
-  int? get currentIndex => state._sites.current;
-
-  @override
-  Future<void> switchWebspaceFor(WebViewModel target) async {
-    final index = state._sites.models.indexOf(target);
-    if (index < 0) return;
-    await state._webspaces.revealSite(target, index: index);
-  }
-
-  @override
-  Set<int> mismatchedWith(WebViewModel target) => {
-        for (final unload in state
-            ._activation.residencyPlan(NestedOpening(state._sites.models.indexOf(target)))
-            .unloads)
-          state._sites.models.indexOf(unload.site),
-      };
-
-  @override
-  Future<void> unload(int index) =>
-      state._activation.unload(index, reason: UnloadReason.proxyMismatch);
-
-  @override
-  Future<void> applyProxyOf(WebViewModel target) => ProxyManager()
-      .setProxySettings(target.proxySettings, siteId: target.siteId);
-
-  @override
-  void reportProxyFailure(Object error) {
-    LogTag.proxy.error(
-        'Nested open refused: proxy apply failed: $error', sensitive: true);
-    if (!state.mounted) return;
-    state._toast((loc) => loc.siteSettingsProxyError('$error'));
-  }
-
-  @override
-  Future<void> launchNested(WebViewModel target, {required String url}) =>
-      state._launchNestedForModel(target, url: url, opensFromTab: fromTab);
-
-  @override
-  Future<void> activate(int index) => state._activation.setCurrentIndex(index);
-}
-
 class _ResidencyHost implements ResidencyHost {
   const _ResidencyHost(this.state);
 
@@ -2171,7 +2108,8 @@ class _PageHost
         WebspacesHost,
         SiteEditingHost,
         BackGestureHost,
-        SiteResetHost {
+        SiteResetHost,
+        NestedLaunchHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;

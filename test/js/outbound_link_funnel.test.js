@@ -97,11 +97,15 @@ test('a nested open runs through the engine, over the source only when routed', 
     'the proxy sequence and the return to the source live in NestedOpenEngine');
   assert.match(open, /source: a\.sourceIsParent \? source : null/,
     'only a routed open skips the webspace switch and brings its source back');
-  const host = blockAfter(main, 'class _NestedOpenHost implements NestedOpenHost<WebViewModel> {', null, mainRel);
-  assert.match(host, /Future<void> activate\(int index\) => state\._activation\.setCurrentIndex\(index\);/,
+  const bindingRel = 'lib/controllers/nested_open_binding.dart';
+  const host = blockAfter(read(bindingRel),
+    'class NestedOpenBinding implements NestedOpenHost<WebViewModel> {', null, bindingRel);
+  assert.match(host, /Future<void> activate\(int index\) => _activation\.setCurrentIndex\(index\);/,
     'the source must come back through the full activation, which applies its proxy first');
-  assert.match(host, /Future<void> launchNested\([^)]*\)\s*=>\s*state\._launchNestedForModel\(/,
+  assert.match(host, /Future<void> launchNested\([^)]*\)\s*=>\s*_host\.launchNestedFor\(/,
     'the screen opens through the NESTED-010 funnel');
+  assert.match(main, /launchNestedFor\([^)]*\}\) =>\s*_s\._launchNestedForModel\(/,
+    'the page answers it with its one nested launch');
 });
 
 // Which site-set changes prune (LIR-017) is SiteSetChange.effects, tested in
