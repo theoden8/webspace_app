@@ -71,7 +71,7 @@ cleared.
 | 2780 | `webkit_web_view_get_theme_color` on WebKit < 2.50 | AFFECTS, build | one unguarded call at fork `flutter_inappwebview_linux/linux/in_app_webview/in_app_webview.cc:6268`; no `WEBKIT_CHECK_VERSION` anywhere in the Linux plugin | CONT-009; fixed by PR #2781 |
 | 2861 | Linux white screen under `DISABLE_GL=1` | AFFECTS, users only | env var read at `custom_platform_view.cc:18`, never consulted by the buffer path; CI uses llvmpipe instead (`.github/workflows/build-and-test.yml:811`) | [BUG-001](../bugs/001-white-screen.md) |
 | 2862 | Cannot build on Ubuntu | AFFECTS, docs | fork `flutter_inappwebview_linux/linux/CMakeLists.txt:47-63` probes 2.0/1.1/1.0 and never version-checks | CONT-009 |
-| 2883 | Flutter 3.47 UI separation | AFFECTS on next upgrade | `.fvmrc` pins 3.38.6 | fork rebase, blocks the bump |
+| 2883 | Flutter 3.47 UI separation | AFFECTS on next upgrade | `.fvmrc` pins 3.44.9 | fork rebase, blocks the bump |
 | 2880, 2882 | iOS 27 SDK deprecations | AFFECTS on next upgrade, low | fork `InAppBrowserNavigationController.swift:14`, `InAppBrowserManager.swift:131`, both in native `InAppBrowser` we never instantiate | compile-time only |
 | 2728 | Android 15 nav/status bar color APIs | AFFECTS now, cosmetic | fork `InAppBrowserActivity.java:122`; `targetSdk 36` makes the setter a no-op but Play's static scan reads the artifact | fork patch to silence |
 
@@ -123,7 +123,7 @@ Recording these is the point of the file: each one cost a read of both trees.
 | 2707, 2855, 2730, 2619, 2570 | Native `InAppBrowser`, `ContextMenu`, `targetFrame`, `callAsyncJavaScript`, autofill: none referenced in `lib/`. Our `lib/screens/inappbrowser.dart` is a Flutter route, not the plugin's native browser. |
 | 2723, 2795, 2598, 2340, 2821 | Require a scroll ancestor, a `Slider`, a `Draggable` or a `BackdropFilter` over a live webview. We have none. |
 | 2859 | **Corrected 2026-09-07.** Listed as AFFECTS in the first pass; it is not. `keyboardWillShow` only takes the negative-inset branch when `scrollView.adjustedContentInset != .zero`, and `contentInsetAdjustmentBehavior` defaults to `NEVER` (`in_app_webview_settings.dart:3561-3562`) with no override in `lib/`, so adjusted equals `contentInset`, which starts `.zero`. The branch is never entered and `keyboardWillHide` clears a flag that was never set. Becomes live the moment we set `contentInsetAdjustmentBehavior` or `resizeToAvoidBottomInset: false`. |
-| 2415, 2762 | Fixed in Flutter 3.38.6, which `.fvmrc` already pins. |
+| 2415, 2762 | Fixed in Flutter 3.38.6; `.fvmrc` pins a later release. |
 | 2654 | Reported against 5.8/6.0; `dispose()` at our ref removes every observer symmetrically. |
 | 2887, 2830 | Our AGP (8.13.1) and iOS deployment target (15.0) are past the reporters' boundaries. |
 | 2687, 2685, 2641, 1627, 2178, 2796, 2757 | Warnings with no `-Werror`, a `compileSdk` we already exceed, a package we do not depend on, or `pana`, which we never run (`publish_to: 'none'`). |
