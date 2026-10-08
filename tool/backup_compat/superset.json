@@ -12,7 +12,8 @@
       "tabs": [
         {"id": "main", "url": "https://mail.example.com/inbox", "title": "Inbox", "createdAt": 1700000000000, "lastActiveAt": 1700000500000, "active": true},
         {"id": "t1", "url": "https://mail.example.com/drafts", "title": "Drafts", "parentId": "main", "createdAt": 1700000100000, "lastActiveAt": 1700000200000},
-        {"id": "t2", "url": "https://private.example.net/results", "title": "Results", "parentId": "t1", "hostSiteId": "compat-site-b", "createdAt": 1700000300000, "lastActiveAt": 1700000400000}
+        {"id": "t2", "url": "https://private.example.net/results", "title": "Results", "parentId": "t1", "hostSiteId": "compat-site-b", "createdAt": 1700000300000, "lastActiveAt": 1700000400000},
+        {"id": "t3", "url": "https://private.example.net/shared", "title": "Shared", "parentId": "main", "openerSiteId": "compat-site-a", "homeUrl": "https://private.example.net/shared", "createdAt": 1700000350000, "lastActiveAt": 1700000450000}
       ],
       "cookies": [
         {
@@ -51,6 +52,7 @@
       "incognito": false,
       "alwaysOpenHome": false,
       "kioskMode": true,
+      "tabsEnabled": false,
       "containerColor": 3,
       "language": "de",
       "zoomPercent": 150,
@@ -228,8 +230,11 @@
     "experimentalTextureRendering": true,
     "experimentalSiteTabs": true,
     "experimentalProxyLibrary": true,
+    "experimentalExternalTor": true,
+    "externalTorAddress": "127.0.0.1:9150",
     "linkHandlingEnabled": false,
     "linkHandlingClaimDomains": true,
+    "webSearchDefaultSite": "compat-site-b",
     "useUboResources": false,
     "appLocaleOverride": "de",
     "firefoxUaAutoRefresh": true,
