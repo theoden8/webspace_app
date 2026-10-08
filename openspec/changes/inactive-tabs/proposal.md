@@ -40,10 +40,10 @@ costs a second renderer.
   (TAB-013).
 - A cold start or shortcut tap lands a site with tabs on its last tab, or with
   Always open Home on a tab at home, keeping the others (TAB-014).
-- A site's Tabs sheet is the list of the site the tab on screen runs as, and
-  also lists the trees of other sites that hold tabs running as it, folded
-  around those tabs (TAB-017); every row is marked with the colour of the
-  container it runs in (TAB-018). A tap there that brings another site's slot
+- A site's Tabs sheet lists the tree of the site on screen first, whatever
+  its tab runs as, then the trees of other sites that hold tabs running as a
+  site on that tab's branch, folded around those tabs (TAB-017); every row is
+  marked with the colour of the container it runs in (TAB-018). A tap there that brings another site's slot
   on screen can be undone by Back or by the tab marked "where you were"
   (TAB-019).
 - The per-site feature audit (ARCH-006 shape) for tabs: an incognito site keeps
