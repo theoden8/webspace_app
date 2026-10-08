@@ -1,0 +1,10 @@
+✨ New Features:
+• Saved proxies
+
+🔧 Improvements:
+• App Settings split into categories
+
+🐛 Bug Fixes:
+• Notifications from sites not open
+• Text size no longer resets site settings
+• Passkey, shortcut and full screen fixes
