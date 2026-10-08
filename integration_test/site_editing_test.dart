@@ -53,7 +53,7 @@ void main() {
 
     // Open the drawer by tapping the All-webspace tile (already
     // selected by default, so the same-id branch in
-    // lib/screens/webspace_page.dart `_selectWebspace` calls openDrawer()).
+    // `WebspacesController.select` calls openDrawer()).
     final allTile = find.byKey(const ValueKey(kAllWebspaceId));
     expect(allTile, findsOneWidget);
     await tester.tap(allTile);

@@ -282,7 +282,7 @@ void guarded(String src,
   group('TAB-016: a site heading in the Tabs sheet moves the site', () {
     test('offered only where the drawer and the strip reorder', () {
       expect(
-          count('onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet '
+          count('onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet '
               ': null'),
           1);
     });
@@ -293,7 +293,8 @@ void guarded(String src,
       expect(start, isNot(-1));
       final end = source.indexOf('\n  }\n', start);
       final body = source.substring(start, end);
-      expect(body.contains('_reorderSite(from, newListIndex: to);'), isTrue);
+      expect(body.contains('_webspaces.reorderSite(from, newListIndex: to);'),
+          isTrue);
       // Reordering "All" renumbers every site, so the sheet gets them afresh.
       expect(body.contains('return _tabsSheetSites();'), isTrue);
       expect(body.contains('.insert('), isFalse);

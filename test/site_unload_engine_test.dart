@@ -129,9 +129,12 @@ void main() {
     test('every unload in the page goes through the funnel', () {
       final main = File('lib/screens/webspace_page.dart').readAsStringSync();
       expect(main, isNot(contains('_cookieIsolation.unloadSiteForDomainSwitch(')));
-      final select = main.substring(main.indexOf('void _selectWebspace('));
+      final webspaces =
+          File('lib/controllers/webspaces_controller.dart').readAsStringSync();
+      final select =
+          webspaces.substring(webspaces.indexOf('Future<void> select('));
       expect(select.substring(0, select.indexOf('\n  }\n')),
-          contains('_activation.residencyPlan(WebspaceSwitched('));
+          matches(RegExp(r'_activation\.residencyPlan\(\s*WebspaceSwitched\(')));
     });
   });
 

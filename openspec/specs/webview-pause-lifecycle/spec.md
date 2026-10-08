@@ -294,7 +294,7 @@ Every unload goes through `SiteUnloadEngine.unload`, whose `UnloadReason` decide
 
 **Given** legacy isolation mode is active (no per-site containers)
 **And** site A is loaded in webspace `Work`, the user is now switching to `Personal` which doesn't include A
-**When** `_selectWebspace(Personal)` runs the unload step
+**When** `WebspacesController.select(Personal)` runs the unload step
 **Then** A's `saveState()` bytes are captured to `WebViewStateStorage`
 **And** A's webview is disposed
 **And** A's `lifecycleState` becomes `savedForRestore`

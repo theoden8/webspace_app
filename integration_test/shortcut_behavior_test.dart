@@ -314,7 +314,7 @@ void main() {
   Future<void> openSiteDrawer(WidgetTester tester) async {
     if (drawerIsOpen()) return;
     // Tapping the already-selected webspace tile opens the drawer (the
-    // same-id branch of _selectWebspace).
+    // same-id branch of WebspacesController.select).
     await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
     await pumpFor(tester, total: const Duration(seconds: 2));
     expect(

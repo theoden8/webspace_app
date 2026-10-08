@@ -20,6 +20,7 @@ import 'package:webspace/controllers/site_activation_controller.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/surface_repaint_controller.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
+import 'package:webspace/controllers/webspaces_controller.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -31,7 +32,6 @@ import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/block_stats.dart';
 import 'package:webspace/screens/inappbrowser.dart';
 import 'package:webspace/screens/webspaces_list.dart';
-import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
 import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
@@ -112,6 +112,7 @@ import 'package:webspace/widgets/protection_shield_button.dart';
 import 'package:webspace/widgets/theme_mode_button.dart';
 import 'package:webspace/widgets/shortcut_prompts.dart';
 import 'package:webspace/widgets/surface_nudge_scope.dart';
+import 'package:webspace/widgets/webspace_prompts.dart';
 import 'package:webspace/widgets/webview_prompts.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -190,6 +191,13 @@ class _WebSpacePageState extends State<WebSpacePage>
     prompts: DialogLinkPrompts(context),
     tabs: _tabs,
   );
+  late final WebspacesController _webspaces = WebspacesController(
+    _sites,
+    host: _PageHost(this),
+    prompts: DialogWebspacePrompts(context),
+    shell: _shell,
+    activation: _activation,
+  );
   late final BackupController _backup = BackupController(
     _sites,
     host: _PageHost(this),
@@ -258,8 +266,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   // Only that drawer escalates to leaving the app on the next gesture.
   bool _drawerOpenedByBackGesture = false;
 
-  Completer<void>? _webspaceSwitchCompleter;
-
   // Drops concurrent `_handleMemoryPressure` invocations. The OS may
   // fire `didHaveMemoryPressure` repeatedly under sustained pressure;
   // the first handler runs to completion, then the next event picks up
@@ -267,7 +273,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   // capture-then-dispose await window lets two handlers pick the same
   // victim and double-write its captured cookies to storage.
   final _memoryPressureGuard = ReentryGuard();
-  int _selectWebspaceVersion = 0;
 
   // AES-encrypted on-disk storage for per-site `controller.saveState()`
   // bytes. The same encryption pattern as the HTML cache: a 256-bit
@@ -560,26 +565,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         opensFromTab: opensFromTab,
         homeTitle: model.name,
       );
-
-  /// WEBSPACE-012 helper: switch the active webspace to "All" if [model]
-  /// isn't a member of the current named webspace, with a snackbar.
-  Future<void> _maybeSwitchToAllForSite(WebViewModel model,
-      {required int index}) async {
-    if (_sites.selectedWebspaceId == null ||
-        _sites.selectedWebspaceId == kAllWebspaceId) {
-      return;
-    }
-    final ws = _sites.webspaces.firstWhere(
-      (w) => w.id == _sites.selectedWebspaceId,
-      orElse: () => _sites.webspaces.first,
-    );
-    if (ws.siteIndices.contains(index)) return;
-    setState(() {
-      _sites.selectedWebspaceId = kAllWebspaceId;
-    });
-    await _shell.saveSelectedWebspaceId();
-    _toast((loc) => loc.homeSwitchedToAllToOpen(model.getDisplayName()));
-  }
 
   /// Adds [model] to the selected named webspace too, persists, and with
   /// [activate] puts it on screen. Pass false when the app, not the user,
@@ -1363,194 +1348,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
-  void _addWebspace() async {
-    final webspace = Webspace(name: '');
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WebspaceDetailScreen(
-          webspace: webspace,
-          allSites: _sites.models,
-          onSave: (updatedWebspace) {
-            // The editor returns positional siteIndices; translate to
-            // siteIds (the persisted source of truth) before storing.
-            final selectedSiteIds = <String>[
-              for (final i in updatedWebspace.siteIndices)
-                if (i >= 0 && i < _sites.models.length)
-                  _sites.models[i].siteId,
-            ];
-            setState(() {
-              _sites.webspaces.add(updatedWebspace.copyWith(siteIds: selectedSiteIds));
-              _sites.resolveWebspaceIndices();
-            });
-            _shell.saveWebspaces();
-          },
-        ),
-      ),
-    );
-  }
-
-  void _editWebspace(Webspace webspace) async {
-    // For "All" webspace, show all sites as selected but read-only.
-    // The synthetic projection has to populate BOTH siteIds and
-    // siteIndices so the editor's "selected" state matches.
-    final webspaceToEdit = webspace.id == kAllWebspaceId
-        ? Webspace(
-            id: kAllWebspaceId,
-            name: 'All',
-            siteIds: [for (final m in _sites.models) m.siteId],
-            siteIndices: List<int>.generate(_sites.models.length, (index) => index),
-          )
-        : webspace;
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WebspaceDetailScreen(
-          webspace: webspaceToEdit,
-          allSites: _sites.models,
-          isReadOnly: webspace.id == kAllWebspaceId,
-          onSave: (updatedWebspace) {
-            if (updatedWebspace.id == kAllWebspaceId) return;
-
-            // Translate the editor's index-based selection back into
-            // the siteId-keyed persisted membership.
-            final selectedSiteIds = <String>[
-              for (final i in updatedWebspace.siteIndices)
-                if (i >= 0 && i < _sites.models.length)
-                  _sites.models[i].siteId,
-            ];
-            setState(() {
-              final index = _sites.webspaces.indexWhere((ws) => ws.id == updatedWebspace.id);
-              if (index != -1) {
-                _sites.webspaces[index] = updatedWebspace.copyWith(siteIds: selectedSiteIds);
-                _sites.resolveWebspaceIndices();
-              }
-            });
-            _shell.saveWebspaces();
-          },
-        ),
-      ),
-    );
-  }
-
-  void _deleteWebspace(Webspace webspace) async {
-    final loc = AppLocalizations.of(context);
-    if (webspace.id == kAllWebspaceId) {
-      _toast((loc) => loc.homeCannotDeleteAllWebspace);
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeDeleteWebspaceTitle),
-        content: Text(loc.homeDeleteWebspaceConfirm(webspace.name)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.commonDelete),
-            style: TextButton.styleFrom(
-              foregroundColor: Colors.red,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    final wasSelected = _sites.selectedWebspaceId == webspace.id;
-    setState(() {
-      _sites.webspaces.removeWhere((ws) => ws.id == webspace.id);
-      if (wasSelected) {
-        _sites.selectedWebspaceId = kAllWebspaceId;
-      }
-    });
-    if (wasSelected) {
-      await _activation.setCurrentIndex(null);
-      if (!mounted) return;
-    }
-    await _shell.saveWebspaces();
-    await _shell.saveSelectedWebspaceId();
-    await _shell.saveCurrentIndex();
-  }
-
-  void _selectWebspace(Webspace webspace) async {
-    if (_sites.selectedWebspaceId == webspace.id) {
-      _scaffoldKey.currentState?.openDrawer();
-      return;
-    }
-
-    // Version counter guards against rapid taps: if another call arrives
-    // while we are awaiting, the stale call will detect the version mismatch
-    // and bail out instead of corrupting state.
-    final version = ++_selectWebspaceVersion;
-
-    // Signal that a webspace switch is in progress. Site selection (onTap)
-    // awaits this so the unload finishes before any new site is loaded.
-    final completer = Completer<void>();
-    _webspaceSwitchCompleter = completer;
-
-    try {
-      final previousIndices = _sites.filteredIndices().toSet();
-
-      setState(() {
-        _sites.selectedWebspaceId = webspace.id;
-      });
-
-      // Open drawer immediately so the user sees instant feedback on tap
-      _scaffoldKey.currentState?.openDrawer();
-
-      final newIndices = _sites.filteredIndices().toSet();
-
-      // Only unload sites when online - preserve live webviews when offline
-      // so users can still view cached content
-      final online = await ConnectivityService.instance.isOnline();
-      if (!mounted || version != _selectWebspaceVersion) return;
-
-      if (online) {
-        final plan = _activation.residencyPlan(WebspaceSwitched(
-          previous: previousIndices,
-          next: newIndices,
-        ));
-        if (!await _activation.applyResidency(plan,
-            isStale: () => !mounted || version != _selectWebspaceVersion)) {
-          return;
-        }
-      } else {
-        LogTag.webspaceSwitch.debug('Offline - preserving loaded webviews');
-      }
-
-      setState(() {});
-      await _shell.saveSelectedWebspaceId();
-      await _shell.saveCurrentIndex();
-    } finally {
-      completer.complete();
-      if (_webspaceSwitchCompleter == completer) {
-        _webspaceSwitchCompleter = null;
-      }
-    }
-  }
-
-  void _reorderWebspaces(int oldIndex, {required int newIndex}) {
-    // Don't allow reordering if "All" is involved (it stays at index 0)
-    if (oldIndex == 0 || newIndex == 0) return;
-
-    setState(() {
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
-      final webspace = _sites.webspaces.removeAt(oldIndex);
-      _sites.webspaces.insert(newIndex, webspace);
-    });
-    _shell.saveWebspaces();
-  }
-
   WebViewController? getController() {
     if(_sites.current == null) {
       return null;
@@ -1876,7 +1673,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         onCloseSubtree: (i, {required tabId}) =>
             unawaited(_tabs.closeTab(i, tabId: tabId, subtree: true)),
         onMoveTab: _tabs.moveTab,
-        onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet : null,
+        onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet : null,
         wayBack: _tabs.wayBackFrom(_sites.models[_sites.current!]),
       ),
     );
@@ -1887,14 +1684,14 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// afresh, since reordering "All" renumbers them.
   List<TabsSheetSite>? _moveSiteInTabsSheet(String siteId,
       {required String ontoSiteId}) {
-    if (_tabs.busy || !_canReorderCurrentView) return null;
+    if (_tabs.busy || !_webspaces.canReorderView) return null;
     final order = _sites.filteredIndices();
     int at(String id) => order.indexWhere((i) =>
         i >= 0 && i < _sites.models.length && _sites.models[i].siteId == id);
     final from = at(siteId);
     final to = at(ontoSiteId);
     if (from < 0 || to < 0 || from == to) return null;
-    _reorderSite(from, newListIndex: to);
+    _webspaces.reorderSite(from, newListIndex: to);
     return _tabsSheetSites();
   }
 
@@ -2233,8 +2030,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         _shell.saveCurrentIndex();
       },
       onShowTabs: () => unawaited(_showTabsSheet()),
-      onReorder: _canReorderCurrentView
-          ? (from, {required to}) => _reorderSite(from, newListIndex: to)
+      onReorder: _webspaces.canReorderView
+          ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
           : null,
       showsTabCount: _tabs.enabledFor,
       menu: _siteMenu(SiteMenuPlacement.bottomBar),
@@ -2647,9 +2444,9 @@ class _WebSpacePageState extends State<WebSpacePage>
         item(_SiteListAction.edit, icon: Icons.edit, label: loc.commonEdit),
         item(_SiteListAction.delete, icon: Icons.delete, label: loc.commonDelete,
             color: Colors.red),
-        if (_canReorderCurrentView && listIndex > 0)
+        if (_webspaces.canReorderView && listIndex > 0)
           item(_SiteListAction.moveUp, icon: Icons.arrow_upward, label: loc.homeMoveUp),
-        if (_canReorderCurrentView && listIndex >= 0 && listIndex < filteredIndices.length - 1)
+        if (_webspaces.canReorderView && listIndex >= 0 && listIndex < filteredIndices.length - 1)
           item(_SiteListAction.moveDown, icon: Icons.arrow_downward, label: loc.homeMoveDown),
         if (canMoveToArchive)
           item(_SiteListAction.moveToArchive, icon: Icons.archive_outlined,
@@ -2679,62 +2476,11 @@ class _WebSpacePageState extends State<WebSpacePage>
         case _SiteListAction.delete:
           await _deleteSite(context, index: index);
         case _SiteListAction.moveUp:
-          _reorderSite(listIndex, newListIndex: listIndex - 1);
+          _webspaces.reorderSite(listIndex, newListIndex: listIndex - 1);
         case _SiteListAction.moveDown:
-          _reorderSite(listIndex, newListIndex: listIndex + 1);
+          _webspaces.reorderSite(listIndex, newListIndex: listIndex + 1);
       }
     });
-  }
-
-  /// Whether the currently-selected view supports drag/menu reordering.
-  /// Both a named webspace (reorders its `siteIds`) and the synthetic "All"
-  /// view (reorders `_sites.models` globally) qualify; the null/home state
-  /// does not.
-  bool get _canReorderCurrentView => _sites.selectedWebspaceId != null;
-
-  /// Reorder the site shown at [oldListIndex] to [newListIndex] within the
-  /// current view. Dispatches to the per-webspace `siteIds` reorder for a
-  /// named webspace, or the global `_sites.models` reorder for "All".
-  /// [oldListIndex]/[newListIndex] are positions in `_sites.filteredIndices()`.
-  void _reorderSite(int oldListIndex, {required int newListIndex}) {
-    final filtered = _sites.filteredIndices();
-    if (oldListIndex < 0 || oldListIndex >= filtered.length) return;
-    if (newListIndex < 0 || newListIndex >= filtered.length) return;
-    if (oldListIndex == newListIndex) return;
-    if (_sites.selectedWebspaceId == kAllWebspaceId) {
-      unawaited(_reorderAllSites(filtered[oldListIndex],
-          newModelIndex: filtered[newListIndex]));
-    } else {
-      _reorderSiteInWebspace(oldListIndex, newListIndex: newListIndex);
-    }
-  }
-
-  void _reorderSiteInWebspace(int oldListIndex, {required int newListIndex}) {
-    final webspace = _sites.webspaces.cast<Webspace?>().firstWhere(
-      (ws) => ws!.id == _sites.selectedWebspaceId,
-      orElse: () => null,
-    );
-    if (webspace == null) return;
-    if (oldListIndex < 0 || oldListIndex >= webspace.siteIds.length) return;
-    if (newListIndex < 0 || newListIndex >= webspace.siteIds.length) return;
-    setState(() {
-      final movedSiteId = webspace.siteIds.removeAt(oldListIndex);
-      webspace.siteIds.insert(newListIndex, movedSiteId);
-      _sites.resolveWebspaceIndices();
-    });
-    _shell.saveWebspaces();
-  }
-
-  /// Moves the site at [oldModelIndex] to [newModelIndex] in the "All"
-  /// order. The IndexedStack children are keyed by siteId, so each webview
-  /// keeps its State.
-  Future<void> _reorderAllSites(int oldModelIndex,
-      {required int newModelIndex}) async {
-    if (oldModelIndex < 0 || oldModelIndex >= _sites.models.length) return;
-    if (newModelIndex < 0 || newModelIndex >= _sites.models.length) return;
-    if (oldModelIndex == newModelIndex) return;
-    await _commitSites(SitesMoved(oldModelIndex, to: newModelIndex));
-    await _shell.saveCurrentIndex();
   }
 
   /// What a deleted site leaves outside the list: its webview, the tabs it
@@ -2840,7 +2586,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // closeDrawer() (not Navigator.pop) is idempotent: a rapid second tap
     // won't pop the underlying page route once the drawer is already closing.
     _scaffoldKey.currentState?.closeDrawer();
-    await _webspaceSwitchCompleter?.future;
+    await _webspaces.switchInFlight;
     await _activation.setCurrentIndex(index);
     if (!mounted) return;
     setState(() {});
@@ -2923,11 +2669,11 @@ class _WebSpacePageState extends State<WebSpacePage>
                     selectedWebspaceId: _sites.selectedWebspaceId,
                     totalSitesCount: _sites.models.length,
                     accentColor: _shell.theme.accentColor,
-                    onSelectWebspace: _selectWebspace,
-                    onAddWebspace: _addWebspace,
-                    onEditWebspace: _editWebspace,
-                    onDeleteWebspace: _deleteWebspace,
-                    onReorder: _reorderWebspaces,
+                    onSelectWebspace: _webspaces.select,
+                    onAddWebspace: _webspaces.add,
+                    onEditWebspace: _webspaces.edit,
+                    onDeleteWebspace: _webspaces.delete,
+                    onReorder: _webspaces.reorder,
                   ),
                 ),
                 if (_sites.loaded.isNotEmpty)
@@ -3077,8 +2823,8 @@ class _WebSpacePageState extends State<WebSpacePage>
         onBackToWebspaces: () => unawaited(_backToWebspacesFromDrawer()),
         onOpen: (index) => unawaited(_openSiteFromDrawer(index)),
         onMenu: _showSiteContextMenu,
-        onReorder: _canReorderCurrentView
-            ? (from, {required to}) => _reorderSite(from, newListIndex: to)
+        onReorder: _webspaces.canReorderView
+            ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
             : null,
         onAddSite: () => unawaited(_addSite()),
       ),
@@ -3144,7 +2890,7 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
   Future<void> switchWebspaceFor(WebViewModel target) async {
     final index = state._sites.models.indexOf(target);
     if (index < 0) return;
-    await state._maybeSwitchToAllForSite(target, index: index);
+    await state._webspaces.revealSite(target, index: index);
   }
 
   @override
@@ -3263,7 +3009,8 @@ class _PageHost
         LinkHost,
         FullscreenHost,
         ActivationHost,
-        BackupHost {
+        BackupHost,
+        WebspacesHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -3315,6 +3062,9 @@ class _PageHost
 
   @override
   Future<void> activate(int? index) => _s._activation.setCurrentIndex(index);
+
+  @override
+  void openDrawer() => _s._scaffoldKey.currentState?.openDrawer();
 
   @override
   void themeChanged() => _s.widget.onThemeSettingsChanged(_s._shell.theme);
@@ -3420,7 +3170,7 @@ class _PageHost
 
   @override
   Future<void> revealSite(WebViewModel model, {required int index}) =>
-      _s._maybeSwitchToAllForSite(model, index: index);
+      _s._webspaces.revealSite(model, index: index);
 
   @override
   void offerOpenTab(WebViewModel model, {required String tabId}) =>
