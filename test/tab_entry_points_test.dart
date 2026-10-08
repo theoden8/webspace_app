@@ -233,9 +233,11 @@ void guarded(String src,
           reason: 'the strip chip');
       expect(source, contains('showsTabCount: _tabs.enabledFor,'),
           reason: 'the strip chip counts tabs only where the site has them');
-      expect(source,
-          contains('showTabCount: _tabs.enabledAt(index) &&'),
+      expect(File('lib/widgets/site_drawer.dart').readAsStringSync(),
+          matches(RegExp(r'showTabCount:\s*showsTabCount\(index\) &&')),
           reason: 'the drawer tile');
+      expect(source, contains('showsTabCount: _tabs.enabledAt,'),
+          reason: 'the drawer counts tabs only where the site has them');
       guarded(File('lib/widgets/site_grid_tile.dart').readAsStringSync(),
           count: 2,
           guard: RegExp(r'^if \(showTabCount\)'),

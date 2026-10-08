@@ -37,6 +37,7 @@ import 'package:webspace/widgets/tab_bar_corner_button.dart';
 import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/services/web_search_engine.dart';
+import 'package:webspace/widgets/site_drawer.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
@@ -107,7 +108,6 @@ import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
 import 'package:webspace/widgets/external_url_prompt.dart';
-import 'package:webspace/widgets/site_grid_tile.dart';
 import 'package:webspace/widgets/site_webview_stack.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/fullscreen_overlays.dart';
@@ -119,7 +119,6 @@ import 'package:webspace/widgets/theme_mode_button.dart';
 import 'package:webspace/widgets/shortcut_prompts.dart';
 import 'package:webspace/widgets/surface_nudge_scope.dart';
 import 'package:webspace/widgets/webview_prompts.dart';
-import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_proxy.dart';
@@ -2398,12 +2397,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 ],
               ),
             )
-          : Text(_sites.selectedWebspaceId != null
-              ? _sites.webspaces.firstWhere(
-                  (ws) => ws.id == _sites.selectedWebspaceId,
-                  orElse: () => Webspace(name: 'Unknown'),
-                ).name
-              : loc.homeNoWebspaceSelected),
+          : Text(_selectedWebspaceName ?? loc.homeNoWebspaceSelected),
       // KIOSK-002: no app-bar actions (download, theme, settings) when locked.
       actions: _kioskLocked ? const <Widget>[] : [
         // Tab count for the site on screen. Present whenever a site is shown,
@@ -3081,6 +3075,25 @@ class _WebSpacePageState extends State<WebSpacePage>
     _scaffoldKey.currentState?.closeDrawer();
   }
 
+  /// The selected webspace's name, or null while none is selected.
+  String? get _selectedWebspaceName {
+    final id = _sites.selectedWebspaceId;
+    if (id == null) return null;
+    return _sites.webspaces
+        .firstWhere((ws) => ws.id == id, orElse: () => Webspace(name: 'Unknown'))
+        .name;
+  }
+
+  Future<void> _backToWebspacesFromDrawer() async {
+    await _activation.setCurrentIndex(null);
+    if (!mounted) return;
+    setState(() {});
+    await _shell.saveSelectedWebspaceId();
+    await _shell.saveCurrentIndex();
+    if (!mounted) return;
+    _scaffoldKey.currentState?.closeDrawer();
+  }
+
   /// A site tapped in the drawer, once a webspace switch in flight lands.
   Future<void> _openSiteFromDrawer(int index) async {
     // closeDrawer() (not Navigator.pop) is idempotent: a rapid second tap
@@ -3290,7 +3303,6 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   Widget _buildMainTree(BuildContext context,
       {required bool webviewIsVisible}) {
-    final loc = AppLocalizations.of(context);
     return PopScope(
       // On Android, always intercept back so the gesture only ever navigates
       // webview history (never exits the app). On other platforms, allow pop
@@ -3314,145 +3326,20 @@ class _WebSpacePageState extends State<WebSpacePage>
       appBar: _fullscreen.active ? null : _buildAppBar(),
       // KIOSK-002: no drawer when locked — removes the site grid, "back to
       // webspaces", add-site, and the auto app-bar hamburger / edge swipe.
-      drawer: _kioskLocked ? null : Drawer(
-        child: Column(
-          children: [
-            SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    InkWell(
-                      onTap: () async {
-                        await _activation.setCurrentIndex(null);
-                        if (!mounted) return;
-                        setState(() {});
-                        await _shell.saveSelectedWebspaceId();
-                        await _shell.saveCurrentIndex();
-                        if (!mounted) return;
-                        _scaffoldKey.currentState?.closeDrawer();
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                        child: Column(
-                          children: [
-                            AccentLogo(
-                              accentColor: _shell.theme.accentColor,
-                              size: 72,
-                              brightness: Theme.of(context).brightness,
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              _sites.selectedWebspaceId != null
-                                  ? _sites.webspaces.firstWhere((ws) => ws.id == _sites.selectedWebspaceId, orElse: () => Webspace(name: 'Unknown')).name
-                                  : loc.homeNoWebspace,
-                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Semantics(
-                      label: loc.homeBackToWebspaces,
-                      button: true,
-                      enabled: true,
-                      child: TextButton.icon(
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 0),
-                          minimumSize: Size(0, 32),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () async {
-                          await _activation.setCurrentIndex(null);
-                          if (!mounted) return;
-                          setState(() {});
-                          await _shell.saveSelectedWebspaceId();
-                          await _shell.saveCurrentIndex();
-                          if (!mounted) return;
-                          _scaffoldKey.currentState?.closeDrawer();
-                        },
-                        icon: Icon(Icons.arrow_back, size: 16),
-                        label: Text(loc.homeBackToWebspaces, style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: _sites.selectedWebspaceId == null
-                  ? Center(
-                      child: Text(loc.homeSelectWebspaceToViewSites),
-                    )
-                  : () {
-                      final filteredIndices = _sites.filteredIndices();
-                      if (filteredIndices.isEmpty) {
-                        return Center(
-                          child: Text(loc.homeNoSitesInWebspace),
-                        );
-                      }
-
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          final itemCount = filteredIndices.length;
-                          const itemHeight = 88.0;
-                          final availableHeight = constraints.maxHeight - 12; // padding (top: 4 + bottom: 8)
-                          final maxRows = (availableHeight / itemHeight).floor().clamp(1, itemCount);
-
-                          int crossAxisCount = 1;
-                          if (itemCount > maxRows) {
-                            crossAxisCount = (itemCount / maxRows).ceil().clamp(1, 4);
-                          }
-
-                          return GridView.builder(
-                            padding: const EdgeInsets.only(left: 8, right: 8, bottom: 8, top: 4),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              mainAxisSpacing: 4,
-                              crossAxisSpacing: 4,
-                              mainAxisExtent: itemHeight,
-                            ),
-                            itemCount: itemCount,
-                            itemBuilder: (BuildContext context, int listIndex) {
-                              final index = filteredIndices[listIndex];
-                              final site = _sites.models[index];
-                              return SiteGridTile(
-                                key: Key('site_$index'),
-                                site: site,
-                                listIndex: listIndex,
-                                selected: _sites.current == index,
-                                showTabCount: _tabs.enabledAt(index) &&
-                                    site.tabs.length > 1,
-                                onOpen: () => unawaited(_openSiteFromDrawer(index)),
-                                onMenu: (context, {required globalPosition}) =>
-                                    _showSiteContextMenu(context, index: index, position: globalPosition),
-                                onReorder:
-                                    _canReorderCurrentView ? (from, {required to}) => _reorderSite(from, newListIndex: to) : null,
-                              );
-                            },
-                          );
-                        },
-                      );
-                    }(),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () async {
-                    _addSite();
-                  },
-                  icon: Icon(Icons.add),
-                  label: Text(loc.homeAddSite),
-                ),
-              ),
-            ),
-            SizedBox(height: 8.0 + MediaQuery.of(context).padding.bottom),
-          ],
-        ),
+      drawer: _kioskLocked ? null : SiteDrawer(
+        accentColor: _shell.theme.accentColor,
+        webspaceName: _selectedWebspaceName,
+        models: _sites.models,
+        order: _sites.filteredIndices(),
+        current: _sites.current,
+        showsTabCount: _tabs.enabledAt,
+        onBackToWebspaces: () => unawaited(_backToWebspacesFromDrawer()),
+        onOpen: (index) => unawaited(_openSiteFromDrawer(index)),
+        onMenu: _showSiteContextMenu,
+        onReorder: _canReorderCurrentView
+            ? (from, {required to}) => _reorderSite(from, newListIndex: to)
+            : null,
+        onAddSite: () => unawaited(_addSite()),
       ),
       body: _buildBodyWithBottomBar(),
       bottomNavigationBar: _buildTabStrip(),
