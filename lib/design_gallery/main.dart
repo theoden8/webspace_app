@@ -1256,9 +1256,9 @@ Widget _tabsSheet(BuildContext _) => _tabsSheetOver('GitHub', 0);
 /// tab it runs as DuckDuckGo, under "In GitHub" (TAB-017).
 Widget _tabsSheetInSite(BuildContext _) => _tabsSheetOver('DuckDuckGo', 3);
 
-/// The same sheet once that tab was tapped: GitHub is on screen on it, so the
-/// list is still DuckDuckGo's, with the highlight in GitHub's tree and
-/// DuckDuckGo's tab marked as where the user was (TAB-019).
+/// The same sheet once that tab was tapped: GitHub is on screen on it, so
+/// GitHub's tree comes first with that tab highlighted, and DuckDuckGo's tab
+/// below it is marked as where the user was (TAB-019).
 Widget _tabsSheetWayBack(BuildContext _) {
   final github = _siteWithTabs('GitHub', 'https://github.com/',
       _TabsDemo.github.tabs, 'search', siteId: 'gh', containerColor: 0);

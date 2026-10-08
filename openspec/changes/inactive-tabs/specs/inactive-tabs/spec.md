@@ -577,10 +577,10 @@ or active site SHALL change.
 
 ### Requirement: TAB-017 - A site's tabs in other sites' trees
 
-The Tabs sheet's This site view SHALL be the list of the site the tab on
-screen runs as: the slot's own site, or the site a hosted tab runs as
-(LIR-018), unless that site has no tabs, when it is the slot's. Its header,
-count and New tab SHALL be that site's.
+The Tabs sheet's This site view SHALL be the list of the site on screen: the
+slot's own site, whose tree comes first whatever the tab on screen runs as,
+a hosted tab included (LIR-018). Its header, count and New tab SHALL be that
+site's, so the header counts what the app bar's tab count does.
 
 After that site's own tree, the view SHALL list the trees of other sites
 that hold the containers of the current branch: the sites that the tab on
@@ -602,8 +602,8 @@ be folded into one line saying how many tabs it holds ("3 more GitHub tabs"),
 which shows the whole tree when tapped. A branch whose containers no other
 tree holds SHALL bring no such heading.
 
-The tab on screen SHALL be highlighted wherever it is listed, so a list opened
-on a tab of another site's tree is the same list, with the highlight moved.
+The tab on screen SHALL be highlighted. It is a tab of the site on screen, so
+the highlight is always in the first tree.
 
 Every row of another tree SHALL open on a tap, whatever site it runs as.
 Those rows SHALL stay in the tree that holds them: a tap SHALL open that site
@@ -621,9 +621,9 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 
 #### Scenario: Every container on the branch
 
-- **GIVEN** DuckDuckGo's tree holds a GitHub tab opened from its search tab, with a Hugging Face tab opened below that, and GitHub is on screen on that tab
+- **GIVEN** DuckDuckGo's tree holds a GitHub tab opened from its search tab, with a Hugging Face tab opened below that, and DuckDuckGo is on screen on the GitHub tab
 - **WHEN** the user opens the Tabs sheet
-- **THEN** after GitHub's own tabs it lists the other trees holding DuckDuckGo tabs, then those holding GitHub tabs, then those holding Hugging Face tabs
+- **THEN** after DuckDuckGo's own tabs it lists the other trees holding DuckDuckGo tabs, then those holding GitHub tabs, then those holding Hugging Face tabs
 
 #### Scenario: Too many branches
 
@@ -657,12 +657,12 @@ repeat across sites, so what is collapsed SHALL be kept per site and tab.
 - **THEN** GitHub comes on screen on it, running as GitHub
 - **AND** GitHub's Tabs sheet lists DuckDuckGo's tab as where the user was (TAB-019)
 
-#### Scenario: The list follows the site the tab runs as
+#### Scenario: The site on screen's tree comes first
 
 - **GIVEN** GitHub on screen on a tab running as DuckDuckGo
 - **WHEN** the user opens the Tabs sheet
-- **THEN** it is headed "DuckDuckGo" and lists DuckDuckGo's own tabs first, then "In GitHub" with that tab highlighted
-- **AND** New tab opens a tab of DuckDuckGo
+- **THEN** it is headed "GitHub" and lists GitHub's own tabs first, with that tab highlighted, then "In DuckDuckGo"
+- **AND** New tab opens a tab of GitHub
 
 #### Scenario: The other site is in another webspace
 

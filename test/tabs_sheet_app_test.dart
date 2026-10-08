@@ -166,8 +166,14 @@ void main() {
     expect(appSite('GitHub').activeTabId, hosted.id);
 
     await openTabsSheet(tester);
-    expect(find.text('DuckDuckGo · 1 tab'), findsOneWidget,
-        reason: 'the list is the one of the site the tab runs as');
+    expect(find.text('GitHub · 2 tabs'), findsOneWidget,
+        reason: 'the list is the site on screen\'s, whatever its tab runs as');
+    expect(
+      tester.getTopLeft(find.text('In DuckDuckGo')).dy,
+      greaterThan(
+          tester.getTopLeft(find.text('https://duckduckgo.com/?q=webspace')).dy),
+      reason: 'GitHub\'s tree, which holds the tab on screen, comes first',
+    );
     expect(find.text('duckduckgo.com · where you were'), findsOneWidget);
     await tester.tap(find.text('duckduckgo.com · where you were'));
     await settleRealApp(tester);

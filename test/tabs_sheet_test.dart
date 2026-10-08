@@ -679,7 +679,7 @@ void main() {
       expect(find.text('1 more GitHub tab'), findsNothing);
     });
 
-    testWidgets('on a tab GitHub runs as DuckDuckGo, the list is DuckDuckGo\'s',
+    testWidgets('on a tab GitHub runs as DuckDuckGo, GitHub\'s tree is first',
         (tester) async {
       gh.activeTabId = 'h';
       final newTabs = <int>[];
@@ -687,17 +687,21 @@ void main() {
         TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: true),
       ], onNewTab: newTabs.add);
-      expect(find.text('DuckDuckGo · 2 tabs'), findsOneWidget);
+      expect(find.text('GitHub · 4 tabs'), findsOneWidget);
+      expect(find.text('In DuckDuckGo'), findsOneWidget,
+          reason: 'the tab on screen runs as DuckDuckGo');
+      const order = ['https://github.com/', hosted, below, foreign, ddgHome, ddgChild];
+      expect(rowOrder(tester, order), order,
+          reason: 'the site on screen comes first, whatever its tab runs as');
       expect(
-          rowOrder(tester, [ddgHome, ddgChild, 'https://github.com/', hosted]),
-          [ddgHome, ddgChild, 'https://github.com/', hosted],
-          reason: 'the same list as on DuckDuckGo, so nothing moves on a jump');
-      expect(isHighlighted(hosted), isTrue,
-          reason: 'the highlight is the tab on screen, in whichever tree');
+        tester.getTopLeft(find.text('In DuckDuckGo')).dy,
+        greaterThan(tester.getTopLeft(find.text(foreign)).dy),
+      );
+      expect(isHighlighted(hosted), isTrue);
       expect(isHighlighted(ddgHome), isFalse);
       await tester.tap(find.text('New tab'));
       await tester.pump();
-      expect(newTabs, [1], reason: 'a new tab of the site the list is for');
+      expect(newTabs, [0], reason: 'a new tab of the site on screen');
     });
 
     testWidgets('where the user was is marked and its tree listed',

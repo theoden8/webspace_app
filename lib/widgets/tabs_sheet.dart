@@ -8,10 +8,10 @@
 /// tab is stored and drawn faded (TAB-011). A long press drags a tab and its
 /// subtree to another place in the same site's tree (TAB-015). Each row is
 /// marked with the colour of the container it runs in (TAB-018). The This
-/// site list is the list of the site the tab on screen runs as, and it also
-/// shows every other site's tree that holds a tab running as it (TAB-017), so
-/// a tab in another tree and the way back to the one before are both a tap
-/// away (TAB-019).
+/// site list is the tree of the site on screen, whatever its tab runs as, and
+/// below it every other site's tree that holds a tab running as a site on the
+/// branch through that tab (TAB-017), so a tab in another tree and the way
+/// back to the one before are both a tap away (TAB-019).
 ///
 /// The widget owns no state beyond which subtrees are collapsed and where a
 /// drag would land: the tab list
@@ -158,18 +158,10 @@ class _TabsSheetState extends State<TabsSheet> {
     super.dispose();
   }
 
+  /// The site on screen, whose tree This site lists first, whatever the tab
+  /// on screen runs as (LIR-018).
   TabsSheetSite? get _site =>
       _sites.where((s) => s.model.siteId == _currentId).firstOrNull;
-
-  /// The site whose list This site is: the one the tab on screen runs as,
-  /// which is the slot's own site unless it runs a hosted tab (LIR-018). A
-  /// site without tabs has no list, so the slot's stands in.
-  TabsSheetSite? get _subject {
-    final site = _site;
-    if (site == null) return null;
-    final id = site.model.runningIdentity.siteId;
-    return _sites.where((s) => s.model.siteId == id).firstOrNull ?? site;
-  }
 
   List<TabsSheetSite> get _shown => [
         for (final s in _sites)
@@ -180,7 +172,7 @@ class _TabsSheetState extends State<TabsSheet> {
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
     final theme = Theme.of(context);
-    final site = _subject;
+    final site = _site;
     if (site == null) return const SizedBox.shrink();
     return SafeArea(
       top: false,
@@ -361,21 +353,20 @@ class _TabsSheetState extends State<TabsSheet> {
         ),
       );
 
-  /// TAB-017: after [site]'s own tree, every other site's tree, in the
-  /// current webspace or not, that holds a tab running as a site on the
-  /// branch through the tab on screen, folded around those tabs and in branch
-  /// order ([TabListEngine]); and the tree holding where the user was
-  /// (TAB-019), so the way back is listed too. The rows stay in that site's
-  /// tree: a tap opens that site on the tab, a close closes it there, and
-  /// they are not dragged from here.
+  /// TAB-017: after the tree of [site], the site on screen, every other
+  /// site's tree, in the current webspace or not, that holds a tab running as
+  /// a site on the branch through the tab on screen, folded around those tabs
+  /// and in branch order ([TabListEngine]); and the tree holding where the
+  /// user was (TAB-019), so the way back is listed too. The rows stay in that
+  /// site's tree: a tap opens that site on the tab, a close closes it there,
+  /// and they are not dragged from here.
   List<Widget> _otherTrees(
       TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
-    final slot = _site!;
     final back = widget.wayBack;
     final listed = TabListEngine.otherTrees(
       containers:
-          TabListEngine.branchContainers(_treeOf(slot), slot.model.activeTabId),
-      selected: slot.model.runningIdentity.siteId,
+          TabListEngine.branchContainers(_treeOf(site), site.model.activeTabId),
+      selected: site.model.runningIdentity.siteId,
       others: [
         for (final other in _sites)
           if (other.model.siteId != site.model.siteId) _treeOf(other),
