@@ -43,6 +43,7 @@ import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/site_drawer.dart';
 import 'package:webspace/widgets/site_editing_prompts.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
+import 'package:webspace/widgets/site_list_menu.dart';
 import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/url_bar.dart';
@@ -99,6 +100,7 @@ import 'package:webspace/widgets/external_url_prompt.dart';
 import 'package:webspace/widgets/site_webview_stack.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/fullscreen_overlays.dart';
+import 'package:webspace/widgets/link_menu_sheet.dart';
 import 'package:webspace/widgets/archive_prompts.dart';
 import 'package:webspace/widgets/backup_prompts.dart';
 import 'package:webspace/widgets/link_prompts.dart';
@@ -1558,78 +1560,44 @@ class _WebSpacePageState extends State<WebSpacePage>
       DispatchOpenInTab(:final siteId) => _sites.byId(siteId),
       _ => null,
     };
-    final loc = AppLocalizations.of(context);
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Text(
-                url,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(ctx).textTheme.bodySmall,
-              ),
-            ),
-            ListTile(
-              enabled: inDomain || tabRoute != null,
-              leading: const Icon(Icons.tab),
-              title: Text(loc.tabsOpenInNewTab),
-              subtitle: inDomain
-                  ? null
-                  : tabHost != null
-                      ? Text(loc.tabsRunsAs(tabHost.getDisplayName()))
-                      : tabRoute == null
-                          ? Text(loc.tabsLinkOutsideSite(uri.host))
-                          : null,
-              onTap: () {
-                Navigator.of(ctx).pop();
-                if (tabRoute is DispatchShowPicker) {
-                  unawaited(_links.showOutboundPicker(model,
-                      source: identity,
-                      action: tabRoute,
-                      url: uri,
-                      parked: true));
-                } else if (inDomain) {
-                  // A sibling of the tab on screen: same container, and when
-                  // that tab follows an opener's switch (LIR-034), so does it.
-                  final active = model.activeTab;
-                  unawaited(_tabs.openLinkInNewTab(index, url: url,
-                      hostSiteId: active.hostSiteId,
-                      openerSiteId: active.openerSiteId,
-                      homeUrl: active.homeUrl));
-                } else {
-                  unawaited(_tabs.openLinkInNewTab(index, url: url,
-                      hostSiteId: tabHost?.siteId,
-                      openerSiteId: identity.siteId,
-                      homeUrl: url));
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.open_in_new),
-              title: Text(loc.commonOpen),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                unawaited(_links.openLinkAsTapped(index, url: url));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy),
-              title: Text(loc.commonCopy),
-              onTap: () {
-                Navigator.of(ctx).pop();
-                Clipboard.setData(ClipboardData(text: url));
-              },
-            ),
-          ],
-        ),
-      ),
+    final choice = await showLinkMenu(
+      context,
+      url: url,
+      newTabEnabled: inDomain || tabRoute != null,
+      newTabNote: (loc) => inDomain
+          ? null
+          : tabHost != null
+              ? loc.tabsRunsAs(tabHost.getDisplayName())
+              : tabRoute == null
+                  ? loc.tabsLinkOutsideSite(uri.host)
+                  : null,
     );
+    switch (choice) {
+      case null:
+        return;
+      case LinkMenuChoice.newTab:
+        if (tabRoute is DispatchShowPicker) {
+          unawaited(_links.showOutboundPicker(model,
+              source: identity, action: tabRoute, url: uri, parked: true));
+        } else if (inDomain) {
+          // A sibling of the tab on screen: same container, and when that tab
+          // follows an opener's switch (LIR-034), so does it.
+          final active = model.activeTab;
+          unawaited(_tabs.openLinkInNewTab(index, url: url,
+              hostSiteId: active.hostSiteId,
+              openerSiteId: active.openerSiteId,
+              homeUrl: active.homeUrl));
+        } else {
+          unawaited(_tabs.openLinkInNewTab(index, url: url,
+              hostSiteId: tabHost?.siteId,
+              openerSiteId: identity.siteId,
+              homeUrl: url));
+        }
+      case LinkMenuChoice.open:
+        unawaited(_links.openLinkAsTapped(index, url: url));
+      case LinkMenuChoice.copy:
+        await Clipboard.setData(ClipboardData(text: url));
+    }
   }
 
   /// Navigate to the site's initial URL and clear navigation history.
@@ -2033,79 +2001,41 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  void _showSiteContextMenu(BuildContext context,
-      {required int index, required Offset position}) {
+  Future<void> _showSiteContextMenu(BuildContext context,
+      {required int index, required Offset position}) async {
     final filteredIndices = _sites.filteredIndices();
     final listIndex = filteredIndices.indexOf(index);
-    final isArchiveSite =
-        index >= 0 && index < _sites.models.length && _sites.models[index].isArchiveTier;
-    // Show "Move to archive" for every app-tier site, regardless of
-    // whether any archive is currently open. The handler always prompts
-    // for a passphrase and opens-or-creates the matching archive — its
-    // presence in the menu therefore reveals nothing about whether an
-    // archive is currently open or whether any exist on disk.
-    final canMoveToArchive = !isArchiveSite;
-
-    final loc = AppLocalizations.of(context);
-    PopupMenuItem<_SiteListAction> item(
-      _SiteListAction action, {
-      required IconData icon,
-      required String label,
-      Color? color,
-    }) =>
-        PopupMenuItem(
-          value: action,
-          child: ListTile(
-            leading: Icon(icon, color: color),
-            title: Text(label, style: TextStyle(color: color)),
-            dense: true,
-            visualDensity: VisualDensity.compact,
-          ),
-        );
-    showMenu<_SiteListAction>(
-      context: context,
-      position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
-      items: [
-        item(_SiteListAction.edit, icon: Icons.edit, label: loc.commonEdit),
-        item(_SiteListAction.delete, icon: Icons.delete, label: loc.commonDelete,
-            color: Colors.red),
-        if (_webspaces.canReorderView && listIndex > 0)
-          item(_SiteListAction.moveUp, icon: Icons.arrow_upward, label: loc.homeMoveUp),
-        if (_webspaces.canReorderView && listIndex >= 0 && listIndex < filteredIndices.length - 1)
-          item(_SiteListAction.moveDown, icon: Icons.arrow_downward, label: loc.homeMoveDown),
-        if (canMoveToArchive)
-          item(_SiteListAction.moveToArchive, icon: Icons.archive_outlined,
-              label: loc.homeMoveToArchive),
-        if (isArchiveSite)
-          item(_SiteListAction.moveOutOfArchive, icon: Icons.unarchive_outlined,
-              label: loc.homeMoveOutOfArchive),
-        if (isArchiveSite)
-          item(_SiteListAction.closeArchive, icon: Icons.lock_outline,
-              label: loc.homeCloseArchive),
-      ],
-    ).then((value) async {
-      final site = index >= 0 && index < _sites.models.length
-          ? _sites.models[index]
-          : null;
-      switch (value) {
-        case null:
-          return;
-        case _SiteListAction.moveToArchive:
-          if (site != null) await _archives.moveIn(site);
-        case _SiteListAction.moveOutOfArchive:
-          if (site != null) await _archives.moveOut(site);
-        case _SiteListAction.closeArchive:
-          if (site != null) await _archives.closeArchiveOf(site);
-        case _SiteListAction.edit:
-          await _editing.editSite(index);
-        case _SiteListAction.delete:
-          await _editing.deleteSite(index);
-        case _SiteListAction.moveUp:
-          _webspaces.reorderSite(listIndex, newListIndex: listIndex - 1);
-        case _SiteListAction.moveDown:
-          _webspaces.reorderSite(listIndex, newListIndex: listIndex + 1);
-      }
-    });
+    final action = await showSiteListMenu(
+      context,
+      position: position,
+      canMoveUp: _webspaces.canReorderView && listIndex > 0,
+      canMoveDown: _webspaces.canReorderView &&
+          listIndex >= 0 &&
+          listIndex < filteredIndices.length - 1,
+      archived: index >= 0 &&
+          index < _sites.models.length &&
+          _sites.models[index].isArchiveTier,
+    );
+    final site =
+        index >= 0 && index < _sites.models.length ? _sites.models[index] : null;
+    switch (action) {
+      case null:
+        return;
+      case SiteListAction.moveToArchive:
+        if (site != null) await _archives.moveIn(site);
+      case SiteListAction.moveOutOfArchive:
+        if (site != null) await _archives.moveOut(site);
+      case SiteListAction.closeArchive:
+        if (site != null) await _archives.closeArchiveOf(site);
+      case SiteListAction.edit:
+        await _editing.editSite(index);
+      case SiteListAction.delete:
+        await _editing.deleteSite(index);
+      case SiteListAction.moveUp:
+        _webspaces.reorderSite(listIndex, newListIndex: listIndex - 1);
+      case SiteListAction.moveDown:
+        _webspaces.reorderSite(listIndex, newListIndex: listIndex + 1);
+    }
   }
 
   /// What a deleted site leaves outside the list: its webview, the tabs it
@@ -2424,17 +2354,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 }
 
-
-/// What a site's long-press menu in the list offers.
-enum _SiteListAction {
-  edit,
-  delete,
-  moveUp,
-  moveDown,
-  moveToArchive,
-  moveOutOfArchive,
-  closeArchive,
-}
 
 /// Binds [NestedOpenEngine] to the page state.
 class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
