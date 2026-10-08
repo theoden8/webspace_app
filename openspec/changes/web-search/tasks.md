@@ -31,7 +31,7 @@
 
 - [x] 5.1 Search group: address dialog (known address kept unset when saved unchanged, Reset), default from this site, sites offered (dropping the default with it).
 - [x] 5.2 Fields on `SiteBehaviourValues`, the settings screen's snapshot, load and save.
-- [x] 5.3 Tests: the BEHAV-005 group in `test/site_behaviour_screen_test.dart`.
+- [x] 5.3 Tests: the BEHAV-006 group in `test/site_behaviour_screen_test.dart`.
 
 ## 6. Links into the user's sites (LIR-032) and site info
 

@@ -1,6 +1,6 @@
 ## ADDED Requirements
 
-### Requirement: BEHAV-005 - Search group
+### Requirement: BEHAV-006 - Search group
 
 While web search is reachable (LIR-029: the Site tabs gate), the Behaviour screen SHALL end with a "Search" group, after "Link handling", holding three rows; while it is not, the group SHALL be absent and the site's stored search fields SHALL be kept. Each row's explanation SHALL sit behind a `HintButton` on its title (HINT-001) and its subtitle SHALL name state only.
 
