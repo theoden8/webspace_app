@@ -24,7 +24,7 @@ import 'package:webspace/webspace_model.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
-import 'package:webspace/screens/add_site.dart' show AddSiteScreen, UnifiedFaviconImage, FaviconUrlCache;
+import 'package:webspace/screens/add_site.dart' show AddSiteScreen, FaviconUrlCache;
 import 'package:webspace/settings/site_suggestion.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
@@ -39,6 +39,7 @@ import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/site_menu.dart';
+import 'package:webspace/widgets/site_tab_strip.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/image_cache_service.dart';
@@ -2472,216 +2473,36 @@ class _WebSpacePageState extends State<WebSpacePage>
     return !AppPref.showTabStrip.value;
   }
 
-  /// Build the tab strip shown in bottomNavigationBar.
-  /// This stays at the screen bottom and doesn't need to be above the keyboard.
+  /// The tab strip in bottomNavigationBar, which stays at the screen bottom
+  /// and is hidden while the keyboard is open.
   Widget? _buildTabStrip() {
     if (!_tabStripShown) return null;
-
-    // Hide when keyboard is open - it's not needed during text input
-    if (MediaQuery.of(context).viewInsets.bottom > 0) {
-      return null;
-    }
-
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final filteredIndices = _sites.filteredIndices();
-
-    return SafeArea(
-      top: false,
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: isDark ? Color(0xFF1E1E1E) : Color(0xFFF5F5F5),
-          border: Border(
-            top: BorderSide(
-              color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            // When the strip was revealed by the fullscreen tab-bar button,
-            // its dismiss control lives inside the bar (not as a separate
-            // floating cross above it).
-            if (_fullscreen.tabBarOverlayVisible)
-              IconButton(
-                icon: const Icon(Icons.close),
-                iconSize: 20,
-                visualDensity: VisualDensity.compact,
-                onPressed: () {
-                  setState(() {
-                    _fullscreen.tabBarOverlayVisible = false;
-                  });
-                  _surface.nudge('tab-overlay-hide');
-                },
-              ),
-            Expanded(
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: filteredIndices.length,
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                itemBuilder: (context, listIndex) {
-                  return _buildTabStripItem(context,
-                      listIndex: listIndex,
-                      filteredIndices: filteredIndices,
-                      theme: theme,
-                      isDark: isDark);
-                },
-              ),
-            ),
-            _siteMenu(SiteMenuPlacement.bottomBar),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// One tab in the bottom strip. Draggable-to-reorder when the current view
-  /// supports reordering (a named webspace or "All") and there is more than
-  /// one tab; a plain tappable chip otherwise. Uses a raw [Listener] for tap
-  /// detection rather than [GestureDetector] so the tap doesn't lose the
-  /// gesture-arena fight with [LongPressDraggable] (same pattern as the
-  /// drawer grid tiles).
-  Widget _buildTabStripItem(
-    BuildContext context, {
-    required int listIndex,
-    required List<int> filteredIndices,
-    required ThemeData theme,
-    required bool isDark,
-  }) {
-    final siteIndex = filteredIndices[listIndex];
-    final siteModel = _sites.models[siteIndex];
-    final isActive = siteIndex == _sites.current;
-    final content = _buildTabStripItemContent(siteModel,
-        isActive: isActive, theme: theme, isDark: isDark);
-
-    void handleTap() {
-      // Tapping the chip of the site already on screen opens its tab list —
-      // the strip switches sites, and within a site the tabs are what is left
-      // to switch between (TAB-008).
-      if (isActive) {
-        unawaited(_showTabsSheet());
-        return;
-      }
-      () async {
+    if (MediaQuery.of(context).viewInsets.bottom > 0) return null;
+    return SiteTabStrip(
+      models: _sites.models,
+      order: _sites.filteredIndices(),
+      current: _sites.current,
+      revealed: _fullscreen.tabBarOverlayVisible,
+      onHide: () {
+        setState(() {
+          _fullscreen.tabBarOverlayVisible = false;
+        });
+        _surface.nudge('tab-overlay-hide');
+      },
+      onOpen: (siteIndex) async {
         await _activation.setCurrentIndex(siteIndex);
         if (!mounted) return;
         setState(() {
           _fullscreen.tabBarOverlayVisible = false;
         });
         _shell.saveCurrentIndex();
-      }();
-    }
-
-    if (!_canReorderCurrentView || filteredIndices.length < 2) {
-      return GestureDetector(onTap: handleTap, child: content);
-    }
-
-    Offset? pointerDownPos;
-    Duration? pointerDownTime;
-    return DragTarget<int>(
-      onWillAcceptWithDetails: (details) => details.data != listIndex,
-      onAcceptWithDetails: (details) => _reorderSite(details.data, newListIndex: listIndex),
-      builder: (context, candidateData, rejectedData) {
-        final isHovered = candidateData.isNotEmpty;
-        return LongPressDraggable<int>(
-          data: listIndex,
-          feedback: Material(
-            color: Colors.transparent,
-            child: Opacity(opacity: 0.85, child: content),
-          ),
-          childWhenDragging: Opacity(opacity: 0.3, child: content),
-          child: Container(
-            decoration: isHovered
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: theme.colorScheme.primary, width: 2),
-                  )
-                : null,
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (event) {
-                pointerDownPos = event.position;
-                pointerDownTime = event.timeStamp;
-              },
-              onPointerUp: (event) {
-                if (pointerDownPos != null) {
-                  final distance = (event.position - pointerDownPos!).distance;
-                  final duration = event.timeStamp - pointerDownTime!;
-                  if (distance < 20 &&
-                      duration < const Duration(milliseconds: 300)) {
-                    handleTap();
-                  }
-                }
-                pointerDownPos = null;
-                pointerDownTime = null;
-              },
-              onPointerCancel: (_) {
-                pointerDownPos = null;
-                pointerDownTime = null;
-              },
-              child: content,
-            ),
-          ),
-        );
       },
-    );
-  }
-
-  Widget _buildTabStripItemContent(
-    WebViewModel siteModel, {
-    required bool isActive,
-    required ThemeData theme,
-    required bool isDark,
-  }) {
-    return Container(
-      constraints: BoxConstraints(maxWidth: AppPref.tabMaxWidth.value.toDouble()),
-      margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
-      padding: EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        color: isActive
-            ? theme.colorScheme.primaryContainer
-            : (isDark ? Color(0xFF2A2A2A) : Colors.white),
-        borderRadius: BorderRadius.circular(8),
-        border: isActive
-            ? Border.all(color: theme.colorScheme.primary, width: 1.5)
-            : Border.all(
-                color: isDark ? Color(0xFF3E3E3E) : Color(0xFFE0E0E0),
-                width: 0.5,
-              ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          UnifiedFaviconImage(
-            url: siteModel.initUrl,
-            size: 16,
-            proxy: siteModel.outboundProxySettings,
-            customIcon: siteModel.customIconPng,
-            persist: !siteModel.isArchiveTier,
-          ),
-          SizedBox(width: 6),
-          Flexible(
-            child: Text(
-              siteModel.getDisplayName(),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-                color: isActive
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurface.withOpacity(0.8),
-              ),
-            ),
-          ),
-          // Tab count, only once there is more than one: a site with a single
-          // tab looks exactly as it did before tabs existed (TAB-008).
-          if (_tabs.enabledFor(siteModel) && siteModel.tabs.length > 1)
-            TabCountPill(count: siteModel.tabs.length, active: isActive),
-        ],
-      ),
+      onShowTabs: () => unawaited(_showTabsSheet()),
+      onReorder: _canReorderCurrentView
+          ? (from, {required to}) => _reorderSite(from, newListIndex: to)
+          : null,
+      showsTabCount: _tabs.enabledFor,
+      menu: _siteMenu(SiteMenuPlacement.bottomBar),
     );
   }
 

@@ -227,10 +227,12 @@ void guarded(String src,
   }
 }
 
-      guarded(source,
+      guarded(File('lib/widgets/site_tab_strip.dart').readAsStringSync(),
           count: 1,
-          guard: RegExp(r'^if \(_tabs\.enabledFor\(siteModel\) && '),
+          guard: RegExp(r'^if \(showsTabCount\(site\) && '),
           reason: 'the strip chip');
+      expect(source, contains('showsTabCount: _tabs.enabledFor,'),
+          reason: 'the strip chip counts tabs only where the site has them');
       expect(source,
           contains('showTabCount: _tabs.enabledAt(index) &&'),
           reason: 'the drawer tile');

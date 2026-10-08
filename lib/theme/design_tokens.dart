@@ -42,7 +42,11 @@ abstract final class Chrome {
   static const Color hairlineDark = Color(0xFF3E3E3E);
   static const double hairlineWidth = 0.5;
 
+  /// A chip that is not selected, on the dark bar; white on the light one.
+  static const Color chipDark = Color(0xFF2A2A2A);
+
   static Color bar({required bool isDark}) => isDark ? barDark : barLight;
+  static Color chip({required bool isDark}) => isDark ? chipDark : Colors.white;
   static Color hairline({required bool isDark}) =>
       isDark ? hairlineDark : hairlineLight;
 }
