@@ -1,5 +1,6 @@
 package org.codeberg.theoden8.webspace
 
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -386,6 +387,31 @@ class MainActivity: FlutterActivity() {
         } else {
             Regex("""https?://\S+""").find(text)?.value
         }
+    }
+
+    /**
+     * DEVTOOLS-011: the system asking for memory, or saying it may reclaim
+     * the process. Flutter forwards every level from RUNNING_LOW up as memory
+     * pressure, UI_HIDDEN included, which arrives on every exit from the
+     * screen and is not pressure at all (PAUSE-034), so that one is left out.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) return
+        BackgroundLogFile.record(this, "system trim memory: ${trimLevelName(level)}", "warning")
+    }
+
+    // Since API 34 apps are sent only UI_HIDDEN and BACKGROUND; the other
+    // levels are deprecated there and still arrive on older releases.
+    @Suppress("DEPRECATION")
+    private fun trimLevelName(level: Int): String = when (level) {
+        ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> "running moderate"
+        ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> "running low"
+        ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> "running critical"
+        ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> "background"
+        ComponentCallbacks2.TRIM_MEMORY_MODERATE -> "moderate"
+        ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> "complete"
+        else -> "level $level"
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {

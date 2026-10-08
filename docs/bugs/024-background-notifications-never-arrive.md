@@ -107,7 +107,11 @@ what it finds.**
    inject lifecycle through `handleAppLifecycleStateChanged`, which never
    reaches the engine's enter-background hook, and Scenario P, the one that
    pressed Home for real, did so once per process, which only clears a
-   cache. Scenario P now leaves the screen twice. *Why partial*: a real OS
+   cache. Scenario P now leaves the screen twice. The background log now
+   also records what told these cases apart only by inference: real OS
+   memory warnings (iOS) and trim levels (Android), Low Power Mode changes,
+   `willTerminate`, and a process that ended inside its grace period, of
+   which that log had four. *Why partial*: a real OS
    memory warning that lands while the app is in the background is dropped
    with the exit signal, since nothing in Dart tells them apart; and the
    same log shows Low Power Mode on and no refresh task at all since attempt

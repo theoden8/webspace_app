@@ -55,6 +55,51 @@ final class BackgroundLogFile {
     }
   }
 
+  /// The launch line, after a note when the previous process ended inside its
+  /// grace period: the log's last word on that window is its start, with no
+  /// expiry, resume or termination after it. Nothing else records such an
+  /// ending, so without the note it reads as a gap.
+  func recordLaunch(_ message: String) {
+    let t = Int64(Date().timeIntervalSince1970 * 1000)
+    queue.async {
+      guard let url = self.url, FileManager.default.fileExists(atPath: url.path) else { return }
+      do {
+        let text = try String(contentsOf: url, encoding: .utf8)
+        if BackgroundLogFile.endedInGrace(text) {
+          self.append(
+            t: t, level: "warning", tag: "iOS",
+            message: "the previous process ended inside its grace period, "
+              + "without an expiry or a termination notice")
+        }
+      } catch {
+        NSLog("BackgroundLogFile: launch read failed: \(error)")
+      }
+      self.append(t: t, level: "info", tag: "iOS", message: message)
+    }
+  }
+
+  private static func endedInGrace(_ text: String) -> Bool {
+    for line in text.split(separator: "\n").reversed() {
+      guard let data = line.data(using: .utf8),
+        let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+        let message = object["m"] as? String
+      else { continue }
+      if message.hasPrefix("grace period started") { return true }
+      if message.hasPrefix("grace period") || message.hasPrefix("process launched")
+        || message.hasPrefix("process terminating") || message.hasPrefix("App resumed")
+      {
+        return false
+      }
+    }
+    return false
+  }
+
+  /// Waits for every append queued so far. For `willTerminate`, after which
+  /// the process may not get to run the queue.
+  func flush() {
+    queue.sync {}
+  }
+
   /// Keeps the newest `maxLines`; the atomic write leaves the old file whole
   /// if the process dies mid-write.
   private static func compact(_ url: URL) throws {
@@ -148,6 +193,8 @@ class BackgroundTaskPlugin: NSObject {
   /// `setTaskCompleted(success:)` per task.
   private var pendingRefreshTask: BGAppRefreshTask?
 
+  private var observers: [NSObjectProtocol] = []
+
   init(messenger: FlutterBinaryMessenger) {
     self.channel = FlutterMethodChannel(
       name: "org.codeberg.theoden8.webspace/background_task",
@@ -156,6 +203,54 @@ class BackgroundTaskPlugin: NSObject {
     super.init()
     self.channel.setMethodCallHandler { [weak self] call, result in
       self?.handle(call: call, result: result)
+    }
+    observeSystemEvents()
+  }
+
+  /// DEVTOOLS-011: what decides whether a page or a refresh task gets to run
+  /// and that no lifecycle line shows. Flutter reports leaving the screen as
+  /// memory pressure too (PAUSE-034), so a real warning is told apart here.
+  private func observeSystemEvents() {
+    let center = NotificationCenter.default
+    observers = [
+      center.addObserver(
+        forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main
+      ) { _ in
+        BackgroundLogFile.shared.record(
+          "iOS memory warning (applicationState: "
+            + "\(BackgroundTaskPlugin.describe(UIApplication.shared.applicationState)))",
+          level: "warning")
+      },
+      center.addObserver(
+        forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+      ) { _ in
+        BackgroundTaskPlugin.recordLowPowerMode(changed: true)
+      },
+      center.addObserver(
+        forName: UIApplication.willTerminateNotification, object: nil, queue: .main
+      ) { _ in
+        BackgroundLogFile.shared.record("process terminating (willTerminate)")
+        BackgroundLogFile.shared.flush()
+      },
+    ]
+  }
+
+  static func recordLowPowerMode(changed: Bool) {
+    if ProcessInfo.processInfo.isLowPowerModeEnabled {
+      BackgroundLogFile.shared.record(
+        "Low Power Mode on: iOS turns off Background App Refresh while it lasts",
+        level: "warning")
+    } else if changed {
+      BackgroundLogFile.shared.record("Low Power Mode off")
+    }
+  }
+
+  static func describe(_ state: UIApplication.State) -> String {
+    switch state {
+    case .active: return "active"
+    case .inactive: return "inactive"
+    case .background: return "background"
+    @unknown default: return "unknown"
     }
   }
 

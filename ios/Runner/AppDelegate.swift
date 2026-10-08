@@ -18,14 +18,10 @@ import UserNotifications
   ) -> Bool {
     // A launch iOS makes for a refresh task arrives in the background state;
     // the background log needs that to tell it from one the user made.
-    let launchState: String
-    switch application.applicationState {
-    case .active: launchState = "active"
-    case .inactive: launchState = "inactive"
-    case .background: launchState = "background"
-    @unknown default: launchState = "unknown"
-    }
-    BackgroundLogFile.shared.record("process launched (applicationState: \(launchState))")
+    BackgroundLogFile.shared.recordLaunch(
+      "process launched (applicationState: "
+        + "\(BackgroundTaskPlugin.describe(application.applicationState)))")
+    BackgroundTaskPlugin.recordLowPowerMode(changed: false)
     // BGTaskScheduler.register MUST run before the app finishes launching,
     // otherwise iOS throws an exception when a scheduled task fires. We
     // register the launch handler here and forward to the plugin instance

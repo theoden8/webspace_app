@@ -235,7 +235,7 @@ Flutter delivers two different things through `didHaveMemoryPressure`: an OS mem
 
 Trimming on the exit signal cleared one offscreen site's cache on one trip to the home screen and disposed it on the next, so within four trips every site but the one on screen was gone. Notification sites lost the live connection NOTIF-011 keeps them running for, and every other site lost its JS state and scroll (BUG-024 attempt 9).
 
-A real OS warning that lands while the app is in the background is dropped with the exit signal: the two arrive on the same callback and nothing in Dart tells them apart.
+A real OS warning that lands while the app is in the background is dropped with the exit signal: the two arrive on the same callback and nothing in Dart tells them apart. Since API 34 Android sends apps only `TRIM_MEMORY_UI_HIDDEN` and `TRIM_MEMORY_BACKGROUND`, both while the app is off screen, so on Android 14 and later the cascade does not run at all; there the loaded-site cap (`kMaxLoadedSites`) and the proactive cache clear (`kMaxResidentSites`, PAUSE-012) bound the working set, and a renderer the OS kills is rebuilt by PAUSE-013 and PAUSE-014. Before this the cascade ran on those releases only when the user left the screen. The background log records the signals that are real pressure (DEVTOOLS-011): an iOS memory warning, and an Android trim level other than `UI_HIDDEN`.
 
 #### Scenario: Two trips to the home screen leave every loaded site loaded
 
