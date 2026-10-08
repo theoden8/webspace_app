@@ -1081,11 +1081,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 (
                   siteId: m.siteId,
                   name: m.getDisplayName(),
-                  containerColor: _sites.useContainers
-                      ? m.containerColor ??
-                          ContainerColorEngine.fallback(
-                              m.siteId, paletteSize: kContainerPaletteSize)
-                      : null,
+                  containerColor: _sites.useContainers ? m.drawnContainerColor : null,
                 ),
           ],
           globalUserScripts: _shell.globalUserScripts,
@@ -1310,11 +1306,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                     incognito: id.effectiveIncognito,
                   ),
                   incognito: id.effectiveIncognito,
-                  containerColor: _sites.useContainers
-                      ? id.containerColor ??
-                          ContainerColorEngine.fallback(
-                              id.siteId, paletteSize: kContainerPaletteSize)
-                      : null,
+                  containerColor: _sites.useContainers ? id.drawnContainerColor : null,
                 ),
               );
             },

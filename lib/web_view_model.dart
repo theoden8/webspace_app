@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show CookieManager, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -182,6 +183,12 @@ class WebViewModel implements MediaGrantRecord {
   /// container palette (TAB-018). Given once, when the site first needs one,
   /// and kept; null until then.
   int? containerColor;
+
+  /// The palette index the container is drawn in: [containerColor], or the
+  /// one derived from the siteId until it is given.
+  int get drawnContainerColor =>
+      containerColor ??
+      ContainerColorEngine.fallback(siteId, paletteSize: kContainerPaletteSize);
 
   /// Put a site that has no webview yet on a tab at its home page, as Always
   /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on

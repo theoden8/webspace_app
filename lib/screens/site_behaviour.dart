@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
-import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/site_overrides.dart';
@@ -268,11 +267,8 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
       ];
 
   /// [site]'s container colour, none on the legacy engine (TAB-018).
-  int? _colorIndexOf(WebViewModel site) => widget.containersActive
-      ? site.containerColor ??
-          ContainerColorEngine.fallback(site.siteId,
-              paletteSize: kContainerPaletteSize)
-      : null;
+  int? _colorIndexOf(WebViewModel site) =>
+      widget.containersActive ? site.drawnContainerColor : null;
 
   /// Two search sites can share a name, never an id (LIR-029).
   Widget _idLine(WebViewModel site) =>
