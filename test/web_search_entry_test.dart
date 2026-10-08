@@ -247,8 +247,14 @@ void main() {
           contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
-      expect(count(main, needle: '_tabs.bindOwnerRunTab('),
-          greaterThanOrEqualTo(2));
+      expect(count(main, needle: '_tabs.bindOwnerRunTab('), 1,
+          reason: 'the page host answers bindOwnerRunTab');
+      expect(
+          count(File('lib/controllers/site_reset_controller.dart')
+                  .readAsStringSync(),
+              needle: '_tabs.bindOwnerRunTab('),
+          1,
+          reason: 'an always-home site a shortcut resets lands at home');
       expect(count(shortcuts, needle: '_host.bindOwnerRunTab('), 2,
           reason: 'a cold launch and a confirmed reroute land at home');
     });

@@ -11,7 +11,7 @@ import 'helpers/fake_path_provider.dart';
 
 /// Tests for the eviction race-condition fix.
 ///
-/// The race: `_goHome` (and similar) used to schedule a fire-and-forget
+/// The race: `goHome` (and similar) used to schedule a fire-and-forget
 /// `deleteCache` after a connectivity probe. By the time the probe
 /// resolved, the rebuilt webview had often already saved a fresh
 /// snapshot — and the deletion wiped that fresh entry. Closer races
@@ -63,7 +63,7 @@ void main() {
 
       svc.evictInMemory('site-1');
 
-      // No await between evict and read - this is the contract `_goHome`
+      // No await between evict and read - this is the contract `goHome`
       // depends on. A rebuilt webview's `getHtmlSync` runs in the same
       // event-loop turn; it must see the eviction.
       expect(svc.getHtmlSync('site-1'), isNull);
@@ -107,7 +107,7 @@ void main() {
       expect(svc.getHtmlSync('site-1'), '<p>baseline</p>');
 
       // Race: schedule a save. Synchronously evict before the save's
-      // first await resumes - simulating `_goHome` running between when
+      // first await resumes - simulating `goHome` running between when
       // the disposed webview's onLoadStop fired its `getHtml()` IPC and
       // when saveHtml lands.
       final saving = svc.saveHtml(

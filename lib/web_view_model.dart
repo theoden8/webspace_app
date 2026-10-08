@@ -783,7 +783,7 @@ class WebViewModel implements MediaGrantRecord {
   String? defaultUserAgent;
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
-  /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
+  /// this model (cold start, `goHome` recreate, renderer-gone recovery,
   /// savedForRestore re-creation). The host uses it to recomposite the
   /// Android hybrid-composition surface, which can re-attach blank-white
   /// when a new platform view mounts. Re-activation of an already-loaded
@@ -1537,7 +1537,7 @@ bool dispatch(NavigationDecision decision,
           // A brand-new platform-view surface just attached; let the host
           // recomposite it if this is the visible site (Android blank-white
           // surface recovery). Fires for every fresh controller, so it
-          // covers _goHome, renderer-gone rebuild, and savedForRestore
+          // covers goHome, renderer-gone rebuild, and savedForRestore
           // re-creation in one place — paths setCurrentIndex's own nudge
           // does not reach because they don't go through it.
           onControllerReady?.call();

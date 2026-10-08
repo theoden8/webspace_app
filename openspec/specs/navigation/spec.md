@@ -474,11 +474,11 @@ Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/s
 
 **Solution:** Version counter `SiteRuntime.activationVersion` is checked after each `await` gap. If the version changed (another `setCurrentIndex` call started), the stale call returns early.
 
-### Guard: RACE-004 - _goHome() Synchronous Execution
+### Guard: RACE-004 - goHome() Synchronous Execution
 
-**Problem:** If `_goHome()` were async, rapid taps could interleave with webview recreation.
+**Problem:** If `goHome()` were async, rapid taps could interleave with webview recreation.
 
-**Solution:** `_goHome()` is fully synchronous. It completes in a single microtask:
+**Solution:** `goHome()` is fully synchronous. It completes in a single microtask:
 1. Drops the site's cached HTML via `_deleteCacheIfOnline(siteId)` so the next load starts from the live page instead of a stale snapshot (the cached frame could otherwise flash with pre-edit content or mismatched theme before user scripts re-run). The helper is fire-and-forget and skips deletion when the device is offline, so offline users keep a renderable snapshot.
 2. Resets `currentUrl` to `initUrl`
 3. Disposes webview (`webview = null`, `controller = null`)
@@ -541,7 +541,7 @@ Home button pressed
   │
   ├─ Close menu (Navigator.pop)
   │
-  └─ _goHome():
+  └─ goHome():
       ├─ model.currentUrl = model.initUrl
       ├─ model.disposeWebView()    ← webview=null, controller=null
       ├─ setState(() {})           ← trigger rebuild
@@ -570,7 +570,7 @@ Home button pressed
 - `_openDrawerFromBackGesture()` — the one place that opens the drawer for NAV-009
 
 #### `lib/screens/webspace_page.dart`
-- `_goHome()` — synchronous: dispose webview, reset URL, trigger rebuild
+- `goHome()` — synchronous: dispose webview, reset URL, trigger rebuild
 - `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (so back never exits the app), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison, navigating webview history only
 - `drawerEdgeDragWidth` — `0` whenever a webview is visible (drawer edge swipe disabled on all platforms); `null` otherwise
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)

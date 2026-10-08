@@ -251,14 +251,12 @@ void guarded(String src,
   });
 
   group('TAB-014: shortcut and reopen land a site with tabs', () {
-    String body(String signature) {
-      final start = source.indexOf(signature);
-      expect(start, isNot(-1), reason: '$signature not found');
-      return source.substring(start, source.indexOf('\n  }\n', start));
-    }
-
     test('an always-home site with tabs lands on a home tab, not in place', () {
-      final reset = body('Future<void> _resetAlwaysOpenHomeOnShortcut(');
+      final resets = File('lib/controllers/site_reset_controller.dart')
+          .readAsStringSync();
+      final at = resets.indexOf('Future<void> resetHomeOnLaunch(');
+      expect(at, isNot(-1));
+      final reset = resets.substring(at, resets.indexOf('\n  }\n', at));
       expect(reset, contains('if (_tabs.enabledAt(i)) _sites.models[i]'));
       expect(reset, contains('await _tabs.landOnHomeTab(m);'));
       final land = tabs.substring(tabs.indexOf('Future<void> landOnHomeTab('));

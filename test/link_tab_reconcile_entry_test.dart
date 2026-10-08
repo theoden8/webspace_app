@@ -207,7 +207,9 @@ void main() {
     });
 
     test('Home and a tapped link use the tab\'s own anchor', () {
-      expect(main, contains('model.currentUrl = model.navigationHomeUrl;'));
+      expect(
+          File('lib/controllers/site_reset_controller.dart').readAsStringSync(),
+          contains('model.currentUrl = model.navigationHomeUrl;'));
       final open = linksBody('Future<void> openLinkAsTapped(');
       expect(open, contains('homeUrl: model.navigationHomeUrl'));
       expect(open, contains('matchesClaim: model.navigationMatchesClaim'));
