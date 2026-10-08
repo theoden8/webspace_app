@@ -1087,17 +1087,8 @@ class WebViewModel implements MediaGrantRecord {
   List<UserScriptConfig> combineUserScripts(
       List<UserScriptConfig> globalUserScripts) {
     return [
-      ...globalUserScripts
-          .where((g) => enabledGlobalScriptIds.contains(g.id))
-          .map((g) => UserScriptConfig(
-                id: g.id,
-                name: g.name,
-                source: g.source,
-                url: g.url,
-                urlSource: g.urlSource,
-                injectionTime: g.injectionTime,
-                enabled: true,
-              )),
+      for (final g in globalUserScripts)
+        if (enabledGlobalScriptIds.contains(g.id)) g.asEnabled(),
       ...userScripts,
     ];
   }

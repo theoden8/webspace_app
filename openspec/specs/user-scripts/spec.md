@@ -417,6 +417,14 @@ the whole page, not to the one script.
 **When** the webview is built
 **Then** the bridge is not installed
 
+#### Scenario: A global script keeps the flag on the sites that opt in
+
+**Given** a global script that sets `bypassSitePolicy`
+**And** a site that opts into it
+**When** the site's scripts are combined for the webview
+**Then** the combined copy still sets `bypassSitePolicy`, and differs from the
+global only in `enabled`, which is forced on
+
 ---
 
 ### Requirement: US-DR-006 - `window.fetch` is left alone

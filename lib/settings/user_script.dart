@@ -102,6 +102,11 @@ class UserScriptConfig {
     return source;
   }
 
+  /// This script with [enabled] forced on, every other field kept. Copied
+  /// through [toJson] so a field added there cannot be dropped here.
+  UserScriptConfig asEnabled() =>
+      UserScriptConfig.fromJson({...toJson(), 'enabled': true});
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'name': name,
