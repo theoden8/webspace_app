@@ -111,7 +111,10 @@ what it finds.**
    also records what told these cases apart only by inference: real OS
    memory warnings (iOS) and trim levels (Android), Low Power Mode changes,
    `willTerminate`, and a process that ended inside its grace period, of
-   which that log had four. *Why partial*: a real OS
+   which that log had four. The refresh request is no longer resubmitted on
+   every site switch and resume, each of which moved its earliest start, and
+   the state row reads the OS notification permission instead of what this
+   process last asked. *Why partial*: a real OS
    memory warning that lands while the app is in the background is dropped
    with the exit signal, since nothing in Dart tells them apart; and the
    same log shows Low Power Mode on and no refresh task at all since attempt

@@ -54,7 +54,7 @@ void main() {
     DeveloperModeService.instance.debugSet(on: true);
     await BackgroundLog.instance.setRecording(on: true);
     BackgroundLog.instance.appState =
-        () => const [MapEntry('app.notificationSitesLoaded', '0')];
+        () async => const [MapEntry('app.notificationSitesLoaded', '0')];
     BackgroundLog.instance.record(LogTag.backgroundTask,
         message: 'cancel refresh — notif sites: 1 enabled, 0 loaded',
         sensitive: 'unloaded notification site "Mail"');
@@ -74,7 +74,7 @@ void main() {
     DeveloperModeService.instance.debugSet(on: true);
     await BackgroundLog.instance.setRecording(on: true);
     BackgroundLog.instance.appState =
-        () => const [MapEntry('app.notificationSitesEnabled', '1')];
+        () async => const [MapEntry('app.notificationSitesEnabled', '1')];
     BackgroundLog.instance.record(LogTag.backgroundTask,
         message: 'wake site 1/1: loaded', sensitive: 'wake site 1/1 is "Mail"');
     await pump(tester, startOnBackground: true);
@@ -115,7 +115,7 @@ void main() {
     addTearDown(tester.view.reset);
     DeveloperModeService.instance.debugSet(on: true);
     await BackgroundLog.instance.setRecording(on: true);
-    BackgroundLog.instance.appState = () => [
+    BackgroundLog.instance.appState = () async => [
           for (var i = 0; i < 20; i++) MapEntry('app.row$i', 'value'),
         ];
     BackgroundLog.instance

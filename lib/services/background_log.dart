@@ -150,7 +150,7 @@ class BackgroundLog extends ChangeNotifier {
 
   /// App-side rows for [systemState] that only the page state knows (how
   /// many notification sites are loaded). Set by the home page.
-  List<MapEntry<String, String>> Function()? appState;
+  Future<List<MapEntry<String, String>>> Function()? appState;
 
   /// Called on every startup and on every developer-mode flip, so the native
   /// switch always matches the pref, including after a settings import.
@@ -217,7 +217,7 @@ class BackgroundLog extends ChangeNotifier {
   }
 
   Future<List<MapEntry<String, String>>> systemState() async => [
-        ...?appState?.call(),
+        ...?await appState?.call(),
         if (_native.available) ...await _native.systemState(),
       ];
 

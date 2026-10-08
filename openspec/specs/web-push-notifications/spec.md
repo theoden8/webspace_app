@@ -136,6 +136,8 @@ close in the system shade
 
 The system SHALL provide a per-site toggle that opts the site into background polling. Only visible when container mode is active. In container mode, there are no domain conflicts, so all background-poll sites stay loaded concurrently with their own isolated profiles. Background behavior is platform-dependent — see NOTIF-005-I (iOS) and NOTIF-005-A (Android).
 
+One refresh request (iOS `BGAppRefreshTaskRequest`, Android unique periodic work) SHALL be in place while any site has notifications on, loaded or not. It SHALL be submitted or cancelled when that answer changes, and submitted again as the app leaves the screen, so the iOS request's earliest start counts from then rather than landing a wake on pages the user has just seen. A site switch, an unload or a resume SHALL NOT touch it: a device log showed a submission on each, every one pushing the earliest start out again. The decision is `RefreshScheduleEngine.next` (`test/refresh_schedule_engine_test.dart`).
+
 #### Scenario: App enters background without background-poll sites
 
 **Given** no sites have `backgroundPoll` set to `true`
