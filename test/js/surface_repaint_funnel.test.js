@@ -20,6 +20,8 @@ const { read, methodBody } = require('./helpers/source');
 
 // Files that host an Android webview back path and so must have the funnel.
 const GUARDED = ['lib/screens/webspace_page.dart', 'lib/screens/inappbrowser.dart'];
+// Where a screen's overflow menu is built, when not in the screen itself.
+const MENU_OF = { 'lib/screens/webspace_page.dart': 'lib/widgets/site_menu.dart' };
 const CONTROLLER = 'lib/controllers/surface_repaint_controller.dart';
 const controllerMethod = (name) => methodBody(name, { file: CONTROLLER });
 
@@ -370,16 +372,17 @@ for (const rel of GUARDED) {
 
     test(`${rel}: the menu offers a manual repaint (PAUSE-028)`, () => {
       // Both menus are typed: each decides an action's entry in one switch
-      // arm (`SiteMenuAction` on the main page, `_NestedMenuAction` here).
+      // arm (`SiteMenuAction` in its widget, `_NestedMenuAction` here).
+      const menu = MENU_OF[rel] ? read(MENU_OF[rel]) : src;
       const entry = /\w+MenuAction\.repaint\s*=>/g;
-      assert.match(src, entry, 'the overflow menu must carry a repaint entry');
+      assert.match(menu, entry, 'the overflow menu must carry a repaint entry');
       // The entry is a diagnostic, not a feature: EVERY occurrence must sit
       // behind the developer-mode gate as well as the Android one, or a user
       // meets a button whose effect they cannot interpret. Counted, not
       // matched: a file with two menus must not pass on one gated entry.
-      const entries = (src.match(entry) || []).length;
+      const entries = (menu.match(entry) || []).length;
       const gated = (
-        src.match(
+        menu.match(
           /\w+MenuAction\.repaint\s*=>\s*hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\s*\?/g,
         ) || []
       ).length;

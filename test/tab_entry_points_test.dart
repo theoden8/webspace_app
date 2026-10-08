@@ -10,11 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// test; the tab flows themselves are `TabsController`'s.
 void main() {
   late String source;
+  late String menu;
   late String tabs;
   late String links;
 
   setUpAll(() {
     source = File('lib/screens/webspace_page.dart').readAsStringSync();
+    menu = File('lib/widgets/site_menu.dart').readAsStringSync();
     tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
@@ -24,24 +26,24 @@ void main() {
 
   test('both overflow menus offer New tab and neither offers Duplicate tab',
       () {
-    expect(
-        count('_siteMenuItems(context, placement: _SiteMenuPlacement.appBar)'),
-        1);
-    expect(
-        count(
-            '_siteMenuItems(context, placement: _SiteMenuPlacement.bottomBar)'),
-        1);
-    expect(count('SiteMenuAction.newTab =>'), 1);
-    expect(count('SiteMenuAction.duplicateTab'), 0);
+    expect(count('_siteMenu(SiteMenuPlacement.appBar)'), 1);
+    expect(count('_siteMenu(SiteMenuPlacement.bottomBar)'), 1);
+    expect('SiteMenuAction.newTab =>'.allMatches(menu), hasLength(1));
+    expect(menu, isNot(contains('SiteMenuAction.duplicateTab')));
+    expect(source, isNot(contains('SiteMenuAction.duplicateTab')));
   });
 
   test('a long press on the menus\' refresh button duplicates the tab', () {
     final refresh = RegExp(
       r'tooltip: loading \? loc\.homeStopTooltip : loc\.homeRefreshTooltip,\s*'
-      r'onLongPress: _tabs\.enabledAt\(_sites\.current\)\s*\?\s*\(\) \{[^}]*'
+      r'onLongPress:\s*duplicateTab == null \? null : \(\) => close\(duplicateTab\),',
+    );
+    expect(refresh.allMatches(menu).length, 1);
+    final duplicate = RegExp(
+      r'duplicateTab: _tabs\.enabledAt\(_sites\.current\)\s*\?\s*\(\) \{[^}]*'
       r'_tabs\.duplicateTab\(',
     );
-    expect(refresh.allMatches(source).length, 1);
+    expect(duplicate.allMatches(source).length, 1);
   });
 
   test('a duplicate opens parked: it never re-binds the webview', () {
@@ -208,11 +210,13 @@ void main() {
         reason: 'the tab count in the app bar',
       );
       expect(
-        source,
+        menu,
         contains('SiteMenuAction.newTab =>\n'
-            '          _tabs.enabledAt(_sites.current) ? (Icons.add, loc.tabsNewTab) : null,'),
+            '          state.tabsOn ? (Icons.add, loc.tabsNewTab) : null,'),
         reason: 'New tab, in the overflow menus',
       );
+      expect(source, contains('tabsOn: _tabs.enabledAt(_sites.current),'),
+          reason: 'the menus read tabs as the site on screen has them');
 void guarded(String src,
     {required int count, required RegExp guard, required String reason}) {
   final pills = 'TabCountPill('.allMatches(src).toList();

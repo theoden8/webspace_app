@@ -38,6 +38,7 @@ import 'package:webspace/widgets/find_toolbar.dart';
 import 'package:webspace/widgets/tabs_sheet.dart';
 import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/image_cache_service.dart';
@@ -2430,11 +2431,7 @@ class _WebSpacePageState extends State<WebSpacePage>
             onPressed: _openAppSettings,
           ),
         if (_sites.current != null && _sites.current! < _sites.models.length && !AppPref.showTabStrip.value)
-          PopupMenuButton<SiteMenuAction>(
-            itemBuilder: (context) =>
-                _siteMenuItems(context, placement: _SiteMenuPlacement.appBar),
-            onSelected: _onSiteMenuAction,
-          ),
+          _siteMenu(SiteMenuPlacement.appBar),
       ],
     );
   }
@@ -2533,7 +2530,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                 },
               ),
             ),
-            _buildBottomPopupMenu(),
+            _siteMenu(SiteMenuPlacement.bottomBar),
           ],
         ),
       ),
@@ -2758,156 +2755,43 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  /// Popup menu button for use in the bottom bar when tab strip is enabled.
-  Widget _buildBottomPopupMenu() {
-    return PopupMenuButton<SiteMenuAction>(
-      icon: Icon(Icons.more_vert, size: 20),
-      padding: EdgeInsets.zero,
-      tooltip: AppLocalizations.of(context).homeMenuTooltip,
-      itemBuilder: (context) =>
-          _siteMenuItems(context, placement: _SiteMenuPlacement.bottomBar),
-      onSelected: _onSiteMenuAction,
-    );
-  }
-
-  List<PopupMenuEntry<SiteMenuAction>> _siteMenuItems(
-    BuildContext menuContext, {
-    required _SiteMenuPlacement placement,
-  }) {
-    final loc = AppLocalizations.of(menuContext);
-    return [
-      _siteMenuNavRow(menuContext, loc: loc),
-      PopupMenuDivider(),
-      for (final action in SiteMenuAction.values)
-        if (_siteMenuEntry(action, placement: placement, loc: loc)
-            case (final icon, final label))
-          PopupMenuItem(
-            value: action,
-            child: Row(
-              children: [
-                Icon(icon),
-                SizedBox(width: 8),
-                Flexible(child: Text(label)),
-              ],
-            ),
-          ),
-    ];
-  }
-
-  /// Icon and label of [action] in the menu at [placement], or null where
-  /// that menu does not offer it.
-  (IconData, String)? _siteMenuEntry(
-    SiteMenuAction action, {
-    required _SiteMenuPlacement placement,
-    required AppLocalizations loc,
-  }) =>
-      switch (action) {
-        SiteMenuAction.newTab =>
-          _tabs.enabledAt(_sites.current) ? (Icons.add, loc.tabsNewTab) : null,
-        SiteMenuAction.backToWebspaces =>
-          placement == _SiteMenuPlacement.bottomBar
-              ? (Icons.arrow_back, loc.homeBackToWebspaces)
-              : null,
-        SiteMenuAction.search => (Icons.search, loc.homeFindMenu),
-        // Where the site has tabs, web search lives in the Tabs sheet.
-        SiteMenuAction.webSearch =>
-          _tabs.featureEnabled && !_tabs.enabledAt(_sites.current)
-              ? (Icons.travel_explore, loc.webSearchMenu)
-              : null,
-        SiteMenuAction.toggleUrlBar => AppPref.showUrlBar.value
-            ? (Icons.visibility_off, loc.homeHideUrlBarMenu)
-            : (Icons.visibility, loc.homeShowUrlBarMenu),
-        SiteMenuAction.fullscreen => _fullscreen.active
-            ? (Icons.fullscreen_exit, loc.homeExitFullScreenMenu)
-            : (Icons.fullscreen, loc.homeFullScreenMenu),
-        // Manual escape hatch for the recurring Android blank surface
-        // (BUG-001 / PAUSE-028): every automatic trigger is an enumerated
-        // code path, and the user is the only one who can see a path nobody
-        // enumerated. Android-only, where the nudge is not a no-op, and
-        // behind developer mode: it is a diagnostic, not something to meet
-        // by accident.
-        SiteMenuAction.repaint =>
-          hostIsAndroid && DeveloperModeService.instance.enabled
-              ? (Icons.format_paint, loc.commonRepaintScreen)
-              : null,
-        SiteMenuAction.settings => (Icons.settings, loc.homeSettingsMenu),
-        SiteMenuAction.devTools => (Icons.code, loc.homeDeveloperToolsMenu),
-        SiteMenuAction.addToHome => switch (_sites.shown) {
-            final shown? when _shortcuts.offersShortcutFor(shown) =>
-              (Icons.add_to_home_screen, loc.homeHomeShortcutMenu),
-            _ => null,
+  SiteMenuButton _siteMenu(SiteMenuPlacement placement) => SiteMenuButton(
+        placement: placement,
+        state: () => (
+          loading: _sites.shown?.isLoading ?? false,
+          tabsOn: _tabs.enabledAt(_sites.current),
+          tabsFeature: _tabs.featureEnabled,
+          fullscreen: _fullscreen.active,
+          offersShortcut: switch (_sites.shown) {
+            final shown? => _shortcuts.offersShortcutFor(shown),
+            null => false,
           },
-      };
-
-  PopupMenuItem<SiteMenuAction> _siteMenuNavRow(
-    BuildContext menuContext, {
-    required AppLocalizations loc,
-  }) {
-    final model = _sites.current != null ? _sites.models[_sites.current!] : null;
-    final loading = model?.isLoading ?? false;
-    return PopupMenuItem(
-      padding: EdgeInsets.zero,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          IconButton(
-            icon: Icon(Icons.arrow_back),
-            tooltip: loc.homeGoBackTooltip,
-            onPressed: () {
-              Navigator.pop(menuContext);
-              () async {
-                final controller = getController();
-                if (controller != null) {
-                  final canGoBack = await controller.canGoBack();
-                  if (canGoBack) {
-                    await _goBackAndRepaint(controller);
-                  }
+        ),
+        nav: (
+          back: () => unawaited(_goBackIfPossible()),
+          home: _goHome,
+          share: () {
+            if (_sites.shown case final model?) {
+              SharePlus.instance
+                  .share(ShareParams(uri: Uri.parse(model.currentUrl)));
+            }
+          },
+          reload: () => unawaited(_refreshCurrentSite()),
+          stop: () => unawaited(_stopCurrentSiteLoading()),
+          duplicateTab: _tabs.enabledAt(_sites.current)
+              ? () {
+                  final index = _sites.current;
+                  if (index != null) unawaited(_tabs.duplicateTab(index));
                 }
-              }();
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.home),
-            tooltip: loc.homeGoToHomeTooltip,
-            onPressed: () {
-              Navigator.pop(menuContext);
-              _goHome();
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.share),
-            tooltip: loc.commonShare,
-            onPressed: () {
-              Navigator.pop(menuContext);
-              if (_sites.current != null && _sites.current! < _sites.models.length) {
-                final model = _sites.models[_sites.current!];
-                final url = model.currentUrl;
-                SharePlus.instance.share(ShareParams(uri: Uri.parse(url)));
-              }
-            },
-          ),
-          IconButton(
-            icon: Icon(loading ? Icons.close : Icons.refresh),
-            tooltip: loading ? loc.homeStopTooltip : loc.homeRefreshTooltip,
-            onLongPress: _tabs.enabledAt(_sites.current)
-                ? () {
-                    Navigator.pop(menuContext);
-                    final index = _sites.current;
-                    if (index != null) unawaited(_tabs.duplicateTab(index));
-                  }
-                : null,
-            onPressed: () {
-              Navigator.pop(menuContext);
-              if (loading) {
-                _stopCurrentSiteLoading();
-              } else {
-                _refreshCurrentSite();
-              }
-            },
-          ),
-        ],
-      ),
-    );
+              : null,
+        ),
+        onSelected: _onSiteMenuAction,
+      );
+
+  Future<void> _goBackIfPossible() async {
+    final controller = getController();
+    if (controller == null || !await controller.canGoBack()) return;
+    await _goBackAndRepaint(controller);
   }
 
   Future<void> _onSiteMenuAction(SiteMenuAction action) async {
@@ -3764,20 +3648,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 }
 
-/// What a site's overflow menu offers, in menu order.
-enum SiteMenuAction {
-  newTab,
-  backToWebspaces,
-  search,
-  webSearch,
-  toggleUrlBar,
-  fullscreen,
-  repaint,
-  settings,
-  devTools,
-  addToHome,
-}
-
 
 /// What a site's long-press menu in the list offers.
 enum _SiteListAction {
@@ -3789,10 +3659,6 @@ enum _SiteListAction {
   moveOutOfArchive,
   closeArchive,
 }
-
-/// Where a site's overflow menu sits: the app bar, or the bottom bar while
-/// the tab strip is on.
-enum _SiteMenuPlacement { appBar, bottomBar }
 
 /// Binds [NestedOpenEngine] to the page state.
 class _NestedOpenHost implements NestedOpenHost<WebViewModel> {

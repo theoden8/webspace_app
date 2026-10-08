@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/screens/webspace_page.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/web_view_model.dart';
 

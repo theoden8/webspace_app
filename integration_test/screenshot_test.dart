@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
-import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/demo_data.dart';
 
 /// Check if device is iPad based on screen size

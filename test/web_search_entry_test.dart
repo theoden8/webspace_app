@@ -40,10 +40,14 @@ void main() {
       expect(bodyOf(main, signature: 'Future<void> _presentTabsSheet('),
           contains('onWebSearch: () => unawaited(_links.webSearch()),'));
       expect(
-        main,
-        matches(RegExp(r'SiteMenuAction\.webSearch =>\s*'
-            r'_tabs\.featureEnabled && !_tabs\.enabledAt\(_sites\.current\)\s*\?')),
+        File('lib/widgets/site_menu.dart').readAsStringSync(),
+        matches(RegExp(r'SiteMenuAction\.webSearch => state\.tabsFeature && !state\.tabsOn\s*\?')),
         reason: 'the overflow menus offer it only while tabs are off',
+      );
+      expect(
+        main,
+        matches(RegExp(r'tabsOn: _tabs\.enabledAt\(_sites\.current\),\s*'
+            r'tabsFeature: _tabs\.featureEnabled,')),
       );
       expect(main,
           matches(RegExp(r'case SiteMenuAction\.webSearch:\s*await _links\.webSearch\(\);')));
