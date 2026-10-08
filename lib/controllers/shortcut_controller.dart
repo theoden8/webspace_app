@@ -72,7 +72,12 @@ abstract interface class ShortcutHost implements PageHost {
 /// Home shortcuts (HS-*): pinning, launches, and what a tile keeps pointing
 /// at once its site is gone.
 class ShortcutController {
-  ShortcutController(this._sites, this._host, this._prompts);
+  ShortcutController(
+    this._sites, {
+    required ShortcutHost host,
+    required ShortcutPrompts prompts,
+  })  : _host = host,
+        _prompts = prompts;
 
   final SiteRuntime _sites;
   final ShortcutHost _host;
@@ -164,7 +169,7 @@ class ShortcutController {
         iconBytes: iconBytes,
       );
       // HS-011: so a later delete+recreate can route by domain.
-      await _recordLedger(model.siteId, model.initUrl);
+      await _recordLedger(model.siteId, url: model.initUrl);
       switch (pinned) {
         case PinShortcutResult.requested:
           break;
@@ -210,7 +215,8 @@ class ShortcutController {
       await prefs.setString(_kRemapKey, jsonEncode(_remap));
     }
     final tombstonesBefore = _tombstones.length;
-    _tombstones = ShortcutTombstones.pruneLive(_tombstones, liveSiteIds);
+    _tombstones =
+        ShortcutTombstones.pruneLive(_tombstones, liveSiteIds: liveSiteIds);
     if (_tombstones.length != tombstonesBefore) {
       await prefs.setString(_kTombstonesKey, jsonEncode(_tombstones));
     }
@@ -335,7 +341,7 @@ class ShortcutController {
               !_host.mounted) {
             return;
           }
-          await _rememberRemap(shortcutSiteId, model.siteId);
+          await _rememberRemap(shortcutSiteId, resolvedSiteId: model.siteId);
           if (coldLaunch &&
               !_host.tabsEnabledAt(index) &&
               model.currentUrl != model.initUrl) {
@@ -361,7 +367,8 @@ class ShortcutController {
               }
               await _host.registerSite(model);
               if (!_host.mounted) return;
-              await _rememberRemap(shortcutSiteId, model.siteId);
+              await _rememberRemap(shortcutSiteId,
+                  resolvedSiteId: model.siteId);
           }
         case LaunchOfferReroute(:final shortcutSiteId):
           // A handle resolved to a placeholder: site removed, no url known.
@@ -375,7 +382,7 @@ class ShortcutController {
   Future<void> _reroute(String shortcutSiteId) async {
     final targetSiteId = await _pickSite();
     if (targetSiteId == null || !_host.mounted) return;
-    await _rememberRemap(shortcutSiteId, targetSiteId);
+    await _rememberRemap(shortcutSiteId, resolvedSiteId: targetSiteId);
     final i = _sites.models.indexWhere((m) => m.siteId == targetSiteId);
     if (i >= 0) await _openIndex(i);
   }
@@ -411,10 +418,12 @@ class ShortcutController {
   /// to it still routes by domain when tapped (HS-011/HS-014). Apple gives
   /// no way to tell whether a tile exists, so a prompt there would fire on
   /// every delete.
-  Future<void> siteDeleted(WebViewModel deleted, Set<String> tiles) async {
+  Future<void> siteDeleted(WebViewModel deleted,
+      {required Set<String> tiles}) async {
     if (tiles.isNotEmpty && _host.mounted) await _decideTileFate(tiles);
     if ((hostIsIOS || hostIsMacOS) && !deleted.isArchiveTier) {
-      await _recordTombstone(deleted.siteId, deleted.name, deleted.initUrl);
+      await _recordTombstone(deleted.siteId,
+          label: deleted.name, url: deleted.initUrl);
     }
   }
 
@@ -442,7 +451,7 @@ class ShortcutController {
         final targetSiteId = await _pickSite();
         if (targetSiteId == null || !_host.mounted) return;
         for (final tile in tileIds) {
-          await _rememberRemap(tile, targetSiteId);
+          await _rememberRemap(tile, resolvedSiteId: targetSiteId);
         }
     }
   }
@@ -473,16 +482,17 @@ class ShortcutController {
   }
 
   Future<void> _rememberRemap(
-    String shortcutSiteId,
-    String resolvedSiteId,
-  ) async {
+    String shortcutSiteId, {
+    required String resolvedSiteId,
+  }) async {
     if (_remap[shortcutSiteId] == resolvedSiteId) return;
     _remap[shortcutSiteId] = resolvedSiteId;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kRemapKey, jsonEncode(_remap));
   }
 
-  Future<void> _recordTombstone(String siteId, String label, String url) async {
+  Future<void> _recordTombstone(String siteId,
+      {required String label, required String url}) async {
     _tombstones = ShortcutTombstones.add(
       tombstones: _tombstones,
       entry: {'siteId': siteId, 'label': label, 'url': url},
@@ -492,7 +502,7 @@ class ShortcutController {
     syncSites();
   }
 
-  Future<void> _recordLedger(String siteId, String url) async {
+  Future<void> _recordLedger(String siteId, {required String url}) async {
     if (url.isEmpty || _urlLedger[siteId] == url) return;
     _urlLedger[siteId] = url;
     final prefs = await SharedPreferences.getInstance();

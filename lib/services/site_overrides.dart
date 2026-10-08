@@ -31,7 +31,7 @@ enum TrackingProtectionForce {
 
   final bool forcedTo;
 
-  bool resolve(bool stored, {required bool trackingProtection}) =>
+  bool resolve({required bool stored,required bool trackingProtection}) =>
       trackingProtection ? forcedTo : stored;
 }
 
@@ -46,19 +46,19 @@ abstract final class ArchiveFold {
     required bool archived,
   }) => archived ? stored.blocked() : stored;
 
-  static bool notifications(bool stored, {required bool archived}) =>
+  static bool notifications({required bool stored,required bool archived}) =>
       stored && !archived;
 
-  static bool backgroundAudio(bool stored, {required bool archived}) =>
+  static bool backgroundAudio({required bool stored,required bool archived}) =>
       stored && !archived;
 
-  static bool localCdn(bool stored, {required bool archived}) =>
+  static bool localCdn({required bool stored,required bool archived}) =>
       stored && !archived;
 
-  static bool htmlCaching(bool stored, {required bool archived}) =>
+  static bool htmlCaching({required bool stored,required bool archived}) =>
       stored && !archived;
 
-  static bool incognito(bool stored, {required bool archived}) =>
+  static bool incognito({required bool stored,required bool archived}) =>
       stored || archived;
 
   /// Both blocker masks leave a trace outside the archive's keyspace: a
@@ -84,8 +84,8 @@ abstract final class ArchiveFold {
 /// Protected content (Widevine/EME): denied without a prompt on an
 /// archive-tier site and under Tracking Protection; otherwise the stored
 /// decision, null being "ask".
-bool? resolveProtectedContent(
-  bool? stored, {
+bool? resolveProtectedContent({
+  required bool? stored,
   required bool archived,
   required bool trackingProtection,
 }) => archived || trackingProtection ? false : stored;

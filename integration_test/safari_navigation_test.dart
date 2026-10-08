@@ -68,7 +68,7 @@ void main() {
     app.debugWebViewStateStorageOverride = store;
 
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    listenFixture(server, (req) {
+    listenFixture(server, onEvent: (req) {
       final res = req.response..headers.contentType = ContentType.html;
       if (req.uri.path == '/deep') {
         res.write('<html><head><title>deep</title></head>'
@@ -188,7 +188,7 @@ void main() {
       // yet), so pumping to animate it is safe.
       log('activate: open drawer');
       await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
-      await pumpFor(tester, const Duration(seconds: 2));
+      await pumpFor(tester, total: const Duration(seconds: 2));
       final tile = find.text(_siteName);
       expect(tile, findsOneWidget,
           reason: '$_siteName should appear in the drawer');
@@ -197,7 +197,7 @@ void main() {
       // A few frames to mount the InAppWebView and fire onWebViewCreated.
       // The platform view surface is created here; sustained rendering is
       // then left to WebKit while we wait via runAsync.
-      await pumpFor(tester, const Duration(seconds: 2));
+      await pumpFor(tester, total: const Duration(seconds: 2));
       log('activate: mounted, controller=${controller() != null}');
     }
 
@@ -215,7 +215,7 @@ void main() {
     app.main();
     // No webview is live until the site is activated, so pumping the boot
     // UI is safe.
-    await pumpFor(tester, const Duration(seconds: 5));
+    await pumpFor(tester, total: const Duration(seconds: 5));
     log('run1: booted');
 
     await activateSite();
@@ -264,7 +264,7 @@ void main() {
     // so disposing the run-1 platform view inside pumpWidget doesn't block.
     log('run2: pumpWidget(WebSpaceApp) restart');
     await tester.pumpWidget(app.WebSpaceApp());
-    await pumpFor(tester, const Duration(seconds: 5));
+    await pumpFor(tester, total: const Duration(seconds: 5));
     log('run2: restarted');
 
     await activateSite();

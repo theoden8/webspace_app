@@ -13,12 +13,12 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// The colour [site]'s container is drawn in.
-Color containerColorOf(WebViewModel site, Brightness brightness) =>
+Color containerColorOf(WebViewModel site, {required Brightness brightness}) =>
     ContainerColors.of(
       site.containerColor ??
           ContainerColorEngine.fallback(
-              site.siteId, kContainerPaletteSize),
-      brightness,
+              site.siteId, paletteSize: kContainerPaletteSize),
+      brightness: brightness,
     );
 
 /// A short bar in the colour of [site]'s container. Decorative: the row it
@@ -39,7 +39,8 @@ class ContainerMark extends StatelessWidget {
           width: ContainerColors.markWidth,
           height: height,
           decoration: BoxDecoration(
-            color: containerColorOf(site, Theme.of(context).brightness),
+            color: containerColorOf(site,
+                brightness: Theme.of(context).brightness),
             borderRadius: BorderRadius.circular(Radii.xs),
           ),
         ),
@@ -60,7 +61,8 @@ class ContainerDot extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: ContainerColors.of(colorIndex, Theme.of(context).brightness),
+            color: ContainerColors.of(colorIndex,
+                brightness: Theme.of(context).brightness),
             shape: BoxShape.circle,
           ),
         ),

@@ -316,7 +316,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
     final theme = Theme.of(context);
     final subtleStyle = theme.textTheme.bodySmall;
-    Widget labelled(IconData icon, String text, {Color? color}) => Row(
+    Widget labelled(IconData icon, {required String text,Color? color}) => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 16, color: color ?? subtleStyle?.color),
@@ -334,13 +334,13 @@ class _SettingsScreenState extends State<SettingsScreen>
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              labelled(browserIcon, browserText),
-              labelled(osIcon, osText),
+              labelled(browserIcon, text: browserText),
+              labelled(osIcon, text: osText),
               if (!isOverride)
                 Text(loc.siteSettingsUserAgentSystemDefault,
                     style: subtleStyle),
               if (isOverride && issues.isEmpty)
-                labelled(Icons.check_circle_outline, loc.siteSettingsUaLooksValid,
+                labelled(Icons.check_circle_outline, text: loc.siteSettingsUaLooksValid,
                     color: Colors.green),
             ],
           ),
@@ -476,7 +476,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     final loc = AppLocalizations.of(context);
     if (PlatformInfo.isProxySupported) {
       final proxyError = validateProxyAddress(
-          loc, _proxySettings.type, _proxyAddressController.text);
+          loc, type: _proxySettings.type, value: _proxyAddressController.text);
       if (proxyError != null) {
         ScaffoldMessenger.of(context).toast(
           loc.siteSettingsProxyError(proxyError),
@@ -564,7 +564,8 @@ class _SettingsScreenState extends State<SettingsScreen>
         // Don't clobber a previously-resolved zone with null if the dataset
         // isn't loaded right now.
         m.spoofTimezone =
-            TimezoneLocationService.instance.lookup(lat, lng) ?? m.spoofTimezone;
+            TimezoneLocationService.instance.lookup(lat, longitude: lng) ??
+                m.spoofTimezone;
       } else {
         m.spoofTimezone = _spoofTimezone;
       }
@@ -638,7 +639,7 @@ class _SettingsScreenState extends State<SettingsScreen>
     if (lat == null || lng == null) {
       return loc.siteSettingsTimezonePreviewNeedsLocation;
     }
-    return TimezoneLocationService.instance.lookup(lat, lng) ??
+    return TimezoneLocationService.instance.lookup(lat, longitude: lng) ??
         loc.siteSettingsTimezonePreviewNoMatch;
   }
 
@@ -679,9 +680,9 @@ class _SettingsScreenState extends State<SettingsScreen>
       title: loc.permissionsTitle,
       summary: summariseSettings(
         loc,
-        [
+        on: [
           for (final b in held)
-            '${sitePermissionBadgeTitle(loc, b)}: '
+            '${sitePermissionBadgeTitle(loc, badge: b)}: '
                 '${sitePermissionBadgeState(b).label(loc)}',
         ],
         none: loc.permissionsSummaryNothingGranted,
@@ -788,8 +789,10 @@ class _SettingsScreenState extends State<SettingsScreen>
       title: loc.behaviourTitle,
       summary: summariseSettings(
         loc,
-        [
-          if (v.effectiveAlwaysOpenHome(_privacyValues.effectiveIncognito))
+        on: [
+          if (v.effectiveAlwaysOpenHome(
+            incognito: _privacyValues.effectiveIncognito,
+          ))
             loc.siteSettingsAlwaysOpenHome,
           if (v.kioskMode) loc.siteSettingsKioskMode,
           if (v.fullscreenMode) loc.siteSettingsFullscreen,
@@ -883,7 +886,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       // (PROXY-030).
       if (proxied &&
           (v.proxyType == ProxyType.SAVED || v.proxyType == ProxyType.GATEWAY))
-        libraryRouteLabel(loc, _proxySettings)
+        libraryRouteLabel(loc, route: _proxySettings)
       else if (proxied)
         v.proxyType == ProxyType.TOR
             ? torRouteLabel(loc)
@@ -899,7 +902,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       title: loc.networkTitle,
       summary: summariseSettings(
         loc,
-        on,
+        on: on,
         none: loc.networkSummaryDefault,
       ),
       onTap: _openNetwork,
@@ -961,7 +964,7 @@ class _SettingsScreenState extends State<SettingsScreen>
       title: loc.privacyTitle,
       summary: summariseSettings(
         loc,
-        v.trackingProtectionEnabled
+        on: v.trackingProtectionEnabled
             ? [loc.privacySummaryProtectionOn]
             : [
                 if (v.effectiveClearUrl) loc.siteSettingsClearUrls,
@@ -1001,23 +1004,25 @@ class _SettingsScreenState extends State<SettingsScreen>
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    IconButton setUserAgent(IconData icon, String tooltip, String Function() ua) =>
-        IconButton(
-          onPressed: () => setState(() => _userAgentController.text = ua()),
-          icon: Icon(icon),
-          tooltip: tooltip,
-          color: Theme.of(context).colorScheme.primary,
-          iconSize: 24,
-        );
-    IconButton zoomStep(IconData icon, String tooltip, int step, bool enabled) =>
-        IconButton(
-          icon: Icon(icon),
-          tooltip: tooltip,
-          onPressed: enabled
-              ? () => setState(
-                  () => _zoomPercent = clampZoomPercent(_zoomPercent + step))
-              : null,
-        );
+IconButton setUserAgent(IconData icon,
+        {required String tooltip, required String Function() ua}) =>
+    IconButton(
+      onPressed: () => setState(() => _userAgentController.text = ua()),
+      icon: Icon(icon),
+      tooltip: tooltip,
+      color: Theme.of(context).colorScheme.primary,
+      iconSize: 24,
+    );
+IconButton zoomStep(IconData icon,
+        {required String tooltip, required int step, required bool enabled}) =>
+    IconButton(
+      icon: Icon(icon),
+      tooltip: tooltip,
+      onPressed: enabled
+          ? () => setState(
+              () => _zoomPercent = clampZoomPercent(_zoomPercent + step))
+          : null,
+    );
     final zoomLabel = '$_zoomPercent%';
     return guardPop(
       child: Scaffold(
@@ -1029,13 +1034,13 @@ class _SettingsScreenState extends State<SettingsScreen>
             title: loc.siteSettingsJavascriptEnabled,
             hint: null,
             control: Toggle(_javascriptEnabled,
-                (value) => setState(() => _javascriptEnabled = value)),
+                onChanged: (value) => setState(() => _javascriptEnabled = value)),
           ),
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              setUserAgent(Icons.home, loc.siteSettingsUserAgentResetTooltip,
-                  () => ''),
+              setUserAgent(Icons.home, tooltip: loc.siteSettingsUserAgentResetTooltip,
+                  ua: () => ''),
               Expanded(
                 child: TextFormField(
                   decoration: InputDecoration(
@@ -1052,7 +1057,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               ),
               SizedBox(width: 8),
               setUserAgent(Icons.autorenew,
-                  loc.siteSettingsUserAgentRandomTooltip, generateRandomUserAgent),
+                  tooltip: loc.siteSettingsUserAgentRandomTooltip, ua: generateRandomUserAgent),
             ],
           ),
           _buildUserAgentIdentity(loc),
@@ -1081,8 +1086,8 @@ class _SettingsScreenState extends State<SettingsScreen>
             child: Row(
               children: [
                 Expanded(child: Text(loc.siteSettingsPageZoom)),
-                zoomStep(Icons.remove, loc.siteSettingsZoomOut, -10,
-                    _zoomPercent > kMinZoomPercent),
+                zoomStep(Icons.remove, tooltip: loc.siteSettingsZoomOut, step: -10,
+                    enabled: _zoomPercent > kMinZoomPercent),
                 GestureDetector(
                   onTap: () =>
                       setState(() => _zoomPercent = kDefaultZoomPercent),
@@ -1095,8 +1100,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                     ),
                   ),
                 ),
-                zoomStep(Icons.add, loc.siteSettingsZoomIn, 10,
-                    _zoomPercent < kMaxZoomPercent),
+                zoomStep(Icons.add, tooltip: loc.siteSettingsZoomIn, step: 10,
+                    enabled: _zoomPercent < kMaxZoomPercent),
               ],
             ),
           ),
@@ -1199,7 +1204,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 label: Text(loc.siteSettingsShareQr),
                 onPressed: () => showSiteSettingsQrShareDialog(
                   context,
-                  widget.webViewModel,
+                  model: widget.webViewModel,
                 ),
               ),
             ),

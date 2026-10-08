@@ -60,7 +60,8 @@ class BackgroundTaskService {
           final lifecycle =
               SchedulerBinding.instance.lifecycleState?.name ?? 'unknown';
           BackgroundLog.instance.record(LogTag.backgroundTask,
-              'background refresh fired (app $lifecycle) — reloading notif sites');
+              message:
+                  'background refresh fired (app $lifecycle) — reloading notif sites');
           final watch = Stopwatch()..start();
           try {
             final cb = onBackgroundRefresh;
@@ -68,13 +69,14 @@ class BackgroundTaskService {
               await cb();
             }
             BackgroundLog.instance.record(LogTag.backgroundTask,
-                'background refresh handled in ${watch.elapsedMilliseconds}ms');
+                message:
+                    'background refresh handled in ${watch.elapsedMilliseconds}ms');
             await bgRefreshDidComplete(success: true);
           } catch (e, st) {
             // The message can quote a page URL; only its type is kept on disk.
             BackgroundLog.instance.record(
               LogTag.backgroundTask,
-              'background refresh handler threw ${e.runtimeType}',
+              message: 'background refresh handler threw ${e.runtimeType}',
               level: LogLevel.error,
               sensitive: 'background refresh handler threw: $e\n$st',
             );
@@ -95,7 +97,7 @@ class BackgroundTaskService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'backgroundRefreshReady failed: ${e.message}',
+        message: 'backgroundRefreshReady failed: ${e.message}',
         level: LogLevel.warning,
       );
     }
@@ -110,7 +112,7 @@ class BackgroundTaskService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'beginGracePeriod failed: ${e.message}',
+        message: 'beginGracePeriod failed: ${e.message}',
         level: LogLevel.warning,
       );
     }
@@ -123,7 +125,7 @@ class BackgroundTaskService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'endGracePeriod failed: ${e.message}',
+        message: 'endGracePeriod failed: ${e.message}',
         level: LogLevel.warning,
       );
     }
@@ -136,7 +138,7 @@ class BackgroundTaskService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'scheduleRefresh failed: ${e.message}',
+        message: 'scheduleRefresh failed: ${e.message}',
         level: LogLevel.warning,
       );
     }
@@ -149,7 +151,7 @@ class BackgroundTaskService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'cancelScheduledRefreshes failed: ${e.message}',
+        message: 'cancelScheduledRefreshes failed: ${e.message}',
         level: LogLevel.warning,
       );
     }
@@ -163,7 +165,7 @@ class BackgroundTaskService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'bgRefreshDidComplete failed: ${e.message}',
+        message: 'bgRefreshDidComplete failed: ${e.message}',
         level: LogLevel.warning,
       );
     }
@@ -179,19 +181,19 @@ class BackgroundTaskService {
   /// respect-the-silent-switch default so ordinary sites don't blast
   /// through a muted phone. Android needs no equivalent — WebView audio
   /// keeps playing as long as the process (and its JS) stays alive.
-  Future<void> setBackgroundAudioActive(bool active) async {
+  Future<void> setBackgroundAudioActive({required bool active}) async {
     if (!hostIsIOS) return;
     if (_backgroundAudioActive == active) return;
     _backgroundAudioActive = active;
     try {
       await _channel
           .invokeMethod('setBackgroundAudioActive', {'active': active});
-      BackgroundLog.instance.record(
-          LogTag.backgroundTask, 'Background audio session active=$active');
+      BackgroundLog.instance.record(LogTag.backgroundTask,
+          message: 'Background audio session active=$active');
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'setBackgroundAudioActive failed: ${e.message}',
+        message: 'setBackgroundAudioActive failed: ${e.message}',
         level: LogLevel.warning,
       );
     } on MissingPluginException {

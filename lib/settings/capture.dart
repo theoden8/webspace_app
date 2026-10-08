@@ -359,7 +359,7 @@ enum CaptureKind {
     screenShare => grants.screenShare,
   };
 
-  CaptureGrants withGrant(CaptureGrants grants, CaptureGrant grant) {
+  CaptureGrants withGrant(CaptureGrants grants, {required CaptureGrant grant}) {
     assert(modes.contains(grant.mode), '$name cannot hold ${grant.mode}');
     return switch (this) {
       camera => grants.copyWith(camera: grant),
@@ -424,25 +424,27 @@ final class CaptureGrants {
   /// replaced.
   static CaptureGrants fromJson(Map<String, dynamic> json) => CaptureKind
       .values
-      .fold(none, (g, kind) => kind.withGrant(g, kind._fromJson(json)));
+      .fold(none, (g, kind) => kind.withGrant(g, grant: kind._fromJson(json)));
 
   Map<String, Object> toJson() => {
     for (final kind in CaptureKind.values) ...kind._toJson(kind.grantOf(this)),
   };
 
   /// Every kind blocked, the stored files kept.
-  CaptureGrants blocked() => _mapModes((kind, _) => kind.block);
+  CaptureGrants blocked() => _mapModes((kind, {required mode}) => kind.block);
 
   /// Every `real` grant back to `ask`; the device-free answers kept.
   CaptureGrants withoutRealGrants() => _mapModes(
-    (kind, mode) => mode.state == SitePermissionState.allowed ? kind.ask : mode,
-  );
+        (kind, {required mode}) =>
+            mode.state == SitePermissionState.allowed ? kind.ask : mode,
+      );
 
   CaptureGrants _mapModes(
-    CaptureMode Function(CaptureKind kind, CaptureMode mode) f,
+    CaptureMode Function(CaptureKind kind, {required CaptureMode mode}) f,
   ) => CaptureKind.values.fold(this, (g, kind) {
     final grant = kind.grantOf(g);
-    return kind.withGrant(g, (mode: f(kind, grant.mode), source: grant.source));
+    return kind.withGrant(g,
+        grant: (mode: f(kind, mode: grant.mode), source: grant.source));
   });
 
   @override

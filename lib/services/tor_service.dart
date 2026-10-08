@@ -188,7 +188,7 @@ class MethodChannelTorRuntime implements TorRuntime {
         if (host is! String || port is! int) {
           return TorErrored('Tor reported up without a SOCKS endpoint.');
         }
-        return TorUp(host, port);
+        return TorUp(host, port: port);
       case 'error':
         final msg = raw['lastError'];
         return TorErrored(msg is String ? msg : 'Tor failed.');
@@ -233,7 +233,7 @@ class TorLogBridge {
         if (line == null) return;
         LogService.instance.log(
           line.fromTor ? LogTag.torLog : LogTag.tor,
-          line.message,
+          message: line.message,
           level: line.level,
           // tor's own output is sensitive and the plugin's notes are not.
           // A notice-level line can name the bridges this device dials
@@ -318,7 +318,7 @@ class TorService {
         ? ExternalTorRuntime(
             address: () => ExternalTorSettings.address,
             identify: createExternalTorIdentify() ??
-                (_, _) async => ExternalTorAnswer.unreachable,
+                (_, {required port}) async => ExternalTorAnswer.unreachable,
           )
         : null;
     final service = TorService._(
@@ -425,7 +425,7 @@ class TorService {
   void _forward(TorStatus s) {
     LogService.instance.log(
       LogTag.tor,
-      'State: $s',
+      message: 'State: $s',
       level: s is TorErrored ? LogLevel.error : LogLevel.info,
     );
     if (!_statuses.isClosed) _statuses.add(s);
@@ -453,7 +453,7 @@ class TorService {
     try {
       do {
         _switchAgain = false;
-        await _switchTo(_resolveExternal());
+        await _switchTo(external: _resolveExternal());
       } while (_switchAgain);
     } finally {
       _switching = false;
@@ -463,7 +463,7 @@ class TorService {
   bool _switching = false;
   bool _switchAgain = false;
 
-  Future<void> _switchTo(bool external) async {
+  Future<void> _switchTo({required bool external}) async {
     if (external == _externalActive) return;
     final from = _engine;
     final holders = from.holders.toSet();

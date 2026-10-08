@@ -21,7 +21,7 @@ class _Answers {
   ExternalTorAnswer answer;
   final asked = <String>[];
 
-  Future<ExternalTorAnswer> call(String host, int port) async {
+  Future<ExternalTorAnswer> call(String host, {required int port}) async {
     asked.add('$host:$port');
     return answer;
   }
@@ -48,7 +48,7 @@ void main() {
     engine = TorEngine(
       runtime: runtime,
       sessionSecret: 'secret',
-      socksProbe: (_, _) async => listenerAlive,
+      socksProbe: (_, {required port}) async => listenerAlive,
     );
   });
 
@@ -130,7 +130,7 @@ void main() {
     final pending = <String, Completer<ExternalTorAnswer>>{};
     final r = ExternalTorRuntime(
       address: () => address,
-      identify: (host, port) =>
+      identify: (host, {required port}) =>
           (pending['$host:$port'] = Completer<ExternalTorAnswer>()).future,
     );
     final seen = <TorStatus>[];
@@ -184,7 +184,7 @@ void main() {
 
     setUp(() {
       embeddedRuntime = FakeTorRuntime(
-          onStart: (r) => r.emit(const TorUp('127.0.0.1', 39999)));
+          onStart: (r) => r.emit(const TorUp('127.0.0.1', port: 39999)));
       embedded = TorEngine(runtime: embeddedRuntime, sessionSecret: 'e');
       wantExternal = false;
       TorService.wantsExternal = () => wantExternal;
@@ -286,25 +286,27 @@ void main() {
           'HTTP/1.0 501 Tor is not an HTTP Proxy\r\nContent-Type: text/html; '
                   'charset=iso-8859-1\r\n\r\n<html></html>'
               .codeUnits);
-      expect(await identifyTor('127.0.0.1', port), ExternalTorAnswer.tor);
+      expect(await identifyTor('127.0.0.1', port: port), ExternalTorAnswer.tor);
     });
 
     test('any other answer is not tor', () async {
       final port = await serve('HTTP/1.1 400 Bad Request\r\n\r\n'.codeUnits);
-      expect(await identifyTor('127.0.0.1', port), ExternalTorAnswer.notTor);
+      expect(
+          await identifyTor('127.0.0.1', port: port), ExternalTorAnswer.notTor);
     });
 
     test('a SOCKS-only reply is not tor', () async {
       final port = await serve(const [5, 255]);
-      expect(await identifyTor('127.0.0.1', port), ExternalTorAnswer.notTor);
+      expect(
+          await identifyTor('127.0.0.1', port: port), ExternalTorAnswer.notTor);
     });
 
     test('a closed port is unreachable', () async {
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       final port = server.port;
       await server.close();
-      expect(
-          await identifyTor('127.0.0.1', port), ExternalTorAnswer.unreachable);
+      expect(await identifyTor('127.0.0.1', port: port),
+          ExternalTorAnswer.unreachable);
     });
   });
 }

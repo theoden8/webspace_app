@@ -27,7 +27,7 @@ final class SingleFlight<K, V> {
 
   bool isRunning(K key) => _running.containsKey(key);
 
-  Future<V> run(K key, Future<V> Function() call) {
+  Future<V> run(K key, {required Future<V> Function() call}) {
     final running = _running[key];
     if (running != null) return running;
     final flight = Future.sync(call).whenComplete(() {

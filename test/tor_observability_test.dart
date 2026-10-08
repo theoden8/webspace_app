@@ -96,7 +96,7 @@ void main() {
 
     setUp(() {
       LogService.instance.resetForTest();
-      DeveloperModeService.instance.debugSet(true);
+      DeveloperModeService.instance.debugSet(on: true);
       runtime = FakeTorRuntime();
       TorService.overrideEngine(
         TorEngine(runtime: runtime, sessionSecret: 'secret'),
@@ -106,7 +106,7 @@ void main() {
     tearDown(() async {
       await TorService.reset();
       await runtime.dispose();
-      DeveloperModeService.instance.debugSet(false);
+      DeveloperModeService.instance.debugSet(on: false);
       LogService.instance.resetForTest();
     });
 
@@ -117,7 +117,7 @@ void main() {
       await TorService.instance.maybeStart(TorSiteHolder('site:a'));
       runtime.emit(const TorBootstrapping(45,
           tag: 'loading_descriptors', summary: 'Loading relay descriptors'));
-      runtime.emit(const TorUp('127.0.0.1', 41337));
+      runtime.emit(const TorUp('127.0.0.1', port: 41337));
       await pumpEventQueue();
 
       final messages = torEntries().map((e) => e.message).toList();

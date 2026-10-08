@@ -88,7 +88,7 @@ void main() {
 
     // anyIPv4 so both loopback names below reach the same server.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
-    listenFixture(server!, (request) {
+    listenFixture(server!, onEvent: (request) {
       final page = switch (request.uri.path) {
         '/a.html' => _solidPage('#123524'),
         '/b.html' => _solidPage('#1d3f8c'),
@@ -194,8 +194,8 @@ void main() {
   }
 
   Future<void> pumpUntilAsync(
-    WidgetTester tester,
-    Future<bool> Function() predicate, {
+    WidgetTester tester, {
+    required Future<bool> Function() predicate,
     required String description,
     Duration timeout = const Duration(seconds: 45),
   }) async {
@@ -209,13 +209,13 @@ void main() {
   }
 
   Future<void> pumpUntil(
-    WidgetTester tester,
-    bool Function() predicate, {
+    WidgetTester tester, {
+    required bool Function() predicate,
     required String description,
     Duration timeout = const Duration(seconds: 45),
   }) => pumpUntilAsync(
     tester,
-    () async => predicate(),
+    predicate: () async => predicate(),
     description: description,
     timeout: timeout,
   );
@@ -232,13 +232,13 @@ void main() {
   /// path production can take — so errors are swallowed for the teardown
   /// window only, and the next test starts from an empty root.
   Future<void> withApp(
-    WidgetTester tester,
-    Future<void> Function() body,
-  ) async {
+    WidgetTester tester, {
+    required Future<void> Function() body,
+  }) async {
     app.main();
     // Settles the home screen (no webview is mounted until a site activates,
     // and a shortcut cold launch mounts one — hence the slice-pump fallback).
-    await pumpFor(tester, const Duration(seconds: 5));
+    await pumpFor(tester, total: const Duration(seconds: 5));
     try {
       await body();
       // Let anything the last action left in flight drain before the tree goes
@@ -246,12 +246,12 @@ void main() {
       // the first `context` it touches (observed as `Navigator.pop` inside
       // `_deleteSite` failing its null check). Tests that can name their own
       // completion signal should still wait on it; this is the backstop.
-      await pumpFor(tester, const Duration(seconds: 2));
+      await pumpFor(tester, total: const Duration(seconds: 2));
     } finally {
       final previousOnError = FlutterError.onError;
       FlutterError.onError = (_) {};
       await tester.pumpWidget(const SizedBox.shrink());
-      await pumpFor(tester, const Duration(milliseconds: 500));
+      await pumpFor(tester, total: const Duration(milliseconds: 500));
       FlutterError.onError = previousOnError;
       tester.takeException();
     }
@@ -299,7 +299,7 @@ void main() {
       reason: 'the site view should expose an overflow menu',
     );
     await tester.tap(button.last);
-    await pumpFor(tester, const Duration(seconds: 1));
+    await pumpFor(tester, total: const Duration(seconds: 1));
     expect(
       find.text('Settings'),
       findsWidgets,
@@ -314,7 +314,7 @@ void main() {
     // Tapping the already-selected webspace tile opens the drawer (the
     // same-id branch of _selectWebspace).
     await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
-    await pumpFor(tester, const Duration(seconds: 2));
+    await pumpFor(tester, total: const Duration(seconds: 2));
     expect(
       find.byType(Drawer),
       findsOneWidget,
@@ -329,21 +329,22 @@ void main() {
   /// tree down under it throws from that final `Navigator.pop`.
   Future<void> waitForDeleteToSettle(WidgetTester tester) => pumpUntil(
     tester,
-    () => !drawerIsOpen(),
+    predicate: () => !drawerIsOpen(),
     description: 'the deletion to finish and close the drawer',
     timeout: const Duration(seconds: 60),
   );
 
-  Future<void> tapDialogButton(WidgetTester tester, String label) async {
-    final button = find.descendant(
-      of: find.byType(AlertDialog),
-      matching: find.text(label),
-    );
-    if (button.evaluate().isEmpty) dumpDiagnostics('no "$label" in the dialog');
-    expect(button, findsOneWidget, reason: 'dialog should offer "$label"');
-    await tester.tap(button);
-    await pumpFor(tester, const Duration(seconds: 1));
-  }
+Future<void> tapDialogButton(WidgetTester tester,
+    {required String label}) async {
+  final button = find.descendant(
+    of: find.byType(AlertDialog),
+    matching: find.text(label),
+  );
+  if (button.evaluate().isEmpty) dumpDiagnostics('no "$label" in the dialog');
+  expect(button, findsOneWidget, reason: 'dialog should offer "$label"');
+  await tester.tap(button);
+  await pumpFor(tester, total: const Duration(seconds: 1));
+}
 
   // The shortcut paths in lib/main.dart are Platform.isAndroid-gated; the
   // desktop integration loops skip this file by basename as well.
@@ -360,10 +361,10 @@ void main() {
         pinnedTiles: {'ws-hs-a'},
         launch: 'ws-hs-a',
       );
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         await pumpUntil(
           tester,
-          () => siteIsMounted('ws-hs-a'),
+          predicate: () => siteIsMounted('ws-hs-a'),
           description: 'the launched site to activate',
         );
         final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
@@ -387,7 +388,7 @@ void main() {
         await resumeApp(tester);
         await pumpUntilAsync(
           tester,
-          () async =>
+          predicate: () async =>
               (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] ==
               '$hostA/a.html',
           description: 'the startup ledger reconcile to record the pinned url',
@@ -406,10 +407,10 @@ void main() {
         pinnedTiles: {'ws-hs-a'},
         launch: 'ws-hs-a',
       );
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         await pumpUntil(
           tester,
-          () => siteIsMounted('ws-hs-a'),
+          predicate: () => siteIsMounted('ws-hs-a'),
           description: 'the pinned site to activate',
         );
 
@@ -439,10 +440,10 @@ void main() {
         pinnedTiles: {'ws-hs-ghost'},
         launch: 'ws-hs-b',
       );
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         await pumpUntil(
           tester,
-          () => siteIsMounted('ws-hs-b'),
+          predicate: () => siteIsMounted('ws-hs-b'),
           description: 'the rebound site to activate',
         );
 
@@ -463,10 +464,10 @@ void main() {
     '(HS-004 / HS-001 / HS-012)',
     (tester) async {
       seed(sites: [siteA(), siteB()], launch: 'ws-hs-a');
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         await pumpUntil(
           tester,
-          () => siteIsMounted('ws-hs-a'),
+          predicate: () => siteIsMounted('ws-hs-a'),
           description: 'the launched site to activate',
         );
 
@@ -482,7 +483,7 @@ void main() {
         // loopback server first — poll rather than assume a settled frame.
         await pumpUntil(
           tester,
-          () => calls.any((c) => c.method == 'pinShortcut'),
+          predicate: () => calls.any((c) => c.method == 'pinShortcut'),
           description: 'the pin request to reach the platform channel',
         );
         final pin = calls.lastWhere((c) => c.method == 'pinShortcut');
@@ -494,7 +495,7 @@ void main() {
         // routed by domain.
         await pumpUntilAsync(
           tester,
-          () async =>
+          predicate: () async =>
               (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] ==
               '$hostA/a.html',
           description: 'the pin to record the site url in the ledger',
@@ -510,10 +511,10 @@ void main() {
     '(HS-015)',
     (tester) async {
       seed(sites: [siteA(), siteB()], launch: 'ws-hs-a');
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         await pumpUntil(
           tester,
-          () => siteIsMounted('ws-hs-a'),
+          predicate: () => siteIsMounted('ws-hs-a'),
           description: 'the launched site to activate',
         );
 
@@ -522,7 +523,7 @@ void main() {
         await tester.tap(find.text('Home Shortcut'));
         await pumpUntil(
           tester,
-          () => find
+          predicate: () => find
               .text('Couldn\'t add a home screen shortcut for "Site A"')
               .evaluate()
               .isNotEmpty,
@@ -537,7 +538,7 @@ void main() {
         await tester.tap(find.text('Home Shortcut'));
         await pumpUntil(
           tester,
-          () => find
+          predicate: () => find
               .text('Re-enabled the existing home screen shortcut for "Site A"')
               .evaluate()
               .isNotEmpty,
@@ -570,7 +571,7 @@ void main() {
         ledger: {'ws-hs-ghost': '$hostA/gone.html'},
         pinnedTiles: {'ws-hs-ghost'},
       );
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         expect(
           siteIsMounted('ws-hs-a'),
           isFalse,
@@ -581,10 +582,10 @@ void main() {
         await resumeApp(tester, withLaunch: 'ws-hs-ghost');
         await pumpUntil(
           tester,
-          () => find.text('Open site?').evaluate().isNotEmpty,
+          predicate: () => find.text('Open site?').evaluate().isNotEmpty,
           description: 'the domain-match confirmation',
         );
-        await tapDialogButton(tester, 'Cancel');
+        await tapDialogButton(tester, label: 'Cancel');
         expect(
           siteIsMounted('ws-hs-a'),
           isFalse,
@@ -600,25 +601,25 @@ void main() {
         await resumeApp(tester, withLaunch: 'ws-hs-ghost');
         await pumpUntil(
           tester,
-          () => find.text('Open site?').evaluate().isNotEmpty,
+          predicate: () => find.text('Open site?').evaluate().isNotEmpty,
           description: 'the confirmation to be offered again',
         );
-        await tapDialogButton(tester, 'Open');
+        await tapDialogButton(tester, label: 'Open');
         await pumpUntil(
           tester,
-          () => siteIsMounted('ws-hs-a'),
+          predicate: () => siteIsMounted('ws-hs-a'),
           description: 'the matched site to activate',
         );
         await pumpUntilAsync(
           tester,
-          () async =>
+          predicate: () async =>
               (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost'] == 'ws-hs-a',
           description: 'the confirmed rebind to persist',
         );
 
         // The remembered rebind resolves the next tap directly.
         await resumeApp(tester, withLaunch: 'ws-hs-ghost');
-        await pumpFor(tester, const Duration(seconds: 3));
+        await pumpFor(tester, total: const Duration(seconds: 3));
         expect(
           find.text('Open site?'),
           findsNothing,
@@ -638,17 +639,18 @@ void main() {
         ledger: {'ws-hs-ghost1': _kOffDomainUrl, 'ws-hs-ghost2': _kCreateUrl},
         pinnedTiles: {'ws-hs-ghost1', 'ws-hs-ghost2'},
       );
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         await resumeApp(tester, withLaunch: 'ws-hs-ghost1');
         await pumpUntil(
           tester,
-          () => find.text('Shortcut site missing').evaluate().isNotEmpty,
+          predicate: () =>
+              find.text('Shortcut site missing').evaluate().isNotEmpty,
           description: 'the missing-site chooser',
         );
-        await tapDialogButton(tester, 'Open another');
+        await tapDialogButton(tester, label: 'Open another');
         await pumpUntil(
           tester,
-          () => find.text('Point shortcut at').evaluate().isNotEmpty,
+          predicate: () => find.text('Point shortcut at').evaluate().isNotEmpty,
           description: 'the site picker',
         );
         await tester.tap(
@@ -659,12 +661,12 @@ void main() {
         );
         await pumpUntil(
           tester,
-          () => siteIsMounted('ws-hs-b'),
+          predicate: () => siteIsMounted('ws-hs-b'),
           description: 'the rerouted site to activate',
         );
         await pumpUntilAsync(
           tester,
-          () async =>
+          predicate: () async =>
               (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost1'] ==
               'ws-hs-b',
           description: 'the reroute to be remembered',
@@ -676,20 +678,21 @@ void main() {
         await resumeApp(tester, withLaunch: 'ws-hs-ghost2');
         await pumpUntil(
           tester,
-          () => find.text('Shortcut site missing').evaluate().isNotEmpty,
+          predicate: () =>
+              find.text('Shortcut site missing').evaluate().isNotEmpty,
           description: 'the missing-site chooser for the second tile',
         );
-        await tapDialogButton(tester, 'Create');
+        await tapDialogButton(tester, label: 'Create');
         await pumpUntil(
           tester,
-          () => models().any((m) => m.initUrl == _kCreateUrl),
+          predicate: () => models().any((m) => m.initUrl == _kCreateUrl),
           description: 'the site created for the ledger url',
           timeout: const Duration(seconds: 60),
         );
         final created = models().firstWhere((m) => m.initUrl == _kCreateUrl);
         await pumpUntilAsync(
           tester,
-          () async =>
+          predicate: () async =>
               (await prefsMap('shortcutSiteRemap'))['ws-hs-ghost2'] ==
               created.siteId,
           description: 'the created site to be bound to the tile',
@@ -711,7 +714,7 @@ void main() {
         remap: {'ws-hs-tile': 'ws-hs-a'},
         pinnedTiles: {'ws-hs-a', 'ws-hs-tile'},
       );
-      await withApp(tester, () async {
+      await withApp(tester, body: () async {
         Future<void> deleteFirstSite() async {
           await openSiteDrawer(tester);
           await tester.tap(
@@ -720,29 +723,31 @@ void main() {
               matching: find.byIcon(Icons.more_vert),
             ),
           );
-          await pumpFor(tester, const Duration(seconds: 1));
+          await pumpFor(tester, total: const Duration(seconds: 1));
           await tester.tap(find.text('Delete').last);
           await pumpUntil(
             tester,
-            () => find.text('Delete Site').evaluate().isNotEmpty,
+            predicate: () => find.text('Delete Site').evaluate().isNotEmpty,
             description: 'the delete confirmation',
           );
-          await tapDialogButton(tester, 'Delete');
+          await tapDialogButton(tester, label: 'Delete');
         }
 
         await deleteFirstSite();
         await pumpUntil(
           tester,
-          () => find.text('Home screen shortcut').evaluate().isNotEmpty,
+          predicate: () =>
+              find.text('Home screen shortcut').evaluate().isNotEmpty,
           description: 'the HS-013 fate prompt',
         );
         expect(find.text('Keep'), findsOneWidget);
         expect(find.text('Reassign'), findsOneWidget);
-        await tapDialogButton(tester, 'Disable');
+        await tapDialogButton(tester, label: 'Disable');
 
         await pumpUntil(
           tester,
-          () => calls.where((c) => c.method == 'disableShortcut').length == 2,
+          predicate: () =>
+              calls.where((c) => c.method == 'disableShortcut').length == 2,
           description: 'both reaching tiles to be disabled',
         );
         final disabled = {
@@ -758,7 +763,7 @@ void main() {
         );
         await pumpUntilAsync(
           tester,
-          () async =>
+          predicate: () async =>
               (await prefsMap('shortcutSiteRemap')).isEmpty &&
               (await prefsMap('shortcutUrlLedger')).isEmpty,
           description: 'the disabled tiles\' rebind and ledger entries to drop',

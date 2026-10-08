@@ -51,7 +51,8 @@ String generateTabId() {
 /// `[A-Za-z0-9_-]`. That keeps `<siteId>.` a sound prefix for "every state
 /// file this site owns", which is what site deletion and archive close sweep
 /// on.
-String webViewStateKey(String siteId, String tabId) => '$siteId.$tabId';
+String webViewStateKey(String siteId, {required String tabId}) =>
+    '$siteId.$tabId';
 
 class SiteTab {
   SiteTab({

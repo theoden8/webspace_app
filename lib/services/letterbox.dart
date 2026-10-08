@@ -41,7 +41,7 @@ double _maxMarginFraction(double extent) {
 class LetterboxTarget {
   final double width;
   final double height;
-  const LetterboxTarget(this.width, this.height);
+  const LetterboxTarget(this.width, {required this.height});
 
   @override
   bool operator ==(Object other) =>
@@ -63,7 +63,7 @@ class LetterboxTarget {
 /// margin a thin strip on small screens instead of half the viewport. The
 /// budget shrinks with the extent, so phones refine further than desktops and
 /// end up with thinner bars.
-double _snapAxis(double available, double grid) {
+double _snapAxis(double available, {required double grid}) {
   if (available <= 0 || !available.isFinite) return math.max(0.0, available);
   final budget = _maxMarginFraction(available) * available;
   for (var step = grid; step >= 1; step /= 2) {
@@ -110,7 +110,7 @@ LetterboxTarget computeLetterboxTarget({
   final inset = (transientInsetHeight.isFinite && transientInsetHeight > 0)
       ? transientInsetHeight
       : 0.0;
-  if (aw <= 0 || ah <= 0) return LetterboxTarget(aw, ah);
+  if (aw <= 0 || ah <= 0) return LetterboxTarget(aw, height: ah);
 
   // Size against the extent the body has when nothing is nudging it, then hand
   // the inset back to the box. The bars are the difference between the two, so
@@ -125,8 +125,9 @@ LetterboxTarget computeLetterboxTarget({
     width = math.min(fixedWidth.toDouble(), aw);
     height = math.min(fixedHeight.toDouble(), settledHeight);
   } else {
-    width = _snapAxis(aw, gridWidth);
-    height = _snapAxis(settledHeight, gridHeight);
+    width = _snapAxis(aw, grid: gridWidth);
+    height = _snapAxis(settledHeight, grid: gridHeight);
   }
-  return LetterboxTarget(width, math.max(0.0, math.min(ah, height - inset)));
+  return LetterboxTarget(width,
+      height: math.max(0.0, math.min(ah, height - inset)));
 }

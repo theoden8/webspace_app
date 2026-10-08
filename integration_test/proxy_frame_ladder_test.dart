@@ -27,7 +27,7 @@ import 'helpers/ui.dart';
 /// One rung: how long after frame 1 its store is mounted and navigated.
 /// `null` means "in frame 1 itself", which is the control.
 class _Rung {
-  const _Rung(this.name, this.delay);
+  const _Rung(this.name, {required this.delay});
   final String name;
   final Duration? delay;
 }
@@ -55,15 +55,15 @@ void main() {
   // one created at frame 1 did not, the question stops being "when does the
   // proxy stop applying" and becomes "what has to happen before it starts".
   const rungs = <_Rung>[
-    _Rung('frame1', null),
-    _Rung('next-frame', Duration.zero),
-    _Rung('50ms', Duration(milliseconds: 50)),
-    _Rung('150ms', Duration(milliseconds: 150)),
-    _Rung('500ms', Duration(milliseconds: 500)),
-    _Rung('2s', Duration(seconds: 2)),
-    _Rung('5s', Duration(seconds: 5)),
-    _Rung('10s', Duration(seconds: 10)),
-    _Rung('15s', Duration(seconds: 15)),
+    _Rung('frame1', delay: null),
+    _Rung('next-frame', delay: Duration.zero),
+    _Rung('50ms', delay: Duration(milliseconds: 50)),
+    _Rung('150ms', delay: Duration(milliseconds: 150)),
+    _Rung('500ms', delay: Duration(milliseconds: 500)),
+    _Rung('2s', delay: Duration(seconds: 2)),
+    _Rung('5s', delay: Duration(seconds: 5)),
+    _Rung('10s', delay: Duration(seconds: 10)),
+    _Rung('15s', delay: Duration(seconds: 15)),
   ];
 
   void log(String m) {
@@ -197,7 +197,8 @@ void main() {
     }
 
     for (var i = 0; i < rungs.length; i++) {
-      await waitReal(tester, () => settled(i), label: 'rung ${rungs[i].name}');
+      await waitReal(tester,
+          done: () => settled(i), label: 'rung ${rungs[i].name}');
       verdict[rungs[i].name] = classify(i);
       log('${rungs[i].name}=${verdict[rungs[i].name]}');
     }

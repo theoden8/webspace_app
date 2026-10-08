@@ -192,30 +192,38 @@ void main() {
   });
 
   group('ShortcutTombstones.add (iOS HS-011)', () {
-    Map<String, String> tomb(String id, String url) =>
+    Map<String, String> tomb(String id, {required String url}) =>
         {'siteId': id, 'label': id, 'url': url};
 
     test('appends a new tombstone', () {
       final next = ShortcutTombstones.add(
         tombstones: const [],
-        entry: tomb('s1', 'https://a.com'),
+        entry: tomb('s1', url: 'https://a.com'),
       );
-      expect(next, [tomb('s1', 'https://a.com')]);
+      expect(next, [tomb('s1', url: 'https://a.com')]);
     });
 
     test('de-dupes by siteId and moves the entry to the most-recent end', () {
       final next = ShortcutTombstones.add(
-        tombstones: [tomb('s1', 'https://old.com'), tomb('s2', 'https://b.com')],
-        entry: tomb('s1', 'https://new.com'),
+        tombstones: [
+          tomb('s1', url: 'https://old.com'),
+          tomb('s2', url: 'https://b.com')
+        ],
+        entry: tomb('s1', url: 'https://new.com'),
       );
-      expect(next, [tomb('s2', 'https://b.com'), tomb('s1', 'https://new.com')]);
+      expect(next, [
+        tomb('s2', url: 'https://b.com'),
+        tomb('s1', url: 'https://new.com')
+      ]);
     });
 
     test('caps the list, evicting the oldest', () {
-      final start = [for (var i = 0; i < 3; i++) tomb('s$i', 'https://$i.com')];
+      final start = [
+        for (var i = 0; i < 3; i++) tomb('s$i', url: 'https://$i.com')
+      ];
       final next = ShortcutTombstones.add(
         tombstones: start,
-        entry: tomb('s3', 'https://3.com'),
+        entry: tomb('s3', url: 'https://3.com'),
         cap: 3,
       );
       expect(next.map((t) => t['siteId']), ['s1', 's2', 's3']);
@@ -223,18 +231,18 @@ void main() {
 
     test('ignores an entry with an empty siteId', () {
       final next = ShortcutTombstones.add(
-        tombstones: [tomb('s1', 'https://a.com')],
-        entry: tomb('', 'https://x.com'),
+        tombstones: [tomb('s1', url: 'https://a.com')],
+        entry: tomb('', url: 'https://x.com'),
       );
-      expect(next, [tomb('s1', 'https://a.com')]);
+      expect(next, [tomb('s1', url: 'https://a.com')]);
     });
 
     test('pruneLive drops tombstones whose id is now live', () {
       final next = ShortcutTombstones.pruneLive(
-        [tomb('s1', 'https://a.com'), tomb('s2', 'https://b.com')],
-        {'s1'},
+        [tomb('s1', url: 'https://a.com'), tomb('s2', url: 'https://b.com')],
+        liveSiteIds: {'s1'},
       );
-      expect(next, [tomb('s2', 'https://b.com')]);
+      expect(next, [tomb('s2', url: 'https://b.com')]);
     });
   });
 

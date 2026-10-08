@@ -122,7 +122,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
             icon: Icons.shield,
             title: loc.appSettingsDnsBlocklist,
             hint: loc.appSettingsDnsBlocklistHint,
-            below: (dns, download) => LevelSlider(
+            below: (dns, {required download}) => LevelSlider(
               labels: dnsBlockLevelNames,
               value: dns.picked,
               onChanged: download == null ? null : dns.pick,
@@ -132,7 +132,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
             leading: const Icon(Icons.filter_list),
             title: loc.appSettingsContentBlocker,
             hint: loc.appSettingsContentBlockerHint,
-            subtitle: summariseSettings(loc, enabledLists,
+            subtitle: summariseSettings(loc, on: enabledLists,
                 none: loc.appSettingsNotConfigured),
             control: Opens(() => guardedOpen(_openContentBlocker)),
           ),
@@ -151,7 +151,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
             hint: '${loc.appSettingsFirefoxVersionHint}\n\n'
                 '${loc.appSettingsFirefoxAutoUpdate}: '
                 '${loc.appSettingsFirefoxAutoUpdateHint}',
-            below: (firefox, download) => SwitchListTile(
+            below: (firefox, {required download}) => SwitchListTile(
               // start: the title column. end: 24 puts the switch track flush
               // with the refresh icon above it, which sits inset in its
               // button.
@@ -163,7 +163,7 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
                   style: const TextStyle(fontSize: 13)),
               value: firefox.autoRefresh,
               onChanged: (value) async {
-                await firefox.setAutoRefresh(value);
+                await firefox.setAutoRefresh(on: value);
                 // Enabling is itself the user gesture: run the first check
                 // right away instead of waiting for the next startup.
                 if (value) download?.call();

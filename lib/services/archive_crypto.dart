@@ -52,7 +52,8 @@ class ArchiveCrypto {
     return Uint8List.fromList(bytes);
   }
 
-  static Future<Uint8List> deriveKey(String passphrase, Uint8List salt) async {
+  static Future<Uint8List> deriveKey(String passphrase,
+      {required Uint8List salt}) async {
     final pwBytes = utf8.encode(passphrase);
     final result = await _argon2id.deriveKey(
       secretKey: SecretKey(pwBytes),
@@ -62,7 +63,7 @@ class ArchiveCrypto {
     return Uint8List.fromList(bytes);
   }
 
-  static Future<Uint8List> hmac(Uint8List key, String info) async {
+  static Future<Uint8List> hmac(Uint8List key, {required String info}) async {
     final mac = await _hmacSha256.calculateMac(
       utf8.encode(info),
       secretKey: SecretKey(key),
@@ -71,8 +72,8 @@ class ArchiveCrypto {
   }
 
   static Future<Uint8List> seal(
-    Uint8List key,
-    Uint8List plaintext, {
+    Uint8List key, {
+    required Uint8List plaintext,
     Uint8List? aad,
   }) async {
     final box = await _aesGcm.encrypt(
@@ -93,8 +94,8 @@ class ArchiveCrypto {
   }
 
   static Future<Uint8List?> open(
-    Uint8List key,
-    Uint8List wire, {
+    Uint8List key, {
+    required Uint8List wire,
     Uint8List? aad,
   }) async {
     if (wire.length < kArchiveNonceLength + kArchiveMacLength) {

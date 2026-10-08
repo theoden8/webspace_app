@@ -42,8 +42,9 @@ class AdblockEngine implements AdblockEngineApi {
       _unavailable();
 
   @override
-  List<String> hiddenClassIdSelectors(Set<String> classes, Set<String> ids,
-          {Set<String> exceptions = const <String>{}}) =>
+  List<String> hiddenClassIdSelectors(Set<String> classes,
+          {required Set<String> ids,
+          Set<String> exceptions = const <String>{}}) =>
       _unavailable();
 
   @override

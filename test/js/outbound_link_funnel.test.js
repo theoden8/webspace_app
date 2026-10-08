@@ -38,7 +38,7 @@ test('the tap and the redirect path carry out decisions in one place', () => {
 
 test('every launch asks the outbound hook first', () => {
   assert.match(getWebView,
-    /bool takenOver\(\) =>\s*hooks\.routeOutbound\(this, url, decision, hadGesture\);/,
+    /bool takenOver\(\) =>\s*hooks\.routeOutbound\(\s*this,\s*url: url,\s*decision: decision,\s*hadGesture: hadGesture\);/,
     'the hook is asked about the link being launched');
   const launches = [...getWebView.matchAll(
     /\b(hooks\.launchNested|hooks\.openInBrowser)\(/g)];

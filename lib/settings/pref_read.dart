@@ -8,7 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// a hand-edited file can hold a String under a key read with `getBool`;
 /// read at startup through the getter, that throws before the sites load.
 /// `AppPref.stored` does the same for every registered pref.
-T? readPrefAs<T>(SharedPreferences prefs, String key) {
+T? readPrefAs<T>(SharedPreferences prefs, {required String key}) {
   final value = prefs.get(key);
   return value is T ? value : null;
 }

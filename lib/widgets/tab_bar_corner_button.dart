@@ -97,7 +97,7 @@ class _TabBarCornerOverlayState extends State<TabBarCornerOverlay> {
     if (box is! RenderBox || !box.hasSize) return;
     final fraction = tabBarCornerDragFraction(
       box.globalToLocal(globalPosition),
-      box.size,
+      area: box.size,
       buttonSize: _buttonSize,
       margin: _margin,
     );
@@ -108,7 +108,7 @@ class _TabBarCornerOverlayState extends State<TabBarCornerOverlay> {
     final drag = _drag;
     if (drag == null) return;
     setState(() => _drag = null);
-    widget.onCornerChosen(tabBarCornerNearest(drag.x, drag.y));
+    widget.onCornerChosen(tabBarCornerNearest(drag.x, y: drag.y));
   }
 
   @override

@@ -78,7 +78,8 @@ class MockContainerNative implements ContainerNative {
   /// session (site deleted before profile mode shipped, or a crash mid-
   /// deletion). The orphan has its own cookie jar so a successful GC
   /// must drop both the profile name and its data.
-  void seedOrphanContainer(String siteId, Map<String, String> cookies) {
+  void seedOrphanContainer(String siteId,
+      {required Map<String, String> cookies}) {
     containers[siteId] = 'ws-$siteId';
     cookiesByContainer['ws-$siteId'] = Map.of(cookies);
   }
@@ -94,11 +95,11 @@ class SimWebView {
   final String siteId;
   final MockContainerNative native;
 
-  SimWebView(this.siteId, this.native);
+  SimWebView(this.siteId, {required this.native});
 
   String get _profileName => 'ws-$siteId';
 
-  Future<void> setCookie(String name, String value) async {
+  Future<void> setCookie(String name, {required String value}) async {
     final jar = native.cookiesByContainer.putIfAbsent(
       _profileName,
       () => <String, String>{},
@@ -156,7 +157,7 @@ class ContainerIsolationTestHarness with SiteListState {
     // visited; reuse on later activations (the lazy-load behavior in
     // _WebSpacePageState).
     _webViewsBySiteId.putIfAbsent(
-        target.siteId, () => SimWebView(target.siteId, native));
+        target.siteId, () => SimWebView(target.siteId, native: native));
   }
 
   /// Mirrors `_deleteSite` for the profile-mode branch: drop the
@@ -216,7 +217,7 @@ void main() {
 
       // Switch to A and write a session cookie on its profile.
       await h.switchToSite(0);
-      await h.webViews[0]!.setCookie('user_session', 'alice-token');
+      await h.webViews[0]!.setCookie('user_session', value: 'alice-token');
 
       // Switch to B — without unloading A. In legacy mode this would
       // unload A; in profile mode both sites must coexist.
@@ -230,7 +231,7 @@ void main() {
       );
 
       // B writes its own session cookie. Different profile, different jar.
-      await h.webViews[1]!.setCookie('user_session', 'bob-token');
+      await h.webViews[1]!.setCookie('user_session', value: 'bob-token');
 
       // The corollary: each site reads only its own cookie value, never
       // the other site's. A direct test of the partitioning claim.
@@ -244,9 +245,9 @@ void main() {
       h.addSite('https://github.com/work');
 
       await h.switchToSite(0);
-      await h.webViews[0]!.setCookie('session', 'A');
+      await h.webViews[0]!.setCookie('session', value: 'A');
       await h.switchToSite(1);
-      await h.webViews[1]!.setCookie('session', 'B');
+      await h.webViews[1]!.setCookie('session', value: 'B');
       await h.switchToSite(0);
       await h.switchToSite(1);
       await h.switchToSite(0);
@@ -265,11 +266,11 @@ void main() {
       h.addSite('https://example.com');
 
       await h.switchToSite(0);
-      await h.webViews[0]!.setCookie('k', 'github-personal');
+      await h.webViews[0]!.setCookie('k', value: 'github-personal');
       await h.switchToSite(1);
-      await h.webViews[1]!.setCookie('k', 'github-work');
+      await h.webViews[1]!.setCookie('k', value: 'github-work');
       await h.switchToSite(2);
-      await h.webViews[2]!.setCookie('k', 'example');
+      await h.webViews[2]!.setCookie('k', value: 'example');
 
       // Each site sees only its own value for the same cookie name.
       expect(await h.webViews[0]!.getCookie('k'), 'github-personal');
@@ -286,7 +287,7 @@ void main() {
       h.addSite('https://github.com/work');
 
       await h.switchToSite(0);
-      await h.webViews[0]!.setCookie('secret', 'A-only');
+      await h.webViews[0]!.setCookie('secret', value: 'A-only');
 
       await h.switchToSite(1);
       // Site B's profile has no `secret` — the cookie lives in A's jar
@@ -301,9 +302,9 @@ void main() {
       h.addSite('https://github.com/work');
 
       await h.switchToSite(0);
-      await h.webViews[0]!.setCookie('session', 'alice');
+      await h.webViews[0]!.setCookie('session', value: 'alice');
       await h.switchToSite(1);
-      await h.webViews[1]!.setCookie('session', 'bob');
+      await h.webViews[1]!.setCookie('session', value: 'bob');
 
       // "Log out" of B by clearing its cookie via the simulated webview.
       final bJar = h.native.cookiesByContainer['ws-${h.sites[1].siteId}']!;
@@ -324,9 +325,9 @@ void main() {
       h.addSite('https://github.com/work');
 
       await h.switchToSite(0);
-      await h.webViews[0]!.setCookie('session', 'alice');
+      await h.webViews[0]!.setCookie('session', value: 'alice');
       await h.switchToSite(1);
-      await h.webViews[1]!.setCookie('session', 'bob');
+      await h.webViews[1]!.setCookie('session', value: 'bob');
 
       final aSiteId = h.sites[0].siteId;
       final bSiteId = h.sites[1].siteId;
@@ -351,7 +352,7 @@ void main() {
       h.addSite('https://example.com');
       await h.switchToSite(0);
       await h.switchToSite(2);
-      await h.webViews[2]!.setCookie('session', 'carol');
+      await h.webViews[2]!.setCookie('session', value: 'carol');
 
       await h.deleteSite(0);
 
@@ -364,7 +365,7 @@ void main() {
       final h = ContainerIsolationTestHarness();
       h.addSite('https://linkedin.com');
       await h.switchToSite(0);
-      await h.webViews[0]!.setCookie('session', 'old');
+      await h.webViews[0]!.setCookie('session', value: 'old');
       final oldSiteId = h.sites[0].siteId;
 
       await h.deleteSite(0);
@@ -393,7 +394,7 @@ void main() {
       // an orphan.
       await h.engine.ensureContainer(h.sites[0].siteId);
       await h.engine.ensureContainer(h.sites[1].siteId);
-      h.native.seedOrphanContainer('deleted-in-prev-session', {
+      h.native.seedOrphanContainer('deleted-in-prev-session', cookies: {
         'still-here': 'leaks-without-gc',
       });
 
@@ -423,8 +424,8 @@ void main() {
 
     test('GC sweeps every profile when the site list is empty', () async {
       final h = ContainerIsolationTestHarness();
-      h.native.seedOrphanContainer('a', {'k': 'v'});
-      h.native.seedOrphanContainer('b', {'k': 'v'});
+      h.native.seedOrphanContainer('a', cookies: {'k': 'v'});
+      h.native.seedOrphanContainer('b', cookies: {'k': 'v'});
 
       final deleted = await h.simulateAppStartupGc();
 

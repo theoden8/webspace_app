@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/web_search_engine.dart';
 
-SearchSite site(String id, String url, {String? address, bool web = false}) =>
+SearchSite site(String id,
+        {required String url, String? address, bool web = false}) =>
     SearchSite(
       siteId: id,
       name: id,
@@ -184,7 +185,8 @@ void main() {
       );
       expect(
         WebSearchEngine.acceptsDiscovered(
-            'https://www.blog.example/search?q=%s', 'https://blog.example/'),
+            'https://www.blog.example/search?q=%s',
+            initUrl: 'https://blog.example/'),
         isTrue,
       );
     });
@@ -215,34 +217,36 @@ void main() {
     });
 
     test('the query is encoded as one query component', () {
-      final url = WebSearchEngine.buildUrl(ddg, '  a&b=c #d  ')!;
+      final url = WebSearchEngine.buildUrl(ddg, query: '  a&b=c #d  ')!;
       expect(url.queryParameters['q'], 'a&b=c #d');
       expect(url.queryParameters.keys, ['q']);
       expect(url.fragment, isEmpty);
     });
 
     test('a blank query builds nothing', () {
-      expect(WebSearchEngine.buildUrl(ddg, '   '), isNull);
+      expect(WebSearchEngine.buildUrl(ddg, query: '   '), isNull);
     });
 
     test('a scoped option searches site:<host>', () {
-      final option = SearchOption(site('ddg', 'https://duckduckgo.com/'),
+      final option = SearchOption(site('ddg', url: 'https://duckduckgo.com/'),
           scoped: true);
-      final url = WebSearchEngine.urlFor(option, 'tabs', scopeHost: 'github.com')!;
+      final url = WebSearchEngine.urlFor(option,
+          query: 'tabs', scopeHost: 'github.com')!;
       expect(url.queryParameters['q'], 'site:github.com tabs');
       final plain = WebSearchEngine.urlFor(
-          SearchOption(site('ddg', 'https://duckduckgo.com/'), scoped: false),
-          'tabs',
+          SearchOption(site('ddg', url: 'https://duckduckgo.com/'),
+              scoped: false),
+          query: 'tabs',
           scopeHost: 'github.com')!;
       expect(plain.queryParameters['q'], 'tabs');
     });
   });
 
   group('barOptions (LIR-033)', () {
-    final gh = site('gh', 'https://github.com/');
-    final blog = site('blog', 'https://blog.example/');
-    final ddg = site('ddg', 'https://duckduckgo.com/');
-    final kagi = site('kagi', 'https://kagi.com/');
+    final gh = site('gh', url: 'https://github.com/');
+    final blog = site('blog', url: 'https://blog.example/');
+    final ddg = site('ddg', url: 'https://duckduckgo.com/');
+    final kagi = site('kagi', url: 'https://kagi.com/');
     final all = [gh, blog, ddg, kagi];
 
     List<String> ids(List<SearchOption> o) => [for (final x in o) x.site.siteId];
@@ -291,12 +295,12 @@ void main() {
   });
 
   group('options', () {
-    final gh = site('gh', 'https://github.com/');
-    final blog = site('blog', 'https://blog.example/');
-    final ddg = site('ddg', 'https://duckduckgo.com/');
-    final kagi = site('kagi', 'https://kagi.com/');
-    final pplx = site('pplx', 'https://www.perplexity.ai/');
-    final mg = site('mg', 'https://metager.org/');
+    final gh = site('gh', url: 'https://github.com/');
+    final blog = site('blog', url: 'https://blog.example/');
+    final ddg = site('ddg', url: 'https://duckduckgo.com/');
+    final kagi = site('kagi', url: 'https://kagi.com/');
+    final pplx = site('pplx', url: 'https://www.perplexity.ai/');
+    final mg = site('mg', url: 'https://metager.org/');
     final all = [gh, blog, ddg, kagi, pplx, mg];
 
     List<String> ids(List<SearchOption> o) => [for (final x in o) x.site.siteId];
@@ -408,20 +412,23 @@ void main() {
     test('offers the five engines when the user has none', () {
       expect(names(kAddableSearchEngines),
           ['DuckDuckGo', 'Brave Search', 'Kagi', 'Perplexity', 'Google']);
-      expect(names(WebSearchEngine.addable(SearchScope.web, const [])),
+      expect(
+          names(WebSearchEngine.addable(SearchScope.web, candidates: const [])),
           names(kAddableSearchEngines));
-      expect(names(WebSearchEngine.addable(SearchScope.thisSite, const [])),
+      expect(
+          names(WebSearchEngine.addable(SearchScope.thisSite,
+              candidates: const [])),
           names(kAddableSearchEngines),
           reason: 'all five take site:');
     });
 
     test('never offers a second site for an engine the user has', () {
       final mine = [
-        site('blog', 'https://blog.example/'),
-        site('ddg', 'https://start.duckduckgo.com/'),
-        site('g', 'https://www.google.de/'),
+        site('blog', url: 'https://blog.example/'),
+        site('ddg', url: 'https://start.duckduckgo.com/'),
+        site('g', url: 'https://www.google.de/'),
       ];
-      expect(names(WebSearchEngine.addable(SearchScope.web, mine)),
+      expect(names(WebSearchEngine.addable(SearchScope.web, candidates: mine)),
           ['Brave Search', 'Kagi', 'Perplexity']);
     });
   });

@@ -41,7 +41,8 @@ class _FakeHost implements DeferredStartupHost {
   int persists = 0;
   int datasetLoads = 0;
   bool datasetReady = true;
-  String? Function(double, double) lookupFn = (_, __) => 'Etc/UTC';
+  String? Function(double latitude, {required double longitude}) lookupFn =
+      (_, {required longitude}) => 'Etc/UTC';
   final List<String> markedLoaded = [];
   final List<String> tzSet = [];
   final List<String> themed = [];
@@ -132,11 +133,11 @@ class _FakeHost implements DeferredStartupHost {
   }
 
   @override
-  String? resolveTimezone(double latitude, double longitude) =>
-      lookupFn(latitude, longitude);
+  String? resolveTimezone(double latitude, {required double longitude}) =>
+      lookupFn(latitude, longitude: longitude);
 
   @override
-  bool setSpoofTimezone(String siteId, String timezone) {
+  bool setSpoofTimezone(String siteId, {required String timezone}) {
     expect(isLive(siteId), isTrue,
         reason: 'INVARIANT: setSpoofTimezone on dead site $siteId');
     final s = _find(siteId)!;
@@ -163,8 +164,8 @@ class _FakeHost implements DeferredStartupHost {
 
   @override
   Future<void> sweepOrphanStorage(
-      Set<String> active, Set<String> nonIncognito) async {
-    sweeps.add((active: active, nonIncognito: nonIncognito));
+      Set<String> active, {required Set<String> nonIncognitoSiteIds}) async {
+    sweeps.add((active: active, nonIncognito: nonIncognitoSiteIds));
     opLog.add('sweep');
   }
 }
@@ -264,7 +265,8 @@ void main() {
         _FakeSite('plain'),
         _FakeSite('tp', tp: true, lat: 35.6, lng: 139.7),
       ]);
-      host.lookupFn = (lat, lng) => lat > 40 ? 'Europe/London' : 'Asia/Tokyo';
+      host.lookupFn = (lat, {required longitude}) =>
+          lat > 40 ? 'Europe/London' : 'Asia/Tokyo';
       await DeferredStartupEngine.refreshLocationTimezones(host);
       expect(host.tzSet.toSet(), {'geo', 'tp'});
       expect(host.persists, 1);
@@ -294,7 +296,8 @@ void main() {
         _FakeSite('first', fromLoc: true, lat: 51.5, lng: -0.1),
         _FakeSite('second', fromLoc: true, lat: 35.6, lng: 139.7),
       ]);
-      host.lookupFn = (lat, lng) => lat > 40 ? 'Europe/London' : 'Asia/Tokyo';
+      host.lookupFn = (lat, {required longitude}) =>
+          lat > 40 ? 'Europe/London' : 'Asia/Tokyo';
       // Reverse the list mid-load; an index-based write-back would swap the
       // two sites' zones.
       host.onLoadDataset = () => host.sites.setAll(0, host.sites.reversed.toList());

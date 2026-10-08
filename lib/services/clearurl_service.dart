@@ -76,7 +76,7 @@ class ClearUrlService {
     try {
       final json = jsonDecode(response.body);
       if (json is! Map<String, dynamic>) return false;
-      await hostWriteDocumentText(_rulesFileName, response.body);
+      await hostWriteDocumentText(_rulesFileName, contents: response.body);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
       _parseRules(json);
@@ -168,7 +168,7 @@ class ClearUrlService {
   /// Empty when the difference is not expressible as removed keys — a
   /// redirection rule swaps the whole URL, and naming the target's leftover
   /// parameters there would be a lie about what was stripped.
-  static String strippedParamLabel(String original, String cleaned) {
+  static String strippedParamLabel(String original, {required String cleaned}) {
     if (cleaned.isEmpty || cleaned == original) return '';
     final from = Uri.tryParse(original);
     final to = Uri.tryParse(cleaned);

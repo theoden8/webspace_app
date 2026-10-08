@@ -72,7 +72,7 @@ void main() {
   });
 
   test('the menu opens links only through the tap routing', () {
-    String body(String path, String signature) {
+    String body(String path, {required String signature}) {
       final lines = File(path).readAsStringSync().split('\n');
       final start = lines.indexWhere((l) => l.contains(signature));
       expect(start, isNot(-1), reason: '$signature not found in $path');
@@ -80,7 +80,8 @@ void main() {
       return lines.sublist(start, end).join('\n');
     }
 
-    final menu = body('lib/main.dart', 'Future<void> _showLinkLongPressMenu(');
+    final menu = body('lib/main.dart',
+        signature: 'Future<void> _showLinkLongPressMenu(');
     expect(
       menu.contains('.loadUrl('),
       isFalse,
@@ -91,7 +92,7 @@ void main() {
     expect(menu.contains('_links.openLinkAsTapped('), isTrue);
 
     final open = body('lib/controllers/link_controller.dart',
-        'Future<void> openLinkAsTapped(');
+        signature: 'Future<void> openLinkAsTapped(');
     expect(open.contains('decideUserOpenedLink('), isTrue);
     expect(open.contains('_host.launchNestedFor('), isTrue);
     expect(open.contains('launchUrlInSystemBrowser('), isTrue);

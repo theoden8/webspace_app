@@ -52,7 +52,7 @@ class HtmlCacheService {
     }
     _store = store ?? defaultFileStore(_cacheDir);
 
-    _aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
+    _aead = await KeychainAead.open(_secureStorage, keyName: _encryptionKeyKey,
         logTag: LogTag.htmlCache);
 
     if (beforeUpgradeWipe != null && await _isUpgradeDetected()) {
@@ -173,8 +173,8 @@ class HtmlCacheService {
       }
       _memoryCache.clear();
       _lastSaveAt.clear();
-      _aead = await KeychainAead.rotate(_secureStorage, _encryptionKeyKey,
-          logTag: LogTag.htmlCache);
+      _aead = await KeychainAead.rotate(_secureStorage,
+          keyName: _encryptionKeyKey, logTag: LogTag.htmlCache);
     }
 
     await prefs.setString(_versionKey, currentVersion);
@@ -271,7 +271,8 @@ class HtmlCacheService {
     return '$_darkCachePrelude$html';
   }
 
-  Future<void> saveHtml(String siteId, String html, String url) async {
+  Future<void> saveHtml(String siteId,
+      {required String html, required String url}) async {
     final store = _store;
     final aead = _aead;
     if (store == null || aead == null) return;
@@ -301,7 +302,7 @@ class HtmlCacheService {
         return;
       }
 
-      await store.writeText(name, encrypted);
+      await store.writeText(name, contents: encrypted);
 
       // Eviction can also race the file write itself. Roll back on disk
       // so a cold restart's `preloadCache` doesn't pick up content the

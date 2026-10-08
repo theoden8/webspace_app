@@ -49,7 +49,7 @@ import 'package:image/image.dart' as img;
 
 /// [raw] with the container metadata for [extension] removed. Bytes come
 /// back as they are for a container this does not parse.
-Uint8List stripContainerMetadata(Uint8List raw, String extension) {
+Uint8List stripContainerMetadata(Uint8List raw, {required String extension}) {
   switch (extension) {
     case 'mp4':
     case 'm4v':
@@ -71,11 +71,11 @@ const _isoMetadataBoxes = {'udta', 'meta', 'uuid'};
 /// of the same size.
 Uint8List stripIsoBmffMetadata(Uint8List raw) {
   final out = Uint8List.fromList(raw);
-  _blankBoxes(out, 0, out.length);
+  _blankBoxes(out, start: 0, end: out.length);
   return out;
 }
 
-void _blankBoxes(Uint8List b, int start, int end) {
+void _blankBoxes(Uint8List b, {required int start, required int end}) {
   var pos = start;
   while (pos + 8 <= end) {
     final data = ByteData.sublistView(b, pos, end);
@@ -94,7 +94,7 @@ void _blankBoxes(Uint8List b, int start, int end) {
       b.setRange(pos + 4, pos + 8, 'free'.codeUnits);
       b.fillRange(pos + header, pos + size, 0);
     } else if (_isoContainers.contains(type)) {
-      _blankBoxes(b, pos + header, pos + size);
+      _blankBoxes(b, start: pos + header, end: pos + size);
     }
     pos += size;
   }

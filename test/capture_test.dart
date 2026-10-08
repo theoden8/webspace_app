@@ -14,7 +14,7 @@ Map<String, dynamic> _json(CaptureKind kind, {Object? mode}) => {
   kind.jsonKeys.first: ?mode,
 };
 
-CaptureMode _modeFrom(CaptureKind kind, Map<String, dynamic> json) =>
+CaptureMode _modeFrom(CaptureKind kind, {required Map<String, dynamic> json}) =>
     kind.grantOf(CaptureGrants.fromJson(json)).mode;
 
 const _image = VirtualVisualSource(
@@ -70,13 +70,13 @@ void main() {
     for (final kind in CaptureKind.values) {
       test('$kind: every mode name round-trips', () {
         for (final mode in kind.modes) {
-          expect(_modeFrom(kind, _json(kind, mode: mode.name)), mode);
+          expect(_modeFrom(kind, json: _json(kind, mode: mode.name)), mode);
         }
       });
 
       test('$kind: absent, unknown or wrong-typed reads as ask', () {
         for (final stored in [null, 'bogus', 42, true]) {
-          expect(_modeFrom(kind, _json(kind, mode: stored)), kind.ask,
+          expect(_modeFrom(kind, json: _json(kind, mode: stored)), kind.ask,
               reason: '$stored');
         }
       });
@@ -86,22 +86,22 @@ void main() {
       // A crafted backup, or a downgrade from a build with more modes.
       for (final smuggled in ['real', 'allow', 'monitor', 'screen']) {
         expect(_modeFrom(CaptureKind.screenShare,
-            _json(CaptureKind.screenShare, mode: smuggled)),
+            json: _json(CaptureKind.screenShare, mode: smuggled)),
             ScreenShareMode.ask, reason: smuggled);
       }
     });
 
     test('the legacy cameraAllowed bool migrates; a mode name wins over it', () {
-      expect(_modeFrom(CaptureKind.camera, {'cameraAllowed': true}),
+      expect(_modeFrom(CaptureKind.camera, json: {'cameraAllowed': true}),
           CameraAccessMode.real);
-      expect(_modeFrom(CaptureKind.camera, {'cameraAllowed': false}),
+      expect(_modeFrom(CaptureKind.camera, json: {'cameraAllowed': false}),
           CameraAccessMode.block);
-      expect(_modeFrom(CaptureKind.camera, {'cameraAllowed': 'true'}),
+      expect(_modeFrom(CaptureKind.camera, json: {'cameraAllowed': 'true'}),
           CameraAccessMode.ask);
       expect(_modeFrom(CaptureKind.camera,
-          {'cameraMode': 'virtual', 'cameraAllowed': true}),
+          json: {'cameraMode': 'virtual', 'cameraAllowed': true}),
           CameraAccessMode.virtual);
-      expect(_modeFrom(CaptureKind.microphone, {'cameraAllowed': true}),
+      expect(_modeFrom(CaptureKind.microphone, json: {'cameraAllowed': true}),
           MicrophoneAccessMode.ask, reason: 'the legacy key is the camera\'s');
     });
   });
@@ -209,16 +209,16 @@ void main() {
 
     for (final kind in CaptureKind.values) {
       test('$kind: mode and file round-trip', () {
-        final model = siteWith(kind, kind.virtual, withSource: true);
-        final back = WebViewModel.fromJson(model.toJson(), null);
+        final model = siteWith(kind, mode: kind.virtual, withSource: true);
+        final back = WebViewModel.fromJson(model.toJson(), stateSetterF: null);
         expect(kind.grantOf(back.captures),
             (mode: kind.virtual, source: pickedFor(kind)));
       });
 
       test('$kind: an archive-tier site is blocked, its intent kept '
           '(CAM-006 / MIC-006 / SHARE-006)', () {
-        final model =
-            siteWith(kind, kind.virtual, withSource: true, archived: true);
+        final model = siteWith(kind,
+            mode: kind.virtual, withSource: true, archived: true);
         expect(kind.grantOf(model.effectiveCaptures).mode, kind.block);
         expect(kind.grantOf(model.effectiveCaptures).source, pickedFor(kind));
         expect(kind.grantOf(model.captures).mode, kind.virtual);
@@ -226,7 +226,7 @@ void main() {
 
       test('$kind: the decision never rides the settings QR '
           '(CAM-007 / MIC-007 / SHARE-007)', () {
-        final model = siteWith(kind, kind.virtual, withSource: true);
+        final model = siteWith(kind, mode: kind.virtual, withSource: true);
         final shared = SiteSettingsQrCodec.shareableSubset(model.toJson());
         for (final key in kind.jsonKeys) {
           expect(shared.containsKey(key), isFalse, reason: key);
@@ -253,11 +253,11 @@ void main() {
   group('VirtualMediaPicker', () {
     test('every accepted extension maps to its medium\'s MIME type', () {
       for (final ext in VirtualMediaPicker.imageExtensions) {
-        expect(VirtualMediaPicker.mimeForExtension(ext, false),
+        expect(VirtualMediaPicker.mimeForExtension(ext, isVideo: false),
             startsWith('image/'), reason: ext);
       }
       for (final ext in VirtualMediaPicker.videoExtensions) {
-        expect(VirtualMediaPicker.mimeForExtension(ext, true),
+        expect(VirtualMediaPicker.mimeForExtension(ext, isVideo: true),
             startsWith('video/'), reason: ext);
       }
       for (final ext in VirtualMediaPicker.audioExtensions) {

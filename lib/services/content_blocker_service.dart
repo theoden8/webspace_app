@@ -158,7 +158,7 @@ class ContentBlockerService {
   /// save, so a stale copy self-heals on the next one.
   Future<void> setListMasks(Map<String, Set<String>> masks) async {
     final next = _normalizeMasks(masks);
-    if (_sameMasks(_listMasks, next)) return;
+    if (_sameMasks(_listMasks, b: next)) return;
     _listMasks = next;
     LogTag.contentBlocker.info('Per-site filter-list mask changed: '
         '${next.map((id, hosts) => MapEntry(id, hosts.length))}');
@@ -206,7 +206,7 @@ class ContentBlockerService {
   }
 
   static bool _sameMasks(
-      Map<String, Set<String>> a, Map<String, Set<String>> b) {
+      Map<String, Set<String>> a, {required Map<String, Set<String>> b}) {
     if (a.length != b.length) return false;
     for (final entry in a.entries) {
       final other = b[entry.key];
@@ -313,9 +313,11 @@ class ContentBlockerService {
   /// counters while adding a single sample row. [micros] is null for
   /// decisions made outside this isolate (Android native engine) where
   /// no timing is available.
-  void _recordEngineDecision(
-      String url, String requestType, int? micros, bool blocked,
-      {int count = 1}) {
+  void _recordEngineDecision(String url,
+      {required String requestType,
+      required int? micros,
+      required bool blocked,
+      int count = 1}) {
     if (count < 1) count = 1;
     _engineConsultedSinceTimingOn += count;
     if (blocked) {
@@ -344,7 +346,8 @@ class ContentBlockerService {
   /// the Allowed tally is a Dart-side lower bound on Android.
   void recordNativeEngineBlock(String host, {int count = 1}) {
     if (!_engineTimingEnabled) return;
-    _recordEngineDecision(host, 'native', null, true, count: count);
+    _recordEngineDecision(host,
+        requestType: 'native', micros: null, blocked: true, count: count);
   }
 
   /// Whether uBO web_accessible_resources/ is wired into the engine.
@@ -353,7 +356,7 @@ class ContentBlockerService {
   /// rules become plain blocks (drop the request).
   bool get useUboResources => AppPref.useUboResources.value;
 
-  Future<void> setUseUboResources(bool enabled) async {
+  Future<void> setUseUboResources({required bool enabled}) async {
     if (useUboResources == enabled) return;
     LogTag.contentBlocker.info(
         'uBO resources toggle flipped to $enabled (was ${!enabled})');
@@ -454,7 +457,7 @@ class ContentBlockerService {
     final hits = canaryClasses.isEmpty
         ? const <String>[]
         : engine
-            .hiddenClassIdSelectors(canaryClasses, const <String>{})
+            .hiddenClassIdSelectors(canaryClasses, ids: const <String>{})
             .toList();
     return {
       'engineActive': true,
@@ -497,7 +500,10 @@ class ContentBlockerService {
         requestType: requestType,
       );
       sw.stop();
-      _recordEngineDecision(url, requestType, sw.elapsedMicroseconds, blocked);
+      _recordEngineDecision(url,
+          requestType: requestType,
+          micros: sw.elapsedMicroseconds,
+          blocked: blocked);
       return blocked;
     }
     return engine.shouldBlock(
@@ -520,7 +526,10 @@ class ContentBlockerService {
       final sw = Stopwatch()..start();
       final blocked = engine.shouldBlock(url);
       sw.stop();
-      _recordEngineDecision(url, 'host', sw.elapsedMicroseconds, blocked);
+      _recordEngineDecision(url,
+          requestType: 'host',
+          micros: sw.elapsedMicroseconds,
+          blocked: blocked);
       return blocked;
     }
     return engine.shouldBlock(url);
@@ -652,7 +661,7 @@ class ContentBlockerService {
             : <String>{...exceptions, ...engineCtx.exceptions};
     final result = engine.hiddenClassIdSelectors(
       classes,
-      ids,
+      ids: ids,
       exceptions: mergedExceptions,
     );
     LogTag.contentBlocker.debug('engine.hiddenClassIdSelectors($pageUrl): '
@@ -726,13 +735,13 @@ class ContentBlockerService {
     try {
       final body = await expandFilterListIncludes(
           response.body,
-          list.url,
-          _preparserEnv,
-          (subUrl) async => switch (await _fetch(subUrl)) {
+          url: list.url,
+          env: _preparserEnv,
+          fetch: (subUrl) async => switch (await _fetch(subUrl)) {
                 Fetched(:final response) => response.body,
                 FetchRefused() || FetchFailed() => null,
               });
-      await _store.writeText(_cacheName(id), body);
+      await _store.writeText(_cacheName(id), contents: body);
 
       // adblock-rust counts rules at parse time inside the engine — we
       // don't have a parse-only API on this side, so the displayed
@@ -779,7 +788,7 @@ class ContentBlockerService {
   }
 
   /// Add a custom filter list. Returns the new list's ID.
-  Future<String> addCustomList(String name, String url) async {
+  Future<String> addCustomList(String name, {required String url}) async {
     final id = _newCustomId();
     _lists.add(FilterList(id: id, name: name, url: url));
     await _saveLists();
@@ -796,7 +805,7 @@ class ContentBlockerService {
 
   /// Add a list whose rules the user writes in the app. It is enabled and
   /// compiled into the engine immediately. Returns the new list's ID.
-  Future<String> addLocalList(String name, String rules) async {
+  Future<String> addLocalList(String name, {required String rules}) async {
     final id = _newCustomId();
     _lists.add(FilterList(
       id: id,
@@ -812,7 +821,8 @@ class ContentBlockerService {
     return id;
   }
 
-  Future<void> updateLocalList(String id, String name, String rules) async {
+  Future<void> updateLocalList(String id,
+      {required String name, required String rules}) async {
     final list = _lists.firstWhere((l) => l.id == id && l.isLocal);
     list.name = name;
     list.rules = rules;
@@ -883,7 +893,7 @@ class ContentBlockerService {
 
   /// The app's lists, in the shape [planUboImport] reads.
   List<ExistingFilterList> get existingForImport =>
-      [for (final l in _lists) ExistingFilterList(l.id, l.url)];
+      [for (final l in _lists) ExistingFilterList(l.id, url: l.url)];
 
   Future<void> removeList(String id) async {
     _lists.removeWhere((l) => l.id == id);
@@ -898,7 +908,7 @@ class ContentBlockerService {
     await _rebuildEngine();
   }
 
-  Future<void> toggleList(String id, bool enabled) async {
+  Future<void> toggleList(String id, {required bool enabled}) async {
     final list = _lists.firstWhere((l) => l.id == id);
     list.enabled = enabled;
     await _saveLists();
@@ -940,8 +950,8 @@ class ContentBlockerService {
         // Sites that switched this list off get it scoped away here, so
         // the engine carries the mask instead of every decision site.
         buf.writeln(scopeRulesAwayFromHosts(
-            pruneFilterList(cached, _preparserEnv),
-            _listMasks[list.id] ?? const <String>{}));
+            pruneFilterList(cached, env: _preparserEnv),
+            hosts: _listMasks[list.id] ?? const <String>{}));
         listCount++;
       }
     }
@@ -1004,7 +1014,7 @@ class ContentBlockerService {
         '($loadMode $listCount list(s), ${rulesText.length} bytes, '
         '${sw.elapsedMilliseconds}ms)');
     if (loadMode == 'parse') {
-      unawaited(_writeEngineCache(rulesHash, engine));
+      unawaited(_writeEngineCache(rulesHash, engine: engine));
     }
     if (hostIsAndroid) {
       final result =
@@ -1139,13 +1149,14 @@ class ContentBlockerService {
     }
   }
 
-  Future<void> _writeEngineCache(String hash, AdblockEngine engine) async {
+  Future<void> _writeEngineCache(String hash,
+      {required AdblockEngine engine}) async {
     try {
       final blob = engine.serialize();
       if (blob == null) return;
-      await _store.writeBytes(_engineCacheName, blob);
-      await _store.writeText(
-          _engineCacheMetaName, '$hash:${useUboResources ? '1' : '0'}');
+      await _store.writeBytes(_engineCacheName, bytes: blob);
+      await _store.writeText(_engineCacheMetaName,
+          contents: '$hash:${useUboResources ? '1' : '0'}');
       LogTag.contentBlocker.debug(
           'engine cache written: ${blob.length} bytes (hash=${hash.substring(0, 8)}…)');
     } catch (e) {

@@ -139,7 +139,7 @@ void main() {
         'thirdPartyCookiesEnabled': false,
       };
       
-      final viewModel = WebViewModel.fromJson(json, null);
+      final viewModel = WebViewModel.fromJson(json, stateSetterF: null);
       
       expect(viewModel.proxySettings.type, ProxyType.SOCKS5);
       expect(viewModel.proxySettings.address, 'tor.proxy.com:9050');
@@ -313,7 +313,7 @@ void main() {
       final json = viewModel.toJson();
       
       // Deserialize
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
       
       expect(restored.proxySettings.type, originalProxy.type);
       expect(restored.proxySettings.address, originalProxy.address);
@@ -521,7 +521,7 @@ void main() {
         'thirdPartyCookiesEnabled': false,
       };
 
-      final viewModel = WebViewModel.fromJson(json, null);
+      final viewModel = WebViewModel.fromJson(json, stateSetterF: null);
       expect(viewModel.proxySettings.username, 'corpuser');
       expect(viewModel.proxySettings.password, 'corppass');
       expect(viewModel.proxySettings.hasCredentials, true);

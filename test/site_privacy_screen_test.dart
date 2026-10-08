@@ -59,7 +59,7 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-SwitchListTile _switchTitled(WidgetTester tester, String title) {
+SwitchListTile _switchTitled(WidgetTester tester, {required String title}) {
   final tile = find.ancestor(
     of: find.text(title),
     matching: find.byType(SwitchListTile),
@@ -136,7 +136,7 @@ void main() {
       SitePrivacyValues? reported;
       await _pump(tester,
           values: _values(), onChanged: (v) => reported = v);
-      final tile = _switchTitled(tester, 'Block screenshots');
+      final tile = _switchTitled(tester, title: 'Block screenshots');
       expect(tile.value, isFalse);
       tile.onChanged!(true);
       expect(reported?.blockScreenshots, isTrue);
@@ -147,7 +147,7 @@ void main() {
       ScreenCaptureGuard.debugSupportedOverride = true;
       AppPref.blockScreenshots.debugValue = true;
       await _pump(tester, values: _values());
-      final tile = _switchTitled(tester, 'Block screenshots');
+      final tile = _switchTitled(tester, title: 'Block screenshots');
       expect(tile.value, isTrue);
       expect(tile.onChanged, isNull);
       expect(find.text('On for the whole app in App Settings'), findsOneWidget);
@@ -160,7 +160,7 @@ void main() {
       tester,
       values: _values(trackingProtection: true, thirdPartyCookies: true),
     );
-    final tile = _switchTitled(tester, 'Third-party cookies');
+    final tile = _switchTitled(tester, title: 'Third-party cookies');
     expect(tile.value, isFalse);
     expect(tile.onChanged, isNull);
     expect(find.text('Forced off by Tracking Protection'), findsOneWidget);
@@ -170,7 +170,7 @@ void main() {
       (tester) async {
     await _pump(tester, values: _values(trackingProtection: true));
     for (final title in const ['ClearURLs', 'DNS Blocklist']) {
-      final tile = _switchTitled(tester, title);
+      final tile = _switchTitled(tester, title: title);
       expect(tile.value, isTrue, reason: title);
       expect(tile.onChanged, isNull, reason: title);
     }
@@ -184,7 +184,8 @@ void main() {
       'DNS Blocklist',
       'Third-party cookies',
     ]) {
-      expect(_switchTitled(tester, title).onChanged, isNotNull, reason: title);
+      expect(_switchTitled(tester, title: title).onChanged, isNotNull,
+          reason: title);
     }
   });
 
@@ -193,10 +194,10 @@ void main() {
     // Incognito destroys the user's own session on every restart, so unlike
     // the blockers it leads the screen without being forced.
     await _pump(tester, values: _values(incognito: true));
-    expect(_switchTitled(tester, 'Letterbox window').onChanged, isNull);
+    expect(_switchTitled(tester, title: 'Letterbox window').onChanged, isNull);
     expect(find.text('Requires Tracking Protection'), findsOneWidget);
 
-    final incognito = _switchTitled(tester, 'Incognito mode');
+    final incognito = _switchTitled(tester, title: 'Incognito mode');
     expect(incognito.value, isTrue);
     expect(incognito.onChanged, isNotNull);
   });
@@ -307,7 +308,7 @@ void main() {
   testWidgets('an archived site shows the posture the archive holds it to',
       (tester) async {
     await _pump(tester, values: _values(archived: true));
-    final incognito = _switchTitled(tester, 'Incognito mode');
+    final incognito = _switchTitled(tester, title: 'Incognito mode');
     expect(incognito.value, isTrue, reason: 'ARCH-006: always incognito');
     expect(incognito.onChanged, isNull);
     expect(find.text('Fixed for sites in an archive'), findsOneWidget);

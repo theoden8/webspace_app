@@ -102,7 +102,7 @@ class DownloadsService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void fail(String id, String message) {
+  void fail(String id, {required String message}) {
     final task = _tasks.where((t) => t.id == id).firstOrNull;
     if (task == null) return;
     task.state = DownloadState.failed;

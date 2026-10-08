@@ -27,7 +27,7 @@ An invariant written as a comment is on rung 6. `tab_lifecycle_engine.dart` says
 ### Rules
 
 1. **One owner.** A fact is computed in one place; everything else reads it. Two places agreeing today is still a bug. The UI never restates a rule. A decision has one owner too: a job this codebase already does (a guard, a dialog, a store, a "follow app" choice, a sync primitive) is done the way the map or the existing code does it. A second way needs one line saying why, and then replaces the first everywhere in the same change, or is listed as debt. *Check*: a bug fix that edits two compartments means the fact had two owners; a new idiom beside an old one for the same job is a fork; fix the ownership.
-2. **Small typed joins.** Between compartments passes a record, class or sealed type, never a parameter list, map or string. More than four parameters is a missing type. A reader needs about four entities to follow a change; more means a join is misplaced. An abstraction earns its place by removing a copy, a forgotten-item failure or a parameter list; one that only adds a hop (a single caller, a generic parameter nobody varies, a wrapper that renames) is inlined. Every hop is a join that has to be proven valid too (a type, an assert, a boundary test), so an unneeded one is paid for twice: once in reading, once in validation. *Check*: did a join in the map change shape? One line why.
+2. **Small typed joins.** Between compartments passes a record, class or sealed type, never a parameter list, map or string. More than four parameters is a missing type. A call names its arguments: parameters are named (`required` where there is no default), so the call site says what each value is, a reordered parameter cannot shift meaning, and an inserted one fails to compile until every call names it. Positional only where the signature is fixed from outside (an override, a Flutter callback type, an operator) or for one leading argument the function's name already names (`Host(raw)`, `messenger.toast(message)`, `LogTag.x.debug(message)`, a `BuildContext`); never a `bool`, never two of one type. A reader needs about four entities to follow a change; more means a join is misplaced. An abstraction earns its place by removing a copy, a forgotten-item failure or a parameter list; one that only adds a hop (a single caller, a generic parameter nobody varies, a wrapper that renames) is inlined. Every hop is a join that has to be proven valid too (a type, an assert, a boundary test), so an unneeded one is paid for twice: once in reading, once in validation. *Check*: did a join in the map change shape? One line why. A positional parameter past the first, or a positional `bool`? [`test/named_arguments_test.dart`](test/named_arguments_test.dart) fails on it (rung 5: no lint counts positional parameters); a declaration torn off as a callback whose type is not ours goes in its exemptions, named with that type.
 3. **Fixed cost per axis.** Adding one item (a per-site field, a pref, a capture kind, a settings row) touches a fixed set of places through one funnel, and forgetting it anywhere fails to compile. *Check*: edit sites against the budget table; over budget, build the funnel first in its own commit.
 4. **Layers point down.** UI → model → services → values → platform (the map lists the directories). A file imports its own layer or lower. Engines (`*_engine.dart`) decide and are pure: no Flutter import, no I/O, no `context`; tests import them with fakes that model the interface. *Check*: [`test/js/layers.test.js`](test/js/layers.test.js) (rung 5: Dart has no module boundary a type can enforce); its debt list only shrinks.
 5. **Ids are types.** `extension type SiteId(String raw) {}`; a `String siteId` parameter is a square where a move was meant (`Host` in `services/url_host.dart` is the model). Constant data is `const`; a field is declared once and every serializer iterates the declaration. *Check*: any new `String` id, startup-built table, or hand-written per-field line?
@@ -53,11 +53,11 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 
 | Compartment | Owns | Join |
 |---|---|---|
-| `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture, {homeTitle})`; `WebViewConfig.posture` |
+| `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture:, homeTitle:)`; `WebViewConfig.posture` |
 | `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
 | `WebViewHostHooks` | the host's answers to every site webview: prompts, outbound links, capture | one required-field class, passed whole |
 | `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
-| `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js, frames:)`; `ShimFrames` has no default |
+| `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js:, frames:)`; `ShimFrames` has no default |
 | `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |
 | `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |
 | `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | enum over three mode enums, `grantOf`/`withGrant` switches; sealed `GrantStore` |
@@ -418,7 +418,7 @@ Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` and sibling des
 
 A user-facing global pref is one entry of the `AppPref` enum; persistence, backup export/import, the demo-mode guard and the live value come with it.
 
-1. Declare it in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart): `name('sharedPrefsKey', default)`, a `bool`, `int` or `String` (a const assert rejects anything else). Declaration order is the order a backup lists it.
+1. Declare it in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart): `name('sharedPrefsKey', fallback: default)`, a `bool`, `int` or `String` (a const assert rejects anything else). Declaration order is the order a backup lists it.
 2. Bind its row: a switch is `SettingTile(..., control: const PrefToggle(AppPref.name))`; anything else reads `AppPref.name.value` and writes `AppPref.name.set(v)`. Code with a side effect listens on `AppPref.name.listenable`; main.dart rebuilds on `AppPref.anyChange`.
 
 - No per-pref constructor params, `_saveX` methods or second cache of the value: `set` persists (except in demo mode) and every reader sees the same notifier. `writeExportedAppPrefs` applies an import to disk and to the running app.
@@ -495,7 +495,7 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
     Simplified) — gen_l10n cannot express a `zh_Hant`-only setup.
   - **Per-string**: flags individual values left untranslated (in English) when neighbours were translated — CLD3 is unreliable on single short strings, so this uses heuristics (non-Latin: a Latin-only multi-word value where the locale's script is expected; Latin: a value whose words are almost all English-source vocabulary plus an unambiguous English stopword). No allowlist — translate the offender. Run `node tool/check_l10n_language.js --per-string [locale]` for the report.
 - Nested-webview rule applies to copy too: localized strings in `launchUrl`/`InAppWebViewScreen` flow through `BuildContext`, so resolve them at the call site.
-- Widget tests pump a screen/widget through `pumpLocalized(tester, child)` or wrap it in `localizedApp(child)` ([test/helpers/localized.dart](test/helpers/localized.dart)); a bare `MaterialApp` leaves `AppLocalizations.of(context)` null.
+- Widget tests pump a screen/widget through `pumpLocalized(tester, home: child)` or wrap it in `localizedApp(child)` ([test/helpers/localized.dart](test/helpers/localized.dart)); a bare `MaterialApp` leaves `AppLocalizations.of(context)` null.
 
 ## Touching the webspace archive
 
@@ -590,7 +590,7 @@ Orchestration (which sites unload on switch, how indices shift after delete, wha
 - Which loaded sites go, and why? A `ResidencyEvent` case in `SiteUnloadEngine.plan` ([site_unload_engine.dart](lib/services/site_unload_engine.dart)), run by `SiteUnloadEngine.apply`; every eviction picks through `evictionOrder`. Never unload from a loop at a call site.
 - `await native_call` then mutate shared state with scenario-dependent logic? Engine.
 - Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
-- Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
+- Race protection: pass `versionAtEntry:` and `currentVersion:` (an `int Function()`) so the engine can bail without knowing about widget state.
 - Tests import the engine directly with in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart).
 - One fake per interface, in [test/helpers/](test/helpers/) (`MockCookieManager`, `MockFlutterSecureStorage`, `FakeTorRuntime`, `FakeOutbound`, `FakePathProvider`, `FakeWebViewController`). Extend it when a test needs a new knob; never redefine it in a test file, and never import another `*_test.dart` for its fakes.
 

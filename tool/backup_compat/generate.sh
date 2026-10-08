@@ -59,6 +59,7 @@ for ref in "${refs[@]}"; do
   feature "$wt" scripts "$(has "$wt/lib/settings/user_script.dart" 'class UserScriptConfig')"
   feature "$wt" qr "$(has "$wt/lib/services/site_settings_qr_codec.dart" shareableSubset)"
   feature "$wt" links "$(has "$wt/lib/services/link_routing_service.dart" parseWebspaceUri)"
+  feature "$wt" model "$(has "$wt/lib/web_view_model.dart" 'required Function? stateSetterF')"
 
   staging="$work/out-$name"
   rm -rf "$staging"

@@ -16,7 +16,8 @@ ExternalTorIdentify? createExternalTorIdentify() => null;
 /// leaves the depending services in their no-data state.
 Future<String?> hostReadDocumentText(String name) async => null;
 
-Future<void> hostWriteDocumentText(String name, String contents) async {}
+Future<void> hostWriteDocumentText(String name,
+    {required String contents}) async {}
 
 /// No documents directory on web: path-backed caches read as empty.
 Future<String> hostDocumentsPath() async => '';

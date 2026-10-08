@@ -42,7 +42,7 @@ void main() {
         ..['currentUrl'] = 'https://github.com/notifications'
         ..['pageTitle'] = 'Notifications'
         ..remove('tabs');
-      final m = WebViewModel.fromJson(json, null);
+      final m = WebViewModel.fromJson(json, stateSetterF: null);
       expect(m.tabs, hasLength(1));
       expect(m.activeTabId, kPrimaryTabId);
       expect(m.currentUrl, 'https://github.com/notifications');
@@ -62,7 +62,7 @@ void main() {
       );
       m.tabs = [...m.tabs, child];
 
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));
       expect(back.tabs.last.id, child.id);
       expect(back.tabs.last.parentId, kPrimaryTabId);
@@ -78,7 +78,7 @@ void main() {
       m.tabs = [...m.tabs, child];
       m.activeTabId = child.id;
 
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.activeTabId, child.id);
       expect(back.currentUrl, 'https://github.com/pulls');
     });
@@ -106,7 +106,7 @@ void main() {
       final json = m.toJson()
         ..['currentUrl'] = 42
         ..remove('pageTitle');
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.tabs.first.title, 'Home');
       expect(back.tabs.last.title, 'Pulls');
       expect(back.currentUrl, 'https://github.com/');
@@ -118,7 +118,7 @@ void main() {
           {'id': 'main', 'url': 'https://github.com/', 'title': 7},
           {'id': 'tb', 'url': 'https://github.com/pulls', 'active': true},
         ];
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.tabs.map((t) => t.id), ['main', 'tb']);
       expect(back.tabs.first.title, isNull);
       expect(back.activeTabId, 'tb');
@@ -132,7 +132,7 @@ void main() {
           {'id': '../escape', 'url': 'https://evil.test/'},
           {'id': 'ok', 'title': 'no url'},
         ];
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.tabs.map((t) => t.id).toList(), ['main']);
     });
   });
@@ -168,7 +168,7 @@ void main() {
           reason: 'a restart wipes the container, not the tree (TAB-009)');
       expect(json.containsKey('currentUrl'), isFalse);
       expect(json['cookies'], isEmpty);
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.tabs.map((t) => t.url),
           ['https://en.wikipedia.org/wiki/Web_browser', 'https://en.wikipedia.org/wiki/Tab']);
       expect(back.activeTabPersistsNavState, isFalse,
@@ -186,7 +186,7 @@ void main() {
           {'id': 'main', 'url': 'https://en.wikipedia.org/'},
           {'id': 'tb', 'url': 'https://en.wikipedia.org/wiki/Tab', 'active': true},
         ];
-      final m = WebViewModel.fromJson(json, null);
+      final m = WebViewModel.fromJson(json, stateSetterF: null);
       expect(m.tabs.map((t) => t.id), ['main', 'tb']);
       expect(m.activeTabId, 'tb');
     });
@@ -194,15 +194,15 @@ void main() {
 
   group('TAB-014 — an always-open-home site lands at home on load', () {
     tearDown(() {
-      DeveloperModeService.instance.debugSet(false);
+      DeveloperModeService.instance.debugSet(on: false);
       ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, false);
+          .debugSet(ExperimentalFeature.siteTabs, on: false);
     });
 
     void tabsOn() {
-      DeveloperModeService.instance.debugSet(true);
+      DeveloperModeService.instance.debugSet(on: true);
       ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, true);
+          .debugSet(ExperimentalFeature.siteTabs, on: true);
     }
 
     WebViewModel awayFromHome() {
@@ -222,7 +222,8 @@ void main() {
 
     test('with tabs it opens a new tab at home and keeps the others', () {
       tabsOn();
-      final back = WebViewModel.fromJson(awayFromHome().toJson(), null);
+      final back =
+          WebViewModel.fromJson(awayFromHome().toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(3));
       expect(back.currentUrl, 'https://mastodon.social/');
       expect(back.activeTabId, isNot(kPrimaryTabId));
@@ -232,21 +233,23 @@ void main() {
     test('with tabs, a site already at home opens no new tab', () {
       tabsOn();
       final m = awayFromHome()..currentUrl = 'https://mastodon.social';
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));
       expect(back.activeTabId, kPrimaryTabId);
     });
 
     test('reloading the landed site opens no second home tab', () {
       tabsOn();
-      final once = WebViewModel.fromJson(awayFromHome().toJson(), null);
-      final twice = WebViewModel.fromJson(once.toJson(), null);
+      final once =
+          WebViewModel.fromJson(awayFromHome().toJson(), stateSetterF: null);
+      final twice = WebViewModel.fromJson(once.toJson(), stateSetterF: null);
       expect(twice.tabs, hasLength(3));
       expect(twice.activeTabId, once.activeTabId);
     });
 
     test('without tabs the tab it was on is sent home, others are kept', () {
-      final back = WebViewModel.fromJson(awayFromHome().toJson(), null);
+      final back =
+          WebViewModel.fromJson(awayFromHome().toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));
       expect(back.activeTabId, kPrimaryTabId);
       expect(back.currentUrl, 'https://mastodon.social/');
@@ -256,7 +259,7 @@ void main() {
     test('a kiosk site has no tabs, so it is sent home in place', () {
       tabsOn();
       final m = awayFromHome()..kioskMode = true;
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));
       expect(back.currentUrl, 'https://mastodon.social/');
     });

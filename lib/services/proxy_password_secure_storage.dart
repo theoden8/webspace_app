@@ -98,7 +98,7 @@ class ProxyPasswordSecureStorage {
       });
 
   /// Set or clear the password for a single key. Pass null/empty to delete.
-  Future<void> savePassword(String key, String? password) =>
+  Future<void> savePassword(String key, {required String? password}) =>
       mutate((draft) => draft[key] = password);
 
   /// Drop entries for keys not in [activeKeys], after deleting sites or
@@ -135,7 +135,7 @@ class ProxyPasswordSecureStorage {
     }
     final password = decoded['password'];
     if (password is! String || password.isEmpty) return false;
-    await savePassword(secureKey, password);
+    await savePassword(secureKey, password: password);
     decoded.remove('password');
     await prefs.setString(prefsKey, jsonEncode(decoded));
     LogTag.proxyPwdStore.info(

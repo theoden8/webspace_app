@@ -80,7 +80,7 @@ void main() {
     await upstreamB.close();
   });
 
-  bool saw(Socks5Fixture f, int dest) =>
+  bool saw(Socks5Fixture f, {required int dest}) =>
       f.targets.any((t) => t.startsWith('${syntheticOrigin(dest)}:'));
 
   final waitReal = RealWait(log: log);
@@ -123,7 +123,7 @@ void main() {
     expect(ProxyRouterService.instance.isActive, isTrue);
     log('relay on ${ProxyRouterService.instance.host}:$port');
 
-    Widget pane(String siteId, int dest) {
+    Widget pane(String siteId, {required int dest}) {
       final url = 'http://${syntheticOrigin(dest)}/$siteId';
       return SizedBox(
         width: 200,
@@ -143,18 +143,20 @@ void main() {
     // is made at the relay, and every store points at the relay instead.
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
-        body: Column(children: [pane(siteA, destA), pane(siteB, destB)]),
+        body: Column(
+            children: [pane(siteA, dest: destA), pane(siteB, dest: destB)]),
       ),
     ));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump(const Duration(milliseconds: 500));
 
-    await waitReal(tester, () => saw(upstreamA, destA) && saw(upstreamB, destB),
+    await waitReal(tester,
+        done: () => saw(upstreamA, dest: destA) && saw(upstreamB, dest: destB),
         label: 'both panes settled');
 
-    final a = saw(upstreamA, destA);
-    final b = saw(upstreamB, destB);
-    final crossed = saw(upstreamB, destA) || saw(upstreamA, destB);
+    final a = saw(upstreamA, dest: destA);
+    final b = saw(upstreamB, dest: destB);
+    final crossed = saw(upstreamB, dest: destA) || saw(upstreamA, dest: destB);
     verdict.add('a=${a ? "own" : "no"} b=${b ? "own" : "no"} crossed=$crossed');
 
     expect(crossed, isFalse,

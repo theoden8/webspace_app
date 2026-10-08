@@ -177,7 +177,7 @@ final class SiteRemoved extends SiteSetChange {
 
 /// The "All" order: the site at [from] moved to [to].
 final class SitesMoved extends SiteSetChange {
-  const SitesMoved(this.from, this.to);
+  const SitesMoved(this.from, {required this.to});
   final int from;
   final int to;
 }

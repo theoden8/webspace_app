@@ -36,8 +36,8 @@ void main() {
       // rewrite never runs before the page wires its own click handlers and
       // target="_blank" cross-domain taps go silent again (issue #405).
       final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
-      final blockStart = webviewSrc
-          .indexOf("pageShim('target_blank_rewrite', targetBlankRewriteScript");
+      final blockStart = webviewSrc.indexOf(
+          "pageShim('target_blank_rewrite', js: targetBlankRewriteScript");
       expect(blockStart, greaterThan(0));
       final block =
           webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));

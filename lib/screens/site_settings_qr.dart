@@ -17,9 +17,9 @@ import 'package:webspace/widgets/toast.dart';
 /// Cookies, user scripts, secure cookies, and proxy passwords are stripped
 /// by [SiteSettingsQrCodec.shareableSubset] before encoding.
 Future<void> showSiteSettingsQrShareDialog(
-  BuildContext context,
-  WebViewModel model,
-) async {
+  BuildContext context, {
+  required WebViewModel model,
+}) async {
   final shared = SiteSettingsQrCodec.shareableSubset(model.toJson());
   final encoded = SiteSettingsQrCodec.encode(shared);
 

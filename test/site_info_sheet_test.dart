@@ -148,7 +148,7 @@ void main() {
       await tester.pumpWidget(_host(SiteInfoSheet(
         info: _info(containerId: 'ws-gh', containerColor: 2),
       )));
-      expect(dots(), [ContainerColors.of(2, Brightness.light)]);
+      expect(dots(), [ContainerColors.of(2, brightness: Brightness.light)]);
 
       await tester.pumpWidget(_host(SiteInfoSheet(
         info: _info(containerId: 'ws-gh'),

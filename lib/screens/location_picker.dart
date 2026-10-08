@@ -247,8 +247,8 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     final loc = AppLocalizations.of(context);
     // Coordinates are signed and move the pin as they are typed; accuracy is
     // neither.
-    Widget field(TextEditingController controller, String label,
-            {bool coordinate = true}) =>
+    Widget field(TextEditingController controller, {required String label,
+           bool coordinate = true}) =>
         TextFormField(
           controller: controller,
           keyboardType: TextInputType.numberWithOptions(
@@ -267,15 +267,15 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           Row(
             children: [
               Expanded(
-                  child: field(_latController, loc.locationPickerLatitudeLabel)),
+                  child: field(_latController, label: loc.locationPickerLatitudeLabel)),
               const SizedBox(width: 8),
               Expanded(
                   child:
-                      field(_lngController, loc.locationPickerLongitudeLabel)),
+                      field(_lngController, label: loc.locationPickerLongitudeLabel)),
             ],
           ),
           const SizedBox(height: 8),
-          field(_accController, loc.locationPickerAccuracyLabel,
+          field(_accController, label: loc.locationPickerAccuracyLabel,
               coordinate: false),
           if (CurrentLocationService.isSupported) ...[
             const SizedBox(height: 8),

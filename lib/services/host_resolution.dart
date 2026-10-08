@@ -141,9 +141,9 @@ Future<HostRangeVerdict> classifyResolvedHost(String host) async {
 /// Closing that needs the connection pinned to the address checked, which the
 /// `http` client does not expose.
 Future<HostRangeVerdict> classifyOutboundTarget(
-  String url,
-  UserProxySettings effective,
-) async {
+  String url, {
+  required UserProxySettings effective,
+}) async {
   if (effective.type != ProxyType.DEFAULT) return HostRangeVerdict.notResolvedHere;
   final host = Host.inUrl(url);
   if (host == null) return HostRangeVerdict.unresolvable;

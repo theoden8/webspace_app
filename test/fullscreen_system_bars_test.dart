@@ -68,8 +68,8 @@ void main() {
         fullscreenMode: true,
       );
       await pumpRealApp(tester, sites: [site], prefs: prefs);
-      await openWebspace(tester, 'All');
-      await openSiteFromDrawer(tester, 'Example');
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'Example');
     }
 
     // What Android does when the user swipes a bar in under `immersive`: the

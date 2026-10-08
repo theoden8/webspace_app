@@ -4,21 +4,21 @@ class DomainClaim {
   final DomainClaimKind kind;
   final String value;
 
-  const DomainClaim._raw(this.kind, this.value);
+  const DomainClaim._raw(this.kind, {required this.value});
 
-  factory DomainClaim(DomainClaimKind kind, String value) =>
-      DomainClaim._raw(kind, _canon(kind, value));
+  factory DomainClaim(DomainClaimKind kind, {required String value}) =>
+      DomainClaim._raw(kind, value: _canon(kind, s: value));
 
   factory DomainClaim.exactHost(String host) =>
-      DomainClaim(DomainClaimKind.exactHost, host);
+      DomainClaim(DomainClaimKind.exactHost, value: host);
 
   factory DomainClaim.wildcardSubdomain(String host) =>
-      DomainClaim(DomainClaimKind.wildcardSubdomain, host);
+      DomainClaim(DomainClaimKind.wildcardSubdomain, value: host);
 
   factory DomainClaim.baseDomain(String host) =>
-      DomainClaim(DomainClaimKind.baseDomain, host);
+      DomainClaim(DomainClaimKind.baseDomain, value: host);
 
-  static String _canon(DomainClaimKind kind, String s) {
+  static String _canon(DomainClaimKind kind, {required String s}) {
     var v = s.trim().toLowerCase();
     if (v.isEmpty) return v;
     if (v.contains('://')) {
@@ -64,7 +64,7 @@ class DomainClaim {
           (k) => k.name == json['kind'],
           orElse: () => DomainClaimKind.baseDomain,
         ),
-        json['value'] as String? ?? '',
+        value: json['value'] as String? ?? '',
       );
 
   /// Null for a value that is present but not a string.

@@ -15,7 +15,7 @@ import 'helpers/localized.dart';
 /// The interstitial is a full-screen surface; the default 800x600 test view
 /// puts its last button under the fold, where a tap lands on nothing.
 void _tallView(WidgetTester t) {
-  setViewSize(t, const Size(900, 1800));
+  setViewSize(t, size: const Size(900, 1800));
 }
 
 Widget _host(Widget child) => localizedApp(Scaffold(body: child));

@@ -30,11 +30,12 @@ class SiteGridTile extends StatelessWidget {
   final VoidCallback onOpen;
 
   /// The site's menu, at a global position.
-  final void Function(BuildContext context, Offset globalPosition) onMenu;
+  final void Function(BuildContext context, {required Offset globalPosition})
+      onMenu;
 
   /// A tile dragged from grid place `from` dropped on this one; null where
   /// the grid cannot be reordered.
-  final void Function(int from, int to)? onReorder;
+  final void Function(int from, {required int to})? onReorder;
 
   @override
   Widget build(BuildContext context) {
@@ -44,10 +45,10 @@ class SiteGridTile extends StatelessWidget {
       button: true,
       enabled: true,
       child: reorder != null
-          ? _draggable(context, reorder)
+          ? _draggable(context, reorder: reorder)
           : GestureDetector(
               onLongPressStart: (details) =>
-                  onMenu(context, details.globalPosition),
+                  onMenu(context, globalPosition: details.globalPosition),
               child: InkWell(
                 borderRadius: BorderRadius.circular(Radii.xl),
                 onTap: onOpen,
@@ -63,14 +64,15 @@ class SiteGridTile extends StatelessWidget {
     showTabCount: showTabCount,
   );
 
-  Widget _draggable(BuildContext context, void Function(int, int) reorder) {
+  Widget _draggable(BuildContext context,
+      {required void Function(int from, {required int to}) reorder}) {
     final theme = Theme.of(context);
     // A raw Listener rather than a GestureDetector for the tap: the gesture
     // arena against LongPressDraggable delays or drops taps.
     PointerDownEvent? down;
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != listIndex,
-      onAcceptWithDetails: (details) => reorder(details.data, listIndex),
+      onAcceptWithDetails: (details) => reorder(details.data, to: listIndex),
       builder: (context, candidateData, rejectedData) {
         final isHovered = candidateData.isNotEmpty;
         return LongPressDraggable<int>(
@@ -113,7 +115,7 @@ class SiteGridTile extends StatelessWidget {
                   onPointerCancel: (_) => down = null,
                   child: GestureDetector(
                     onSecondaryTapDown: (details) =>
-                        onMenu(context, details.globalPosition),
+                        onMenu(context, globalPosition: details.globalPosition),
                     child: _content(),
                   ),
                 ),
@@ -126,7 +128,7 @@ class SiteGridTile extends StatelessWidget {
                       final renderBox = context.findRenderObject() as RenderBox;
                       onMenu(
                         context,
-                        renderBox.localToGlobal(
+                        globalPosition: renderBox.localToGlobal(
                           Offset(renderBox.size.width - 8, 8),
                         ),
                       );

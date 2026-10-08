@@ -422,7 +422,7 @@ void main() {
       expect(
         ClearUrlService.strippedParamLabel(
           'https://example.com/p?utm_source=x&id=7&fbclid=y',
-          'https://example.com/p?id=7',
+          cleaned: 'https://example.com/p?id=7',
         ),
         equals('fbclid, utm_source'),
       );
@@ -432,7 +432,7 @@ void main() {
       expect(
         ClearUrlService.strippedParamLabel(
           'https://example.com/p',
-          'https://example.com/p',
+          cleaned: 'https://example.com/p',
         ),
         isEmpty,
       );
@@ -442,7 +442,7 @@ void main() {
       expect(
         ClearUrlService.strippedParamLabel(
           'https://www.google.com/url?q=https%3A%2F%2Fexample.org%2Fpage',
-          'https://example.org/page',
+          cleaned: 'https://example.org/page',
         ),
         isEmpty,
       );
@@ -450,7 +450,8 @@ void main() {
 
     test('a completeProvider block names nothing', () {
       expect(
-        ClearUrlService.strippedParamLabel('https://tracker.example/p?a=1', ''),
+        ClearUrlService.strippedParamLabel('https://tracker.example/p?a=1',
+            cleaned: ''),
         isEmpty,
       );
     });

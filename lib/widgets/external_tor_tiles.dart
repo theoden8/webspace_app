@@ -29,7 +29,7 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
 
   Future<void> _setSwitch(bool value) async {
     await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.externalTor, value);
+        .setSwitch(ExperimentalFeature.externalTor, on: value);
     if (!mounted) return;
     setState(() => _switch = value);
     await TorService.instance.runtimeChoiceChanged();
@@ -58,7 +58,7 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
           leading: const Icon(Icons.security_outlined),
           title: loc.appSettingsExperimentalExternalTor,
           hint: loc.appSettingsExperimentalExternalTorHint,
-          control: Toggle(_switch, _setSwitch),
+          control: Toggle(_switch, onChanged: _setSwitch),
         ),
         if (_switch)
           SettingTile(
@@ -97,7 +97,7 @@ class _ExternalTorAddressDialogState extends State<ExternalTorAddressDialog> {
     super.dispose();
   }
 
-  String? _validate(AppLocalizations loc, String value) {
+  String? _validate(AppLocalizations loc, {required String value}) {
     if (value.isEmpty) return loc.appSettingsProxyAddressRequired;
     if (splitProxyAddress(value) == null) {
       return loc.appSettingsProxyFormatHostPort;
@@ -107,7 +107,7 @@ class _ExternalTorAddressDialogState extends State<ExternalTorAddressDialog> {
 
   void _save(AppLocalizations loc) {
     final value = _controller.text.trim();
-    final error = _validate(loc, value);
+    final error = _validate(loc, value: value);
     if (error != null) {
       setState(() => _error = error);
       return;

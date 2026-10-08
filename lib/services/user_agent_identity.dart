@@ -139,7 +139,7 @@ UserAgentIdentity describeUserAgent(String ua, {int? currentFirefoxMajor}) {
 class _BrowserHit {
   final UaBrowser browser;
   final String? version;
-  const _BrowserHit(this.browser, [this.version]);
+  const _BrowserHit(this.browser, {this.version});
 }
 
 _BrowserHit _describeBrowser(String ua) {
@@ -147,27 +147,37 @@ _BrowserHit _describeBrowser(String ua) {
     return const _BrowserHit(UaBrowser.webview);
   }
   final fxios = _fxiosToken.firstMatch(ua);
-  if (fxios != null) return _BrowserHit(UaBrowser.firefox, fxios.group(1));
+  if (fxios != null) {
+    return _BrowserHit(UaBrowser.firefox, version: fxios.group(1));
+  }
   final edge = _edgeToken.firstMatch(ua);
-  if (edge != null) return _BrowserHit(UaBrowser.edge, edge.group(1));
+  if (edge != null) return _BrowserHit(UaBrowser.edge, version: edge.group(1));
   final opera = _operaToken.firstMatch(ua);
-  if (opera != null) return _BrowserHit(UaBrowser.opera, opera.group(1));
+  if (opera != null) {
+    return _BrowserHit(UaBrowser.opera, version: opera.group(1));
+  }
   final samsung = _samsungToken.firstMatch(ua);
   if (samsung != null) {
-    return _BrowserHit(UaBrowser.samsungInternet, samsung.group(1));
+    return _BrowserHit(UaBrowser.samsungInternet, version: samsung.group(1));
   }
   final firefox = _firefoxToken.firstMatch(ua);
-  if (firefox != null) return _BrowserHit(UaBrowser.firefox, firefox.group(1));
+  if (firefox != null) {
+    return _BrowserHit(UaBrowser.firefox, version: firefox.group(1));
+  }
   final crios = _crIosToken.firstMatch(ua);
-  if (crios != null) return _BrowserHit(UaBrowser.chrome, crios.group(1));
+  if (crios != null) {
+    return _BrowserHit(UaBrowser.chrome, version: crios.group(1));
+  }
   final chrome = _chromeToken.firstMatch(ua);
-  if (chrome != null) return _BrowserHit(UaBrowser.chrome, chrome.group(1));
+  if (chrome != null) {
+    return _BrowserHit(UaBrowser.chrome, version: chrome.group(1));
+  }
   if (_safariToken.hasMatch(ua)) {
     final version = _safariVersionToken.firstMatch(ua)?.group(1);
     // A Safari/ tail without Version/ is the WebKit build number alone —
     // every WebKit UA carries it, so it identifies nothing by itself.
     return version != null
-        ? _BrowserHit(UaBrowser.safari, version.split('.').first)
+        ? _BrowserHit(UaBrowser.safari, version: version.split('.').first)
         : const _BrowserHit(UaBrowser.unknown);
   }
   return const _BrowserHit(UaBrowser.unknown);
@@ -176,21 +186,21 @@ _BrowserHit _describeBrowser(String ua) {
 class _OsHit {
   final UaOs os;
   final String? version;
-  const _OsHit(this.os, [this.version]);
+  const _OsHit(this.os, {this.version});
 }
 
 _OsHit _describeOs(String ua) {
   final ios = _iosToken.firstMatch(ua);
   if (ios != null || _appleMobileDevice.hasMatch(ua)) {
-    return _OsHit(UaOs.ios, ios?.group(1)?.replaceAll('_', '.'));
+    return _OsHit(UaOs.ios, version: ios?.group(1)?.replaceAll('_', '.'));
   }
   final android = _androidToken.firstMatch(ua);
-  if (android != null) return _OsHit(UaOs.android, android.group(1));
+  if (android != null) return _OsHit(UaOs.android, version: android.group(1));
   final windows = _windowsToken.firstMatch(ua);
-  if (windows != null) return _OsHit(UaOs.windows, windows.group(1));
+  if (windows != null) return _OsHit(UaOs.windows, version: windows.group(1));
   final mac = _macToken.firstMatch(ua);
   if (mac != null) {
-    return _OsHit(UaOs.macos, mac.group(1)!.replaceAll('_', '.'));
+    return _OsHit(UaOs.macos, version: mac.group(1)!.replaceAll('_', '.'));
   }
   if (_linuxToken.hasMatch(ua)) return const _OsHit(UaOs.linux);
   return const _OsHit(UaOs.unknown);

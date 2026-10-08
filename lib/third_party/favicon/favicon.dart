@@ -120,7 +120,7 @@ class FaviconFinder {
 
           iconUrl = iconUrl.split('?').first;
 
-          if (await _verifyImage(iconUrl, client)) {
+          if (await _verifyImage(iconUrl, client: client)) {
             iconUrls.add(iconUrl);
           }
         }
@@ -128,7 +128,7 @@ class FaviconFinder {
     }
 
     var iconUrl = uri.scheme + '://' + uri.host + '/favicon.ico';
-    if (await _verifyImage(iconUrl, client)) {
+    if (await _verifyImage(iconUrl, client: client)) {
       iconUrls.add(iconUrl);
     }
 
@@ -165,7 +165,8 @@ class FaviconFinder {
     }
   }
 
-  static Future<bool> _verifyImage(String url, http.Client client) async {
+  static Future<bool> _verifyImage(String url,
+      {required http.Client client}) async {
     var response = await client.get(Uri.parse(url));
 
     var contentType = response.headers['content-type'];
@@ -175,8 +176,8 @@ class FaviconFinder {
     if (url.endsWith('.ico')) {
       if (response.bodyBytes.length < 4) return false;
 
-      if (!_verifySignature(response.bodyBytes, ICO_SIG) &&
-          !_verifySignature(response.bodyBytes, PNG_SIG)) {
+      if (!_verifySignature(response.bodyBytes, signature: ICO_SIG) &&
+          !_verifySignature(response.bodyBytes, signature: PNG_SIG)) {
         return false;
       }
     }
@@ -186,7 +187,8 @@ class FaviconFinder {
         contentType.contains('image');
   }
 
-  static bool _verifySignature(Uint8List bodyBytes, List<int> signature) {
+  static bool _verifySignature(Uint8List bodyBytes,
+      {required List<int> signature}) {
     var fileSignature = bodyBytes.sublist(0, signature.length);
     for (var i = 0; i < fileSignature.length; i++) {
       if (fileSignature[i] != signature[i]) return false;

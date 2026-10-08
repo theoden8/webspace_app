@@ -27,7 +27,7 @@ typedef ProxyAttributionProbe = Future<void> Function(
 /// not yet applied it resolves its own hostname directly, never reaches
 /// the relay, and reads as a failed attribution on every device.
 typedef ProxyRouterOverrideBinder = Future<bool> Function(
-    String host, int port);
+    String host, {required int port});
 
 /// Owns the per-site proxy router (PROXY-013): the relay lifecycle, the
 /// per-site credentials, and the one question the WebView layer asks it at
@@ -240,9 +240,10 @@ class ProxyRouterService {
     // the relay, and it only does once the process-wide proxy points
     // there. Binding afterwards makes every probe fail to resolve and
     // router mode unreachable on every device.
-    if (bindOverride != null && !await bindOverride(endpoint.host, port)) {
-      LogTag.proxy.error(
-          'Proxy override did not apply; not activating router mode');
+    if (bindOverride != null &&
+        !await bindOverride(endpoint.host, port: port)) {
+      LogTag.proxy
+          .error('Proxy override did not apply; not activating router mode');
       await deactivate();
       return null;
     }
@@ -252,7 +253,8 @@ class ProxyRouterService {
     // always pass one: without it a device that shares a proxy auth cache
     // across container profiles would route sites through each other and
     // nothing would say so.
-    if (probe != null && !await _verifyAttribution(perSiteProxies.keys, probe)) {
+    if (probe != null &&
+        !await _verifyAttribution(perSiteProxies.keys, probe: probe)) {
       await deactivate();
       return null;
     }
@@ -276,9 +278,9 @@ class ProxyRouterService {
   /// a challenge itself, as `AwHttpAuthHandler` cancels with no
   /// `WebContents` — already has a credential to send.
   Future<bool> _verifyAttribution(
-    Iterable<String> siteIds,
-    ProxyAttributionProbe probe,
-  ) async {
+    Iterable<String> siteIds, {
+    required ProxyAttributionProbe probe,
+  }) async {
     if (_state == null) return false;
     // The shared-profile identity has no container to drive, and nothing
     // to prove: it exists precisely because those sites share one

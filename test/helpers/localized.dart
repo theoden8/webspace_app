@@ -16,17 +16,17 @@ Widget localizedApp(Widget home, {ThemeData? theme, Locale? locale}) =>
 /// Pumps [localizedApp]; [size] sets the view to that many logical pixels
 /// for the rest of the test.
 Future<void> pumpLocalized(
-  WidgetTester tester,
-  Widget home, {
+  WidgetTester tester, {
+  required Widget home,
   ThemeData? theme,
   Locale? locale,
   Size? size,
 }) async {
-  if (size != null) setViewSize(tester, size);
+  if (size != null) setViewSize(tester, size: size);
   await tester.pumpWidget(localizedApp(home, theme: theme, locale: locale));
 }
 
-void setViewSize(WidgetTester tester, Size size) {
+void setViewSize(WidgetTester tester, {required Size size}) {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);

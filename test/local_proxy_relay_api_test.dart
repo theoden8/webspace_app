@@ -14,7 +14,7 @@ import 'package:webspace/settings/proxy.dart';
 /// failures this feature exists to prevent, so they are asserted here
 /// rather than left to the one tier that can run a real WebView.
 void main() {
-  String credential(String siteId, String token) =>
+  String credential(String siteId, {required String token}) =>
       ProxyRouterEngine.credentialFor(siteId: siteId, token: token);
 
   Map<String, Object?> wire({
@@ -36,8 +36,9 @@ void main() {
 
   group('decodeRoute', () {
     test('splits the credential into the username the relay keys on', () {
-      final decoded =
-          LocalProxyRelayApi.decodeRoute(credential('site-a', 'tok'), wire());
+      final decoded = LocalProxyRelayApi.decodeRoute(
+          credential('site-a', token: 'tok'),
+          wire: wire());
       expect(decoded, isNotNull);
       expect(decoded!.username, 'ws-site-a');
       expect(decoded.route.token, 'tok');
@@ -50,8 +51,8 @@ void main() {
       // `UserProxySettings.toJson` must never carry a secret (PWD-005), so
       // the relay holds the upstream password beside the settings object.
       final decoded = LocalProxyRelayApi.decodeRoute(
-        credential('site-a', 'tok'),
-        wire(username: 'alice', password: 's3cret'),
+        credential('site-a', token: 'tok'),
+        wire: wire(username: 'alice', password: 's3cret'),
       );
       expect(decoded!.route.upstream.username, 'alice');
       expect(decoded.route.upstreamPassword, 's3cret');
@@ -60,8 +61,8 @@ void main() {
 
     test('a direct route needs no address', () {
       final decoded = LocalProxyRelayApi.decodeRoute(
-        credential('site-a', 'tok'),
-        wire(type: 'direct', host: '', port: 0),
+        credential('site-a', token: 'tok'),
+        wire: wire(type: 'direct', host: '', port: 0),
       );
       expect(decoded!.route.upstream.type, ProxyType.DEFAULT);
       expect(decoded.route.upstream.address, isNull);
@@ -83,26 +84,27 @@ void main() {
           body: wire()
         ),
         'unknown type': (
-          cred: credential('site-a', 'tok'),
+          cred: credential('site-a', token: 'tok'),
           body: wire(type: 'carrier-pigeon')
         ),
-        'missing siteId': (cred: credential('site-a', 'tok'), body: {
+        'missing siteId': (cred: credential('site-a', token: 'tok'), body: {
           'type': 'socks5',
           'host': '127.0.0.1',
           'port': 9050,
         }),
         'empty host': (
-          cred: credential('site-a', 'tok'),
+          cred: credential('site-a', token: 'tok'),
           body: wire(host: '')
         ),
-        'port zero': (cred: credential('site-a', 'tok'), body: wire(port: 0)),
+        'port zero': (cred: credential('site-a', token: 'tok'), body: wire(port: 0)),
         'port not an int': (
-          cred: credential('site-a', 'tok'),
+          cred: credential('site-a', token: 'tok'),
           body: wire(port: '9050')
         ),
       };
       bad.forEach((name, input) {
-        expect(LocalProxyRelayApi.decodeRoute(input.cred, input.body), isNull,
+        expect(LocalProxyRelayApi.decodeRoute(input.cred, wire: input.body),
+            isNull,
             reason: '"$name" must not decode');
       });
     });
@@ -138,8 +140,9 @@ void main() {
         () async {
       await api.startRouter('realm-1');
       final ok = await api.setRoutes({
-        credential('site-a', 'tok-a'): wire(siteId: 'site-a'),
-        credential('site-b', 'tok-b'): wire(siteId: 'site-b', type: 'nope'),
+        credential('site-a', token: 'tok-a'): wire(siteId: 'site-a'),
+        credential('site-b', token: 'tok-b'):
+            wire(siteId: 'site-b', type: 'nope'),
       });
       expect(ok, isFalse,
           reason: 'half a table routes the missing site to a 502, which '
@@ -149,7 +152,8 @@ void main() {
 
     test('setRoutes without a relay fails rather than silently succeeding',
         () async {
-      expect(await api.setRoutes({credential('a', 'b'): wire()}), isFalse);
+      expect(
+          await api.setRoutes({credential('a', token: 'b'): wire()}), isFalse);
     });
 
     test('probe results start empty and clear', () async {

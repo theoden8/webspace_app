@@ -47,7 +47,8 @@ class NavigationTestHarness {
   /// Simulates a `shouldOverrideUrlLoading` call by delegating to
   /// `NavigationDecisionEngine.decideShouldOverrideUrlLoading`. Returns
   /// `true` if the navigation would be allowed, `false` if cancelled.
-  bool simulateNavigation(int siteIndex, String targetUrl, {bool hasGesture = true}) {
+  bool simulateNavigation(int siteIndex,
+      {required String targetUrl, bool hasGesture = true}) {
     final site = sites[siteIndex];
     final result = NavigationDecisionEngine.decideShouldOverrideUrlLoading(
       targetUrl: targetUrl,
@@ -57,7 +58,7 @@ class NavigationTestHarness {
       lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
       now: DateTime.now(),
     );
-    _applyGestureUpdate(siteIndex, result.gestureUpdate);
+    _applyGestureUpdate(siteIndex, update: result.gestureUpdate);
     switch (result.decision) {
       case NavigationDecision.allow:
         return true;
@@ -75,7 +76,7 @@ class NavigationTestHarness {
   /// Simulates an `onUrlChanged` call by delegating to
   /// `NavigationDecisionEngine.decideOnUrlChanged`. Returns `true`
   /// when a nested webview would be opened.
-  bool simulateUrlChanged(int siteIndex, String newUrl) {
+  bool simulateUrlChanged(int siteIndex, {required String newUrl}) {
     final site = sites[siteIndex];
     final result = NavigationDecisionEngine.decideOnUrlChanged(
       newUrl: newUrl,
@@ -85,7 +86,7 @@ class NavigationTestHarness {
       now: DateTime.now(),
       isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
     );
-    _applyGestureUpdate(siteIndex, result.gestureUpdate);
+    _applyGestureUpdate(siteIndex, update: result.gestureUpdate);
     if (result.decision == NavigationDecision.blockOpenNested) {
       launchUrlCalls.add((url: newUrl, homeTitle: site.name));
       return true;
@@ -100,7 +101,7 @@ class NavigationTestHarness {
   /// Multi-event scenarios (duplicate onUrlChanged from onLoadStop+
   /// onUpdateVisitedHistory, followed by the loadUrl-back settling event)
   /// round-trip through the engine without a parallel implementation.
-  void simulateFullUrlChanged(int siteIndex, String newUrl) {
+  void simulateFullUrlChanged(int siteIndex, {required String newUrl}) {
     final site = sites[siteIndex];
     final prev = _urlChangedState[siteIndex] ??
         OnUrlChangedState.initial(site.initUrl);
@@ -113,7 +114,7 @@ class NavigationTestHarness {
       isCaptchaChallenge: WebViewFactory.isCaptchaChallenge,
       state: prev,
     );
-    _applyGestureUpdate(siteIndex, result.gestureUpdate);
+    _applyGestureUpdate(siteIndex, update: result.gestureUpdate);
     if (result.navigateBackTo != null) {
       loadUrlCalls.add((siteIndex: siteIndex, url: result.navigateBackTo!));
     }
@@ -130,9 +131,10 @@ class NavigationTestHarness {
       _urlChangedState[siteIndex] ??
       OnUrlChangedState.initial(sites[siteIndex].initUrl);
 
-  void _applyGestureUpdate(int siteIndex, GestureStateUpdate? update) =>
-      _lastSameDomainGestureTime[siteIndex] = update.applyTo(
-          _lastSameDomainGestureTime[siteIndex], DateTime.now());
+  void _applyGestureUpdate(int siteIndex,
+          {required GestureStateUpdate? update}) =>
+      _lastSameDomainGestureTime[siteIndex] = update
+          .applyTo(_lastSameDomainGestureTime[siteIndex], now: DateTime.now());
 
   void clearLaunchUrlCalls() {
     launchUrlCalls.clear();
@@ -155,14 +157,14 @@ void main() {
 
       // Site A navigating to GitHub subdomain - should ALLOW
       expect(
-        harness.simulateNavigation(0, 'https://gist.github.com'),
+        harness.simulateNavigation(0, targetUrl: 'https://gist.github.com'),
         isTrue,
         reason: 'GitHub site should allow navigation to gist.github.com',
       );
 
       // Site A navigating to GitLab - should BLOCK
       expect(
-        harness.simulateNavigation(0, 'https://gitlab.com/user'),
+        harness.simulateNavigation(0, targetUrl: 'https://gitlab.com/user'),
         isFalse,
         reason: 'GitHub site should block navigation to gitlab.com',
       );
@@ -172,14 +174,14 @@ void main() {
 
       // Site B navigating to GitLab subdomain - should ALLOW
       expect(
-        harness.simulateNavigation(1, 'https://registry.gitlab.com'),
+        harness.simulateNavigation(1, targetUrl: 'https://registry.gitlab.com'),
         isTrue,
         reason: 'GitLab site should allow navigation to registry.gitlab.com',
       );
 
       // Site B navigating to GitHub - should BLOCK
       expect(
-        harness.simulateNavigation(1, 'https://github.com/user'),
+        harness.simulateNavigation(1, targetUrl: 'https://github.com/user'),
         isFalse,
         reason: 'GitLab site should block navigation to github.com',
       );
@@ -228,7 +230,7 @@ void main() {
 
       // Simulate the navigation - should ALLOW (same domain)
       expect(
-        harness.simulateNavigation(1, targetUrl),
+        harness.simulateNavigation(1, targetUrl: targetUrl),
         isTrue,
         reason: 'GitLab site should allow navigation within gitlab.com',
       );
@@ -242,14 +244,15 @@ void main() {
 
       // Gmail navigating to Google (aliased) - should ALLOW
       expect(
-        harness.simulateNavigation(0, 'https://accounts.google.com/signin'),
+        harness.simulateNavigation(0,
+            targetUrl: 'https://accounts.google.com/signin'),
         isTrue,
         reason: 'Gmail should allow navigation to google.com (alias)',
       );
 
       // Gmail navigating to GitHub - should BLOCK
       expect(
-        harness.simulateNavigation(0, 'https://github.com'),
+        harness.simulateNavigation(0, targetUrl: 'https://github.com'),
         isFalse,
         reason: 'Gmail should block navigation to github.com',
       );
@@ -259,7 +262,7 @@ void main() {
 
       // GitHub navigating to Google - should BLOCK (not aliased)
       expect(
-        harness.simulateNavigation(1, 'https://google.com'),
+        harness.simulateNavigation(1, targetUrl: 'https://google.com'),
         isFalse,
         reason: 'GitHub should block navigation to google.com',
       );
@@ -273,18 +276,29 @@ void main() {
       // Sites created - ready to test navigation
 
       // Each site should allow its own domain
-      expect(harness.simulateNavigation(0, 'https://gist.github.com'), isTrue);
-      expect(harness.simulateNavigation(1, 'https://registry.gitlab.com'), isTrue);
-      expect(harness.simulateNavigation(2, 'https://bitbucket.org/user'), isTrue);
+      expect(
+          harness.simulateNavigation(0, targetUrl: 'https://gist.github.com'),
+          isTrue);
+      expect(
+          harness.simulateNavigation(1,
+              targetUrl: 'https://registry.gitlab.com'),
+          isTrue);
+      expect(
+          harness.simulateNavigation(2,
+              targetUrl: 'https://bitbucket.org/user'),
+          isTrue);
 
       // Each site should block other domains
-      expect(harness.simulateNavigation(0, 'https://gitlab.com'), isFalse);
+      expect(harness.simulateNavigation(0, targetUrl: 'https://gitlab.com'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('GitHub'));
 
-      expect(harness.simulateNavigation(1, 'https://bitbucket.org'), isFalse);
+      expect(harness.simulateNavigation(1, targetUrl: 'https://bitbucket.org'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('GitLab'));
 
-      expect(harness.simulateNavigation(2, 'https://github.com'), isFalse);
+      expect(harness.simulateNavigation(2, targetUrl: 'https://github.com'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('Bitbucket'));
     });
 
@@ -298,13 +312,21 @@ void main() {
 
       // Interleaved navigation requests from different sites
       // Site 0 (GitHub) navigates within its domain
-      expect(harness.simulateNavigation(0, 'https://gist.github.com'), isTrue);
+      expect(
+          harness.simulateNavigation(0, targetUrl: 'https://gist.github.com'),
+          isTrue);
 
       // Site 1 (GitLab) navigates within its domain
-      expect(harness.simulateNavigation(1, 'https://gitlab.com/explore'), isTrue);
+      expect(
+          harness.simulateNavigation(1,
+              targetUrl: 'https://gitlab.com/explore'),
+          isTrue);
 
       // Site 2 (Bitbucket) navigates within its domain
-      expect(harness.simulateNavigation(2, 'https://bitbucket.org/account'), isTrue);
+      expect(
+          harness.simulateNavigation(2,
+              targetUrl: 'https://bitbucket.org/account'),
+          isTrue);
 
       // No cross-domain blocking should have occurred
       expect(harness.launchUrlCalls, isEmpty);
@@ -313,15 +335,22 @@ void main() {
       harness.clearLaunchUrlCalls();
 
       // GitHub tries to open GitLab - should block
-      expect(harness.simulateNavigation(0, 'https://gitlab.com/repo'), isFalse);
+      expect(
+          harness.simulateNavigation(0, targetUrl: 'https://gitlab.com/repo'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('GitHub'));
 
       // GitLab tries to open Bitbucket - should block
-      expect(harness.simulateNavigation(1, 'https://bitbucket.org/repo'), isFalse);
+      expect(
+          harness.simulateNavigation(1,
+              targetUrl: 'https://bitbucket.org/repo'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('GitLab'));
 
       // Bitbucket tries to open GitHub - should block
-      expect(harness.simulateNavigation(2, 'https://github.com/repo'), isFalse);
+      expect(
+          harness.simulateNavigation(2, targetUrl: 'https://github.com/repo'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('Bitbucket'));
 
       // Verify each blocked navigation was attributed to correct site
@@ -336,19 +365,27 @@ void main() {
       // Rapid interleaved navigations
       for (int i = 0; i < 5; i++) {
         // GitHub allows github.com
-        expect(harness.simulateNavigation(0, 'https://github.com/page$i'), isTrue);
+        expect(
+            harness.simulateNavigation(0,
+                targetUrl: 'https://github.com/page$i'),
+            isTrue);
         // GitLab allows gitlab.com
-        expect(harness.simulateNavigation(1, 'https://gitlab.com/page$i'), isTrue);
+        expect(
+            harness.simulateNavigation(1,
+                targetUrl: 'https://gitlab.com/page$i'),
+            isTrue);
       }
 
       // No launchUrl calls - all navigations within own domain
       expect(harness.launchUrlCalls, isEmpty);
 
       // Now cross-domain - each should block with correct homeTitle
-      expect(harness.simulateNavigation(0, 'https://gitlab.com'), isFalse);
+      expect(harness.simulateNavigation(0, targetUrl: 'https://gitlab.com'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('GitHub'));
 
-      expect(harness.simulateNavigation(1, 'https://github.com'), isFalse);
+      expect(harness.simulateNavigation(1, targetUrl: 'https://github.com'),
+          isFalse);
       expect(harness.launchUrlCalls.last.homeTitle, equals('GitLab'));
     });
   });
@@ -462,7 +499,8 @@ void main() {
       // Step 1: User clicks a search result — DDG navigates to its redirect URL
       // (same domain, has gesture)
       final allowed = harness.simulateNavigation(
-        0, 'https://duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.de',
+        0,
+        targetUrl: 'https://duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.amazon.de',
         hasGesture: true,
       );
       expect(allowed, isTrue, reason: 'Same-domain redirect URL should be allowed');
@@ -470,7 +508,7 @@ void main() {
       // Step 2: Server-side redirect fires shouldOverrideUrlLoading again
       // with the cross-domain target URL (no gesture — it is a redirect)
       final redirectResult = harness.simulateNavigation(
-        0, 'https://www.amazon.de/',
+        0, targetUrl: 'https://www.amazon.de/',
         hasGesture: false,
       );
       expect(redirectResult, isFalse, reason: 'Cross-domain redirect should be blocked');
@@ -484,13 +522,13 @@ void main() {
 
       // User clicks search result → google.com/url?q=... (same domain)
       harness.simulateNavigation(
-        0, 'https://www.google.com/url?q=https%3A%2F%2Fexample.org',
+        0, targetUrl: 'https://www.google.com/url?q=https%3A%2F%2Fexample.org',
         hasGesture: true,
       );
 
       // Redirect to example.org (cross-domain, no gesture)
       final result = harness.simulateNavigation(
-        0, 'https://example.org/',
+        0, targetUrl: 'https://example.org/',
         hasGesture: false,
       );
       expect(result, isFalse);
@@ -502,13 +540,14 @@ void main() {
 
       // User clicks a link (same-domain, gesture recorded)
       harness.simulateNavigation(
-        0, 'https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com',
+        0,
+        targetUrl: 'https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com',
         hasGesture: true,
       );
 
       // First cross-domain redirect — gesture consumed, nested webview opens
       harness.simulateNavigation(
-        0, 'https://example.com/',
+        0, targetUrl: 'https://example.com/',
         hasGesture: false,
       );
       expect(harness.launchUrlCalls.length, equals(1));
@@ -518,7 +557,7 @@ void main() {
       // Second cross-domain navigation without gesture — should be blocked
       // (gesture already consumed, no nested webview)
       final result = harness.simulateNavigation(
-        0, 'https://evil-tracker.com/',
+        0, targetUrl: 'https://evil-tracker.com/',
         hasGesture: false,
       );
       expect(result, isFalse);
@@ -532,7 +571,7 @@ void main() {
       // Script-initiated cross-domain navigation (e.g., Google One Tap)
       // No prior same-domain gesture
       final result = harness.simulateNavigation(
-        0, 'https://accounts.google.com/gsi',
+        0, targetUrl: 'https://accounts.google.com/gsi',
         hasGesture: false,
       );
       expect(result, isFalse);
@@ -545,7 +584,7 @@ void main() {
 
       // User clicks a direct cross-domain link (has gesture)
       final result = harness.simulateNavigation(
-        0, 'https://www.amazon.de/',
+        0, targetUrl: 'https://www.amazon.de/',
         hasGesture: true,
       );
       expect(result, isFalse);
@@ -565,7 +604,8 @@ void main() {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       // No prior gesture — should be silently blocked (no nested webview)
-      final detected = harness.simulateUrlChanged(0, 'https://www.amazon.de/');
+      final detected =
+          harness.simulateUrlChanged(0, newUrl: 'https://www.amazon.de/');
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
     });
@@ -574,10 +614,12 @@ void main() {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       // User clicks a same-domain link first (records gesture)
-      harness.simulateNavigation(0, 'https://duckduckgo.com/?q=test', hasGesture: true);
+      harness.simulateNavigation(0,
+          targetUrl: 'https://duckduckgo.com/?q=test', hasGesture: true);
 
       // Server-side 302 redirect to cross-domain — gesture should propagate
-      final detected = harness.simulateUrlChanged(0, 'https://www.amazon.de/');
+      final detected =
+          harness.simulateUrlChanged(0, newUrl: 'https://www.amazon.de/');
       expect(detected, isTrue);
       expect(harness.launchUrlCalls.length, equals(1));
       expect(harness.launchUrlCalls.last.url, equals('https://www.amazon.de/'));
@@ -594,14 +636,15 @@ void main() {
 
       final allowed = harness.simulateNavigation(
         0,
-        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2FLocalLLaMA%2Fcomments%2F1srd2cc',
+        targetUrl:
+            'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2FLocalLLaMA%2Fcomments%2F1srd2cc',
         hasGesture: true,
       );
       expect(allowed, isTrue, reason: 'safety/go wrapper is same-domain, must be allowed');
 
       final detected = harness.simulateUrlChanged(
         0,
-        'https://www.reddit.com/r/LocalLLaMA/comments/1srd2cc',
+        newUrl: 'https://www.reddit.com/r/LocalLLaMA/comments/1srd2cc',
       );
       expect(detected, isTrue,
         reason: 'redirect from safety/go must open a nested browser');
@@ -623,7 +666,7 @@ void main() {
 
       // User lands on a messaging thread (same-domain gesture-less nav).
       harness.simulateFullUrlChanged(
-        0, 'https://www.linkedin.com/mwlite/messaging/thread/foo');
+        0, newUrl: 'https://www.linkedin.com/mwlite/messaging/thread/foo');
       expect(
         harness.stateFor(0).currentUrl,
         equals('https://www.linkedin.com/mwlite/messaging/thread/foo'),
@@ -632,14 +675,16 @@ void main() {
       // User taps outbound link → safety/go wrapper loads, records gesture.
       harness.simulateNavigation(
         0,
-        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        targetUrl:
+            'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
         hasGesture: true,
       );
-      harness.simulateFullUrlChanged(
-        0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
+      harness.simulateFullUrlChanged(0,
+          newUrl:
+              'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
 
       // Server redirects to Reddit. onUrlChanged #1 fires (no slash).
-      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+      harness.simulateFullUrlChanged(0, newUrl: 'https://www.reddit.com/r/foo');
       expect(harness.launchUrlCalls, hasLength(1));
       expect(harness.loadUrlCalls, hasLength(1),
         reason: 'navigate-back to the prior same-domain URL');
@@ -651,7 +696,8 @@ void main() {
       expect(harness.stateFor(0).redirectHandled, isTrue);
 
       // Duplicate onUrlChanged #2 fires (trailing slash / canonicalized).
-      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo/');
+      harness.simulateFullUrlChanged(0,
+          newUrl: 'https://www.reddit.com/r/foo/');
       expect(harness.launchUrlCalls, hasLength(1),
         reason: 'duplicate must not open a second nested browser');
       expect(
@@ -678,26 +724,28 @@ void main() {
       harness.addSite('https://linkedin.com', name: 'LinkedIn');
 
       // Seed: user is on a real LinkedIn page.
-      harness.simulateFullUrlChanged(0, 'https://www.linkedin.com/feed/');
+      harness.simulateFullUrlChanged(0,
+          newUrl: 'https://www.linkedin.com/feed/');
       expect(harness.stateFor(0).currentUrl,
           equals('https://www.linkedin.com/feed/'));
 
       // about:blank fires (captcha iframe, intermediate chromium state,
       // page tear-down placeholder, etc.). It should NOT advance state.
-      harness.simulateFullUrlChanged(0, 'about:blank');
+      harness.simulateFullUrlChanged(0, newUrl: 'about:blank');
       expect(harness.stateFor(0).currentUrl,
           equals('https://www.linkedin.com/feed/'),
           reason: 'about:blank must not be committed as currentUrl');
 
       // data: URI fires similarly.
       harness.simulateFullUrlChanged(
-          0, 'data:text/html;charset=utf-8,<html></html>');
+          0, newUrl: 'data:text/html;charset=utf-8,<html></html>');
       expect(harness.stateFor(0).currentUrl,
           equals('https://www.linkedin.com/feed/'),
           reason: 'data: URI must not be committed as currentUrl');
 
       // blob: URI.
-      harness.simulateFullUrlChanged(0, 'blob:https://example.com/abc-123');
+      harness.simulateFullUrlChanged(0,
+          newUrl: 'blob:https://example.com/abc-123');
       expect(harness.stateFor(0).currentUrl,
           equals('https://www.linkedin.com/feed/'),
           reason: 'blob: URI must not be committed as currentUrl');
@@ -706,12 +754,15 @@ void main() {
       // should still be the genuine prior page — NOT any inline
       // scheme — so the navigate-back target is a real LinkedIn URL.
       harness.simulateNavigation(
-        0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        0,
+        targetUrl:
+            'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
         hasGesture: true,
       );
-      harness.simulateFullUrlChanged(
-          0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
-      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+      harness.simulateFullUrlChanged(0,
+          newUrl:
+              'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
+      harness.simulateFullUrlChanged(0, newUrl: 'https://www.reddit.com/r/foo');
 
       expect(harness.loadUrlCalls, hasLength(1));
       expect(harness.loadUrlCalls.last.url,
@@ -743,7 +794,8 @@ void main() {
       harness.addSite('https://linkedin.com', name: 'LinkedIn');
 
       // Seed: user lands on a normal LinkedIn page.
-      harness.simulateFullUrlChanged(0, 'https://www.linkedin.com/feed/');
+      harness.simulateFullUrlChanged(0,
+          newUrl: 'https://www.linkedin.com/feed/');
 
       // User taps an outbound link. The webview navigates to the
       // redirector. onUrlChanged fires TWICE for the same URL (once
@@ -751,18 +803,19 @@ void main() {
       // server-side redirect kicks in.
       harness.simulateNavigation(
         0,
-        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        targetUrl:
+            'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
         hasGesture: true,
       );
       const redirectorUrl =
           'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo';
-      harness.simulateFullUrlChanged(0, redirectorUrl);
+      harness.simulateFullUrlChanged(0, newUrl: redirectorUrl);
       // Duplicate event for the same URL — must NOT poison
       // previousSameDomainUrl by overwriting it with the redirector.
-      harness.simulateFullUrlChanged(0, redirectorUrl);
+      harness.simulateFullUrlChanged(0, newUrl: redirectorUrl);
 
       // Server 302s. Cross-domain event fires.
-      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+      harness.simulateFullUrlChanged(0, newUrl: 'https://www.reddit.com/r/foo');
 
       expect(harness.loadUrlCalls, hasLength(1),
         reason: 'should issue exactly one navigate-back, not loop');
@@ -799,21 +852,24 @@ void main() {
 
       // Seed the state: user is mid-session on a messaging thread.
       harness.simulateFullUrlChanged(
-        0, 'https://www.linkedin.com/mwlite/messaging/thread/foo');
+        0, newUrl: 'https://www.linkedin.com/mwlite/messaging/thread/foo');
 
       // === Attempt 1: happy path, full onUrlChanged chain ===
       harness.simulateNavigation(
         0,
-        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        targetUrl:
+            'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
         hasGesture: true,
       );
-      harness.simulateFullUrlChanged(
-        0, 'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
-      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
-      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo/'); // duplicate
+      harness.simulateFullUrlChanged(0,
+          newUrl:
+              'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo');
+      harness.simulateFullUrlChanged(0, newUrl: 'https://www.reddit.com/r/foo');
+      harness.simulateFullUrlChanged(0,
+          newUrl: 'https://www.reddit.com/r/foo/'); // duplicate
       // loadUrl-back settles on the prior same-domain page.
       harness.simulateFullUrlChanged(
-        0, 'https://www.linkedin.com/mwlite/messaging/thread/foo');
+        0, newUrl: 'https://www.linkedin.com/mwlite/messaging/thread/foo');
 
       expect(harness.launchUrlCalls, hasLength(1));
       expect(harness.loadUrlCalls.last.url,
@@ -825,11 +881,12 @@ void main() {
       // loadUrl-back on this attempt goes to the stale reddit URL. ===
       harness.simulateNavigation(
         0,
-        'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
+        targetUrl:
+            'https://www.linkedin.com/safety/go?url=https%3A%2F%2Fwww.reddit.com%2Fr%2Ffoo',
         hasGesture: true,
       );
       // NOTE: no simulateFullUrlChanged(safety/go) — WKWebView skipped it.
-      harness.simulateFullUrlChanged(0, 'https://www.reddit.com/r/foo');
+      harness.simulateFullUrlChanged(0, newUrl: 'https://www.reddit.com/r/foo');
 
       expect(harness.launchUrlCalls, hasLength(2),
         reason: 'attempt 2 must still open a nested browser');
@@ -844,7 +901,7 @@ void main() {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       final detected = harness.simulateUrlChanged(
-        0, 'https://duckduckgo.com/?q=test',
+        0, newUrl: 'https://duckduckgo.com/?q=test',
       );
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
@@ -854,7 +911,7 @@ void main() {
       harness.addSite('https://example.com', name: 'Example');
 
       final detected = harness.simulateUrlChanged(
-        0, 'https://challenges.cloudflare.com/some-challenge',
+        0, newUrl: 'https://challenges.cloudflare.com/some-challenge',
       );
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
@@ -864,7 +921,7 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
 
       final detected = harness.simulateUrlChanged(
-        0, 'https://gist.github.com/user/123',
+        0, newUrl: 'https://gist.github.com/user/123',
       );
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
@@ -874,7 +931,7 @@ void main() {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       final detected = harness.simulateUrlChanged(
-        0, 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
+        0, newUrl: 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
       );
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
@@ -884,7 +941,7 @@ void main() {
       harness.addSite('https://example.com', name: 'Example');
 
       final detected = harness.simulateUrlChanged(
-        0, 'blob:https://example.com/abc-123',
+        0, newUrl: 'blob:https://example.com/abc-123',
       );
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
@@ -893,7 +950,7 @@ void main() {
     test('about:blank is not flagged as cross-domain redirect', () {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
-      final detected = harness.simulateUrlChanged(0, 'about:blank');
+      final detected = harness.simulateUrlChanged(0, newUrl: 'about:blank');
       expect(detected, isFalse);
       expect(harness.launchUrlCalls, isEmpty);
     });
@@ -910,7 +967,8 @@ void main() {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       final result = harness.simulateNavigation(
-        0, 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
+        0,
+        targetUrl: 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
       );
       expect(result, isTrue,
         reason: 'data: URI should be allowed as same-page inline content');
@@ -922,7 +980,9 @@ void main() {
       harness.addSite('https://example.com', name: 'Example');
 
       final result = harness.simulateNavigation(
-        0, 'blob:https://example.com/550e8400-e29b-41d4-a716-446655440000',
+        0,
+        targetUrl:
+            'blob:https://example.com/550e8400-e29b-41d4-a716-446655440000',
       );
       expect(result, isTrue,
         reason: 'blob: URI should be allowed as same-origin inline content');
@@ -934,7 +994,8 @@ void main() {
       harness.addSite('https://duckduckgo.com', name: 'DDG');
 
       final result = harness.simulateNavigation(
-        0, 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
+        0,
+        targetUrl: 'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
         hasGesture: false,
       );
       expect(result, isTrue,

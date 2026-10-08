@@ -58,14 +58,14 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     if (_initialized) return Future.value();
     // Shared so two first-touch callers (a first loadState racing a first
     // saveState) cannot each generate and persist a different key.
-    return _init.run((), _doInitialize);
+    return _init.run((), call: _doInitialize);
   }
 
   Future<void> _doInitialize() async {
     try {
       _store = _overrideStore ?? defaultFileStore(_cacheDir);
-      _aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
-          logTag: LogTag.webViewState);
+      _aead = await KeychainAead.open(_secureStorage,
+          keyName: _encryptionKeyKey, logTag: LogTag.webViewState);
       await _clearCacheOnUpgrade();
       await _store!.ensure();
       _initialized = true;
@@ -103,8 +103,8 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         } on Exception catch (e) {
           LogTag.webViewState.error('Error clearing cache on upgrade: $e');
         }
-        _aead = await KeychainAead.rotate(_secureStorage, _encryptionKeyKey,
-            logTag: LogTag.webViewState);
+        _aead = await KeychainAead.rotate(_secureStorage,
+            keyName: _encryptionKeyKey, logTag: LogTag.webViewState);
       }
       if (prefs != null) {
         await prefs.setString(_versionKey, currentVersion);
@@ -126,14 +126,15 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       name.substring(0, name.length - '.enc'.length);
 
   @override
-  Future<void> saveState(String key, Uint8List state) async {
+  Future<void> saveState(String key, {required Uint8List state}) async {
     if (state.isEmpty) return;
     if (!_initialized) await initialize();
     final store = _store;
     final aead = _aead;
     if (store == null || aead == null) return;
     try {
-      await store.writeText(_fileNameFor(key), aead.seal(base64.encode(state)));
+      await store.writeText(_fileNameFor(key),
+          contents: aead.seal(base64.encode(state)));
       LogTag.webViewState.debug(
           'Saved ${state.length} bytes for $key (encrypted)', sensitive: true);
     } on Exception catch (e) {

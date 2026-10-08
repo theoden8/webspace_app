@@ -18,7 +18,7 @@ class DownloadUrlRevertEngine {
   /// Given the previously-known stable URL and a URL that just finished
   /// loading, returns the new stable URL. Non-renderable URLs never
   /// displace the previous value.
-  static String? updateStable(String? previous, String loadedUrl) {
+  static String? updateStable(String? previous, {required String loadedUrl}) {
     return isRenderable(loadedUrl) ? loadedUrl : previous;
   }
 

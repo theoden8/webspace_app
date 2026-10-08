@@ -55,7 +55,7 @@ import 'package:webspace/services/dns_block_service.dart';
 const int _iterations = 500;
 
 class _Result {
-  _Result(this.label, this.samplesUs, this.totalMs);
+  _Result(this.label, {required this.samplesUs, required this.totalMs});
   final String label;
   final List<int> samplesUs;
   final double totalMs;
@@ -164,7 +164,8 @@ window.__startBench = bench;
                 final raw = (m['samples'] as List).cast<num>();
                 final samples = raw.map((e) => e.toInt()).toList();
                 final totalMs = (m['totalMs'] as num).toDouble();
-                done.complete(_Result(label, samples, totalMs));
+                done.complete(
+                    _Result(label, samplesUs: samples, totalMs: totalMs));
                 return null;
               },
             );

@@ -64,8 +64,8 @@ final class Redirect extends BlockVerdict {
 
 /// The lookups behind a verdict.
 abstract interface class BlockLists {
-  bool dnsBlocksUrl(String url, int level);
-  bool dnsBlocksHost(String host, int level);
+  bool dnsBlocksUrl(String url, {required int level});
+  bool dnsBlocksHost(String host, {required int level});
   bool abpBlocksUrl(String url,
       {required String sourceUrl, required String requestType});
   bool abpBlocksHost(String host);
@@ -82,15 +82,15 @@ abstract final class BlockDecision {
   /// asked only about what DNS let through, and only when the site keeps
   /// content blocking on.
   static BlockVerdict decide(
-    BlockQuery query,
-    BlockPolicy policy,
-    BlockLists lists,
-  ) {
+    BlockQuery query, {
+    required BlockPolicy policy,
+    required BlockLists lists,
+  }) {
     final level = policy.dnsLevel;
     final dns = level > kDnsLevelOff &&
         switch (query) {
-          UrlQuery(:final url) => lists.dnsBlocksUrl(url, level),
-          HostQuery(:final host) => lists.dnsBlocksHost(host, level),
+          UrlQuery(:final url) => lists.dnsBlocksUrl(url, level: level),
+          HostQuery(:final host) => lists.dnsBlocksHost(host, level: level),
         };
     if (dns) return const Blocked(BlockSource.dns);
     if (!policy.contentBlock) return const Allowed();

@@ -6,14 +6,14 @@ import 'package:webspace/services/tab_bar_corner.dart';
 void main() {
   group('tabBarCornerNearest', () {
     test('picks the quadrant the button center sits in', () {
-      expect(tabBarCornerNearest(-0.4, -0.9), TabBarCorner.topLeft);
-      expect(tabBarCornerNearest(0.7, -0.1), TabBarCorner.topRight);
-      expect(tabBarCornerNearest(-1, 1), TabBarCorner.bottomLeft);
-      expect(tabBarCornerNearest(0.2, 0.3), TabBarCorner.bottomRight);
+      expect(tabBarCornerNearest(-0.4, y: -0.9), TabBarCorner.topLeft);
+      expect(tabBarCornerNearest(0.7, y: -0.1), TabBarCorner.topRight);
+      expect(tabBarCornerNearest(-1, y: 1), TabBarCorner.bottomLeft);
+      expect(tabBarCornerNearest(0.2, y: 0.3), TabBarCorner.bottomRight);
     });
 
     test('dead center resolves to bottom-left, matching axis defaults', () {
-      expect(tabBarCornerNearest(0, 0), TabBarCorner.bottomLeft);
+      expect(tabBarCornerNearest(0, y: 0), TabBarCorner.bottomLeft);
     });
   });
 
@@ -23,12 +23,12 @@ void main() {
     test('pointer at the padded corners maps to +/-1', () {
       // Button center at margin + size/2 = the -1 anchor on each axis.
       expect(
-        tabBarCornerDragFraction(const Offset(37, 37), area,
+        tabBarCornerDragFraction(const Offset(37, 37), area: area,
             buttonSize: 42, margin: 16),
         const Offset(-1, -1),
       );
       expect(
-        tabBarCornerDragFraction(const Offset(363, 763), area,
+        tabBarCornerDragFraction(const Offset(363, 763), area: area,
             buttonSize: 42, margin: 16),
         const Offset(1, 1),
       );
@@ -36,7 +36,7 @@ void main() {
 
     test('pointer in the middle maps to 0', () {
       expect(
-        tabBarCornerDragFraction(const Offset(200, 400), area,
+        tabBarCornerDragFraction(const Offset(200, 400), area: area,
             buttonSize: 42, margin: 16),
         const Offset(0, 0),
       );
@@ -44,7 +44,7 @@ void main() {
 
     test('pointer beyond the edges clamps to +/-1', () {
       expect(
-        tabBarCornerDragFraction(const Offset(-50, 900), area,
+        tabBarCornerDragFraction(const Offset(-50, 900), area: area,
             buttonSize: 42, margin: 16),
         const Offset(-1, 1),
       );
@@ -52,7 +52,7 @@ void main() {
 
     test('degenerate area returns center instead of dividing by zero', () {
       expect(
-        tabBarCornerDragFraction(const Offset(10, 10), const Size(40, 40),
+        tabBarCornerDragFraction(const Offset(10, 10), area: const Size(40, 40),
             buttonSize: 42, margin: 16),
         const Offset(0, 0),
       );

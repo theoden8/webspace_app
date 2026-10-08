@@ -117,14 +117,14 @@ class ArchiveHandle {
 /// Turns a passphrase into an archive key. [salt] is the per-install salt, or
 /// null for the superseded passphrase-derived one.
 typedef ArchiveKeyDeriver = Future<Uint8List> Function(
-  String passphrase,
-  Uint8List? salt,
-);
+  String passphrase, {
+  required Uint8List? salt,
+});
 
-Future<Uint8List> _argon2Derive(String passphrase, Uint8List? salt) {
+Future<Uint8List> _argon2Derive(String passphrase, {required Uint8List? salt}) {
   return salt == null
       ? ArchiveKeyDerivation.deriveLegacy(passphrase)
-      : ArchiveKeyDerivation.derive(passphrase, salt);
+      : ArchiveKeyDerivation.derive(passphrase, salt: salt);
 }
 
 class Archive {
@@ -146,23 +146,23 @@ class Archive {
   Future<ArchiveHandle?> tryOpen(String passphrase) async {
     await ensureInitialized();
     final saltEntry = await _storage.ensureKdfSalt();
-    final key = await _derive(passphrase, saltEntry.salt);
+    final key = await _derive(passphrase, salt: saltEntry.salt);
     final match = await _scanSlots(key);
     if (match != null) {
-      return _adopt(key, match);
+      return _adopt(key, match: match);
     }
     if (!saltEntry.legacyPossible) {
       ArchiveCrypto.zeroize(key);
       return null;
     }
-    final legacyKey = await _derive(passphrase, null);
+    final legacyKey = await _derive(passphrase, salt: null);
     final legacyMatch = await _scanSlots(legacyKey);
     ArchiveCrypto.zeroize(legacyKey);
     if (legacyMatch == null) {
       ArchiveCrypto.zeroize(key);
       return null;
     }
-    final handle = _adopt(key, legacyMatch);
+    final handle = _adopt(key, match: legacyMatch);
     if (identical(handle.key, key)) {
       // Re-seal under the per-install salt so this slot never needs the legacy
       // derivation again.
@@ -178,10 +178,10 @@ class Archive {
       ArchiveCrypto.zeroize(key);
       return null;
     }
-    return _adopt(key, match);
+    return _adopt(key, match: match);
   }
 
-  ArchiveHandle _adopt(Uint8List key, _SlotMatch match) {
+  ArchiveHandle _adopt(Uint8List key, {required _SlotMatch match}) {
     final existing = _findOpenBySlot(match.slotIndex);
     if (existing != null) {
       ArchiveCrypto.zeroize(key);
@@ -206,7 +206,7 @@ class Archive {
       // A slot still sealed under the legacy key would be invisible to
       // [createWithKey]'s scan, and claiming a second slot for the same
       // passphrase would strand it.
-      final legacyKey = await _derive(passphrase, null);
+      final legacyKey = await _derive(passphrase, salt: null);
       final legacyMatch = await _scanSlots(legacyKey);
       ArchiveCrypto.zeroize(legacyKey);
       if (legacyMatch != null) {
@@ -216,7 +216,7 @@ class Archive {
         );
       }
     }
-    final key = await _derive(passphrase, saltEntry.salt);
+    final key = await _derive(passphrase, salt: saltEntry.salt);
     return createWithKey(key);
   }
 
@@ -286,9 +286,9 @@ class Archive {
   /// but NOT opened. Returns the blobs that did not decrypt under this
   /// passphrase, so the caller can prompt again for a different one.
   Future<List<String>> importSections(
-    String passphrase,
-    List<String> base64Sections,
-  ) async {
+    String passphrase, {
+    required List<String> base64Sections,
+  }) async {
     await ensureInitialized();
     final localSalt = (await _storage.ensureKdfSalt()).salt;
     final derived = <String, Uint8List>{};
@@ -296,7 +296,7 @@ class Archive {
       final cacheKey = salt == null ? 'legacy' : base64.encode(salt);
       final hit = derived[cacheKey];
       if (hit != null) return hit;
-      final key = await _derive(passphrase, salt);
+      final key = await _derive(passphrase, salt: salt);
       derived[cacheKey] = key;
       return key;
     }
@@ -309,8 +309,8 @@ class Archive {
           unmatched.add(b64);
           continue;
         }
-        final plaintext =
-            await ArchiveCrypto.open(await keyFor(section.salt), section.wire);
+        final plaintext = await ArchiveCrypto.open(await keyFor(section.salt),
+            wire: section.wire);
         if (plaintext == null) {
           unmatched.add(b64);
           continue;
@@ -321,7 +321,7 @@ class Archive {
         // exporting device's, which this device's open path never derives.
         await _writeState(
           await keyFor(localSalt),
-          ArchiveState.fromJson(stateJson),
+          state: ArchiveState.fromJson(stateJson),
         );
       }
     } finally {
@@ -346,11 +346,11 @@ class Archive {
     final salt = (await _storage.ensureKdfSalt()).salt;
     final plaintext =
         Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson())));
-    final wire = await ArchiveCrypto.seal(handle.key, plaintext);
+    final wire = await ArchiveCrypto.seal(handle.key, plaintext: plaintext);
     return _ArchiveSection(salt: salt, wire: wire).encode();
   }
 
-  Future<void> _writeState(Uint8List key, ArchiveState state) async {
+  Future<void> _writeState(Uint8List key, {required ArchiveState state}) async {
     final match = await _scanSlots(key);
     final int slotIndex;
     if (match != null) {
@@ -375,7 +375,7 @@ class Archive {
     for (var i = 0; i < slots.length; i++) {
       final padded = await ArchiveCrypto.open(
         key,
-        slots[i],
+        wire: slots[i],
         aad: ArchiveStorage.aadForSlot(i),
       );
       if (padded == null) continue;
@@ -417,13 +417,13 @@ class Archive {
       kArchiveSlotPayloadHeader + payload.length,
       payload,
     );
-    fillSecureRandom(padded, kArchiveSlotPayloadHeader + payload.length);
+    fillSecureRandom(padded, from: kArchiveSlotPayloadHeader + payload.length);
     final wire = await ArchiveCrypto.seal(
       handle.key,
-      padded,
+      plaintext: padded,
       aad: ArchiveStorage.aadForSlot(handle.slotIndex),
     );
-    await _storage.writeSlot(handle.slotIndex, wire);
+    await _storage.writeSlot(handle.slotIndex, bytes: wire);
   }
 }
 

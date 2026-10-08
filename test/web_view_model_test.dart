@@ -92,7 +92,7 @@ void main() {
         'thirdPartyCookiesEnabled': true,
       };
 
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
 
       expect(model.initUrl, equals('https://example.com'));
       expect(model.currentUrl, equals('https://example.com/page'));
@@ -112,14 +112,14 @@ void main() {
         final m = WebViewModel(initUrl: 'https://example.com')
           ..dnsBlockLevel = 2
           ..disabledFilterLists = {'easylist', 'fanboy-social'};
-        final back = WebViewModel.fromJson(m.toJson(), null);
+        final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
         expect(back.dnsBlockLevel, 2);
         expect(back.disabledFilterLists, {'easylist', 'fanboy-social'});
       });
 
       test('a null level round-trips as null, not as Off', () {
         final m = WebViewModel(initUrl: 'https://example.com');
-        final back = WebViewModel.fromJson(m.toJson(), null);
+        final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
         expect(back.dnsBlockLevel, isNull,
             reason: 'null follows the app level; 0 would mean blocking off');
       });
@@ -127,7 +127,9 @@ void main() {
       test('level 0 survives as an explicit Off', () {
         final m = WebViewModel(initUrl: 'https://example.com')
           ..dnsBlockLevel = 0;
-        expect(WebViewModel.fromJson(m.toJson(), null).dnsBlockLevel, 0);
+        expect(
+            WebViewModel.fromJson(m.toJson(), stateSetterF: null).dnsBlockLevel,
+            0);
       });
 
       test('a level outside 0..5 reads as following the app setting', () {
@@ -136,7 +138,8 @@ void main() {
         for (final bad in [-1, 6, 99]) {
           final json = WebViewModel(initUrl: 'https://example.com').toJson()
             ..['dnsBlockLevel'] = bad;
-          expect(WebViewModel.fromJson(json, null).dnsBlockLevel, isNull,
+          expect(WebViewModel.fromJson(json, stateSetterF: null).dnsBlockLevel,
+              isNull,
               reason: 'level $bad');
         }
       });
@@ -144,14 +147,15 @@ void main() {
       test('a non-integer level reads as following the app setting', () {
         final json = WebViewModel(initUrl: 'https://example.com').toJson()
           ..['dnsBlockLevel'] = 'three';
-        expect(WebViewModel.fromJson(json, null).dnsBlockLevel, isNull);
+        expect(WebViewModel.fromJson(json, stateSetterF: null).dnsBlockLevel,
+            isNull);
       });
 
       test('a malformed list selection degrades to empty', () {
         for (final bad in [<dynamic>[1, 2], 'easylist', <String, String>{}]) {
           final json = WebViewModel(initUrl: 'https://example.com').toJson()
             ..['disabledFilterLists'] = bad;
-          final back = WebViewModel.fromJson(json, null);
+          final back = WebViewModel.fromJson(json, stateSetterF: null);
           expect(back.disabledFilterLists, isEmpty, reason: '$bad');
         }
       });
@@ -183,7 +187,7 @@ void main() {
       expect(m.domainClaims, isNull);
       final json = m.toJson();
       expect(json.containsKey('domainClaims'), isFalse);
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.domainClaims, isNull);
     });
 
@@ -196,7 +200,7 @@ void main() {
       m.tabBarButtonCorner = TabBarCorner.topLeft;
       final json = m.toJson();
       expect(json['tabBarButtonCorner'], 'topLeft');
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.tabBarButtonCorner, TabBarCorner.topLeft);
     });
 
@@ -211,17 +215,19 @@ void main() {
         'thirdPartyCookiesEnabled': false,
       };
       expect(
-        WebViewModel.fromJson({...base, 'tabBarButtonOnRight': true}, null)
+        WebViewModel.fromJson({...base, 'tabBarButtonOnRight': true},
+                stateSetterF: null)
             .tabBarButtonCorner,
         TabBarCorner.bottomRight,
       );
       expect(
-        WebViewModel.fromJson({...base, 'tabBarButtonOnRight': false}, null)
+        WebViewModel.fromJson({...base, 'tabBarButtonOnRight': false},
+                stateSetterF: null)
             .tabBarButtonCorner,
         TabBarCorner.bottomLeft,
       );
       expect(
-        WebViewModel.fromJson(base, null).tabBarButtonCorner,
+        WebViewModel.fromJson(base, stateSetterF: null).tabBarButtonCorner,
         isNull,
       );
     });
@@ -243,7 +249,7 @@ void main() {
       ];
       final json = m.toJson();
       expect(json['domainClaims'], isA<List<dynamic>>());
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.domainClaims, isNotNull);
       expect(back.domainClaims!, [
         DomainClaim.exactHost('example.org'),
@@ -256,7 +262,7 @@ void main() {
       expect(m.externalLinkMode, ExternalLinkMode.inApp);
       expect(m.toJson().containsKey('externalLinkMode'), isFalse,
           reason: 'omitting the default keeps on-disk JSON byte-stable');
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.externalLinkMode, ExternalLinkMode.inApp);
     });
 
@@ -267,19 +273,22 @@ void main() {
                 .toJson();
         expect(json['externalLinkMode'], mode.name);
         expect(json.containsKey('externalLinksInBrowser'), isFalse);
-        expect(WebViewModel.fromJson(json, null).externalLinkMode, mode);
+        expect(WebViewModel.fromJson(json, stateSetterF: null).externalLinkMode,
+            mode);
       }
     });
 
     test('legacy externalLinksInBrowser reads as the browser mode', () {
       final json = WebViewModel(initUrl: 'https://example.org/').toJson();
       expect(
-        WebViewModel.fromJson({...json, 'externalLinksInBrowser': true}, null)
+        WebViewModel.fromJson({...json, 'externalLinksInBrowser': true},
+                stateSetterF: null)
             .externalLinkMode,
         ExternalLinkMode.browser,
       );
       expect(
-        WebViewModel.fromJson({...json, 'externalLinksInBrowser': false}, null)
+        WebViewModel.fromJson({...json, 'externalLinksInBrowser': false},
+                stateSetterF: null)
             .externalLinkMode,
         ExternalLinkMode.inApp,
       );
@@ -288,7 +297,7 @@ void main() {
           ...json,
           'externalLinksInBrowser': true,
           'externalLinkMode': 'block',
-        }, null).externalLinkMode,
+        }, stateSetterF: null).externalLinkMode,
         ExternalLinkMode.block,
         reason: 'the new field wins over the bool it replaced',
       );
@@ -298,7 +307,8 @@ void main() {
       final json = WebViewModel(initUrl: 'https://example.org/').toJson();
       for (final odd in <Object>['sideways', 3, true]) {
         expect(
-          WebViewModel.fromJson({...json, 'externalLinkMode': odd}, null)
+          WebViewModel.fromJson({...json, 'externalLinkMode': odd},
+                  stateSetterF: null)
               .externalLinkMode,
           ExternalLinkMode.inApp,
         );
@@ -323,7 +333,7 @@ void main() {
       expect(m.backgroundAudioEnabled, isFalse);
       expect(m.toJson().containsKey('backgroundAudioEnabled'), isFalse,
           reason: 'omitting the default keeps on-disk JSON byte-stable');
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.backgroundAudioEnabled, isFalse);
     });
 
@@ -337,7 +347,7 @@ void main() {
       m.backgroundAudioEnabled = true;
       final json = m.toJson();
       expect(json['backgroundAudioEnabled'], isTrue);
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.backgroundAudioEnabled, isTrue);
       expect(back.effectiveBackgroundAudioEnabled, isTrue,
           reason: 'the lifecycle engine reads effectiveBackgroundAudioEnabled');
@@ -348,7 +358,9 @@ void main() {
         ..remove('backgroundAudioEnabled');
       expect(legacy.containsKey('backgroundAudioEnabled'), isFalse);
       expect(
-          WebViewModel.fromJson(legacy, null).backgroundAudioEnabled, isFalse);
+          WebViewModel.fromJson(legacy, stateSetterF: null)
+              .backgroundAudioEnabled,
+          isFalse);
     });
 
     test('backgroundAudioEnabled forced off for archive-tier sites '
@@ -376,14 +388,15 @@ void main() {
       );
       final json = m.toJson();
       expect(json['kioskMode'], isTrue);
-      expect(WebViewModel.fromJson(json, null).kioskMode, isTrue);
+      expect(WebViewModel.fromJson(json, stateSetterF: null).kioskMode, isTrue);
     });
 
     test('kioskMode absent in legacy JSON defaults off (KIOSK-004)', () {
       final legacy = WebViewModel(initUrl: 'https://example.org/').toJson()
         ..remove('kioskMode');
       expect(legacy.containsKey('kioskMode'), isFalse);
-      expect(WebViewModel.fromJson(legacy, null).kioskMode, isFalse);
+      expect(
+          WebViewModel.fromJson(legacy, stateSetterF: null).kioskMode, isFalse);
     });
 
     test('tabsEnabled defaults on and stays out of the JSON (TAB-013)', () {
@@ -398,7 +411,8 @@ void main() {
           WebViewModel(initUrl: 'https://example.org/', tabsEnabled: false)
               .toJson();
       expect(json['tabsEnabled'], isFalse);
-      expect(WebViewModel.fromJson(json, null).tabsEnabled, isFalse);
+      expect(
+          WebViewModel.fromJson(json, stateSetterF: null).tabsEnabled, isFalse);
     });
 
     test('a wrong-typed list entry is dropped, its neighbours kept', () {
@@ -416,7 +430,7 @@ void main() {
           {'kind': 'baseDomain', 'value': 'example.org'},
           {'kind': 'baseDomain', 'value': 42},
         ];
-      final m = WebViewModel.fromJson(json, null);
+      final m = WebViewModel.fromJson(json, stateSetterF: null);
       expect(m.cookies.map((c) => c.name), ['sid']);
       expect(m.blockedCookies.map((c) => c.name), ['track']);
       expect(m.domainClaims?.map((c) => c.value), ['example.org']);
@@ -425,7 +439,8 @@ void main() {
     test('a wrong-typed tabsEnabled reads as absent (TAB-013)', () {
       final json = WebViewModel(initUrl: 'https://example.org/').toJson()
         ..['tabsEnabled'] = 'no';
-      expect(WebViewModel.fromJson(json, null).tabsEnabled, isTrue);
+      expect(
+          WebViewModel.fromJson(json, stateSetterF: null).tabsEnabled, isTrue);
     });
 
     test('kiosk turns tabs off without forgetting them (TAB-013)', () {
@@ -470,7 +485,7 @@ void main() {
       );
 
       final json = original.toJson();
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
 
       expect(restored.siteId, equals(original.siteId)); // siteId preserved
       expect(restored.initUrl, equals(original.initUrl));
@@ -494,37 +509,39 @@ void main() {
       String,
       bool,
       bool Function(WebViewModel),
-      WebViewModel Function(bool),
+      WebViewModel Function({required bool enabled}),
     )>[
       ('clearUrlEnabled', true, (m) => m.clearUrlEnabled,
-          (v) => WebViewModel(initUrl: _url, clearUrlEnabled: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, clearUrlEnabled: enabled)),
       ('dnsBlockEnabled', true, (m) => m.dnsBlockEnabled,
-          (v) => WebViewModel(initUrl: _url, dnsBlockEnabled: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, dnsBlockEnabled: enabled)),
       ('contentBlockEnabled', true, (m) => m.contentBlockEnabled,
-          (v) => WebViewModel(initUrl: _url, contentBlockEnabled: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, contentBlockEnabled: enabled)),
       // Backward-compat: existing sites stored before this field was
       // added must opt INTO Enhanced Tracking Protection on next launch
       // (default true) so anti-fingerprinting + forced tracker blocking
       // is on by default for upgraders, matching the constructor default.
       ('trackingProtectionEnabled', true, (m) => m.trackingProtectionEnabled,
-          (v) => WebViewModel(initUrl: _url, trackingProtectionEnabled: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, trackingProtectionEnabled: enabled)),
       ('localCdnEnabled', true, (m) => m.localCdnEnabled,
-          (v) => WebViewModel(initUrl: _url, localCdnEnabled: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, localCdnEnabled: enabled)),
       ('fullscreenMode', false, (m) => m.fullscreenMode,
-          (v) => WebViewModel(initUrl: _url, fullscreenMode: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, fullscreenMode: enabled)),
       ('htmlCachingEnabled', false, (m) => m.htmlCachingEnabled,
-          (v) => WebViewModel(initUrl: _url, htmlCachingEnabled: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, htmlCachingEnabled: enabled)),
       ('notificationsEnabled', false, (m) => m.notificationsEnabled,
-          (v) => WebViewModel(initUrl: _url, notificationsEnabled: v)),
+          ({required enabled}) => WebViewModel(initUrl: _url, notificationsEnabled: enabled)),
     ]) {
       test('$key defaults to $byDefault when missing from JSON', () {
-        expect(read(WebViewModel.fromJson(_legacyJson(), null)), byDefault);
+        expect(read(WebViewModel.fromJson(_legacyJson(), stateSetterF: null)),
+            byDefault);
       });
 
       test('$key ${!byDefault} is preserved through serialization', () {
-        final json = build(!byDefault).toJson();
+        final json = build(enabled: !byDefault).toJson();
         expect(json[key], !byDefault);
-        expect(read(WebViewModel.fromJson(json, null)), !byDefault);
+        expect(
+            read(WebViewModel.fromJson(json, stateSetterF: null)), !byDefault);
       });
     }
 
@@ -533,7 +550,7 @@ void main() {
       expect(model.zoomPercent, equals(kDefaultZoomPercent));
       expect(model.toJson().containsKey('zoomPercent'), isFalse);
       expect(
-        WebViewModel.fromJson(model.toJson(), null).zoomPercent,
+        WebViewModel.fromJson(model.toJson(), stateSetterF: null).zoomPercent,
         equals(kDefaultZoomPercent),
       );
     });
@@ -547,14 +564,14 @@ void main() {
       final json = model.toJson();
       expect(json['zoomPercent'], equals(150));
 
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
       expect(restored.zoomPercent, equals(150));
     });
 
     test('zoomPercent out of range is clamped on deserialization', () {
-      int zoomOf(int zoom) =>
-          WebViewModel.fromJson(_bareJson({'zoomPercent': zoom}), null)
-              .zoomPercent;
+int zoomOf(int zoom) =>
+    WebViewModel.fromJson(_bareJson({'zoomPercent': zoom}), stateSetterF: null)
+        .zoomPercent;
       expect(zoomOf(5000), equals(kMaxZoomPercent));
       expect(zoomOf(1), equals(kMinZoomPercent));
     });
@@ -644,7 +661,7 @@ void main() {
         letterboxEnabled: true,
       );
       expect(on.toJson()['letterboxEnabled'], isTrue);
-      final back = WebViewModel.fromJson(on.toJson(), null);
+      final back = WebViewModel.fromJson(on.toJson(), stateSetterF: null);
       expect(back.letterboxEnabled, isTrue);
     });
 
@@ -655,7 +672,7 @@ void main() {
       final json = m.toJson();
       expect(json.containsKey('spoofWindowWidth'), isFalse);
       expect(json.containsKey('spoofWindowHeight'), isFalse);
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.spoofWindowWidth, isNull);
       expect(back.spoofWindowHeight, isNull);
     });
@@ -669,7 +686,7 @@ void main() {
       final json = m.toJson();
       expect(json['spoofWindowWidth'], equals(1280));
       expect(json['spoofWindowHeight'], equals(720));
-      final back = WebViewModel.fromJson(json, null);
+      final back = WebViewModel.fromJson(json, stateSetterF: null);
       expect(back.spoofWindowWidth, equals(1280));
       expect(back.spoofWindowHeight, equals(720));
     });
@@ -688,7 +705,7 @@ void main() {
       expect(first, isNotNull);
       expect(first, isNotEmpty);
 
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.fingerprintResetNonce, equals(first));
 
       m.rerollFingerprint();
@@ -710,7 +727,7 @@ void main() {
       final json = model.toJson();
       expect(json['blockScreenshots'], isTrue);
 
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
       expect(restored.blockScreenshots, isTrue);
     });
 
@@ -719,7 +736,7 @@ void main() {
         'initUrl': 'https://example.com',
         'cookies': [],
         'blockScreenshots': 'yes',
-      }, null);
+      }, stateSetterF: null);
       expect(model.blockScreenshots, isFalse);
     });
 
@@ -729,7 +746,8 @@ void main() {
       expect(model.protectedContentAllowed, isNull);
       expect(model.toJson().containsKey('protectedContentAllowed'), isFalse);
 
-      final restored = WebViewModel.fromJson(model.toJson(), null);
+      final restored =
+          WebViewModel.fromJson(model.toJson(), stateSetterF: null);
       expect(restored.protectedContentAllowed, isNull);
     });
 
@@ -741,7 +759,7 @@ void main() {
         );
         final json = model.toJson();
         expect(json['protectedContentAllowed'], equals(decision));
-        final restored = WebViewModel.fromJson(json, null);
+        final restored = WebViewModel.fromJson(json, stateSetterF: null);
         expect(restored.protectedContentAllowed, equals(decision));
       }
     });
@@ -792,7 +810,8 @@ void main() {
       // stored modes in effect.
       for (final kind in CaptureKind.values) {
         for (final mode in kind.modes) {
-          final model = siteWith(kind, mode)..trackingProtectionEnabled = true;
+          final model = siteWith(kind, mode: mode)
+            ..trackingProtectionEnabled = true;
           expect(kind.grantOf(model.effectiveCaptures).mode, mode);
         }
       }
@@ -803,7 +822,7 @@ void main() {
       // toggle, notifications off) should still be polled and able to
       // fire notifications after upgrade.
       final json = _legacyJson({'backgroundPoll': true});
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
       expect(model.notificationsEnabled, isTrue);
     });
 
@@ -838,7 +857,7 @@ void main() {
       final gsmJson = gsmModel.toJson();
       expect(gsmJson['liveLocationGranularity'], equals('gsm'));
 
-      final restored = WebViewModel.fromJson(gsmJson, null);
+      final restored = WebViewModel.fromJson(gsmJson, stateSetterF: null);
       expect(restored.liveLocationGranularity,
           equals(LocationGranularity.gsm));
 
@@ -849,14 +868,16 @@ void main() {
       );
       final approxJson = approxModel.toJson();
       expect(approxJson['liveLocationGranularity'], equals('approximate'));
-      expect(WebViewModel.fromJson(approxJson, null).liveLocationGranularity,
+      expect(
+          WebViewModel.fromJson(approxJson, stateSetterF: null)
+              .liveLocationGranularity,
           equals(LocationGranularity.approximate));
     });
 
     test('liveLocationGranularity defaults to gps when absent from JSON', () {
       // Older backups predate the field — they must rehydrate as gps.
       final json = _legacyJson({'locationMode': 'live'});
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
       expect(model.liveLocationGranularity, equals(LocationGranularity.gps));
     });
 
@@ -867,10 +888,12 @@ void main() {
       Map<String, dynamic> base(String value) =>
           _legacyJson({'locationMode': 'live', 'liveLocationGranularity': value});
       expect(
-          WebViewModel.fromJson(base('fine'), null).liveLocationGranularity,
+          WebViewModel.fromJson(base('fine'), stateSetterF: null)
+              .liveLocationGranularity,
           equals(LocationGranularity.gps));
       expect(
-          WebViewModel.fromJson(base('coarse'), null).liveLocationGranularity,
+          WebViewModel.fromJson(base('coarse'), stateSetterF: null)
+              .liveLocationGranularity,
           equals(LocationGranularity.gsm));
     });
 
@@ -893,7 +916,7 @@ void main() {
       expect(json['spoofTimezone'], equals('Asia/Tokyo'));
       expect(json['webRtcPolicy'], equals('relayOnly'));
 
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
       expect(restored.locationMode, equals(LocationMode.spoof));
       expect(restored.spoofLatitude, equals(35.6762));
       expect(restored.spoofLongitude, equals(139.6503));
@@ -904,7 +927,7 @@ void main() {
 
     test('location spoof fields default when missing from JSON', () {
       final json = _legacyJson();
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
       expect(model.locationMode, equals(LocationMode.off));
       expect(model.spoofLatitude, isNull);
       expect(model.spoofLongitude, isNull);
@@ -969,7 +992,7 @@ void main() {
           'incognito': true,
         };
 
-        final model = WebViewModel.fromJson(json, null);
+        final model = WebViewModel.fromJson(json, stateSetterF: null);
 
         expect(model.currentUrl, equals(model.initUrl),
             reason: 'incognito session must reset to initUrl on every load');
@@ -987,7 +1010,7 @@ void main() {
         )..pageTitle = 'Maps';
 
         final restored =
-            WebViewModel.fromJson(original.toJson(), null);
+            WebViewModel.fromJson(original.toJson(), stateSetterF: null);
 
         expect(restored.currentUrl, equals(original.initUrl));
         expect(restored.cookies, isEmpty);
@@ -1031,7 +1054,7 @@ void main() {
           'alwaysOpenHome': true,
         };
 
-        final model = WebViewModel.fromJson(json, null);
+        final model = WebViewModel.fromJson(json, stateSetterF: null);
 
         expect(model.currentUrl, equals(model.initUrl));
         expect(model.pageTitle, isNull);
@@ -1042,7 +1065,7 @@ void main() {
       });
 
       test('alwaysOpenHome defaults to false when missing from JSON', () {
-        final model = WebViewModel.fromJson(_legacyJson(), null);
+        final model = WebViewModel.fromJson(_legacyJson(), stateSetterF: null);
         expect(model.alwaysOpenHome, isFalse);
       });
 
@@ -1054,7 +1077,8 @@ void main() {
           incognito: false,
         );
 
-        final restored = WebViewModel.fromJson(original.toJson(), null);
+        final restored =
+            WebViewModel.fromJson(original.toJson(), stateSetterF: null);
 
         expect(restored.currentUrl, 'https://example.com/deep');
       });
@@ -1098,13 +1122,13 @@ void main() {
       test('missing cookies key falls back to empty list', () {
         final json = baseJson();
         // No 'cookies' key at all.
-        final model = WebViewModel.fromJson(json, null);
+        final model = WebViewModel.fromJson(json, stateSetterF: null);
         expect(model.cookies, isEmpty);
       });
 
       test('null cookies value falls back to empty list', () {
         final json = baseJson()..['cookies'] = null;
-        final model = WebViewModel.fromJson(json, null);
+        final model = WebViewModel.fromJson(json, stateSetterF: null);
         expect(model.cookies, isEmpty);
       });
     });
@@ -1133,12 +1157,14 @@ void main() {
         _bareJson({'siteId': siteId});
 
     test('a valid minted-format siteId is preserved', () {
-      final m = WebViewModel.fromJson(baseJson('abc123-x9y'), null);
+      final m =
+          WebViewModel.fromJson(baseJson('abc123-x9y'), stateSetterF: null);
       expect(m.siteId, equals('abc123-x9y'));
     });
 
     test('a path-traversal siteId is replaced with a fresh safe id', () {
-      final m = WebViewModel.fromJson(baseJson('../../../../shared_prefs/evil'), null);
+      final m = WebViewModel.fromJson(baseJson('../../../../shared_prefs/evil'),
+          stateSetterF: null);
       expect(m.siteId, isNot(contains('/')));
       expect(m.siteId, isNot(contains('..')));
       expect(RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(m.siteId), isTrue);
@@ -1146,7 +1172,7 @@ void main() {
 
     test('siteId with a dot or separator is rejected and regenerated', () {
       for (final bad in ['a.b', 'a/b', r'a\b', 'a b', '', 'x' * 200]) {
-        final m = WebViewModel.fromJson(baseJson(bad), null);
+        final m = WebViewModel.fromJson(baseJson(bad), stateSetterF: null);
         expect(m.siteId, isNot(equals(bad)));
         expect(RegExp(r'^[A-Za-z0-9_-]{1,128}$').hasMatch(m.siteId), isTrue);
       }
@@ -1167,14 +1193,14 @@ void main() {
 
     test('a valid BCP-47 language tag is preserved', () {
       for (final ok in ['en', 'fr', 'zh-CN', 'zh-TW', 'pt-BR']) {
-        final m = WebViewModel.fromJson(baseJson(ok), null);
+        final m = WebViewModel.fromJson(baseJson(ok), stateSetterF: null);
         expect(m.language, equals(ok));
       }
     });
 
     test('a CRLF-bearing language is dropped to system default', () {
       final m = WebViewModel.fromJson(
-          baseJson('en\r\nX-Injected: 1'), null);
+          baseJson('en\r\nX-Injected: 1'), stateSetterF: null);
       expect(m.language, isNull);
     });
 

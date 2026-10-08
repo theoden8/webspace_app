@@ -174,7 +174,8 @@ class SiteSettingsQrCodec {
   /// Gzip-inflate [compressed], feeding it in small chunks and aborting the
   /// moment the running output exceeds [maxOut]. Returns null on overflow or
   /// malformed input, so a bomb never fully materializes in memory.
-  static List<int>? _gunzipBounded(List<int> compressed, int maxOut) {
+  static List<int>? _gunzipBounded(List<int> compressed,
+      {required int maxOut}) {
     final out = BytesBuilder(copy: false);
     var total = 0;
     var overflow = false;
@@ -217,7 +218,7 @@ class SiteSettingsQrCodec {
       // QR capacity bound does not apply), so cap both the compressed input
       // and the decompressed output to defeat a gzip decompression bomb.
       if (compressed.length > _kMaxCompressedBytes) return null;
-      final bytes = _gunzipBounded(compressed, _kMaxDecodedBytes);
+      final bytes = _gunzipBounded(compressed, maxOut: _kMaxDecodedBytes);
       if (bytes == null) return null;
       final decoded = jsonDecode(utf8.decode(bytes));
       if (decoded is! Map) return null;

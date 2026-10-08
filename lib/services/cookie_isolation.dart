@@ -6,7 +6,7 @@ import 'package:webspace/web_view_model.dart';
 /// Returns true if `cookie.domain` falls under `baseDomain` per standard
 /// HTTP cookie domain-match semantics (exact match or any subdomain).
 /// Leading `.` is stripped before comparison.
-bool cookieMatchesBaseDomain(Cookie cookie, String baseDomain) {
+bool cookieMatchesBaseDomain(Cookie cookie, {required String baseDomain}) {
   var domain = (cookie.domain ?? '').trim().toLowerCase();
   if (domain.isEmpty || baseDomain.isEmpty) return false;
   if (domain.startsWith('.')) domain = domain.substring(1);
@@ -62,9 +62,9 @@ class CookieIsolationEngine {
       );
       final base = getBaseDomain(model.initUrl);
       model.cookies = allCookies
-          .where((c) => cookieMatchesBaseDomain(c, base))
+          .where((c) => cookieMatchesBaseDomain(c, baseDomain: base))
           .toList();
-      await storage.saveCookiesForSite(model.siteId, model.cookies);
+      await storage.saveCookiesForSite(model.siteId, cookies: model.cookies);
       LogTag.cookieIsolation.debug(
           'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
           sensitive: true);
@@ -136,10 +136,10 @@ class CookieIsolationEngine {
 
       final base = getBaseDomain(loadedModel.initUrl);
       final cookies = allCookies
-          .where((c) => cookieMatchesBaseDomain(c, base))
+          .where((c) => cookieMatchesBaseDomain(c, baseDomain: base))
           .toList();
       loadedModel.cookies = cookies;
-      await storage.saveCookiesForSite(loadedModel.siteId, cookies);
+      await storage.saveCookiesForSite(loadedModel.siteId, cookies: cookies);
       if (versionAtEntry != currentVersion()) return;
       if (loadedIndex != index) otherLoadedModels.add(loadedModel);
     }
@@ -162,11 +162,11 @@ class CookieIsolationEngine {
         'Restoring ${cookies.length} cookies for site $index: "${model.name}" (siteId: ${model.siteId})',
         sensitive: true);
 
-    await _setCookies(model, cookies);
+    await _setCookies(model, cookies: cookies);
 
     // Step 4b: restore every other still-loaded site's cookies.
     for (final other in otherLoadedModels) {
-      await _setCookies(other, other.cookies);
+      await _setCookies(other, cookies: other.cookies);
     }
   }
 
@@ -199,7 +199,7 @@ class CookieIsolationEngine {
         candidateUrls: _candidateUrlsFor(survivingSameBase),
       );
       survivingSnapshot = allCookies
-          .where((c) => cookieMatchesBaseDomain(c, deletedBase))
+          .where((c) => cookieMatchesBaseDomain(c, baseDomain: deletedBase))
           .toList();
     }
 
@@ -208,7 +208,7 @@ class CookieIsolationEngine {
         deletedModel.currentUrl != deletedModel.initUrl) {
       await cookieManager.deleteAllCookiesForUrl(Uri.parse(deletedModel.currentUrl));
     }
-    await storage.saveCookiesForSite(deletedModel.siteId, []);
+    await storage.saveCookiesForSite(deletedModel.siteId, cookies: []);
 
     if (survivingSameBase.isNotEmpty && survivingSnapshot.isNotEmpty) {
       final restoreUrl = Uri.parse(survivingSameBase.first.initUrl);
@@ -246,11 +246,12 @@ class CookieIsolationEngine {
     return urls.map(Uri.tryParse).whereType<Uri>().toList();
   }
 
-  Future<void> _setCookies(WebViewModel model, List<Cookie> cookies) async {
+  Future<void> _setCookies(WebViewModel model,
+      {required List<Cookie> cookies}) async {
     final url = Uri.parse(model.initUrl);
     for (final cookie in cookies) {
       if (cookie.value.isEmpty) continue;
-      if (model.isCookieBlocked(cookie.name, cookie.domain)) continue;
+      if (model.isCookieBlocked(cookie.name, domain: cookie.domain)) continue;
       await cookieManager.setCookie(
         url: url,
         name: cookie.name,

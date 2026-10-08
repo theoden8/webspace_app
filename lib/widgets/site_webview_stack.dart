@@ -83,10 +83,10 @@ class _SiteWebView extends StatelessWidget {
               // not a re-fetchable snapshot, so they skip the save path.
               onHtmlLoaded: htmlSource != HtmlSource.cache
                   ? null
-                  : (url, html) => HtmlCacheService.instance.saveHtml(
+                  : (url, {required html}) => HtmlCacheService.instance.saveHtml(
                       site.siteId,
-                      html,
-                      url,
+                      html: html,
+                      url: url,
                     ),
               // Skips the per-onLoadStop snapshot IPC into chromium when a
               // save would be debounced anyway: every SPA pseudo-navigation
@@ -98,7 +98,7 @@ class _SiteWebView extends StatelessWidget {
                   : () => HtmlCacheService.instance.shouldSave(site.siteId),
               initialHtml: htmlSource == HtmlSource.none
                   ? null
-                  : _initialHtml(context, htmlSource == HtmlSource.import),
+                  : _initialHtml(context, isFileImport: htmlSource == HtmlSource.import),
             )),
           ),
         ],
@@ -144,7 +144,7 @@ class _SiteWebView extends StatelessWidget {
   /// its stored bytes, having no live page. A URL site reads its cache only
   /// with `htmlCachingEnabled` or when offline at construction, so an online
   /// cold start never shows stale content.
-  String? _initialHtml(BuildContext context, bool isFileImport) {
+  String? _initialHtml(BuildContext context, {required bool isFileImport}) {
     if (!isFileImport &&
         !site.htmlCachingEnabled &&
         (ConnectivityService.instance.lastKnownOnline ?? true)) {

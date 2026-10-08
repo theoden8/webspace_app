@@ -18,7 +18,12 @@ import 'package:webspace/services/log_service.dart';
 /// settings stops the next request and one granted later starts working,
 /// without the user touching the site setting (CAM/MIC-015).
 class CapturePermissionService {
-  const CapturePermissionService._(this._channelName, this._method, this._tag);
+  const CapturePermissionService._(
+    this._channelName, {
+    required String method,
+    required LogTag tag,
+  })  : _method = method,
+        _tag = tag;
 
   final String _channelName;
   final String _method;
@@ -26,14 +31,14 @@ class CapturePermissionService {
 
   static const camera = CapturePermissionService._(
     'org.codeberg.theoden8.webspace/camera_permission',
-    'ensureCameraPermission',
-    LogTag.camera,
+    method: 'ensureCameraPermission',
+    tag: LogTag.camera,
   );
 
   static const microphone = CapturePermissionService._(
     'org.codeberg.theoden8.webspace/microphone_permission',
-    'ensureMicrophonePermission',
-    LogTag.microphone,
+    method: 'ensureMicrophonePermission',
+    tag: LogTag.microphone,
   );
 
   /// Returns true when the app may capture. On Android this shows the OS

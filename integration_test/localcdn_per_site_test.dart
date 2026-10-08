@@ -32,7 +32,7 @@ void main() {
 
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    listenFixture(server, (request) {
+    listenFixture(server, onEvent: (request) {
       final path = request.uri.path;
       final res = request.response;
       if (path.startsWith('/npm/')) {

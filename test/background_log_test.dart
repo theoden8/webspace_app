@@ -18,7 +18,7 @@ class _FakeNative implements BackgroundLogNative {
   List<MapEntry<String, String>> state = const [];
 
   @override
-  Future<void> setEnabled(bool enabled) async {
+  Future<void> setEnabled({required bool enabled}) async {
     if (enabled) {
       file ??= [];
     } else {
@@ -38,7 +38,7 @@ class _FakeNative implements BackgroundLogNative {
   }
 
   /// A line the native side wrote by itself.
-  void nativeRecord(DateTime t, String message) {
+  void nativeRecord(DateTime t, {required String message}) {
     file?.add(jsonEncode(
         {'t': t.millisecondsSinceEpoch, 'l': 'info', 'g': 'Android', 'm': message}));
   }
@@ -65,8 +65,9 @@ void main() {
     test('off: nothing is kept, nothing reaches the native file', () async {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
-      await log.setRecording(false);
-      log.record(LogTag.backgroundTask, 'wake', sensitive: 'site "Mail"');
+      await log.setRecording(on: false);
+      log.record(LogTag.backgroundTask,
+          message: 'wake', sensitive: 'site "Mail"');
       expect(native.appended, isEmpty);
       expect(await log.entries(includeSensitive: true), isEmpty);
       // App Logs still sees the line.
@@ -76,8 +77,8 @@ void main() {
     test('on: the entry reaches the native file', () async {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
-      await log.setRecording(true);
-      log.record(LogTag.backgroundTask, 'schedule refresh');
+      await log.setRecording(on: true);
+      log.record(LogTag.backgroundTask, message: 'schedule refresh');
       await Future<void>.delayed(Duration.zero);
       expect(native.file, hasLength(1));
       final entries = await log.entries(includeSensitive: false);
@@ -87,11 +88,12 @@ void main() {
     test('turning it off deletes what was recorded', () async {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
-      await log.setRecording(true);
-      log.record(LogTag.backgroundTask, 'one', sensitive: 'site "Mail"');
-      await log.setRecording(false);
+      await log.setRecording(on: true);
+      log.record(LogTag.backgroundTask,
+          message: 'one', sensitive: 'site "Mail"');
+      await log.setRecording(on: false);
       expect(native.file, isNull);
-      await log.setRecording(true);
+      await log.setRecording(on: true);
       expect(await log.entries(includeSensitive: true), isEmpty);
     });
   });
@@ -100,8 +102,9 @@ void main() {
     test('the sensitive companion never reaches the native file', () async {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
-      await log.setRecording(true);
-      log.record(LogTag.notification, 'notification posted (page, untagged)',
+      await log.setRecording(on: true);
+      log.record(LogTag.notification,
+          message: 'notification posted (page, untagged)',
           sensitive: 'Showed notification: "Hi Bob" for siteId: abc123');
       await Future<void>.delayed(Duration.zero);
       final onDisk = native.file!.join('\n');
@@ -113,8 +116,8 @@ void main() {
 
     test('shown only on request, right after the line it explains', () async {
       final log = BackgroundLog(native: _FakeNative());
-      await log.setRecording(true);
-      log.record(LogTag.backgroundTask, 'wake site 1/1: loaded',
+      await log.setRecording(on: true);
+      log.record(LogTag.backgroundTask, message: 'wake site 1/1: loaded',
           sensitive: 'wake site 1/1 is "Mail"');
       await Future<void>.delayed(Duration.zero);
       expect((await log.entries(includeSensitive: false)).map((e) => e.message),
@@ -127,8 +130,9 @@ void main() {
 
     test('format drops sensitive entries unless asked', () async {
       final log = BackgroundLog(native: _FakeNative());
-      await log.setRecording(true);
-      log.record(LogTag.backgroundTask, 'normal line', sensitive: 'names "Mail"');
+      await log.setRecording(on: true);
+      log.record(LogTag.backgroundTask,
+          message: 'normal line', sensitive: 'names "Mail"');
       await Future<void>.delayed(Duration.zero);
       final all = await log.entries(includeSensitive: true);
       expect(BackgroundLog.format(all), isNot(contains('Mail')));
@@ -145,12 +149,12 @@ void main() {
     test('entries from an earlier process and native-only steps show',
         () async {
       final native = _FakeNative();
-      await native.setEnabled(true);
-      native.nativeRecord(DateTime(2026, 10, 5, 3), 'worker fired');
+      await native.setEnabled(enabled: true);
+      native.nativeRecord(DateTime(2026, 10, 5, 3), message: 'worker fired');
       native.nativeRecord(DateTime(2026, 10, 5, 3, 0, 1),
-          'no Flutter engine; refresh skipped');
+          message: 'no Flutter engine; refresh skipped');
       final log = BackgroundLog(native: native);
-      await log.setRecording(true);
+      await log.setRecording(on: true);
       final entries = await log.entries(includeSensitive: false);
       expect(entries.map((e) => e.message),
           ['worker fired', 'no Flutter engine; refresh skipped']);
@@ -160,8 +164,8 @@ void main() {
     test('an unreadable file falls back to this process', () async {
       final native = _FakeNative()..failReads = true;
       final log = BackgroundLog(native: native);
-      await log.setRecording(true);
-      log.record(LogTag.lifecycle, 'App background');
+      await log.setRecording(on: true);
+      log.record(LogTag.lifecycle, message: 'App background');
       expect((await log.entries(includeSensitive: false)).single.message,
           'App background');
     });
@@ -170,8 +174,8 @@ void main() {
         () async {
       final native = _FakeNative(available: false);
       final log = BackgroundLog(native: native);
-      await log.setRecording(true);
-      log.record(LogTag.lifecycle, 'App background');
+      await log.setRecording(on: true);
+      log.record(LogTag.lifecycle, message: 'App background');
       expect(native.appended, isEmpty);
       expect((await log.entries(includeSensitive: false)).single.message,
           'App background');
@@ -180,12 +184,12 @@ void main() {
     test('clear empties the file but keeps recording', () async {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
-      await log.setRecording(true);
-      log.record(LogTag.lifecycle, 'one');
+      await log.setRecording(on: true);
+      log.record(LogTag.lifecycle, message: 'one');
       await Future<void>.delayed(Duration.zero);
       await log.clear();
       expect(native.file, isEmpty);
-      log.record(LogTag.lifecycle, 'two');
+      log.record(LogTag.lifecycle, message: 'two');
       await Future<void>.delayed(Duration.zero);
       expect((await log.entries(includeSensitive: false)).single.message, 'two');
     });

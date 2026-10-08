@@ -108,7 +108,7 @@ test('HTTPS-007: the certificate carve-out precedes the prompt and any pin', () 
     'static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(',
     ') async {', 'webview.dart');
   const carve = body.search(/httpsUpgrade\s*\.\s*onCertificateRejected\s*\(/);
-  const prompt = body.indexOf('await prompt(host, port, cert)');
+  const prompt = body.indexOf('await prompt(host, port: port, certificate: cert)');
   const pin = body.indexOf('TrustedHostsService.instance.trust(');
   assert.notEqual(carve, -1, 'the carve-out is gone');
   assert.notEqual(prompt, -1, 'the user prompt is gone');

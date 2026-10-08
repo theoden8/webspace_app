@@ -9,14 +9,14 @@ import 'package:webspace/services/filter_list_mask.dart';
 
 /// Single-line convenience: the rewriter works on whole lists, tests read
 /// better one rule at a time.
-String scope(String rule, [List<String> hosts = const ['masked.example']]) =>
-    scopeRulesAwayFromHosts(rule, hosts).trim();
+String scope(String rule, {List<String> hosts = const ['masked.example']}) =>
+    scopeRulesAwayFromHosts(rule, hosts: hosts).trim();
 
 void main() {
   group('scopeRulesAwayFromHosts — network rules (CB-015)', () {
     test('no hosts leaves the list byte-identical', () {
       const text = '||ads.example^\n! comment\nexample.com##.ad\n';
-      expect(scopeRulesAwayFromHosts(text, const []), text);
+      expect(scopeRulesAwayFromHosts(text, hosts: const []), text);
     });
 
     test('a bare rule gains a negated domain option', () {
@@ -40,7 +40,7 @@ void main() {
     });
 
     test('every masked host is negated', () {
-      expect(scope('||ads.example^', ['a.example', 'b.example']),
+      expect(scope('||ads.example^', hosts: ['a.example', 'b.example']),
           r'||ads.example^$domain=~a.example|~b.example');
     });
 
@@ -112,7 +112,8 @@ void main() {
   group('scopeRulesAwayFromHosts — whole lists', () {
     test('every line is preserved, one per line', () {
       const text = '! header\n||a.example^\nb.example##.ad\n\n##.generic\n';
-      final out = scopeRulesAwayFromHosts(text, const ['masked.example']);
+      final out =
+          scopeRulesAwayFromHosts(text, hosts: const ['masked.example']);
       expect(out.split('\n').where((l) => l.isNotEmpty).length, 4);
       expect(out, contains(r'||a.example^$domain=~masked.example'));
       expect(out, contains('b.example,~masked.example##.ad'));
@@ -181,14 +182,14 @@ void main() {
       // The selector reaches other sites through the generic class scanner,
       // which filters on the same exception set.
       expect(
-        engine.hiddenClassIdSelectors({'ad-banner'}, const {},
+        engine.hiddenClassIdSelectors({'ad-banner'}, ids: const {},
             exceptions: (elsewhere?['exceptions'] as List? ?? const [])
                 .cast<String>()
                 .toSet()),
         contains('.ad-banner'),
       );
       expect(
-        engine.hiddenClassIdSelectors({'ad-banner'}, const {},
+        engine.hiddenClassIdSelectors({'ad-banner'}, ids: const {},
             exceptions: (masked?['exceptions'] as List? ?? const [])
                 .cast<String>()
                 .toSet()),
@@ -311,7 +312,9 @@ news.example##.kept-scoped-ad
 
     test('masking a list is indistinguishable from not having it', () {
       final withMask = AdblockEngine.load(
-          '${scopeRulesAwayFromHosts(maskedList, const ['masked.example'])}\n'
+          '${scopeRulesAwayFromHosts(maskedList, hosts: const [
+            'masked.example'
+          ])}\n'
           '$keptList\n')!;
       final withoutList = AdblockEngine.load('$keptList\n')!;
       final withBoth = AdblockEngine.load('$maskedList\n$keptList\n')!;
@@ -347,18 +350,18 @@ news.example##.kept-scoped-ad
       }
       expect(checked, greaterThan(40));
 
-      Set<String> hides(AdblockEngine e, String url) =>
+      Set<String> hides(AdblockEngine e, {required String url}) =>
           ((e.cosmeticResources(url)?['hide_selectors'] as List?) ?? const [])
               .cast<String>()
               .toSet();
       for (final host in ['masked.example', 'www.masked.example']) {
-        expect(hides(withMask, 'https://$host/'),
-            hides(withoutList, 'https://$host/'),
+        expect(hides(withMask, url: 'https://$host/'),
+            hides(withoutList, url: 'https://$host/'),
             reason: 'cosmetics on $host');
       }
       for (final host in ['other.example', 'news.example']) {
-        expect(hides(withMask, 'https://$host/'),
-            hides(withBoth, 'https://$host/'),
+        expect(hides(withMask, url: 'https://$host/'),
+            hides(withBoth, url: 'https://$host/'),
             reason: 'cosmetics on $host');
       }
     }, skip: libExists ? false : skipReason);

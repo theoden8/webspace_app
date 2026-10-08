@@ -243,9 +243,9 @@ class ShortcutTombstones {
   /// Drop tombstones whose siteId is now a live site (defensive: ids are
   /// unique per create, so this only fires if a backup reintroduces one).
   static List<Map<String, String>> pruneLive(
-    List<Map<String, String>> tombstones,
-    Set<String> liveSiteIds,
-  ) {
+    List<Map<String, String>> tombstones, {
+    required Set<String> liveSiteIds,
+  }) {
     return [
       for (final t in tombstones)
         if (!liveSiteIds.contains(t['siteId'])) t,

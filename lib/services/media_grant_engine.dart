@@ -19,10 +19,10 @@ abstract interface class MediaPrompter {
   /// Shows the popup, or the picker for a site already set to `virtual` with
   /// no file, and returns the answer. `ask` means dismissed.
   Future<CaptureGrant> capture(
-    CaptureKind kind,
-    String origin,
-    CaptureMode current,
-  );
+    CaptureKind kind, {
+    required String origin,
+    required CaptureMode current,
+  });
 
   /// The Allow/Block popup for Widevine/EME (`PROTECTED_MEDIA_ID`).
   Future<bool> protectedContent(String origin);
@@ -74,7 +74,7 @@ sealed class GrantStore {
 
   void _recordCaptures(CaptureGrants Function(CaptureGrants stored) update);
 
-  void _recordProtectedContent(bool allowed);
+  void _recordProtectedContent({required bool allowed});
 
   Future<void> _save();
 
@@ -88,8 +88,8 @@ sealed class GrantStore {
   /// and a subframe's answer is never written back to the site (CAM-014 /
   /// MIC-016). The device-free answers are inherited as they are.
   Future<CaptureGrant> capture(
-    CaptureKind kind,
-    String origin, {
+    CaptureKind kind, {
+    required String origin,
     required bool isTopFrame,
   }) async {
     if (!isSiteActive()) return (mode: kind.block, source: null);
@@ -101,10 +101,11 @@ sealed class GrantStore {
       final recent = _takeRecentSubframe(key);
       if (recent != null) return recent;
     }
-    return _inFlight.run(key, () async {
-      final answer = await prompter.capture(kind, origin, current.mode);
+    return _inFlight.run(key, call: () async {
+      final answer =
+          await prompter.capture(kind, origin: origin, current: current.mode);
       if (isTopFrame) {
-        _recordCaptures((stored) => kind.withGrant(stored, (
+        _recordCaptures((stored) => kind.withGrant(stored, grant: (
           mode: answer.mode,
           source: answer.source ?? kind.grantOf(stored).source,
         )));
@@ -147,9 +148,9 @@ sealed class GrantStore {
   Future<bool> protectedContent(String origin) async {
     final remembered = media.protectedContent;
     if (remembered != null) return remembered;
-    return _protectedContentInFlight.run((), () async {
+    return _protectedContentInFlight.run((), call: () async {
       final granted = await prompter.protectedContent(origin);
-      _recordProtectedContent(granted);
+      _recordProtectedContent(allowed: granted);
       await _save();
       return granted;
     });
@@ -176,7 +177,7 @@ final class PersistedGrantStore extends GrantStore {
       _model.captures = update(_model.captures);
 
   @override
-  void _recordProtectedContent(bool allowed) =>
+  void _recordProtectedContent({required bool allowed}) =>
       _model.protectedContentAllowed = allowed;
 
   @override
@@ -206,7 +207,7 @@ final class InMemoryGrantStore extends GrantStore {
       );
 
   @override
-  void _recordProtectedContent(bool allowed) =>
+  void _recordProtectedContent({required bool allowed}) =>
       _media = (capture: _media.capture, protectedContent: allowed);
 
   @override

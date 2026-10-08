@@ -90,7 +90,7 @@ SettingsImportPlan planSettingsImport(
     if (id != null && !seenIds.add(id)) {
       json = Map<String, dynamic>.from(json)..remove('siteId');
     }
-    sites.add(WebViewModel.fromJson(json, stateSetterF));
+    sites.add(WebViewModel.fromJson(json, stateSetterF: stateSetterF));
   }
   sanitizeImportedSites(sites);
   // TAB-018: a restored site keeps its colour unless a site before it holds
@@ -98,7 +98,7 @@ SettingsImportPlan planSettingsImport(
   // site gets the least used colour when the import is applied.
   final colours = ContainerColorEngine.release(
     [for (final s in sites) s.containerColor],
-    kContainerPaletteSize,
+    paletteSize: kContainerPaletteSize,
   );
   for (var i = 0; i < sites.length; i++) {
     sites[i].containerColor = colours[i];
@@ -106,7 +106,7 @@ SettingsImportPlan planSettingsImport(
 
   final webspaces = SettingsBackupService.restoreWebspaces(backup);
   _dedupeWebspaceIds(webspaces);
-  promoteLegacySiteIndices(webspaces, sites);
+  promoteLegacySiteIndices(webspaces, sites: sites);
   final known = {for (final s in sites) s.siteId};
   for (final ws in webspaces) {
     if (ws.isAll) continue;
@@ -120,8 +120,8 @@ SettingsImportPlan planSettingsImport(
   OutboundPreferenceGc.pruneAll<WebViewModel>(
     sites,
     prefsOf: (s) => s.outboundPreferences,
-    setPrefs: (s, prefs) => s.outboundPreferences = prefs,
-    isCandidate: (_, id) => known.contains(id),
+    setPrefs: (s, {required prefs}) => s.outboundPreferences = prefs,
+    isCandidate: (_, {required targetSiteId}) => known.contains(targetSiteId),
   );
   // LIR-031: and searches only with one.
   for (final site in sites) {
@@ -140,7 +140,7 @@ SettingsImportPlan planSettingsImport(
   return SettingsImportPlan(
     sites: sites,
     webspaces: webspaces,
-    themeStorageIndex: normalizeBackupThemeIndex(backup.themeMode, backup.sites),
+    themeStorageIndex: normalizeBackupThemeIndex(backup.themeMode, sites: backup.sites),
     appPrefs: appPrefs,
     selectedWebspaceId:
         selected != null && webspaces.any((ws) => ws.id == selected)
@@ -228,7 +228,8 @@ void sanitizeImportedSites(List<WebViewModel> sites) {
 /// Webspaces written before membership was keyed by siteId (v0.2.3 and
 /// earlier) carry positional `siteIndices`. Resolve them against [sites] in
 /// their saved order. Idempotent. Returns whether anything changed.
-bool promoteLegacySiteIndices(List<Webspace> webspaces, List<WebViewModel> sites) {
+bool promoteLegacySiteIndices(List<Webspace> webspaces,
+    {required List<WebViewModel> sites}) {
   var migrated = false;
   for (final ws in webspaces) {
     if (ws.isAll) continue;
@@ -247,7 +248,8 @@ bool promoteLegacySiteIndices(List<Webspace> webspaces, List<WebViewModel> sites
 /// 0..2, so the old form is told apart by shape: v0.1.0 also began writing
 /// `language` on every site. A negative index would make
 /// `AppThemeSettings.fromStorageIndex` read `ThemeMode.values[-1]`.
-int normalizeBackupThemeIndex(int raw, List<Map<String, dynamic>> sites) {
+int normalizeBackupThemeIndex(int raw,
+    {required List<Map<String, dynamic>> sites}) {
   if (raw < 0) return 0;
   final legacy = raw <= 2 &&
       sites.isNotEmpty &&
@@ -267,7 +269,8 @@ String? backupGlobalProxyAddress(SettingsBackup backup) {
   if (type == ProxyType.SAVED.index || type == ProxyType.GATEWAY.index) {
     return resolveLibrary(
       UserProxySettings.fromJson(proxy),
-      ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]),
+      library:
+          ProxyLibraryData.decode(backup.globalPrefs[AppPref.proxyLibrary.key]),
     ).route.address;
   }
   final address = proxy['address'];

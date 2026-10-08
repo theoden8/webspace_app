@@ -46,7 +46,7 @@ void main() {
 
   tearDown(() => server.close(force: true));
 
-  Future<String> fetch(HttpClient client, String url) async {
+  Future<String> fetch(HttpClient client, {required String url}) async {
     final res = await (await client.getUrl(Uri.parse(url))).close();
     return res.transform(utf8.decoder).join();
   }
@@ -61,7 +61,7 @@ void main() {
     addTearDown(() => client.close(force: true));
 
     expect(
-      await fetch(client, 'https://127.0.0.1:${server.port}/by-ip'),
+      await fetch(client, url: 'https://127.0.0.1:${server.port}/by-ip'),
       'served /by-ip',
     );
     expect(
@@ -76,7 +76,7 @@ void main() {
     final client = HttpClient()..badCertificateCallback = (c, h, p) => true;
     addTearDown(() => client.close(force: true));
     expect(
-      await fetch(client, 'https://localhost:${server.port}/by-name'),
+      await fetch(client, url: 'https://localhost:${server.port}/by-name'),
       'served /by-name',
     );
   });
@@ -85,7 +85,7 @@ void main() {
     final client = HttpClient();
     addTearDown(() => client.close(force: true));
     await expectLater(
-      fetch(client, 'https://127.0.0.1:${server.port}/untrusted'),
+      fetch(client, url: 'https://127.0.0.1:${server.port}/untrusted'),
       throwsA(isA<HandshakeException>()),
       reason: 'a self-signed certificate this run minted must not validate; '
           'if it did, the callers that accept it deliberately would be '

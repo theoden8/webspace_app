@@ -98,12 +98,12 @@ class SitePermissionValues {
   /// archive.
   CaptureGrants get effectiveCaptures =>
       ArchiveFold.captures(captures, archived: archived);
-  bool get effectiveNotifications =>
-      ArchiveFold.notifications(notificationsEnabled, archived: archived);
-  bool get effectiveBackgroundAudio =>
-      ArchiveFold.backgroundAudio(backgroundAudioEnabled, archived: archived);
+  bool get effectiveNotifications => ArchiveFold.notifications(
+      stored: notificationsEnabled, archived: archived);
+  bool get effectiveBackgroundAudio => ArchiveFold.backgroundAudio(
+      stored: backgroundAudioEnabled, archived: archived);
   bool? effectiveProtectedContent({required bool trackingProtection}) =>
-      resolveProtectedContent(protectedContentAllowed,
+      resolveProtectedContent(stored: protectedContentAllowed,
           archived: archived, trackingProtection: trackingProtection);
 }
 
@@ -144,12 +144,14 @@ class _Capability {
 
   /// Extra controls under the selected option in the sheet (source picker,
   /// preview, precision).
-  final Widget Function(BuildContext, StateSetter)? detail;
+  final Widget Function(BuildContext context,
+      {required StateSetter setSheetState})? detail;
 
   /// Controls shown once at the foot of the sheet, below every option. For
   /// settings that belong to the capability as a whole rather than to one of
   /// its states.
-  final Widget Function(BuildContext, StateSetter)? footer;
+  final Widget Function(BuildContext context,
+      {required StateSetter setSheetState})? footer;
 }
 
 class _Option {
@@ -247,7 +249,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     if (!mounted) return;
     if (result.source case final source?) {
       final grant = kind.grantOf(_values.captures);
-      _setGrant(kind, (mode: grant.mode, source: source));
+      _setGrant(kind, grant: (mode: grant.mode, source: source));
     } else if (result.error case final error?) {
       ScaffoldMessenger.of(context).toast(
         kind.text(AppLocalizations.of(context)).pickError(error),
@@ -255,8 +257,8 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     }
   }
 
-  void _setGrant(CaptureKind kind, CaptureGrant grant) => _update(
-    _values.copyWith(captures: kind.withGrant(_values.captures, grant)),
+  void _setGrant(CaptureKind kind, {required CaptureGrant grant}) => _update(
+    _values.copyWith(captures: kind.withGrant(_values.captures, grant: grant)),
   );
 
   // --- Capability descriptors ---------------------------------------------
@@ -278,9 +280,10 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         ...unavailable,
       ]..sort((a, b) => a.state.index.compareTo(b.state.index));
 
-  Future<void> _selectCapture(CaptureKind kind, CaptureMode mode) async {
+  Future<void> _selectCapture(CaptureKind kind,
+      {required CaptureMode mode}) async {
     final source = kind.grantOf(_values.captures).source;
-    _setGrant(kind, (mode: mode, source: source));
+    _setGrant(kind, grant: (mode: mode, source: source));
     if (mode == kind.virtual && source == null) await _pickSource(kind);
   }
 
@@ -315,7 +318,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         kind.modes,
         state: (mode) => mode.state,
         label: (mode) => mode.label(loc),
-        select: (mode) => _selectCapture(kind, mode),
+        select: (mode) => _selectCapture(kind, mode: mode),
         unavailable: [
           if (kind.real == null)
             _Option(
@@ -327,7 +330,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             ),
         ],
       ),
-      detail: (context, setSheetState) {
+      detail: (context, {required setSheetState}) {
         final grant = kind.grantOf(_values.captures);
         if (grant.mode != kind.virtual) return const SizedBox.shrink();
         final preview = switch (grant.source) {
@@ -396,16 +399,17 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
           label: (m) => m.label(loc),
           select: _selectLocation,
         ),
-        detail: (context, setSheetState) => switch (_values.locationMode) {
-          LocationMode.live => _granularityPicker(loc, setSheetState),
-          LocationMode.spoof => _coordinatesDetail(loc, setSheetState),
+        detail: (context, {required setSheetState}) => switch (_values.locationMode) {
+          LocationMode.live => _granularityPicker(loc, setSheetState: setSheetState),
+          LocationMode.spoof => _coordinatesDetail(loc, setSheetState: setSheetState),
           LocationMode.off => const SizedBox.shrink(),
         },
-        footer: (context, setSheetState) => _timezoneField(loc, setSheetState),
+        footer: (context, {required setSheetState}) => _timezoneField(loc, setSheetState: setSheetState),
       );
 
   /// The three granularity tiers are one enum, so they are one control.
-  Widget _granularityPicker(AppLocalizations loc, StateSetter setSheetState) =>
+  Widget _granularityPicker(AppLocalizations loc,
+          {required StateSetter setSheetState}) =>
       Padding(
         padding: const EdgeInsets.only(left: 32, top: 4, bottom: 4),
         child: Column(
@@ -430,7 +434,8 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         ),
       );
 
-  Widget _coordinatesDetail(AppLocalizations loc, StateSetter setSheetState) =>
+  Widget _coordinatesDetail(AppLocalizations loc,
+          {required StateSetter setSheetState}) =>
       Padding(
         padding: const EdgeInsets.only(left: 32, top: 8, bottom: 8),
         child: Row(
@@ -475,7 +480,8 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
     return '${entry.value} (${now.timeZoneName} $sign$hours:$minutes, $clock)';
   }
 
-  Widget _timezoneField(AppLocalizations loc, StateSetter setSheetState) {
+  Widget _timezoneField(AppLocalizations loc,
+      {required StateSetter setSheetState}) {
     final preview = widget.timezonePreview();
 
     // Tracking Protection forces the timezone to follow picked coordinates so
@@ -537,17 +543,30 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
         icon: Icons.shield_outlined,
         title: loc.siteSettingsProtectedContent,
         hint: loc.siteSettingsProtectedContentHint,
-        state: protectedContentPermissionState(_values.effectiveProtectedContent(
-            trackingProtection: widget.trackingProtectionEnabled)),
+        state: protectedContentPermissionState(
+            allowed: _values.effectiveProtectedContent(
+                trackingProtection: widget.trackingProtectionEnabled)),
         lockedReason: _archiveReason(loc) ??
             (widget.trackingProtectionEnabled
                 ? loc.siteSettingsProtectedContentBlockedByEtp
                 : null),
         options: [
           for (final (state, label, allowed) in [
-            (SitePermissionState.ask, loc.siteSettingsProtectedContentAsk, null),
-            (SitePermissionState.allowed, loc.siteSettingsProtectedContentAllow, true),
-            (SitePermissionState.blocked, loc.siteSettingsProtectedContentBlock, false),
+            (
+              SitePermissionState.ask,
+              loc.siteSettingsProtectedContentAsk,
+              null
+            ),
+            (
+              SitePermissionState.allowed,
+              loc.siteSettingsProtectedContentAllow,
+              true
+            ),
+            (
+              SitePermissionState.blocked,
+              loc.siteSettingsProtectedContentBlock,
+              false
+            ),
           ])
             _Option(
               state: state,
@@ -572,7 +591,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
       icon: Icons.notifications_none,
       title: loc.siteSettingsNotifications,
       hint: loc.siteSettingsNotificationsHint,
-      state: notificationPermissionState(_values.effectiveNotifications),
+      state: notificationPermissionState(enabled: _values.effectiveNotifications),
       qualifier: permissionDenied
           ? loc.siteSettingsNotificationsDenied(settingsPath)
           : null,
@@ -672,12 +691,12 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
                       ),
                       if (option.state == current.state &&
                           current.detail != null)
-                        current.detail!(context, setSheetState),
+                        current.detail!(context, setSheetState: setSheetState),
                     ],
                     if (current.footer != null)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-                        child: current.footer!(context, setSheetState),
+                        child: current.footer!(context, setSheetState: setSheetState),
                       ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
@@ -729,7 +748,7 @@ class _SitePermissionsScreenState extends State<SitePermissionsScreen> {
             hint: null,
             subtitle: loc.permissionsBackgroundAudioNotAGrant,
             lock: _values.archived ? const ArchiveLock() : null,
-            control: Toggle(_values.effectiveBackgroundAudio, (value) async {
+            control: Toggle(_values.effectiveBackgroundAudio, onChanged: (value) async {
               _update(_values.copyWith(backgroundAudioEnabled: value));
               // Android shows a media notification with transport controls for
               // background audio; on Android 13+ that needs POST_NOTIFICATIONS.

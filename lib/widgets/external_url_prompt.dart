@@ -95,8 +95,8 @@ enum _ExternalUrlChoice { cancel, openInApp, openInBrowser }
 /// Tracking params are stripped from both via [ClearUrlService] before
 /// they leave the app.
 Future<void> confirmAndLaunchExternalUrl(
-  BuildContext context,
-  ExternalUrlInfo info, {
+  BuildContext context, {
+  required ExternalUrlInfo info,
   WebViewController? loadInWebView,
 }) async {
   // Loop guard: pages frequently re-fire the same intent immediately
@@ -212,7 +212,8 @@ Future<void> confirmAndLaunchExternalUrl(
       case _ExternalUrlChoice.openInApp:
         LogTag.externalUrl.debug(
             'user chose: open in app → $cleanedLaunchUrl', sensitive: true);
-        await _launchInApp(cleanedLaunchUrl, cleanedFallback, info.scheme);
+        await _launchInApp(cleanedLaunchUrl,
+            cleanedFallback: cleanedFallback, scheme: info.scheme);
         return;
     }
   });
@@ -261,14 +262,14 @@ Future<bool> _launchExternally(String url, {required String label}) async {
         '$label: external launch result=$launched url=$url', sensitive: true);
     if (!launched) {
       _toastFailure((loc) => loc.externalUrlPromptNoAppAvailable(url),
-          'No app available to open: $url');
+          fallback: 'No app available to open: $url');
     }
     return launched;
   } catch (e) {
     LogTag.externalUrl.debug(
         '$label: external launch threw — $e', sensitive: true);
     _toastFailure((loc) => loc.externalUrlPromptCouldNotOpen(url),
-        'Could not open: $url');
+        fallback: 'Could not open: $url');
     return false;
   }
 }
@@ -276,7 +277,7 @@ Future<bool> _launchExternally(String url, {required String label}) async {
 /// On the root messenger, which outlives the page that asked; [fallback]
 /// when no localizations are reachable from it.
 void _toastFailure(
-    String Function(AppLocalizations loc) message, String fallback) {
+    String Function(AppLocalizations loc) message, {required String fallback}) {
   final messengerContext = rootScaffoldMessengerKey.currentContext;
   rootScaffoldMessengerKey.currentState?.toast(messengerContext == null
       ? fallback
@@ -284,10 +285,10 @@ void _toastFailure(
 }
 
 Future<void> _launchInApp(
-  String launchUrl,
-  String cleanedFallback,
-  String scheme,
-) async {
+  String launchUrl, {
+  required String cleanedFallback,
+  required String scheme,
+}) async {
   final launched = await _launchExternally(launchUrl, label: 'app');
   if (launched) return;
   // No app handler — fall back to opening the cleaned http(s) URL in

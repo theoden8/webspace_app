@@ -90,59 +90,61 @@ void main() {
 
   group('hostInSet', () {
     test('exact match', () {
-      expect(hostInSet('tracker.net', {'tracker.net'}), isTrue);
+      expect(hostInSet('tracker.net', set: {'tracker.net'}), isTrue);
     });
 
     test('subdomain match via parent walk', () {
       final set = {'tracker.net'};
-      expect(hostInSet('sub.tracker.net', set), isTrue);
-      expect(hostInSet('a.b.c.tracker.net', set), isTrue);
+      expect(hostInSet('sub.tracker.net', set: set), isTrue);
+      expect(hostInSet('a.b.c.tracker.net', set: set), isTrue);
     });
 
     test('does not match unrelated domain that ends in same string', () {
       // mytracker.net should NOT be matched by tracker.net
-      expect(hostInSet('mytracker.net', {'tracker.net'}), isFalse);
+      expect(hostInSet('mytracker.net', set: {'tracker.net'}), isFalse);
     });
 
     test('never matches a single-label string (eTLD safety)', () {
       // Even if someone mistakenly added "com" to the set, walking up
       // foo.example.com must not return true on the bare "com" suffix.
-      expect(hostInSet('foo.example.com', {'com'}), isFalse,
+      expect(hostInSet('foo.example.com', set: {'com'}), isFalse,
           reason: 'eTLD-only entries must never block everything');
     });
 
     test('returns false on empty set', () {
-      expect(hostInSet('anything.com', <String>{}), isFalse);
+      expect(hostInSet('anything.com', set: <String>{}), isFalse);
     });
 
     test('hierarchy walk hits intermediate ancestor', () {
       final set = {'ads.example.com'};
-      expect(hostInSet('ads.example.com', set), isTrue);
-      expect(hostInSet('foo.ads.example.com', set), isTrue);
-      expect(hostInSet('example.com', set), isFalse);
-      expect(hostInSet('other.example.com', set), isFalse);
+      expect(hostInSet('ads.example.com', set: set), isTrue);
+      expect(hostInSet('foo.ads.example.com', set: set), isTrue);
+      expect(hostInSet('example.com', set: set), isFalse);
+      expect(hostInSet('other.example.com', set: set), isFalse);
     });
 
     test('FQDN form reaches the set through extractHost', () {
       // `https://ads.doubleclick.net./x` resolves and renders exactly like
       // the dotless form, so it must not walk past the blocklist.
       const set = {'doubleclick.net'};
-      expect(hostInSet(extractHost('https://ads.doubleclick.net./collect')!, set),
+      expect(
+          hostInSet(extractHost('https://ads.doubleclick.net./collect')!,
+              set: set),
           isTrue);
     });
 
     test('exact-match-on-eTLD parent does not match', () {
       // The implementation specifically does NOT check the bare eTLD,
       // even when reached via walk-up. Document that.
-      expect(hostInSet('example.com', {'com'}), isFalse);
+      expect(hostInSet('example.com', set: {'com'}), isFalse);
     });
   });
 
   group('HostFifoCache', () {
     test('stores and retrieves entries', () {
       final c = HostFifoCache(4);
-      c.put('a', true);
-      c.put('b', false);
+      c.put('a', value: true);
+      c.put('b', value: false);
       expect(c['a'], isTrue);
       expect(c['b'], isFalse);
       expect(c['unknown'], isNull);
@@ -150,10 +152,10 @@ void main() {
 
     test('FIFO evicts oldest when full', () {
       final c = HostFifoCache(3);
-      c.put('a', true);
-      c.put('b', true);
-      c.put('c', true);
-      c.put('d', true); // evicts 'a'
+      c.put('a', value: true);
+      c.put('b', value: true);
+      c.put('c', value: true);
+      c.put('d', value: true); // evicts 'a'
       expect(c['a'], isNull);
       expect(c['b'], isTrue);
       expect(c['c'], isTrue);
@@ -162,11 +164,11 @@ void main() {
 
     test('updates in place do not change FIFO order', () {
       final c = HostFifoCache(3);
-      c.put('a', true);
-      c.put('b', true);
-      c.put('c', true);
-      c.put('a', false); // update; 'a' must still be the oldest
-      c.put('d', true); // evicts 'a' (still oldest)
+      c.put('a', value: true);
+      c.put('b', value: true);
+      c.put('c', value: true);
+      c.put('a', value: false); // update; 'a' must still be the oldest
+      c.put('d', value: true); // evicts 'a' (still oldest)
       expect(c['a'], isNull);
       expect(c['b'], isTrue);
       expect(c['c'], isTrue);
@@ -175,24 +177,24 @@ void main() {
 
     test('clear empties the cache', () {
       final c = HostFifoCache(3);
-      c.put('a', true);
-      c.put('b', true);
+      c.put('a', value: true);
+      c.put('b', value: true);
       c.clear();
       expect(c.length, equals(0));
       expect(c['a'], isNull);
       // Reuse after clear works.
-      c.put('x', true);
+      c.put('x', value: true);
       expect(c['x'], isTrue);
     });
 
     test('length tracks size up to cap', () {
       final c = HostFifoCache(3);
       expect(c.length, equals(0));
-      c.put('a', true);
-      c.put('b', true);
+      c.put('a', value: true);
+      c.put('b', value: true);
       expect(c.length, equals(2));
-      c.put('c', true);
-      c.put('d', true); // evicts 'a'
+      c.put('c', value: true);
+      c.put('d', value: true); // evicts 'a'
       expect(c.length, equals(3));
     });
 
@@ -203,7 +205,7 @@ void main() {
       final c = HostFifoCache(100);
       final sw = Stopwatch()..start();
       for (var i = 0; i < 50000; i++) {
-        c.put('host$i', i.isEven);
+        c.put('host$i', value: i.isEven);
       }
       sw.stop();
       expect(c.length, equals(100));

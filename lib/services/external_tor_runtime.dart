@@ -28,7 +28,7 @@ enum ExternalTorAnswer {
 }
 
 typedef ExternalTorIdentify = Future<ExternalTorAnswer> Function(
-    String host, int port);
+    String host, {required int port});
 
 class ExternalTorRuntime implements TorRuntime {
   ExternalTorRuntime({
@@ -96,12 +96,12 @@ class ExternalTorRuntime implements TorRuntime {
       return;
     }
     LogTag.tor.debug('Asking $address whether it is tor', sensitive: true);
-    final answer = await _identify(parsed.host, parsed.port);
+    final answer = await _identify(parsed.host, port: parsed.port);
     if (attempt != _attempt) return;
     switch (answer) {
       case ExternalTorAnswer.tor:
         LogTag.tor.debug('$address answered as tor', sensitive: true);
-        _events.add(TorUp(parsed.host, parsed.port));
+        _events.add(TorUp(parsed.host, port: parsed.port));
       case ExternalTorAnswer.notTor:
         _fail('Something answers at $address, but not as tor.');
       case ExternalTorAnswer.unreachable:

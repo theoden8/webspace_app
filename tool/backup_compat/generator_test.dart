@@ -13,6 +13,7 @@ import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'features/links.dart';
+import 'features/model.dart';
 import 'features/qr.dart';
 import 'features/registry.dart';
 import 'features/scripts.dart';
@@ -99,7 +100,7 @@ void main() {
     }
     final superset = _map(jsonDecode(File(_supersetPath).readAsStringSync()));
     final out = Directory(_outDir)..createSync(recursive: true);
-    void write(String name, String body) =>
+    void write(String name, {required String body}) =>
         File('${out.path}/$name').writeAsStringSync(body);
 
     final supersetPrefs = _map(superset['globalPrefs']);
@@ -125,7 +126,7 @@ void main() {
 
     final models = <WebViewModel>[
       for (final s in superset['sites'] as List)
-        WebViewModel.fromJson(_map(jsonDecode(jsonEncode(s))), null),
+        modelFromJson(_map(jsonDecode(jsonEncode(s)))),
     ];
     final webspaces = <Webspace>[
       allWebspace,
@@ -134,12 +135,12 @@ void main() {
     ];
     write(
       'backup_maximal.json',
-      _export(
+      body: _export(
         superset: superset,
         models: models,
         webspaces: webspaces,
-        themeIndex: shimThemeIndex(
-            theme['themeMode'] as String, theme['accentColor'] as String),
+        themeIndex: shimThemeIndex(theme['themeMode'] as String,
+            accentColor: theme['accentColor'] as String),
         registryPrefs: await shimReadRegistry(prefValues),
         flatPrefs: supersetPrefs,
         withExtras: true,
@@ -148,7 +149,7 @@ void main() {
 
     write(
       'backup_minimal.json',
-      _export(
+      body: _export(
         superset: superset,
         models: [WebViewModel(initUrl: 'https://minimal.example/')],
         webspaces: [allWebspace],
@@ -160,7 +161,7 @@ void main() {
     );
 
     final qr = shimQr(models.first.toJson());
-    if (qr != null) write('qr_maximal.txt', '$qr\n');
+    if (qr != null) write('qr_maximal.txt', body: '$qr\n');
 
     if (shimHasLinks) {
       final links = <String, String?>{
@@ -168,7 +169,7 @@ void main() {
           u as String: shimParseLink(u),
       };
       write('links.json',
-          '${const JsonEncoder.withIndent('  ').convert(links)}\n');
+          body: '${const JsonEncoder.withIndent('  ').convert(links)}\n');
     }
   });
 }

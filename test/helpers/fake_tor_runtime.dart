@@ -48,7 +48,7 @@ class FakeTorRuntime implements TorRuntime {
   void bootstrapTo(int port) {
     emit(const TorBootstrapping(10));
     emit(const TorBootstrapping(80));
-    emit(TorUp('127.0.0.1', port));
+    emit(TorUp('127.0.0.1', port: port));
   }
 
   @override
@@ -90,7 +90,7 @@ class FakeTorRuntime implements TorRuntime {
   Future<void> reopenListeners() async {
     reopenCalls++;
     if (reopenError != null) throw reopenError!;
-    emit(TorUp('127.0.0.1', reopenPort));
+    emit(TorUp('127.0.0.1', port: reopenPort));
   }
 
   Future<void> dispose() => _events.close();

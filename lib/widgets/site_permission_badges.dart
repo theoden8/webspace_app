@@ -23,7 +23,7 @@ sealed class SitePermissionBadge {}
 /// A capture kind held at a [mode] that reaches the page: the device itself
 /// (the camera and microphone's `real`, MIC-014) or a picked file.
 final class CaptureBadge implements SitePermissionBadge {
-  const CaptureBadge(this.kind, this.mode);
+  const CaptureBadge(this.kind, {required this.mode});
 
   final CaptureKind kind;
   final CaptureMode mode;
@@ -91,7 +91,7 @@ List<SitePermissionBadge> heldBadges(HeldGrants held) => [
     if (kind.grantOf(held.captures).mode case final mode
         when mode.state == SitePermissionState.allowed ||
             mode.state == SitePermissionState.simulated)
-      CaptureBadge(kind, mode),
+      CaptureBadge(kind, mode: mode),
   if (held.notifications) GrantBadge.notifications,
   if (held.protectedContent) GrantBadge.protectedContent,
   if (held.backgroundAudio) GrantBadge.backgroundAudio,
@@ -137,11 +137,13 @@ SitePermissionState sitePermissionBadgeState(SitePermissionBadge badge) =>
     };
 
 /// The setting a badge mirrors, as its settings row titles it.
-String sitePermissionBadgeTitle(AppLocalizations loc, SitePermissionBadge badge) =>
+String sitePermissionBadgeTitle(AppLocalizations loc,
+        {required SitePermissionBadge badge}) =>
     switch (badge) {
       CaptureBadge(:final kind) => kind.text(loc).title,
       GrantBadge.realLocation ||
-      GrantBadge.spoofLocation => loc.siteSettingsGeolocation,
+      GrantBadge.spoofLocation =>
+        loc.siteSettingsGeolocation,
       GrantBadge.notifications => loc.siteSettingsNotifications,
       GrantBadge.protectedContent => loc.siteSettingsProtectedContent,
       GrantBadge.backgroundAudio => loc.siteSettingsBackgroundAudio,
@@ -161,15 +163,17 @@ IconData sitePermissionBadgeIcon(SitePermissionBadge badge) => switch (badge) {
 /// Localized "<setting>: <value>" label, e.g. "Camera access: Always allow".
 /// Composed from the per-site settings strings the badge mirrors rather than
 /// new copy, so the badge and the settings screen can never drift apart.
-String sitePermissionBadgeLabel(AppLocalizations loc, SitePermissionBadge badge) {
+String sitePermissionBadgeLabel(AppLocalizations loc,
+    {required SitePermissionBadge badge}) {
   const separator = ': ';
-  final title = sitePermissionBadgeTitle(loc, badge);
+  final title = sitePermissionBadgeTitle(loc, badge: badge);
   final value = switch (badge) {
     CaptureBadge(:final mode) => mode.label(loc),
     GrantBadge.realLocation => loc.siteSettingsLocationLive,
     GrantBadge.spoofLocation => loc.siteSettingsLocationStatic,
     GrantBadge.notifications ||
-    GrantBadge.protectedContent => loc.siteSettingsProtectedContentAllow,
+    GrantBadge.protectedContent =>
+      loc.siteSettingsProtectedContentAllow,
     GrantBadge.backgroundAudio => null,
   };
   return value == null ? title : '$title$separator$value';
@@ -216,7 +220,7 @@ class SitePermissionBadges extends StatelessWidget {
           Icon(
             sitePermissionBadgeIcon(badge),
             size: iconSize,
-            semanticLabel: sitePermissionBadgeLabel(loc, badge),
+            semanticLabel: sitePermissionBadgeLabel(loc, badge: badge),
             color: isRealDeviceAccess(badge)
                 ? theme.colorScheme.error
                 : theme.colorScheme.onSurfaceVariant,

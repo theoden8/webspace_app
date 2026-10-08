@@ -71,10 +71,10 @@ List<String> _releaseTags() => [
           name,
     ]..sort(_compareTags);
 
-String _read(String tag, String name) =>
+String _read(String tag, {required String name}) =>
     File('$_fixtureRoot/$tag/$name').readAsStringSync();
 
-bool _has(String tag, String name) =>
+bool _has(String tag, {required String name}) =>
     File('$_fixtureRoot/$tag/$name').existsSync();
 
 /// A fresh site's serialised defaults: what a key the release never wrote
@@ -88,8 +88,10 @@ Map<String, dynamic> _freshSiteJson(String initUrl) {
 /// The values an import deliberately does not keep (BACKUP-011: real-device
 /// grants and the global-script opt-in reset on every import, whoever wrote
 /// the file). Everything else must survive as written.
-Object? _expectedImported(String key, Object? value) => switch (key) {
-      'cameraMode' || 'microphoneMode' =>
+Object? _expectedImported(String key, {required Object? value}) =>
+    switch (key) {
+      'cameraMode' ||
+      'microphoneMode' =>
         value == 'real' || value == 'ask' ? null : value,
       'locationMode' => value == 'live' ? 'off' : value,
       'notificationsEnabled' => false,
@@ -103,7 +105,9 @@ Object? _expectedImported(String key, Object? value) => switch (key) {
 /// The superset's [value] for [key] as far as a release that [written] it
 /// knew it. A list of records grows by kinds a later release adds (a hosted
 /// tab, LIR-018), and an earlier release wrote only the records it had.
-Object? _asWritten(String key, Object? value, Object? written) => switch (key) {
+Object? _asWritten(String key,
+        {required Object? value, required Object? written}) =>
+    switch (key) {
       'tabs' => [
           for (final t in value as List)
             if ((written as List)
@@ -147,10 +151,10 @@ const _specialKeys = {
   'userScripts',
 };
 
-Set<String> _matches(String text, String pattern) =>
+Set<String> _matches(String text, {required String pattern}) =>
     {for (final m in RegExp(pattern).allMatches(text)) m.group(1)!};
 
-String _region(String path, String from, String to) {
+String _region(String path, {required String from, required String to}) {
   final src = File(path).readAsStringSync();
   final start = src.indexOf(from);
   if (start < 0) throw StateError('no "$from" in $path');
@@ -193,10 +197,12 @@ final Set<String> _keysRead = {
   ])
     ..._readKeys(File(f).readAsStringSync()),
   ..._captureKeysRead,
-  ..._readKeys(_region('lib/services/webview.dart', 'Cookie cookieFromJson(', ');\n')),
+  ..._readKeys(_region('lib/services/webview.dart',
+      from: 'Cookie cookieFromJson(', to: ');\n')),
   ..._matches(
-      _region('lib/services/settings_backup.dart', 'for (final key in const [', ']'),
-      r"'(\w+)'"),
+      _region('lib/services/settings_backup.dart',
+          from: 'for (final key in const [', to: ']'),
+      pattern: r"'(\w+)'"),
 };
 
 /// Every registered pref's key and default.
@@ -297,7 +303,7 @@ void main() {
 
   for (final tag in tags) {
     group(tag, () {
-      final raw = _read(tag, 'backup_maximal.json');
+      final raw = _read(tag, name: 'backup_maximal.json');
       final backup = SettingsBackupService.importFromJson(raw);
       final plan = backup == null ? null : planSettingsImport(backup);
 
@@ -309,10 +315,10 @@ void main() {
 
       test('every key it wrote is still read', () {
         final unread = <String>[];
-        void walk(Object? node, String at) {
+        void walk(Object? node, {required String at}) {
           if (node is List) {
             for (var i = 0; i < node.length; i++) {
-              walk(node[i], '$at[$i]');
+              walk(node[i], at: '$at[$i]');
             }
           } else if (node is Map) {
             for (final e in node.entries) {
@@ -322,19 +328,19 @@ void main() {
               if (at.endsWith('globalPrefs')) {
                 if (!_prefKeysRead.contains(key)) unread.add(where);
                 if (key == AppPref.globalOutboundProxy.key && e.value is String) {
-                  walk(jsonDecode(e.value as String), where);
+                  walk(jsonDecode(e.value as String), at: where);
                 }
                 continue;
               }
               if (!_keysRead.contains(key) && !_renamedKeys.containsKey(key)) {
                 unread.add(where);
               }
-              walk(e.value, where);
+              walk(e.value, at: where);
             }
           }
         }
 
-        walk(jsonDecode(raw), '');
+        walk(jsonDecode(raw), at: '');
         expect(unread, isEmpty,
             reason: '$tag wrote these and HEAD never reads them, so an import '
                 'or upgrade from $tag drops them. Read the old name in '
@@ -415,8 +421,9 @@ void main() {
                       if (e.value == key && written.containsKey(e.key)) e.key,
                   ].firstOrNull;
             final expected = writtenAs != null
-                ? _expectedImported(
-                    key, _asWritten(key, want[key], written[writtenAs]))
+                ? _expectedImported(key,
+                    value: _asWritten(key,
+                        value: want[key], written: written[writtenAs]))
                 : fresh[key];
             expect(got[key], expected,
                 reason: writtenAs != null
@@ -513,7 +520,7 @@ void main() {
 
       test('minimal backup imports as a fresh site', () {
         final minimal = planSettingsImport(SettingsBackupService.importFromJson(
-            _read(tag, 'backup_minimal.json'))!);
+            _read(tag, name: 'backup_minimal.json'))!);
         final got = minimal.sites.single.toJson()..remove('siteId');
         final fresh = _freshSiteJson('https://minimal.example/')
           ..remove('siteId');
@@ -524,9 +531,9 @@ void main() {
         expect(minimal.selectedWebspaceId, kAllWebspaceId);
       });
 
-      if (_has(tag, 'qr_maximal.txt')) {
+      if (_has(tag, name: 'qr_maximal.txt')) {
         test('site QR link still decodes', () {
-          final qr = _read(tag, 'qr_maximal.txt').trim();
+          final qr = _read(tag, name: 'qr_maximal.txt').trim();
           final decoded = SiteSettingsQrCodec.decode(qr);
           expect(decoded, isNotNull, reason: '$tag QR no longer decodes');
           expect(SiteSettingsQrCodec.includedKeys.containsAll(decoded!.keys),
@@ -537,7 +544,8 @@ void main() {
             expect(decoded[key], want[key], reason: '$tag QR "$key"');
           }
           final model = WebViewModel.fromJson(
-              SiteSettingsQrCodec.hydrateForFromJson(decoded), null);
+              SiteSettingsQrCodec.hydrateForFromJson(decoded),
+              stateSetterF: null);
           expect(model.initUrl, want['initUrl']);
           expect(model.cookies, isEmpty);
           expect(model.userScripts, isEmpty);
@@ -547,10 +555,10 @@ void main() {
         });
       }
 
-      if (_has(tag, 'links.json')) {
+      if (_has(tag, name: 'links.json')) {
         test('webspace://open links parse as they did', () {
-          final links =
-              (jsonDecode(_read(tag, 'links.json')) as Map).cast<String, String?>();
+          final links = (jsonDecode(_read(tag, name: 'links.json')) as Map)
+              .cast<String, String?>();
           for (final e in links.entries) {
             final head = _parseLinkAtHead(e.key);
             expect(head, isNot('!throws'),
@@ -588,7 +596,8 @@ void main() {
 
     test('cameraAllowed maps to a camera mode, and a grant resets to ask', () {
       expect(
-          WebViewModel.fromJson(site({'cameraAllowed': true}), null)
+          WebViewModel.fromJson(site({'cameraAllowed': true}),
+                  stateSetterF: null)
               .captures
               .camera
               .mode,
@@ -603,7 +612,8 @@ void main() {
 
     test('backgroundPoll maps to notifications, then resets on import', () {
       expect(
-          WebViewModel.fromJson(site({'backgroundPoll': true}), null)
+          WebViewModel.fromJson(site({'backgroundPoll': true}),
+                  stateSetterF: null)
               .notificationsEnabled,
           isTrue);
       final plan = _planFromJson(backupOf([site({'backgroundPoll': true})]));
@@ -782,7 +792,7 @@ void main() {
         (26, [legacySite], 26),
         (2, <Map<String, dynamic>>[], 2),
       ]) {
-        expect(normalizeBackupThemeIndex(raw, sites), want,
+        expect(normalizeBackupThemeIndex(raw, sites: sites), want,
             reason: 'raw $raw with ${sites.length} site(s)');
       }
     });
@@ -982,16 +992,17 @@ void main() {
     ];
     final base = WebViewModel.fromJson(
             jsonDecode(jsonEncode(_supersetSites.first)) as Map<String, dynamic>,
-            null)
+            stateSetterF: null)
         .toJson();
     final baseline = WebViewModel.fromJson(
-            jsonDecode(jsonEncode(base)) as Map<String, dynamic>, null)
+            jsonDecode(jsonEncode(base)) as Map<String, dynamic>,
+            stateSetterF: null)
         .toJson();
 
-    Map<String, dynamic> loaded(Map<String, dynamic> json) =>
-        WebViewModel.fromJson(
-                jsonDecode(jsonEncode(json)) as Map<String, dynamic>, null)
-            .toJson();
+Map<String, dynamic> loaded(Map<String, dynamic> json) =>
+    WebViewModel.fromJson(jsonDecode(jsonEncode(json)) as Map<String, dynamic>,
+            stateSetterF: null)
+        .toJson();
 
     test('the baseline round-trips', () {
       expect(baseline, base);
@@ -1035,7 +1046,8 @@ void main() {
         } else {
           json['initUrl'] = value;
         }
-        expect(() => WebViewModel.fromJson(json, null), throwsA(anything),
+        expect(() => WebViewModel.fromJson(json, stateSetterF: null),
+            throwsA(anything),
             reason: 'initUrl $value');
       }
     });
@@ -1099,7 +1111,7 @@ void main() {
       final link = SiteSettingsQrCodec.encode({'initUrl': 'https://qr.example/'});
       final decoded = SiteSettingsQrCodec.decode(link)!;
       final model = WebViewModel.fromJson(
-          SiteSettingsQrCodec.hydrateForFromJson(decoded), null);
+          SiteSettingsQrCodec.hydrateForFromJson(decoded), stateSetterF: null);
       expect(model.initUrl, 'https://qr.example/');
       expect(model.javascriptEnabled, isTrue);
       expect(model.proxySettings.type, ProxyType.DEFAULT);
@@ -1151,7 +1163,8 @@ void main() {
     // secret and grant the rules exist for, rather than one per release.
     final sites = [
       for (final s in _supersetSites)
-        WebViewModel.fromJson(jsonDecode(jsonEncode(s)) as Map<String, dynamic>, null),
+        WebViewModel.fromJson(jsonDecode(jsonEncode(s)) as Map<String, dynamic>,
+            stateSetterF: null),
     ];
     final json = jsonDecode(SettingsBackupService.exportToJson(
         SettingsBackupService.createBackup(
@@ -1189,7 +1202,7 @@ void main() {
           .firstMatch(pubspec)!
           .group(1)!;
       for (final name in ['backup_maximal.json', 'backup_minimal.json']) {
-        expect(_has('v$version', name), isTrue,
+        expect(_has('v$version', name: name), isTrue,
             reason: 'v$version has no $name. On release day run '
                 'tool/backup_compat/generate.sh HEAD (or the new tag).');
       }
@@ -1215,32 +1228,32 @@ void main() {
       // migration is untested code waiting to rot.
       final reads = {
         ..._readKeys(_region('lib/web_view_model.dart',
-            'factory WebViewModel.fromJson(', '\n  }\n')),
+            from: 'factory WebViewModel.fromJson(', to: '\n  }\n')),
         ..._readKeys(_region('lib/services/settings_backup.dart',
-            'factory SettingsBackup.fromJson(', '\n  }\n')),
+            from: 'factory SettingsBackup.fromJson(', to: '\n  }\n')),
         ..._matches(
             _region('lib/services/settings_backup.dart',
-                "for (final key in const [", ']'),
-            r"'(\w+)'"),
-        ..._readKeys(_region(
-            'lib/webspace_model.dart', 'factory Webspace.fromJson(', '\n  }\n')),
+                from: "for (final key in const [", to: ']'),
+            pattern: r"'(\w+)'"),
+        ..._readKeys(_region('lib/webspace_model.dart',
+            from: 'factory Webspace.fromJson(', to: '\n  }\n')),
         ..._legacyPrefKeys,
         ..._captureKeysRead,
       };
       final writes = {
         for (final kind in CaptureKind.values) ...kind.jsonKeys,
         ..._matches(
-            _region('lib/web_view_model.dart', "'siteId': siteId",
-                'factory WebViewModel.fromJson('),
-            r"'(\w+)':"),
+            _region('lib/web_view_model.dart',
+                from: "'siteId': siteId", to: 'factory WebViewModel.fromJson('),
+            pattern: r"'(\w+)':"),
         ..._matches(
             _region('lib/services/settings_backup.dart',
-                'Map<String, dynamic> toJson() => {', '};'),
-            r"'(\w+)':"),
+                from: 'Map<String, dynamic> toJson() => {', to: '};'),
+            pattern: r"'(\w+)':"),
         ..._matches(
-            _region('lib/webspace_model.dart', 'Map<String, dynamic> toJson()',
-                '};'),
-            r"'(\w+)':"),
+            _region('lib/webspace_model.dart',
+                from: 'Map<String, dynamic> toJson()', to: '};'),
+            pattern: r"'(\w+)':"),
         ..._defaults.keys,
       };
       final legacy = reads.difference(writes);
@@ -1249,7 +1262,7 @@ void main() {
       final corpus = StringBuffer(
           File('test/settings_backup_compat_test.dart').readAsStringSync());
       for (final tag in tags) {
-        corpus.write(_read(tag, 'backup_maximal.json'));
+        corpus.write(_read(tag, name: 'backup_maximal.json'));
       }
       final text = corpus.toString();
       final untested = [

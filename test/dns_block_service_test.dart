@@ -256,13 +256,19 @@ void main() {
     });
 
     test('a level blocks exactly what its own list named', () {
-      expect(service.isBlockedAtLevel('https://light.example/', 1), isTrue);
-      expect(service.isBlockedAtLevel('https://light.example/', 3), isFalse,
+      expect(
+          service.isBlockedAtLevel('https://light.example/', level: 1), isTrue);
+      expect(
+          service.isBlockedAtLevel('https://light.example/', level: 3), isFalse,
           reason: 'Pro does not name it, so Pro must not block it');
-      expect(service.isBlockedAtLevel('https://pro.example/', 1), isFalse);
-      expect(service.isBlockedAtLevel('https://pro.example/', 3), isTrue);
-      expect(service.isBlockedAtLevel('https://ultimate.example/', 3), isFalse);
-      expect(service.isBlockedAtLevel('https://ultimate.example/', 5), isTrue);
+      expect(
+          service.isBlockedAtLevel('https://pro.example/', level: 1), isFalse);
+      expect(
+          service.isBlockedAtLevel('https://pro.example/', level: 3), isTrue);
+      expect(service.isBlockedAtLevel('https://ultimate.example/', level: 3),
+          isFalse);
+      expect(service.isBlockedAtLevel('https://ultimate.example/', level: 5),
+          isTrue);
     });
 
     test('the app-wide check runs at the app-wide level', () {
@@ -272,8 +278,10 @@ void main() {
     });
 
     test('level 0 blocks nothing for that site while others still block', () {
-      expect(service.isBlockedAtLevel('https://light.example/', 0), isFalse);
-      expect(service.isBlockedAtLevel('https://light.example/', 1), isTrue);
+      expect(service.isBlockedAtLevel('https://light.example/', level: 0),
+          isFalse);
+      expect(
+          service.isBlockedAtLevel('https://light.example/', level: 1), isTrue);
     });
 
     test('the host cache serves every level from one walk', () {
@@ -281,9 +289,12 @@ void main() {
       // a level would have to be wrong for two of these.
       expect(service.hostLevelMask('shared.example'),
           dnsLevelBit(1) | dnsLevelBit(3) | dnsLevelBit(5));
-      expect(service.isBlockedAtLevel('https://shared.example/', 1), isTrue);
-      expect(service.isBlockedAtLevel('https://shared.example/', 3), isTrue);
-      expect(service.isBlockedAtLevel('https://shared.example/', 5), isTrue);
+      expect(service.isBlockedAtLevel('https://shared.example/', level: 1),
+          isTrue);
+      expect(service.isBlockedAtLevel('https://shared.example/', level: 3),
+          isTrue);
+      expect(service.isBlockedAtLevel('https://shared.example/', level: 5),
+          isTrue);
     });
 
     test('a site level with no downloaded list falls back to the app-wide one',
@@ -314,7 +325,7 @@ void main() {
               'pro.example',
               'ultimate.example'
             ])
-              service.isHostBlockedAtLevel(host, level)
+              service.isHostBlockedAtLevel(host, level: level)
           ]
       };
       service.loadLevelSetsFromSerialized(serialized, globalLevel: 3);
@@ -326,7 +337,7 @@ void main() {
             'pro.example',
             'ultimate.example'
           ])
-            service.isHostBlockedAtLevel(host, level)
+            service.isHostBlockedAtLevel(host, level: level)
         ];
         expect(after, before[level], reason: 'level $level after reload');
       }

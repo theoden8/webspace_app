@@ -74,7 +74,8 @@ class DnsStats {
   /// call, but the per-site total and source-attributed counters
   /// increment by [count]. Used by the Android native interceptor's
   /// per-host dedup batching.
-  void record(String domain, bool wasBlocked, {BlockSource? source, int count = 1}) {
+  void record(String domain,
+      {required bool wasBlocked, BlockSource? source, int count = 1}) {
     if (count < 1) count = 1;
     if (wasBlocked) {
       blocked += count;
@@ -333,7 +334,8 @@ class DnsBlockService {
   /// Insert (or update) a host->bool entry into the given cache, enforcing
   /// the [_maxDomainCacheEntries] cap with FIFO eviction. Single point of
   /// truth for cache writes so the cap can never be bypassed.
-  void _putCappedHostDecision(Map<String, bool> cache, String host, bool blocked) {
+  void _putCappedHostDecision(Map<String, bool> cache,
+      {required String host, required bool blocked}) {
     final present = cache.containsKey(host);
     if (!present && cache.length >= _maxDomainCacheEntries) {
       cache.remove(cache.keys.first);
@@ -343,11 +345,11 @@ class DnsBlockService {
 
   /// Record a confirmed merged decision for a host. Persists asynchronously.
   /// Called from [recordVerdict] — caller has already merged DNS+ABP signals.
-  void recordDomainDecision(String host, bool blocked) {
+  void recordDomainDecision(String host, {required bool blocked}) {
     if (host.isEmpty) return;
     final prev = _domainCache[host];
     if (prev == blocked) return;
-    _putCappedHostDecision(_domainCache, host, blocked);
+    _putCappedHostDecision(_domainCache, host: host, blocked: blocked);
     _schedulePersistDomainCache();
   }
 
@@ -455,9 +457,9 @@ class DnsBlockService {
   /// blocked-or-not bit — the DNS vs ABP distinction is recovered on the
   /// next request because both services can answer independently.
   void recordVerdict(
-    String siteId,
-    BlockQuery query,
-    BlockVerdict verdict, {
+    String siteId, {
+    required BlockQuery query,
+    required BlockVerdict verdict,
     int count = 1,
   }) {
     final host = switch (query) {
@@ -467,14 +469,15 @@ class DnsBlockService {
     if (host == null || host.isEmpty) return;
     final source = verdict.source;
     final blocked = source != null;
-    statsForSite(siteId).record(host, blocked, source: source, count: count);
+    statsForSite(siteId)
+        .record(host, wasBlocked: blocked, source: source, count: count);
     // Single funnel for the persisted app-wide report (STATS-002): every
     // DNS/ABP block on every platform passes through here, so the aggregate
     // cannot drift from the per-site counters.
     if (source != null) {
       BlockStatsService.instance.record(
         siteId,
-        switch (source) {
+        category: switch (source) {
           BlockSource.dns => BlockCategory.dnsBlocklist,
           BlockSource.abp => BlockCategory.filterList,
         },
@@ -482,7 +485,7 @@ class DnsBlockService {
         label: host,
       );
     }
-    recordDomainDecision(host, blocked);
+    recordDomainDecision(host, blocked: blocked);
     _scheduleNotifyDnsLogListeners();
   }
 
@@ -557,14 +560,15 @@ class DnsBlockService {
       builder.add(domain);
     }
     final migrated = builder.build();
-    await _store.writeText(_levelsFileName, _serializeLevelSets(migrated));
+    await _store.writeText(_levelsFileName,
+        contents: _serializeLevelSets(migrated));
     await _store.delete(_legacyCacheFileName);
-    await _persistDownloadedLevels(prefs, migrated.levels);
+    await _persistDownloadedLevels(prefs, levels: migrated.levels);
     _applyLevelSets(migrated);
   }
 
   Future<void> _persistDownloadedLevels(
-      SharedPreferences prefs, Set<int> levels) async {
+      SharedPreferences prefs, {required Set<int> levels}) async {
     if (levels.isEmpty) {
       await prefs.remove(_downloadedLevelsKey);
       return;
@@ -647,7 +651,7 @@ class DnsBlockService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_levelKey, 0);
         await prefs.remove(_lastUpdatedKey);
-        await _persistDownloadedLevels(prefs, const <int>{});
+        await _persistDownloadedLevels(prefs, levels: const <int>{});
       } catch (e) {
         LogTag.dnsBlock.error('Error clearing blocklist: $e');
       }
@@ -662,7 +666,7 @@ class DnsBlockService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_levelKey, level);
     await prefs.setString(_lastUpdatedKey, DateTime.now().toIso8601String());
-    await _persistDownloadedLevels(prefs, _levelSets.levels);
+    await _persistDownloadedLevels(prefs, levels: _levelSets.levels);
     await _clearDomainCache();
     LogTag.dnsBlock.info(
         'Downloaded level $level (${_levelSets.domainCount} domains across '
@@ -681,7 +685,7 @@ class DnsBlockService {
     if (_levelSets.levels.contains(level)) return true;
     if (!await _foldLevel(level)) return false;
     final prefs = await SharedPreferences.getInstance();
-    await _persistDownloadedLevels(prefs, _levelSets.levels);
+    await _persistDownloadedLevels(prefs, levels: _levelSets.levels);
     await _clearDomainCache();
     LogTag.dnsBlock.info(
         'Added level $level (${_levelSets.domainCount} domains across '
@@ -705,7 +709,7 @@ class DnsBlockService {
     final pruned = builder.build();
     await _writeLevelSets(pruned);
     final prefs = await SharedPreferences.getInstance();
-    await _persistDownloadedLevels(prefs, pruned.levels);
+    await _persistDownloadedLevels(prefs, levels: pruned.levels);
     await _clearDomainCache();
     _applyLevelSets(pruned);
     LogTag.dnsBlock.info(
@@ -735,7 +739,8 @@ class DnsBlockService {
       await _store.delete(_levelsFileName);
       return;
     }
-    await _store.writeText(_levelsFileName, _serializeLevelSets(sets));
+    await _store.writeText(_levelsFileName,
+        contents: _serializeLevelSets(sets));
   }
 
   /// Fetch [level]'s list body. Tries each mirror in order; a mirror that
@@ -777,23 +782,23 @@ class DnsBlockService {
   /// `Uri.tryParse` rejects (relative URLs, opaque schemes like `data:` /
   /// `about:`) are also rejected here, with the same observable behavior:
   /// return false.
-  bool isBlocked(String url) => isBlockedAtLevel(url, _level);
+  bool isBlocked(String url) => isBlockedAtLevel(url, level: _level);
 
   /// Like [isBlocked] but skips URL parsing — caller already has the host
   /// (e.g. native interceptor bridge passing `host` directly).
-  bool isHostBlocked(String host) => isHostBlockedAtLevel(host, _level);
+  bool isHostBlocked(String host) => isHostBlockedAtLevel(host, level: _level);
 
   /// [isBlocked] at a specific severity level — what a site with its own
   /// level runs. The tier lookup is shared, so this costs the same as the
   /// app-wide check.
-  bool isBlockedAtLevel(String url, int level) {
+  bool isBlockedAtLevel(String url, {required int level}) {
     if (level <= kDnsLevelOff || _levelSets.isEmpty) return false;
     final host = extractHost(url);
     if (host == null || host.isEmpty) return false;
-    return isHostBlockedAtLevel(host, level);
+    return isHostBlockedAtLevel(host, level: level);
   }
 
-  bool isHostBlockedAtLevel(String host, int level) {
+  bool isHostBlockedAtLevel(String host, {required int level}) {
     if (level <= kDnsLevelOff || level > kDnsMaxLevel) return false;
     if (_levelSets.isEmpty || host.isEmpty) return false;
     return hostLevelMask(host) & dnsLevelBit(level) != 0;
@@ -808,7 +813,7 @@ class DnsBlockService {
     final cached = _dnsBlockCache[host];
     if (cached != null) return cached;
     final mask = _levelSets.maskOf(host);
-    _dnsBlockCache.put(host, mask);
+    _dnsBlockCache.put(host, value: mask);
     return mask;
   }
 
@@ -835,7 +840,7 @@ class DnsBlockService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(_levelKey, level);
       await prefs.remove(_lastUpdatedKey);
-      await _persistDownloadedLevels(prefs, const <int>{});
+      await _persistDownloadedLevels(prefs, levels: const <int>{});
     } catch (e) {
       LogTag.dnsBlock.error('Error applying imported level: $e');
     }

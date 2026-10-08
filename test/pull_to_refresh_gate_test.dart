@@ -6,7 +6,8 @@ class FakeRefreshControl implements RefreshControl {
   int endRefreshingCalls = 0;
 
   @override
-  Future<void> setEnabled(bool enabled) async => enabledCalls.add(enabled);
+  Future<void> setEnabled({required bool enabled}) async =>
+      enabledCalls.add(enabled);
 
   @override
   Future<void> endRefreshing() async => endRefreshingCalls++;

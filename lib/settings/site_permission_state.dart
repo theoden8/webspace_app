@@ -44,11 +44,11 @@ SitePermissionState locationPermissionState(LocationMode mode) =>
 
 /// Notifications are a two-state switch today, so they never report
 /// [SitePermissionState.ask].
-SitePermissionState notificationPermissionState(bool enabled) =>
+SitePermissionState notificationPermissionState({required bool enabled}) =>
     enabled ? SitePermissionState.allowed : SitePermissionState.blocked;
 
 /// `null` is the stored "no decision yet" value for protected content.
-SitePermissionState protectedContentPermissionState(bool? allowed) =>
+SitePermissionState protectedContentPermissionState({required bool? allowed}) =>
     switch (allowed) {
       null => SitePermissionState.ask,
       true => SitePermissionState.allowed,

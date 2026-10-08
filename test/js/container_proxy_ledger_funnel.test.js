@@ -44,7 +44,7 @@ test('every caller of the shared builder records its proxy', () => {
   for (const call of calls) {
     const fn = webview.lastIndexOf('\n  static ', call.index);
     assert.match(webview.slice(fn, call.index),
-      /ProxyManager\.noteStoreProxy\(\s*(binding\.)?containerId,\s*(binding\.proxy|inappProxy)\)/,
+      /ProxyManager\.noteStoreProxy\(\s*(binding\.)?containerId,\s*proxy:\s*(binding\.proxy|inappProxy)\)/,
       'a webview built through _siteSettings must record its container proxy '
         + '(PROXY-029)');
   }
@@ -53,7 +53,7 @@ test('every caller of the shared builder records its proxy', () => {
 test('every proxySettings handed to a WebView is recorded', () => {
   for (const b of builds) {
     const noted = new RegExp(
-      `noteStoreProxy\\([^,]+,\\s*${b.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`,
+      `noteStoreProxy\\([^,]+,\\s*proxy:\\s*${b.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`,
     );
     assert.match(
       b.text,

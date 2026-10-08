@@ -131,10 +131,10 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   /// Opens [list]'s script at [index] in the editor, or a new script when
   /// [index] is null, and stores what the editor saved.
   Future<void> _edit(
-    List<UserScriptConfig> list,
-    int? index,
-    VoidCallback sync,
-  ) async {
+    List<UserScriptConfig> list, {
+    required int? index,
+    required VoidCallback sync,
+  }) async {
     final result = await Navigator.push<UserScriptConfig>(
       context,
       MaterialPageRoute(
@@ -246,7 +246,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
   }
 
   /// [name] with the Global badge after it.
-  Widget _globalTitle(AppLocalizations loc, String name) {
+  Widget _globalTitle(AppLocalizations loc, {required String name}) {
     final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
@@ -266,7 +266,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     );
   }
 
-  static String _runsAt(AppLocalizations loc, UserScriptConfig script) =>
+  static String _runsAt(AppLocalizations loc,
+          {required UserScriptConfig script}) =>
       script.injectionTime == UserScriptInjectionTime.atDocumentStart
           ? loc.userScriptsRunsAtDocumentStart
           : loc.userScriptsRunsAtDocumentEnd;
@@ -330,9 +331,9 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                     child: const Icon(Icons.drag_handle),
                   ),
                   title: isGlobal
-                      ? _globalTitle(loc, script.name)
+                      ? _globalTitle(loc, name: script.name)
                       : Text(script.name),
-                  subtitle: Text(_runsAt(loc, script)),
+                  subtitle: Text(_runsAt(loc, script: script)),
                   trailing: isGlobal
                       ? null
                       : Switch(
@@ -342,7 +343,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
                             _syncSite();
                           },
                         ),
-                  onTap: () => _edit(_scripts, index, _syncSite),
+                  onTap: () => _edit(_scripts, index: index, sync: _syncSite),
                   onLongPress: isGlobal
                       ? null
                       : () => _showActions(index, isGlobal: false),
@@ -364,8 +365,8 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
         size: 20,
         color: Theme.of(context).colorScheme.primary,
       ),
-      title: _globalTitle(loc, script.name),
-      subtitle: Text(_runsAt(loc, script)),
+      title: _globalTitle(loc, name: script.name),
+      subtitle: Text(_runsAt(loc, script: script)),
       // Per-site opt-in is the only enable control for global scripts.
       // In per-site mode the switch toggles membership in this site's
       // [enabledGlobalScriptIds] set. No toggle otherwise.
@@ -380,7 +381,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
               },
             )
           : null,
-      onTap: editable ? () => _edit(_globalScripts, index, _syncGlobal) : null,
+      onTap: editable ? () => _edit(_globalScripts, index: index, sync: _syncGlobal) : null,
       onLongPress:
           editable ? () => _showActions(index, isGlobal: true) : null,
     );
@@ -391,7 +392,7 @@ class _UserScriptsScreenState extends State<UserScriptsScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _edit(_scripts, null, _syncSite),
+        onPressed: () => _edit(_scripts, index: null, sync: _syncSite),
         child: const Icon(Icons.add),
       ),
       body: _buildBody(),
@@ -609,7 +610,7 @@ class _UserScriptEditScreenState extends State<UserScriptEditScreen>
             title: loc.userScriptsBypassSitePolicyLabel,
             hint: loc.userScriptsBypassSitePolicyHint,
             control: Toggle(_bypassSitePolicy,
-                (v) => setState(() => _bypassSitePolicy = v)),
+                onChanged: (v) => setState(() => _bypassSitePolicy = v)),
           ),
           const SizedBox(height: 16),
           TextField(

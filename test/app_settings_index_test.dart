@@ -31,10 +31,10 @@ void main() {
       buildSignature: '',
       installerStore: null,
     );
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
   });
 
-  tearDown(() => DeveloperModeService.instance.debugSet(false));
+  tearDown(() => DeveloperModeService.instance.debugSet(on: false));
 
   Widget settings({VoidCallback? onExportSettings}) => AppSettingsScreen(
         currentSettings: AppThemeSettings(),
@@ -56,11 +56,11 @@ void main() {
             (w) => w is Text && w.data != title && w.style?.fontSize == 12.5),
       );
 
-  String summaryText(WidgetTester tester, String title) =>
+  String summaryText(WidgetTester tester, {required String title}) =>
       tester.widget<Text>(summaryOf(title)).data!;
 
   /// Brings a row fully on screen and opens it.
-  Future<void> openRow(WidgetTester tester, String title) async {
+  Future<void> openRow(WidgetTester tester, {required String title}) async {
     final row = find.text(title);
     await tester.scrollUntilVisible(row, 100,
         scrollable: find.byType(Scrollable).first);
@@ -110,24 +110,24 @@ void main() {
       (tester) async {
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Appearance'), 'System');
+    expect(summaryText(tester, title: 'Appearance'), 'System');
 
     AppPref.appLocaleOverride.debugValue = 'de';
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Appearance'), 'System · Deutsch',
+    expect(summaryText(tester, title: 'Appearance'), 'System · Deutsch',
         reason: 'the row follows the pref as it changes');
   });
 
   testWidgets('Behaviour names what is on, two then a count', (tester) async {
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Behaviour'), 'Nothing enabled');
+    expect(summaryText(tester, title: 'Behaviour'), 'Nothing enabled');
 
     AppPref.showTabStrip.debugValue = true;
     AppPref.fullscreenOnShortcut.debugValue = true;
     AppPref.linkHandlingEnabled.debugValue = true;
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Behaviour'),
+    expect(summaryText(tester, title: 'Behaviour'),
         'Site Tab Strip · Full screen on shortcut launch · 1 more');
   });
 
@@ -136,7 +136,7 @@ void main() {
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
 
-    await openRow(tester, 'Behaviour');
+    await openRow(tester, title: 'Behaviour');
     await tester.tap(find.ancestor(
         of: find.text('Full screen on shortcut launch'),
         matching: find.byType(SwitchListTile)));
@@ -146,20 +146,21 @@ void main() {
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Behaviour'), 'Full screen on shortcut launch');
+    expect(summaryText(tester, title: 'Behaviour'),
+        'Full screen on shortcut launch');
   });
 
   testWidgets('Network and Privacy say what every site gets', (tester) async {
     AppPref.httpsUpgradeEnabled.debugValue = true;
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Network'), 'Default connection');
+    expect(summaryText(tester, title: 'Network'), 'Default connection');
     expect(DnsBlockService.instance.level, 0);
-    expect(summaryText(tester, 'Privacy'), 'HTTPS upgrade');
+    expect(summaryText(tester, title: 'Privacy'), 'HTTPS upgrade');
 
     AppPref.httpsUpgradeEnabled.debugValue = false;
     await tester.pumpAndSettle();
-    expect(summaryText(tester, 'Privacy'), 'No protection enabled');
+    expect(summaryText(tester, title: 'Privacy'), 'No protection enabled');
   });
 
   testWidgets('Export closes settings before it runs, as it did inline',
@@ -179,7 +180,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    await openRow(tester, 'Backup and archives');
+    await openRow(tester, title: 'Backup and archives');
     await tester.tap(find.text('Export Settings'));
     await tester.pumpAndSettle();
 
@@ -191,7 +192,7 @@ void main() {
 
   testWidgets('developer mode trades App Logs for a Developer row',
       (tester) async {
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Developer'), 100,
@@ -199,7 +200,7 @@ void main() {
     expect(find.text('App Logs'), findsNothing,
         reason: 'the logs are on the Developer screen');
 
-    await openRow(tester, 'Developer');
+    await openRow(tester, title: 'Developer');
     expect(find.text('App Logs'), findsOneWidget);
     expect(find.text('Experimental'), findsOneWidget);
   });
@@ -210,7 +211,7 @@ void main() {
   // the way the gesture would deliver it: the row's handler again, before a
   // frame.
   group('one tap, one action (UI race conditions)', () {
-    VoidCallback onTapOf(WidgetTester tester, String title) => tester
+    VoidCallback onTapOf(WidgetTester tester, {required String title}) => tester
         .widget<ListTile>(
             find.ancestor(of: find.text(title), matching: find.byType(ListTile)))
         .onTap!;
@@ -229,7 +230,7 @@ void main() {
       await tester.pumpWidget(app(settings()));
       await tester.pumpAndSettle();
 
-      final tap = onTapOf(tester, 'Behaviour');
+      final tap = onTapOf(tester, title: 'Behaviour');
       tap();
       tap();
       await tester.pumpAndSettle();
@@ -249,9 +250,9 @@ void main() {
           () => settings(onExportSettings: () => exports++)));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      await openRow(tester, 'Backup and archives');
+      await openRow(tester, title: 'Backup and archives');
 
-      final tap = onTapOf(tester, 'Export Settings');
+      final tap = onTapOf(tester, title: 'Export Settings');
       tap();
       tap();
       await tester.pumpAndSettle();
@@ -264,11 +265,11 @@ void main() {
 
     testWidgets('flipping developer mode off twice leaves one screen',
         (tester) async {
-      DeveloperModeService.instance.debugSet(true);
+      DeveloperModeService.instance.debugSet(on: true);
       await tester.pumpWidget(launcher(settings));
       await tester.tap(find.text('open'));
       await tester.pumpAndSettle();
-      await openRow(tester, 'Developer');
+      await openRow(tester, title: 'Developer');
 
       final flip = tester
           .widget<SwitchListTile>(find.ancestor(

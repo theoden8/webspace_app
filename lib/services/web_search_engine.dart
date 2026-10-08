@@ -50,7 +50,7 @@ class KnownSearchHost {
   });
 }
 
-bool _isOrUnder(String host, String domain) =>
+bool _isOrUnder(String host, {required String domain}) =>
     host == domain || host.endsWith('.$domain');
 
 /// `google.com` and Google's country domains (`google.de`, `google.co.uk`,
@@ -74,7 +74,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     kind: SearchKind.web,
     siteOperator: true,
     matches: (h) =>
-        _isOrUnder(h, 'duckduckgo.com') || h == 'duck.com' || h == 'www.duck.com',
+        _isOrUnder(h, domain: 'duckduckgo.com') || h == 'duck.com' || h == 'www.duck.com',
     // The no-JavaScript editions keep their own result pages.
     template: (h) => switch (h) {
       'html.duckduckgo.com' => 'https://html.duckduckgo.com/html/?q=%s',
@@ -95,7 +95,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://kagi.com/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => _isOrUnder(h, 'kagi.com'),
+    matches: (h) => _isOrUnder(h, domain: 'kagi.com'),
     template: (_) => 'https://kagi.com/search?q=%s',
   ),
   KnownSearchHost(
@@ -103,7 +103,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.perplexity.ai/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => _isOrUnder(h, 'perplexity.ai'),
+    matches: (h) => _isOrUnder(h, domain: 'perplexity.ai'),
     template: (_) => 'https://www.perplexity.ai/search/new?q=%s',
   ),
   KnownSearchHost(
@@ -119,7 +119,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.startpage.com/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => _isOrUnder(h, 'startpage.com'),
+    matches: (h) => _isOrUnder(h, domain: 'startpage.com'),
     template: (_) => 'https://www.startpage.com/do/search?q=%s',
   ),
   KnownSearchHost(
@@ -135,7 +135,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.mojeek.com/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => _isOrUnder(h, 'mojeek.com'),
+    matches: (h) => _isOrUnder(h, domain: 'mojeek.com'),
     template: (_) => 'https://www.mojeek.com/search?q=%s',
   ),
   KnownSearchHost(
@@ -143,7 +143,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.ecosia.org/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => _isOrUnder(h, 'ecosia.org'),
+    matches: (h) => _isOrUnder(h, domain: 'ecosia.org'),
     template: (_) => 'https://www.ecosia.org/search?q=%s',
   ),
   KnownSearchHost(
@@ -151,7 +151,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.qwant.com/',
     kind: SearchKind.web,
     siteOperator: true,
-    matches: (h) => _isOrUnder(h, 'qwant.com'),
+    matches: (h) => _isOrUnder(h, domain: 'qwant.com'),
     template: (_) => 'https://www.qwant.com/?q=%s',
   ),
   KnownSearchHost(
@@ -159,8 +159,8 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://metager.org/',
     kind: SearchKind.web,
     siteOperator: false,
-    matches: (h) => _isOrUnder(h, 'metager.org') || _isOrUnder(h, 'metager.de'),
-    template: (h) => 'https://${_isOrUnder(h, 'metager.de') ? 'metager.de' : 'metager.org'}'
+    matches: (h) => _isOrUnder(h, domain: 'metager.org') || _isOrUnder(h, domain: 'metager.de'),
+    template: (h) => 'https://${_isOrUnder(h, domain: 'metager.de') ? 'metager.de' : 'metager.org'}'
         '/meta/meta.ger3?eingabe=%s',
   ),
   KnownSearchHost(
@@ -168,7 +168,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://swisscows.com/',
     kind: SearchKind.web,
     siteOperator: false,
-    matches: (h) => _isOrUnder(h, 'swisscows.com'),
+    matches: (h) => _isOrUnder(h, domain: 'swisscows.com'),
     template: (_) => 'https://swisscows.com/web?query=%s',
   ),
   KnownSearchHost(
@@ -177,7 +177,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     kind: SearchKind.web,
     siteOperator: true,
     matches: (h) =>
-        _isOrUnder(h, 'marginalia-search.com') || h == 'search.marginalia.nu',
+        _isOrUnder(h, domain: 'marginalia-search.com') || h == 'search.marginalia.nu',
     template: (_) => 'https://marginalia-search.com/search?query=%s',
   ),
   KnownSearchHost(
@@ -243,7 +243,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.youtube.com/',
     kind: SearchKind.site,
     siteOperator: false,
-    matches: (h) => _isOrUnder(h, 'youtube.com'),
+    matches: (h) => _isOrUnder(h, domain: 'youtube.com'),
     template: (_) => 'https://www.youtube.com/results?search_query=%s',
   ),
   KnownSearchHost(
@@ -251,7 +251,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://www.reddit.com/',
     kind: SearchKind.site,
     siteOperator: false,
-    matches: (h) => _isOrUnder(h, 'reddit.com'),
+    matches: (h) => _isOrUnder(h, domain: 'reddit.com'),
     template: (_) => 'https://www.reddit.com/search/?q=%s',
   ),
   KnownSearchHost(
@@ -259,7 +259,7 @@ final List<KnownSearchHost> kKnownSearchHosts = [
     home: 'https://stackoverflow.com/',
     kind: SearchKind.site,
     siteOperator: false,
-    matches: (h) => _isOrUnder(h, 'stackoverflow.com'),
+    matches: (h) => _isOrUnder(h, domain: 'stackoverflow.com'),
     template: (_) => 'https://stackoverflow.com/search?q=%s',
   ),
 ];
@@ -331,7 +331,7 @@ class WebSearchEngine {
   /// The URL [template] makes of [query], or null when the query is blank or
   /// the template is not valid. The query is encoded as a query component, so
   /// `&`, `#` and `=` in it stay part of the search.
-  static Uri? buildUrl(String template, String query) {
+  static Uri? buildUrl(String template, {required String query}) {
     final q = query.trim();
     if (q.isEmpty || !isValidTemplate(template)) return null;
     return _parse(
@@ -343,7 +343,7 @@ class WebSearchEngine {
   }
 
   /// [query] restricted to [host] for an engine that honours `site:`.
-  static String scopedQuery(String host, String query) =>
+  static String scopedQuery(String host, {required String query}) =>
       'site:$host ${query.trim()}';
 
   static KnownSearchHost? knownFor(String initUrl) {
@@ -388,7 +388,7 @@ class WebSearchEngine {
       );
     }
     final found = discoveredAddress?.trim();
-    if (found != null && acceptsDiscovered(found, initUrl)) {
+    if (found != null && acceptsDiscovered(found, initUrl: initUrl)) {
       return SearchCapability(
         template: found,
         kind: discoveredWeb ? SearchKind.web : SearchKind.site,
@@ -396,7 +396,9 @@ class WebSearchEngine {
       );
     }
     final listed = listedAddress?.trim();
-    if (listed == null || !acceptsDiscovered(listed, initUrl)) return null;
+    if (listed == null || !acceptsDiscovered(listed, initUrl: initUrl)) {
+      return null;
+    }
     return SearchCapability(
       template: listed,
       kind: SearchKind.site,
@@ -408,10 +410,10 @@ class WebSearchEngine {
   /// address inside the site's own domain, so a page can never hand its
   /// site's searches to another host, and a site whose home moved drops the
   /// address its old home declared.
-  static bool acceptsDiscovered(String template, String initUrl) {
+  static bool acceptsDiscovered(String template, {required String initUrl}) {
     if (!isValidTemplate(template)) return false;
-    final url = buildUrl(template, 'q');
-    return url != null && inDomainOf(url, initUrl);
+    final url = buildUrl(template, query: 'q');
+    return url != null && inDomainOf(url, initUrl: initUrl);
   }
 
   /// Whether a site at [initUrl] can learn its search from its pages: one
@@ -426,9 +428,9 @@ class WebSearchEngine {
   /// engines that suit the scope, less those [candidates] already has a site
   /// for. A search never makes a second site for an engine the user has.
   static List<KnownSearchHost> addable(
-    SearchScope scope,
-    List<SearchSite> candidates,
-  ) =>
+    SearchScope scope, {
+    required List<SearchSite> candidates,
+  }) =>
       [
         for (final k in kAddableSearchEngines)
           if ((scope == SearchScope.web || k.siteOperator) &&
@@ -525,13 +527,14 @@ class WebSearchEngine {
   }
 
   /// The URL [option] searches [query] with, or null.
-  static Uri? urlFor(SearchOption option, String query, {String? scopeHost}) {
+  static Uri? urlFor(SearchOption option,
+      {required String query, String? scopeHost}) {
     final template = option.site.capability?.template;
     if (template == null) return null;
     final q = option.scoped && scopeHost != null
-        ? scopedQuery(scopeHost, query)
+        ? scopedQuery(scopeHost, query: query)
         : query;
-    return buildUrl(template, q);
+    return buildUrl(template, query: q);
   }
 
   /// Where a search by `sites.search` lands, from a slot owned by
@@ -556,7 +559,7 @@ class WebSearchEngine {
 
   /// Whether [url] is inside [initUrl]'s navigation domain, which a hosted
   /// tab's URL must be (LIR-018).
-  static bool inDomainOf(Uri url, String initUrl) =>
+  static bool inDomainOf(Uri url, {required String initUrl}) =>
       getNormalizedDomain(url.toString()) == getNormalizedDomain(initUrl);
 
   static Uri? _parse(String s) {

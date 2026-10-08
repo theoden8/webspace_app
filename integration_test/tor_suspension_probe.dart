@@ -62,18 +62,19 @@ String _defunctOwnSockets() {
 /// A connected pair whose far end echoes, to tell a live socket from a
 /// defunct one after the fact.
 class _Pair {
-  _Pair._(this.client, this._echoes);
+  _Pair._(this.client, {required Stream<Uint8List> echoes}) : _echoes = echoes;
 
   final Socket client;
   final Stream<Uint8List> _echoes;
 
-  static Future<_Pair> open(InternetAddress address, int port) async {
+  static Future<_Pair> open(InternetAddress address,
+      {required int port}) async {
     final server = await ServerSocket.bind(address, port);
     final accepted = server.first;
     final client = await Socket.connect(address, server.port);
     final far = await accepted;
     far.listen(far.add, onError: (Object _) {}, cancelOnError: true);
-    return _Pair._(client, client.asBroadcastStream());
+    return _Pair._(client, echoes: client.asBroadcastStream());
   }
 
   Future<bool> echoes() async {
@@ -112,7 +113,12 @@ Future<bool> _socksAnswers(String endpoint) async {
 /// A control connection of the probe's own: over tor's Unix socket where
 /// the plugin gave it one, else over the TCP port it published.
 class _Control {
-  _Control._(this.kind, this._socket, this._lines);
+  _Control._(
+    this.kind, {
+    required Socket socket,
+    required StreamIterator<String> lines,
+  })  : _socket = socket,
+        _lines = lines;
 
   final String kind;
   final Socket _socket;
@@ -136,8 +142,10 @@ class _Control {
       socket = await Socket.connect(port[1]!, int.parse(port[2]!));
       kind = 'tcp';
     }
-    final control = _Control._(kind, socket,
-        StreamIterator(utf8.decoder.bind(socket).transform(const LineSplitter())));
+    final control = _Control._(kind,
+        socket: socket,
+        lines: StreamIterator(
+            utf8.decoder.bind(socket).transform(const LineSplitter())));
     final cookie = await File('$tor/control_auth_cookie').readAsBytes();
     final hex = cookie.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
     return await control.answers('AUTHENTICATE $hex') ? control : null;
@@ -156,7 +164,7 @@ class _Control {
   }
 }
 
-Future<bool> _waitFor(bool Function() done, Duration budget) async {
+Future<bool> _waitFor(bool Function() done, {required Duration budget}) async {
   final deadline = DateTime.now().add(budget);
   while (DateTime.now().isBefore(deadline)) {
     if (done()) return true;
@@ -207,32 +215,34 @@ Future<({String? ip, String detail})> _exitAddress(String reason) async {
 
 Future<bool> _run() async {
   var ok = true;
-  void check(bool passed, String what) {
+  void check({required bool passed, required String what}) {
     _say('${passed ? 'ok' : 'FAIL'}: $what');
     if (!passed) ok = false;
   }
 
   if (!TorService.instance.isAvailable) {
-    check(false, 'the Tor runtime is available on this build');
+    check(passed: false, what: 'the Tor runtime is available on this build');
     return false;
   }
   const reason = 'suspend-probe';
   await TorService.instance.maybeStart(const TorSiteHolder(reason));
-  final up = await _waitFor(
-      () => TorService.instance.status is TorUp, const Duration(minutes: 4));
-  check(up, 'tor bootstrapped (${TorService.instance.status})');
+  final up = await _waitFor(() => TorService.instance.status is TorUp,
+      budget: const Duration(minutes: 4));
+  check(passed: up, what: 'tor bootstrapped (${TorService.instance.status})');
   if (!up) return false;
 
   final before = TorService.instance.socksEndpoint!;
   final exitBefore = await _exitAddress(reason);
-  check(exitBefore.ip != null,
-      'a request through $before left from a Tor exit (${exitBefore.detail})');
+  check(
+      passed: exitBefore.ip != null,
+      what:
+          'a request through $before left from a Tor exit (${exitBefore.detail})');
 
-  final tcp = await _Pair.open(InternetAddress.loopbackIPv4, 0);
+  final tcp = await _Pair.open(InternetAddress.loopbackIPv4, port: 0);
   final unixPath = '${(await getTemporaryDirectory()).path}/ts.sock';
   if (await File(unixPath).exists()) await File(unixPath).delete();
   final unix = await _Pair.open(
-      InternetAddress(unixPath, type: InternetAddressType.unix), 0);
+      InternetAddress(unixPath, type: InternetAddressType.unix), port: 0);
   final control = await _Control.open();
   _say('control connection: ${control?.kind ?? 'none'}');
 
@@ -251,7 +261,7 @@ Future<bool> _run() async {
   }
   _say('defunct: $defunct');
   if (!defunct.startsWith('ok')) {
-    check(false, 'the process could have its sockets defuncted');
+    check(passed: false, what: 'the process could have its sockets defuncted');
     return false;
   }
 
@@ -259,12 +269,15 @@ Future<bool> _run() async {
   final unixAfter = await unix.echoes();
   _say('kernel: tcp=${tcpAfter ? 'alive' : 'dead'} '
       'unix=${unixAfter ? 'alive' : 'dead'}');
-  check(!tcpAfter, 'a loopback TCP connection died with the defunct');
-  check(unixAfter, 'a Unix-domain connection survived it');
+  check(
+      passed: !tcpAfter,
+      what: 'a loopback TCP connection died with the defunct');
+  check(passed: unixAfter, what: 'a Unix-domain connection survived it');
 
   final socksAfter = await _socksAnswers(before);
   _say('after defunct: SOCKS at $before answers=$socksAfter');
-  check(!socksAfter, 'tor\'s SOCKS listener died with the defunct');
+  check(
+      passed: !socksAfter, what: 'tor\'s SOCKS listener died with the defunct');
   if (control != null) {
     final answered = await control.answers('GETINFO version');
     _say('after defunct: ${control.kind} control connection answers=$answered');
@@ -278,24 +291,30 @@ Future<bool> _run() async {
   final recovered = await _waitFor(() {
     final endpoint = TorService.instance.socksEndpoint;
     return endpoint != null && endpoint != before;
-  }, const Duration(minutes: 2));
+  }, budget: const Duration(minutes: 2));
   final after = TorService.instance.socksEndpoint;
   _say('after resume: status=${TorService.instance.status}');
-  check(recovered, 'tor published a new SOCKS listener after the resume');
+  check(
+      passed: recovered,
+      what: 'tor published a new SOCKS listener after the resume');
   if (after != null) {
-    check(await _socksAnswers(after), 'the SOCKS listener at $after answers');
+    check(
+        passed: await _socksAnswers(after),
+        what: 'the SOCKS listener at $after answers');
     final exitAfter = await _exitAddress(reason);
-    check(exitAfter.ip != null,
-        'a request through $after left from a Tor exit (${exitAfter.detail})');
+    check(
+        passed: exitAfter.ip != null,
+        what:
+            'a request through $after left from a Tor exit (${exitAfter.detail})');
   }
   // A connect attempted while DisableNetwork is set marks its guard failed
   // for a minute, so the runtime reports up and carries nothing. The one path
   // that tries it is a conflux leg relaunching (confluxEnabledValue).
   check(
-      !LogService.instance.allEntriesMerged.any((e) =>
+      passed: !LogService.instance.allEntriesMerged.any((e) =>
           e.tag == 'TorLog' &&
           e.message.contains('Tried to open a socket with DisableNetwork set')),
-      'tor opened no socket while its network was off');
+      what: 'tor opened no socket while its network was off');
   return ok;
 }
 

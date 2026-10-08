@@ -108,7 +108,7 @@ void main() {
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
-    listenFixture(server, (req) async {
+    listenFixture(server, onEvent: (req) async {
       requests.add(req.uri.path);
       switch (req.uri.path) {
         case '/slow':
@@ -197,9 +197,9 @@ void main() {
                 initialUrl: initialUrl,
                 initialHtml: initialHtml,
                 onReloadIssued: () => observed.reloadsIssued++,
-                onLoadingChanged: observed.loadingStates.add,
+                onLoadingChanged: ({required loading}) => observed.loadingStates.add(loading),
                 onMainFrameLoad: observed.signals.add,
-                onHtmlLoaded: (_, html) => observed.savedHtml.add(html),
+                onHtmlLoaded: (_, {required html}) => observed.savedHtml.add(html),
               ),
               onControllerCreated: (c) => observed.controller = c,
             ),
@@ -213,29 +213,30 @@ void main() {
     return observed;
   }
 
-  Future<String> htmlOf(WidgetTester tester, _Observed observed) async {
-    var html = '';
-    await tester.runAsync(() async {
-      try {
-        html = await observed.controller
-                ?.getHtml()
-                .timeout(const Duration(seconds: 5)) ??
-            '';
-      } catch (_) {}
-    });
-    return html;
-  }
+Future<String> htmlOf(WidgetTester tester,
+    {required _Observed observed}) async {
+  var html = '';
+  await tester.runAsync(() async {
+    try {
+      html = await observed.controller
+              ?.getHtml()
+              .timeout(const Duration(seconds: 5)) ??
+          '';
+    } catch (_) {}
+  });
+  return html;
+}
 
-  Future<Object?> evalOf(
-      WidgetTester tester, _Observed observed, String source) async {
-    Object? result;
-    await tester.runAsync(() async {
-      result = await observed.controller
-          ?.evaluateJavascriptReturning(source)
-          .timeout(const Duration(seconds: 5));
-    });
-    return result;
-  }
+Future<Object?> evalOf(WidgetTester tester,
+    {required _Observed observed, required String source}) async {
+  Object? result;
+  await tester.runAsync(() async {
+    result = await observed.controller
+        ?.evaluateJavascriptReturning(source)
+        .timeout(const Duration(seconds: 5));
+  });
+  return result;
+}
 
   // OFFLINE-INTEG-001. The whole point of the snapshot: when the device is
   // offline at construction time the user gets the last-seen page, and the
@@ -257,7 +258,7 @@ void main() {
     // even reachable, so wait for the settle rather than a fixed sleep.
     final settled = await waitReal(
       tester,
-      () => observed.signals
+      done: () => observed.signals
           .any((s) => s.phase == MainFrameLoadPhase.settled),
       label: 'cached parse settles',
       timeout: const Duration(seconds: 20),
@@ -266,7 +267,7 @@ void main() {
     // could have scheduled a generous window to reach the server.
     await waitReal(
       tester,
-      () => countFor('/fast') > 0,
+      done: () => countFor('/fast') > 0,
       label: 'live fetch (must not happen)',
       timeout: const Duration(seconds: 8),
     );
@@ -282,7 +283,7 @@ void main() {
       log('SKIP dom assertion: engine never settled the cached parse');
       return;
     }
-    final html = await htmlOf(tester, observed);
+    final html = await htmlOf(tester, observed: observed);
     expect(html, contains(_cachedMarker),
         reason: 'offline construction must paint the cached snapshot');
   }, timeout: const Timeout(Duration(minutes: 3)));
@@ -301,7 +302,7 @@ void main() {
 
     final reloaded = await waitReal(
       tester,
-      () => observed.reloadsIssued > 0,
+      done: () => observed.reloadsIssued > 0,
       label: 'live-reload issued',
       timeout: const Duration(seconds: 20),
     );
@@ -319,7 +320,7 @@ void main() {
 
     final fetched = await waitReal(
       tester,
-      () => countFor('/fast') > 0,
+      done: () => countFor('/fast') > 0,
       label: 'live fetch reaches the fixture server',
     );
     if (!fetched) {
@@ -330,11 +331,11 @@ void main() {
     // The fetch reached the server; the commit follows.
     await waitReal(
       tester,
-      () => observed.loadingStates.length > 2,
+      done: () => observed.loadingStates.length > 2,
       label: 'settle after live fetch',
       timeout: const Duration(seconds: 15),
     );
-    final html = await htmlOf(tester, observed);
+    final html = await htmlOf(tester, observed: observed);
     if (!html.contains(_liveMarker)) {
       log('SKIP dom assertion: live bytes fetched but not committed yet '
           '(html len=${html.length})');
@@ -360,7 +361,7 @@ void main() {
 
     final settled = await waitReal(
       tester,
-      () => observed.signals
+      done: () => observed.signals
           .any((s) => s.phase == MainFrameLoadPhase.settled),
       label: 'cached parse settles',
       timeout: const Duration(seconds: 20),
@@ -376,7 +377,7 @@ void main() {
 
     final reloaded = await waitReal(
       tester,
-      () => observed.reloadsIssued > 0,
+      done: () => observed.reloadsIssued > 0,
       label: 'live-reload issued once online',
       timeout: const Duration(seconds: 30),
     );
@@ -386,7 +387,7 @@ void main() {
     }
     await waitReal(
       tester,
-      () => observed.reloadsIssued > 1,
+      done: () => observed.reloadsIssued > 1,
       label: 'second live-reload (must not happen)',
       timeout: const Duration(seconds: 6),
     );
@@ -408,7 +409,7 @@ void main() {
     final live = await mount(tester, initialUrl: pageUrl);
     final saved = await waitReal(
       tester,
-      () => live.savedHtml.isNotEmpty,
+      done: () => live.savedHtml.isNotEmpty,
       label: 'live page snapshot saved',
     );
     expect(saved, isTrue, reason: 'a settled live page leaves a snapshot');
@@ -425,7 +426,7 @@ void main() {
     );
     final settled = await waitReal(
       tester,
-      () => cached.signals
+      done: () => cached.signals
           .any((s) => s.phase == MainFrameLoadPhase.settled),
       label: 'snapshot parse settles',
       timeout: const Duration(seconds: 20),
@@ -436,8 +437,8 @@ void main() {
     }
     final layout = await evalOf(
       tester,
-      cached,
-      'JSON.stringify({mode: document.compatMode, '
+      observed: cached,
+      source: 'JSON.stringify({mode: document.compatMode, '
       'width: getComputedStyle(document.getElementById("box")).width, '
       'half: document.getElementById("half").offsetHeight})',
     );
@@ -461,7 +462,7 @@ void main() {
 
     final started = await waitReal(
       tester,
-      () => observed.loadingStates.contains(true),
+      done: () => observed.loadingStates.contains(true),
       label: 'load starts',
       timeout: const Duration(seconds: 20),
     );
@@ -475,7 +476,7 @@ void main() {
 
     final done = await waitReal(
       tester,
-      () => observed.loadingStates.contains(false),
+      done: () => observed.loadingStates.contains(false),
       label: 'slow load settles',
       timeout: _slowDelay + const Duration(seconds: 30),
     );
@@ -488,7 +489,7 @@ void main() {
     expect(observed.failures, isEmpty,
         reason: 'a slow but successful response must not report a failure');
 
-    final html = await htmlOf(tester, observed);
+    final html = await htmlOf(tester, observed: observed);
     expect(html, contains(_liveMarker),
         reason: 'the slow response must still commit');
   }, timeout: const Timeout(Duration(minutes: 3)));
@@ -509,7 +510,7 @@ void main() {
 
     final failed = await waitReal(
       tester,
-      () => observed.failures.isNotEmpty,
+      done: () => observed.failures.isNotEmpty,
       label: '$label reports a main-frame failure',
       timeout: const Duration(seconds: 30),
     );
@@ -563,7 +564,7 @@ void main() {
 
     final failed = await waitReal(
       tester,
-      () => observed.failures.isNotEmpty,
+      done: () => observed.failures.isNotEmpty,
       label: 'refused load reports a failure',
       timeout: const Duration(seconds: 30),
     );
@@ -576,7 +577,7 @@ void main() {
     // getHtml() it would trigger) room to land before asserting.
     await waitReal(
       tester,
-      () => observed.savedHtml.isNotEmpty,
+      done: () => observed.savedHtml.isNotEmpty,
       label: 'cache save (must not happen)',
       timeout: const Duration(seconds: 10),
     );

@@ -37,19 +37,21 @@ const _rp = String.fromEnvironment('PASSKEY_GATE_RP', defaultValue: 'http://loca
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  void report(String what, Object? value) {
+  void report(String what, {required Object? value}) {
     // ignore: avoid_print
     print('PASSKEY_GATE $what ${jsonEncode(value)}');
   }
 
   if (!_gate || !Platform.isAndroid) {
     testWidgets('passkey gate needs its harness', (tester) async {
-      report('skip', 'run scripts/run_android_passkey_tests.sh on an Android device');
+      report('skip',
+          value:
+              'run scripts/run_android_passkey_tests.sh on an Android device');
     });
     return;
   }
 
-  Future<void> settle(WidgetTester tester, Duration d) async {
+  Future<void> settle(WidgetTester tester, {required Duration d}) async {
     await tester.pump(const Duration(milliseconds: 100));
     await tester.runAsync(() => Future<void>.delayed(d));
   }
@@ -61,86 +63,94 @@ void main() {
     final deadline = DateTime.now().add(const Duration(seconds: 30));
     while (tester.binding.platformDispatcher.semanticsEnabled &&
         DateTime.now().isBefore(deadline)) {
-      await settle(tester, const Duration(milliseconds: 300));
+      await settle(tester, d: const Duration(milliseconds: 300));
     }
     await tester.pump();
   }
 
-  Future<Map<String, dynamic>?> read(
-      WidgetTester tester, WebViewController c, String expression) async {
-    Map<String, dynamic>? out;
-    await tester.runAsync(() async {
-      try {
-        final raw = await c
-            .evaluateJavascriptReturning('JSON.stringify($expression)')
-            .timeout(const Duration(seconds: 5));
-        if (raw == null) return;
-        final decoded = jsonDecode(raw is String ? raw : '$raw');
-        if (decoded is String) {
-          final inner = jsonDecode(decoded);
-          if (inner is Map<String, dynamic>) out = inner;
-        } else if (decoded is Map<String, dynamic>) {
-          out = decoded;
-        }
-      } catch (_) {
-        // The page or the bridge is still coming up.
+Future<Map<String, dynamic>?> read(WidgetTester tester,
+    {required WebViewController c, required String expression}) async {
+  Map<String, dynamic>? out;
+  await tester.runAsync(() async {
+    try {
+      final raw = await c
+          .evaluateJavascriptReturning('JSON.stringify($expression)')
+          .timeout(const Duration(seconds: 5));
+      if (raw == null) return;
+      final decoded = jsonDecode(raw is String ? raw : '$raw');
+      if (decoded is String) {
+        final inner = jsonDecode(decoded);
+        if (inner is Map<String, dynamic>) out = inner;
+      } else if (decoded is Map<String, dynamic>) {
+        out = decoded;
       }
-    });
-    return out;
-  }
-
-  Future<void> waitForPage(WidgetTester tester, WebViewController? Function() c,
-      {required String label}) async {
-    final deadline = DateTime.now().add(const Duration(seconds: 90));
-    while (DateTime.now().isBefore(deadline)) {
-      await settle(tester, const Duration(milliseconds: 400));
-      final controller = c();
-      if (controller == null) continue;
-      final ready = await read(tester, controller,
-          '({ready: !!(window.gate && document.getElementById("ready"))})');
-      if (ready?['ready'] == true) return;
+    } catch (_) {
+      // The page or the bridge is still coming up.
     }
-    fail('$label: the RP page never loaded from $_rp');
-  }
+  });
+  return out;
+}
 
-  Future<Map<String, dynamic>> probe(WidgetTester tester, WebViewController c) async {
-    await tester.runAsync(() => c.evaluateJavascript('window.gate.probe()'));
-    final deadline = DateTime.now().add(const Duration(seconds: 20));
-    while (DateTime.now().isBefore(deadline)) {
-      await settle(tester, const Duration(milliseconds: 300));
-      final p = await read(tester, c, 'window.gate.probed || null');
-      if (p != null) return p;
-    }
-    fail('the page never answered its probe');
+Future<void> waitForPage(WidgetTester tester,
+    {required WebViewController? Function() c, required String label}) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 90));
+  while (DateTime.now().isBefore(deadline)) {
+    await settle(tester, d: const Duration(milliseconds: 400));
+    final controller = c();
+    if (controller == null) continue;
+    final ready = await read(tester,
+        c: controller,
+        expression:
+            '({ready: !!(window.gate && document.getElementById("ready"))})');
+    if (ready?['ready'] == true) return;
   }
+  fail('$label: the RP page never loaded from $_rp');
+}
+
+Future<Map<String, dynamic>> probe(WidgetTester tester,
+    {required WebViewController c}) async {
+  await tester.runAsync(() => c.evaluateJavascript('window.gate.probe()'));
+  final deadline = DateTime.now().add(const Duration(seconds: 20));
+  while (DateTime.now().isBefore(deadline)) {
+    await settle(tester, d: const Duration(milliseconds: 300));
+    final p =
+        await read(tester, c: c, expression: 'window.gate.probed || null');
+    if (p != null) return p;
+  }
+  fail('the page never answered its probe');
+}
 
   /// Start a ceremony in the page and wait for it to settle. The system
   /// sheet the script taps through sits on top of the app meanwhile.
-  Future<Map<String, dynamic>> ceremony(
-      WidgetTester tester, WebViewController c, String kind, String name) async {
-    await tester.runAsync(() => c.evaluateJavascript(
-        'window.gate.run(${jsonEncode(kind)}, ${jsonEncode(name)})'));
-    final deadline = DateTime.now().add(const Duration(seconds: 120));
-    while (DateTime.now().isBefore(deadline)) {
-      await settle(tester, const Duration(milliseconds: 500));
-      final s = await read(tester, c, 'window.gate.status || null');
-      if (s != null && s['state'] != 'running') return s;
-    }
-    fail('$kind for $name never finished');
+Future<Map<String, dynamic>> ceremony(WidgetTester tester,
+    {required WebViewController c,
+    required String kind,
+    required String name}) async {
+  await tester.runAsync(() => c.evaluateJavascript(
+      'window.gate.run(${jsonEncode(kind)}, ${jsonEncode(name)})'));
+  final deadline = DateTime.now().add(const Duration(seconds: 120));
+  while (DateTime.now().isBefore(deadline)) {
+    await settle(tester, d: const Duration(milliseconds: 500));
+    final s =
+        await read(tester, c: c, expression: 'window.gate.status || null');
+    if (s != null && s['state'] != 'running') return s;
   }
+  fail('$kind for $name never finished');
+}
 
-  WebViewConfig config(String siteId, PasskeyBackend backend) => WebViewConfig(
-        hooks: bareHooks(),
-        key: ValueKey('passkey-$siteId'),
-        posture: barePosture(_rp, siteId: siteId),
-        initialUrl: _rp,
-        passkeys: PasskeyAccess.forHost(
-          enabled: true,
-          isOnScreen: () => true,
-          android: backend == PasskeyBackend.credentialManager,
-          apple: backend == PasskeyBackend.webView,
-        ),
-      );
+WebViewConfig config(String siteId, {required PasskeyBackend backend}) =>
+    WebViewConfig(
+      hooks: bareHooks(),
+      key: ValueKey('passkey-$siteId'),
+      posture: barePosture(_rp, siteId: siteId),
+      initialUrl: _rp,
+      passkeys: PasskeyAccess.forHost(
+        enabled: true,
+        isOnScreen: () => true,
+        android: backend == PasskeyBackend.credentialManager,
+        apple: backend == PasskeyBackend.webView,
+      ),
+    );
 
   Widget host(List<({WebViewConfig config, void Function(WebViewController) onController})> views) =>
       MaterialApp(
@@ -164,7 +174,7 @@ void main() {
 
   testWidgets('native status', (tester) async {
     final status = await PasskeyNative.status();
-    report('status', {
+    report('status', value: {
       'phase': _phase,
       'sdk': status.sdk,
       'feature': status.feature,
@@ -183,28 +193,34 @@ void main() {
     testWidgets('register, then sign in twice (G0, G2, G3)', (tester) async {
       WebViewController? c;
       await tester.pumpWidget(host([
-        (config: config('passkey-a', PasskeyBackend.credentialManager), onController: (x) => c = x),
+        (
+          config:
+              config('passkey-a', backend: PasskeyBackend.credentialManager),
+          onController: (x) => c = x
+        ),
       ]));
-      await waitForPage(tester, () => c, label: 'tab 1');
+      await waitForPage(tester, c: () => c, label: 'tab 1');
 
-      final p = await probe(tester, c!);
-      report('probe', p);
+      final p = await probe(tester, c: c!);
+      report('probe', value: p);
       expect(p['secure'], isTrue, reason: 'http://localhost must be a secure context');
       expect(p['pkc'], 'function', reason: 'the shim installs PublicKeyCredential');
       expect(p['uvpaa'], isTrue, reason: 'the bridge reports a platform authenticator');
 
-      final reg = await ceremony(tester, c!, 'register', 'alice');
-      report('register', reg);
+      final reg =
+          await ceremony(tester, c: c!, kind: 'register', name: 'alice');
+      report('register', value: reg);
       expect(reg['state'], 'done', reason: '$reg');
       expect(reg['verified'], isTrue, reason: '$reg');
       expect(reg['origin'], 'http://localhost:8443');
       expect(reg['type'], 'webauthn.create');
 
-      final first = await ceremony(tester, c!, 'login', 'alice');
-      report('login1', first);
+      final first = await ceremony(tester, c: c!, kind: 'login', name: 'alice');
+      report('login1', value: first);
       expect(first['verified'], isTrue, reason: '$first');
-      final second = await ceremony(tester, c!, 'login', 'alice');
-      report('login2', second);
+      final second =
+          await ceremony(tester, c: c!, kind: 'login', name: 'alice');
+      report('login2', value: second);
       expect(second['verified'], isTrue, reason: '$second');
       expect((second['counter'] as num) > (first['counter'] as num), isTrue,
           reason: 'the signature counter must increase: $first then $second');
@@ -216,19 +232,28 @@ void main() {
       WebViewController? a;
       WebViewController? b;
       await tester.pumpWidget(host([
-        (config: config('passkey-tab1', PasskeyBackend.credentialManager), onController: (x) => a = x),
-        (config: config('passkey-tab2', PasskeyBackend.credentialManager), onController: (x) => b = x),
+        (
+          config:
+              config('passkey-tab1', backend: PasskeyBackend.credentialManager),
+          onController: (x) => a = x
+        ),
+        (
+          config:
+              config('passkey-tab2', backend: PasskeyBackend.credentialManager),
+          onController: (x) => b = x
+        ),
       ]));
-      await waitForPage(tester, () => a, label: 'tab 1');
-      await waitForPage(tester, () => b, label: 'tab 2');
+      await waitForPage(tester, c: () => a, label: 'tab 1');
+      await waitForPage(tester, c: () => b, label: 'tab 2');
 
-      final reg = await ceremony(tester, a!, 'register', 'bob');
-      report('tab1-register', reg);
+      final reg = await ceremony(tester, c: a!, kind: 'register', name: 'bob');
+      report('tab1-register', value: reg);
       expect(reg['verified'], isTrue, reason: '$reg');
-      final login = await ceremony(tester, b!, 'login', 'bob');
-      report('tab2-login', login);
+      final login = await ceremony(tester, c: b!, kind: 'login', name: 'bob');
+      report('tab2-login', value: login);
       expect(login['verified'], isTrue, reason: '$login');
-      final untouched = await read(tester, a!, 'window.gate.status');
+      final untouched =
+          await read(tester, c: a!, expression: 'window.gate.status');
       expect(untouched?['kind'], 'register',
           reason: 'tab 2\'s ceremony must not answer tab 1\'s page: $untouched');
       await semanticsOff(tester);
@@ -239,15 +264,20 @@ void main() {
     testWidgets('an untrusted app is refused with NotAllowedError (G4)', (tester) async {
       WebViewController? c;
       await tester.pumpWidget(host([
-        (config: config('passkey-refused', PasskeyBackend.credentialManager), onController: (x) => c = x),
+        (
+          config: config('passkey-refused',
+              backend: PasskeyBackend.credentialManager),
+          onController: (x) => c = x
+        ),
       ]));
-      await waitForPage(tester, () => c, label: 'refused');
-      final reg = await ceremony(tester, c!, 'register', 'carol');
-      report('refused-register', reg);
+      await waitForPage(tester, c: () => c, label: 'refused');
+      final reg =
+          await ceremony(tester, c: c!, kind: 'register', name: 'carol');
+      report('refused-register', value: reg);
       expect(reg['state'], 'error', reason: '$reg');
       expect(reg['name'], 'NotAllowedError', reason: '$reg');
       expect(reg['isDomException'], isTrue);
-      final alive = await probe(tester, c!);
+      final alive = await probe(tester, c: c!);
       expect(alive['secure'], isTrue, reason: 'the page must survive the refusal');
       await semanticsOff(tester);
     }, timeout: const Timeout(Duration(minutes: 6)));
@@ -257,19 +287,25 @@ void main() {
     testWidgets('the WebView\'s own FOR_BROWSER WebAuthn (best effort)', (tester) async {
       final status = await PasskeyNative.status();
       if (!status.webViewSupport) {
-        report('webview', {'outcome': 'unsupported', 'reason': 'WEB_AUTHENTICATION not advertised'});
+        report('webview', value: {
+          'outcome': 'unsupported',
+          'reason': 'WEB_AUTHENTICATION not advertised'
+        });
         return;
       }
       WebViewController? c;
       await tester.pumpWidget(host([
-        (config: config('passkey-webview', PasskeyBackend.webView), onController: (x) => c = x),
+        (
+          config: config('passkey-webview', backend: PasskeyBackend.webView),
+          onController: (x) => c = x
+        ),
       ]));
-      await waitForPage(tester, () => c, label: 'webview');
+      await waitForPage(tester, c: () => c, label: 'webview');
       await tester.runAsync(() => c!.reload());
-      await waitForPage(tester, () => c, label: 'webview after reload');
-      final p = await probe(tester, c!);
-      final reg = await ceremony(tester, c!, 'register', 'dave');
-      report('webview', {'probe': p, 'register': reg});
+      await waitForPage(tester, c: () => c, label: 'webview after reload');
+      final p = await probe(tester, c: c!);
+      final reg = await ceremony(tester, c: c!, kind: 'register', name: 'dave');
+      report('webview', value: {'probe': p, 'register': reg});
       await semanticsOff(tester);
     }, timeout: const Timeout(Duration(minutes: 6)));
   }

@@ -89,13 +89,13 @@ class BlockStatsDetail {
     final at = now ?? DateTime.now();
     if (siteId.isNotEmpty) {
       _fold(_sites.putIfAbsent(category, () => <String, BlockDetailItem>{}),
-          siteId, count, at, maxSitesPerCategory);
+          key: siteId, count: count, at: at, cap: maxSitesPerCategory);
       _markDirty();
     }
     final key = label?.trim().toLowerCase();
     if (key == null || key.isEmpty) return;
-    _fold(_items.putIfAbsent(category, () => <String, BlockDetailItem>{}), key,
-        count, at, maxItemsPerCategory);
+    _fold(_items.putIfAbsent(category, () => <String, BlockDetailItem>{}),
+        key: key, count: count, at: at, cap: maxItemsPerCategory);
     _markDirty();
   }
 
@@ -121,8 +121,8 @@ class BlockStatsDetail {
     final at = now ?? DateTime.now();
     final cutoff =
         DateTime(at.year, at.month, at.day - BlockStatsEngine.retentionDays);
-    final dropped =
-        _pruneTables(_items, cutoff) + _pruneTables(_sites, cutoff);
+    final dropped = _pruneTables(_items, cutoff: cutoff) +
+        _pruneTables(_sites, cutoff: cutoff);
     if (dropped > 0) _markDirty();
     return dropped;
   }
@@ -189,12 +189,12 @@ class BlockStatsDetail {
       if (category == null || value is! Map) continue;
       _mergeTable(
           _items.putIfAbsent(category, () => <String, BlockDetailItem>{}),
-          value['items'],
-          maxItemsPerCategory);
+          raw: value['items'],
+          cap: maxItemsPerCategory);
       _mergeTable(
           _sites.putIfAbsent(category, () => <String, BlockDetailItem>{}),
-          value['sites'],
-          maxSitesPerCategory);
+          raw: value['sites'],
+          cap: maxSitesPerCategory);
     }
     _items.removeWhere((_, table) => table.isEmpty);
     _sites.removeWhere((_, table) => table.isEmpty);
@@ -205,8 +205,11 @@ class BlockStatsDetail {
     return byCount != 0 ? byCount : b.lastSeen.compareTo(a.lastSeen);
   }
 
-  static void _fold(Map<String, BlockDetailItem> table, String key, int count,
-      DateTime at, int cap) {
+  static void _fold(Map<String, BlockDetailItem> table,
+      {required String key,
+      required int count,
+      required DateTime at,
+      required int cap}) {
     final existing = table[key];
     if (existing != null) {
       existing.count += count;
@@ -217,8 +220,8 @@ class BlockStatsDetail {
     table[key] = BlockDetailItem(label: key, count: count, lastSeen: at);
   }
 
-  static void _mergeTable(
-      Map<String, BlockDetailItem> table, Object? raw, int cap) {
+  static void _mergeTable(Map<String, BlockDetailItem> table,
+      {required Object? raw, required int cap}) {
     if (raw is! List) return;
     for (final row in raw) {
       final stored = BlockDetailItem.fromJson(row);
@@ -239,7 +242,8 @@ class BlockStatsDetail {
   }
 
   static int _pruneTables(
-      Map<BlockCategory, Map<String, BlockDetailItem>> tables, DateTime cutoff) {
+      Map<BlockCategory, Map<String, BlockDetailItem>> tables,
+      {required DateTime cutoff}) {
     var dropped = 0;
     for (final table in tables.values) {
       final stale = table.entries

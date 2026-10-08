@@ -128,7 +128,8 @@ class CookieSecureStorage {
     return allCookies[siteId] ?? [];
   }
 
-  Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) {
+  Future<void> saveCookiesForSite(String siteId,
+      {required List<Cookie> cookies}) {
     if (isDemoMode) return Future.value();
     return _writes.run(() async {
       final existingCookies = await loadCookies();
@@ -195,7 +196,8 @@ class CookieSecureStorage {
     if (json is! Map) return result;
     for (final MapEntry(:key, :value) in json.entries) {
       if (key is! String || value is! List) continue;
-      _mergeByName(result, extractDomain(key), _cookieList(value));
+      _mergeByName(result,
+          domain: extractDomain(key), cookies: _cookieList(value));
     }
     return result;
   }
@@ -205,10 +207,10 @@ class CookieSecureStorage {
       ];
 
   static void _mergeByName(
-    Map<String, List<Cookie>> into,
-    String domain,
-    List<Cookie> cookies,
-  ) {
+    Map<String, List<Cookie>> into, {
+    required String domain,
+    required List<Cookie> cookies,
+  }) {
     final existing = into[domain];
     if (existing == null) {
       into[domain] = cookies;
@@ -234,7 +236,8 @@ class CookieSecureStorage {
       }
       if (json case {'initUrl': final String initUrl, 'cookies': final List<Object?> cookies}
           when cookies.isNotEmpty) {
-        _mergeByName(result, extractDomain(initUrl), _cookieList(cookies));
+        _mergeByName(result,
+            domain: extractDomain(initUrl), cookies: _cookieList(cookies));
       }
     }
     return result;

@@ -223,7 +223,7 @@ class LocalCdnDataset extends _LoadedDataset implements ClearableDataset {
   @override
   Future<String> download(AppLocalizations loc) async {
     final downloaded = await _service.downloadPopularResources(
-      onProgress: (completed, total) {
+      onProgress: (completed, {required total}) {
         _progress = '$completed/$total';
         _notify();
       },
@@ -287,8 +287,8 @@ class FirefoxVersionDataset extends _LoadedDataset {
   /// Whether the weekly check at startup is armed.
   bool get autoRefresh => AppPref.firefoxUaAutoRefresh.value;
 
-  Future<void> setAutoRefresh(bool value) async {
-    final saved = AppPref.firefoxUaAutoRefresh.set(value);
+  Future<void> setAutoRefresh({required bool on}) async {
+    final saved = AppPref.firefoxUaAutoRefresh.set(on);
     _notify();
     await saved;
   }

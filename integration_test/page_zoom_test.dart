@@ -88,7 +88,7 @@ void main() {
 
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    listenFixture(server, (request) {
+    listenFixture(server, onEvent: (request) {
       request.response
         ..headers.contentType = ContentType.html
         ..write(request.uri.path == _kRulerPath
@@ -113,9 +113,9 @@ void main() {
   /// runner that cannot mount a webview skips rather than fails
   /// spuriously — the load itself has its own coverage elsewhere.
   Future<Map<String, dynamic>?> measure(
-    WidgetTester tester,
-    int zoomPercent,
-  ) async {
+    WidgetTester tester, {
+    required int zoomPercent,
+  }) async {
     mountSeq += 1;
     final mountKey = ValueKey('page-zoom-$zoomPercent-$mountSeq');
     // Tear the previous webview down first, and key the next one: a zoom
@@ -186,10 +186,10 @@ void main() {
   }
 
   Future<Map<String, dynamic>?> measureOnce(
-    WidgetTester tester,
-    int zoomPercent,
-  ) async =>
-      measured[zoomPercent] ?? await measure(tester, zoomPercent);
+    WidgetTester tester, {
+    required int zoomPercent,
+  }) async =>
+      measured[zoomPercent] ?? await measure(tester, zoomPercent: zoomPercent);
 
   double rootZoomOf(Map<String, dynamic>? m) =>
       double.tryParse((m?['zoom'] as String?) ?? '') ?? 1;
@@ -214,13 +214,13 @@ void main() {
   // in its test and gets the framework's own teardown between them; a
   // second live webview inside one test is a mount the desktop engines do
   // not reliably bring up.
-  Future<void> checkZoom(WidgetTester tester, int zoomPercent) async {
+Future<void> checkZoom(WidgetTester tester, {required int zoomPercent}) async {
     final baseline = measured[100];
     if (baseline == null) {
       log('SKIP: no 100% baseline was measured');
       return;
     }
-    final zoomed = await measureOnce(tester, zoomPercent);
+    final zoomed = await measureOnce(tester, zoomPercent: zoomPercent);
     if (zoomed == null) {
       fail('the 100% baseline rendered but $zoomPercent% did not: '
           'baseline=$baseline');
@@ -271,7 +271,7 @@ void main() {
     // The reference every other case is measured against. A skip here (an
     // engine that cannot bring a webview up at all) skips the rest rather
     // than failing them.
-    final baseline = await measureOnce(tester, 100);
+    final baseline = await measureOnce(tester, zoomPercent: 100);
     if (baseline == null) {
       log('SKIP: the engine never rendered a webview');
       return;
@@ -283,18 +283,18 @@ void main() {
 
   testWidgets('80%: one fifth more content fits, on every engine',
       (tester) async {
-    await checkZoom(tester, 80);
+    await checkZoom(tester, zoomPercent: 80);
   }, timeout: const Timeout(Duration(minutes: 4)));
 
   testWidgets('150%: content reflows out, on every engine', (tester) async {
-    await checkZoom(tester, 150);
+    await checkZoom(tester, zoomPercent: 150);
   }, timeout: const Timeout(Duration(minutes: 4)));
 
   testWidgets('the platform takes the channel it is supposed to take',
       (tester) async {
     // Same outcome, two mechanisms. Mixing them is what BUG-008 is about,
     // so each platform must be on its own channel and off the other's.
-    final zoomed = await measureOnce(tester, 80);
+    final zoomed = await measureOnce(tester, zoomPercent: 80);
     if (zoomed == null) {
       log('SKIP: the engine never rendered the zoomed page');
       return;

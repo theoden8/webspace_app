@@ -66,7 +66,7 @@ class InAppWebViewScreen extends StatefulWidget {
   /// A link here into one of the user's sites, with Site tabs on: true when
   /// the app takes it as a tab of the site this screen was opened from, and
   /// this screen closes (LIR-032). Null for a screen a share opened.
-  final bool Function(String url, bool hadGesture)? onOpenAsTab;
+  final bool Function(String url, {required bool hadGesture})? onOpenAsTab;
 
   /// What the site on screen was running as when this screen opened, for
   /// the site info sheet. Null for a screen a share opened.
@@ -74,7 +74,7 @@ class InAppWebViewScreen extends StatefulWidget {
   /// Invoked when the user toggles the URL bar from this nested screen's
   /// popup menu. Threaded back to `_WebSpacePageState` so the change
   /// updates the same global preference shown in the parent menu.
-  final Future<void> Function(bool show)? onShowUrlBarChanged;
+  final Future<void> Function({required bool show})? onShowUrlBarChanged;
 
   InAppWebViewScreen({
     required this.url,
@@ -238,7 +238,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // (memory reclaim while backgrounded, or a page-induced crash),
         // leaving a dead black surface. Destroy-and-rebuild on the event,
         // mirroring the main screen's handleRendererGone.
-        onRendererGone: (didCrash) => _handleRendererGone(didCrash),
+        onRendererGone: _handleRendererGone,
         // Ungated, unlike the commit-settled trigger below: this fires when
         // the WebView has pixels, and the 15s commit window can close before
         // a slow renderer produces any (BUG-001 gap #18).
@@ -255,7 +255,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             : (cookies) async {
                 final url = Uri.parse(_currentUrl);
                 for (final c in cookies.where((c) =>
-                    matchesBlockedCookie(blockedCookies, c.name, c.domain))) {
+                    matchesBlockedCookie(blockedCookies, name: c.name, domain: c.domain))) {
                   final containerCookieManager =
                       widget.hooks.containerCookieManager;
                   if (containerCookieManager != null) {
@@ -287,7 +287,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           _surface.nudge('reload');
         },
         onMainFrameLoad: _resumeReload.noteLoad,
-        onLoadingChanged: (loading) {
+        onLoadingChanged: ({required loading}) {
           if (!mounted || _isLoading == loading) return;
           setState(() {
             _isLoading = loading;
@@ -302,7 +302,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           setState(() => _loadingProgress = progress);
         },
         onConsoleMessage: _devToolsHost.appendConsole,
-        onFindResult: (activeMatch, totalMatches) {
+        onFindResult: (activeMatch, {required totalMatches}) {
           if (!mounted) return;
           setState(() {
             findMatches.activeMatchOrdinal = activeMatch;
@@ -314,7 +314,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // for gesture-less hops). A nested screen has nowhere further to
         // nest, so `blockOpenNested` navigates in place, unless the link is
         // one of the user's sites and goes back as a tab (LIR-032).
-        shouldOverrideUrlLoading: (url, hasGesture) {
+        shouldOverrideUrlLoading: (url, {required hasGesture}) {
           final result = NavigationDecisionEngine
               .decideShouldOverrideUrlLoading(
             targetUrl: url,
@@ -326,14 +326,16 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
             externalLinkMode: p.page.externalLinks,
           );
           _lastSameDomainGestureTime = result.gestureUpdate
-              .applyTo(_lastSameDomainGestureTime, DateTime.now());
+              .applyTo(_lastSameDomainGestureTime, now: DateTime.now());
           if (_handedOffToTab) return false;
           switch (result.decision) {
             case NavigationDecision.allow:
               return true;
             case NavigationDecision.blockOpenNested:
               if (mounted &&
-                  (widget.onOpenAsTab?.call(url, result.hadGesture) ?? false)) {
+                  (widget.onOpenAsTab
+                          ?.call(url, hadGesture: result.hadGesture) ??
+                      false)) {
                 _handedOffToTab = true;
                 Navigator.of(context).pop();
                 return false;
@@ -420,7 +422,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     final p = widget.posture;
     showSiteInfoSheet(
       context,
-      SiteInfo(
+      info: SiteInfo(
         siteName: widget.homeTitle ?? extractDomain(widget.url),
         openedFrom: widget.openedFrom,
         pageUrl: _currentUrl,
@@ -502,7 +504,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// Destroy-and-rebuild this nested webview after its renderer process is gone
   /// (BUG-002 gap #1). Bumping `_rendererGen` remounts a fresh `InAppWebView`;
   /// the dead controller is dropped (a fresh one arrives via onControllerCreated).
-  void _handleRendererGone(bool didCrash) {
+  void _handleRendererGone({required bool didCrash}) {
     if (!mounted) return;
     LogTag.webView.warning(
         'Nested renderer gone (siteId: ${widget.posture.siteId}, didCrash: $didCrash) — recreating');
@@ -520,7 +522,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
     if (controller == null) return;
     final gone = await _surface.rendererGone(controller,
         trigger: 'resume', siteId: widget.posture.siteId);
-    if (gone && identical(_controller, controller)) _handleRendererGone(false);
+    if (gone && identical(_controller, controller)) {
+      _handleRendererGone(didCrash: false);
+    }
   }
 
   @override
@@ -559,9 +563,9 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
   /// Icon and label of [action] in the overflow menu, or null where the menu
   /// does not offer it.
   (IconData, String)? _menuEntry(
-    _NestedMenuAction action,
-    AppLocalizations loc,
-  ) =>
+    _NestedMenuAction action, {
+    required AppLocalizations loc,
+  }) =>
       switch (action) {
         _NestedMenuAction.openBrowser =>
           (Icons.link, loc.inappBrowserMenuOpenInBrowser),
@@ -655,7 +659,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
           PopupMenuButton<_NestedMenuAction>(
             itemBuilder: (_) => [
               for (final action in _NestedMenuAction.values)
-                if (_menuEntry(action, loc) case (final icon, final label))
+                if (_menuEntry(action, loc: loc) case (final icon, final label))
                   PopupMenuItem(
                     value: action,
                     child: Row(
@@ -685,7 +689,7 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
                   _toggleFind();
                 case _NestedMenuAction.toggleUrlBar:
                   setState(() => _showUrlBar = !_showUrlBar);
-                  await widget.onShowUrlBarChanged?.call(_showUrlBar);
+                  await widget.onShowUrlBarChanged?.call(show: _showUrlBar);
                 case _NestedMenuAction.refresh:
                   await _reloadAndRepaint();
                 case _NestedMenuAction.devTools:

@@ -46,14 +46,15 @@ Future<Uint8List?> exportIconAsPng(
   UserProxySettings? proxy,
   int size = 256,
 }) async {
-  final iconUrl = resolvedIconUrl ?? await _resolveIconUrl(siteUrl, proxy);
+  final iconUrl =
+      resolvedIconUrl ?? await _resolveIconUrl(siteUrl, proxy: proxy);
   if (iconUrl == null) return null;
 
   try {
     if (_isSvgUrl(iconUrl)) {
       final svg = await getSvgContent(iconUrl, proxy: proxy);
       if (svg == null) return null;
-      return await _rasterizeSvg(svg, size);
+      return await _rasterizeSvg(svg, size: size);
     }
     final bytes = await fetchIconBytes(iconUrl, proxy: proxy);
     if (bytes == null) return null;
@@ -66,7 +67,8 @@ Future<Uint8List?> exportIconAsPng(
   }
 }
 
-Future<String?> _resolveIconUrl(String siteUrl, UserProxySettings? proxy) async {
+Future<String?> _resolveIconUrl(String siteUrl,
+    {required UserProxySettings? proxy}) async {
   String? best;
   await for (final update in getFaviconUrlStream(siteUrl, proxy: proxy)) {
     best = update.url;
@@ -75,7 +77,7 @@ Future<String?> _resolveIconUrl(String siteUrl, UserProxySettings? proxy) async 
   return best;
 }
 
-Future<Uint8List?> _rasterizeSvg(String svg, int size) async {
+Future<Uint8List?> _rasterizeSvg(String svg, {required int size}) async {
   final info = await vg.loadPicture(SvgStringLoader(svg), null);
   try {
     final srcW = info.size.width > 0 ? info.size.width : size.toDouble();

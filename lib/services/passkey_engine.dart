@@ -75,7 +75,7 @@ class PasskeyAccess {
 
 /// A rejection the page sees as a `DOMException` of [name].
 class PasskeyError implements Exception {
-  const PasskeyError(this.name, this.message);
+  const PasskeyError(this.name, {required this.message});
 
   final String name;
   final String message;
@@ -94,29 +94,31 @@ class PasskeyError implements Exception {
   String toString() => 'PasskeyError($name: $message)';
 
   static const notAllowed = PasskeyError('NotAllowedError',
-      'The operation either timed out or was not allowed.');
+      message: 'The operation either timed out or was not allowed.');
   static const notFocused =
-      PasskeyError('NotAllowedError', 'The document is not focused.');
+      PasskeyError('NotAllowedError', message: 'The document is not focused.');
   static const busy =
-      PasskeyError('NotAllowedError', 'A request is already pending.');
+      PasskeyError('NotAllowedError', message: 'A request is already pending.');
   static const crossOriginFrame = PasskeyError('NotAllowedError',
-      'Passkeys are not available in a cross-origin frame.');
+      message: 'Passkeys are not available in a cross-origin frame.');
   static const insecure = PasskeyError(
-      'NotAllowedError', 'Passkeys require a secure context.');
-  static const badRpId = PasskeyError(
-      'SecurityError', 'The relying party ID is not a registrable domain '
-      'suffix of, nor equal to the current domain.');
+      'NotAllowedError', message: 'Passkeys require a secure context.');
+  static const badRpId = PasskeyError('SecurityError',
+      message: 'The relying party ID is not a registrable domain '
+          'suffix of, nor equal to the current domain.');
   static const unsupported =
-      PasskeyError('NotSupportedError', 'Passkeys are not available.');
+      PasskeyError('NotSupportedError', message: 'Passkeys are not available.');
   static const unreadable = PasskeyError('NotReadableError',
-      'An unknown error occurred while talking to the credential manager.');
+      message:
+          'An unknown error occurred while talking to the credential manager.');
   static const excluded = PasskeyError('InvalidStateError',
-      'The authenticator already contains one of the excluded credentials.');
+      message:
+          'The authenticator already contains one of the excluded credentials.');
   static const aborted =
-      PasskeyError('AbortError', 'The operation was aborted.');
+      PasskeyError('AbortError', message: 'The operation was aborted.');
 
   static PasskeyError typeError(String message) =>
-      PasskeyError('TypeError', message);
+      PasskeyError('TypeError', message: message);
 }
 
 /// Everything the native call needs, and what completing its answer needs.
@@ -262,7 +264,7 @@ class PasskeyEngine {
           : host;
       request['rpId'] = rpId;
     }
-    if (!isValidRpId(rpId, host)) {
+    if (!isValidRpId(rpId, host: host)) {
       return const PasskeyPlan.reject(PasskeyError.badRpId);
     }
 
@@ -317,7 +319,7 @@ class PasskeyEngine {
     log('$op $label: sent to Credential Manager');
     try {
       final json = await send().timeout(ceremony.timeout);
-      final result = completeResponse(ceremony, json);
+      final result = completeResponse(ceremony, responseJson: json);
       log(result['ok'] == true
           ? '$op $label: ok'
           : '$op $label: answer rejected, ${result['name']}');
@@ -364,7 +366,7 @@ class PasskeyEngine {
   /// The registrable part comes from [getBaseDomain], the same reading the
   /// app isolates cookies by. It errs long on suffixes it does not know, so
   /// an unknown registry suffix is refused as an rpId rather than accepted.
-  static bool isValidRpId(String rpId, String host) {
+  static bool isValidRpId(String rpId, {required String host}) {
     final r = rpId.toLowerCase();
     final h = host.toLowerCase();
     if (r.isEmpty) return false;
@@ -391,7 +393,7 @@ class PasskeyEngine {
   /// return a placeholder or JSON of their own that does not hash to what
   /// they signed; and the credential must be for [PasskeyCeremony.rpId].
   static Map<String, Object?> completeResponse(
-      PasskeyCeremony ceremony, String responseJson) {
+      PasskeyCeremony ceremony, {required String responseJson}) {
     Object? decoded;
     try {
       decoded = jsonDecode(responseJson);
@@ -428,7 +430,8 @@ class PasskeyEngine {
       }
     }
     final rpIdHash = sha256.convert(utf8.encode(ceremony.rpId)).bytes;
-    if (authData.length < 37 || !_equalBytes(authData.sublist(0, 32), rpIdHash)) {
+    if (authData.length < 37 ||
+        !_equalBytes(authData.sublist(0, 32), b: rpIdHash)) {
       return PasskeyError.unreadable.toBridgeJson();
     }
     r['clientDataJSON'] = encodeB64u(utf8.encode(ceremony.clientDataJson));
@@ -528,7 +531,7 @@ class PasskeyEngine {
   static bool _isIpLiteral(String host) =>
       host.contains(':') || RegExp(r'^\d{1,3}(\.\d{1,3}){3}$').hasMatch(host);
 
-  static bool _equalBytes(List<int> a, List<int> b) {
+  static bool _equalBytes(List<int> a, {required List<int> b}) {
     if (a.length != b.length) return false;
     var diff = 0;
     for (var i = 0; i < a.length; i++) {
@@ -568,7 +571,7 @@ class PasskeyCeremonyGate {
 }
 
 class _CborHead {
-  const _CborHead(this.major, this.value);
+  const _CborHead(this.major, {required this.value});
   final int major;
   final int value;
 }
@@ -606,7 +609,7 @@ class _CborReader {
     } else {
       throw const FormatException('indefinite length');
     }
-    return _CborHead(major, value);
+    return _CborHead(major, value: value);
   }
 
   int _uint(int n) {

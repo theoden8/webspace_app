@@ -16,7 +16,7 @@ import 'dart:async';
 /// asserts on its socket. A test that does need to see a server error
 /// should subscribe itself rather than reach for this.
 StreamSubscription<T> listenFixture<T>(
-  Stream<T> source,
-  void Function(T event) onEvent,
-) =>
+  Stream<T> source, {
+  required void Function(T event) onEvent,
+}) =>
     source.listen(onEvent, onError: (Object _) {});

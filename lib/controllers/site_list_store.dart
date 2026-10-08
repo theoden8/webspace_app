@@ -81,7 +81,8 @@ class SiteListStore {
     for (var i = 0; i < cleanedJsonStrings.length; i++) {
       try {
         loadedWebViewModels.add(
-          WebViewModel.fromJson(jsonDecode(cleanedJsonStrings[i]), onChange),
+          WebViewModel.fromJson(jsonDecode(cleanedJsonStrings[i]),
+              stateSetterF: onChange),
         );
       } catch (e) {
         // Exception text can echo site JSON (initUrl / name). Memory ring.

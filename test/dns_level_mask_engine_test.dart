@@ -13,7 +13,8 @@ DnsLevelSets _sets(Map<int, List<String>> byLevel) {
   return builder.build();
 }
 
-bool _blockedAt(DnsLevelSets sets, String host, int level) =>
+bool _blockedAt(DnsLevelSets sets,
+        {required String host, required int level}) =>
     sets.maskOf(host) & dnsLevelBit(level) != 0;
 
 void main() {
@@ -99,10 +100,10 @@ void main() {
         1: ['light.example'],
         3: ['pro.example'],
       });
-      expect(_blockedAt(sets, 'light.example', 1), isTrue);
-      expect(_blockedAt(sets, 'light.example', 3), isFalse);
-      expect(_blockedAt(sets, 'pro.example', 1), isFalse);
-      expect(_blockedAt(sets, 'pro.example', 3), isTrue);
+      expect(_blockedAt(sets, host: 'light.example', level: 1), isTrue);
+      expect(_blockedAt(sets, host: 'light.example', level: 3), isFalse);
+      expect(_blockedAt(sets, host: 'pro.example', level: 1), isFalse);
+      expect(_blockedAt(sets, host: 'pro.example', level: 3), isTrue);
     });
 
     test('subdomains inherit their parent domain mask', () {
@@ -110,8 +111,8 @@ void main() {
         3: ['ads.example'],
       });
       expect(sets.maskOf('sub.ads.example'), dnsLevelBit(3));
-      expect(_blockedAt(sets, 'sub.ads.example', 2), isFalse);
-      expect(_blockedAt(sets, 'sub.ads.example', 3), isTrue);
+      expect(_blockedAt(sets, host: 'sub.ads.example', level: 2), isFalse);
+      expect(_blockedAt(sets, host: 'sub.ads.example', level: 3), isTrue);
     });
 
     test('every matching suffix contributes its levels', () {
@@ -121,9 +122,9 @@ void main() {
       });
       expect(sets.maskOf('deep.example.co.uk'),
           dnsLevelBit(1) | dnsLevelBit(3));
-      expect(_blockedAt(sets, 'deep.example.co.uk', 1), isTrue);
-      expect(_blockedAt(sets, 'deep.example.co.uk', 2), isFalse);
-      expect(_blockedAt(sets, 'deep.example.co.uk', 3), isTrue);
+      expect(_blockedAt(sets, host: 'deep.example.co.uk', level: 1), isTrue);
+      expect(_blockedAt(sets, host: 'deep.example.co.uk', level: 2), isFalse);
+      expect(_blockedAt(sets, host: 'deep.example.co.uk', level: 3), isTrue);
     });
 
     test('an unlisted host has an empty mask', () {
@@ -166,7 +167,7 @@ void main() {
           // Subdomain of a listed domain counts as listed, same as the walk.
           final listed = expected.contains(host) ||
               expected.any((d) => host.endsWith('.$d'));
-          expect(_blockedAt(sets, host, level), listed,
+          expect(_blockedAt(sets, host: host, level: level), listed,
               reason: '$host at level $level');
         }
       });
@@ -175,7 +176,7 @@ void main() {
     test('a level nothing was downloaded for names nothing', () {
       expect(sets.levels, {1, 2, 3, 5});
       for (final host in hosts) {
-        expect(_blockedAt(sets, host, 4), isFalse);
+        expect(_blockedAt(sets, host: host, level: 4), isFalse);
       }
     });
   });

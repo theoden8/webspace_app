@@ -24,8 +24,13 @@ void main() {
 
   test('both overflow menus offer New tab and neither offers Duplicate tab',
       () {
-    expect(count('_siteMenuItems(context, _SiteMenuPlacement.appBar)'), 1);
-    expect(count('_siteMenuItems(context, _SiteMenuPlacement.bottomBar)'), 1);
+    expect(
+        count('_siteMenuItems(context, placement: _SiteMenuPlacement.appBar)'),
+        1);
+    expect(
+        count(
+            '_siteMenuItems(context, placement: _SiteMenuPlacement.bottomBar)'),
+        1);
     expect(count('SiteMenuAction.newTab =>'), 1);
     expect(count('SiteMenuAction.duplicateTab'), 0);
   });
@@ -53,7 +58,7 @@ void main() {
   });
 
   group('TAB-012 / TAB-013: tabs are experimental and per site', () {
-    String firstStatement(String source, String signature) {
+    String firstStatement(String source, {required String signature}) {
       final start = source.indexOf(signature);
       expect(start, isNot(-1), reason: '$signature not found');
       // The body's brace, not a named-parameter list's.
@@ -99,7 +104,7 @@ void main() {
         (tabs, 'Future<void> openChildTab(', '!enabledFor(owner)'),
         (tabs, 'bool moveTab(', '!enabledAt(index)'),
       ]) {
-        expect(firstStatement(src, signature), contains(gate),
+        expect(firstStatement(src, signature: signature), contains(gate),
             reason: '$signature must return before doing anything while '
                 'the site it acts on has no tabs');
       }
@@ -137,12 +142,16 @@ void main() {
     test('a typed address takes the same steps as a tapped link (LIR-032)',
         () {
       expect(RegExp(r'onUrlSubmitted:').allMatches(source), hasLength(1));
-      expect(source, contains('onUrlSubmitted: (url) => _links.openTypedAddress(model, url),'));
+      expect(
+          source,
+          contains(
+              'onUrlSubmitted: (url) => _links.openTypedAddress(model, url: url),'));
       final start = links.indexOf('Future<void> openTypedAddress(');
       final body = links.substring(start, links.indexOf('\n  }\n', start));
       expect(body, contains('NavigationDecisionEngine.decideShouldOverrideUrlLoading('));
       expect(body, contains('NavigationDecisionEngine.stepFor('));
-      final route = body.indexOf('routeOutbound(model, url, decision, true)');
+      final route = body.indexOf(
+          'routeOutbound(model, url: url, decision: decision, hadGesture: true)');
       expect(route, isNot(-1));
       expect(body.indexOf('_host.launchNestedFor('), greaterThan(route),
           reason: 'a nested screen only for what routing leaves');
@@ -152,7 +161,7 @@ void main() {
     });
 
     test('work that cannot be dropped waits for the tab gate', () {
-      String body(String signature, [String? src]) {
+      String body(String signature, {String? src}) {
         final from = src ?? source;
         final start = from.indexOf(signature);
         expect(start, isNot(-1), reason: signature);
@@ -160,11 +169,13 @@ void main() {
       }
 
       expect(tabs, contains('_gate.runWhenIdle(() => _closeIneligibleHostedTabsHeld(goneSiteId))'));
-      expect(body('Future<void> openLinkInNewTab(', tabs), contains('await _gate.runWhenIdle('),
+      expect(body('Future<void> openLinkInNewTab(', src: tabs),
+          contains('await _gate.runWhenIdle('),
           reason: 'a background insert must not be lost to a close in flight');
-      expect(body('Future<void> _executeOpenInMain(', links),
+      expect(body('Future<void> _executeOpenInMain(', src: links),
           contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
-      expect(body('Future<void> openTypedAddress(', links), contains('await _tabs.runWhenIdle('));
+      expect(body('Future<void> openTypedAddress(', src: links),
+          contains('await _tabs.runWhenIdle('));
       expect(body('Future<void> _dismissKeyboard('), contains('.timeout('),
           reason: 'a stuck page must not keep the list from opening');
       expect(body('Future<void> _showTabsSheet('), contains('_isShowingTabsSheet'));
@@ -202,22 +213,27 @@ void main() {
             '          _tabs.enabledAt(_sites.current) ? (Icons.add, loc.tabsNewTab) : null,'),
         reason: 'New tab, in the overflow menus',
       );
-      void guarded(String src, int count, RegExp guard, String reason) {
-        final pills = 'TabCountPill('.allMatches(src).toList();
-        expect(pills.length, count, reason: reason);
-        for (final m in pills) {
-          final before = src.substring(0, m.start);
-          expect(before.substring(before.lastIndexOf('if (')), matches(guard));
-        }
-      }
+void guarded(String src,
+    {required int count, required RegExp guard, required String reason}) {
+  final pills = 'TabCountPill('.allMatches(src).toList();
+  expect(pills.length, count, reason: reason);
+  for (final m in pills) {
+    final before = src.substring(0, m.start);
+    expect(before.substring(before.lastIndexOf('if (')), matches(guard));
+  }
+}
 
-      guarded(source, 1, RegExp(r'^if \(_tabs\.enabledFor\(siteModel\) && '),
-          'the strip chip');
+      guarded(source,
+          count: 1,
+          guard: RegExp(r'^if \(_tabs\.enabledFor\(siteModel\) && '),
+          reason: 'the strip chip');
       expect(source,
           contains('showTabCount: _tabs.enabledAt(index) &&'),
           reason: 'the drawer tile');
-      guarded(File('lib/widgets/site_grid_tile.dart').readAsStringSync(), 2,
-          RegExp(r'^if \(showTabCount\)'), 'both drawer tile layouts');
+      guarded(File('lib/widgets/site_grid_tile.dart').readAsStringSync(),
+          count: 2,
+          guard: RegExp(r'^if \(showTabCount\)'),
+          reason: 'both drawer tile layouts');
     });
   });
 
@@ -269,7 +285,7 @@ void main() {
       expect(start, isNot(-1));
       final end = source.indexOf('\n  }\n', start);
       final body = source.substring(start, end);
-      expect(body.contains('_reorderSite(from, to);'), isTrue);
+      expect(body.contains('_reorderSite(from, newListIndex: to);'), isTrue);
       // Reordering "All" renumbers every site, so the sheet gets them afresh.
       expect(body.contains('return _tabsSheetSites();'), isTrue);
       expect(body.contains('.insert('), isFalse);

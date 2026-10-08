@@ -130,7 +130,7 @@ void main() {
     await mount(tester, dest: controlDest, rules: [
       inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks.port}'),
     ]);
-    final bound = await waitReal(tester, () => saw(controlDest),
+    final bound = await waitReal(tester, done: () => saw(controlDest),
         label: 'well-formed rule reaches the fixture');
     verdict.add('control=${bound ? "bound" : "NOT BOUND"}');
     expect(bound, isTrue,
@@ -144,7 +144,7 @@ void main() {
     await mount(tester, dest: afterMalformedDest, rules: [
       inapp.ProxyRule(url: 'socks5://'),
     ]);
-    final kept = await waitReal(tester, () => saw(afterMalformedDest),
+    final kept = await waitReal(tester, done: () => saw(afterMalformedDest),
         label: 'navigation after the malformed rule reaches the fixture');
     verdict.add('after-malformed=${kept ? "still proxied" : "NOT PROXIED"}');
 

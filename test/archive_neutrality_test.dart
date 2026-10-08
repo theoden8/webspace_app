@@ -56,13 +56,14 @@ void main() {
 
     test('fromJson defaults isArchiveTier=false', () {
       final m = WebViewModel(initUrl: 'https://example.com');
-      final round = WebViewModel.fromJson(m.toJson(), null);
+      final round = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(round.isArchiveTier, isFalse);
     });
 
     test('fromJson respects explicit isArchiveTier=true override', () {
       final m = WebViewModel(initUrl: 'https://example.com');
-      final round = WebViewModel.fromJson(m.toJson(), null, isArchiveTier: true);
+      final round = WebViewModel.fromJson(m.toJson(),
+          stateSetterF: null, isArchiveTier: true);
       expect(round.isArchiveTier, isTrue);
     });
 
@@ -291,7 +292,7 @@ void main() {
           versionProvider: () => 'test-v1',
         );
         await stateStore.saveState(
-            'app-site', Uint8List.fromList([1, 2, 3, 4, 5]));
+            'app-site', state: Uint8List.fromList([1, 2, 3, 4, 5]));
         final before = await _snapshotDir(docs);
         expect(before, isNotEmpty,
             reason: 'sanity: the app-tier write produced a file to diff against');
@@ -376,15 +377,15 @@ void main() {
               ),
             ],
           );
-      bool prune(List<WebViewModel> sites, Map<String, String> archives) =>
-          OutboundPreferenceGc.pruneAcrossBoundary<WebViewModel>(
-            sites,
-            siteIdOf: (m) => m.siteId,
-            isArchiveTier: (m) => m.isArchiveTier,
-            archiveOf: (m) => archives[m.siteId],
-            prefsOf: (m) => m.outboundPreferences,
-            setPrefs: (m, prefs) => m.outboundPreferences = prefs,
-          );
+bool prune(List<WebViewModel> sites, {required Map<String, String> archives}) =>
+    OutboundPreferenceGc.pruneAcrossBoundary<WebViewModel>(
+      sites,
+      siteIdOf: (m) => m.siteId,
+      isArchiveTier: (m) => m.isArchiveTier,
+      archiveOf: (m) => archives[m.siteId],
+      prefsOf: (m) => m.outboundPreferences,
+      setPrefs: (m, {required prefs}) => m.outboundPreferences = prefs,
+    );
 
       // The target moved into an open archive.
       final open = ddg();
@@ -393,12 +394,12 @@ void main() {
           open,
           WebViewModel(
               siteId: 'gh', initUrl: 'https://github.com', isArchiveTier: true),
-        ], {'gh': 'slot'}),
+        ], archives: {'gh': 'slot'}),
         isTrue,
       );
       // The same archive, closed: its sites are not in the runtime at all.
       final closed = ddg();
-      prune([closed], const {});
+      prune([closed], archives: const {});
       expect(jsonEncode(open.toJson()), jsonEncode(closed.toJson()));
     });
   });
@@ -525,9 +526,9 @@ void main() {
     test('runtime membership keeps an archived site while the archive is open', () {
       final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
       final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
-      _resolveWebspaceIndices([ws], models);
+      _resolveWebspaceIndices([ws], models: models);
       models[1].isArchiveTier = true;
-      _resolveWebspaceIndices([ws], models);
+      _resolveWebspaceIndices([ws], models: models);
       expect(ws.siteIds, equals(['a', 'b', 'c']));
       expect(ws.siteIndices, equals([0, 1, 2]));
     });
@@ -543,7 +544,8 @@ void main() {
         for (final m in models)
           if (m.isArchiveTier) m.siteId,
       };
-      final persisted = ArchiveMembershipEngine.persistable([ws], archived);
+      final persisted =
+          ArchiveMembershipEngine.persistable([ws], archivedSiteIds: archived);
       final neverArchived =
           Webspace(id: ws.id, name: 'Work', siteIds: ['a', 'c']);
       expect(
@@ -560,8 +562,8 @@ void main() {
       final app = Webspace(name: 'Work', siteIds: ['a']);
       final arch = Webspace(name: 'Hidden', siteIds: ['b'])
         ..isArchiveTier = true;
-      final persisted =
-          ArchiveMembershipEngine.persistable([app, arch], {'b'});
+      final persisted = ArchiveMembershipEngine.persistable([app, arch],
+          archivedSiteIds: {'b'});
       expect(persisted.map((w) => w.id), equals([app.id]));
     });
 
@@ -571,13 +573,13 @@ void main() {
       final c = _siteWithId('c');
       final models = [a, b, c];
       final ws = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
-      _resolveWebspaceIndices([ws], models);
+      _resolveWebspaceIndices([ws], models: models);
 
       // Close: the archived site leaves the runtime list and its
       // membership moves into the archive's own encrypted state.
-      final membership = ArchiveMembershipEngine.detach([ws], {'b'});
+      final membership = ArchiveMembershipEngine.detach([ws], siteIds: {'b'});
       models.removeWhere((m) => m.isArchiveTier);
-      _resolveWebspaceIndices([ws], models);
+      _resolveWebspaceIndices([ws], models: models);
       expect(membership, equals({ws.id: ['b']}));
       expect(ws.siteIds, equals(['a', 'c']));
       expect(ws.siteIndices, equals([0, 1]));
@@ -591,15 +593,15 @@ void main() {
       // Open: the archive site re-appends at the tail and its
       // membership comes back from the archive state.
       models.add(b);
-      ArchiveMembershipEngine.attach([ws], membership);
-      _resolveWebspaceIndices([ws], models);
+      ArchiveMembershipEngine.attach([ws], membership: membership);
+      _resolveWebspaceIndices([ws], models: models);
       expect(ws.siteIds, equals(['a', 'c', 'b']));
       expect(ws.siteIndices, equals([0, 1, 2]));
     });
 
     test('attach skips ids already present and webspaces that are gone', () {
       final ws = Webspace(id: 'w1', name: 'Work', siteIds: ['a', 'b']);
-      ArchiveMembershipEngine.attach([ws], {
+      ArchiveMembershipEngine.attach([ws], membership: {
         'w1': ['b', 'c'],
         'gone': ['z'],
       });
@@ -610,7 +612,7 @@ void main() {
       final ws = Webspace(id: 'w1', name: 'Work', siteIds: ['a', 'b']);
       final m = ArchiveMembershipEngine.record(
         [ws],
-        {'b'},
+        siteIds: {'b'},
         existing: {
           'w1': ['b'],
           'w9': ['z'],
@@ -625,7 +627,7 @@ void main() {
         'w1': ['b', 'x'],
         'w2': ['b'],
       };
-      ArchiveMembershipEngine.forget(membership, 'b');
+      ArchiveMembershipEngine.forget(membership, siteId: 'b');
       expect(membership, equals({'w1': ['x']}));
     });
 
@@ -635,13 +637,13 @@ void main() {
       final c = _siteWithId('c');
       final models = [a, b, c];
       final work = Webspace(name: 'Work', siteIds: ['a', 'b', 'c']);
-      _resolveWebspaceIndices([work], models);
+      _resolveWebspaceIndices([work], models: models);
       expect(work.siteIndices.length, equals(3),
           reason: 'three members visible while archive is open');
 
-      ArchiveMembershipEngine.detach([work], {'b'});
+      ArchiveMembershipEngine.detach([work], siteIds: {'b'});
       models.removeWhere((m) => m.isArchiveTier);
-      _resolveWebspaceIndices([work], models);
+      _resolveWebspaceIndices([work], models: models);
 
       expect(work.siteIndices.length, equals(2),
           reason: 'archive site must drop out of the runtime view');
@@ -668,8 +670,8 @@ void main() {
       expect(ws.siteIndices, equals([0, 2]));
 
       final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
-      promoteLegacySiteIndices([ws], models);
-      _resolveWebspaceIndices([ws], models);
+      promoteLegacySiteIndices([ws], sites: models);
+      _resolveWebspaceIndices([ws], models: models);
 
       expect(ws.siteIds, equals(['a', 'c']));
       expect(ws.siteIndices, equals([0, 2]));
@@ -688,7 +690,7 @@ void main() {
       final beforeIds = List<String>.from(ws.siteIds);
       final models = [_siteWithId('a'), _siteWithId('b')];
       // Migration short-circuits when siteIds is already populated.
-      promoteLegacySiteIndices([ws], models);
+      promoteLegacySiteIndices([ws], sites: models);
       expect(ws.siteIds, equals(beforeIds));
     });
 
@@ -702,7 +704,7 @@ void main() {
         'siteIndices': [0, 5, 10],
       });
       final models = [_siteWithId('a'), _siteWithId('b'), _siteWithId('c')];
-      promoteLegacySiteIndices([ws], models);
+      promoteLegacySiteIndices([ws], sites: models);
       expect(ws.siteIds, equals(['a']));
     });
   });
@@ -730,11 +732,11 @@ Future<Map<String, String>> _snapshotDir(Directory dir) async {
 }
 
 void _resolveWebspaceIndices(
-  List<Webspace> webspaces,
-  List<WebViewModel> models,
-) =>
+  List<Webspace> webspaces, {
+  required List<WebViewModel> models,
+}) =>
     WebspaceSelectionEngine.resolveIndices(
-        webspaces, [for (final m in models) m.siteId]);
+        webspaces, siteIdsByPosition: [for (final m in models) m.siteId]);
 
 WebViewModel _siteWithId(String siteId, {bool archive = false}) {
   return WebViewModel(

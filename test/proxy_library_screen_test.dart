@@ -62,12 +62,13 @@ ProxyLibraryData _library() => ProxyLibraryData(
       ],
     );
 
-Future<void> _pump(WidgetTester tester, Widget home) async {
-  await pumpLocalized(tester, home, size: const Size(1000, 2400));
+Future<void> _pump(WidgetTester tester, {required Widget home}) async {
+  await pumpLocalized(tester, home: home, size: const Size(1000, 2400));
   await tester.pumpAndSettle();
 }
 
-Future<void> _pick(WidgetTester tester, Finder dropdown, String label) async {
+Future<void> _pick(WidgetTester tester,
+    {required Finder dropdown, required String label}) async {
   await tester.tap(dropdown);
   await tester.pumpAndSettle();
   await tester.tap(find.text(label).last);
@@ -112,7 +113,7 @@ void main() {
         (tester) async {
       await _pump(
         tester,
-        screen(_MemoryStore(_library()), sites: [
+        home: screen(_MemoryStore(_library()), sites: [
           UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'work'),
           UserProxySettings(
               type: ProxyType.GATEWAY, gatewayId: 'de', credentialsId: 'mail'),
@@ -131,7 +132,7 @@ void main() {
 
     testWidgets('an empty library says so under each heading',
         (tester) async {
-      await _pump(tester, screen(_MemoryStore(ProxyLibraryData())));
+      await _pump(tester, home: screen(_MemoryStore(ProxyLibraryData())));
       expect(find.text(loc.proxyLibraryNone), findsNWidgets(3));
     });
 
@@ -139,7 +140,7 @@ void main() {
         (tester) async {
       final store = _MemoryStore(ProxyLibraryData());
       var changed = 0;
-      await _pump(tester, screen(store, onChanged: () => changed++));
+      await _pump(tester, home: screen(store, onChanged: () => changed++));
       await tester.tap(find.text(loc.savedProxiesAdd));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -160,7 +161,7 @@ void main() {
 
     testWidgets('a gateway is saved on its own', (tester) async {
       final store = _MemoryStore(ProxyLibraryData());
-      await _pump(tester, screen(store));
+      await _pump(tester, home: screen(store));
       await tester.tap(find.text(loc.proxyLibraryAddGateway));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -176,7 +177,7 @@ void main() {
     testWidgets('credentials must name a gateway they work on',
         (tester) async {
       final store = _MemoryStore(_library());
-      await _pump(tester, screen(store));
+      await _pump(tester, home: screen(store));
       await tester.tap(find.text(loc.proxyLibraryAddCredentials));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -198,15 +199,18 @@ void main() {
     testWidgets('a saved proxy pairs a gateway with credentials that fit',
         (tester) async {
       final store = _MemoryStore(_library());
-      await _pump(tester, screen(store));
+      await _pump(tester, home: screen(store));
       await tester.tap(find.text(loc.savedProxiesAdd));
       await tester.pumpAndSettle();
       await tester.enterText(
           find.widgetWithText(TextFormField, loc.savedProxyName), 'Mail DE');
-      await _pick(tester, find.byType(ProxyChoiceDropdown), 'VPN DE');
+      await _pick(tester,
+          dropdown: find.byType(ProxyChoiceDropdown), label: 'VPN DE');
       // Both credentials fit DE; only Alice fits US, so Mail session is
       // offered here and nowhere else.
-      await _pick(tester, find.byType(ProxyCredentialsDropdown), 'Mail session');
+      await _pick(tester,
+          dropdown: find.byType(ProxyCredentialsDropdown),
+          label: 'Mail session');
       await tester.tap(find.text(loc.commonSave));
       await tester.pumpAndSettle();
       final p = store.data.proxies.last.settings;
@@ -220,7 +224,7 @@ void main() {
       final store = _MemoryStore(_library());
       await _pump(
         tester,
-        screen(store, sites: [
+        home: screen(store, sites: [
           UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'work'),
           UserProxySettings(type: ProxyType.GATEWAY, gatewayId: 'us'),
         ]),
@@ -240,41 +244,42 @@ void main() {
   });
 
   group('Proxy picker', () {
-    Future<List<ProxyChoice>> pick(WidgetTester tester, String label) async {
-      final picked = <ProxyChoice>[];
-      await _pump(
-        tester,
-        Scaffold(
-          body: Center(
-            child: ProxyChoiceDropdown(
-              type: ProxyType.DEFAULT,
-              savedProxyId: null,
-              gatewayId: null,
-              library: _library(),
-              torAvailable: false,
-              onChanged: picked.add,
-            ),
-          ),
+Future<List<ProxyChoice>> pick(WidgetTester tester,
+    {required String label}) async {
+  final picked = <ProxyChoice>[];
+  await _pump(
+    tester,
+    home: Scaffold(
+      body: Center(
+        child: ProxyChoiceDropdown(
+          type: ProxyType.DEFAULT,
+          savedProxyId: null,
+          gatewayId: null,
+          library: _library(),
+          torAvailable: false,
+          onChanged: picked.add,
         ),
-      );
-      await _pick(tester, find.byType(ProxyChoiceDropdown), label);
-      return picked;
-    }
+      ),
+    ),
+  );
+  await _pick(tester, dropdown: find.byType(ProxyChoiceDropdown), label: label);
+  return picked;
+}
 
     testWidgets('offers a saved proxy by name', (tester) async {
-      final picked = await pick(tester, 'Work VPN');
+      final picked = await pick(tester, label: 'Work VPN');
       expect(picked.single.type, ProxyType.SAVED);
       expect(picked.single.savedProxyId, 'work');
     });
 
     testWidgets('offers a saved gateway by name', (tester) async {
-      final picked = await pick(tester, 'VPN DE');
+      final picked = await pick(tester, label: 'VPN DE');
       expect(picked.single.type, ProxyType.GATEWAY);
       expect(picked.single.gatewayId, 'de');
     });
 
     testWidgets('offers the plain types beside them', (tester) async {
-      final picked = await pick(tester, 'HTTPS');
+      final picked = await pick(tester, label: 'HTTPS');
       expect(picked.single.type, ProxyType.HTTPS);
     });
 
@@ -282,7 +287,7 @@ void main() {
         (tester) async {
       await _pump(
         tester,
-        Scaffold(
+        home: Scaffold(
           body: Center(
             child: ProxyCredentialsDropdown(
               gatewayId: 'us',
@@ -302,7 +307,7 @@ void main() {
     testWidgets('a pairing that no longer fits says so', (tester) async {
       await _pump(
         tester,
-        Scaffold(
+        home: Scaffold(
           body: Center(
             child: ProxyCredentialsDropdown(
               gatewayId: 'us',
@@ -319,14 +324,14 @@ void main() {
 
   group('Network screen', () {
     Future<List<SiteNetworkValues>> pumpNetwork(
-      WidgetTester tester,
-      SiteNetworkValues values, {
+      WidgetTester tester, {
+      required SiteNetworkValues values,
       TextEditingController? username,
     }) async {
       final reported = <SiteNetworkValues>[];
       await _pump(
         tester,
-        SiteNetworkScreen(
+        home: SiteNetworkScreen(
           host: 'example.com',
           siteId: 'site-1',
           values: values,
@@ -346,7 +351,7 @@ void main() {
         (tester) async {
       await pumpNetwork(
         tester,
-        const SiteNetworkValues(
+        values: const SiteNetworkValues(
           proxyType: ProxyType.SAVED,
           savedProxyId: 'work',
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
@@ -363,7 +368,7 @@ void main() {
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        const SiteNetworkValues(
+        values: const SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
           gatewayId: 'de',
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
@@ -371,7 +376,9 @@ void main() {
       );
       expect(find.widgetWithText(TextFormField, loc.siteSettingsProxyAddress),
           findsNothing);
-      await _pick(tester, find.byType(ProxyCredentialsDropdown), 'Mail session');
+      await _pick(tester,
+          dropdown: find.byType(ProxyCredentialsDropdown),
+          label: 'Mail session');
       expect(reported.last.credentialsId, 'mail');
       expect(reported.last.gatewayId, 'de');
     });
@@ -380,14 +387,15 @@ void main() {
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        const SiteNetworkValues(
+        values: const SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
           gatewayId: 'de',
           credentialsId: 'mail',
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),
       );
-      await _pick(tester, find.byType(ProxyChoiceDropdown), 'VPN US');
+      await _pick(tester,
+          dropdown: find.byType(ProxyChoiceDropdown), label: 'VPN US');
       expect(reported.last.gatewayId, 'us');
       expect(reported.last.credentialsId, isNull);
     });
@@ -396,14 +404,15 @@ void main() {
         (tester) async {
       final reported = await pumpNetwork(
         tester,
-        const SiteNetworkValues(
+        values: const SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
           gatewayId: 'de',
           credentialsId: 'alice',
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
         ),
       );
-      await _pick(tester, find.byType(ProxyChoiceDropdown), 'VPN US');
+      await _pick(tester,
+          dropdown: find.byType(ProxyChoiceDropdown), label: 'VPN US');
       expect(reported.last.credentialsId, 'alice');
     });
 
@@ -412,7 +421,7 @@ void main() {
       final username = TextEditingController();
       await pumpNetwork(
         tester,
-        const SiteNetworkValues(
+        values: const SiteNetworkValues(
           proxyType: ProxyType.GATEWAY,
           gatewayId: 'de',
           webRtcPolicy: WebRtcPolicy.defaultPolicy,
@@ -429,10 +438,10 @@ void main() {
 
   testWidgets('the Network screen offers the library with developer mode off',
       (tester) async {
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     await _pump(
       tester,
-      SiteNetworkScreen(
+      home: SiteNetworkScreen(
         host: 'example.com',
         siteId: 'site-1',
         values: const SiteNetworkValues(
@@ -496,7 +505,7 @@ void main() {
         (tester) async {
       await _pump(
         tester,
-        Scaffold(
+        home: Scaffold(
           body: SiteInfoSheet(
             info: info(UserProxySettings(
                 type: ProxyType.SAVED, savedProxyId: 'work')),
@@ -512,7 +521,7 @@ void main() {
     testWidgets('names a saved gateway', (tester) async {
       await _pump(
         tester,
-        Scaffold(
+        home: Scaffold(
           body: SiteInfoSheet(
             info: info(UserProxySettings(
                 type: ProxyType.GATEWAY, gatewayId: 'de', credentialsId: 'mail')),
@@ -526,7 +535,7 @@ void main() {
     testWidgets('a site with no proxy reads as direct', (tester) async {
       await _pump(
         tester,
-        Scaffold(
+        home: Scaffold(
           body: SiteInfoSheet(
             info: info(UserProxySettings(type: ProxyType.DEFAULT)),
           ),
@@ -538,7 +547,7 @@ void main() {
     testWidgets('a pairing that does not fit says why', (tester) async {
       await _pump(
         tester,
-        Scaffold(
+        home: Scaffold(
           body: SiteInfoSheet(
             info: info(UserProxySettings(
                 type: ProxyType.GATEWAY, gatewayId: 'us', credentialsId: 'mail')),
@@ -549,7 +558,8 @@ void main() {
     });
 
     testWidgets('no row where the platform binds no proxy', (tester) async {
-      await _pump(tester, Scaffold(body: SiteInfoSheet(info: info(null))));
+      await _pump(tester,
+          home: Scaffold(body: SiteInfoSheet(info: info(null))));
       expect(find.text(loc.siteInfoConnection), findsNothing);
     });
   });

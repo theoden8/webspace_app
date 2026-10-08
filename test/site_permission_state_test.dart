@@ -16,12 +16,16 @@ void main() {
     });
 
     test('notifications and protected content project their stored shapes', () {
-      expect(notificationPermissionState(true), SitePermissionState.allowed);
-      expect(notificationPermissionState(false), SitePermissionState.blocked);
-      expect(protectedContentPermissionState(null), SitePermissionState.ask);
-      expect(protectedContentPermissionState(true), SitePermissionState.allowed);
-      expect(
-          protectedContentPermissionState(false), SitePermissionState.blocked);
+      expect(notificationPermissionState(enabled: true),
+          SitePermissionState.allowed);
+      expect(notificationPermissionState(enabled: false),
+          SitePermissionState.blocked);
+      expect(protectedContentPermissionState(allowed: null),
+          SitePermissionState.ask);
+      expect(protectedContentPermissionState(allowed: true),
+          SitePermissionState.allowed);
+      expect(protectedContentPermissionState(allowed: false),
+          SitePermissionState.blocked);
     });
 
     test('only allowed counts as opening a real device', () {

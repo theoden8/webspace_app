@@ -19,8 +19,8 @@ void main() {
         sites: [WebViewModel(initUrl: 'https://example.test', name: 'Site')],
         prefs: {'showTabStrip': tabStrip},
       );
-      await openWebspace(tester, 'All');
-      await openSiteFromDrawer(tester, 'Site');
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'Site');
 
       final menu = find.byType(PopupMenuButton<app.SiteMenuAction>);
       expect(menu, findsOneWidget);

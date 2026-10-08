@@ -149,7 +149,7 @@ void main() {
           UserProxySettings(type: ProxyType.HTTP, address: '1.2.3.4:8080'));
     });
 
-    void blocked(UserProxySettings s, LibraryProblem problem) {
+    void blocked(UserProxySettings s, {required LibraryProblem problem}) {
       final resolved = resolveLibrary(s);
       expect(resolved.problem, problem);
       expect(resolved.route.type, ProxyType.SAVED);
@@ -163,35 +163,35 @@ void main() {
     }
 
     test('a missing saved proxy', () {
-      blocked(_proxy('gone'), LibraryProblem.proxyMissing);
+      blocked(_proxy('gone'), problem: LibraryProblem.proxyMissing);
     });
 
     test('a missing gateway', () {
-      blocked(_gateway('gone'), LibraryProblem.gatewayMissing);
+      blocked(_gateway('gone'), problem: LibraryProblem.gatewayMissing);
     });
 
     test('missing credentials', () {
       blocked(_gateway('de', credentialsId: 'gone'),
-          LibraryProblem.credentialsMissing);
+          problem: LibraryProblem.credentialsMissing);
     });
 
     test('credentials paired with a gateway they do not list', () {
       blocked(_gateway('us', credentialsId: 'mail'),
-          LibraryProblem.credentialsMismatch);
+          problem: LibraryProblem.credentialsMismatch);
     });
 
     test('saved credentials on a typed gateway', () {
       blocked(
         UserProxySettings(
             type: ProxyType.SOCKS5, address: 'x:1', credentialsId: 'alice'),
-        LibraryProblem.credentialsMismatch,
+        problem: LibraryProblem.credentialsMismatch,
       );
     });
 
     test('a saved proxy whose gateway was deleted', () {
       final lib = _library()..removeGateway('us');
       ProxyLibrary.setInMemory(lib);
-      blocked(_proxy('work'), LibraryProblem.gatewayMissing);
+      blocked(_proxy('work'), problem: LibraryProblem.gatewayMissing);
       expect(lib.credentialsById('alice')!.gatewayIds, {'de'});
     });
 
@@ -342,7 +342,8 @@ void main() {
 
     test('an orphaned password is collected on startup', () async {
       await passwords.savePassword(
-          ProxyPasswordSecureStorage.savedCredentialsKey('stale'), 'x');
+          ProxyPasswordSecureStorage.savedCredentialsKey('stale'),
+          password: 'x');
       await ProxyLibrary.initialize();
       expect(await stored(ProxyPasswordSecureStorage.savedCredentialsKey('stale')),
           isNull);
@@ -479,17 +480,21 @@ void main() {
   group('what uses an entry', () {
     test('counts use through a saved proxy', () {
       final lib = _library();
-      expect(usesLibraryEntry(_proxy('work'), LibraryEntryKind.gateway, 'us', lib),
+      expect(
+          usesLibraryEntry(_proxy('work'),
+              kind: LibraryEntryKind.gateway, id: 'us', lib: lib),
           isTrue);
       expect(
-          usesLibraryEntry(
-              _proxy('work'), LibraryEntryKind.credentials, 'alice', lib),
+          usesLibraryEntry(_proxy('work'),
+              kind: LibraryEntryKind.credentials, id: 'alice', lib: lib),
           isTrue);
-      expect(usesLibraryEntry(_proxy('work'), LibraryEntryKind.gateway, 'de', lib),
+      expect(
+          usesLibraryEntry(_proxy('work'),
+              kind: LibraryEntryKind.gateway, id: 'de', lib: lib),
           isFalse);
       expect(
           usesLibraryEntry(_gateway('de', credentialsId: 'mail'),
-              LibraryEntryKind.credentials, 'mail', lib),
+              kind: LibraryEntryKind.credentials, id: 'mail', lib: lib),
           isTrue);
     });
   });

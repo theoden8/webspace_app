@@ -12,7 +12,7 @@ enum ExternalLinkMode { inApp, browser, block }
 /// Parse a stored mode name. [legacyInBrowser] is the `externalLinksInBrowser`
 /// bool this field replaced, read only when no mode is stored.
 ExternalLinkMode externalLinkModeFromJson(
-    Object? modeName, Object? legacyInBrowser) {
+    Object? modeName, {required Object? legacyInBrowser}) {
   if (modeName is String) {
     for (final m in ExternalLinkMode.values) {
       if (m.name == modeName) return m;

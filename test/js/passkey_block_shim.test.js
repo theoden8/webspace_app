@@ -220,7 +220,7 @@ test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in 
   const shims = webview.slice(at, webview.indexOf('];', at)).replace(/\s+/g, ' ');
   assert.ok(shims.includes(
     "if (passkeys == null && PasskeyAccess.hostIsApple) "
-      + "pageShim('passkey_block', buildPasskeyBlockShim(), frames: ShimFrames.all)"),
+      + "pageShim('passkey_block', js: buildPasskeyBlockShim(), frames: ShimFrames.all)"),
     'the shim goes wherever passkeys are off on iOS and macOS, in every frame '
       + '(WebKit answers a same-origin subframe too), before page script runs');
 });

@@ -60,7 +60,7 @@ Set<String> preparserEnv({
 
 /// Evaluates one `!#if` expression. Null means uBO would not recognise it,
 /// in which case the block is kept, as uBO keeps it.
-bool? evaluatePreparserExpr(String expr, Set<String> env) {
+bool? evaluatePreparserExpr(String expr, {required Set<String> env}) {
   var e = expr.trim();
   if (e.startsWith('(') && e.endsWith(')')) e = e.substring(1, e.length - 1);
   final matches =
@@ -69,11 +69,11 @@ bool? evaluatePreparserExpr(String expr, Set<String> env) {
   if (matches.first.startsWith('|') || matches.first.startsWith('&')) {
     return null;
   }
-  var result = _evaluateToken(matches.first, env);
+  var result = _evaluateToken(matches.first, env: env);
   for (var i = 1; i < matches.length; i++) {
     final parts = matches[i].split(RegExp(r' +'));
     if (parts.length != 2) return null;
-    final state = _evaluateToken(parts[1], env);
+    final state = _evaluateToken(parts[1], env: env);
     if (state == null) return null;
     // JS semantics of uBO's `result || state` / `result && state` with an
     // undefined first operand.
@@ -88,7 +88,7 @@ bool? evaluatePreparserExpr(String expr, Set<String> env) {
   return result;
 }
 
-bool? _evaluateToken(String token, Set<String> env) {
+bool? _evaluateToken(String token, {required Set<String> env}) {
   final not = token.startsWith('!');
   if (not) token = token.substring(1);
   var state = _kTokens[token];
@@ -103,13 +103,13 @@ class _IfFrame {
   bool known;
   bool discard;
   int pos;
-  _IfFrame(this.known, this.discard, this.pos);
+  _IfFrame(this.known, {required this.discard, required this.pos});
 }
 
 /// Offsets that alternately start a kept and a discarded span, beginning
 /// with a kept span at 0 and ending at `content.length`. Same contract as
 /// uBO's `splitter`.
-List<int> _splitter(String content, Set<String> env) {
+List<int> _splitter(String content, {required Set<String> env}) {
   final reIf = RegExp(r'^!#(if|else|endif)\b([^\n]*)(?:[\n\r]+|$)',
       multiLine: true);
   final stack = <_IfFrame>[];
@@ -137,8 +137,8 @@ List<int> _splitter(String content, Set<String> env) {
   for (final m in reIf.allMatches(content)) {
     switch (m[1]) {
       case 'if':
-        final result = evaluatePreparserExpr(m[2]!.trim(), env);
-        begif(_IfFrame(result != null, result == false, m.start));
+        final result = evaluatePreparserExpr(m[2]!.trim(), env: env);
+        begif(_IfFrame(result != null, discard: result == false, pos: m.start));
       case 'else':
         if (stack.isEmpty) break;
         final f = stack.last;
@@ -155,9 +155,9 @@ List<int> _splitter(String content, Set<String> env) {
 }
 
 /// Drops the spans a false `!#if` excludes.
-String pruneFilterList(String content, Set<String> env) {
+String pruneFilterList(String content, {required Set<String> env}) {
   if (!content.contains('!#')) return content;
-  final parts = _splitter(content, env);
+  final parts = _splitter(content, env: env);
   final out = StringBuffer();
   for (var i = 0; i + 1 < parts.length; i += 2) {
     if (i > 0) out.write('\n');
@@ -191,22 +191,22 @@ class FilterListIncludeError implements Exception {
 /// is fetched at most once. [maxSublists] bounds what one list can make the
 /// app download.
 Future<String> expandFilterListIncludes(
-  String content,
-  String url,
-  Set<String> env,
-  Future<String?> Function(String url) fetch, {
+  String content, {
+  required String url,
+  required Set<String> env,
+  required Future<String?> Function(String url) fetch,
   int maxSublists = 64,
 }) async {
   final seen = <String>{};
 
-  Future<String> expand(String text, String parentUrl) async {
+  Future<String> expand(String text, {required String parentUrl}) async {
     if (!text.contains('!#include')) return text;
     final slash = parentUrl.lastIndexOf('/');
     if (slash < 0) return text;
     final base = parentUrl.substring(0, slash + 1);
     final reInclude =
         RegExp(r'^!#include +(\S+)[^\n\r]*(?:[\n\r]+|$)', multiLine: true);
-    final parts = _splitter(text, env);
+    final parts = _splitter(text, env: env);
     final out = StringBuffer();
     for (var i = 0; i + 1 < parts.length; i++) {
       final slice = text.substring(parts[i], parts[i + 1]);
@@ -226,7 +226,7 @@ Future<String> expandFilterListIncludes(
         out
           ..write(slice.substring(last, m.end))
           ..write('! >>>>>>>> $subUrl\n')
-          ..write(await expand('${body.trimRight()}\n', subUrl))
+          ..write(await expand('${body.trimRight()}\n', parentUrl: subUrl))
           ..write('! <<<<<<<< $subUrl\n');
         last = m.end;
       }
@@ -235,5 +235,5 @@ Future<String> expandFilterListIncludes(
     return out.toString();
   }
 
-  return expand(content, url);
+  return expand(content, parentUrl: url);
 }

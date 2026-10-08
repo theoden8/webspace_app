@@ -69,13 +69,14 @@ class ExperimentalFeaturesService {
     }
   }
 
-  Future<void> setSwitch(ExperimentalFeature feature, bool value) async {
-    if (switchOn(feature) == value) return;
-    await feature.pref.set(value);
-    LogTag.experimental.debug('${feature.name} ${value ? 'on' : 'off'}');
+  Future<void> setSwitch(ExperimentalFeature feature,
+      {required bool on}) async {
+    if (switchOn(feature) == on) return;
+    await feature.pref.set(on);
+    LogTag.experimental.debug('${feature.name} ${on ? 'on' : 'off'}');
   }
 
   /// Test seam: set a switch without touching SharedPreferences.
-  void debugSet(ExperimentalFeature feature, bool value) =>
-      feature.pref.debugValue = value;
+  void debugSet(ExperimentalFeature feature, {required bool on}) =>
+      feature.pref.debugValue = on;
 }

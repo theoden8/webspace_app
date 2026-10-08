@@ -49,7 +49,7 @@ class WebInterceptNative {
       final list =
           await _channel.invokeMethod('fetchBlockEvents', {'siteId': siteId});
       if (list is! List) return;
-      applyBlockEvents(siteId, list);
+      applyBlockEvents(siteId, list: list);
     } on PlatformException {
       // A failed drain loses one window of counts; the next drain resumes.
     }
@@ -62,7 +62,7 @@ class WebInterceptNative {
   /// with `source` absent for allowed requests) is testable without an
   /// Android device: the fetch is platform-gated, the accounting is not.
   @visibleForTesting
-  static void applyBlockEvents(String siteId, List<dynamic> list) {
+  static void applyBlockEvents(String siteId, {required List<dynamic> list}) {
     for (final entry in list) {
       if (entry is! Map) continue;
       final host = entry['host'];
@@ -78,8 +78,8 @@ class WebInterceptNative {
       // Native dedupes by host across the drain window: `count` is the
       // repeats since the last drain, absent from an older codec.
       final count = entry['count'] is int ? entry['count'] as int : 1;
-      DnsBlockService.instance
-          .recordVerdict(siteId, HostQuery(host), verdict, count: count);
+      DnsBlockService.instance.recordVerdict(siteId,
+          query: HostQuery(host), verdict: verdict, count: count);
       // Engine blocks decided natively never pass through
       // ContentBlockerService.isBlocked, so fold them into the
       // DevTools ABP counters here or the ABP tab undercounts.

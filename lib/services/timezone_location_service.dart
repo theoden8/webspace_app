@@ -35,8 +35,8 @@ class _ZoneEntry {
   // every lookup would do PiP against ~hundreds of zones.
   final double minLng, minLat, maxLng, maxLat;
 
-  _ZoneEntry(this.tzid, this.polygons, this.minLng, this.minLat,
-      this.maxLng, this.maxLat);
+  _ZoneEntry(this.tzid, {required this.polygons, required this.minLng, required this.minLat,
+      required this.maxLng, required this.maxLat});
 }
 
 /// Singleton service for downloading, caching, and querying a GeoJSON
@@ -117,7 +117,7 @@ class TimezoneLocationService {
     final path = await _cachePath();
     try {
       final count = await _countingFromFile.run(
-          (), () => compute(_readAndCountZones, path));
+          (), call: () => compute(_readAndCountZones, path));
       await prefs.setInt(_zoneCountPrefKey, count);
       return count;
     } catch (e) {
@@ -218,7 +218,7 @@ class TimezoneLocationService {
       // recoverable (the user can edit it / re-download).
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_zoneCountPrefKey);
-      await hostWriteFileText(await _cachePath(), body);
+      await hostWriteFileText(await _cachePath(), contents: body);
 
       _zones = await compute(_parseZones, body);
       await prefs.setString(
@@ -256,7 +256,7 @@ class TimezoneLocationService {
   /// Uses bbox prefilter + ray-cast PiP. Not blazing fast on the first
   /// matching zone scan, but the result is stable and we only call this
   /// once per webview creation per site, not on every JS call.
-  String? lookup(double latitude, double longitude) {
+  String? lookup(double latitude, {required double longitude}) {
     final zones = _zones;
     if (zones == null || zones.isEmpty) return null;
     for (final z in zones) {
@@ -265,10 +265,10 @@ class TimezoneLocationService {
       for (final rings in z.polygons) {
         if (rings.isEmpty) continue;
         // Outer ring contains the point AND no hole contains it.
-        if (!_pointInRing(rings.first, longitude, latitude)) continue;
+        if (!_pointInRing(rings.first, x: longitude, y: latitude)) continue;
         var inHole = false;
         for (var i = 1; i < rings.length; i++) {
-          if (_pointInRing(rings[i], longitude, latitude)) {
+          if (_pointInRing(rings[i], x: longitude, y: latitude)) {
             inHole = true;
             break;
           }
@@ -283,7 +283,8 @@ class TimezoneLocationService {
   /// closed polygon. Robust enough for IANA zone polygons; we don't
   /// special-case the antimeridian because the dataset already splits
   /// zones that cross it.
-  static bool _pointInRing(Float64List ring, double x, double y) {
+  static bool _pointInRing(Float64List ring,
+      {required double x, required double y}) {
     var inside = false;
     final n = ring.length;
     if (n < 6) return false;
@@ -291,7 +292,8 @@ class TimezoneLocationService {
       final xi = ring[i], yi = ring[i + 1];
       final xj = ring[j], yj = ring[j + 1];
       final intersects = ((yi > y) != (yj > y)) &&
-          (x < (xj - xi) * (y - yi) / ((yj - yi) == 0 ? 1e-30 : (yj - yi)) + xi);
+          (x <
+              (xj - xi) * (y - yi) / ((yj - yi) == 0 ? 1e-30 : (yj - yi)) + xi);
       if (intersects) inside = !inside;
     }
     return inside;
@@ -369,7 +371,12 @@ List<_ZoneEntry> _parseZones(String body) {
     }
 
     if (polygons.isEmpty) continue;
-    zones.add(_ZoneEntry(tzid, polygons, minLng, minLat, maxLng, maxLat));
+    zones.add(_ZoneEntry(tzid,
+        polygons: polygons,
+        minLng: minLng,
+        minLat: minLat,
+        maxLng: maxLng,
+        maxLat: maxLat));
   }
   return zones;
 }

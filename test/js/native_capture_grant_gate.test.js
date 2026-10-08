@@ -27,7 +27,7 @@ const handler = code(
 
 test(`${SRC}: the answer is the engine's, asked through the grant store`, () => {
   assert.match(handler, /CapturePermissionEngine\.answer\(/);
-  assert.match(handler, /opensDevice: \(kind\) async \{[\s\S]*?grants\.capture\(kind, origin,[\s\S]*?opensRealDevice\(/,
+  assert.match(handler, /opensDevice: \(kind\) async \{[\s\S]*?grants\.capture\(kind, origin: origin,[\s\S]*?opensRealDevice\(/,
     'the device decision must come from the store, which applies the on-screen '
       + 'gate (MIC-011) and the archive-tier fold (MIC-006)');
   assert.doesNotMatch(handler, /\.captures\b/,

@@ -20,7 +20,7 @@ bool tabBarCornerIsTop(TabBarCorner corner) =>
 
 /// Nearest corner for a button whose center sits at the given fractional
 /// position (Alignment convention: -1..1 per axis, negative = left/top).
-TabBarCorner tabBarCornerNearest(double x, double y) {
+TabBarCorner tabBarCornerNearest(double x, {required double y}) {
   if (y < 0) {
     return x > 0 ? TabBarCorner.topRight : TabBarCorner.topLeft;
   }
@@ -31,17 +31,18 @@ TabBarCorner tabBarCornerNearest(double x, double y) {
 /// button centered under [localPointer] inside [area], where the button
 /// travels within an [margin]-inset box and is [buttonSize] wide/tall.
 Offset tabBarCornerDragFraction(
-  Offset localPointer,
-  Size area, {
+  Offset localPointer, {
+  required Size area,
   required double buttonSize,
   required double margin,
 }) {
-  double axis(double position, double extent) {
+  double axis(double position, {required double extent}) {
     final span = extent - 2 * margin - buttonSize;
     if (span <= 0) return 0;
     final fraction = 2 * (position - margin - buttonSize / 2) / span - 1;
     return fraction.clamp(-1.0, 1.0);
   }
 
-  return Offset(axis(localPointer.dx, area.width), axis(localPointer.dy, area.height));
+  return Offset(axis(localPointer.dx, extent: area.width),
+      axis(localPointer.dy, extent: area.height));
 }

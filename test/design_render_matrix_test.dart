@@ -105,7 +105,9 @@ Widget _host({
         ),
       ),
     ),
-    theme: ThemeData(colorScheme: buildAccentColorScheme(accentBlue, brightness)),
+    theme: ThemeData(
+        colorScheme:
+            buildAccentColorScheme(accentBlue, brightness: brightness)),
   );
 }
 
@@ -187,7 +189,7 @@ void main() {
     // AnimatedScale is a paint transform, so the laid-out box does not change
     // and reading the size would prove nothing. The scale itself is the token
     // reaching the screen.
-    double scaleWhen(bool dragging) {
+    double scaleWhen({required bool dragging}) {
       return tester
           .widget<AnimatedScale>(find.byType(AnimatedScale))
           .scale;
@@ -207,7 +209,8 @@ void main() {
         textScale: 1.0,
       ));
       await tester.pumpAndSettle();
-      expect(scaleWhen(dragging), dragging ? FloatingButton.dragScale : 1.0);
+      expect(scaleWhen(dragging: dragging),
+          dragging ? FloatingButton.dragScale : 1.0);
     }
   });
 }

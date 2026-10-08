@@ -52,7 +52,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
   /// Shared so a load racing the first flush cannot generate two keys and
   /// leave the encrypter using one that was never stored.
   Future<void> _initialize() =>
-      _initialized ? Future.value() : _init.run((), _doInitialize);
+      _initialized ? Future.value() : _init.run((), call: _doInitialize);
 
   Future<void> _doInitialize() async {
     try {
@@ -65,8 +65,8 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
   }
 
   Future<void> _open() async {
-    final aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
-        logTag: LogTag.blockStats);
+    final aead = await KeychainAead.open(_secureStorage,
+        keyName: _encryptionKeyKey, logTag: LogTag.blockStats);
     if (aead == null) return;
     final store = _overrideStore ?? defaultFileStore(_storageDir);
     try {
@@ -105,7 +105,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final aead = _aead;
     if (store == null || aead == null) return false;
     try {
-      await store.writeText(_fileName, aead.seal(payload));
+      await store.writeText(_fileName, contents: aead.seal(payload));
       return true;
     } on Exception catch (e) {
       LogTag.blockStats.warning('Detail write failed: $e');

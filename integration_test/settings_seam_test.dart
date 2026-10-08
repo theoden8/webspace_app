@@ -179,8 +179,8 @@ void main() {
 
   /// Compares [fields] against [live], printing every one either way, and
   /// fails naming those that did not survive.
-  void compare(String label, inapp.InAppWebViewSettings live,
-      List<_Field> fields) {
+  void compare(String label, {required inapp.InAppWebViewSettings live,
+      required List<_Field> fields}) {
     final lost = <String>[];
     final compared = <_Field>[];
     for (final f in fields) {
@@ -216,7 +216,7 @@ void main() {
     if (!usable()) return;
     await mount(tester, incognito: false, javascriptEnabled: true);
     expect(
-        await waitReal(tester, () => controller != null,
+        await waitReal(tester, done: () => controller != null,
             label: 'controller created'),
         isTrue,
         reason: 'no controller, so nothing was asked of the engine and no '
@@ -242,7 +242,7 @@ void main() {
             'the comparison below cannot be trusted to reflect the live view '
             'rather than the map the engine was handed (BUG-014 caution 2)');
 
-    compare('persistent', live!, [
+    compare('persistent', live: live!, fields: [
       _Field('userAgent',
           sent: sentUserAgent,
           read: (s) => s.userAgent,
@@ -297,7 +297,7 @@ void main() {
     if (!usable()) return;
     await mount(tester, incognito: true, javascriptEnabled: false);
     expect(
-        await waitReal(tester, () => controller != null,
+        await waitReal(tester, done: () => controller != null,
             label: 'controller created'),
         isTrue);
 
@@ -307,7 +307,7 @@ void main() {
     });
     expect(live, isNotNull);
 
-    compare('incognito', live!, [
+    compare('incognito', live: live!, fields: [
       _Field('javaScriptEnabled',
           sent: false,
           read: (s) => s.javaScriptEnabled,
@@ -346,7 +346,7 @@ void main() {
     if (!usable()) return;
     await mount(tester, incognito: true, javascriptEnabled: false);
     expect(
-        await waitReal(tester, () => controller != null,
+        await waitReal(tester, done: () => controller != null,
             label: 'controller created'),
         isTrue);
 
@@ -365,7 +365,7 @@ void main() {
     expect(live, isNotNull);
 
     const androidOnly = 'read off the live WebSettings only on Android';
-    compare('after updates', live!, [
+    compare('after updates', live: live!, fields: [
       _Field('javaScriptEnabled',
           sent: false,
           read: (s) => s.javaScriptEnabled,

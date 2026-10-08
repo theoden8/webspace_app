@@ -34,10 +34,10 @@ class BlockedCookie {
 /// `.a.example.com` and vice versa. Free function so the nested webview
 /// screen, which has no model of its own, applies the same rule.
 bool matchesBlockedCookie(
-  Set<BlockedCookie> blocked,
-  String name,
-  String? domain,
-) {
+  Set<BlockedCookie> blocked, {
+  required String name,
+  required String? domain,
+}) {
   if (blocked.isEmpty) return false;
   return blocked.any((b) =>
       b.name == name &&

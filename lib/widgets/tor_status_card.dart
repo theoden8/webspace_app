@@ -25,9 +25,9 @@ import 'package:webspace/widgets/setting_tile.dart';
 /// covered explicitly — the switch is exhaustive over the enum, so a new
 /// kind fails to compile rather than silently rendering as "unknown".
 ({String title, String body}) torFailureCopy(
-  AppLocalizations loc,
-  TorFailureKind kind,
-) {
+  AppLocalizations loc, {
+  required TorFailureKind kind,
+}) {
   return switch (kind) {
     TorFailureKind.offline =>
       (title: loc.torFailOfflineTitle, body: loc.torFailOfflineBody),
@@ -75,8 +75,8 @@ IconData torFailureIcon(TorFailureKind kind) => switch (kind) {
 /// Retry, and the way to bridges where they could help: what the card and
 /// the interstitial both offer after a failure. [busy] disables both.
 List<Widget> torRecoveryActions(
-  BuildContext context,
-  TorFailureKind kind, {
+  BuildContext context, {
+  required TorFailureKind kind,
   required bool busy,
   required VoidCallback onRetry,
 }) {
@@ -161,13 +161,17 @@ class _TorStatusCardState extends State<TorStatusCard> {
     final scheme = theme.colorScheme;
 
     final Widget body = switch (s) {
-      TorErrored(:final failure) => _error(loc, theme, failure),
-      TorUp(:final host, :final port) => _connected(loc, theme, '$host:$port'),
-      TorBootstrapping(:final percent, :final summary) => _progress(
-          loc, theme, loc.torStatusBootstrapping(percent),
-          summary: summary, value: percent.clamp(0, 100) / 100.0),
-      TorStarting() || TorStopped() =>
-        _progress(loc, theme, loc.torStatusStarting),
+      TorErrored(:final failure) => _error(loc, theme: theme, failure: failure),
+      TorUp(:final host, :final port) =>
+        _connected(loc, theme: theme, endpoint: '$host:$port'),
+      TorBootstrapping(:final percent, :final summary) => _progress(loc,
+          theme: theme,
+          label: loc.torStatusBootstrapping(percent),
+          summary: summary,
+          value: percent.clamp(0, 100) / 100.0),
+      TorStarting() ||
+      TorStopped() =>
+        _progress(loc, theme: theme, label: loc.torStatusStarting),
     };
 
     final card = Padding(
@@ -209,8 +213,11 @@ class _TorStatusCardState extends State<TorStatusCard> {
 
   /// Starting or bootstrapping: what is happening, tor's own phase name, and
   /// a bar that is indeterminate until there is a [value].
-  Widget _progress(AppLocalizations loc, ThemeData theme, String label,
-          {String? summary, double? value}) =>
+  Widget _progress(AppLocalizations loc,
+          {required ThemeData theme,
+          required String label,
+          String? summary,
+          double? value}) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -226,8 +233,8 @@ class _TorStatusCardState extends State<TorStatusCard> {
         ],
       );
 
-  Widget _connected(
-      AppLocalizations loc, ThemeData theme, String endpoint) {
+  Widget _connected(AppLocalizations loc,
+      {required ThemeData theme, required String endpoint}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -256,9 +263,9 @@ class _TorStatusCardState extends State<TorStatusCard> {
     );
   }
 
-  Widget _error(
-      AppLocalizations loc, ThemeData theme, TorFailure failure) {
-    final copy = torFailureCopy(loc, failure.kind);
+  Widget _error(AppLocalizations loc,
+      {required ThemeData theme, required TorFailure failure}) {
+    final copy = torFailureCopy(loc, kind: failure.kind);
     final scheme = theme.colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,7 +300,7 @@ class _TorStatusCardState extends State<TorStatusCard> {
         Row(
           children: torRecoveryActions(
             context,
-            failure.kind,
+            kind: failure.kind,
             busy: _busy,
             onRetry: () => _run(TorService.instance.restart),
           ),

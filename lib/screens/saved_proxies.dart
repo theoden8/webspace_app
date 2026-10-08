@@ -60,22 +60,24 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     widget.onChanged();
   }
 
-  int _sites(LibraryEntryKind kind, String id) => widget
+  int _sites(LibraryEntryKind kind, {required String id}) => widget
       .siteProxies()
-      .where((s) => usesLibraryEntry(s, kind, id, _lib))
+      .where((s) => usesLibraryEntry(s, kind: kind, id: id, lib: _lib))
       .length;
 
-  bool _appWide(LibraryEntryKind kind, String id) =>
-      usesLibraryEntry(widget.appWideProxy(), kind, id, _lib);
+  bool _appWide(LibraryEntryKind kind, {required String id}) =>
+      usesLibraryEntry(widget.appWideProxy(), kind: kind, id: id, lib: _lib);
 
-  String _usage(AppLocalizations loc, LibraryEntryKind kind, String id) {
-    final n = _sites(kind, id);
-    return _appWide(kind, id)
+  String _usage(AppLocalizations loc,
+      {required LibraryEntryKind kind, required String id}) {
+    final n = _sites(kind, id: id);
+    return _appWide(kind, id: id)
         ? loc.savedProxyUsageWithAppWide(n)
         : loc.savedProxyUsage(n);
   }
 
-  Future<void> _open<E>(Widget screen, void Function(_Edit<E>) apply) async {
+  Future<void> _open<E>(Widget screen,
+      {required void Function(_Edit<E>) apply}) async {
     final result = await Navigator.push<_Edit<E>>(
       context,
       MaterialPageRoute(builder: (_) => screen),
@@ -85,7 +87,8 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     await _persist();
   }
 
-  static void _replace<E>(List<E> list, E entry, bool Function(E) same) {
+  static void _replace<E>(List<E> list,
+      {required E entry, required bool Function(E) same}) {
     final i = list.indexWhere(same);
     if (i < 0) {
       list.add(entry);
@@ -98,44 +101,48 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         SavedProxyEditScreen(
           initial: p,
           library: _lib,
-          usageCount: p == null ? 0 : _sites(LibraryEntryKind.proxy, p.id),
-          usedByAppWide: p != null && _appWide(LibraryEntryKind.proxy, p.id),
+          usageCount: p == null ? 0 : _sites(LibraryEntryKind.proxy, id: p.id),
+          usedByAppWide:
+              p != null && _appWide(LibraryEntryKind.proxy, id: p.id),
         ),
-        (r) => r.deleted
+        apply: (r) => r.deleted
             ? _lib.proxies.removeWhere((e) => e.id == r.id)
-            : _replace(_lib.proxies, r.entry!, (e) => e.id == r.id),
+            : _replace(_lib.proxies,
+                entry: r.entry!, same: (e) => e.id == r.id),
       );
 
   Future<void> _editGateway(SavedGateway? g) => _open<SavedGateway>(
         SavedGatewayEditScreen(
           initial: g,
-          usageCount: g == null ? 0 : _sites(LibraryEntryKind.gateway, g.id),
+          usageCount:
+              g == null ? 0 : _sites(LibraryEntryKind.gateway, id: g.id),
           usedByAppWide:
-              g != null && _appWide(LibraryEntryKind.gateway, g.id),
+              g != null && _appWide(LibraryEntryKind.gateway, id: g.id),
         ),
-        (r) => r.deleted
+        apply: (r) => r.deleted
             ? _lib.removeGateway(r.id)
-            : _replace(_lib.gateways, r.entry!, (e) => e.id == r.id),
+            : _replace(_lib.gateways,
+                entry: r.entry!, same: (e) => e.id == r.id),
       );
 
-  Future<void> _editCredentials(SavedCredentials? c) =>
-      _open<SavedCredentials>(
+  Future<void> _editCredentials(SavedCredentials? c) => _open<SavedCredentials>(
         SavedCredentialsEditScreen(
           initial: c,
           gateways: _lib.gateways,
           usageCount:
-              c == null ? 0 : _sites(LibraryEntryKind.credentials, c.id),
+              c == null ? 0 : _sites(LibraryEntryKind.credentials, id: c.id),
           usedByAppWide:
-              c != null && _appWide(LibraryEntryKind.credentials, c.id),
+              c != null && _appWide(LibraryEntryKind.credentials, id: c.id),
         ),
-        (r) => r.deleted
+        apply: (r) => r.deleted
             ? _lib.credentials.removeWhere((e) => e.id == r.id)
-            : _replace(_lib.credentials, r.entry!, (e) => e.id == r.id),
+            : _replace(_lib.credentials,
+                entry: r.entry!, same: (e) => e.id == r.id),
       );
 
   void _checkAll() {
     for (final p in _lib.proxies) {
-      final resolved = resolveLibrary(p.settings, _lib);
+      final resolved = resolveLibrary(p.settings, library: _lib);
       if (resolved.problem == LibraryProblem.none) {
         ProxyHealthService.instance.check(resolved.route, force: true);
       }
@@ -143,13 +150,13 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
   }
 
   Widget _section(
-    AppLocalizations loc,
-    ThemeData theme,
-    String title,
-    String addLabel,
-    VoidCallback onAdd,
-    List<Widget> rows,
-  ) =>
+    AppLocalizations loc, {
+    required ThemeData theme,
+    required String title,
+    required String addLabel,
+    required VoidCallback onAdd,
+    required List<Widget> rows,
+  }) =>
       Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -187,11 +194,11 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         ],
       );
 
-  Widget _proxyRow(AppLocalizations loc, SavedProxy p) {
-    final resolved = resolveLibrary(p.settings, _lib);
+  Widget _proxyRow(AppLocalizations loc, {required SavedProxy p}) {
+    final resolved = resolveLibrary(p.settings, library: _lib);
     final problem = resolved.problem == LibraryProblem.none
         ? null
-        : libraryProblemLabel(loc, resolved.problem);
+        : libraryProblemLabel(loc, problem: resolved.problem);
     // Data, not copy (LOC-002): what the route is made of.
     final gateway = p.settings.type == ProxyType.GATEWAY
         ? _lib.gateway(p.settings.gatewayId)
@@ -209,7 +216,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (problem == null) Text(madeOf),
-          Text(_usage(loc, LibraryEntryKind.proxy, p.id)),
+          Text(_usage(loc, kind: LibraryEntryKind.proxy, id: p.id)),
           ProxyStatusIndicator(proxy: resolved.route, problem: problem),
         ],
       ),
@@ -218,7 +225,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     );
   }
 
-  Widget _gatewayRow(AppLocalizations loc, SavedGateway g) {
+  Widget _gatewayRow(AppLocalizations loc, {required SavedGateway g}) {
     final route = routeLabel(UserProxySettings(type: g.type, address: g.address));
     return ListTile(
       leading: const Icon(Icons.router_outlined),
@@ -227,7 +234,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(route),
-          Text(_usage(loc, LibraryEntryKind.gateway, g.id)),
+          Text(_usage(loc, kind: LibraryEntryKind.gateway, id: g.id)),
         ],
       ),
       trailing: const Icon(Icons.chevron_right),
@@ -235,7 +242,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     );
   }
 
-  Widget _credentialsRow(AppLocalizations loc, SavedCredentials c) {
+  Widget _credentialsRow(AppLocalizations loc, {required SavedCredentials c}) {
     // Data, not copy (LOC-002).
     final gateways = [
       for (final id in c.gatewayIds)
@@ -250,7 +257,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
         children: [
           if (username.isNotEmpty) Text(username),
           Text(loc.proxyLibraryWorksOnList(gateways)),
-          Text(_usage(loc, LibraryEntryKind.credentials, c.id)),
+          Text(_usage(loc, kind: LibraryEntryKind.credentials, id: c.id)),
         ],
       ),
       trailing: const Icon(Icons.chevron_right),
@@ -281,17 +288,17 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
       body: ListView(
         padding: const EdgeInsets.only(bottom: Spacing.xl),
         children: [
-          _section(loc, theme, loc.savedProxiesTitle, loc.savedProxiesAdd,
-              () => _editProxy(null), [
-            for (final p in _lib.proxies) _proxyRow(loc, p),
+          _section(loc, theme: theme, title: loc.savedProxiesTitle, addLabel: loc.savedProxiesAdd,
+              onAdd: () => _editProxy(null), rows: [
+            for (final p in _lib.proxies) _proxyRow(loc, p: p),
           ]),
-          _section(loc, theme, loc.proxyLibraryGateways,
-              loc.proxyLibraryAddGateway, () => _editGateway(null), [
-            for (final g in _lib.gateways) _gatewayRow(loc, g),
+          _section(loc, theme: theme, title: loc.proxyLibraryGateways,
+              addLabel: loc.proxyLibraryAddGateway, onAdd: () => _editGateway(null), rows: [
+            for (final g in _lib.gateways) _gatewayRow(loc, g: g),
           ]),
-          _section(loc, theme, loc.proxyLibraryCredentials,
-              loc.proxyLibraryAddCredentials, () => _editCredentials(null), [
-            for (final c in _lib.credentials) _credentialsRow(loc, c),
+          _section(loc, theme: theme, title: loc.proxyLibraryCredentials,
+              addLabel: loc.proxyLibraryAddCredentials, onAdd: () => _editCredentials(null), rows: [
+            for (final c in _lib.credentials) _credentialsRow(loc, c: c),
           ]),
         ],
       ),
@@ -301,7 +308,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
 
 /// What an editor hands back: the saved entry, or that it was deleted.
 class _Edit<E> {
-  const _Edit.saved(this.id, E this.entry) : deleted = false;
+  const _Edit.saved(this.id, {required E this.entry}) : deleted = false;
   const _Edit.deleted(this.id)
       : entry = null,
         deleted = true;
@@ -381,7 +388,7 @@ abstract class _EditorState<W extends _LibraryEditor<E>, E> extends State<W>
       setState(() {});
       return;
     }
-    Navigator.pop(context, _Edit<E>.saved(entryId, entry()));
+    Navigator.pop(context, _Edit<E>.saved(entryId, entry: entry()));
   }
 
   Future<void> _delete() async {
@@ -545,11 +552,11 @@ class _SavedProxyEditScreenState
           addressController: _address,
           usernameController: _username,
           passwordController: _password,
-          addressValidator: (v) => validateProxyAddress(loc, _type, v?.trim()),
+          addressValidator: (v) => validateProxyAddress(loc, type: _type, value: v?.trim()),
           onCredentialsChanged: (id) => setState(() => _credentialsId = id),
         ),
         ProxyTestTile(
-          settings: () => resolveLibrary(_settings(), widget.library).route,
+          settings: () => resolveLibrary(_settings(), library: widget.library).route,
           target: kDefaultProxyTestTarget,
         ),
       ];
@@ -622,7 +629,7 @@ class _SavedGatewayEditScreenState
               border: const OutlineInputBorder(),
             ),
             autovalidateMode: AutovalidateMode.onUserInteraction,
-            validator: (v) => validateProxyAddress(loc, _type, v?.trim()),
+            validator: (v) => validateProxyAddress(loc, type: _type, value: v?.trim()),
           ),
         ),
       ];

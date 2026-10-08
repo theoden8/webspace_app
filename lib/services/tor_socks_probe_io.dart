@@ -16,7 +16,7 @@ ExternalTorIdentify? createExternalTorIdentify() => identifyTor;
 /// can still be named by tor and bound to its port, and what matters is
 /// whether anything reads from it. No request follows, so no circuit is
 /// built and nothing leaves the device.
-Future<bool> torSocksAnswers(String host, int port) async {
+Future<bool> torSocksAnswers(String host, {required int port}) async {
   const patience = Duration(seconds: 3);
   try {
     final socket = await Socket.connect(host, port, timeout: patience);
@@ -47,7 +47,7 @@ const String _kTorHttpReply = 'HTTP/1.0 501 Tor is not an HTTP Proxy';
 /// `SOCKS_PROXY_IS_NOT_AN_HTTP_PROXY_MSG`, Arti's `WRONG_PROTOCOL_PAYLOAD`),
 /// and nothing leaves the device to get it. The price is one warning in
 /// that tor's log per check.
-Future<ExternalTorAnswer> identifyTor(String host, int port) async {
+Future<ExternalTorAnswer> identifyTor(String host, {required int port}) async {
   const patience = Duration(seconds: 3);
   final Socket socket;
   try {

@@ -46,10 +46,10 @@ class _LinkHandlingSettingsScreenState
   @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
         valueListenable: AppPref.linkHandlingEnabled.listenable,
-        builder: (context, enabled, _) => _build(enabled),
+        builder: (context, enabled, _) => _build(enabled: enabled),
       );
 
-  Widget _build(bool enabled) {
+  Widget _build({required bool enabled}) {
     final loc = AppLocalizations.of(context);
     Widget heading(String text) => Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -132,10 +132,12 @@ class _LinkHandlingSettingsScreenState
   Widget _routeRow(WebViewModel site) {
     final sites = widget.sites;
     final claims = site.effectiveDomainClaims;
-    final conflicts = LinkRoutingService.validateClaims(site.siteId, claims, [
-      for (final s in sites)
-        if (s.siteId != site.siteId) _SiteRouteAdapter(s),
-    ]);
+    final conflicts = LinkRoutingService.validateClaims(site.siteId,
+        editedClaims: claims,
+        others: [
+          for (final s in sites)
+            if (s.siteId != site.siteId) _SiteRouteAdapter(s),
+        ]);
     final conflictedClaims = {for (final c in conflicts) c.claim};
     final loc = AppLocalizations.of(context);
     final scheme = Theme.of(context).colorScheme;
@@ -151,7 +153,7 @@ class _LinkHandlingSettingsScreenState
       final isHijack = conflict.kind == ClaimConflictKind.hijack;
       final color = isHijack ? scheme.error : scheme.tertiary;
       final otherName = other.getDisplayName();
-      final claimLabel = _claimLabel(loc, conflict.claim);
+      final claimLabel = _claimLabel(loc, claim: conflict.claim);
       final message = isHijack
           ? loc.linkHandlingConflictHijacks(otherName, claimLabel)
           : loc.linkHandlingConflictOverlaps(otherName, claimLabel);
@@ -189,13 +191,13 @@ class _LinkHandlingSettingsScreenState
               for (final claim in claims)
                 if (conflictedClaims.contains(claim))
                   Chip(
-                    label: Text(_claimLabel(loc, claim)),
+                    label: Text(_claimLabel(loc, claim: claim)),
                     backgroundColor: scheme.errorContainer,
                     side: BorderSide(color: scheme.error),
                     labelStyle: TextStyle(color: scheme.onErrorContainer),
                   )
                 else
-                  Chip(label: Text(_claimLabel(loc, claim))),
+                  Chip(label: Text(_claimLabel(loc, claim: claim))),
             ],
           ),
           for (final c in conflicts) conflictLine(c),
@@ -207,7 +209,7 @@ class _LinkHandlingSettingsScreenState
   }
 }
 
-String _claimLabel(AppLocalizations loc, DomainClaim claim) =>
+String _claimLabel(AppLocalizations loc, {required DomainClaim claim}) =>
     switch (claim.kind) {
       DomainClaimKind.exactHost => claim.value,
       DomainClaimKind.wildcardSubdomain => '*.${claim.value}',
@@ -278,8 +280,8 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
   Widget build(BuildContext context) {
     final conflicts = LinkRoutingService.validateClaims(
       widget.model.siteId,
-      _claims,
-      [for (final s in widget.otherSites) _SiteRouteAdapter(s)],
+      editedClaims: _claims,
+      others: [for (final s in widget.otherSites) _SiteRouteAdapter(s)],
     );
     // A conflicted claim: true when any of its conflicts is a hijack.
     final hijacked = <DomainClaim, bool>{};
@@ -312,7 +314,7 @@ class _DomainClaimsEditorState extends State<DomainClaimsEditor> {
         ),
         for (final (i, claim) in _claims.indexed)
           ListTile(
-            title: Text(_claimLabel(loc, claim)),
+            title: Text(_claimLabel(loc, claim: claim)),
             subtitle: switch (hijacked[claim]) {
               true => Text(
                   loc.linkHandlingClaimHijackConflict,
@@ -412,7 +414,7 @@ class _OutboundPreferencesScreenState extends State<OutboundPreferencesScreen> {
                 for (var i = 0; i < _prefs.length; i++)
                   if (byId[_prefs[i].targetSiteId] case final target?)
                     ListTile(
-                      title: Text(_claimLabel(loc, _prefs[i].claim)),
+                      title: Text(_claimLabel(loc, claim: _prefs[i].claim)),
                       subtitle: Text(
                         loc.outboundPreferenceOpensAs(target.getDisplayName()),
                       ),
@@ -450,7 +452,7 @@ class _AddClaimDialogState extends State<_AddClaimDialog> {
   void _submit() {
     final v = _controller.text.trim();
     if (v.isEmpty) return;
-    final claim = DomainClaim(_kind, v);
+    final claim = DomainClaim(_kind, value: v);
     final targets = widget.targets;
     if (targets == null) {
       Navigator.of(context).pop(claim);

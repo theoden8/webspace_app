@@ -51,7 +51,7 @@ void main() {
 
       final hydrated = WebViewModel.fromJson(
         SiteSettingsQrCodec.hydrateForFromJson(decoded!),
-        null,
+        stateSetterF: null,
       );
 
       expect(hydrated.initUrl, source.initUrl);
@@ -237,7 +237,8 @@ void main() {
           spoofTimezoneFromLocation: true,
         ).toJson().keys,
         for (final site in superset['sites'] as List)
-          ...WebViewModel.fromJson(site as Map<String, dynamic>, null)
+          ...WebViewModel.fromJson(site as Map<String, dynamic>,
+                  stateSetterF: null)
               .toJson()
               .keys,
       };

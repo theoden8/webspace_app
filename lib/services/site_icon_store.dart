@@ -53,7 +53,7 @@ class SiteIconStore {
           continue;
         }
         _entries[name] = _Entry(
-          SiteIcon(bytes!, size.width, size.height),
+          SiteIcon(bytes!, width: size.width, height: size.height),
           thisLaunch: false,
         );
         loaded = true;
@@ -66,8 +66,8 @@ class SiteIconStore {
 
   /// Offer an icon the site's webview reported. [persist] is false for sites
   /// whose state must not outlive the session (incognito, archive tier).
-  Future<void> offer(String siteUrl, SiteIcon icon,
-      {required bool persist}) async {
+  Future<void> offer(String siteUrl, {required SiteIcon icon,
+     required bool persist}) async {
     final name = _name(siteUrl);
     final current = _entries[name];
     if (!shouldReplaceSiteIcon(
@@ -112,7 +112,7 @@ class SiteIconStore {
     return _disk(() async {
       final entry = _entries[name];
       if (persist && entry != null) {
-        await store.writeBytes(name, entry.icon.png);
+        await store.writeBytes(name, bytes: entry.icon.png);
       } else {
         await store.delete(name);
       }

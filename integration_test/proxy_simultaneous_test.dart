@@ -141,16 +141,17 @@ void main() {
     return 'DIRECT-or-failed';
   }
 
-  inapp.InAppWebViewSettings settingsFor(String container, int fixture) =>
-      inapp.InAppWebViewSettings(
-        containerId: container,
-        proxySettings: inapp.ProxySettings(
-          proxyRules: [
-            inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks[fixture].port}'),
-          ],
-          bypassRules: [],
-        ),
-      );
+inapp.InAppWebViewSettings settingsFor(String container,
+        {required int fixture}) =>
+    inapp.InAppWebViewSettings(
+      containerId: container,
+      proxySettings: inapp.ProxySettings(
+        proxyRules: [
+          inapp.ProxyRule(url: 'socks5://127.0.0.1:${socks[fixture].port}'),
+        ],
+        bypassRules: [],
+      ),
+    );
 
   testWidgets('the first frame: four containers, three separate proxies',
       (tester) async {
@@ -169,7 +170,7 @@ void main() {
                   url: inapp.WebUri('http://${destFor(i)}/p$i'),
                 ),
                 initialSettings:
-                    settingsFor('ws-proxy-simul-$i', fixtureOf[i]),
+                    settingsFor('ws-proxy-simul-$i', fixture: fixtureOf[i]),
               ),
             ),
         ]),
@@ -182,7 +183,7 @@ void main() {
 
     await waitReal(
       tester,
-      () => List.generate(paneCount, settled).every((s) => s),
+      done: () => List.generate(paneCount, settled).every((s) => s),
       label: 'every first-frame pane settled',
       timeout: const Duration(seconds: 30),
     );
@@ -228,8 +229,8 @@ void main() {
                 initialUrlRequest: inapp.URLRequest(
                   url: inapp.WebUri('http://${lateDestFor(i)}/l$i'),
                 ),
-                initialSettings:
-                    settingsFor('ws-proxy-simul-late-$i', lateFixtureOf[i]),
+                initialSettings: settingsFor('ws-proxy-simul-late-$i',
+                    fixture: lateFixtureOf[i]),
               ),
             ),
         ]),
@@ -243,7 +244,7 @@ void main() {
 
     await waitReal(
       tester,
-      () => List.generate(lateFixtureOf.length, settled).every((s) => s),
+      done: () => List.generate(lateFixtureOf.length, settled).every((s) => s),
       label: 'every later-frame pane settled',
       timeout: const Duration(seconds: 30),
     );

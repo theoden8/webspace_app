@@ -38,7 +38,7 @@ import 'fixtures/background_audio_fixture.dart';
 import 'fixture_server.dart';
 
 class _Beacon {
-  _Beacon(this.at, this.ticks, this.playState, this.currentTime, this.paused);
+  _Beacon(this.at, {required this.ticks, required this.playState, required this.currentTime, required this.paused});
   final DateTime at;
   final int ticks;
   final String playState;
@@ -64,15 +64,15 @@ void main() {
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
-    listenFixture(server, (req) {
+    listenFixture(server, onEvent: (req) {
       if (req.uri.path == '/beacon') {
         final q = req.uri.queryParameters;
         beacons.add(_Beacon(
           DateTime.now(),
-          int.tryParse(q['ticks'] ?? '') ?? -1,
-          q['audio'] ?? '?',
-          double.tryParse(q['t'] ?? '') ?? 0,
-          q['paused'] ?? '?',
+          ticks: int.tryParse(q['ticks'] ?? '') ?? -1,
+          playState: q['audio'] ?? '?',
+          currentTime: double.tryParse(q['t'] ?? '') ?? 0,
+          paused: q['paused'] ?? '?',
         ));
         req.response
           ..statusCode = 204

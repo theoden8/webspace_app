@@ -9,10 +9,10 @@ import 'package:webspace/widgets/level_slider.dart';
 /// the tick row is the widest thing on the control and the only part of it
 /// that carries a translated string.
 Future<void> _pump(
-  WidgetTester tester,
-  List<String> labels,
-  int value,
-) async {
+  WidgetTester tester, {
+  required List<String> labels,
+  required int value,
+}) async {
   tester.view.physicalSize = const Size(320, 640);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -32,7 +32,7 @@ Future<void> _pump(
 void main() {
   testWidgets('every stop is labelled and the current one stands out',
       (tester) async {
-    await _pump(tester, dnsBlockLevelNames, 2);
+    await _pump(tester, labels: dnsBlockLevelNames, value: 2);
     for (final name in dnsBlockLevelNames) {
       expect(find.text(name), findsOneWidget, reason: name);
     }
@@ -49,7 +49,7 @@ void main() {
   testWidgets('an out-of-range value lands on a real stop', (tester) async {
     // A site can carry a level this build no longer offers; the slider must
     // still render rather than assert its value out of the track.
-    await _pump(tester, dnsBlockLevelNames, 99);
+    await _pump(tester, labels: dnsBlockLevelNames, value: 99);
     expect(tester.takeException(), isNull);
     expect(tester.widget<Slider>(find.byType(Slider)).value, 5.0);
   });
@@ -60,11 +60,11 @@ void main() {
     // so a long word for "app" is the one thing that can push the row over.
     for (final locale in AppLocalizations.supportedLocales) {
       final loc = await AppLocalizations.delegate.load(locale);
-      await _pump(tester, [
+      await _pump(tester, labels: [
         loc.siteSettingsDnsLevelFollowAppShort,
         for (var level = 1; level <= kDnsMaxLevel; level++)
           dnsBlockLevelNames[level],
-      ], 0);
+      ], value: 0);
       expect(tester.takeException(), isNull, reason: '$locale');
     }
   });

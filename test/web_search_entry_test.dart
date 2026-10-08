@@ -18,16 +18,16 @@ void main() {
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
 
-  int count(String source, String needle) =>
+  int count(String source, {required String needle}) =>
       RegExp(RegExp.escape(needle)).allMatches(source).length;
 
-  String bodyOf(String source, String signature) {
+  String bodyOf(String source, {required String signature}) {
     final start = source.indexOf(signature);
     expect(start, isNot(-1), reason: '$signature not found');
     return source.substring(start, source.indexOf('\n  }\n', start));
   }
 
-  String firstStatement(String source, String signature) {
+  String firstStatement(String source, {required String signature}) {
     final start = source.indexOf(signature);
     expect(start, isNot(-1), reason: '$signature not found');
     final open = source.indexOf(RegExp(r'\)\s*(async\s*)?\{'), start);
@@ -37,7 +37,7 @@ void main() {
 
   group('web search (LIR-029 to LIR-031)', () {
     test('the Tabs sheet offers Web search; the menus only with tabs off', () {
-      expect(bodyOf(main, 'Future<void> _presentTabsSheet('),
+      expect(bodyOf(main, signature: 'Future<void> _presentTabsSheet('),
           contains('onWebSearch: () => unawaited(_links.webSearch()),'));
       expect(
         main,
@@ -54,7 +54,8 @@ void main() {
         'Future<void> webSearch(',
         'Future<void> searchFromUrlBar(',
       ]) {
-        expect(firstStatement(links, entry), contains('!_tabs.featureEnabled'),
+        expect(firstStatement(links, signature: entry),
+            contains('!_tabs.featureEnabled'),
             reason: entry);
       }
       final settings = File('lib/screens/app_behaviour.dart').readAsStringSync();
@@ -91,12 +92,12 @@ void main() {
     });
 
     test('a locked kiosk shell has no web search (KIOSK-002)', () {
-      expect(firstStatement(links, 'Future<void> webSearch('),
+      expect(firstStatement(links, signature: 'Future<void> webSearch('),
           contains('_host.kioskLocked'));
     });
 
     test('the sheet never loads anything itself', () {
-      final body = bodyOf(links, 'Future<void> webSearch(');
+      final body = bodyOf(links, signature: 'Future<void> webSearch(');
       for (final direct in ['loadUrl(', '.newTab(', '.switchActiveTab(']) {
         expect(body.contains(direct), isFalse, reason: direct);
       }
@@ -104,20 +105,21 @@ void main() {
     });
 
     test('the landing is the engine\'s decision', () {
-      final body = bodyOf(links, 'Future<void> _runSearch(');
+      final body = bodyOf(links, signature: 'Future<void> _runSearch(');
       expect(body, contains('WebSearchEngine.land('));
-      expect(body, contains('canHost: _tabs.mayHost(searchSite, owner)'));
+      expect(
+          body, contains('canHost: _tabs.mayHost(searchSite, owner: owner)'));
       expect(body, contains('_tabs.openChildTab('));
       expect(body, contains('origin: InboundOrigin.search'));
     });
 
     test('a results tab is a tab entry point behind the Site tabs gate', () {
-      expect(firstStatement(tabs, 'Future<void> openChildTab('),
+      expect(firstStatement(tabs, signature: 'Future<void> openChildTab('),
           contains('!enabledFor(owner)'));
     });
 
     test('a fallback new tab goes through the gate and New tab', () {
-      final body = bodyOf(links, 'Future<void> _executeOpenInMain(');
+      final body = bodyOf(links, signature: 'Future<void> _executeOpenInMain(');
       expect(
         RegExp(r'if \(a\.newTab && _tabs\.enabledAt\(activateIndex\)\) \{\s*'
                 r'await _tabs\.newTab\(activateIndex, url: a\.url\);\s*return;')
@@ -127,26 +129,32 @@ void main() {
     });
 
     test('stale search references are pruned wherever LIR-017 prunes', () {
-      expect(count(main, '_links.pruneOutboundPreferences();'),
-          count(main, '_links.pruneSearchReferences();'));
+      expect(count(main, needle: '_links.pruneOutboundPreferences();'),
+          count(main, needle: '_links.pruneSearchReferences();'));
     });
   });
 
   group('URL bar search (LIR-033)', () {
     test('the URL bar searches through the page, not on its own', () {
-      final bar = bodyOf(main, 'Widget? _buildInputBar(');
+      final bar = bodyOf(main, signature: 'Widget? _buildInputBar(');
       expect(bar, contains('hasUrlBar && !_kioskLocked && _tabs.featureEnabled\n'
           '        ? _links.urlBarSearchFor(model)\n'
           '        : null'));
-      expect(bar, contains('_links.searchFromUrlBar(model, query, siteId)'));
+      expect(
+          bar,
+          contains(
+              '_links.searchFromUrlBar(model, query: query, siteId: siteId)'));
     });
 
     test('a URL bar search lands as a sheet search does', () {
-      final body = bodyOf(links, 'Future<void> searchFromUrlBar(');
-      expect(firstStatement(links, 'Future<void> searchFromUrlBar('),
+      final body = bodyOf(links, signature: 'Future<void> searchFromUrlBar(');
+      expect(firstStatement(links, signature: 'Future<void> searchFromUrlBar('),
           contains('_host.kioskLocked'));
       expect(body, contains('outboundCandidates(owner).contains(site)'));
-      expect(body, contains('await _runSearch(owner, site.siteId, url);'));
+      expect(
+          body,
+          contains(
+              'await _runSearch(owner, searchSiteId: site.siteId, url: url);'));
       expect(body, contains('await webSearch(initialQuery: query);'));
     });
   });
@@ -154,7 +162,7 @@ void main() {
   group('hosted tabs (LIR-018 to LIR-024)', () {
     test('only a persistent app-tier container on the container engine hosts',
         () {
-      final body = bodyOf(tabs, 'bool mayHost(');
+      final body = bodyOf(tabs, signature: 'bool mayHost(');
       for (final rule in [
         '_sites.useContainers',
         '!host.effectiveIncognito',
@@ -167,7 +175,7 @@ void main() {
 
     test('tabs whose host is gone close at every lifecycle edge (LIR-023)', () {
       // Which changes close them is SiteSetChange.effects (site_runtime_test).
-      expect(count(main, 'await _tabs.closeIneligibleHostedTabs();'), 1,
+      expect(count(main, needle: 'await _tabs.closeIneligibleHostedTabs();'), 1,
           reason: 'the commit');
       final delete = main.indexOf(
           'await _tabs.closeIneligibleHostedTabs(goneSiteId: site.siteId);');
@@ -196,7 +204,7 @@ void main() {
           reason: 'the residency host hands the plan the slots');
       final plan = bodyOf(
         File('lib/services/site_unload_engine.dart').readAsStringSync(),
-        'static ResidencyPlan plan(',
+        signature: 'static ResidencyPlan plan(',
       );
       for (final engine in [
         'indicesToUnloadForProxyMismatch(',
@@ -215,7 +223,7 @@ void main() {
 
     test('routing from a hosted tab uses the host as source', () {
       expect(
-        bodyOf(links, 'bool routeOutbound('),
+        bodyOf(links, signature: 'bool routeOutbound('),
         contains('final source = owner.runningIdentity;'),
       );
     });
@@ -231,12 +239,13 @@ void main() {
     });
 
     test('an owner URL never loads into a hosted slot', () {
-      expect(bodyOf(links, 'Future<void> _executeOpenInMain('),
+      expect(bodyOf(links, signature: 'Future<void> _executeOpenInMain('),
           contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
-      expect(count(main, '_tabs.bindOwnerRunTab('), greaterThanOrEqualTo(2));
-      expect(count(shortcuts, '_host.bindOwnerRunTab('), 2,
+      expect(count(main, needle: '_tabs.bindOwnerRunTab('),
+          greaterThanOrEqualTo(2));
+      expect(count(shortcuts, needle: '_host.bindOwnerRunTab('), 2,
           reason: 'a cold launch and a confirmed reroute land at home');
     });
 
@@ -244,8 +253,11 @@ void main() {
       final start = model.indexOf('  Widget? getWebView(');
       final body = model.substring(
           start, model.indexOf('  WebViewController? getController('));
-      expect(count(body, 'id.sitePosture(globalUserScripts: globalUserScripts)'),
-          2, reason: 'the webview and the nested launch run as the identity');
+      expect(
+          count(body,
+              needle: 'id.sitePosture(globalUserScripts: globalUserScripts)'),
+          2,
+          reason: 'the webview and the nested launch run as the identity');
       for (final field in [
         'posture: posture,',
         'initUrl: navHome',
@@ -267,7 +279,10 @@ void main() {
               '              returnsToOwner: returnsToOwner(url)) ==\n'
               '          NavigationStep.returnToOwner) {'),
           reason: 'every way out, on the tap and the redirect path, asks first');
-      expect(tabs, contains('Future<void> returnToOwner(WebViewModel model, String url) =>\n      openChildTab(model, url);'));
+      expect(
+          tabs,
+          contains(
+              'Future<void> returnToOwner(WebViewModel model, {required String url}) =>\n      openChildTab(model, url: url);'));
     });
   });
 }

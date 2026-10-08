@@ -35,7 +35,7 @@ String? buildContentBlockerEarlyCssShim({
   List<ContentBlockerStyleRule> styleRules = const [],
 }) {
   if (selectors.isEmpty && styleRules.isEmpty) return null;
-  final cssText = _buildCssText(selectors, styleRules);
+  final cssText = _buildCssText(selectors, styleRules: styleRules);
   return '''
 (function() {
   var ID = '_webspace_content_blocker_style';
@@ -70,7 +70,7 @@ String? buildContentBlockerCosmeticShim({
   if (selectors.isEmpty && styleRules.isEmpty && textRules.isEmpty) {
     return null;
   }
-  final cssText = _buildCssText(selectors, styleRules);
+  final cssText = _buildCssText(selectors, styleRules: styleRules);
 
   final textRulesJs = jsonEncode([
     for (final r in textRules) {'sel': r.selector, 'pats': r.patterns},
@@ -148,9 +148,9 @@ String buildContentBlockerCspShim(String directives) => '''
 })();''';
 
 String _buildCssText(
-  List<String> selectors,
-  List<ContentBlockerStyleRule> styleRules,
-) {
+  List<String> selectors, {
+  required List<ContentBlockerStyleRule> styleRules,
+}) {
   final cssRules = StringBuffer();
   for (final s in selectors) {
     cssRules.write('$s { display: none !important; } ');

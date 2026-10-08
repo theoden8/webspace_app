@@ -90,7 +90,7 @@ sealed class SettingControl {
 }
 
 final class Toggle extends SettingControl {
-  const Toggle(this.value, this.onChanged);
+  const Toggle(this.value, {required this.onChanged});
 
   final bool value;
   final ValueChanged<bool> onChanged;
@@ -166,7 +166,8 @@ class SettingTile extends StatelessWidget {
                 ? const TextStyle(color: HintedTitle.missingDataColor)
                 : null,
           );
-    Widget toggle(bool value, ValueChanged<bool> onChanged) => SwitchListTile(
+Widget toggle({required bool value, required ValueChanged<bool> onChanged}) =>
+    SwitchListTile(
       secondary: leading,
       contentPadding: contentPadding,
       title: titleRow,
@@ -175,12 +176,13 @@ class SettingTile extends StatelessWidget {
       onChanged: locked ? null : onChanged,
     );
     if (control case Toggle(:final value, :final onChanged)) {
-      return toggle(value, onChanged);
+      return toggle(value: value, onChanged: onChanged);
     }
     if (control case PrefToggle(:final pref)) {
       return ValueListenableBuilder<bool>(
         valueListenable: pref.listenable,
-        builder: (context, value, _) => toggle(value, pref.set),
+        builder: (context, value, _) =>
+            toggle(value: value, onChanged: pref.set),
       );
     }
     final (Widget? trailing, VoidCallback? onTap) = switch (control) {
@@ -286,8 +288,8 @@ class ChoiceTile<T extends Object> extends StatelessWidget {
 /// when nothing is. The subtitle rule of every [SummaryNavRow] that lists
 /// what its screen has on (BEHAV-002).
 String summariseSettings(
-  AppLocalizations loc,
-  List<String> on, {
+  AppLocalizations loc, {
+  required List<String> on,
   required String none,
 }) {
   if (on.isEmpty) return none;

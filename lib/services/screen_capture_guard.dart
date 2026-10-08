@@ -37,7 +37,7 @@ class ScreenCaptureGuard {
 
   /// Sends [blocked] to the window when it differs from the last value sent.
   /// Cheap to call on every build.
-  Future<void> apply(bool blocked) async {
+  Future<void> apply({required bool blocked}) async {
     if (!_supported || blocked == _requested) return;
     _requested = blocked;
     try {

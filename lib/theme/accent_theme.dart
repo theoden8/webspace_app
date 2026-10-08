@@ -22,7 +22,8 @@ Color _onAccent(Color background) {
 /// Build a ColorScheme that preserves the full saturation of [accent].
 /// Uses fromSeed only for neutral surface/background colors, then overrides
 /// all accent-derived roles so nothing gets desaturated by Material 3's HCT.
-ColorScheme buildAccentColorScheme(Color accent, Brightness brightness) {
+ColorScheme buildAccentColorScheme(Color accent,
+    {required Brightness brightness}) {
   final bool isLight = brightness == Brightness.light;
   final hsl = HSLColor.fromColor(accent);
 

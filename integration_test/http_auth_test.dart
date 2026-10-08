@@ -72,7 +72,7 @@ void main() {
     await installInMemoryKeychainIfUnavailable();
     final expected = 'Basic ${base64.encode(utf8.encode('$_user:$_password'))}';
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    listenFixture(server, (request) {
+    listenFixture(server, onEvent: (request) {
       final path = request.uri.path;
       final response = request.response;
       if (!path.startsWith('/a/') && !path.startsWith('/b/')) {
@@ -120,8 +120,8 @@ void main() {
   }
 
   Future<void> pumpUntil(
-    WidgetTester tester,
-    bool Function() predicate, {
+    WidgetTester tester, {
+    required bool Function() predicate,
     Duration timeout = const Duration(seconds: 60),
     required String description,
   }) async {
@@ -142,8 +142,8 @@ void main() {
   // only once its centre hit-tests to it. No frame runs between that check
   // and the pointer-down, so the tap lands on the layout just checked.
   Future<void> tapWhenHittable(
-    WidgetTester tester,
-    Finder target, {
+    WidgetTester tester, {
+    required Finder target,
     required String description,
   }) async {
     final deadline = DateTime.now().add(const Duration(seconds: 30));
@@ -159,9 +159,9 @@ void main() {
   }
 
   Future<Map<String, dynamic>?> probe(
-    WidgetTester tester,
-    WebViewController? Function() controller,
-  ) async {
+    WidgetTester tester, {
+    required WebViewController? Function() controller,
+  }) async {
     Map<String, dynamic>? last;
     await tester.runAsync(() async {
       final deadline = DateTime.now().add(const Duration(seconds: 45));
@@ -233,9 +233,10 @@ void main() {
     const siteId = 'http-auth-saved';
     await HttpAuthSecureStorage.instance.save(
       siteId,
-      Host('127.0.0.1'),
-      _realmFor('/a/'),
-      const HttpAuthCredential(username: _user, password: _password),
+      host: Host('127.0.0.1'),
+      realm: _realmFor('/a/'),
+      credential:
+          const HttpAuthCredential(username: _user, password: _password),
     );
     var prompts = 0;
     WebViewController? controller;
@@ -252,7 +253,7 @@ void main() {
       onController: (c) => controller = c,
     ));
 
-    final result = await probe(tester, () => controller);
+    final result = await probe(tester, controller: () => controller);
     log('saved: probe=$result unauthorized=$unauthorized '
         'authorized=$authorized');
     if (result == null && (unauthorized['/a/'] ?? 0) == 0) {
@@ -282,7 +283,7 @@ void main() {
         url: '$base/b/',
         prompt: (request) {
           prompts++;
-          return promptHttpAuth(navigator.currentContext!, request);
+          return promptHttpAuth(navigator.currentContext!, request: request);
         },
       ),
       onController: (c) => controller = c,
@@ -312,7 +313,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
     await pumpUntil(
       tester,
-      () => find
+      predicate: () => find
           .text('That username and password were not accepted.')
           .evaluate()
           .isNotEmpty,
@@ -322,7 +323,7 @@ void main() {
     // retry's dialog opens, and both hold the typed username until it ends.
     await pumpUntil(
       tester,
-      () => dialog.evaluate().length == 1,
+      predicate: () => dialog.evaluate().length == 1,
       description: 'the refused dialog to finish closing',
     );
     expect(find.text(_user), findsOneWidget,
@@ -332,7 +333,7 @@ void main() {
     // The retry dialog carries the refusal line, so while the keyboard is up
     // the remember row sits below the dialog's scroll viewport.
     FocusManager.instance.primaryFocus?.unfocus();
-    await tapWhenHittable(tester, find.byType(Checkbox),
+    await tapWhenHittable(tester, target: find.byType(Checkbox),
         description: 'the remember box');
     await tester.pump();
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue,
@@ -342,11 +343,11 @@ void main() {
     // animation would still be in the tree when it returns.
     await pumpUntil(
       tester,
-      () => dialog.evaluate().isEmpty,
+      predicate: () => dialog.evaluate().isEmpty,
       description: 'the dialog to close after signing in',
     );
 
-    final result = await probe(tester, () => controller);
+    final result = await probe(tester, controller: () => controller);
     log('typed: probe=$result prompts=$prompts unauthorized=$unauthorized '
         'authorized=$authorized');
     expect(prompts, 2,
@@ -361,7 +362,7 @@ void main() {
     late HttpAuthCredential? saved;
     await tester.runAsync(() async {
       saved = await HttpAuthSecureStorage.instance
-          .lookup(siteId, Host('127.0.0.1'), _realmFor('/b/'));
+          .lookup(siteId, host: Host('127.0.0.1'), realm: _realmFor('/b/'));
     });
     expect(saved?.username, _user);
     expect(saved?.password, _password);

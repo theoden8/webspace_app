@@ -48,7 +48,7 @@ final Random _fillRng = Random.secure();
 /// Draws 32 bits per `Random.secure()` call instead of 8: each call is a
 /// native entropy fetch (~2us), and per-byte draws made first-run slot-pool
 /// init plus every slot persist cost whole seconds of startup/CI time.
-void fillSecureRandom(Uint8List buffer, [int from = 0]) {
+void fillSecureRandom(Uint8List buffer, {int from = 0}) {
   var i = from;
   for (; i + 4 <= buffer.length; i += 4) {
     final v = _fillRng.nextInt(0x100000000);
@@ -145,7 +145,7 @@ class ArchiveStorage {
     return result;
   }
 
-  Future<void> writeSlot(int index, Uint8List bytes) async {
+  Future<void> writeSlot(int index, {required Uint8List bytes}) async {
     _checkIndex(index);
     if (bytes.length != kArchiveSlotSize) {
       throw ArgumentError(

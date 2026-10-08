@@ -76,14 +76,16 @@ void main() {
     final table = siteSearchTable(_bangs);
 
     test('matches the host with or without www, then the domain', () {
-      expect(listedAddressFor(table, 'https://www.imdb.com/'),
+      expect(listedAddressFor(table, initUrl: 'https://www.imdb.com/'),
           'https://www.imdb.com/find?s=all&q=%s');
-      expect(listedAddressFor(table, 'https://imdb.com/'),
+      expect(listedAddressFor(table, initUrl: 'https://imdb.com/'),
           'https://www.imdb.com/find?s=all&q=%s');
-      expect(listedAddressFor(table, 'https://m.imdb.com/title/tt1'),
+      expect(listedAddressFor(table, initUrl: 'https://m.imdb.com/title/tt1'),
           'https://www.imdb.com/find?s=all&q=%s');
-      expect(listedAddressFor(table, 'https://unlisted.example/'), isNull);
-      expect(listedAddressFor(const {}, 'https://www.imdb.com/'), isNull);
+      expect(listedAddressFor(table, initUrl: 'https://unlisted.example/'),
+          isNull);
+      expect(
+          listedAddressFor(const {}, initUrl: 'https://www.imdb.com/'), isNull);
     });
   });
 

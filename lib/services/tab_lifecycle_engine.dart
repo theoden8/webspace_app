@@ -13,7 +13,7 @@ import 'package:webspace/services/site_tab.dart';
 
 /// One row of the tab tree: the tab and how deep it sits under its root.
 class TabRow {
-  const TabRow(this.tab, this.depth, {this.childCount = 0});
+  const TabRow(this.tab, {required this.depth,this.childCount = 0});
 
   final SiteTab tab;
   final int depth;
@@ -62,8 +62,8 @@ enum TabDropZone {
 /// A drop in the tab list: on a row, or past the last row.
 class TabDrop {
   const TabDrop.onto(
-    String this.targetId,
-    this.zone, {
+    String this.targetId, {
+    required this.zone,
     this.targetExpanded = true,
   });
 
@@ -111,12 +111,13 @@ class TabLifecycleEngine {
   }
 
   /// [tabs] is [wellFormed] and [activeTabId] names one of them.
-  static bool _wellFormedWith(List<SiteTab> tabs, String activeTabId) =>
+  static bool _wellFormedWith(List<SiteTab> tabs,
+          {required String activeTabId}) =>
       wellFormed(tabs) && tabs.any((t) => t.id == activeTabId);
 
   /// An operation keeps the shape: only a malformed input may come out
   /// malformed.
-  static bool _kept(List<SiteTab> before, List<SiteTab> after) =>
+  static bool _kept(List<SiteTab> before, {required List<SiteTab> after}) =>
       !wellFormed(before) || wellFormed(after);
 
   /// Coerce any tab list into a [wellFormed] one whose `activeTabId` names a
@@ -128,10 +129,10 @@ class TabLifecycleEngine {
   /// the user can still see in the list is recoverable, one silently deleted
   /// is not.
   static ({List<SiteTab> tabs, String activeTabId}) normalize(
-    List<SiteTab>? tabs,
-    String? activeTabId,
-    String fallbackUrl,
-  ) {
+    List<SiteTab>? tabs, {
+    required String? activeTabId,
+    required String fallbackUrl,
+  }) {
     final out = <SiteTab>[];
     final seen = <String>{};
     for (final t in tabs ?? const <SiteTab>[]) {
@@ -166,7 +167,8 @@ class TabLifecycleEngine {
         activeTabId != null && byId.containsKey(activeTabId)
             ? activeTabId
             : out.first.id;
-    assert(_wellFormedWith(out, active), 'normalize repairs every tree');
+    assert(_wellFormedWith(out, activeTabId: active),
+        'normalize repairs every tree');
     return (tabs: out, activeTabId: active);
   }
 
@@ -186,22 +188,22 @@ class TabLifecycleEngine {
     }
     final out = <TabRow>[];
     final visited = <String>{};
-    void walk(SiteTab t, int depth) {
+    void walk(SiteTab t, {required int depth}) {
       if (!visited.add(t.id)) return;
       final kids = childrenOf[t.id] ?? const <SiteTab>[];
-      out.add(TabRow(t, depth, childCount: kids.length));
+      out.add(TabRow(t, depth: depth, childCount: kids.length));
       for (final c in kids) {
-        walk(c, depth + 1);
+        walk(c, depth: depth + 1);
       }
     }
 
     for (final r in roots) {
-      walk(r, 0);
+      walk(r, depth: 0);
     }
     // Defensive: a tab left unvisited would vanish from every surface that
     // renders the tree, which is worse than showing it at the top level.
     for (final t in tabs) {
-      if (!visited.contains(t.id)) out.add(TabRow(t, 0));
+      if (!visited.contains(t.id)) out.add(TabRow(t, depth: 0));
     }
     assert(!wellFormed(tabs) || out.length == tabs.length,
         'every tab of a well-formed tree is one row');
@@ -213,9 +215,9 @@ class TabLifecycleEngine {
   /// down to it, each at its depth in the whole tree. The rest of the tree
   /// holds nothing kept; the caller counts it from the lengths.
   static List<TabRow> rowsAround(
-    List<SiteTab> tabs,
-    bool Function(SiteTab tab) keep,
-  ) {
+    List<SiteTab> tabs, {
+    required bool Function(SiteTab tab) keep,
+  }) {
     final rows = treeOrder(tabs);
     final shown = List<bool>.filled(rows.length, false);
     // Tree order is depth-first, so the rows above one that are still open
@@ -245,7 +247,7 @@ class TabLifecycleEngine {
   }
 
   /// Every tab below [id], depth-first.
-  static List<SiteTab> descendants(List<SiteTab> tabs, String id) {
+  static List<SiteTab> descendants(List<SiteTab> tabs, {required String id}) {
     final childrenOf = <String, List<SiteTab>>{};
     for (final t in tabs) {
       final parent = t.parentId;
@@ -268,33 +270,34 @@ class TabLifecycleEngine {
   /// Insert [tab] after [parentId]'s last descendant, so the flat list already
   /// reads in tree order and a new child appears directly under the tab it was
   /// opened from rather than at the end of the site.
-  static List<SiteTab> insertChild(List<SiteTab> tabs, SiteTab tab) {
+  static List<SiteTab> insertChild(List<SiteTab> tabs, {required SiteTab tab}) {
     final parentId = tab.parentId;
-    final out =
-        parentId == null ? [...tabs, tab] : insertAfter(tabs, parentId, tab);
-    assert(_kept(tabs, out), 'insertChild keeps the tree well-formed');
+    final out = parentId == null
+        ? [...tabs, tab]
+        : insertAfter(tabs, anchorId: parentId, tab: tab);
+    assert(_kept(tabs, after: out), 'insertChild keeps the tree well-formed');
     return out;
   }
 
   /// Insert [tab] directly after [anchorId] and everything under it, which is
   /// where a duplicate of the anchor belongs: its next sibling (TAB-010).
   static List<SiteTab> insertAfter(
-    List<SiteTab> tabs,
-    String anchorId,
-    SiteTab tab,
-  ) {
+    List<SiteTab> tabs, {
+    required String anchorId,
+    required SiteTab tab,
+  }) {
     final anchorIndex = tabs.indexWhere((t) => t.id == anchorId);
     if (anchorIndex < 0) return [...tabs, tab];
     final subtree = {
       anchorId,
-      ...descendants(tabs, anchorId).map((t) => t.id),
+      ...descendants(tabs, id: anchorId).map((t) => t.id),
     };
     var at = anchorIndex + 1;
     while (at < tabs.length && subtree.contains(tabs[at].id)) {
       at++;
     }
     final out = [...tabs.take(at), tab, ...tabs.skip(at)];
-    assert(_kept(tabs, out), 'insertAfter keeps the tree well-formed');
+    assert(_kept(tabs, after: out), 'insertAfter keeps the tree well-formed');
     return out;
   }
 
@@ -307,8 +310,8 @@ class TabLifecycleEngine {
   /// Null when refused: an unknown tab, a parent or anchor inside the moved
   /// subtree, or an anchor that is not a child of the new parent.
   static List<SiteTab>? move(
-    List<SiteTab> tabs,
-    String tabId, {
+    List<SiteTab> tabs, {
+    required String tabId,
     required String? newParentId,
     String? beforeId,
     String? afterId,
@@ -316,7 +319,7 @@ class TabLifecycleEngine {
     final byId = {for (final t in tabs) t.id: t};
     final moving = byId[tabId];
     if (moving == null) return null;
-    final block = {tabId, ...descendants(tabs, tabId).map((t) => t.id)};
+    final block = {tabId, ...descendants(tabs, id: tabId).map((t) => t.id)};
     if (newParentId != null &&
         (block.contains(newParentId) || !byId.containsKey(newParentId))) {
       return null;
@@ -333,7 +336,7 @@ class TabLifecycleEngine {
     // Siblings are ordered by list position alone, so a subtree need not be
     // contiguous; landing after its last member puts the block after it.
     int after(String id) {
-      final members = {id, ...descendants(rest, id).map((t) => t.id)};
+      final members = {id, ...descendants(rest, id: id).map((t) => t.id)};
       var last = -1;
       for (var i = 0; i < rest.length; i++) {
         if (members.contains(rest[i].id)) last = i;
@@ -362,36 +365,37 @@ class TabLifecycleEngine {
   /// "Move under..." (LIR-026): [tabId] and its subtree become the last
   /// children of [newParentId], or the last root.
   static List<SiteTab>? reparent(
-    List<SiteTab> tabs,
-    String tabId,
-    String? newParentId,
-  ) =>
-      move(tabs, tabId, newParentId: newParentId);
+    List<SiteTab> tabs, {
+    required String tabId,
+    required String? newParentId,
+  }) =>
+      move(tabs, tabId: tabId, newParentId: newParentId);
 
   /// [tabId] dropped in the tab list (TAB-015). Null when refused, which is a
   /// drop on the dragged tab or inside its own subtree.
-  static List<SiteTab>? drop(List<SiteTab> tabs, String tabId, TabDrop drop) {
+  static List<SiteTab>? drop(List<SiteTab> tabs,
+      {required String tabId, required TabDrop drop}) {
     final targetId = drop.targetId;
-    if (targetId == null) return move(tabs, tabId, newParentId: null);
+    if (targetId == null) return move(tabs, tabId: tabId, newParentId: null);
     if (targetId == tabId) return null;
     final target = tabs.where((t) => t.id == targetId).firstOrNull;
     if (target == null) return null;
     switch (drop.zone) {
       case TabDropZone.before:
-        return move(tabs, tabId,
+        return move(tabs, tabId: tabId,
             newParentId: target.parentId, beforeId: targetId);
       case TabDropZone.into:
-        return move(tabs, tabId, newParentId: targetId);
+        return move(tabs, tabId: tabId, newParentId: targetId);
       case TabDropZone.after:
         if (drop.targetExpanded) {
           final first =
               tabs.where((t) => t.parentId == targetId).firstOrNull;
           if (first != null) {
             if (first.id == tabId) return [...tabs];
-            return move(tabs, tabId, newParentId: targetId, beforeId: first.id);
+            return move(tabs, tabId: tabId, newParentId: targetId, beforeId: first.id);
           }
         }
-        return move(tabs, tabId,
+        return move(tabs, tabId: tabId,
             newParentId: target.parentId, afterId: targetId);
     }
   }
@@ -400,29 +404,30 @@ class TabLifecycleEngine {
   /// orphaned by a close, and the tab that takes over is its parent when it
   /// had one, else the most recently active survivor.
   static TabCloseResult closeTab(
-    List<SiteTab> tabs,
-    String activeTabId,
-    String closeId,
-  ) =>
-      _close(tabs, activeTabId, {closeId}, reparent: true);
+    List<SiteTab> tabs, {
+    required String activeTabId,
+    required String closeId,
+  }) =>
+      _close(tabs,
+          activeTabId: activeTabId, closeIds: {closeId}, reparent: true);
 
   static TabCloseResult closeSubtree(
-    List<SiteTab> tabs,
-    String activeTabId,
-    String closeId,
-  ) =>
+    List<SiteTab> tabs, {
+    required String activeTabId,
+    required String closeId,
+  }) =>
       _close(
         tabs,
-        activeTabId,
-        {closeId, ...descendants(tabs, closeId).map((t) => t.id)},
+        activeTabId: activeTabId,
+        closeIds: {closeId, ...descendants(tabs, id: closeId).map((t) => t.id)},
         reparent: false,
       );
 
   static TabCloseResult _close(
-    List<SiteTab> tabs,
-    String activeTabId,
-    Set<String> closeIds,
-    {required bool reparent}) {
+    List<SiteTab> tabs, {
+    required String activeTabId,
+    required Set<String> closeIds,
+   required bool reparent}) {
     final doomed = closeIds.where((id) => tabs.any((t) => t.id == id)).toSet();
     if (doomed.isEmpty) {
       return TabCloseResult(
@@ -432,7 +437,7 @@ class TabLifecycleEngine {
         activeChanged: false,
       );
     }
-    final wasWellFormed = _wellFormedWith(tabs, activeTabId);
+    final wasWellFormed = _wellFormedWith(tabs, activeTabId: activeTabId);
     final byId = {for (final t in tabs) t.id: t};
     final survivors = tabs.where((t) => !doomed.contains(t.id)).toList();
     if (reparent) {
@@ -496,14 +501,14 @@ class TabLifecycleEngine {
   /// Close every tab [shouldClose] names, with TAB-007's re-parenting. Used
   /// for hosted tabs whose host is gone or may no longer host (LIR-023).
   static TabCloseResult closeWhere(
-    List<SiteTab> tabs,
-    String activeTabId,
-    bool Function(SiteTab tab) shouldClose,
-  ) =>
+    List<SiteTab> tabs, {
+    required String activeTabId,
+    required bool Function(SiteTab tab) shouldClose,
+  }) =>
       _close(
         tabs,
-        activeTabId,
-        {for (final t in tabs) if (shouldClose(t)) t.id},
+        activeTabId: activeTabId,
+        closeIds: {for (final t in tabs) if (shouldClose(t)) t.id},
         reparent: true,
       );
 
@@ -513,8 +518,8 @@ class TabLifecycleEngine {
   /// home). [isForeign] marks a tab the owner runs in another domain
   /// (LIR-034), which an owner URL must not load into either.
   static String? ownerRunTab(
-    List<SiteTab> tabs,
-    String activeTabId, {
+    List<SiteTab> tabs, {
+    required String activeTabId,
     bool Function(SiteTab tab)? isForeign,
   }) {
     final byId = {for (final t in tabs) t.id: t};
@@ -538,9 +543,9 @@ class TabLifecycleEngine {
   /// root tab keeps NAV-001's no-op: the gesture never leaves the app and
   /// never opens the drawer.
   static TabBackAction backAtHistoryStart(
-    List<SiteTab> tabs,
-    String activeTabId,
-  ) {
+    List<SiteTab> tabs, {
+    required String activeTabId,
+  }) {
     final active = tabs.where((t) => t.id == activeTabId).firstOrNull;
     final parentId = active?.parentId;
     if (parentId == null) return TabBackAction.ignore;
@@ -551,7 +556,7 @@ class TabLifecycleEngine {
   /// Whether [url] is the site's home page for TAB-014: [initUrl] up to an
   /// https upgrade, host case, a trailing slash and the fragment, none of
   /// which make it a different page.
-  static bool isHomeUrl(String url, String initUrl) {
+  static bool isHomeUrl(String url, {required String initUrl}) {
     final a = Uri.tryParse(url);
     final b = Uri.tryParse(initUrl);
     if (a == null || b == null) return url == initUrl;
@@ -577,12 +582,12 @@ class TabLifecycleEngine {
   /// used parked tab at home, or failing that a new root tab at [initUrl],
   /// appended. Either way the tab the site was on is kept.
   static ({List<SiteTab> tabs, String activeTabId})? homeLanding(
-    List<SiteTab> tabs,
-    String activeTabId,
-    String initUrl,
-  ) {
+    List<SiteTab> tabs, {
+    required String activeTabId,
+    required String initUrl,
+  }) {
     bool ownHome(SiteTab t) =>
-        t.hostSiteId == null && isHomeUrl(t.url, initUrl);
+        t.hostSiteId == null && isHomeUrl(t.url, initUrl: initUrl);
     final active = tabs.where((t) => t.id == activeTabId).firstOrNull;
     if (active != null && ownHome(active)) return null;
     SiteTab? home;
@@ -598,7 +603,8 @@ class TabLifecycleEngine {
       landing = (tabs: [...tabs, fresh], activeTabId: fresh.id);
     }
     assert(
-        !wellFormed(tabs) || _wellFormedWith(landing.tabs, landing.activeTabId),
+        !wellFormed(tabs) ||
+            _wellFormedWith(landing.tabs, activeTabId: landing.activeTabId),
         'a home landing keeps the tree well-formed');
     return landing;
   }

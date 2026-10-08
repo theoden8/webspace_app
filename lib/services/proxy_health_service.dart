@@ -78,7 +78,7 @@ class ProxyHealthService extends ChangeNotifier {
     if (starting && !force && isFresh(settings)) {
       return Future.value(_results[key]!);
     }
-    final probe = _probes.run(key, () => _probeHealth(settings));
+    final probe = _probes.run(key, call: () => _probeHealth(settings));
     if (starting) {
       notifyListeners();
       probe.then((health) {
@@ -92,7 +92,7 @@ class ProxyHealthService extends ChangeNotifier {
   Future<ProxyHealth> _probeHealth(UserProxySettings settings) async {
     try {
       final result = await _probe(settings);
-      logProxyTest(settings, result);
+      logProxyTest(settings, result: result);
       return ProxyHealth(
         switch (result.outcome) {
           ProxyTestOutcome.reachable => ProxyHealthState.reachable,

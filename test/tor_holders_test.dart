@@ -10,20 +10,20 @@ void main() {
   const names = {'a1': 'Mail', 'b2': 'bank', 'c3': 'Forum'};
 
   test('nothing held is empty', () {
-    final s = summarizeTorHolders(const [], names);
+    final s = summarizeTorHolders(const [], siteNames: names);
     expect(s.isEmpty, isTrue);
     expect(s.appWide, isFalse);
   });
 
   test('the app-wide tag is app traffic, not a site', () {
-    final s = summarizeTorHolders({const TorAppWideHolder()}, names);
+    final s = summarizeTorHolders({const TorAppWideHolder()}, siteNames: names);
     expect(s.appWide, isTrue);
     expect(s.sites, isEmpty);
     expect(s.otherSites, 0);
   });
 
   test('sites are named and sorted without regard to case', () {
-    final s = summarizeTorHolders(_sites(['c3', 'a1', 'b2']), names);
+    final s = summarizeTorHolders(_sites(['c3', 'a1', 'b2']), siteNames: names);
     expect(s.sites, ['bank', 'Forum', 'Mail']);
   });
 
@@ -32,7 +32,7 @@ void main() {
       const TorSiteHolder('a1'),
       const TorNestedHolder('a1'),
       const TorNestedHolder('b2'),
-    }, names);
+    }, siteNames: names);
     expect(s.sites, ['bank', 'Mail']);
   });
 
@@ -40,7 +40,7 @@ void main() {
     final s = summarizeTorHolders({
       TorInterstitialHolder(Object()),
       const TorAppWideHolder(),
-    }, names);
+    }, siteNames: names);
     expect(s.sites, isEmpty);
     expect(s.otherSites, 0);
     expect(s.appWide, isTrue);
@@ -48,7 +48,8 @@ void main() {
 
   test('a site with no name to show is counted, not named', () {
     // An archive-tier site is left out of the name map on purpose.
-    final s = summarizeTorHolders(_sites(['a1', 'zz-archived']), names);
+    final s =
+        summarizeTorHolders(_sites(['a1', 'zz-archived']), siteNames: names);
     expect(s.sites, ['Mail']);
     expect(s.otherSites, 1);
   });

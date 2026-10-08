@@ -21,7 +21,7 @@ abstract class BackgroundLogNative {
   /// On creates the file, off deletes it. The file is the switch the native
   /// side reads, so a worker in a process Dart never started records exactly
   /// when developer mode is on.
-  Future<void> setEnabled(bool enabled);
+  Future<void> setEnabled({required bool enabled});
 
   Future<void> append(LogEntry entry);
 
@@ -43,7 +43,7 @@ class MethodChannelBackgroundLogNative implements BackgroundLogNative {
   @override
   bool get available => hostIsIOS || hostIsAndroid;
 
-  Future<T?> _invoke<T>(String method, [Object? args]) async {
+  Future<T?> _invoke<T>(String method, {Object? args}) async {
     try {
       return await _channel.invokeMethod<T>(method, args);
     } on PlatformException catch (e) {
@@ -55,11 +55,12 @@ class MethodChannelBackgroundLogNative implements BackgroundLogNative {
   }
 
   @override
-  Future<void> setEnabled(bool enabled) =>
-      _invoke<void>('setBackgroundLogEnabled', {'enabled': enabled});
+  Future<void> setEnabled({required bool enabled}) =>
+      _invoke<void>('setBackgroundLogEnabled', args: {'enabled': enabled});
 
   @override
-  Future<void> append(LogEntry entry) => _invoke<void>('appendBackgroundLog', {
+  Future<void> append(LogEntry entry) =>
+      _invoke<void>('appendBackgroundLog', args: {
         't': entry.timestamp.millisecondsSinceEpoch,
         'level': entry.level.name,
         'tag': entry.tag,
@@ -153,37 +154,37 @@ class BackgroundLog extends ChangeNotifier {
 
   /// Called on every startup and on every developer-mode flip, so the native
   /// switch always matches the pref, including after a settings import.
-  Future<void> setRecording(bool on) async {
+  Future<void> setRecording({required bool on}) async {
     final changed = _recording != on;
     _recording = on;
     if (!on) {
       _entries.clear();
       _sensitive.clear();
     }
-    if (_native.available) await _native.setEnabled(on);
+    if (_native.available) await _native.setEnabled(enabled: on);
     if (changed) notifyListeners();
   }
 
   void record(
-    LogTag tag,
-    String message, {
+    LogTag tag, {
+    required String message,
     LogLevel level = LogLevel.info,
     String? sensitive,
   }) {
-    LogService.instance.log(tag, message, level: level);
+    LogService.instance.log(tag, message: message, level: level);
     if (sensitive != null) {
-      LogService.instance.log(tag, sensitive,
+      LogService.instance.log(tag, message: sensitive,
           level: level, sensitivity: LogSensitivity.sensitive);
     }
     if (!_recording) return;
     final now = DateTime.now();
     final entry =
         LogEntry(timestamp: now, tag: tag.label, message: message, level: level);
-    _push(_entries, entry);
+    _push(_entries, e: entry);
     if (sensitive != null) {
       _push(
           _sensitive,
-          LogEntry(
+          e: LogEntry(
             timestamp: now,
             tag: tag.label,
             message: sensitive,
@@ -195,7 +196,7 @@ class BackgroundLog extends ChangeNotifier {
     notifyListeners();
   }
 
-  static void _push(List<LogEntry> ring, LogEntry e) {
+  static void _push(List<LogEntry> ring, {required LogEntry e}) {
     ring.add(e);
     if (ring.length > maxEntries) ring.removeAt(0);
   }

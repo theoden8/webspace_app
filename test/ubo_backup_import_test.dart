@@ -75,8 +75,10 @@ final registry = parseUboAssetRegistry(jsonEncode({
 }));
 
 const existing = [
-  ExistingFilterList('easylist', 'https://easylist.to/easylist/easylist.txt'),
-  ExistingFilterList('easyprivacy', 'https://easylist.to/easylist/easyprivacy.txt'),
+  ExistingFilterList('easylist',
+      url: 'https://easylist.to/easylist/easylist.txt'),
+  ExistingFilterList('easyprivacy',
+      url: 'https://easylist.to/easylist/easyprivacy.txt'),
 ];
 
 void main() {
@@ -164,9 +166,12 @@ void main() {
     });
 
     test('a trusted host covers its subdomains, not look-alikes', () {
-      expect(hostTrustedBy('news.example', {'news.example'}), isTrue);
-      expect(hostTrustedBy('www.news.example', {'news.example'}), isTrue);
-      expect(hostTrustedBy('fakenews.example', {'news.example'}), isFalse);
+      expect(hostTrustedBy('news.example', trustedHosts: {'news.example'}),
+          isTrue);
+      expect(hostTrustedBy('www.news.example', trustedHosts: {'news.example'}),
+          isTrue);
+      expect(hostTrustedBy('fakenews.example', trustedHosts: {'news.example'}),
+          isFalse);
     });
   });
 

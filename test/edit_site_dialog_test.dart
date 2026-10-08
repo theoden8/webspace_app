@@ -11,9 +11,9 @@ Uint8List _png() =>
     Uint8List.fromList(img.encodePng(img.Image(width: 8, height: 8)));
 
 Future<SiteEdit? Function()> _open(
-  WidgetTester tester,
-  WebViewModel site,
-) async {
+  WidgetTester tester, {
+  required WebViewModel site,
+}) async {
   SiteEdit? result;
   var closed = false;
   await tester.pumpWidget(
@@ -23,7 +23,7 @@ Future<SiteEdit? Function()> _open(
       home: Builder(
         builder: (context) => TextButton(
           onPressed: () async {
-            result = await showEditSiteDialog(context, site);
+            result = await showEditSiteDialog(context, site: site);
             closed = true;
           },
           child: const Text('open'),
@@ -50,7 +50,7 @@ void main() {
   testWidgets(
     'Save hands back the trimmed name and a schemed URL, icon untouched',
     (tester) async {
-      final result = await _open(tester, site());
+      final result = await _open(tester, site: site());
       await tester.enterText(
         find.widgetWithText(TextField, 'Site Name'),
         '  Renamed  ',
@@ -76,7 +76,7 @@ void main() {
   testWidgets('resetting the icon hands back an icon edit with no bytes', (
     tester,
   ) async {
-    final result = await _open(tester, site());
+    final result = await _open(tester, site: site());
     await tester.tap(find.byIcon(Icons.restart_alt));
     await tester.pump();
     expect(find.byIcon(Icons.restart_alt), findsNothing);
@@ -88,7 +88,7 @@ void main() {
   });
 
   testWidgets('Cancel hands back nothing', (tester) async {
-    final result = await _open(tester, site());
+    final result = await _open(tester, site: site());
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(result(), isNull);

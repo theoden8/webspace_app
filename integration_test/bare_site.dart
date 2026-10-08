@@ -37,15 +37,17 @@ WebViewHostHooks bareHooks({HttpAuthPrompt? httpAuth}) => WebViewHostHooks(
       save: () async {},
       rebuild: () {},
       onScreen: (_) => true,
-      launchNested: (_, _, {homeTitle}) {},
+      launchNested: (_, {required posture, homeTitle}) {},
       openInBrowser: (_) async => false,
-      routeOutbound: (_, _, _, _) => false,
-      linkMenu: (_, _) {},
+      routeOutbound:
+          (_, {required url, required decision, required hadGesture}) => false,
+      linkMenu: (_, {required url}) {},
       openSiteSettings: (_) {},
-      showPopup: (_, _) async {},
-      externalScheme: (_, _) async {},
+      showPopup: (_, {required url}) async {},
+      externalScheme: (_, {required loadIn}) async {},
       confirmScriptFetch: (_) async => false,
-      untrustedCertificate: (_, _, _) async => false,
+      untrustedCertificate: (_, {required port, required certificate}) async =>
+          false,
       httpAuth: httpAuth ?? (_) async => null,
       media: _NoPrompts(),
     );

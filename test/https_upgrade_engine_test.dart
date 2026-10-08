@@ -328,7 +328,9 @@ void main() {
       for (final v in [true, false, null]) {
         final json = site(override: v).toJson();
         expect(json['httpsUpgradeEnabled'], v);
-        expect(WebViewModel.fromJson(json, null).httpsUpgradeEnabled, v);
+        expect(
+            WebViewModel.fromJson(json, stateSetterF: null).httpsUpgradeEnabled,
+            v);
       }
     });
   });

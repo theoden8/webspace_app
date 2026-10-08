@@ -67,8 +67,8 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
         }
         return _httpProxyClient(
           settings,
-          addr,
-          hostPort,
+          addr: addr,
+          hostPort: hostPort,
           tls: settings.type == ProxyType.HTTPS,
         );
 
@@ -127,7 +127,8 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   /// the moment any non-webview code touched the same site.
   static HttpClient _newHttpClient() {
     final client = HttpClient();
-    client.badCertificateCallback = _isTrustedBadCert;
+    client.badCertificateCallback = (cert, host, port) =>
+        _isTrustedBadCert(cert, host: host, port: port);
     return client;
   }
 
@@ -138,9 +139,9 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
   /// tunnel as it would over a plain socket. The proxy's certificate is
   /// checked against system trust, or a fingerprint the user pinned.
   static OutboundClient _httpProxyClient(
-    UserProxySettings settings,
-    String addr,
-    (String, int) hostPort, {
+    UserProxySettings settings, {
+    required String addr,
+    required (String, int) hostPort,
     required bool tls,
   }) {
     final inner = _newHttpClient();
@@ -165,7 +166,7 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
                   uri.host,
                   uri.port,
                   onBadCertificate: (cert) =>
-                      _isTrustedBadCert(cert, uri.host, uri.port),
+                      _isTrustedBadCert(cert, host: uri.host, port: uri.port),
                 )
               : Socket.startConnect(uri.host, uri.port);
         }
@@ -173,14 +174,15 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
           proxyHost,
           proxyPort,
           onBadCertificate: (cert) =>
-              _isTrustedBadCert(cert, proxyHost, proxyPort),
+              _isTrustedBadCert(cert, host: proxyHost, port: proxyPort),
         );
       };
     }
     return OutboundClientReady(IOClient(inner));
   }
 
-  static bool _isTrustedBadCert(X509Certificate cert, String host, int port) {
+  static bool _isTrustedBadCert(X509Certificate cert,
+      {required String host, required int port}) {
     return TrustedHostsService.instance.isTrusted(
       host: host,
       port: port,

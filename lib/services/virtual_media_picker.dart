@@ -72,14 +72,16 @@ abstract final class VirtualMediaPicker {
   static Future<_Pick> _visual() async {
     final file = await _read(
       [...imageExtensions, ...videoExtensions],
-      visualMaxBytes,
+      maxBytes: visualMaxBytes,
     );
     if (file.raw case final raw?) {
       if (videoExtensions.contains(raw.extension)) {
-        final bytes = stripContainerMetadata(raw.bytes, raw.extension);
+        final bytes =
+            stripContainerMetadata(raw.bytes, extension: raw.extension);
         return (
           source: (
-            dataUrl: _dataUrl(mimeForExtension(raw.extension, true), bytes),
+            dataUrl: _dataUrl(mimeForExtension(raw.extension, isVideo: true),
+                bytes: bytes),
             fileName: raw.fileName,
             isVideo: true,
           ),
@@ -93,7 +95,7 @@ abstract final class VirtualMediaPicker {
       }
       return (
         source: (
-          dataUrl: _dataUrl(image.mime, image.bytes),
+          dataUrl: _dataUrl(image.mime, bytes: image.bytes),
           fileName: raw.fileName,
           isVideo: false,
         ),
@@ -104,12 +106,12 @@ abstract final class VirtualMediaPicker {
   }
 
   static Future<_Pick> _audio() async {
-    final file = await _read(audioExtensions, audioMaxBytes);
+    final file = await _read(audioExtensions, maxBytes: audioMaxBytes);
     if (file.raw case final raw?) {
-      final bytes = stripContainerMetadata(raw.bytes, raw.extension);
+      final bytes = stripContainerMetadata(raw.bytes, extension: raw.extension);
       return (
         source: (
-          dataUrl: _dataUrl(audioMimeForExtension(raw.extension), bytes),
+          dataUrl: _dataUrl(audioMimeForExtension(raw.extension), bytes: bytes),
           fileName: raw.fileName,
           isVideo: false,
         ),
@@ -119,7 +121,7 @@ abstract final class VirtualMediaPicker {
     return (source: null, error: file.error);
   }
 
-  static String _dataUrl(String mime, List<int> bytes) =>
+  static String _dataUrl(String mime, {required List<int> bytes}) =>
       'data:$mime;base64,${base64Encode(bytes)}';
 
   static Future<
@@ -128,7 +130,7 @@ abstract final class VirtualMediaPicker {
       VirtualMediaPickError? error,
     })
   >
-  _read(List<String> extensions, int maxBytes) async {
+  _read(List<String> extensions, {required int maxBytes}) async {
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: extensions,
@@ -161,18 +163,19 @@ abstract final class VirtualMediaPicker {
     );
   }
 
-  static String mimeForExtension(String ext, bool isVideo) => switch (ext) {
-    'png' => 'image/png',
-    'jpg' || 'jpeg' => 'image/jpeg',
-    'gif' => 'image/gif',
-    'webp' => 'image/webp',
-    'bmp' => 'image/bmp',
-    'mp4' || 'm4v' => 'video/mp4',
-    'webm' => 'video/webm',
-    'mov' => 'video/quicktime',
-    'ogv' => 'video/ogg',
-    _ => isVideo ? 'video/mp4' : 'image/png',
-  };
+  static String mimeForExtension(String ext, {required bool isVideo}) =>
+      switch (ext) {
+        'png' => 'image/png',
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        'bmp' => 'image/bmp',
+        'mp4' || 'm4v' => 'video/mp4',
+        'webm' => 'video/webm',
+        'mov' => 'video/quicktime',
+        'ogv' => 'video/ogg',
+        _ => isVideo ? 'video/mp4' : 'image/png',
+      };
 
   /// `decodeAudioData` sniffs the container itself, so this only has to be
   /// honest enough for the `data:` URL to be well-formed.

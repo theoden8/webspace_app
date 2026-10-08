@@ -41,7 +41,8 @@ enum SweepOccasion {
 
 abstract interface class OrphanSweepTargets {
   /// Drops everything [store] keeps for a siteId outside [liveSiteIds].
-  Future<void> removeOrphans(OrphanStore store, Set<String> liveSiteIds);
+  Future<void> removeOrphans(OrphanStore store,
+      {required Set<String> liveSiteIds});
 
   /// Empties the single shared cookie jar the legacy engine partitions by
   /// hand.
@@ -74,7 +75,7 @@ class OrphanSweepEngine {
     for (final store in OrphanStore.values) {
       await targets.removeOrphans(
         store,
-        switch (store.scope) {
+        liveSiteIds: switch (store.scope) {
           OrphanScope.session => nonIncognitoSiteIds,
           OrphanScope.configuration => activeSiteIds,
         },

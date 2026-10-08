@@ -59,7 +59,8 @@ void main() {
     // The landing page navigates itself away, because a navigation the PAGE
     // issues and one Dart issues through the controller are different code
     // paths in WebKit and a user only ever produces the first.
-    String? body(String host, String path) => host == syntheticOrigin(landingDest)
+String? body(String host, {required String path}) =>
+    host == syntheticOrigin(landingDest)
         ? '<!doctype html><html><body><p>landing</p><script>'
             'setTimeout(function(){'
             "location.href='http://${syntheticOrigin(inPageDest)}/p';"
@@ -139,7 +140,7 @@ void main() {
   UserProxySettings altProxy() =>
       UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:${altSocks.port}');
 
-  bool saw(Socks5Fixture f, int dest) =>
+  bool saw(Socks5Fixture f, {required int dest}) =>
       f.targets.any((t) => t.startsWith('${syntheticOrigin(dest)}:'));
 
   final waitReal = RealWait(log: log, timeout: Duration(seconds: 20));
@@ -153,16 +154,18 @@ void main() {
         dest: landingDest,
         path: '/landing',
         proxySettings: liveProxy());
-    final landed = await waitReal(tester, () => saw(socks, landingDest),
-        label: 'landing page');
+    final landed = await waitReal(tester,
+        done: () => saw(socks, dest: landingDest), label: 'landing page');
     verdict.add('landing=${landed ? "proxied" : "DIRECT-or-failed"}');
     expect(landed, isTrue,
         reason: 'the landing page of a proxied site did not go through its '
             'proxy, so nothing else in this file holds');
 
     // The page follows its own link, which is what a user produces.
-    final inPage = await waitReal(tester, () => saw(socks, inPageDest),
-        label: 'in-page navigation', timeout: const Duration(seconds: 25));
+    final inPage = await waitReal(tester,
+        done: () => saw(socks, dest: inPageDest),
+        label: 'in-page navigation',
+        timeout: const Duration(seconds: 25));
     verdict.add('in-page=${inPage ? "proxied" : "DIRECT-or-failed"}');
     expect(inPage, isTrue,
         reason: 'a site that used its proxy for its landing page went direct '
@@ -170,7 +173,7 @@ void main() {
             'load and the site leaks on everything the user clicks');
 
     // The same second navigation, issued from Dart instead.
-    expect(await waitReal(tester, () => controller != null,
+    expect(await waitReal(tester, done: () => controller != null,
         label: 'controller created'), isTrue);
     await tester.runAsync(() async {
       await controller!.nativeController.loadUrl(
@@ -178,8 +181,8 @@ void main() {
             url: inapp.WebUri('http://${syntheticOrigin(loadUrlDest)}/d')),
       );
     });
-    final viaLoadUrl = await waitReal(tester, () => saw(socks, loadUrlDest),
-        label: 'loadUrl navigation');
+    final viaLoadUrl = await waitReal(tester,
+        done: () => saw(socks, dest: loadUrlDest), label: 'loadUrl navigation');
     verdict.add('loadurl=${viaLoadUrl ? "proxied" : "DIRECT-or-failed"}');
     expect(viaLoadUrl, isTrue,
         reason: 'the same second navigation, issued from Dart, went direct');
@@ -200,12 +203,16 @@ void main() {
         path: '/pair-b',
         proxySettings: altProxy());
 
-    await waitReal(tester, () => saw(socks, pairADest) && saw(altSocks, pairBDest),
-        label: 'both panes settled', timeout: const Duration(seconds: 30));
+    await waitReal(tester,
+        done: () =>
+            saw(socks, dest: pairADest) && saw(altSocks, dest: pairBDest),
+        label: 'both panes settled',
+        timeout: const Duration(seconds: 30));
 
-    final a = saw(socks, pairADest);
-    final b = saw(altSocks, pairBDest);
-    final crossed = saw(altSocks, pairADest) || saw(socks, pairBDest);
+    final a = saw(socks, dest: pairADest);
+    final b = saw(altSocks, dest: pairBDest);
+    final crossed =
+        saw(altSocks, dest: pairADest) || saw(socks, dest: pairBDest);
     verdict.add('pair=a:${a ? "own" : "no"} b:${b ? "own" : "no"} '
         'crossed=$crossed');
 
@@ -232,7 +239,7 @@ void main() {
         dest: seamDest,
         path: '/seam',
         proxySettings: liveProxy());
-    expect(await waitReal(tester, () => controller != null,
+    expect(await waitReal(tester, done: () => controller != null,
         label: 'controller created'), isTrue);
     inapp.InAppWebViewSettings? live;
     await tester.runAsync(() async {
@@ -252,10 +259,11 @@ void main() {
     if (!usable()) return;
     await mount(tester, siteId: 'proxy-binding-control', dest: controlDest,
         path: '/control');
-    await waitReal(tester, () => false,
+    await waitReal(tester, done: () => false,
         label: 'unproxied settle window',
         timeout: const Duration(seconds: 5));
-    expect(saw(socks, controlDest) || saw(altSocks, controlDest), isFalse,
+    expect(saw(socks, dest: controlDest) || saw(altSocks, dest: controlDest),
+        isFalse,
         reason: 'a site with no proxy reached a proxy fixture, so this file '
             'cannot tell a bound proxy from a fixture that sees everything');
   });

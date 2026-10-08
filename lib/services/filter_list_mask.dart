@@ -42,7 +42,8 @@ final RegExp _proceduralPseudo = RegExp(
 /// against the request's source host and its parents, so `example.com`
 /// covers `www.example.com` too. Returns [rulesText] unchanged when [hosts]
 /// is empty, which is the path every unmasked list takes.
-String scopeRulesAwayFromHosts(String rulesText, Iterable<String> hosts) {
+String scopeRulesAwayFromHosts(String rulesText,
+    {required Iterable<String> hosts}) {
   final excluded = <String>[];
   for (final host in hosts) {
     final normalized = host.trim().toLowerCase();
@@ -57,17 +58,20 @@ String scopeRulesAwayFromHosts(String rulesText, Iterable<String> hosts) {
 
   final out = StringBuffer();
   for (final line in const LineSplitter().convert(rulesText)) {
-    out.writeln(_scopeLine(line, domainOption, domainSuffix, cosmeticPrefix));
+    out.writeln(_scopeLine(line,
+        domainOption: domainOption,
+        domainSuffix: domainSuffix,
+        cosmeticPrefix: cosmeticPrefix));
   }
   return out.toString();
 }
 
 String _scopeLine(
-  String line,
-  String domainOption,
-  String domainSuffix,
-  String cosmeticPrefix,
-) {
+  String line, {
+  required String domainOption,
+  required String domainSuffix,
+  required String cosmeticPrefix,
+}) {
   final filter = line.trim();
   if (filter.isEmpty) return line;
   // detect_filter_type's "not supported" set: comments and list headers.
@@ -83,13 +87,15 @@ String _scopeLine(
       final windowEnd = (sharp + 5) < filter.length ? sharp + 5 : filter.length;
       final second = filter.indexOf('#', sharp + 1);
       if (second >= 0 && second < windowEnd) {
-        return _scopeCosmetic(filter, sharp, second, cosmeticPrefix);
+        return _scopeCosmetic(filter,
+            sharp: sharp, second: second, cosmeticPrefix: cosmeticPrefix);
       }
     }
     // AdGuard HTML filtering rules the crate refuses outright.
     if (filter.contains(r'$$')) return line;
   }
-  return _scopeNetwork(filter, domainOption, domainSuffix);
+  return _scopeNetwork(filter,
+      domainOption: domainOption, domainSuffix: domainSuffix);
 }
 
 bool _isWhitespace(int codeUnit) =>
@@ -97,11 +103,11 @@ bool _isWhitespace(int codeUnit) =>
 
 /// [sharp] is the first `#`, [second] the `#` that closes the separator.
 String _scopeCosmetic(
-  String filter,
-  int sharp,
-  int second,
-  String cosmeticPrefix,
-) {
+  String filter, {
+  required int sharp,
+  required int second,
+  required String cosmeticPrefix,
+}) {
   final separator = filter.substring(sharp, second + 1);
   if (separator.contains('@')) return filter;
   if (sharp > 0) {
@@ -115,7 +121,8 @@ String _scopeCosmetic(
   return '$cosmeticPrefix$filter';
 }
 
-String _scopeNetwork(String filter, String domainOption, String domainSuffix) {
+String _scopeNetwork(String filter,
+    {required String domainOption, required String domainSuffix}) {
   // The crate takes the LAST `$` as the option separator, so appending our
   // own would swallow whatever options the rule already carries.
   final dollar = filter.lastIndexOf(r'$');

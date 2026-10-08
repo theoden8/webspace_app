@@ -39,7 +39,7 @@ import 'bare_site.dart';
 import 'fixture_server.dart';
 
 class _Icon {
-  const _Icon(this.size, this.r, this.g, this.b, [this.delayMs = 0]);
+  const _Icon(this.size, {required this.r, required this.g, required this.b, this.delayMs = 0});
 
   final int size;
   final int r;
@@ -56,16 +56,16 @@ class _Icon {
 
 // The multi-size page's icons finish downloading 32, then 192, then 16.
 const Map<String, _Icon> _icons = {
-  '/multi/32.png': _Icon(32, 0, 0, 255),
-  '/multi/192.png': _Icon(192, 0, 255, 0, 600),
-  '/multi/16.png': _Icon(16, 255, 0, 0, 1200),
-  '/badge/a.png': _Icon(48, 0, 128, 255),
-  '/badge/b.png': _Icon(96, 255, 0, 255),
-  '/offsite.png': _Icon(64, 255, 128, 0),
-  '/favicon.ico': _Icon(64, 0, 200, 100),
+  '/multi/32.png': _Icon(32, r: 0, g: 0, b: 255),
+  '/multi/192.png': _Icon(192, r: 0, g: 255, b: 0, delayMs: 600),
+  '/multi/16.png': _Icon(16, r: 255, g: 0, b: 0, delayMs: 1200),
+  '/badge/a.png': _Icon(48, r: 0, g: 128, b: 255),
+  '/badge/b.png': _Icon(96, r: 255, g: 0, b: 255),
+  '/offsite.png': _Icon(64, r: 255, g: 128, b: 0),
+  '/favicon.ico': _Icon(64, r: 0, g: 200, b: 100),
 };
 
-String _page(String head, [String body = '']) =>
+String _page(String head, {String body = ''}) =>
     '<!doctype html><html><head>$head</head><body>site$body</body></html>';
 
 final Map<String, String> _pages = {
@@ -78,7 +78,7 @@ final Map<String, String> _pages = {
   // keeps it out: by size alone the engine would take it.
   '/badge': _page(
     '<link rel="icon" href="/badge/a.png">',
-    '<script>addEventListener("load", function() {'
+    body: '<script>addEventListener("load", function() {'
         ' setTimeout(function() {'
         '  document.querySelector("link[rel=icon]").href = "/badge/b.png";'
         ' }, 2500);'
@@ -108,14 +108,14 @@ void main() {
 
   setUpAll(() async {
     if (_siteIconsOnly) {
-      DeveloperModeService.instance.debugSet(true);
+      DeveloperModeService.instance.debugSet(on: true);
       ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteIconsOnly, true);
+          .debugSet(ExperimentalFeature.siteIconsOnly, on: true);
     }
     // Any address, so the same server answers as the other host.
     server = await HttpServer.bind(InternetAddress.anyIPv4, 0);
     port = server.port;
-    listenFixture(server, (request) async {
+    listenFixture(server, onEvent: (request) async {
       final path = request.uri.path;
       requested.add('${request.requestedUri.host}$path');
       timeline.add('${clock.elapsedMilliseconds}ms GET $path');
@@ -170,8 +170,8 @@ void main() {
   /// Waits until [done] holds (or [timeout]), then [settle] more so an icon
   /// that should be refused has time to arrive and be refused.
   Future<List<String>> mount(
-    WidgetTester tester,
-    String path, {
+    WidgetTester tester, {
+    required String path,
     required bool Function(List<String> accepted) done,
     Duration timeout = const Duration(seconds: 45),
     Duration settle = const Duration(seconds: 4),
@@ -230,7 +230,7 @@ void main() {
   testWidgets('keeps the largest of several icons, whatever order they land in',
       (tester) async {
     requested.clear();
-    final accepted = await mount(tester, '/multi',
+    final accepted = await mount(tester, path: '/multi',
         done: (a) => a.contains(expected('/multi/192.png')));
     if (fetchPath) {
       // Both usable links are fetched and only the best is offered; 16 is
@@ -249,7 +249,7 @@ void main() {
 
   testWidgets('ignores the badge a page swaps in after load', (tester) async {
     requested.clear();
-    final accepted = await mount(tester, '/badge',
+    final accepted = await mount(tester, path: '/badge',
         done: fetchPath
             ? (a) => a.isNotEmpty
             : (a) => requested.contains('127.0.0.1/badge/b.png'),
@@ -264,7 +264,7 @@ void main() {
 
   testWidgets('takes nothing from a page on another host', (tester) async {
     requested.clear();
-    final accepted = await mount(tester, '/redirect',
+    final accepted = await mount(tester, path: '/redirect',
         done: (_) => requested.contains(fetchPath
             ? '$otherHost/offsite'
             : '$otherHost/offsite.png'));
@@ -276,7 +276,7 @@ void main() {
   testWidgets('takes /favicon.ico when the page declares no icon',
       (tester) async {
     requested.clear();
-    final accepted = await mount(tester, '/plain',
+    final accepted = await mount(tester, path: '/plain',
         done: (a) => a.isNotEmpty);
     expect(accepted, [expected('/favicon.ico')]);
   });

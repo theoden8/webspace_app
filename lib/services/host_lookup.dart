@@ -27,7 +27,7 @@ library;
 String? extractHost(String url) {
   final bounds = _hostBounds(url);
   if (bounds == null) return null;
-  return _slice(url, bounds.$1, bounds.$2);
+  return _slice(url, start: bounds.$1, end: bounds.$2);
 }
 
 /// Drop the host's root dot inside a whole URL, leaving the rest of the URL
@@ -90,7 +90,7 @@ String stripRootDot(String url) {
   return (hostStart, hostEnd);
 }
 
-String _slice(String url, int start, int end) {
+String _slice(String url, {required int start, required int end}) {
   // Only one dot: `example.com..` is not a valid FQDN form, so it stays
   // unmatched rather than being folded onto `example.com`. Bracketed IPv6
   // literals end in ']' and are untouched.
@@ -114,7 +114,7 @@ String _slice(String url, int start, int end) {
 /// for the comparison since `Set<String>.contains` accepts a key built
 /// directly from `String.substring(start)`. Stops before the eTLD label
 /// (`com` alone is never matched).
-bool hostInSet(String host, Set<String> set) {
+bool hostInSet(String host, {required Set<String> set}) {
   if (set.isEmpty) return false;
   if (set.contains(host)) return true;
   int dot = host.indexOf('.');
@@ -148,7 +148,7 @@ class HostFifoCache<T extends Object> {
 
   T? operator [](String key) => _map[key];
 
-  void put(String key, T value) {
+  void put(String key, {required T value}) {
     if (_map.containsKey(key)) {
       _map[key] = value;
       return;

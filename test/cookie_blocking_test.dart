@@ -44,9 +44,9 @@ void main() {
         },
       );
 
-      expect(model.isCookieBlocked('_ga', '.example.com'), isTrue);
-      expect(model.isCookieBlocked('_ga', '.other.com'), isFalse);
-      expect(model.isCookieBlocked('_gid', '.example.com'), isFalse);
+      expect(model.isCookieBlocked('_ga', domain: '.example.com'), isTrue);
+      expect(model.isCookieBlocked('_ga', domain: '.other.com'), isFalse);
+      expect(model.isCookieBlocked('_gid', domain: '.example.com'), isFalse);
     });
 
     test('subdomain matching', () {
@@ -58,11 +58,11 @@ void main() {
       );
 
       // Subdomain of blocked domain
-      expect(model.isCookieBlocked('track', 'sub.example.com'), isTrue);
+      expect(model.isCookieBlocked('track', domain: 'sub.example.com'), isTrue);
       // Exact match
-      expect(model.isCookieBlocked('track', 'example.com'), isTrue);
+      expect(model.isCookieBlocked('track', domain: 'example.com'), isTrue);
       // Different domain
-      expect(model.isCookieBlocked('track', 'notexample.com'), isFalse);
+      expect(model.isCookieBlocked('track', domain: 'notexample.com'), isFalse);
     });
 
     test('null domain never matches', () {
@@ -73,14 +73,14 @@ void main() {
         },
       );
 
-      expect(model.isCookieBlocked('_ga', null), isFalse);
+      expect(model.isCookieBlocked('_ga', domain: null), isFalse);
     });
 
     test('empty blockedCookies returns false fast', () {
       final model = WebViewModel(initUrl: 'https://example.com');
 
       expect(model.blockedCookies, isEmpty);
-      expect(model.isCookieBlocked('anything', '.any.com'), isFalse);
+      expect(model.isCookieBlocked('anything', domain: '.any.com'), isFalse);
     });
 
     test('multiple rules', () {
@@ -93,11 +93,11 @@ void main() {
         },
       );
 
-      expect(model.isCookieBlocked('_ga', '.google.com'), isTrue);
-      expect(model.isCookieBlocked('_fbp', '.facebook.com'), isTrue);
-      expect(model.isCookieBlocked('track', '.example.com'), isTrue);
-      expect(model.isCookieBlocked('_ga', '.facebook.com'), isFalse);
-      expect(model.isCookieBlocked('session', '.google.com'), isFalse);
+      expect(model.isCookieBlocked('_ga', domain: '.google.com'), isTrue);
+      expect(model.isCookieBlocked('_fbp', domain: '.facebook.com'), isTrue);
+      expect(model.isCookieBlocked('track', domain: '.example.com'), isTrue);
+      expect(model.isCookieBlocked('_ga', domain: '.facebook.com'), isFalse);
+      expect(model.isCookieBlocked('session', domain: '.google.com'), isFalse);
     });
   });
 
@@ -133,7 +133,7 @@ void main() {
       );
 
       final json = model.toJson();
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
 
       expect(restored.blockedCookies.length, equals(2));
       expect(
@@ -159,10 +159,10 @@ void main() {
         'incognito': false,
       };
 
-      final model = WebViewModel.fromJson(legacyJson, null);
+      final model = WebViewModel.fromJson(legacyJson, stateSetterF: null);
 
       expect(model.blockedCookies, isEmpty);
-      expect(model.isCookieBlocked('_ga', '.google.com'), isFalse);
+      expect(model.isCookieBlocked('_ga', domain: '.google.com'), isFalse);
     });
   });
 
@@ -182,7 +182,7 @@ void main() {
       ];
 
       final filtered = cookies
-          .where((c) => !model.isCookieBlocked(c.name, c.domain))
+          .where((c) => !model.isCookieBlocked(c.name, domain: c.domain))
           .toList();
 
       expect(filtered.length, equals(2));

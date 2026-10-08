@@ -52,7 +52,8 @@ void main() {
       // Reset the in-memory state by clearing first.
       await TimezoneLocationService.instance.clear();
       expect(TimezoneLocationService.instance.isReady, isFalse);
-      expect(TimezoneLocationService.instance.lookup(35.68, 139.65), isNull);
+      expect(TimezoneLocationService.instance.lookup(35.68, longitude: 139.65),
+          isNull);
     });
 
     test('parses GeoJSON cache from disk and resolves polygons', () async {
@@ -74,17 +75,19 @@ void main() {
     });
 
     test('lookup hits the right zone for points inside each polygon', () {
-      expect(
-          TimezoneLocationService.instance.lookup(35.68, 139.65), 'Asia/Tokyo');
-      expect(TimezoneLocationService.instance.lookup(51.5, -0.13),
+      expect(TimezoneLocationService.instance.lookup(35.68, longitude: 139.65),
+          'Asia/Tokyo');
+      expect(TimezoneLocationService.instance.lookup(51.5, longitude: -0.13),
           'Europe/London');
     });
 
     test('lookup misses for points outside both polygons', () {
       // Open ocean somewhere — both fixture polygons exclude this point.
-      expect(TimezoneLocationService.instance.lookup(0.0, 0.0), isNull);
+      expect(
+          TimezoneLocationService.instance.lookup(0.0, longitude: 0.0), isNull);
       // Just outside the Tokyo bbox.
-      expect(TimezoneLocationService.instance.lookup(34.5, 139.5), isNull);
+      expect(TimezoneLocationService.instance.lookup(34.5, longitude: 139.5),
+          isNull);
     });
   });
 

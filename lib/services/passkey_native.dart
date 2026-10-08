@@ -50,7 +50,7 @@ class PasskeyNative {
     if (!hostIsAndroid) return Future.value(PasskeyNativeStatus.none);
     final known = _status;
     if (known != null) return Future.value(known);
-    return _reading.run((), _readStatus);
+    return _reading.run((), call: _readStatus);
   }
 
   static Future<PasskeyNativeStatus> _readStatus() async {
@@ -73,7 +73,8 @@ class PasskeyNative {
 
   /// Run [ceremony] through Credential Manager. Returns the provider's JSON,
   /// or throws [PasskeyNativeFailure].
-  static Future<String> run(String key, PasskeyCeremony ceremony) async {
+  static Future<String> run(String key,
+      {required PasskeyCeremony ceremony}) async {
     try {
       final json = await _channel.invokeMethod<String>(
         ceremony.op == PasskeyOp.create ? 'create' : 'get',

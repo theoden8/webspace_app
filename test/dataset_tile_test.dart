@@ -44,7 +44,8 @@ class _ClearableDataset extends _Dataset implements ClearableDataset {
 
 Widget _host(
   DownloadableDataset dataset, {
-  Widget Function(DownloadableDataset, VoidCallback?)? below,
+  Widget Function(DownloadableDataset dataset,
+      {required VoidCallback? download})? below,
 }) => localizedApp(
   Scaffold(
     body: ListView(
@@ -82,7 +83,7 @@ void main() {
     await tester.pumpWidget(
       _host(
         dataset,
-        below: (_, download) {
+        below: (_, {required download}) {
           handed.add(download);
           return const SizedBox.shrink();
         },
@@ -136,7 +137,7 @@ void main() {
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     expect(firefox.autoRefresh, isTrue);
 
-    await tester.runAsync(() => firefox.setAutoRefresh(false));
+    await tester.runAsync(() => firefox.setAutoRefresh(on: false));
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(AppPref.firefoxUaAutoRefresh.key), isFalse);
     firefox.dispose();
@@ -167,7 +168,7 @@ void main() {
             data: MediaQueryData(textScaler: TextScaler.linear(scale)),
             child: _host(
               dataset,
-              below: (_, _) => SwitchListTile(
+              below: (_, {required download}) => SwitchListTile(
                 title: const Text('Check weekly'),
                 value: true,
                 onChanged: (_) {},

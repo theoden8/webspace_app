@@ -27,7 +27,7 @@ class TabReturn {
   /// to show the site it went to (WEBSPACE-012).
   final String? webspaceId;
 
-  bool leadsBackTo(String siteId, String tabId) =>
+  bool leadsBackTo(String siteId, {required String tabId}) =>
       fromSiteId == siteId && fromTabId == tabId;
 }
 
@@ -38,10 +38,10 @@ abstract final class TabReturnEngine {
   /// The jump Back undoes while [activeTabId] of [siteId] is on screen, or
   /// null when that is not where the last jump landed.
   static TabReturn? wayBack(
-    List<TabReturn> trail,
-    String siteId,
-    String activeTabId,
-  ) {
+    List<TabReturn> trail, {
+    required String siteId,
+    required String activeTabId,
+  }) {
     if (trail.isEmpty) return null;
     final last = trail.last;
     return last.toSiteId == siteId && last.toTabId == activeTabId ? last : null;
@@ -59,8 +59,8 @@ abstract final class TabReturnEngine {
     required String toTabId,
     String? webspaceId,
   }) {
-    final back = wayBack(trail, fromSiteId, fromTabId);
-    if (back != null && back.leadsBackTo(toSiteId, toTabId)) {
+    final back = wayBack(trail, siteId: fromSiteId, activeTabId: fromTabId);
+    if (back != null && back.leadsBackTo(toSiteId, tabId: toTabId)) {
       return trail.sublist(0, trail.length - 1);
     }
     if (fromSiteId == toSiteId) return const [];

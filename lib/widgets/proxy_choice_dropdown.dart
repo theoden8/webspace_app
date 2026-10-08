@@ -44,36 +44,40 @@ class ProxyChoice {
 
 /// The label a library entry goes by: its name, or what it holds when it has
 /// none, so two unnamed entries can still be told apart.
-String savedProxyLabel(SavedProxy proxy) =>
-    _nameOr(proxy.name, proxy.settings.address ?? proxy.settings.type.name);
+String savedProxyLabel(SavedProxy proxy) => _nameOr(proxy.name,
+    fallback: proxy.settings.address ?? proxy.settings.type.name);
 
 String gatewayLabel(SavedGateway gateway) =>
-    _nameOr(gateway.name, gateway.address ?? gateway.type.name);
+    _nameOr(gateway.name, fallback: gateway.address ?? gateway.type.name);
 
 String credentialsLabel(SavedCredentials credentials) =>
-    _nameOr(credentials.name, credentials.username ?? credentials.id);
+    _nameOr(credentials.name, fallback: credentials.username ?? credentials.id);
 
-String _nameOr(String name, String fallback) =>
+String _nameOr(String name, {required String fallback}) =>
     name.trim().isEmpty ? fallback : name.trim();
 
 /// Why a route taken from the library does not resolve, as the user reads it.
-String libraryProblemLabel(AppLocalizations loc, LibraryProblem problem) =>
+String libraryProblemLabel(AppLocalizations loc,
+        {required LibraryProblem problem}) =>
     switch (problem) {
-      LibraryProblem.none || LibraryProblem.proxyMissing =>
+      LibraryProblem.none ||
+      LibraryProblem.proxyMissing =>
         loc.savedProxyMissing,
       LibraryProblem.gatewayMissing => loc.proxyLibraryGatewayMissing,
       LibraryProblem.credentialsMissing => loc.proxyLibraryCredentialsMissing,
-      LibraryProblem.credentialsMismatch =>
-        loc.proxyLibraryCredentialsMismatch,
+      LibraryProblem.credentialsMismatch => loc.proxyLibraryCredentialsMismatch,
     };
 
 /// What a saved proxy or gateway route goes by: its entry's label, or why it
 /// does not resolve (PROXY-030).
-String libraryRouteLabel(AppLocalizations loc, UserProxySettings route) {
+String libraryRouteLabel(AppLocalizations loc,
+    {required UserProxySettings route}) {
   assert(route.type == ProxyType.SAVED || route.type == ProxyType.GATEWAY,
       'only a library route names an entry');
   final problem = resolveLibrary(route).problem;
-  if (problem != LibraryProblem.none) return libraryProblemLabel(loc, problem);
+  if (problem != LibraryProblem.none) {
+    return libraryProblemLabel(loc, problem: problem);
+  }
   return route.type == ProxyType.SAVED
       ? savedProxyLabel(ProxyLibrary.proxy(route.savedProxyId)!)
       : gatewayLabel(ProxyLibrary.gateway(route.gatewayId)!);
@@ -97,8 +101,8 @@ String routeLabel(UserProxySettings route) =>
 const double _maxLabelWidth = 160;
 
 DropdownMenuItem<String> _item(
-  String key,
-  String label, {
+  String key, {
+  required String label,
   bool enabled = true,
   TextStyle? style,
 }) =>
@@ -113,12 +117,12 @@ DropdownMenuItem<String> _item(
     );
 
 DropdownMenuItem<String> _header(
-  BuildContext context,
-  String key,
-  String label,
-) {
+  BuildContext context, {
+  required String key,
+  required String label,
+}) {
   final theme = Theme.of(context);
-  return _item(key, label,
+  return _item(key, label: label,
       enabled: false,
       style: theme.textTheme.labelSmall
           ?.copyWith(color: theme.colorScheme.primary));
@@ -177,36 +181,39 @@ class ProxyChoiceDropdown extends StatelessWidget {
     }
 
     if (!gatewaysOnly) {
-      add(_item(ProxyType.DEFAULT.name, ProxyType.DEFAULT.name));
+      add(_item(ProxyType.DEFAULT.name, label: ProxyType.DEFAULT.name));
     }
     if (!gatewaysOnly &&
         (library.proxies.isNotEmpty || type == ProxyType.SAVED)) {
-      add(_header(context, _proxiesHeader, loc.savedProxiesTitle));
+      add(_header(context, key: _proxiesHeader, label: loc.savedProxiesTitle));
       for (final p in library.proxies) {
-        add(_item('$_savedPrefix${p.id}', savedProxyLabel(p)));
+        add(_item('$_savedPrefix${p.id}', label: savedProxyLabel(p)));
       }
       // A setting still naming a deleted entry keeps an item, because a
       // DropdownButton whose value is absent from its items throws, and
       // because "missing" is what the setting actually has.
-      if (type == ProxyType.SAVED) add(_item(current, loc.savedProxyMissing));
+      if (type == ProxyType.SAVED) {
+        add(_item(current, label: loc.savedProxyMissing));
+      }
     }
     if (library.gateways.isNotEmpty || type == ProxyType.GATEWAY) {
-      add(_header(context, _gatewaysHeader, loc.proxyLibraryGateways));
+      add(_header(context,
+          key: _gatewaysHeader, label: loc.proxyLibraryGateways));
       for (final g in library.gateways) {
-        add(_item('$_gatewayPrefix${g.id}', gatewayLabel(g)));
+        add(_item('$_gatewayPrefix${g.id}', label: gatewayLabel(g)));
       }
       if (type == ProxyType.GATEWAY) {
-        add(_item(current, loc.proxyLibraryGatewayMissing));
+        add(_item(current, label: loc.proxyLibraryGatewayMissing));
       }
     }
     for (final t in const [ProxyType.HTTP, ProxyType.HTTPS, ProxyType.SOCKS5]) {
-      add(_item(t.name, t.name));
+      add(_item(t.name, label: t.name));
     }
     // A site that already carries TOR (say, from a backup taken on iOS and
     // imported on Android) keeps the option visible.
     if (!gatewaysOnly && (torAvailable || type == ProxyType.TOR)) {
-      add(_item(
-          ProxyType.TOR.name, torRouteLabel(loc, external: torExternal)));
+      add(_item(ProxyType.TOR.name,
+          label: torRouteLabel(loc, external: torExternal)));
     }
 
     return DropdownButton<String>(
@@ -256,14 +263,14 @@ class ProxyCredentialsDropdown extends StatelessWidget {
     final loc = AppLocalizations.of(context);
     final current = credentialsId == null ? _typed : '$_prefix$credentialsId';
     final items = <DropdownMenuItem<String>>[
-      _item(_typed, loc.proxyLibraryCredentialsTyped),
+      _item(_typed, label: loc.proxyLibraryCredentialsTyped),
       for (final c in library.credentialsFor(gatewayId))
-        _item('$_prefix${c.id}', credentialsLabel(c)),
+        _item('$_prefix${c.id}', label: credentialsLabel(c)),
     ];
     if (!items.any((i) => i.value == current)) {
       items.add(_item(
         current,
-        library.credentialsById(credentialsId) == null
+        label: library.credentialsById(credentialsId) == null
             ? loc.proxyLibraryCredentialsMissing
             : loc.proxyLibraryCredentialsMismatch,
       ));

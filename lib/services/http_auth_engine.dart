@@ -45,14 +45,16 @@ class HttpAuthCredential {
 /// no port and no scheme (`AwHttpAuthHandler` forwards only host and realm),
 /// so anything finer would never match there.
 abstract class HttpAuthCredentialStore {
-  Future<HttpAuthCredential?> lookup(String siteId, Host host, String realm);
+  Future<HttpAuthCredential?> lookup(String siteId,
+      {required Host host, required String realm});
   Future<void> save(
-    String siteId,
-    Host host,
-    String realm,
-    HttpAuthCredential credential,
-  );
-  Future<void> remove(String siteId, Host host, String realm);
+    String siteId, {
+    required Host host,
+    required String realm,
+    required HttpAuthCredential credential,
+  });
+  Future<void> remove(String siteId,
+      {required Host host, required String realm});
 }
 
 /// The platform's challenge, reduced to what the policy reads.
@@ -153,7 +155,7 @@ class HttpAuthSession {
   /// already isolates cookies and keeps navigations in-webview by. A private
   /// suffix (`github.io`) is not a base domain, so a page on one
   /// `github.io` subdomain cannot raise a prompt for another.
-  static bool isSiteHost(String host, String? siteUrl) {
+  static bool isSiteHost(String host, {required String? siteUrl}) {
     final siteHost = Host.inUrl(siteUrl);
     final h = Host(host);
     if (siteHost == null || h.isEmpty) return false;
@@ -162,9 +164,9 @@ class HttpAuthSession {
 
   /// The storage key for a challenge's protection space.
   static ({Host host, String realm}) protectionSpace(
-    String host,
-    String? realm,
-  ) =>
+    String host, {
+    required String? realm,
+  }) =>
       (host: Host(host), realm: realm ?? '');
 
   /// The credential to answer [challenge] with, or null to leave it to the
@@ -175,21 +177,25 @@ class HttpAuthSession {
   /// they must not stack one dialog each.
   Future<HttpAuthCredential?> answer(HttpAuthChallengeInfo challenge) {
     if (challenge.isProxy) return Future.value(null);
-    if (!isSiteHost(challenge.host, siteUrl)) return Future.value(null);
-    final space = protectionSpace(challenge.host, challenge.realm);
+    if (!isSiteHost(challenge.host, siteUrl: siteUrl)) {
+      return Future.value(null);
+    }
+    final space = protectionSpace(challenge.host, realm: challenge.realm);
     final key = '${space.host}\n${space.realm}';
-    return _answers.run(key, () => _resolve(challenge, space, key));
+    return _answers.run(key,
+        call: () => _resolve(challenge, space: space, key: key));
   }
 
   Future<HttpAuthCredential?> _resolve(
-    HttpAuthChallengeInfo challenge,
-    ({Host host, String realm}) space,
-    String key,
-  ) async {
+    HttpAuthChallengeInfo challenge, {
+    required ({Host host, String realm}) space,
+    required String key,
+  }) async {
     final owner = siteId;
     final readsSaved = owner != null && memory != HttpAuthMemory.off;
-    final saved =
-        readsSaved ? await store.lookup(owner, space.host, space.realm) : null;
+    final saved = readsSaved
+        ? await store.lookup(owner, host: space.host, realm: space.realm)
+        : null;
     final retry = challenge.platformRetry || _supplied.contains(key);
 
     // A saved credential is offered once per webview. Being asked again for
@@ -224,9 +230,10 @@ class HttpAuthSession {
     _lastUsername[key] = result.username;
     if (canRemember) {
       if (result.remember) {
-        await store.save(owner, space.host, space.realm, credential);
+        await store.save(owner,
+            host: space.host, realm: space.realm, credential: credential);
       } else if (saved != null) {
-        await store.remove(owner, space.host, space.realm);
+        await store.remove(owner, host: space.host, realm: space.realm);
       }
     }
     return credential;

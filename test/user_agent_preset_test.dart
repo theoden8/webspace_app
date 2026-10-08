@@ -22,7 +22,7 @@ void main() {
     test('round-trips every preset at multiple versions', () {
       for (final preset in UserAgentPreset.values) {
         for (final version in ['120.0', '151.0', '152.0', '199.0']) {
-          final ua = renderUserAgentPreset(preset, version);
+          final ua = renderUserAgentPreset(preset, version: version);
           expect(recognizeGeneratedUserAgent(ua), preset,
               reason: 'render($preset, $version) = $ua');
         }
@@ -157,7 +157,7 @@ void main() {
       final json = WebViewModel(initUrl: 'https://example.com').toJson()
         ..['userAgent'] = wkWebViewDefault;
       json.remove('uaPreset');
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
       expect(model.userAgent, '');
       expect(model.uaPreset, isNull);
       expect(model.effectiveUserAgentOrNull, isNull);
@@ -185,7 +185,7 @@ void main() {
     test('legacy stored UA heals on load and renders current version', () {
       final json = baseJson()..['userAgent'] = _wildLegacyHybrid;
       json.remove('uaPreset');
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
       expect(model.uaPreset, UserAgentPreset.firefoxIos);
       expect(model.effectiveUserAgent,
           buildFirefoxIosUserAgent(svc.versionString));
@@ -195,8 +195,9 @@ void main() {
 
     test('version-stale generated UA re-renders at the current version', () {
       final stale =
-          renderUserAgentPreset(UserAgentPreset.firefoxLinux, '120.0');
-      final model = WebViewModel.fromJson(baseJson()..['userAgent'] = stale, null);
+          renderUserAgentPreset(UserAgentPreset.firefoxLinux, version: '120.0');
+      final model = WebViewModel.fromJson(baseJson()..['userAgent'] = stale,
+          stateSetterF: null);
       expect(model.uaPreset, UserAgentPreset.firefoxLinux);
       expect(model.effectiveUserAgent, contains('rv:${svc.versionString}'));
       expect(model.effectiveUserAgent, isNot(contains('120.0')));
@@ -206,17 +207,19 @@ void main() {
       final json = baseJson()
         ..['userAgent'] = 'whatever the old build rendered'
         ..['uaPreset'] = 'firefoxWindows';
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
       expect(model.uaPreset, UserAgentPreset.firefoxWindows);
-      expect(model.effectiveUserAgent,
-          buildFirefoxUserAgent(kFirefoxWindowsPlatformToken, svc.versionString));
+      expect(
+          model.effectiveUserAgent,
+          buildFirefoxUserAgent(kFirefoxWindowsPlatformToken,
+              version: svc.versionString));
     });
 
     test('unknown uaPreset name falls back to recognition', () {
       final json = baseJson()
         ..['userAgent'] = 'MyBrowser/1.0'
         ..['uaPreset'] = 'somethingFromANewerAppVersion';
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
       expect(model.uaPreset, isNull);
       expect(model.effectiveUserAgent, 'MyBrowser/1.0');
     });
@@ -237,8 +240,8 @@ void main() {
 
     test('setUserAgent re-attaches the preset for generated text', () {
       final model = WebViewModel(initUrl: 'https://example.com');
-      model.setUserAgent(
-          renderUserAgentPreset(UserAgentPreset.firefoxAndroid, svc.versionString));
+      model.setUserAgent(renderUserAgentPreset(UserAgentPreset.firefoxAndroid,
+          version: svc.versionString));
       expect(model.uaPreset, UserAgentPreset.firefoxAndroid);
       model.setUserAgent('');
       expect(model.uaPreset, isNull);
@@ -246,10 +249,10 @@ void main() {
 
     test('toJson/fromJson round-trip is stable (idempotent migration)', () {
       final model = WebViewModel(initUrl: 'https://example.com');
-      model.setUserAgent(
-          renderUserAgentPreset(UserAgentPreset.firefoxIos, svc.versionString));
-      final once = WebViewModel.fromJson(model.toJson(), null);
-      final twice = WebViewModel.fromJson(once.toJson(), null);
+      model.setUserAgent(renderUserAgentPreset(UserAgentPreset.firefoxIos,
+          version: svc.versionString));
+      final once = WebViewModel.fromJson(model.toJson(), stateSetterF: null);
+      final twice = WebViewModel.fromJson(once.toJson(), stateSetterF: null);
       expect(once.uaPreset, UserAgentPreset.firefoxIos);
       expect(twice.uaPreset, UserAgentPreset.firefoxIos);
       expect(twice.effectiveUserAgent, once.effectiveUserAgent);

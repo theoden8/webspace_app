@@ -4,17 +4,18 @@ import 'package:webspace/services/web_search_engine.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
 import 'helpers/localized.dart';
 
-SearchSite site(String id, String name, String url) => SearchSite(
+SearchSite site(String id, {required String name, required String url}) =>
+    SearchSite(
       siteId: id,
       name: name,
       initUrl: url,
       capability: WebSearchEngine.capabilityOf(initUrl: url),
     );
 
-final gh = site('gh', 'GitHub', 'https://github.com/');
-final blog = site('blog', 'Blog', 'https://blog.example/');
-final ddg = site('ddg', 'DuckDuckGo', 'https://duckduckgo.com/');
-final kagi = site('kagi', 'Kagi', 'https://kagi.com/');
+final gh = site('gh', name: 'GitHub', url: 'https://github.com/');
+final blog = site('blog', name: 'Blog', url: 'https://blog.example/');
+final ddg = site('ddg', name: 'DuckDuckGo', url: 'https://duckduckgo.com/');
+final kagi = site('kagi', name: 'Kagi', url: 'https://kagi.com/');
 
 void main() {
   /// Opens the sheet from a button, as the page menu does, and records what it
@@ -30,7 +31,7 @@ void main() {
     Map<String, int> containerColors = const {},
   }) async {
     final results = <WebSearchRequest?>[];
-    await pumpLocalized(tester, Scaffold(
+    await pumpLocalized(tester, home: Scaffold(
       body: Builder(
         builder: (context) => TextButton(
           onPressed: () async {
@@ -57,7 +58,7 @@ void main() {
     return results;
   }
 
-  Future<void> search(WidgetTester tester, String query) async {
+  Future<void> search(WidgetTester tester, {required String query}) async {
     await tester.enterText(find.byType(TextField), query);
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
@@ -68,7 +69,7 @@ void main() {
     final results =
         await openSheet(tester, identity: gh, candidates: [gh, ddg, kagi]);
     expect(find.text('Search with GitHub'), findsOneWidget);
-    await search(tester, '  flutter tabs  ');
+    await search(tester, query: '  flutter tabs  ');
     final r = results.single!;
     expect(r.query, 'flutter tabs');
     expect(r.scope, SearchScope.thisSite);
@@ -84,7 +85,7 @@ void main() {
     expect(find.text('GitHub'), findsOneWidget,
         reason: 'only the scope button names GitHub now');
     expect(find.text('Search with Kagi'), findsOneWidget);
-    await search(tester, 'tabs');
+    await search(tester, query: 'tabs');
     expect(results.single!.scope, SearchScope.web);
     expect(results.single!.option!.site.siteId, 'kagi');
   });
@@ -97,7 +98,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ChoiceChip, 'Kagi'));
     await tester.pumpAndSettle();
-    await search(tester, 'webview');
+    await search(tester, query: 'webview');
     expect(results.single!.option!.site.siteId, 'kagi');
     expect(results.single!.option!.scoped, isTrue);
   });

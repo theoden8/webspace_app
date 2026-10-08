@@ -7,8 +7,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/widgets/proxy_auth_section.dart';
 import 'helpers/localized.dart';
 
-Widget _host(TextEditingController user, TextEditingController password,
-        {VoidCallback? onEditingComplete}) =>
+Widget _host(TextEditingController user,
+        {required TextEditingController password,
+        VoidCallback? onEditingComplete}) =>
     localizedApp(Scaffold(
       body: ListView(children: [
         ProxyAuthSection(
@@ -36,7 +37,7 @@ void main() {
     addTearDown(user.dispose);
     addTearDown(password.dispose);
 
-    await tester.pumpWidget(_host(user, password));
+    await tester.pumpWidget(_host(user, password: password));
 
     expect(find.byType(TextFormField), findsNWidgets(2),
         reason: 'a stored credential must be visible without hunting for it');
@@ -49,7 +50,7 @@ void main() {
     addTearDown(user.dispose);
     addTearDown(password.dispose);
 
-    await tester.pumpWidget(_host(user, password));
+    await tester.pumpWidget(_host(user, password: password));
 
     expect(find.byType(TextFormField), findsNWidgets(2));
     expect(_subtitle(tester), 'Needs both a username and a password');
@@ -62,7 +63,7 @@ void main() {
     addTearDown(user.dispose);
     addTearDown(password.dispose);
 
-    await tester.pumpWidget(_host(user, password));
+    await tester.pumpWidget(_host(user, password: password));
 
     expect(_subtitle(tester), 'alice');
   });
@@ -74,7 +75,7 @@ void main() {
     addTearDown(user.dispose);
     addTearDown(password.dispose);
 
-    await tester.pumpWidget(_host(user, password));
+    await tester.pumpWidget(_host(user, password: password));
 
     expect(find.byType(TextFormField), findsNothing);
     expect(_subtitle(tester), 'Not configured');
@@ -87,7 +88,7 @@ void main() {
     addTearDown(user.dispose);
     addTearDown(password.dispose);
 
-    await tester.pumpWidget(_host(user, password));
+    await tester.pumpWidget(_host(user, password: password));
     await tester.tap(find.text('Proxy authentication'));
     await tester.pumpAndSettle();
 
@@ -113,7 +114,7 @@ void main() {
     addTearDown(user.dispose);
     addTearDown(password.dispose);
 
-    await tester.pumpWidget(_host(user, password));
+    await tester.pumpWidget(_host(user, password: password));
 
     EditableText passwordField() => tester.widget<EditableText>(
         find.byType(EditableText).last);
@@ -132,7 +133,8 @@ void main() {
     addTearDown(user.dispose);
     addTearDown(password.dispose);
 
-    await tester.pumpWidget(_host(user, password, onEditingComplete: () => edits++));
+    await tester.pumpWidget(
+        _host(user, password: password, onEditingComplete: () => edits++));
     await tester.enterText(find.byType(TextFormField).first, 'bob');
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();

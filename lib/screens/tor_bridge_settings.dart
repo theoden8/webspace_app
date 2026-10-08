@@ -26,7 +26,8 @@ import 'package:webspace/widgets/setting_tile.dart';
 /// Message for a rejected paste. Kept next to the parse result so the screen
 /// never has to say a generic "invalid bridge" — a half-copied line has a
 /// specific missing half, and that is what the user needs told.
-String bridgeParseErrorMessage(AppLocalizations loc, TorBridgeParseError e) =>
+String bridgeParseErrorMessage(AppLocalizations loc,
+        {required TorBridgeParseError e}) =>
     switch (e) {
       TorBridgeParseError.empty => loc.torBridgeErrorEmpty,
       TorBridgeParseError.unknownTransport => loc.torBridgeErrorTransport,
@@ -34,7 +35,7 @@ String bridgeParseErrorMessage(AppLocalizations loc, TorBridgeParseError e) =>
       TorBridgeParseError.missingCertificate => loc.torBridgeErrorCert,
     };
 
-String moatErrorMessage(AppLocalizations loc, MoatErrorKind kind) =>
+String moatErrorMessage(AppLocalizations loc, {required MoatErrorKind kind}) =>
     switch (kind) {
       // Not "the service is down": on a censored network this is the
       // expected outcome, and the useful advice is the other route in.
@@ -124,7 +125,8 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     final result = parseTorBridgeLine(_pasteController.text);
     final loc = AppLocalizations.of(context);
     if (!result.isOk) {
-      setState(() => _pasteError = bridgeParseErrorMessage(loc, result.error!));
+      setState(
+          () => _pasteError = bridgeParseErrorMessage(loc, e: result.error!));
       return;
     }
     final line = result.line!;
@@ -160,7 +162,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
           return;
         }
         attempt = MoatBridgesObtained(
-          await client.submitSolution(attempt.challenge, solution),
+          await client.submitSolution(attempt.challenge, solution: solution),
         );
       }
 
@@ -176,7 +178,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
         setState(() => _message = loc.torBridgesAdded(lines.length));
       }
     } on MoatException catch (e) {
-      if (mounted) _settle(moatErrorMessage(loc, e.kind));
+      if (mounted) _settle(moatErrorMessage(loc, kind: e.kind));
     }
   }
 
@@ -258,7 +260,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                   hint: null,
                   lock: _busy ? const Lock.because(null) : null,
                   control: Toggle(_config.enabled,
-                      (v) => _commit(_config.copyWith(enabled: v))),
+                      onChanged: (v) => _commit(_config.copyWith(enabled: v))),
                 ),
                 // Everything below the switch configures bridges, and with
                 // the switch off none of it is in force. Showing it anyway
@@ -274,9 +276,9 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                     lock: _busy ? const Lock.because(null) : null,
                     onChanged: (v) => _commit(_config.copyWith(transport: v)),
                   ),
-                  if (_restartNeeded) _restartNotice(loc, theme),
+                  if (_restartNeeded) _restartNotice(loc, theme: theme),
                   const Divider(),
-                  _linesSection(loc, theme),
+                  _linesSection(loc, theme: theme),
                   // Only where BridgeDB actually hands bridges out.
                   // Snowflake and meek_lite answer the fetch with an HTTP
                   // 400, so offering the button there offers a request that
@@ -284,14 +286,14 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                   // already carries their line.
                   if (_config.transport.moatDistributes) ...[
                     const Divider(),
-                    _fetchSection(loc, theme),
+                    _fetchSection(loc, theme: theme),
                   ],
                 ]
                 // Turning bridges off while tor is up still needs a restart
                 // to take effect, so that notice outlives the section it
                 // came from.
                 else if (_restartNeeded)
-                  _restartNotice(loc, theme),
+                  _restartNotice(loc, theme: theme),
                 if (_message != null)
                   Padding(
                     padding: const EdgeInsets.all(Spacing.lg),
@@ -302,7 +304,8 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     );
   }
 
-  Widget _restartNotice(AppLocalizations loc, ThemeData theme) => Container(
+  Widget _restartNotice(AppLocalizations loc, {required ThemeData theme}) =>
+      Container(
         color: theme.colorScheme.secondaryContainer,
         padding: const EdgeInsets.symmetric(
             horizontal: Spacing.lg, vertical: Spacing.sm),
@@ -321,7 +324,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
         ),
       );
 
-  Widget _linesSection(AppLocalizations loc, ThemeData theme) {
+  Widget _linesSection(AppLocalizations loc, {required ThemeData theme}) {
     final lines = _config.lines
         .where((l) => l.transport == _config.transport)
         .toList();
@@ -404,7 +407,8 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
     );
   }
 
-  Widget _fetchSection(AppLocalizations loc, ThemeData theme) => Padding(
+  Widget _fetchSection(AppLocalizations loc, {required ThemeData theme}) =>
+      Padding(
         padding: const EdgeInsets.all(Spacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

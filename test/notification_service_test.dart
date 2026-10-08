@@ -66,31 +66,33 @@ void main() {
   });
 
   group('Notification identity (NOTIF-002)', () {
-    NotificationTarget target(String siteId, String? tag, int seq) =>
-        NotificationTarget.resolve(siteId: siteId, tag: tag, sequence: seq);
+NotificationTarget target(String siteId,
+        {required String? tag, required int seq}) =>
+    NotificationTarget.resolve(siteId: siteId, tag: tag, sequence: seq);
 
     test('same page tag from the same site replaces the earlier post', () {
-      final a = target('site-a', 'chat-42', 1);
-      final b = target('site-a', 'chat-42', 2);
+      final a = target('site-a', tag: 'chat-42', seq: 1);
+      final b = target('site-a', tag: 'chat-42', seq: 2);
       expect(b.tag, equals(a.tag));
       expect(b.id, equals(a.id));
     });
 
     test('different page tags coexist', () {
-      final a = target('site-a', 'chat-42', 1);
-      final b = target('site-a', 'chat-43', 1);
+      final a = target('site-a', tag: 'chat-42', seq: 1);
+      final b = target('site-a', tag: 'chat-43', seq: 1);
       expect(a.id, isNot(equals(b.id)));
     });
 
     test('the same page tag on two sites does not collide', () {
-      final a = target('site-a', 'chat-42', 1);
-      final b = target('site-b', 'chat-42', 1);
+      final a = target('site-a', tag: 'chat-42', seq: 1);
+      final b = target('site-b', tag: 'chat-42', seq: 1);
       expect(a.id, isNot(equals(b.id)));
     });
 
     test('untagged posts never replace each other', () {
       final ids = {
-        for (var seq = 1; seq <= 5; seq++) target('site-a', null, seq).id,
+        for (var seq = 1; seq <= 5; seq++)
+          target('site-a', tag: null, seq: seq).id,
       };
       expect(ids.length, equals(5));
     });
@@ -98,21 +100,21 @@ void main() {
     test('empty tag from the polyfill counts as untagged', () {
       // The JS polyfill sends `String(options.tag || '')`, so an untagged
       // page notification arrives as '' rather than null.
-      final a = target('site-a', '', 1);
-      final b = target('site-a', '', 2);
+      final a = target('site-a', tag: '', seq: 1);
+      final b = target('site-a', tag: '', seq: 2);
       expect(a.id, isNot(equals(b.id)));
     });
 
     test('the OS tag stays the siteId so taps route back to the site', () {
-      expect(target('site-a', 'chat-42', 1).tag, equals('site-a'));
-      expect(target('site-a', null, 1).tag, equals('site-a'));
+      expect(target('site-a', tag: 'chat-42', seq: 1).tag, equals('site-a'));
+      expect(target('site-a', tag: null, seq: 1).tag, equals('site-a'));
     });
 
     test('ids stay non-negative 31-bit', () {
       for (final t in [
-        target('site-a', 'chat-42', 1),
-        target('site-a', null, DateTime.now().microsecondsSinceEpoch),
-        target('', null, -1),
+        target('site-a', tag: 'chat-42', seq: 1),
+        target('site-a', tag: null, seq: DateTime.now().microsecondsSinceEpoch),
+        target('', tag: null, seq: -1),
       ]) {
         expect(t.id, greaterThanOrEqualTo(0));
         expect(t.id, lessThanOrEqualTo(0x7fffffff));

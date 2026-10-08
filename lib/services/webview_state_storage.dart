@@ -22,7 +22,7 @@ abstract class WebViewStateStorage {
   /// Persist [state] under [key] (see [webViewStateKey]). If [state] is empty,
   /// the call is treated as a no-op (any previously-saved entry is left
   /// untouched).
-  Future<void> saveState(String key, Uint8List state);
+  Future<void> saveState(String key, {required Uint8List state});
 
   /// Returns the bytes previously stored for [key], or null if
   /// none exist.
@@ -55,7 +55,7 @@ class InMemoryWebViewStateStorage implements WebViewStateStorage {
   final Map<String, Uint8List> _store = <String, Uint8List>{};
 
   @override
-  Future<void> saveState(String key, Uint8List state) async {
+  Future<void> saveState(String key, {required Uint8List state}) async {
     if (state.isEmpty) return;
     _store[key] = state;
   }

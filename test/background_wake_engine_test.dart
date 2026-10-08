@@ -103,7 +103,7 @@ class _Host implements BackgroundWakeHost {
   }
 
   @override
-  bool postedSince(String siteId, DateTime since) {
+  bool postedSince(String siteId, {required DateTime since}) {
     final at = pages[siteId]!.postedAt;
     return at != null && !at.isBefore(since);
   }
@@ -224,7 +224,8 @@ void main() {
         () async {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) Chat');
+      final engine = BackgroundWakeEngine()
+        ..noteBaseline('a', title: '(2) Chat');
       expect((await engine.wake(host)).posted, 1);
       expect(host.posts, ['Site a: (5) Chat']);
     });
@@ -233,14 +234,16 @@ void main() {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat',
           postsOnLoad: true);
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) Chat');
+      final engine = BackgroundWakeEngine()
+        ..noteBaseline('a', title: '(2) Chat');
       expect((await engine.wake(host)).posted, 0);
     });
 
     test('one rise posts once across wakes', () async {
       final page = _Page(titleBefore: '(2) Chat', titleAfter: '(5) Chat');
       final host = _Host({'a': page});
-      final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) Chat');
+      final engine = BackgroundWakeEngine()
+        ..noteBaseline('a', title: '(2) Chat');
       await engine.wake(host);
       await engine.wake(host);
       expect(host.posts, hasLength(1));
@@ -257,8 +260,8 @@ void main() {
 
     test('forget drops sites that are gone', () {
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', '(1) A')
-        ..noteBaseline('b', '(1) B');
+        ..noteBaseline('a', title: '(1) A')
+        ..noteBaseline('b', title: '(1) B');
       engine.forget({'a'});
       expect(engine.baseline('a'), 1);
       expect(engine.baseline('b'), isNull);
@@ -269,7 +272,8 @@ void main() {
     test('a notification site with no webview is checked headless', () async {
       final page = _Page(titleBefore: null, titleAfter: '(5) Chat');
       final host = _Host({'a': page}, live: {});
-      final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) Chat');
+      final engine = BackgroundWakeEngine()
+        ..noteBaseline('a', title: '(2) Chat');
       final report = await engine.wake(host);
       expect(report.sites.single.mode, WakeMode.headless,
           reason: 'the wake used to check only sites with a live webview, '
@@ -325,7 +329,7 @@ void main() {
       final b = report.sites.firstWhere((o) => o.site.siteId == 'b');
       expect(b.skip, WakeSkip.torDown);
       expect(host.events, isNot(contains('open b')));
-      final line = describeWakeSite(b, 2, 2);
+      final line = describeWakeSite(b, position: 2, count: 2);
       expect(line.normal, 'wake site 2/2 skipped: ${WakeSkip.torDown.reason}');
     });
 
@@ -437,7 +441,8 @@ void main() {
   group('NOTIF-014 baselines outlive the process', () {
     test('a restored baseline posts on the first wake after a relaunch',
         () async {
-      final before = BackgroundWakeEngine()..noteBaseline('a', '(2) Chat');
+      final before = BackgroundWakeEngine()
+        ..noteBaseline('a', title: '(2) Chat');
       final kept = before.baselinesOf({'a'});
       final host = _Host({'a': _Page(titleBefore: null, titleAfter: '(4) Chat')},
           live: {});
@@ -448,14 +453,14 @@ void main() {
 
     test('only the sites asked for are handed to the store', () {
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', '(1) A')
-        ..noteBaseline('incognito', '(3) B');
+        ..noteBaseline('a', title: '(1) A')
+        ..noteBaseline('incognito', title: '(3) B');
       expect(engine.baselinesOf({'a'}), {'a': 1});
     });
 
     test('a baseline taken in this process beats a restored one', () {
       final engine = BackgroundWakeEngine()
-        ..noteBaseline('a', '(7) A')
+        ..noteBaseline('a', title: '(7) A')
         ..restoreBaselines({'a': 2});
       expect(engine.baseline('a'), 7);
     });
@@ -469,7 +474,7 @@ void main() {
         'b': _Page(titleBefore: null, titleAfter: null, loadTicks: 0),
         'c': _Page(titleBefore: null, titleAfter: null)..gone = true,
       });
-      final engine = BackgroundWakeEngine()..noteBaseline('a', '(2) A');
+      final engine = BackgroundWakeEngine()..noteBaseline('a', title: '(2) A');
       final report = await engine.wake(host);
       final byId = {for (final o in report.sites) o.site.siteId: o};
       expect(byId['a']!.settle!.kind, WakeSettleKind.loaded);
@@ -503,9 +508,10 @@ void main() {
       final host = _Host({
         'secret-id': _Page(titleBefore: '(1) Inbox', titleAfter: '(3) Inbox'),
       });
-      final engine = BackgroundWakeEngine()..noteBaseline('secret-id', '(1) Inbox');
+      final engine = BackgroundWakeEngine()
+        ..noteBaseline('secret-id', title: '(1) Inbox');
       final report = await engine.wake(host);
-      final line = describeWakeSite(report.sites.single, 1, 1);
+      final line = describeWakeSite(report.sites.single, position: 1, count: 1);
       expect(line.normal, contains('wake site 1/1 (live)'));
       expect(line.normal, contains('unread 1 -> 3'));
       expect(line.normal, contains('posted for it'));

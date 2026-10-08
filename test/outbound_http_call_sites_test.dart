@@ -203,15 +203,16 @@ void main() {
     // Favicon *discovery* was already proxied; the render path was not. The
     // winning icon URL is page-chosen and persisted, so a widget that made
     // its own HTTP request re-leaked the device IP on every launch.
-    Widget faviconUnder(UserProxySettings proxy, String url) => MaterialApp(
-          home: faviconNetworkImage(
-            url: url,
-            size: 16,
-            placeholder: (_) => const SizedBox.shrink(),
-            error: (_) => const Icon(Icons.language),
-            proxy: proxy,
-          ),
-        );
+Widget faviconUnder(UserProxySettings proxy, {required String url}) =>
+    MaterialApp(
+      home: faviconNetworkImage(
+        url: url,
+        size: 16,
+        placeholder: (_) => const SizedBox.shrink(),
+        error: (_) => const Icon(Icons.language),
+        proxy: proxy,
+      ),
+    );
 
     testWidgets('per-site proxy reaches the factory', (tester) async {
       final fake = _socks5Blocked(
@@ -221,7 +222,7 @@ void main() {
 
       await tester.pumpWidget(faviconUnder(
         UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
-        'https://attacker.example/icon.png',
+        url: 'https://attacker.example/icon.png',
       ));
       await tester.pumpAndSettle();
 
@@ -244,7 +245,7 @@ void main() {
 
       await tester.pumpWidget(faviconUnder(
         UserProxySettings(type: ProxyType.DEFAULT),
-        'https://attacker.example/default.png',
+        url: 'https://attacker.example/default.png',
       ));
       await tester.pumpAndSettle();
 
@@ -258,7 +259,7 @@ void main() {
 
       await tester.pumpWidget(faviconUnder(
         UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:9050'),
-        'https://attacker.example/blocked.png',
+        url: 'https://attacker.example/blocked.png',
       ));
       await tester.pumpAndSettle();
 

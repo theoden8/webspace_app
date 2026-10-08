@@ -70,7 +70,8 @@ void main() {
   });
 
   Future<void> pumpDevTools(WidgetTester tester, {DevToolsHost? host}) async {
-    await pumpLocalized(tester, DevToolsScreen(host: host, cookieManager: MockCookieManager()));
+    await pumpLocalized(tester,
+        home: DevToolsScreen(host: host, cookieManager: MockCookieManager()));
     await tester.pumpAndSettle();
   }
 
@@ -163,9 +164,10 @@ void main() {
         (tester) async {
       DnsBlockService.instance.loadDomainsFromString('tracker.net');
       DnsBlockService.instance.recordVerdict('site-1',
-          const HostQuery('tracker.net'), const Blocked(BlockSource.dns));
+          query: const HostQuery('tracker.net'),
+          verdict: const Blocked(BlockSource.dns));
       DnsBlockService.instance.recordVerdict('site-1',
-          const HostQuery('example.com'), const Allowed());
+          query: const HostQuery('example.com'), verdict: const Allowed());
       addTearDown(() => DnsBlockService.instance.clearStatsForSite('site-1'));
 
       await pumpDevTools(tester, host: _StubHost('site-1'));

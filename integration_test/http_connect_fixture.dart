@@ -70,7 +70,7 @@ class HttpConnectFixture {
 
   /// Body to answer a synthetic destination with, by destination host and
   /// request path. Unset, or returning null, falls back to a marker page.
-  String? Function(String host, String path)? syntheticBody;
+  String? Function(String host, {required String path})? syntheticBody;
 
   /// Certificate to answer a synthetic destination's TLS handshake with.
   ///
@@ -86,7 +86,7 @@ class HttpConnectFixture {
   static Future<HttpConnectFixture> bind() async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
     final fixture = HttpConnectFixture._(server);
-    fixture._accepting = listenFixture(server, fixture._serve);
+    fixture._accepting = listenFixture(server, onEvent: fixture._serve);
     return fixture;
   }
 
@@ -168,7 +168,7 @@ class HttpConnectFixture {
               ? '/'
               : (RegExp(r'^\S+ (\S+)').firstMatch(head.head)?.group(1) ?? '/');
           syntheticPaths.add('${parsed.host}$path');
-          final body = syntheticBody?.call(parsed.host, path) ??
+          final body = syntheticBody?.call(parsed.host, path: path) ??
               '<!doctype html><html><body><p>${parsed.host}</p></body></html>';
           secure.add(('HTTP/1.1 200 OK\r\n'
                   'Content-Type: text/html\r\n'
@@ -187,7 +187,7 @@ class HttpConnectFixture {
             ? '/'
             : (RegExp(r'^\S+ (\S+)').firstMatch(inner.head)?.group(1) ?? '/');
         syntheticPaths.add('${parsed.host}$path');
-        final body = syntheticBody?.call(parsed.host, path) ??
+        final body = syntheticBody?.call(parsed.host, path: path) ??
             '<!doctype html><html><body><p>${parsed.host}</p></body></html>';
         client.add(('HTTP/1.1 200 OK\r\n'
                 'Content-Type: text/html\r\n'
@@ -211,7 +211,8 @@ class HttpConnectFixture {
 
       if (parsed.tunnel) {
         client.add('HTTP/1.1 200 Connection Established\r\n\r\n'.codeUnits);
-        await relaySockets(client, incoming, upstream, pending: request.rest);
+        await relaySockets(client,
+            incoming: incoming, upstream: upstream, pending: request.rest);
       } else {
         // Forward-proxy form. `nw_proxy_config` is a transport-level proxy
         // and should tunnel every scheme, but if it ever hands over an
@@ -219,7 +220,8 @@ class HttpConnectFixture {
         // a proxy that was never asked -- which is the failure mode this
         // whole investigation keeps producing.
         upstream.add(parsed.forwarded!.codeUnits);
-        await relaySockets(client, incoming, upstream, pending: request.rest);
+        await relaySockets(client,
+            incoming: incoming, upstream: upstream, pending: request.rest);
       }
     } on Object {
       client.destroy();

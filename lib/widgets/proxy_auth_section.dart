@@ -67,8 +67,8 @@ class _ProxyAuthSectionState extends State<ProxyAuthSection> {
           : (_hasBoth ? _username : loc.proxyAuthNone);
       final done = widget.onEditingComplete;
       Widget field(
-        TextEditingController controller,
-        String label, {
+        TextEditingController controller, {
+        required String label,
         bool obscure = false,
         Widget? suffixIcon,
       }) => TextFormField(
@@ -99,11 +99,11 @@ class _ProxyAuthSectionState extends State<ProxyAuthSection> {
           Spacing.md,
         ),
         children: [
-          field(widget.usernameController, loc.proxyAuthUsername),
+          field(widget.usernameController, label: loc.proxyAuthUsername),
           const SizedBox(height: Spacing.md),
           field(
             widget.passwordController,
-            loc.proxyAuthPassword,
+            label: loc.proxyAuthPassword,
             obscure: _obscurePassword,
             suffixIcon: IconButton(
               icon: Icon(

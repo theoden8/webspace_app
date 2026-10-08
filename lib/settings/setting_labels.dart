@@ -149,12 +149,12 @@ extension ScopedSwitchLabel on Scoped<bool> {
   /// [appValue] is what following the app would give the site.
   String label(AppLocalizations loc, {required bool appValue}) =>
       switch (this) {
-        FollowApp() => loc.settingFollowsApp(_onOff(loc, appValue)),
-        Own(:final value) => _onOff(loc, value),
+        FollowApp() => loc.settingFollowsApp(_onOff(loc, on: appValue)),
+        Own(:final value) => _onOff(loc, on: value),
       };
 }
 
-String _onOff(AppLocalizations loc, bool on) =>
+String _onOff(AppLocalizations loc, {required bool on}) =>
     on ? loc.settingOn : loc.settingOff;
 
 extension UserScriptInjectionTimeLabel on UserScriptInjectionTime {

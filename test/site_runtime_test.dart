@@ -57,7 +57,7 @@ void main() {
     test('a move in the "All" order takes the loaded sites with it', () {
       final r = _runtime([_site('a'), _site('b'), _site('c')],
           loaded: ['a', 'c'], shown: 'a');
-      r.apply(const SitesMoved(0, 2));
+      r.apply(const SitesMoved(0, to: 2));
       expect([for (final m in r.models) m.siteId], ['b', 'c', 'a']);
       expect(_loadedIds(r), ['a', 'c']);
       expect(r.shown?.siteId, 'a');
@@ -147,7 +147,7 @@ void main() {
       const SitesLoaded([]),
       SiteAdded(_site('a')),
       SiteRemoved(_site('a')),
-      const SitesMoved(0, 1),
+      const SitesMoved(0, to: 1),
       const SitesReplaced(sites: [], webspaces: [], selectedWebspaceId: null),
       const ArchiveOpened(sites: [], webspaces: [], appTierMembership: {}),
       const ArchiveClosed(siteIds: {}, webspaceIds: {}),

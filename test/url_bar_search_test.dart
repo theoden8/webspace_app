@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'helpers/localized.dart';
 
-const _ddg = UrlBarSearchSite('ddg', 'DuckDuckGo');
-const _kagi = UrlBarSearchSite('kagi', 'Kagi');
+const _ddg = UrlBarSearchSite('ddg', name: 'DuckDuckGo');
+const _kagi = UrlBarSearchSite('kagi', name: 'Kagi');
 
 /// LIR-033: the magnifier turns the URL bar into a search field, and words
 /// typed as an address search too.
@@ -20,7 +20,7 @@ void main() {
   }) async {
     searches = [];
     opened = [];
-    await pumpLocalized(tester, Scaffold(
+    await pumpLocalized(tester, home: Scaffold(
       body: Column(
         children: [
           const Expanded(child: SizedBox()),
@@ -31,7 +31,7 @@ void main() {
             searchSites: sites,
             defaultSearchSiteId: defaultId,
             onSearch: canSearch
-                ? (query, siteId) => searches.add((query, siteId))
+                ? (query, {required siteId}) => searches.add((query, siteId))
                 : null,
           ),
         ],

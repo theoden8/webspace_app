@@ -38,13 +38,13 @@ import 'fixture_server.dart';
 import 'helpers/ui.dart';
 
 class _Req {
-  _Req(this.path, this.xrw);
+  _Req(this.path, {required this.xrw});
   final String path;
   final String? xrw;
 }
 
 class _Mounted {
-  _Mounted(this.request, this.controller);
+  _Mounted(this.request, {required this.controller});
   final _Req? request;
   final WebViewController? controller;
 }
@@ -65,8 +65,9 @@ void main() {
   setUpAll(() async {
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     port = server.port;
-    listenFixture(server, (req) {
-      requests.add(_Req(req.uri.path, req.headers.value('x-requested-with')));
+    listenFixture(server, onEvent: (req) {
+      requests
+          .add(_Req(req.uri.path, xrw: req.headers.value('x-requested-with')));
       final res = req.response..headers.contentType = ContentType.html;
       res.write('<!doctype html><html><head><title>fixture</title></head>'
           '<body>fixture ${req.uri.path}</body></html>');
@@ -126,13 +127,13 @@ void main() {
     for (var i = 0; i < 20; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
-    await waitReal(tester, () => countFor(path) >= 1);
+    await waitReal(tester, done: () => countFor(path) >= 1);
     _Req? seen;
     for (final r in requests) {
       if (r.path == path) seen = r;
     }
     final controller = ctrl.isCompleted ? await ctrl.future : null;
-    return _Mounted(seen, controller);
+    return _Mounted(seen, controller: controller);
   }
 
   testWidgets('tracking protection suppresses the X-Requested-With header',
@@ -165,7 +166,7 @@ void main() {
     // Returns whether navigating back to A re-hits the network. With bfcache
     // the back entry is restored from cache (no new request); without it the
     // engine re-fetches A.
-    Future<bool> backRefetches(bool bfcache) async {
+    Future<bool> backRefetches({required bool bfcache}) async {
       AppPref.backForwardCacheEnabled.debugValue = bfcache;
       final tag = bfcache ? 'on' : 'off';
       final aPath = '/bfa-$tag';
@@ -174,15 +175,15 @@ void main() {
       final c = m.controller;
       if (c == null) return false;
       await tester.runAsync(() => c.loadUrl(url(bPath)));
-      await waitReal(tester, () => countFor(bPath) >= 1);
+      await waitReal(tester, done: () => countFor(bPath) >= 1);
       final before = countFor(aPath);
       await tester.runAsync(() => c.goBack());
-      await waitReal(tester, () => countFor(aPath) > before,
+      await waitReal(tester, done: () => countFor(aPath) > before,
           timeout: const Duration(seconds: 6));
       return countFor(aPath) > before;
     }
 
-    final offRefetch = await backRefetches(false);
+    final offRefetch = await backRefetches(bfcache: false);
     log('bfcache off -> back refetched A: $offRefetch');
     if (!offRefetch) {
       log('SKIP: back-navigation served from an always-on engine cache here, '
@@ -190,7 +191,7 @@ void main() {
           'is off by default.');
       return;
     }
-    final onRefetch = await backRefetches(true);
+    final onRefetch = await backRefetches(bfcache: true);
     log('bfcache on -> back refetched A: $onRefetch');
     expect(onRefetch, isFalse,
         reason: 'with backForwardCacheEnabled, going back must restore from '

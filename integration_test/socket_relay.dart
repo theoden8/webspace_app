@@ -15,9 +15,9 @@ import 'dart:io';
 /// relayed correctly and leaked every client socket. The integration files
 /// never wait for a close, so only a self-test of the fixture could see it.
 Future<void> relaySockets(
-  Socket client,
-  StreamSubscription<List<int>> incoming,
-  Socket upstream, {
+  Socket client, {
+  required StreamSubscription<List<int>> incoming,
+  required Socket upstream,
   List<int> pending = const [],
 }) async {
   final finished = Completer<void>();
@@ -28,7 +28,7 @@ Future<void> relaySockets(
   // Writing to a socket the other end has already dropped throws rather
   // than ending the relay; the half that is still open has to keep going
   // until its own close arrives.
-  void forward(Socket to, List<int> data) {
+  void forward(Socket to, {required List<int> data}) {
     try {
       to.add(data);
     } on Object {
@@ -36,9 +36,9 @@ Future<void> relaySockets(
     }
   }
 
-  if (pending.isNotEmpty) forward(upstream, pending);
+  if (pending.isNotEmpty) forward(upstream, data: pending);
   incoming
-    ..onData((data) => forward(upstream, data))
+    ..onData((data) => forward(upstream, data: data))
     ..onError((Object _) {
       upstream.destroy();
       finish();
@@ -48,7 +48,7 @@ Future<void> relaySockets(
       finish();
     });
   upstream.listen(
-    (data) => forward(client, data),
+    (data) => forward(client, data: data),
     onError: (Object _) {
       client.destroy();
       finish();

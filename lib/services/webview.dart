@@ -395,9 +395,9 @@ enum WebViewTheme { light, dark, system }
 /// Where router mode is not active, [ProxyRouterService.ownsChallenge] is
 /// false and this returns null.
 Future<inapp.HttpAuthResponse?> answerProxyRouterChallenge(
-  String? identity,
-  inapp.HttpAuthenticationChallenge challenge,
-) async {
+  String? identity, {
+  required inapp.HttpAuthenticationChallenge challenge,
+}) async {
   if (identity == null) return null;
   final router = ProxyRouterService.instance;
   final space = challenge.protectionSpace;
@@ -431,7 +431,7 @@ Future<inapp.HttpAuthResponse?> answerHttpAuthChallenge({
   final space = challenge.protectionSpace;
   if (ProxyRouterService.instance
       .ownsChallenge(host: space.host, realm: space.realm)) {
-    return answerProxyRouterChallenge(routerIdentity, challenge);
+    return answerProxyRouterChallenge(routerIdentity, challenge: challenge);
   }
   if (session == null) return null;
   final HttpAuthCredential? credential;
@@ -475,14 +475,14 @@ void _logSiteIcon(String message) =>
 /// through: the DNS level and filter lists its webview applies to an image
 /// the page loads (ICON-013).
 bool _pageIconRequestAllowed(
-  WebViewConfig config,
-  Uri target,
-  String documentUrl, {
+  WebViewConfig config, {
+  required Uri target,
+  required String documentUrl,
   String requestType = 'image',
 }) =>
     _verdictFor(
       config,
-      UrlQuery(target.toString(),
+      query: UrlQuery(target.toString(),
           sourceUrl: documentUrl, requestType: requestType),
     ) is Allowed;
 
@@ -490,12 +490,12 @@ final class _LiveBlockLists implements BlockLists {
   const _LiveBlockLists();
 
   @override
-  bool dnsBlocksUrl(String url, int level) =>
-      DnsBlockService.instance.isBlockedAtLevel(url, level);
+  bool dnsBlocksUrl(String url, {required int level}) =>
+      DnsBlockService.instance.isBlockedAtLevel(url, level: level);
 
   @override
-  bool dnsBlocksHost(String host, int level) =>
-      DnsBlockService.instance.isHostBlockedAtLevel(host, level);
+  bool dnsBlocksHost(String host, {required int level}) =>
+      DnsBlockService.instance.isHostBlockedAtLevel(host, level: level);
 
   @override
   bool abpBlocksUrl(String url,
@@ -514,14 +514,16 @@ final class _LiveBlockLists implements BlockLists {
           .redirectFor(url, sourceUrl: sourceUrl, requestType: requestType);
 }
 
-BlockVerdict _verdictFor(WebViewConfig config, BlockQuery query) =>
-    BlockDecision.decide(query, config.blockPolicy, const _LiveBlockLists());
+BlockVerdict _verdictFor(WebViewConfig config, {required BlockQuery query}) =>
+    BlockDecision.decide(query,
+        policy: config.blockPolicy, lists: const _LiveBlockLists());
 
 /// [_verdictFor], counted in the site's block stats.
-BlockVerdict _judgeAndRecord(WebViewConfig config, BlockQuery query) {
-  final verdict = _verdictFor(config, query);
+BlockVerdict _judgeAndRecord(WebViewConfig config,
+    {required BlockQuery query}) {
+  final verdict = _verdictFor(config, query: query);
   DnsBlockService.instance
-      .recordVerdict(config.posture.siteId, query, verdict);
+      .recordVerdict(config.posture.siteId, query: query, verdict: verdict);
   return verdict;
 }
 
@@ -641,8 +643,9 @@ class ProxyManager {
   static final ContainerProxyLedger containerProxies = ContainerProxyLedger();
 
   /// Called wherever a WebView is built with [proxy] on [containerId].
-  static void noteStoreProxy(String? containerId, inapp.ProxySettings? proxy) =>
-      containerProxies.noteBuild(containerId, proxy);
+  static void noteStoreProxy(String? containerId,
+          {required inapp.ProxySettings? proxy}) =>
+      containerProxies.noteBuild(containerId, proxy: proxy);
 
   /// Clear [containerId]'s proxy through `ProxyController`, which hands its
   /// WebViews back to the app-wide override or to no proxy. Throws if the
@@ -651,7 +654,8 @@ class ProxyManager {
   Future<void> releaseContainerProxy(String containerId) async {
     await containerProxies.release(
       containerId,
-      (id) => inapp.ProxyController.instance().clearProxyOverride(containerId: id),
+      clear: (id) =>
+          inapp.ProxyController.instance().clearProxyOverride(containerId: id),
     );
     LogTag.proxy.info(
         'Cleared container proxy for $containerId', sensitive: true);
@@ -829,7 +833,7 @@ class ProxyManager {
   /// Returns false if the override could not be applied, in which case
   /// the caller MUST NOT treat router mode as active — every site would
   /// otherwise go direct while believing it was proxied.
-  Future<bool> applyRouterOverride(String host, int port) async {
+  Future<bool> applyRouterOverride(String host, {required int port}) async {
     if (!hostIsAndroid || !PlatformInfo.isProxySupported) return false;
     try {
       await inapp.ProxyController.instance().setProxyOverride(
@@ -943,8 +947,9 @@ class WebViewConfig {
   final bool backgroundAudioEnabled;
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
-  final Function(int activeMatch, int totalMatches)? onFindResult;
-  final Function(String url, bool hasGesture)? shouldOverrideUrlLoading;
+  final Function(int activeMatch, {required int totalMatches})? onFindResult;
+  final Function(String url, {required bool hasGesture})?
+      shouldOverrideUrlLoading;
   /// Fires when a main-frame navigation was cancelled because the app could
   /// not establish that it would go through this site's proxy (LEAK-010).
   /// Carries the destination that was not requested, so the host can render
@@ -954,7 +959,7 @@ class WebViewConfig {
   /// `onLoadStart` (true) and `onLoadStop` (false). The call site can
   /// use this to swap a Refresh button with a Stop button while a
   /// navigation is in flight.
-  final Function(bool isLoading)? onLoadingChanged;
+  final Function({required bool loading})? onLoadingChanged;
   /// Fires when this webview reloads itself (the cached-HTML one-shot live
   /// refresh below). A reload discards the painted frame and recommits it
   /// later, so on Android the hybrid-composition surface sits blank in
@@ -974,7 +979,7 @@ class WebViewConfig {
   /// is in flight ([onLoadingChanged] gates visibility).
   final Function(int progress)? onProgressChanged;
   /// Callback when page HTML should be cached. Called on page load with (url, html).
-  final Function(String url, String html)? onHtmlLoaded;
+  final Function(String url, {required String html})? onHtmlLoaded;
   /// Optional pre-gate for the [onHtmlLoaded] path. Returning `false`
   /// makes `onLoadStop` skip the [htmlSnapshotScript] IPC entirely
   /// (not just the encrypt+write that follows). The IPC is the
@@ -998,7 +1003,8 @@ class WebViewConfig {
         dnsLevel: effectiveDnsLevel,
         contentBlock: posture.blocking.contentBlock,
       );
-  final Function(String message, inapp.ConsoleMessageLevel level)? onConsoleMessage;
+  final Function(String message, {required inapp.ConsoleMessageLevel level})?
+      onConsoleMessage;
   /// The host's answers for every webview that runs as the site: prompts,
   /// popups, external schemes and the cookie readers.
   final WebViewHostHooks hooks;
@@ -1019,7 +1025,7 @@ class WebViewConfig {
   /// state until it's destroyed and recreated. The host is expected to drop
   /// the controller and rebuild the widget. If unset, the WebView is left
   /// in its post-crash state (visible to the user as a black rectangle).
-  final void Function(bool didCrash)? onRendererGone;
+  final void Function({required bool didCrash})? onRendererGone;
   /// Android: the WebView has committed a frame that is visible for the first
   /// time on this navigation. The only signal in the app that fires *because
   /// pixels exist* — every other repaint trigger is a lifecycle event hoped to
@@ -1387,7 +1393,7 @@ class _WebViewController implements WebViewController {
   Future<void> loadUrl(String url, {String? language}) async {
     final fileImport = _import;
     if (fileImport != null && fileImport.isLoadOf(url)) {
-      await _loadHtml(fileImport.html, fileImport.url);
+      await _loadHtml(fileImport.html, baseUrl: fileImport.url);
       return;
     }
     final headers = <String, String>{};
@@ -1411,7 +1417,7 @@ class _WebViewController implements WebViewController {
         ));
   }
 
-  Future<bool> _loadHtml(String html, String baseUrl) =>
+  Future<bool> _loadHtml(String html, {required String baseUrl}) =>
       _issued(() => _c.loadData(
             data: html,
             mimeType: 'text/html',
@@ -1424,7 +1430,7 @@ class _WebViewController implements WebViewController {
     final fileImport = _import;
     if (fileImport != null &&
         FileImportDocument.rendersOnReload(isAndroid: hostIsAndroid)) {
-      return _loadHtml(fileImport.html, fileImport.url);
+      return _loadHtml(fileImport.html, baseUrl: fileImport.url);
     }
     return _issued(() => _c.reload());
   }
@@ -1491,7 +1497,7 @@ class _WebViewController implements WebViewController {
     // (typically light), since onUrlChanged dedups same-URL events
     // and skips its own evaluateJavascript reapplication.
     await _rotateShim(
-        'theme_color_scheme_shim', buildThemeColorSchemeShim(themeValue));
+        'theme_color_scheme_shim', shim: buildThemeColorSchemeShim(themeValue));
   }
 
   @override
@@ -1504,13 +1510,13 @@ class _WebViewController implements WebViewController {
     // iOS/macOS: WKWebView has no textZoom setting. Rotate the
     // DOCUMENT_START user script so future page loads pick up the new
     // value, then update the style element on the current page.
-    await _rotateShim('system_text_zoom', buildTextZoomShim(zoomPercent));
+    await _rotateShim('system_text_zoom', shim: buildTextZoomShim(zoomPercent));
   }
 
-  Future<void> _rotateShim(String group, String shim) async {
+  Future<void> _rotateShim(String group, {required String shim}) async {
     await _native(() => _c.removeUserScriptsByGroupName(groupName: group));
     await _native(() => _c.addUserScript(
-        userScript: pageShim(group, shim, frames: ShimFrames.all)));
+        userScript: pageShim(group, js: shim, frames: ShimFrames.all)));
     await evaluateJavascript(shim);
   }
 
@@ -1831,15 +1837,16 @@ class WebViewFactory {
     'googleapis.com',
   ];
 
-  static bool _matchesDomain(String host, String domain) =>
+  static bool _matchesDomain(String host, {required String domain}) =>
       host == domain || host.endsWith('.$domain');
 
   /// Whether [host] is the site at [siteUrl] or one of its subdomains, or
   /// the site is a subdomain of it.
-  static bool _sameSite(String host, String? siteUrl) {
+  static bool _sameSite(String host, {required String? siteUrl}) {
     final siteHost = siteUrl == null ? '' : (Uri.tryParse(siteUrl)?.host ?? '');
     if (siteHost.isEmpty) return false;
-    return _matchesDomain(host, siteHost) || _matchesDomain(siteHost, host);
+    return _matchesDomain(host, domain: siteHost) ||
+        _matchesDomain(siteHost, domain: host);
   }
 
   /// A captcha URL loads in place and may open the verification popup, so
@@ -1854,17 +1861,19 @@ class WebViewFactory {
     if (host.isEmpty) return false;
     // Exact captcha domains (hcaptcha, Cloudflare challenges, which is also
     // where the Turnstile widget iframe is served from).
-    if (_captchaDomains.any((d) => _matchesDomain(host, d))) return true;
+    if (_captchaDomains.any((d) => _matchesDomain(host, domain: d))) {
+      return true;
+    }
     // Match the PATH only: a substring test on the whole URL let any origin
     // claim a challenge with an attacker-chosen query or fragment
     // (`https://evil.example/x?cf-turnstile`).
     if ((uri.path.contains('/cdn-cgi/challenge-platform') ||
             uri.path.contains('cf-turnstile')) &&
-        _sameSite(host, siteUrl)) {
+        _sameSite(host, siteUrl: siteUrl)) {
       return true;
     }
     if (uri.path.contains('/recaptcha/') &&
-        _recaptchaDomains.any((d) => _matchesDomain(host, d))) {
+        _recaptchaDomains.any((d) => _matchesDomain(host, domain: d))) {
       return true;
     }
     return false;
@@ -2024,12 +2033,12 @@ class WebViewFactory {
     // Same fail-closed rule as the site webview: a proxy the site expects but
     // the platform cannot honor must not become a direct connection.
     if (binding.proxyUnavailable) return const SizedBox.shrink();
-    ProxyManager.noteStoreProxy(binding.containerId, binding.proxy);
+    ProxyManager.noteStoreProxy(binding.containerId, proxy: binding.proxy);
     final page = _buildPageScripts(parent);
     final httpAuth = _httpAuthSessionFor(parent);
     final settings = _siteSettings(
       binding,
-      parent.posture,
+      posture: parent.posture,
       textZoom: page.textZoom,
       desktopMode: page.desktopMode,
     );
@@ -2043,7 +2052,7 @@ class WebViewFactory {
             pauseHack: PauseTimersHackState(), settings: settings);
         _registerPageHandlers(
           controller,
-          parent,
+          config: parent,
           userScriptService: page.userScriptService,
           sourceUrl: () => parent.initialUrl,
         );
@@ -2052,7 +2061,7 @@ class WebViewFactory {
       // DNS and content-blocker checks, and its top document stays on a
       // captcha host or the site's own domain (CAPTCHA-010).
       shouldOverrideUrlLoading: (_, navigationAction) async =>
-          _onSiteNavigationPolicy(parent, navigationAction,
+          _onSiteNavigationPolicy(parent, navigationAction: navigationAction,
               allowCaptcha: true),
       onCloseWindow: (controller) {
         onCloseWindow?.call();
@@ -2063,7 +2072,7 @@ class WebViewFactory {
       // verification iframe would be more confusing than the cancel
       // it falls back to.
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(view, challenge, null),
+          _handleServerTrust(view, challenge: challenge, prompt: null),
       // A popup is the same site in a dialog, so it presents the same
       // router credential (PROXY-013) and the same saved sign-ins.
       onReceivedHttpAuthRequest: (controller, challenge) =>
@@ -2083,8 +2092,8 @@ class WebViewFactory {
   /// site's webview and the popups it spawns, so a popup is held to the same
   /// identity and Tracking Protection settings as its opener.
   static inapp.InAppWebViewSettings _siteSettings(
-    StoreBinding binding,
-    SitePosture posture, {
+    StoreBinding binding, {
+    required SitePosture posture,
     required int textZoom,
     required bool desktopMode,
   }) {
@@ -2145,8 +2154,8 @@ class WebViewFactory {
   /// content-blocker checks, and the top document stays on the site's own
   /// domain, or on a captcha host when [allowCaptcha].
   static inapp.NavigationActionPolicy _onSiteNavigationPolicy(
-    WebViewConfig config,
-    inapp.NavigationAction navigationAction, {
+    WebViewConfig config, {
+    required inapp.NavigationAction navigationAction,
     required bool allowCaptcha,
     bool refusePlainHttp = false,
   }) {
@@ -2155,7 +2164,8 @@ class WebViewFactory {
     if (url.startsWith('about:')) return inapp.NavigationActionPolicy.ALLOW;
     final verdict = _judgeAndRecord(
       config,
-      UrlQuery(url, sourceUrl: config.initialUrl, requestType: 'document'),
+      query:
+          UrlQuery(url, sourceUrl: config.initialUrl, requestType: 'document'),
     );
     if (verdict is! Allowed) return inapp.NavigationActionPolicy.CANCEL;
     if (navigationAction.isForMainFrame == false) {
@@ -2167,7 +2177,7 @@ class WebViewFactory {
     final host = Uri.tryParse(url)?.host ?? '';
     if (url.startsWith('http') &&
         ((allowCaptcha && isCaptchaChallenge(url, siteUrl: config.initialUrl)) ||
-            _sameSite(host, config.initialUrl))) {
+            _sameSite(host, siteUrl: config.initialUrl))) {
       return inapp.NavigationActionPolicy.ALLOW;
     }
     return inapp.NavigationActionPolicy.CANCEL;
@@ -2199,10 +2209,10 @@ class WebViewFactory {
     // SEC-009: a proxy the site expects but the platform cannot bind must
     // not become a direct connection.
     if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);
-    ProxyManager.noteStoreProxy(binding.containerId, binding.proxy);
+    ProxyManager.noteStoreProxy(binding.containerId, proxy: binding.proxy);
     final posture = config.posture;
-    BlockStatsService.instance
-        .setSiteContributes(posture.siteId, posture.blocking.contributesStats);
+    BlockStatsService.instance.setSiteContributes(posture.siteId,
+        contributes: posture.blocking.contributesStats);
     final page = _buildPageScripts(config);
     final httpAuth = _httpAuthSessionFor(config);
     final check = HeadlessSiteCheck._();
@@ -2211,7 +2221,7 @@ class WebViewFactory {
     final headless = inapp.HeadlessInAppWebView(
       initialSettings: _siteSettings(
         binding,
-        posture,
+        posture: posture,
         textZoom: page.textZoom,
         desktopMode: page.desktopMode,
       )
@@ -2226,7 +2236,7 @@ class WebViewFactory {
       onWebViewCreated: (controller) {
         _registerPageHandlers(
           controller,
-          config,
+          config: config,
           userScriptService: page.userScriptService,
           sourceUrl: () => loadStartUrl,
         );
@@ -2235,7 +2245,7 @@ class WebViewFactory {
       // HTTPS-001 with no fallback: a check that cannot reach the site over
       // https fails rather than going out in plaintext.
       shouldOverrideUrlLoading: (_, navigationAction) async =>
-          _onSiteNavigationPolicy(config, navigationAction,
+          _onSiteNavigationPolicy(config, navigationAction: navigationAction,
               allowCaptcha: false,
               refusePlainHttp: posture.blocking.httpsUpgrade),
       onLoadStart: (_, url) {
@@ -2265,7 +2275,7 @@ class WebViewFactory {
       // No view: an https upgrade the certificate refuses has no plaintext
       // fallback to load in a check.
       onReceivedServerTrustAuthRequest: (_, challenge) =>
-          _handleServerTrust(null, challenge, null),
+          _handleServerTrust(null, challenge: challenge, prompt: null),
       onReceivedHttpAuthRequest: (controller, challenge) =>
           answerHttpAuthChallenge(
             routerIdentity: _routerIdentityForConfig(config),
@@ -2360,8 +2370,9 @@ class WebViewFactory {
 
     final userScripts = <inapp.UserScript>[
       if (scoped.webGl case final js?)
-        pageShim('webgl_kill_switch', js, frames: ShimFrames.all),
-      pageShim('do_not_track', buildDoNotTrackShim(), frames: ShimFrames.all),
+        pageShim('webgl_kill_switch', js: js, frames: ShimFrames.all),
+      pageShim('do_not_track',
+          js: buildDoNotTrackShim(), frames: ShimFrames.all),
     ];
     // Capture shims. Each asks Dart for the site's decision through its
     // kind's request handler, so the popup, the remembered choice and the
@@ -2381,7 +2392,7 @@ class WebViewFactory {
       for (final kind in CaptureKind.values) {
         userScripts.add(pageShim(
           kind.shimGroup,
-          buildCaptureShim(kind),
+          js: buildCaptureShim(kind),
           frames: kind.frames,
         ));
       }
@@ -2391,32 +2402,32 @@ class WebViewFactory {
       ..._passkeyShims(config.passkeys),
       // Cross-domain taps then reach shouldOverrideUrlLoading, which has a
       // reliable gesture, instead of onCreateWindow (issue #405).
-      pageShim('target_blank_rewrite', targetBlankRewriteScript,
+      pageShim('target_blank_rewrite', js: targetBlankRewriteScript,
           frames: ShimFrames.all),
       if (scoped.antiFingerprinting case final js?)
-        pageShim('anti_fingerprinting', js, frames: ShimFrames.all),
+        pageShim('anti_fingerprinting', js: js, frames: ShimFrames.all),
       ..._downloadShims(),
-      ..._identityShims(posture, scoped, desktopMode: desktopMode),
-      ..._zoomShims(posture, zoomPlan,
+      ..._identityShims(posture, scoped: scoped, desktopMode: desktopMode),
+      ..._zoomShims(posture, plan: zoomPlan,
           textZoom: textZoom, desktopMode: desktopMode),
       pageShim(
           'notification_polyfill',
-          buildNotificationPolyfillShim(
+          js: buildNotificationPolyfillShim(
             siteId: posture.siteId,
             notificationsEnabled: posture.page.notifications,
           ),
           frames: ShimFrames.all),
       ..._mediaSessionShims(config),
-      pageShim('location_spoof', scoped.location, frames: ShimFrames.all),
+      pageShim('location_spoof', js: scoped.location, frames: ShimFrames.all),
       ..._contentBlockerShims(config),
       if (posture.blocking.clearUrls)
-        pageShim('clearurl_share', clearUrlShareScript,
+        pageShim('clearurl_share', js: clearUrlShareScript,
             frames: ShimFrames.all),
       if (scoped.language case final js?)
-        pageShim('language_override', js, frames: ShimFrames.all),
+        pageShim('language_override', js: js, frames: ShimFrames.all),
       // An iframe can create its own workers.
       if (buildWorkerShimScript(workerScopeBodies(scoped)) case final js?)
-        pageShim('worker_shim', js, frames: ShimFrames.all),
+        pageShim('worker_shim', js: js, frames: ShimFrames.all),
       ..._blockInterceptorShims(config),
       ...userScriptService.buildInitialUserScripts(),
     ]);
@@ -2471,9 +2482,9 @@ class WebViewFactory {
   /// and macOS "no passkeys" is the block shim, in every frame (PASSKEY-013).
   static List<inapp.UserScript> _passkeyShims(PasskeyAccess? passkeys) => [
         if (passkeys?.backend == PasskeyBackend.credentialManager)
-          pageShim('passkey', buildPasskeyShim(), frames: ShimFrames.all),
+          pageShim('passkey', js: buildPasskeyShim(), frames: ShimFrames.all),
         if (passkeys == null && PasskeyAccess.hostIsApple)
-          pageShim('passkey_block', buildPasskeyBlockShim(),
+          pageShim('passkey_block', js: buildPasskeyBlockShim(),
               frames: ShimFrames.all),
       ];
 
@@ -2482,12 +2493,11 @@ class WebViewFactory {
   /// Android's DownloadListener never fires for a `blob:` link, so the click
   /// is bridged too; WebKit raises onDownloadStartRequest for it natively.
   static List<inapp.UserScript> _downloadShims() => [
-        pageShim('blob_url_capture', blobUrlCaptureScript,
-            frames: ShimFrames.top),
+        pageShim('blob_url_capture',
+            js: blobUrlCaptureScript, frames: ShimFrames.top),
         if (hostIsAndroid)
-          pageShim(
-              'blob_download_click_intercept', blobDownloadClickInterceptScript,
-              frames: ShimFrames.top),
+          pageShim('blob_download_click_intercept',
+              js: blobDownloadClickInterceptScript, frames: ShimFrames.top),
       ];
 
   /// The per-site UA's identity. A desktop UA also gets userAgentData,
@@ -2495,25 +2505,25 @@ class WebViewFactory {
   /// the navigator fields the host engine would otherwise fill in its own
   /// name (vendor, productSub, oscpu, buildID, platform).
   static List<inapp.UserScript> _identityShims(
-    SitePosture p,
-    ScopedShims scoped, {
+    SitePosture p, {
+    required ScopedShims scoped,
     required bool desktopMode,
   }) =>
       [
         if (desktopMode)
           pageShim('desktop_mode_shim',
-              buildDesktopModeShim(p.page.userAgent ?? ''),
+              js: buildDesktopModeShim(p.page.userAgent ?? ''),
               frames: ShimFrames.all),
         if (scoped.identity case final js?)
-          pageShim('ua_identity_shim', js, frames: ShimFrames.all),
+          pageShim('ua_identity_shim', js: js, frames: ShimFrames.all),
       ];
 
   /// The page's scale: WebKit's default viewport fix (desktop mode owns the
   /// viewport itself), the OS text size where there is no `textZoom`
   /// setting, and the per-site zoom on the channel [planPageZoom] picked.
   static List<inapp.UserScript> _zoomShims(
-    SitePosture p,
-    PageZoomPlan plan, {
+    SitePosture p, {
+    required PageZoomPlan plan,
     required int textZoom,
     required bool desktopMode,
   }) {
@@ -2533,13 +2543,13 @@ class WebViewFactory {
     };
     return [
       if ((hostIsIOS || hostIsMacOS) && !desktopMode)
-        pageShim('default_viewport', defaultViewportScript,
+        pageShim('default_viewport', js: defaultViewportScript,
             frames: ShimFrames.top),
       if (!hostIsAndroid)
-        pageShim('system_text_zoom', buildTextZoomShim(textZoom),
+        pageShim('system_text_zoom', js: buildTextZoomShim(textZoom),
             frames: ShimFrames.all),
       if (pageZoom != null)
-        pageShim('page_zoom', pageZoom, frames: ShimFrames.all),
+        pageShim('page_zoom', js: pageZoom, frames: ShimFrames.all),
     ];
   }
 
@@ -2554,7 +2564,7 @@ class WebViewFactory {
     }
     LogTag.mediaSession.debug('Bridge armed for this site');
     return [
-      pageShim('media_session_shim', buildMediaSessionShim(),
+      pageShim('media_session_shim', js: buildMediaSessionShim(),
           frames: ShimFrames.all),
     ];
   }
@@ -2573,15 +2583,15 @@ class WebViewFactory {
         : null;
     return [
       if (blocker.getEarlyCssScript(url) case final js?)
-        pageShim('content_blocker_early_css', js, frames: ShimFrames.top),
+        pageShim('content_blocker_early_css', js: js, frames: ShimFrames.top),
       if (csp != null && csp.isNotEmpty)
-        pageShim('content_blocker_csp', buildContentBlockerCspShim(csp),
+        pageShim('content_blocker_csp', js: buildContentBlockerCspShim(csp),
             frames: ShimFrames.top),
       if (engine)
-        pageShim('generic_cosmetic', buildGenericCosmeticScannerShim(),
+        pageShim('generic_cosmetic', js: buildGenericCosmeticScannerShim(),
             frames: ShimFrames.top, at: ShimTime.end),
       if (procedural != null)
-        pageShim('procedural_cosmetic', procedural,
+        pageShim('procedural_cosmetic', js: procedural,
             frames: ShimFrames.top, at: ShimTime.end),
     ];
   }
@@ -2596,10 +2606,10 @@ class WebViewFactory {
         (config.posture.blocking.contentBlock &&
             ContentBlockerService.instance.hasRules);
     return [
-      pageShim('block_resource_observer', blockResourceObserverScript,
+      pageShim('block_resource_observer', js: blockResourceObserverScript,
           frames: ShimFrames.all),
       if (blocks)
-        pageShim('block_js_interceptor', blockJsInterceptorScript,
+        pageShim('block_js_interceptor', js: blockJsInterceptorScript,
             frames: ShimFrames.all),
     ];
   }
@@ -2613,8 +2623,8 @@ class WebViewFactory {
   /// plugin's bridge preamble, which computes it behind the bridge secret and
   /// so is no more forgeable than `isMainFrame` (CAM-014 / MIC-016).
   static Future<String> _promptOrigin(
-    inapp.InAppWebViewController controller,
-    WebViewConfig config, {
+    inapp.InAppWebViewController controller, {
+    required WebViewConfig config,
     inapp.JavaScriptHandlerFunctionData? frame,
   }) async {
     if (frame != null && !frame.isMainFrame) return frame.origin.toString();
@@ -2627,7 +2637,7 @@ class WebViewFactory {
   /// but not its frame identity, so compare it with the document the webview
   /// is actually showing. Anything that does not match is a subframe and does
   /// not inherit a settled device grant (CAM-014 / MIC-016).
-  static bool _sameOrigin(String a, String b) {
+  static bool _sameOrigin(String a, {required String b}) {
     final ua = Uri.tryParse(a);
     final ub = Uri.tryParse(b);
     if (ua == null || ub == null) return false;
@@ -2638,8 +2648,8 @@ class WebViewFactory {
   /// The two go together: a shim whose handler is missing leaves the
   /// promise it hands the page unresolved.
   static void _registerPageHandlers(
-    inapp.InAppWebViewController controller,
-    WebViewConfig config, {
+    inapp.InAppWebViewController controller, {
+    required WebViewConfig config,
     required UserScriptService userScriptService,
     required String? Function() sourceUrl,
   }) {
@@ -2672,7 +2682,7 @@ class WebViewFactory {
           if (!data.isMainFrame) {
             final top =
                 (await controller.getUrl())?.toString() ?? config.initialUrl;
-            if (!_sameOrigin(data.origin.toString(), top)) {
+            if (!_sameOrigin(data.origin.toString(), b: top)) {
               return {'status': 'permission_denied', 'message': 'subframe'};
             }
           }
@@ -2724,7 +2734,8 @@ class WebViewFactory {
             }
             final grant = await grants.capture(
               kind,
-              await _promptOrigin(controller, config, frame: data),
+              origin:
+                  await _promptOrigin(controller, config: config, frame: data),
               isTopFrame: data.isMainFrame,
             );
             return grant.toBridgeJson();
@@ -2784,7 +2795,7 @@ class WebViewFactory {
             key: key,
             label: label,
             ceremony: ceremony,
-            send: () => PasskeyNative.run(key, ceremony),
+            send: () => PasskeyNative.run(key, ceremony: ceremony),
             cancel: () => PasskeyNative.cancel(key),
             log: (message) => LogTag.passkey.debug(message),
           );
@@ -2812,8 +2823,9 @@ class WebViewFactory {
           if (cleaned != original) {
             BlockStatsService.instance.record(
               config.posture.siteId,
-              BlockCategory.trackingParam,
-              label: ClearUrlService.strippedParamLabel(original, cleaned),
+              category: BlockCategory.trackingParam,
+              label: ClearUrlService.strippedParamLabel(original,
+                  cleaned: cleaned),
             );
           }
           return cleaned;
@@ -2827,7 +2839,7 @@ class WebViewFactory {
       if (args.isEmpty || args[0] is! List) return null;
       for (final h in args[0] as List) {
         if (h is! String || h.isEmpty) continue;
-        _judgeAndRecord(config, HostQuery(h));
+        _judgeAndRecord(config, query: HostQuery(h));
       }
       return null;
     });
@@ -2838,7 +2850,7 @@ class WebViewFactory {
         if (args.isEmpty || args[0] is! String) return false;
         final verdict = _judgeAndRecord(
           config,
-          UrlQuery(args[0] as String,
+          query: UrlQuery(args[0] as String,
               sourceUrl: sourceUrl() ?? '', requestType: 'other'),
         );
         return switch (verdict) {
@@ -2949,7 +2961,7 @@ class WebViewFactory {
           if (!call.isMainFrame) {
             final top =
                 (await controller.getUrl())?.toString() ?? config.initialUrl;
-            if (!_sameOrigin(call.origin.toString(), top)) return null;
+            if (!_sameOrigin(call.origin.toString(), b: top)) return null;
           }
           final data = Map<String, dynamic>.from(args[0] as Map);
           final title = data['title'] as String? ?? '';
@@ -2991,7 +3003,8 @@ class WebViewFactory {
           }
           await MediaSessionService.instance.report(
             config.posture.siteId,
-            MediaSessionReport.fromPage(data, isMainFrame: call.isMainFrame),
+            page: MediaSessionReport.fromPage(data,
+                isMainFrame: call.isMainFrame),
             runJs: (js) => controller.evaluateJavascript(source: js),
             proxy: config.posture.container.proxy,
           );
@@ -3021,7 +3034,7 @@ class WebViewFactory {
         final taskId = args[3] is String ? args[3] as String : '';
         if (base64Data.isEmpty) {
           if (taskId.isNotEmpty) {
-            DownloadsService.instance.fail(taskId, 'empty payload');
+            DownloadsService.instance.fail(taskId, message: 'empty payload');
           }
           return null;
         }
@@ -3047,13 +3060,13 @@ class WebViewFactory {
           }
         } on DownloadException catch (e) {
           if (taskId.isNotEmpty) {
-            DownloadsService.instance.fail(taskId, e.message);
+            DownloadsService.instance.fail(taskId, message: e.message);
           }
         } catch (e, stack) {
           LogTag.webView.error(
               'Blob download error: $e\n$stack', sensitive: true);
           if (taskId.isNotEmpty) {
-            DownloadsService.instance.fail(taskId, e.toString());
+            DownloadsService.instance.fail(taskId, message: e.toString());
           }
         }
         return null;
@@ -3067,7 +3080,7 @@ class WebViewFactory {
             ? args[1] as String
             : '';
         if (taskId.isNotEmpty) {
-          DownloadsService.instance.fail(taskId, msg);
+          DownloadsService.instance.fail(taskId, message: msg);
         }
         return null;
       },
@@ -3108,8 +3121,8 @@ class WebViewFactory {
         }
         await _handleBlobDownload(
           controller,
-          blobUrl,
-          filename.isEmpty ? null : filename,
+          blobUrl: blobUrl,
+          suggestedFilename: filename.isEmpty ? null : filename,
         );
         return null;
       },
@@ -3128,8 +3141,8 @@ class WebViewFactory {
     // Declare this site's protection-report scope before any block event can
     // be recorded for it. Keyed by siteId, so a nested webview built for the
     // same site re-asserts the same answer rather than flipping it.
-    BlockStatsService.instance
-        .setSiteContributes(config.posture.siteId, config.posture.blocking.contributesStats);
+    BlockStatsService.instance.setSiteContributes(config.posture.siteId,
+        contributes: config.posture.blocking.contributesStats);
     // Cached-HTML render: when the call site supplies
     // `config.initialHtml`, feed it to chromium via
     // `InAppWebViewInitialData(data, baseUrl: initialUrl)` for instant
@@ -3154,7 +3167,7 @@ class WebViewFactory {
     final containerId = binding.containerId;
     final inappProxy = binding.proxy;
     final proxyUnavailable = binding.proxyUnavailable;
-    ProxyManager.noteStoreProxy(containerId, inappProxy);
+    ProxyManager.noteStoreProxy(containerId, proxy: inappProxy);
     final fileImport = FileImportDocument.of(
       initialUrl: config.initialUrl,
       initialHtml: config.initialHtml,
@@ -3191,8 +3204,8 @@ class WebViewFactory {
         siteIcon == null ? null : SiteIconEngine(siteIcon.siteUrl);
     final iconSource = pageIconSource;
     if (iconEngine != null) {
-      userScripts.add(pageShim('icon_link_watcher', buildIconLinkWatcherShim(),
-          frames: ShimFrames.top));
+      userScripts.add(pageShim('icon_link_watcher',
+          js: buildIconLinkWatcherShim(), frames: ShimFrames.top));
       if (iconSource == PageIconSource.webview) {
         unawaited(SiteIconNative.ensureEnabled());
       }
@@ -3200,19 +3213,19 @@ class WebViewFactory {
     final siteSearch = config.siteSearch;
     if (siteSearch != null) {
       userScripts.add(pageShim(
-          'search_link_watcher', buildSearchLinkWatcherShim(),
+          'search_link_watcher', js: buildSearchLinkWatcherShim(),
           frames: ShimFrames.top));
     }
     final iconFetcher =
         iconEngine == null || iconSource != PageIconSource.declaredLinks
             ? null
             : SiteIconFetcher(
-                fetch: (url, documentUrl) => fetchPageIconBytes(
+                fetch: (url, {required documentUrl}) => fetchPageIconBytes(
                   url,
                   documentHost: Uri.tryParse(documentUrl)?.host ?? '',
                   proxy: config.posture.container.proxy,
-                  allowed: (target) =>
-                      _pageIconRequestAllowed(config, target, documentUrl),
+                  allowed: (target) => _pageIconRequestAllowed(config,
+                      target: target, documentUrl: documentUrl),
                 ),
               );
     final zoomPlan = page.zoomPlan;
@@ -3283,7 +3296,7 @@ class WebViewFactory {
 
     final settings = _siteSettings(
       binding,
-      config.posture,
+      posture: config.posture,
       textZoom: textZoom,
       desktopMode: desktopMode,
     )
@@ -3417,9 +3430,9 @@ class WebViewFactory {
               // Asked lazily: a request the app leaves to the platform needs
               // no origin.
               late final where = () async {
-                final top = await _promptOrigin(controller, config);
+                final top = await _promptOrigin(controller, config: config);
                 final from = request.origin.toString();
-                final isTopFrame = _sameOrigin(top, from);
+                final isTopFrame = _sameOrigin(top, b: from);
                 return (origin: isTopFrame ? top : from, isTopFrame: isTopFrame);
               }();
               final cameraAndMicrophone =
@@ -3435,10 +3448,10 @@ class WebViewFactory {
                     r != inapp.PermissionResourceType.CAMERA &&
                     r != inapp.PermissionResourceType.MICROPHONE &&
                     r != cameraAndMicrophone),
-              ), (
+              ), host: (
                 opensDevice: (kind) async {
                   final (:origin, :isTopFrame) = await where;
-                  final grant = await grants.capture(kind, origin,
+                  final grant = await grants.capture(kind, origin: origin,
                       isTopFrame: isTopFrame);
                   return opensRealDevice(grant.mode.state);
                 },
@@ -3506,7 +3519,7 @@ class WebViewFactory {
         onControllerCreated(wrappedController);
         _registerPageHandlers(
           controller,
-          config,
+          config: config,
           userScriptService: userScriptService,
           sourceUrl: () => lastLoadStartUrl,
         );
@@ -3548,19 +3561,23 @@ class WebViewFactory {
                 if (document == null) return null;
                 final links = SiteIconLink.listFrom(
                     call.args.isEmpty ? null : call.args.first);
-                final urls = siteIconCandidates(links, documentUrl);
-                unawaited(iconFetcher.best(urls, documentUrl).then((icon) {
+                final urls =
+                    siteIconCandidates(links, documentUrl: documentUrl);
+                unawaited(iconFetcher
+                    .best(urls, documentUrl: documentUrl)
+                    .then((icon) {
                   if (icon == null) {
                     _logSiteIcon('linked doc=$document none');
                     return;
                   }
-                  final accepted = iconEngine.onLinkedIcon(document, icon.png);
+                  final accepted =
+                      iconEngine.onLinkedIcon(document, png: icon.png);
                   _logSiteIcon('linked doc=$document ${icon.edge}px '
                       'taken=${accepted != null} ${iconEngine.stateForLog}');
                   if (accepted != null) siteIcon!.onIcon(accepted);
                 }).catchError((Object e) {
-                  LogTag.icon.warning(
-                      'Page icon fetch failed: $e', sensitive: true);
+                  LogTag.icon
+                      .warning('Page icon fetch failed: $e', sensitive: true);
                 }));
                 return null;
               },
@@ -3593,7 +3610,7 @@ class WebViewFactory {
                     proxy: config.posture.container.proxy,
                     maxBytes: kMaxOpenSearchBytes,
                     allowed: (target) => _pageIconRequestAllowed(
-                        config, target, documentUrl,
+                        config, target: target, documentUrl: documentUrl,
                         requestType: 'other'),
                   );
                 },
@@ -3712,21 +3729,22 @@ class WebViewFactory {
                 sensitive: true);
             bool allow = true;
             if (config.shouldOverrideUrlLoading != null) {
-              allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
+              allow = config.shouldOverrideUrlLoading!(resolved,
+                  hasGesture: hasGesture);
             }
             if (allow) {
               controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
             }
             return inapp.NavigationActionPolicy.CANCEL;
           }
-          config.hooks.externalScheme(externalInfo, view);
+          config.hooks.externalScheme(externalInfo, loadIn: view);
           return inapp.NavigationActionPolicy.CANCEL;
         }
         // Counted even with no list loaded, so the per-site log reflects
         // the visit. The source is the page that started the navigation.
         final verdict = _judgeAndRecord(
           config,
-          UrlQuery(url,
+          query: UrlQuery(url,
               sourceUrl: lastLoadStartUrl ?? '', requestType: 'document'),
         );
         if (verdict is! Allowed) return inapp.NavigationActionPolicy.CANCEL;
@@ -3766,8 +3784,9 @@ class WebViewFactory {
               ExternalUrlParser.isLoadableWebUrl(cleanedUrl)) {
             BlockStatsService.instance.record(
               config.posture.siteId,
-              BlockCategory.trackingParam,
-              label: ClearUrlService.strippedParamLabel(url, cleanedUrl),
+              category: BlockCategory.trackingParam,
+              label:
+                  ClearUrlService.strippedParamLabel(url, cleaned: cleanedUrl),
             );
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl)));
             return inapp.NavigationActionPolicy.CANCEL;
@@ -3800,7 +3819,8 @@ class WebViewFactory {
         }
         if (config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(navigationAction);
-          final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
+          final allow =
+              config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture);
           if (!allow) return inapp.NavigationActionPolicy.CANCEL;
         }
         // Fail closed where the platform cannot be shown to put this request
@@ -3945,7 +3965,7 @@ class WebViewFactory {
           // popup dialog closes, so the entry is short-lived.
           _popupParentConfigs[windowId] = config;
           try {
-            await config.hooks.showPopup(windowId, url);
+            await config.hooks.showPopup(windowId, url: url);
           } finally {
             _popupParentConfigs.remove(windowId);
           }
@@ -3977,7 +3997,8 @@ class WebViewFactory {
                 sensitive: true);
             bool allow = true;
             if (config.shouldOverrideUrlLoading != null) {
-              allow = config.shouldOverrideUrlLoading!(resolved, hasGesture);
+              allow = config.shouldOverrideUrlLoading!(resolved,
+                  hasGesture: hasGesture);
             }
             // A window this webview did not ask for by gesture never loads
             // into it (NESTED-013); a real target="_blank" tap is rewritten
@@ -3987,7 +4008,7 @@ class WebViewFactory {
             }
             return false;
           }
-          config.hooks.externalScheme(externalInfo, view);
+          config.hooks.externalScheme(externalInfo, loadIn: view);
           return false;
         }
 
@@ -3999,7 +4020,8 @@ class WebViewFactory {
         // gesture and are silently blocked by the auto-redirect check.
         if (url.startsWith('http') && config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(createWindowAction);
-          final allow = config.shouldOverrideUrlLoading!(url, hasGesture);
+          final allow =
+              config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture);
           if (allow && hasGesture) {
             // Same-domain target="_blank": load in current webview
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url)));
@@ -4045,7 +4067,7 @@ class WebViewFactory {
         if (url != null) {
           WebViewFactory.httpsUpgrade.onLoadStarted(url.toString());
         }
-        config.onLoadingChanged?.call(true);
+        config.onLoadingChanged?.call(loading: true);
         if (url != null) {
           config.onMainFrameLoad
               ?.call(MainFrameLoadSignal.started(url.toString()));
@@ -4058,7 +4080,7 @@ class WebViewFactory {
         if (url != null && url.toString().startsWith('http')) {
           final page = url.toString();
           _judgeAndRecord(config,
-              UrlQuery(page, sourceUrl: page, requestType: 'document'));
+              query: UrlQuery(page, sourceUrl: page, requestType: 'document'));
         }
         // One evaluateJavascript, not one per script: each IPC is a race
         // window against Chromium's frame teardown.
@@ -4113,7 +4135,7 @@ class WebViewFactory {
         config.pullToRefreshGate?.controller?.endRefreshing();
         // Whether or not `url` is renderable: the loading UI does not
         // depend on the snapshot logic below.
-        config.onLoadingChanged?.call(false);
+        config.onLoadingChanged?.call(loading: false);
         config.onMainFrameLoad?.call(const MainFrameLoadSignal.settled());
         if (url == null) return;
         final urlStr = url.toString();
@@ -4169,8 +4191,8 @@ class WebViewFactory {
           });
         }
 
-        lastStableUrl =
-            DownloadUrlRevertEngine.updateStable(lastStableUrl, urlStr);
+        lastStableUrl = DownloadUrlRevertEngine.updateStable(lastStableUrl,
+            loadedUrl: urlStr);
         config.onUrlChanged?.call(urlStr);
         final onCookiesChanged = config.onCookiesChanged;
         if (onCookiesChanged != null) {
@@ -4228,7 +4250,7 @@ class WebViewFactory {
             // right pair.
             final liveUrl = (await view?.getUrl())?.toString();
             if (liveUrl == urlStr) {
-              config.onHtmlLoaded!(urlStr, snapshot);
+              config.onHtmlLoaded!(urlStr, html: snapshot);
             } else {
               LogTag.webView.debug(
                   'Skipping cache save: URL changed during snapshot '
@@ -4260,10 +4282,12 @@ class WebViewFactory {
         }
       },
       onFindResultReceived: (controller, activeMatchOrdinal, numberOfMatches, isDoneCounting) {
-        config.onFindResult?.call(activeMatchOrdinal, numberOfMatches);
+        config.onFindResult
+            ?.call(activeMatchOrdinal, totalMatches: numberOfMatches);
       },
       onConsoleMessage: (controller, consoleMessage) {
-        config.onConsoleMessage?.call(consoleMessage.message, consoleMessage.messageLevel);
+        config.onConsoleMessage
+            ?.call(consoleMessage.message, level: consoleMessage.messageLevel);
       },
       onReceivedError: (controller, request, error) async {
         // An upgrade this engine issued that did not answer: load the original
@@ -4326,8 +4350,8 @@ class WebViewFactory {
           // resume when the cause was the OS cutting the network out from
           // under a backgrounded process — PAUSE-022.
           failedNavUrl = reqUrl;
-          config.onMainFrameLoad?.call(
-              MainFrameLoadSignal.failed(reqUrl, error.type.toValue()));
+          config.onMainFrameLoad?.call(MainFrameLoadSignal.failed(reqUrl,
+              errorType: error.type.toValue()));
           return;
         }
         if (ExternalUrlSuppressor.isSuppressedInfo(externalInfo)) {
@@ -4366,8 +4390,9 @@ class WebViewFactory {
               'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
               sensitive: true);
           Future.microtask(() async {
-            final bool allow =
-                config.shouldOverrideUrlLoading?.call(resolved, false) ?? true;
+            final bool allow = config.shouldOverrideUrlLoading
+                    ?.call(resolved, hasGesture: false) ??
+                true;
             await view?.loadUrl(allow ? resolved : 'about:blank');
           });
           return;
@@ -4376,7 +4401,7 @@ class WebViewFactory {
         // user can still choose to launch the target app.
         LogTag.webView.debug('onReceivedError: type=${error.type} url=$reqUrl '
             '— routing to external-scheme dialog', sensitive: true);
-        config.hooks.externalScheme(externalInfo, view);
+        config.hooks.externalScheme(externalInfo, loadIn: view);
       },
       // Header names, never values, and no URL, so the line reaches logcat:
       // the name set tells the app's own proxy relay (`connection` alone, or
@@ -4409,7 +4434,7 @@ class WebViewFactory {
         await view?.stopLoading();
         await _handleDownloadRequest(
           controller,
-          downloadStartRequest,
+          req: downloadStartRequest,
           referer: lastStableUrl ?? config.initialUrl,
           proxy: config.posture.container.proxy,
         );
@@ -4418,7 +4443,7 @@ class WebViewFactory {
         }
       },
       onReceivedServerTrustAuthRequest: (controller, challenge) =>
-          _handleServerTrust(view, challenge, config.hooks.untrustedCertificate),
+          _handleServerTrust(view, challenge: challenge, prompt: config.hooks.untrustedCertificate),
       onReceivedHttpAuthRequest: (controller, challenge) =>
           answerHttpAuthChallenge(
             routerIdentity: _routerIdentityForConfig(config),
@@ -4437,7 +4462,7 @@ class WebViewFactory {
         LogTag.webView.warning(
             'onRenderProcessGone: siteId=${config.posture.siteId} didCrash=${detail.didCrash} '
             'priority=${detail.rendererPriorityAtExit}');
-        config.onRendererGone?.call(detail.didCrash);
+        config.onRendererGone?.call(didCrash: detail.didCrash);
       },
       // iOS/macOS parity for `onRenderProcessGone`: WKWebView raises this
       // when the web content process is killed (OS memory pressure during
@@ -4446,7 +4471,7 @@ class WebViewFactory {
       onWebContentProcessDidTerminate: (controller) {
         LogTag.webView.warning(
             'onWebContentProcessDidTerminate: siteId=${config.posture.siteId}');
-        config.onRendererGone?.call(true);
+        config.onRendererGone?.call(didCrash: true);
       },
     );
     final scoped = _ControllerScope(
@@ -4454,13 +4479,15 @@ class WebViewFactory {
       onUnmount: () => view?._disposed = true,
       child: webViewWidget,
     );
-    return _applyLetterbox(config, _applyRefreshGate(config, scoped));
+    return _applyLetterbox(config,
+        webView: _applyRefreshGate(config, webView: scoped));
   }
 
   /// Feeds the raw pointer stream to [WebViewConfig.pullToRefreshGate].
   /// [Listener] never joins the gesture arena, so the webview keeps every
   /// touch it would otherwise receive.
-  static Widget _applyRefreshGate(WebViewConfig config, Widget webView) {
+  static Widget _applyRefreshGate(WebViewConfig config,
+      {required Widget webView}) {
     final gate = config.pullToRefreshGate;
     if (gate == null) return webView;
     return Listener(
@@ -4482,7 +4509,8 @@ class WebViewFactory {
   /// backed out ([SurfaceNudgeScope]); the nudge's pixel is then taken off the
   /// box rather than the bars, so the platform view still resizes and the bars
   /// hold still.
-  static Widget _applyLetterbox(WebViewConfig config, Widget webView) {
+  static Widget _applyLetterbox(WebViewConfig config,
+      {required Widget webView}) {
     if (!config.posture.fingerprint.letterbox) return webView;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -4535,10 +4563,12 @@ class WebViewFactory {
   ///     `load-failed-with-tls-errors`), so the callback only runs when
   ///     the OS has rejected the cert. Prompt the user inline.
   static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(
-    WebViewController? view,
-    inapp.ServerTrustChallenge challenge,
-    Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
-  ) async {
+    WebViewController? view, {
+    required inapp.ServerTrustChallenge challenge,
+    required Future<bool> Function(String host,
+            {required int port, required inapp.SslCertificate? certificate})?
+        prompt,
+  }) async {
     final space = challenge.protectionSpace;
     final host = space.host;
     // `space.port` is `int?` but on Android the upstream plugin
@@ -4555,7 +4585,7 @@ class WebViewFactory {
     final cert = space.sslCertificate;
     final fingerprint = TrustedHostsService.fingerprintFromInappCertificate(cert);
     if (cert != null) {
-      _sslCertificateCache[_certCacheKey(host, port)] = cert;
+      _sslCertificateCache[_certCacheKey(host, port: port)] = cert;
     }
     // Apple: defer to OS unconditionally. The pin store doesn't help
     // here — modern macOS/iOS reject self-signed at the BoringSSL layer
@@ -4589,7 +4619,7 @@ class WebViewFactory {
     // silently — never prompt, never pin. The genuine local-dev case
     // (browsing to `https://localhost`) is preserved because the
     // requested host then matches the cert identity.
-    if (_isLoopbackSinkholeCert(host, cert)) {
+    if (_isLoopbackSinkholeCert(host, cert: cert)) {
       LogTag.tls.debug(
           'localhost sinkhole cert for $host:$port — cancelling silently '
           '(no prompt; likely a device-level DNS/ad blocker)', sensitive: true);
@@ -4624,7 +4654,7 @@ class WebViewFactory {
       return inapp.ServerTrustAuthResponse(
           action: inapp.ServerTrustAuthResponseAction.CANCEL);
     }
-    final approved = await prompt(host, port, cert);
+    final approved = await prompt(host, port: port, certificate: cert);
     if (!approved) {
       LogTag.tls.debug(
           'user rejected untrusted cert for $host:$port', sensitive: true);
@@ -4659,7 +4689,7 @@ class WebViewFactory {
         action: inapp.ServerTrustAuthResponseAction.PROCEED);
   }
 
-  static String _certCacheKey(String host, int port) =>
+  static String _certCacheKey(String host, {required int port}) =>
       '${host.toLowerCase()}:$port';
 
   static bool _isLoopbackHost(String host) {
@@ -4673,7 +4703,8 @@ class WebViewFactory {
   /// never something the user means to trust for a remote host, so the
   /// caller cancels the load without prompting. A real `https://localhost`
   /// dev server is excluded because [host] then matches the cert identity.
-  static bool _isLoopbackSinkholeCert(String host, inapp.SslCertificate? cert) {
+  static bool _isLoopbackSinkholeCert(String host,
+      {required inapp.SslCertificate? cert}) {
     if (cert == null) return false;
     return isLoopbackSinkholeCert(
       host: host,
@@ -4754,7 +4785,9 @@ class WebViewFactory {
   static Future<bool> _handleSslLoadError({
     required WebViewController? view,
     required String url,
-    required Future<bool> Function(String, int, inapp.SslCertificate?)? prompt,
+    required Future<bool> Function(String host,
+            {required int port, required inapp.SslCertificate? certificate})?
+        prompt,
   }) async {
     // Modern Apple platforms (macOS 15+, iOS 26+) reject self-signed
     // certs at the `nw_protocol_boringssl` layer regardless of the
@@ -4774,7 +4807,7 @@ class WebViewFactory {
     if (uri == null || !uri.hasAuthority) return false;
     final host = uri.host;
     final port = uri.hasPort ? uri.port : (uri.scheme == 'https' ? 443 : 80);
-    final key = _certCacheKey(host, port);
+    final key = _certCacheKey(host, port: port);
     final cert = _sslCertificateCache[key];
     final fingerprint =
         TrustedHostsService.fingerprintFromInappCertificate(cert);
@@ -4801,7 +4834,7 @@ class WebViewFactory {
     if (prompt == null) return false;
     if (!_inflightSslPrompts.add(key)) return true;
     try {
-      final approved = await prompt(host, port, cert);
+      final approved = await prompt(host, port: port, certificate: cert);
       if (!approved) {
         LogTag.tls.debug(
             'user rejected untrusted cert for $host:$port', sensitive: true);
@@ -4829,8 +4862,8 @@ class WebViewFactory {
   }
 
   static Future<void> _handleDownloadRequest(
-    inapp.InAppWebViewController controller,
-    inapp.DownloadStartRequest req, {
+    inapp.InAppWebViewController controller, {
+    required inapp.DownloadStartRequest req,
     String? referer,
     UserProxySettings? proxy,
   }) async {
@@ -4840,14 +4873,15 @@ class WebViewFactory {
     switch (scheme) {
       case 'http':
       case 'https':
-        await _handleHttpDownload(controller, req,
+        await _handleHttpDownload(controller, req: req,
             referer: referer, proxy: proxy);
         return;
       case 'data':
         _handleDataDownload(req);
         return;
       case 'blob':
-        await _handleBlobDownload(controller, urlStr, req.suggestedFilename);
+        await _handleBlobDownload(controller,
+            blobUrl: urlStr, suggestedFilename: req.suggestedFilename);
         return;
       default:
         _showDownloadSnack('Can\'t download $scheme: URL.');
@@ -4855,8 +4889,8 @@ class WebViewFactory {
   }
 
   static Future<void> _handleHttpDownload(
-    inapp.InAppWebViewController controller,
-    inapp.DownloadStartRequest req, {
+    inapp.InAppWebViewController controller, {
+    required inapp.DownloadStartRequest req,
     String? referer,
     UserProxySettings? proxy,
   }) async {
@@ -4904,8 +4938,8 @@ class WebViewFactory {
         referer: referer,
         suggestedFilename: req.suggestedFilename,
         mimeTypeHint: req.mimeType,
-        onProgress: (done, total) => DownloadsService.instance
-            .updateProgress(task.id, bytesDone: done, bytesTotal: total),
+        onProgress: (done, {required bytesTotal}) => DownloadsService.instance
+            .updateProgress(task.id, bytesDone: done, bytesTotal: bytesTotal),
       );
       task.filename = result.filename;
       final savedPath = await _saveViaPicker(result);
@@ -4915,10 +4949,10 @@ class WebViewFactory {
         DownloadsService.instance.complete(task.id, savedPath: savedPath);
       }
     } on DownloadException catch (e) {
-      DownloadsService.instance.fail(task.id, e.message);
+      DownloadsService.instance.fail(task.id, message: e.message);
     } catch (e, stack) {
       LogTag.download.error('Download error: $e\n$stack', sensitive: true);
-      DownloadsService.instance.fail(task.id, e.toString());
+      DownloadsService.instance.fail(task.id, message: e.toString());
     }
   }
 
@@ -4944,19 +4978,19 @@ class WebViewFactory {
         DownloadsService.instance.complete(task.id, savedPath: savedPath);
       }
     } on DownloadException catch (e) {
-      DownloadsService.instance.fail(task.id, e.message);
+      DownloadsService.instance.fail(task.id, message: e.message);
     } catch (e, stack) {
       LogTag.download.error(
           'Data-URI download error: $e\n$stack', sensitive: true);
-      DownloadsService.instance.fail(task.id, e.toString());
+      DownloadsService.instance.fail(task.id, message: e.toString());
     }
   }
 
   static Future<void> _handleBlobDownload(
-    inapp.InAppWebViewController controller,
-    String blobUrl,
-    String? suggestedFilename,
-  ) async {
+    inapp.InAppWebViewController controller, {
+    required String blobUrl,
+    required String? suggestedFilename,
+  }) async {
     final task = DownloadsService.instance.start(
       filename: suggestedFilename?.isNotEmpty == true
           ? suggestedFilename!
@@ -4973,7 +5007,7 @@ class WebViewFactory {
     } catch (e, stack) {
       LogTag.download.error(
           'Blob download eval error: $e\n$stack', sensitive: true);
-      DownloadsService.instance.fail(task.id, e.toString());
+      DownloadsService.instance.fail(task.id, message: e.toString());
     }
   }
 
@@ -4986,7 +5020,7 @@ class WebViewFactory {
     );
     if (outputPath == null) return null;
     if (!isMobile) {
-      await hostWriteBytes(outputPath, result.bytes);
+      await hostWriteBytes(outputPath, bytes: result.bytes);
     }
     return outputPath;
   }

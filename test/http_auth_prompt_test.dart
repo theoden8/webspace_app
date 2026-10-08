@@ -5,13 +5,13 @@ import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'helpers/localized.dart';
 
 Future<Future<HttpAuthPromptResult?>> _open(
-  WidgetTester tester,
-  HttpAuthPromptRequest request,
-) async {
+  WidgetTester tester, {
+  required HttpAuthPromptRequest request,
+}) async {
   late Future<HttpAuthPromptResult?> result;
-  await pumpLocalized(tester, Builder(
+  await pumpLocalized(tester, home: Builder(
     builder: (context) => TextButton(
-      onPressed: () => result = promptHttpAuth(context, request),
+      onPressed: () => result = promptHttpAuth(context, request: request),
       child: const SizedBox.square(dimension: 40),
     ),
   ));
@@ -24,7 +24,7 @@ void main() {
   testWidgets('returns what the user typed, remember unticked', (tester) async {
     final result = await _open(
       tester,
-      const HttpAuthPromptRequest(
+      request: const HttpAuthPromptRequest(
         host: 'nas.example.com',
         isRetry: false,
         canRemember: true,
@@ -48,7 +48,7 @@ void main() {
   testWidgets('ticking remember is returned', (tester) async {
     final result = await _open(
       tester,
-      const HttpAuthPromptRequest(
+      request: const HttpAuthPromptRequest(
         host: 'nas.example.com',
         isRetry: false,
         canRemember: true,
@@ -64,7 +64,7 @@ void main() {
   testWidgets('cancel returns null', (tester) async {
     final result = await _open(
       tester,
-      const HttpAuthPromptRequest(
+      request: const HttpAuthPromptRequest(
         host: 'nas.example.com',
         isRetry: false,
         canRemember: true,
@@ -80,7 +80,7 @@ void main() {
       (tester) async {
     await _open(
       tester,
-      const HttpAuthPromptRequest(
+      request: const HttpAuthPromptRequest(
         host: 'nas.example.com',
         isRetry: false,
         canRemember: false,
@@ -93,7 +93,7 @@ void main() {
   testWidgets('a retry says so and prefills the username', (tester) async {
     final result = await _open(
       tester,
-      const HttpAuthPromptRequest(
+      request: const HttpAuthPromptRequest(
         host: 'nas.example.com',
         isRetry: true,
         canRemember: true,

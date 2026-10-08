@@ -16,27 +16,29 @@ void main() {
   group('torBindingChanged', () {
     test('a restart on a new port is a change, even though both are up', () {
       expect(
-        torBindingChanged(const TorUp('127.0.0.1', 50496),
-            const TorUp('127.0.0.1', 50818)),
+        torBindingChanged(const TorUp('127.0.0.1', port: 50496),
+            next: const TorUp('127.0.0.1', port: 50818)),
         isTrue,
       );
     });
 
     test('the same endpoint twice is not', () {
       expect(
-        torBindingChanged(const TorUp('127.0.0.1', 9050),
-            const TorUp('127.0.0.1', 9050)),
+        torBindingChanged(const TorUp('127.0.0.1', port: 9050),
+            next: const TorUp('127.0.0.1', port: 9050)),
         isFalse,
       );
     });
 
     test('coming up and going away are both changes', () {
       expect(
-        torBindingChanged(const TorStopped(), const TorUp('127.0.0.1', 9050)),
+        torBindingChanged(const TorStopped(),
+            next: const TorUp('127.0.0.1', port: 9050)),
         isTrue,
       );
       expect(
-        torBindingChanged(const TorUp('127.0.0.1', 9050), const TorStopped()),
+        torBindingChanged(const TorUp('127.0.0.1', port: 9050),
+            next: const TorStopped()),
         isTrue,
       );
     });
@@ -52,15 +54,15 @@ void main() {
       ];
       for (final a in unbound) {
         for (final b in unbound) {
-          expect(torBindingChanged(a, b), isFalse, reason: '$a -> $b');
+          expect(torBindingChanged(a, next: b), isFalse, reason: '$a -> $b');
         }
       }
     });
 
     test('a host change counts, not just a port change', () {
       expect(
-        torBindingChanged(
-            const TorUp('127.0.0.1', 9050), const TorUp('127.0.0.2', 9050)),
+        torBindingChanged(const TorUp('127.0.0.1', port: 9050),
+            next: const TorUp('127.0.0.2', port: 9050)),
         isTrue,
       );
     });

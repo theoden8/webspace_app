@@ -6,7 +6,8 @@ import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 
-String _categoryLabel(AppLocalizations loc, BlockCategory category) =>
+String _categoryLabel(AppLocalizations loc,
+        {required BlockCategory category}) =>
     switch (category) {
       BlockCategory.filterList => loc.blockStatsCategoryFilterList,
       BlockCategory.dnsBlocklist => loc.blockStatsCategoryDns,
@@ -21,14 +22,14 @@ IconData _categoryIcon(BlockCategory category) => switch (category) {
       BlockCategory.localCdn => Icons.cloud_off_outlined,
     };
 
-String _rangeSubtitle(AppLocalizations loc, int days) =>
+String _rangeSubtitle(AppLocalizations loc, {required int days}) =>
     days == 7 ? loc.blockStatsSubtitleWeek : loc.blockStatsSubtitleMonth;
 
 TextStyle? _muted(ThemeData theme) => theme.textTheme.bodyMedium
     ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
 
 /// The footer of both report screens: [count] blocked since counting began.
-Widget _since(BuildContext context, int count) {
+Widget _since(BuildContext context, {required int count}) {
   final since = MaterialLocalizations.of(context)
       .formatShortDate(BlockStatsService.instance.engine.since);
   return Padding(
@@ -64,7 +65,7 @@ mixin _RebuildOnStats<T extends StatefulWidget> on State<T> {
 /// Daily totals as a bare bar strip. Deliberately label-free: the axis
 /// values would need a locale-formatted date per bar and the shape is the
 /// point, not the readings.
-Widget _dailyBars(ThemeData theme, List<int> daily) {
+Widget _dailyBars(ThemeData theme, {required List<int> daily}) {
   final peak = daily.fold<int>(0, (a, b) => b > a ? b : a);
   return SizedBox(
     height: 72,
@@ -152,11 +153,11 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
         ],
       ),
       body: engine.allTimeTotal == 0
-          ? _buildEmptyState(loc, theme)
+          ? _buildEmptyState(loc, theme: theme)
           : ListView(
               padding: const EdgeInsets.only(bottom: 24),
               children: [
-                _buildHero(loc, theme, rangeTotal),
+                _buildHero(loc, theme: theme, total: rangeTotal),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Center(
@@ -177,17 +178,17 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
                     ),
                   ),
                 ),
-                _dailyBars(theme, engine.dailyTotals(_rangeDays)),
+                _dailyBars(theme, daily: engine.dailyTotals(_rangeDays)),
                 const SizedBox(height: 20),
-                ..._buildCategoryRows(loc, theme, totals, rangeTotal),
+                ..._buildCategoryRows(loc, theme: theme, totals: totals, rangeTotal: rangeTotal),
                 const Divider(height: 32),
-                _since(context, engine.allTimeTotal),
+                _since(context, count: engine.allTimeTotal),
               ],
             ),
     );
   }
 
-  Widget _buildEmptyState(AppLocalizations loc, ThemeData theme) {
+  Widget _buildEmptyState(AppLocalizations loc, {required ThemeData theme}) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -210,7 +211,8 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
     );
   }
 
-  Widget _buildHero(AppLocalizations loc, ThemeData theme, int total) {
+  Widget _buildHero(AppLocalizations loc,
+      {required ThemeData theme, required int total}) {
     // Pure-data display goes through a variable, never a literal inside
     // Text(...) — LOC-002.
     final totalLabel = '$total';
@@ -241,7 +243,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
           ),
           const SizedBox(height: 4),
           Text(
-            _rangeSubtitle(loc, _rangeDays),
+            _rangeSubtitle(loc, days: _rangeDays),
             textAlign: TextAlign.center,
             style: theme.textTheme.titleMedium
                 ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
@@ -252,16 +254,17 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
   }
 
   List<Widget> _buildCategoryRows(
-    AppLocalizations loc,
-    ThemeData theme,
-    Map<BlockCategory, int> totals,
-    int rangeTotal,
-  ) {
+    AppLocalizations loc, {
+    required ThemeData theme,
+    required Map<BlockCategory, int> totals,
+    required int rangeTotal,
+  }) {
     final ordered = BlockCategory.values.toList()
       ..sort((a, b) => (totals[b] ?? 0).compareTo(totals[a] ?? 0));
     final rowLabels = <BlockCategory, String>{
       for (final category in ordered)
-        category: '${totals[category] ?? 0}  ${_categoryLabel(loc, category)}',
+        category:
+            '${totals[category] ?? 0}  ${_categoryLabel(loc, category: category)}',
     };
     return [
       for (final category in ordered)
@@ -358,14 +361,14 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
     final sites = _namedSiteCounts(detail);
 
     return Scaffold(
-      appBar: AppBar(title: Text(_categoryLabel(loc, category))),
+      appBar: AppBar(title: Text(_categoryLabel(loc, category: category))),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          _buildHeader(loc, theme, rangeTotal),
+          _buildHeader(loc, theme: theme, total: rangeTotal),
           _dailyBars(
             theme,
-            engine.dailyTotals(widget.rangeDays, category: category),
+            daily: engine.dailyTotals(widget.rangeDays, category: category),
           ),
           const SizedBox(height: 20),
           if (items.isEmpty && sites.isEmpty)
@@ -374,19 +377,19 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
               child: Text(loc.blockStatsDetailEmpty, style: _muted(theme)),
             ),
           if (items.isNotEmpty) ...[
-            _sectionHeader(theme, loc.blockStatsDetailItems),
+            _sectionHeader(theme, label: loc.blockStatsDetailItems),
             for (final item in items)
-              _countRow(theme, item.label, item.count,
+              _countRow(theme, label: item.label, count: item.count,
                   icon: _categoryIcon(category)),
           ],
           if (sites.isNotEmpty) ...[
-            _sectionHeader(theme, loc.blockStatsDetailSites),
+            _sectionHeader(theme, label: loc.blockStatsDetailSites),
             for (final site in sites)
-              _countRow(theme, site.key, site.value,
+              _countRow(theme, label: site.key, count: site.value,
                   icon: Icons.public_outlined),
           ],
           const Divider(height: 32),
-          _since(context, engine.allTimeFor(category)),
+          _since(context, count: engine.allTimeFor(category)),
         ],
       ),
     );
@@ -405,7 +408,8 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
     return out;
   }
 
-  Widget _buildHeader(AppLocalizations loc, ThemeData theme, int total) {
+  Widget _buildHeader(AppLocalizations loc,
+      {required ThemeData theme, required int total}) {
     final totalLabel = '$total';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -420,7 +424,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
             ),
           ),
           Text(
-            _rangeSubtitle(loc, widget.rangeDays),
+            _rangeSubtitle(loc, days: widget.rangeDays),
             style: theme.textTheme.titleSmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
@@ -429,7 +433,7 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
     );
   }
 
-  Widget _sectionHeader(ThemeData theme, String label) {
+  Widget _sectionHeader(ThemeData theme, {required String label}) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: Text(
@@ -440,8 +444,8 @@ class _BlockStatsCategoryScreenState extends State<BlockStatsCategoryScreen>
     );
   }
 
-  Widget _countRow(ThemeData theme, String label, int count,
-      {required IconData icon}) {
+  Widget _countRow(ThemeData theme, {required String label, required int count,
+     required IconData icon}) {
     final countLabel = '$count';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),

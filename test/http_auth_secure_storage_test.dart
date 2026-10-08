@@ -28,37 +28,61 @@ void main() {
 
   group('HttpAuthSecureStorage', () {
     test('save + lookup round-trip per (site, host, realm)', () async {
-      await store.save('site-1', Host('nas.example.com'), 'R', alice);
+      await store.save('site-1',
+          host: Host('nas.example.com'), realm: 'R', credential: alice);
 
-      expect(await store.lookup('site-1', Host('nas.example.com'), 'R'), alice);
-      expect(await store.lookup('site-2', Host('nas.example.com'), 'R'), isNull);
-      expect(await store.lookup('site-1', Host('other.example.com'), 'R'), isNull);
-      expect(await store.lookup('site-1', Host('nas.example.com'), 'Other'), isNull);
+      expect(
+          await store.lookup('site-1',
+              host: Host('nas.example.com'), realm: 'R'),
+          alice);
+      expect(
+          await store.lookup('site-2',
+              host: Host('nas.example.com'), realm: 'R'),
+          isNull);
+      expect(
+          await store.lookup('site-1',
+              host: Host('other.example.com'), realm: 'R'),
+          isNull);
+      expect(
+          await store.lookup('site-1',
+              host: Host('nas.example.com'), realm: 'Other'),
+          isNull);
     });
 
     test('saving the same space again replaces the credential', () async {
-      await store.save('site-1', Host('h'), 'R', alice);
-      await store.save('site-1', Host('h'), 'R',
-          const HttpAuthCredential(username: 'alice', password: 'n3w'));
+      await store.save('site-1',
+          host: Host('h'), realm: 'R', credential: alice);
+      await store.save('site-1',
+          host: Host('h'),
+          realm: 'R',
+          credential:
+              const HttpAuthCredential(username: 'alice', password: 'n3w'));
 
-      expect((await store.lookup('site-1', Host('h'), 'R'))?.password, 'n3w');
+      expect(
+          (await store.lookup('site-1', host: Host('h'), realm: 'R'))?.password,
+          'n3w');
       expect(await store.countForSite('site-1'), 1);
     });
 
     test('remove drops one space and deletes the entry when empty', () async {
-      await store.save('site-1', Host('h'), 'A', alice);
-      await store.save('site-1', Host('h'), 'B', alice);
-      await store.remove('site-1', Host('h'), 'A');
+      await store.save('site-1',
+          host: Host('h'), realm: 'A', credential: alice);
+      await store.save('site-1',
+          host: Host('h'), realm: 'B', credential: alice);
+      await store.remove('site-1', host: Host('h'), realm: 'A');
 
       expect(await store.countForSite('site-1'), 1);
-      await store.remove('site-1', Host('h'), 'B');
+      await store.remove('site-1', host: Host('h'), realm: 'B');
       expect(secure.storage.containsKey('http_auth_credentials'), isFalse);
     });
 
     test('removeSite forgets every space of one site only', () async {
-      await store.save('site-1', Host('h'), 'A', alice);
-      await store.save('site-1', Host('h'), 'B', alice);
-      await store.save('site-2', Host('h'), 'A', alice);
+      await store.save('site-1',
+          host: Host('h'), realm: 'A', credential: alice);
+      await store.save('site-1',
+          host: Host('h'), realm: 'B', credential: alice);
+      await store.save('site-2',
+          host: Host('h'), realm: 'A', credential: alice);
       await store.removeSite('site-1');
 
       expect(await store.countForSite('site-1'), 0);
@@ -66,8 +90,8 @@ void main() {
     });
 
     test('removeOrphaned keeps only live sites', () async {
-      await store.save('live', Host('h'), 'R', alice);
-      await store.save('gone', Host('h'), 'R', alice);
+      await store.save('live', host: Host('h'), realm: 'R', credential: alice);
+      await store.save('gone', host: Host('h'), realm: 'R', credential: alice);
       await store.removeOrphaned({'live'});
 
       expect(await store.countForSite('live'), 1);
@@ -76,8 +100,8 @@ void main() {
 
     test('concurrent saves from two webviews both land', () async {
       await Future.wait([
-        store.save('site-1', Host('a'), 'R', alice),
-        store.save('site-2', Host('b'), 'R', alice),
+        store.save('site-1', host: Host('a'), realm: 'R', credential: alice),
+        store.save('site-2', host: Host('b'), realm: 'R', credential: alice),
       ]);
 
       expect(await store.countForSite('site-1'), 1);
@@ -96,8 +120,10 @@ void main() {
         }),
       );
 
-      expect(await store.lookup('site-1', Host('h'), 'R'), isNull);
-      expect((await store.lookup('site-1', Host('h'), 'S'))?.username, 'bob');
+      expect(await store.lookup('site-1', host: Host('h'), realm: 'R'), isNull);
+      expect(
+          (await store.lookup('site-1', host: Host('h'), realm: 'S'))?.username,
+          'bob');
       expect(await store.countForSite('site-2'), 0);
     });
   });
@@ -111,9 +137,9 @@ void main() {
     final site = WebViewModel(initUrl: 'https://nas.example.com/');
     await store.save(
       site.siteId,
-      Host('nas.example.com'),
-      'Restricted',
-      const HttpAuthCredential(
+      host: Host('nas.example.com'),
+      realm: 'Restricted',
+      credential: const HttpAuthCredential(
           username: userNeedle, password: passwordNeedle),
     );
     final prefs = await SharedPreferences.getInstance();

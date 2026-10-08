@@ -89,7 +89,7 @@ abstract interface class LinkHost implements PageHost {
 
   /// WEBSPACE-012: switches to "All" when the selected webspace hides
   /// [model].
-  Future<void> revealSite(WebViewModel model, int index);
+  Future<void> revealSite(WebViewModel model, {required int index});
 
   /// Adds [model] and, with [activate], puts it on screen.
   Future<void> registerSite(WebViewModel model, {bool activate = true});
@@ -101,13 +101,13 @@ abstract interface class LinkHost implements PageHost {
   WebViewController? controllerOf(WebViewModel model);
 
   /// The page's one way to open a nested screen for a site (NESTED-010).
-  Future<void> launchNestedFor(WebViewModel model, String url,
-      {bool opensFromTab = true});
+  Future<void> launchNestedFor(WebViewModel model, {required String url,
+     bool opensFromTab = true});
 
   /// LIR-011 / LIR-015 through [NestedOpenEngine], over [source] when routed.
   Future<void> openNested(DispatchOpenNested action, {WebViewModel? source});
 
-  Future<void> unloadSite(int index, UnloadReason reason);
+  Future<void> unloadSite(int index, {required UnloadReason reason});
 
   Future<void> wipeContainer(String siteId);
 
@@ -119,9 +119,14 @@ abstract interface class LinkHost implements PageHost {
 /// into its tabs (LIR-032), web search (LIR-029 to LIR-033), and an address
 /// typed or a link opened from the long-press menu.
 class LinkController {
-  LinkController(this._sites, this._host, this._prompts,
-      {required TabsController tabs})
-      : _tabs = tabs;
+  LinkController(
+    this._sites, {
+    required LinkHost host,
+    required LinkPrompts prompts,
+    required TabsController tabs,
+  })  : _host = host,
+        _prompts = prompts,
+        _tabs = tabs;
 
   final SiteRuntime _sites;
   final LinkHost _host;
@@ -214,7 +219,7 @@ class LinkController {
     LogTag.linkIntent.debug(
         'dispatch ${inboundUri ?? '(html payload)'} -> ${_describeDispatchAction(action)}',
         sensitive: true);
-    await _executeDispatchAction(action, inboundUri);
+    await _executeDispatchAction(action, inboundUri: inboundUri);
   }
 
   final _webSearchGuard = ReentryGuard();
@@ -255,7 +260,7 @@ class LinkController {
             for (final m in {...outboundCandidates(owner), identity})
               m.siteId: m.containerColor ??
                   ContainerColorEngine.fallback(
-                      m.siteId, kContainerPaletteSize),
+                      m.siteId, paletteSize: kContainerPaletteSize),
         },
       ));
       if (!_host.mounted || request == null) return;
@@ -279,14 +284,14 @@ class LinkController {
       if (option == null) return;
       final url = WebSearchEngine.urlFor(
         option,
-        request.query,
+        query: request.query,
         scopeHost: getNormalizedDomain(owner.navigationHomeUrl),
       );
       if (url == null) {
         _host.toast((loc) => loc.homeUnsupportedUrl);
         return;
       }
-      await _runSearch(owner, option.site.siteId, url);
+      await _runSearch(owner, searchSiteId: option.site.siteId, url: url);
     });
   }
 
@@ -308,7 +313,7 @@ class LinkController {
     return (
       sites: [
         for (final o in bar.options)
-          UrlBarSearchSite(o.site.siteId, o.site.name),
+          UrlBarSearchSite(o.site.siteId, name: o.site.name),
       ],
       defaultId: bar.options.isEmpty
           ? null
@@ -320,10 +325,10 @@ class LinkController {
   /// would, with the search site the bar names. With none, the sheet opens
   /// on the query, where a known engine can be added.
   Future<void> searchFromUrlBar(
-    WebViewModel owner,
-    String query,
-    String? siteId,
-  ) async {
+    WebViewModel owner, {
+    required String query,
+    required String? siteId,
+  }) async {
     if (!_tabs.featureEnabled || _host.kioskLocked || _webSearchGuard.busy) return;
     if (!_sites.models.contains(owner)) return;
     final identity = owner.runningIdentity;
@@ -336,23 +341,23 @@ class LinkController {
       return;
     }
     final url = WebSearchEngine.urlFor(
-        SearchOption(_searchSiteOf(site), scoped: false), query);
+        SearchOption(_searchSiteOf(site), scoped: false), query: query);
     if (url == null) {
       _host.toast((loc) => loc.homeUnsupportedUrl);
       return;
     }
     await _webSearchGuard.run(() async {
-      await _runSearch(owner, site.siteId, url);
+      await _runSearch(owner, searchSiteId: site.siteId, url: url);
     });
   }
 
   /// Run a search by [searchSiteId] from [owner]'s slot, landing where
   /// [WebSearchEngine.land] says.
   Future<void> _runSearch(
-    WebViewModel owner,
-    String searchSiteId,
-    Uri url,
-  ) async {
+    WebViewModel owner, {
+    required String searchSiteId,
+    required Uri url,
+  }) async {
     final searchSite = _sites.byId(searchSiteId);
     final index = _sites.models.indexOf(owner);
     if (searchSite == null || index < 0) return;
@@ -360,9 +365,9 @@ class LinkController {
     final landing = WebSearchEngine.land(
       (search: searchSiteId, owner: owner.siteId, identity: identity.siteId),
       tabsEnabled: _tabs.enabledFor(owner),
-      canHost: _tabs.mayHost(searchSite, owner),
+      canHost: _tabs.mayHost(searchSite, owner: owner),
       urlInSearchSiteDomain:
-          WebSearchEngine.inDomainOf(url, searchSite.initUrl),
+          WebSearchEngine.inDomainOf(url, initUrl: searchSite.initUrl),
     );
     LogTag.webSearch.debug(
         'Search by ${searchSite.siteId} from ${owner.siteId}: ${landing.name}',
@@ -377,7 +382,8 @@ class LinkController {
         await _host.commitSites(const SitesEdited());
       case SearchLanding.childTab:
       case SearchLanding.hostedChildTab:
-        await _tabs.openChildTab(owner, url.toString(), hostSiteId: searchSiteId);
+        await _tabs.openChildTab(owner,
+            url: url.toString(), hostSiteId: searchSiteId);
       case SearchLanding.inSearchSite:
         await _executeDispatchAction(
           LinkIntentDispatchEngine.openInChosen(
@@ -386,7 +392,7 @@ class LinkController {
             origin: InboundOrigin.search,
             tabsEnabled: _tabs.enabledFor(searchSite),
           ),
-          url,
+          inboundUri: url,
         );
     }
   }
@@ -424,9 +430,9 @@ class LinkController {
   }
 
   Future<void> _executeDispatchAction(
-    DispatchAction action,
-    Uri? inboundUri,
-  ) async {
+    DispatchAction action, {
+    required Uri? inboundUri,
+  }) async {
     switch (action) {
       case DispatchUnsupported(:final reason):
         _host.toast((loc) => loc.homeUnsupportedShare(reason));
@@ -442,7 +448,7 @@ class LinkController {
         await _executeBindAndOpen(action);
       case DispatchShowPicker():
         if (inboundUri == null) return;
-        await _showDispatchPicker(action, inboundUri);
+        await _showDispatchPicker(action, inbound: inboundUri);
       case DispatchNestedFallback():
       case DispatchOpenInTab():
         // Outbound only: `_executeOutboundDispatch` and `executeTabRoute`
@@ -458,7 +464,7 @@ class LinkController {
   List<WebViewModel> outboundCandidates(WebViewModel source) =>
       OutboundBoundary.candidatesOf(
         source,
-        _sites.models,
+        sites: _sites.models,
         isArchiveTier: (m) => m.isArchiveTier,
         archiveOf: _host.archiveOf,
       );
@@ -473,7 +479,7 @@ class LinkController {
         isArchiveTier: (m) => m.isArchiveTier,
         archiveOf: _host.archiveOf,
         prefsOf: (m) => m.outboundPreferences,
-        setPrefs: (m, prefs) => m.outboundPreferences = prefs,
+        setPrefs: (m, {required prefs}) => m.outboundPreferences = prefs,
       );
 
   /// LIR-031: a site's search sites and default may name only sites a search
@@ -504,11 +510,11 @@ class LinkController {
   /// webview must not also launch it. The link is the running identity's
   /// (LIR-018): its routing, preferences and posture; the slot is [owner]'s.
   bool routeOutbound(
-    WebViewModel owner,
-    String url,
-    NavigationDecision decision,
-    bool hadGesture,
-  ) {
+    WebViewModel owner, {
+    required String url,
+    required NavigationDecision decision,
+    required bool hadGesture,
+  }) {
     if (!_host.mounted) return false;
     final source = owner.runningIdentity;
     if (decision == NavigationDecision.blockOutbound) {
@@ -516,10 +522,14 @@ class LinkController {
       return true;
     }
     if (decision == NavigationDecision.blockOpenNested) {
-      final tab = tabRouteFor(owner, source, url, hadGesture);
+      final tab =
+          tabRouteFor(owner, source: source, url: url, hadGesture: hadGesture);
       if (tab != null) {
-        unawaited(executeTabRoute(
-            owner, source, owner.activeTabId, tab, Uri.parse(url)));
+        unawaited(executeTabRoute(owner,
+            source: source,
+            parentTabId: owner.activeTabId,
+            action: tab,
+            url: Uri.parse(url)));
         return true;
       }
     }
@@ -540,7 +550,8 @@ class LinkController {
     LogTag.linkIntent.debug(
         'outbound $url from ${source.siteId} -> ${_describeDispatchAction(action)}',
         sensitive: true);
-    unawaited(_executeOutboundDispatch(owner, source, action, Uri.parse(url)));
+    unawaited(_executeOutboundDispatch(owner,
+        source: source, action: action, url: Uri.parse(url)));
     return true;
   }
 
@@ -549,11 +560,11 @@ class LinkController {
   /// sites opens as a tab run as that site, not a nested screen. Null when
   /// no site of the user's can run it in [owner]'s tree.
   DispatchAction? tabRouteFor(
-    WebViewModel owner,
-    WebViewModel source,
-    String url,
-    bool hadGesture,
-  ) {
+    WebViewModel owner, {
+    required WebViewModel source,
+    required String url,
+    required bool hadGesture,
+  }) {
     final uri = Uri.tryParse(url);
     if (uri == null || !_sites.models.contains(owner)) return null;
     final action = LinkIntentDispatchEngine.routeToTab(
@@ -566,49 +577,50 @@ class LinkController {
       hadGesture: hadGesture,
       source: SiteRoute(source),
       sourcePrefs: source.outboundPreferences,
-      hosts: () => tabHostsIn(owner, source),
+      hosts: () => tabHostsIn(owner, source: source),
     );
     // LIR-034: routing off runs the tab as its opener, which must be able to
     // run in this tree: the owner, or a site that may host here.
     if (action is DispatchOpenInTab &&
         action.siteId == source.siteId &&
         !identical(source, owner) &&
-        !_tabs.mayHost(source, owner)) {
+        !_tabs.mayHost(source, owner: owner)) {
       return null;
     }
     return action;
   }
 
   /// The sites that can run a link of [source]'s as a tab in [owner]'s tree.
-  List<SiteRoute> tabHostsIn(
-          WebViewModel owner, WebViewModel source) =>
+  List<SiteRoute> tabHostsIn(WebViewModel owner,
+          {required WebViewModel source}) =>
       [
         for (final m in outboundCandidates(source))
-          if (identical(m, owner) || _tabs.mayHost(m, owner)) SiteRoute(m),
+          if (identical(m, owner) || _tabs.mayHost(m, owner: owner))
+            SiteRoute(m),
       ];
 
   /// Run [tabRouteFor]'s action: a child of [parentTabId] in [owner]'s tree,
   /// or the picker when several sites can run the link.
   Future<void> executeTabRoute(
-    WebViewModel owner,
-    WebViewModel source,
-    String? parentTabId,
-    DispatchAction action,
-    Uri url,
-  ) async {
+    WebViewModel owner, {
+    required WebViewModel source,
+    required String? parentTabId,
+    required DispatchAction action,
+    required Uri url,
+  }) async {
     LogTag.linkIntent.debug(
         'link $url from ${source.siteId} as a tab of ${owner.siteId} -> '
         '${_describeDispatchAction(action)}', sensitive: true);
     switch (action) {
       case DispatchOpenInTab(:final siteId):
-        await _tabs.openChildTab(owner, url.toString(),
+        await _tabs.openChildTab(owner, url: url.toString(),
             hostSiteId: siteId,
             parentTabId: parentTabId,
             openerSiteId: source.siteId,
             homeUrl: url.toString());
       case DispatchShowPicker():
-        await showOutboundPicker(owner, source, action, url,
-            parentTabId: parentTabId);
+        await showOutboundPicker(owner,
+            source: source, action: action, url: url, parentTabId: parentTabId);
       default:
         LogTag.linkIntent.warning(
             'unexpected action on the tab path: ${_describeDispatchAction(action)}');
@@ -617,20 +629,21 @@ class LinkController {
 
   /// [owner] is the slot the link came from; [source] is what it runs as.
   Future<void> _executeOutboundDispatch(
-    WebViewModel owner,
-    WebViewModel source,
-    DispatchAction action,
-    Uri url,
-  ) async {
+    WebViewModel owner, {
+    required WebViewModel source,
+    required DispatchAction action,
+    required Uri url,
+  }) async {
     switch (action) {
       case DispatchOpenNested():
         // The screen opens over the slot on screen, which is what comes back
         // when it closes, whatever that slot runs as.
         await _host.openNested(action, source: owner);
       case DispatchShowPicker():
-        await showOutboundPicker(owner, source, action, url);
+        await showOutboundPicker(owner,
+            source: source, action: action, url: url);
       case DispatchNestedFallback():
-        await _host.launchNestedFor(source, url.toString());
+        await _host.launchNestedFor(source, url: url.toString());
       default:
         LogTag.linkIntent.warning('inbound-only action on the outbound path: '
             '${_describeDispatchAction(action)}');
@@ -641,10 +654,10 @@ class LinkController {
   /// [owner] is the slot on screen; a pick opens a nested screen over it, or
   /// a tab in its tree when the picker is LIR-032's.
   Future<void> showOutboundPicker(
-    WebViewModel owner,
-    WebViewModel source,
-    DispatchShowPicker action,
-    Uri url, {
+    WebViewModel owner, {
+    required WebViewModel source,
+    required DispatchShowPicker action,
+    required Uri url,
     String? parentTabId,
     bool parked = false,
   }) async {
@@ -678,12 +691,12 @@ class LinkController {
         }
         if (action.asTab && parked) {
           await _tabs.openLinkInNewTab(
-              _sites.models.indexOf(owner), url.toString(),
+              _sites.models.indexOf(owner), url: url.toString(),
               hostSiteId: site.siteId,
               openerSiteId: source.siteId,
               homeUrl: url.toString());
         } else if (action.asTab) {
-          await _tabs.openChildTab(owner, url.toString(),
+          await _tabs.openChildTab(owner, url: url.toString(),
               hostSiteId: site.siteId,
               parentTabId: parentTabId,
               openerSiteId: source.siteId,
@@ -692,8 +705,8 @@ class LinkController {
           await _host.openNested(pick.action, source: owner);
         }
       case DispatchChoiceFallback():
-        await _executeOutboundDispatch(
-            owner, source, const DispatchNestedFallback(), url);
+        await _executeOutboundDispatch(owner,
+            source: source, action: const DispatchNestedFallback(), url: url);
       case DispatchChoiceBind():
       case DispatchChoiceCreate():
         return;
@@ -703,9 +716,9 @@ class LinkController {
   /// Hosts the LIR-010 picker. Translates the user's choice into a
   /// follow-up engine call and executes the result.
   Future<void> _showDispatchPicker(
-    DispatchShowPicker action,
-    Uri inbound,
-  ) async {
+    DispatchShowPicker action, {
+    required Uri inbound,
+  }) async {
     final winners = _sites.models
         .where((m) => action.winnerSiteIds.contains(m.siteId))
         .toList(growable: false);
@@ -742,7 +755,7 @@ class LinkController {
       case DispatchChoiceFallback():
         return;
     }
-    await _executeDispatchAction(followUp, inbound);
+    await _executeDispatchAction(followUp, inboundUri: inbound);
   }
 
   /// LIR-011: dispose first when alwaysOpenHome / incognito; wipe
@@ -756,7 +769,7 @@ class LinkController {
       return;
     }
     final model = _sites.models[index];
-    await _host.revealSite(model, index);
+    await _host.revealSite(model, index: index);
     if (!_host.mounted) return;
     if (model.runsHostedTab || model.runsForeignTab) {
       // An owner URL never loads into a slot running as another site, nor
@@ -771,7 +784,7 @@ class LinkController {
       // the captured `index` could now name a different site.
       final idx = _sites.models.indexOf(model);
       if (_sites.loaded.contains(idx)) {
-        await _host.unloadSite(idx, UnloadReason.homeReset);
+        await _host.unloadSite(idx, reason: UnloadReason.homeReset);
         if (!_host.mounted) return;
       } else {
         model.disposeWebView();
@@ -860,7 +873,8 @@ class LinkController {
       model.name = title;
       model.pageTitle = title;
     }
-    await HtmlImportStorage.instance.saveHtml(model.siteId, a.html, fileSiteUrl);
+    await HtmlImportStorage.instance
+        .saveHtml(model.siteId, html: a.html, url: fileSiteUrl);
     if (!_host.mounted) return;
     await _host.registerSite(model, activate: false);
   }
@@ -875,10 +889,10 @@ class LinkController {
     if (a.claimAdditions.isNotEmpty) {
       final existing = site.domainClaims ?? site.effectiveDomainClaims;
       site.domainClaims =
-          LinkRoutingService.mergeClaims(existing, a.claimAdditions);
+          LinkRoutingService.mergeClaims(existing, additions: a.claimAdditions);
       await _host.commitSites(const SitesEdited());
     }
-    await _executeDispatchAction(a.followUp, null);
+    await _executeDispatchAction(a.followUp, inboundUri: null);
   }
 
   /// Open [url] from the long-press menu the way tapping the link would have:
@@ -886,7 +900,7 @@ class LinkController {
   /// browser (NESTED-010). A bare `loadUrl` would put a foreign page inside
   /// the site's container, because Android does not run
   /// `shouldOverrideUrlLoading` for a programmatic load.
-  Future<void> openLinkAsTapped(int index, String url) async {
+  Future<void> openLinkAsTapped(int index, {required String url}) async {
     if (index < 0 || index >= _sites.models.length) return;
     final model = _sites.models[index];
     final active = index == _sites.current;
@@ -901,7 +915,7 @@ class LinkController {
     if ((model.runsHostedTab || model.runsForeignTab) &&
         decision != NavigationDecision.allow &&
         getNormalizedDomain(url) == getNormalizedDomain(model.initUrl)) {
-      await _tabs.returnToOwner(model, url);
+      await _tabs.returnToOwner(model, url: url);
       return;
     }
     switch (decision) {
@@ -909,19 +923,26 @@ class LinkController {
         await _host.controllerOf(model)
             ?.loadUrl(url, language: identity.language);
       case NavigationDecision.blockOpenNested:
-        if (routeOutbound(
-            model, url, NavigationDecision.blockOpenNested, true)) {
+        if (routeOutbound(model,
+            url: url,
+            decision: NavigationDecision.blockOpenNested,
+            hadGesture: true)) {
           return;
         }
-        await _host.launchNestedFor(identity, url);
+        await _host.launchNestedFor(identity, url: url);
       case NavigationDecision.blockOpenExternal:
-        if (routeOutbound(
-            model, url, NavigationDecision.blockOpenExternal, true)) {
+        if (routeOutbound(model,
+            url: url,
+            decision: NavigationDecision.blockOpenExternal,
+            hadGesture: true)) {
           return;
         }
         await launchUrlInSystemBrowser(url);
       case NavigationDecision.blockOutbound:
-        routeOutbound(model, url, NavigationDecision.blockOutbound, true);
+        routeOutbound(model,
+            url: url,
+            decision: NavigationDecision.blockOutbound,
+            hadGesture: true);
       case NavigationDecision.blockSilent:
       case NavigationDecision.blockSuppressed:
         break;
@@ -932,7 +953,7 @@ class LinkController {
   /// would: the same decision and the same steps after it, so tab routing
   /// (LIR-032, LIR-034), outbound routing (LIR-014), the site's external link
   /// mode and the way back to the owner (S6) all apply to it.
-  Future<void> openTypedAddress(WebViewModel model, String url) async {
+  Future<void> openTypedAddress(WebViewModel model, {required String url}) async {
     // Decide on the tab the switch in flight lands on, not the one it leaves.
     await _tabs.settled();
     if (!_host.mounted || !_sites.models.contains(model)) return;
@@ -957,11 +978,11 @@ class LinkController {
       case NavigationStep.drop:
         return;
       case NavigationStep.returnToOwner:
-        await _tabs.returnToOwner(model, url);
+        await _tabs.returnToOwner(model, url: url);
       case NavigationStep.route:
-        if (routeOutbound(model, url, decision, true)) return;
+        if (routeOutbound(model, url: url, decision: decision, hadGesture: true)) return;
         if (decision == NavigationDecision.blockOpenNested) {
-          await _host.launchNestedFor(identity, url);
+          await _host.launchNestedFor(identity, url: url);
         } else if (decision == NavigationDecision.blockOpenExternal) {
           await launchUrlInSystemBrowser(url);
         }

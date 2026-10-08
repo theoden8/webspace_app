@@ -15,7 +15,7 @@ const Map<String, String> hostEnvironment = <String, String>{};
 String get hostOperatingSystem => 'web';
 String get hostOperatingSystemVersion => '';
 
-Future<void> hostWriteBytes(String path, List<int> bytes) =>
+Future<void> hostWriteBytes(String path, {required List<int> bytes}) =>
     throw UnsupportedError('hostWriteBytes is not available on web');
 
 /// A browser exposes no resolver, so this reports "cannot answer" instead of
@@ -36,7 +36,8 @@ http.Client hostDirectDownloadClient() => http.Client();
 Future<Uint8List> hostReadFileBytes(String path) =>
     throw UnsupportedError('hostReadFileBytes is not available on web');
 
-Future<void> hostWriteFileBytes(String path, List<int> bytes) async {}
+Future<void> hostWriteFileBytes(String path,
+    {required List<int> bytes}) async {}
 
 Future<bool> hostFileExists(String path) async => false;
 
@@ -68,7 +69,7 @@ Converter<List<int>, List<int>> get hostGzipEncoder => const _UnsupportedCodec('
 String hostReadFileTextSync(String path) =>
     throw UnsupportedError('hostReadFileTextSync is not available on web');
 
-Future<void> hostWriteFileText(String path, String contents) async {}
+Future<void> hostWriteFileText(String path, {required String contents}) async {}
 
 Future<String> hostReadFileText(String path) =>
     throw UnsupportedError('hostReadFileText is not available on web');

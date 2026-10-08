@@ -24,7 +24,7 @@ const Map<String, Color> _accents = {
 };
 
 /// WCAG 2.1 contrast ratio, 1.0 (identical) to 21.0 (black on white).
-double contrastRatio(Color a, Color b) {
+double contrastRatio(Color a, {required Color b}) {
   final la = a.computeLuminance();
   final lb = b.computeLuminance();
   return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
@@ -39,7 +39,7 @@ void main() {
 
     for (final brightness in Brightness.values) {
       for (final accent in _accents.entries) {
-        final s = buildAccentColorScheme(accent.value, brightness);
+        final s = buildAccentColorScheme(accent.value, brightness: brightness);
         final pairs = <String, List<Color>>{
           'primary/onPrimary': [s.primary, s.onPrimary],
           'secondary/onSecondary': [s.secondary, s.onSecondary],
@@ -50,7 +50,7 @@ void main() {
           'error/onError': [s.error, s.onError],
         };
         for (final pair in pairs.entries) {
-          final ratio = contrastRatio(pair.value[0], pair.value[1]);
+          final ratio = contrastRatio(pair.value[0], b: pair.value[1]);
           if (ratio < _minRatio) {
             failures.add('${brightness.name} ${accent.key} ${pair.key}: '
                 '${ratio.toStringAsFixed(2)}:1');
@@ -65,7 +65,7 @@ void main() {
   test('the accent survives into primary undesaturated', () {
     for (final brightness in Brightness.values) {
       for (final accent in _accents.entries) {
-        final s = buildAccentColorScheme(accent.value, brightness);
+        final s = buildAccentColorScheme(accent.value, brightness: brightness);
         expect(s.primary, accent.value, reason: '${accent.key} ${brightness.name}');
         expect(s.secondary, accent.value, reason: '${accent.key} ${brightness.name}');
       }
@@ -77,8 +77,9 @@ void main() {
     // Brightness alone is what this guards against.
     for (final name in ['green', 'yellow', 'teal', 'orange']) {
       final accent = _accents[name]!;
-      final light = buildAccentColorScheme(accent, Brightness.light);
-      final dark = buildAccentColorScheme(accent, Brightness.dark);
+      final light =
+          buildAccentColorScheme(accent, brightness: Brightness.light);
+      final dark = buildAccentColorScheme(accent, brightness: Brightness.dark);
       expect(light.onPrimary, dark.onPrimary, reason: name);
     }
   });

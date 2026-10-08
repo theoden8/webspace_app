@@ -62,7 +62,7 @@ enum MoatErrorKind {
 }
 
 class MoatException implements Exception {
-  const MoatException(this.kind, [this.detail]);
+  const MoatException(this.kind, {this.detail});
   final MoatErrorKind kind;
   final String? detail;
 
@@ -137,24 +137,26 @@ class MoatClient {
       ]
     });
 
-    final decoded = await _post('$baseUrl/fetch', body);
+    final decoded = await _post('$baseUrl/fetch', body: body);
     final entry = _firstData(decoded);
 
     final image = entry['image'];
     final challenge = entry['challenge'];
     if (image is! String || challenge is! String) {
       throw const MoatException(
-          MoatErrorKind.malformed, 'challenge missing image or token');
+          MoatErrorKind.malformed, detail: 'challenge missing image or token');
     }
 
     final Uint8List bytes;
     try {
       bytes = base64Decode(image);
     } on FormatException catch (e) {
-      throw MoatException(MoatErrorKind.malformed, 'captcha not base64: $e');
+      throw MoatException(MoatErrorKind.malformed,
+          detail: 'captcha not base64: $e');
     }
     if (bytes.isEmpty) {
-      throw const MoatException(MoatErrorKind.malformed, 'empty captcha image');
+      throw const MoatException(MoatErrorKind.malformed,
+          detail: 'empty captcha image');
     }
 
     return MoatChallenge(
@@ -180,7 +182,7 @@ class MoatClient {
   Future<MoatAttempt> obtainBridges(TorTransport transport) async {
     final challenge = await fetchChallenge(transport);
     try {
-      return MoatBridgesObtained(await submitSolution(challenge, ''));
+      return MoatBridgesObtained(await submitSolution(challenge, solution: ''));
     } on MoatException catch (e) {
       if (e.kind == MoatErrorKind.wrongSolution) {
         return MoatCaptchaRequired(challenge);
@@ -194,9 +196,9 @@ class MoatClient {
   /// Called directly by the UI once the user has answered a captcha that
   /// [obtainBridges] reported as required.
   Future<List<TorBridgeLine>> submitSolution(
-    MoatChallenge challenge,
-    String solution,
-  ) async {
+    MoatChallenge challenge, {
+    required String solution,
+  }) async {
     final body = jsonEncode({
       'data': [
         {
@@ -211,7 +213,7 @@ class MoatClient {
       ]
     });
 
-    final decoded = await _post('$baseUrl/check', body);
+    final decoded = await _post('$baseUrl/check', body: body);
 
     // An error document rather than bridges: moat reports a wrong captcha
     // this way when it is validating them.
@@ -219,14 +221,14 @@ class MoatClient {
     if (errors is List && errors.isNotEmpty) {
       final first = errors.first;
       final detail = first is Map ? '${first['detail'] ?? first}' : '$first';
-      throw MoatException(MoatErrorKind.wrongSolution, detail);
+      throw MoatException(MoatErrorKind.wrongSolution, detail: detail);
     }
 
     final entry = _firstData(decoded);
     final raw = entry['bridges'];
     if (raw is! List) {
       throw const MoatException(
-          MoatErrorKind.malformed, 'no bridges array in response');
+          MoatErrorKind.malformed, detail: 'no bridges array in response');
     }
 
     final lines = <TorBridgeLine>[];
@@ -240,12 +242,12 @@ class MoatClient {
     }
     if (lines.isEmpty) {
       throw const MoatException(MoatErrorKind.noBridges,
-          'the service returned no line this build can use');
+          detail: 'the service returned no line this build can use');
     }
     return lines;
   }
 
-  Future<Map<String, Object?>> _post(String url, String body) async {
+  Future<Map<String, Object?>> _post(String url, {required String body}) async {
     http.Response response;
     try {
       response = await _client
@@ -254,31 +256,35 @@ class MoatClient {
     } catch (e) {
       // Includes the timeout and every socket failure. On a censored
       // network this is the expected path, not an exceptional one.
-      throw MoatException(MoatErrorKind.unreachable, '${e.runtimeType}');
+      throw MoatException(MoatErrorKind.unreachable,
+          detail: '${e.runtimeType}');
     }
 
     if (response.statusCode != 200) {
       throw MoatException(
-          MoatErrorKind.unreachable, 'HTTP ${response.statusCode}');
+          MoatErrorKind.unreachable, detail: 'HTTP ${response.statusCode}');
     }
 
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is! Map) {
-        throw const MoatException(MoatErrorKind.malformed, 'not a JSON object');
+        throw const MoatException(MoatErrorKind.malformed,
+            detail: 'not a JSON object');
       }
       return decoded.cast<String, Object?>();
     } on MoatException {
       rethrow;
     } catch (e) {
-      throw MoatException(MoatErrorKind.malformed, 'bad JSON: ${e.runtimeType}');
+      throw MoatException(MoatErrorKind.malformed,
+          detail: 'bad JSON: ${e.runtimeType}');
     }
   }
 
   Map<String, Object?> _firstData(Map<String, Object?> decoded) {
     final data = decoded['data'];
     if (data is! List || data.isEmpty || data.first is! Map) {
-      throw const MoatException(MoatErrorKind.malformed, 'no data entry');
+      throw const MoatException(MoatErrorKind.malformed,
+          detail: 'no data entry');
     }
     return (data.first as Map).cast<String, Object?>();
   }

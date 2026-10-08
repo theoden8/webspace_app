@@ -306,7 +306,7 @@ void main() {
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNull, reason: 'mid-bootstrap');
 
-      runtime.emit(TorUp('127.0.0.1', 9999));
+      runtime.emit(TorUp('127.0.0.1', port: 9999));
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNotNull);
       await e.dispose();
@@ -475,7 +475,8 @@ void main() {
 
   group('TOR-014 exit-country GeoIP', () {
     final fetchedAt = DateTime.utc(2026, 9, 1);
-    final table = TorGeoIpTable('/cache/tor_geoip/geoip-1', fetchedAt);
+    final table =
+        TorGeoIpTable('/cache/tor_geoip/geoip-1', fetchedAt: fetchedAt);
 
     Future<TorEngine> upWith(FakeGeoIpStore store, {DateTime? now}) =>
         buildUp(
@@ -749,7 +750,7 @@ void main() {
     // back, and a dead one is reopened on another port.
     final dead = <int>{};
     final asked = <int>[];
-    Future<bool> probe(String host, int port) async {
+    Future<bool> probe(String host, {required int port}) async {
       asked.add(port);
       return !dead.contains(port);
     }
@@ -789,7 +790,7 @@ void main() {
         expect(runtime.startCalls, 1,
             reason: 'the same tor, never a second launch (BUG-013)');
         expect(e.socksFor('site-a')!.address, '127.0.0.1:45000');
-        expect(torBindingChanged(before, e.status), isTrue,
+        expect(torBindingChanged(before, next: e.status), isTrue,
             reason: 'the endpoint moved, so every Tor-bound site rebuilds');
         expect(
             seen.whereType<TorBootstrapping>().map((s) => s.tag),
@@ -836,7 +837,7 @@ void main() {
         expect(asked, isEmpty, reason: 'there is no listener to ask yet');
 
         dead.add(41337);
-        runtime.emit(TorUp('127.0.0.1', 41337));
+        runtime.emit(TorUp('127.0.0.1', port: 41337));
         async.flushMicrotasks();
         expect(asked, [41337]);
         expect(seen.whereType<TorUp>().map((s) => s.port), [45000],

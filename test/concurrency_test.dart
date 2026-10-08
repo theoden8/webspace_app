@@ -65,8 +65,8 @@ void main() {
         return gate.future;
       }
 
-      final a = flight.run('k', call);
-      final b = flight.run('k', call);
+      final a = flight.run('k', call: call);
+      final b = flight.run('k', call: call);
       expect(flight.isRunning('k'), isTrue);
       gate.complete(5);
       expect(await a, 5);
@@ -77,8 +77,8 @@ void main() {
     test('distinct keys do not share', () async {
       final flight = SingleFlight<String, String>();
       final results = await Future.wait([
-        flight.run('a', () async => 'A'),
-        flight.run('b', () async => 'B'),
+        flight.run('a', call: () async => 'A'),
+        flight.run('b', call: () async => 'B'),
       ]);
       expect(results, ['A', 'B']);
     });
@@ -86,22 +86,22 @@ void main() {
     test('a settled call is forgotten before its callers resume', () async {
       final flight = SingleFlight<(), int>();
       var calls = 0;
-      final value = await flight.run((), () async => ++calls);
+      final value = await flight.run((), call: () async => ++calls);
       expect(flight.isRunning(()), isFalse);
       expect(value, 1);
-      expect(await flight.run((), () async => ++calls), 2);
+      expect(await flight.run((), call: () async => ++calls), 2);
     });
 
     test('a failure reaches every sharer and the next call runs afresh',
         () async {
       final flight = SingleFlight<String, int>();
       final gate = Completer<int>();
-      final a = flight.run('k', () => gate.future);
-      final b = flight.run('k', () => gate.future);
+      final a = flight.run('k', call: () => gate.future);
+      final b = flight.run('k', call: () => gate.future);
       gate.completeError(const FormatException('down'));
       await expectLater(a, throwsA(isA<FormatException>()));
       await expectLater(b, throwsA(isA<FormatException>()));
-      expect(await flight.run('k', () async => 3), 3);
+      expect(await flight.run('k', call: () async => 3), 3);
     });
   });
 }

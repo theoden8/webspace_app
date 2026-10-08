@@ -49,7 +49,8 @@ void main() {
     final state = InMemoryWebViewStateStorage();
     app.debugWebViewStateStorageOverride = state;
     addTearDown(() => app.debugWebViewStateStorageOverride = null);
-    await state.saveState(dropped.activeStateKey, Uint8List.fromList([1]));
+    await state.saveState(dropped.activeStateKey,
+        state: Uint8List.fromList([1]));
 
     await pumpRealApp(tester, sites: [dropped, kept]);
     expect(await state.loadState(dropped.activeStateKey), isNotNull,

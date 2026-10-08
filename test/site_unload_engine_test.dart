@@ -17,7 +17,7 @@ WebViewModel _site(String url, {UserProxySettings? proxy}) =>
 
 /// One site per proxy, on `a.example.com`, `b.example.com`... or [hosts].
 List<WebViewModel> _sites(List<UserProxySettings?> proxies,
-        [List<String>? hosts]) =>
+        {List<String>? hosts}) =>
     [
       for (var i = 0; i < proxies.length; i++)
         _site('https://${hosts?[i] ?? String.fromCharCode(0x61 + i)}.example.com',
@@ -88,7 +88,7 @@ class _ContainerPage implements ResidencyHost {
   }
 
   @override
-  void noteUnloaded(WebViewModel model, UnloadReason reason) =>
+  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
       noted.add((model, reason));
 }
 
@@ -104,7 +104,7 @@ void main() {
         final a = _site('https://a.example.com');
         final page = _ContainerPage([a, _site('https://b.example.com')]);
 
-        await SiteUnloadEngine.unload(page, 0, reason);
+        await SiteUnloadEngine.unload(page, index: 0, reason: reason);
 
         expect(page.loadedIndices, {1});
         expect(page.noted, [(a, reason)]);
@@ -118,7 +118,8 @@ void main() {
       final page = _ContainerPage([a, b]);
       page.duringCapture = () => page.models.removeAt(0);
 
-      await SiteUnloadEngine.unload(page, 1, UnloadReason.loadedSiteCap);
+      await SiteUnloadEngine.unload(page,
+          index: 1, reason: UnloadReason.loadedSiteCap);
 
       expect(page.noted.single.$1, b);
       expect(page.loadedIndices, isNot(contains(0)),
@@ -147,11 +148,12 @@ void main() {
       final a = _site('https://mail.example.com');
       final b = _site('https://docs.example.com');
       final page = _ContainerPage([a, b])..loadedIndices.remove(1);
-      expect(SiteUnloadEngine.plan(page, const Activating(1)).isEmpty, isTrue,
+      expect(SiteUnloadEngine.plan(page, event: const Activating(1)).isEmpty,
+          isTrue,
           reason: 'containers keep same-base-domain sites apart (CONT-003)');
 
       page.sharedJar = jar();
-      expect(unloads(SiteUnloadEngine.plan(page, const Activating(1))),
+      expect(unloads(SiteUnloadEngine.plan(page, event: const Activating(1))),
           [(a, UnloadReason.domainConflict)]);
     });
 
@@ -163,7 +165,7 @@ void main() {
         ..proxyTopology = _processGlobal
         ..torAvailable = true
         ..loadedIndices.remove(3);
-      final plan = SiteUnloadEngine.plan(page, const Activating(3));
+      final plan = SiteUnloadEngine.plan(page, event: const Activating(3));
       // Every loaded site disagrees with d's proxy; the Tor rule finds none
       // left to take, and the cap counts what remains.
       expect(unloads(plan), [
@@ -178,19 +180,21 @@ void main() {
       final page = _ContainerPage(models)
         ..proxyTopology = _processGlobal
         ..loadedIndices.remove(1);
-      expect(unloads(SiteUnloadEngine.plan(page, const Activating(1))),
+      expect(unloads(SiteUnloadEngine.plan(page, event: const Activating(1))),
           [(models[0], UnloadReason.proxyMismatch)]);
       page.hosted[0] = models[1];
-      expect(SiteUnloadEngine.plan(page, const Activating(1)).isEmpty, isTrue,
+      expect(SiteUnloadEngine.plan(page, event: const Activating(1)).isEmpty,
+          isTrue,
           reason: 'slot 0 runs as b, so it already shares b\'s proxy');
     });
 
     test('a Tor exit disagreement unloads only where a Tor runtime exists', () {
       final models = _sites([_tor('de'), _tor('nl')]);
       final page = _ContainerPage(models)..loadedIndices.remove(1);
-      expect(SiteUnloadEngine.plan(page, const Activating(1)).isEmpty, isTrue);
+      expect(SiteUnloadEngine.plan(page, event: const Activating(1)).isEmpty,
+          isTrue);
       page.torAvailable = true;
-      expect(unloads(SiteUnloadEngine.plan(page, const Activating(1))),
+      expect(unloads(SiteUnloadEngine.plan(page, event: const Activating(1))),
           [(models[0], UnloadReason.torExitMismatch)]);
     });
 
@@ -200,7 +204,8 @@ void main() {
       final page = _ContainerPage(models)
         ..loadedIndices.remove(kMaxLoadedSites)
         ..retention = tiers(active: {0});
-      final plan = SiteUnloadEngine.plan(page, Activating(kMaxLoadedSites));
+      final plan =
+          SiteUnloadEngine.plan(page, event: Activating(kMaxLoadedSites));
       expect(unloads(plan), [(models[1], UnloadReason.loadedSiteCap)]);
     });
 
@@ -210,7 +215,7 @@ void main() {
       final page = _ContainerPage(models)
         ..retention = tiers(active: {target});
       models[0].lifecycleState = SiteLifecycleState.cacheCleared;
-      final plan = SiteUnloadEngine.plan(page, Activating(target));
+      final plan = SiteUnloadEngine.plan(page, event: Activating(target));
       expect(plan.unloads, isEmpty);
       expect(plan.cacheClears, [models[1]],
           reason: 'site 0 is already cleared and does not count');
@@ -219,14 +224,17 @@ void main() {
     test('memory pressure moves one site one tier, never a protected one', () {
       final models = sites(3);
       final page = _ContainerPage(models)..retention = tiers(active: {0});
-      expect(SiteUnloadEngine.plan(page, const MemoryPressure()).cacheClears,
+      expect(
+          SiteUnloadEngine.plan(page, event: const MemoryPressure())
+              .cacheClears,
           [models[1]]);
       models[1].lifecycleState = SiteLifecycleState.cacheCleared;
       models[2].lifecycleState = SiteLifecycleState.cacheCleared;
-      expect(unloads(SiteUnloadEngine.plan(page, const MemoryPressure())),
+      expect(
+          unloads(SiteUnloadEngine.plan(page, event: const MemoryPressure())),
           [(models[1], UnloadReason.memoryPressure)]);
       page.loadedIndices.removeAll({1, 2});
-      expect(SiteUnloadEngine.plan(page, const MemoryPressure()).isEmpty,
+      expect(SiteUnloadEngine.plan(page, event: const MemoryPressure()).isEmpty,
           isTrue);
     });
 
@@ -234,9 +242,9 @@ void main() {
       final models = sites(3);
       final page = _ContainerPage(models);
       const event = WebspaceSwitched(previous: {0, 1}, next: {1, 2});
-      expect(SiteUnloadEngine.plan(page, event).isEmpty, isTrue);
+      expect(SiteUnloadEngine.plan(page, event: event).isEmpty, isTrue);
       page.sharedJar = jar();
-      expect(unloads(SiteUnloadEngine.plan(page, event)),
+      expect(unloads(SiteUnloadEngine.plan(page, event: event)),
           [(models[0], UnloadReason.webspaceSwitch)]);
     });
 
@@ -244,7 +252,9 @@ void main() {
         'agreeing siblings', () {
       final models = _sites([_tor('de'), null, _tor('nl'), _tor('nl')]);
       final page = _ContainerPage(models)..torAvailable = true;
-      expect(unloads(SiteUnloadEngine.plan(page, const TorExitSettled([1, 2, 0, 3]))),
+      expect(
+          unloads(SiteUnloadEngine.plan(page,
+              event: const TorExitSettled([1, 2, 0, 3]))),
           [(models[0], UnloadReason.torExitMismatch)]);
     });
 
@@ -253,10 +263,14 @@ void main() {
       final page = _ContainerPage(models)
         ..proxyTopology = _processGlobal
         ..hosted[1] = models[0];
-      expect(unloads(SiteUnloadEngine.plan(page, const NestedOpening(1))),
+      expect(
+          unloads(SiteUnloadEngine.plan(page, event: const NestedOpening(1))),
           [(models[0], UnloadReason.proxyMismatch)]);
-      expect(SiteUnloadEngine.plan(page, const SlotIdentityChanged(1)).isEmpty,
-          isTrue, reason: 'on screen, slot 1 runs as a');
+      expect(
+          SiteUnloadEngine.plan(page, event: const SlotIdentityChanged(1))
+              .isEmpty,
+          isTrue,
+          reason: 'on screen, slot 1 runs as a');
     });
   });
 
@@ -277,7 +291,8 @@ void main() {
           ..addAll({0, 1});
       };
       page.loadedIndices.remove(2);
-      expect(await SiteUnloadEngine.apply(page, plan, isStale: () => false),
+      expect(
+          await SiteUnloadEngine.apply(page, plan: plan, isStale: () => false),
           isTrue);
       expect(page.noted.map((n) => n.$1), [models[1], models[2]]);
       expect(page.loadedIndices, isEmpty);
@@ -289,7 +304,8 @@ void main() {
       final plan = ResidencyPlan(unloads: [
         for (final m in models) (site: m, reason: UnloadReason.proxyMismatch),
       ]);
-      expect(await SiteUnloadEngine.apply(page, plan, isStale: () => true),
+      expect(
+          await SiteUnloadEngine.apply(page, plan: plan, isStale: () => true),
           isFalse);
       expect(page.noted.single.$1, models[0]);
     });
@@ -299,7 +315,7 @@ void main() {
       final page = _ContainerPage(models)..loadedIndices.remove(1);
       await SiteUnloadEngine.apply(
         page,
-        ResidencyPlan(cacheClears: models),
+        plan: ResidencyPlan(cacheClears: models),
         isStale: () => false,
       );
       expect(models[0].lifecycleState, SiteLifecycleState.cacheCleared);
@@ -367,8 +383,8 @@ void main() {
 
   group('SiteUnloadEngine.indicesToUnloadForProxyMismatch', () {
     /// Every site loaded and the topology process-global unless given.
-    Set<int> mismatch(List<WebViewModel> models, int target,
-            {Set<int>? loaded, ProxyTopology? topology}) =>
+    Set<int> mismatch(List<WebViewModel> models, {required int target,
+           Set<int>? loaded, ProxyTopology? topology}) =>
         SiteUnloadEngine.indicesToUnloadForProxyMismatch(
           targetIndex: target,
           models: models,
@@ -377,13 +393,16 @@ void main() {
         );
 
     /// A process-global case activating [target] among sites a, b, c...
-    void unloads(String name, List<UserProxySettings?> proxies, int target,
-            Object expected, {UserProxySettings? global}) =>
-        test(name, () {
-          if (global != null) GlobalOutboundProxy.setForTest(global);
-          expect(mismatch(_sites(proxies), target), expected);
-        });
-    UserProxySettings creds(String username, String password) =>
+void unloads(String name,
+        {required List<UserProxySettings?> proxies,
+        required int target,
+        required Object expected,
+        UserProxySettings? global}) =>
+    test(name, () {
+      if (global != null) GlobalOutboundProxy.setForTest(global);
+      expect(mismatch(_sites(proxies), target: target), expected);
+    });
+    UserProxySettings creds(String username, {required String password}) =>
         UserProxySettings(
             type: ProxyType.HTTP,
             address: 'p:8080',
@@ -394,16 +413,16 @@ void main() {
     // in force carries one credential, so a Tor site left loaded beside
     // another would ride the other's circuit.
     unloads('two Tor sites never share the one process-wide rule (TOR-025)',
-        [_tor(), _tor()], 1, {0});
+        proxies: [_tor(), _tor()], target: 1, expected: {0});
 
     // PROXY-011: inheriting the app's Tor is not a request for a circuit
     // of one's own, so these agree and stay loaded together.
     unloads('sites inheriting a global Tor share the app-global circuit',
-        [null, null], 1, isEmpty, global: _tor());
+        proxies: [null, null], target: 1, expected: isEmpty, global: _tor());
 
     test('returns empty when proxy is per-site (iOS/macOS)', () {
       expect(
-          mismatch(_sites([_http('p1:8080'), _socks('p2:9050')]), 1,
+          mismatch(_sites([_http('p1:8080'), _socks('p2:9050')]), target: 1,
               topology: _perSession),
           isEmpty);
     });
@@ -419,18 +438,21 @@ void main() {
       // proxies, whichever authenticated first routes the rest, silently.
       final models =
           _sites([_socks('p1:9050'), _http('p2:8080'), _http('p2:8080')]);
-      expect(mismatch(models, 0, topology: _routed((_) => true)), {1, 2},
+      expect(
+          mismatch(models, target: 0, topology: _routed((_) => true)), {1, 2},
           reason: 'both disagree with the activated site and share its '
               'session, so both must go');
     });
 
-    List<WebViewModel> incognitoAndNormal() =>
-        _sites([_socks('p1:9050'), _http('p2:8080')], ['incognito', 'normal']);
+List<WebViewModel> incognitoAndNormal() =>
+    _sites([_socks('p1:9050'), _http('p2:8080')],
+        hosts: ['incognito', 'normal']);
 
     test('a container-bound sibling is untouched by that serialisation', () {
       final models = incognitoAndNormal();
       // Only index 0 lives in the default profile.
-      expect(mismatch(models, 0, topology: _routed((m) => m == models[0])),
+      expect(
+          mismatch(models, target: 0, topology: _routed((m) => m == models[0])),
           isEmpty,
           reason: 'the container-bound site has its own session and its own '
               'cached credential, so it is not in the conflict');
@@ -438,7 +460,8 @@ void main() {
 
     test('activating a container-bound site evicts nothing', () {
       final models = incognitoAndNormal();
-      expect(mismatch(models, 1, topology: _routed((m) => m == models[0])),
+      expect(
+          mismatch(models, target: 1, topology: _routed((m) => m == models[0])),
           isEmpty);
     });
 
@@ -451,10 +474,11 @@ void main() {
       // exactly the cold-start cost the router removes.
       final models = _sites(
           [_socks('127.0.0.1:9050'), _http('p2:8080'), _default()],
-          ['accountA', 'accountB', 'accountC']);
+          hosts: ['accountA', 'accountB', 'accountC']);
       for (var target = 0; target < models.length; target++) {
         // Every site here owns its container profile.
-        expect(mismatch(models, target, topology: _routed((_) => false)),
+        expect(
+            mismatch(models, target: target, topology: _routed((_) => false)),
             isEmpty,
             reason: 'activating site $target must not evict its siblings');
       }
@@ -464,145 +488,185 @@ void main() {
     // must be unloaded; their next request would silently route through
     // p2 once `ProxyController.setProxyOverride` lands the new override.
     unloads('flags loaded sites with a different proxy on Android',
-        [_http('p1:8080'), _socks('p2:9050'), _http('p1:8080')], 1, {0, 2});
-    unloads('does not flag the activating site itself', [_http('p1:8080')], 0,
-        isEmpty);
+        proxies: [_http('p1:8080'), _socks('p2:9050'), _http('p1:8080')],
+        target: 1,
+        expected: {0, 2});
+    unloads('does not flag the activating site itself',
+        proxies: [_http('p1:8080')], target: 0, expected: isEmpty);
     unloads('does not flag sites with the same proxy',
-        [_http('p1:8080'), _http('p1:8080')], 0, isEmpty);
+        proxies: [_http('p1:8080'), _http('p1:8080')],
+        target: 0,
+        expected: isEmpty);
     // Both fall through resolveEffectiveProxy to the global outbound
     // proxy, so they resolve to the same effective value.
     unloads('two DEFAULT sites are equivalent regardless of global proxy',
-        [_default(), _default()], 1, isEmpty,
+        proxies: [_default(), _default()], target: 1, expected: isEmpty,
         global: _socks('tor:9050'));
     unloads('DEFAULT vs explicit-matching-global is equivalent',
-        [_default(), _http('gp:1234')], 0, isEmpty,
+        proxies: [_default(), _http('gp:1234')], target: 0, expected: isEmpty,
         global: _http('gp:1234'));
     unloads('flags credential-only differences',
-        [creds('alice', 'a-pw'), creds('bob', 'b-pw')], 1, {0});
+        proxies: [
+          creds('alice', password: 'a-pw'),
+          creds('bob', password: 'b-pw')
+        ],
+        target: 1,
+        expected: {0});
     // Same host:port string but different protocol — the wire format
     // is fundamentally different (CONNECT tunnel vs SOCKS handshake),
     // so a request that thinks it's going to one will fail on the
     // other. Must be treated as a mismatch.
     unloads('flags type-only differences (HTTP vs SOCKS5, same address)',
-        [_http('p:9050'), _socks('p:9050')], 1, {0});
-    unloads('flags HTTP vs HTTPS (different schemes)', [
+        proxies: [_http('p:9050'), _socks('p:9050')], target: 1, expected: {0});
+    unloads('flags HTTP vs HTTPS (different schemes)', proxies: [
       _http('p:8080'),
       UserProxySettings(type: ProxyType.HTTPS, address: 'p:8080'),
-    ], 1, {0});
+    ], target: 1, expected: {0});
     unloads('flags address-only differences (host)',
-        [_http('p1:8080'), _http('p2:8080')], 1, {0});
+        proxies: [_http('p1:8080'), _http('p2:8080')],
+        target: 1,
+        expected: {0});
     unloads('flags address-only differences (port)',
-        [_http('p:8080'), _http('p:9090')], 1, {0});
+        proxies: [_http('p:8080'), _http('p:9090')], target: 1, expected: {0});
     unloads('flags username-only differences',
-        [creds('alice', 'shared-pw'), creds('bob', 'shared-pw')], 1, {0});
+        proxies: [
+          creds('alice', password: 'shared-pw'),
+          creds('bob', password: 'shared-pw')
+        ],
+        target: 1,
+        expected: {0});
     unloads('flags password-only differences',
-        [creds('shared', 'pw1'), creds('shared', 'pw2')], 1, {0});
+        proxies: [
+          creds('shared', password: 'pw1'),
+          creds('shared', password: 'pw2')
+        ],
+        target: 1,
+        expected: {0});
     // Both sites: same type/address, no credentials. Different
     // construction paths (UserProxySettings(...) vs default ctor) but
     // the field values match.
-    unloads('null and absent credentials are equivalent', [
+    unloads('null and absent credentials are equivalent', proxies: [
       UserProxySettings(
           type: ProxyType.HTTP, address: 'p:8080', username: null, password: null),
       _http('p:8080'),
-    ], 1, isEmpty);
+    ], target: 1, expected: isEmpty);
     // Site 0 = DEFAULT → resolves through global (HTTP gp:1234).
     // Site 1 = explicit SOCKS5. Different effective proxy.
     unloads('flags DEFAULT vs explicit-non-matching-global',
-        [_default(), _socks('tor:9050')], 1, {0},
+        proxies: [_default(), _socks('tor:9050')], target: 1, expected: {0},
         global: _http('gp:1234'));
     // Mix: site 0 matches target, site 2 differs. Activating target
     // (index 1) should unload only 2, not 0.
     unloads('only conflicting indices are returned, not all loaded',
-        [_http('p:8080'), _http('p:8080'), _socks('tor:9050')], 1, {2});
+        proxies: [_http('p:8080'), _http('p:8080'), _socks('tor:9050')],
+        target: 1,
+        expected: {2});
 
     test('skips out-of-bounds entries in loadedIndices', () {
       // Mock state where _loadedIndices contains a stale index past
       // the end of models (e.g. mid-deletion race). Engine must not
       // throw a RangeError.
-      expect(mismatch(_sites([_http('p:8080')]), 0, loaded: {0, 99, -1}),
+      expect(
+          mismatch(_sites([_http('p:8080')]), target: 0, loaded: {0, 99, -1}),
           isEmpty);
     });
 
-    unloads('out-of-bounds target returns empty', [], 5, isEmpty);
-    unloads('negative target returns empty', [_http('p:8080')], -1, isEmpty);
+    unloads('out-of-bounds target returns empty',
+        proxies: [], target: 5, expected: isEmpty);
+    unloads('negative target returns empty',
+        proxies: [_http('p:8080')], target: -1, expected: isEmpty);
   });
 
   group('SiteUnloadEngine.indicesToUnloadForTorExitMismatch', () {
-    Set<int> mismatch(List<WebViewModel> models, int target, Set<int> loaded) =>
-        SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
-            targetIndex: target, models: models, loadedIndices: loaded);
+Set<int> mismatch(List<WebViewModel> models,
+        {required int target, required Set<int> loaded}) =>
+    SiteUnloadEngine.indicesToUnloadForTorExitMismatch(
+        targetIndex: target, models: models, loadedIndices: loaded);
 
     /// Activates [target] among sites a, b, c... with all of them loaded
     /// unless [loaded] says otherwise.
-    void unloads(String name, List<UserProxySettings?> proxies, int target,
-            Object expected, {Set<int>? loaded}) =>
-        test(name, () {
-          final models = _sites(proxies);
-          expect(
-              mismatch(models, target,
-                  loaded ?? {for (var i = 0; i < models.length; i++) i}),
-              expected);
-        });
+void unloads(String name,
+        {required List<UserProxySettings?> proxies,
+        required int target,
+        required Object expected,
+        Set<int>? loaded}) =>
+    test(name, () {
+      final models = _sites(proxies);
+      expect(
+          mismatch(models,
+              target: target,
+              loaded: loaded ?? {for (var i = 0; i < models.length; i++) i}),
+          expected);
+    });
 
     unloads('flags a loaded site pinned to a different country',
-        [_tor('de'), _tor('nl')], 1, {0});
-    unloads('leaves sites sharing a country loaded', [_tor('de'), _tor('de')],
-        1, isEmpty);
+        proxies: [_tor('de'), _tor('nl')], target: 1, expected: {0});
+    unloads('leaves sites sharing a country loaded',
+        proxies: [_tor('de'), _tor('de')], target: 1, expected: isEmpty);
     // The pin is compared as tor's `ExitNodes` value, not as the raw
     // string the user typed, so "DE" and "de " are the same country and
     // must not evict each other.
     unloads('country matching ignores case and surrounding whitespace',
-        [_tor('DE'), _tor(' de ')], 1, isEmpty);
+        proxies: [_tor('DE'), _tor(' de ')], target: 1, expected: isEmpty);
     // "No pin" means "must be unrestricted", not "no opinion": there is
     // one global ExitNodes, so leaving the pinned site loaded would keep
     // routing the unpinned site through Germany (TOR-014).
-    unloads('an unpinned Tor site evicts a pinned one', [_tor('de'), _tor()], 1,
-        {0});
-    unloads('a pinned Tor site evicts an unpinned one', [_tor(), _tor('de')], 1,
-        {0});
-    unloads('two unpinned Tor sites coexist', [_tor(), _tor()], 1, isEmpty);
+    unloads('an unpinned Tor site evicts a pinned one',
+        proxies: [_tor('de'), _tor()], target: 1, expected: {0});
+    unloads('a pinned Tor site evicts an unpinned one',
+        proxies: [_tor(), _tor('de')], target: 1, expected: {0});
+    unloads('two unpinned Tor sites coexist',
+        proxies: [_tor(), _tor()], target: 1, expected: isEmpty);
 
     test('a malformed country is treated as unpinned, not as its own pin', () {
       // It never reaches SETCONF (exitNodesValue drops it), so a site
       // carrying one is unrestricted and must conflict like any other
       // unpinned site rather than forming a third bucket of its own.
       final models = _sites([_tor('deutschland'), _tor(), _tor('de')]);
-      expect(mismatch(models, 1, {0, 1}), isEmpty);
-      expect(mismatch(models, 2, {0, 2}), {0});
+      expect(mismatch(models, target: 1, loaded: {0, 1}), isEmpty);
+      expect(mismatch(models, target: 2, loaded: {0, 2}), {0});
     });
 
     test('a non-Tor site neither evicts nor is evicted', () {
       // ExitNodes says nothing about where a SOCKS5 site's traffic goes.
       final models = _sites([_tor('de'), _socks('p:9')]);
-      expect(mismatch(models, 1, {0, 1}), isEmpty);
-      expect(mismatch(models, 0, {0, 1}), isEmpty);
+      expect(mismatch(models, target: 1, loaded: {0, 1}), isEmpty);
+      expect(mismatch(models, target: 0, loaded: {0, 1}), isEmpty);
     });
 
-    unloads('a country left over on a site since switched away is inert', [
-      _tor(),
-      UserProxySettings(
-          type: ProxyType.SOCKS5, address: 'p:9', torExitCountry: 'nl'),
-    ], 0, isEmpty);
+    unloads('a country left over on a site since switched away is inert',
+        proxies: [
+          _tor(),
+          UserProxySettings(
+              type: ProxyType.SOCKS5, address: 'p:9', torExitCountry: 'nl'),
+        ],
+        target: 0,
+        expected: isEmpty);
 
     test('a DEFAULT site inherits the global pin rather than reading as unpinned', () {
       GlobalOutboundProxy.setForTest(_tor('de'));
       addTearDown(GlobalOutboundProxy.resetForTest);
       final models = _sites([_tor('de'), _default(), _tor('nl')]);
-      expect(mismatch(models, 1, {0, 1}), isEmpty,
+      expect(mismatch(models, target: 1, loaded: {0, 1}), isEmpty,
           reason: 'it inherits {de}, which is what site A already holds');
-      expect(mismatch(models, 1, {1, 2}), {2},
+      expect(mismatch(models, target: 1, loaded: {1, 2}), {2},
           reason: 'inheriting {de} conflicts with {nl} like any other pin');
     });
 
     test('a DEFAULT site under a non-Tor global is unaffected', () {
       GlobalOutboundProxy.setForTest(_http('p:8080'));
       addTearDown(GlobalOutboundProxy.resetForTest);
-      expect(mismatch(_sites([_tor('de'), _default()]), 1, {0, 1}), isEmpty);
+      expect(
+          mismatch(_sites([_tor('de'), _default()]), target: 1, loaded: {0, 1}),
+          isEmpty);
     });
 
-    unloads('does not flag the activating site itself', [_tor('de')], 0,
-        isEmpty);
-    unloads('ignores unloaded sites', [_tor('de'), _tor('nl')], 1, isEmpty,
+    unloads('does not flag the activating site itself',
+        proxies: [_tor('de')], target: 0, expected: isEmpty);
+    unloads('ignores unloaded sites',
+        proxies: [_tor('de'), _tor('nl')],
+        target: 1,
+        expected: isEmpty,
         loaded: {1});
 
     test('the pin in force follows the loaded set', () {
@@ -627,7 +691,7 @@ void main() {
       final anchor =
           SiteUnloadEngine.torExitAnchor(indices: order, models: models);
       expect(anchor, 1);
-      expect(mismatch(models, anchor!, {0, 1, 2}), {0});
+      expect(mismatch(models, target: anchor!, loaded: {0, 1, 2}), {0});
       expect(SiteUnloadEngine.torExitNodesFor(indices: order, models: models),
           '{ca}');
     });
@@ -675,9 +739,9 @@ void main() {
 
     test('tolerates out-of-range indices', () {
       final models = _sites([_tor('de')]);
-      expect(mismatch(models, -1, {0}), isEmpty);
-      expect(mismatch(models, 5, {0}), isEmpty);
-      expect(mismatch(models, 0, {0, 9}), isEmpty);
+      expect(mismatch(models, target: -1, loaded: {0}), isEmpty);
+      expect(mismatch(models, target: 5, loaded: {0}), isEmpty);
+      expect(mismatch(models, target: 0, loaded: {0, 9}), isEmpty);
     });
   });
 

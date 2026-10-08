@@ -154,8 +154,8 @@ void main() {
               {'type': 'moat-bridges', 'bridges': [_obfs4], 'qrcode': null}
             ]
           }));
-      final lines =
-          await MoatClient(client: fake).submitSolution(challenge(), 'abcd');
+      final lines = await MoatClient(client: fake)
+          .submitSolution(challenge(), solution: 'abcd');
 
       expect(lines.single.raw, _obfs4);
       expect(lines.single.transport, TorTransport.obfs4);
@@ -165,7 +165,8 @@ void main() {
       final fake = _FakeClient((_) => _json({
             'data': [{'bridges': [_obfs4]}]
           }));
-      await MoatClient(client: fake).submitSolution(challenge(), 'my-answer');
+      await MoatClient(client: fake)
+          .submitSolution(challenge(), solution: 'my-answer');
 
       final sent = (jsonDecode(fake.requests.single.body) as Map)['data'] as List;
       expect(sent.first['challenge'], 'obfs4');
@@ -183,7 +184,7 @@ void main() {
             ]
           }));
       await expectLater(
-        MoatClient(client: fake).submitSolution(challenge(), 'wrong'),
+        MoatClient(client: fake).submitSolution(challenge(), solution: 'wrong'),
         throwsA(isA<MoatException>()
             .having((e) => e.kind, 'kind', MoatErrorKind.wrongSolution)
             .having((e) => e.detail, 'detail', contains('Wrong solution'))),
@@ -200,8 +201,8 @@ void main() {
               }
             ]
           }));
-      final lines =
-          await MoatClient(client: fake).submitSolution(challenge(), 'x');
+      final lines = await MoatClient(client: fake)
+          .submitSolution(challenge(), solution: 'x');
       expect(lines.length, 1);
       expect(lines.single.raw, _obfs4);
     });
@@ -290,7 +291,7 @@ void main() {
             ]
           }));
       await expectLater(
-        MoatClient(client: fake).submitSolution(challenge(), 'x'),
+        MoatClient(client: fake).submitSolution(challenge(), solution: 'x'),
         throwsA(isA<MoatException>()
             .having((e) => e.kind, 'kind', MoatErrorKind.noBridges)),
       );

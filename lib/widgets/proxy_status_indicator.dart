@@ -151,7 +151,7 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
           ),
         ),
         const SizedBox(width: Spacing.xs),
-        Flexible(child: _withDetail(health?.detail, text)),
+        Flexible(child: _withDetail(health?.detail, child: text)),
         if (!missing)
           IconButton(
             icon: const Icon(Icons.refresh, size: IconSizes.inline),
@@ -170,6 +170,6 @@ class _ProxyStatusIndicatorState extends State<ProxyStatusIndicator> {
 
   /// The underlying error, verbatim, on long-press: paraphrasing it is what
   /// makes a proxy problem unreportable.
-  Widget _withDetail(String? detail, Widget child) =>
+  Widget _withDetail(String? detail, {required Widget child}) =>
       detail == null ? child : Tooltip(message: detail, child: child);
 }

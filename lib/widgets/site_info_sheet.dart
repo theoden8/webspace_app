@@ -82,7 +82,8 @@ class SiteInfo {
   }
 }
 
-Future<void> showSiteInfoSheet(BuildContext context, SiteInfo info) =>
+Future<void> showSiteInfoSheet(BuildContext context,
+        {required SiteInfo info}) =>
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -163,7 +164,7 @@ class SiteInfoSheet extends StatelessWidget {
             ),
             if (info.proxy != null) ...[
               const SizedBox(height: 8),
-              _connection(loc, info.proxy!, info.siteId),
+              _connection(loc, configured: info.proxy!, siteId: info.siteId),
             ],
           ],
         ),
@@ -175,10 +176,10 @@ class SiteInfoSheet extends StatelessWidget {
 /// Which route the site's traffic takes, and whether that route answers
 /// (PROXY-031).
 Widget _connection(
-  AppLocalizations loc,
-  UserProxySettings configured,
-  String? siteId,
-) {
+  AppLocalizations loc, {
+  required UserProxySettings configured,
+  required String? siteId,
+}) {
   final route = resolveEffectiveProxy(configured, siteId: siteId);
   final uses = configured.type == ProxyType.DEFAULT
       ? GlobalOutboundProxy.current
@@ -186,7 +187,7 @@ Widget _connection(
   final problem = resolveLibrary(uses).problem;
   final problemLabel = problem == LibraryProblem.none
       ? null
-      : libraryProblemLabel(loc, problem);
+      : libraryProblemLabel(loc, problem: problem);
   final address = switch (route.type) {
     ProxyType.DEFAULT || ProxyType.SAVED || ProxyType.GATEWAY => null,
     ProxyType.TOR => torRouteLabel(loc),

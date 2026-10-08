@@ -31,11 +31,12 @@ final class KeychainAead {
   /// logging, when the keystore refuses or holds something that is not a
   /// key.
   static Future<KeychainAead?> open(
-    FlutterSecureStorage keystore,
-    String keyName, {
+    FlutterSecureStorage keystore, {
+    required String keyName,
     required LogTag logTag,
   }) async {
-    final stored = await keystoreCall(logTag, 'read $keyName', () async {
+    final stored =
+        await keystoreCall(logTag, what: 'read $keyName', call: () async {
       final existing = await keystore.read(key: keyName);
       if (existing != null) return existing;
       final fresh = base64.encode(encrypt.Key.fromSecureRandom(32).bytes);
@@ -55,16 +56,17 @@ final class KeychainAead {
   /// Forget the key under [keyName] and [open] a fresh one, so nothing
   /// sealed under the old key reads again.
   static Future<KeychainAead?> rotate(
-    FlutterSecureStorage keystore,
-    String keyName, {
+    FlutterSecureStorage keystore, {
+    required String keyName,
     required LogTag logTag,
   }) async {
-    final deleted = await keystoreCall(logTag, 'delete $keyName', () async {
+    final deleted =
+        await keystoreCall(logTag, what: 'delete $keyName', call: () async {
       await keystore.delete(key: keyName);
       return true;
     });
     if (deleted == null) return null;
-    return open(keystore, keyName, logTag: logTag);
+    return open(keystore, keyName: keyName, logTag: logTag);
   }
 
   String seal(String plaintext) {

@@ -38,7 +38,7 @@ abstract class NestedOpenHost<T> {
   void reportProxyFailure(Object error);
 
   /// Completes when the screen pops.
-  Future<void> launchNested(T target, String url);
+  Future<void> launchNested(T target, {required String url});
 
   /// The full activation path: the site's proxy, then its rebuild.
   Future<void> activate(int index);
@@ -103,7 +103,7 @@ class NestedOpenEngine {
       }
       if (!host.mounted) return NestedOpenOutcome.abandoned;
     }
-    await host.launchNested(target, url);
+    await host.launchNested(target, url: url);
     await returnToSource();
     return NestedOpenOutcome.opened;
   }

@@ -93,9 +93,9 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     // accessibility text scale multiplies it. A Column that overflows shows
     // stripes and swallows the Retry button.
     Widget centered(
-      IconData glyph,
-      Color glyphColor,
-      String title, {
+      IconData glyph, {
+      required Color glyphColor,
+      required String title,
       Color? titleColor,
       required List<Widget> below,
     }) => Container(
@@ -152,8 +152,8 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
 
     Widget unsupported() => centered(
       Icons.do_not_disturb_on_outlined,
-      scheme.onSurfaceVariant,
-      loc.torUnavailableTitle,
+      glyphColor: scheme.onSurfaceVariant,
+      title: loc.torUnavailableTitle,
       below: [
         const SizedBox(height: Spacing.sm),
         muted(loc.torUnavailableBody),
@@ -161,11 +161,11 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
     );
 
     Widget failure(TorErrored s) {
-      final copy = torFailureCopy(loc, s.failure.kind);
+      final copy = torFailureCopy(loc, kind: s.failure.kind);
       return centered(
         torFailureIcon(s.failure.kind),
-        scheme.error,
-        copy.title,
+        glyphColor: scheme.error,
+        title: copy.title,
         titleColor: scheme.error,
         below: [
           const SizedBox(height: Spacing.sm),
@@ -189,7 +189,7 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
             alignment: WrapAlignment.center,
             children: torRecoveryActions(
               context,
-              s.failure.kind,
+              kind: s.failure.kind,
               busy: _retryGuard.busy,
               onRetry: _retry,
             ),
@@ -211,8 +211,8 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
 
       return centered(
         Icons.privacy_tip_outlined,
-        scheme.primary.withValues(alpha: 0.7),
-        label,
+        glyphColor: scheme.primary.withValues(alpha: 0.7),
+        title: label,
         below: [
           if (phase != null && phase.isNotEmpty) ...[
             const SizedBox(height: Spacing.xs),

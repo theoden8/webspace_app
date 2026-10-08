@@ -23,10 +23,10 @@ void main() {
 
   Set<String> hosts() => factory.requested.map((u) => u.host).toSet();
 
-  void siteIconsOnly(bool on) {
-    DeveloperModeService.instance.debugSet(on);
+  void siteIconsOnly({required bool on}) {
+    DeveloperModeService.instance.debugSet(on: on);
     ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.siteIconsOnly, on);
+        .debugSet(ExperimentalFeature.siteIconsOnly, on: on);
   }
 
   setUp(() {
@@ -39,7 +39,7 @@ void main() {
   });
 
   tearDown(() {
-    siteIconsOnly(false);
+    siteIconsOnly(on: false);
     resetOutboundHttp();
     clearFaviconCache();
   });
@@ -50,15 +50,15 @@ void main() {
   });
 
   test('under Site icons only every request goes to the site', () async {
-    siteIconsOnly(true);
+    siteIconsOnly(on: true);
     await getFaviconUrlStream(_site).drain<void>();
     expect(hosts(), {'example.com'});
   });
 
   test('the switch needs developer mode (DEVTOOLS-011)', () async {
     ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.siteIconsOnly, true);
-    DeveloperModeService.instance.debugSet(false);
+        .debugSet(ExperimentalFeature.siteIconsOnly, on: true);
+    DeveloperModeService.instance.debugSet(on: false);
     expect(publicIconServicesAllowed, isTrue);
   });
 
@@ -67,7 +67,7 @@ void main() {
     final before = await getFaviconUrlStream(_site).last;
     expect(before.url, _google);
 
-    siteIconsOnly(true);
+    siteIconsOnly(on: true);
     factory.requests.clear();
     final after = await getFaviconUrlStream(_site).toList();
     expect(after.map((u) => u.url), isNot(contains(_google)));
@@ -77,7 +77,7 @@ void main() {
   test('the switch turned on while DuckDuckGo answers stops the fetch there',
       () async {
     outboundHttp = factory = FakeOutbound(responder: (req) {
-      if (req.url.host == 'icons.duckduckgo.com') siteIconsOnly(true);
+      if (req.url.host == 'icons.duckduckgo.com') siteIconsOnly(on: true);
       return http.Response('<html><head></head></html>', 200);
     });
     final updates = await getFaviconUrlStream(_site).toList();
@@ -88,7 +88,7 @@ void main() {
   test('a service icon sent before the switch went on is not sent as final',
       () async {
     outboundHttp = factory = FakeOutbound(responder: (req) {
-      if (req.url.host == 'example.com') siteIconsOnly(true);
+      if (req.url.host == 'example.com') siteIconsOnly(on: true);
       return http.Response('<html><head></head></html>', 200);
     });
     final updates = await getFaviconUrlStream(_site).toList();
@@ -105,7 +105,7 @@ void main() {
     });
     await FaviconUrlCache.initialize();
     expect(FaviconUrlCache.get(_site), _google);
-    siteIconsOnly(true);
+    siteIconsOnly(on: true);
     expect(FaviconUrlCache.get(_site), isNull);
     expect(FaviconUrlCache.get('https://other.test/'),
         'https://other.test/icon.png');

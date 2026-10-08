@@ -95,55 +95,71 @@ void main() {
   });
 
   for (final wl in [
-    _Workload('mixed (Zipfian, big tail)', () => mixedWorkload),
-    _Workload('single-site (40 distinct hosts)', () => singleSiteWorkload),
+    _Workload('mixed (Zipfian, big tail)', get: () => mixedWorkload),
+    _Workload('single-site (40 distinct hosts)', get: () => singleSiteWorkload),
   ]) {
     group('Workload: ${wl.name}', () {
       test('01. baseline (Set + sublist+join walk) — production path', () {
         DnsBlockService.instance.loadDomainsFromString(dataset.rawText);
-        _runVariant(wl.name, '01 baseline (sublist+join)', wl.get(), (url) {
+        _runVariant(wl.name, name: '01 baseline (sublist+join)', urls: wl.get(),
+            check: (url) {
           return DnsBlockService.instance.isBlocked(url);
         });
       });
 
       test('02. substring walk', () {
         final domains = dataset.domains;
-        _runVariant(wl.name, '02 substring walk', wl.get(), (url) {
-          return _isBlockedSubstring(url, domains);
+        _runVariant(wl.name, name: '02 substring walk', urls: wl.get(),
+            check: (url) {
+          return _isBlockedSubstring(url, domains: domains);
         });
       });
 
       test('03. bloom + substring walk', () {
         final domains = dataset.domains;
         final bloom = dataset.bloom;
-        _runVariant(wl.name, '03 bloom + substring', wl.get(), (url) {
-          return _isBlockedBloomFirst(url, domains, bloom);
+        _runVariant(wl.name, name: '03 bloom + substring', urls: wl.get(),
+            check: (url) {
+          return _isBlockedBloomFirst(url, domains: domains, bloom: bloom);
         });
       });
 
       test('04. plain Map cache (FIFO, no reorder) + substring walk', () {
         final domains = dataset.domains;
         final cache = _MapFifoCache<String, bool>(capacity: 5000);
-        _runVariant(wl.name, '04 Map(FIFO) + substring', wl.get(), (url) {
-          return _isBlockedMapCache(url, domains, cache);
-        }, extra: () => 'cache size=${cache.length}');
+        _runVariant(wl.name,
+            name: '04 Map(FIFO) + substring',
+            urls: wl.get(),
+            check: (url) {
+              return _isBlockedMapCache(url, domains: domains, cache: cache);
+            },
+            extra: () => 'cache size=${cache.length}');
       });
 
       test('05. LinkedHashMap LRU + substring walk', () {
         final domains = dataset.domains;
         final cache = _LruCache<String, bool>(capacity: 5000);
-        _runVariant(wl.name, '05 LinkedHashMap LRU + substring', wl.get(), (url) {
-          return _isBlockedLru(url, domains, cache);
-        }, extra: () => 'cache size=${cache.length}');
+        _runVariant(wl.name,
+            name: '05 LinkedHashMap LRU + substring',
+            urls: wl.get(),
+            check: (url) {
+              return _isBlockedLru(url, domains: domains, cache: cache);
+            },
+            extra: () => 'cache size=${cache.length}');
       });
 
       test('06. plain Map cache + bloom + substring walk', () {
         final domains = dataset.domains;
         final bloom = dataset.bloom;
         final cache = _MapFifoCache<String, bool>(capacity: 5000);
-        _runVariant(wl.name, '06 Map + bloom + substring', wl.get(), (url) {
-          return _isBlockedMapBloom(url, domains, bloom, cache);
-        }, extra: () => 'cache size=${cache.length}');
+        _runVariant(wl.name,
+            name: '06 Map + bloom + substring',
+            urls: wl.get(),
+            check: (url) {
+              return _isBlockedMapBloom(url,
+                  domains: domains, bloom: bloom, cache: cache);
+            },
+            extra: () => 'cache size=${cache.length}');
       });
 
       test('08. ring-buffer FIFO cache + substring walk', () {
@@ -153,9 +169,13 @@ void main() {
         // mixed-Zipfian regression.
         final domains = dataset.domains;
         final cache = _RingFifoCache(capacity: 5000);
-        _runVariant(wl.name, '08 Ring + substring', wl.get(), (url) {
-          return _isBlockedRing(url, domains, cache);
-        }, extra: () => 'cache size=${cache.length}');
+        _runVariant(wl.name,
+            name: '08 Ring + substring',
+            urls: wl.get(),
+            check: (url) {
+              return _isBlockedRing(url, domains: domains, cache: cache);
+            },
+            extra: () => 'cache size=${cache.length}');
       });
 
       test('09. fast host extractor + Map cache + substring walk', () {
@@ -165,9 +185,13 @@ void main() {
         // baseline cost on uncached calls).
         final domains = dataset.domains;
         final cache = _MapFifoCache<String, bool>(capacity: 5000);
-        _runVariant(wl.name, '09 fastHost + Map + substring', wl.get(), (url) {
-          return _isBlockedFastHostMap(url, domains, cache);
-        }, extra: () => 'cache size=${cache.length}');
+        _runVariant(wl.name,
+            name: '09 fastHost + Map + substring',
+            urls: wl.get(),
+            check: (url) {
+              return _isBlockedFastHostMap(url, domains: domains, cache: cache);
+            },
+            extra: () => 'cache size=${cache.length}');
       });
 
       test('10. fast host extractor + ring-buffer cache + substring walk', () {
@@ -176,9 +200,14 @@ void main() {
         // without leaving Dart.
         final domains = dataset.domains;
         final cache = _RingFifoCache(capacity: 5000);
-        _runVariant(wl.name, '10 fastHost + Ring + substring', wl.get(), (url) {
-          return _isBlockedFastHostRing(url, domains, cache);
-        }, extra: () => 'cache size=${cache.length}');
+        _runVariant(wl.name,
+            name: '10 fastHost + Ring + substring',
+            urls: wl.get(),
+            check: (url) {
+              return _isBlockedFastHostRing(url,
+                  domains: domains, cache: cache);
+            },
+            extra: () => 'cache size=${cache.length}');
       });
 
       test('07. cold-then-warm: plain Map cache (steady-state)', () {
@@ -187,13 +216,13 @@ void main() {
 
         final cold = Stopwatch()..start();
         for (final url in wl.get()) {
-          _isBlockedMapCache(url, domains, cache);
+          _isBlockedMapCache(url, domains: domains, cache: cache);
         }
         cold.stop();
 
         final warm = Stopwatch()..start();
         for (final url in wl.get()) {
-          _isBlockedMapCache(url, domains, cache);
+          _isBlockedMapCache(url, domains: domains, cache: cache);
         }
         warm.stop();
 
@@ -214,7 +243,7 @@ void main() {
 class _Workload {
   final String name;
   final List<String> Function() get;
-  _Workload(this.name, this.get);
+  _Workload(this.name, {required this.get});
 }
 
 int _countHits(List<String> urls) {
@@ -226,10 +255,10 @@ int _countHits(List<String> urls) {
 }
 
 void _runVariant(
-  String workloadName,
-  String name,
-  List<String> urls,
-  bool Function(String) check, {
+  String workloadName, {
+  required String name,
+  required List<String> urls,
+  required bool Function(String) check,
   String Function()? extra,
 }) {
   final sw = Stopwatch()..start();
@@ -254,7 +283,7 @@ void _runVariant(
 
 /// Substring-based hierarchy walk. Same logic as production `isBlocked()` but
 /// without `parts.sublist(i).join('.')` — uses indexOf to slice the host.
-bool _isBlockedSubstring(String url, Set<String> domains) {
+bool _isBlockedSubstring(String url, {required Set<String> domains}) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   final host = uri.host;
@@ -274,7 +303,8 @@ bool _isBlockedSubstring(String url, Set<String> domains) {
 /// Bloom prefilter for both the host and parent suffixes. If neither the host
 /// nor any parent is in the bloom, definitely not blocked. Otherwise resort to
 /// the authoritative Set walk to filter false positives.
-bool _isBlockedBloomFirst(String url, Set<String> domains, BloomFilter bloom) {
+bool _isBlockedBloomFirst(String url,
+    {required Set<String> domains, required BloomFilter bloom}) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   final host = uri.host;
@@ -301,22 +331,25 @@ bool _isBlockedBloomFirst(String url, Set<String> domains, BloomFilter bloom) {
 /// Plain Map cache on host-level decision (no LRU reorder on hit).
 /// Mirrors the production _domainCache: insertion-order FIFO eviction only
 /// when capacity is exceeded on insert.
-bool _isBlockedMapCache(
-    String url, Set<String> domains, _MapFifoCache<String, bool> cache) {
+bool _isBlockedMapCache(String url,
+    {required Set<String> domains,
+    required _MapFifoCache<String, bool> cache}) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   final host = uri.host;
   if (host.isEmpty) return false;
   final cached = cache.getRaw(host);
   if (cached != null) return cached;
-  final result = _hostBlockedSubstring(host, domains);
-  cache.put(host, result);
+  final result = _hostBlockedSubstring(host, domains: domains);
+  cache.put(host, value: result);
   return result;
 }
 
 /// Plain Map cache + bloom prefilter + substring walk.
-bool _isBlockedMapBloom(String url, Set<String> domains, BloomFilter bloom,
-    _MapFifoCache<String, bool> cache) {
+bool _isBlockedMapBloom(String url,
+    {required Set<String> domains,
+    required BloomFilter bloom,
+    required _MapFifoCache<String, bool> cache}) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   final host = uri.host;
@@ -338,48 +371,50 @@ bool _isBlockedMapBloom(String url, Set<String> domains, BloomFilter bloom,
     }
   }
 
-  final result = !maybeMember ? false : _hostBlockedSubstring(host, domains);
-  cache.put(host, result);
+  final result = !maybeMember ? false : _hostBlockedSubstring(host, domains: domains);
+  cache.put(host, value: result);
   return result;
 }
 
 /// Ring-buffer FIFO cache variant. Eviction is `_ring[head++ % cap]` —
 /// no iterator allocation per evict. Targets the mixed-Zipfian regression
 /// where 90% of calls trigger evictions and `Map.keys.first` allocates.
-bool _isBlockedRing(String url, Set<String> domains, _RingFifoCache cache) {
+bool _isBlockedRing(String url,
+    {required Set<String> domains, required _RingFifoCache cache}) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   final host = uri.host;
   if (host.isEmpty) return false;
   final cached = cache.get(host);
   if (cached != null) return cached;
-  final result = _hostBlockedSubstring(host, domains);
-  cache.put(host, result);
+  final result = _hostBlockedSubstring(host, domains: domains);
+  cache.put(host, value: result);
   return result;
 }
 
 /// Fast host extractor + Map cache. Skips Uri.tryParse for the common
 /// `scheme://host[:port]/...` case. Validates only what we actually use.
-bool _isBlockedFastHostMap(
-    String url, Set<String> domains, _MapFifoCache<String, bool> cache) {
+bool _isBlockedFastHostMap(String url,
+    {required Set<String> domains,
+    required _MapFifoCache<String, bool> cache}) {
   final host = _fastHost(url);
   if (host == null || host.isEmpty) return false;
   final cached = cache.getRaw(host);
   if (cached != null) return cached;
-  final result = _hostBlockedSubstring(host, domains);
-  cache.put(host, result);
+  final result = _hostBlockedSubstring(host, domains: domains);
+  cache.put(host, value: result);
   return result;
 }
 
 /// Fast host extractor + ring-buffer cache: maximum reachable in pure Dart.
 bool _isBlockedFastHostRing(
-    String url, Set<String> domains, _RingFifoCache cache) {
+    String url, {required Set<String> domains, required _RingFifoCache cache}) {
   final host = _fastHost(url);
   if (host == null || host.isEmpty) return false;
   final cached = cache.get(host);
   if (cached != null) return cached;
-  final result = _hostBlockedSubstring(host, domains);
-  cache.put(host, result);
+  final result = _hostBlockedSubstring(host, domains: domains);
+  cache.put(host, value: result);
   return result;
 }
 
@@ -422,19 +457,20 @@ String? _fastHost(String url) {
 }
 
 /// LinkedHashMap LRU variant (kept for direct comparison).
-bool _isBlockedLru(String url, Set<String> domains, _LruCache<String, bool> cache) {
+bool _isBlockedLru(String url,
+    {required Set<String> domains, required _LruCache<String, bool> cache}) {
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
   final host = uri.host;
   if (host.isEmpty) return false;
   final cached = cache.get(host);
   if (cached != null) return cached;
-  final result = _hostBlockedSubstring(host, domains);
-  cache.put(host, result);
+  final result = _hostBlockedSubstring(host, domains: domains);
+  cache.put(host, value: result);
   return result;
 }
 
-bool _hostBlockedSubstring(String host, Set<String> domains) {
+bool _hostBlockedSubstring(String host, {required Set<String> domains}) {
   if (domains.contains(host)) return true;
   int dot = host.indexOf('.');
   while (dot >= 0 && dot < host.length - 1) {
@@ -460,7 +496,7 @@ class _MapFifoCache<K, V> {
 
   V? getRaw(K key) => _map[key];
 
-  void put(K key, V value) {
+  void put(K key, {required V value}) {
     if (_map.length >= capacity && !_map.containsKey(key)) {
       _map.remove(_map.keys.first);
     }
@@ -490,7 +526,7 @@ class _RingFifoCache {
 
   bool? get(String key) => _map[key];
 
-  void put(String key, bool value) {
+  void put(String key, {required bool value}) {
     if (_map.containsKey(key)) {
       _map[key] = value;
       return;
@@ -526,7 +562,7 @@ class _LruCache<K, V> {
     return v;
   }
 
-  void put(K key, V value) {
+  void put(K key, {required V value}) {
     if (_map.containsKey(key)) {
       _map.remove(key);
     } else if (_map.length >= capacity) {
@@ -547,7 +583,7 @@ class _Dataset {
   final String rawText;
   final BloomFilter bloom;
   final List<String> domainList; // ordered, used for hit-sampling
-  _Dataset(this.domains, this.rawText, this.bloom, this.domainList);
+  _Dataset(this.domains, {required this.rawText, required this.bloom, required this.domainList});
 }
 
 _Dataset _buildDataset({required int domainCount, required int seed}) {
@@ -584,7 +620,8 @@ _Dataset _buildDataset({required int domainCount, required int seed}) {
   }
 
   final bloom = BloomFilter.build(domains, fpRate: 0.05);
-  return _Dataset(domains, buffer.toString(), bloom, list);
+  return _Dataset(domains,
+      rawText: buffer.toString(), bloom: bloom, domainList: list);
 }
 
 /// Build a Zipfian-distributed workload that mimics real browsing:
@@ -608,8 +645,8 @@ List<String> _buildZipfianWorkload({
       'site${random.nextInt(1000)}.example${random.nextInt(50)}.test',
   ];
 
-  String pickHotBlocked() => hotBlocked[_zipf(random, hotBlocked.length)];
-  String pickHotAllowed() => hotAllowed[_zipf(random, hotAllowed.length)];
+  String pickHotBlocked() => hotBlocked[_zipf(random, n: hotBlocked.length)];
+  String pickHotAllowed() => hotAllowed[_zipf(random, n: hotAllowed.length)];
 
   final urls = <String>[];
   for (var i = 0; i < requestCount; i++) {
@@ -667,14 +704,14 @@ List<String> _buildSingleSiteWorkload({
   }
   final urls = <String>[];
   for (var i = 0; i < requestCount; i++) {
-    final host = pool[_zipf(random, pool.length)];
+    final host = pool[_zipf(random, n: pool.length)];
     urls.add('https://$host/path?q=$i');
   }
   return urls;
 }
 
 /// Sample with a Zipf-like decay so a small head is hit most often.
-int _zipf(Random random, int n) {
+int _zipf(Random random, {required int n}) {
   // Quick zipfian-ish: take min over k uniform draws to bias toward 0.
   int idx = random.nextInt(n);
   for (var i = 0; i < 3; i++) {

@@ -89,19 +89,21 @@ enum LogTag {
   final String label;
 
   void debug(String message, {bool sensitive = false}) =>
-      _write(LogLevel.debug, message, sensitive);
+      _write(LogLevel.debug, message: message, sensitive: sensitive);
 
   void info(String message, {bool sensitive = false}) =>
-      _write(LogLevel.info, message, sensitive);
+      _write(LogLevel.info, message: message, sensitive: sensitive);
 
   void warning(String message, {bool sensitive = false}) =>
-      _write(LogLevel.warning, message, sensitive);
+      _write(LogLevel.warning, message: message, sensitive: sensitive);
 
   void error(String message, {bool sensitive = false}) =>
-      _write(LogLevel.error, message, sensitive);
+      _write(LogLevel.error, message: message, sensitive: sensitive);
 
-  void _write(LogLevel level, String message, bool sensitive) =>
-      LogService.instance.log(this, message,
+  void _write(LogLevel level,
+          {required String message, required bool sensitive}) =>
+      LogService.instance.log(this,
+          message: message,
           level: level,
           sensitivity:
               sensitive ? LogSensitivity.sensitive : LogSensitivity.normal);
@@ -139,8 +141,8 @@ class LogService extends ChangeNotifier {
   }
 
   void log(
-    LogTag tag,
-    String message, {
+    LogTag tag, {
+    required String message,
     LogLevel level = LogLevel.debug,
     LogSensitivity sensitivity = LogSensitivity.normal,
   }) {

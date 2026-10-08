@@ -70,7 +70,7 @@ class LocalProxyRelayApi implements ProxyRelayApi {
     }
     final decoded = <String, LocalProxyRoute>{};
     for (final entry in routes.entries) {
-      final route = decodeRoute(entry.key, entry.value);
+      final route = decodeRoute(entry.key, wire: entry.value);
       if (route == null) {
         // Fail the whole table rather than install part of it: a half
         // table sends the missing site's traffic to a 502, which reads as
@@ -104,9 +104,9 @@ class LocalProxyRelayApi implements ProxyRelayApi {
   /// (`base64(<username>:<token>)`); the relay matches on the username and
   /// compares the token in full, so both halves have to come back out.
   static ({String username, LocalProxyRoute route})? decodeRoute(
-    String credential,
-    Map<String, Object?> wire,
-  ) {
+    String credential, {
+    required Map<String, Object?> wire,
+  }) {
     final String decoded;
     try {
       decoded = utf8.decode(base64.decode(credential));

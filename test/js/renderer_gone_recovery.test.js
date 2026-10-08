@@ -25,7 +25,7 @@ test('onRendererGone is wired to the destroy-and-rebuild recovery', () => {
   const src = read('lib/web_view_model.dart');
   assert.match(
     src,
-    /onRendererGone:\s*\(didCrash\)\s*=>\s*handleRendererGone\(/,
+    /onRendererGone:\s*handleRendererGone,/,
     'the config callback must invoke handleRendererGone',
   );
   // handleRendererGone must DISPOSE the dead instance (the fix), not just log.
@@ -49,7 +49,7 @@ test('nested InAppWebViewScreen wires renderer-gone recovery (BUG-002 gap #1)', 
   const src = read('lib/screens/inappbrowser.dart');
   assert.match(
     src,
-    /onRendererGone:\s*\(didCrash\)\s*=>\s*_handleRendererGone\(/,
+    /onRendererGone:\s*_handleRendererGone,/,
     'nested WebViewConfig must wire onRendererGone',
   );
   // The handler must REMOUNT the dead webview (bump the key), not just log.

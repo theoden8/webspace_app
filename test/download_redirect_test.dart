@@ -8,7 +8,7 @@ import 'package:webspace/services/download_engine.dart';
 /// the site's session cookie, referer and UA reached whichever host the site
 /// redirected to (DL-007).
 void main() {
-  http.Response redirect(String to, [int status = 302]) =>
+  http.Response redirect(String to, {int status = 302}) =>
       http.Response('', status, headers: {'location': to});
 
   test('a cross-origin redirect carries neither cookie nor referer', () async {
@@ -40,7 +40,7 @@ void main() {
     final seen = <http.Request>[];
     final client = MockClient((req) async {
       seen.add(req);
-      if (req.url.path == '/old') return redirect('/new', 301);
+      if (req.url.path == '/old') return redirect('/new', status: 301);
       return http.Response('zip', 200);
     });
     await DownloadEngine(client: client).fetch(

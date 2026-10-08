@@ -48,7 +48,7 @@ class HtmlImportStorage {
   Future<void> initialize() async {
     _store = _overrideStore ?? defaultFileStore(_storageDir);
 
-    _aead = await KeychainAead.open(_secureStorage, _encryptionKeyKey,
+    _aead = await KeychainAead.open(_secureStorage, keyName: _encryptionKeyKey,
         logTag: LogTag.htmlImport);
 
     await _store!.ensure();
@@ -87,12 +87,13 @@ class HtmlImportStorage {
 
   /// Rewrites a legacy AES-CBC blob under GCM. Best-effort: a failure leaves
   /// the readable legacy file in place.
-  Future<void> _upgradeBlob(String siteId, String plaintext) async {
+  Future<void> _upgradeBlob(String siteId, {required String plaintext}) async {
     final store = _store;
     final aead = _aead;
     if (store == null || aead == null) return;
     try {
-      await store.writeText(_importFileName(siteId), aead.seal(plaintext));
+      await store.writeText(_importFileName(siteId),
+          contents: aead.seal(plaintext));
     } on Exception catch (e) {
       LogTag.htmlImport.warning(
           'Could not re-encrypt import for $siteId: $e', sensitive: true);
@@ -118,7 +119,7 @@ class HtmlImportStorage {
                 final html = decrypted.plaintext.substring(newlineIndex + 1);
                 _memoryStore[siteId] = html;
                 if (decrypted.legacy) {
-                  await _upgradeBlob(siteId, decrypted.plaintext);
+                  await _upgradeBlob(siteId, plaintext: decrypted.plaintext);
                 }
               } else {
                 // Imports are the only copy of user-supplied data — never
@@ -164,7 +165,8 @@ class HtmlImportStorage {
   /// the same 10 MB ceiling.
   static const int _maxHtmlSize = 10 * 1024 * 1024;
 
-  Future<void> saveHtml(String siteId, String html, String url) async {
+  Future<void> saveHtml(String siteId,
+      {required String html, required String url}) async {
     final store = _store;
     final aead = _aead;
     if (store == null || aead == null) return;
@@ -177,15 +179,16 @@ class HtmlImportStorage {
     }
 
     try {
-      await store.writeText(_importFileName(siteId), aead.seal('$url\n$html'));
+      await store.writeText(_importFileName(siteId),
+          contents: aead.seal('$url\n$html'));
       _memoryStore[siteId] = html;
 
       LogTag.htmlImport.debug(
           'Saved ${html.length} bytes for site $siteId (encrypted)',
           sensitive: true);
     } on Exception catch (e) {
-      LogTag.htmlImport.error(
-          'Error saving HTML for $siteId: $e', sensitive: true);
+      LogTag.htmlImport
+          .error('Error saving HTML for $siteId: $e', sensitive: true);
     }
   }
 
@@ -204,7 +207,7 @@ class HtmlImportStorage {
       if (newlineIndex == -1) return null;
 
       if (decrypted.legacy) {
-        await _upgradeBlob(siteId, decrypted.plaintext);
+        await _upgradeBlob(siteId, plaintext: decrypted.plaintext);
       }
 
       final url = decrypted.plaintext.substring(0, newlineIndex);

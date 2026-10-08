@@ -46,15 +46,16 @@ WebViewModel everyGrant({bool isArchiveTier = false}) => site(
       isArchiveTier: isArchiveTier,
     );
 
-const _realCamera = CaptureBadge(CaptureKind.camera, CameraAccessMode.real);
+const _realCamera =
+    CaptureBadge(CaptureKind.camera, mode: CameraAccessMode.real);
 const _virtualCamera =
-    CaptureBadge(CaptureKind.camera, CameraAccessMode.virtual);
+    CaptureBadge(CaptureKind.camera, mode: CameraAccessMode.virtual);
 const _realMicrophone =
-    CaptureBadge(CaptureKind.microphone, MicrophoneAccessMode.real);
+    CaptureBadge(CaptureKind.microphone, mode: MicrophoneAccessMode.real);
 const _virtualMicrophone =
-    CaptureBadge(CaptureKind.microphone, MicrophoneAccessMode.virtual);
+    CaptureBadge(CaptureKind.microphone, mode: MicrophoneAccessMode.virtual);
 const _virtualScreenShare =
-    CaptureBadge(CaptureKind.screenShare, ScreenShareMode.virtual);
+    CaptureBadge(CaptureKind.screenShare, mode: ScreenShareMode.virtual);
 
 void main() {
   group('sitePermissionBadges (PERMBADGE-001)', () {
@@ -174,7 +175,7 @@ void main() {
           for (final mode in kind.modes)
             if (mode.state == SitePermissionState.allowed ||
                 mode.state == SitePermissionState.simulated)
-              CaptureBadge(kind, mode),
+              CaptureBadge(kind, mode: mode),
       ];
       final icons = every.map(sitePermissionBadgeIcon).toSet();
       expect(icons, hasLength(every.length));
@@ -238,7 +239,7 @@ void main() {
       expect(icon.semanticLabel,
           '${loc.siteSettingsCameraAccess}: ${loc.siteSettingsCameraAccessAllow}');
       expect(icon.semanticLabel,
-          sitePermissionBadgeLabel(loc, _realCamera));
+          sitePermissionBadgeLabel(loc, badge: _realCamera));
     });
   });
 
@@ -252,7 +253,7 @@ void main() {
         .toSet()
         .length;
 
-    void expectInside(WidgetTester tester, Rect bounds) {
+    void expectInside(WidgetTester tester, {required Rect bounds}) {
       for (final icon in tester.widgetList<Icon>(find.byType(Icon))) {
         final rect = tester.getRect(find.byWidget(icon));
         expect(bounds.contains(rect.topLeft), isTrue);
@@ -284,7 +285,7 @@ void main() {
       final strip = tester.getRect(find.byType(SitePermissionBadges));
       expect(strip.width, lessThanOrEqualTo(48));
       expect(rows(tester), 2);
-      expectInside(tester, strip);
+      expectInside(tester, bounds: strip);
     });
 
     testWidgets('every grant fits beside the name in the narrowest wide tile',
@@ -310,7 +311,7 @@ void main() {
       final strip = tester.getRect(find.byType(SitePermissionBadges));
       expect(strip.width, lessThanOrEqualTo(30));
       expect(strip.height, lessThanOrEqualTo(80));
-      expectInside(tester, strip);
+      expectInside(tester, bounds: strip);
     });
 
     testWidgets('a strip with room keeps every badge on one row',

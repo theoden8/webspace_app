@@ -53,5 +53,5 @@ test('saving settings unloads the sites the new pin disagrees with first', () =>
   const net = 'lib/controllers/site_network_controller.dart';
   unloadsBeforePin(blockAfter(read(net), 'Future<void> syncTorHolders()', undefined, net),
     'syncTorHolders', 'TorExitSettled',
-    { plan: 'SiteUnloadEngine.plan(residency, ', apply: 'SiteUnloadEngine.apply(', pin: 'syncTorExitPin(' });
+    { plan: 'SiteUnloadEngine.plan(residency, event: ', apply: 'SiteUnloadEngine.apply(', pin: 'syncTorExitPin(' });
 });

@@ -57,7 +57,7 @@ class DatasetTile<D extends DownloadableDataset> extends StatefulWidget {
   final String hint;
 
   /// Controls under the row. `download` is null while one is running.
-  final Widget Function(D dataset, VoidCallback? download)? below;
+  final Widget Function(D dataset, {required VoidCallback? download})? below;
 
   @override
   State<DatasetTile<D>> createState() => _DatasetTileState<D>();
@@ -143,7 +143,7 @@ class _DatasetTileState<D extends DownloadableDataset>
     if (below == null) return row;
     return Column(
       mainAxisSize: MainAxisSize.min,
-      children: [row, below(_dataset, _busy ? null : _download)],
+      children: [row, below(_dataset, download: _busy ? null : _download)],
     );
   }
 }

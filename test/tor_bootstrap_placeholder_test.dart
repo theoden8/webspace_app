@@ -36,13 +36,13 @@ void main() {
     // on isAvailable. Turn dev mode on so the acquire actually reaches the
     // fake runtime — otherwise startCalls stays 0 and the widget looks
     // broken for the wrong reason.
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     return runtime;
   }
 
   tearDown(() async {
     await TorService.reset();
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
   });
 
   Future<void> settle(WidgetTester t) async {

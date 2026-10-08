@@ -15,13 +15,14 @@ const _frame = 'https://ads.example';
 /// test/capture_request_wiring_test.dart covers through the model.
 final class _Host {
   _Host(
-    CaptureKind kind,
-    CaptureMode mode, {
+    CaptureKind kind, {
+    required CaptureMode mode,
     bool withSource = false,
-    Answer Function(CaptureKind, String, CaptureMode)? answer,
+    Answer Function(CaptureKind kind,
+        {required String origin, required CaptureMode current})? answer,
   }) : prompter = FakePrompter(answer) {
     store = InMemoryGrantStore(
-      (capture: grantsWith(kind, mode, withSource: withSource),
+      (capture: grantsWith(kind, mode: mode, withSource: withSource),
           protectedContent: null),
       prompter: prompter,
       isSiteActive: () => active,
@@ -36,26 +37,28 @@ final class _Host {
     CaptureKind kind, {
     String origin = _top,
     bool isTopFrame = true,
-  }) => store.capture(kind, origin, isTopFrame: isTopFrame);
+  }) => store.capture(kind, origin: origin, isTopFrame: isTopFrame);
 
   CaptureGrant stored(CaptureKind kind) =>
       kind.grantOf(store.media.capture);
 }
 
-Answer Function(CaptureKind, String, CaptureMode) _always(Answer a) =>
-    (_, _, _) => a;
+Answer Function(CaptureKind kind,
+    {required String origin, required CaptureMode current}) _always(
+        Answer a) =>
+    (_, {required origin, required current}) => a;
 
 void main() {
   for (final kind in CaptureKind.values) {
     group('GrantStore.capture for $kind', () {
       test('block settles without a popup', () async {
-        final host = _Host(kind, kind.block);
+        final host = _Host(kind, mode: kind.block);
         expect((await host.ask(kind)).mode, kind.block);
         expect(host.prompter.asked, isEmpty);
       });
 
       test('virtual with a file settles and serves it', () async {
-        final host = _Host(kind, kind.virtual, withSource: true);
+        final host = _Host(kind, mode: kind.virtual, withSource: true);
         final grant = await host.ask(kind);
         expect(grant.mode, kind.virtual);
         expect(grant.source, pickedFor(kind));
@@ -63,7 +66,8 @@ void main() {
       });
 
       test('virtual with no file yet re-offers the picker each time', () async {
-        final host = _Host(kind, kind.virtual, answer: _always(Answer.cancelPick));
+        final host =
+            _Host(kind, mode: kind.virtual, answer: _always(Answer.cancelPick));
         await host.ask(kind);
         await host.ask(kind);
         expect(host.prompter.asked.map((a) => a.$3), [kind.virtual, kind.virtual]);
@@ -72,7 +76,8 @@ void main() {
       });
 
       test('ask prompts once, records the answer, then settles', () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.useFile));
+        final host =
+            _Host(kind, mode: kind.ask, answer: _always(Answer.useFile));
         final grant = await host.ask(kind);
         expect(grant.mode, kind.virtual);
         expect(grant.source, pickedFor(kind));
@@ -82,7 +87,8 @@ void main() {
       });
 
       test('a dismissed popup stays ask, denied this once', () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.dismiss));
+        final host =
+            _Host(kind, mode: kind.ask, answer: _always(Answer.dismiss));
         final grant = await host.ask(kind);
         expect(grant.mode, kind.ask);
         expect(grant.toBridgeJson(), {'mode': 'block'});
@@ -91,7 +97,7 @@ void main() {
       });
 
       test('a burst shares one popup', () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.block));
+        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.block));
         host.prompter.gate = Completer<void>();
         final burst = [host.ask(kind), host.ask(kind), host.ask(kind)];
         await pumpEventQueue();
@@ -104,7 +110,7 @@ void main() {
       test('a backgrounded site is denied in every mode (CAM-011 / MIC-011 / '
           'SHARE-011)', () async {
         for (final mode in kind.modes) {
-          final host = _Host(kind, mode, withSource: true);
+          final host = _Host(kind, mode: mode, withSource: true);
           host.active = false;
           final grant = await host.ask(kind);
           expect(grant.toBridgeJson(), {'mode': 'block'}, reason: '$mode');
@@ -114,7 +120,8 @@ void main() {
       });
 
       test('switching away mid-prompt does not retract the answer', () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.useFile));
+        final host =
+            _Host(kind, mode: kind.ask, answer: _always(Answer.useFile));
         host.prompter.gate = Completer<void>();
         final pending = host.ask(kind);
         await pumpEventQueue();
@@ -128,7 +135,7 @@ void main() {
 
       test('a subframe inherits the device-free answers', () async {
         for (final (mode, withSource) in [(kind.block, false), (kind.virtual, true)]) {
-          final host = _Host(kind, mode, withSource: withSource);
+          final host = _Host(kind, mode: mode, withSource: withSource);
           final grant = await host.ask(kind, origin: _frame, isTopFrame: false);
           expect(grant.mode, mode);
           expect(host.prompter.asked, isEmpty);
@@ -140,13 +147,14 @@ void main() {
   for (final kind in <CaptureKind>[CaptureKind.camera, CaptureKind.microphone]) {
     group('GrantStore.capture frame scoping for $kind (CAM-014 / MIC-016)', () {
       test('real settles for the top document', () async {
-        final host = _Host(kind, kind.real!);
+        final host = _Host(kind, mode: kind.real!);
         expect((await host.ask(kind)).toBridgeJson(), {'mode': 'real'});
         expect(host.prompter.asked, isEmpty);
       });
 
       test('a subframe does not inherit a settled real grant', () async {
-        final host = _Host(kind, kind.real!, answer: _always(Answer.block));
+        final host =
+            _Host(kind, mode: kind.real!, answer: _always(Answer.block));
         final grant = await host.ask(kind, origin: _frame, isTopFrame: false);
         expect(grant.mode, kind.block);
         expect(host.prompter.asked.single.$2, _frame,
@@ -155,14 +163,14 @@ void main() {
       });
 
       test('a subframe answer is never written back to the site', () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.allow));
+        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
         final grant = await host.ask(kind, origin: _frame, isTopFrame: false);
         expect(grant.mode, kind.real);
         expect(host.stored(kind).mode, kind.ask);
       });
 
       test('the platform follow-up reuses the frame answer', () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.allow));
+        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
         await host.ask(kind, origin: _frame, isTopFrame: false);
         final again = await host.ask(kind, origin: _frame, isTopFrame: false);
         expect(again.mode, kind.real);
@@ -170,7 +178,7 @@ void main() {
       });
 
       test('the grace window does not leak to another frame', () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.allow));
+        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
         await host.ask(kind, origin: _frame, isTopFrame: false);
         host.prompter.answer = _always(Answer.block);
         final other = await host.ask(kind,
@@ -180,7 +188,7 @@ void main() {
       });
 
       test("a subframe does not ride the top document's popup", () async {
-        final host = _Host(kind, kind.ask, answer: _always(Answer.allow));
+        final host = _Host(kind, mode: kind.ask, answer: _always(Answer.allow));
         host.prompter.gate = Completer<void>();
         final top = host.ask(kind);
         final frame = host.ask(kind, origin: _frame, isTopFrame: false);
@@ -195,10 +203,10 @@ void main() {
   test('two kinds asking at once are two questions', () async {
     // One store serves every kind, so coalescing is keyed by kind as well as
     // origin: a camera answer must never settle a microphone request.
-    final host = _Host(CaptureKind.camera, CameraAccessMode.ask,
-        answer: (kind, _, _) => kind == CaptureKind.camera
-            ? Answer.allow
-            : Answer.block);
+    final host = _Host(CaptureKind.camera,
+        mode: CameraAccessMode.ask,
+        answer: (kind, {required origin, required current}) =>
+            kind == CaptureKind.camera ? Answer.allow : Answer.block);
     host.prompter.gate = Completer<void>();
     final camera = host.ask(CaptureKind.camera);
     final microphone = host.ask(CaptureKind.microphone);
@@ -223,23 +231,25 @@ void main() {
         prompter: prompter, isSiteActive: () => true);
     for (final kind in <CaptureKind>[CaptureKind.camera, CaptureKind.microphone]) {
       expect(store.mode(kind).state, SitePermissionState.ask);
-      await store.capture(kind, _top, isTopFrame: true);
+      await store.capture(kind, origin: _top, isTopFrame: true);
     }
     expect(prompter.asked, hasLength(2));
   });
 
   group('GrantStore.protectedContent', () {
-    InMemoryGrantStore store(FakePrompter prompter, bool? remembered) =>
-        InMemoryGrantStore(
-          (capture: CaptureGrants.none, protectedContent: remembered),
-          prompter: prompter,
-          isSiteActive: () => true,
-        );
+InMemoryGrantStore store(FakePrompter prompter, {required bool? remembered}) =>
+    InMemoryGrantStore(
+      (capture: CaptureGrants.none, protectedContent: remembered),
+      prompter: prompter,
+      isSiteActive: () => true,
+    );
 
     test('a remembered answer settles without a popup', () async {
       final prompter = FakePrompter();
-      expect(await store(prompter, false).protectedContent(_top), isFalse);
-      expect(await store(prompter, true).protectedContent(_top), isTrue);
+      expect(await store(prompter, remembered: false).protectedContent(_top),
+          isFalse);
+      expect(await store(prompter, remembered: true).protectedContent(_top),
+          isTrue);
       expect(prompter.drmAsked, 0);
     });
 
@@ -247,7 +257,7 @@ void main() {
       final prompter = FakePrompter()
         ..drmAnswer = true
         ..gate = Completer<void>();
-      final s = store(prompter, null);
+      final s = store(prompter, remembered: null);
       final burst = [s.protectedContent(_top), s.protectedContent(_top)];
       await pumpEventQueue();
       prompter.gate!.complete();

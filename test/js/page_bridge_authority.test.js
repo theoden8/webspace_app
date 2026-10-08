@@ -66,7 +66,7 @@ test('CURL-014/015 + CB-014: a rewrite target is scheme-checked before it is loa
 });
 
 test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
-  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture)');
+  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture)');
   const captcha = NAV.indexOf('isCaptchaChallenge(url, siteUrl: config.initialUrl)');
   assert.notEqual(override, -1, 'the shouldOverrideUrlLoading call is gone');
   assert.notEqual(captcha, -1, 'the captcha allow is gone');
@@ -77,7 +77,7 @@ test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
 });
 
 test('HTTPS-004: the https upgrade comes after the routing decision', () => {
-  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture)');
+  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture)');
   const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
   assert.notEqual(override, -1, 'the shouldOverrideUrlLoading call is gone');
   assert.notEqual(upgrade, -1, 'the https upgrade is gone');
@@ -127,7 +127,7 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
     assert.ok(body.includes(wiring),
       `createPopupWebView no longer carries ${wiring}`);
   }
-  assert.match(body, /final settings = _siteSettings\(\s*binding,\s*parent\.posture,/,
+  assert.match(body, /final settings = _siteSettings\(\s*binding,\s*posture: parent\.posture,/,
     'the popup must take its native settings from the parent posture, '
     + 'through the builder the site webview uses');
   assert.ok(body.includes('initialSettings: settings,'),
@@ -230,7 +230,7 @@ test('ICON-013: page icon fetches go through the guarded fetch only', () => {
     'page icon links are page-chosen URLs: fetch them through the guarded path');
   assert.ok(body.includes('proxy: config.posture.container.proxy'),
     "a page icon must go through the site's proxy");
-  assert.ok(body.includes('_pageIconRequestAllowed(config, target, documentUrl)'),
+  assert.ok(body.replace(/\s+/g, ' ').includes('_pageIconRequestAllowed(config, target: target, documentUrl: documentUrl)'),
     "the site's blockers must see every page icon request");
 });
 
@@ -295,7 +295,7 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
       && settings.includes('..useShouldOverrideUrlLoading = true'),
     'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
   assert.match(body,
-    /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*_onSiteNavigationPolicy\(parent, navigationAction,\s*allowCaptcha: true\)/,
+    /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*_onSiteNavigationPolicy\(parent, navigationAction: navigationAction,\s*allowCaptcha: true\)/,
     'the popup had no navigation gate: after the first load it went anywhere');
   const gateAt = WEBVIEW.indexOf('static inapp.NavigationActionPolicy _onSiteNavigationPolicy(');
   assert.notEqual(gateAt, -1, '_onSiteNavigationPolicy is gone');
@@ -322,9 +322,9 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
   assert.notEqual(at, -1, 'openHeadlessCheck is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
   assert.match(body,
-    /_onSiteNavigationPolicy\(config, navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
+    /_onSiteNavigationPolicy\(config, navigationAction: navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
     'a headless check must run the on-site navigation gate without the captcha exception');
-  assert.match(body, /initialSettings: _siteSettings\(\s*binding,\s*posture,/,
+  assert.match(body, /initialSettings: _siteSettings\(\s*binding,\s*posture: posture,/,
     'a headless check takes its native settings from the site posture, '
     + 'through the builder the site webview uses');
   for (const check of [
@@ -333,7 +333,7 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
     'onCreateWindow: (_, _) async => false,',
     'inapp.PermissionResponseAction.DENY',
     'allow: false',
-    '_handleServerTrust(null, challenge, null)',
+    '_handleServerTrust(null, challenge: challenge, prompt: null)',
     'WebInterceptNative.attachToHeadless(',
   ]) {
     assert.ok(body.includes(check), `headless check lacks ${check}`);
@@ -422,7 +422,7 @@ test('CAM-013 / MIC-013: capture prompts name an origin read from the webview', 
     'a capture bridge must not take the origin from the page: the camera and ' +
     'microphone shims are injected forMainFrameOnly:false, so any frame can ' +
     'call the handler directly and name a site it is not');
-  assert.ok(CAPTURE_BRIDGE.includes('_promptOrigin(controller, config, frame: data)'),
+  assert.ok(CAPTURE_BRIDGE.includes('_promptOrigin(controller, config: config, frame: data)'),
     'a capture bridge must derive the origin from the controller and the frame');
   assert.match(WEBVIEW,
     /_promptOrigin\([\s\S]{0,400}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,

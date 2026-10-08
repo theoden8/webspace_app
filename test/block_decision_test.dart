@@ -21,10 +21,11 @@ class _Lists implements BlockLists {
   String _host(String url) => Uri.parse(url).host;
 
   @override
-  bool dnsBlocksUrl(String url, int level) => dnsBlocksHost(_host(url), level);
+  bool dnsBlocksUrl(String url, {required int level}) =>
+      dnsBlocksHost(_host(url), level: level);
 
   @override
-  bool dnsBlocksHost(String host, int level) {
+  bool dnsBlocksHost(String host, {required int level}) {
     asked.add('dns:$host@$level');
     return level >= dnsLevel && dnsHosts.contains(host);
   }
@@ -57,7 +58,8 @@ void main() {
     test('a host both lists block counts against DNS, and ABP is not asked',
         () {
       final lists = _Lists(dnsHosts: {'t.example'}, abpHosts: {'t.example'});
-      final v = BlockDecision.decide(_url('https://t.example/x'), _on, lists);
+      final v = BlockDecision.decide(_url('https://t.example/x'),
+          policy: _on, lists: lists);
       expect(v, isA<Blocked>());
       expect(v.source, BlockSource.dns);
       expect(lists.asked.where((q) => q.startsWith('abp:')), isEmpty);
@@ -65,7 +67,8 @@ void main() {
 
     test('what DNS lets through goes to the filter lists', () {
       final lists = _Lists(abpHosts: {'ads.example'});
-      final v = BlockDecision.decide(_url('https://ads.example/a.js'), _on, lists);
+      final v = BlockDecision.decide(_url('https://ads.example/a.js'),
+          policy: _on, lists: lists);
       expect(v.source, BlockSource.abp);
       expect(lists.asked.last,
           'abp:https://ads.example/a.js from https://site.example/ as other');
@@ -75,7 +78,7 @@ void main() {
       const url = 'https://ads.example/gtm.js';
       final lists = _Lists(
           abpHosts: {'ads.example'}, redirects: {url: 'data:text/plain,'});
-      final v = BlockDecision.decide(_url(url), _on, lists);
+      final v = BlockDecision.decide(_url(url), policy: _on, lists: lists);
       expect(v, isA<Redirect>().having((r) => r.url, 'url', 'data:text/plain,'));
       expect(v.source, BlockSource.abp);
     });
@@ -83,7 +86,7 @@ void main() {
     test('content blocking off never asks the filter lists', () {
       final lists = _Lists(abpHosts: {'ads.example'});
       final v = BlockDecision.decide(_url('https://ads.example/a.js'),
-          (dnsLevel: 3, contentBlock: false), lists);
+          policy: (dnsLevel: 3, contentBlock: false), lists: lists);
       expect(v, isA<Allowed>());
       expect(lists.asked.where((q) => q.startsWith('abp:')), isEmpty);
     });
@@ -91,22 +94,24 @@ void main() {
     test('DNS off never asks the DNS lists', () {
       final lists = _Lists(dnsHosts: {'t.example'});
       final v = BlockDecision.decide(_url('https://t.example/x'),
-          (dnsLevel: kDnsLevelOff, contentBlock: true), lists);
+          policy: (dnsLevel: kDnsLevelOff, contentBlock: true), lists: lists);
       expect(v, isA<Allowed>());
       expect(lists.asked.where((q) => q.startsWith('dns:')), isEmpty);
     });
 
     test("DNS is asked at the site's own level", () {
       final lists = _Lists(dnsHosts: {'t.example'}, dnsLevel: 4);
-      expect(BlockDecision.decide(_url('https://t.example/'), _on, lists),
+      expect(
+          BlockDecision.decide(_url('https://t.example/'),
+              policy: _on, lists: lists),
           isA<Allowed>());
       expect(lists.asked.first, 'dns:t.example@3');
     });
 
     test('a host query asks the host lookups', () {
       final lists = _Lists(abpHosts: {'cdn.example'});
-      final v =
-          BlockDecision.decide(const HostQuery('cdn.example'), _on, lists);
+      final v = BlockDecision.decide(const HostQuery('cdn.example'),
+          policy: _on, lists: lists);
       expect(v.source, BlockSource.abp);
       expect(lists.asked, ['dns:cdn.example@3', 'abp:cdn.example']);
     });

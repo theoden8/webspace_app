@@ -69,13 +69,13 @@ void main() {
         reason: 'the static memo is gone: re-audit, this gate assumes it exists',
       );
       expect(
-        _classLevelDeclarationOf(_scopedLookup, lines, depth),
+        _classLevelDeclarationOf(_scopedLookup, lines: lines, depth: depth),
         isNotNull,
         reason: '$_scopedLookup is gone: the scoped lookup was renamed or '
             'removed, so this gate no longer covers it',
       );
       expect(
-        _classLevelDeclarationOf(_flushFanOut, lines, depth),
+        _classLevelDeclarationOf(_flushFanOut, lines: lines, depth: depth),
         isNotNull,
         reason: '$_flushFanOut is gone: PAUSE-023 assumes flush reaches every '
             "container's jar",
@@ -99,7 +99,7 @@ void main() {
     });
 
     test('every scoped lookup call site keeps the result in a local', () {
-      final callSites = _callSitesOf(_scopedLookup, lines, depth);
+      final callSites = _callSitesOf(_scopedLookup, lines: lines, depth: depth);
       expect(
         callSites,
         isNotEmpty,
@@ -127,8 +127,8 @@ void main() {
       // Resolving a local and then operating on the static is the same defect
       // wearing a different shape: the op still lands on the wrong jar.
       final offenders = <String>[];
-      for (final i in _callSitesOf(_scopedLookup, lines, depth)) {
-        final body = _enclosingMethodBody(i, lines, depth);
+      for (final i in _callSitesOf(_scopedLookup, lines: lines, depth: depth)) {
+        final body = _enclosingMethodBody(i, lines: lines, depth: depth);
         for (final j in body) {
           if (RegExp('(?<![.\\w])$_memoField(?![\\w(])').hasMatch(lines[j])) {
             offenders.add('MyCookieManager.java:${j + 1}');
@@ -145,7 +145,7 @@ void main() {
 
   group('fork flush fan-out (PAUSE-023)', () {
     test('flush reaches every container jar, not just the default one', () {
-      final flushBody = _methodBodyOf('flush', lines, depth);
+      final flushBody = _methodBodyOf('flush', lines: lines, depth: depth);
       expect(
         flushBody,
         isNotNull,
@@ -159,7 +159,8 @@ void main() {
             'stay unwritten when the OS kills the app',
       );
 
-      final fanOutBody = _methodBodyOf(_flushFanOut, lines, depth)!;
+      final fanOutBody =
+          _methodBodyOf(_flushFanOut, lines: lines, depth: depth)!;
       final fanOut = _joined(fanOutBody.map((i) => lines[i]));
       expect(fanOut, contains('ProfileStore'));
       expect(
@@ -288,7 +289,7 @@ List<int> _braceDepthBefore(List<String> lines) {
 }
 
 int? _classLevelDeclarationOf(
-    String name, List<String> lines, List<int> depth) {
+    String name, {required List<String> lines, required List<int> depth}) {
   for (var i = 0; i < lines.length; i++) {
     if (depth[i] == 1 &&
         RegExp('(?<![.\\w])$name\\s*\\(').hasMatch(lines[i]) &&
@@ -300,7 +301,8 @@ int? _classLevelDeclarationOf(
 }
 
 /// Lines that CALL [name], excluding its declaration (which sits at depth 1).
-List<int> _callSitesOf(String name, List<String> lines, List<int> depth) {
+List<int> _callSitesOf(String name,
+    {required List<String> lines, required List<int> depth}) {
   final sites = <int>[];
   for (var i = 0; i < lines.length; i++) {
     if (depth[i] > 1 && RegExp('(?<![.\\w])$name\\s*\\(').hasMatch(lines[i])) {
@@ -311,7 +313,8 @@ List<int> _callSitesOf(String name, List<String> lines, List<int> depth) {
 }
 
 /// Line indices of the method body containing [line], opener through closer.
-List<int> _enclosingMethodBody(int line, List<String> lines, List<int> depth) {
+List<int> _enclosingMethodBody(int line,
+    {required List<String> lines, required List<int> depth}) {
   var start = line;
   while (start > 0 && !(depth[start] == 1 && lines[start].contains('{'))) {
     start--;
@@ -323,8 +326,9 @@ List<int> _enclosingMethodBody(int line, List<String> lines, List<int> depth) {
   return [for (var i = start; i <= end; i++) i];
 }
 
-List<int>? _methodBodyOf(String name, List<String> lines, List<int> depth) {
-  final start = _classLevelDeclarationOf(name, lines, depth);
+List<int>? _methodBodyOf(String name,
+    {required List<String> lines, required List<int> depth}) {
+  final start = _classLevelDeclarationOf(name, lines: lines, depth: depth);
   if (start == null) return null;
-  return _enclosingMethodBody(start + 1, lines, depth);
+  return _enclosingMethodBody(start + 1, lines: lines, depth: depth);
 }

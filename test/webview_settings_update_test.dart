@@ -6,16 +6,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/webview.dart';
 
-bool _deepEquals(Object? a, Object? b) {
+bool _deepEquals(Object? a, {required Object? b}) {
   if (a is Map && b is Map) {
     return a.length == b.length &&
-        a.keys.every((k) => b.containsKey(k) && _deepEquals(a[k], b[k]));
+        a.keys.every((k) => b.containsKey(k) && _deepEquals(a[k], b: b[k]));
   }
   if (a is Iterable && b is Iterable) {
     final la = a.toList(), lb = b.toList();
     if (la.length != lb.length) return false;
     for (var i = 0; i < la.length; i++) {
-      if (!_deepEquals(la[i], lb[i])) return false;
+      if (!_deepEquals(la[i], b: lb[i])) return false;
     }
     return true;
   }
@@ -26,10 +26,10 @@ bool _deepEquals(Object? a, Object? b) {
 /// decide it: present in the incoming map and different from what the
 /// webview holds.
 Set<String> appliedKeys(
-    Map<String, dynamic> held, Map<String, dynamic> incoming) {
+    Map<String, dynamic> held, {required Map<String, dynamic> incoming}) {
   return {
     for (final e in incoming.entries)
-      if (e.value != null && !_deepEquals(held[e.key], e.value)) e.key,
+      if (e.value != null && !_deepEquals(held[e.key], b: e.value)) e.key,
   };
 }
 
@@ -57,7 +57,7 @@ void main() {
       useHybridComposition: false,
     ).toMap();
     expect(
-      appliedKeys(held, fresh),
+      appliedKeys(held, incoming: fresh),
       containsAll(<String>[
         'textZoom',
         'javaScriptEnabled',
@@ -74,7 +74,7 @@ void main() {
     final settings = createdSettings();
     final held = settings.toMap();
     settings.textZoom = 150;
-    expect(appliedKeys(held, settings.toMap()), {'textZoom'});
+    expect(appliedKeys(held, incoming: settings.toMap()), {'textZoom'});
   });
 
   test('re-applying the options a site was created with changes nothing', () {
@@ -87,7 +87,7 @@ void main() {
       thirdPartyCookiesEnabled: false,
       incognito: true,
     );
-    expect(appliedKeys(held, settings.toMap()), isEmpty);
+    expect(appliedKeys(held, incoming: settings.toMap()), isEmpty);
   });
 
   test('setOptions changes the options it owns and nothing else', () {
@@ -100,7 +100,7 @@ void main() {
       thirdPartyCookiesEnabled: true,
       incognito: false,
     );
-    expect(appliedKeys(held, settings.toMap()),
+    expect(appliedKeys(held, incoming: settings.toMap()),
         {'javaScriptEnabled', 'thirdPartyCookiesEnabled', 'incognito'});
     expect(settings.preferredContentMode,
         inapp.UserPreferredContentMode.DESKTOP);

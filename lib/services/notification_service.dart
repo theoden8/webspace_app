@@ -101,7 +101,7 @@ class NotificationService {
     // Shared so a concurrent caller (a page's webNotification handler racing
     // startup) awaits real completion instead of calling _plugin.show()
     // before _plugin.initialize() has run.
-    return _init.run((), _doInit);
+    return _init.run((), call: _doInit);
   }
 
   Future<void> _doInit() async {
@@ -205,7 +205,7 @@ class NotificationService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.notification,
-        'OS permission could not be read: ${e.code}',
+        message: 'OS permission could not be read: ${e.code}',
         level: LogLevel.warning,
       );
     }
@@ -213,7 +213,7 @@ class NotificationService {
     final changed = _permissionGranted != value;
     _permissionGranted = value;
     BackgroundLog.instance.record(
-        LogTag.notification, 'OS permission read off screen: '
+        LogTag.notification, message: 'OS permission read off screen: '
             '${value ? "granted" : "not granted"}',
         level: value ? LogLevel.info : LogLevel.warning);
     if (changed) _notifyPermissionListeners();
@@ -233,7 +233,7 @@ class NotificationService {
     if (_permissionGranted != true) {
       BackgroundLog.instance.record(
         LogTag.notification,
-        'notification dropped (${origin.name}, app $app): '
+        message: 'notification dropped (${origin.name}, app $app): '
             'OS notification permission denied',
         level: LogLevel.warning,
         sensitive: 'Skipped "$title" for siteId $siteId',
@@ -275,7 +275,7 @@ class NotificationService {
     } on PlatformException catch (e) {
       BackgroundLog.instance.record(
         LogTag.notification,
-        'notification failed (${origin.name}, app $app): ${e.code}',
+        message: 'notification failed (${origin.name}, app $app): ${e.code}',
         level: LogLevel.error,
         sensitive: 'notification "$title" for siteId $siteId failed: ${e.message}',
       );
@@ -285,7 +285,7 @@ class NotificationService {
     onPosted?.call(siteId);
     BackgroundLog.instance.record(
       LogTag.notification,
-      'notification posted (${origin.name}, '
+      message: 'notification posted (${origin.name}, '
           '${tag == null || tag.isEmpty ? 'untagged' : 'tagged'}, app $app)',
       sensitive: 'Showed notification: "$title" for siteId: $siteId',
     );
@@ -314,8 +314,8 @@ class NotificationService {
     }
     final changed = _permissionGranted != granted;
     _permissionGranted = granted;
-    BackgroundLog.instance.record(
-        LogTag.notification, 'OS permission: ${granted ? "granted" : "denied"}',
+    BackgroundLog.instance.record(LogTag.notification,
+        message: 'OS permission: ${granted ? "granted" : "denied"}',
         level: granted ? LogLevel.info : LogLevel.warning);
     if (changed) _notifyPermissionListeners();
     return granted;

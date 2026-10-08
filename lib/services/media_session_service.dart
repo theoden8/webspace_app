@@ -171,8 +171,8 @@ class MediaSessionService {
 
   /// Called from the `wsMediaSession` JS handler for a background-audio site.
   Future<void> report(
-    String siteId,
-    MediaSessionReport page, {
+    String siteId, {
+    required MediaSessionReport page,
     required Future<void> Function(String js) runJs,
     required UserProxySettings? proxy,
   }) async {
@@ -197,7 +197,7 @@ class MediaSessionService {
       _ownerFrame = frame;
       _ownerIsMainFrame = isMainFrame;
       _ownerRunJs = runJs;
-      final artwork = await _fetchArtwork(artworkUrl, proxy);
+      final artwork = await _fetchArtwork(artworkUrl, proxy: proxy);
       // The artwork fetch is a network round trip on a URL the calling frame
       // chose, so a second report can take ownership while this one is parked
       // here. Publishing regardless would let a frame that stalled its own
@@ -206,7 +206,7 @@ class MediaSessionService {
       // await is not ownership now.
       if (_ownerSiteId != siteId || _ownerFrame != frame) return;
       final raising = !_active;
-      await _invoke(raising ? 'start' : 'update', {
+      await _invoke(raising ? 'start' : 'update', args: {
         'title': title,
         'artist': artist,
         'album': album,
@@ -228,7 +228,7 @@ class MediaSessionService {
       // site that is playing (BGAUDIO-008).
       if (!_active || _ownerSiteId != siteId || _ownerFrame != frame) return;
       _ownerRunJs = runJs;
-      await _invoke('update', {
+      await _invoke('update', args: {
         'title': title,
         'artist': artist,
         'album': album,
@@ -275,11 +275,11 @@ class MediaSessionService {
     // session up is what actually drops the app out of the OS media surface —
     // clearing the metadata alone leaves an entry the engine can repopulate.
     // Ignored by the Android side, which owns its notification outright.
-    await _invoke('stop', {'deactivate': true});
+    await _invoke('stop', args: {'deactivate': true});
     // WebKit republishes its own Now Playing info when it finishes processing
     // the pause that preceded this, which can land after the first clear.
     await Future<void>.delayed(debugSurfaceReclearDelay);
-    await _invoke('stop', {'deactivate': true});
+    await _invoke('stop', args: {'deactivate': true});
   }
 
   /// How long to wait before the second clear. Short enough to run inside the
@@ -306,7 +306,7 @@ class MediaSessionService {
   /// is suppressed, which is what a denied `POST_NOTIFICATIONS` looks like.
   Future<bool> notificationPosted() async {
     if (!_enabled) return false;
-    final result = await _invoke('isNotificationActive', null);
+    final result = await _invoke('isNotificationActive', args: null);
     return result == true;
   }
 
@@ -330,11 +330,12 @@ class MediaSessionService {
     _ownerRunJs = null;
     _ownerFrame = null;
     _visibilityChecked = false;
-    await _invoke('stop', null);
+    await _invoke('stop', args: null);
     LogTag.mediaSession.debug('Notification torn down');
   }
 
-  Future<Object?> _invoke(String method, Map<String, Object?>? args) async {
+  Future<Object?> _invoke(String method,
+      {required Map<String, Object?>? args}) async {
     try {
       return await _channel.invokeMethod<Object?>(method, args);
     } on PlatformException catch (e) {
@@ -348,8 +349,8 @@ class MediaSessionService {
   /// Test seam: parks or short-circuits the artwork fetch so the ownership
   /// re-check after it can be driven deterministically.
   @visibleForTesting
-  static Future<Uint8List?> Function(String url, UserProxySettings? proxy)?
-  debugArtworkFetchOverride;
+  static Future<Uint8List?> Function(String url,
+      {required UserProxySettings? proxy})? debugArtworkFetchOverride;
 
   /// Best-effort artwork fetch: the page's own declared artwork URL, capped and
   /// timed out. Decoding/scaling happens natively. Null on anything unexpected.
@@ -359,9 +360,10 @@ class MediaSessionService {
   /// (LEAK-002) and fails closed when that proxy cannot be honored, and it
   /// refuses loopback / private / link-local literals so a page cannot use it
   /// to probe the LAN or cloud metadata.
-  Future<Uint8List?> _fetchArtwork(String url, UserProxySettings? proxy) async {
+  Future<Uint8List?> _fetchArtwork(String url,
+      {required UserProxySettings? proxy}) async {
     final override = debugArtworkFetchOverride;
-    if (override != null) return override(url, proxy);
+    if (override != null) return override(url, proxy: proxy);
     if (url.isEmpty) return null;
     final uri = Uri.tryParse(url);
     if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
@@ -375,7 +377,7 @@ class MediaSessionService {
     // The artwork URL comes from the page's own media-session metadata, so a
     // name pointing into the LAN turns this into a blind request the site
     // chose. Nothing comes back to the page here, but a GET still lands.
-    final verdict = await classifyOutboundTarget(url, effective);
+    final verdict = await classifyOutboundTarget(url, effective: effective);
     if (verdict != HostRangeVerdict.public &&
         verdict != HostRangeVerdict.notResolvedHere) {
       LogTag.mediaSession.warning(
