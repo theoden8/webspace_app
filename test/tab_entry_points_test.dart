@@ -189,16 +189,16 @@ void main() {
     });
 
     test('the tab list leaves out sites without tabs', () {
-      final start = source.indexOf('List<TabsSheetSite> _tabsSheetSites() {');
+      final start = tabs.indexOf('List<TabsSheetSite> sheetSites() {');
       expect(start, isNot(-1));
-      final body = source.substring(start, source.indexOf('\n  }\n', start));
+      final body = tabs.substring(start, tabs.indexOf('\n  }\n', start));
       expect(
-        RegExp(r'for \(final i in view\)\s*if \(_tabs\.enabledAt\(i\)\)')
+        RegExp(r'for \(final i in view\)\s*if \(enabledAt\(i\)\)')
             .hasMatch(body),
         isTrue,
       );
       expect(
-        RegExp(r'if \(!shown\.contains\(i\) && _tabs\.enabledAt\(i\)\)')
+        RegExp(r'if \(!shown\.contains\(i\) && enabledAt\(i\)\)')
             .hasMatch(body),
         isTrue,
         reason: 'a site the webspace hides is listed for TAB-017 only when '
@@ -299,7 +299,7 @@ void guarded(String src,
       expect(body.contains('_webspaces.reorderSite(from, newListIndex: to);'),
           isTrue);
       // Reordering "All" renumbers every site, so the sheet gets them afresh.
-      expect(body.contains('return _tabsSheetSites();'), isTrue);
+      expect(body.contains('return _tabs.sheetSites();'), isTrue);
       expect(body.contains('.insert('), isFalse);
       expect(body.contains('.removeAt('), isFalse);
     });

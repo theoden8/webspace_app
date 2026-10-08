@@ -872,28 +872,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  /// Every site with tabs: the current webspace's in the order the drawer
-  /// shows them, then the rest, whose trees can hold tabs that run as a site
-  /// the webspace shows (TAB-017). A site without tabs is left out, so its
-  /// stored ones cannot be opened from another site's list.
-  List<TabsSheetSite> _tabsSheetSites() {
-    final view = _sites.filteredIndices();
-    final shown = view.toSet();
-    TabsSheetSite site(int i) => TabsSheetSite(
-          index: i,
-          model: _sites.models[i],
-          isCurrent: i == _sites.current,
-          isLoaded: _sites.loaded.contains(i),
-          inView: shown.contains(i),
-        );
-    return [
-      for (final i in view)
-        if (_tabs.enabledAt(i)) site(i),
-      for (var i = 0; i < _sites.models.length; i++)
-        if (!shown.contains(i) && _tabs.enabledAt(i)) site(i),
-    ];
-  }
-
   /// A sheet opened while the keyboard is up sits behind it, and the
   /// keyboard stays up while the URL bar or an input in the page has focus.
   Future<void> _dismissKeyboard() async {
@@ -924,7 +902,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   bool _isShowingTabsSheet = false;
 
   Future<void> _presentTabsSheet() async {
-    final sites = _tabsSheetSites();
+    final sites = _tabs.sheetSites();
     final at = sites.indexWhere((s) => s.index == _sites.current);
     if (at < 0) return;
     await showModalBottomSheet<void>(
@@ -961,7 +939,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final to = at(ontoSiteId);
     if (from < 0 || to < 0 || from == to) return null;
     _webspaces.reorderSite(from, newListIndex: to);
-    return _tabsSheetSites();
+    return _tabs.sheetSites();
   }
 
   /// A long press that landed on a link. In-domain links can become a tab of
