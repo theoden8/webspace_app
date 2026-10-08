@@ -6,15 +6,9 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/url_host.dart';
-import 'package:webspace/services/user_script_shim.dart';
+import 'package:webspace/services/page_js.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
-
-// The shim JS template and [buildUserScriptShim] live in
-// `user_script_shim.dart` (pure Dart, no Flutter imports) so the fixture
-// dumper at `tool/dump_shim_js.dart` can reach them under `fvm dart run`.
-export 'package:webspace/services/user_script_shim.dart'
-    show buildUserScriptShim, userScriptShimTemplate;
 
 /// Result of validating a URL for script fetching.
 enum ScriptFetchUrlStatus {
@@ -246,11 +240,12 @@ class UserScriptService {
 
     String? shimScript;
     if (hasPrivilegedBridge) {
-      shimScript = buildUserScriptShim(
-        scriptHandlerName: scriptHandlerName,
-        fetchHandlerName: fetchHandlerName,
-        inlineScriptHandlerName: inlineScriptHandlerName,
-      );
+      shimScript = PageJs.userScript.withConfig({
+        'scriptHandler': scriptHandlerName,
+        'fetchHandler': fetchHandlerName,
+        'inlineScriptHandler': inlineScriptHandlerName,
+        'whitelist': scriptFetchWhitelist.toList(),
+      });
     }
 
     return UserScriptService._(

@@ -11,12 +11,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 
-const ALPHA = readFixture('anti_fingerprinting/shim_seed_alpha.js');
-const BETA = readFixture('anti_fingerprinting/shim_seed_beta.js');
+const ALPHA = pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: false });
+const BETA = pageJs('anti_fingerprinting', { seed: 'beta-fixture-seed', letterbox: false });
 
 const PAGE = `<!doctype html><html><body>
   <div id="d" style="width:120px;height:40px;margin:7px">rect</div>

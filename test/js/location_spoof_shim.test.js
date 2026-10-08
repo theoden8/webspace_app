@@ -6,14 +6,15 @@
 // run a real WebRTC stack, so we cannot prove the relay-only mode
 // actually filters ICE candidates over the wire — only that the wrap
 // is installed and forces the policy on construction. End-to-end relay
-// proof belongs in a Playwright tier (see test/js_fixtures/README.md).
+// proof belongs in the browser tier (test/browser/location_spoof_real.test.js).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadShim, makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const LOC = require('./helpers/location_configs');
+const { loadShim, makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
 test('webrtc_disabled: new RTCPeerConnection() throws "WebRTC disabled"', () => {
-  const dom = loadShim('location_spoof/webrtc_disabled.js');
+  const dom = loadShim(LOC.WEBRTC_DISABLED);
   assert.throws(
     () => new dom.window.RTCPeerConnection(),
     /WebRTC disabled/,
@@ -25,13 +26,13 @@ test('webrtc_relay: RTCPeerConnection construction forces iceTransportPolicy=rel
   // object passed in has `iceTransportPolicy: 'relay'` injected before
   // the underlying ctor is called. The wrapped instance is what the page
   // gets back, so reading `__config` on it shows the policy was forced.
-  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const dom = loadShim(LOC.WEBRTC_RELAY);
   const pc = new dom.window.RTCPeerConnection({});
   assert.equal(pc.__config.iceTransportPolicy, 'relay');
 });
 
 test('webrtc_relay: setLocalDescription strips non-relay ICE candidates from SDP', async () => {
-  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const dom = loadShim(LOC.WEBRTC_RELAY);
   const pc = new dom.window.RTCPeerConnection();
   const sdp = [
     'v=0',
@@ -49,7 +50,7 @@ test('webrtc_relay: setLocalDescription strips non-relay ICE candidates from SDP
 });
 
 test('timezone_only_tokyo: Intl.DateTimeFormat reports Asia/Tokyo without explicit timeZone', () => {
-  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  const dom = loadShim(LOC.TIMEZONE_ONLY_TOKYO);
   const dtf = new dom.window.Intl.DateTimeFormat('en-US');
   assert.equal(dtf.resolvedOptions().timeZone, 'Asia/Tokyo');
 });
@@ -57,13 +58,13 @@ test('timezone_only_tokyo: Intl.DateTimeFormat reports Asia/Tokyo without explic
 test('timezone_only_tokyo: Intl.DateTimeFormat respects an explicit timeZone arg', () => {
   // The shim only forces TZ when the caller doesn't pass one — sites
   // that explicitly request UTC must still get UTC.
-  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  const dom = loadShim(LOC.TIMEZONE_ONLY_TOKYO);
   const dtf = new dom.window.Intl.DateTimeFormat('en-US', { timeZone: 'UTC' });
   assert.equal(dtf.resolvedOptions().timeZone, 'UTC');
 });
 
 test('timezone_only_tokyo: Date.prototype.getTimezoneOffset returns -540 for Tokyo (UTC+9)', () => {
-  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  const dom = loadShim(LOC.TIMEZONE_ONLY_TOKYO);
   const offset = new dom.window.Date('2026-06-15T12:00:00Z').getTimezoneOffset();
   // getTimezoneOffset is signed inverse: positive when local is BEHIND
   // UTC, negative when AHEAD. Tokyo is UTC+9 → -540 minutes.
@@ -71,7 +72,7 @@ test('timezone_only_tokyo: Date.prototype.getTimezoneOffset returns -540 for Tok
 });
 
 test('static_tokyo: navigator.geolocation.getCurrentPosition resolves with spoofed coords', async () => {
-  const dom = loadShim('location_spoof/static_tokyo.js');
+  const dom = loadShim(LOC.STATIC_TOKYO);
   const pos = await new Promise((resolve, reject) => {
     dom.window.navigator.geolocation.getCurrentPosition(resolve, reject);
   });
@@ -86,7 +87,7 @@ test('static_tokyo: spoofed position is instanceof GeolocationPosition', () => {
   // Detection hardening: real browsers return a GeolocationPosition
   // instance, so `pos instanceof GeolocationPosition` is true. The shim
   // builds spoofed positions on the real prototype to match.
-  const dom = loadShim('location_spoof/static_tokyo.js');
+  const dom = loadShim(LOC.STATIC_TOKYO);
   return new Promise((resolve, reject) => {
     dom.window.navigator.geolocation.getCurrentPosition((pos) => {
       try {
@@ -103,9 +104,8 @@ test('static_tokyo: spoofed position is instanceof GeolocationPosition', () => {
 // Helper: install a fake flutter_inappwebview.callHandler that resolves
 // every `getRealLocation` call with the same fix. Returns the dom so the
 // caller can drive geolocation calls.
-function loadLiveShim(fixtureRelPath, fakeFix) {
-  const { loadShim: load } = require('./helpers/load_shim');
-  const dom = load(fixtureRelPath);
+function loadLiveShim(source, fakeFix) {
+  const dom = loadShim(source);
   dom.window.flutter_inappwebview = {
     callHandler(name, ...args) {
       if (name === 'getRealLocation') {
@@ -126,7 +126,7 @@ test('live_gps: getCurrentPosition returns the platform fix unchanged (modulo su
   // The platform fix is 35.6762, 139.6503 with 12 m accuracy. GPS
   // granularity must not snap to a grid; only the ~2 m jitter in
   // makeCoordsFrom is allowed to perturb the values.
-  const dom = loadLiveShim('location_spoof/live_gps.js', {
+  const dom = loadLiveShim(LOC.LIVE_GPS, {
     lat: 35.6762, lng: 139.6503, acc: 12,
   });
   const pos = await new Promise((resolve, reject) => {
@@ -143,9 +143,9 @@ test('live_gps: getCurrentPosition returns the platform fix unchanged (modulo su
 // floor differ. A regression on either tier fails its own row without
 // false-positives on the other.
 const SNAP_TIERS = [
-  { name: 'approximate', fixture: 'location_spoof/live_approximate.js',
+  { name: 'approximate', fixture: LOC.LIVE_APPROXIMATE,
     latStep: 0.001, accFloor: 110 },
-  { name: 'gsm',         fixture: 'location_spoof/live_gsm.js',
+  { name: 'gsm',         fixture: LOC.LIVE_GSM,
     latStep: 0.01,  accFloor: 1100 },
 ];
 
@@ -209,8 +209,7 @@ for (const tier of SNAP_TIERS) {
     const fix1 = { lat: 35.6760, lng: 139.6500, acc: 12 };
     const fix2 = { lat: 35.6760 + cell, lng: 139.6500 + cell, acc: 12 };
     let nextFix = fix1;
-    const { loadShim: load } = require('./helpers/load_shim');
-    const dom = load(tier.fixture);
+    const dom = loadShim(tier.fixture);
     dom.window.flutter_inappwebview = {
       callHandler(name) {
         if (name !== 'getRealLocation') return Promise.resolve(null);
@@ -244,8 +243,8 @@ test('toLocale* report the spoofed zone, not the system one', () => {
     loadShim(fixture).window.eval(expr);
 
   for (const [fixture, zone] of [
-    ['location_spoof/timezone_only_utc.js', 'UTC'],
-    ['location_spoof/timezone_only_tokyo.js', 'Asia/Tokyo'],
+    [LOC.TIMEZONE_ONLY_UTC, 'UTC'],
+    [LOC.TIMEZONE_ONLY_TOKYO, 'Asia/Tokyo'],
   ]) {
     for (const method of
         ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']) {
@@ -260,13 +259,13 @@ test('toLocale* report the spoofed zone, not the system one', () => {
   // Non-vacuous: two spoofed zones must disagree, which can only happen if
   // the shim is driving the zone rather than the host's.
   assert.notEqual(
-    at('location_spoof/timezone_only_utc.js', "new Date(0).toLocaleString('en-US')"),
-    at('location_spoof/timezone_only_tokyo.js', "new Date(0).toLocaleString('en-US')"),
+    at(LOC.TIMEZONE_ONLY_UTC, "new Date(0).toLocaleString('en-US')"),
+    at(LOC.TIMEZONE_ONLY_TOKYO, "new Date(0).toLocaleString('en-US')"),
   );
 });
 
 test('an explicit timeZone argument is still honoured', () => {
-  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  const dom = loadShim(LOC.TIMEZONE_ONLY_TOKYO);
   assert.equal(
     dom.window.eval(
       "new Date(0).toLocaleString('en-US', { timeZone: 'America/New_York' })"),
@@ -278,7 +277,7 @@ test('the toLocale* wrappers keep a native arity', () => {
   // A native `Date.prototype.toLocaleString.length` is 0. Declaring
   // (locales, options) on the wrapper would make it 2, which is a
   // one-expression tell.
-  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  const dom = loadShim(LOC.TIMEZONE_ONLY_TOKYO);
   for (const method of
       ['toLocaleString', 'toLocaleDateString', 'toLocaleTimeString']) {
     assert.equal(dom.window.eval(`Date.prototype.${method}.length`), 0);
@@ -293,8 +292,8 @@ test('the language and timezone wrappers chain in either install order', () => {
   // Both wrap the same three methods and each only fills in an argument the
   // caller omitted, so locale and zone must both survive whichever installs
   // first.
-  const LANG = readFixture('language/ja.js');
-  const TZ = readFixture('location_spoof/timezone_only_tokyo.js');
+  const LANG = pageJs('language', { language: 'ja' });
+  const TZ = LOC.TIMEZONE_ONLY_TOKYO;
   const expected = new Date(0).toLocaleString('ja', { timeZone: 'Asia/Tokyo' });
 
   for (const order of [[LANG, TZ], [TZ, LANG]]) {
@@ -310,7 +309,7 @@ test('a zero-offset zone reports +0, never negative zero', () => {
   // matters — the leak only appeared when the sub-second remainder was exactly
   // zero, which the quantized clock makes common — so probe both boundary and
   // non-boundary instants.
-  const dom = loadShim('location_spoof/timezone_only_utc.js');
+  const dom = loadShim(LOC.TIMEZONE_ONLY_UTC);
   const r = dom.window.eval(`(() => {
     const out = [];
     for (const ms of [0, 1, 500, 999, 1000, 1700000000000, 1700000000123]) {
@@ -328,7 +327,7 @@ test('full_combo: all four overrides install in the same realm', () => {
   // override because a previous one threw — they're all independent and
   // wrapped in try/catch in the shim, but a regression here would mean
   // a syntax error or top-level throw broke the whole bundle.
-  const dom = loadShim('location_spoof/full_combo.js');
+  const dom = loadShim(LOC.FULL_COMBO);
   // Geolocation patched (Paris coords).
   return new Promise((resolve, reject) => {
     dom.window.navigator.geolocation.getCurrentPosition((pos) => {
@@ -359,8 +358,8 @@ test('full_combo: all four overrides install in the same realm', () => {
 // worse than uniformly wrong.)
 
 const BLOCKING_FIXTURES = [
-  ['blocked', 'location_spoof/blocked.js'],
-  ['spoof_without_coords', 'location_spoof/spoof_without_coords.js'],
+  ['blocked', LOC.BLOCKED],
+  ['spoof_without_coords', LOC.SPOOF_WITHOUT_COORDS],
 ];
 
 // Resolve to what the page actually observed, so a shim that never calls
@@ -456,13 +455,13 @@ for (const [name, fixture] of BLOCKING_FIXTURES) {
 }
 
 test('a grant is unaffected: static_tokyo still reports permissions granted', async () => {
-  const dom = loadShim('location_spoof/static_tokyo.js');
+  const dom = loadShim(LOC.STATIC_TOKYO);
   const status = await dom.window.navigator.permissions.query({ name: 'geolocation' });
   assert.equal(status.state, 'granted');
 });
 
 test('permissions.query passes non-geolocation descriptors through untouched', async () => {
-  const dom = loadShim('location_spoof/blocked.js');
+  const dom = loadShim(LOC.BLOCKED);
   const status = await dom.window.navigator.permissions.query({ name: 'camera' });
   assert.equal(status.state, 'prompt');
 });
@@ -470,7 +469,7 @@ test('permissions.query passes non-geolocation descriptors through untouched', a
 // --- the relay policy lives on the prototype (SEC-017) ---
 
 test('webrtc_relay: setConfiguration cannot lift the policy', () => {
-  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const dom = loadShim(LOC.WEBRTC_RELAY);
   const pc = new dom.window.RTCPeerConnection({ iceTransportPolicy: 'all' });
   assert.equal(pc.__config.iceTransportPolicy, 'relay');
   pc.setConfiguration({
@@ -488,7 +487,7 @@ test('webrtc_relay: setConfiguration cannot lift the policy', () => {
 
 test('webrtc_relay: the SDP filter is the prototype method, so .call() cannot skip it',
     async () => {
-  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const dom = loadShim(LOC.WEBRTC_RELAY);
   const pc = new dom.window.RTCPeerConnection();
   assert.equal(
     Object.prototype.hasOwnProperty.call(pc, 'setLocalDescription'), false,
@@ -507,14 +506,14 @@ test('webrtc_relay: the SDP filter is the prototype method, so .call() cannot sk
 
 test('webrtc_relay: the argument-less setLocalDescription still passes through',
     async () => {
-  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const dom = loadShim(LOC.WEBRTC_RELAY);
   const pc = new dom.window.RTCPeerConnection();
   await pc.setLocalDescription();
   assert.equal(pc.__lastSdp, undefined);
 });
 
 test('webrtc_relay: the constructor does not write onto the caller\'s object', () => {
-  const dom = loadShim('location_spoof/webrtc_relay.js');
+  const dom = loadShim(LOC.WEBRTC_RELAY);
   const config = { iceTransportPolicy: 'all' };
   new dom.window.RTCPeerConnection(config);
   assert.equal(config.iceTransportPolicy, 'all');
@@ -523,7 +522,7 @@ test('webrtc_relay: the constructor does not write onto the caller\'s object', (
 // --- toDateString / toTimeString (SEC-025) ---
 
 test('timezone_only_tokyo: toDateString and toTimeString report the spoofed zone', () => {
-  const dom = loadShim('location_spoof/timezone_only_tokyo.js');
+  const dom = loadShim(LOC.TIMEZONE_ONLY_TOKYO);
   const d = "new Date('2024-07-15T20:00:00Z')";
   assert.equal(dom.window.eval(`${d}.toDateString()`), 'Tue Jul 16 2024');
   assert.match(

@@ -1,6 +1,5 @@
 // Real-Chromium proof for the media stop (BGAUDIO-009,
-// lib/services/media_session_shim.dart `buildMediaPauseJs`, dumped to
-// test/js_fixtures/media_session/pause_media.js).
+// lib/js/media_pause.js).
 //
 // This is the snippet the app evaluates on a site WITHOUT the background-audio
 // toggle when it loses the screen. jsdom cannot prove anything about it:
@@ -10,10 +9,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { LAUNCH_ARGS, newShimPage } = require('./helpers/media_session_page');
 
-const PAUSE_JS = readFixture('media_session/pause_media.js');
+const PAUSE_JS = pageJs('media_pause');
 
 const browser = setupBrowser(LAUNCH_ARGS);
 

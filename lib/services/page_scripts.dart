@@ -2,23 +2,15 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/anti_fingerprinting_shim.dart';
-import 'package:webspace/services/blob_url_capture.dart';
-import 'package:webspace/services/block_interceptor_shim.dart';
-import 'package:webspace/services/clearurl_share_shim.dart';
-import 'package:webspace/services/do_not_track_shim.dart';
 import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/launch_nonce.dart';
 import 'package:webspace/services/page_shim.dart';
 import 'package:webspace/services/page_zoom_shim.dart';
-import 'package:webspace/services/target_blank_rewrite.dart';
-import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/content_blocker_shim.dart';
-import 'package:webspace/services/generic_cosmetic_shim.dart';
 import 'package:webspace/services/procedural_cosmetic_shim.dart';
 import 'package:webspace/services/capture_shim.dart';
 import 'package:webspace/services/passkey_engine.dart';
-import 'package:webspace/services/passkey_shim.dart';
 import 'package:webspace/services/desktop_mode_shim.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
@@ -28,13 +20,13 @@ import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/media_session_shim.dart';
 import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/notification_polyfill_shim.dart';
 import 'package:webspace/services/user_script_service.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// The user scripts a site webview starts with: every shim its posture asks
 /// for, in the order they must run.
@@ -70,7 +62,7 @@ abstract final class PageScripts {
       if (scoped.webGl case final js?)
         pageShim('webgl_kill_switch', js: js, frames: ShimFrames.all),
       pageShim('do_not_track',
-          js: buildDoNotTrackShim(), frames: ShimFrames.all),
+          js: PageJs.doNotTrack.script, frames: ShimFrames.all),
     ];
     // Capture shims. Each asks Dart for the site's decision through its
     // kind's request handler, so the popup, the remembered choice and the
@@ -100,7 +92,7 @@ abstract final class PageScripts {
       ..._passkeyShims(config.passkeys),
       // Cross-domain taps then reach shouldOverrideUrlLoading, which has a
       // reliable gesture, instead of onCreateWindow (issue #405).
-      pageShim('target_blank_rewrite', js: targetBlankRewriteScript,
+      pageShim('target_blank_rewrite', js: PageJs.targetBlankRewrite.script,
           frames: ShimFrames.all),
       if (scoped.antiFingerprinting case final js?)
         pageShim('anti_fingerprinting', js: js, frames: ShimFrames.all),
@@ -119,7 +111,7 @@ abstract final class PageScripts {
       pageShim('location_spoof', js: scoped.location, frames: ShimFrames.all),
       ..._contentBlockerShims(config),
       if (posture.blocking.clearUrls)
-        pageShim('clearurl_share', js: clearUrlShareScript,
+        pageShim('clearurl_share', js: PageJs.clearUrlShare.script,
             frames: ShimFrames.all),
       if (scoped.language case final js?)
         pageShim('language_override', js: js, frames: ShimFrames.all),
@@ -155,7 +147,7 @@ abstract final class PageScripts {
     final language = p.page.language;
     final location = p.location;
     return (
-      webGl: tp ? webGlKillSwitchScript : null,
+      webGl: tp ? PageJs.webGlKillSwitch.script : null,
       antiFingerprinting: buildAntiFingerprintingScriptSource(
         siteId: p.siteId,
         trackingProtectionEnabled: tp,
@@ -180,9 +172,9 @@ abstract final class PageScripts {
   /// and macOS "no passkeys" is the block shim, in every frame (PASSKEY-013).
   static List<inapp.UserScript> _passkeyShims(PasskeyAccess? passkeys) => [
         if (passkeys?.backend == PasskeyBackend.credentialManager)
-          pageShim('passkey', js: buildPasskeyShim(), frames: ShimFrames.all),
+          pageShim('passkey', js: PageJs.passkey.script, frames: ShimFrames.all),
         if (passkeys == null && PasskeyAccess.hostIsApple)
-          pageShim('passkey_block', js: buildPasskeyBlockShim(),
+          pageShim('passkey_block', js: PageJs.passkeyBlock.script,
               frames: ShimFrames.all),
       ];
 
@@ -192,10 +184,10 @@ abstract final class PageScripts {
   /// is bridged too; WebKit raises onDownloadStartRequest for it natively.
   static List<inapp.UserScript> _downloadShims() => [
         pageShim('blob_url_capture',
-            js: blobUrlCaptureScript, frames: ShimFrames.top),
+            js: PageJs.blobUrlCapture.script, frames: ShimFrames.top),
         if (hostIsAndroid)
           pageShim('blob_download_click_intercept',
-              js: blobDownloadClickInterceptScript, frames: ShimFrames.top),
+              js: PageJs.blobDownloadClickIntercept.script, frames: ShimFrames.top),
       ];
 
   /// The per-site UA's identity. A desktop UA also gets userAgentData,
@@ -241,7 +233,7 @@ abstract final class PageScripts {
     };
     return [
       if ((hostIsIOS || hostIsMacOS) && !desktopMode)
-        pageShim('default_viewport', js: defaultViewportScript,
+        pageShim('default_viewport', js: PageJs.defaultViewport.script,
             frames: ShimFrames.top),
       if (!hostIsAndroid)
         pageShim('system_text_zoom', js: buildTextZoomShim(textZoom),
@@ -262,7 +254,7 @@ abstract final class PageScripts {
     }
     LogTag.mediaSession.debug('Bridge armed for this site');
     return [
-      pageShim('media_session_shim', js: buildMediaSessionShim(),
+      pageShim('media_session_shim', js: PageJs.mediaSession.script,
           frames: ShimFrames.all),
     ];
   }
@@ -286,7 +278,7 @@ abstract final class PageScripts {
         pageShim('content_blocker_csp', js: buildContentBlockerCspShim(csp),
             frames: ShimFrames.top),
       if (engine)
-        pageShim('generic_cosmetic', js: buildGenericCosmeticScannerShim(),
+        pageShim('generic_cosmetic', js: PageJs.genericCosmetic.script,
             frames: ShimFrames.top, at: ShimTime.end),
       if (procedural != null)
         pageShim('procedural_cosmetic', js: procedural,
@@ -304,10 +296,10 @@ abstract final class PageScripts {
         (config.posture.blocking.contentBlock &&
             ContentBlockerService.instance.hasRules);
     return [
-      pageShim('block_resource_observer', js: blockResourceObserverScript,
+      pageShim('block_resource_observer', js: PageJs.blockResourceObserver.script,
           frames: ShimFrames.all),
       if (blocks)
-        pageShim('block_js_interceptor', js: blockJsInterceptorScript,
+        pageShim('block_js_interceptor', js: PageJs.blockJsInterceptor.script,
             frames: ShimFrames.all),
     ];
   }

@@ -19,11 +19,12 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const CAPTURE = require('../js/helpers/capture_shims');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const CAMERA_SHIM = readFixture('camera_stream/shim.js');
-const MICROPHONE_SHIM = readFixture('microphone_stream/shim.js');
+const CAMERA_SHIM = CAPTURE.CAMERA;
+const MICROPHONE_SHIM = CAPTURE.MICROPHONE;
 
 // 1x1 opaque PNG, enough for the camera shim to paint a canvas track.
 const IMAGE_DATA_URL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB'

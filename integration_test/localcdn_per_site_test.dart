@@ -19,6 +19,7 @@ import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 const _kSrcProbe = 'window.__wsSrc || null';
 
@@ -27,6 +28,7 @@ String _pageFor(String scriptUrl) =>
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   late HttpServer server;
   late String base;

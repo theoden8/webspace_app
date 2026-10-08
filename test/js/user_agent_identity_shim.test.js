@@ -1,6 +1,5 @@
 // Tier 1 — jsdom assertions for the engine-consistent navigator-identity shim
-// (lib/services/user_agent_identity_shim.dart, dumped to
-// test/js_fixtures/ua_identity/*.js).
+// (lib/js/ua_identity.js).
 //
 // The shim forces navigator.vendor / vendorSub / productSub / oscpu /
 // buildID / platform to the values the UA's *claimed* engine really emits,
@@ -11,12 +10,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadShim } = require('./helpers/load_shim');
+const { loadShim, makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
-const FX_ANDROID = 'ua_identity/firefox_android.js';
-const FX_LINUX_DESKTOP = 'ua_identity/firefox_linux_desktop.js';
-const FXIOS = 'ua_identity/fxios.js';
-const CHROME_ANDROID = 'ua_identity/chrome_android.js';
+const {
+  FX_ANDROID, FX_LINUX_DESKTOP, FXIOS, CHROME_ANDROID,
+} = require('./helpers/ua_identities');
 
 // --- Gecko mobile (Firefox for Android) ---
 
@@ -57,7 +55,7 @@ test('Firefox-desktop: Gecko identity with desktop oscpu and platform', () => {
 
 test('desktop platform agrees with the desktop-mode shim (no contradiction)', () => {
   const identity = loadShim(FX_LINUX_DESKTOP).window.navigator.platform;
-  const desktop = loadShim('desktop_mode/linux.js').window.navigator.platform;
+  const desktop = loadShim(pageJs('desktop_mode', { platform: 'Linux x86_64' })).window.navigator.platform;
   assert.equal(identity, desktop);
 });
 
@@ -89,16 +87,23 @@ test('Chrome-Android: Blink vendor / productSub, no oscpu', () => {
   assert.equal(nav.platform, 'Linux armv8l');
 });
 
+// Whether navigator.userAgentData survives the shim on a host that has it.
+function keepsUserAgentData(src) {
+  const dom = makeDom();
+  Object.defineProperty(dom.window.Navigator.prototype, 'userAgentData', {
+    get() { return { brands: [], mobile: true, platform: 'Android' }; },
+    configurable: true,
+  });
+  runInDom(dom, src);
+  return 'userAgentData' in dom.window.navigator;
+}
+
 test('Chrome-Android: userAgentData is NOT removed (Blink keeps it)', () => {
-  // The shim removes userAgentData only for Gecko/WebKit; the Blink fixture
-  // must not carry a removeProp('userAgentData') line.
-  const src = require('./helpers/load_shim').readFixture(CHROME_ANDROID);
-  assert.equal(/removeProp\('userAgentData'\)/.test(src), false);
+  assert.equal(keepsUserAgentData(CHROME_ANDROID), true);
 });
 
 test('FxiOS DOES remove userAgentData (WebKit lacks it)', () => {
-  const src = require('./helpers/load_shim').readFixture(FXIOS);
-  assert.equal(/removeProp\('userAgentData'\)/.test(src), true);
+  assert.equal(keepsUserAgentData(FXIOS), false);
 });
 
 // --- Detection hardening ---
@@ -124,6 +129,6 @@ test('identity getters stringify as [native code]', () => {
 test('shim loads cleanly and is idempotent under jsdom', () => {
   const dom = loadShim(FX_ANDROID);
   assert.doesNotThrow(() =>
-    dom.window.eval(require('./helpers/load_shim').readFixture(FX_ANDROID)));
+    dom.window.eval(FX_ANDROID));
   assert.equal(dom.window.navigator.vendor, '');
 });

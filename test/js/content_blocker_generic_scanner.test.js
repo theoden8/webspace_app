@@ -1,5 +1,5 @@
 // Phase 5 — jsdom assertions for the generic-cosmetic scanner shim
-// (test/js_fixtures/content_blocker/generic_scanner.js).
+// (lib/js/generic_cosmetic.js).
 //
 // The shim is the page-side half of the Rust engine's
 // `hidden_class_id_selectors` lookup: it scans the loaded DOM for
@@ -14,9 +14,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
-const SCANNER = readFixture('content_blocker/generic_scanner.js');
+const SCANNER = pageJs('generic_cosmetic');
 
 function setupBridge(dom, returnSelectors) {
   const calls = [];

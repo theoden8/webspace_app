@@ -19,22 +19,19 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const WORKER = require('../js/helpers/worker_shims');
 
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startVictim } = require('./helpers/attacker_server');
 
-const INSTALLER = readFixture('worker_shim/installer_combined.js');
+const INSTALLER = WORKER.INSTALLER_COMBINED;
 
-// The installer embeds the exact shim bundle it preloads into workers
+// The exact shim bundle the installer preloads into workers
 // (anti-fingerprinting + UA identity + location/timezone + language).
 // Injecting that same bundle into the document is what the app does via
 // initialUserScripts, and it means any page/worker difference is a
-// propagation failure rather than two fixtures drifting apart.
-const PAYLOAD = (() => {
-  const m = INSTALLER.match(/var PAYLOAD = ("(?:[^"\\]|\\.)*");/);
-  if (!m) throw new Error('installer fixture no longer embeds a PAYLOAD string');
-  return JSON.parse(m[1]);
-})();
+// propagation failure rather than two bundles drifting apart.
+const PAYLOAD = WORKER.COMBINED_PAYLOAD;
 
 // The wrapper hands workers a blob: URL, so the page's own CSP has to
 // admit blob: workers. The gap test at the bottom covers what happens

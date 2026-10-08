@@ -16,7 +16,23 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
+
+// Pixel-5-shaped view extents, the emulator profile the integration tier
+// runs on; none when only the one-shot innerWidth sample is available.
+const viewport = (scale, { pinLayoutWidth = true, extents = true } = {}) =>
+  pageJs('page_zoom_viewport', {
+    scale,
+    pinLayoutWidth,
+    portraitWidth: extents ? 393 : 0,
+    landscapeWidth: extents ? 851 : 0,
+  });
+const VARIANTS = {
+  android_80: viewport(0.8),
+  android_150: viewport(1.5),
+  android_80_no_extents: viewport(0.8, { extents: false }),
+  webkit_80: viewport(0.8, { pinLayoutWidth: false }),
+};
 
 // The view extents baked into the fixtures (Pixel 5 shaped).
 const PORTRAIT = 393;
@@ -42,7 +58,7 @@ function setOrientation(dom, landscape) {
   };
 }
 
-function runZoomShim(fixture, { html, landscape = false, innerWidth } = {}) {
+function runZoomShim(variant, { html, landscape = false, innerWidth } = {}) {
   const dom = makeDom({ html });
   setOrientation(dom, landscape);
   if (innerWidth !== undefined) {
@@ -52,7 +68,7 @@ function runZoomShim(fixture, { html, landscape = false, innerWidth } = {}) {
       writable: true,
     });
   }
-  runInDom(dom, readFixture(fixture));
+  runInDom(dom, VARIANTS[variant]);
   return dom;
 }
 
@@ -70,7 +86,7 @@ const expectedBase = (dom, extent = PORTRAIT) =>
   Math.min(extent, dom.window.innerWidth);
 
 test('Android: page-shipped width=device-width becomes an explicit layout width', () => {
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width, initial-scale=1'),
     innerWidth: PORTRAIT,
   });
@@ -84,24 +100,24 @@ test('Android: the emitted meta always names a width (980px quirk guard)', () =>
   // The regression this guards: `initial-scale=z` with no width. Any
   // future edit that drops the width directive on Android puts every
   // zoomed site back on the 980px desktop layout.
-  for (const fixture of [
-    'page_zoom/android_80.js',
-    'page_zoom/android_150.js',
-    'page_zoom/android_80_no_extents.js',
+  for (const variant of [
+    'android_80',
+    'android_150',
+    'android_80_no_extents',
   ]) {
-    const dom = runZoomShim(fixture, {
+    const dom = runZoomShim(variant, {
       html: withViewport('width=device-width, initial-scale=1'),
     });
     assert.match(
       viewportContent(dom),
       /^width=\d+,\s*initial-scale=/,
-      `${fixture} must pin a numeric layout width`,
+      `${variant} must pin a numeric layout width`,
     );
   }
 });
 
 test('Android: zoom above 100% narrows the layout width', () => {
-  const dom = runZoomShim('page_zoom/android_150.js', {
+  const dom = runZoomShim('android_150', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
   });
@@ -116,14 +132,14 @@ test('WebKit: scale only, so the engine resolves extend-to-zoom itself', () => {
   // WKWebView has no wide-viewport quirk and sizes the layout against the
   // real WebView (split view, Stage Manager), which no page-visible width
   // tracks. Leaving width out keeps that engine-side.
-  const dom = runZoomShim('page_zoom/webkit_80.js', {
+  const dom = runZoomShim('webkit_80', {
     html: withViewport('width=device-width, initial-scale=1'),
   });
   assert.equal(viewportContent(dom), 'initial-scale=0.8');
 });
 
 test('a page shipping no viewport meta gets one injected', () => {
-  const dom = runZoomShim('page_zoom/android_80.js', { innerWidth: PORTRAIT });
+  const dom = runZoomShim('android_80', { innerWidth: PORTRAIT });
   assert.equal(
     viewportContent(dom),
     `width=${layoutWidth(0.8, PORTRAIT)}, initial-scale=0.8`,
@@ -131,7 +147,7 @@ test('a page shipping no viewport meta gets one injected', () => {
 });
 
 test('viewport meta added later is rewritten via MutationObserver', async () => {
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
   });
@@ -149,7 +165,7 @@ test('viewport meta added later is rewritten via MutationObserver', async () => 
 test('a physically smaller box (letterbox, split screen) wins over the extent', () => {
   // Letterbox mode resizes the WebView itself, so the view extent is too
   // wide. The one-shot innerWidth sample is the only thing that sees it.
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: 300,
   });
@@ -160,7 +176,7 @@ test('a box wider than the view extent does not widen the layout', () => {
   // innerWidth reads deviceWidth/z once our own scale is in effect. If a
   // stale one leaked into the sample, the extent must still cap it —
   // otherwise every navigation would zoom further out.
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: 4096,
   });
@@ -171,7 +187,7 @@ test('a box wider than the view extent does not widen the layout', () => {
 });
 
 test('repeated resizes do not compound the zoom', () => {
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
   });
@@ -186,7 +202,7 @@ test('repeated resizes do not compound the zoom', () => {
 });
 
 test('rotation re-pins against the landscape extent', () => {
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
   });
@@ -204,7 +220,7 @@ test('rotation re-pins against the landscape extent', () => {
 });
 
 test('without view extents the innerWidth sample carries the pin', () => {
-  const dom = runZoomShim('page_zoom/android_80_no_extents.js', {
+  const dom = runZoomShim('android_80_no_extents', {
     html: withViewport('width=device-width'),
     innerWidth: 360,
   });
@@ -216,7 +232,7 @@ test('a pin wider than the WebView is snapped back after layout', () => {
   // split screen make the WebView narrower. Once the page has laid out the
   // engine reports the box as the visual viewport, and a layout viewport
   // wider than it means the pin overshot.
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
   });
@@ -235,7 +251,7 @@ test('a pin wider than the WebView is snapped back after layout', () => {
 });
 
 test('the snap stops once the layout viewport fits the box', () => {
-  const dom = runZoomShim('page_zoom/android_80.js', {
+  const dom = runZoomShim('android_80', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
   });
@@ -250,7 +266,7 @@ test('the snap stops once the layout viewport fits the box', () => {
 });
 
 test('WebKit is never snapped: it owns its own layout width', () => {
-  const dom = runZoomShim('page_zoom/webkit_80.js', {
+  const dom = runZoomShim('webkit_80', {
     html: withViewport('width=device-width'),
     innerWidth: PORTRAIT,
   });
@@ -278,13 +294,13 @@ test('screen.width is never read: the AFP shim owns it', () => {
     configurable: true,
     writable: true,
   });
-  runInDom(dom, readFixture('page_zoom/android_80.js'));
+  runInDom(dom, VARIANTS.android_80);
   assert.equal(
     viewportContent(dom),
     `width=${layoutWidth(0.8, PORTRAIT)}, initial-scale=0.8`,
   );
   assert.doesNotMatch(
-    readFixture('page_zoom/android_80.js'),
+    VARIANTS.android_80.replace(/^\s*\/\/.*$/gm, ''),
     /(window|globalThis)\s*\.\s*screen|\bScreen\s*\.\s*prototype|[^a-z]screen\s*\.\s*(width|height|avail)/,
   );
 });
@@ -294,7 +310,7 @@ test('the emitted width never exceeds the box it has to fit', () => {
   // under-estimate is raised back to extend-to-zoom, an over-estimate
   // pushes content off-screen.
   for (const inner of [200, 320, 393, 800, 4096]) {
-    const dom = runZoomShim('page_zoom/android_80.js', {
+    const dom = runZoomShim('android_80', {
       html: withViewport('width=device-width'),
       innerWidth: inner,
     });
@@ -303,5 +319,12 @@ test('the emitted width never exceeds the box it has to fit', () => {
       width <= Math.ceil(expectedBase(dom) / 0.8),
       `innerWidth ${inner}: pinned ${width}`,
     );
+  }
+});
+
+test('the scale the app passes prints without float noise', () => {
+  // The meta reads `initial-scale=` + SCALE, a number parsed from JSON.
+  for (let percent = 30; percent <= 300; percent++) {
+    assert.match(String(percent / 100), /^\d+(\.\d{1,2})?$/, `${percent}%`);
   }
 });

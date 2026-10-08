@@ -1,6 +1,5 @@
 // Tier 2 — real-Chromium test for the offline snapshot serializer
-// (lib/services/html_snapshot.dart, dumped to
-// test/js_fixtures/html_snapshot/snapshot.js).
+// (lib/js/html_snapshot.js).
 //
 // The snapshot is rendered again on a cold start without network and after a
 // renderer the OS killed in the background, so what matters is how the
@@ -14,12 +13,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { listen } = require('./helpers/blank_server');
 
-const SNAPSHOT = readFixture('html_snapshot/snapshot.js');
+const SNAPSHOT = pageJs('html_snapshot');
 const LEGACY = "window.document.getElementsByTagName('html')[0].outerHTML;";
 
 const PAGE = `<!doctype html><html><head>

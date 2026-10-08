@@ -49,6 +49,7 @@ import 'fixture_server.dart';
 import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// Marker baked into the snapshot handed to the webview as `initialHtml`.
 const String _cachedMarker = 'WS_CACHED_SNAPSHOT_MARKER';
@@ -96,6 +97,7 @@ class _Observed {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   late HttpServer server;
   late int port;

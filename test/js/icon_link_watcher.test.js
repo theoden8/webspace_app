@@ -11,7 +11,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture, runInDom } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
 const HANDLER = 'wsIconLinksChanged';
 const LOADED = 'wsIconDocumentLoaded';
@@ -34,7 +34,7 @@ function boot(headHtml = '', { matchMedia } = {}) {
       return Promise.resolve();
     },
   };
-  runInDom(dom, readFixture('icon_link_watcher/shim.js'));
+  runInDom(dom, pageJs('icon_link_watcher', { documentLoadedHandler: 'wsIconDocumentLoaded', linksHandler: 'wsIconLinks', linksChangedHandler: 'wsIconLinksChanged' }));
   // `calls` holds the change reports, which most tests are about.
   return { dom, all, calls };
 }

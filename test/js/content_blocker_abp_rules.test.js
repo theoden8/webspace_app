@@ -31,9 +31,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom } = require('./helpers/load_shim');
+const { ABP_RULES } = require('./helpers/content_blocker_samples');
 
-const ABP_RULES = readFixture('content_blocker/abp_rules.js');
 
 const ABP_HTML = `<!doctype html><html><body>
   <div class="post" id="p-with-ad"><span class="ad-tag">x</span>body</div>

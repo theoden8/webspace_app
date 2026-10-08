@@ -1,5 +1,5 @@
 // Tier 2 — real-Chromium tests for the language shim
-// (lib/services/language_shim.dart, dumped to test/js_fixtures/language/*.js).
+// (lib/js/language.js).
 //
 // jsdom asserts the shim installs the right shape; this tier asserts
 // real Chromium's navigator.language / navigator.languages /
@@ -12,13 +12,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 
-const EN = readFixture('language/en.js');
-const FR = readFixture('language/fr_FR.js');
-const JA = readFixture('language/ja.js');
+const EN = pageJs('language', { language: 'en' });
+const FR = pageJs('language', { language: 'fr-FR' });
+const JA = pageJs('language', { language: 'ja' });
 
 const browser = setupBrowser();
 

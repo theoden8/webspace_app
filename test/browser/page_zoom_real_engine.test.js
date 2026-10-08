@@ -1,6 +1,5 @@
 // Real-Chromium tests for the mobile page-zoom shim
-// (lib/services/page_zoom_shim.dart, dumped to
-// test/js_fixtures/page_zoom/*.js).
+// (lib/js/page_zoom_viewport.js).
 //
 // jsdom has no layout and no viewport-meta semantics, so test/js can only
 // assert which directives the shim writes. What actually matters is what
@@ -18,9 +17,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { startBlankServer, originOf } = require('./helpers/blank_server');
 
 // Matches the view extents baked into the page_zoom fixtures.
@@ -90,7 +87,7 @@ test('baseline: no zoom shim lays out at the device width', async (t) => {
 });
 
 test('80%: the layout viewport widens to deviceWidth/z and reflows', async (t) => {
-  const m = await measure(t, readFixture('page_zoom/android_80.js'));
+  const m = await measure(t, pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851 }));
   if (!m) return;
   // Browser zoom means more CSS pixels fit across the same screen.
   assert.ok(
@@ -107,7 +104,7 @@ test('80%: the layout viewport widens to deviceWidth/z and reflows', async (t) =
 });
 
 test('80%: full-width content still fits — no horizontal overflow', async (t) => {
-  const m = await measure(t, readFixture('page_zoom/android_80.js'));
+  const m = await measure(t, pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851 }));
   if (!m) return;
   assert.ok(
     m.scrollWidth <= m.layoutWidth + 1,
@@ -116,7 +113,7 @@ test('80%: full-width content still fits — no horizontal overflow', async (t) 
 });
 
 test('150%: the layout viewport narrows to deviceWidth/z', async (t) => {
-  const m = await measure(t, readFixture('page_zoom/android_150.js'));
+  const m = await measure(t, pageJs('page_zoom_viewport', { scale: 1.5, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851 }));
   if (!m) return;
   assert.ok(
     Math.abs(m.layoutWidth - DEVICE_WIDTH / 1.5) <= 2,
@@ -131,8 +128,8 @@ test('the pinned Android width lays out identically to the WebKit meta', async (
   // pins the width, WebKit lets the engine resolve extend-to-zoom. On an
   // engine that honours both, they must land on the same layout, or the
   // platforms show users different pages.
-  const pinned = await measure(t, readFixture('page_zoom/android_80.js'));
-  const engine = await measure(t, readFixture('page_zoom/webkit_80.js'));
+  const pinned = await measure(t, pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851 }));
+  const engine = await measure(t, pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: false, portraitWidth: 393, landscapeWidth: 851 }));
   if (!pinned || !engine) return;
   assert.ok(
     Math.abs(pinned.layoutWidth - engine.layoutWidth) <= 1,
@@ -147,8 +144,7 @@ test('an under-estimated pin is raised back to extend-to-zoom', async (t) => {
   // `min-width: extend-to-zoom`, so a too-small number resolves to the
   // exact engine-derived width. This is what makes the fallback paths
   // (no view extents, a stale innerWidth sample) safe.
-  const shim = readFixture('page_zoom/android_80.js')
-    .replace(/var PORTRAIT=\d+;/, 'var PORTRAIT=120;')
+  const shim = pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: true, portraitWidth: 120, landscapeWidth: 851 })
     .replace(/measured=w>0\?w:-1;/, 'measured=-1;');
   const m = await measure(t, shim);
   if (!m) return;
@@ -164,7 +160,7 @@ test('a WebView narrower than the view is corrected after layout', async (t) => 
   // letterbox and split-screen case. Left uncorrected the page lays out at
   // 393/0.8 and hangs off the right edge; the post-layout snap has to
   // bring it back to the box's own 320/0.8.
-  const m = await measure(t, readFixture('page_zoom/android_80.js'), {
+  const m = await measure(t, pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851 }), {
     width: 320,
   });
   if (!m) return;
@@ -181,7 +177,7 @@ test('a WebView narrower than the view is corrected after layout', async (t) => 
 test('the zoom rides the viewport, never root CSS zoom, on mobile', async (t) => {
   // Two writers to page scale is what BUG-008 is about; the mobile build
   // must leave the CSS channel alone.
-  const m = await measure(t, readFixture('page_zoom/android_80.js'));
+  const m = await measure(t, pageJs('page_zoom_viewport', { scale: 0.8, pinLayoutWidth: true, portraitWidth: 393, landscapeWidth: 851 }));
   if (!m) return;
   assert.ok(
     m.rootZoom === 'normal' || m.rootZoom === '1',

@@ -38,6 +38,7 @@ import 'fixture_server.dart';
 import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 class _Req {
   _Req(this.path, {required this.xrw});
@@ -53,6 +54,7 @@ class _Mounted {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   late HttpServer server;
   late int port;

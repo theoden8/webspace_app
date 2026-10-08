@@ -1,31 +1,22 @@
 // Shared helpers for jsdom-based shim tests.
 //
-// The shims in lib/services/*.dart are normally injected at DOCUMENT_START
-// into a real WebView. Here we re-create that environment by:
-//   1. Loading the dumped fixture from test/js_fixtures/ (kept in sync via
-//      tool/dump_shim_js.dart + the Dart drift-check test).
+// The scripts in lib/js/ are normally injected at DOCUMENT_START into a real
+// WebView. Here we re-create that environment by:
+//   1. Reading the script the way the app does (page_js.js: includes
+//      resolved, CONFIG bound).
 //   2. Spinning up jsdom with a configurable URL + initial HTML.
-//   3. Running the shim source via window.eval, which runs *inside* the
+//   3. Running the source via window.eval, which runs *inside* the
 //      jsdom realm so window/document/navigator overrides take effect.
 //
 // jsdom is not a real browser. APIs missing from jsdom (canvas fingerprint,
 // WebGL, audio context, real CSS layout) cannot be exercised here — assert
 // on shim *shape* (constructors replaced, getters defined, properties set)
 // rather than on real-engine behaviour. End-to-end privacy proofing runs
-// the same fixture through Puppeteer + FingerprintJS in
+// the same scripts through Puppeteer + FingerprintJS in
 // test/browser/fingerprint_real_engine.test.js.
 
-const fs = require('node:fs');
-const path = require('node:path');
 const { JSDOM } = require('jsdom');
-
-const repoRoot = path.resolve(__dirname, '..', '..', '..');
-const fixturesRoot = path.join(repoRoot, 'test', 'js_fixtures');
-
-function readFixture(relPath) {
-  const abs = path.join(fixturesRoot, relPath);
-  return fs.readFileSync(abs, 'utf8');
-}
+const { pageJs } = require('./page_js');
 
 function makeDom({ url = 'https://example.com/', html, userAgent, virtualConsole } = {}) {
   const initialHtml =
@@ -130,9 +121,9 @@ function installBrowserPolyfills(window) {
 
   // jsdom omits URL.createObjectURL / revokeObjectURL. The blob-url-capture
   // shim wraps both — without these stubs it early-returns and the wrapping
-  // logic stays untested. The URL form is deterministic so the dumped
-  // download_iife.js fixture (which bakes in test-blob-1) can call into a
-  // captured blob without hard-coding a random jsdom-generated URL.
+  // logic stays untested. The URL form is deterministic so a blob_download.js
+  // config naming test-blob-1 can call into a captured blob without
+  // hard-coding a random jsdom-generated URL.
   if (typeof window.URL.createObjectURL !== 'function') {
     let counter = 0;
     window.URL.createObjectURL = function createObjectURL(_obj) {
@@ -151,10 +142,11 @@ function runInDom(dom, source) {
 }
 
 // Convenience: build a dom + run a fixture in one call.
-function loadShim(fixtureRelPath, domOptions) {
+// A fresh jsdom with [source] run in it.
+function loadShim(source, domOptions) {
   const dom = makeDom(domOptions);
-  runInDom(dom, readFixture(fixtureRelPath));
+  runInDom(dom, source);
   return dom;
 }
 
-module.exports = { readFixture, makeDom, runInDom, loadShim };
+module.exports = { pageJs, makeDom, runInDom, loadShim };

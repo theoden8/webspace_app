@@ -17,11 +17,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  setupBrowser, requireBrowser, readFixture,
+  setupBrowser, requireBrowser,
 } = require('./helpers/launch');
+const { COSMETIC } = require('../js/helpers/content_blocker_samples');
 const { startBlankServer, originOf } = require('./helpers/blank_server');
 
-const COSMETIC = readFixture('content_blocker/cosmetic.js');
 
 // Same CSS-only shim shape as the tier-1 test. Inlined here so this
 // file is self-contained and the contract under test is visible.

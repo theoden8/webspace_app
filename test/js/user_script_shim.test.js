@@ -22,12 +22,17 @@
 const test = require('node:test');
 const assert = require('node:assert');
 
-const { makeDom, readFixture, runInDom } = require('./helpers/load_shim.js');
+const { makeDom, pageJs, runInDom } = require('./helpers/load_shim.js');
 
-const SHIM = readFixture('user_script/shim.js');
 const INLINE_HANDLER = '__ws_i_test';
 const SRC_HANDLER = '__ws_s_test';
 const FETCH_HANDLER = '__ws_f_test';
+const SHIM = pageJs('user_script', {
+  scriptHandler: SRC_HANDLER,
+  fetchHandler: FETCH_HANDLER,
+  inlineScriptHandler: INLINE_HANDLER,
+  whitelist: ['cdn.jsdelivr.net'],
+});
 
 // Build a jsdom + install a callHandler stub before the shim runs, so
 // the shim's lazy bridge capture finds it. Returns { dom, calls } where

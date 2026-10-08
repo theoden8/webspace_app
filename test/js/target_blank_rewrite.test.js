@@ -15,7 +15,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture, runInDom } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
 function bootDom() {
   const dom = makeDom();
@@ -26,7 +26,7 @@ function bootDom() {
     dom.window._virtualConsole.removeAllListeners('jsdomError');
     dom.window._virtualConsole.on('jsdomError', () => {});
   }
-  runInDom(dom, readFixture('target_blank_rewrite/shim.js'));
+  runInDom(dom, pageJs('target_blank_rewrite'));
   return dom;
 }
 
@@ -107,7 +107,7 @@ test('re-evaluating the shim is idempotent', () => {
   // Re-run in the same realm; the reentrance guard must skip re-adding
   // the listener so a single click still results in exactly one rewrite
   // (observable here as the target ending at _self without error).
-  runInDom(dom, readFixture('target_blank_rewrite/shim.js'));
+  runInDom(dom, pageJs('target_blank_rewrite'));
   const a = dom.window.document.createElement('a');
   a.href = 'https://example.com/q';
   a.setAttribute('target', '_blank');

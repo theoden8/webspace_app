@@ -6,7 +6,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { startBlankServer, originOf } = require('./helpers/blank_server');
 
 const browser = setupBrowser();
@@ -35,7 +35,7 @@ async function withPage(t, scripts, body) {
 }
 
 test('the CSS page zoom reaches the root computed style', async (t) => {
-  await withPage(t, [readFixture('page_zoom/css_zoom_120.js')], async (page) => {
+  await withPage(t, [pageJs('page_zoom_css', { zoomPercent: 120 })], async (page) => {
     const zoom = await page.evaluate(
       () => getComputedStyle(document.documentElement).zoom);
     assert.equal(zoom, '1.2');
@@ -43,7 +43,7 @@ test('the CSS page zoom reaches the root computed style', async (t) => {
 });
 
 test('the text zoom installs its size adjust', async (t) => {
-  await withPage(t, [readFixture('page_zoom/text_zoom_150.js')], async (page) => {
+  await withPage(t, [pageJs('text_zoom', { zoomPercent: 150 })], async (page) => {
     const css = await page.evaluate(
       () => document.getElementById('__webspace_text_zoom__').textContent);
     assert.match(css, /-webkit-text-size-adjust:150%/);
@@ -70,7 +70,7 @@ const BRIDGE = `
   };`;
 
 test('the interceptor drops a blocked fetch and lets the rest through', async (t) => {
-  await withPage(t, [BRIDGE, readFixture('block_interceptor/interceptor.js')],
+  await withPage(t, [BRIDGE, pageJs('block_js_interceptor')],
     async (page) => {
       const out = await page.evaluate(async (origin) => {
         await new Promise((r) => setTimeout(r, 50));
@@ -85,7 +85,7 @@ test('the interceptor drops a blocked fetch and lets the rest through', async (t
 });
 
 test('a redirect verdict serves the stub body (CB-010)', async (t) => {
-  await withPage(t, [BRIDGE, readFixture('block_interceptor/interceptor.js')],
+  await withPage(t, [BRIDGE, pageJs('block_js_interceptor')],
     async (page) => {
       const body = await page.evaluate(async () => {
         await new Promise((r) => setTimeout(r, 50));
@@ -96,7 +96,7 @@ test('a redirect verdict serves the stub body (CB-010)', async (t) => {
 });
 
 test('the observer reports the hosts the page loaded from', async (t) => {
-  await withPage(t, [BRIDGE, readFixture('block_interceptor/observer.js')],
+  await withPage(t, [BRIDGE, pageJs('block_resource_observer')],
     async (page) => {
       await new Promise((r) => setTimeout(r, 400));
       const batches = await page.evaluate(() => window.__calls

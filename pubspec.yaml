@@ -153,6 +153,7 @@ flutter:
     - assets/licenses/
     - assets/webspace_icon.png
     - assets/webspace_icon_dark.png
+    - lib/js/
 
 flutter_launcher_icons:
   android: true

@@ -1,10 +1,13 @@
-// jsdom tier for the Notification polyfill
-// (lib/services/notification_polyfill_shim.dart, dumped to
-// test/js_fixtures/notification_polyfill/).
+// jsdom tier for the Notification polyfill (lib/js/notification_polyfill.js).
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
+
+const shim = (notificationsEnabled) => pageJs('notification_polyfill', {
+  siteId: 'site-fixture',
+  notificationsEnabled,
+});
 
 function setup(fixture) {
   const dom = makeDom();
@@ -16,12 +19,12 @@ function setup(fixture) {
     },
   };
   dom.window.console.warn = () => {};
-  runInDom(dom, readFixture(fixture));
+  runInDom(dom, fixture);
   return { w: dom.window, calls };
 }
 
 test('a granted site posts through the bridge', () => {
-  const { w, calls } = setup('notification_polyfill/granted.js');
+  const { w, calls } = setup(shim(true));
   assert.equal(w.Notification.permission, 'granted');
   new w.Notification('Hi', { body: 'there', tag: 't' });
   assert.deepEqual(calls, [{
@@ -32,21 +35,21 @@ test('a granted site posts through the bridge', () => {
 });
 
 test('a denied site posts nothing', () => {
-  const { w, calls } = setup('notification_polyfill/denied.js');
+  const { w, calls } = setup(shim(false));
   assert.equal(w.Notification.permission, 'denied');
   new w.Notification('Hi');
   assert.deepEqual(calls, []);
 });
 
 test('the page cannot swap the polyfill out', () => {
-  const { w } = setup('notification_polyfill/granted.js');
+  const { w } = setup(shim(true));
   const polyfill = w.Notification;
   w.eval('window.Notification = function () {};');
   assert.equal(w.Notification, polyfill);
 });
 
 test('requestPermission asks the bridge and adopts its answer', async () => {
-  const { w, calls } = setup('notification_polyfill/denied.js');
+  const { w, calls } = setup(shim(false));
   assert.equal(await w.Notification.requestPermission(), 'granted');
   assert.equal(w.Notification.permission, 'granted');
   assert.equal(calls[0].name, 'webNotificationRequestPermission');

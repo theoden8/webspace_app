@@ -1,14 +1,13 @@
 // Shared page harness for the media-session browser tiers (BGAUDIO-006/007/008,
-// lib/services/media_session_shim.dart, dumped to
-// test/js_fixtures/media_session/shim.js).
+// lib/js/media_session.js).
 //
 // Split across two test files because node:test's per-file timeout applies to
 // the file-level test as well as each subtest, and real playback costs seconds
 // per case. Everything the two share lives here.
 
-const { readFixture } = require('./launch');
+const { pageJs } = require('./launch');
 
-const SHIM = readFixture('media_session/shim.js');
+const SHIM = pageJs('media_session');
 
 // Event-driven reports clear a 300ms debounce; anything that has to wait for
 // the shim's own 3s reconcile tick uses RECONCILE_MS.

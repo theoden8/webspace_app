@@ -32,6 +32,7 @@ import 'package:webspace/services/trusted_hosts_service.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/services/page_js.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/licenses.dart';
 import 'package:webspace/app.dart';
@@ -119,6 +120,7 @@ void main([List<String> args = const []]) async {
   await StartupInitEngine.runIndependentInits(
     <AsyncStep>[
       () => _runTimed('html', step: htmlInit),
+      () => _runTimed('pageJs', step: PageJs.load),
       () => _runTimed('clearUrl', step: ClearUrlService.instance.initialize),
       () => _runTimed('dns', step: DnsBlockService.instance.initialize),
       () => _runTimed('firefoxUa',

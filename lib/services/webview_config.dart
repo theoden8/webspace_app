@@ -3,7 +3,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMess
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
-import 'package:webspace/services/html_snapshot.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
@@ -15,6 +14,7 @@ import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_posture.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/page_js.dart';
 
 class FindMatchesResult {
   int activeMatchOrdinal = 0;
@@ -94,7 +94,7 @@ class WebViewConfig {
   /// Callback when page HTML should be cached. Called on page load with (url, html).
   final Function(String url, {required String html})? onHtmlLoaded;
   /// Optional pre-gate for the [onHtmlLoaded] path. Returning `false`
-  /// makes `onLoadStop` skip the [htmlSnapshotScript] IPC entirely
+  /// makes `onLoadStop` skip the [PageJs.htmlSnapshot] IPC entirely
   /// (not just the encrypt+write that follows). The IPC is the
   /// expensive, lifecycle-racing piece — the renderer has to walk and
   /// serialize the live DOM, and during a frame teardown that walk

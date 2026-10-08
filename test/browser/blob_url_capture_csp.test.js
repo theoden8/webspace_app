@@ -22,8 +22,6 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 
 let puppeteer;
 try {
@@ -34,17 +32,18 @@ try {
 
 const { start } = require('./helpers/csp_server');
 
-const FIXTURES_ROOT = path.resolve(__dirname, '..', 'js_fixtures');
-const SHIM = fs.readFileSync(
-  path.join(FIXTURES_ROOT, 'blob_url_capture', 'shim.js'), 'utf8');
-const IIFE_TEMPLATE = fs.readFileSync(
-  path.join(FIXTURES_ROOT, 'blob_url_capture', 'download_iife.js'), 'utf8');
-// The fixture bakes in this URL; we replace it with the live URL the
-// browser mints so the IIFE's blobUrl matches what __webspaceBlobs has.
-const FIXTURE_URL_LITERAL = '"blob:https://example.test/test-blob-1"';
+const { pageJs } = require('../js/helpers/page_js');
 
+const SHIM = pageJs('blob_url_capture');
+
+// The download for the live URL the browser mints, so the script's blobUrl
+// matches what __webspaceBlobs has.
 function buildIife(blobUrl) {
-  return IIFE_TEMPLATE.replace(FIXTURE_URL_LITERAL, JSON.stringify(blobUrl));
+  return pageJs('blob_download', {
+    blobUrl,
+    suggestedFilename: 'hello.txt',
+    taskId: 'task-fixture',
+  });
 }
 
 // Common page setup: install a recording stub for

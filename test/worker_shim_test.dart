@@ -7,9 +7,9 @@ import 'package:webspace/services/language_shim.dart';
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity_shim.dart';
-import 'package:webspace/services/webgl_kill_switch_shim.dart';
 import 'package:webspace/services/worker_shim.dart';
 import 'package:webspace/settings/location.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// Strip JS comments so a structural check inspects code, not prose (the shim
 /// sources legitimately discuss `window.inner*` in comments).
@@ -29,7 +29,7 @@ void main() {
       'ua_identity':
           buildUserAgentIdentityShim(buildFirefoxAndroidUserAgent('152.0'))!,
       'anti_fingerprinting': buildAntiFingerprintingShim('seed'),
-      'webgl_kill_switch': webGlKillSwitchScript,
+      'webgl_kill_switch': PageJs.webGlKillSwitch.script,
       'location_timezone': LocationSpoofService.buildScript((
         mode: LocationMode.off,
         latitude: null,
@@ -172,7 +172,8 @@ void main() {
 
     test('builder appends no evaluator tail (the call site owns that)', () {
       final script = buildWorkerShimScript([buildLanguageShim('en')])!;
-      expect(script.trimRight().endsWith('})();'), isTrue);
+      expect(script.trimRight(), endsWith(');'));
+      expect(script.trimRight(), isNot(endsWith(';null;')));
     });
   });
 
@@ -199,7 +200,7 @@ void main() {
         granularity: LocationGranularity.gps,
         webRtc: WebRtcPolicy.defaultPolicy,
       ));
-      expect(shim, contains('var TZ = null;'));
+      expect(shim, contains('"timezone":null'));
       // Geolocation is absent from WorkerNavigator and WebRTC is gated on
       // !IS_WORKER, so with TZ off nothing below applies there.
       expect(shim, contains('if (TZ) {'));

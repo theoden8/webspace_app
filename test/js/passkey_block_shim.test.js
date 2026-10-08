@@ -1,6 +1,5 @@
 // Tier 1 — jsdom assertions for the passkey block shim
-// (buildPasskeyBlockShim in lib/services/passkey_shim.dart, dumped to
-// test/js_fixtures/passkey/block_shim.js).
+// (lib/js/passkey_block.js).
 //
 // On iOS and macOS the WebView is WebKit, which answers WebAuthn itself
 // through AuthenticationServices in the app's process. Where a site's
@@ -16,10 +15,10 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, pageJs } = require('./helpers/load_shim');
 const { read, blockAfter, code } = require('./helpers/source');
 
-const SHIM = readFixture('passkey/block_shim.js');
+const SHIM = pageJs('passkey_block');
 
 const _doms = [];
 afterEach(() => {
@@ -220,7 +219,7 @@ test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in 
   const shims = webview.slice(at, webview.indexOf('];', at)).replace(/\s+/g, ' ');
   assert.ok(shims.includes(
     "if (passkeys == null && PasskeyAccess.hostIsApple) "
-      + "pageShim('passkey_block', js: buildPasskeyBlockShim(), frames: ShimFrames.all)"),
+      + "pageShim('passkey_block', js: PageJs.passkeyBlock.script, frames: ShimFrames.all)"),
     'the shim goes wherever passkeys are off on iOS and macOS, in every frame '
       + '(WebKit answers a same-origin subframe too), before page script runs');
 });

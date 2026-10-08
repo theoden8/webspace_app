@@ -1,6 +1,5 @@
 // Tier 1 — jsdom assertions for the simulated screen-sharing shim
-// (lib/services/screen_share_shim.dart, dumped to
-// test/js_fixtures/screen_share/shim.js).
+// (lib/js/screen_share.js).
 //
 // jsdom has no getDisplayMedia, no canvas.captureStream and no image decode,
 // so we stub the minimum surface the shim wraps and assert *routing + shape*:
@@ -18,9 +17,10 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture } = require('./helpers/load_shim');
+const CAPTURE = require('./helpers/capture_shims');
+const { makeDom } = require('./helpers/load_shim');
 
-const SHIM = readFixture('screen_share/shim.js');
+const SHIM = CAPTURE.SCREEN_SHARE;
 
 const IMAGE_SOURCE = { kind: 'image', dataUrl: 'data:image/png;base64,QUJD' };
 const VIDEO_SOURCE = { kind: 'video', dataUrl: 'data:video/mp4;base64,QUJD' };

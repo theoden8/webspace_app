@@ -1,6 +1,5 @@
 // Real-Chromium proof for background playback masking (BGAUDIO-012,
-// lib/services/media_session_shim.dart, dumped to
-// test/js_fixtures/media_session/shim.js).
+// lib/js/media_session.js).
 //
 // Keeping the app alive is not enough for a site that stops itself: a
 // backgrounded app's page is told it is hidden, and players built for a tab

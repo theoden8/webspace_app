@@ -1,6 +1,5 @@
 // Real-Chromium proof for the simulated screen-sharing shim
-// (lib/services/screen_share_shim.dart, dumped to
-// test/js_fixtures/screen_share/shim.js).
+// (lib/js/screen_share.js).
 //
 // The jsdom tier (test/js/screen_share_shim.test.js) stubs canvas /
 // captureStream, so it proves the decision funnel but not that the served
@@ -13,10 +12,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const CAPTURE = require('../js/helpers/capture_shims');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const SHIM = readFixture('screen_share/shim.js');
+const SHIM = CAPTURE.SCREEN_SHARE;
 
 // A surface the test can recognise pixel-by-pixel: solid, unmistakable, and
 // nothing a real screen capture of a blank page would ever produce.
@@ -24,7 +24,7 @@ const SURFACE_RGB = [0, 128, 255];
 
 const browser = setupBrowser();
 
-// Installs the bridge stub + the dumped shim before any document loads.
+// Installs the bridge stub + the shim before any document loads.
 async function armPage(page, decisionFactory) {
   await page.evaluateOnNewDocument((rgb) => {
     window.__wsSurface = null;

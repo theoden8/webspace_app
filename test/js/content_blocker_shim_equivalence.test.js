@@ -33,19 +33,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom } = require('./helpers/load_shim');
+const { COSMETIC } = require('./helpers/content_blocker_samples');
 
-const COSMETIC = readFixture('content_blocker/cosmetic.js');
 
 // Build a minimal CSS-only cosmetic shim equivalent to what we'd ship.
 // Same `<style>` injection as the current shim, but no runtime
 // `hideCSS()` and the MutationObserver only re-runs text rules.
 //
-// Selectors and text rules are exactly the ones baked into the
-// `cosmetic.js` fixture (test/js_fixtures/content_blocker/cosmetic.js)
-// — kept in sync via tool/dump_shim_js.dart. Hardcoding them here is
-// acceptable for an equivalence test: if the dumper changes the
-// fixture's selector set, this file is updated alongside it.
+// Selectors and text rules are the shared sample config's
+// (helpers/content_blocker_samples.js). Hardcoding them here is acceptable
+// for an equivalence test: if the samples change, this file changes with
+// them.
 const COSMETIC_CSS_ONLY = `
 (function() {
   var ID = '_webspace_content_blocker_style';

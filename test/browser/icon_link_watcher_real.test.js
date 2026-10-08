@@ -1,5 +1,4 @@
-// Tier 2: the icon-link watcher (lib/services/icon_link_watcher_shim.dart,
-// dumped to test/js_fixtures/icon_link_watcher/shim.js) against Chrome's own
+// Tier 2: the icon-link watcher (lib/js/icon_link_watcher.js) against Chrome's own
 // favicon requests.
 //
 // The watcher tells the site-icon engine three things Blink decides:
@@ -21,12 +20,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  setupBrowser, requireBrowser, readFixture,
-} = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { listen, originOf } = require('./helpers/blank_server');
 
-const SHIM = readFixture('icon_link_watcher/shim.js');
+const SHIM = pageJs('icon_link_watcher', { documentLoadedHandler: 'wsIconDocumentLoaded', linksHandler: 'wsIconLinks', linksChangedHandler: 'wsIconLinksChanged' });
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
   'base64');

@@ -1,6 +1,5 @@
 // Real-engine proof for the passkey block shim (PASSKEY-013,
-// buildPasskeyBlockShim in lib/services/passkey_shim.dart, dumped to
-// test/js_fixtures/passkey/block_shim.js).
+// lib/js/passkey_block.js).
 //
 // On iOS and macOS the shim sits in front of a WebAuthn implementation that
 // works: WebKit's own, backed by AuthenticationServices once the app holds
@@ -15,10 +14,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const SHIM = readFixture('passkey/block_shim.js');
+const SHIM = pageJs('passkey_block');
 
 const browser = setupBrowser();
 

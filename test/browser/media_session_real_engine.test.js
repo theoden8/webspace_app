@@ -1,6 +1,5 @@
 // Real-Chromium proof for the media-session bridge shim (BGAUDIO-006,
-// lib/services/media_session_shim.dart, dumped to
-// test/js_fixtures/media_session/shim.js).
+// lib/js/media_session.js).
 //
 // The Dart tier (test/media_session_shim_test.dart) only asserts substrings of
 // the builder's output, which passes whether or not the shim ever reports

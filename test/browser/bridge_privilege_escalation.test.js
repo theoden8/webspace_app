@@ -27,13 +27,17 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const { setupBrowser, requireBrowser, pageJs } = require('./helpers/launch');
 const { startVictim, startThirdParty } = require('./helpers/attacker_server');
 
-// Handler names are baked into the dumped fixture.
-const SHIM = readFixture('user_script/shim.js');
 const INLINE_HANDLER = '__ws_i_test';
 const FETCH_HANDLER = '__ws_f_test';
+const SHIM = pageJs('user_script', {
+  scriptHandler: '__ws_s_test',
+  fetchHandler: FETCH_HANDLER,
+  inlineScriptHandler: INLINE_HANDLER,
+  whitelist: ['cdn.jsdelivr.net'],
+});
 
 const EXFIL = 'window.__pwned = true;';
 

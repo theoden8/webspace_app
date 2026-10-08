@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/clearurl_service.dart';
-import 'package:webspace/services/clearurl_share_shim.dart';
 import 'package:webspace/services/html_snapshot.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/letterbox.dart';
@@ -56,6 +55,7 @@ import 'package:webspace/services/webview_downloads.dart';
 import 'package:webspace/services/page_scripts.dart';
 import 'package:webspace/services/page_handlers.dart';
 import 'package:webspace/services/popup_webview.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// The container and proxy a WebView is built with ([WebViewFactory.storeBinding]).
 ///
@@ -1379,7 +1379,7 @@ class WebViewFactory {
           if (cssScript != null) earlyScripts.add(cssScript);
         }
         if (config.posture.blocking.clearUrls) {
-          earlyScripts.add(clearUrlShareScript);
+          earlyScripts.add(PageJs.clearUrlShare.script);
         }
         if (earlyScripts.isNotEmpty && stillCurrent()) {
           await view?.evaluateJavascript(earlyScripts.join('\n'));
@@ -1523,7 +1523,7 @@ class WebViewFactory {
             && failedNavUrl == null
             && (config.shouldFetchHtml?.call() ?? true)) {
           final snapshot =
-              await view?.evaluateJavascriptReturning(htmlSnapshotScript);
+              await view?.evaluateJavascriptReturning(PageJs.htmlSnapshot.script);
           if (snapshot is String && snapshot.isNotEmpty) {
             // `urlStr` was captured at onLoadStop entry. The snapshot is
             // an async IPC into the renderer; if the user kicked off a

@@ -1,6 +1,5 @@
 // jsdom tier for WebKit's sub-resource blocker and its stats observer
-// (lib/services/block_interceptor_shim.dart, dumped to
-// test/js_fixtures/block_interceptor/). Until they moved out of
+// (lib/js/block_js_interceptor.js and lib/js/block_resource_observer.js). Until they moved out of
 // webview.dart neither ran in any test.
 //
 // The bridge is stubbed: `getBlockBloom` answers with a Bloom filter, and
@@ -9,10 +8,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, runInDom, pageJs } = require('./helpers/load_shim');
 
-const INTERCEPTOR = readFixture('block_interceptor/interceptor.js');
-const OBSERVER = readFixture('block_interceptor/observer.js');
+const INTERCEPTOR = pageJs('block_js_interceptor');
+const OBSERVER = pageJs('block_resource_observer');
 
 const REDIRECT = 'data:text/javascript;base64,KGZ1bmN0aW9uKCl7fSkoKTs=';
 const VERDICTS = {

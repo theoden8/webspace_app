@@ -1,58 +1,6 @@
-// Per-site page zoom — mobile (viewport-meta) shim.
-//
-// Mobile engines own page scale through `<meta name="viewport">`, so the
-// zoom feature drives `initial-scale` rather than CSS `zoom` there
-// (BUG-008: any other channel is engine-version dependent). Desktop
-// engines ignore the meta and keep the CSS `zoom` path
-// ([buildPageZoomCssShim]).
-//
-// Two layout-width regimes, one per engine:
-//
-//   * WebKit (iOS/macOS) — emit `initial-scale=z` alone. With no `width`
-//     directive the engine resolves extend-to-zoom, deriving the layout
-//     width as `deviceWidth / z`, which is exactly desktop-browser zoom:
-//     the page reflows to fill the screen at scale `z`.
-//
-//   * Android System WebView — the same width-less meta hits Chromium's
-//     wide-viewport quirk. `AwSettings` hardcodes `wide_viewport_quirk`,
-//     and with `useWideViewPort` on,
-//     `PageScaleConstraintsSet::AdjustForAndroidWebViewQuirks` replaces
-//     the layout width with the UA fallback (980px, from
-//     `ViewportStyleResolver` in the kMobile style) whenever the meta
-//     names a scale other than 1 but no width. Every site then lays out
-//     at 980px and resolves its desktop breakpoints. So Android gets an
-//     explicit `width` — `deviceWidth / z`, the same number extend-to-zoom
-//     would have produced — which makes `max_width` fixed and keeps the
-//     quirk out of the path. Only the quirk needs the number to be there:
-//     `ViewportDescription::Resolve` still raises anything under the true
-//     extend-to-zoom width back up to it, so the shim errs low.
-//     `useWideViewPort` must stay on for a fixed width to be honoured at
-//     all — the quirk's `!use_wide_viewport` branch otherwise clamps the
-//     layout back to device width and resets the scale to 1 for z < 1.
-//
-// Where the device width comes from, and where it must NOT come from:
-//
-//   * `screen.*` is off limits. The anti-fingerprinting shim (Tracking
-//     Protection, on by default) is injected ahead of this one and
-//     redefines `Screen.prototype.width` — to a pinned 1920, or to
-//     `innerWidth` in letterbox mode. Deriving the layout width from a
-//     value that mirrors `innerWidth` would compound the zoom on every
-//     re-application.
-//   * `innerWidth` is genuine but is the *visual* viewport, so once our
-//     own `initial-scale` is in effect it reads `deviceWidth / z`, not
-//     `deviceWidth`. It is therefore sampled exactly once, at
-//     DOCUMENT_START before the meta is written, where it is the one
-//     measure that sees a physically letterboxed or split-screen WebView.
-//   * Flutter's view extents, passed in from Dart, cover re-application:
-//     they survive rotation (short side vs long side) and cannot be
-//     spoofed from the page.
-//   * None of those is the WebView's own box, which letterbox mode and
-//     split screen make narrower than the view. So the pin is corrected
-//     once the page has laid out, against `visualViewport.width` — at our
-//     scale that is exactly the layout width which fills the box, so a
-//     layout viewport wider than it is a pin that overshot.
-
 import 'dart:math' as math;
+
+import 'package:webspace/services/page_js.dart';
 
 /// Which channel a site's zoom rides on. Exactly one owns page scale for
 /// a given site; see BUG-008 for why mixing them does not work.
@@ -75,7 +23,7 @@ class PageZoomPlan {
   final PageZoomChannel channel;
 
   /// Emit an explicit layout `width` next to `initial-scale`. Android
-  /// only — see the file header.
+  /// only — see lib/js/page_zoom_viewport.js.
   final bool pinLayoutWidth;
 
   /// Android's `useWideViewPort`, without which the meta's layout width is
@@ -100,267 +48,31 @@ PageZoomPlan planPageZoom({
   return const PageZoomPlan(PageZoomChannel.cssZoom);
 }
 
-/// Format a zoom factor for embedding in the viewport meta: fixed
-/// precision without trailing zeros (`0.8`, `1.25`, `1`).
-String trimZoomNum(double v) {
-  var s = v.toStringAsFixed(4);
-  if (s.contains('.')) {
-    s = s.replaceAll(RegExp(r'0+$'), '').replaceAll(RegExp(r'\.$'), '');
-  }
-  return s;
-}
-
-/// Build the mobile page-zoom shim for [zoomPercent].
-///
-/// [pinLayoutWidth] emits an explicit layout `width` alongside the scale
-/// (Android; see the file header). Leave it false on WebKit, where
-/// extend-to-zoom already derives the same width and tracks the real
-/// WebView size rather than the display size.
-///
-/// [portraitWidth] and [landscapeWidth] are the view's CSS-pixel width in
-/// each orientation (Flutter's short and long view extents). They are only
-/// read when pinning; pass 0 when they are unknown and the shim falls back
-/// to its one-shot `innerWidth` sample.
-///
-/// Rewrites every viewport meta the page ships, injects one when it ships
-/// none, and watches for late-inserted metas (SPAs, frameworks) the same
-/// way `buildDesktopModeShim` does. Injected at DOCUMENT_START: the meta
-/// must be correct before first layout.
+/// The mobile page-zoom shim (viewport meta) for [zoomPercent], described in
+/// lib/js/page_zoom_viewport.js. [pinLayoutWidth] is Android's explicit
+/// layout width; [portraitWidth] and [landscapeWidth] are the view's CSS-pixel
+/// width in each orientation, 0 when unknown.
 String buildPageZoomViewportShim({
   required int zoomPercent,
   required bool pinLayoutWidth,
   double portraitWidth = 0,
   double landscapeWidth = 0,
-}) {
-  final scale = trimZoomNum(zoomPercent / 100);
-  final portrait = math.max(0, portraitWidth.floor());
-  final landscape = math.max(0, landscapeWidth.floor());
-  return '''
-(function(){
-  var SCALE=$scale;
-  var PIN=$pinLayoutWidth;
-  var PORTRAIT=$portrait;
-  var LANDSCAPE=$landscape;
-  var measured=0;
-  var measuredLandscape=false;
-  var pinned=0;
-  var corrections=0;
-  function isLandscape(){
-    try{
-      if(window.matchMedia){ return !!window.matchMedia('(orientation: landscape)').matches; }
-    }catch(e){}
-    return false;
-  }
-  // One sample of the real box, taken before our meta lands: after that
-  // innerWidth reports the visual viewport, which our own scale has moved.
-  function captureOnce(){
-    if(measured!==0) return;
-    var w=0;
-    try{ w=window.innerWidth||0; }catch(e){}
-    measured=w>0?w:-1;
-    measuredLandscape=isLandscape();
-  }
-  function baseWidth(){
-    var landscape=isLandscape();
-    var b=landscape?LANDSCAPE:PORTRAIT;
-    if(!(b>0)){ b=landscape?PORTRAIT:LANDSCAPE; }
-    // The sample only describes the orientation it was taken in; after a
-    // rotation the view extents are the better answer.
-    if(measured>0&&landscape===measuredLandscape){
-      b=b>0?Math.min(b,measured):measured;
-    }
-    return b>0?b:0;
-  }
-  function layoutWidth(){
-    if(pinned>0) return pinned;
-    var b=baseWidth();
-    return b>0?Math.max(1,Math.floor(b/SCALE)):0;
-  }
-  // Every width available before first layout describes the view, not the
-  // WebView's own box — letterbox mode resizes that box, and so does split
-  // screen. Once the meta is live the engine reports the box itself: at
-  // our scale the visual viewport IS the layout width that exactly fills
-  // it, so a layout viewport that disagrees is a pin that overshot (the
-  // page hangs off the right edge) or undershot. Snap to it, bounded, and
-  // only in the frame that owns the viewport.
-  function correct(){
-    if(!PIN||corrections>=3) return;
-    try{
-      if(window.top!==window) return;
-      var vv=window.visualViewport;
-      var d=document.documentElement;
-      if(!vv||!d||!(vv.width>0)) return;
-      var want=Math.max(1,Math.floor(vv.width));
-      if(Math.abs(d.clientWidth-want)<=1) return;
-      corrections++;
-      pinned=want;
-      ensure();
-    }catch(e){}
-  }
-  function content(){
-    if(!PIN) return 'initial-scale='+SCALE;
-    var w=layoutWidth();
-    return w?('width='+w+', initial-scale='+SCALE):('initial-scale='+SCALE);
-  }
-  function applyTo(m,c){
-    try{ if(m.getAttribute('content')!==c){ m.setAttribute('content',c); } }catch(e){}
-  }
-  function ensure(){
-    try{
-      captureOnce();
-      var c=content();
-      var metas=document.querySelectorAll('meta[name="viewport" i]');
-      if(metas.length===0){
-        var m=document.createElement('meta');
-        m.setAttribute('name','viewport');
-        m.setAttribute('content',c);
-        (document.head||document.documentElement).appendChild(m);
-      } else {
-        for(var i=0;i<metas.length;i++){ applyTo(metas[i],c); }
-      }
-    }catch(e){}
-  }
-  ensure();
-  try{
-    var mo=new MutationObserver(function(muts){
-      for(var i=0;i<muts.length;i++){
-        var added=muts[i].addedNodes; if(!added) continue;
-        for(var j=0;j<added.length;j++){
-          var n=added[j];
-          if(n&&n.nodeType===1&&n.tagName==='META'){
-            var nm=n.getAttribute&&n.getAttribute('name');
-            if(nm&&nm.toLowerCase()==='viewport'){ applyTo(n,content()); }
-          }
-        }
-      }
+}) =>
+    PageJs.pageZoomViewport.withConfig({
+      'scale': zoomPercent / 100,
+      'pinLayoutWidth': pinLayoutWidth,
+      'portraitWidth': math.max(0, portraitWidth.floor()),
+      'landscapeWidth': math.max(0, landscapeWidth.floor()),
     });
-    if(document.documentElement){ mo.observe(document.documentElement,{childList:true,subtree:true}); }
-    else { document.addEventListener('DOMContentLoaded',function(){ ensure(); mo.observe(document.documentElement,{childList:true,subtree:true}); }); }
-  }catch(e){}
-  // Rotation swaps which view extent applies, so the meta is re-derived.
-  // Nothing in that derivation reads a value our own scale has moved, so
-  // re-running cannot compound; applyTo also skips an unchanged value.
-  function reset(){ pinned=0; corrections=0; ensure(); correct(); }
-  try{
-    window.addEventListener('resize',reset);
-    window.addEventListener('orientationchange',reset);
-  }catch(e){}
-  // The correction needs a laid-out page. Run it as soon as one exists and
-  // once more after the load settles, in case the first pass raced it.
-  try{
-    if(document.readyState==='complete'){ correct(); }
-    else { window.addEventListener('load',correct); }
-    document.addEventListener('DOMContentLoaded',correct);
-    setTimeout(correct,500);
-  }catch(e){}
-})();''';
-}
 
 /// Per-site page zoom through CSS `zoom`, for the engines that ignore the
-/// viewport meta (desktop) or where desktop mode owns it. Chromium and
-/// WebKit 17+ / WPE 2.40+ reflow the layout to fill the window.
-String buildPageZoomCssShim(int zoomPercent) => _styleShim(
-      '__webspace_page_zoom__',
-      css: 'html{zoom:$zoomPercent% !important;}',
-      // Root `zoom` applied at document start can leave Blink on a blank
-      // frame until a layout invalidation lands; force one.
-      relayout: '''
-  function relayout(){
-    apply();
-    try{void document.documentElement.offsetHeight;}catch(e){}
-    try{window.dispatchEvent(new Event('resize'));}catch(e){}
-  }
-  window.addEventListener('DOMContentLoaded',relayout);
-  window.addEventListener('load',relayout);''',
-    );
+/// viewport meta (desktop) or where desktop mode owns it.
+String buildPageZoomCssShim(int zoomPercent) =>
+    PageJs.pageZoomCss.withConfig({'zoomPercent': zoomPercent});
 
-/// The OS text size on WebKit, which has no `textZoom` setting:
-/// `-webkit-text-size-adjust` scales text without resizing images. A site
-/// that pins it to 100% still wins.
-String buildTextZoomShim(int zoomPercent) => _styleShim(
-      '__webspace_text_zoom__',
-      css: 'html{-webkit-text-size-adjust:$zoomPercent% !important;}',
-      relayout: '',
-    );
-
-/// One `<style>` element, re-applied by id so a same-document navigation
-/// keeps it.
-String _styleShim(String id, {required String css, required String relayout}) =>
-    '''
-(function(){
-  var id='$id';
-  var css='$css';
-  function apply(){
-    var el=document.getElementById(id);
-    if(!el){
-      el=document.createElement('style');
-      el.id=id;
-      (document.head||document.documentElement).appendChild(el);
-    }
-    el.textContent=css;
-  }
-  if(document.documentElement){apply();}
-  else{document.addEventListener('DOMContentLoaded',apply);}${relayout.isEmpty ? '' : '\n$relayout'}
-})();''';
-
-/// Gives every viewport meta an `initial-scale`, adding
-/// `width=device-width, initial-scale=1` when the page ships none.
-///
-/// WebKit lays a page that reaches first layout without one out at ~980px
-/// and zooms it to fit, then latches that fractional scale (0.73 on
-/// github.com) when the real meta arrives: a Turbo/PJAX re-navigation or the
-/// Universal-Link reissue, whose meta has not parsed yet. A MutationObserver
-/// fixes the meta the instant it is inserted, ahead of the latch, which a
-/// DOMContentLoaded pass is not. Android pins the scale natively
-/// (useWideViewPort), so this is WebKit-only.
-const String defaultViewportScript = r'''
-(function(){
-  function normalize(meta){
-    var c=(meta.getAttribute('content')||'').trim();
-    if(/initial-scale/i.test(c))return;
-    if(c===''){c='width=device-width, initial-scale=1';}
-    else{
-      c=c.replace(/\s*,?\s*$/,'')+', initial-scale=1';
-      if(!/width\s*=/i.test(c)){c='width=device-width, '+c;}
-    }
-    meta.setAttribute('content',c);
-  }
-  function ensure(){
-    var metas=document.querySelectorAll('meta[name="viewport" i]');
-    if(!metas.length){
-      var m=document.createElement('meta');
-      m.setAttribute('name','viewport');
-      m.setAttribute('content','width=device-width, initial-scale=1');
-      (document.head||document.documentElement).appendChild(m);
-      return;
-    }
-    for(var i=0;i<metas.length;i++){normalize(metas[i]);}
-  }
-  ensure();
-  try{
-    var mo=new MutationObserver(function(muts){
-      for(var i=0;i<muts.length;i++){
-        var mu=muts[i], tgt=mu.target;
-        if(mu.type==='attributes'&&tgt&&tgt.tagName==='META'){
-          var n=tgt.getAttribute&&tgt.getAttribute('name');
-          if(n&&n.toLowerCase()==='viewport'){normalize(tgt);}
-        }
-        var add=mu.addedNodes;
-        if(add){for(var j=0;j<add.length;j++){
-          var el=add[j];
-          if(el&&el.nodeType===1&&el.tagName==='META'){
-            var n2=el.getAttribute&&el.getAttribute('name');
-            if(n2&&n2.toLowerCase()==='viewport'){normalize(el);}
-          }
-        }}
-      }
-    });
-    if(document.documentElement){
-      mo.observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['content','name']});
-    }
-  }catch(e){}
-  if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ensure,{once:true});}
-})();''';
+/// The OS text size on WebKit, which has no `textZoom` setting.
+String buildTextZoomShim(int zoomPercent) =>
+    PageJs.textZoom.withConfig({'zoomPercent': zoomPercent});
 
 /// Per-site page-zoom bounds (percent). Mirrors the range desktop browsers
 /// expose; 100 is unscaled.

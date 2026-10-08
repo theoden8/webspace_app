@@ -1,5 +1,5 @@
 // Tier 1 — jsdom assertions for the passkey shim
-// (lib/services/passkey_shim.dart, dumped to test/js_fixtures/passkey/shim.js).
+// (lib/js/passkey.js).
 //
 // jsdom has no WebAuthn and no Credential Management API, so the realm is
 // given what Android System WebView exposes with WebAuthn disabled: a
@@ -14,9 +14,9 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, readFixture } = require('./helpers/load_shim');
+const { makeDom, pageJs } = require('./helpers/load_shim');
 
-const SHIM = readFixture('passkey/shim.js');
+const SHIM = pageJs('passkey');
 
 const _doms = [];
 afterEach(() => {

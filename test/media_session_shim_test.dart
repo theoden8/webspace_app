@@ -1,12 +1,12 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/media_session_shim.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// BGAUDIO-006: cheap structural guard on the media-session bridge shim. The
 /// string is what webview.dart injects at DOCUMENT_START on background-audio
 /// sites; these asserts pin the page->Dart handler name and the Dart->page
 /// control entry point so a rename can't silently break the notification.
 void main() {
-  final shim = buildMediaSessionShim();
+  final shim = PageJs.mediaSession.script;
 
   test('reports playback state to the wsMediaSession handler', () {
     expect(shim, contains("callHandler('wsMediaSession'"));

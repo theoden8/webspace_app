@@ -10,12 +10,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  setupBrowser, requireBrowser, readFixture,
+  setupBrowser, requireBrowser,
 } = require('./helpers/launch');
+const {
+  EARLY_CSS, COSMETIC,
+} = require('../js/helpers/content_blocker_samples');
 const { startBlankServer, originOf } = require('./helpers/blank_server');
 
-const EARLY_CSS = readFixture('content_blocker/early_css.js');
-const COSMETIC = readFixture('content_blocker/cosmetic.js');
 
 const browser = setupBrowser();
 

@@ -22,11 +22,12 @@
 const test = require('node:test');
 const { afterEach } = require('node:test');
 const assert = require('node:assert/strict');
-const { makeDom, runInDom, readFixture } = require('./helpers/load_shim');
+const CAPTURE = require('./helpers/capture_shims');
+const { makeDom, runInDom } = require('./helpers/load_shim');
 
-const CAMERA = readFixture('camera_stream/shim.js');
-const MICROPHONE = readFixture('microphone_stream/shim.js');
-const SCREEN_SHARE = readFixture('screen_share/shim.js');
+const CAMERA = CAPTURE.CAMERA;
+const MICROPHONE = CAPTURE.MICROPHONE;
+const SCREEN_SHARE = CAPTURE.SCREEN_SHARE;
 
 const IMAGE_SOURCE = { kind: 'image', dataUrl: 'data:image/png;base64,AAAA' };
 const AUDIO_SOURCE = { dataUrl: 'data:audio/wav;base64,QUJD' };

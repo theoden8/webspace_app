@@ -1,5 +1,5 @@
 // Behavioural tests for Worker/SharedWorker shim propagation
-// (lib/services/worker_shim.dart, dumped to test/js_fixtures/worker_shim/*.js).
+// (lib/js/worker_shim.js).
 //
 // Two tiers, because the feature has two halves:
 //
@@ -14,12 +14,13 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const WORKER = require('./helpers/worker_shims');
 const vm = require('node:vm');
 const { JSDOM } = require('jsdom');
-const { readFixture } = require('./helpers/load_shim');
+const { pageJs } = require('./helpers/load_shim');
 
-const COMBINED = 'worker_shim/installer_combined.js';
-const LANGUAGE_ONLY = 'worker_shim/installer_language_only.js';
+const COMBINED = WORKER.INSTALLER_COMBINED;
+const LANGUAGE_ONLY = WORKER.INSTALLER_LANGUAGE_ONLY;
 
 // A jsdom page whose Blob/URL/Worker are recording stubs. Returns handles to
 // everything the installer touches so tests can inspect the generated wrapper.
@@ -86,7 +87,7 @@ function pageWithStubs(fixture, { refuseBlobWorkers = false } = {}) {
   w.Worker = recorder('Worker');
   w.SharedWorker = recorder('SharedWorker');
 
-  w.eval(readFixture(fixture));
+  w.eval(fixture);
   return { dom, window: w, blobs, created };
 }
 
@@ -357,7 +358,7 @@ test('a refused shim import still leaves the original script loading', () => {
 
 test('re-running the installer does not double-wrap', () => {
   const ctx = pageWithStubs(COMBINED);
-  ctx.window.eval(readFixture(COMBINED));
+  ctx.window.eval(COMBINED);
   new ctx.window.Worker('/app/w.js');
   const wrapper = wrapperFor(ctx);
   // A double patch would produce a wrapper that imports another wrapper.
@@ -367,8 +368,8 @@ test('re-running the installer does not double-wrap', () => {
 test('installer is absent when there are no shims to propagate', () => {
   // buildWorkerShimScript returns null for an empty shim list, so no fixture
   // exists for that case; assert the builder contract via the two that do.
-  assert.ok(readFixture(LANGUAGE_ONLY).includes('__wsInstallWorkerWrap'));
-  assert.ok(readFixture(COMBINED).includes('__wsInstallWorkerWrap'));
+  assert.ok(LANGUAGE_ONLY.includes('__wsInstallWorkerWrap'));
+  assert.ok(COMBINED.includes('__wsInstallWorkerWrap'));
 });
 
 // --- Worker-scope payload, executed in a simulated WorkerGlobalScope ---
@@ -479,7 +480,7 @@ test('worker hardware values are the spoofed ones, matching the page', () => {
   // agreement the test is about cannot be read off them.
   Object.defineProperty(Object.getPrototypeOf(pageDom.window.navigator),
     'deviceMemory', { value: 2, configurable: true });
-  pageDom.window.eval(readFixture('anti_fingerprinting/shim_seed_alpha.js'));
+  pageDom.window.eval(pageJs('anti_fingerprinting', { seed: 'alpha-fixture-seed', letterbox: false }));
   assert.equal(worker.run('navigator.hardwareConcurrency'),
     pageDom.window.navigator.hardwareConcurrency);
   assert.equal(worker.run('navigator.deviceMemory'),

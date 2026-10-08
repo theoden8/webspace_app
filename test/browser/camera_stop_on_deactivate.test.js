@@ -13,10 +13,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { setupBrowser, requireBrowser, readFixture } = require('./helpers/launch');
+const CAPTURE = require('../js/helpers/capture_shims');
+const { setupBrowser, requireBrowser } = require('./helpers/launch');
 const { startBlankServer } = require('./helpers/blank_server');
 
-const SHIM = readFixture('camera_stream/shim.js');
+const SHIM = CAPTURE.CAMERA;
 
 // The virtual source is painted in-page (below) rather than pasted in as a
 // base64 blob, so its colour is known and opaque: a transparent fixture would
@@ -33,7 +34,7 @@ const browser = setupBrowser({
   ],
 });
 
-// Loads a page with the dumped shim installed and the bridge answering
+// Loads a page with the shim installed and the bridge answering
 // `decision`, exactly as the Dart handler would. A `virtual` decision picks up
 // whatever source the page stashes in `__wsCamSource`.
 async function openPage(port, decision) {

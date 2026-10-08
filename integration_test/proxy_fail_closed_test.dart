@@ -28,9 +28,11 @@ import 'socks5_fixture.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   final origin = Platform.environment['WEBSPACE_LEAK_ORIGIN'];
   late Socks5Fixture socks;

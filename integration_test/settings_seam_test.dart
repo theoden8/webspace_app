@@ -58,6 +58,7 @@ import 'helpers/ui.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/page_js.dart';
 
 /// One field's trip across the channel.
 class _Field {
@@ -88,6 +89,7 @@ class _Field {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(PageJs.load);
 
   // Every platform whose engine answers `getSettings()`. Windows and web have
   // no such engine here; everywhere else the comparison runs, on the subset of

@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/do_not_track_shim.dart';
+import 'package:webspace/services/page_js.dart';
 
 void main() {
   group('buildDoNotTrackShim', () {
-    final js = buildDoNotTrackShim();
+    final js = PageJs.doNotTrack.script;
 
     test('overrides every DNT / GPC surface fingerprinters check', () {
       expect(js, contains("'doNotTrack'"));
@@ -37,8 +37,9 @@ void main() {
     });
 
     test('runs as an IIFE so locals do not leak to the global scope', () {
-      expect(js.trim(), startsWith('(function() {'));
-      expect(js.trim(), endsWith('})();'));
+      final code = js.replaceAll(RegExp(r'^//.*\n', multiLine: true), '');
+      expect(code.trim(), startsWith('(function() {'));
+      expect(code.trim(), endsWith('})();'));
     });
   });
 }
