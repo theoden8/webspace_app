@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 
+import 'helpers/user_agents.dart';
+
 void main() {
   group('isDesktopUserAgent', () {
     test('empty / null UA is mobile', () {
@@ -27,16 +29,11 @@ void main() {
     });
 
     test('iPhone is mobile', () {
-      const ua = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
-          'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 '
-          'Mobile/15E148 Safari/604.1';
-      expect(isDesktopUserAgent(ua), isFalse);
+      expect(isDesktopUserAgent(mobileSafariIphoneUserAgent), isFalse);
     });
 
     test('iPad is mobile', () {
-      const ua = 'Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) '
-          'AppleWebKit/605.1.15';
-      expect(isDesktopUserAgent(ua), isFalse);
+      expect(isDesktopUserAgent(mobileSafariIpadUserAgent), isFalse);
     });
 
     test('Linux Firefox desktop is desktop', () {
