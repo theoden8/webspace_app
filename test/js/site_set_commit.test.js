@@ -42,7 +42,7 @@ test('the funnel runs its steps in one fixed order', () => {
     '_persistSites()',
     '_shell.saveWebspaces()',
     '_background.reschedule()',
-    '_sweepOrphans()',
+    '_sweep.afterRemoval()',
   ], '_commitSites');
 });
 

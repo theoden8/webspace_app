@@ -339,7 +339,7 @@ sensitive secret:
    `ProxyPasswordSecureStorage.migrateLegacyPassword` as the template.
 5. **Wire orphan cleanup** by adding the store to `OrphanStore` in
    `lib/services/orphan_sweep_engine.dart` as `configuration` scope.
-   `_OrphanSweepTargets` in main.dart does not compile until it sweeps
+   `PageOrphanSweep` ([page_orphan_sweep.dart](lib/controllers/page_orphan_sweep.dart)) does not compile until it sweeps
    the store, and startup, post-import and post-delete all run the
    engine.
 6. **Surface the strip-from-export contract in the import UI** so the

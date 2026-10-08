@@ -523,7 +523,7 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 - **Never serialise to JSON**: `toJson` omits the field. No `includeSecrets` opt-in. Same rule as `isSecure=true` cookies. Backup files get emailed/synced — they must not carry secrets.
 - **Hydrate on load** alongside per-site/global hydration in `SiteListStore.load` and `GlobalOutboundProxy.initialize`.
 - **Migrate legacy plaintext** with the idempotent pre-pass in `ProxyPasswordSecureStorage.migrateLegacyPassword`.
-- **Wire orphan cleanup**: add the store to `OrphanStore` in [orphan_sweep_engine.dart](lib/services/orphan_sweep_engine.dart) with its scope (session residue or configuration). `_OrphanSweepTargets` in webspace_page.dart does not compile until it sweeps the store; startup, post-import and post-delete all run the engine.
+- **Wire orphan cleanup**: add the store to `OrphanStore` in [orphan_sweep_engine.dart](lib/services/orphan_sweep_engine.dart) with its scope (session residue or configuration). `PageOrphanSweep` ([page_orphan_sweep.dart](lib/controllers/page_orphan_sweep.dart)) does not compile until it sweeps the store; startup, post-import and post-delete all run the engine.
 - **Tell the user post-import** (snackbar in `BackupController.import`) if the related non-secret field was set — otherwise restored proxy silently fails auth.
 - **Regression test**: assert the secret string never appears in `SettingsBackupService.exportToJson(...)` output. Template: "proxy passwords never appear in exports (PWD-005)".
 - Update the spec, then `npx openspec validate --no-interactive --all`.

@@ -131,7 +131,7 @@ void main() {
     // Which changes sweep is SiteSetChange.effects (site_runtime_test).
     test('import and delete sweep through the engine', () {
       expect(body('Future<void> _commitSites(SiteSetChange change) async {'),
-          contains('if (effects.sweepsOrphans) await _sweepOrphans();'));
+          contains('if (effects.sweepsOrphans) await _sweep.afterRemoval();'));
       final backup =
           File('lib/controllers/backup_controller.dart').readAsStringSync();
       expect(backup.substring(backup.indexOf('Future<void> import() async {')),
@@ -144,11 +144,19 @@ void main() {
     });
 
     test('no store is swept outside the engine binding', () {
-      final binding = host.indexOf('class _OrphanSweepTargets');
-      final bindingEnd = host.indexOf('\n}\n', binding);
-      final outside =
-          host.substring(0, binding) + host.substring(bindingEnd);
-      expect(RegExp(r'\.removeOrphan').allMatches(outside), isEmpty);
+      final binding =
+          File('lib/controllers/page_orphan_sweep.dart').readAsStringSync();
+      expect(binding, contains('class PageOrphanSweep implements OrphanSweepTargets'));
+      for (final f in Directory('lib').listSync(recursive: true)) {
+        if (f is! File || !f.path.endsWith('.dart')) continue;
+        if (f.path.endsWith('page_orphan_sweep.dart') ||
+            f.path.contains('/services/')) {
+          continue;
+        }
+        expect(RegExp(r'\.removeOrphan').allMatches(f.readAsStringSync()),
+            isEmpty,
+            reason: '${f.path} sweeps a store outside PageOrphanSweep');
+      }
     });
   });
 }

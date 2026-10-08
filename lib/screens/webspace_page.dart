@@ -9,6 +9,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/controllers/app_lifecycle_controller.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
+import 'package:webspace/controllers/deferred_startup_controller.dart';
+import 'package:webspace/controllers/page_orphan_sweep.dart';
 import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
 import 'package:webspace/controllers/link_controller.dart';
@@ -47,7 +49,6 @@ import 'package:webspace/widgets/url_bar.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/image_cache_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
-import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
@@ -69,7 +70,6 @@ import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/reentry_guard.dart';
-import 'package:webspace/services/orphan_sweep_engine.dart';
 import 'package:webspace/controllers/site_list_store.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/nav_state_capture_debouncer.dart';
@@ -78,9 +78,6 @@ import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/block_stats_service.dart';
-import 'package:webspace/services/dns_block_service.dart';
-import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/connectivity_service.dart';
@@ -140,8 +137,7 @@ class WebSpacePage extends StatefulWidget {
 }
 
 class _WebSpacePageState extends State<WebSpacePage>
-    with WidgetsBindingObserver, RouteAware
-    implements DeferredStartupHost {
+    with WidgetsBindingObserver, RouteAware {
   final SiteRuntime _sites = SiteRuntime();
   late final ShortcutController _shortcuts = ShortcutController(_sites,
       host: _PageHost(this), prompts: DialogShortcutPrompts(context));
@@ -203,6 +199,21 @@ class _WebSpacePageState extends State<WebSpacePage>
         shell: _shell, applyTheme: _applyThemeSettings),
     shell: _shell,
     shortcuts: _shortcuts,
+  );
+  late final PageOrphanSweep _sweep = PageOrphanSweep(
+    _sites,
+    cookieStore: _cookieSecureStorage,
+    proxyPasswords: _proxyPasswordStorage,
+    navStates: _stateStorage,
+    cookies: _cookieManager,
+  );
+  late final DeferredStartupController _deferred = DeferredStartupController(
+    _sites,
+    host: _PageHost(this),
+    shell: _shell,
+    activation: _activation,
+    navStates: _stateStorage,
+    sweep: _sweep,
   );
   late final BackupController _backup = BackupController(
     _sites,
@@ -658,7 +669,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       unawaited(_background.reschedule());
       unawaited(_background.updateAudioSession());
     }
-    if (effects.sweepsOrphans) await _sweepOrphans();
+    if (effects.sweepsOrphans) await _sweep.afterRemoval();
   }
 
   Future<void> _persistSites() async {
@@ -817,18 +828,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     });
   }
 
-  /// Every navigation-state key that should survive a sweep, for the sites in
-  /// [siteIds]. State is per tab, so a site contributes one key per tab it
-  /// still has: closing a tab makes its file an orphan, and deleting a site
-  /// makes all of them orphans. The engine that drives the sweep speaks in
-  /// sites (it has no reason to know about tabs); expanding a site to its keys
-  /// belongs here, where the models are.
-  Set<String> _liveStateKeys(Set<String> siteIds) => <String>{
-        for (final m in _sites.models)
-          if (siteIds.contains(m.siteId))
-            for (final t in m.tabs) m.stateKeyForTab(t.id),
-      };
-
   Future<void> _restoreAppState() async {
     final activationVersionAtRestore = _sites.activationVersion;
     final swRestore = kDebugMode ? (Stopwatch()..start()) : null;
@@ -927,7 +926,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           // PAUSE-019: same pre-queue as the container-mode deferred
           // path — once in _sites.loaded the activation restore is
           // skipped, so the back/forward stack must be queued now.
-          await queueNavStateRestore(_sites.models[i].siteId);
+          await _deferred.queueNavStateRestore(_sites.models[i].siteId);
           _sites.loaded.add(i);
         }
       }
@@ -1017,7 +1016,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // hits; doing it here keeps a large notif import from blocking the shortcut
     // target's first paint. (Legacy mode already loaded them pre-paint above.)
     if (_sites.useContainers && !launchedForBackgroundWake) {
-      unawaited(DeferredStartupEngine.autoLoadNotificationSites(this)
+      unawaited(DeferredStartupEngine.autoLoadNotificationSites(_deferred)
           .then((_) => _background.reschedule()));
     }
 
@@ -1031,7 +1030,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (i >= 0 && i < _sites.models.length) _sites.models[i].siteId,
     };
     unawaited(DeferredStartupEngine.runPostPaintMaintenance(
-      this,
+      _deferred,
       alreadyThemedSiteIds: preThemeSiteIds,
       needsResave: needsResave,
     ));
@@ -1059,160 +1058,12 @@ class _WebSpacePageState extends State<WebSpacePage>
     // any from-location site (migrates sites saved before the tz was baked
     // into `spoofTimezone`, and refreshes after a dataset update). The dataset
     // load + parse happen on a background isolate after the first frame.
-    unawaited(DeferredStartupEngine.refreshLocationTimezones(this));
+    unawaited(DeferredStartupEngine.refreshLocationTimezones(_deferred));
 
     await _background.install();
     // Cold-start path for share intents; the resume handles the warm one.
     unawaited(_links.handleShareIntent());
   }
-
-  // Drives DeferredStartupEngine for the post-paint deferred init (notif
-  // auto-load, timezone re-bake). Everything is addressed by siteId and the
-  // siteId<->index translation happens fresh per call, so an add/delete while
-  // the deferred work is awaiting can never make it act on a stale position.
-
-  @override
-  List<DeferredSite> currentSites() => [
-        for (final m in _sites.models)
-          DeferredSite(
-            siteId: m.siteId,
-            notificationsEnabled: m.effectiveNotificationsEnabled,
-            spoofTimezoneFromLocation: m.spoofTimezoneFromLocation,
-            trackingProtectionEnabled: m.trackingProtectionEnabled,
-            spoofLatitude: m.spoofLatitude,
-            spoofLongitude: m.spoofLongitude,
-          ),
-      ];
-
-  @override
-  bool get isMounted => mounted;
-
-  @override
-  bool isLive(String siteId) => _sites.byId(siteId) != null;
-
-  @override
-  bool isLoaded(String siteId) {
-    final i = _sites.models.indexWhere((m) => m.siteId == siteId);
-    return i >= 0 && _sites.loaded.contains(i);
-  }
-
-  @override
-  void markLoaded(String siteId) {
-    final i = _sites.models.indexWhere((m) => m.siteId == siteId);
-    if (i >= 0) _sites.loaded.add(i);
-  }
-
-  @override
-  Future<void> preloadHtml(String siteId) async {
-    final m = _sites.byId(siteId);
-    if (m != null) await _activation.ensureSiteHtmlForModel(m);
-  }
-
-  @override
-  Future<void> applyTheme(String siteId) async {
-    final m = _sites.byId(siteId);
-    if (m != null) {
-      await m.setTheme(_shell.theme.themeMode.webViewTheme);
-    }
-  }
-
-  /// PAUSE-019: pre-queue the saved back/forward stack for a site that
-  /// is about to enter `_sites.loaded` without going through
-  /// `setCurrentIndex` (auto-loaded notification sites). Once it's in
-  /// the set, the activation path skips its restore fetch, so a queue
-  /// here is the only chance the bytes get applied on this run.
-  @override
-  Future<void> queueNavStateRestore(String siteId) async {
-    final model = _sites.byId(siteId);
-    if (model == null) return;
-    // A live controller can't consume queued bytes — restoreState only
-    // applies to a freshly-created one.
-    if (!model.activeTabPersistsNavState || model.controller != null) return;
-    final bytes = await _stateStorage.loadState(model.activeStateKey);
-    if (bytes == null) return;
-    // Re-resolve after the disk read: the site may have been deleted.
-    if (_sites.byId(siteId) == null) return;
-    model.schedulePendingRestoreState(bytes);
-    LogTag.webViewState.debug(
-        'Queued ${bytes.length} restore bytes for auto-loaded site '
-        '"${model.name}" (siteId: $siteId)', sensitive: true);
-  }
-
-  @override
-  void requestRebuild() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  Future<bool> loadTimezoneDataset() =>
-      TimezoneLocationService.instance.loadFromCacheIfPresent();
-
-  @override
-  String? resolveTimezone(double latitude, {required double longitude}) =>
-      TimezoneLocationService.instance.lookup(latitude, longitude: longitude);
-
-  @override
-  bool setSpoofTimezone(String siteId, {required String timezone}) {
-    final m = _sites.byId(siteId);
-    if (m != null && m.spoofTimezone != timezone) {
-      m.spoofTimezone = timezone;
-      return true;
-    }
-    return false;
-  }
-
-  @override
-  Future<void> persist() => _commitSites(const SitesEdited());
-
-  @override
-  Set<String> liveSiteIds() => {for (final m in _sites.models) m.siteId};
-
-  @override
-  Set<String> liveNonIncognitoSiteIds() =>
-      {for (final m in _sites.models) if (!m.incognito) m.siteId};
-
-  /// Housekeeping sweep of storage left by sites deleted in previous sessions,
-  /// deferred off the cold-launch first-paint path. The launched site never
-  /// reads any of this — its cookies come from its hydrated model (legacy) or
-  /// its own container — so running it after paint changes nothing the user
-  /// sees, only when the disk reclaim happens. The live-set args are read fresh
-  /// by the engine at sweep time so a site added post-paint isn't reclaimed.
-  @override
-  Future<void> sweepOrphanStorage(
-    Set<String> activeSiteIds, {
-    required Set<String> nonIncognitoSiteIds,
-  }) async {
-    try {
-      await OrphanSweepEngine.sweep(
-        targets: _OrphanSweepTargets(this),
-        activeSiteIds: activeSiteIds,
-        nonIncognitoSiteIds: nonIncognitoSiteIds,
-        useContainers: _sites.useContainers,
-        occasion: SweepOccasion.launch,
-      );
-      // Blocklist levels nothing asks for any more: a site that moved back
-      // to the app-wide level leaves its tier behind, and each one is a
-      // multi-megabyte file plus its share of the in-memory partition. Only
-      // here, not on every model save — an unsaved per-site edit is not in
-      // `_sites.models` yet, and pruning against it would delete the tier
-      // the user just waited for.
-      await DnsBlockService.instance.pruneLevels(requiredDnsLevels(
-        globalLevel: DnsBlockService.instance.level,
-        siteLevels: [for (final m in _sites.models) m.effectiveDnsBlockLevel],
-      ));
-    } catch (e) {
-      LogTag.startup.error('Deferred startup GC failed: $e');
-    }
-  }
-
-  /// Sweep after sites left the list while the app runs (delete, import).
-  Future<void> _sweepOrphans() => OrphanSweepEngine.sweep(
-        targets: _OrphanSweepTargets(this),
-        activeSiteIds: liveSiteIds(),
-        nonIncognitoSiteIds: liveNonIncognitoSiteIds(),
-        useContainers: _sites.useContainers,
-        occasion: SweepOccasion.sitesRemoved,
-      );
 
   late final DialogWebViewPrompts _prompts = DialogWebViewPrompts(context);
 
@@ -2691,40 +2542,6 @@ class _ResidencyHost implements ResidencyHost {
 
   @override
   bool get torAvailable => TorService.instance.isAvailable;
-}
-
-class _OrphanSweepTargets implements OrphanSweepTargets {
-  final _WebSpacePageState state;
-  const _OrphanSweepTargets(this.state);
-
-  @override
-  Future<void> removeOrphans(OrphanStore store,
-          {required Set<String> liveSiteIds}) =>
-      switch (store) {
-        OrphanStore.cookies =>
-          state._cookieSecureStorage.removeOrphanedCookies(liveSiteIds),
-        OrphanStore.proxyPasswords =>
-          state._proxyPasswordStorage.removeOrphaned(liveSiteIds),
-        OrphanStore.httpAuthCredentials =>
-          HttpAuthSecureStorage.instance.removeOrphaned(liveSiteIds),
-        OrphanStore.htmlCaches =>
-          HtmlCacheService.instance.removeOrphanedCaches(liveSiteIds),
-        OrphanStore.htmlImports =>
-          HtmlImportStorage.instance.removeOrphanedImports(liveSiteIds),
-        OrphanStore.webViewState =>
-          state._stateStorage.removeOrphans(state._liveStateKeys(liveSiteIds)),
-        OrphanStore.blockStatsSites =>
-          BlockStatsService.instance.removeOrphanedSites(liveSiteIds),
-        OrphanStore.siteIcons => SiteIconStore.instance.removeOrphans({
-            for (final m in state._sites.models)
-              if (liveSiteIds.contains(m.siteId) && !m.effectiveIncognito)
-                m.initUrl,
-          }),
-      };
-
-  @override
-  Future<void> clearLegacyGlobalCookieJar() =>
-      state._cookieManager.deleteAllCookies();
 }
 
 /// What the page answers for its controllers.
