@@ -344,6 +344,28 @@ class SiteActivationController {
     }
   }
 
+  /// PAUSE-019: pre-queue the saved back/forward stack for a site that
+  /// is about to enter `_sites.loaded` without going through
+  /// `setCurrentIndex` (auto-loaded notification sites). Once it's in
+  /// the set, the activation path skips its restore fetch, so a queue
+  /// here is the only chance the bytes get applied on this run.
+  Future<void> queueRestoreFor(String siteId) async {
+    final model = _sites.byId(siteId);
+    if (model == null) return;
+    // A live controller can't consume queued bytes — restoreState only
+    // applies to a freshly-created one.
+    if (!model.activeTabPersistsNavState || model.controller != null) return;
+    final bytes = await _navStates.loadState(model.activeStateKey);
+    if (bytes == null) return;
+    // Re-resolve after the disk read: the site may have been deleted.
+    if (_sites.byId(siteId) == null) return;
+    model.schedulePendingRestoreState(bytes);
+    LogTag.webViewState.debug(
+        'Queued ${bytes.length} restore bytes for auto-loaded site '
+        '"${model.name}" (siteId: $siteId)', sensitive: true);
+  }
+
+
   /// Unloads the site at [index] (PAUSE-007, ISO-002); see
   /// [SiteUnloadEngine.unload].
   Future<void> unload(int index, {required UnloadReason reason}) =>

@@ -561,7 +561,7 @@ class UserScriptConfig {
 
 - Stored in `_WebSpacePageState._globalUserScripts`
 - Persisted to SharedPreferences under `'globalUserScripts'` key
-- Loaded during `_restoreAppState()` via `ShellStore.loadGlobalUserScripts()`
+- Loaded during `StartupController.restore()` via `ShellStore.loadGlobalUserScripts()`
 - After sites load, `ShellStore.migrateGlobalScriptOptIn()` one-time-fills empty per-site opt-in sets with all current global ids (gated by the `globalUserScriptsOptInMigrated` SharedPreferences marker)
 - Passed through `getWebView()` and `getController()` to the merge site-filter
 - Included in `SettingsBackup` model for export/import. Per-site `enabledGlobalScriptIds` are exported as part of each site's JSON.

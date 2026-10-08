@@ -55,7 +55,7 @@ class LaunchOfferReroute extends LaunchResolution {
   const LaunchOfferReroute({required this.shortcutSiteId});
 }
 
-/// Pure helpers for `_WebSpacePageState._restoreAppState`. Only the
+/// Pure helpers for `StartupController.restore`. Only the
 /// straight-line decisions live here; SharedPreferences I/O, native
 /// cookie-jar nuking, and `setCurrentIndex` chaining stay at the
 /// caller because they cross rendering/persistence boundaries.

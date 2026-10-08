@@ -43,7 +43,7 @@ The system SHALL enter the locked shell state when, and only when, the
 current session was entered via a home-screen shortcut whose target
 site has `kioskMode = true`. The lock state SHALL be re-derived on
 every shortcut launch from the resolved target's `kioskMode` value, on
-both the cold-launch path (`_restoreAppState`) and the warm-tap path
+both the cold-launch path (`StartupController.restore`) and the warm-tap path
 (`_openShortcutIndex`). A launch that is not via a shortcut SHALL leave
 the lock cleared.
 
@@ -183,7 +183,7 @@ audit it needs no archive override.
 - `lib/screens/settings.dart` — per-site `SwitchListTile` plus the
   `_kioskMode` local-state read/write-back.
 - `lib/main.dart` — `_kioskLocked` session flag, set from the target's
-  `kioskMode` on cold launch (`_restoreAppState`) and warm tap
+  `kioskMode` on cold launch (`StartupController.restore`) and warm tap
   (`_openShortcutIndex`); shell gates on `drawer`, `_buildAppBar`
   (leading + actions), and `_tabStripShown`. Fullscreen is forced on
   both launch paths and held: `FullscreenController.exit` early-returns while

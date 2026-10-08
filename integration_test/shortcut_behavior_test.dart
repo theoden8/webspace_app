@@ -386,7 +386,7 @@ Future<void> tapDialogButton(WidgetTester tester,
         // HS-012: on the initState/resume cadence the ledger records the url of
         // every pinned site that still exists, so a later deletion leaves a
         // routable trail. Asserted after a resume because the initState pass
-        // races `_restoreAppState` for the loaded model list.
+        // races `StartupController.restore` for the loaded model list.
         await resumeApp(tester);
         await pumpUntilAsync(
           tester,

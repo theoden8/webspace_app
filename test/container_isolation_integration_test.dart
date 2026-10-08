@@ -170,7 +170,7 @@ class ContainerIsolationTestHarness with SiteListState {
     removeSiteAt(index);
   }
 
-  /// Mirrors the startup GC in `_restoreAppState`: sweep profiles that
+  /// Mirrors the startup GC in `StartupController.restore`: sweep profiles that
   /// have no surviving site. Run after seeding prior-session orphan
   /// profiles to verify they don't survive.
   Future<int> simulateAppStartupGc() async {

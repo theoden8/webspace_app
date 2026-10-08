@@ -373,7 +373,7 @@ What an upgrade or an import reads SHALL survive any single odd value.
   (`lib/settings/app_prefs.dart`) or `readExportedAppPrefs`, never a typed
   `SharedPreferences` getter. Those throw on a stored value of another type,
   and v0.2.2 through v0.3.1 imports stored `globalPrefs` values under the
-  file's JSON type; thrown inside `_restoreAppState`, it stopped the sites
+  file's JSON type; thrown inside `StartupController.restore`, it stopped the sites
   from loading.
 - Every SharedPreferences key a release wrote (recorded per release in
   `prefs_writes.json`) SHALL still be read with the type it was written as,

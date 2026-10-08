@@ -432,7 +432,7 @@ Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateSto
 
 ### Requirement: NAV-012 - A Site Opened During Startup Stays Open
 
-The startup restore SHALL NOT close a site the user opened while it was still running. `_restoreAppState` records `SiteRuntime.activationVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
+The startup restore SHALL NOT close a site the user opened while it was still running. `StartupController.restore` records `SiteRuntime.activationVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
 
 **Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `setCurrentIndex(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_sites.current` cleared the next memory-pressure event no longer protected it.
 

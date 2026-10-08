@@ -112,7 +112,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     );
   }
 
-  /// Mirrors the startup GC in `_restoreAppState`: orphan sweep on
+  /// Mirrors the startup GC in `StartupController.restore`: orphan sweep on
   /// encrypted storage, then nuke the native cookie jar before first
   /// activation. Call this after seeding prior-session cookies to verify
   /// they don't leak into the next activated site.

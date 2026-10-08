@@ -109,7 +109,7 @@ abstract class ContainerNative {
   /// (e.g. choosing whether to defer `initialUrlRequest` on the
   /// flutter_inappwebview construction path so the bind can win the
   /// race against `webView.loadUrl`) read this getter; the async
-  /// resolution is performed once at startup in `_restoreAppState`.
+  /// resolution is performed once at startup in `StartupController.restore`.
   bool get cachedSupported;
 
   /// Default singleton routed to the platform-appropriate impl. Tests

@@ -1,5 +1,6 @@
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/services/block_stats_service.dart';
+import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/dns_block_service.dart';
@@ -23,6 +24,7 @@ class PageOrphanSweep implements OrphanSweepTargets {
     required this.proxyPasswords,
     required this.navStates,
     required this.cookies,
+    required this.containers,
   });
 
   final SiteRuntime _sites;
@@ -30,6 +32,7 @@ class PageOrphanSweep implements OrphanSweepTargets {
   final ProxyPasswordSecureStorage proxyPasswords;
   final WebViewStateStorage navStates;
   final CookieManager cookies;
+  final ContainerIsolationEngine containers;
 
   @override
   Future<void> removeOrphans(OrphanStore store,
@@ -56,6 +59,20 @@ class PageOrphanSweep implements OrphanSweepTargets {
 
   @override
   Future<void> clearLegacyGlobalCookieJar() => cookies.deleteAllCookies();
+
+  /// The container sweep at launch, before any webview binds:
+  /// `deleteContainer` is reliable only in that unbound window. An incognito
+  /// site's container goes too, so its directory does not grow across
+  /// sessions; the next bind makes a fresh one (#298).
+  Future<void> containersBeforeBind(
+    Set<String> activeSiteIds, {
+    required Set<String> nonIncognitoSiteIds,
+  }) async {
+    await containers.garbageCollectOrphans(activeSiteIds);
+    for (final siteId in activeSiteIds.difference(nonIncognitoSiteIds)) {
+      await containers.onSiteDeleted(siteId);
+    }
+  }
 
   /// Sweep after sites left the list while the app runs (delete, import).
   Future<void> afterRemoval() => OrphanSweepEngine.sweep(

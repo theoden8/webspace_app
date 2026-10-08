@@ -347,7 +347,7 @@ State bytes survive cold starts (unlike the in-memory `InMemoryWebViewStateStora
 
 **Given** the previous session left state files for siteIds {A, B, C}
 **And** the user deleted site B before app exit (state file lingered)
-**When** the app starts and `_restoreAppState` runs the orphan sweep
+**When** the app starts and `StartupController.restore` runs the orphan sweep
 **Then** `_stateStorage.removeOrphans({A, C})` is called
 **And** the file `B.enc` is deleted from disk
 
@@ -428,7 +428,7 @@ State files SHALL be reaped when their owning site is deleted, not when the user
 
 ### Requirement: PAUSE-019 — Cold-Start Restore for Auto-Loaded Sites
 
-Sites that enter `_sites.loaded` without going through `setCurrentIndex` — notification sites auto-loaded at startup, on both the legacy pre-paint loop in `_restoreAppState` and the container-mode `DeferredStartupEngine.autoLoadNotificationSites` — SHALL have their saved nav-state bytes fetched from `WebViewStateStorage` and queued on the model via `schedulePendingRestoreState` *before* they are marked loaded.
+Sites that enter `_sites.loaded` without going through `setCurrentIndex` — notification sites auto-loaded at startup, on both the legacy pre-paint loop in `StartupController.restore` and the container-mode `DeferredStartupEngine.autoLoadNotificationSites` — SHALL have their saved nav-state bytes fetched from `WebViewStateStorage` and queued on the model via `schedulePendingRestoreState` *before* they are marked loaded.
 
 `setCurrentIndex` fetches restore bytes only when the target is NOT already in `_sites.loaded` (a loaded webview's controller won't be recreated, so a queued restore would go stale). An auto-loaded site is therefore skipped by the activation-path restore on every subsequent tap; without the pre-queue, its first build consumes no bytes and the previous session's back/forward stack is silently dropped on every cold start — precisely for the sites a user keeps notifications on for. The pre-queue goes through the same gates as the activation path (`persistsNavState`, no live controller) and re-checks site liveness after the disk read.
 

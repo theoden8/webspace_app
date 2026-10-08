@@ -47,7 +47,7 @@ Webviews SHALL be created only when the user visits a site, EXCEPT for sites wit
 
 In container mode there are no domain-conflict restrictions (PROF-003), so all notification sites auto-load freely regardless of domain overlap.
 
-Implementation: see the auto-load loop in `_restoreAppState` ([lib/main.dart](../../../lib/main.dart)) that adds every `notificationsEnabled` site index to `_sites.loaded` after the per-site models have been hydrated.
+Implementation: see the auto-load loop in `StartupController.restore` ([lib/main.dart](../../../lib/main.dart)) that adds every `notificationsEnabled` site index to `_sites.loaded` after the per-site models have been hydrated.
 
 #### Scenario: App starts with multiple notification sites
 
