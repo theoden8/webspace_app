@@ -27,11 +27,12 @@ function readFixture(relPath) {
   return fs.readFileSync(abs, 'utf8');
 }
 
-function makeDom({ url = 'https://example.com/', html, userAgent } = {}) {
+function makeDom({ url = 'https://example.com/', html, userAgent, virtualConsole } = {}) {
   const initialHtml =
     html ?? '<!doctype html><html><head></head><body></body></html>';
   const opts = { url, pretendToBeVisual: true, runScripts: 'outside-only' };
   if (userAgent) opts.userAgent = userAgent;
+  if (virtualConsole) opts.virtualConsole = virtualConsole;
   const dom = new JSDOM(initialHtml, opts);
   installBrowserPolyfills(dom.window);
   return dom;

@@ -1083,6 +1083,9 @@ about. The sampler now fills transparent window pixels from the
   is this bug; a blank that survives a relayout, or a visible "connection failed", is
   `PAUSE-022` (`ResumeReloadEngine`), which re-issues the load on resume. No nudge can
   fix that one.
+- A blank that survives a relayout on a site with the content blocker on: run #405's
+  root probe in the developer console. `root=STYLE ... blocker=ROOT` is
+  [BUG-031](031-content-blocker-style-becomes-document-root.md), not a surface.
 - Confirm it's the **surface**, not a dead renderer: does the page respond to taps /
   does a rotate or tab-switch instantly fix it? If yes → surface, use the nudge. If a
   rotate doesn't fix it and JS is dead → renderer death, a different bug:
@@ -1296,6 +1299,18 @@ about. The sampler now fills transparent window pixels from the
     should look in logcat for `Width is zero` and the platform-view id. It
     does not match the 2026-10-04 capture above, where the document had no
     body. Open, unlabelled, no replies as of 2026-10-04.
+
+    **The content-blocker fallback is reached after all (2026-10-08).** The
+    experiment above served the page whole, so `<html>` existed at commit. A
+    server that sends its headers before its body commits a document with no
+    root, and the early CSS shim's `onLoadStart` copy then made its `<style>`
+    the root. Three captures from
+    [#405](https://github.com/theoden8/webspace_app/issues/405) (ChatGPT and
+    Brave Search, content blocker on, white and black) printed `root=STYLE
+    roots=1 html=0 body=none`:
+    [BUG-031](031-content-blocker-style-becomes-document-root.md), fixed in the
+    shim (CB-019). It does not explain the GitHub capture, whose root was
+    `<html>`.
 
 - Identify the **new entry path**: what navigation/lifecycle event preceded the blank?
   Does it pass through `_setCurrentIndex` (Attempt 3) or `onControllerReady`
