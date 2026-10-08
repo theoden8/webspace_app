@@ -55,6 +55,9 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'bare_site.dart';
 import 'helpers/ui.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// One field's trip across the channel.
 class _Field {

@@ -215,7 +215,7 @@ an object with a `password` (v0.2.2 wrote one; any file can)
 #### Scenario: Import does not write a password to secure storage
 
 **Given** the import path runs on a backup that has no proxy passwords
-**When** `_importSettings` finishes
+**When** `BackupController.import` finishes
 **Then** any pre-existing proxy passwords for the imported `siteId`s
 were swept by orphan cleanup (PWD-004) and no new ones are written
 
@@ -305,7 +305,7 @@ is restarted.
 - `lib/web_view_model.dart` - `toJson` always omits the password
 - `lib/controllers/site_list_store.dart` - `SiteListStore.load` / `save`
 - `lib/main.dart` - `_persistSites` /
-  `_exportSettings` / `_importSettings` / orphan cleanup paths;
+  `BackupController.export` / `BackupController.import` / orphan cleanup paths;
   post-import snackbar surfaces the strip contract when a `username` was
   present in the imported backup
 - `lib/services/settings_backup.dart` - documents the strip-from-export
@@ -339,12 +339,12 @@ sensitive secret:
    `ProxyPasswordSecureStorage.migrateLegacyPassword` as the template.
 5. **Wire orphan cleanup** by adding the store to `OrphanStore` in
    `lib/services/orphan_sweep_engine.dart` as `configuration` scope.
-   `_OrphanSweepTargets` in main.dart does not compile until it sweeps
+   `PageOrphanSweep` ([page_orphan_sweep.dart](lib/controllers/page_orphan_sweep.dart)) does not compile until it sweeps
    the store, and startup, post-import and post-delete all run the
    engine.
 6. **Surface the strip-from-export contract in the import UI** so the
    user knows to re-enter the secret after restoring from a backup. The
-   per-site / global proxy snackbar in `_importSettings` is the model.
+   per-site / global proxy snackbar in `BackupController.import` is the model.
 7. **Add a regression test** asserting the secret never appears as a
    substring of `exportToJson(backup)` after a save. The
    "no proxy password substring in exported JSON" test in

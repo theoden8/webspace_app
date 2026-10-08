@@ -69,7 +69,7 @@ void main() {
       // If the registration is dropped (or moved past DOCUMENT_END), the
       // shim never gets a chance to wrap createObjectURL before the page
       // calls it, and github.com downloads silently break again.
-      final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
+      final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
       final blockStart = webviewSrc.indexOf(
           RegExp(r"pageShim\('blob_url_capture',\s*js: blobUrlCaptureScript"));
       expect(blockStart, greaterThan(0));
@@ -243,7 +243,7 @@ void main() {
       // (b) be Android-gated, and (c) inject at DOCUMENT_START so the
       // shim is in place before any page script can mint a blob URL
       // and wire a click handler against it.
-      final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
+      final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
       final blockStart = webviewSrc.indexOf(RegExp(
           r"'blob_download_click_intercept',\s*js: blobDownloadClickInterceptScript"));
       expect(blockStart, greaterThan(0));
@@ -263,19 +263,19 @@ void main() {
 
     test('Dart handler for _webspaceBlobDownloadStart is registered', () {
       // The JS shim is dead weight without a matching addJavaScriptHandler.
-      final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
+      final webviewSrc = File('lib/services/page_handlers.dart').readAsStringSync();
       expect(webviewSrc, contains("handlerName: '_webspaceBlobDownloadStart'"));
-      // The handler must funnel into the same _handleBlobDownload entry
+      // The handler must funnel into the same handleBlobDownload entry
       // point the iOS/macOS onDownloadStartRequest path uses — otherwise
       // the captured-Blob fast path and DownloadsService task lifecycle
       // drift between platforms.
       final handlerStart =
           webviewSrc.indexOf("handlerName: '_webspaceBlobDownloadStart'");
       expect(handlerStart, greaterThan(0));
-      final handlerEnd = webviewSrc.indexOf('),', handlerStart);
-      expect(handlerEnd, greaterThan(handlerStart));
-      final handler = webviewSrc.substring(handlerStart, handlerEnd);
-      expect(handler, contains('_handleBlobDownload('));
+      final next = webviewSrc.indexOf('addJavaScriptHandler', handlerStart);
+      final handler = webviewSrc.substring(
+          handlerStart, next < 0 ? webviewSrc.length : next);
+      expect(handler, contains('WebViewDownloads.handleBlobDownload('));
     });
   });
 }

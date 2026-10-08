@@ -17,6 +17,8 @@ import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 const _kSrcProbe = 'window.__wsSrc || null';
 

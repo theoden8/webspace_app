@@ -220,7 +220,7 @@ No new data models. Imported HTML sites use the existing `WebViewModel` with:
 
 ### Modified
 - `lib/screens/add_site.dart` - Added `_importHtmlFile()` method and "Import HTML file" button
-- `lib/main.dart` - Updated `_addSite()` to handle `htmlContent` in result and save to `HtmlImportStorage`; init/preload of the import store; `_migrateFileImportsToStorage` pre-wipe hook copies legacy entries out of `HtmlCacheService`; orphan-cleanup and per-site delete touch both stores; the webview's `initialHtml` reads from `HtmlImportStorage` for `file://` sites and the snapshot save path skips them
+- `lib/main.dart` - Updated `SiteEditingController.addSite()` to handle `htmlContent` in result and save to `HtmlImportStorage`; init/preload of the import store; `_migrateFileImportsToStorage` pre-wipe hook copies legacy entries out of `HtmlCacheService`; orphan-cleanup and per-site delete touch both stores; the webview's `initialHtml` reads from `HtmlImportStorage` for `file://` sites and the snapshot save path skips them
 - `lib/services/html_cache_service.dart` - `initialize()` accepts a `beforeUpgradeWipe` callback that runs after key load but before the wipe, used to migrate file imports out
 - `lib/utils/url_utils.dart` - Added `migrateLegacyFileImportUrl` for legacy two-slash imports
 - `lib/web_view_model.dart` - Applies migration in `WebViewModel.fromJson` for `initUrl`/`currentUrl`

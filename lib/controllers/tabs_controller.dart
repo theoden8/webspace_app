@@ -15,6 +15,7 @@ import 'package:webspace/services/tab_lifecycle_engine.dart';
 import 'package:webspace/services/tab_return_engine.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/widgets/tabs_sheet.dart' show TabsSheetSite;
 
 /// What the tab flows ask of the page.
 abstract interface class TabsHost implements PageHost {
@@ -121,6 +122,28 @@ class TabsController {
       index >= 0 &&
       index < _sites.models.length &&
       enabledFor(_sites.models[index]);
+
+  /// Every site with tabs: the current webspace's in the order the drawer
+  /// shows them, then the rest, whose trees can hold tabs that run as a site
+  /// the webspace shows (TAB-017). A site without tabs is left out, so its
+  /// stored ones cannot be opened from another site's list.
+  List<TabsSheetSite> sheetSites() {
+    final view = _sites.filteredIndices();
+    final shown = view.toSet();
+    TabsSheetSite site(int i) => TabsSheetSite(
+          index: i,
+          model: _sites.models[i],
+          isCurrent: i == _sites.current,
+          isLoaded: _sites.loaded.contains(i),
+          inView: shown.contains(i),
+        );
+    return [
+      for (final i in view)
+        if (enabledAt(i)) site(i),
+      for (var i = 0; i < _sites.models.length; i++)
+        if (!shown.contains(i) && enabledAt(i)) site(i),
+    ];
+  }
 
   /// Whether [host] may run a tab in [owner]'s tree (LIR-019): the container
   /// engine, a host with a persistent container of its own, and neither side

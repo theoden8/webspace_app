@@ -33,6 +33,8 @@ import 'package:webspace/settings/proxy.dart';
 import 'bare_site.dart';
 import 'socks5_fixture.dart';
 import 'helpers/ui.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_proxy.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

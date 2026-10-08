@@ -190,7 +190,7 @@ Available on iOS 16+ / macOS 13+. On older OS versions the intent type is compil
 **Given** WebSpace is not running
 **When** the user taps a Shortcut wired to `OpenSiteIntent` from the home screen
 **Then** the app cold-launches
-**And** `_restoreAppState` reads the pending siteId via `ShortcutService.getLaunchSiteId()`
+**And** `StartupController.restore` reads the pending siteId via `ShortcutService.getLaunchSiteId()`
 **And** the chosen site is the initial active index
 
 #### Scenario: Warm launch via Shortcut
@@ -205,7 +205,7 @@ Available on iOS 16+ / macOS 13+. On older OS versions the intent type is compil
 
 ### Requirement: HS-009 - Site List Synced to App Group
 
-The system SHALL keep the App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_persistSites`) and once per launch after `_restoreAppState` finishes loading models, the system SHALL write the current `[{id, name}]` list to the shared App Group `UserDefaults` (suite `group.org.codeberg.theoden8.webspace` on iOS; the team-prefixed `<TEAMID>.group.org.codeberg.theoden8.webspace` on sandboxed macOS) under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
+The system SHALL keep the App Intents site picker in sync with the user's actual WebSpace sites. Whenever the persisted site list changes (`_persistSites`) and once per launch after `StartupController.restore` finishes loading models, the system SHALL write the current `[{id, name}]` list to the shared App Group `UserDefaults` (suite `group.org.codeberg.theoden8.webspace` on iOS; the team-prefixed `<TEAMID>.group.org.codeberg.theoden8.webspace` on sandboxed macOS) under key `shortcut_sites`, and SHALL invalidate the App Shortcuts parameter cache via `AppShortcutsProvider.updateAppShortcutParameters()` so the Shortcuts app re-queries the entity provider. The per-launch sync guards against iOS materializing the per-site App Shortcuts against an empty/stale App Group (e.g. on first launch after install, before any save has run), which can otherwise surface a single stale entry whose bound target no longer matches its displayed title.
 
 #### Scenario: Site added
 
@@ -598,7 +598,7 @@ On app start and on `onNewIntent` (app already running), read the launch
    - `LaunchNone` — no intent, or an orphaned siteId with no ledger url
      (home screen).
 2. On cold launch the confirm/create prompts are deferred to the first
-   post-frame (no UI exists mid-`_restoreAppState`); direct hits activate
+   post-frame (no UI exists mid-`StartupController.restore`); direct hits activate
    inline. The warm path (`_handleShortcutIntent`) prompts immediately.
 3. The remembered rebind map (`shortcutSiteRemap`) and the url ledger
    (`shortcutUrlLedger`) are persisted in `SharedPreferences` (HS-011 /

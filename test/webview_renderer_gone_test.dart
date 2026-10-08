@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
 import 'helpers/fake_webview_controller.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 void main() {
   group('WebViewModel.handleRendererGone', () {

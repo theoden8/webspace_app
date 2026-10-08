@@ -6,7 +6,6 @@ import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
 import 'package:webspace/controllers/tabs_controller.dart';
 import 'package:webspace/services/archive.dart';
-import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/link_routing_service.dart';
@@ -20,7 +19,6 @@ import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/web_search_engine.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart'
@@ -34,6 +32,7 @@ import 'package:webspace/widgets/external_url_prompt.dart'
     show launchUrlInSystemBrowser, showExternalLinkBlocked;
 import 'package:webspace/widgets/url_bar.dart' show UrlBarSearchSite;
 import 'package:webspace/widgets/web_search_sheet.dart' show WebSearchRequest;
+import 'package:webspace/services/webview_controller.dart';
 
 /// What the web search sheet is asked (LIR-029).
 typedef WebSearchAsk = ({
@@ -258,9 +257,7 @@ class LinkController {
         containerColors: {
           if (_sites.useContainers)
             for (final m in {...outboundCandidates(owner), identity})
-              m.siteId: m.containerColor ??
-                  ContainerColorEngine.fallback(
-                      m.siteId, paletteSize: kContainerPaletteSize),
+              m.siteId: m.drawnContainerColor,
         },
       ));
       if (!_host.mounted || request == null) return;

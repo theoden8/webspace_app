@@ -47,6 +47,6 @@ test('no GeoIP table is committed', () => {
 test('the data is attributed on the licences page', () => {
   const notice = 'assets/licenses/ipfire_location.txt';
   assert.match(read(notice), /CC BY-SA 4\.0/);
-  assert.ok(read('lib/main.dart').includes(`'${notice}'`),
-    `${notice} must be registered in the custom-licence list in lib/main.dart`);
+  assert.ok(read('lib/services/licenses.dart').includes(`'${notice}'`),
+    `${notice} must be registered in the custom-licence list in lib/services/licenses.dart`);
 });

@@ -10,11 +10,13 @@ import 'package:flutter_test/flutter_test.dart';
 /// test; the tab flows themselves are `TabsController`'s.
 void main() {
   late String source;
+  late String menu;
   late String tabs;
   late String links;
 
   setUpAll(() {
-    source = File('lib/main.dart').readAsStringSync();
+    source = File('lib/screens/webspace_page.dart').readAsStringSync();
+    menu = File('lib/widgets/site_menu.dart').readAsStringSync();
     tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
@@ -24,24 +26,24 @@ void main() {
 
   test('both overflow menus offer New tab and neither offers Duplicate tab',
       () {
-    expect(
-        count('_siteMenuItems(context, placement: _SiteMenuPlacement.appBar)'),
-        1);
-    expect(
-        count(
-            '_siteMenuItems(context, placement: _SiteMenuPlacement.bottomBar)'),
-        1);
-    expect(count('SiteMenuAction.newTab =>'), 1);
-    expect(count('SiteMenuAction.duplicateTab'), 0);
+    expect(count('_siteMenu(SiteMenuPlacement.appBar)'), 1);
+    expect(count('_siteMenu(SiteMenuPlacement.bottomBar)'), 1);
+    expect('SiteMenuAction.newTab =>'.allMatches(menu), hasLength(1));
+    expect(menu, isNot(contains('SiteMenuAction.duplicateTab')));
+    expect(source, isNot(contains('SiteMenuAction.duplicateTab')));
   });
 
   test('a long press on the menus\' refresh button duplicates the tab', () {
     final refresh = RegExp(
       r'tooltip: loading \? loc\.homeStopTooltip : loc\.homeRefreshTooltip,\s*'
-      r'onLongPress: _tabs\.enabledAt\(_sites\.current\)\s*\?\s*\(\) \{[^}]*'
+      r'onLongPress:\s*duplicateTab == null \? null : \(\) => close\(duplicateTab\),',
+    );
+    expect(refresh.allMatches(menu).length, 1);
+    final duplicate = RegExp(
+      r'duplicateTab: _tabs\.enabledAt\(_sites\.current\)\s*\?\s*\(\) \{[^}]*'
       r'_tabs\.duplicateTab\(',
     );
-    expect(refresh.allMatches(source).length, 1);
+    expect(duplicate.allMatches(source).length, 1);
   });
 
   test('a duplicate opens parked: it never re-binds the webview', () {
@@ -123,10 +125,15 @@ void main() {
 
     test('Back at the start of a tab tries the way back before closing it '
         '(TAB-019, TAB-007)', () {
-      expect(RegExp(r'await _tabs\.backAtTabStart\(\)').allMatches(source),
+      expect(
+          RegExp(r'await _host\.backAtTabStart\(\)').allMatches(
+              File('lib/controllers/back_gesture_controller.dart')
+                  .readAsStringSync()),
           hasLength(2),
           reason: 'Android\'s canGoBack path and the attempt-then-compare '
               'path of every other host');
+      expect(source,
+          contains('Future<bool> backAtTabStart() => _s._tabs.backAtTabStart();'));
       expect(
           RegExp(r'(?<!Future<bool> )_closeChildTabOnBack\(\)')
               .allMatches(tabs),
@@ -182,16 +189,16 @@ void main() {
     });
 
     test('the tab list leaves out sites without tabs', () {
-      final start = source.indexOf('List<TabsSheetSite> _tabsSheetSites() {');
+      final start = tabs.indexOf('List<TabsSheetSite> sheetSites() {');
       expect(start, isNot(-1));
-      final body = source.substring(start, source.indexOf('\n  }\n', start));
+      final body = tabs.substring(start, tabs.indexOf('\n  }\n', start));
       expect(
-        RegExp(r'for \(final i in view\)\s*if \(_tabs\.enabledAt\(i\)\)')
+        RegExp(r'for \(final i in view\)\s*if \(enabledAt\(i\)\)')
             .hasMatch(body),
         isTrue,
       );
       expect(
-        RegExp(r'if \(!shown\.contains\(i\) && _tabs\.enabledAt\(i\)\)')
+        RegExp(r'if \(!shown\.contains\(i\) && enabledAt\(i\)\)')
             .hasMatch(body),
         isTrue,
         reason: 'a site the webspace hides is listed for TAB-017 only when '
@@ -208,11 +215,13 @@ void main() {
         reason: 'the tab count in the app bar',
       );
       expect(
-        source,
+        menu,
         contains('SiteMenuAction.newTab =>\n'
-            '          _tabs.enabledAt(_sites.current) ? (Icons.add, loc.tabsNewTab) : null,'),
+            '          state.tabsOn ? (Icons.add, loc.tabsNewTab) : null,'),
         reason: 'New tab, in the overflow menus',
       );
+      expect(source, contains('tabsOn: _tabs.enabledAt(_sites.current),'),
+          reason: 'the menus read tabs as the site on screen has them');
 void guarded(String src,
     {required int count, required RegExp guard, required String reason}) {
   final pills = 'TabCountPill('.allMatches(src).toList();
@@ -223,13 +232,17 @@ void guarded(String src,
   }
 }
 
-      guarded(source,
+      guarded(File('lib/widgets/site_tab_strip.dart').readAsStringSync(),
           count: 1,
-          guard: RegExp(r'^if \(_tabs\.enabledFor\(siteModel\) && '),
+          guard: RegExp(r'^if \(showsTabCount\(site\) && '),
           reason: 'the strip chip');
-      expect(source,
-          contains('showTabCount: _tabs.enabledAt(index) &&'),
+      expect(source, contains('showsTabCount: _tabs.enabledFor,'),
+          reason: 'the strip chip counts tabs only where the site has them');
+      expect(File('lib/widgets/site_drawer.dart').readAsStringSync(),
+          matches(RegExp(r'showTabCount:\s*showsTabCount\(index\) &&')),
           reason: 'the drawer tile');
+      expect(source, contains('showsTabCount: _tabs.enabledAt,'),
+          reason: 'the drawer counts tabs only where the site has them');
       guarded(File('lib/widgets/site_grid_tile.dart').readAsStringSync(),
           count: 2,
           guard: RegExp(r'^if \(showTabCount\)'),
@@ -238,14 +251,12 @@ void guarded(String src,
   });
 
   group('TAB-014: shortcut and reopen land a site with tabs', () {
-    String body(String signature) {
-      final start = source.indexOf(signature);
-      expect(start, isNot(-1), reason: '$signature not found');
-      return source.substring(start, source.indexOf('\n  }\n', start));
-    }
-
     test('an always-home site with tabs lands on a home tab, not in place', () {
-      final reset = body('Future<void> _resetAlwaysOpenHomeOnShortcut(');
+      final resets = File('lib/controllers/site_reset_controller.dart')
+          .readAsStringSync();
+      final at = resets.indexOf('Future<void> resetHomeOnLaunch(');
+      expect(at, isNot(-1));
+      final reset = resets.substring(at, resets.indexOf('\n  }\n', at));
       expect(reset, contains('if (_tabs.enabledAt(i)) _sites.models[i]'));
       expect(reset, contains('await _tabs.landOnHomeTab(m);'));
       final land = tabs.substring(tabs.indexOf('Future<void> landOnHomeTab('));
@@ -274,7 +285,7 @@ void guarded(String src,
   group('TAB-016: a site heading in the Tabs sheet moves the site', () {
     test('offered only where the drawer and the strip reorder', () {
       expect(
-          count('onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet '
+          count('onMoveSite: _webspaces.canReorderView ? _moveSiteInTabsSheet '
               ': null'),
           1);
     });
@@ -285,9 +296,10 @@ void guarded(String src,
       expect(start, isNot(-1));
       final end = source.indexOf('\n  }\n', start);
       final body = source.substring(start, end);
-      expect(body.contains('_reorderSite(from, newListIndex: to);'), isTrue);
+      expect(body.contains('_webspaces.reorderSite(from, newListIndex: to);'),
+          isTrue);
       // Reordering "All" renumbers every site, so the sheet gets them afresh.
-      expect(body.contains('return _tabsSheetSites();'), isTrue);
+      expect(body.contains('return _tabs.sheetSites();'), isTrue);
       expect(body.contains('.insert('), isFalse);
       expect(body.contains('.removeAt('), isFalse);
     });

@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// and the next close sealed the emptiness over the slot (ARCH-010); the
 /// commit seals them first (test/js/site_set_commit.test.js).
 void main() {
-  final host = File('lib/main.dart').readAsStringSync();
+  final host = File('lib/controllers/backup_controller.dart').readAsStringSync();
 
   String body(String signature) {
     final start = host.indexOf(signature);
@@ -19,9 +19,9 @@ void main() {
   test('an import decides everything before it clears the list', () {
     // BACKUP-013: a file value that fails to parse must reject the import
     // while live state is intact, so after the clear only the plan is read.
-    final import = body('Future<void> _importSettings() async {');
+    final import = body('Future<void> import() async {');
     final plan = import.indexOf('planSettingsImport(');
-    final clear = import.indexOf('await _commitSites(SitesReplaced(');
+    final clear = import.indexOf('await _host.commitSites(SitesReplaced(');
     expect(plan, greaterThan(-1), reason: 'the import no longer plans');
     expect(plan, lessThan(clear));
     final applied = import.substring(clear);

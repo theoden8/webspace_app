@@ -210,13 +210,13 @@ test('a second injection does not wrap twice', async () => {
 const readDart = (rel) => code(read(rel));
 
 test('PASSKEY-013: every Apple webview without passkeys gets the block shim, in every frame', () => {
-  const webview = readDart('lib/services/webview.dart');
+  const webview = readDart('lib/services/page_scripts.dart');
   const pageScripts = blockAfter(webview,
-    '_buildPageScripts(WebViewConfig config) {', undefined, 'webview.dart');
+    'buildPageScripts(WebViewConfig config) {', undefined, 'page_scripts.dart');
   assert.ok(pageScripts.includes('..._passkeyShims(config.passkeys),'),
-    '_buildPageScripts, shared by site and popup webviews, must install the passkey shims');
+    'buildPageScripts, shared by site and popup webviews, must install the passkey shims');
   const at = webview.indexOf('_passkeyShims(PasskeyAccess? passkeys) => [');
-  assert.notEqual(at, -1, 'webview.dart no longer builds the passkey shims');
+  assert.notEqual(at, -1, 'page_scripts.dart no longer builds the passkey shims');
   const shims = webview.slice(at, webview.indexOf('];', at)).replace(/\s+/g, ' ');
   assert.ok(shims.includes(
     "if (passkeys == null && PasskeyAccess.hostIsApple) "

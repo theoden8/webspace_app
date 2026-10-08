@@ -7,7 +7,7 @@
 // an onLoadStop, so pull-to-refresh spins forever. The fixes before this one
 // each closed one path (a missing import, the Android restore) and the next
 // path reopened it, so the rule now lives at the one seam model code loads
-// through: `_WebViewController`. This gate fails CI if that seam stops
+// through: `PlatformWebViewController`. This gate fails CI if that seam stops
 // consulting the import document, or if model code goes around it.
 
 const test = require('node:test');
@@ -16,9 +16,10 @@ const { read, dartFiles, blockAfter } = require('./helpers/source');
 
 const rel = 'lib/services/webview.dart';
 const src = read(rel);
+const controllerRel = 'lib/services/webview_controller.dart';
 
-const wrapper = blockAfter(
-  src, 'class _WebViewController implements WebViewController {', null, rel);
+const wrapper = blockAfter(read(controllerRel),
+  'class PlatformWebViewController implements WebViewController {', null, controllerRel);
 
 test('reload re-renders the import before it can reach the engine', () => {
   const body = blockAfter(wrapper, 'Future<bool> reload()', null, rel);
@@ -48,8 +49,8 @@ test('the wrapper has no other native reload or load', () => {
 
 test('the controller handed to the model carries the import document', () => {
   const created = blockAfter(src, 'onWebViewCreated: (controller) async {', null, rel);
-  const ctor = created.match(/_WebViewController\(([\s\S]*?)\);/);
-  assert.ok(ctor, 'onWebViewCreated must build a _WebViewController');
+  const ctor = created.match(/PlatformWebViewController\(([\s\S]*?)\);/);
+  assert.ok(ctor, 'onWebViewCreated must build a PlatformWebViewController');
   assert.match(ctor[1], /fileImport:\s*fileImport/,
       'the wrapper built for onControllerCreated must receive fileImport');
   assert.match(created, /onControllerCreated\(wrappedController\)/);
@@ -63,7 +64,7 @@ test('initialData and the wrapper render the same import document', () => {
 
 test('model code does not load through the raw native controller', () => {
   const offenders = [];
-  for (const r of dartFiles().filter((f) => f !== rel)) {
+  for (const r of dartFiles().filter((f) => f !== rel && f !== controllerRel)) {
     read(r).split('\n').forEach((l, i) => {
       if (/nativeController\s*\.\s*(loadUrl|reload|loadData|loadFile)\s*\(/.test(l)) {
         offenders.push(`${r}:${i + 1}`);

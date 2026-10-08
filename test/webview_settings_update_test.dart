@@ -4,7 +4,7 @@
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/user_agent_metadata_builder.dart';
-import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 bool _deepEquals(Object? a, {required Object? b}) {
   if (a is Map && b is Map) {

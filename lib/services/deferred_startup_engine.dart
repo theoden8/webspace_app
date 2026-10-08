@@ -46,7 +46,7 @@ abstract class DeferredStartupHost {
 
   /// Queue the site's saved nav-state bytes (if any) on its model so the
   /// first webview build applies `restoreState` — the cross-restart
-  /// back/forward restore for sites loaded outside `_setCurrentIndex`
+  /// back/forward restore for sites loaded outside `setCurrentIndex`
   /// (PAUSE-019). No-op when nothing is saved or a controller already
   /// exists.
   Future<void> queueNavStateRestore(String siteId);
@@ -97,7 +97,7 @@ class DeferredStartupEngine {
       if (!host.isMounted) return;
       if (!host.isLive(siteId) || host.isLoaded(siteId)) continue;
       // Before markLoaded: once the site is in _loadedIndices,
-      // _setCurrentIndex skips its restore fetch, so this is the only
+      // setCurrentIndex skips its restore fetch, so this is the only
       // point where the previous session's back/forward stack can be
       // queued for an auto-loaded site (PAUSE-019).
       await host.queueNavStateRestore(siteId);

@@ -47,6 +47,8 @@ import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'helpers/ui.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// Marker baked into the snapshot handed to the webview as `initialHtml`.
 const String _cachedMarker = 'WS_CACHED_SNAPSHOT_MARKER';

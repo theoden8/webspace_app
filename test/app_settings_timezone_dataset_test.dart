@@ -11,7 +11,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import 'package:webspace/main.dart' show AppThemeSettings;
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/timezone_location_service.dart';
 import 'helpers/fake_path_provider.dart';

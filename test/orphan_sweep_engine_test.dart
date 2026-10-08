@@ -119,7 +119,7 @@ void main() {
   });
 
   group('call sites', () {
-    final host = File('lib/main.dart').readAsStringSync();
+    final host = File('lib/screens/webspace_page.dart').readAsStringSync();
 
     String body(String signature) {
       final start = host.indexOf(signature);
@@ -131,21 +131,32 @@ void main() {
     // Which changes sweep is SiteSetChange.effects (site_runtime_test).
     test('import and delete sweep through the engine', () {
       expect(body('Future<void> _commitSites(SiteSetChange change) async {'),
-          contains('if (effects.sweepsOrphans) await _sweepOrphans();'));
-      expect(body('Future<void> _importSettings() async {'),
-          contains('await _commitSites(SitesReplaced('));
+          contains('if (effects.sweepsOrphans) await _sweep.afterRemoval();'));
+      final backup =
+          File('lib/controllers/backup_controller.dart').readAsStringSync();
+      expect(backup.substring(backup.indexOf('Future<void> import() async {')),
+          contains('await _host.commitSites(SitesReplaced('));
+      final editing =
+          File('lib/controllers/site_editing_controller.dart').readAsStringSync();
       expect(
-          body('Future<void> _deleteSite(BuildContext context, '
-              '{required int index}) async {'),
-          contains('await _commitSites(SiteRemoved(deletedModel));'));
+          editing.substring(editing.indexOf('Future<void> deleteSite(int index) async {')),
+          contains('await _host.commitSites(SiteRemoved(deletedModel));'));
     });
 
     test('no store is swept outside the engine binding', () {
-      final binding = host.indexOf('class _OrphanSweepTargets');
-      final bindingEnd = host.indexOf('\n}\n', binding);
-      final outside =
-          host.substring(0, binding) + host.substring(bindingEnd);
-      expect(RegExp(r'\.removeOrphan').allMatches(outside), isEmpty);
+      final binding =
+          File('lib/controllers/page_orphan_sweep.dart').readAsStringSync();
+      expect(binding, contains('class PageOrphanSweep implements OrphanSweepTargets'));
+      for (final f in Directory('lib').listSync(recursive: true)) {
+        if (f is! File || !f.path.endsWith('.dart')) continue;
+        if (f.path.endsWith('page_orphan_sweep.dart') ||
+            f.path.contains('/services/')) {
+          continue;
+        }
+        expect(RegExp(r'\.removeOrphan').allMatches(f.readAsStringSync()),
+            isEmpty,
+            reason: '${f.path} sweeps a store outside PageOrphanSweep');
+      }
     });
   });
 }

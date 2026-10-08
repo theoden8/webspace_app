@@ -9,7 +9,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/main.dart' as app;
+import 'package:webspace/app.dart';
+import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/web_view_model.dart';
@@ -64,7 +65,7 @@ Future<void> pumpRealApp(
   );
   await DeveloperModeService.instance.initialize();
   await ExperimentalFeaturesService.instance.initialize();
-  await tester.pumpWidget(app.WebSpaceApp());
+  await tester.pumpWidget(WebSpaceApp());
   await settleRealApp(tester);
 }
 
@@ -80,7 +81,7 @@ Future<void> settleRealApp(WidgetTester tester) async {
 
 /// The app's own model of the site named [name].
 WebViewModel appSite(String name) =>
-    app.debugWebViewModels!.singleWhere((m) => m.name == name);
+    debugWebViewModels!.singleWhere((m) => m.name == name);
 
 /// Pick a webspace on the start screen.
 Future<void> openWebspace(WidgetTester tester, {required String name}) async {

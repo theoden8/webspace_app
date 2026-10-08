@@ -47,7 +47,7 @@ Webviews SHALL be created only when the user visits a site, EXCEPT for sites wit
 
 In container mode there are no domain-conflict restrictions (PROF-003), so all notification sites auto-load freely regardless of domain overlap.
 
-Implementation: see the auto-load loop in `_restoreAppState` ([lib/main.dart](../../../lib/main.dart)) that adds every `notificationsEnabled` site index to `_sites.loaded` after the per-site models have been hydrated.
+Implementation: see the auto-load loop in `StartupController.restore` ([lib/main.dart](../../../lib/main.dart)) that adds every `notificationsEnabled` site index to `_sites.loaded` after the per-site models have been hydrated.
 
 #### Scenario: App starts with multiple notification sites
 
@@ -152,7 +152,7 @@ final Set<int> _sites.loaded = {};
 ```dart
 /// Set the current index and mark it as loaded for lazy webview creation.
 /// This ensures only visited webviews are created, not all webviews at once.
-void _setCurrentIndex(int? index) {
+void setCurrentIndex(int? index) {
   _sites.current = index;
   if (index != null && index >= 0 && index < _sites.models.length) {
     _sites.loaded.add(index);
@@ -230,7 +230,7 @@ _sites.loaded.addAll(updatedIndices);
 ### Modified
 - `lib/main.dart`
   - Added `_sites.loaded` Set to `_WebSpacePageState`
-  - Added `_setCurrentIndex()` helper method
+  - Added `setCurrentIndex()` helper method
   - Updated all `_sites.current` assignments to use helper
   - Modified `IndexedStack` to check `_sites.loaded` before creating widgets
   - Added index shifting logic in site deletion handler

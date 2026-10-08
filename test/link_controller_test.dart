@@ -7,13 +7,13 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/archive.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/site_unload_engine.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart';
 import 'package:webspace/widgets/web_search_sheet.dart';
 
 import 'helpers/fake_webview_controller.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// The page as the link flows see it, recording what they ask of it in order.
 class _Page implements LinkHost {
@@ -36,6 +36,7 @@ class _Page implements LinkHost {
   void toast(
     String Function(AppLocalizations loc) message, {
     Duration duration = const Duration(seconds: 4),
+    bool floating = false,
   }) =>
       calls.add('toast');
 

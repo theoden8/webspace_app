@@ -55,7 +55,12 @@ for ref in "${refs[@]}"; do
   mkdir -p "$wt/test/backup_compat_gen/features"
   cp "$here/generator_test.dart" "$wt/test/backup_compat_gen/"
   feature "$wt" registry "$(has "$wt/lib/settings/app_prefs.dart" readExportedAppPrefs)"
-  feature "$wt" theme "$(has "$wt/lib/main.dart" toStorageIndex)"
+  # The theme types lived in lib/main.dart until they got a file of their own.
+  theme_lib=lib/theme/app_theme.dart
+  [ -f "$wt/$theme_lib" ] || theme_lib=lib/main.dart
+  feature "$wt" theme "$(has "$wt/$theme_lib" toStorageIndex)"
+  sed -i "s#package:webspace/theme/app_theme.dart#package:webspace/${theme_lib#lib/}#" \
+    "$wt/test/backup_compat_gen/features/theme.dart"
   feature "$wt" scripts "$(has "$wt/lib/settings/user_script.dart" 'class UserScriptConfig')"
   feature "$wt" qr "$(has "$wt/lib/services/site_settings_qr_codec.dart" shareableSubset)"
   feature "$wt" links "$(has "$wt/lib/services/link_routing_service.dart" parseWebspaceUri)"

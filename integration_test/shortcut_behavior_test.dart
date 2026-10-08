@@ -4,7 +4,7 @@
 // The resolution rules themselves (StartupRestoreEngine.resolveLaunch, the
 // ledger reconcile, the effective-pinned widening) are unit-tested in
 // test/startup_restore_engine_test.dart. What no headless test reaches is the
-// *wiring* in lib/main.dart: which prompt a resolution raises, what the user's
+// *wiring* in lib/screens/webspace_page.dart: which prompt a resolution raises, what the user's
 // answer persists, whether the menu item is offered, and what the delete flow
 // does with the launcher tiles that still point at the site. That is what this
 // suite drives, through the real widget tree.
@@ -44,7 +44,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
+import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/web_view_model.dart';
@@ -244,7 +246,7 @@ void main() {
       // Let anything the last action left in flight drain before the tree goes
       // away: an app handler that resumes after its widget is gone throws on
       // the first `context` it touches (observed as `Navigator.pop` inside
-      // `_deleteSite` failing its null check). Tests that can name their own
+      // `SiteEditingController.deleteSite` failing its null check). Tests that can name their own
       // completion signal should still wait on it; this is the backstop.
       await pumpFor(tester, total: const Duration(seconds: 2));
     } finally {
@@ -257,7 +259,7 @@ void main() {
     }
   }
 
-  List<WebViewModel> models() => app.debugWebViewModels ?? const [];
+  List<WebViewModel> models() => debugWebViewModels ?? const [];
 
   bool siteIsMounted(String siteId) =>
       find.byKey(ValueKey(siteId), skipOffstage: false).evaluate().isNotEmpty;
@@ -292,7 +294,7 @@ void main() {
   }
 
   Future<void> openOverflowMenu(WidgetTester tester) async {
-    final button = find.byType(PopupMenuButton<app.SiteMenuAction>);
+    final button = find.byType(PopupMenuButton<SiteMenuAction>);
     expect(
       button,
       findsWidgets,
@@ -312,7 +314,7 @@ void main() {
   Future<void> openSiteDrawer(WidgetTester tester) async {
     if (drawerIsOpen()) return;
     // Tapping the already-selected webspace tile opens the drawer (the
-    // same-id branch of _selectWebspace).
+    // same-id branch of WebspacesController.select).
     await tester.tap(find.byKey(const ValueKey(kAllWebspaceId)));
     await pumpFor(tester, total: const Duration(seconds: 2));
     expect(
@@ -322,7 +324,7 @@ void main() {
     );
   }
 
-  /// Wait out a deletion: `_deleteSite` closes the drawer as its very last
+  /// Wait out a deletion: `SiteEditingController.deleteSite` closes the drawer as its very last
   /// statement, so a closed drawer is the signal that its whole async tail
   /// (storage sweeps, cache deletes, the HS-013 prompt) has drained. Without
   /// this the test can finish while the tail is still running, and tearing the
@@ -346,7 +348,7 @@ Future<void> tapDialogButton(WidgetTester tester,
   await pumpFor(tester, total: const Duration(seconds: 1));
 }
 
-  // The shortcut paths in lib/main.dart are Platform.isAndroid-gated; the
+  // The shortcut paths in lib/screens/webspace_page.dart are Platform.isAndroid-gated; the
   // desktop integration loops skip this file by basename as well.
   final skipOffAndroid = !Platform.isAndroid;
 
@@ -384,7 +386,7 @@ Future<void> tapDialogButton(WidgetTester tester,
         // HS-012: on the initState/resume cadence the ledger records the url of
         // every pinned site that still exists, so a later deletion leaves a
         // routable trail. Asserted after a resume because the initState pass
-        // races `_restoreAppState` for the loaded model list.
+        // races `StartupController.restore` for the loaded model list.
         await resumeApp(tester);
         await pumpUntilAsync(
           tester,

@@ -4,9 +4,9 @@ import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/url_host.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/utils/concurrency.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// Service for securely storing cookies using Flutter Secure Storage.
 /// Supports migration from SharedPreferences for backward compatibility.

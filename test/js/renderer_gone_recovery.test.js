@@ -41,8 +41,12 @@ test('the proactive probe runs on >=2 activation paths (PAUSE-014)', () => {
   const lifecycle = read('lib/controllers/app_lifecycle_controller.dart');
   assert.match(lifecycle, /probeRenderer\(_sites\.models\[probeIdx\], trigger: 'resume'\)/,
     'the resume must probe the site on screen');
-  assert.match(read('lib/main.dart'), /_lifecycle\.probeRenderer\(target, trigger: 'site-switch'\)/,
+  assert.match(read('lib/controllers/site_activation_controller.dart'),
+    /_host\.probeRenderer\(target, trigger: 'site-switch'\)/,
     'every activation must probe its target');
+  assert.match(read('lib/screens/webspace_page.dart'),
+    /probeRenderer\(WebViewModel model, \{required String trigger\}\) =>\s*_s\._lifecycle\.probeRenderer\(/,
+    'the activation host must hand the probe to the lifecycle controller');
 });
 
 test('nested InAppWebViewScreen wires renderer-gone recovery (BUG-002 gap #1)', () => {
@@ -63,7 +67,7 @@ test('nested InAppWebViewScreen wires renderer-gone recovery (BUG-002 gap #1)', 
 });
 
 test('rendererProbeIndicatesGone treats only null as gone', () => {
-  const src = read('lib/web_view_model.dart');
+  const src = read('lib/services/webview_controller.dart');
   // A regression that flags 0 / -1 / positive height as "gone" would reload-loop
   // a healthy page. The predicate must be exactly `== null`.
   assert.match(

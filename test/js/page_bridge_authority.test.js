@@ -1,6 +1,7 @@
 // Structural guard on what page-reachable code is allowed to decide.
 //
-// Every JS bridge handler and every shim-driven rewrite in webview.dart is
+// Every JS bridge handler and every shim-driven rewrite in the webview layer
+// (webview.dart and the files its factory delegates to) is
 // reachable from the page — the shims are injected `forMainFrameOnly: false`,
 // so a cross-origin iframe can call the handlers directly, and a subframe
 // navigation reaches shouldOverrideUrlLoading. Each fact below is call-site
@@ -25,7 +26,15 @@ const { blockAfter, dartFiles } = source;
 // Comments blanked so prose describing a call does not count as one.
 const read = (rel) => source.code(source.read(rel));
 
-const WEBVIEW = read('lib/services/webview.dart');
+// The factory and the pieces it delegates to, read as one text: every marker
+// below is unique across them.
+const WEBVIEW = [
+  'lib/services/webview.dart',
+  'lib/services/page_handlers.dart',
+  'lib/services/page_scripts.dart',
+  'lib/services/popup_webview.dart',
+  'lib/services/headless_site_check.dart',
+].map(read).join('\n');
 
 // --- the navigation decision ---------------------------------------------
 
@@ -120,19 +129,19 @@ test('CAPTCHA-009: the popup webview inherits the parent site posture', () => {
   assert.ok(!/javaScriptEnabled:\s*true/.test(body),
     'the popup must honor the site\'s javascriptEnabled, not hardcode true');
   for (const wiring of [
-    '_buildPageScripts(parent)',   // the same shims as the site webview
-    '_bindingFor(parent)',         // the same container + proxy
-    '_registerPageHandlers(',      // the Dart side those shims call
+    'PageScripts.buildPageScripts(parent)',   // the same shims as the site webview
+    'WebViewFactory.bindingFor(parent)',      // the same container + proxy
+    'PageHandlers.registerPageHandlers(',     // the Dart side those shims call
   ]) {
     assert.ok(body.includes(wiring),
       `createPopupWebView no longer carries ${wiring}`);
   }
-  assert.match(body, /final settings = _siteSettings\(\s*binding,\s*posture: parent\.posture,/,
+  assert.match(body, /final settings = WebViewFactory\.siteSettings\(\s*binding,\s*posture: parent\.posture,/,
     'the popup must take its native settings from the parent posture, '
     + 'through the builder the site webview uses');
   assert.ok(body.includes('initialSettings: settings,'),
     'the popup must be built with those settings');
-  assert.ok(WEBVIEW.includes('_popupParentConfigs[windowId] = config;'),
+  assert.ok(WEBVIEW.includes('PopupWebView.popupParentConfigs[windowId] = config;'),
     'onCreateWindow must record the requesting webview\'s config so the '
     + 'popup can inherit it');
 });
@@ -230,7 +239,7 @@ test('ICON-013: page icon fetches go through the guarded fetch only', () => {
     'page icon links are page-chosen URLs: fetch them through the guarded path');
   assert.ok(body.includes('proxy: config.posture.container.proxy'),
     "a page icon must go through the site's proxy");
-  assert.ok(body.replace(/\s+/g, ' ').includes('_pageIconRequestAllowed(config, target: target, documentUrl: documentUrl)'),
+  assert.ok(body.replace(/\s+/g, ' ').includes('pageIconRequestAllowed(config, target: target, documentUrl: documentUrl)'),
     "the site's blockers must see every page icon request");
 });
 
@@ -250,7 +259,7 @@ test('ICON-014: the webview icon and the fetched links never run together', () =
 });
 
 test('ICON-009: popups and the shared page scripts never report a site icon', () => {
-  const build = WEBVIEW.indexOf('}) _buildPageScripts(WebViewConfig config) {');
+  const build = WEBVIEW.indexOf('}) buildPageScripts(WebViewConfig config) {');
   const buildBody = WEBVIEW.slice(build, WEBVIEW.indexOf('\n  }\n', build));
   assert.ok(!buildBody.includes('buildIconLinkWatcherShim'),
     '_buildPageScripts is shared with the popup webview');
@@ -261,7 +270,7 @@ test('ICON-009: popups and the shared page scripts never report a site icon', ()
 });
 
 test('LIR-035: only the site\'s top document declares its search', () => {
-  const build = WEBVIEW.indexOf('}) _buildPageScripts(WebViewConfig config) {');
+  const build = WEBVIEW.indexOf('}) buildPageScripts(WebViewConfig config) {');
   const buildBody = WEBVIEW.slice(build, WEBVIEW.indexOf('\n  }\n', build));
   assert.ok(!buildBody.includes('buildSearchLinkWatcherShim'),
     '_buildPageScripts is shared with the popup webview');
@@ -276,7 +285,7 @@ test('LIR-035: only the site\'s top document declares its search', () => {
   const handler = WEBVIEW.slice(at, end);
   assert.ok(handler.includes('if (!call.isMainFrame || !siteSearch.enabled()) return null;'),
     'a subframe can call the handler; its search is not the site\'s');
-  assert.ok(handler.includes('_pageIconRequestAllowed('),
+  assert.ok(handler.includes('pageIconRequestAllowed('),
     'the description is fetched through the site\'s blockers');
   assert.ok(handler.includes('proxy: config.posture.container.proxy'),
     'the description is fetched through the site\'s proxy');
@@ -288,20 +297,20 @@ test('CAPTCHA-010: the popup webview runs the document checks and stays on the c
   const at = WEBVIEW.indexOf('static Widget createPopupWebView({');
   assert.notEqual(at, -1, 'createPopupWebView is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
-  const settings = blockAfter(WEBVIEW, 'static inapp.InAppWebViewSettings _siteSettings(', '}) {',
+  const settings = blockAfter(WEBVIEW, 'static inapp.InAppWebViewSettings siteSettings(', '}) {',
     'webview.dart');
-  assert.ok(body.includes('final settings = _siteSettings(')
+  assert.ok(body.includes('final settings = WebViewFactory.siteSettings(')
       && body.includes('initialSettings: settings,')
       && settings.includes('..useShouldOverrideUrlLoading = true'),
     'the popup must opt into shouldOverrideUrlLoading or the callback never fires');
   assert.match(body,
-    /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*_onSiteNavigationPolicy\(parent, navigationAction: navigationAction,\s*allowCaptcha: true\)/,
+    /shouldOverrideUrlLoading: \(_, navigationAction\) async =>\s*WebViewFactory\.onSiteNavigationPolicy\(parent, navigationAction: navigationAction,\s*allowCaptcha: true\)/,
     'the popup had no navigation gate: after the first load it went anywhere');
-  const gateAt = WEBVIEW.indexOf('static inapp.NavigationActionPolicy _onSiteNavigationPolicy(');
-  assert.notEqual(gateAt, -1, '_onSiteNavigationPolicy is gone');
+  const gateAt = WEBVIEW.indexOf('static inapp.NavigationActionPolicy onSiteNavigationPolicy(');
+  assert.notEqual(gateAt, -1, 'onSiteNavigationPolicy is gone');
   const gate = WEBVIEW.slice(gateAt, WEBVIEW.indexOf('\n  }\n', gateAt));
   for (const check of [
-    '_judgeAndRecord(',
+    'judgeAndRecord(',
     "requestType: 'document'",
     'navigationAction.isForMainFrame == false',
     'isCaptchaChallenge(url, siteUrl: config.initialUrl)',
@@ -322,18 +331,18 @@ test('NOTIF-016: a headless check stays on the site and is granted nothing', () 
   assert.notEqual(at, -1, 'openHeadlessCheck is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('\n  }\n', at));
   assert.match(body,
-    /_onSiteNavigationPolicy\(config, navigationAction: navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
+    /WebViewFactory\.onSiteNavigationPolicy\(config, navigationAction: navigationAction,\s*allowCaptcha: false,\s*refusePlainHttp: posture\.blocking\.httpsUpgrade\)/,
     'a headless check must run the on-site navigation gate without the captcha exception');
-  assert.match(body, /initialSettings: _siteSettings\(\s*binding,\s*posture: posture,/,
+  assert.match(body, /initialSettings: WebViewFactory\.siteSettings\(\s*binding,\s*posture: posture,/,
     'a headless check takes its native settings from the site posture, '
     + 'through the builder the site webview uses');
   for (const check of [
     'if (binding.proxyUnavailable) return (null, WakeSkip.proxyUnavailable);',
-    '_registerPageHandlers(',
+    'PageHandlers.registerPageHandlers(',
     'onCreateWindow: (_, _) async => false,',
     'inapp.PermissionResponseAction.DENY',
     'allow: false',
-    '_handleServerTrust(null, challenge: challenge, prompt: null)',
+    'WebViewTls.handleServerTrust(null, challenge: challenge, prompt: null)',
     'WebInterceptNative.attachToHeadless(',
   ]) {
     assert.ok(body.includes(check), `headless check lacks ${check}`);
@@ -404,7 +413,7 @@ test('PASSKEY-015: a ceremony cannot hold the gate past its timeout or its page'
   assert.notEqual(load, -1, 'onLoadStart is gone');
   const loadBody = WEBVIEW.slice(load, load + 1500);
   assert.match(loadBody,
-    /_passkeyGate\.active[\s\S]*?startsWith\('\$\{_passkeyWebviewKey\(controller\)\}:'\)[\s\S]*?PasskeyNative\.cancel\(/,
+    /passkeyGate\.active[\s\S]*?startsWith\('\$\{passkeyWebviewKey\(controller\)\}:'\)[\s\S]*?PasskeyNative\.cancel\(/,
     'a main-frame load must cancel the ceremony its webview started, and only that one');
 });
 
@@ -422,11 +431,11 @@ test('CAM-013 / MIC-013: capture prompts name an origin read from the webview', 
     'a capture bridge must not take the origin from the page: the camera and ' +
     'microphone shims are injected forMainFrameOnly:false, so any frame can ' +
     'call the handler directly and name a site it is not');
-  assert.ok(CAPTURE_BRIDGE.includes('_promptOrigin(controller, config: config, frame: data)'),
+  assert.ok(CAPTURE_BRIDGE.replace(/\s+/g, ' ').includes('promptOrigin(controller, config: config, frame: data)'),
     'a capture bridge must derive the origin from the controller and the frame');
   assert.match(WEBVIEW,
-    /_promptOrigin\([\s\S]{0,400}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
-    '_promptOrigin must read the live URL, falling back to the site URL');
+    /promptOrigin\([\s\S]{0,400}?await controller\.getUrl\(\)\)\?\.toString\(\) \?\? config\.initialUrl/,
+    'promptOrigin must read the live URL, falling back to the site URL');
   assert.match(WEBVIEW,
     /if \(frame != null && !frame\.isMainFrame\) return frame\.origin\.toString\(\);/,
     'a subframe prompt must name the frame, not the document that embeds it');

@@ -8,18 +8,12 @@ library;
 
 import 'package:flutter/material.dart';
 
-import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 
 /// The colour [site]'s container is drawn in.
 Color containerColorOf(WebViewModel site, {required Brightness brightness}) =>
-    ContainerColors.of(
-      site.containerColor ??
-          ContainerColorEngine.fallback(
-              site.siteId, paletteSize: kContainerPaletteSize),
-      brightness: brightness,
-    );
+    ContainerColors.of(site.drawnContainerColor, brightness: brightness);
 
 /// A short bar in the colour of [site]'s container. Decorative: the row it
 /// sits in names the site in words.

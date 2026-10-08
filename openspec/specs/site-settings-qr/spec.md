@@ -33,7 +33,7 @@ for free.
 | Sender leaks user-supplied JavaScript            | Yes       | `userScripts` and `enabledGlobalScriptIds` are in `excludedKeys` |
 | Sender leaks user's site identity / browse state | Yes       | `siteId`, `currentUrl`, `pageTitle` are in `excludedKeys`; receiver mints a fresh `siteId` |
 | Hostile sender smuggles a key past the strip     | Yes       | Receiver re-applies the `includedKeys` whitelist on decode (defence in depth) |
-| Hostile sender supplies wrong-typed values       | No        | Codec only type-checks `initUrl`; other fields are pass-through. A crafted payload that decodes but has e.g. `spoofLatitude: "x"` propagates through `WebViewModel.fromJson` and throws `TypeError` in `_addSite`. See QR-007 for the gap. |
+| Hostile sender supplies wrong-typed values       | No        | Codec only type-checks `initUrl`; other fields are pass-through. A crafted payload that decodes but has e.g. `spoofLatitude: "x"` propagates through `WebViewModel.fromJson` and throws `TypeError` in `SiteEditingController.addSite`. See QR-007 for the gap. |
 | Future sender ships a `vN > 1` payload to v1 app | Yes       | Receiver returns `null` from decode when `version > currentVersion` |
 
 The rows above model the **sender** leaking their own state. The payload
@@ -284,7 +284,7 @@ was used after being disposed" assertion that the previous
 
 **Given** the user pastes (or scans) a valid `webspace://qr/site/v1/...`
 URL and taps Apply
-**When** `_addSite` receives the result map containing
+**When** `SiteEditingController.addSite` receives the result map containing
 `{'qrSettings': decoded}` **and the user accepts the QR-008 review dialog**
 **Then** a new `WebViewModel` is built via
 `WebViewModel.fromJson(SiteSettingsQrCodec.hydrateForFromJson(decoded), stateSetter)`
@@ -299,14 +299,14 @@ carry it; the receiver must enter it manually if the proxy needs auth)
 #### Scenario: Page title fallback when QR's name is empty
 
 **Given** the QR payload's `name` is empty or null
-**When** `_addSite` consumes the `qrSettings`
+**When** `SiteEditingController.addSite` consumes the `qrSettings`
 **Then** the receiver issues `getPageTitle(initUrl)` and uses the
 returned title for both `name` and `pageTitle` if non-empty
 
 #### Scenario: Page title kept when QR carries a name
 
 **Given** the QR payload's `name` is non-empty
-**When** `_addSite` consumes the `qrSettings`
+**When** `SiteEditingController.addSite` consumes the `qrSettings`
 **Then** no `getPageTitle` HTTP fetch happens
 **And** the model's `pageTitle` is set to its `name`
 
@@ -319,7 +319,7 @@ site's URL, its display name, its proxy, and the state of every per-site
 protection. The receiver SHALL NOT create a site from one until the user
 has seen those choices and accepted them.
 
-The gate SHALL live in `_addSite`'s `qrSettings` branch so that **both**
+The gate SHALL live in `SiteEditingController.addSite`'s `qrSettings` branch so that **both**
 entry points cross it: the in-app scanner / paste dialog
 (`AddSiteScreen._addByQr` → `showSiteSettingsQrApplyDialog`) and the
 `webspace://qr/` deep link handled by `LinkController.handleShareIntent`. The dialog
@@ -340,9 +340,9 @@ protections-switched-off list SHALL also name:
 Both are relaxations the payload's author chose for the receiver, and
 neither shows up in any boolean the dialog already reports.
 
-A site created from a deep link SHALL NOT be activated: `_registerNewSite`
+A site created from a deep link SHALL NOT be activated: `SiteEditingController.registerSite`
 is called with `activate: false`, so the site is added to the list and
-persisted but `_setCurrentIndex` is not called and the current site keeps
+persisted but `setCurrentIndex` is not called and the current site keeps
 the screen. A site created from the in-app scanner IS activated — the user
 went looking for it.
 
@@ -356,7 +356,7 @@ deep links along with every other inbound URL.
 **And** another app opens `webspace://qr/site/v1/<payload>` where the
 payload sets `trackingProtectionEnabled: false` and a SOCKS5 proxy
 **When** `LinkController.handleShareIntent` decodes it and hands it to
-`_addSite(deepLinkQrSettings: decoded)`
+`SiteEditingController.addSite(deepLinkQrSettings: decoded)`
 **Then** a review dialog is shown naming the URL, the name, the proxy
 address, and "Tracking Protection" as a protection being turned off
 **And** no `WebViewModel` exists until the user accepts
@@ -384,15 +384,15 @@ string, so a value `fromJson` would coerce cannot slip past the review
 
 **Given** the review dialog is shown
 **When** the user cancels
-**Then** `_registerNewSite` is not called
+**Then** `SiteEditingController.registerSite` is not called
 **And** `_sites.models` is unchanged
 
 #### Scenario: Deep-link site does not take the screen
 
 **Given** the user accepts the review dialog for a deep-link payload
-**When** `_registerNewSite(model, activate: false)` runs
+**When** `SiteEditingController.registerSite(model, activate: false)` runs
 **Then** the model is appended to `_sites.models` and persisted
-**And** `_setCurrentIndex` is NOT called, so the currently-visible site
+**And** `setCurrentIndex` is NOT called, so the currently-visible site
 stays visible
 
 #### Scenario: Link handling off drops the QR deep link
@@ -451,7 +451,7 @@ gap so a future change can't regress on it accidentally.
 to QR-001 / QR-004 (well-formed prefix, gzip, JSON, non-empty `initUrl`)
 but contains, e.g., `"spoofLatitude": "abc"` (string where a `num?` is
 expected)
-**When** `_addSite` consumes the result and calls
+**When** `SiteEditingController.addSite` consumes the result and calls
 `WebViewModel.fromJson(SiteSettingsQrCodec.hydrateForFromJson(decoded), stateSetter)`
 **Then** the `as num?` cast in `fromJson` throws a `TypeError`
 **And** the error is not caught locally — it surfaces as an unhandled
@@ -500,10 +500,10 @@ subset with the empty placeholders `WebViewModel.fromJson` requires
 
 ### Modified
 - `lib/screens/add_site.dart` — URL field suffix icon is the QR scanner;
-  `_addByQr` pops `{qrSettings: <decoded>}` for `_addSite` to consume
-- `lib/main.dart` — `_addSite` branches on `qrSettings`; the QR path
+  `_addByQr` pops `{qrSettings: <decoded>}` for `SiteEditingController.addSite` to consume
+- `lib/main.dart` — `SiteEditingController.addSite` branches on `qrSettings`; the QR path
   uses `WebViewModel.fromJson(SiteSettingsQrCodec.hydrateForFromJson(...), stateSetter)`
-  behind `_confirmQrSiteSettings` (QR-008)
+  behind `DialogSiteEditingPrompts.reviewQrSettings` (QR-008)
 - `lib/controllers/link_controller.dart` — `handleShareIntent` evaluates
   `AppPref.linkHandlingEnabled` before the `webspace://qr/` branch
 - `lib/screens/settings.dart` — "Share QR" button wired to

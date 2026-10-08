@@ -12,7 +12,7 @@ void main() {
   late String links;
 
   setUpAll(() {
-    main = File('lib/main.dart').readAsStringSync();
+    main = File('lib/screens/webspace_page.dart').readAsStringSync();
     model = File('lib/web_view_model.dart').readAsStringSync();
     tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
@@ -40,10 +40,14 @@ void main() {
       expect(bodyOf(main, signature: 'Future<void> _presentTabsSheet('),
           contains('onWebSearch: () => unawaited(_links.webSearch()),'));
       expect(
-        main,
-        matches(RegExp(r'SiteMenuAction\.webSearch =>\s*'
-            r'_tabs\.featureEnabled && !_tabs\.enabledAt\(_sites\.current\)\s*\?')),
+        File('lib/widgets/site_menu.dart').readAsStringSync(),
+        matches(RegExp(r'SiteMenuAction\.webSearch => state\.tabsFeature && !state\.tabsOn\s*\?')),
         reason: 'the overflow menus offer it only while tabs are off',
+      );
+      expect(
+        main,
+        matches(RegExp(r'tabsOn: _tabs\.enabledAt\(_sites\.current\),\s*'
+            r'tabsFeature: _tabs\.featureEnabled,')),
       );
       expect(main,
           matches(RegExp(r'case SiteMenuAction\.webSearch:\s*await _links\.webSearch\(\);')));
@@ -243,8 +247,14 @@ void main() {
           contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
-      expect(count(main, needle: '_tabs.bindOwnerRunTab('),
-          greaterThanOrEqualTo(2));
+      expect(count(main, needle: '_tabs.bindOwnerRunTab('), 1,
+          reason: 'the page host answers bindOwnerRunTab');
+      expect(
+          count(File('lib/controllers/site_reset_controller.dart')
+                  .readAsStringSync(),
+              needle: '_tabs.bindOwnerRunTab('),
+          1,
+          reason: 'an always-home site a shortcut resets lands at home');
       expect(count(shortcuts, needle: '_host.bindOwnerRunTab('), 2,
           reason: 'a cold launch and a confirmed reroute land at home');
     });

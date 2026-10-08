@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/webspace_model.dart';
-import 'package:webspace/main.dart' show AccentColor, AccentLogo;
+import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/widgets/accent_logo.dart';
 
 class WebspacesListScreen extends StatelessWidget {
   final List<Webspace> webspaces;

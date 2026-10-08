@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/main.dart' show AccentColor, AppThemeSettings;
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';
@@ -17,6 +17,8 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// BACKUP-012 and BACKUP-014: what an older release wrote still loads, without
 /// throwing and without losing a setting.
@@ -185,6 +187,7 @@ final Set<String> _captureKeysRead = {
 final Set<String> _keysRead = {
   for (final f in const [
     'lib/web_view_model.dart',
+    'lib/web_view_model_json.dart',
     'lib/webspace_model.dart',
     'lib/services/settings_backup.dart',
     'lib/services/settings_import_engine.dart',
@@ -197,7 +200,7 @@ final Set<String> _keysRead = {
   ])
     ..._readKeys(File(f).readAsStringSync()),
   ..._captureKeysRead,
-  ..._readKeys(_region('lib/services/webview.dart',
+  ..._readKeys(_region('lib/services/cookie_manager.dart',
       from: 'Cookie cookieFromJson(', to: ');\n')),
   ..._matches(
       _region('lib/services/settings_backup.dart',
@@ -211,8 +214,8 @@ final Set<String> _keysRead = {
 final Set<String> _siteKeysWritten = {
   for (final kind in CaptureKind.values) ...kind.jsonKeys,
   ..._matches(
-      _region('lib/web_view_model.dart',
-          from: "'siteId': siteId", to: 'factory WebViewModel.fromJson('),
+      _region('lib/web_view_model_json.dart',
+          from: "'siteId': siteId", to: 'WebViewModel webViewModelFromJson('),
       pattern: r"'(\w+)':"),
 };
 
@@ -1273,8 +1276,8 @@ Map<String, dynamic> loaded(Map<String, dynamic> json) =>
       // writes is a migration. Each one must appear in some fixture, or the
       // migration is untested code waiting to rot.
       final reads = {
-        ..._readKeys(_region('lib/web_view_model.dart',
-            from: 'factory WebViewModel.fromJson(', to: '\n  }\n')),
+        ..._readKeys(_region('lib/web_view_model_json.dart',
+            from: 'WebViewModel webViewModelFromJson(', to: '\n}\n')),
         ..._readKeys(_region('lib/services/settings_backup.dart',
             from: 'factory SettingsBackup.fromJson(', to: '\n  }\n')),
         ..._matches(

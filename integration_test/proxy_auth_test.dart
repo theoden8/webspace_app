@@ -102,7 +102,7 @@ void main() {
     }
 
     // Open the drawer via the All-webspace tile (the same-id branch in
-    // _selectWebspace calls openDrawer when tapping the already-active
+    // WebspacesController.select calls openDrawer when tapping the already-active
     // webspace).
     final allTile = find.byKey(const ValueKey(kAllWebspaceId));
     expect(allTile, findsOneWidget);

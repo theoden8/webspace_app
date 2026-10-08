@@ -13,7 +13,7 @@ const assert = require('node:assert/strict');
 const { read, code, enclosed } = require('./helpers/source');
 
 test('the process-wide rule expands TOR with the site id before applying', () => {
-  const text = code(read('lib/services/webview.dart'));
+  const text = code(read('lib/services/webview_proxy.dart'));
   const at = text.search(/Future<void>\s+setProxySettings\s*\(/);
   assert.ok(at >= 0, 'ProxyManager.setProxySettings not found');
   const body = enclosed(text, text.indexOf(')', at), '{').body;

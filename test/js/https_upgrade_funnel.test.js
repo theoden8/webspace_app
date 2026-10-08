@@ -24,6 +24,7 @@ const assert = require('node:assert/strict');
 const { read, dartFiles, code, blockAfter } = require('./helpers/source');
 
 const WEBVIEW = code(read('lib/services/webview.dart'));
+const TLS = code(read('lib/services/webview_tls.dart'));
 
 // Dart wraps a long call between the receiver and the method, so every check
 // below matches across whitespace. Matching the literal text would make the
@@ -46,9 +47,9 @@ const PRIMITIVES = [
 ];
 
 test('the call site forwards events and never decides', () => {
-  for (const p of PRIMITIVES) {
-    assert.ok(!calls(WEBVIEW, p),
-      `webview.dart calls httpsUpgrade.${p}() directly. That is a decision ` +
+  for (const [file, src] of [['webview.dart', WEBVIEW], ['webview_tls.dart', TLS]]) for (const p of PRIMITIVES) {
+    assert.ok(!calls(src, p),
+      `${file} calls httpsUpgrade.${p}() directly. That is a decision ` +
       'in a closure no Dart test can drive — put it behind an event on the ' +
       'engine and forward, the way the other five handlers do.');
   }
@@ -58,16 +59,16 @@ test('the call site forwards events and never decides', () => {
 // engine. Presence, not position: where the outcome is applied is the call
 // site's business, what it means is the engine's.
 const HANDLERS = [
-  ['shouldOverrideUrlLoading: (controller, navigationAction) async {', 'onNavigation', undefined],
-  ['onLoadStart: (controller, url) async {', 'onLoadStarted', undefined],
-  ['onLoadStop: (controller, url) async {', 'onLoadFinished', undefined],
-  ['onReceivedError: (controller, request, error) async {', 'onLoadFailed', undefined],
-  ['static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(', 'onCertificateRejected', ') async {'],
+  ['shouldOverrideUrlLoading: (controller, navigationAction) async {', 'onNavigation', undefined, WEBVIEW],
+  ['onLoadStart: (controller, url) async {', 'onLoadStarted', undefined, WEBVIEW],
+  ['onLoadStop: (controller, url) async {', 'onLoadFinished', undefined, WEBVIEW],
+  ['onReceivedError: (controller, request, error) async {', 'onLoadFailed', undefined, WEBVIEW],
+  ['static Future<inapp.ServerTrustAuthResponse?> handleServerTrust(', 'onCertificateRejected', ') async {', TLS],
 ];
 
-for (const [marker, event, openAt] of HANDLERS) {
+for (const [marker, event, openAt, src] of HANDLERS) {
   test(`${event} is forwarded from its handler`, () => {
-    const body = blockAfter(WEBVIEW, marker, openAt, 'webview.dart');
+    const body = blockAfter(src, marker, openAt, 'webview.dart');
     assert.ok(calls(body, event),
       `${marker.split(':')[0]} no longer tells the engine about ${event}; ` +
       'that event silently stops resolving upgrades');
@@ -104,9 +105,9 @@ test('HTTPS-002: the engine is one shared instance, not per webview', () => {
 // HTTPS-007's position, which the engine cannot own: past the prompt the
 // carve-out cannot stop the dialog, and stopping the dialog is the point.
 test('HTTPS-007: the certificate carve-out precedes the prompt and any pin', () => {
-  const body = blockAfter(WEBVIEW,
-    'static Future<inapp.ServerTrustAuthResponse?> _handleServerTrust(',
-    ') async {', 'webview.dart');
+  const body = blockAfter(TLS,
+    'static Future<inapp.ServerTrustAuthResponse?> handleServerTrust(',
+    ') async {', 'webview_tls.dart');
   const carve = body.search(/httpsUpgrade\s*\.\s*onCertificateRejected\s*\(/);
   const prompt = body.indexOf('await prompt(host, port: port, certificate: cert)');
   const pin = body.indexOf('TrustedHostsService.instance.trust(');

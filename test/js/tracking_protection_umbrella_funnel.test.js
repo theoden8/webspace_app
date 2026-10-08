@@ -67,19 +67,22 @@ function namedArgs(src, name) {
   return out;
 }
 
+// The model and its JSON codec, read as one: the stored field is written in
+// the second.
 const MODEL = 'lib/web_view_model.dart';
+const readModel = () => [MODEL, 'lib/web_view_model_json.dart'].map(read).join('\n');
 
 test('the funnel test can actually see arguments (self-check)', () => {
   // Guards against the parser silently matching nothing, which would make
   // every assertion below vacuously true.
   assert.ok(
-    namedArgs(read(MODEL), FORCED_OFF).length > 0,
+    namedArgs(readModel(), FORCED_OFF).length > 0,
     `no ${FORCED_OFF}: arguments found; the parser is broken, not the code`,
   );
 });
 
 test('the model exposes an effective getter for the forced-off setting', () => {
-  const src = read(MODEL);
+  const src = readModel();
   assert.match(
     src,
     /bool get effectiveThirdPartyCookiesEnabled\s*=>\s*_forcedByTrackingProtection\(\s*TrackingProtectionForce\.thirdPartyCookies,\s*stored:\s*thirdPartyCookiesEnabled\);/,
@@ -92,7 +95,7 @@ test('the model exposes an effective getter for the forced-off setting', () => {
 });
 
 test(`${MODEL}: forced-off setting never passes its stored value`, () => {
-  for (const value of namedArgs(read(MODEL), FORCED_OFF)) {
+  for (const value of namedArgs(readModel(), FORCED_OFF)) {
     const collapsed = value.replace(/\s+/g, ' ').trim();
     // Declarations and the model's own storage are not call sites.
     if (/^(bool|final|this\.)/.test(collapsed) || collapsed === '') continue;

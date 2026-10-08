@@ -10,7 +10,7 @@ enum SiteRetentionPriority {
   /// Currently focused site — never evicted.
   active,
 
-  /// Target of an in-flight `_setCurrentIndex` — never evicted.
+  /// Target of an in-flight `setCurrentIndex` — never evicted.
   activating,
 
   /// User explicitly opted this site into notifications (which implies

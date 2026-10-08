@@ -161,19 +161,19 @@ check resolved at app startup.
 
 **Given** the app is launching on Android with a System WebView
   reporting `WebViewFeature.MULTI_PROFILE` true
-**When** `_restoreAppState` runs
+**When** `StartupController.restore` runs
 **Then** `_useContainers` resolves to `true`
-**And** every subsequent `_setCurrentIndex(index)` skips
+**And** every subsequent `setCurrentIndex(index)` skips
   `SiteActivationEngine.findDomainConflict` and the capture-nuke-
   restore cycle — superseding the legacy
   [ISO-001](../per-site-cookie-isolation/spec.md) mutex
-**And** `_setCurrentIndex(index)` calls
+**And** `setCurrentIndex(index)` calls
   `ContainerIsolationEngine.ensureContainer(target.siteId)` instead
 
 #### Scenario: Profile API supported on iOS / macOS
 
 **Given** the app is launching on iOS 17+ or macOS 14+
-**When** `_restoreAppState` runs
+**When** `StartupController.restore` runs
 **Then** the native plugin reports `isSupported() == true`
 **And** `_useContainers` resolves to `true`
 **And** the same conflict-skip / engine-selection behavior as Android
@@ -183,7 +183,7 @@ check resolved at app startup.
 
 **Given** the app is launching on Linux against the WebSpace fork's
   `flutter_inappwebview_linux` (WPE WebKit 2.40+)
-**When** `_restoreAppState` runs
+**When** `StartupController.restore` runs
 **Then** `inapp.ContainerController.isClassSupported(platform: TargetPlatform.linux)`
   returns true
 **And** `_useContainers` resolves to `true`
@@ -196,9 +196,9 @@ check resolved at app startup.
 **Given** the app is launching on an Android System WebView that does
   not report `MULTI_PROFILE`, or iOS <17, or macOS <14, or Windows /
   web (or Linux without the fork override resolved)
-**When** `_restoreAppState` runs
+**When** `StartupController.restore` runs
 **Then** `_useContainers` resolves to `false`
-**And** `_setCurrentIndex` runs the existing capture-nuke-restore flow
+**And** `setCurrentIndex` runs the existing capture-nuke-restore flow
   unchanged
 **And** `ContainerIsolationEngine` touches no ProfileStore
 
@@ -351,12 +351,12 @@ under this policy, two backstops apply:
   `didHaveMemoryPressure` between the version bump and the eventual
   webview resume
 **Then** A is NOT picked as the eviction victim
-**Because** `_setCurrentIndex` records its target in
+**Because** `setCurrentIndex` records its target in
   `SiteRuntime.activating` (set in the try block, cleared in
   finally); `SiteRuntime.retentionPriority` ranks it `activating`,
   which no eviction takes, alongside the `active` current site. Without the in-flight
   guard, mid-activation eviction would dispose A's webview, leaving
-  `_setCurrentIndex` to call `resumeWebView()` on a null controller
+  `setCurrentIndex` to call `resumeWebView()` on a null controller
   (no-op) — the IndexedStack would re-create a fresh webview on next
   paint, silently wiping the user's URL/scroll/session.
 
@@ -370,7 +370,7 @@ The system SHALL sweep profiles whose owning site no longer exists.
 **And** the persisted site list contains only A and C (B was deleted
   in a previous session before profile mode was enabled, or via a
   crash mid-deletion)
-**When** the app launches and `_restoreAppState` runs
+**When** the app launches and `StartupController.restore` runs
 **Then** `ContainerIsolationEngine.garbageCollectOrphans({A, C})` is
   invoked
 **And** profile `ws-B` is deleted
@@ -629,7 +629,7 @@ runs against the built F-Droid APK and fails the build on any hit.
   `ContainerNative.isSupported()` is false.
 - Engine selection lives in
   [`_WebSpacePageState`](../../../lib/main.dart) as a single cached
-  `bool _useContainers`, resolved during `_restoreAppState`.
+  `bool _useContainers`, resolved during `StartupController.restore`.
 
 ### Native Bridge
 
@@ -686,9 +686,9 @@ return inapp.InAppWebView(
 
 `cachedSupported` is the synchronous getter on
 [`ContainerNative`](../../../lib/services/container_native.dart),
-populated during `_restoreAppState` (the same pass that resolves
+populated during `StartupController.restore` (the same pass that resolves
 `_useContainers`). The first webview a process ever constructs
-(before `_restoreAppState` runs to completion) sees
+(before `StartupController.restore` runs to completion) sees
 `cachedSupported == false` and takes the non-profile path — but by
 then no site has been activated yet, so this case never fires in
 practice.
@@ -717,8 +717,8 @@ JS gets injected*.
 - `android/app/src/main/kotlin/.../MainActivity.kt` —
   instantiates `WebSpaceContainerPlugin`
 - `lib/main.dart` — caches `_useContainers`, gates engine selection in
-  `_setCurrentIndex` and `_deleteSite`, runs orphan GC in
-  `_restoreAppState`
+  `setCurrentIndex` and `SiteEditingController.deleteSite`, runs orphan GC in
+  `StartupController.restore`
 - `lib/services/webview.dart` — sets `InAppWebViewSettings.containerId`
   (`containerIdFor`) when it builds a site's WebView
 

@@ -34,7 +34,7 @@ import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/demo_data.dart'
     show demoBlockStatsSiteNames, seedDemoBlockStats;
 import 'package:webspace/settings/demo_mode.dart';
-import 'package:webspace/main.dart' show AppThemeSettings, AccentColor;
+import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/add_site.dart';
 import 'package:webspace/screens/app_appearance.dart';
 import 'package:webspace/screens/app_backup.dart';
@@ -70,17 +70,6 @@ import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/services/site_search_list_service.dart';
 import 'package:webspace/services/web_search_engine.dart';
-
-const Map<String, Color> galleryAccents = {
-  'blue': accentBlue,
-  'green': accentGreen,
-  'purple': accentPurple,
-  'orange': accentOrange,
-  'red': accentRed,
-  'pink': accentPink,
-  'teal': accentTeal,
-  'yellow': accentYellow,
-};
 
 class GalleryCard {
   const GalleryCard({
@@ -172,7 +161,7 @@ Future<void> main() async {
   runApp(GalleryApp(
     cardId: q['card'],
     brightness: q['theme'] == 'dark' ? Brightness.dark : Brightness.light,
-    accent: galleryAccents[q['accent']] ?? accentBlue,
+    accent: (AccentColor.values.asNameMap()[q['accent']] ?? AccentColor.blue).color,
     localeCode: q['locale'],
   ));
 }

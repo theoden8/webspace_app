@@ -1,7 +1,7 @@
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// Returns true if `cookie.domain` falls under `baseDomain` per standard
 /// HTTP cookie domain-match semantics (exact match or any subdomain).
@@ -105,7 +105,7 @@ class CookieIsolationEngine {
     final model = models[index];
     if (model.effectiveIncognito) return;
 
-    // Snapshot _loadedIndices before iterating: a concurrent _setCurrentIndex
+    // Snapshot _loadedIndices before iterating: a concurrent setCurrentIndex
     // may mutate it via unloadSiteForDomainSwitch between our awaits. The
     // version guard ultimately aborts us, but iterating a mutating Set
     // directly would throw ConcurrentModificationError first.

@@ -229,33 +229,9 @@ class SettingsBackupService {
 
   static Future<bool> exportAndSave(
     BuildContext context, {
-    required List<WebViewModel> webViewModels,
-    required List<Webspace> webspaces,
-    required int themeMode,
-    Map<String, Object?>? globalPrefs,
-    String? selectedWebspaceId,
-    int? currentIndex,
-    List<Map<String, dynamic>>? suggestedSites,
-    List<Map<String, dynamic>>? globalUserScripts,
-    int? dnsBlockLevel,
-    List<Map<String, dynamic>>? contentBlockerLists,
-    List<String>? extraSections,
+    required SettingsBackup backup,
   }) async {
     try {
-      final backup = createBackup(
-        webViewModels: webViewModels,
-        webspaces: webspaces,
-        themeMode: themeMode,
-        globalPrefs: globalPrefs,
-        selectedWebspaceId: selectedWebspaceId,
-        currentIndex: currentIndex,
-        suggestedSites: suggestedSites,
-        globalUserScripts: globalUserScripts,
-        dnsBlockLevel: dnsBlockLevel,
-        contentBlockerLists: contentBlockerLists,
-        extraSections: extraSections,
-      );
-
       final jsonString = exportToJson(backup);
       final bytes = utf8.encode(jsonString);
 

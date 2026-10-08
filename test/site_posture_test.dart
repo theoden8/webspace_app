@@ -215,6 +215,26 @@ void main() {
       expect(scripts.single.id, 'g1');
       expect(scripts.single.enabled, isTrue);
     });
+
+    test('an opted-in global script keeps every field but enabled', () {
+      // A field-by-field copy dropped bypassSitePolicy, so a global script
+      // that needs the privileged bridge ran without it on every site.
+      final global = UserScriptConfig(
+        id: 'g1',
+        name: 'global',
+        source: 'void 0',
+        url: 'https://cdn.example/lib.js',
+        urlSource: 'lib()',
+        injectionTime: UserScriptInjectionTime.atDocumentStart,
+        enabled: false,
+        bypassSitePolicy: true,
+      );
+      final m = WebViewModel(initUrl: 'https://a.example')
+        ..enabledGlobalScriptIds = {'g1'};
+      final script =
+          m.sitePosture(globalUserScripts: [global]).page.userScripts.single;
+      expect(script.toJson(), {...global.toJson(), 'enabled': true});
+    });
   });
 
   test('a posture is only ever resolved, never assembled by hand', () {

@@ -2,11 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/mock_cookie_manager.dart';
 import 'helpers/site_list_state.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// Test harness for cookie isolation. Delegates cookie-jar management to
 /// the REAL [CookieIsolationEngine] — the tests exercise production code,
@@ -53,12 +53,11 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   @override
   bool get torAvailable => false;
 
-  /// Mirrors `_unloadSite` in main.dart.
+  /// Mirrors `SiteActivationController.unload`.
   Future<void> unload(int index, {required UnloadReason reason}) =>
       SiteUnloadEngine.unload(this, index: index, reason: reason);
 
-  /// Monotonic counter mirroring `_setCurrentIndexVersion` in
-  /// `_WebSpacePageState`. Every `switchToSite` call bumps it; the engine
+  /// Monotonic counter mirroring `SiteRuntime.activationVersion`. Every `switchToSite` call bumps it; the engine
   /// reads it via a closure so concurrent activations can bail.
   int version = 0;
 
@@ -70,7 +69,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     ));
   }
 
-  /// Mirrors `_setCurrentIndex` in main.dart: bumps the version, runs the
+  /// Mirrors `SiteActivationController.setCurrentIndex`: bumps the version, runs the
   /// activation's residency plan, then delegates cookie restore to the real
   /// engine, so the harness can't drift from prod.
   Future<void> switchToSite(int index) async {
@@ -96,7 +95,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     loadedIndices.add(index);
   }
 
-  /// Mirrors `_deleteSite` cookie/storage/state bookkeeping.
+  /// Mirrors `SiteEditingController.deleteSite` cookie/storage/state bookkeeping.
   Future<void> deleteSite(int index) async {
     final deletedModel = sites[index];
     await engine.preDeleteCookieCleanup(
@@ -113,7 +112,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     );
   }
 
-  /// Mirrors the startup GC in `_restoreAppState`: orphan sweep on
+  /// Mirrors the startup GC in `StartupController.restore`: orphan sweep on
   /// encrypted storage, then nuke the native cookie jar before first
   /// activation. Call this after seeding prior-session cookies to verify
   /// they don't leak into the next activated site.

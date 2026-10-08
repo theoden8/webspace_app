@@ -18,12 +18,12 @@ const assert = require('node:assert');
 const { read } = require('./helpers/source');
 
 test('QR-supplied site settings are reviewed before the site is created', () => {
-  const src = read('lib/main.dart');
+  const src = read('lib/controllers/site_editing_controller.dart');
 
-  const confirm = src.indexOf('_confirmQrSiteSettings(resultQrSettings)');
+  const confirm = src.indexOf('_prompts.reviewQrSettings(resultQrSettings)');
   assert.ok(
     confirm !== -1,
-    '_addSite no longer routes QR settings through _confirmQrSiteSettings; a scanned '
+    'addSite no longer routes QR settings through reviewQrSettings; a scanned '
       + 'or linked payload would apply its proxy and protection changes unseen',
   );
 
@@ -32,15 +32,15 @@ test('QR-supplied site settings are reviewed before the site is created', () => 
   assert.match(
     after,
     /if\s*\(!accepted[^)]*\)\s*return;/,
-    'the QR review result is not acted on: _addSite must return when the user declines',
+    'the QR review result is not acted on: addSite must return when the user declines',
   );
 
-  // Every QR entry point has to pass through _addSite to reach that review.
+  // Every QR entry point has to pass through addSite to reach that review.
   const links = read('lib/controllers/link_controller.dart');
   assert.ok(
     !/webspace:\/\/qr\/[\s\S]{0,600}?registerSite/.test(links),
     'the webspace://qr/ deep link registers a site without passing through '
-      + '_addSite, bypassing the review dialog',
+      + 'addSite, bypassing the review dialog',
   );
   assert.match(
     links,
@@ -48,9 +48,9 @@ test('QR-supplied site settings are reviewed before the site is created', () => 
     'the webspace://qr/ deep link no longer hands its payload to the add-site flow',
   );
   assert.match(
-    src,
-    /Future<void> addSiteFromQr\([^)]*\)\s*=>\s*_s\._addSite\(deepLinkQrSettings: settings\);/,
-    'the page answers a QR deep link with something other than _addSite',
+    read('lib/screens/webspace_page.dart'),
+    /Future<void> addSiteFromQr\([^)]*\)\s*=>\s*_s\._editing\.addSite\(deepLinkQrSettings: settings\);/,
+    'the page answers a QR deep link with something other than addSite',
   );
 });
 

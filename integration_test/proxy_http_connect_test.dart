@@ -16,10 +16,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/container_native.dart';
-import 'package:webspace/services/webview.dart';
 import 'http_connect_fixture.dart';
 import 'socks5_fixture.dart';
 import 'helpers/ui.dart';
+import 'package:webspace/services/webview_proxy.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

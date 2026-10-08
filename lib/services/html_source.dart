@@ -3,7 +3,7 @@
 /// This classification MUST be identical everywhere it's used, or a site can
 /// render blank (preloaded from one store, read from another) or have its live
 /// snapshot wrongly saved over a `file://` import. The call sites:
-///   - preload: `_WebSpacePageState._ensureSiteHtml` decrypts the right store
+///   - preload: `_WebSpacePageState.ensureSiteHtml` decrypts the right store
 ///     before a site enters `_loadedIndices`.
 ///   - read: the IndexedStack `initialHtml` callback reads it synchronously.
 ///   - save: `onHtmlLoaded` / `shouldFetchHtml` persist live snapshots only for

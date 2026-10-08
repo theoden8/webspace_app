@@ -17,10 +17,10 @@ void main() {
   late String clearSiteData;
 
   setUpAll(() {
-    final source = File('lib/main.dart').readAsStringSync();
+    final source = File('lib/screens/webspace_page.dart').readAsStringSync();
     final start = source.indexOf('Future<void> _clearSiteData(int index) async {');
     if (start < 0) {
-      throw StateError('_clearSiteData not found in lib/main.dart');
+      throw StateError('_clearSiteData not found in lib/screens/webspace_page.dart');
     }
     // Method bodies at this nesting close on a line of exactly two spaces
     // plus `}`.

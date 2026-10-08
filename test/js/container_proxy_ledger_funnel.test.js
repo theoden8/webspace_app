@@ -35,23 +35,29 @@ test('the gate sees the builders it guards', () => {
   assert.ok(where.includes('lib/services/proxy_router_probe.dart'));
 });
 
-// The site and popup builders share `_siteSettings`, which is handed the
-// binding: each caller records the proxy it hands over.
+// The site, popup and headless builders share `WebViewFactory.siteSettings`,
+// which is handed the binding: each caller records the proxy it hands over.
+const shared = dartFiles().flatMap((rel) => {
+  const text = read(rel);
+  return [...text.matchAll(/\bsiteSettings\(\s*binding,/g)].map((m) => ({ rel, text, at: m.index }));
+});
+
 test('every caller of the shared builder records its proxy', () => {
-  const webview = read('lib/services/webview.dart');
-  const calls = [...webview.matchAll(/_siteSettings\(\s*binding,/g)];
-  assert.ok(calls.length >= 2, 'expected the site and popup webviews to share the builder');
-  for (const call of calls) {
-    const fn = webview.lastIndexOf('\n  static ', call.index);
-    assert.match(webview.slice(fn, call.index),
+  assert.ok(shared.length >= 3,
+    'expected the site, popup and headless webviews to share the builder');
+  for (const { rel, text, at } of shared) {
+    const fn = text.lastIndexOf('\n  static ', at);
+    assert.match(text.slice(fn, at),
       /ProxyManager\.noteStoreProxy\(\s*(binding\.)?containerId,\s*proxy:\s*(binding\.proxy|inappProxy)\)/,
-      'a webview built through _siteSettings must record its container proxy '
-        + '(PROXY-029)');
+      `${rel}: a webview built through siteSettings must record its container `
+        + 'proxy (PROXY-029)');
   }
 });
 
 test('every proxySettings handed to a WebView is recorded', () => {
-  for (const b of builds) {
+  // The shared builder hands over the binding's proxy; its callers record
+  // it, which the test above holds.
+  for (const b of builds.filter((b) => !(b.rel === 'lib/services/webview.dart' && b.value === 'binding.proxy'))) {
     const noted = new RegExp(
       `noteStoreProxy\\([^,]+,\\s*proxy:\\s*${b.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\)`,
     );

@@ -14,7 +14,7 @@
 //   2. Detector sensitivity control: a genuinely white page must classify
 //      as uniformBlank, proving the sampler reads webview pixels and the
 //      assertions in the other scenarios are not vacuously green.
-//   3. Loaded-site switch (_setCurrentIndex reuse path, Attempt 3).
+//   3. Loaded-site switch (setCurrentIndex reuse path, Attempt 3).
 //   4. Reload funnel (reloadAndRepaint + load-settled re-nudge, Attempt 9).
 //   5. OS memory pressure against the visible site (Attempt 7).
 //   6. Fresh activation with other sites live (controller-attach nudge,
@@ -54,6 +54,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/screens/inappbrowser.dart';
@@ -302,13 +303,13 @@ Future<WindowRegionSample> pollSite(
         await tester.pump();
         return;
       }
-      if (find.byType(PopupMenuItem<app.SiteMenuAction>).evaluate().isNotEmpty) {
+      if (find.byType(PopupMenuItem<SiteMenuAction>).evaluate().isNotEmpty) {
         // Menu is open without the action: dismiss and reopen next pass.
         await tester.tapAt(const Offset(5, 5));
       } else {
         final menuButton = find.descendant(
             of: find.byType(AppBar),
-            matching: find.byType(PopupMenuButton<app.SiteMenuAction>));
+            matching: find.byType(PopupMenuButton<SiteMenuAction>));
         if (menuButton.evaluate().isNotEmpty) {
           await tester.tap(menuButton.first);
         }
@@ -363,7 +364,7 @@ Future<WindowRegionSample> pollSite(
               SurfaceDiagNative.classify(s) ==
                   WindowSampleVerdict.uniformBlank);
 
-      // Scenario 3: switch back to an already-loaded site (_setCurrentIndex
+      // Scenario 3: switch back to an already-loaded site (setCurrentIndex
       // reuse path, Attempt 3's chokepoint).
       await openSiteDrawer(tester);
       await tapSite(tester, siteName: 'Dark',

@@ -207,8 +207,8 @@ e.g. fetching an emailed 2FA code — intact on return (issue #333).
 
 - `lib/web_view_model.dart` — `alwaysOpenHome` field, ctor param,
   `toJson` URL-strip gate, `fromJson` URL-strip gate.
-- `lib/main.dart` — `_resetAlwaysOpenHomeOnShortcut(int)` helper
-  invoked from `_restoreAppState` (cold) and `_handleShortcutIntent`
+- `lib/main.dart` — `resetHomeOnLaunch(int)` helper
+  invoked from `StartupController.restore` (cold) and `_handleShortcutIntent`
   (warm). `didChangeAppLifecycleState` on `paused` does NOT reset
   flagged sites (AOH-006); a transient background preserves the URL.
 - `lib/services/webspace_selection_engine.dart` —

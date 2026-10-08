@@ -213,7 +213,7 @@ class HtmlCacheService {
   /// for [siteId] and bumps the eviction generation so any in-flight
   /// [saveHtml] for the same site is rejected at write time.
   ///
-  /// Sync by design: callers (notably `_goHome`) need the next webview
+  /// Sync by design: callers (notably `goHome`) need the next webview
   /// rebuild's `getHtmlSync(siteId)` to return null in the same event-loop
   /// turn, before the rebuild's build phase runs. An async eviction loses
   /// that race.
@@ -291,7 +291,7 @@ class HtmlCacheService {
 
       final encrypted = aead.seal('$url\n$html');
 
-      // An eviction (e.g. from `_goHome`) that lands between entry and
+      // An eviction (e.g. from `goHome`) that lands between entry and
       // here invalidates this save: the call site explicitly asked the
       // cache to drop this site, and committing now would silently
       // resurrect the stale bytes the user just told us to forget.

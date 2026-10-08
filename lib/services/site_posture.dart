@@ -105,3 +105,12 @@ final class SitePosture {
     ),
   );
 }
+
+/// Opens [url] in a nested `InAppWebViewScreen` that runs as the opening
+/// site, under [posture] (see [SitePosture], which a new per-site field joins
+/// rather than this signature). Implemented by `_WebSpacePageState.launchUrl`.
+typedef LaunchUrlFunc = void Function(
+  String url, {
+  required SitePosture posture,
+  String? homeTitle,
+});

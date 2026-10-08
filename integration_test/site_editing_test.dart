@@ -53,7 +53,7 @@ void main() {
 
     // Open the drawer by tapping the All-webspace tile (already
     // selected by default, so the same-id branch in
-    // lib/main.dart `_selectWebspace` calls openDrawer()).
+    // `WebspacesController.select` calls openDrawer()).
     final allTile = find.byKey(const ValueKey(kAllWebspaceId));
     expect(allTile, findsOneWidget);
     await tester.tap(allTile);
@@ -67,7 +67,7 @@ void main() {
         reason: 'seeded site should appear in the drawer with its initial name');
 
     // Open the context menu from the tile's overflow (⋮) button
-    // (lib/main.dart `_showSiteContextMenu`). Long-press is reserved for
+    // (lib/screens/webspace_page.dart `_showSiteContextMenu`). Long-press is reserved for
     // drag-to-reorder, so it no longer opens the menu. Scope the icon lookup
     // to this tile — the app bar and bottom bar also render more_vert.
     final tileMenuButton = find.descendant(

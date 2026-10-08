@@ -178,7 +178,7 @@ void main() {
       });
 
       test('persistence filter drops archive-tier collections', () {
-        // Mirror of the filter in `_saveWebspaces`.
+        // Mirror of the filter in `ShellStore.saveWebspaces`.
         final spaces = [
           Webspace(name: 'App A', siteIds: ['a']),
           Webspace(name: 'Arch', siteIds: ['x'])..isArchiveTier = true,
@@ -194,7 +194,7 @@ void main() {
 
     // Defensive deserialization: malformed prefs blobs from partial
     // writes, hand-edited backups, or schema drift across branches
-    // must not crash boot. `_loadWebspaces` wraps each entry in
+    // must not crash boot. `ShellStore.loadWebspaces` wraps each entry in
     // try/catch, but each field also defends individually so the
     // entry is at worst empty rather than dropped wholesale.
     group('fromJson tolerates missing/null fields', () {

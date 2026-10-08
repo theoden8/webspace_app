@@ -64,13 +64,15 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `AppPref` (`settings/app_prefs.dart`) | every global pref, its default, what a backup carries | `AppPref.x.value` / `.set(v)`; backups iterate `AppPref.values` |
 | `SecureJsonStore` / `Keystores` / `KeychainAead` | secrets at rest and their keychain options | `SecureJsonStore<T>` on a `Keystores` set |
 | `host_platform` (`platform/`) | dart:io primitives, importable from plain Dart | conditional export |
+| `ShellStore` (`controllers/shell_store.dart`) | what the page saves beside its sites: theme, global user scripts, suggested sites, webspaces, the site on screen | `_shell.theme` etc.; `save*` per value |
+| `SiteActivationController` | which site is on screen, and the residency, capture and teardown that move with it | `setCurrentIndex(int?)`; talks back through `ActivationHost` |
 | `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
 | `LogTag` (`services/log_service.dart`) | every log tag and the label it shows | `LogTag.x.debug(msg, sensitive: true)`; `LogService.log` takes a `LogTag` |
 | `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
 
-Layers: UI `screens`, `widgets`, `controllers`, `main.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.
+Layers: UI `screens`, `widgets`, `controllers`, `theme`, `main.dart`, `app.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.
 
-Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`).
+Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · services → UI (`webview_downloads.dart` → `root_messenger`, `webview.dart` → `surface_nudge_scope`).
 
 | Axis | Budget | Now | Funnel |
 |---|---|---|---|
@@ -97,6 +99,14 @@ Health, monthly: `node tool/architecture_health.js` prints files per fix commit,
 - Default to **no code comments**. Only add when the *why* is non-obvious (hidden constraint, workaround for a specific bug, surprising behavior). Never restate what the code does. Never reference the current task or PR.
 - Commit messages: short subject (<70 chars, imperative), 1-2 line body for the *why* if needed. No marketing prose, no bullet lists of every changed file, no "this commit also...".
 - Don't speculate. Read the code or docs before asserting an API/version/flag.
+- **An implementation file stays under 2000 lines.** Past that it is split by
+  concern: what stands alone (a controller, a widget, a top-level function, a
+  class and the enum only it uses) moves to its own file; what exists only for
+  one owner (a private enum, a small extension) stays beside it. A file kept
+  longer is a monolith that reads best whole, such as a backtracking search,
+  and is named with its reason in
+  [test/js/file_size.test.js](test/js/file_size.test.js). Test files may be as
+  long as their cases.
 - **No catch-alls.** Catch the types the call is known to throw (`on SocketException`,
   `test: (e) => e is SocksClientException`), never `catch (_)`, `on Object` or
   `onError: (_) {}`: those also swallow `Error`s, which are bugs, and leave nothing
@@ -223,7 +233,7 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 - `WebViewModel` ([lib/web_view_model.dart](lib/web_view_model.dart)) — site with URL, cookies, per-site settings (language, incognito, proxy, etc.). Unique `siteId` keys cookie isolation.
 - `Webspace` ([lib/webspace_model.dart](lib/webspace_model.dart)) — named collection of site indices. `__all_webspace__` shows all.
 
-**Main** — [lib/main.dart](lib/main.dart): `WebSpaceApp` (root MaterialApp) and `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, loaded positions, current site, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (shortcuts, archives, surface repaint, background sites, app lifecycle, site network, tabs, links). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of main.dart; `lib/services` never imports a controller.
+**Main** — [lib/main.dart](lib/main.dart) runs the startup steps and `runApp`; [lib/app.dart](lib/app.dart) is `WebSpaceApp` (root MaterialApp); [lib/screens/webspace_page.dart](lib/screens/webspace_page.dart) is `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, loaded positions, current site, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (startup, activation, shortcuts, archives, backup, webspaces, site editing, site resets, full screen, back gesture, surface repaint, background sites, app lifecycle, site network, tabs, links). Their dialogs are `Dialog*Prompts` in [lib/widgets/](lib/widgets/). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of webspace_page.dart; `lib/services` never imports a controller.
 
 **Site-set changes** — every add, delete, move, edit, import, archive open/close goes through `_commitSites(SiteSetChange)` ([site_set_change.dart](lib/controllers/site_set_change.dart)). The sealed change's `effects` record (every field required) decides what follows it, and the funnel runs those steps in one fixed order, so a new kind of change does not compile until it answers each one.
 
@@ -413,9 +423,9 @@ Two layers, shared fixtures in `test/js_fixtures/` (see [README](test/js_fixture
 
 Workflow: edit shim in `lib/services/` → `fvm dart run tool/dump_shim_js.dart` → `fvm flutter test test/js_fixtures_drift_test.dart` (drift) → `npm run test:js` (behavior). Both run in CI (`build-and-test.yml`).
 
-New shim: register in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart). Builders importing Flutter widgets (lib/main.dart, lib/screens/*) can't be reached — extract the JS string to a pure-Dart helper first.
+New shim: register in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart). Builders importing Flutter widgets (lib/screens/*, lib/widgets/*) can't be reached — extract the JS string to a pure-Dart helper first.
 
-**Shims that also run in workers** (anything in `workerScopeShims` in [webview.dart](lib/services/webview.dart) — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
+**Shims that also run in workers** (anything in `workerScopeBodies` in [worker_shim.dart](lib/services/worker_shim.dart) — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
 
 jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Effects that need a real engine (canvas `captureStream`, Intl timezone math, real CSP, RTCPeerConnection semantics) go in the **browser tier** under `test/browser/` (Puppeteer + headless Chromium, `npm run test:browser`, run in CI's `validate` job). Use the `setupBrowser`/`requireBrowser`/`readFixture` helpers in [test/browser/helpers/launch.js](test/browser/helpers/launch.js) — the tier hard-fails when `CI=true` and no Chromium is found, and skips locally. Example: `camera_stream_real_engine.test.js` serves a page from `127.0.0.1` (getUserMedia needs a secure context), feeds the dumped camera shim a QR image, and asserts jsQR decodes it off the synthetic stream.
 
@@ -428,14 +438,14 @@ Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` (`<N>` is the b
 A user-facing global pref is one entry of the `AppPref` enum; persistence, backup export/import, the demo-mode guard and the live value come with it.
 
 1. Declare it in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart): `name('sharedPrefsKey', fallback: default)`, a `bool`, `int` or `String` (a const assert rejects anything else). Declaration order is the order a backup lists it.
-2. Bind its row: a switch is `SettingTile(..., control: const PrefToggle(AppPref.name))`; anything else reads `AppPref.name.value` and writes `AppPref.name.set(v)`. Code with a side effect listens on `AppPref.name.listenable`; main.dart rebuilds on `AppPref.anyChange`.
+2. Bind its row: a switch is `SettingTile(..., control: const PrefToggle(AppPref.name))`; anything else reads `AppPref.name.value` and writes `AppPref.name.set(v)`. Code with a side effect listens on `AppPref.name.listenable`; the page rebuilds on `AppPref.anyChange`.
 
 - No per-pref constructor params, `_saveX` methods or second cache of the value: `set` persists (except in demo mode) and every reader sees the same notifier. `writeExportedAppPrefs` applies an import to disk and to the running app.
 - The integrity test in [test/settings_backup_test.dart](test/settings_backup_test.dart) iterates `AppPref.values` — no test edit needed.
 - Don't register: migration flags, download timestamps, cache indices, machine state from downloaded data (DNS blocklist, content blocker, localcdn).
 - Per-site settings ride `WebViewModel.toJson` automatically — keep them on the model.
 - Touched export/import? Re-run `flutter test test/settings_backup_test.dart test/settings_backup_compat_test.dart`.
-- Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `_importSettings` only applies the plan (BACKUP-013).
+- Import logic lives in `planSettingsImport` ([settings_import_engine.dart](lib/services/settings_import_engine.dart)); `BackupController.import` only applies the plan (BACKUP-013).
 - Renaming a persisted key (site JSON, backup field, SharedPreferences key) keeps reading the old name and carries the value over (for an `AppPref`, `legacyKey: 'old'`); dropping one is declared with its reason (`_renamedKeys` / `_retiredKeys` in the compat test, `RETIRED` in `test/js/prefs_key_history.test.js`). Both tests hold every release's writes against today's reads (BACKUP-012, BACKUP-014).
 - A new `fromJson` field reads a wrong-typed value as absent, never with a bare cast: a site whose JSON throws is dropped at startup and deleted by the next save. An `AppPref` coerces its stored value itself; never read one with `prefs.getBool(AppPref.x.key)` and friends (gated by `test/js/prefs_key_history.test.js`).
 - A release commits `test/fixtures/backup_compat/v<version>/` ([docs/releasing.md](docs/releasing.md)); the compat test fails without it, and fails on any PR whose new pref or site field `tool/backup_compat/superset.json` leaves out.
@@ -491,7 +501,7 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
 - **Commit the 66 translated ARBs separately from the code** (see Git above): code + `app_en.arb` first, translations second, pushed together.
 - Generated code lives in `lib/l10n/gen/` and is **gitignored** — regenerated by `generate: true` on `pub get`/build, or `fvm flutter gen-l10n`. Don't commit it.
 - Pure-data display (e.g. `host:port`) goes into a local variable first; never a string literal inside `Text(`/`tooltip:` etc., or the LOC-002 guard fails.
-- [test/js/l10n_no_hardcoded_text.test.js](test/js/l10n_no_hardcoded_text.test.js) and [design_tokens_no_literals](test/js/design_tokens_no_literals.test.js) scan every file under `lib/{main.dart,screens,widgets}`, so a new UI file needs no edit there. Each keeps a shrinking exemption list: drop a file from it once converted.
+- [test/js/l10n_no_hardcoded_text.test.js](test/js/l10n_no_hardcoded_text.test.js) and [design_tokens_no_literals](test/js/design_tokens_no_literals.test.js) scan `lib/main.dart`, `lib/app.dart` and every file under `lib/{screens,widgets}`, so a new UI file there needs no edit. Each keeps a shrinking exemption list: drop a file from it once converted.
 - Every key MUST carry a non-empty `description` (enforced by [test/js/l10n_coverage.test.js](test/js/l10n_coverage.test.js)) — that description is the context a translator/general model uses, so write it for someone who can't see the screen.
 - To add a locale: hand `app_en.arb` (values + descriptions) to any general-purpose model, ask it to translate the values keeping `{placeholder}` tokens verbatim, save as `app_<locale>.arb`. No committed script or API key. Coverage (key + placeholder parity, no empties) is enforced by [test/js/l10n_coverage.test.js](test/js/l10n_coverage.test.js).
 - Language identity (file actually written in its claimed language, not left in English or swapped) is enforced by [test/js/l10n_language.test.js](test/js/l10n_language.test.js) (runs under `npm run test:js`, no VRAM). Three checks, all backed by [test/js/helpers/l10n_language.js](test/js/helpers/l10n_language.js):
@@ -523,8 +533,8 @@ Follow [openspec/specs/proxy-password-secure-storage/spec.md](openspec/specs/pro
 - **Never serialise to JSON**: `toJson` omits the field. No `includeSecrets` opt-in. Same rule as `isSecure=true` cookies. Backup files get emailed/synced — they must not carry secrets.
 - **Hydrate on load** alongside per-site/global hydration in `SiteListStore.load` and `GlobalOutboundProxy.initialize`.
 - **Migrate legacy plaintext** with the idempotent pre-pass in `ProxyPasswordSecureStorage.migrateLegacyPassword`.
-- **Wire orphan cleanup**: add the store to `OrphanStore` in [orphan_sweep_engine.dart](lib/services/orphan_sweep_engine.dart) with its scope (session residue or configuration). `_OrphanSweepTargets` in main.dart does not compile until it sweeps the store; startup, post-import and post-delete all run the engine.
-- **Tell the user post-import** (snackbar in `_importSettings`) if the related non-secret field was set — otherwise restored proxy silently fails auth.
+- **Wire orphan cleanup**: add the store to `OrphanStore` in [orphan_sweep_engine.dart](lib/services/orphan_sweep_engine.dart) with its scope (session residue or configuration). `PageOrphanSweep` ([page_orphan_sweep.dart](lib/controllers/page_orphan_sweep.dart)) does not compile until it sweeps the store; startup, post-import and post-delete all run the engine.
+- **Tell the user post-import** (snackbar in `BackupController.import`) if the related non-secret field was set — otherwise restored proxy silently fails auth.
 - **Regression test**: assert the secret string never appears in `SettingsBackupService.exportToJson(...)` output. Template: "proxy passwords never appear in exports (PWD-005)".
 - Update the spec, then `npx openspec validate --no-interactive --all`.
 
@@ -586,7 +596,7 @@ the site icon and search targets) stays a `WebViewConfig` field the owning
 surface sets. What the host answers (prompts, popups, capture resolvers,
 cookie jars, routing) is one `WebViewHostHooks`
 ([webview_host_hooks.dart](lib/services/webview_host_hooks.dart)) that
-`main.dart` builds once and both surfaces take whole; a new host answer is a
+the page builds once and both surfaces take whole; a new host answer is a
 required field there (BUG-028).
 
 If the field controls JS in `initialUserScripts`, inject it with `pageShim(..., frames: ShimFrames.all)` ([page_shim.dart](lib/services/page_shim.dart)) so the shim reaches cross-origin iframes.

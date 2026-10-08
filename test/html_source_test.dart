@@ -2,7 +2,7 @@
 //
 // Before, three call sites in main.dart each re-derived "which HTML store
 // backs this site" from `incognito || isArchiveTier || initUrl.startsWith
-// ('file://')`. If the preload site (_ensureSiteHtml) and the read site (the
+// ('file://')`. If the preload site (SiteActivationController.ensureSiteHtml) and the read site (the
 // IndexedStack initialHtml) ever disagreed, a site would render blank
 // (preloaded from one store, read from another). They now share this single
 // function; these tests pin its behavior so the classification can't drift.

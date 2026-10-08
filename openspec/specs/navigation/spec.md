@@ -383,7 +383,7 @@ Apple is excluded because the app cannot see the gesture: the root site webview 
 
 ### Requirement: NAV-010 - Leaving A Site Is Committed Before Its Teardown
 
-Returning to the webspace list SHALL take effect on the user's tap, independently of the teardown of the site being left. `_setCurrentIndex(null)` SHALL assign `_sites.current` and exit fullscreen **before** it captures nav state, stops a real camera capture, pauses media, or pauses the webview — nothing in that sequence decides where the user ends up.
+Returning to the webspace list SHALL take effect on the user's tap, independently of the teardown of the site being left. `setCurrentIndex(null)` SHALL assign `_sites.current` and exit fullscreen **before** it captures nav state, stops a real camera capture, pauses media, or pauses the webview — nothing in that sequence decides where the user ends up.
 
 That teardown is best-effort and SHALL be funnelled through `SiteTeardownEngine.quiesceOutgoing` (also used by the site-switch path and the defensive sweep of background sites), which:
 
@@ -432,9 +432,9 @@ Storage on this path SHALL fail closed rather than throw: `SecureWebViewStateSto
 
 ### Requirement: NAV-012 - A Site Opened During Startup Stays Open
 
-The startup restore SHALL NOT close a site the user opened while it was still running. `_restoreAppState` records `SiteRuntime.activationVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
+The startup restore SHALL NOT close a site the user opened while it was still running. `StartupController.restore` records `SiteRuntime.activationVersion` before its first `await` and, at its closing activation, asks `StartupRestoreEngine.shouldActivateAfterRestore`: a plain launch's `null` target is skipped when the version moved, and a shortcut target is applied either way, because it is the site the app was launched to open.
 
-**Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `_setCurrentIndex(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_sites.current` cleared the next memory-pressure event no longer protected it.
+**Rationale:** the home grid takes taps long before the restore finishes. The proxy router's attribution pass alone held the restore for six seconds on a 20-site device, and a tap in that window activated the site, only for the restore's `setCurrentIndex(null)` to quiesce it and return to the webspace list. Nothing reported it: the site was paused and deselected exactly as "back to webspaces" would, and with `_sites.current` cleared the next memory-pressure event no longer protected it.
 
 #### Scenario: Opening a site during a slow startup
 
@@ -470,15 +470,15 @@ Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/s
 
 ### Guard: RACE-003 - SiteRuntime.activationVersion Counter
 
-**Problem:** `_setCurrentIndex()` performs multiple async operations (cookie capture, domain conflict resolution, cookie restoration). Rapid site switching could interleave these operations.
+**Problem:** `setCurrentIndex()` performs multiple async operations (cookie capture, domain conflict resolution, cookie restoration). Rapid site switching could interleave these operations.
 
-**Solution:** Version counter `SiteRuntime.activationVersion` is checked after each `await` gap. If the version changed (another `_setCurrentIndex` call started), the stale call returns early.
+**Solution:** Version counter `SiteRuntime.activationVersion` is checked after each `await` gap. If the version changed (another `setCurrentIndex` call started), the stale call returns early.
 
-### Guard: RACE-004 - _goHome() Synchronous Execution
+### Guard: RACE-004 - goHome() Synchronous Execution
 
-**Problem:** If `_goHome()` were async, rapid taps could interleave with webview recreation.
+**Problem:** If `goHome()` were async, rapid taps could interleave with webview recreation.
 
-**Solution:** `_goHome()` is fully synchronous. It completes in a single microtask:
+**Solution:** `goHome()` is fully synchronous. It completes in a single microtask:
 1. Drops the site's cached HTML via `_deleteCacheIfOnline(siteId)` so the next load starts from the live page instead of a stale snapshot (the cached frame could otherwise flash with pre-edit content or mismatched theme before user scripts re-run). The helper is fire-and-forget and skips deletion when the device is offline, so offline users keep a renderable snapshot.
 2. Resets `currentUrl` to `initUrl`
 3. Disposes webview (`webview = null`, `controller = null`)
@@ -541,7 +541,7 @@ Home button pressed
   │
   ├─ Close menu (Navigator.pop)
   │
-  └─ _goHome():
+  └─ goHome():
       ├─ model.currentUrl = model.initUrl
       ├─ model.disposeWebView()    ← webview=null, controller=null
       ├─ setState(() {})           ← trigger rebuild
@@ -560,15 +560,17 @@ Home button pressed
   NAV-009 setting. `backAtHistoryStartConfigurable` says where that setting is
   offered at all. Tests: [test/back_gesture_engine_test.dart](../../../test/back_gesture_engine_test.dart)
 
-#### `lib/main.dart`
+#### `lib/controllers/back_gesture_controller.dart`
 - `_backGuard` — `ReentryGuard` for the PopScope handler
 - `_backAtHistoryStart` — NAV-009 setting, mirrored from the `backOpensMenu` pref
   on load and import, and pinned to `ignore` where `_backAtHistoryStartOffered`
   is false (iOS/macOS)
 - `_drawerOpenedByBackGesture` — set when the handler opens the drawer, cleared by
-  `Scaffold.onDrawerChanged` on every close, so only a gesture-opened drawer escalates
+  `Scaffold.onDrawerChanged` (`drawerChanged`) on every close, so only a gesture-opened drawer escalates
 - `_openDrawerFromBackGesture()` — the one place that opens the drawer for NAV-009
-- `_goHome()` — synchronous: dispose webview, reset URL, trigger rebuild
+
+#### `lib/screens/webspace_page.dart`
+- `goHome()` — synchronous: dispose webview, reset URL, trigger rebuild
 - `PopScope` widget — wraps Scaffold; `canPop: false` always on Android (so back never exits the app), `!webviewIsVisible` on other platforms; handles system back gesture with URL comparison, navigating webview history only
 - `drawerEdgeDragWidth` — `0` whenever a webview is visible (drawer edge swipe disabled on all platforms); `null` otherwise
 - Back button `IconButton` (portrait ~line 1685, landscape ~line 2047)

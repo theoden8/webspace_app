@@ -1,7 +1,7 @@
 import 'package:webspace/web_view_model.dart';
 
 /// Pure decisions made during site activation, extracted from
-/// `_WebSpacePageState._setCurrentIndex` so production and the cookie-isolation
+/// `_WebSpacePageState.setCurrentIndex` so production and the cookie-isolation
 /// test harness share one implementation instead of duplicating the
 /// "find a same-base-domain loaded site to unload" loop.
 ///
@@ -20,7 +20,7 @@ class SiteActivationEngine {
   ///
   /// Out-of-bounds indices in [loadedIndices] are tolerated. The first
   /// matching index in iteration order is returned, mirroring the existing
-  /// `_setCurrentIndex` `break`-after-first-conflict semantics (only one
+  /// `setCurrentIndex` `break`-after-first-conflict semantics (only one
   /// conflict is possible at a time given prior activations enforce the
   /// same rule).
   static int? findDomainConflict({

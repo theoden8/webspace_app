@@ -36,6 +36,8 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
 import 'helpers/ui.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 class _Req {
   _Req(this.path, {required this.xrw});

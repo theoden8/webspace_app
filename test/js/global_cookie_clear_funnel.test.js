@@ -27,7 +27,7 @@ const { read, dartFiles } = require('./helpers/source');
 /// definition.
 const EXEMPT_FILES = new Set([
   'lib/services/cookie_isolation.dart',
-  'lib/services/webview.dart',
+  'lib/services/cookie_manager.dart',
 ]);
 
 /// Name of the OrphanSweepTargets method whose only caller is the engine's
@@ -72,11 +72,16 @@ test('the sweep funnel is still routed through the engine', () => {
     'OrphanSweepEngine must only clear the legacy jar when containers are off',
   );
 
-  const main = read('lib/main.dart');
-  const directCalls = main.match(/clearLegacyGlobalCookieJar\(\)/g) ?? [];
+  const binding = read('lib/controllers/page_orphan_sweep.dart');
+  const directCalls = binding.match(/clearLegacyGlobalCookieJar\(\)/g) ?? [];
   assert.equal(
     directCalls.length,
     1,
-    'main.dart should only define the funnel override, never call it directly',
+    'the sweep binding should only define the funnel override, never call it',
   );
+  const callers = dartFiles().filter((rel) =>
+    rel !== 'lib/services/orphan_sweep_engine.dart'
+      && rel !== 'lib/controllers/page_orphan_sweep.dart'
+      && read(rel).includes('clearLegacyGlobalCookieJar('));
+  assert.deepEqual(callers, [], 'only the engine asks for the legacy jar clear');
 });

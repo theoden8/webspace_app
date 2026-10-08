@@ -13,12 +13,12 @@ const { read, blockAfter, callArgs } = require('./helpers/source');
 
 const webview = read('lib/services/webview.dart');
 const model = read('lib/web_view_model.dart');
-const main = read('lib/main.dart');
+const main = read('lib/screens/webspace_page.dart');
 const nested = read('lib/screens/inappbrowser.dart');
 
 test('the factory binds through containerIdFor', () => {
   assert.match(webview,
-    /static StoreBinding _bindingFor\(WebViewConfig config\) =>\s*storeBinding\(config\.posture\);/);
+    /static StoreBinding bindingFor\(WebViewConfig config\) =>\s*storeBinding\(config\.posture\);/);
   const create = blockAfter(webview, 'static StoreBinding storeBinding(SitePosture posture) {',
     null, 'webview.dart');
   const at = create.indexOf('final containerId = containerIdFor(');
@@ -43,7 +43,7 @@ test('the model reads the binding from the posture of the site webview config', 
 });
 
 test('every URL bar offers site info', () => {
-  for (const [rel, src] of [['lib/main.dart', main], ['lib/screens/inappbrowser.dart', nested]]) {
+  for (const [rel, src] of [['lib/screens/webspace_page.dart', main], ['lib/screens/inappbrowser.dart', nested]]) {
     const calls = [...src.matchAll(/\bUrlBar\(/g)];
     assert.ok(calls.length > 0, `${rel} has no URL bar`);
     for (const m of calls) {
@@ -53,7 +53,7 @@ test('every URL bar offers site info', () => {
 });
 
 test('site info is reached from the URL bar only, never a menu', () => {
-  for (const [rel, src] of [['lib/main.dart', main], ['lib/screens/inappbrowser.dart', nested]]) {
+  for (const [rel, src] of [['lib/screens/webspace_page.dart', main], ['lib/screens/inappbrowser.dart', nested]]) {
     assert.doesNotMatch(src, /value: "siteInfo"/, `${rel} offers site info in a menu`);
     assert.doesNotMatch(src, /case 'siteInfo':/, `${rel} handles a site info menu item`);
   }
@@ -68,8 +68,11 @@ test('the main sheet reads the inputs of the site webview posture', () => {
   assert.match(resolver, /archiveContainerId: archiveContainerId,/);
   assert.match(resolver, /incognito: effectiveIncognito,/);
   const bar = callArgs(main, main.search(/\bUrlBar\(/));
-  assert.match(bar, /final id = model\.runningIdentity;/);
-  const rule = callArgs(bar, bar.indexOf('containerIdFor('));
+  assert.match(bar, /onSiteInfo: \(\) => showSiteInfoFor\(context,\s*site: model,/);
+  const sheetRel = 'lib/widgets/site_info_sheet.dart';
+  const sheet = blockAfter(read(sheetRel), 'Future<void> showSiteInfoFor(', '}) {', sheetRel);
+  assert.match(sheet, /final id = site\.runningIdentity;/);
+  const rule = callArgs(sheet, sheet.indexOf('containerIdFor('));
   assert.match(rule, /siteId: id\.siteId/);
   assert.match(rule, /archiveContainerId: id\.archiveContainerId/);
   assert.match(rule, /incognito: id\.effectiveIncognito/);

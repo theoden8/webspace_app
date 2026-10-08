@@ -1,8 +1,11 @@
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:webspace/services/html_cache_service.dart';
 
 /// The site an imported HTML file becomes, named after the file without its
 /// extension. Three slashes (empty authority): `file://name.html` parses the
@@ -249,6 +252,51 @@ class HtmlImportStorage {
               'Removed orphaned import for $siteId', sensitive: true);
         }
       }
+    }
+  }
+
+  /// One-shot migration: copy file-import HTML out of [HtmlCacheService]
+  /// into [HtmlImportStorage] before the cache wipes itself on app
+  /// upgrade. Called from [HtmlCacheService.initialize] via the
+  /// `beforeUpgradeWipe` hook — at that point the cache's encryption is
+  /// initialized with the still-current key so [loadHtml] can decrypt.
+  ///
+  /// On a fresh install the WebViewModels list is absent and this is a
+  /// no-op. On every subsequent upgrade once imports stop landing in the
+  /// cache (this version onward), the lookup finds nothing and returns
+  /// silently — keeping the call wired keeps the path safe against
+  /// future regressions without behavioral cost.
+  static Future<void> migrateFromCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getStringList('webViewModels');
+      if (raw == null || raw.isEmpty) return;
+
+      var migrated = 0;
+      for (final entry in raw) {
+        try {
+          final m = jsonDecode(entry) as Map<String, dynamic>;
+          final initUrl = m['initUrl'] as String? ?? '';
+          if (!initUrl.startsWith('file://')) continue;
+          final siteId = m['siteId'] as String?;
+          if (siteId == null || siteId.isEmpty) continue;
+
+          if (await HtmlImportStorage.instance.hasImport(siteId)) continue;
+          final cached = await HtmlCacheService.instance.loadHtml(siteId);
+          if (cached == null) continue;
+          await HtmlImportStorage.instance
+              .saveHtml(siteId, html: cached.$2, url: cached.$1);
+          migrated++;
+        } catch (_) {
+          // Skip malformed entries — the cache wipe is happening either way.
+        }
+      }
+      if (migrated > 0) {
+        LogTag.htmlImport.info(
+            'Migrated $migrated file-import page(s) from cache to import storage');
+      }
+    } catch (e) {
+      LogTag.htmlImport.error('File-import migration failed: $e');
     }
   }
 }

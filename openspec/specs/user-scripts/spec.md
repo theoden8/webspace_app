@@ -181,11 +181,11 @@ The `;null;` suffix is appended to all injected scripts because WebKit (macOS/iO
 
 Cached HTML SHALL be invalidated whenever the set of scripts that would run against a site changes, because the saved snapshot was captured with the **previous** script set applied. Showing that stale frame on next load would briefly render the pre-edit DOM before the new scripts re-run.
 
-- **Per-site script edits** (`onScriptsChanged` → `_resetCurrentSiteWebView`): `HtmlCacheService.deleteCache(siteId)` for the current site before disposing its webview.
-- **Global library edits** (`onGlobalUserScriptsChanged` → `_resetAllWebViews`): `HtmlCacheService.deleteCache(model.siteId)` for every site whose `enabledGlobalScriptIds` is non-empty. Sites with no global opt-ins are unaffected by a global edit and keep their cache.
-- **Home button** (`_goHome`): deletes the current site's cache as well, so a fresh home navigation never renders a stale snapshot captured under a different script set or theme.
+- **Per-site script edits** (`onScriptsChanged` → `resetShown`): `HtmlCacheService.deleteCache(siteId)` for the current site before disposing its webview.
+- **Global library edits** (`onGlobalUserScriptsChanged` → `resetAll`): `HtmlCacheService.deleteCache(model.siteId)` for every site whose `enabledGlobalScriptIds` is non-empty. Sites with no global opt-ins are unaffected by a global edit and keep their cache.
+- **Home button** (`goHome`): deletes the current site's cache as well, so a fresh home navigation never renders a stale snapshot captured under a different script set or theme.
 
-**Offline gate.** All three invalidation paths route through `_deleteCacheIfOnline(siteId)` which probes `ConnectivityService.instance.isOnline()` before deleting. When the device is offline the cache is **preserved** — a stale snapshot is strictly better than a blank webview, and the next successful `onLoadStop` (once connectivity returns) will overwrite the file via `onHtmlLoaded` with the up-to-date DOM. The probe is fire-and-forget so synchronous callers (notably `_goHome`, which is synchronous by design per navigation spec RACE-004) don't need to `await`.
+**Offline gate.** All three invalidation paths route through `_deleteCacheIfOnline(siteId)` which probes `ConnectivityService.instance.isOnline()` before deleting. When the device is offline the cache is **preserved** — a stale snapshot is strictly better than a blank webview, and the next successful `onLoadStop` (once connectivity returns) will overwrite the file via `onHtmlLoaded` with the up-to-date DOM. The probe is fire-and-forget so synchronous callers (notably `goHome`, which is synchronous by design per navigation spec RACE-004) don't need to `await`.
 
 #### Scenario: Edit a site script, navigate away, navigate back
 
@@ -417,6 +417,14 @@ the whole page, not to the one script.
 **When** the webview is built
 **Then** the bridge is not installed
 
+#### Scenario: A global script keeps the flag on the sites that opt in
+
+**Given** a global script that sets `bypassSitePolicy`
+**And** a site that opts into it
+**When** the site's scripts are combined for the webview
+**Then** the combined copy still sets `bypassSitePolicy`, and differs from the
+global only in `enabled`, which is forced on
+
 ---
 
 ### Requirement: US-DR-006 - `window.fetch` is left alone
@@ -561,8 +569,8 @@ class UserScriptConfig {
 
 - Stored in `_WebSpacePageState._globalUserScripts`
 - Persisted to SharedPreferences under `'globalUserScripts'` key
-- Loaded during `_restoreAppState()` via `_loadGlobalUserScripts()`
-- After sites load, `_migrateGlobalScriptOptIn()` one-time-fills empty per-site opt-in sets with all current global ids (gated by the `globalUserScriptsOptInMigrated` SharedPreferences marker)
+- Loaded during `StartupController.restore()` via `ShellStore.loadGlobalUserScripts()`
+- After sites load, `ShellStore.migrateGlobalScriptOptIn()` one-time-fills empty per-site opt-in sets with all current global ids (gated by the `globalUserScriptsOptInMigrated` SharedPreferences marker)
 - Passed through `getWebView()` and `getController()` to the merge site-filter
 - Included in `SettingsBackup` model for export/import. Per-site `enabledGlobalScriptIds` are exported as part of each site's JSON.
 
@@ -732,7 +740,7 @@ At injection time: `fullSource = urlSource + '\n' + source`
 - `lib/screens/user_scripts.dart` — Per-site opt-in Switch for globals, `isGlobalLibrary` mode for App Settings, id-preserving edits
 - `lib/screens/settings.dart` — "User Scripts" tile passes `enabledGlobalScriptIds` and its onChanged callback
 - `lib/screens/app_settings.dart` — "Global User Scripts" section, `isGlobalLibrary: true`
-- `lib/main.dart` — Global user scripts state, persistence, `_migrateGlobalScriptOptIn`, backup/restore integration
+- `lib/controllers/shell_store.dart` — Global user scripts state, persistence, `migrateGlobalScriptOptIn`
 - `lib/services/settings_backup.dart` — Added `globalUserScripts` to SettingsBackup model (per-site opt-ins ride along in each site's JSON)
 
 ---

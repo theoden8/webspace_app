@@ -7,7 +7,8 @@
 // but a static gate can. Attempts 2–5 in docs/bugs/001-white-screen.md each
 // left one such path; this makes a new one fail CI.
 //
-// Covers the main page (lib/main.dart) and the nested InAppWebViewScreen
+// Covers the main page, whose back gesture lives in
+// lib/controllers/back_gesture_controller.dart, and the nested InAppWebViewScreen
 // (lib/screens/inappbrowser.dart) — the latter was BUG-001 gap #1. Both drive
 // one SurfaceRepaintController (lib/controllers/surface_repaint_controller.dart),
 // so the funnel's own properties are checked there once, and each host is
@@ -19,7 +20,11 @@ const path = require('node:path');
 const { read, methodBody } = require('./helpers/source');
 
 // Files that host an Android webview back path and so must have the funnel.
-const GUARDED = ['lib/main.dart', 'lib/screens/inappbrowser.dart'];
+const GUARDED = ['lib/screens/webspace_page.dart', 'lib/screens/inappbrowser.dart'];
+// Where a screen's overflow menu is built, when not in the screen itself.
+const MENU_OF = { 'lib/screens/webspace_page.dart': 'lib/widgets/site_menu.dart' };
+// Where a screen's back navigation lives, when not in the screen itself.
+const BACK_OF = { 'lib/screens/webspace_page.dart': 'lib/controllers/back_gesture_controller.dart' };
 const CONTROLLER = 'lib/controllers/surface_repaint_controller.dart';
 const controllerMethod = (name) => methodBody(name, { file: CONTROLLER });
 
@@ -32,7 +37,8 @@ function context(lines, i, before, after) {
   return lines.slice(Math.max(0, i - before), i + after + 1).join('\n');
 }
 
-for (const rel of GUARDED) {
+for (const screen of GUARDED) {
+  const rel = BACK_OF[screen] ?? screen;
   const lines = linesOf(rel);
   const src = lines.join('\n');
   const near = (i, b, a) =>
@@ -56,6 +62,11 @@ for (const rel of GUARDED) {
 
   test(`${rel}: no raw controller.goBack() on the Android path (PAUSE-018 gate)`, () => {
     const offenders = [];
+    if (rel !== screen) {
+      linesOf(screen).forEach((l, i) => {
+        if (/\.goBack\(\)/.test(l)) offenders.push(`${screen}:${i + 1}`);
+      });
+    }
     lines.forEach((l, i) => {
       if (!/controller\.goBack\(\)/.test(l)) return;
       // Exempt the funnel definition itself (goBack sits 1–3 lines under the sig).
@@ -135,11 +146,11 @@ for (const rel of GUARDED) {
     });
   }
 
-  // main.dart holds no controller of its own — it reloads through the model —
+  // The page holds no controller of its own — it reloads through the model —
   // so its obligation is to hand every loaded site's hooks to the repaint
   // controller, whose watch wires them to the engine.
-  test('lib/main.dart: reload hooks drive the surface repaint engine', () => {
-    const src = linesOf('lib/main.dart').join('\n');
+  test('the page: reload hooks drive the surface repaint engine', () => {
+    const src = linesOf('lib/screens/webspace_page.dart').join('\n');
     assert.match(methodBody('_wireSite'), /_surface\.watch\(site,/,
       'every loaded site must be watched by the repaint controller');
     assert.match(methodBody('_buildBodyWithBottomBar'), /_wireSite\(/,
@@ -151,7 +162,7 @@ for (const rel of GUARDED) {
     assert.match(watch, /site\.onLoadSettled\s*=[^;]*loadSettled\(\)/s,
       'the settled load must re-nudge (PAUSE-021)');
     const offenders = [];
-    linesOf('lib/main.dart').forEach((l, i) => {
+    linesOf('lib/screens/webspace_page.dart').forEach((l, i) => {
       if (/\.controller\?\.reload\(\)/.test(l)) offenders.push(i + 1);
     });
     assert.deepEqual(offenders, [],
@@ -167,7 +178,7 @@ for (const rel of GUARDED) {
 // post-resume window. This gate keeps that wiring from being silently dropped;
 // its ordering is proved in formal/warmstart.tla and test/surface_repaint_engine_test.dart.
 {
-  const lines = linesOf('lib/main.dart');
+  const lines = linesOf('lib/screens/webspace_page.dart');
   const src = lines.join('\n');
 
   test('lib/main.dart: didChangeMetrics re-nudges within the post-resume window', () => {
@@ -202,7 +213,7 @@ for (const rel of GUARDED) {
 // both the Padding and the scope must read the same value — a second, unpublished
 // inset would reproduce the jitter.
 {
-  const lines = linesOf('lib/main.dart');
+  const lines = linesOf('lib/screens/webspace_page.dart');
   const src = lines.join('\n');
 
   test('lib/main.dart: the nudge inset is published to SurfaceNudgeScope', () => {
@@ -241,8 +252,8 @@ for (const rel of GUARDED) {
 // navigation, no lifecycle event — so every webview-hosting screen must be
 // RouteAware and nudge in didPopNext.
 {
-  test('lib/main.dart: the app registers the surface route observer', () => {
-    const src = linesOf('lib/main.dart').join('\n');
+  test('lib/app.dart: the app registers the surface route observer', () => {
+    const src = linesOf('lib/app.dart').join('\n');
     assert.match(src, /navigatorObservers:\s*\[[^\]]*surfaceRouteObserver/,
       'MaterialApp must register surfaceRouteObserver, or no screen is notified');
   });
@@ -370,16 +381,17 @@ for (const rel of GUARDED) {
 
     test(`${rel}: the menu offers a manual repaint (PAUSE-028)`, () => {
       // Both menus are typed: each decides an action's entry in one switch
-      // arm (`SiteMenuAction` on the main page, `_NestedMenuAction` here).
+      // arm (`SiteMenuAction` in its widget, `_NestedMenuAction` here).
+      const menu = MENU_OF[rel] ? read(MENU_OF[rel]) : src;
       const entry = /\w+MenuAction\.repaint\s*=>/g;
-      assert.match(src, entry, 'the overflow menu must carry a repaint entry');
+      assert.match(menu, entry, 'the overflow menu must carry a repaint entry');
       // The entry is a diagnostic, not a feature: EVERY occurrence must sit
       // behind the developer-mode gate as well as the Android one, or a user
       // meets a button whose effect they cannot interpret. Counted, not
       // matched: a file with two menus must not pass on one gated entry.
-      const entries = (src.match(entry) || []).length;
+      const entries = (menu.match(entry) || []).length;
       const gated = (
-        src.match(
+        menu.match(
           /\w+MenuAction\.repaint\s*=>\s*hostIsAndroid\s*&&\s*DeveloperModeService\.instance\.enabled\s*\?/g,
         ) || []
       ).length;

@@ -12,7 +12,7 @@ void main() {
   late String nested;
 
   setUpAll(() {
-    main = File('lib/main.dart').readAsStringSync();
+    main = File('lib/screens/webspace_page.dart').readAsStringSync();
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
     nested = File('lib/screens/inappbrowser.dart').readAsStringSync();
   });
@@ -91,9 +91,14 @@ void main() {
   });
 
   test('a screen a share opened hands nothing over', () {
-    expect(main, contains('_NestedOpenHost(this, fromTab: a.sourceIsParent && source != null)'));
+    expect(main, contains('fromTab: a.sourceIsParent && source != null,'));
     expect(
-      RegExp(r'launchNested\([^)]*\)\s*=>\s*state\._launchNestedForModel\(target, url: url, opensFromTab: fromTab\);')
+      RegExp(r'launchNested\([^)]*\)\s*=>\s*_host\.launchNestedFor\(target, url: url, opensFromTab: fromTab\);')
+          .hasMatch(File('lib/controllers/nested_open_binding.dart').readAsStringSync()),
+      isTrue,
+    );
+    expect(
+      RegExp(r'launchNestedFor\([^)]*\}\) =>\s*_s\._launchNestedForModel\(model, url: url, opensFromTab: opensFromTab\);')
           .hasMatch(main),
       isTrue,
     );

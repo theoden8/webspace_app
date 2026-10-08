@@ -4,9 +4,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// The persisted site list: the site JSON in SharedPreferences, each site's
 /// cookies and proxy password in secure storage, keyed by `siteId`.

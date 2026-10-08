@@ -1,13 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/html_import_storage.dart';
-import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/file_import_document.dart';
 
 /// Tests for the file-import-sites feature.
 ///
 /// The main import flow (_importHtmlFile) depends on FilePicker (platform
 /// plugin) so cannot be unit-tested directly.  These tests verify the
 /// filename-to-name derivation logic and the result map contract that
-/// AddSiteScreen returns to _addSite().
+/// AddSiteScreen returns to SiteEditingController.addSite().
 
 void main() {
   group('Filename to site name', () {

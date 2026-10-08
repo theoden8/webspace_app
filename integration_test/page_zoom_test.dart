@@ -27,6 +27,8 @@ import 'package:integration_test/integration_test.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 // Cell width in CSS px, and the box the webview is mounted in. The cell
 // is small enough that a zoom step moves the count by more than the

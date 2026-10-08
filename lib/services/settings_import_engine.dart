@@ -1,6 +1,6 @@
 /// Pure-Dart plan for applying a settings backup: everything the import does
 /// to live state is decided here, before any of it is touched, so a backup
-/// that cannot be applied whole is refused whole. `_importSettings` shows the
+/// that cannot be applied whole is refused whole. `BackupController.import` shows the
 /// dialogs, calls [planSettingsImport] and carries the plan out.
 ///
 /// Backups carry no reliable format marker (`version` has been 1 since the
@@ -23,6 +23,7 @@ import 'package:webspace/services/proxy_library.dart'
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// A suggested site as the backup lists it.
 typedef ImportedSuggestion = ({String name, String url, String domain});

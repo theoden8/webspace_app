@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
 import 'helpers/localized.dart';
+import 'package:webspace/services/webview_proxy.dart';
 
 Widget _host(Widget child, {TextDirection? direction}) => localizedApp(Scaffold(
   body: direction == null

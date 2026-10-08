@@ -43,7 +43,7 @@ The system SHALL enter the locked shell state when, and only when, the
 current session was entered via a home-screen shortcut whose target
 site has `kioskMode = true`. The lock state SHALL be re-derived on
 every shortcut launch from the resolved target's `kioskMode` value, on
-both the cold-launch path (`_restoreAppState`) and the warm-tap path
+both the cold-launch path (`StartupController.restore`) and the warm-tap path
 (`_openShortcutIndex`). A launch that is not via a shortcut SHALL leave
 the lock cleared.
 
@@ -109,7 +109,7 @@ A locked session SHALL enter fullscreen on launch, overriding the
 per-site `fullscreenMode` and the global `fullscreenOnShortcut`
 preference, and SHALL NOT offer any exit-fullscreen affordance: the
 top-edge exit handle, the in-fullscreen tab-bar button, and the
-`_exitFullscreen` action are all suppressed while locked. The tab strip
+`FullscreenController.exit` action are all suppressed while locked. The tab strip
 SHALL stay hidden even when `tabStripInFullscreen` is on. The only way
 out of fullscreen is to relaunch the app normally, which clears the lock
 (KIOSK-001).
@@ -183,10 +183,10 @@ audit it needs no archive override.
 - `lib/screens/settings.dart` — per-site `SwitchListTile` plus the
   `_kioskMode` local-state read/write-back.
 - `lib/main.dart` — `_kioskLocked` session flag, set from the target's
-  `kioskMode` on cold launch (`_restoreAppState`) and warm tap
+  `kioskMode` on cold launch (`StartupController.restore`) and warm tap
   (`_openShortcutIndex`); shell gates on `drawer`, `_buildAppBar`
   (leading + actions), and `_tabStripShown`. Fullscreen is forced on
-  both launch paths and held: `_exitFullscreen` early-returns while
+  both launch paths and held: `FullscreenController.exit` early-returns while
   locked, and the exit handle / tab-bar button are not rendered.
 - `lib/l10n/app_en.arb` (+ all locale ARBs) — `siteSettingsKioskMode` +
   `siteSettingsKioskModeHint` (shown in a `HintButton` dialog).

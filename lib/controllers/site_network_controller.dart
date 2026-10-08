@@ -16,10 +16,11 @@ import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/trusted_hosts_service.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// Where the sites' traffic goes and what a change to it does to them: the
 /// proxy topology and the router's routes (PROXY-008, PROXY-013), the Tor
@@ -315,7 +316,7 @@ class SiteNetworkController {
       probe: runAttributionProbe,
     );
     // A null return stands the router down but never clears the override:
-    // the `_setCurrentIndex` that follows re-applies the site's PROXY-008
+    // the `setCurrentIndex` that follows re-applies the site's PROXY-008
     // proxy, and until it does a dead relay port fails closed.
   }
 

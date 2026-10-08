@@ -97,7 +97,7 @@ a capture → nuke → restore cycle:
    share the same native jar).
 
 All async steps SHALL check `SiteRuntime.activationVersion` and early-return if a
-newer `_setCurrentIndex` invocation has started, to prevent concurrent
+newer `setCurrentIndex` invocation has started, to prevent concurrent
 cookie mutations from interleaving under rapid tab switching.
 
 #### Scenario: Restore cookies on activation
@@ -404,7 +404,7 @@ The boundaries:
   any site
 - **On site switch** — inside `_restoreCookiesForSite`, after capturing
   cookies for other loaded sites
-- **On settings import** — `_setCurrentIndex` during import routes through
+- **On settings import** — `setCurrentIndex` during import routes through
   `_restoreCookiesForSite`, which performs the nuke-and-restore cycle; the
   import path MUST NOT issue a subsequent `deleteAllCookies()` or it would
   wipe the session just restored for the imported active site
@@ -455,7 +455,7 @@ stays at the `_WebSpacePageState` call site.
 - [`SiteActivationEngine.findDomainConflict`](../../../lib/services/site_activation_engine.dart) —
   pure `(targetIndex, models, loadedIndices) → int?` deciding which
   loaded site (if any) must unload before activating the target per
-  ISO-001. Same function is called from `_setCurrentIndex` in
+  ISO-001. Same function is called from `setCurrentIndex` in
   `main.dart` AND the integration-test harness, so the rule can't
   diverge between prod and tests.
 - [`SiteLifecycleEngine.computeDeletionPatch`](../../../lib/services/site_lifecycle_engine.dart) —
@@ -556,7 +556,7 @@ sites. `OrphanSweepEngine` sweeps every per-site store, including
 not live. It runs:
 - After the first paint of a launch (`sweepOrphanStorage`), followed by the
   legacy global jar clear
-- On site deletion (in `_deleteSite`)
+- On site deletion (in `SiteEditingController.deleteSite`)
 - On settings import (in backup restore)
 
 The native cookie jar is GC'd by `deleteAllCookies()` at the same boundaries
@@ -613,7 +613,7 @@ IndexedStack(
 
 ### Modified
 - `lib/web_view_model.dart` - siteId, domain functions, captureCookies(), disposeWebView()
-- `lib/main.dart` - Domain conflict detection, async _setCurrentIndex(), _unloadSite()
+- `lib/main.dart` - Domain conflict detection, async setCurrentIndex(), _unloadSite()
 - `lib/services/webview.dart` - deleteAllCookies() method on CookieManager
 - `lib/services/cookie_secure_storage.dart` - loadCookiesForSite(), saveCookiesForSite(), removeOrphanedCookies()
 

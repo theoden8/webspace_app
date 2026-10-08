@@ -9,11 +9,11 @@ import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/icon_service.dart'
     show notifyIconSourcesChanged;
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// Turns developer mode on or off, with everything it decides.
 Future<void> setDeveloperMode({required bool on}) async {

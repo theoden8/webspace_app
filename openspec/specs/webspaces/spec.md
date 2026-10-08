@@ -273,7 +273,7 @@ production):
   occupy after the move, so the active site and every loaded webview
   keep pointing at the same `siteId`. Reordering within a named
   webspace needs no engine: it rewrites the webspace's siteId-keyed
-  `siteIds` list directly (`_reorderSiteInWebspace`), and
+  `siteIds` list directly (`WebspacesController._reorderSiteInWebspace`), and
   `_resolveWebspaceIndices` rebuilds the positional view.
 
 Tests live in [test/webspace_selection_engine_test.dart](../../../test/webspace_selection_engine_test.dart),

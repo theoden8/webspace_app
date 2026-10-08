@@ -15,7 +15,7 @@ void main() {
   late String links;
 
   setUpAll(() {
-    main = File('lib/main.dart').readAsStringSync();
+    main = File('lib/screens/webspace_page.dart').readAsStringSync();
     tabs = File('lib/controllers/tabs_controller.dart').readAsStringSync();
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
@@ -132,7 +132,10 @@ void main() {
 
   group('state capture across a flip', () {
     test('keys the bytes by what the tab was when the capture started', () {
-      final body = bodyOf('Future<bool> _captureStateBytes(');
+      final body = bodyIn(
+          File('lib/controllers/site_activation_controller.dart')
+              .readAsStringSync(),
+          signature: 'Future<bool> captureStateBytes(');
       final key = body.indexOf('final key = model.activeStateKey;');
       final tab = body.indexOf('final tabId = model.activeTabId;');
       final capture = body.indexOf('await model.captureNavigationState()');
@@ -204,7 +207,9 @@ void main() {
     });
 
     test('Home and a tapped link use the tab\'s own anchor', () {
-      expect(main, contains('model.currentUrl = model.navigationHomeUrl;'));
+      expect(
+          File('lib/controllers/site_reset_controller.dart').readAsStringSync(),
+          contains('model.currentUrl = model.navigationHomeUrl;'));
       final open = linksBody('Future<void> openLinkAsTapped(');
       expect(open, contains('homeUrl: model.navigationHomeUrl'));
       expect(open, contains('matchesClaim: model.navigationMatchesClaim'));
@@ -232,9 +237,10 @@ void main() {
 
     test('site info shows the colour only where containers exist', () {
       expect(
-        main,
-        contains('containerColor: _sites.useContainers\n'),
+        File('lib/widgets/site_info_sheet.dart').readAsStringSync(),
+        contains('containerColor: useContainers ? id.drawnContainerColor : null,'),
       );
+      expect(main, contains('useContainers: _sites.useContainers'));
     });
   });
 }

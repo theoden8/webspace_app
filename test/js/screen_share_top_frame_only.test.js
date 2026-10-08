@@ -32,7 +32,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read } = require('./helpers/source');
 
-const webview = read('lib/services/webview.dart');
+const webview = read('lib/services/page_handlers.dart');
 const shim = read('test/js_fixtures/screen_share/shim.js');
 
 test('the shim refuses a subframe on its own, before the bridge', () => {

@@ -227,7 +227,7 @@ directly, and both the app and the gallery read them:
 
 UI files must not reintroduce raw literals; the gate is
 [test/js/design_tokens_no_literals.test.js](../../test/js/design_tokens_no_literals.test.js),
-which scans every file under `lib/main.dart`, `lib/widgets` and `lib/screens`
+which scans `lib/main.dart`, `lib/app.dart` and every file under `lib/widgets` and `lib/screens`
 except its shrinking EXEMPT list, so a new file needs no edit there. The corner-radii card renders `Radii.scale`
 rather than a copy of it, so it cannot drift from the app.
 

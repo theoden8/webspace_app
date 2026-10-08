@@ -10,9 +10,9 @@ import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHosts
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// What the export path builds for [sites] under default app settings.
 SettingsBackup _export(List<WebViewModel> sites, {List<Webspace>? webspaces}) =>
@@ -391,7 +391,7 @@ void main() {
     });
 
     test('throws on a site entry missing a required field', () {
-      // Contract the `_importSettings` guard relies on: restoreSites must
+      // Contract the `BackupController.import` guard relies on: restoreSites must
       // fail loudly (not silently drop or half-build) so the caller can
       // abort BEFORE clearing live state. A backup whose site is missing
       // `initUrl` is malformed/hostile.
@@ -604,7 +604,7 @@ void main() {
           ),
         ),
       ];
-      // Mimic what `_exportSettings` would pass: globalPrefs holds a
+      // Mimic what `BackupController.export` would pass: globalPrefs holds a
       // JSON-encoded UserProxySettings under AppPref.globalOutboundProxy.key.
       // The whole point of PWD-005 is that even if a buggy caller
       // happened to slip a password into that JSON, the export must not
@@ -620,7 +620,7 @@ void main() {
         webViewModels: sites,
         webspaces: [Webspace.all()],
         themeMode: 0,
-        // Sanitised globalPrefs (the way _exportSettings actually feeds
+        // Sanitised globalPrefs (the way BackupController.export actually feeds
         // it) — globalProxy.toJson() is password-less by contract.
         globalPrefs: <String, Object?>{
           AppPref.globalOutboundProxy.key: jsonEncode(globalProxy.toJson()),

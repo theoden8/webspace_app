@@ -1,7 +1,7 @@
 /// The sequence around opening a nested screen for an existing site: an
 /// inbound cross-domain open (LIR-011) or an outbound routed one (LIR-015).
 ///
-/// Extracted from `_WebSpacePageState._executeOpenNested` so the ordering
+/// Extracted from the page's `_executeOpenNested` so the ordering
 /// rules can run headlessly against a fake that models the process-global
 /// proxy. The host does the IO; this decides what runs, in which order, and
 /// when to stop.

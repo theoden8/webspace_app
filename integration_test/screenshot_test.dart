@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:webspace/widgets/site_menu.dart';
 import 'package:webspace/main.dart' as app;
 import 'package:webspace/demo_data.dart';
 
@@ -175,7 +176,7 @@ void main() {
           print('Selecting SearXNG site');
           await tester.tap(searxFinder);
 
-          // Pump to process the tap event and trigger Navigator.pop + _setCurrentIndex
+          // Pump to process the tap event and trigger Navigator.pop + setCurrentIndex
           await tester.pump();
           
           // Wait for drawer closing animation to complete
@@ -198,7 +199,7 @@ void main() {
 
           // Screenshot 1: Open Settings from toolbar menu
           print('Opening toolbar menu to access Settings...');
-          final popupMenuButton = find.byType(PopupMenuButton<app.SiteMenuAction>);
+          final popupMenuButton = find.byType(PopupMenuButton<SiteMenuAction>);
           if (popupMenuButton.evaluate().isNotEmpty) {
             print('Found popup menu button, tapping...');
             await tester.tap(popupMenuButton.first);

@@ -54,6 +54,26 @@ class SiteRuntime {
 
   bool isLoaded(WebViewModel model) => loaded.contains(models.indexOf(model));
 
+  Set<String> get siteIds => {for (final m in models) m.siteId};
+
+  /// The sites whose stored state outlives the session: an incognito site's
+  /// does not (#298).
+  Set<String> get nonIncognitoSiteIds => {
+        for (final m in models)
+          if (!m.incognito) m.siteId,
+      };
+
+  /// Every navigation-state key that should survive a sweep, for the sites in
+  /// [siteIds]. State is per tab, so a site contributes one key per tab it
+  /// still has: closing a tab makes its file an orphan, and deleting a site
+  /// makes all of them orphans. The sweep speaks in sites; expanding a site to
+  /// its keys belongs here, where the models are.
+  Set<String> liveStateKeys(Set<String> siteIds) => <String>{
+        for (final m in models)
+          if (siteIds.contains(m.siteId))
+            for (final t in m.tabs) m.stateKeyForTab(t.id),
+      };
+
   /// The positions the selected webspace shows, in display order.
   List<int> filteredIndices() => WebspaceSelectionEngine.filteredSiteIndices(
         selectedWebspaceId: selectedWebspaceId,

@@ -5,11 +5,11 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/webview.dart' show WebViewController;
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// Shared per-route guard so rapid-fire redirects (Google Maps can hit the
 /// webview with several intent:// bursts in a row) only surface one dialog.

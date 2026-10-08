@@ -1,17 +1,14 @@
 import 'dart:async';
-import 'dart:convert' show base64Decode, base64Encode;
-import 'package:webspace/platform/host_platform.dart';
-import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:webspace/platform/host_platform.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show PlatformException;
-import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp
     show CookieManager, WebUri;
 import 'package:webspace/services/connectivity_service.dart';
+import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
-import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/passkey_engine.dart';
@@ -44,106 +41,29 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/services/outbound_http_types.dart';
 import 'package:webspace/settings/app_prefs.dart';
-import 'package:webspace/settings/blocked_cookie.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/scoped.dart';
 import 'package:webspace/settings/user_script.dart';
-import 'package:webspace/utils/url_utils.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/web_view_model_json.dart';
+import 'package:webspace/services/anti_fingerprinting_shim.dart';
+import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/url_host.dart';
+import 'package:webspace/settings/blocked_cookie.dart';
 
 export 'package:webspace/services/url_host.dart'
     show extractDomain, getBaseDomain, getNormalizedDomain;
 export 'package:webspace/settings/blocked_cookie.dart';
 export 'package:webspace/settings/location.dart'
     show LocationMode, LocationGranularity, WebRtcPolicy;
-
-/// Per-site page-zoom bounds (percent). Mirrors the range desktop browsers
-/// expose; 100 is unscaled.
-const int kMinZoomPercent = 30;
-const int kMaxZoomPercent = 300;
-const int kDefaultZoomPercent = 100;
-
-int clampZoomPercent(int value) =>
-    value.clamp(kMinZoomPercent, kMaxZoomPercent);
-
-class ConsoleLogEntry {
-  final DateTime timestamp;
-  final String message;
-  final ConsoleMessageLevel level;
-  final bool isEvalInput;
-
-  ConsoleLogEntry({
-    required this.timestamp,
-    required this.message,
-    required this.level,
-    this.isEvalInput = false,
-  });
-}
-
-
-String _generateSiteId() {
-  final now = DateTime.now().microsecondsSinceEpoch;
-  final random = Random().nextInt(999999);
-  final id = '${now.toRadixString(36)}-${random.toRadixString(36)}';
-  assert(_kSiteIdPattern.hasMatch(id), 'a minted siteId is path-safe');
-  return id;
-}
-
-/// A siteId is concatenated into filesystem paths (HTML/import/nav-state cache
-/// filenames, native container names) and secure-storage keys, so an imported
-/// backup must not smuggle path metacharacters. Accept only a path-safe token;
-/// anything else (including `../…` traversal) returns null so the caller mints
-/// a fresh id.
-final RegExp _kSiteIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
-
-String? sanitizedSiteId(Object? raw) {
-  if (raw is! String) return null;
-  return _kSiteIdPattern.hasMatch(raw) ? raw : null;
-}
-
-/// The per-site `language` is a constrained dropdown in the UI, but an
-/// imported backup or scanned QR can carry an arbitrary string. It is
-/// interpolated raw into the `Accept-Language` request header, so a value
-/// with CRLF could smuggle extra headers into the site's requests. Accept
-/// only a BCP-47-shaped tag (`en`, `zh-CN`, …); anything else returns null
-/// (system default), matching the siteId hardening.
-final RegExp _kLanguageTagPattern =
-    RegExp(r'^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$');
-
-String? sanitizedLanguageTag(Object? raw) {
-  if (raw is! String || raw.isEmpty) return null;
-  return _kLanguageTagPattern.hasMatch(raw) ? raw : null;
-}
-
-/// Generates a fresh per-site fingerprint reset nonce. Uses [Random.secure]
-/// so a site can't predict the post-reset fingerprint.
-String generateFingerprintResetNonce() {
-  final rng = Random.secure();
-  final bytes = List<int>.generate(8, (_) => rng.nextInt(256));
-  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-}
-
-/// Opens [url] in a nested `InAppWebViewScreen` that runs as the opening
-/// site, under [posture] (see [SitePosture], which a new per-site field joins
-/// rather than this signature). Implemented by `_WebSpacePageState.launchUrl`.
-typedef LaunchUrlFunc = void Function(
-  String url, {
-  required SitePosture posture,
-  String? homeTitle,
-});
-
-/// Interpret a renderer-health probe result. The probe reads
-/// `document.body.offsetHeight`: a live renderer returns a number — `0`
-/// (about:blank), `-1` (document/body not built yet, still loading), or a
-/// positive height. A dead renderer (iOS content-process jettisoned,
-/// Android renderer killed) makes `evaluateJavascript` throw, surfaced as a
-/// `null` result by [WebViewController.evaluateJavascriptReturning]. Only
-/// `null` means gone; every numeric value is alive.
-bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;
 
 class WebViewModel implements MediaGrantRecord {
   final String siteId;
@@ -263,6 +183,12 @@ class WebViewModel implements MediaGrantRecord {
   /// container palette (TAB-018). Given once, when the site first needs one,
   /// and kept; null until then.
   int? containerColor;
+
+  /// The palette index the container is drawn in: [containerColor], or the
+  /// one derived from the siteId until it is given.
+  int get drawnContainerColor =>
+      containerColor ??
+      ContainerColorEngine.fallback(siteId, paletteSize: kContainerPaletteSize);
 
   /// Put a site that has no webview yet on a tab at its home page, as Always
   /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on
@@ -864,12 +790,12 @@ class WebViewModel implements MediaGrantRecord {
   String? defaultUserAgent;
   Function? stateSetterF;
   /// Host hook fired once each time a fresh native controller attaches for
-  /// this model (cold start, `_goHome` recreate, renderer-gone recovery,
+  /// this model (cold start, `goHome` recreate, renderer-gone recovery,
   /// savedForRestore re-creation). The host uses it to recomposite the
   /// Android hybrid-composition surface, which can re-attach blank-white
   /// when a new platform view mounts. Re-activation of an already-loaded
   /// webview does NOT recreate the controller, so it does not fire here —
-  /// that path is nudged explicitly by `_setCurrentIndex`.
+  /// that path is nudged explicitly by `setCurrentIndex`.
   Function? onControllerReady;
   /// Host hook fired when a reload is issued for this model's webview
   /// ([reloadAndRepaint], the funnel every reload goes through). A reload
@@ -1011,7 +937,7 @@ class WebViewModel implements MediaGrantRecord {
         searchSites = searchSites ?? [],
         enabledGlobalScriptIds = enabledGlobalScriptIds ?? {},
         blockedCookies = blockedCookies ?? {},
-        siteId = siteId ?? _generateSiteId(),
+        siteId = siteId ?? generateSiteId(),
         name = name ?? extractDomain(initUrl),
         proxySettings = proxySettings ?? UserProxySettings(type: ProxyType.DEFAULT) {
     // A site always has at least one tab, so `currentUrl` always has somewhere
@@ -1161,17 +1087,8 @@ class WebViewModel implements MediaGrantRecord {
   List<UserScriptConfig> combineUserScripts(
       List<UserScriptConfig> globalUserScripts) {
     return [
-      ...globalUserScripts
-          .where((g) => enabledGlobalScriptIds.contains(g.id))
-          .map((g) => UserScriptConfig(
-                id: g.id,
-                name: g.name,
-                source: g.source,
-                url: g.url,
-                urlSource: g.urlSource,
-                injectionTime: g.injectionTime,
-                enabled: true,
-              )),
+      for (final g in globalUserScripts)
+        if (enabledGlobalScriptIds.contains(g.id)) g.asEnabled(),
       ...userScripts,
     ];
   }
@@ -1618,8 +1535,8 @@ bool dispatch(NavigationDecision decision,
           // A brand-new platform-view surface just attached; let the host
           // recomposite it if this is the visible site (Android blank-white
           // surface recovery). Fires for every fresh controller, so it
-          // covers _goHome, renderer-gone rebuild, and savedForRestore
-          // re-creation in one place — paths _setCurrentIndex's own nudge
+          // covers goHome, renderer-gone rebuild, and savedForRestore
+          // re-creation in one place — paths setCurrentIndex's own nudge
           // does not reach because they don't go through it.
           onControllerReady?.call();
         },
@@ -1976,7 +1893,7 @@ bool dispatch(NavigationDecision decision,
   /// handler and then cleared, so subsequent activations don't
   /// re-apply stale state.
   ///
-  /// Caller (typically `_setCurrentIndex` in `_WebSpacePageState`)
+  /// Caller (typically `setCurrentIndex` in `_WebSpacePageState`)
   /// fetches bytes from [WebViewStateStorage] before letting the
   /// webview rebuild, so the IndexedStack repaint and the
   /// `restoreState` call land in the same render cycle.
@@ -2056,111 +1973,7 @@ bool dispatch(NavigationDecision decision,
   /// The proxy password is never serialised — same contract as
   /// `isSecure=true` cookies, which are also stripped from exports. See
   /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
-  Map<String, dynamic> toJson() {
-    // currentUrl/pageTitle are dropped when either incognito (full ephemeral
-    // session — issue #298) or alwaysOpenHome (URL-only ephemeral, cookies
-    // persist) is set. Cookies are dropped only by incognito; alwaysOpenHome
-    // banking-style sites keep their login state.
-    // Both keep the tab list (TAB-009): the site lands on a tab at home
-    // without closing the others (TAB-014), and what incognito wipes on a
-    // restart is its container and every tab's back stack (INC-002, INC-005).
-    // `currentUrl` stays dropped so a build that predates tabs still opens the
-    // site at home.
-    final dropUrl = incognito || alwaysOpenHome;
-    return {
-        'siteId': siteId,
-        'initUrl': initUrl,
-        if (!dropUrl) 'currentUrl': currentUrl,
-        if (!tabsAreDefault)
-          'tabs': [
-            for (final t in tabs)
-              {...t.toJson(), if (t.id == activeTabId) 'active': true},
-          ],
-        'name': name,
-        if (!dropUrl) 'pageTitle': pageTitle,
-        'cookies': incognito
-            ? const <Map<String, dynamic>>[]
-            : cookies.map((cookie) => cookie.toJson()).toList(),
-        'proxySettings': proxySettings.toJson(),
-        'javascriptEnabled': javascriptEnabled,
-        'userAgent': userAgent,
-        if (uaPreset != null) 'uaPreset': uaPreset!.name,
-        'thirdPartyCookiesEnabled': thirdPartyCookiesEnabled,
-        'httpsUpgradeEnabled': httpsUpgradeEnabled,
-        'incognito': incognito,
-        'alwaysOpenHome': alwaysOpenHome,
-        'kioskMode': kioskMode,
-        if (!tabsEnabled) 'tabsEnabled': false,
-        if (containerColor != null) 'containerColor': containerColor,
-        'language': language,
-        if (zoomPercent != kDefaultZoomPercent) 'zoomPercent': zoomPercent,
-        'clearUrlEnabled': clearUrlEnabled,
-        'dnsBlockEnabled': dnsBlockEnabled,
-        'dnsBlockLevel': dnsBlockLevel,
-        'disabledFilterLists': disabledFilterLists.toList()..sort(),
-        'contentBlockEnabled': contentBlockEnabled,
-        'trackingProtectionEnabled': trackingProtectionEnabled,
-        'localCdnEnabled': localCdnEnabled,
-        if (externalLinkMode != ExternalLinkMode.inApp)
-          'externalLinkMode': externalLinkMode.name,
-        'fullscreenMode': fullscreenMode,
-        if (blockScreenshots) 'blockScreenshots': true,
-        if (tabBarButtonCorner != null)
-          'tabBarButtonCorner': tabBarButtonCorner!.name,
-        'htmlCachingEnabled': htmlCachingEnabled,
-        'notificationsEnabled': notificationsEnabled,
-        if (backgroundAudioEnabled) 'backgroundAudioEnabled': true,
-        if (protectedContentAllowed != null)
-          'protectedContentAllowed': protectedContentAllowed,
-        // Virtual-source bytes ride the model like `customIconPng` (backups
-        // keep them; archive-tier sites live only inside the encrypted slice).
-        ...captures.toJson(),
-        'userScripts': userScripts.map((s) => s.toJson()).toList(),
-        if (enabledGlobalScriptIds.isNotEmpty)
-          'enabledGlobalScriptIds': enabledGlobalScriptIds.toList(),
-        if (blockedCookies.isNotEmpty)
-          'blockedCookies': blockedCookies.map((b) => b.toJson()).toList(),
-        'locationMode': locationMode.name,
-        if (spoofLatitude != null) 'spoofLatitude': spoofLatitude,
-        if (spoofLongitude != null) 'spoofLongitude': spoofLongitude,
-        'spoofAccuracy': spoofAccuracy,
-        if (spoofTimezone != null) 'spoofTimezone': spoofTimezone,
-        if (spoofTimezoneFromLocation) 'spoofTimezoneFromLocation': true,
-        if (liveLocationGranularity != LocationGranularity.gps)
-          'liveLocationGranularity': liveLocationGranularity.name,
-        'webRtcPolicy': webRtcPolicy.name,
-        if (letterboxEnabled) 'letterboxEnabled': true,
-        if (spoofWindowWidth != null) 'spoofWindowWidth': spoofWindowWidth,
-        if (spoofWindowHeight != null) 'spoofWindowHeight': spoofWindowHeight,
-        if (fingerprintResetNonce != null)
-          'fingerprintResetNonce': fingerprintResetNonce,
-        if (customIconPng != null)
-          'customIconPng': base64Encode(customIconPng!),
-        if (domainClaims != null && domainClaims!.isNotEmpty)
-          'domainClaims': domainClaims!.map((c) => c.toJson()).toList(),
-        if (routeOutboundLinks) 'routeOutboundLinks': true,
-        if (outboundPreferences.isNotEmpty)
-          'outboundPreferences':
-              outboundPreferences.map((p) => p.toJson()).toList(),
-        if (searchAddress != null) 'searchAddress': searchAddress,
-        if (searchesWeb) 'searchesWeb': true,
-        // Learned from the site's pages, so incognito keeps it in memory.
-        if (!incognito && discoveredSearchAddress != null)
-          'discoveredSearchAddress': discoveredSearchAddress,
-        if (!incognito && discoveredSearchesWeb) 'discoveredSearchesWeb': true,
-        if (searchSites.isNotEmpty) 'searchSites': searchSites,
-        if (searchDefault != null) 'searchDefault': searchDefault,
-      };
-  }
-
-  /// A stored level outside 0..5 (hand-edited backup, a future build's
-  /// wider range) means "follow the app-wide level" rather than an
-  /// out-of-range block posture.
-  static int? _readDnsBlockLevel(dynamic raw) {
-    if (raw is! int) return null;
-    if (raw < kDnsLevelOff || raw > kDnsMaxLevel) return null;
-    return raw;
-  }
+  Map<String, dynamic> toJson() => toJsonMap();
 
   /// Only `initUrl` is required. Every other field of the wrong type reads
   /// as absent: the startup loader drops a site whose JSON throws and the
@@ -2170,216 +1983,10 @@ bool dispatch(NavigationDecision decision,
     Map<String, dynamic> json, {
     required Function? stateSetterF,
     bool isArchiveTier = false,
-  }) {
-    T? field<T>(String key) {
-      final value = json[key];
-      return value is T ? value : null;
-    }
-
-    num? finite(String key) {
-      final value = json[key];
-      return value is num && value.isFinite ? value : null;
-    }
-
-    final isIncognito = field<bool>('incognito') ?? false;
-    final isAlwaysOpenHome = field<bool>('alwaysOpenHome') ?? false;
-    // Either flag drops persisted currentUrl/pageTitle on rehydrate; only
-    // incognito additionally clears cookies. Defends against legacy JSON
-    // written by older builds that didn't strip on toJson.
-    final dropUrl = isIncognito || isAlwaysOpenHome;
-    final currentUrl = field<String>('currentUrl');
-    final rawTabs = field<List<dynamic>>('tabs');
-    final userAgent = field<String>('userAgent') ?? '';
-    final proxy = json['proxySettings'];
-    final model = WebViewModel(
-      // Validate against path-safe format: a crafted backup could otherwise
-      // set siteId to `../…` and escape the cache/import/storage keyspace.
-      // null (missing or unsafe) auto-generates a fresh id.
-      siteId: sanitizedSiteId(json['siteId']),
-      initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
-      currentUrl: dropUrl || currentUrl == null
-          ? null
-          : migrateLegacyFileImportUrl(currentUrl),
-      // JSON without `tabs` is a site written before tabs existed, or one that
-      // never opened a second tab: the constructor synthesises the primary tab
-      // from `currentUrl`. A list that is present is authoritative, and
-      // `currentUrl`/`pageTitle` beside it are only the copy older builds read.
-      // Entries that cannot name a tab are dropped rather than sinking the site.
-      tabs: rawTabs
-          ?.map(SiteTab.fromJson)
-          .whereType<SiteTab>()
-          .map((t) => t..url = migrateLegacyFileImportUrl(t.url))
-          .toList(),
-      activeTabId: SiteTab.activeIdIn(rawTabs),
-      name: field<String>('name'),
-      cookies: isIncognito
-          ? const <Cookie>[]
-          : _jsonEntries(json['cookies'], parse: tryCookieFromJson),
-      proxySettings: proxy is Map
-          ? UserProxySettings.fromJson(Map<String, dynamic>.from(proxy))
-          : null,
-      javascriptEnabled: field<bool>('javascriptEnabled') ?? true,
-      // Migration: a stored string that is a stock webview-default shape is
-      // a frozen snapshot of the device default (old settings-screen builds
-      // pre-filled the field with the default and persisted it on save).
-      // Drop the override so the site tracks the live default again.
-      userAgent: isStockWebViewDefaultUserAgent(userAgent) ? '' : userAgent,
-      // Migration: legacy data carries only the rendered string. A string
-      // matching a generated shape (including shapes old buggy builds
-      // emitted) gets its preset back here, so stale persisted UAs heal on
-      // load instead of rotting until a site breaks on them.
-      uaPreset: userAgentPresetFromName(field<String>('uaPreset')) ??
-          recognizeGeneratedUserAgent(userAgent),
-      thirdPartyCookiesEnabled: field<bool>('thirdPartyCookiesEnabled') ?? false,
-      httpsUpgradeEnabled: field<bool>('httpsUpgradeEnabled'),
-      incognito: isIncognito,
-      alwaysOpenHome: isAlwaysOpenHome,
-      kioskMode: field<bool>('kioskMode') ?? false,
-      tabsEnabled: field<bool>('tabsEnabled') ?? true,
-      containerColor: switch (field<int>('containerColor')) {
-        final int i when i >= 0 => i,
-        _ => null,
-      },
-      language: sanitizedLanguageTag(json['language']),
-      zoomPercent: clampZoomPercent(
-          finite('zoomPercent')?.toInt() ?? kDefaultZoomPercent),
-      clearUrlEnabled: field<bool>('clearUrlEnabled') ?? true,
-      dnsBlockEnabled: field<bool>('dnsBlockEnabled') ?? true,
-      dnsBlockLevel: _readDnsBlockLevel(json['dnsBlockLevel']),
-      disabledFilterLists: {
-        for (final id in field<List>('disabledFilterLists') ?? const [])
-          if (id is String) id
-      },
-      contentBlockEnabled: field<bool>('contentBlockEnabled') ?? true,
-      trackingProtectionEnabled:
-          field<bool>('trackingProtectionEnabled') ?? true,
-      localCdnEnabled: field<bool>('localCdnEnabled') ?? true,
-      // `externalLinksInBrowser` is the bool this field replaced.
-      externalLinkMode: externalLinkModeFromJson(
-          json['externalLinkMode'], legacyInBrowser: json['externalLinksInBrowser']),
-      fullscreenMode: field<bool>('fullscreenMode') ?? false,
-      blockScreenshots: field<bool>('blockScreenshots') ?? false,
-      // `tabBarButtonOnRight` is the short-lived bool predecessor of the
-      // four-corner field; map it so early builds rehydrate cleanly.
-      tabBarButtonCorner:
-          tabBarCornerFromName(field<String>('tabBarButtonCorner')) ??
-              switch (field<bool>('tabBarButtonOnRight')) {
-                null => null,
-                true => TabBarCorner.bottomRight,
-                false => TabBarCorner.bottomLeft,
-              },
-      htmlCachingEnabled: field<bool>('htmlCachingEnabled') ?? false,
-      notificationsEnabled: field<bool>('notificationsEnabled') ??
-          field<bool>('backgroundPoll') ??
-          false,
-      backgroundAudioEnabled: field<bool>('backgroundAudioEnabled') ?? false,
-      protectedContentAllowed: field<bool>('protectedContentAllowed'),
-      captures: CaptureGrants.fromJson(json),
-      userScripts:
-          _jsonEntries(json['userScripts'], parse: UserScriptConfig.fromJson),
-      enabledGlobalScriptIds: {
-        for (final id in field<List>('enabledGlobalScriptIds') ?? const [])
-          if (id is String) id
-      },
-      blockedCookies:
-          _jsonEntries(json['blockedCookies'], parse: BlockedCookie.tryFromJson).toSet(),
-      locationMode: LocationMode.values.firstWhere(
-        (m) => m.name == json['locationMode'],
-        orElse: () => LocationMode.off,
-      ),
-      spoofLatitude: finite('spoofLatitude')?.toDouble(),
-      spoofLongitude: finite('spoofLongitude')?.toDouble(),
-      spoofAccuracy:
-          finite('spoofAccuracy')?.toDouble() ?? kDefaultSpoofAccuracy,
-      spoofTimezone: field<String>('spoofTimezone'),
-      spoofTimezoneFromLocation:
-          field<bool>('spoofTimezoneFromLocation') ?? false,
-      liveLocationGranularity: _decodeLiveLocationGranularity(
-          json['liveLocationGranularity']),
-      webRtcPolicy: WebRtcPolicy.values.firstWhere(
-        (p) => p.name == json['webRtcPolicy'],
-        orElse: () => WebRtcPolicy.defaultPolicy,
-      ),
-      letterboxEnabled: field<bool>('letterboxEnabled') ?? false,
-      spoofWindowWidth: finite('spoofWindowWidth')?.toInt(),
-      spoofWindowHeight: finite('spoofWindowHeight')?.toInt(),
-      fingerprintResetNonce: field<String>('fingerprintResetNonce'),
-      customIconPng: _decodeCustomIconPng(json['customIconPng']),
-      // Absent stays null: no claims configured, as opposed to an emptied list.
-      domainClaims: json['domainClaims'] is List
-          ? [
-              for (final claim
-                  in _jsonEntries(json['domainClaims'], parse: DomainClaim.tryFromJson))
-                if (claim.value.isNotEmpty) claim,
-            ]
-          : null,
-      routeOutboundLinks: field<bool>('routeOutboundLinks') ?? false,
-      outboundPreferences: OutboundPreference.dedupedByClaim(
-        (field<List<dynamic>>('outboundPreferences') ?? const [])
-            .map(OutboundPreference.fromJson)
-            .whereType<OutboundPreference>(),
-      ),
-      searchAddress: field<String>('searchAddress'),
-      searchesWeb: field<bool>('searchesWeb') ?? false,
-      discoveredSearchAddress: field<String>('discoveredSearchAddress'),
-      discoveredSearchesWeb: field<bool>('discoveredSearchesWeb') ?? false,
-      searchSites: [
-        for (final id in field<List<dynamic>>('searchSites') ?? const [])
-          if (sanitizedSiteId(id) case final String safe) safe,
-      ],
-      searchDefault: sanitizedSiteId(json['searchDefault']),
-      stateSetterF: stateSetterF,
-      isArchiveTier: isArchiveTier,
-    )..pageTitle ??= dropUrl ? null : field<String>('pageTitle');
-    // Loading a site is a fresh entry to it, so an always-home site lands at
-    // home here (AOH-002, TAB-014), before anything can build its webview.
-    if (isAlwaysOpenHome && !isIncognito) {
-      model.landAtHome(
-        tabsOn: model.effectiveTabsEnabled &&
-            ExperimentalFeaturesService.instance
-                .isEnabled(ExperimentalFeature.siteTabs),
-      );
-    }
-    return model;
-  }
+  }) =>
+      webViewModelFromJson(json,
+          stateSetterF: stateSetterF, isArchiveTier: isArchiveTier);
 }
-
-/// The entries of a JSON list that [parse] accepts. A malformed entry (a
-/// cookie, a script, a claim) is dropped rather than failing its site.
-List<T> _jsonEntries<T extends Object>(
-  Object? raw, {
-  required T? Function(Map<String, dynamic>) parse,
-}) =>
-    raw is List
-        ? [
-            for (final entry in raw)
-              if (entry is Map<String, dynamic>) ?parse(entry),
-          ]
-        : <T>[];
 
 bool _onePerClaim(List<OutboundPreference> prefs) =>
     prefs.map((p) => p.claim).toSet().length == prefs.length;
-
-Uint8List? _decodeCustomIconPng(Object? raw) {
-  if (raw is! String || raw.isEmpty) return null;
-  try {
-    return base64Decode(raw);
-  } on FormatException {
-    return null;
-  }
-}
-
-/// Legacy enum values written before the three-tier rename are migrated:
-/// `"fine"` (pre-#326 default = raw GPS) → [LocationGranularity.gps],
-/// `"coarse"` (pre-#326 cell-tower-only) → [LocationGranularity.gsm].
-/// Anything unrecognised or absent falls through to [LocationGranularity.gps].
-LocationGranularity _decodeLiveLocationGranularity(Object? raw) {
-  if (raw is String) {
-    if (raw == 'fine') return LocationGranularity.gps;
-    if (raw == 'coarse') return LocationGranularity.gsm;
-    for (final v in LocationGranularity.values) {
-      if (v.name == raw) return v;
-    }
-  }
-  return LocationGranularity.gps;
-}

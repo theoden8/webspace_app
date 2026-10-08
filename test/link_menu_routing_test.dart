@@ -80,7 +80,7 @@ void main() {
       return lines.sublist(start, end).join('\n');
     }
 
-    final menu = body('lib/main.dart',
+    final menu = body('lib/screens/webspace_page.dart',
         signature: 'Future<void> _showLinkLongPressMenu(');
     expect(
       menu.contains('.loadUrl('),

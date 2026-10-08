@@ -13,7 +13,6 @@ import 'package:webspace/settings/location.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
 import 'package:webspace/services/user_agent_identity.dart';
 import 'package:webspace/services/log_service.dart';
@@ -43,6 +42,8 @@ import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/page_zoom_shim.dart';
 
 const List<MapEntry<String?, String>> _languages = [
   MapEntry(null, 'System default'),

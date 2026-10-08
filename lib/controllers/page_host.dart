@@ -10,6 +10,7 @@ abstract interface class PageHost {
   void toast(
     String Function(AppLocalizations loc) message, {
     Duration duration,
+    bool floating,
   });
 
   /// The one way the set of sites changes (`_commitSites`).

@@ -13,7 +13,8 @@ const assert = require('node:assert/strict');
 const { read, exists, dartFiles } = require('./helpers/source');
 
 const EXEMPT = new Set([
-  'lib/main.dart',
+  'lib/app.dart',
+  'lib/screens/webspace_page.dart',
   'lib/widgets/download_button.dart',
   'lib/widgets/external_url_prompt.dart',
   'lib/widgets/find_toolbar.dart',
@@ -42,7 +43,7 @@ const EXEMPT = new Set([
   'lib/screens/webspaces_list.dart',
 ]);
 
-const SCANNED = ['lib/main.dart', ...dartFiles('lib/screens'), ...dartFiles('lib/widgets')];
+const SCANNED = ['lib/main.dart', 'lib/app.dart', ...dartFiles('lib/screens'), ...dartFiles('lib/widgets')];
 
 // Each rule names the token that replaces it, so a failure says what to do.
 const RULES = [

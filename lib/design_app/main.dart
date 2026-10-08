@@ -23,7 +23,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/demo_data.dart';
-import 'package:webspace/main.dart' as app;
+import 'package:webspace/app.dart';
 
 /// CanvasKit pulls Roboto from fonts.gstatic.com; where that is unreachable it
 /// draws no text at all. Serve it from web/fonts (see sync_fonts.js) instead.
@@ -55,5 +55,5 @@ Future<void> main() async {
   // report has a week to draw. Session-only: nothing here is flushed.
   seedDemoBlockStats();
 
-  runApp(app.WebSpaceApp());
+  runApp(WebSpaceApp());
 }

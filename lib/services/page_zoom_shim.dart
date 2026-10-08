@@ -361,3 +361,14 @@ const String defaultViewportScript = r'''
   }catch(e){}
   if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',ensure,{once:true});}
 })();''';
+
+/// Per-site page-zoom bounds (percent). Mirrors the range desktop browsers
+/// expose; 100 is unscaled.
+const int kMinZoomPercent = 30;
+
+const int kMaxZoomPercent = 300;
+
+const int kDefaultZoomPercent = 100;
+
+int clampZoomPercent(int value) =>
+    value.clamp(kMinZoomPercent, kMaxZoomPercent);

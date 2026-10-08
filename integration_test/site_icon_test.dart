@@ -37,6 +37,7 @@ import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
 import 'fixture_server.dart';
+import 'package:webspace/services/webview_config.dart';
 
 class _Icon {
   const _Icon(this.size, {required this.r, required this.g, required this.b, this.delayMs = 0});

@@ -6,7 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:file_picker/src/platform/file_picker_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/main.dart' as app;
+import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/webview_state_storage.dart';
@@ -47,8 +47,8 @@ void main() {
     final dropped = WebViewModel(initUrl: 'https://old.test', name: 'Old');
     final kept = WebViewModel(initUrl: 'https://kept.test', name: 'Kept');
     final state = InMemoryWebViewStateStorage();
-    app.debugWebViewStateStorageOverride = state;
-    addTearDown(() => app.debugWebViewStateStorageOverride = null);
+    debugWebViewStateStorageOverride = state;
+    addTearDown(() => debugWebViewStateStorageOverride = null);
     await state.saveState(dropped.activeStateKey,
         state: Uint8List.fromList([1]));
 
@@ -73,7 +73,7 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Import'));
     await settleRealApp(tester);
 
-    expect(app.debugWebViewModels!.map((m) => m.name), ['Kept']);
+    expect(debugWebViewModels!.map((m) => m.name), ['Kept']);
     expect(await state.loadState(dropped.activeStateKey), isNull);
   });
 }

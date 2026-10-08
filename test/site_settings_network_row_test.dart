@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_network.dart';
-import 'package:webspace/services/webview.dart' show PlatformInfo;
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
@@ -12,6 +11,7 @@ import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
+import 'package:webspace/services/webview_proxy.dart';
 
 /// Pushes site settings over a plain home route, so a back press is a real
 /// pop that the unsaved-changes guard can intercept.

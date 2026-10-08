@@ -115,8 +115,8 @@ class SimWebView {
 }
 
 /// Test harness for profile-mode site activation. Mirrors the
-/// `_useProfiles == true` branch of `_WebSpacePageState._setCurrentIndex`
-/// and `_deleteSite`: skips conflict-find/unload, ensures the profile,
+/// `_useProfiles == true` branch of `SiteActivationController.setCurrentIndex`
+/// and `SiteEditingController.deleteSite`: skips conflict-find/unload, ensures the profile,
 /// marks loaded, simulates webview construction triggering a native
 /// bind. Delegates the real work to [ContainerIsolationEngine] so tests
 /// exercise production code rather than a parallel implementation —
@@ -136,7 +136,7 @@ class ContainerIsolationTestHarness with SiteListState {
     sites.add(WebViewModel(initUrl: url, name: name));
   }
 
-  /// Mirrors `_setCurrentIndex` for the profile-mode branch:
+  /// Mirrors `setCurrentIndex` for the profile-mode branch:
   ///   1. No `findDomainConflict` call — sites are isolated at the
   ///      engine level, so same-base-domain conflicts don't unload
   ///      anyone (CONT-003).
@@ -160,7 +160,7 @@ class ContainerIsolationTestHarness with SiteListState {
         target.siteId, () => SimWebView(target.siteId, native: native));
   }
 
-  /// Mirrors `_deleteSite` for the profile-mode branch: drop the
+  /// Mirrors `SiteEditingController.deleteSite` for the profile-mode branch: drop the
   /// webview, drop the profile (which evicts every cookie / storage
   /// blob owned by the site), shift indices.
   Future<void> deleteSite(int index) async {
@@ -170,7 +170,7 @@ class ContainerIsolationTestHarness with SiteListState {
     removeSiteAt(index);
   }
 
-  /// Mirrors the startup GC in `_restoreAppState`: sweep profiles that
+  /// Mirrors the startup GC in `StartupController.restore`: sweep profiles that
   /// have no surviving site. Run after seeding prior-session orphan
   /// profiles to verify they don't survive.
   Future<int> simulateAppStartupGc() async {
