@@ -51,4 +51,4 @@ None.
   `test/js/page_bridge_authority.test.js`,
   `integration_test/site_icon_test.dart` (prints a request and acceptance
   timeline)
-- Bug record: [BUG-021](../../../docs/bugs/021-site-icon-lost-to-callback-order.md)
+- Bug record: [BUG-021](../../../../docs/bugs/021-site-icon-lost-to-callback-order.md)

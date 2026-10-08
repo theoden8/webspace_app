@@ -4,7 +4,7 @@
 
 `integration_test/white_screen_test.dart` SHALL drive the
 in-process-drivable BUG-001 entry paths
-([docs/bugs/001-white-screen.md](../../../../../docs/bugs/001-white-screen.md))
+([docs/bugs/001-white-screen.md](../../../../../../docs/bugs/001-white-screen.md))
 on an Android emulator/device and assert on the **composited window
 pixels** over the webview slot, sampled by
 `SurfaceDiagPlugin.sampleWindowRegion` (window-level `PixelCopy`).

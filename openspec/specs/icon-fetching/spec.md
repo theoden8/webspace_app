@@ -196,9 +196,9 @@ Fetched icons SHALL be cached to avoid redundant network requests.
 
 On Android, the icon the site's own root webview reports through
 `WebChromeClient.onReceivedIcon` SHALL be preferred over every fetched
-candidate (ICON-002) while it is present, and no ICON-002 fetch SHALL run for
-the site while it is present. It is fetched by the webview itself, so it goes
-through the site's container and proxy and names no third party.
+candidate (ICON-002) while it is present, and no fetch SHALL run for the site
+while it is present. It is fetched by the webview itself, so it goes through
+the site's container and proxy and names no third party.
 
 The callback carries a bitmap and nothing else: no URL, no document. Chromium's
 WebView downloads every `rel=icon` candidate, so it fires once per candidate in
@@ -206,15 +206,26 @@ download-completion order, again whenever the page edits its icon links, and
 for whatever document is loaded. `SiteIconEngine` therefore takes an icon only
 when all of these hold:
 
-- no main-frame load is in flight (Blink announces a document's icons only
-  after its load event, so an icon arriving mid-load belongs to the document
-  being replaced);
+- while a main-frame load is in flight, both documents the icon can belong
+  to are the site's: the loading document and the one it replaced are each on
+  the site's host and neither has edited its icon links (a document that is
+  not http(s) announces no icons, so the one before it counts instead);
 - the loaded document is http(s) and on the site's host, with a leading `www.`
   folded (sharing the registrable domain is not enough: a login bounce to
   `accounts.example.com` shows that host's icon, not the site's);
 - the page has not edited its icon links since load (ICON-011);
 - it is at least the ICON-010 floor and larger than any icon this document
   already produced.
+
+A mid-load icon cannot be told apart by timing. The replaced document may
+still have downloads out, and the loading document announces its icons after
+its load event, which WebView can report after the icon: `onReceivedIcon` is
+called from native code, while `onPageFinished` is posted from
+`didStopLoading`. `onLoadStart` is posted at commit with the committed URL (for
+every navigation of an app other than GMS), so the loading document's host is
+known by then. A first page, or a page after a page of the site, therefore
+keeps its own icon wherever it lands; a page after another host's page or after
+a badge swap waits for `onLoadStop`.
 
 Chromium downloads icons only while a process-wide flag is set, and the one
 public way to set it is `WebIconDatabase.getInstance().open(path)`
@@ -236,9 +247,8 @@ post-import and post-delete sweeps drop files for sites no longer kept on disk.
 
 WKWebView has no public API for a page's icon, and the SPI that has one
 (`_WKIconLoadingDelegate`) cannot ship through the App Store (guideline
-2.5.1). WPE WebKit has no favicon property either. On iOS, macOS and Linux
-the app fetches the icon links the page declared instead (ICON-013), and the
-result is kept and preferred exactly as above.
+2.5.1), so iOS and macOS keep the ICON-002 sources. WPE WebKit has no favicon
+property either.
 
 #### Scenario: Largest icon of the page wins
 
@@ -247,6 +257,22 @@ result is kept and preferred exactly as above.
 **When** the webview reports each of them
 **Then** the site's icon is the 192px one
 **And** the 16px icon is never taken
+
+#### Scenario: An icon that lands before onLoadStop is taken
+
+**Given** a site page whose only icon is 48px
+**And** it is the webview's first page, or the page before it was on the
+site's host and kept its icon links
+**When** the webview reports the icon before `onLoadStop`
+**Then** the site's icon is the 48px one
+
+#### Scenario: A mid-load icon after another host's page is not taken
+
+**Given** a site whose home is `https://mail.example.com/`
+**And** its webview showed `https://accounts.example.com/login`
+**When** it starts loading `https://mail.example.com/` and reports an icon
+before `onLoadStop`
+**Then** the site's icon does not change
 
 #### Scenario: Another host's icon is not the site's
 
@@ -505,6 +531,53 @@ site has a reported icon on disk
 **And** a confirmation says the icon cache was cleared
 
 ---
+
+### Requirement: ICON-016 - Callbacks That Overtake the Load Start
+
+An icon, or a load report from the watcher, that reaches the app before its
+document's `onLoadStart` SHALL still count for that document. ICON-009 relies
+on `onLoadStart` arriving first, and on the first page of a cold Android
+WebView it does not: `onPageStarted` is posted to the looper, while
+`onReceivedIcon` is called from native code and can overtake it.
+
+- **An icon with no web document known.** `SiteIconEngine` SHALL hold an icon
+  that arrives before any document is known, or while the known document is
+  not http(s), and SHALL judge it against the next http(s) document it learns
+  of, by `onLoadStart` or `onLoadStop`, as a mid-load icon of that document
+  (ICON-009): taken when that document is the site's and so is the one it
+  replaced. Held icons are judged once and never carried past that document.
+  At most 16 are held.
+- **A late start of a document that reported its load.** Where the app fetches
+  the declared links (ICON-013), a start for the URL whose load report already
+  arrived, before that load's `onLoadStop`, SHALL be that document's own
+  start and not a new document: a fetch it claimed stays its own, and links it
+  reports afterwards can still be claimed. After `onLoadStop`, a start for the
+  same URL is a new document, as before.
+- **Visible order.** The engine's decisions SHALL go to the app log under
+  `SiteIcon`, with no URL, so the order a device saw can be read back.
+
+#### Scenario: The first page's early icon is kept
+
+**Given** a site's webview is the first in a fresh launch
+**And** its page declares 32px and 192px icons, and the 32px one lands first
+**When** the webview reports the 32px icon before `onLoadStart`
+**Then** the site takes the 32px icon once the start arrives
+**And** takes the 192px icon when it lands
+
+#### Scenario: An early icon of another host's page is not kept
+
+**Given** a site whose home is `https://example.com/`
+**When** its webview reports an icon before the start of
+`https://other.test/`
+**Then** the site's icon does not change, then or when a page of
+`example.com` loads later
+
+#### Scenario: The declared links survive a late start
+
+**Given** Site icons only is on and a site's page reports its load and its
+icon links before its `onLoadStart`
+**When** the start arrives, before `onLoadStop`
+**Then** the links are claimed once and the fetched icon becomes the site's
 
 ## Performance
 

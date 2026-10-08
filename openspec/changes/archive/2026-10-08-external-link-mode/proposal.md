@@ -1,3 +1,14 @@
+## Status
+
+Shipped. BEHAV-004 and the eight edits around it are published.
+
+The delta also carried a BEHAV-002 rewrite, dropped at archive time: main
+already had it. The `site-network` change, written later, carried this
+change's "External links counts as on outside its default" paragraph forward
+in its own BEHAV-002 block and added the Network row beside Behaviour,
+Privacy and Permissions. Applying this change's older block would have
+removed the Network row again.
+
 # External link mode
 
 ## Why
