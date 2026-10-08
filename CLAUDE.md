@@ -64,6 +64,8 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `AppPref` (`settings/app_prefs.dart`) | every global pref, its default, what a backup carries | `AppPref.x.value` / `.set(v)`; backups iterate `AppPref.values` |
 | `SecureJsonStore` / `Keystores` / `KeychainAead` | secrets at rest and their keychain options | `SecureJsonStore<T>` on a `Keystores` set |
 | `host_platform` (`platform/`) | dart:io primitives, importable from plain Dart | conditional export |
+| `ShellStore` (`controllers/shell_store.dart`) | what the page saves beside its sites: theme, global user scripts, suggested sites, webspaces, the site on screen | `_shell.theme` etc.; `save*` per value |
+| `SiteActivationController` | which site is on screen, and the residency, capture and teardown that move with it | `setCurrentIndex(int?)`; talks back through `ActivationHost` |
 | `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
 | `LogTag` (`services/log_service.dart`) | every log tag and the label it shows | `LogTag.x.debug(msg, sensitive: true)`; `LogService.log` takes a `LogTag` |
 | `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
@@ -97,6 +99,14 @@ Health, monthly: `node tool/architecture_health.js` prints files per fix commit,
 - Default to **no code comments**. Only add when the *why* is non-obvious (hidden constraint, workaround for a specific bug, surprising behavior). Never restate what the code does. Never reference the current task or PR.
 - Commit messages: short subject (<70 chars, imperative), 1-2 line body for the *why* if needed. No marketing prose, no bullet lists of every changed file, no "this commit also...".
 - Don't speculate. Read the code or docs before asserting an API/version/flag.
+- **An implementation file stays under 2000 lines.** Past that it is split by
+  concern: what stands alone (a controller, a widget, a top-level function, a
+  class and the enum only it uses) moves to its own file; what exists only for
+  one owner (a private enum, a small extension) stays beside it. A file kept
+  longer is a monolith that reads best whole, such as a backtracking search,
+  and is named with its reason in
+  [test/js/file_size.test.js](test/js/file_size.test.js). Test files may be as
+  long as their cases.
 - **No catch-alls.** Catch the types the call is known to throw (`on SocketException`,
   `test: (e) => e is SocksClientException`), never `catch (_)`, `on Object` or
   `onError: (_) {}`: those also swallow `Error`s, which are bugs, and leave nothing
@@ -223,7 +233,7 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 - `WebViewModel` ([lib/web_view_model.dart](lib/web_view_model.dart)) — site with URL, cookies, per-site settings (language, incognito, proxy, etc.). Unique `siteId` keys cookie isolation.
 - `Webspace` ([lib/webspace_model.dart](lib/webspace_model.dart)) — named collection of site indices. `__all_webspace__` shows all.
 
-**Main** — [lib/main.dart](lib/main.dart) runs the startup steps and `runApp`; [lib/app.dart](lib/app.dart) is `WebSpaceApp` (root MaterialApp); [lib/screens/webspace_page.dart](lib/screens/webspace_page.dart) is `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, loaded positions, current site, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (shortcuts, archives, surface repaint, background sites, app lifecycle, site network, tabs, links). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of webspace_page.dart; `lib/services` never imports a controller.
+**Main** — [lib/main.dart](lib/main.dart) runs the startup steps and `runApp`; [lib/app.dart](lib/app.dart) is `WebSpaceApp` (root MaterialApp); [lib/screens/webspace_page.dart](lib/screens/webspace_page.dart) is `WebSpacePage`, whose state holds one `SiteRuntime` `_sites` ([site_runtime.dart](lib/controllers/site_runtime.dart): the models, loaded positions, current site, webspaces) and the controllers in [lib/controllers/](lib/controllers/) (startup, activation, shortcuts, archives, backup, webspaces, site editing, site resets, full screen, back gesture, surface repaint, background sites, app lifecycle, site network, tabs, links). Their dialogs are `Dialog*Prompts` in [lib/widgets/](lib/widgets/). A controller talks back through its typed `*Host` interface, implemented by `_PageHost` at the bottom of webspace_page.dart; `lib/services` never imports a controller.
 
 **Site-set changes** — every add, delete, move, edit, import, archive open/close goes through `_commitSites(SiteSetChange)` ([site_set_change.dart](lib/controllers/site_set_change.dart)). The sealed change's `effects` record (every field required) decides what follows it, and the funnel runs those steps in one fixed order, so a new kind of change does not compile until it answers each one.
 
