@@ -188,6 +188,22 @@ path — page/worker agreement in one flavour is not evidence for another.**
    `test/js/location_spoof_shim.test.js` (`setConfiguration`, the prototype
    call, the argument-less call) and the LOC-004 scenario.
 
+8. **2026-10-08 — one map of disguised functions across same-origin frames**
+   ([lib/js/_native_fn.js](../../lib/js/_native_fn.js), #689).
+   Each realm patched its own `Function.prototype.toString` with its own map of
+   the functions to report as native, so one realm's `toString` called on
+   another realm's override printed the shim's source: the parent's on
+   `iframe.contentWindow.MediaDevices.prototype.getUserMedia`, or the child's on
+   the parent's `Date.prototype.getTimezoneOffset`. A same-origin frame now
+   takes its parent's map, and the eleven copies of the funnel are one part.
+   *Why:* the realm a page reads through need not be the realm the function
+   came from, so the map has to span every realm that can hold the other's
+   functions. *Why partial:* only the parent chain is joined. A same-origin
+   popup keeps its own map, so its opener's `toString` still reads the popup's
+   overrides, and a frame the native injection scope never reaches has no shim
+   to disguise. Class-level guard: the two `cross-realm toString` cases in
+   `test/browser/lie_detection.test.js`.
+
 ## Known open gaps
 
 - **Realms not yet compared against the document:** workers spawned by a
@@ -251,6 +267,11 @@ path — page/worker agreement in one flavour is not evidence for another.**
   call's payload), so a page-reported verdict would hand any script a switch to
   take its own origin's workers out of the shim.
 
+- **A same-origin popup keeps its own map of disguised functions** (attempt 8
+  joins frames to their parent, not popups to their opener), so the opener's
+  `Function.prototype.toString` prints the popup's overrides. Puppeteer's
+  `evaluateOnNewDocument` does not reach a popup before its document starts,
+  so the browser tier needs a popup harness before this can be gated.
 - **The `__ws*` install markers remain enumerable** on `globalThis` in worker
   scope as well as on `window`, so a fingerprinter can detect that *a* shim is
   present even when it cannot read past it. Repo-wide convention issue, tracked

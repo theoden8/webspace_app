@@ -305,10 +305,9 @@ script can single this browser out by the stream's shape:
   `[native code]`;
 - a track the shim did not create keeps its real label and settings.
 
-The two gaps left open in CAM-008 (`__ws*` install markers enumerable on
-`window`; a parent realm's `Function.prototype.toString` revealing an override
-defined in a child realm) apply here too — they are shared by every shim in the
-repo rather than specific to this one.
+The gap left open in CAM-008 (`__ws*` install markers enumerable on `window`)
+applies here too; it is shared by every shim in the repo rather than specific
+to this one.
 
 #### Scenario: The track does not read as a canvas capture
 

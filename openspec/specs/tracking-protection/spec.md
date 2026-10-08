@@ -788,12 +788,14 @@ element
 ### Requirement: ETP-014 - Function.prototype.toString hardening
 
 Every wrapper installed by the shim SHALL be recorded into the
-`__wsFnStubs` WeakMap (shared with `desktop_mode_shim.dart` and
-`location_spoof_service.dart`) so `Function.prototype.toString.call(fn)`
+`__wsFnStubs` WeakMap (`lib/js/_native_fn.js`, the one part every shim that
+wraps a function includes) so `Function.prototype.toString.call(fn)`
 returns the `[native code]` stub instead of the wrapper's source. The
 patched `Function.prototype.toString` itself SHALL stringify as
 `[native code]` so a fingerprinter probing toString-of-toString cannot
-detect the patch.
+detect the patch. A same-origin frame SHALL share its parent's map, so one
+realm's `toString` answers for another realm's wrappers too (BUG-009
+attempt 8).
 
 #### Scenario: wrapped method stringifies as native
 
@@ -807,6 +809,13 @@ detect the patch.
 **When** `Function.prototype.toString.call(Function.prototype.toString)`
 is called
 **Then** the result matches `/\[native code\]/`
+
+#### Scenario: one realm stringifies another realm's wrapper as native
+
+**Given** the shim is loaded in a page and in a same-origin iframe
+**When** the page calls its own `Function.prototype.toString` on a wrapper
+from the iframe, or the iframe calls its own on a wrapper from the page
+**Then** the result matches `/\[native code\]/`, not the wrapper's source
 
 ---
 

@@ -619,15 +619,77 @@ test('camera_stream: install markers are invisible on window', async (t) => {
   t.todo('repo-wide: __ws* install markers enumerable via getOwnPropertyNames(window)');
 });
 
+// One realm's Function.prototype.toString, called on an override that lives in
+// a same-origin child realm (or the other way round), used to print the shim's
+// source: each realm kept its own map of the functions it disguises.
 test('camera_stream: cross-realm toString hides the override source',
   async (t) => {
-    // `Function.prototype.toString.call(iframe.contentWindow.navigator
-    // .mediaDevices.getUserMedia)` from the PARENT realm prints the shim
-    // source: the stub WeakMap is per-realm, so the parent's patched
-    // toString does not recognise the child's function. Verified identical
-    // for location_spoof, so this is the shared funnel's gap.
-    t.todo('repo-wide: parent-realm toString reveals a child realm override');
+    await withCameraShim(t, async (page) => {
+      const r = await page.evaluate(async () => {
+        const f = document.createElement('iframe');
+        f.src = location.href;
+        await new Promise((resolve) => { f.onload = resolve; document.body.appendChild(f); });
+        const w = f.contentWindow;
+        return {
+          parentOnChild: Function.prototype.toString.call(w.MediaDevices.prototype.getUserMedia),
+          childOnParent: w.Function.prototype.toString.call(MediaDevices.prototype.getUserMedia),
+          parentOnChildToString: Function.prototype.toString.call(w.Function.prototype.toString),
+        };
+      });
+      for (const [probe, source] of Object.entries(r)) {
+        assert.match(source, /\{ \[native code\] \}$/, `${probe}: ${source}`);
+      }
+    });
   });
+
+test('location_spoof: cross-realm toString hides the override source',
+  async (t) => {
+    await withShim(t, FULL_COMBO, async (page) => {
+      const r = await page.evaluate(async () => {
+        const f = document.createElement('iframe');
+        document.body.appendChild(f);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        const w = f.contentWindow;
+        return {
+          parentOnChild: Function.prototype.toString.call(w.Date.prototype.getTimezoneOffset),
+          childOnParent: w.Function.prototype.toString.call(Date.prototype.getTimezoneOffset),
+          parentOnChildToString: Function.prototype.toString.call(w.Function.prototype.toString),
+        };
+      });
+      for (const [probe, source] of Object.entries(r)) {
+        assert.match(source, /\{ \[native code\] \}$/, `${probe}: ${source}`);
+      }
+    });
+  });
+
+test('location_spoof: a cross-origin frame keeps a map of its own', async (t) => {
+  // Reading a cross-origin parent's map throws; the frame must still install
+  // its shims and disguise its own overrides.
+  if (!requireBrowser(browser, t)) return;
+  const top = await startBlankServer();
+  const other = await startBlankServer();
+  const page = await browser.browser.newPage();
+  try {
+    await page.evaluateOnNewDocument(FULL_COMBO);
+    await page.goto(`http://127.0.0.1:${top.address().port}/`, { waitUntil: 'load' });
+    await page.evaluate(async (src) => {
+      const f = document.createElement('iframe');
+      f.src = src;
+      await new Promise((resolve) => { f.onload = resolve; document.body.appendChild(f); });
+    }, `http://localhost:${other.address().port}/`);
+    const frame = page.frames().find((f) => f !== page.mainFrame());
+    const r = await frame.evaluate(() => ({
+      timeZone: new Intl.DateTimeFormat().resolvedOptions().timeZone,
+      source: Function.prototype.toString.call(Date.prototype.getTimezoneOffset),
+    }));
+    assert.equal(r.timeZone, 'Europe/Paris');
+    assert.match(r.source, /\{ \[native code\] \}$/);
+  } finally {
+    await page.close();
+    top.close();
+    other.close();
+  }
+});
 
 // The same probes against the microphone shim. MIC-009 claims the substituted
 // microphone is not detectable by shape, in the same words CAM-008 uses, and

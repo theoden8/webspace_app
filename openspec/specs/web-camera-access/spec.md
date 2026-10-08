@@ -206,12 +206,11 @@ fingerprinter inspects: the overrides live on `MediaDevices.prototype` and
 leak), every override stringifies as `[native code]` including the `label`
 accessor, the track reports as `MediaStreamTrack` rather than
 `CanvasCaptureMediaStreamTrack`, and a track the shim did not create keeps
-its real label and settings. Probes live in
-`test/browser/lie_detection.test.js`; two gaps remain open there as `todo`
-because they are shared by every shim in the repo rather than specific to
-the camera (the `__ws*` install markers are enumerable on `window`, and a
-parent realm's `Function.prototype.toString` reveals an override defined in
-a child realm). When `virtual` is selected but no source has been picked,
+its real label and settings, also when one same-origin realm stringifies
+another's override. Probes live in `test/browser/lie_detection.test.js`; one
+gap remains open there as `todo` because it is shared by every shim in the
+repo rather than specific to the camera: the `__ws*` install markers are
+enumerable on `window`. When `virtual` is selected but no source has been picked,
 the request MUST be denied and the picker re-offered.
 
 #### Scenario: Virtual stream replaces the camera
