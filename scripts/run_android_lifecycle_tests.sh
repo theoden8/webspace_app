@@ -882,12 +882,43 @@ if ! wait_for_new_notification push-foreground 30 "$keys"; then
 fi
 sleep 2
 
+# Leaving the screen is not memory pressure (PAUSE-034). Android reports
+# TRIM_MEMORY_UI_HIDDEN on every exit and Flutter forwards it as
+# didHaveMemoryPressure, which used to clear the offscreen site's cache on one
+# exit and dispose it on the next. One round trip before the long background
+# makes this run two exits, so that cascade would unload the notification site.
+pressure_ignored() { adb logcat -d 2>/dev/null | grep -cF 'memory pressure while' || true; }
+pressure_unloads() { adb logcat -d 2>/dev/null | grep -cF 'unloaded (memory pressure)' || true; }
+ignored_before="$(pressure_ignored)"
+unloads_before="$(pressure_unloads)"
+adb shell input keyevent 3
+sleep 3
+capped_start -n "$component"
+wait_for_pixels push-round-trip-dark 90 --expect-dominant "$dark"
+sleep 2
+
 adb shell input keyevent 3
 pid_before="$(app_pid)"
 echo "  backgrounded for ${background_secs}s (freezer debounce:" \
   "$(adb shell device_config get activity_manager_native_boot freeze_debounce_timeout 2>/dev/null | tr -d '\r' || true))"
 sleep "$background_secs"
 adb logcat -d 2>/dev/null | grep -F "App background:" | tail -1 | sed 's/^/  /' || true
+if [ "$(pressure_unloads)" -gt "$unloads_before" ]; then
+  echo "FAIL: leaving the screen unloaded a site as memory pressure (PAUSE-034)" >&2
+  adb logcat -d 2>/dev/null | grep -E 'memory pressure|App background:' | tail -8 \
+    | sed 's/^/    /' >&2 || true
+  dump_bg_diagnostics push-background-pressure
+  exit 1
+fi
+if [ "$(pressure_ignored)" -le "$ignored_before" ]; then
+  echo "FAIL: two exits from the screen reported no memory pressure; the check" \
+       "above proved nothing. If Flutter stopped forwarding UI_HIDDEN, revisit" \
+       "PAUSE-034 rather than deleting this" >&2
+  dump_bg_diagnostics push-no-background-pressure
+  exit 1
+fi
+echo "  two exits from the screen: $(( $(pressure_ignored) - ignored_before )) memory-pressure" \
+  "report(s), nothing unloaded"
 
 unread_now="$(record_message "bg-$run_tag")"
 echo "  server recorded a message nothing carried (unread now: $unread_now)"

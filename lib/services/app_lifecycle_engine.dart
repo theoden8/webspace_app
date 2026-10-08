@@ -11,6 +11,10 @@
 /// and a home-shortcut tap (`WebspaceSelectionEngine
 /// .indicesToResetOnShortcutLaunch`, AOH-004) — neither is a lifecycle event.
 /// A flagged site is therefore handled here exactly like any other site.
+library;
+
+import 'dart:ui' show AppLifecycleState;
+
 class LifecycleBackgroundPlan {
   /// Active site whose JS timers should pause for the background, or null when
   /// there is no eligible active site, or ANY loaded site has notifications
@@ -47,6 +51,17 @@ class LifecycleBackgroundPlan {
 }
 
 class AppLifecycleEngine {
+  /// Whether a `didHaveMemoryPressure` callback asks the PAUSE-006 cascade to
+  /// trim. Flutter delivers two things through it: an OS memory warning, and
+  /// every exit from the screen (the iOS engine's `flutterDidEnterBackground`
+  /// calls `notifyLowMemory`; the Android embedding forwards
+  /// `TRIM_MEMORY_UI_HIDDEN` and every level above it). Only one arriving while
+  /// the app is resumed can be the OS asking. Trimming on the other disposed a
+  /// site for every two trips to the home screen, notification sites with live
+  /// connections included (PAUSE-034, BUG-024).
+  static bool memoryPressureTrims(AppLifecycleState? state) =>
+      state == AppLifecycleState.resumed;
+
   /// The active, in-bounds, loaded site index eligible for lifecycle
   /// pause/resume, or null. Mirrors the call-site guard
   /// `currentIndex != null && currentIndex < siteCount && loaded`.
