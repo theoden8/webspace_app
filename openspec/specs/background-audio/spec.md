@@ -758,9 +758,8 @@ the events reach the page as they always have
 - `lib/services/site_settings_qr_codec.dart` — QR-shareable key.
 - `lib/services/webview.dart` — `WebViewConfig.backgroundAudioEnabled`, media
   shim injection (+ the BGAUDIO-007 armed line), `wsMediaSession` handler.
-- `lib/services/media_session_shim.dart` — BGAUDIO-009 `buildMediaPauseJs`
-  (dumped to `test/js_fixtures/media_session/pause_media.js`); BGAUDIO-012
-  visibility mask, background watchdog and `__wsMediaBackground`.
+- `lib/js/media_pause.js` — BGAUDIO-009; `lib/js/media_session.js` —
+  BGAUDIO-012 visibility mask, background watchdog and `__wsMediaBackground`.
 - `lib/services/media_session_shim.dart`, `lib/services/media_session_service.dart`
   — BGAUDIO-006 page-JS bridge + Dart channel bridge; BGAUDIO-007 detached-
   element registry, raise/teardown logging and the visibility check;
@@ -770,9 +769,8 @@ the events reach the page as they always have
   `.../MediaSessionPlugin.kt`, `MainActivity.kt`, `AndroidManifest.xml` —
   BGAUDIO-006 foreground media service + permissions; BGAUDIO-007
   `isNotificationActive`.
-- `tool/dump_shim_js.dart` + `test/js_fixtures/media_session/shim.js` — the
-  media-session shim joins the dumped-fixture pipeline so the browser tier
-  runs the exact injected string.
+- `lib/js/media_session.js` — the media-session shim, which the browser tier
+  runs as the app injects it.
 
 ### Added
 

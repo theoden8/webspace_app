@@ -157,10 +157,10 @@ same UA
 ## Files
 
 - `lib/services/user_agent_classifier.dart` — `UaEngine` + `inferUaEngine`
-- `lib/services/user_agent_identity_shim.dart` — `buildUserAgentIdentityShim`
+- `lib/services/user_agent_identity_shim.dart` — `uaIdentityFor`, `buildUserAgentIdentityShim`
 - `lib/services/webview.dart` — `UserScript` registration (group
   `ua_identity_shim`) in `WebViewFactory.createWebView`
 - `test/user_agent_identity_shim_test.dart` — Dart builder + engine tests
 - `test/js/user_agent_identity_shim.test.js` — jsdom behavioural tests
-- `test/js_fixtures/ua_identity/*.js` — dumped fixtures (one per engine × form
-  factor)
+- `lib/js/ua_identity.js` — the shim; `test/js/helpers/ua_identities.js` holds
+  its config for one UA per engine × form factor

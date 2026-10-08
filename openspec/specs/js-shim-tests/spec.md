@@ -3,13 +3,11 @@
 ## Purpose
 
 Prove behaviourally — not just by string match — that the JavaScript
-shims this app injects into webviews (`buildDesktopModeShim`,
-`LocationSpoofService.buildScript`, …) actually mutate the JS surface a
-real browser would expose. The Dart-side tests in `test/*_test.dart`
-already assert that the *string output* of each builder contains the
-expected substrings, but a typo in `Object.defineProperty`, a wrong
-`Navigator.prototype` target, or a broken `matchMedia` wrapper passes
-the substring check and silently breaks in production.
+shims this app injects into webviews (desktop mode, location, language,
+…) actually mutate the JS surface a real browser would expose. A typo in
+`Object.defineProperty`, a wrong `Navigator.prototype` target, or a
+broken `matchMedia` wrapper passes a substring check and silently breaks
+in production.
 
 ## Status
 
@@ -23,26 +21,29 @@ the substring check and silently breaks in production.
 
 ## Layered design
 
-The pipeline has three pieces, each with a separable responsibility:
-
-1. **Builder** (`lib/services/*.dart`) — returns the shim as a Dart
-   string at runtime, given per-site or per-feature parameters.
-2. **Dumper** (`tool/dump_shim_js.dart`) — calls every builder with a
-   curated set of scenarios and writes the resulting JS to
-   `test/js_fixtures/<group>/<variant>.js`. Fixtures are committed.
+1. **Script** (`lib/js/<name>.js`) — the JavaScript itself, as a file.
+   A value it needs is a `CONFIG.<key>` read. Code several scripts share
+   is a part (`lib/js/_<name>.js`) pulled in by a `// @include <file>`
+   line; a part includes no other part.
+2. **Loader** (`PageJs`, `lib/services/page_js.dart`) — one enum value
+   per script, read from the asset bundle once at startup. `script`
+   returns a script that reads no `CONFIG`; `withConfig({...})` runs one
+   with its config bound to `CONFIG` as a JSON literal, the only way a
+   value reaches a page script. The builders in `lib/services/` turn a
+   site's settings into that config.
 3. **Tests**, in three layers:
-   - **Drift check** (`test/js_fixtures_drift_test.dart`) — runs as
-     part of `flutter test`, re-invokes the dumper's
-     `buildAllFixtures()`, and fails if any committed fixture differs
-     from the builder output. Forces fixtures to stay in lockstep with
-     the builder.
-   - **Tier 1 — jsdom** (`test/js/*.test.js`) — loads the fixture via
-     `helpers/load_shim.js`, runs it inside `jsdom`, and asserts the
-     post-injection state of `navigator`, `window`, `Intl`, and the
-     wrapped constructors. Cheap and fast; covers shim *shape*. Run
-     with `npm run test:js`.
-   - **Tier 2 — real Chromium** (`test/browser/*.test.js`) — loads
-     the same fixture into headless Chromium via Puppeteer's
+   - **Dart** (`test/*_test.dart`) — the config each builder derives
+     from a site's settings, and `PageJs`'s own contract
+     (`test/page_js_test.dart`). Tests read `lib/js` from the checkout
+     through `test/flutter_test_config.dart`.
+   - **Tier 1 — jsdom** (`test/js/*.test.js`) — `helpers/page_js.js`
+     reads the same file the same way (`pageJs(name, config)`), the
+     test runs it inside `jsdom` and asserts the post-injection state of
+     `navigator`, `window`, `Intl`, and the wrapped constructors. Cheap
+     and fast; covers shim *shape*. Needs no Flutter SDK. Run with
+     `npm run test:js`.
+   - **Tier 2 — real Chromium** (`test/browser/*.test.js`) — loads the
+     same script into headless Chromium via Puppeteer's
      `page.evaluateOnNewDocument` (mirroring DOCUMENT_START injection
      in the production WebView) and asserts behaviour the real engine
      produces: `matchMedia` against the live CSS engine, real
@@ -53,49 +54,56 @@ The pipeline has three pieces, each with a separable responsibility:
      enforcement of `connect-src`. Boots Chromium per file (~1-2s) and
      adds ~5s wall time total. Run with `npm run test:browser`.
 
-The dumper is the only place a new shim has to be registered. Adding a
-new fixture adds a new test target automatically (via the drift check
-loop) and surfaces a new file for `*.test.js` and `*.test.js`-tier-2
-authors to assert against.
+Nothing is generated or committed between the script and its tests:
+both tiers read `lib/js` itself.
 
 ---
 
 ## Requirements
 
-### Requirement: SHIM-TEST-001 — Fixtures track the builder
+### Requirement: SHIM-TEST-001 — A page script is a file both sides read alike
 
-Every shim covered by this pipeline MUST have a committed fixture under
-`test/js_fixtures/` that is byte-identical to the JS string the runtime
-builder produces.
+Every script the app runs in a page MUST be a file under `lib/js/` read
+through `PageJs`, and a value MUST reach it only as `withConfig` JSON.
+The Node tiers MUST read `lib/js` by the same include rule and the same
+`CONFIG` wrapper.
 
-#### Scenario: Builder change without fixture refresh fails CI
+#### Scenario: A script written as a Dart string fails CI
 
-- **GIVEN** a developer edits a shim builder in `lib/services/`
-- **AND** the developer has not run `fvm dart run tool/dump_shim_js.dart`
-- **WHEN** `fvm flutter test test/js_fixtures_drift_test.dart` runs
-- **THEN** the test fails with a message naming the drifted fixture
-- **AND** the message instructs the developer to run the dumper
+- **GIVEN** a Dart file under `lib/` holds a multi-line string literal
+  that reads as JavaScript
+- **WHEN** `npm run test:js` runs `test/js/page_js.test.js`
+- **THEN** the test fails naming the file and line
 
-#### Scenario: Refreshing fixtures restores green
+#### Scenario: A config that misses or adds a key fails at the loader
 
-- **GIVEN** a fixture is out of date
-- **WHEN** the developer runs `fvm dart run tool/dump_shim_js.dart`
-- **THEN** every registered fixture is rewritten to disk
-- **AND** the drift check passes
+- **GIVEN** a script reads `CONFIG.language`
+- **WHEN** a builder calls `withConfig` without that key, or with a key
+  the script never reads
+- **THEN** `PageJs.withConfig` fails its assert, in every debug run and
+  every test that builds the script
+
+#### Scenario: The two readers cannot drift apart
+
+- **GIVEN** the include rule or the `CONFIG` wrapper changes in
+  `lib/services/page_js.dart`
+- **WHEN** `test/js/page_js.test.js` runs
+- **THEN** it fails until `test/js/helpers/page_js.js` changes with it
 
 ---
 
-### Requirement: SHIM-TEST-002 — Behavioural tests run the real shim string
+### Requirement: SHIM-TEST-002 — Behavioural tests run the real script
 
-Node-side tests under `test/js/` MUST execute the exact JS string the
-production webview sees, not a copy or paraphrase.
+Node-side tests MUST execute the script the production webview sees, not
+a copy or paraphrase.
 
-#### Scenario: Test loads fixture by relative path
+#### Scenario: Test loads a script by name
 
 - **GIVEN** a Node test file `test/js/<shim>.test.js`
-- **WHEN** the test calls `loadShim('<group>/<variant>.js', opts)`
-- **THEN** the helper reads `test/js_fixtures/<group>/<variant>.js`
-  from disk and `eval`s it inside a fresh jsdom realm
+- **WHEN** the test calls `loadShim(pageJs('<name>', config), opts)`
+- **THEN** the helper reads `lib/js/<name>.js` with its parts in place,
+  binds `config` the way `PageJs.withConfig` does, and `eval`s it inside
+  a fresh jsdom realm
 
 #### Scenario: Polyfilled APIs are minimal stubs only
 
@@ -115,15 +123,16 @@ production webview sees, not a copy or paraphrase.
 
 ### Requirement: SHIM-TEST-003 — All three layers gate CI
 
-CI MUST fail when any of the three layers breaks: drift check (Dart),
-Tier 1 jsdom test (Node), or Tier 2 real-Chromium test (Node +
+CI MUST fail when any of the three layers breaks: the Dart tests, a
+Tier 1 jsdom test (Node), or a Tier 2 real-Chromium test (Node +
 Puppeteer).
 
-#### Scenario: Drift check runs as part of flutter test
+#### Scenario: Every script parses as it is injected
 
-- **GIVEN** the `Build Android` CI job runs `fvm flutter test`
-- **WHEN** the drift check fails for any fixture
-- **THEN** the job fails
+- **GIVEN** a script under `lib/js/` with a syntax error, after its
+  parts are included and its `CONFIG` wrapper applied
+- **WHEN** `npm run test:js` runs `test/js/page_js.test.js`
+- **THEN** the test for that script fails
 
 #### Scenario: Node tests run early in the Build Linux job
 
@@ -149,31 +158,36 @@ Puppeteer).
 
 ---
 
-### Requirement: SHIM-TEST-004 — Adding a new shim is one extension point
+### Requirement: SHIM-TEST-004 — Adding a new script is one file and one value
 
-Bringing a new shim under the test pipeline MUST be possible without
-modifying the dumper's discovery logic, the drift test's iteration
-logic, or the npm script.
+Bringing a new script under the pipeline MUST take a file under
+`lib/js/` and a `PageJs` value, and nothing in either test tier's
+plumbing.
 
-#### Scenario: Add a new shim fixture
+#### Scenario: Add a new script
 
-- **GIVEN** a new builder `buildXyzShim()` in `lib/services/`
-- **WHEN** the developer adds an entry to `buildAllFixtures()` in
-  `tool/dump_shim_js.dart`, runs the dumper, and commits the new file
-- **THEN** the drift check covers the new fixture automatically (no
-  test edit)
-- **AND** a new `test/js/<xyz>.test.js` can load and assert against
-  the new fixture without changes to `helpers/load_shim.js` (unless a
-  new browser API needs polyfilling)
+- **GIVEN** a new file `lib/js/xyz.js`
+- **WHEN** the developer adds `xyz('xyz')` to `PageJs`
+- **THEN** the app loads it at startup and the parse gate covers it
+- **AND** a new `test/js/<xyz>.test.js` can run it with
+  `pageJs('xyz', config)` without changes to `helpers/load_shim.js`
+  (unless a new browser API needs polyfilling)
 - **AND** a new `test/browser/<xyz>_real.test.js` can load the same
-  fixture via `readFixture(...)` from `test/browser/helpers/launch.js`
-  and run it against headless Chromium without touching the harness
+  script via `pageJs(...)` from `test/browser/helpers/launch.js` and
+  run it against headless Chromium without touching the harness
+
+#### Scenario: A file without a value fails
+
+- **GIVEN** a file under `lib/js/` that no `PageJs` value names and no
+  script includes
+- **WHEN** `flutter test test/page_js_test.dart` runs
+- **THEN** the test fails: the file would never be injected
 
 ---
 
 ### Requirement: SHIM-TEST-005 — Real-engine validation for engine-dependent surfaces
 
-Shims that wrap APIs whose behaviour jsdom cannot honestly simulate (real CSS `matchMedia`, `Intl.DateTimeFormat` arbitrary IANA timezones, `Date.prototype.getTimezoneOffset` DST arithmetic, `Date.prototype.toString` zone formatting, `Geolocation` callback path, `RTCPeerConnection` constructor and SDP semantics, real Content-Security-Policy `connect-src` enforcement, `getUserMedia` + canvas `captureStream` producing a decodable video frame) MUST also have a Tier 2 test under `test/browser/<shim>_real.test.js` that loads the **same committed fixture** and asserts post-injection state under headless Chromium. Tier 2 covers behaviours, not just shapes; if jsdom can produce the same answer, the assertion belongs in Tier 1.
+Shims that wrap APIs whose behaviour jsdom cannot honestly simulate (real CSS `matchMedia`, `Intl.DateTimeFormat` arbitrary IANA timezones, `Date.prototype.getTimezoneOffset` DST arithmetic, `Date.prototype.toString` zone formatting, `Geolocation` callback path, `RTCPeerConnection` constructor and SDP semantics, real Content-Security-Policy `connect-src` enforcement, `getUserMedia` + canvas `captureStream` producing a decodable video frame) MUST also have a Tier 2 test under `test/browser/<shim>_real.test.js` that loads the **same script** and asserts post-injection state under headless Chromium. Tier 2 covers behaviours, not just shapes; if jsdom can produce the same answer, the assertion belongs in Tier 1.
 
 #### Scenario: matchMedia overrides asserted under the real CSS engine
 
@@ -236,7 +250,7 @@ Shims that wrap APIs whose behaviour jsdom cannot honestly simulate (real CSS `m
 ### Requirement: SHIM-TEST-006 — Tier 2 boots a per-file Chromium with documented timing
 
 Tests under `test/browser/` MUST boot a fresh Chromium process per
-file via `setupBrowser()` and inject the fixture via
+file via `setupBrowser()` and inject the script via
 `page.evaluateOnNewDocument`, which is the closest Puppeteer analogue
 to a production WebView's DOCUMENT_START injection point.
 
@@ -285,7 +299,7 @@ Shims that target a fingerprintable surface (`navigator.platform`, `Intl` timezo
 
 #### Scenario: FingerprintJS reads the spoofed platform
 
-- **GIVEN** the desktop_mode `windows` fixture is loaded into a
+- **GIVEN** the desktop_mode script for a Windows UA is loaded into a
   headless Chromium running on Linux
 - **WHEN** the test injects the FingerprintJS UMD bundle via
   `page.addScriptTag` and calls `FingerprintJS.load().then(fp =>
@@ -297,7 +311,8 @@ Shims that target a fingerprintable surface (`navigator.platform`, `Intl` timezo
 
 #### Scenario: FingerprintJS reads the spoofed timezone
 
-- **GIVEN** the location_spoof `full_combo` fixture is loaded
+- **GIVEN** the location_spoof script with a Paris fix, zone and
+  relay-only WebRTC is loaded
 - **WHEN** the test runs FingerprintJS
 - **THEN** `result.components.timezone.value` is `"Europe/Paris"`
 - **AND** no `components.<spoofed-source>.error` is set — the shim
@@ -383,18 +398,22 @@ add an explicit anti-detection requirement to the spoofing specs.
 
 ## Files
 
-**Builders covered:**
-- `lib/services/desktop_mode_shim.dart` (3 UA variants) — Tier 1 + 2 + 3
-- `lib/services/location_spoof_service.dart` (5 configs) — Tier 1 + 2 + 3
-- `lib/services/blob_url_capture_shim.dart` — Tier 1 + 2 (CSP)
-- `lib/services/language_shim.dart` (3 lang codes) — Tier 1 + 2
-- `lib/services/theme_color_scheme_shim.dart` (3 theme values) — Tier 1 + 2
+**Scripts covered** (`lib/js/`, through `PageJs`): every one, by the
+parse gate; behaviourally, among others:
+- `desktop_mode.js` (3 platforms) — Tier 1 + 2 + 3
+- `location_spoof.js` (11 configs, `test/js/helpers/location_configs.js`)
+  — Tier 1 + 2 + 3
+- `blob_url_capture.js`, `blob_download.js` — Tier 1 + 2 (CSP)
+- `language.js` (3 lang codes) — Tier 1 + 2
+- `theme_color_scheme.js` (3 theme values) — Tier 1 + 2
 
 **Pipeline:**
-- `tool/dump_shim_js.dart` — fixture generator
-- `test/js_fixtures/` — committed fixtures + README
-- `test/js_fixtures_drift_test.dart` — Dart drift check
+- `lib/services/page_js.dart` — `PageJs`, the loader
+- `test/flutter_test_config.dart` — loads `lib/js` for the Dart tests
+- `test/page_js_test.dart` — the loader's contract
+- `test/js/page_js.test.js` — parse gate, inline-JS gate, reader parity
 - `test/js/` — Tier 1 jsdom test files
+- `test/js/helpers/page_js.js` — reads `lib/js` the way `PageJs` does
 - `test/js/helpers/load_shim.js` — jsdom loader + polyfills
 - `test/browser/` — Tier 2 real-Chromium + Tier 3 fingerprint test files
 - `test/browser/helpers/launch.js` — Puppeteer harness +

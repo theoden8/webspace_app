@@ -962,7 +962,7 @@ the body is parsed
 
 #### Scenario: No shim becomes the root
 
-**Given** any dumped shim fixture
+**Given** any script in `lib/js`, run with its sample config
 **When** it runs on a document that has no root element
 **Then** the document still has no root element afterwards
 

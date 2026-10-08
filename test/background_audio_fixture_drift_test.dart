@@ -9,8 +9,7 @@ import '../integration_test/fixtures/background_audio_fixture.dart';
 /// repo files at runtime on macOS CI), while
 /// `integration_test/fixtures/background_audio.html` stays the authoritative,
 /// browser-openable fixture. This host-side test pins the two together so an
-/// edit to either cannot silently diverge — same shape as
-/// `test/js_fixtures_drift_test.dart`.
+/// edit to either cannot silently diverge.
 void main() {
   test('embedded background-audio fixture matches the .html on disk', () {
     final file = File('integration_test/fixtures/background_audio.html');

@@ -67,6 +67,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `ShellStore` (`controllers/shell_store.dart`) | what the page saves beside its sites: theme, global user scripts, suggested sites, webspaces, the site on screen | `_shell.theme` etc.; `save*` per value |
 | `SiteActivationController` | which site is on screen, and the residency, capture and teardown that move with it | `setCurrentIndex(int?)`; talks back through `ActivationHost` |
 | `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
+| `PageJs` (`services/page_js.dart`) | every script the app runs in a page (`lib/js/`), and how a value reaches one | `PageJs.x.script`; `PageJs.x.withConfig({...})`; shared parts by `// @include` |
 | `LogTag` (`services/log_service.dart`) | every log tag and the label it shows | `LogTag.x.debug(msg, sensitive: true)`; `LogService.log` takes a `LogTag` |
 | `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
 
@@ -80,6 +81,7 @@ Debt, files importing upward (the gate's list, target 0): services → model (en
 | pref | 2 | 2 | `AppPref` |
 | capture kind | ~5 files | ~5 files | `CaptureKind` |
 | settings row | 1–3 lines | 1–3 | `SettingTile` / `ChoiceTile` |
+| page script | 2 | 2 (the file, a `PageJs` value) | `PageJs` |
 | release | 3 | 3 (version, changelog, fixtures) | the `pubspec.yaml` version line; the changelog and fixture gates key off it ([docs/releasing.md](docs/releasing.md)) |
 | secret store | 2 | 6 ("Adding a new credential / secret" below) | `SecureJsonStore` + `OrphanStore`; debt: hydration, post-import notice, export test by hand |
 
@@ -107,6 +109,13 @@ Health, monthly: `node tool/architecture_health.js` prints files per fix commit,
   and is named with its reason in
   [test/js/file_size.test.js](test/js/file_size.test.js). Test files may be as
   long as their cases.
+- **JavaScript the app runs in a page is a file in `lib/js/`**, read through
+  `PageJs` ([lib/services/page_js.dart](lib/services/page_js.dart)). A value
+  reaches it only through `withConfig`, as JSON, never by building the
+  script's text. A one-line expression that calls into an installed script
+  (`__wsStopRealCapture()`) may stay inline. Gate:
+  [test/js/page_js.test.js](test/js/page_js.test.js) (rung 5: no type says a
+  Dart string is not JavaScript).
 - **No catch-alls.** Catch the types the call is known to throw (`on SocketException`,
   `test: (e) => e is SocksClientException`), never `catch (_)`, `on Object` or
   `onError: (_) {}`: those also swallow `Error`s, which are bugs, and leave nothing
@@ -416,18 +425,16 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 
 ## JS shim tests (jsdom + node:test)
 
-Two layers, shared fixtures in `test/js_fixtures/` (see [README](test/js_fixtures/README.md)):
+Every page script is a file in `lib/js/` (Style above). Spec: [js-shim-tests](openspec/specs/js-shim-tests/spec.md).
 
-- **Dart** — `test/*_test.dart` asserts builder string output (cheap, only catches absent substrings).
-- **Node** — `test/js/*.test.js` runs the dumped shim in jsdom, asserts post-injection JS state.
+- **Dart** — `test/*_test.dart` asserts the config a builder derives from a site's settings; [test/page_js_test.dart](test/page_js_test.dart) holds `PageJs`'s own contract. `test/flutter_test_config.dart` loads `lib/js` for every Dart test.
+- **Node** — `test/js/*.test.js` runs the script in jsdom through `pageJs(name, config)` ([test/js/helpers/page_js.js](test/js/helpers/page_js.js)), which reads `lib/js` the way `PageJs` does. No Flutter needed.
 
-Workflow: edit shim in `lib/services/` → `fvm dart run tool/dump_shim_js.dart` → `fvm flutter test test/js_fixtures_drift_test.dart` (drift) → `npm run test:js` (behavior). Both run in CI (`build-and-test.yml`).
+Workflow: edit `lib/js/<name>.js` → `npm run test:js`. A new script is the file plus a `PageJs` value. A value it needs is a `CONFIG.<key>` read, passed by `withConfig({...})` in its Dart builder; code several scripts share is a `_<name>.js` part pulled in with `// @include _<name>.js`. Configs more than one test uses live in `test/js/helpers/` (`location_configs.js`, `capture_shims.js`, `ua_identities.js`, `worker_shims.js`, `content_blocker_samples.js`).
 
-New shim: register in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart). Builders importing Flutter widgets (lib/screens/*, lib/widgets/*) can't be reached — extract the JS string to a pure-Dart helper first.
+**Shims that also run in workers** (anything in `workerScopeBodies` in [worker_shim.dart](lib/services/worker_shim.dart); the scripts themselves are in `lib/js/` — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
 
-**Shims that also run in workers** (anything in `workerScopeBodies` in [worker_shim.dart](lib/services/worker_shim.dart) — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
-
-jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Effects that need a real engine (canvas `captureStream`, Intl timezone math, real CSP, RTCPeerConnection semantics) go in the **browser tier** under `test/browser/` (Puppeteer + headless Chromium, `npm run test:browser`, run in CI's `validate` job). Use the `setupBrowser`/`requireBrowser`/`readFixture` helpers in [test/browser/helpers/launch.js](test/browser/helpers/launch.js) — the tier hard-fails when `CI=true` and no Chromium is found, and skips locally. Example: `camera_stream_real_engine.test.js` serves a page from `127.0.0.1` (getUserMedia needs a secure context), feeds the dumped camera shim a QR image, and asserts jsQR decodes it off the synthetic stream.
+jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Effects that need a real engine (canvas `captureStream`, Intl timezone math, real CSP, RTCPeerConnection semantics) go in the **browser tier** under `test/browser/` (Puppeteer + headless Chromium, `npm run test:browser`, run in CI's `validate` job). Use the `setupBrowser`/`requireBrowser`/`pageJs` helpers in [test/browser/helpers/launch.js](test/browser/helpers/launch.js) — the tier hard-fails when `CI=true` and no Chromium is found, and skips locally. Example: `camera_stream_real_engine.test.js` serves a page from `127.0.0.1` (getUserMedia needs a secure context), feeds the camera shim a QR image, and asserts jsQR decodes it off the synthetic stream.
 
 ## Fastlane changelogs
 
