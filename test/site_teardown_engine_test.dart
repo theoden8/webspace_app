@@ -13,10 +13,10 @@ void main() {
       final result = await SiteTeardownEngine.quiesceOutgoing(
         superseded: () => false,
         steps: [
-          SiteTeardownStep('capture', () async => order.add('capture')),
-          SiteTeardownStep('camera', () async => order.add('camera')),
-          SiteTeardownStep('media', () async => order.add('media')),
-          SiteTeardownStep('pause', () async => order.add('pause')),
+          SiteTeardownStep('capture', run: () async => order.add('capture')),
+          SiteTeardownStep('camera', run: () async => order.add('camera')),
+          SiteTeardownStep('media', run: () async => order.add('media')),
+          SiteTeardownStep('pause', run: () async => order.add('pause')),
         ],
       );
       expect(order, ['capture', 'camera', 'media', 'pause']);
@@ -29,8 +29,9 @@ void main() {
       final result = await SiteTeardownEngine.quiesceOutgoing(
         superseded: () => false,
         steps: [
-          SiteTeardownStep('capture', () async => throw StateError('disk')),
-          SiteTeardownStep('pause', () async => order.add('pause')),
+          SiteTeardownStep('capture',
+              run: () async => throw StateError('disk')),
+          SiteTeardownStep('pause', run: () async => order.add('pause')),
         ],
       );
       expect(order, ['pause'],
@@ -47,8 +48,8 @@ void main() {
         budget: const Duration(milliseconds: 20),
         superseded: () => false,
         steps: [
-          SiteTeardownStep('media', () => never.future),
-          SiteTeardownStep('pause', () async => reached.add('pause')),
+          SiteTeardownStep('media', run: () => never.future),
+          SiteTeardownStep('pause', run: () async => reached.add('pause')),
         ],
       ).timeout(const Duration(seconds: 5));
       expect(result.stalledOn, 'media');
@@ -62,11 +63,11 @@ void main() {
       final result = await SiteTeardownEngine.quiesceOutgoing(
         superseded: () => version != 1,
         steps: [
-          SiteTeardownStep('capture', () async {
+          SiteTeardownStep('capture', run: () async {
             order.add('capture');
             version = 2; // a newer _setCurrentIndex landed mid-teardown
           }),
-          SiteTeardownStep('pause', () async => order.add('pause')),
+          SiteTeardownStep('pause', run: () async => order.add('pause')),
         ],
       );
       expect(order, ['capture'],
@@ -83,8 +84,8 @@ void main() {
         budget: const Duration(milliseconds: 20),
         superseded: () => version != 1,
         steps: [
-          SiteTeardownStep('media', () => late.future),
-          SiteTeardownStep('pause', () async => order.add('pause')),
+          SiteTeardownStep('media', run: () => late.future),
+          SiteTeardownStep('pause', run: () async => order.add('pause')),
         ],
       );
       expect(result.stalledOn, 'media');

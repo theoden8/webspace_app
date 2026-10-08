@@ -48,7 +48,7 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
           target: widget.target,
           siteId: widget.siteId,
         );
-        logProxyTest(settings, result);
+        logProxyTest(settings, result: result);
         _result = result;
       });
     } finally {
@@ -57,10 +57,10 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
   }
 
   ({IconData icon, Color color, String message}) _describe(
-    AppLocalizations loc,
-    ColorScheme scheme,
-    ProxyTestResult result,
-  ) =>
+    AppLocalizations loc, {
+    required ColorScheme scheme,
+    required ProxyTestResult result,
+  }) =>
       switch (result.outcome) {
         // The padlock green: it is the app's one "this is fine" colour and
         // it clears 3:1 on both light and dark surfaces.
@@ -132,7 +132,8 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
           if (result != null) ...[
             const SizedBox(height: Spacing.sm),
             Builder(builder: (context) {
-              final d = _describe(loc, theme.colorScheme, result);
+              final d =
+                  _describe(loc, scheme: theme.colorScheme, result: result);
               final detail = _detailOf(result);
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

@@ -6,19 +6,21 @@ import 'package:webspace/services/log_service.dart';
 /// confirms the copy, and no other caller may opt in silently. Files written
 /// by [LogService.export] never carry sensitive entries at all.
 void main() {
-  LogEntry entry(String tag, String message, LogSensitivity s) => LogEntry(
-        timestamp: DateTime(2026, 1, 1, 12, 0, 0),
-        tag: tag,
-        message: message,
-        level: LogLevel.info,
-        sensitivity: s,
-      );
+LogEntry entry(String tag,
+        {required String message, required LogSensitivity s}) =>
+    LogEntry(
+      timestamp: DateTime(2026, 1, 1, 12, 0, 0),
+      tag: tag,
+      message: message,
+      level: LogLevel.info,
+      sensitivity: s,
+    );
 
   final mixed = [
-    entry('Nav', 'app started', LogSensitivity.normal),
-    entry('Cookie', 'siteId=abc host=github.com proxy=1.2.3.4:8080',
-        LogSensitivity.sensitive),
-    entry('Theme', 'dark mode on', LogSensitivity.normal),
+    entry('Nav', message: 'app started', s: LogSensitivity.normal),
+    entry('Cookie', message: 'siteId=abc host=github.com proxy=1.2.3.4:8080',
+        s: LogSensitivity.sensitive),
+    entry('Theme', message: 'dark mode on', s: LogSensitivity.normal),
   ];
 
   test('formatForClipboard omits sensitive entries by default', () {
@@ -34,8 +36,8 @@ void main() {
 
   test('formatForClipboard is empty when every entry is sensitive', () {
     final entries = [
-      entry('Cookie', 'siteId=secret', LogSensitivity.sensitive),
-      entry('Proxy', 'host=10.0.0.1', LogSensitivity.sensitive),
+      entry('Cookie', message: 'siteId=secret', s: LogSensitivity.sensitive),
+      entry('Proxy', message: 'host=10.0.0.1', s: LogSensitivity.sensitive),
     ];
     expect(LogService.formatForClipboard(entries).trim(), isEmpty);
   });

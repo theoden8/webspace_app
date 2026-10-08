@@ -57,7 +57,8 @@ class SiteSearchListService {
   }
 
   /// The address the list names for the site at [initUrl], or null.
-  String? addressFor(String initUrl) => listedAddressFor(_table, initUrl);
+  String? addressFor(String initUrl) =>
+      listedAddressFor(_table, initUrl: initUrl);
 
   /// Load the stored list, if any. Called at startup; nothing is fetched.
   Future<void> initialize() async {
@@ -98,7 +99,7 @@ class SiteSearchListService {
         LogTag.searchList.error('Download held no usable entry');
         return false;
       }
-      await hostWriteDocumentText(_cacheFileName, jsonEncode(table));
+      await hostWriteDocumentText(_cacheFileName, contents: jsonEncode(table));
       final now = DateTime.now();
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_lastUpdatedPrefKey, now.toIso8601String());

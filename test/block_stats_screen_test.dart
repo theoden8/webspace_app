@@ -9,8 +9,10 @@ import 'package:webspace/services/block_stats_service.dart';
 import 'helpers/memory_block_stats_store.dart';
 import 'helpers/localized.dart';
 
-Future<void> _pump(WidgetTester tester, Map<String, String> siteNames) async {
-  await pumpLocalized(tester, BlockStatsScreen(siteNames: siteNames),
+Future<void> _pump(WidgetTester tester,
+    {required Map<String, String> siteNames}) async {
+  await pumpLocalized(tester,
+      home: BlockStatsScreen(siteNames: siteNames),
       size: const Size(1000, 2400));
   await tester.pumpAndSettle();
 }
@@ -27,16 +29,18 @@ void main() {
       (tester) async {
     final service = BlockStatsService.instance;
     await service.initialize(detailStore: MemoryBlockStatsDetailStore());
-    service.setSiteContributes('site-a', true);
-    service.setSiteContributes('site-b', true);
-    service.record('site-a', BlockCategory.dnsBlocklist,
+    service.setSiteContributes('site-a', contributes: true);
+    service.setSiteContributes('site-b', contributes: true);
+    service.record('site-a', category: BlockCategory.dnsBlocklist,
         count: 4, label: 'ads.example');
-    service.record('site-b', BlockCategory.dnsBlocklist, label: 'beacon.example');
-    service.record('site-a', BlockCategory.trackingParam, label: 'utm_source');
+    service.record('site-b',
+        category: BlockCategory.dnsBlocklist, label: 'beacon.example');
+    service.record('site-a',
+        category: BlockCategory.trackingParam, label: 'utm_source');
     // Settle the debounced write; a pending timer fails the widget binding.
     await service.flush();
 
-    await _pump(tester, {'site-a': 'News', 'site-b': 'Forum'});
+    await _pump(tester, siteNames: {'site-a': 'News', 'site-b': 'Forum'});
     await tester.tap(find.byKey(const Key('block_stats_category_dnsBlocklist')));
     await tester.pumpAndSettle();
 
@@ -54,12 +58,12 @@ void main() {
       (tester) async {
     final service = BlockStatsService.instance;
     await service.initialize(detailStore: MemoryBlockStatsDetailStore());
-    service.setSiteContributes('deleted-site', true);
-    service.record('deleted-site', BlockCategory.filterList,
+    service.setSiteContributes('deleted-site', contributes: true);
+    service.record('deleted-site', category: BlockCategory.filterList,
         label: 'tracker.example');
     await service.flush();
 
-    await _pump(tester, const {});
+    await _pump(tester, siteNames: const {});
     await tester.tap(find.byKey(const Key('block_stats_category_filterList')));
     await tester.pumpAndSettle();
 
@@ -71,11 +75,12 @@ void main() {
       (tester) async {
     final service = BlockStatsService.instance;
     await service.initialize(detailStore: MemoryBlockStatsDetailStore());
-    service.setSiteContributes('site-a', true);
-    service.record('site-a', BlockCategory.filterList, label: 'tracker.example');
+    service.setSiteContributes('site-a', contributes: true);
+    service.record('site-a',
+        category: BlockCategory.filterList, label: 'tracker.example');
     await service.flush();
 
-    await _pump(tester, {'site-a': 'News'});
+    await _pump(tester, siteNames: {'site-a': 'News'});
     await tester.tap(find.byKey(const Key('block_stats_category_localCdn')));
     await tester.pumpAndSettle();
 

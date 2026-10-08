@@ -37,15 +37,15 @@ class _FlakyEnsureStore implements FileStore {
   Future<String?> readText(String name) => _inner.readText(name);
 
   @override
-  Future<void> writeText(String name, String contents) =>
-      _inner.writeText(name, contents);
+  Future<void> writeText(String name, {required String contents}) =>
+      _inner.writeText(name, contents: contents);
 
   @override
   Future<Uint8List?> readBytes(String name) => _inner.readBytes(name);
 
   @override
-  Future<void> writeBytes(String name, List<int> bytes) =>
-      _inner.writeBytes(name, bytes);
+  Future<void> writeBytes(String name, {required List<int> bytes}) =>
+      _inner.writeBytes(name, bytes: bytes);
 
   @override
   Future<void> delete(String name) => _inner.delete(name);
@@ -84,7 +84,7 @@ void main() {
     test('save and load round-trip preserves bytes', () async {
       final storage = newStorage();
       final bytes = Uint8List.fromList(List.generate(256, (i) => i));
-      await storage.saveState('alpha', bytes);
+      await storage.saveState('alpha', state: bytes);
       final loaded = await storage.loadState('alpha');
       expect(loaded, bytes);
     });
@@ -92,8 +92,8 @@ void main() {
     test('AES-GCM: identical plaintext yields different on-disk ciphertext', () async {
       final storage = newStorage();
       final bytes = Uint8List.fromList(List.filled(64, 7));
-      await storage.saveState('a', bytes);
-      await storage.saveState('b', bytes);
+      await storage.saveState('a', state: bytes);
+      await storage.saveState('b', state: bytes);
       final files =
           tempDir.listSync(recursive: true).whereType<File>().toList();
       expect(files.length, greaterThanOrEqualTo(2));
@@ -108,7 +108,7 @@ void main() {
         () async {
       final storage = newStorage();
       await storage.saveState(
-          't', Uint8List.fromList(List.generate(64, (i) => i)));
+          't', state: Uint8List.fromList(List.generate(64, (i) => i)));
       final file = tempDir.listSync(recursive: true).whereType<File>().first;
       final wire = base64.decode(await file.readAsString());
       wire[wire.length - 1] ^= 0xFF; // flip a byte of the GCM tag
@@ -126,7 +126,7 @@ void main() {
         (i) => (i * 31 + 7) & 0xFF,
       );
       final bytes = Uint8List.fromList(raw);
-      await storage.saveState('binary', bytes);
+      await storage.saveState('binary', state: bytes);
       final loaded = await storage.loadState('binary');
       expect(loaded, bytes);
     });
@@ -138,21 +138,21 @@ void main() {
 
     test('saving empty bytes is a no-op (no file written)', () async {
       final storage = newStorage();
-      await storage.saveState('empty', Uint8List(0));
+      await storage.saveState('empty', state: Uint8List(0));
       expect(await storage.loadState('empty'), isNull);
       expect(await storage.siteIds(), isEmpty);
     });
 
     test('overwrite replaces previous bytes', () async {
       final storage = newStorage();
-      await storage.saveState('s', Uint8List.fromList([1, 2, 3]));
-      await storage.saveState('s', Uint8List.fromList([10, 20, 30, 40]));
+      await storage.saveState('s', state: Uint8List.fromList([1, 2, 3]));
+      await storage.saveState('s', state: Uint8List.fromList([10, 20, 30, 40]));
       expect(await storage.loadState('s'), Uint8List.fromList([10, 20, 30, 40]));
     });
 
     test('removeState deletes the entry from disk', () async {
       final storage = newStorage();
-      await storage.saveState('s', Uint8List.fromList([1]));
+      await storage.saveState('s', state: Uint8List.fromList([1]));
       expect(await storage.loadState('s'), isNotNull);
       await storage.removeState('s');
       expect(await storage.loadState('s'), isNull);
@@ -161,9 +161,9 @@ void main() {
 
     test('removeOrphans keeps active siteIds, removes the rest', () async {
       final storage = newStorage();
-      await storage.saveState('a', Uint8List.fromList([1]));
-      await storage.saveState('b', Uint8List.fromList([2]));
-      await storage.saveState('c', Uint8List.fromList([3]));
+      await storage.saveState('a', state: Uint8List.fromList([1]));
+      await storage.saveState('b', state: Uint8List.fromList([2]));
+      await storage.saveState('c', state: Uint8List.fromList([3]));
 
       final removed = await storage.removeOrphans({'a', 'c'});
       expect(removed, 1);
@@ -174,8 +174,8 @@ void main() {
 
     test('siteIds reflects what is currently saved', () async {
       final storage = newStorage();
-      await storage.saveState('a', Uint8List.fromList([1]));
-      await storage.saveState('b', Uint8List.fromList([2]));
+      await storage.saveState('a', state: Uint8List.fromList([1]));
+      await storage.saveState('b', state: Uint8List.fromList([2]));
       expect(await storage.siteIds(), {'a', 'b'});
       await storage.removeState('a');
       expect(await storage.siteIds(), {'b'});
@@ -187,7 +187,7 @@ void main() {
       // with persistent key.
       final s1 = newStorage();
       final bytes = Uint8List.fromList([42, 13, 7, 3, 1]);
-      await s1.saveState('persist', bytes);
+      await s1.saveState('persist', state: bytes);
 
       final s2 = newStorage();
       final loaded = await s2.loadState('persist');
@@ -197,7 +197,7 @@ void main() {
     test('app-version upgrade rotates the key and clears state', () async {
       // Save under v1.
       final s1 = newStorage(version: 'v1');
-      await s1.saveState('versioned', Uint8List.fromList([99, 88, 77]));
+      await s1.saveState('versioned', state: Uint8List.fromList([99, 88, 77]));
       expect(await s1.loadState('versioned'), isNotNull);
 
       // Simulate cold start with v2 — the cache dir + key are nuked,
@@ -210,7 +210,7 @@ void main() {
 
     test('corrupt entry on disk is reaped and load returns null', () async {
       final storage = newStorage();
-      await storage.saveState('s', Uint8List.fromList([1, 2, 3]));
+      await storage.saveState('s', state: Uint8List.fromList([1, 2, 3]));
       // Corrupt the file by overwriting with garbage.
       final filePath = '${tempDir.path}/webview_state/s.enc';
       await File(filePath).writeAsString('not valid base64!!!');
@@ -229,8 +229,8 @@ void main() {
 
     test('removeOrphans with empty active set clears everything', () async {
       final storage = newStorage();
-      await storage.saveState('a', Uint8List.fromList([1]));
-      await storage.saveState('b', Uint8List.fromList([2]));
+      await storage.saveState('a', state: Uint8List.fromList([1]));
+      await storage.saveState('b', state: Uint8List.fromList([2]));
       final removed = await storage.removeOrphans(const {});
       expect(removed, 2);
       expect(await storage.siteIds(), isEmpty);
@@ -240,8 +240,8 @@ void main() {
       // Sanity: encrypted-with-fixed-IV doesn't accidentally collide
       // distinct ciphertexts under different filenames.
       final storage = newStorage();
-      await storage.saveState('a', Uint8List.fromList([1, 2, 3]));
-      await storage.saveState('b', Uint8List.fromList([1, 2, 3])); // same bytes
+      await storage.saveState('a', state: Uint8List.fromList([1, 2, 3]));
+      await storage.saveState('b', state: Uint8List.fromList([1, 2, 3])); // same bytes
       expect(await storage.loadState('a'), Uint8List.fromList([1, 2, 3]));
       expect(await storage.loadState('b'), Uint8List.fromList([1, 2, 3]));
       await storage.removeState('a');
@@ -261,7 +261,8 @@ void main() {
       // The go-home / site-switch paths await these; a throw here strands
       // the navigation that triggered the capture.
       await expectLater(
-          storage.saveState('a', Uint8List.fromList([1, 2, 3])), completes);
+          storage.saveState('a', state: Uint8List.fromList([1, 2, 3])),
+          completes);
       await expectLater(storage.loadState('a'), completes);
     });
 
@@ -274,8 +275,8 @@ void main() {
         versionProvider: () => 'v1',
       );
       final bytes = Uint8List.fromList([9, 8, 7]);
-      await storage.saveState('a', bytes); // init fails, nothing written
-      await storage.saveState('a', bytes); // init retried, write lands
+      await storage.saveState('a', state: bytes); // init fails, nothing written
+      await storage.saveState('a', state: bytes); // init retried, write lands
       expect(store.ensureCalls, 2,
           reason: 'a memoized rejected init future would never be retried');
       expect(await storage.loadState('a'), bytes);

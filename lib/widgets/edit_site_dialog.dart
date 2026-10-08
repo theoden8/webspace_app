@@ -17,7 +17,8 @@ import 'package:webspace/widgets/toast.dart';
 /// inferred, and the icon only when one was picked or reset.
 typedef SiteEdit = ({String name, String url, ({Uint8List? png})? icon});
 
-Future<SiteEdit?> showEditSiteDialog(BuildContext context, WebViewModel site) =>
+Future<SiteEdit?> showEditSiteDialog(BuildContext context,
+        {required WebViewModel site}) =>
     showDialog<SiteEdit>(
       context: context,
       builder: (_) => EditSiteDialog(site: site),

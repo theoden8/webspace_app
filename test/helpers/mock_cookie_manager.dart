@@ -29,8 +29,8 @@ class MockCookieManager implements CookieManager {
     final host = url.host.toLowerCase();
     final path = url.path.isEmpty ? '/' : url.path;
     return _cookies.where((c) {
-      if (!_domainMatches(c.domain, host)) return false;
-      if (!_pathMatches(c.path ?? '/', path)) return false;
+      if (!_domainMatches(c.domain, host: host)) return false;
+      if (!_pathMatches(c.path ?? '/', requestPath: path)) return false;
       return true;
     }).toList();
   }
@@ -107,7 +107,7 @@ class MockCookieManager implements CookieManager {
   }
 
   /// RFC 6265 §5.1.3 domain-match.
-  static bool _domainMatches(String? cookieDomain, String host) {
+  static bool _domainMatches(String? cookieDomain, {required String host}) {
     if (cookieDomain == null || cookieDomain.isEmpty) return false;
     final d = _canonical(cookieDomain);
     final h = host.toLowerCase();
@@ -117,7 +117,7 @@ class MockCookieManager implements CookieManager {
   }
 
   /// RFC 6265 §5.1.4 path-match.
-  static bool _pathMatches(String cookiePath, String requestPath) {
+  static bool _pathMatches(String cookiePath, {required String requestPath}) {
     if (cookiePath == requestPath) return true;
     if (requestPath.startsWith(cookiePath)) {
       if (cookiePath.endsWith('/')) return true;
@@ -180,7 +180,9 @@ class AndroidScopedCookieManager extends MockCookieManager {
   }) async {
     // Android's CookieManager.setCookie stores against the URL and drops a
     // cookie whose Domain attribute isn't the URL host or a parent of it.
-    if (domain != null && !MockCookieManager._domainMatches(domain, url.host.toLowerCase())) {
+    if (domain != null &&
+        !MockCookieManager._domainMatches(domain,
+            host: url.host.toLowerCase())) {
       return;
     }
     await super.setCookie(
@@ -208,7 +210,8 @@ class MockCookieSecureStorage implements CookieSecureStorage {
   }
 
   @override
-  Future<void> saveCookiesForSite(String siteId, List<Cookie> cookies) async {
+  Future<void> saveCookiesForSite(String siteId,
+      {required List<Cookie> cookies}) async {
     if (cookies.isEmpty) {
       _storage.remove(siteId);
     } else {

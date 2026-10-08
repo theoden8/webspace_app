@@ -67,7 +67,8 @@ class _ContentBlockerSettingsScreenState
   }
 
   /// The name field both list dialogs open with.
-  Widget _nameField(AppLocalizations loc, TextEditingController controller) =>
+  Widget _nameField(AppLocalizations loc,
+          {required TextEditingController controller}) =>
       TextField(
         controller: controller,
         decoration: InputDecoration(
@@ -87,7 +88,7 @@ class _ContentBlockerSettingsScreenState
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _nameField(loc, nameController),
+          _nameField(loc, controller: nameController),
           const SizedBox(height: 8),
           TextField(
             controller: urlController,
@@ -107,7 +108,7 @@ class _ContentBlockerSettingsScreenState
         nameController.text.isNotEmpty &&
         urlController.text.isNotEmpty) {
       final id = await ContentBlockerService.instance
-          .addCustomList(nameController.text, urlController.text);
+          .addCustomList(nameController.text, url: urlController.text);
       await _downloadContentList(id);
     }
 
@@ -129,7 +130,7 @@ class _ContentBlockerSettingsScreenState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _nameField(loc, nameController),
+            _nameField(loc, controller: nameController),
             const SizedBox(height: 8),
             TextField(
               controller: rulesController,
@@ -160,8 +161,8 @@ class _ContentBlockerSettingsScreenState
     if (!result || name.isEmpty) return;
     final service = ContentBlockerService.instance;
     await _refreshAfter(existing == null
-        ? service.addLocalList(name, rules)
-        : service.updateLocalList(existing.id, name, rules));
+        ? service.addLocalList(name, rules: rules)
+        : service.updateLocalList(existing.id, name: name, rules: rules));
   }
 
   Future<void> _importUboBackup() async {
@@ -204,7 +205,8 @@ class _ContentBlockerSettingsScreenState
     }
 
     final unappliedHosts = plan.trustedHosts
-        .where((h) => !sites.any((s) => hostTrustedBy(s.host, {h})))
+        .where(
+            (h) => !sites.any((s) => hostTrustedBy(s.host, trustedHosts: {h})))
         .length;
     final listCount = plan.enableIds.length + plan.addLists.length;
     final userRuleCount = plan.userFilters == null
@@ -313,7 +315,7 @@ class _ContentBlockerSettingsScreenState
                 value: list.enabled,
                 onChanged: list.lastUpdated != null && !isDownloading
                     ? (value) =>
-                        _refreshAfter(service.toggleList(list.id, value))
+                        _refreshAfter(service.toggleList(list.id, enabled: value))
                     : null,
               ),
               title: Text(list.name),
@@ -395,7 +397,7 @@ class _ContentBlockerSettingsScreenState
                 ? null
                 : Lock.because(loc.appSettingsUboRedirectStubsUnavailable),
             control: Toggle(service.useUboResources,
-                (value) => _refreshAfter(service.setUseUboResources(value))),
+                onChanged: (value) => _refreshAfter(service.setUseUboResources(enabled: value))),
           ),
           const SizedBox(height: 24),
         ],

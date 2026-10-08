@@ -38,17 +38,18 @@ abstract interface class TabsHost implements PageHost {
 
   /// WEBSPACE-012: switches to "All" when the selected webspace hides
   /// [model].
-  Future<void> revealSite(WebViewModel model, int index);
+  Future<void> revealSite(WebViewModel model, {required int index});
 
   /// Tells the user a tab opened in the background, with a way to it.
-  void offerOpenTab(WebViewModel model, String tabId);
+  void offerOpenTab(WebViewModel model, {required String tabId});
 
   /// The sites that can run a link of [opener]'s as a tab in [owner]'s tree
   /// (LIR-032).
-  List<DispatchableSite> tabHostsIn(WebViewModel owner, WebViewModel opener);
+  List<DispatchableSite> tabHostsIn(WebViewModel owner,
+      {required WebViewModel opener});
 
   /// [model] left the loaded set outside the unload funnel, for [why].
-  void noteUnloaded(WebViewModel model, String why);
+  void noteUnloaded(WebViewModel model, {required String why});
 }
 
 /// A site's tabs (TAB-002..TAB-019): one container and one webview per site,
@@ -59,11 +60,11 @@ abstract interface class TabsHost implements PageHost {
 /// never moves.
 class TabsController {
   TabsController(
-    this._sites,
-    this._host, {
+    this._sites, {
+    required TabsHost host,
     required this.navStates,
     required this.residency,
-  });
+  }) : _host = host;
 
   final SiteRuntime _sites;
   final TabsHost _host;
@@ -99,7 +100,8 @@ class TabsController {
   void forgetReturns() => _returns = const [];
 
   TabReturn? wayBackFrom(WebViewModel model) =>
-      TabReturnEngine.wayBack(_returns, model.siteId, model.activeTabId);
+      TabReturnEngine.wayBack(_returns,
+          siteId: model.siteId, activeTabId: model.activeTabId);
 
   /// Tabs are experimental (TAB-012, DEVTOOLS-011): developer mode and the Site
   /// tabs switch. Read on every use, so the switch applies without a restart.
@@ -123,7 +125,7 @@ class TabsController {
   /// Whether [host] may run a tab in [owner]'s tree (LIR-019): the container
   /// engine, a host with a persistent container of its own, and neither side
   /// in an archive.
-  bool mayHost(WebViewModel host, WebViewModel owner) =>
+  bool mayHost(WebViewModel host, {required WebViewModel owner}) =>
       _sites.useContainers &&
       !identical(host, owner) &&
       !host.effectiveIncognito &&
@@ -135,7 +137,7 @@ class TabsController {
   /// it leaves parks with its back stack, as for New tab.
   Future<void> landOnHomeTab(WebViewModel model) async {
     final landing = TabLifecycleEngine.homeLanding(
-        model.tabs, model.activeTabId, model.initUrl);
+        model.tabs, activeTabId: model.activeTabId, initUrl: model.initUrl);
     if (landing == null) return;
     if (_gate.busy) {
       LogTag.tabs.debug(
@@ -148,7 +150,7 @@ class TabsController {
       if (index < 0) return;
       model.tabs = landing.tabs;
       if (index == _sites.current || _sites.loaded.contains(index)) {
-        await switchActiveTab(model, landing.activeTabId);
+        await switchActiveTab(model, targetTabId: landing.activeTabId);
         return;
       }
       model.activeTabId = landing.activeTabId;
@@ -164,8 +166,8 @@ class TabsController {
   /// the active id, after the identity being left is read: a close that
   /// installed it first would leave the closed tab's host unseen.
   Future<void> switchActiveTab(
-    WebViewModel model,
-    String targetTabId, {
+    WebViewModel model, {
+    required String targetTabId,
     List<SiteTab>? tabs,
     bool captureOutgoing = true,
   }) async {
@@ -184,7 +186,10 @@ class TabsController {
     if (tabs != null) model.tabs = tabs;
     model.activeTabId = targetTabId;
     model.activeTab.lastActiveAt = DateTime.now();
-    if (!await _applySlotIdentityChange(model, identityBefore)) return;
+    if (!await _applySlotIdentityChange(model,
+        identityBefore: identityBefore)) {
+      return;
+    }
     // Queue before the dispose: `restoreState` only applies to a freshly
     // created controller, and `disposeWebView` is what makes the next build
     // create one. Nothing queued means the rebuild loads the tab's URL with an
@@ -226,9 +231,9 @@ class TabsController {
   /// stays unloaded and rebuilds under it on its next activation. False when
   /// the page went away meanwhile.
   Future<bool> _applySlotIdentityChange(
-    WebViewModel model,
-    WebViewModel identityBefore,
-  ) async {
+    WebViewModel model, {
+    required WebViewModel identityBefore,
+  }) async {
     final slot = _sites.models.indexOf(model);
     if (identical(identityBefore, model.runningIdentity) ||
         slot < 0 ||
@@ -237,14 +242,14 @@ class TabsController {
     }
     if (slot == _sites.current) {
       final plan =
-          SiteUnloadEngine.plan(residency, SlotIdentityChanged(slot));
-      if (!await SiteUnloadEngine.apply(residency, plan,
+          SiteUnloadEngine.plan(residency, event: SlotIdentityChanged(slot));
+      if (!await SiteUnloadEngine.apply(residency, plan: plan,
           isStale: () => !_host.mounted)) {
         return false;
       }
     } else {
       _sites.loaded.remove(slot);
-      _host.noteUnloaded(model, 'identity change');
+      _host.noteUnloaded(model, why: 'identity change');
     }
     return _host.mounted;
   }
@@ -288,7 +293,7 @@ class TabsController {
             containersActive: _sites.useContainers,
             opener: SiteRoute(opener),
             openerPrefs: opener.outboundPreferences,
-            hosts: () => _host.tabHostsIn(owner, opener),
+            hosts: () => _host.tabHostsIn(owner, opener: opener),
             current: tab.hostSiteId ?? owner.siteId,
           );
           final host = runsAs == owner.siteId ? null : runsAs;
@@ -314,7 +319,10 @@ class TabsController {
         final model = entry.key;
         if (!_sites.models.contains(model)) continue;
         if (identical(entry.value, model.runningIdentity)) continue;
-        if (!await _applySlotIdentityChange(model, entry.value)) return;
+        if (!await _applySlotIdentityChange(model,
+            identityBefore: entry.value)) {
+          return;
+        }
         _host.evictCache(model.siteId);
         model.disposeWebView();
       }
@@ -326,7 +334,7 @@ class TabsController {
 
   /// Show [tabId] of the site at [index]. Used by the tab list, and by Back
   /// going back along the trail of jumps it made (TAB-019).
-  Future<void> openTab(int index, String tabId) async {
+  Future<void> openTab(int index, {required String tabId}) async {
     await _gate.run(() async {
       if (index < 0 || index >= _sites.models.length) return;
       final model = _sites.models[index];
@@ -344,7 +352,7 @@ class TabsController {
             );
       if (index == _sites.current) {
         if (model.activeTabId == tabId) return;
-        await switchActiveTab(model, tabId);
+        await switchActiveTab(model, targetTabId: tabId);
         _returns = trail;
         return;
       }
@@ -354,7 +362,7 @@ class TabsController {
       // dispose right after it.
       if (model.activeTabId != tabId && model.tabs.any((t) => t.id == tabId)) {
         if (_sites.loaded.contains(index)) {
-          await switchActiveTab(model, tabId);
+          await switchActiveTab(model, targetTabId: tabId);
           if (!_host.mounted) return;
         } else {
           model.activeTabId = tabId;
@@ -364,10 +372,10 @@ class TabsController {
       }
       // An "In {site}" row can belong to a site this webspace hides. Going
       // back puts back the webspace the jump left, if it shows the site.
-      if (back != null && back.leadsBackTo(model.siteId, tabId)) {
-        await _returnToWebspace(back.webspaceId, model, index);
+      if (back != null && back.leadsBackTo(model.siteId, tabId: tabId)) {
+        await _returnToWebspace(back.webspaceId, model: model, index: index);
       } else {
-        await _host.revealSite(model, index);
+        await _host.revealSite(model, index: index);
       }
       if (!_host.mounted) return;
       await _host.activate(index);
@@ -380,13 +388,13 @@ class TabsController {
 
   /// TAB-019: the way back from a jump restores the webspace the jump left
   /// when that still shows [model]; otherwise WEBSPACE-012 decides.
-  Future<void> _returnToWebspace(
-      String? webspaceId, WebViewModel model, int index) async {
+  Future<void> _returnToWebspace(String? webspaceId,
+      {required WebViewModel model, required int index}) async {
     final ws = _sites.webspaces.where((w) => w.id == webspaceId).firstOrNull;
     if (ws == null ||
         webspaceId == _sites.selectedWebspaceId ||
         !(ws.isAll || ws.siteIndices.contains(index))) {
-      await _host.revealSite(model, index);
+      await _host.revealSite(model, index: index);
       return;
     }
     _sites.selectedWebspaceId = webspaceId;
@@ -396,8 +404,8 @@ class TabsController {
 
   /// S6: a link from a hosted tab back into [model]'s own domain opens as
   /// [model]'s child tab under it, running as [model], and takes the slot.
-  Future<void> returnToOwner(WebViewModel model, String url) =>
-      openChildTab(model, url);
+  Future<void> returnToOwner(WebViewModel model, {required String url}) =>
+      openChildTab(model, url: url);
 
   /// LIR-018: before an owner URL loads into [model]'s slot, the slot moves to
   /// a tab [model] runs itself: the nearest such ancestor, or a new root tab.
@@ -414,14 +422,14 @@ class TabsController {
   /// [bindOwnerRunTab] for a slot that may be live: the hosted tab's back
   /// stack is captured and the webview rebuilt as [model].
   Future<void> switchToOwnerRunTab(WebViewModel model) async {
-    var id = TabLifecycleEngine.ownerRunTab(model.tabs, model.activeTabId,
-        isForeign: model.isForeignTab);
+    var id = TabLifecycleEngine.ownerRunTab(model.tabs,
+        activeTabId: model.activeTabId, isForeign: model.isForeignTab);
     if (id == null) {
       final tab = SiteTab(url: model.initUrl);
       model.tabs = [...model.tabs, tab];
       id = tab.id;
     }
-    await switchActiveTab(model, id);
+    await switchActiveTab(model, targetTabId: id);
   }
 
   /// LIR-023: close every hosted tab whose host is gone ([goneSiteId], or
@@ -437,16 +445,16 @@ class TabsController {
       if (!model.tabs.any((t) => t.hostSiteId != null)) continue;
       final result = TabLifecycleEngine.closeWhere(
         model.tabs,
-        model.activeTabId,
-        (t) {
+        activeTabId: model.activeTabId,
+        shouldClose: (t) {
           if (t.hostSiteId == null) return false;
           final host = model.hostOf(t);
           return host == null ||
               host.siteId == goneSiteId ||
-              !mayHost(host, model);
+              !mayHost(host, owner: model);
         },
       );
-      await _applyTabClose(i, model, result);
+      await _applyTabClose(i, model: model, result: result);
       if (!_host.mounted) return;
     }
   }
@@ -473,7 +481,7 @@ class TabsController {
         await _host.commitSites(const SitesEdited());
         return;
       }
-      await switchActiveTab(model, tab.id);
+      await switchActiveTab(model, targetTabId: tab.id);
       if (!_host.mounted) return;
       if (index != _sites.current) await _host.activate(index);
     });
@@ -484,8 +492,8 @@ class TabsController {
   /// and switched to: a search's results (LIR-030), a link back to the owner
   /// (S6), a link into another of the user's sites (LIR-032).
   Future<void> openChildTab(
-    WebViewModel owner,
-    String url, {
+    WebViewModel owner, {
+    required String url,
     String? hostSiteId,
     String? parentTabId,
     String? openerSiteId,
@@ -505,11 +513,11 @@ class TabsController {
         openerSiteId: openerSiteId,
         homeUrl: homeUrl,
       );
-      owner.tabs = TabLifecycleEngine.insertChild(owner.tabs, tab);
+      owner.tabs = TabLifecycleEngine.insertChild(owner.tabs, tab: tab);
       LogTag.tabs.debug('Opened a child tab of "${owner.name}"'
           '${tab.hostSiteId == null ? '' : ' run as ${tab.hostSiteId}'}',
           sensitive: true);
-      await switchActiveTab(owner, tab.id);
+      await switchActiveTab(owner, targetTabId: tab.id);
     });
   }
 
@@ -537,7 +545,7 @@ class TabsController {
         final bytes = _sites.loaded.contains(index)
             ? await model.captureNavigationState()
             : await navStates.loadState(model.activeStateKey);
-        if (bytes != null) await navStates.saveState(copyKey, bytes);
+        if (bytes != null) await navStates.saveState(copyKey, state: bytes);
       }
       if (!_host.mounted) return;
       if (!_sites.models.contains(model) ||
@@ -545,13 +553,14 @@ class TabsController {
         unawaited(navStates.removeState(copyKey));
         return;
       }
-      model.tabs = TabLifecycleEngine.insertAfter(model.tabs, source.id, copy);
+      model.tabs = TabLifecycleEngine.insertAfter(model.tabs,
+          anchorId: source.id, tab: copy);
       _host.rebuild();
       LogTag.tabs.debug(
           'Duplicated ${source.id} as ${copy.id} in "${model.name}"',
           sensitive: true);
       await _host.commitSites(const SitesEdited());
-      _host.offerOpenTab(model, copy.id);
+      _host.offerOpenTab(model, tabId: copy.id);
     });
   }
 
@@ -561,8 +570,8 @@ class TabsController {
   /// Costs nothing until it is first opened: no webview is built and no state
   /// file is written.
   Future<void> openLinkInNewTab(
-    int index,
-    String url, {
+    int index, {
+    required String url,
     required String? hostSiteId,
     String? openerSiteId,
     String? homeUrl,
@@ -579,7 +588,7 @@ class TabsController {
         openerSiteId: openerSiteId,
         homeUrl: homeUrl,
       );
-      model.tabs = TabLifecycleEngine.insertChild(model.tabs, tab);
+      model.tabs = TabLifecycleEngine.insertChild(model.tabs, tab: tab);
       _host.rebuild();
       return tab;
     });
@@ -588,17 +597,17 @@ class TabsController {
         'Opened a background tab under ${model.activeTabId} in "${model.name}"',
         sensitive: true);
     await _host.commitSites(const SitesEdited());
-    _host.offerOpenTab(model, tab.id);
+    _host.offerOpenTab(model, tabId: tab.id);
   }
 
   /// Apply a close the engine has already decided, dropping the saved state of
   /// every tab that went and re-binding the webview when the one on screen was
   /// among them.
   Future<void> _applyTabClose(
-    int index,
-    WebViewModel model,
-    TabCloseResult result,
-  ) async {
+    int index, {
+    required WebViewModel model,
+    required TabCloseResult result,
+  }) async {
     if (result.closedIds.isEmpty) return;
     for (final id in result.closedIds) {
       await navStates.removeState(model.stateKeyForTab(id));
@@ -614,14 +623,14 @@ class TabsController {
       // that was just closed cannot be left rendering it; there is nothing to
       // capture, since that tab is gone.
       final home = SiteTab.primary(url: model.initUrl);
-      await switchActiveTab(model, home.id,
+      await switchActiveTab(model, targetTabId: home.id,
           tabs: [home], captureOutgoing: false);
       return;
     }
     final next = result.nextActiveId;
     final live = index == _sites.current || _sites.loaded.contains(index);
     if (result.activeChanged && next != null && live) {
-      await switchActiveTab(model, next,
+      await switchActiveTab(model, targetTabId: next,
           tabs: result.tabs, captureOutgoing: false);
       return;
     }
@@ -632,23 +641,26 @@ class TabsController {
     await _host.commitSites(const SitesEdited());
   }
 
-  Future<void> closeTab(int index, String tabId, {bool subtree = false}) async {
+  Future<void> closeTab(int index,
+      {required String tabId, bool subtree = false}) async {
     await _gate.run(() async {
       if (index < 0 || index >= _sites.models.length) return;
       final model = _sites.models[index];
       final result = subtree
-          ? TabLifecycleEngine.closeSubtree(model.tabs, model.activeTabId, tabId)
-          : TabLifecycleEngine.closeTab(model.tabs, model.activeTabId, tabId);
-      await _applyTabClose(index, model, result);
+          ? TabLifecycleEngine.closeSubtree(model.tabs,
+              activeTabId: model.activeTabId, closeId: tabId)
+          : TabLifecycleEngine.closeTab(model.tabs,
+              activeTabId: model.activeTabId, closeId: tabId);
+      await _applyTabClose(index, model: model, result: result);
     });
   }
 
   /// A tab and its subtree dragged to another place in its site's tree
   /// (TAB-015). Only the tree changes: no webview, host or state key does.
-  bool moveTab(int index, String tabId, TabDrop drop) {
+  bool moveTab(int index, {required String tabId, required TabDrop drop}) {
     if (_gate.busy || !enabledAt(index)) return false;
     final model = _sites.models[index];
-    final moved = TabLifecycleEngine.drop(model.tabs, tabId, drop);
+    final moved = TabLifecycleEngine.drop(model.tabs, tabId: tabId, drop: drop);
     if (moved == null) return false;
     model.tabs = moved;
     _host.rebuild();
@@ -683,7 +695,7 @@ class TabsController {
     LogTag.navigation.debug(
         'Back gesture: at the start of a tab opened from the Tabs sheet; '
         'back where it was opened from');
-    await openTab(index, back.fromTabId);
+    await openTab(index, tabId: back.fromTabId);
     return true;
   }
 
@@ -701,13 +713,14 @@ class TabsController {
     }
     final index = _sites.current!;
     final model = _sites.models[index];
-    if (TabLifecycleEngine.backAtHistoryStart(model.tabs, model.activeTabId) !=
+    if (TabLifecycleEngine.backAtHistoryStart(model.tabs,
+            activeTabId: model.activeTabId) !=
         TabBackAction.closeAndActivateParent) {
       return false;
     }
     LogTag.navigation.debug(
         'Back gesture: at history start in a tab opened from another; closing it');
-    await closeTab(index, model.activeTabId);
+    await closeTab(index, tabId: model.activeTabId);
     return true;
   }
 }

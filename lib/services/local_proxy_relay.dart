@@ -133,7 +133,7 @@ class LocalProxyRelay {
         final nonce = _probeNonce(requestHead);
         target = _connectTarget(requestHead);
         if (nonce == null && target == null) {
-          client.add(_response(400, 'Bad Request'));
+          client.add(_response(400, reason: 'Bad Request'));
           await client.flush();
           client.destroy();
           return;
@@ -164,11 +164,11 @@ class LocalProxyRelay {
         return;
       }
 
-      upstream = await _dial(route, target.host, target.port);
+      upstream = await _dial(route, host: target.host, port: target.port);
       if (upstream == null) {
         // The site named an upstream that could not be reached. Refusing is
         // the whole point: falling back to a direct dial here is the leak.
-        client.add(_response(502, 'Bad Gateway'));
+        client.add(_response(502, reason: 'Bad Gateway'));
         await client.flush();
         client.destroy();
         return;
@@ -176,15 +176,17 @@ class LocalProxyRelay {
       _upstreams.add(upstream);
       upstream.setOption(SocketOption.tcpNoDelay, true);
       unawaited(upstream.done.catchError((Object _) => upstream!));
-      client.add(_response(200, 'Connection Established'));
-      await _relay(client, incoming, upstream, pending: head.drain());
+      client.add(_response(200, reason: 'Connection Established'));
+      await _relay(client,
+          incoming: incoming, upstream: upstream, pending: head.drain());
     } on Object {
       client.destroy();
       upstream?.destroy();
     }
   }
 
-  Future<Socket?> _dial(LocalProxyRoute route, String host, int port) async {
+  Future<Socket?> _dial(LocalProxyRoute route,
+      {required String host, required int port}) async {
     final upstream = route.upstream;
     try {
       switch (upstream.type) {
@@ -215,7 +217,7 @@ class LocalProxyRelay {
           ).timeout(const Duration(seconds: 20));
         case ProxyType.HTTP:
         case ProxyType.HTTPS:
-          return await _dialThroughConnect(route, host, port);
+          return await _dialThroughConnect(route, host: host, port: port);
         case ProxyType.SAVED:
         case ProxyType.GATEWAY:
           // Upstreams arrive resolved; one still naming the proxy library
@@ -228,10 +230,10 @@ class LocalProxyRelay {
   }
 
   Future<Socket?> _dialThroughConnect(
-    LocalProxyRoute route,
-    String host,
-    int port,
-  ) async {
+    LocalProxyRoute route, {
+    required String host,
+    required int port,
+  }) async {
     final endpoint = _endpoint(route.upstream.address);
     if (endpoint == null) return null;
     final socket = await Socket.connect(
@@ -336,13 +338,13 @@ class LocalProxyRelay {
         'Content-Length: 0\r\n\r\n',
       );
 
-  static List<int> _response(int code, String reason) =>
+  static List<int> _response(int code, {required String reason}) =>
       utf8.encode('HTTP/1.1 $code $reason\r\n\r\n');
 
   Future<void> _relay(
-    Socket client,
-    StreamSubscription<List<int>> incoming,
-    Socket upstream, {
+    Socket client, {
+    required StreamSubscription<List<int>> incoming,
+    required Socket upstream,
     List<int> pending = const [],
   }) async {
     final finished = Completer<void>();
@@ -350,7 +352,7 @@ class LocalProxyRelay {
       if (!finished.isCompleted) finished.complete();
     }
 
-    void forward(Socket to, List<int> data) {
+    void forward(Socket to, {required List<int> data}) {
       try {
         to.add(data);
       } on Object {
@@ -358,9 +360,9 @@ class LocalProxyRelay {
       }
     }
 
-    if (pending.isNotEmpty) forward(upstream, pending);
+    if (pending.isNotEmpty) forward(upstream, data: pending);
     incoming
-      ..onData((d) => forward(upstream, d))
+      ..onData((d) => forward(upstream, data: d))
       ..onError((Object _) {
         upstream.destroy();
         finish();
@@ -370,7 +372,7 @@ class LocalProxyRelay {
         finish();
       });
     upstream.listen(
-      (d) => forward(client, d),
+      (d) => forward(client, data: d),
       onError: (Object _) {
         client.destroy();
         finish();

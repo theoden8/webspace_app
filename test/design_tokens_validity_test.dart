@@ -21,7 +21,7 @@ import 'package:webspace/theme/design_tokens.dart';
 /// "are these two indicators telling me different things": green 700 and grey
 /// 600 sit within 1.12:1 of each other by construction, because they differ in
 /// hue rather than in lightness.
-double _deltaE(Color a, Color b) {
+double _deltaE(Color a, {required Color b}) {
   List<double> lab(Color c) {
     double linear(double v) =>
         v <= 0.04045 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
@@ -42,13 +42,13 @@ double _deltaE(Color a, Color b) {
       math.pow(la[2] - lb[2], 2));
 }
 
-double _contrast(Color a, Color b) {
+double _contrast(Color a, {required Color b}) {
   final la = a.computeLuminance();
   final lb = b.computeLuminance();
   return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
 }
 
-void _ascending(List<double> values, String what) {
+void _ascending(List<double> values, {required String what}) {
   for (var i = 1; i < values.length; i++) {
     expect(values[i], greaterThan(values[i - 1]),
         reason: '$what is not a scale: ${values[i]} follows ${values[i - 1]}');
@@ -58,7 +58,7 @@ void _ascending(List<double> values, String what) {
 void main() {
   group('Radii', () {
     test('is a strictly ascending scale of positive values', () {
-      _ascending(Radii.scale, 'Radii.scale');
+      _ascending(Radii.scale, what: 'Radii.scale');
       for (final r in Radii.scale) {
         expect(r, greaterThan(0));
         expect(r.isFinite, isTrue);
@@ -76,7 +76,7 @@ void main() {
   group('Spacing', () {
     test('is a strictly ascending scale on a 4pt grid', () {
       final scale = [Spacing.xs, Spacing.sm, Spacing.md, Spacing.lg, Spacing.xl];
-      _ascending(scale, 'Spacing');
+      _ascending(scale, what: 'Spacing');
       for (final s in scale) {
         expect(s, greaterThan(0));
         expect(s % 4, 0, reason: '$s is off the 4pt grid');
@@ -91,13 +91,14 @@ void main() {
       }
       expect(Chrome.barLight.computeLuminance(), greaterThan(0.5));
       expect(Chrome.barDark.computeLuminance(), lessThan(0.5));
-      expect(Chrome.bar(false), Chrome.barLight);
-      expect(Chrome.bar(true), Chrome.barDark);
+      expect(Chrome.bar(isDark: false), Chrome.barLight);
+      expect(Chrome.bar(isDark: true), Chrome.barDark);
     });
 
     test('each hairline separates from its bar without becoming a border', () {
       for (final isDark in [false, true]) {
-        final ratio = _contrast(Chrome.bar(isDark), Chrome.hairline(isDark));
+        final ratio = _contrast(Chrome.bar(isDark: isDark),
+            b: Chrome.hairline(isDark: isDark));
         expect(ratio, greaterThan(1.05),
             reason: '${isDark ? 'dark' : 'light'} hairline is invisible on its bar');
         expect(ratio, lessThan(3.0),
@@ -116,7 +117,7 @@ void main() {
     // what it sits on. The padlock is the only security signal in the URL bar.
     for (final colour in [SecurityIndicator.secure, SecurityIndicator.insecure]) {
       for (final isDark in [false, true]) {
-        final ratio = _contrast(colour, Chrome.bar(isDark));
+        final ratio = _contrast(colour, b: Chrome.bar(isDark: isDark));
         expect(ratio, greaterThanOrEqualTo(3.0),
             reason: 'padlock at ${ratio.toStringAsFixed(2)}:1 on the '
                 '${isDark ? 'dark' : 'light'} bar');
@@ -124,14 +125,15 @@ void main() {
     }
     // 20 is comfortably past "different colour" and well short of demanding a
     // particular pair; ~49 today.
-    expect(_deltaE(SecurityIndicator.secure, SecurityIndicator.insecure),
+    expect(_deltaE(SecurityIndicator.secure, b: SecurityIndicator.insecure),
         greaterThan(20),
         reason: 'secure and insecure must not read as the same colour');
   });
 
   group('Sizing', () {
     test('icon sizes ascend and stay legible', () {
-      _ascending([IconSizes.inline, IconSizes.action, IconSizes.floating], 'IconSizes');
+      _ascending([IconSizes.inline, IconSizes.action, IconSizes.floating],
+          what: 'IconSizes');
       expect(IconSizes.inline, greaterThanOrEqualTo(12));
       expect(IconSizes.floating, lessThanOrEqualTo(48));
     });
@@ -184,13 +186,13 @@ void main() {
       const darkSurfaces = [Color(0xFF121212), Chrome.barDark];
       for (final c in ContainerColors.light) {
         for (final s in lightSurfaces) {
-          expect(_contrast(c, s), greaterThanOrEqualTo(3.0),
+          expect(_contrast(c, b: s), greaterThanOrEqualTo(3.0),
               reason: '$c on $s');
         }
       }
       for (final c in ContainerColors.dark) {
         for (final s in darkSurfaces) {
-          expect(_contrast(c, s), greaterThanOrEqualTo(3.0),
+          expect(_contrast(c, b: s), greaterThanOrEqualTo(3.0),
               reason: '$c on $s');
         }
       }
@@ -200,7 +202,7 @@ void main() {
       for (final set in [ContainerColors.light, ContainerColors.dark]) {
         for (var i = 0; i < set.length; i++) {
           for (var j = i + 1; j < set.length; j++) {
-            expect(_deltaE(set[i], set[j]), greaterThan(15),
+            expect(_deltaE(set[i], b: set[j]), greaterThan(15),
                 reason: 'containers $i and $j are hard to tell apart');
           }
         }
@@ -208,10 +210,12 @@ void main() {
     });
 
     test('of() picks the set by brightness and wraps an index past the end', () {
-      expect(ContainerColors.of(0, Brightness.light), ContainerColors.light[0]);
-      expect(ContainerColors.of(0, Brightness.dark), ContainerColors.dark[0]);
+      expect(ContainerColors.of(0, brightness: Brightness.light),
+          ContainerColors.light[0]);
+      expect(ContainerColors.of(0, brightness: Brightness.dark),
+          ContainerColors.dark[0]);
       final n = ContainerColors.light.length;
-      expect(ContainerColors.of(n + 2, Brightness.light),
+      expect(ContainerColors.of(n + 2, brightness: Brightness.light),
           ContainerColors.light[2]);
     });
 

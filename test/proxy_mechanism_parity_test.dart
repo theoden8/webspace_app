@@ -69,8 +69,8 @@ void main() {
     );
   }
 
-  UserProxySettings proxy(ProxyType type, String? address,
-          {String? username, String? password}) =>
+  UserProxySettings proxy(ProxyType type, {required String? address,
+         String? username, String? password}) =>
       UserProxySettings(
         type: type,
         address: address,
@@ -86,24 +86,24 @@ void main() {
   tearDown(() => torProxyResolver = null);
 
   final cases = <String, UserProxySettings>{
-    'unset': proxy(ProxyType.DEFAULT, null),
-    'http': proxy(ProxyType.HTTP, '10.0.0.1:8080'),
-    'https': proxy(ProxyType.HTTPS, 'secure.example.com:443'),
-    'socks5': proxy(ProxyType.SOCKS5, '127.0.0.1:9050'),
-    'authenticated': proxy(ProxyType.SOCKS5, '127.0.0.1:9050',
+    'unset': proxy(ProxyType.DEFAULT, address: null),
+    'http': proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
+    'https': proxy(ProxyType.HTTPS, address: 'secure.example.com:443'),
+    'socks5': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
+    'authenticated': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050',
         username: 'alice', password: 's3cret'),
-    'tor with a stale manual address': proxy(ProxyType.TOR, '203.0.113.9:9050'),
-    'no address': proxy(ProxyType.HTTP, null),
-    'empty address': proxy(ProxyType.HTTP, ''),
-    'no port': proxy(ProxyType.HTTP, 'proxy.example.com'),
-    'non-numeric port': proxy(ProxyType.HTTP, 'host:notaport'),
-    'no host': proxy(ProxyType.HTTP, ':8080'),
-    'port zero': proxy(ProxyType.HTTP, 'h:0'),
-    'port out of range': proxy(ProxyType.HTTP, 'h:70000'),
+    'tor with a stale manual address': proxy(ProxyType.TOR, address: '203.0.113.9:9050'),
+    'no address': proxy(ProxyType.HTTP, address: null),
+    'empty address': proxy(ProxyType.HTTP, address: ''),
+    'no port': proxy(ProxyType.HTTP, address: 'proxy.example.com'),
+    'non-numeric port': proxy(ProxyType.HTTP, address: 'host:notaport'),
+    'no host': proxy(ProxyType.HTTP, address: ':8080'),
+    'port zero': proxy(ProxyType.HTTP, address: 'h:0'),
+    'port out of range': proxy(ProxyType.HTTP, address: 'h:70000'),
     // Regression: the native path split on every colon and required
     // exactly two parts, so it blocked an IPv6 proxy the router honoured.
-    'ipv6 literal': proxy(ProxyType.HTTP, '[::1]:8080'),
-    'ipv6 literal, authenticated': proxy(ProxyType.SOCKS5, '[2001:db8::1]:1080',
+    'ipv6 literal': proxy(ProxyType.HTTP, address: '[::1]:8080'),
+    'ipv6 literal, authenticated': proxy(ProxyType.SOCKS5, address: '[2001:db8::1]:1080',
         username: 'alice', password: 's3cret'),
   };
 
@@ -119,8 +119,9 @@ void main() {
 
   group('with an app-global proxy inherited by DEFAULT (PROXY-009)', () {
     test('a DEFAULT site follows the global on both paths', () {
-      GlobalOutboundProxy.setForTest(proxy(ProxyType.HTTP, '10.0.0.1:8080'));
-      final site = proxy(ProxyType.DEFAULT, null);
+      GlobalOutboundProxy.setForTest(
+          proxy(ProxyType.HTTP, address: '10.0.0.1:8080'));
+      final site = proxy(ProxyType.DEFAULT, address: null);
       expect(routerEgress(site), nativeEgress(site));
     });
 
@@ -128,8 +129,9 @@ void main() {
       // Neither may fall through to the device connection. The Tor
       // runtime is down here (no resolver installed), which is exactly
       // the state TOR-008 says must never mean "connect anyway".
-      GlobalOutboundProxy.setForTest(proxy(ProxyType.TOR, '203.0.113.9:9050'));
-      final site = proxy(ProxyType.DEFAULT, null);
+      GlobalOutboundProxy.setForTest(
+          proxy(ProxyType.TOR, address: '203.0.113.9:9050'));
+      final site = proxy(ProxyType.DEFAULT, address: null);
       expect(nativeEgress(site), isNull);
       expect(routerEgress(site), isNull);
     });
@@ -151,21 +153,22 @@ void main() {
       // that it was Android-only while the Tor runtime was Apple-only. The
       // router runs on Apple now (PROXY-026), so that drop would have sent
       // a Tor site to a 502 while the native path proxied it correctly.
-      final site = proxy(ProxyType.TOR, '203.0.113.9:9050');
+      final site = proxy(ProxyType.TOR, address: '203.0.113.9:9050');
       expect(routerEgress(site), nativeEgress(site));
       expect(routerEgress(site)?.port, 19050);
       expect(routerEgress(site)?.scheme, 'socks5');
     });
 
     test('a stale manual address never becomes the upstream', () {
-      final site = proxy(ProxyType.TOR, '203.0.113.9:9050');
+      final site = proxy(ProxyType.TOR, address: '203.0.113.9:9050');
       expect(routerEgress(site)?.host, isNot('203.0.113.9'));
     });
   });
 
   test('an explicit per-site proxy still wins over a global on both', () {
-    GlobalOutboundProxy.setForTest(proxy(ProxyType.HTTP, '10.0.0.1:8080'));
-    final site = proxy(ProxyType.SOCKS5, '127.0.0.1:9050');
+    GlobalOutboundProxy.setForTest(
+        proxy(ProxyType.HTTP, address: '10.0.0.1:8080'));
+    final site = proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050');
     expect(routerEgress(site), nativeEgress(site));
     expect(routerEgress(site)?.port, 9050);
   });

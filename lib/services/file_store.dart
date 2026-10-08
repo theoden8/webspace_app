@@ -27,12 +27,12 @@ abstract class FileStore {
   /// File contents, or null when the file is absent or unreadable.
   Future<String?> readText(String name);
 
-  Future<void> writeText(String name, String contents);
+  Future<void> writeText(String name, {required String contents});
 
   /// Binary contents, or null when absent or unreadable.
   Future<Uint8List?> readBytes(String name);
 
-  Future<void> writeBytes(String name, List<int> bytes);
+  Future<void> writeBytes(String name, {required List<int> bytes});
 
   Future<void> delete(String name);
 
@@ -83,7 +83,7 @@ class MemoryFileStore implements FileStore {
   }
 
   @override
-  Future<void> writeText(String name, String contents) async {
+  Future<void> writeText(String name, {required String contents}) async {
     checkFileStoreName(name);
     _files[name] = contents;
   }
@@ -98,7 +98,7 @@ class MemoryFileStore implements FileStore {
   }
 
   @override
-  Future<void> writeBytes(String name, List<int> bytes) async {
+  Future<void> writeBytes(String name, {required List<int> bytes}) async {
     checkFileStoreName(name);
     _bytes[name] = Uint8List.fromList(bytes);
   }

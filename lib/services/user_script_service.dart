@@ -82,10 +82,10 @@ bool _isRedirect(int status) =>
 /// body straight back to page JS. Returns null when a hop is refused or the
 /// chain outruns [_maxFetchRedirects].
 Future<http.Response?> _getWithCheckedRedirects(
-  http.Client client,
-  String url,
-  Future<bool> Function(String url) allow,
-) async {
+  http.Client client, {
+  required String url,
+  required Future<bool> Function(String url) allow,
+}) async {
   var target = Uri.parse(url);
   for (var hop = 0; hop <= _maxFetchRedirects; hop++) {
     final request = http.Request('GET', target)..followRedirects = false;
@@ -121,10 +121,10 @@ Future<http.Response?> _getWithCheckedRedirects(
 /// build with no resolver — the call goes through; see [classifyOutboundTarget]
 /// for why, and for what this does not close.
 Future<bool> _resolvedTargetAllowed(
-  String url,
-  UserProxySettings effective,
-) async {
-  final verdict = await classifyOutboundTarget(url, effective);
+  String url, {
+  required UserProxySettings effective,
+}) async {
+  final verdict = await classifyOutboundTarget(url, effective: effective);
   if (verdict == HostRangeVerdict.public ||
       verdict == HostRangeVerdict.notResolvedHere) {
     return true;
@@ -149,7 +149,7 @@ Future<({String? source, String? error})> fetchUserScriptSource(
   );
   Future<bool> allowed(String candidate) async =>
       classifyScriptFetchUrl(candidate) != ScriptFetchUrlStatus.blocked &&
-      await _resolvedTargetAllowed(candidate, effective);
+      await _resolvedTargetAllowed(candidate, effective: effective);
   if (!await allowed(url)) return (source: null, error: 'blocked URL');
   final http.Client client;
   switch (outboundHttp.clientFor(effective)) {
@@ -161,8 +161,8 @@ Future<({String? source, String? error})> fetchUserScriptSource(
   try {
     final response = await _getWithCheckedRedirects(
       client,
-      url,
-      allowed,
+      url: url,
+      allow: allowed,
     );
     if (response == null) return (source: null, error: 'blocked redirect');
     if (response.statusCode != 200) {
@@ -180,7 +180,8 @@ Future<({String? source, String? error})> fetchUserScriptSource(
 /// WebKit (macOS/iOS) errors when evaluateJavascript returns `undefined`;
 /// appending `;null;` returns a serializable value, and try-catch ensures
 /// a stale error never breaks callers.
-Future<void> _safeEval(inapp.InAppWebViewController c, String source) async {
+Future<void> _safeEval(inapp.InAppWebViewController c,
+    {required String source}) async {
   try {
     await c.evaluateJavascript(source: '$source\n;null;');
   } catch (e) {
@@ -272,7 +273,7 @@ class UserScriptService {
     if (!hasScripts) return result;
 
     if (shimScript != null) {
-      result.add(pageShim('script_fetch_shim', shimScript!,
+      result.add(pageShim('script_fetch_shim', js: shimScript!,
           frames: ShimFrames.top));
     }
 
@@ -295,7 +296,7 @@ class UserScriptService {
           sensitive: true);
       result.add(pageShim(
         'user_scripts',
-        _guarded(script.id, src),
+        js: _guarded(script.id, source: src),
         frames: ShimFrames.top,
         at: switch (script.injectionTime) {
           UserScriptInjectionTime.atDocumentStart => ShimTime.start,
@@ -315,7 +316,7 @@ class UserScriptService {
   /// never need explicit resetting. SPA re-injection (where `window`
   /// persists) deliberately bypasses this helper so that scripts can
   /// re-initialize on route changes.
-  static String _guarded(String scriptId, String source) {
+  static String _guarded(String scriptId, {required String source}) {
     final safeId = scriptId.replaceAll(RegExp(r'[^A-Za-z0-9_]'), '_');
     return 'if (!window.__wsRan_$safeId) { window.__wsRan_$safeId = true;\n$source\n}';
   }
@@ -335,7 +336,7 @@ class UserScriptService {
     // shows a URL, and `http://cdn.evil.example/lib.js` reads as a CDN
     // whatever it resolves to.
     if (!await _resolvedTargetAllowed(
-        url, resolveEffectiveProxy(_proxy, siteId: null))) {
+        url, effective: resolveEffectiveProxy(_proxy, siteId: null))) {
       return false;
     }
     if (status == ScriptFetchUrlStatus.requiresConfirmation) {
@@ -384,8 +385,8 @@ class UserScriptService {
         try {
           final response = await _getWithCheckedRedirects(
             client,
-            url,
-            _allowScriptFetch,
+            url: url,
+            allow: _allowScriptFetch,
           );
           if (response == null) return false;
           if (response.statusCode == 200) {
@@ -396,7 +397,7 @@ class UserScriptService {
             }
             LogTag.userScript.debug(
                 'Injecting fetched script (${response.body.length} bytes)');
-            await _safeEval(controller, response.body);
+            await _safeEval(controller, source: response.body);
             return true;
           }
           LogTag.userScript.debug('Fetch failed: HTTP ${response.statusCode}');
@@ -420,7 +421,7 @@ class UserScriptService {
         if (source.isEmpty) return null;
         LogTag.userScript.debug(
             'Inline script bridged (${source.length} bytes)');
-        await _safeEval(controller, source);
+        await _safeEval(controller, source: source);
         return null;
       },
     );
@@ -437,7 +438,7 @@ class UserScriptService {
         Future<bool> reachable(String candidate) async =>
             classifyScriptFetchUrl(candidate) !=
                 ScriptFetchUrlStatus.blocked &&
-            await _resolvedTargetAllowed(candidate, effective);
+            await _resolvedTargetAllowed(candidate, effective: effective);
         if (!await reachable(url)) {
           LogTag.userScript.debug(
               'Blocked resource fetch: $url', sensitive: true);
@@ -454,8 +455,8 @@ class UserScriptService {
         try {
           final response = await _getWithCheckedRedirects(
             client,
-            url,
-            reachable,
+            url: url,
+            allow: reachable,
           );
           if (response == null) return {'status': 403};
           if (response.body.length > _maxFetchBytes) {
@@ -495,7 +496,7 @@ class UserScriptService {
   ) async {
     if (!hasScripts) return;
     if (shimScript != null) {
-      await _safeEval(controller, shimScript!);
+      await _safeEval(controller, source: shimScript!);
     }
     for (final script in _scripts) {
       if (!script.enabled) continue;
@@ -508,7 +509,7 @@ class UserScriptService {
         LogTag.userScript.debug(
             'onLoadStart: re-injecting "${script.name}" (${src.length} chars)',
             sensitive: true);
-        await _safeEval(controller, _guarded(script.id, src));
+        await _safeEval(controller, source: _guarded(script.id, source: src));
       }
     }
   }
@@ -530,7 +531,7 @@ class UserScriptService {
         LogTag.userScript.debug(
             'onLoadStop: re-injecting "${script.name}" (${src.length} chars)',
             sensitive: true);
-        await _safeEval(controller, _guarded(script.id, src));
+        await _safeEval(controller, source: _guarded(script.id, source: src));
       }
     }
   }
@@ -554,7 +555,8 @@ class UserScriptService {
       final safeName = script.name.replaceAll('"', '\\"');
       await _safeEval(
         controller,
-        'console.log("__ws: SPA re-inject: $safeName");\n${script.source}',
+        source:
+            'console.log("__ws: SPA re-inject: $safeName");\n${script.source}',
       );
     }
   }

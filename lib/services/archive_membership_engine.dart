@@ -14,8 +14,8 @@ class ArchiveMembershipEngine {
   /// `{webspaceId: [siteIds]}`, merged into [existing] when given. Does not
   /// mutate the webspaces.
   static Map<String, List<String>> record(
-    List<Webspace> webspaces,
-    Set<String> siteIds, {
+    List<Webspace> webspaces, {
+    required Set<String> siteIds,
     Map<String, List<String>>? existing,
   }) {
     final out = <String, List<String>>{
@@ -41,11 +41,11 @@ class ArchiveMembershipEngine {
   /// webspace's runtime list. Used when the archived sites leave the
   /// runtime list (archive close).
   static Map<String, List<String>> detach(
-    List<Webspace> webspaces,
-    Set<String> siteIds, {
+    List<Webspace> webspaces, {
+    required Set<String> siteIds,
     Map<String, List<String>>? existing,
   }) {
-    final out = record(webspaces, siteIds, existing: existing);
+    final out = record(webspaces, siteIds: siteIds, existing: existing);
     for (final ws in webspaces) {
       if (ws.isArchiveTier || ws.isAll) continue;
       ws.siteIds.removeWhere(siteIds.contains);
@@ -57,9 +57,9 @@ class ArchiveMembershipEngine {
   /// app-tier webspaces' runtime `siteIds`. Ids already present are not
   /// duplicated; webspaces that no longer exist are skipped.
   static void attach(
-    List<Webspace> webspaces,
-    Map<String, List<String>> membership,
-  ) {
+    List<Webspace> webspaces, {
+    required Map<String, List<String>> membership,
+  }) {
     for (final ws in webspaces) {
       if (ws.isArchiveTier || ws.isAll) continue;
       final ids = membership[ws.id];
@@ -72,7 +72,8 @@ class ArchiveMembershipEngine {
 
   /// Drops [siteId] from every bucket of [membership], removing buckets
   /// that become empty. Used when a site is moved back out of an archive.
-  static void forget(Map<String, List<String>> membership, String siteId) {
+  static void forget(Map<String, List<String>> membership,
+      {required String siteId}) {
     for (final ids in membership.values) {
       ids.remove(siteId);
     }
@@ -83,9 +84,9 @@ class ArchiveMembershipEngine {
   /// a backup: archive-tier collections dropped, and every id in
   /// [archivedSiteIds] stripped from the remaining membership lists.
   static List<Webspace> persistable(
-    List<Webspace> webspaces,
-    Set<String> archivedSiteIds,
-  ) {
+    List<Webspace> webspaces, {
+    required Set<String> archivedSiteIds,
+  }) {
     return [
       for (final ws in webspaces)
         if (!ws.isArchiveTier)

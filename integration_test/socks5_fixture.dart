@@ -109,7 +109,7 @@ class Socks5Fixture {
   /// An arm that needs the page to do something -- navigate itself away, say
   /// -- supplies it here, because a synthetic destination has no origin
   /// server behind it to serve from.
-  String? Function(String host, String path)? syntheticBody;
+  String? Function(String host, {required String path})? syntheticBody;
 
   /// Certificate to answer a synthetic destination's TLS handshake with.
   ///
@@ -128,7 +128,7 @@ class Socks5Fixture {
     // uncaught async error, which flutter_test reports against whichever
     // test finished last -- here, "(setUpAll) failed after test completion",
     // counted as a failure of its own.
-    fixture._accepting = listenFixture(server, fixture._serve);
+    fixture._accepting = listenFixture(server, onEvent: fixture._serve);
     return fixture;
   }
 
@@ -176,7 +176,7 @@ class Socks5Fixture {
         client.add(const [5, 7, 0, 1, 0, 0, 0, 0, 0, 0]);
         return;
       }
-      final host = await _readHost(buffer, head[3]);
+      final host = await _readHost(buffer, addressType: head[3]);
       if (host == null) {
         client.add(const [5, 8, 0, 1, 0, 0, 0, 0, 0, 0]);
         return;
@@ -213,7 +213,7 @@ class Socks5Fixture {
                 '/';
             syntheticPaths.add('$host$path');
             syntheticRequests.add('$tunnel $host$path');
-            final body = syntheticBody?.call(host, path) ??
+            final body = syntheticBody?.call(host, path: path) ??
                 '<!doctype html><html><body><p>$host</p></body></html>';
             client.add(const AsciiEncoder().convert('HTTP/1.1 200 OK\r\n'
                 'Content-Type: text/html\r\n'
@@ -227,27 +227,27 @@ class Socks5Fixture {
 
         /// Reads one request line and answers it, over whichever socket the
         /// connection ended up on.
-        Future<void> answer(Socket sink, Future<List<int>?> Function() read) async {
-          final head = <int>[];
-          while (!String.fromCharCodes(head).contains('\r\n')) {
-            final next = await read();
-            if (next == null) break;
-            head.addAll(next);
-          }
-          final path = RegExp(r'^\S+ (\S+)')
-                  .firstMatch(String.fromCharCodes(head))
-                  ?.group(1) ??
-              '/';
-          syntheticPaths.add('$host$path');
-          final body = syntheticBody?.call(host, path) ??
-              '<!doctype html><html><body><p>$host</p></body></html>';
-          sink.add(const AsciiEncoder().convert('HTTP/1.1 200 OK\r\n'
-              'Content-Type: text/html\r\n'
-              'Connection: close\r\n'
-              'Content-Length: '));
-          sink.add(const AsciiEncoder().convert('${body.length}\r\n\r\n$body'));
-          await sink.flush();
-        }
+Future<void> answer(Socket sink,
+    {required Future<List<int>?> Function() read}) async {
+  final head = <int>[];
+  while (!String.fromCharCodes(head).contains('\r\n')) {
+    final next = await read();
+    if (next == null) break;
+    head.addAll(next);
+  }
+  final path =
+      RegExp(r'^\S+ (\S+)').firstMatch(String.fromCharCodes(head))?.group(1) ??
+          '/';
+  syntheticPaths.add('$host$path');
+  final body = syntheticBody?.call(host, path: path) ??
+      '<!doctype html><html><body><p>$host</p></body></html>';
+  sink.add(const AsciiEncoder().convert('HTTP/1.1 200 OK\r\n'
+      'Content-Type: text/html\r\n'
+      'Connection: close\r\n'
+      'Content-Length: '));
+  sink.add(const AsciiEncoder().convert('${body.length}\r\n\r\n$body'));
+  await sink.flush();
+}
 
         final tls = syntheticTls;
         if (tls != null) {
@@ -260,12 +260,12 @@ class Socks5Fixture {
           final inner = _ByteBuffer();
           final reading = secure.listen(inner.add,
               onError: (Object _) => inner.close(), onDone: inner.close);
-          await answer(secure, () => inner.read(1));
+          await answer(secure, read: () => inner.read(1));
           await reading.cancel();
           await secure.close();
           return;
         }
-        await answer(client, () => buffer.read(1));
+        await answer(client, read: () => buffer.read(1));
         await client.close();
         return;
       }
@@ -279,14 +279,16 @@ class Socks5Fixture {
       client.add(const [5, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
 
       final pending = buffer.drain();
-      await relaySockets(client, incoming, upstream, pending: pending);
+      await relaySockets(client,
+          incoming: incoming, upstream: upstream, pending: pending);
     } on Object {
       client.destroy();
       upstream?.destroy();
     }
   }
 
-  static Future<String?> _readHost(_ByteBuffer buffer, int addressType) async {
+  static Future<String?> _readHost(_ByteBuffer buffer,
+      {required int addressType}) async {
     if (addressType == 1) {
       final raw = await buffer.read(4);
       return raw?.join('.');

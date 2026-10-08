@@ -20,7 +20,7 @@ void main() {
   testWidgets('non-mobile hosts: dialog never shows, flag never written',
       (tester) async {
     if (Platform.isIOS || Platform.isAndroid) return;
-    await pumpLocalized(tester, Builder(
+    await pumpLocalized(tester, home: Builder(
       builder: (ctx) => ElevatedButton(
         onPressed: () =>
             maybeShowBackgroundNotificationLimitsDialog(ctx),

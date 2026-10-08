@@ -22,12 +22,13 @@ import 'package:webspace/settings/proxy.dart';
 /// Completes the SOCKS5 greeting, holds the CONNECT until [release], then
 /// answers it with [replyCode] (0 succeeded, 6 TTL expired).
 class _StallingSocks5 {
-  _StallingSocks5._(this._server, this.replyCode) {
+  _StallingSocks5._(this._server, {required this.replyCode}) {
     _server.listen(_serve);
   }
 
   static Future<_StallingSocks5> bind(int replyCode) async => _StallingSocks5._(
-      await ServerSocket.bind(InternetAddress.loopbackIPv4, 0), replyCode);
+      await ServerSocket.bind(InternetAddress.loopbackIPv4, 0),
+      replyCode: replyCode);
 
   final ServerSocket _server;
   final int replyCode;

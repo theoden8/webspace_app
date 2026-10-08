@@ -58,7 +58,7 @@ class _Page implements LinkHost {
   void evictCache(String siteId) => calls.add('evict $siteId');
 
   @override
-  Future<void> revealSite(WebViewModel model, int index) async =>
+  Future<void> revealSite(WebViewModel model, {required int index}) async =>
       calls.add('reveal $index');
 
   @override
@@ -74,8 +74,8 @@ class _Page implements LinkHost {
       controllers.putIfAbsent(model, FakeWebViewController.new);
 
   @override
-  Future<void> launchNestedFor(WebViewModel model, String url,
-          {bool opensFromTab = true}) async =>
+  Future<void> launchNestedFor(WebViewModel model, {required String url,
+         bool opensFromTab = true}) async =>
       calls.add('launchNested ${model.siteId} $url');
 
   @override
@@ -84,7 +84,7 @@ class _Page implements LinkHost {
       calls.add('openNested ${action.siteId} ${action.url}');
 
   @override
-  Future<void> unloadSite(int index, UnloadReason reason) async {
+  Future<void> unloadSite(int index, {required UnloadReason reason}) async {
     calls.add('unload $index ${reason.name}');
     sites.loaded.remove(index);
   }
@@ -143,11 +143,11 @@ void main() {
     prompts = _Prompts();
     links = LinkController(
       sites,
-      page,
-      prompts,
+      host: page,
+      prompts: prompts,
       tabs: TabsController(
         sites,
-        _NoTabs(),
+        host: _NoTabs(),
         navStates: _NoNavStates(),
         residency: _NoResidency(),
       ),

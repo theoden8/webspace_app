@@ -35,18 +35,19 @@ import 'package:webspace/services/https_upgrade_engine.dart';
 void main() {
   /// A client whose DNS is a lookup table. A scheme with no entry has nothing
   /// listening, which is the shape of a host that simply has no TLS.
-  HttpClient clientFor(Map<String, int> httpPorts, Map<String, int> httpsPorts) {
-    return HttpClient()
-      ..connectionTimeout = const Duration(seconds: 2)
-      ..connectionFactory = (uri, proxyHost, proxyPort) {
-        final table = uri.scheme == 'https' ? httpsPorts : httpPorts;
-        final port = table[uri.host];
-        if (port == null) {
-          throw const SocketException('connection refused');
-        }
-        return Socket.startConnect(InternetAddress.loopbackIPv4, port);
-      };
-  }
+HttpClient clientFor(Map<String, int> httpPorts,
+    {required Map<String, int> httpsPorts}) {
+  return HttpClient()
+    ..connectionTimeout = const Duration(seconds: 2)
+    ..connectionFactory = (uri, proxyHost, proxyPort) {
+      final table = uri.scheme == 'https' ? httpsPorts : httpPorts;
+      final port = table[uri.host];
+      if (port == null) {
+        throw const SocketException('connection refused');
+      }
+      return Socket.startConnect(InternetAddress.loopbackIPv4, port);
+    };
+}
 
   /// The call site's loop: upgrade, attempt under the engine's deadline, and
   /// on either an error or the deadline ask the engine what to load instead.
@@ -54,10 +55,10 @@ void main() {
   /// abandon an attempt that has produced no verdict and then take the same
   /// `fallbackForTimeout` branch.
   Future<({String loaded, bool fellBack, bool timedOut})> navigate(
-    HttpsUpgradeEngine engine,
-    HttpClient client,
-    String url,
-  ) async {
+    HttpsUpgradeEngine engine, {
+    required HttpClient client,
+    required String url,
+  }) async {
     final upgraded = engine.upgradeFor(url, enabled: true);
     final target = upgraded ?? url;
     var timedOut = false;
@@ -97,10 +98,10 @@ void main() {
       () async {
     final origin = await plainServer();
     final engine = HttpsUpgradeEngine();
-    final client = clientFor({'httponly.test': origin.port}, {});
+    final client = clientFor({'httponly.test': origin.port}, httpsPorts: {});
     try {
       final first = await navigate(
-          engine, client, 'http://httponly.test/login.php?a=1');
+          engine, client: client, url: 'http://httponly.test/login.php?a=1');
       expect(first.loaded, 'http://httponly.test/login.php?a=1',
           reason: 'the fallback must be the original URL, query intact');
       expect(first.fellBack, isTrue);
@@ -108,12 +109,14 @@ void main() {
 
       // The second navigation costs no failed connection: the engine does not
       // upgrade, so nothing is attempted over TLS at all (HTTPS-002).
-      final second = await navigate(engine, client, 'http://httponly.test/b');
+      final second =
+          await navigate(engine, client: client, url: 'http://httponly.test/b');
       expect(second.loaded, 'http://httponly.test/b');
       expect(second.fellBack, isFalse);
 
       // And a third, to show the record is the host and not the URL.
-      final third = await navigate(engine, client, 'http://httponly.test/c?x=1');
+      final third = await navigate(engine,
+          client: client, url: 'http://httponly.test/c?x=1');
       expect(third.loaded, 'http://httponly.test/c?x=1');
       expect(third.fellBack, isFalse);
     } finally {
@@ -127,14 +130,16 @@ void main() {
     final origin = await plainServer();
     final engine = HttpsUpgradeEngine();
     final client = clientFor(
-        {'httponly.test': origin.port, 'other.test': origin.port}, {});
+        {'httponly.test': origin.port, 'other.test': origin.port},
+        httpsPorts: {});
     try {
-      await navigate(engine, client, 'http://httponly.test/a');
+      await navigate(engine, client: client, url: 'http://httponly.test/a');
       expect(engine.isKnownHttpOnly('httponly.test'), isTrue);
       expect(engine.isKnownHttpOnly('other.test'), isFalse);
 
       // `other.test` is still tried over https, and falls back on its own.
-      final r = await navigate(engine, client, 'http://other.test/a');
+      final r =
+          await navigate(engine, client: client, url: 'http://other.test/a');
       expect(r.fellBack, isTrue);
       expect(engine.isKnownHttpOnly('other.test'), isTrue);
     } finally {
@@ -149,9 +154,10 @@ void main() {
     final engine = HttpsUpgradeEngine();
     // HTTPS-003: a non-default port is an ad-hoc service. It must reach the
     // network exactly as the site asked, with no failed TLS attempt first.
-    final client = clientFor({'app.test': origin.port}, {});
+    final client = clientFor({'app.test': origin.port}, httpsPorts: {});
     try {
-      final r = await navigate(engine, client, 'http://app.test:8080/health');
+      final r = await navigate(engine,
+          client: client, url: 'http://app.test:8080/health');
       expect(r.loaded, 'http://app.test:8080/health');
       expect(r.fellBack, isFalse);
       expect(engine.isKnownHttpOnly('app.test'), isFalse);
@@ -176,11 +182,12 @@ void main() {
     blackhole.listen(held.add);
     final engine =
         HttpsUpgradeEngine(deadline: const Duration(milliseconds: 600));
-    final client =
-        clientFor({'stalled.test': origin.port}, {'stalled.test': blackhole.port});
+    final client = clientFor({'stalled.test': origin.port},
+        httpsPorts: {'stalled.test': blackhole.port});
     try {
       final started = DateTime.now();
-      final r = await navigate(engine, client, 'http://stalled.test/a');
+      final r =
+          await navigate(engine, client: client, url: 'http://stalled.test/a');
       final took = DateTime.now().difference(started);
 
       expect(r.timedOut, isTrue, reason: 'nothing errored; the deadline fired');
@@ -192,7 +199,8 @@ void main() {
 
       // And the host is remembered, so the second navigation does not stall
       // again.
-      final second = await navigate(engine, client, 'http://stalled.test/b');
+      final second =
+          await navigate(engine, client: client, url: 'http://stalled.test/b');
       expect(second.loaded, 'http://stalled.test/b');
       expect(second.timedOut, isFalse);
     } finally {
@@ -212,7 +220,7 @@ void main() {
   test('a deadline that fires after the load succeeded is a no-op', () async {
     final origin = await plainServer();
     final engine = HttpsUpgradeEngine();
-    final client = clientFor({'late.test': origin.port}, {});
+    final client = clientFor({'late.test': origin.port}, httpsPorts: {});
     try {
       final upgraded = engine.upgradeFor('http://late.test/a', enabled: true)!;
       engine.recordUpgradeSuccess(upgraded);

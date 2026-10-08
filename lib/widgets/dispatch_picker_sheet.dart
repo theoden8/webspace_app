@@ -130,7 +130,8 @@ class _DispatchPickerSheetState extends State<DispatchPickerSheet> {
   }
 
   /// A row for [site] that picks [choice].
-  Widget _siteRow(WebViewModel site, String title, DispatchChoice choice) =>
+  Widget _siteRow(WebViewModel site,
+          {required String title, required DispatchChoice choice}) =>
       ListTile(
         leading: SizedBox(
           width: 32,
@@ -151,8 +152,8 @@ class _DispatchPickerSheetState extends State<DispatchPickerSheet> {
       for (final site in widget.winners)
         _siteRow(
           site,
-          loc.homeDispatchOpenInSite(site.getDisplayName()),
-          DispatchChoiceOpen(site, remember: sourceName != null && _remember),
+          title: loc.homeDispatchOpenInSite(site.getDisplayName()),
+          choice: DispatchChoiceOpen(site, remember: sourceName != null && _remember),
         ),
       if (sourceName != null) ...[
         CheckboxListTile(
@@ -208,11 +209,13 @@ class _DispatchPickerSheetState extends State<DispatchPickerSheet> {
       ? [
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(AppLocalizations.of(context).homeDispatchNoExistingSites),
+            child:
+                Text(AppLocalizations.of(context).homeDispatchNoExistingSites),
           ),
         ]
       : [
           for (final s in sites)
-            _siteRow(s, s.getDisplayName(), DispatchChoiceBind(s)),
+            _siteRow(s,
+                title: s.getDisplayName(), choice: DispatchChoiceBind(s)),
         ];
 }

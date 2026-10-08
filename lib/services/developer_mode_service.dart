@@ -21,22 +21,23 @@ class DeveloperModeService {
 
   Future<void> initialize() async {
     AppPref.developerMode.load(await SharedPreferences.getInstance());
-    await BackgroundLog.instance.setRecording(enabled);
+    await BackgroundLog.instance.setRecording(on: enabled);
   }
 
   /// Called after a settings import, so the background log follows the
   /// imported flag.
   Future<void> reload() => initialize();
 
-  Future<void> setEnabled(bool value) async {
-    if (enabled == value) return;
-    await AppPref.developerMode.set(value);
-    LogTag.developerMode.debug(value ? 'enabled' : 'disabled');
+  Future<void> setEnabled({required bool on}) async {
+    if (enabled == on) return;
+    await AppPref.developerMode.set(on);
+    LogTag.developerMode.debug(on ? 'enabled' : 'disabled');
     // DEVTOOLS-011: the background log exists only while developer mode is
     // on; turning it off deletes what was recorded.
-    await BackgroundLog.instance.setRecording(value);
+    await BackgroundLog.instance.setRecording(on: on);
   }
 
   /// Test seam: set the in-memory flag without touching SharedPreferences.
-  void debugSet(bool value) => AppPref.developerMode.debugValue = value;
+  void debugSet({required bool on}) =>
+      AppPref.developerMode.debugValue = on;
 }

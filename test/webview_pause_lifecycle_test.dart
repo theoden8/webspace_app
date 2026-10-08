@@ -102,20 +102,20 @@ void main() {
         () async {
       final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true)
-          .setBackgroundPlayback(true);
+          .setBackgroundPlayback(active: true);
       expect(c.evaluated.single, contains('__wsMediaBackground(true)'));
     });
 
     test('and told when it comes back', () async {
       final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true)
-          .setBackgroundPlayback(false);
+          .setBackgroundPlayback(active: false);
       expect(c.evaluated.single, contains('__wsMediaBackground(false)'));
     });
 
     test('a site without the toggle is never told', () async {
       final c = FakeWebViewController();
-      await _modelWith(c).setBackgroundPlayback(true);
+      await _modelWith(c).setBackgroundPlayback(active: true);
       expect(c.calls, isEmpty,
           reason: 'masking page visibility for a site the user did not opt in '
               'for would keep players running that should stop');
@@ -124,14 +124,14 @@ void main() {
     test('an archive-tier site is never told', () async {
       final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true, isArchiveTier: true)
-          .setBackgroundPlayback(true);
+          .setBackgroundPlayback(active: true);
       expect(c.calls, isEmpty);
     });
 
     test('the call is guarded against a missing hook', () async {
       final c = FakeWebViewController();
       await _modelWith(c, backgroundAudioEnabled: true)
-          .setBackgroundPlayback(true);
+          .setBackgroundPlayback(active: true);
       expect(c.evaluated.single, startsWith('if(window.__wsMediaBackground)'));
     });
   });

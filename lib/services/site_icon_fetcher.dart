@@ -83,8 +83,8 @@ Future<SiteIcon?> decodeSiteIcon(Uint8List bytes) async {
     if (png == null) return null;
     return SiteIcon(
       png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes),
-      image.width,
-      image.height,
+      width: image.width,
+      height: image.height,
     );
   } on Exception {
     // The engine reports undecodable bytes as a plain Exception.
@@ -104,15 +104,17 @@ class SiteIconFetcher {
 
   /// GET an http(s) icon link declared by the document at the given URL, or
   /// null.
-  final Future<Uint8List?> Function(String url, String documentUrl) fetch;
+  final Future<Uint8List?> Function(String url, {required String documentUrl})
+      fetch;
 
   final LinkedHashMap<String, Future<SiteIcon?>> _icons = LinkedHashMap();
 
   /// The largest icon among [urls] declared by the document at
   /// [documentUrl], or null when none decodes to a usable icon.
-  Future<SiteIcon?> best(List<String> urls, String documentUrl) async {
+  Future<SiteIcon?> best(List<String> urls,
+      {required String documentUrl}) async {
     final icons = await Future.wait(
-        [for (final url in urls) _icon(url, documentUrl)]);
+        [for (final url in urls) _icon(url, documentUrl: documentUrl)]);
     SiteIcon? best;
     for (final icon in icons) {
       if (icon != null && (best == null || icon.edge > best.edge)) best = icon;
@@ -120,11 +122,11 @@ class SiteIconFetcher {
     return best;
   }
 
-  Future<SiteIcon?> _icon(String url, String documentUrl) {
+  Future<SiteIcon?> _icon(String url, {required String documentUrl}) {
     final known = _icons.remove(url);
     if (known != null) return _icons[url] = known;
     late final Future<SiteIcon?> loading;
-    loading = _load(url, documentUrl, forget: () {
+    loading = _load(url, documentUrl: documentUrl, forget: () {
       if (identical(_icons[url], loading)) _icons.remove(url);
     });
     _icons[url] = loading;
@@ -135,15 +137,15 @@ class SiteIconFetcher {
   }
 
   Future<SiteIcon?> _load(
-    String url,
-    String documentUrl, {
+    String url, {
+    required String documentUrl,
     required void Function() forget,
   }) async {
     if (url.startsWith('data:')) {
       final bytes = _dataBytes(url);
       return bytes == null ? null : decodeSiteIcon(bytes);
     }
-    final bytes = await fetch(url, documentUrl);
+    final bytes = await fetch(url, documentUrl: documentUrl);
     if (bytes == null) {
       // A refused or failed request can go through for a later document. An
       // image that decodes to nothing usable (a 16px favicon.ico) stays

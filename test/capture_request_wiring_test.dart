@@ -32,13 +32,13 @@ void main() {
     group('PersistedGrantStore for $kind', () {
       test('a backgrounded site is denied without prompting', () async {
         for (final mode in kind.modes) {
-          final model = siteWith(kind, mode, withSource: true);
+          final model = siteWith(kind, mode: mode, withSource: true);
           var saves = 0;
           final grant = await _store(
             model,
             isActive: () => false,
             onSave: () => saves++,
-          ).capture(kind, origin, isTopFrame: true);
+          ).capture(kind, origin: origin, isTopFrame: true);
           expect(grant.toBridgeJson(), {'mode': 'block'}, reason: '$mode');
           expect(kind.grantOf(model.captures).mode, mode,
               reason: 'stored decision left intact');
@@ -47,13 +47,14 @@ void main() {
       });
 
       test('the active site resolves, persists and saves', () async {
-        final model = siteWith(kind, kind.ask);
+        final model = siteWith(kind, mode: kind.ask);
         var saves = 0;
         final grant = await _store(
           model,
-          prompter: FakePrompter((_, _, _) => Answer.useFile),
+          prompter: FakePrompter(
+              (_, {required origin, required current}) => Answer.useFile),
           onSave: () => saves++,
-        ).capture(kind, origin, isTopFrame: true);
+        ).capture(kind, origin: origin, isTopFrame: true);
         expect(grant.mode, kind.virtual);
         expect(kind.grantOf(model.captures),
             (mode: kind.virtual, source: pickedFor(kind)));
@@ -62,10 +63,11 @@ void main() {
 
       test('the archive-tier fold survives the wiring (CAM-006 / MIC-006 / '
           'SHARE-006)', () async {
-        final model =
-            siteWith(kind, kind.virtual, withSource: true, archived: true);
+        final model = siteWith(kind,
+            mode: kind.virtual, withSource: true, archived: true);
         final store = _store(model);
-        expect((await store.capture(kind, origin, isTopFrame: true)).mode,
+        expect(
+            (await store.capture(kind, origin: origin, isTopFrame: true)).mode,
             kind.block);
         expect(store.mode(kind), kind.block,
             reason: 'enumerateDevices reads the folded mode too');
@@ -75,12 +77,15 @@ void main() {
 
       test('the activity predicate is read per request', () async {
         var active = true;
-        final store = _store(siteWith(kind, kind.virtual, withSource: true),
+        final store = _store(
+            siteWith(kind, mode: kind.virtual, withSource: true),
             isActive: () => active);
-        expect((await store.capture(kind, origin, isTopFrame: true)).mode,
+        expect(
+            (await store.capture(kind, origin: origin, isTopFrame: true)).mode,
             kind.virtual);
         active = false;
-        expect((await store.capture(kind, origin, isTopFrame: true)).mode,
+        expect(
+            (await store.capture(kind, origin: origin, isTopFrame: true)).mode,
             kind.block);
       });
     });
@@ -90,9 +95,9 @@ void main() {
       () async {
     var saves = 0;
     final grant = await _store(
-      siteWith(CaptureKind.microphone, MicrophoneAccessMode.real),
+      siteWith(CaptureKind.microphone, mode: MicrophoneAccessMode.real),
       onSave: () => saves++,
-    ).capture(CaptureKind.microphone, origin, isTopFrame: true);
+    ).capture(CaptureKind.microphone, origin: origin, isTopFrame: true);
     expect(grant.toBridgeJson(), {'mode': 'real'});
     expect(saves, 0, reason: 'nothing changed, so nothing to persist');
   });
@@ -103,9 +108,10 @@ void main() {
     // "serve a file" or "deny".
     for (final answer in Answer.values) {
       final grant = await _store(
-        siteWith(CaptureKind.screenShare, ScreenShareMode.ask),
-        prompter: FakePrompter((_, _, _) => answer),
-      ).capture(CaptureKind.screenShare, origin, isTopFrame: true);
+        siteWith(CaptureKind.screenShare, mode: ScreenShareMode.ask),
+        prompter:
+            FakePrompter((_, {required origin, required current}) => answer),
+      ).capture(CaptureKind.screenShare, origin: origin, isTopFrame: true);
       expect(grant.toBridgeJson()['mode'], isIn(['virtual', 'block']),
           reason: answer.name);
     }

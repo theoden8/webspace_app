@@ -41,7 +41,8 @@ abstract interface class BackgroundSitesHost implements PageHost {
 /// the OS refresh schedule, the audio session, the foreground poll and the
 /// background wake.
 class BackgroundSitesController {
-  BackgroundSitesController(this._sites, this._host);
+  BackgroundSitesController(this._sites, {required BackgroundSitesHost host})
+      : _host = host;
 
   final SiteRuntime _sites;
   final BackgroundSitesHost _host;
@@ -106,7 +107,7 @@ class BackgroundSitesController {
     final any = c.enabled > 0;
     BackgroundLog.instance.record(
       LogTag.backgroundTask,
-      '${any ? "schedule" : "cancel"} refresh — '
+      message: '${any ? "schedule" : "cancel"} refresh — '
           'notif sites: ${c.enabled} enabled, ${c.loaded} loaded',
     );
     if (any) {
@@ -127,7 +128,7 @@ class BackgroundSitesController {
       any = true;
       break;
     }
-    await BackgroundTaskService.instance.setBackgroundAudioActive(any);
+    await BackgroundTaskService.instance.setBackgroundAudioActive(active: any);
     // With nothing to drive it, the media surface goes; on iOS that also
     // removes the Now Playing entry WebKit publishes for any page that plays,
     // which would outlive the audio as a control reaching nothing
@@ -138,12 +139,12 @@ class BackgroundSitesController {
   /// A notification site leaving the loaded set is checked headless by the
   /// next wake rather than reloaded (NOTIF-016, DEVTOOLS-011). Call after the
   /// removal.
-  void noteUnloaded(WebViewModel m, String reason) {
+  void noteUnloaded(WebViewModel m, {required String reason}) {
     if (!m.effectiveNotificationsEnabled) return;
     final c = counts();
     BackgroundLog.instance.record(
       LogTag.siteUnload,
-      'notification site unloaded ($reason); '
+      message: 'notification site unloaded ($reason); '
           '${c.loaded} of ${c.enabled} still loaded, '
           'the rest are checked headless',
       sensitive: 'unloaded notification site "${m.name}" '
@@ -169,7 +170,7 @@ class BackgroundSitesController {
     }
     BackgroundLog.instance.record(
       LogTag.backgroundTask,
-      'refresh notif sites: reloaded=$reloaded, '
+      message: 'refresh notif sites: reloaded=$reloaded, '
           'skipped(unloaded)=${plan.unloaded}, '
           'skipped(no controller)=${plan.reload.length - reloaded}',
     );
@@ -181,14 +182,14 @@ class BackgroundSitesController {
     final c = counts();
     BackgroundLog.instance.record(
       LogTag.backgroundTask,
-      'background wake: notif sites ${c.enabled} enabled, '
+      message: 'background wake: notif sites ${c.enabled} enabled, '
           '${c.loaded} loaded, ${c.live} with a live webview',
     );
     // A wake resumes the process without the app coming back to the
     // foreground, so the resume check tor's listener needs has not run yet
     // (TOR-024), and a Tor notification site would reload through a dead one.
     await TorService.instance.revive();
-    final host = _WakeHost(_sites, _host);
+    final host = _WakeHost(_sites, host: _host);
     _activeWake = host;
     final WakeReport report;
     try {
@@ -198,14 +199,15 @@ class BackgroundSitesController {
     }
     for (var i = 0; i < report.sites.length; i++) {
       final o = report.sites[i];
-      final line = describeWakeSite(o, i + 1, report.sites.length);
-      BackgroundLog.instance.record(LogTag.backgroundTask, line.normal,
+      final line =
+          describeWakeSite(o, position: i + 1, count: report.sites.length);
+      BackgroundLog.instance.record(LogTag.backgroundTask, message: line.normal,
           level: o.skip == null ? LogLevel.info : LogLevel.warning,
           sensitive: line.sensitive);
     }
     BackgroundLog.instance.record(
       LogTag.backgroundTask,
-      'background wake done: ${report.count(WakeMode.live)} live, '
+      message: 'background wake done: ${report.count(WakeMode.live)} live, '
           '${report.count(WakeMode.headless)} headless, '
           '${report.skipped} skipped, unread fallback posts=${report.posted}, '
           'took ${(report.elapsed.inMilliseconds / 1000).toStringAsFixed(1)}s',
@@ -240,7 +242,7 @@ class BackgroundSitesController {
       if (!m.effectiveNotificationsEnabled || c == null) continue;
       reads.add(c
           .getTitle()
-          .then((t) => _wakeEngine.noteBaseline(m.siteId, t))
+          .then((t) => _wakeEngine.noteBaseline(m.siteId, title: t))
           .catchError((_) {}));
     }
     unawaited(Future.wait(reads).then((_) => _persistBaselines()));
@@ -272,7 +274,7 @@ class BackgroundSitesController {
       final c = _sites.byId(siteId)?.controller;
       if (c == null) return;
       try {
-        _wakeEngine.noteBaseline(siteId, await c.getTitle());
+        _wakeEngine.noteBaseline(siteId, title: await c.getTitle());
       } catch (_) {}
       unawaited(_persistBaselines());
     });
@@ -347,7 +349,7 @@ class BackgroundSitesController {
 }
 
 class _WakeHost implements BackgroundWakeHost {
-  _WakeHost(this._sites, this._host);
+  _WakeHost(this._sites, {required BackgroundSitesHost host}) : _host = host;
 
   final SiteRuntime _sites;
   final BackgroundSitesHost _host;
@@ -409,7 +411,8 @@ class _WakeHost implements BackgroundWakeHost {
     } on Exception catch (e) {
       BackgroundLog.instance.record(
         LogTag.backgroundTask,
-        'could not apply the route for a headless check: ${e.runtimeType}',
+        message:
+            'could not apply the route for a headless check: ${e.runtimeType}',
         level: LogLevel.warning,
         sensitive: 'route for "${m.name}" failed: $e',
       );
@@ -499,7 +502,7 @@ class _WakeHost implements BackgroundWakeHost {
   }
 
   @override
-  bool postedSince(String siteId, DateTime since) {
+  bool postedSince(String siteId, {required DateTime since}) {
     final at = NotificationService.instance.lastPostedAt(siteId);
     return at != null && !at.isBefore(since);
   }

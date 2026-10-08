@@ -53,10 +53,10 @@ abstract class DeferredStartupHost {
   void requestRebuild();
 
   Future<bool> loadTimezoneDataset();
-  String? resolveTimezone(double latitude, double longitude);
+  String? resolveTimezone(double latitude, {required double longitude});
 
   /// Apply the resolved zone; returns true iff the stored value changed.
-  bool setSpoofTimezone(String siteId, String timezone);
+  bool setSpoofTimezone(String siteId, {required String timezone});
   Future<void> persist();
 
   /// Live site sets, read fresh (not a startup snapshot) — so a site added
@@ -67,7 +67,7 @@ abstract class DeferredStartupHost {
   /// Remove on-disk storage for sites NOT in the given live sets (cookies,
   /// proxy passwords, HTML caches/imports, webview state, global cookie jar).
   Future<void> sweepOrphanStorage(
-      Set<String> activeSiteIds, Set<String> nonIncognitoSiteIds);
+      Set<String> activeSiteIds, {required Set<String> nonIncognitoSiteIds});
 }
 
 /// Orchestration that runs *after* first paint (so the UI is interactive and
@@ -132,9 +132,10 @@ class DeferredStartupEngine {
     if (!host.isMounted) return;
     var changed = false;
     for (final t in targets) {
-      final tz = host.resolveTimezone(t.lat, t.lng);
+      final tz = host.resolveTimezone(t.lat, longitude: t.lng);
       if (tz == null) continue;
-      if (host.isLive(t.siteId) && host.setSpoofTimezone(t.siteId, tz)) {
+      if (host.isLive(t.siteId) &&
+          host.setSpoofTimezone(t.siteId, timezone: tz)) {
         changed = true;
       }
     }
@@ -162,7 +163,7 @@ class DeferredStartupEngine {
     if (!host.isMounted) return;
     if (needsResave) await host.persist();
     if (!host.isMounted) return;
-    await host.sweepOrphanStorage(
-        host.liveSiteIds(), host.liveNonIncognitoSiteIds());
+    await host.sweepOrphanStorage(host.liveSiteIds(),
+        nonIncognitoSiteIds: host.liveNonIncognitoSiteIds());
   }
 }

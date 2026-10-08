@@ -431,8 +431,8 @@ void main() {
   test('a gesture update applies to the stored time', () {
     final last = DateTime(2026, 1, 1);
     final now = DateTime(2026, 1, 2);
-    expect(GestureStateUpdate.record.applyTo(last, now), now);
-    expect(GestureStateUpdate.consume.applyTo(last, now), isNull);
-    expect((null as GestureStateUpdate?).applyTo(last, now), last);
+    expect(GestureStateUpdate.record.applyTo(last, now: now), now);
+    expect(GestureStateUpdate.consume.applyTo(last, now: now), isNull);
+    expect((null as GestureStateUpdate?).applyTo(last, now: now), last);
   });
 }

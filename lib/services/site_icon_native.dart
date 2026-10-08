@@ -16,7 +16,7 @@ class SiteIconNative {
   /// A failed attempt is made again by the next caller.
   static Future<void> ensureEnabled() {
     if (!hostIsAndroid || _enabled) return Future.value();
-    return _enabling.run((), () async {
+    return _enabling.run((), call: () async {
       try {
         await _channel.invokeMethod<bool>('enable');
         _enabled = true;

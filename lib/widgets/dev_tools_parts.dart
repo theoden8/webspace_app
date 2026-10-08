@@ -8,9 +8,9 @@ import 'package:webspace/widgets/toast.dart';
 
 /// A text button in the action row above a Developer Tools list.
 Widget toolButton(
-  IconData icon,
-  String label,
-  VoidCallback? onPressed, {
+  IconData icon, {
+  required String label,
+  required VoidCallback? onPressed,
   Key? key,
 }) => TextButton.icon(
   key: key,
@@ -105,10 +105,10 @@ class LogLines<T> extends StatelessWidget {
 /// hand them to clipboard history, a cloud clipboard or a third-party
 /// keyboard. Files written by Export never carry them at all.
 Future<void> copyLogs(
-  BuildContext context,
-  List<LogEntry> entries, {
+  BuildContext context, {
+  required List<LogEntry> entries,
   required String Function(int sensitive) consent,
-  required String Function(bool includeSensitive) format,
+  required String Function({required bool includeSensitive}) format,
 }) async {
   final loc = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.of(context);
@@ -126,7 +126,8 @@ Future<void> copyLogs(
     return;
   }
   if (!context.mounted) return;
-  await Clipboard.setData(ClipboardData(text: format(sensitive > 0)));
+  await Clipboard.setData(
+      ClipboardData(text: format(includeSensitive: sensitive > 0)));
   if (!context.mounted) return;
   messenger.toast(loc.devToolsLogsCopied(entries.length));
 }

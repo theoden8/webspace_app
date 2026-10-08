@@ -10,7 +10,7 @@ Widget _host(Widget child) => localizedApp(Scaffold(body: child));
 String _shown(WidgetTester tester) =>
     tester.widget<TextField>(find.byType(TextField)).controller!.text;
 
-Future<void> _submit(WidgetTester tester, String typed) async {
+Future<void> _submit(WidgetTester tester, {required String typed}) async {
   await tester.tap(find.byType(TextField));
   await tester.pump();
   await tester.enterText(find.byType(TextField), typed);
@@ -29,7 +29,7 @@ void main() {
         onUrlSubmitted: (_) => nestedClosed.future,
       )));
 
-      await _submit(tester, 'site-b.example');
+      await _submit(tester, typed: 'site-b.example');
 
       nestedClosed.complete();
       await tester.pump();
@@ -52,7 +52,7 @@ void main() {
         );
       })));
 
-      await _submit(tester, 'site-a.example/next');
+      await _submit(tester, typed: 'site-a.example/next');
       await tester.pumpAndSettle();
 
       expect(_shown(tester), 'https://site-a.example/next');

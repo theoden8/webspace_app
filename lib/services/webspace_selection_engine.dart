@@ -12,9 +12,9 @@ class WebspaceSelectionEngine {
   /// `siteIds` against [siteIdsByPosition], in `siteIds` order; ids with no
   /// position drop out of the projection. "All" is synthetic and skipped.
   static void resolveIndices(
-    List<Webspace> webspaces,
-    List<String> siteIdsByPosition,
-  ) {
+    List<Webspace> webspaces, {
+    required List<String> siteIdsByPosition,
+  }) {
     final positionBySiteId = <String, int>{
       for (var i = 0; i < siteIdsByPosition.length; i++)
         siteIdsByPosition[i]: i,

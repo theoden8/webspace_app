@@ -17,9 +17,10 @@ class _FakeTargets implements OrphanSweepTargets {
   final Map<OrphanStore, Set<String>> liveSets = {};
 
   @override
-  Future<void> removeOrphans(OrphanStore store, Set<String> live) async {
+  Future<void> removeOrphans(OrphanStore store,
+      {required Set<String> liveSiteIds}) async {
     ops.add(store);
-    liveSets[store] = live;
+    liveSets[store] = liveSiteIds;
   }
 
   @override
@@ -134,8 +135,8 @@ void main() {
       expect(body('Future<void> _importSettings() async {'),
           contains('await _commitSites(SitesReplaced('));
       expect(
-          body('Future<void> _deleteSite(BuildContext context, int index) '
-              'async {'),
+          body('Future<void> _deleteSite(BuildContext context, '
+              '{required int index}) async {'),
           contains('await _commitSites(SiteRemoved(deletedModel));'));
     });
 

@@ -23,28 +23,28 @@ void main() {
 
   group('ProxyPasswordSecureStorage', () {
     test('savePassword + loadPassword round-trip', () async {
-      await store.savePassword('site-1', 'shh');
+      await store.savePassword('site-1', password: 'shh');
       expect(await store.loadPassword('site-1'), equals('shh'));
     });
 
     test('savePassword(null) deletes the entry', () async {
-      await store.savePassword('site-1', 'shh');
-      await store.savePassword('site-1', null);
+      await store.savePassword('site-1', password: 'shh');
+      await store.savePassword('site-1', password: null);
       expect(await store.loadPassword('site-1'), isNull);
     });
 
     test('savePassword("") deletes the entry', () async {
-      await store.savePassword('site-1', 'shh');
-      await store.savePassword('site-1', '');
+      await store.savePassword('site-1', password: 'shh');
+      await store.savePassword('site-1', password: '');
       expect(await store.loadPassword('site-1'), isNull);
     });
 
     test('removeOrphaned drops site keys not in the active set', () async {
-      await store.savePassword('site-1', 'a');
-      await store.savePassword('site-2', 'b');
-      await store.savePassword('site-3', 'c');
+      await store.savePassword('site-1', password: 'a');
+      await store.savePassword('site-2', password: 'b');
+      await store.savePassword('site-3', password: 'c');
       await store.savePassword(
-          ProxyPasswordSecureStorage.globalProxyKey, 'global');
+          ProxyPasswordSecureStorage.globalProxyKey, password: 'global');
 
       await store.removeOrphaned({'site-1', 'site-3'});
 

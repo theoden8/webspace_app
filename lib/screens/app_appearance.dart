@@ -22,7 +22,8 @@ const Map<AccentColor, Color> _accentColors = {
 };
 
 /// The label a theme mode goes by, on its chip and in the App Settings row.
-String themeModeLabel(AppLocalizations loc, ThemeMode mode) => switch (mode) {
+String themeModeLabel(AppLocalizations loc, {required ThemeMode mode}) =>
+    switch (mode) {
       ThemeMode.light => loc.appSettingsThemeLight,
       ThemeMode.dark => loc.appSettingsThemeDark,
       ThemeMode.system => loc.appSettingsThemeSystem,
@@ -53,7 +54,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
   }
 
   /// A language override's name; the empty tag follows the system.
-  String _languageName(AppLocalizations loc, String tag) =>
+  String _languageName(AppLocalizations loc, {required String tag}) =>
       tag.isEmpty ? loc.appSettingsLanguageSystem : languageLabelForTag(tag);
 
   Future<void> _pickAppLanguage() async {
@@ -80,7 +81,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
                 RadioListTile<String>(
                   value: tag,
                   groupValue: current,
-                  title: Text(_languageName(loc, tag)),
+                  title: Text(_languageName(loc, tag: tag)),
                   onChanged: (v) => Navigator.pop(ctx, v ?? ''),
                 ),
             ],
@@ -102,7 +103,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
             leading: const Icon(Icons.language),
             title: loc.appSettingsLanguageTitle,
             hint: null,
-            subtitle: _languageName(loc, AppPref.appLocaleOverride.value),
+            subtitle: _languageName(loc, tag: AppPref.appLocaleOverride.value),
             control: Opens(() => guardedOpen(_pickAppLanguage)),
           ),
           SettingsSection(loc.appSettingsTheme),
@@ -139,7 +140,7 @@ class _AppAppearanceScreenState extends State<AppAppearanceScreen>
   }
 
   Widget _buildThemeModeChip(ThemeMode mode) {
-    final label = themeModeLabel(AppLocalizations.of(context), mode);
+    final label = themeModeLabel(AppLocalizations.of(context), mode: mode);
     final icon = themeModeIcon(mode);
     final isSelected = _settings.themeMode == mode;
     final accentColor = Theme.of(context).colorScheme.secondary;

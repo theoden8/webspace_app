@@ -160,7 +160,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
       case DeveloperUnlockOutcome.alreadyEnabled:
         message = loc.appSettingsDeveloperModeAlreadyOn;
       case DeveloperUnlockOutcome.unlocked:
-        await _unlocking.run(() => setDeveloperMode(true));
+        await _unlocking.run(() => setDeveloperMode(on: true));
         if (!mounted) return;
         setState(() => _versionTaps = 0);
         message = loc.appSettingsDeveloperModeEnabled;
@@ -228,7 +228,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
   }
 
   String _appearanceSummary(AppLocalizations loc) => [
-        themeModeLabel(loc, _settings.themeMode),
+        themeModeLabel(loc, mode: _settings.themeMode),
         if (AppPref.appLocaleOverride.value case final tag
             when tag.isNotEmpty)
           languageLabelForTag(tag),
@@ -236,7 +236,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
 
   String _behaviourSummary(AppLocalizations loc) => summariseSettings(
         loc,
-        [
+        on: [
           if (TabStrip.current != TabStrip.hidden) loc.appSettingsSiteTabStrip,
           if (AppPref.fullscreenOnShortcut.value)
             loc.appSettingsFullscreenOnShortcut,
@@ -297,7 +297,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
             title: loc.appSettingsPrivacy,
             summary: summariseSettings(
               loc,
-              appPrivacyOn(loc),
+              on: appPrivacyOn(loc),
               none: loc.privacySummaryNothingOn,
             ),
             onTap: () => _open(AppPrivacyScreen(
@@ -334,7 +334,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               title: loc.appSettingsDeveloper,
               summary: summariseSettings(
                 loc,
-                experimentsOn(loc,
+                on: experimentsOn(loc,
                     proxyRouterRunsHere: widget.proxyRouterRunsHere),
                 none: loc.behaviourSummaryNothingOn,
               ),

@@ -58,7 +58,7 @@ void main() {
       expect(json['initUrl'], 'http://localhost:5000');
 
       // Deserialize and verify
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
       expect(restored.pageTitle, 'Test Page - WebSpace');
       expect(restored.name, 'Test Page - WebSpace');
       expect(restored.initUrl, 'http://localhost:5000');

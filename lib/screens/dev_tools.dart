@@ -133,7 +133,7 @@ class NestedDevToolsHost implements DevToolsHost {
 
   static const _maxConsoleLogs = 500;
 
-  void appendConsole(String message, ConsoleMessageLevel level) {
+  void appendConsole(String message, {required ConsoleMessageLevel level}) {
     consoleLogs.add(ConsoleLogEntry(
       timestamp: DateTime.now(),
       message: message,
@@ -401,9 +401,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     return Column(
       children: [
         ToolActions([
-          toolButton(Icons.delete_outline, loc.devToolsClear,
-              () => setState(widget.host!.consoleLogs.clear)),
-          toolButton(Icons.copy, loc.devToolsCopy, logs.isEmpty ? null : () {
+          toolButton(Icons.delete_outline, label: loc.devToolsClear,
+              onPressed: () => setState(widget.host!.consoleLogs.clear)),
+          toolButton(Icons.copy, label: loc.devToolsCopy, onPressed: logs.isEmpty ? null : () {
             final text = logs
                 .map((e) => '[${_formatTime(e.timestamp)}] [${_consoleLevelName(e.level)}] ${e.message}')
                 .join('\n');
@@ -605,9 +605,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     return Column(
       children: [
         ToolActions([
-          toolButton(Icons.refresh, loc.devToolsRefresh, _refreshCookies),
+          toolButton(Icons.refresh, label: loc.devToolsRefresh, onPressed: _refreshCookies),
           if (cookies.isNotEmpty)
-            toolButton(Icons.copy, loc.devToolsCopyAsJson, () {
+            toolButton(Icons.copy, label: loc.devToolsCopyAsJson, onPressed: () {
               final json = cookies.map((c) => c.toJson()).toList();
               Clipboard.setData(
                   ClipboardData(text: const JsonEncoder.withIndent('  ').convert(json)));
@@ -762,10 +762,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                 children: [
                   _buildSecurityChip(
                     cookie.isSecure == true ? loc.devToolsCookieSecure : loc.devToolsCookieNotSecure,
-                    cookie.isSecure == true ? Colors.green : Colors.red,
+                    color: cookie.isSecure == true ? Colors.green : Colors.red,
                   ),
                   if (cookie.isHttpOnly == true)
-                    _buildSecurityChip('HttpOnly', Colors.green),
+                    _buildSecurityChip('HttpOnly', color: Colors.green),
                   if (cookie.sameSite != null)
                     _buildSameSiteChip(cookie.sameSite.toString()),
                 ],
@@ -807,7 +807,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     );
   }
 
-  Widget _buildSecurityChip(String label, Color color) {
+  Widget _buildSecurityChip(String label, {required Color color}) {
     return Chip(
       label: Text(label, style: TextStyle(fontSize: 11, color: color)),
       backgroundColor: color.withAlpha(25),
@@ -823,7 +823,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         : value.contains('LAX')
             ? ('SameSite=Lax', Colors.blue)
             : ('SameSite=None', Colors.amber);
-    return _buildSecurityChip(label, color);
+    return _buildSecurityChip(label, color: color);
   }
 
   void _showScriptsSheet() {
@@ -1042,7 +1042,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   /// Saves [bytes] as [fileName] through the platform dialog: on mobile the
   /// picker takes the bytes, on desktop they go to the path it returns. False
   /// when the user picked no place.
-  Future<bool> _saveAs(String fileName, String dialogTitle, Uint8List bytes) async {
+  Future<bool> _saveAs(String fileName,
+      {required String dialogTitle, required Uint8List bytes}) async {
     final isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
     final outputPath = await FilePicker.saveFile(
       dialogTitle: dialogTitle,
@@ -1053,7 +1054,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (!isMobile) {
       final ext = fileName.substring(fileName.lastIndexOf('.'));
       await hostWriteFileBytes(
-          outputPath.endsWith(ext) ? outputPath : '$outputPath$ext', bytes);
+          outputPath.endsWith(ext) ? outputPath : '$outputPath$ext',
+          bytes: bytes);
     }
     return true;
   }
@@ -1069,7 +1071,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     if (html == null || !mounted) return;
     final title = AppLocalizations.of(context).devToolsSaveHtmlDialogTitle;
     try {
-      if (await _saveAs(_htmlFileName, title, utf8.encode(html))) {
+      if (await _saveAs(_htmlFileName,
+          dialogTitle: title, bytes: utf8.encode(html))) {
         _toast((loc) => loc.devToolsHtmlSaved);
       }
     } catch (e) {
@@ -1104,7 +1107,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         return;
       }
       final fileName = '${extractDomain(host.currentUrl)}_icon.png';
-      if (await _saveAs(fileName, loc.devToolsSaveIconDialogTitle, png) &&
+      if (await _saveAs(fileName,
+              dialogTitle: loc.devToolsSaveIconDialogTitle, bytes: png) &&
           mounted) {
         messenger.toast(loc.devToolsIconSaved);
       }
@@ -1129,12 +1133,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         DnsStatChips(stats, padding: const EdgeInsets.fromLTRB(12, 8, 12, 4)),
         _buildDnsFilters(stats),
         ToolActions([
-          toolButton(Icons.delete_outline, loc.devToolsClear,
-              () => DnsBlockService.instance.clearStatsForSite(widget.host!.siteId!)),
+          toolButton(Icons.delete_outline, label: loc.devToolsClear,
+              onPressed: () => DnsBlockService.instance.clearStatsForSite(widget.host!.siteId!)),
           toolButton(
             Icons.copy,
-            loc.devToolsCopy,
-            entries.isEmpty ? null : () {
+            label: loc.devToolsCopy,
+            onPressed: entries.isEmpty ? null : () {
               final text = entries
                   .map((e) =>
                       '[${_formatTimeMs(e.timestamp)}] ${e.blocked ? 'BLOCKED' : 'ALLOWED'} ${e.domain}')
@@ -1250,22 +1254,22 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   svc.usingRustEngine
                       ? loc.devToolsAbpActive
                       : loc.devToolsAbpOff,
-                  loc.devToolsAbpEngine,
-                  svc.usingRustEngine ? Colors.green : Colors.grey),
+                  label: loc.devToolsAbpEngine,
+                  color: svc.usingRustEngine ? Colors.green : Colors.grey),
               StatChip(timingOn ? loc.devToolsAbpOn : loc.devToolsAbpOff,
-                  loc.devToolsAbpRecording,
-                  timingOn ? Colors.green : Colors.orange),
-              StatChip('$consulted', loc.devToolsAbpConsulted,
-                  Colors.blueGrey),
-              StatChip(avgValue, loc.devToolsAbpAvg, Colors.blueGrey),
-              StatChip(maxValue, loc.devToolsAbpMax,
-                  maxMicros > 1000 ? Colors.orange : Colors.blueGrey),
-              StatChip('$blockedCount', loc.devToolsAbpBlocked, Colors.red),
-              StatChip('$allowedCount', loc.devToolsAbpAllowed, Colors.green),
+                  label: loc.devToolsAbpRecording,
+                  color: timingOn ? Colors.green : Colors.orange),
+              StatChip('$consulted', label: loc.devToolsAbpConsulted,
+                  color: Colors.blueGrey),
+              StatChip(avgValue, label: loc.devToolsAbpAvg, color: Colors.blueGrey),
+              StatChip(maxValue, label: loc.devToolsAbpMax,
+                  color: maxMicros > 1000 ? Colors.orange : Colors.blueGrey),
+              StatChip('$blockedCount', label: loc.devToolsAbpBlocked, color: Colors.red),
+              StatChip('$allowedCount', label: loc.devToolsAbpAllowed, color: Colors.green),
               StatChip(
                   svc.useUboResources ? loc.devToolsAbpOn : loc.devToolsAbpOff,
-                  'uBO',
-                  svc.useUboResources ? Colors.green : Colors.grey),
+                  label: 'uBO',
+                  color: svc.useUboResources ? Colors.green : Colors.grey),
             ],
           ),
         ),
@@ -1356,15 +1360,15 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         ToolActions([
           toolButton(
             Icons.save,
-            loc.devToolsExport,
-            () => saveLogText(context, LogService.instance.export(),
+            label: loc.devToolsExport,
+            onPressed: () => saveLogText(context, text: LogService.instance.export(),
                 fileNamePrefix: 'webspace_logs'),
           ),
-          toolButton(Icons.copy, loc.devToolsCopy,
-              filtered.isEmpty ? null : () => _copyLogs(filtered),
+          toolButton(Icons.copy, label: loc.devToolsCopy,
+              onPressed: filtered.isEmpty ? null : () => _copyLogs(filtered),
               key: const Key('devtools-logs-copy')),
-          toolButton(Icons.delete_outline, loc.devToolsClear,
-              () => setState(LogService.instance.clear)),
+          toolButton(Icons.delete_outline, label: loc.devToolsClear,
+              onPressed: () => setState(LogService.instance.clear)),
         ]),
         _buildLogFilters(),
         SensitiveSwitch(
@@ -1380,10 +1384,10 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             child: Wrap(
               spacing: 4,
               children: [
-                toolButton(Icons.refresh, loc.devToolsSimulateRefresh,
-                    _simulateBackgroundRefresh),
-                toolButton(Icons.notifications_active, loc.devToolsTestNotification,
-                    widget.host?.siteId != null ? _sendTestNotification : null),
+                toolButton(Icons.refresh, label: loc.devToolsSimulateRefresh,
+                    onPressed: _simulateBackgroundRefresh),
+                toolButton(Icons.notifications_active, label: loc.devToolsTestNotification,
+                    onPressed: widget.host?.siteId != null ? _sendTestNotification : null),
               ],
             ),
           ),
@@ -1425,10 +1429,11 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   Future<void> _copyLogs(List<LogEntry> filtered) => _copyLogsGuard.run(
         () => copyLogs(
           context,
-          filtered,
+          entries: filtered,
           consent: AppLocalizations.of(context).devToolsLogsCopySensitiveBody,
-          format: (includeSensitive) => LogService.formatForClipboard(filtered,
-              includeSensitive: includeSensitive),
+          format: ({required includeSensitive}) =>
+              LogService.formatForClipboard(filtered,
+                  includeSensitive: includeSensitive),
         ),
       );
 

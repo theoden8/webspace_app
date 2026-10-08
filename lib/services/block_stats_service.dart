@@ -78,7 +78,7 @@ class BlockStatsService {
     @visibleForTesting BlockStatsDetailStore? detailStore,
   }) {
     if (_initialized) return Future.value();
-    return _init.run((), () => _initialize(detailStore));
+    return _init.run((), call: () => _initialize(detailStore));
   }
 
   Future<void> _initialize(BlockStatsDetailStore? detailStore) async {
@@ -130,7 +130,7 @@ class BlockStatsService {
   /// Declare whether [siteId]'s block events roll into the app-wide report.
   /// Called from the webview factory for every webview built, so the answer
   /// always arrives before the first block event for that site.
-  void setSiteContributes(String siteId, bool contributes) {
+  void setSiteContributes(String siteId, {required bool contributes}) {
     if (siteId.isEmpty) return;
     if (contributes) {
       _contributingSiteIds.add(siteId);
@@ -143,8 +143,8 @@ class BlockStatsService {
   /// Ignored for sites that have not been declared app-tier. [label] names
   /// what was stopped (a host, the stripped parameters) and only ever reaches
   /// the in-memory [detail].
-  void record(String siteId, BlockCategory category,
-      {int count = 1, String? label}) {
+  void record(String siteId, {required BlockCategory category,
+     int count = 1, String? label}) {
     if (count < 1) return;
     if (!_contributingSiteIds.contains(siteId)) return;
     _engine.record(category, count: count);

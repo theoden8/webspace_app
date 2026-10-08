@@ -70,8 +70,8 @@ void main() {
       // shim never gets a chance to wrap createObjectURL before the page
       // calls it, and github.com downloads silently break again.
       final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
-      final blockStart =
-          webviewSrc.indexOf("pageShim('blob_url_capture', blobUrlCaptureScript");
+      final blockStart = webviewSrc.indexOf(
+          RegExp(r"pageShim\('blob_url_capture',\s*js: blobUrlCaptureScript"));
       expect(blockStart, greaterThan(0));
       final block =
           webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));
@@ -244,8 +244,8 @@ void main() {
       // shim is in place before any page script can mint a blob URL
       // and wire a click handler against it.
       final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
-      final blockStart = webviewSrc.indexOf(
-          "'blob_download_click_intercept', blobDownloadClickInterceptScript");
+      final blockStart = webviewSrc.indexOf(RegExp(
+          r"'blob_download_click_intercept',\s*js: blobDownloadClickInterceptScript"));
       expect(blockStart, greaterThan(0));
       final block =
           webviewSrc.substring(blockStart, webviewSrc.indexOf(');', blockStart));

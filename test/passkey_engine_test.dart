@@ -30,8 +30,8 @@ Map<String, Object?> getOptions({String? rpId}) => {
     };
 
 PasskeyPlan planFor(
-  String op,
-  Map<String, Object?> options, {
+  String op, {
+  required Map<String, Object?> options,
   String origin = 'https://login.example.com',
   String? top,
   bool isMainFrame = true,
@@ -64,7 +64,7 @@ Uint8List attestationObject(Uint8List authData) => Uint8List.fromList([
 void main() {
   group('who may ask (PASSKEY-004)', () {
     test('a top-level https page asserts its own origin', () {
-      final plan = planFor('create', createOptions());
+      final plan = planFor('create', options: createOptions());
       expect(plan.error, isNull);
       final c = plan.ceremony!;
       expect(c.origin, 'https://login.example.com');
@@ -73,11 +73,11 @@ void main() {
 
     test('a same-origin frame may ask; a cross-origin frame may not', () {
       expect(
-        planFor('get', getOptions(), isMainFrame: false).ceremony,
+        planFor('get', options: getOptions(), isMainFrame: false).ceremony,
         isNotNull,
       );
       expect(
-        planFor('get', getOptions(),
+        planFor('get', options: getOptions(),
                 origin: 'https://widget.other.test',
                 top: 'https://login.example.com/',
                 isMainFrame: false)
@@ -89,7 +89,7 @@ void main() {
     test('a main frame whose origin is no longer the one on screen is refused',
         () {
       expect(
-        planFor('get', getOptions(),
+        planFor('get', options: getOptions(),
                 origin: 'https://login.example.com',
                 top: 'https://elsewhere.example.net/')
             .error,
@@ -109,26 +109,32 @@ void main() {
     });
 
     test('a site behind another cannot raise the sheet', () {
-      expect(planFor('get', getOptions(), onScreen: false).error,
+      expect(planFor('get', options: getOptions(), onScreen: false).error,
           PasskeyError.notFocused);
     });
 
     test('plain http is refused except on loopback', () {
-      expect(planFor('get', getOptions(), origin: 'http://example.com').error,
+      expect(
+          planFor('get', options: getOptions(), origin: 'http://example.com')
+              .error,
           PasskeyError.insecure);
       expect(
-          planFor('get', getOptions(), origin: 'http://localhost:8443')
+          planFor('get', options: getOptions(), origin: 'http://localhost:8443')
               .ceremony
               ?.origin,
           'http://localhost:8443');
-      expect(planFor('get', getOptions(), origin: 'http://127.0.0.1:9000').error,
+      expect(
+          planFor('get', options: getOptions(), origin: 'http://127.0.0.1:9000')
+              .error,
           isNull);
-      expect(planFor('get', getOptions(), origin: 'file:///sdcard/x.html').error,
+      expect(
+          planFor('get', options: getOptions(), origin: 'file:///sdcard/x.html')
+              .error,
           PasskeyError.notAllowed);
     });
 
     test('an unknown operation or missing options is a TypeError', () {
-      expect(planFor('store', getOptions()).error?.name, 'TypeError');
+      expect(planFor('store', options: getOptions()).error?.name, 'TypeError');
       expect(
         PasskeyEngine.plan(
           op: 'get',
@@ -146,71 +152,80 @@ void main() {
   group('which relying party (PASSKEY-005)', () {
     test('the rp id defaults to the origin host and is written into the request',
         () {
-      final create = planFor('create', createOptions()).ceremony!;
+      final create = planFor('create', options: createOptions()).ceremony!;
       expect((jsonDecode(create.requestJson) as Map)['rp']['id'],
           'login.example.com');
-      final get = planFor('get', getOptions()).ceremony!;
+      final get = planFor('get', options: getOptions()).ceremony!;
       expect((jsonDecode(get.requestJson) as Map)['rpId'], 'login.example.com');
     });
 
     test('a registrable parent domain is accepted', () {
-      expect(planFor('create', createOptions(rpId: 'example.com')).ceremony?.rpId,
+      expect(
+          planFor('create', options: createOptions(rpId: 'example.com'))
+              .ceremony
+              ?.rpId,
           'example.com');
-      expect(planFor('get', getOptions(rpId: 'EXAMPLE.com')).ceremony?.rpId,
+      expect(
+          planFor('get', options: getOptions(rpId: 'EXAMPLE.com'))
+              .ceremony
+              ?.rpId,
           'example.com');
     });
 
     test('a public suffix, a sibling or an unrelated domain is a SecurityError',
         () {
       for (final rpId in ['com', 'other.example.com', 'example.org', 'ample.com']) {
-        expect(planFor('get', getOptions(rpId: rpId)).error, PasskeyError.badRpId,
+        expect(planFor('get', options: getOptions(rpId: rpId)).error,
+            PasskeyError.badRpId,
             reason: rpId);
       }
       expect(
-        planFor('get', getOptions(rpId: 'github.io'),
+        planFor('get', options: getOptions(rpId: 'github.io'),
                 origin: 'https://victim.github.io')
             .error,
         PasskeyError.badRpId,
       );
       expect(
-        planFor('get', getOptions(rpId: 'co.uk'), origin: 'https://shop.co.uk')
+        planFor('get',
+                options: getOptions(rpId: 'co.uk'),
+                origin: 'https://shop.co.uk')
             .error,
         PasskeyError.badRpId,
       );
     });
 
     test('an IP origin can only name itself', () {
-      expect(PasskeyEngine.isValidRpId('127.0.0.1', '127.0.0.1'), isTrue);
-      expect(PasskeyEngine.isValidRpId('0.0.1', '127.0.0.1'), isFalse);
+      expect(PasskeyEngine.isValidRpId('127.0.0.1', host: '127.0.0.1'), isTrue);
+      expect(PasskeyEngine.isValidRpId('0.0.1', host: '127.0.0.1'), isFalse);
     });
 
     test('localhost is its own relying party', () {
-      expect(PasskeyEngine.isValidRpId('localhost', 'localhost'), isTrue);
+      expect(PasskeyEngine.isValidRpId('localhost', host: 'localhost'), isTrue);
     });
   });
 
   group('the request itself', () {
     test('a missing challenge or oversize user id is a TypeError', () {
       final noChallenge = createOptions()..remove('challenge');
-      expect(planFor('create', noChallenge).error?.name, 'TypeError');
+      expect(planFor('create', options: noChallenge).error?.name, 'TypeError');
       final bigUser = createOptions();
       (bigUser['user'] as Map)['id'] = b64u(List<int>.filled(65, 1));
-      expect(planFor('create', bigUser).error?.name, 'TypeError');
+      expect(planFor('create', options: bigUser).error?.name, 'TypeError');
       final noName = createOptions();
       (noName['user'] as Map).remove('name');
-      expect(planFor('create', noName).error?.name, 'TypeError');
+      expect(planFor('create', options: noName).error?.name, 'TypeError');
     });
 
     test('the page options are not mutated', () {
       final options = createOptions();
-      planFor('create', options);
+      planFor('create', options: options);
       expect((options['rp'] as Map).containsKey('id'), isFalse);
     });
   });
 
   group('clientDataJSON (PASSKEY-006)', () {
     test('is the L3 serialization and the hash is over its bytes', () {
-      final c = planFor('create', createOptions()).ceremony!;
+      final c = planFor('create', options: createOptions()).ceremony!;
       expect(
         c.clientDataJson,
         '{"type":"webauthn.create","challenge":"$challenge",'
@@ -218,13 +233,13 @@ void main() {
       );
       expect(c.clientDataHash,
           sha256.convert(utf8.encode(c.clientDataJson)).bytes);
-      expect(planFor('get', getOptions()).ceremony!.clientDataJson,
+      expect(planFor('get', options: getOptions()).ceremony!.clientDataJson,
           startsWith('{"type":"webauthn.get",'));
     });
 
     test('a padded or standard-alphabet challenge is re-encoded canonically', () {
       final padded = base64.encode(challengeBytes);
-      final c = planFor('get', {'challenge': padded}).ceremony!;
+      final c = planFor('get', options: {'challenge': padded}).ceremony!;
       expect(jsonDecode(c.clientDataJson)['challenge'], challenge);
       expect((jsonDecode(c.requestJson) as Map)['challenge'], challenge);
     });
@@ -250,7 +265,7 @@ void main() {
 
   group('the provider answer (PASSKEY-007)', () {
     test('a registration gets our clientDataJSON and its authenticatorData', () {
-      final c = planFor('create', createOptions()).ceremony!;
+      final c = planFor('create', options: createOptions()).ceremony!;
       final authData = authDataFor('login.example.com');
       final response = jsonEncode({
         'id': 'cred-1',
@@ -261,7 +276,7 @@ void main() {
           'transports': ['internal'],
         },
       });
-      final out = PasskeyEngine.completeResponse(c, response);
+      final out = PasskeyEngine.completeResponse(c, responseJson: response);
       expect(out['ok'], isTrue);
       final credential = out['credential'] as Map;
       final r = credential['response'] as Map;
@@ -273,7 +288,7 @@ void main() {
     });
 
     test('an assertion for another relying party is not handed to the page', () {
-      final c = planFor('get', getOptions()).ceremony!;
+      final c = planFor('get', options: getOptions()).ceremony!;
       final response = jsonEncode({
         'id': 'cred-1',
         'response': {
@@ -281,24 +296,26 @@ void main() {
           'signature': b64u([1, 2, 3]),
         },
       });
-      expect(PasskeyEngine.completeResponse(c, response)['name'],
+      expect(PasskeyEngine.completeResponse(c, responseJson: response)['name'],
           'NotReadableError');
     });
 
     test('an assertion missing its signature is unreadable', () {
-      final c = planFor('get', getOptions()).ceremony!;
+      final c = planFor('get', options: getOptions()).ceremony!;
       final response = jsonEncode({
         'id': 'cred-1',
         'response': {
           'authenticatorData': b64u(authDataFor('login.example.com', flags: 5)),
         },
       });
-      expect(PasskeyEngine.completeResponse(c, response)['ok'], isFalse);
-      expect(PasskeyEngine.completeResponse(c, 'not json')['ok'], isFalse);
+      expect(PasskeyEngine.completeResponse(c, responseJson: response)['ok'],
+          isFalse);
+      expect(PasskeyEngine.completeResponse(c, responseJson: 'not json')['ok'],
+          isFalse);
     });
 
     test('a good assertion keeps rawId and userHandle', () {
-      final c = planFor('get', getOptions()).ceremony!;
+      final c = planFor('get', options: getOptions()).ceremony!;
       final response = jsonEncode({
         'id': 'cred-1',
         'rawId': 'cred-1',
@@ -309,7 +326,7 @@ void main() {
         },
         'authenticatorAttachment': 'platform',
       });
-      final out = PasskeyEngine.completeResponse(c, response);
+      final out = PasskeyEngine.completeResponse(c, responseJson: response);
       expect(out['ok'], isTrue);
       final credential = out['credential'] as Map;
       expect(credential['rawId'], 'cred-1');
@@ -359,15 +376,16 @@ void main() {
     });
 
     test('the plan carries the page timeout', () {
-      final c = planFor('create', {...createOptions(), 'timeout': 90000})
-          .ceremony!;
+      final c =
+          planFor('create', options: {...createOptions(), 'timeout': 90000})
+              .ceremony!;
       expect(c.timeout, const Duration(seconds: 90));
-      expect(planFor('get', getOptions()).ceremony!.timeout,
+      expect(planFor('get', options: getOptions()).ceremony!.timeout,
           PasskeyEngine.defaultTimeout);
     });
 
     PasskeyCeremony ceremony({Duration timeout = PasskeyEngine.defaultTimeout}) {
-      final c = planFor('get', getOptions()).ceremony!;
+      final c = planFor('get', options: getOptions()).ceremony!;
       return PasskeyCeremony(
         op: c.op,
         origin: c.origin,

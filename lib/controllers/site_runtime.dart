@@ -63,7 +63,7 @@ class SiteRuntime {
 
   /// Recomputes every webspace's positional view from its siteId membership.
   void resolveWebspaceIndices() => WebspaceSelectionEngine.resolveIndices(
-      webspaces, [for (final m in models) m.siteId]);
+      webspaces, siteIdsByPosition: [for (final m in models) m.siteId]);
 
   /// Applies [change] to the lists. A row that moves or goes takes [loaded]
   /// and [current] with it through [SiteLifecycleEngine]'s patches, in
@@ -100,7 +100,7 @@ class SiteRuntime {
           currentIndex: current,
         );
         models.insert(to, models.removeAt(from));
-        _repoint(patch.newLoadedIndices, patch.newCurrentIndex);
+        _repoint(patch.newLoadedIndices, newCurrent: patch.newCurrentIndex);
       case SitesReplaced(
           sites: final replacement,
           webspaces: final spaces,
@@ -109,7 +109,7 @@ class SiteRuntime {
         models
           ..clear()
           ..addAll(replacement);
-        _repoint(const {}, null);
+        _repoint(const {}, newCurrent: null);
         webspaces
           ..clear()
           ..addAll(spaces);
@@ -121,7 +121,8 @@ class SiteRuntime {
         ):
         models.addAll(opened);
         webspaces.addAll(spaces);
-        ArchiveMembershipEngine.attach(webspaces, appTierMembership);
+        ArchiveMembershipEngine.attach(webspaces,
+            membership: appTierMembership);
       case ArchiveClosed(:final siteIds, :final webspaceIds):
         // Highest first, so each patch reads positions the earlier ones left.
         for (var i = models.length - 1; i >= 0; i--) {
@@ -144,10 +145,10 @@ class SiteRuntime {
       currentIndex: current,
     );
     models.removeAt(index);
-    _repoint(patch.newLoadedIndices, patch.newCurrentIndex);
+    _repoint(patch.newLoadedIndices, newCurrent: patch.newCurrentIndex);
   }
 
-  void _repoint(Set<int> newLoaded, int? newCurrent) {
+  void _repoint(Set<int> newLoaded, {required int? newCurrent}) {
     loaded
       ..clear()
       ..addAll(newLoaded);

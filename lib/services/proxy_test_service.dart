@@ -142,10 +142,11 @@ ProxyTestResult _classify(Exception error) {
 /// Log a completed test. Type and address are PII-safe (`describeForLogs`
 /// reduces the credentials to booleans); the outcome is what the user will
 /// be asked to paste when a proxy misbehaves.
-void logProxyTest(UserProxySettings settings, ProxyTestResult result) {
+void logProxyTest(UserProxySettings settings,
+    {required ProxyTestResult result}) {
   LogService.instance.log(
     LogTag.proxy,
-    'Connection test: ${settings.describeForLogs()} '
+    message: 'Connection test: ${settings.describeForLogs()} '
         'outcome=${result.outcome.name} status=${result.statusCode ?? '-'}',
     level: result.outcome == ProxyTestOutcome.reachable
         ? LogLevel.info

@@ -20,15 +20,15 @@ void main() {
     links = File('lib/controllers/link_controller.dart').readAsStringSync();
   });
 
-  String bodyIn(String source, String signature) {
+  String bodyIn(String source, {required String signature}) {
     final start = source.indexOf(signature);
     expect(start, isNot(-1), reason: '$signature not found');
     return source.substring(start, source.indexOf('\n  }\n', start));
   }
 
-  String bodyOf(String signature) => bodyIn(main, signature);
-  String tabsBody(String signature) => bodyIn(tabs, signature);
-  String linksBody(String signature) => bodyIn(links, signature);
+  String bodyOf(String signature) => bodyIn(main, signature: signature);
+  String tabsBody(String signature) => bodyIn(tabs, signature: signature);
+  String linksBody(String signature) => bodyIn(links, signature: signature);
 
   group('the reconcile (LIR-034)', () {
     late String body;
@@ -63,7 +63,7 @@ void main() {
         'routeOutboundLinks: opener.effectiveRouteOutboundLinks',
         'containersActive: _sites.useContainers',
         'openerPrefs: opener.outboundPreferences',
-        'hosts: () => _host.tabHostsIn(owner, opener)',
+        'hosts: () => _host.tabHostsIn(owner, opener: opener)',
         'current: tab.hostSiteId ?? owner.siteId',
       ]) {
         expect(body, contains(arg), reason: arg);
@@ -85,7 +85,8 @@ void main() {
 
     test('a live slot that changed identity is rebuilt as the new one', () {
       expect(body, contains('identityBefore.putIfAbsent(owner, () => owner.runningIdentity);'));
-      final apply = body.indexOf('await _applySlotIdentityChange(model, entry.value)');
+      final apply = body.indexOf(RegExp(
+          r'await _applySlotIdentityChange\(model,\s*identityBefore: entry\.value\)'));
       expect(apply, isNot(-1));
       expect(body.indexOf('model.disposeWebView();'), greaterThan(apply));
       expect(body, contains('if (!_sites.models.contains(model)) continue;'),
@@ -143,7 +144,7 @@ void main() {
           'if (model.activeTabId != tabId || model.activeStateKey != key)');
       expect(check, greaterThan(capture),
           reason: 'a capture that outlived its tab or identity is dropped');
-      expect(body.indexOf('saveState(key, bytes)'), greaterThan(check));
+      expect(body.indexOf('saveState(key, state: bytes)'), greaterThan(check));
       expect(body, isNot(contains('saveState(model.activeStateKey')));
     });
   });

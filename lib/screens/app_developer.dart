@@ -16,8 +16,8 @@ import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
 
 /// Turns developer mode on or off, with everything it decides.
-Future<void> setDeveloperMode(bool value) async {
-  await DeveloperModeService.instance.setEnabled(value);
+Future<void> setDeveloperMode({required bool on}) async {
+  await DeveloperModeService.instance.setEnabled(on: on);
   notifyIconSourcesChanged();
   // The external tor is an experiment, so developer mode decides it too.
   await TorService.instance.runtimeChoiceChanged();
@@ -102,7 +102,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
   Future<void> _turnOff() async {
     if (_turningOff) return;
     setState(() => _turningOff = true);
-    await setDeveloperMode(false);
+    await setDeveloperMode(on: false);
     if (!mounted) return;
     // Only this route: a logs screen opened during the await stays.
     final route = ModalRoute.of(context);
@@ -133,7 +133,7 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
             title: loc.appSettingsDeveloperMode,
             hint: loc.appSettingsDeveloperModeHint,
             lock: _turningOff ? const Lock.because(null) : null,
-            control: Toggle(!_turningOff, (value) {
+            control: Toggle(!_turningOff, onChanged: (value) {
               if (!value) _turnOff();
             }),
           ),
@@ -168,9 +168,9 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
               hint: hint,
               control: Toggle(
                 ExperimentalFeaturesService.instance.switchOn(feature),
-                (value) async {
+                onChanged: (value) async {
                   await ExperimentalFeaturesService.instance
-                      .setSwitch(feature, value);
+                      .setSwitch(feature, on: value);
                   if (feature == ExperimentalFeature.siteIconsOnly) {
                     notifyIconSourcesChanged();
                   }

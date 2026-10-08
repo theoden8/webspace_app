@@ -130,7 +130,7 @@ void main() {
     final pwdStore = ProxyPasswordSecureStorage();
     await pwdStore.savePassword(
       ProxyPasswordSecureStorage.globalProxyKey,
-      secretPwd,
+      password: secretPwd,
     );
 
     FilePickerPlatform.instance = stub;

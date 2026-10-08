@@ -12,27 +12,32 @@ void main() {
   final supported = AppLocalizations.supportedLocales;
 
   test('unmatched device locale falls back to English, not af', () {
-    expect(resolveSupportedLocale([const Locale('xx')], supported),
+    expect(resolveSupportedLocale([const Locale('xx')], supported: supported),
         const Locale('en'));
   });
 
   test('null / empty preferred falls back to English', () {
-    expect(resolveSupportedLocale(null, supported), const Locale('en'));
-    expect(resolveSupportedLocale(const [], supported), const Locale('en'));
+    expect(
+        resolveSupportedLocale(null, supported: supported), const Locale('en'));
+    expect(resolveSupportedLocale(const [], supported: supported),
+        const Locale('en'));
   });
 
   test('en_US resolves to en (language match)', () {
-    expect(resolveSupportedLocale([const Locale('en', 'US')], supported),
+    expect(
+        resolveSupportedLocale([const Locale('en', 'US')],
+            supported: supported),
         const Locale('en'));
   });
 
   test('exact language match wins', () {
-    expect(resolveSupportedLocale([const Locale('de')], supported),
+    expect(resolveSupportedLocale([const Locale('de')], supported: supported),
         const Locale('de'));
   });
 
   test('pt_BR resolves to the pt_BR variant, not bare pt', () {
-    final r = resolveSupportedLocale([const Locale('pt', 'BR')], supported);
+    final r = resolveSupportedLocale([const Locale('pt', 'BR')],
+        supported: supported);
     expect(r.languageCode, 'pt');
     expect(r.countryCode, 'BR');
   });
@@ -43,7 +48,7 @@ void main() {
   test('zh-Hant-TW resolves to the single zh locale', () {
     final r = resolveSupportedLocale(
       [const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant', countryCode: 'TW')],
-      supported,
+      supported: supported,
     );
     expect(r.languageCode, 'zh');
     expect(r.scriptCode, isNull);
@@ -52,7 +57,7 @@ void main() {
   test('zh-Hans-CN resolves to the same zh locale', () {
     final r = resolveSupportedLocale(
       [const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans', countryCode: 'CN')],
-      supported,
+      supported: supported,
     );
     expect(r.languageCode, 'zh');
     expect(r.scriptCode, isNull);
@@ -61,7 +66,7 @@ void main() {
   test('first matching preferred locale is used', () {
     final r = resolveSupportedLocale(
       [const Locale('xx'), const Locale('fr'), const Locale('de')],
-      supported,
+      supported: supported,
     );
     expect(r, const Locale('fr'));
   });

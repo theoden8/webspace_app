@@ -44,7 +44,7 @@ void main() {
   }) {
     return service.report(
       siteId,
-      MediaSessionReport(
+      page: MediaSessionReport(
         frame: frame,
         isMainFrame: isMainFrame,
         playing: playing,
@@ -69,8 +69,9 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(channel, (call) async {
           calls.add(call);
-          if (call.method == 'isNotificationActive')
+          if (call.method == 'isNotificationActive') {
             return osPostedNotification;
+          }
           return null;
         });
   });
@@ -212,7 +213,8 @@ void main() {
     // artwork stays parked across a main-frame takeover and its continuation
     // would otherwise land with attacker-chosen metadata.
     final gate = Completer<Uint8List?>();
-    MediaSessionService.debugArtworkFetchOverride = (_, __) => gate.future;
+    MediaSessionService.debugArtworkFetchOverride =
+        (_, {required proxy}) => gate.future;
     addTearDown(() => MediaSessionService.debugArtworkFetchOverride = null);
 
     final parked = reportPlaying(

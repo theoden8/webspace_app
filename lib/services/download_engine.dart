@@ -155,7 +155,7 @@ class DownloadEngine {
     String? referer,
     String? suggestedFilename,
     String? mimeTypeHint,
-    void Function(int bytesDone, int? bytesTotal)? onProgress,
+    void Function(int bytesDone, {required int? bytesTotal})? onProgress,
   }) async {
     final outboundResult = _outboundResult;
     if (outboundResult is OutboundClientBlocked) {
@@ -190,7 +190,7 @@ class DownloadEngine {
       } else if (cookieHeaderFor != null) {
         cookie = await cookieHeaderFor(current);
       } else {
-        cookie = _sameOrigin(current, uri) ? cookieHeader : null;
+        cookie = _sameOrigin(current, b: uri) ? cookieHeader : null;
       }
       if (cookie != null && cookie.isNotEmpty) {
         request.headers['cookie'] = cookie;
@@ -222,7 +222,7 @@ class DownloadEngine {
       if (current.scheme == 'https' && next.scheme == 'http') {
         throw DownloadException('Redirect downgrades https to http');
       }
-      if (!_sameOrigin(next, current)) hopReferer = null;
+      if (!_sameOrigin(next, b: current)) hopReferer = null;
       current = next;
     }
 
@@ -236,7 +236,7 @@ class DownloadEngine {
       await _discard(response);
       throw DownloadException('Download exceeds size limit');
     }
-    onProgress?.call(0, total);
+    onProgress?.call(0, bytesTotal: total);
 
     final chunks = <List<int>>[];
     var done = 0;
@@ -247,7 +247,7 @@ class DownloadEngine {
           throw DownloadException('Download exceeds size limit');
         }
         chunks.add(chunk);
-        onProgress?.call(done, total);
+        onProgress?.call(done, bytesTotal: total);
       }
     } on DownloadException {
       rethrow;
@@ -272,8 +272,11 @@ class DownloadEngine {
     final Uint8List bytes;
     try {
       bytes = switch (encoding) {
-        'gzip' || 'x-gzip' => _inflateBounded(hostGzipDecoder, bytesReceived),
-        'deflate' => _inflateBounded(hostZlibDecoder, bytesReceived),
+        'gzip' ||
+        'x-gzip' =>
+          _inflateBounded(hostGzipDecoder, compressed: bytesReceived),
+        'deflate' =>
+          _inflateBounded(hostZlibDecoder, compressed: bytesReceived),
         _ => bytesReceived,
       };
     } on FormatException catch (e) {
@@ -298,14 +301,14 @@ class DownloadEngine {
       status == 301 || status == 302 || status == 303 || status == 307 ||
       status == 308;
 
-  static bool _sameOrigin(Uri a, Uri b) =>
+  static bool _sameOrigin(Uri a, {required Uri b}) =>
       a.scheme == b.scheme && a.host == b.host && a.port == b.port;
 
   /// Inflate [compressed] through [codec] in chunks, aborting the moment the
   /// running output exceeds [_maxBytes] so a decompression bomb never fully
   /// materializes. Throws [DownloadException] on overflow.
-  Uint8List _inflateBounded(Converter<List<int>, List<int>> codec,
-      Uint8List compressed) {
+  Uint8List _inflateBounded(Converter<List<int>, List<int>> codec, {
+      required Uint8List compressed}) {
     final out = BytesBuilder(copy: false);
     var total = 0;
     var overflow = false;

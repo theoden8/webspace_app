@@ -53,21 +53,21 @@ abstract final class Keystores {
 /// [MissingPluginException] where no plugin answers. Only the exception's
 /// type is logged: the plugins' messages can echo what was stored.
 Future<T?> keystoreCall<T extends Object>(
-  LogTag logTag,
-  String what,
-  Future<T> Function() call,
-) async {
+  LogTag logTag, {
+  required String what,
+  required Future<T> Function() call,
+}) async {
   try {
     return await call();
   } on PlatformException catch (e) {
-    _logRefusal(logTag, what, e);
+    _logRefusal(logTag, what: what, e: e);
   } on MissingPluginException catch (e) {
-    _logRefusal(logTag, what, e);
+    _logRefusal(logTag, what: what, e: e);
   }
   return null;
 }
 
-void _logRefusal(LogTag logTag, String what, Exception e) {
+void _logRefusal(LogTag logTag, {required String what, required Exception e}) {
   logTag.error('Keystore refused to $what: ${e.runtimeType}');
 }
 
@@ -131,8 +131,9 @@ final class SecureJsonStore<T> {
   /// read.
   Future<T> read() async {
     if (_skip) return _decode(null);
-    final raw = await keystoreCall(
-        logTag, 'read $key', () async => await _keystore.read(key: key) ?? '');
+    final raw = await keystoreCall(logTag,
+        what: 'read $key',
+        call: () async => await _keystore.read(key: key) ?? '');
     if (raw == null) {
       _available = false;
       return _decode(null);
@@ -153,7 +154,8 @@ final class SecureJsonStore<T> {
   Future<bool> write(T value) async {
     if (_isEmpty(value)) return delete();
     if (_skip) return false;
-    return _settle(await keystoreCall(logTag, 'write $key', () async {
+    return _settle(
+        done: await keystoreCall(logTag, what: 'write $key', call: () async {
       await _keystore.write(key: key, value: jsonEncode(_encode(value)));
       return true;
     }));
@@ -162,13 +164,14 @@ final class SecureJsonStore<T> {
   /// Delete the entry. False when nothing was deleted.
   Future<bool> delete() async {
     if (_skip) return false;
-    return _settle(await keystoreCall(logTag, 'delete $key', () async {
+    return _settle(
+        done: await keystoreCall(logTag, what: 'delete $key', call: () async {
       await _keystore.delete(key: key);
       return true;
     }));
   }
 
-  bool _settle(bool? done) => _available = done != null;
+  bool _settle({required bool? done}) => _available = done != null;
 
   /// Read, apply [change], and write back, as one exclusive step. Nothing
   /// is written when the read failed. False when nothing was written.

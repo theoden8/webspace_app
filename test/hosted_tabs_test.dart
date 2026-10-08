@@ -120,7 +120,7 @@ void main() {
         SiteTab.primary(url: 'https://github.com/'),
         SiteTab(id: 't1', url: 'https://duckduckgo.com/?q=x', hostSiteId: 'ddg'),
       ], active: 't1');
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs.last.hostSiteId, 'ddg');
       expect(back.activeTabId, 't1');
       expect(m.activeTabPersistsNavState, isTrue);
@@ -138,7 +138,7 @@ void main() {
     test('closeWhere closes a host\'s tabs and re-parents the rest (LIR-023)',
         () {
       final result = TabLifecycleEngine.closeWhere(
-          tree(), 'hh', (t) => t.hostSiteId == 'ddg');
+          tree(), activeTabId: 'hh', shouldClose: (t) => t.hostSiteId == 'ddg');
       expect(result.closedIds.toSet(), {'h', 'hh'});
       expect(result.tabs.map((t) => t.id), [kPrimaryTabId, 'c']);
       expect(result.tabs.last.parentId, kPrimaryTabId);
@@ -147,12 +147,13 @@ void main() {
 
     test('ownerRunTab walks up to a tab the owner runs', () {
       final tabs = tree();
-      expect(TabLifecycleEngine.ownerRunTab(tabs, 'hh'), kPrimaryTabId);
-      expect(TabLifecycleEngine.ownerRunTab(tabs, 'c'), 'c');
+      expect(TabLifecycleEngine.ownerRunTab(tabs, activeTabId: 'hh'),
+          kPrimaryTabId);
+      expect(TabLifecycleEngine.ownerRunTab(tabs, activeTabId: 'c'), 'c');
       expect(
         TabLifecycleEngine.ownerRunTab(
             [SiteTab(id: 'x', url: 'https://duckduckgo.com/', hostSiteId: 'ddg')],
-            'x'),
+            activeTabId: 'x'),
         isNull,
       );
     });
@@ -161,12 +162,12 @@ void main() {
       final hostedHome = SiteTab(
           id: 'h', url: 'https://github.com/', hostSiteId: 'ddg');
       final tabs = [SiteTab.primary(url: 'https://github.com/x'), hostedHome];
-      final parked =
-          TabLifecycleEngine.homeLanding(tabs, kPrimaryTabId, 'https://github.com/')!;
+      final parked = TabLifecycleEngine.homeLanding(tabs,
+          activeTabId: kPrimaryTabId, initUrl: 'https://github.com/')!;
       expect(parked.activeTabId, isNot('h'));
       expect(parked.tabs, hasLength(3));
-      final active =
-          TabLifecycleEngine.homeLanding(tabs, 'h', 'https://github.com/')!;
+      final active = TabLifecycleEngine.homeLanding(tabs,
+          activeTabId: 'h', initUrl: 'https://github.com/')!;
       expect(active.activeTabId, isNot('h'));
     });
 
@@ -201,7 +202,7 @@ void main() {
         searchSites: ['ddg', 'kagi'],
         searchDefault: 'kagi',
       );
-      final back = WebViewModel.fromJson(set.toJson(), null);
+      final back = WebViewModel.fromJson(set.toJson(), stateSetterF: null);
       expect(back.searchAddress, 'https://b.example/?s=%s');
       expect(back.searchesWeb, isTrue);
       expect(back.searchSites, ['ddg', 'kagi']);
@@ -239,7 +240,7 @@ void main() {
         'searchesWeb': 'yes',
         'searchSites': ['ok', 7, '../x'],
         'searchDefault': ['x'],
-      }, null);
+      }, stateSetterF: null);
       expect(back.searchAddress, isNull);
       expect(back.searchesWeb, isFalse);
       expect(back.searchSites, ['ok']);
@@ -259,7 +260,7 @@ void main() {
       expect(m.offerDiscoveredSearch(searx), isTrue);
       expect(m.offerDiscoveredSearch(searx), isFalse,
           reason: 'the same find changes nothing, so nothing is saved');
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.discoveredSearchAddress, 'https://searx.lan/search?q=%s');
       expect(back.discoveredSearchesWeb, isTrue);
       expect(back.searchCapability!.template, 'https://searx.lan/search?q=%s');
@@ -281,7 +282,7 @@ void main() {
         'initUrl': 'https://searx.lan/',
         'discoveredSearchAddress': 7,
         'discoveredSearchesWeb': 'yes',
-      }, null);
+      }, stateSetterF: null);
       expect(back.discoveredSearchAddress, isNull);
       expect(back.discoveredSearchesWeb, isFalse);
     });

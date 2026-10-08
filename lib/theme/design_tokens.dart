@@ -42,8 +42,9 @@ abstract final class Chrome {
   static const Color hairlineDark = Color(0xFF3E3E3E);
   static const double hairlineWidth = 0.5;
 
-  static Color bar(bool isDark) => isDark ? barDark : barLight;
-  static Color hairline(bool isDark) => isDark ? hairlineDark : hairlineLight;
+  static Color bar({required bool isDark}) => isDark ? barDark : barLight;
+  static Color hairline({required bool isDark}) =>
+      isDark ? hairlineDark : hairlineLight;
 }
 
 /// The padlock in the URL bar. Green only for https; anything else reads as
@@ -148,7 +149,7 @@ abstract final class ContainerColors {
   /// The bar at the start of a tab row.
   static const double markWidth = 3;
 
-  static Color of(int index, Brightness brightness) {
+  static Color of(int index, {required Brightness brightness}) {
     final set = brightness == Brightness.dark ? dark : light;
     return set[index % set.length];
   }

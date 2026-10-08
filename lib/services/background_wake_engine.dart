@@ -70,8 +70,8 @@ class WakePlanEntry {
   final WakeMode? mode;
   final WakeSkip? skip;
 
-  const WakePlanEntry.check(this.site, WakeMode this.mode) : skip = null;
-  const WakePlanEntry.skip(this.site, WakeSkip this.skip) : mode = null;
+  const WakePlanEntry.check(this.site, {required WakeMode this.mode}) : skip = null;
+  const WakePlanEntry.skip(this.site, {required WakeSkip this.skip}) : mode = null;
 }
 
 class WakePlan {
@@ -112,7 +112,7 @@ abstract class BackgroundWakeHost {
   Future<String?> title(String siteId);
 
   /// Whether the site's own page posted a notification at or after [since].
-  bool postedSince(String siteId, DateTime since);
+  bool postedSince(String siteId, {required DateTime since});
 
   Future<void> post({
     required String siteId,
@@ -198,7 +198,7 @@ class WakeSiteOutcome {
     required this.fallbackPosted,
   }) : skip = null;
 
-  const WakeSiteOutcome.skipped(this.site, WakeSkip this.skip)
+  const WakeSiteOutcome.skipped(this.site, {required WakeSkip this.skip})
       : mode = null,
         settle = null,
         baseline = null,
@@ -224,7 +224,7 @@ class WakeReport {
 /// its position only, so it can be kept on disk and exported; [sensitive]
 /// carries the name that position stands for.
 ({String normal, String sensitive}) describeWakeSite(
-    WakeSiteOutcome o, int position, int count) {
+    WakeSiteOutcome o, {required int position, required int count}) {
   final sensitive = 'wake site $position/$count is "${o.site.name}" '
       '(siteId ${o.site.siteId})';
   final skip = o.skip;
@@ -277,7 +277,7 @@ class BackgroundWakeEngine {
 
   /// Record what the user could see. Called when the app leaves the screen,
   /// and after every wake so one rise posts once.
-  void noteBaseline(String siteId, String? title) {
+  void noteBaseline(String siteId, {required String? title}) {
     final count = unreadCountFromTitle(title);
     if (count == null) {
       _baselines.remove(siteId);
@@ -332,13 +332,13 @@ class BackgroundWakeEngine {
       [
         for (final c in sites)
           if (c.live)
-            WakePlanEntry.check(c.site, WakeMode.live)
+            WakePlanEntry.check(c.site, mode: WakeMode.live)
           else if (c.headlessBlocked != null)
-            WakePlanEntry.skip(c.site, c.headlessBlocked!)
+            WakePlanEntry.skip(c.site, skip: c.headlessBlocked!)
           else if (c.route != null && c.route != routeInForce)
-            WakePlanEntry.skip(c.site, WakeSkip.proxyConflict)
+            WakePlanEntry.skip(c.site, skip: WakeSkip.proxyConflict)
           else
-            WakePlanEntry.check(c.site, WakeMode.headless),
+            WakePlanEntry.check(c.site, mode: WakeMode.headless),
       ],
       routeOwner: routeOwner,
     );
@@ -384,7 +384,8 @@ class BackgroundWakeEngine {
         checked.add(e);
         issuedAt[id] = host.now();
       }
-      final settle = await _awaitSettled(host, checked, started, issuedAt);
+      final settle = await _awaitSettled(host,
+          sites: checked, started: started, issuedAt: issuedAt);
       if (checked.isNotEmpty) await host.delay(postGrace);
 
       final outcomes = <WakeSiteOutcome>[];
@@ -392,13 +393,13 @@ class BackgroundWakeEngine {
         final s = e.site;
         final skip = skipped[s.siteId];
         if (skip != null) {
-          outcomes.add(WakeSiteOutcome.skipped(s, skip));
+          outcomes.add(WakeSiteOutcome.skipped(s, skip: skip));
           continue;
         }
         final title = await host.title(s.siteId);
         final baseline = _baselines[s.siteId];
         final current = unreadCountFromTitle(title);
-        final sitePosted = host.postedSince(s.siteId, started);
+        final sitePosted = host.postedSince(s.siteId, since: started);
         final fallback = postsUnreadFallback(
           baseline: baseline,
           current: current,
@@ -416,7 +417,7 @@ class BackgroundWakeEngine {
           sitePosted: sitePosted,
           fallbackPosted: fallback,
         ));
-        noteBaseline(s.siteId, title);
+        noteBaseline(s.siteId, title: title);
       }
       return WakeReport(
           sites: outcomes, elapsed: host.now().difference(started));
@@ -432,11 +433,11 @@ class BackgroundWakeEngine {
   /// it never started within a second of being issued (a reload the engine
   /// refused, or one that finished before the first poll).
   Future<Map<String, WakeSettle>> _awaitSettled(
-    BackgroundWakeHost host,
-    List<WakePlanEntry> sites,
-    DateTime started,
-    Map<String, DateTime> issuedAt,
-  ) async {
+    BackgroundWakeHost host, {
+    required List<WakePlanEntry> sites,
+    required DateTime started,
+    required Map<String, DateTime> issuedAt,
+  }) async {
     final seenLoading = <String>{};
     final settledAt = <String, Duration>{};
     final deadline = started.add(settleDeadline);

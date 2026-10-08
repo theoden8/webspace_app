@@ -89,7 +89,7 @@ void main() {
       final hashes = <AccentColor, int>{};
       for (final color in AccentColor.values) {
         final pixels = Uint8List.fromList(srcPixels);
-        recolorLogoPixels(pixels, color, isLight: true);
+        recolorLogoPixels(pixels, accentColor: color, isLight: true);
         hashes[color] = _pixelHash(pixels);
       }
 
@@ -103,12 +103,14 @@ void main() {
     test('blue accent preserves original icon colors (light)', () {
       final (srcPixels, _, _) = _loadIcon(lightIconPath);
       final processed = Uint8List.fromList(srcPixels);
-      recolorLogoPixels(processed, AccentColor.blue, isLight: true);
+      recolorLogoPixels(processed,
+          accentColor: AccentColor.blue, isLight: true);
 
       // Blue accent on light icon: skipRecolor=true, so colored pixels unchanged.
       // Only alpha processing happens. Verify the hash is stable.
       final processed2 = Uint8List.fromList(srcPixels);
-      recolorLogoPixels(processed2, AccentColor.blue, isLight: true);
+      recolorLogoPixels(processed2,
+          accentColor: AccentColor.blue, isLight: true);
       expect(_pixelHash(processed), _pixelHash(processed2),
           reason: 'Same input + same params should produce identical output');
     });
@@ -116,7 +118,7 @@ void main() {
     test('blue accent on dark icon preserves blue hue', () {
       final (srcPixels, _, _) = _loadIcon(darkIconPath);
       final pixels = Uint8List.fromList(srcPixels);
-      recolorLogoPixels(pixels, AccentColor.blue, isLight: false);
+      recolorLogoPixels(pixels, accentColor: AccentColor.blue, isLight: false);
 
       final hue = _averageColoredHue(pixels);
       // Blue hue should be roughly 200-240
@@ -129,7 +131,8 @@ void main() {
     test('purple accent on dark icon has purple hue', () {
       final (srcPixels, _, _) = _loadIcon(darkIconPath);
       final pixels = Uint8List.fromList(srcPixels);
-      recolorLogoPixels(pixels, AccentColor.purple, isLight: false);
+      recolorLogoPixels(pixels,
+          accentColor: AccentColor.purple, isLight: false);
 
       final hue = _averageColoredHue(pixels);
       // Purple hue should be roughly 260-300
@@ -143,10 +146,12 @@ void main() {
       final (srcPixels, _, _) = _loadIcon(darkIconPath);
 
       final bluePixels = Uint8List.fromList(srcPixels);
-      recolorLogoPixels(bluePixels, AccentColor.blue, isLight: false);
+      recolorLogoPixels(bluePixels,
+          accentColor: AccentColor.blue, isLight: false);
 
       final purplePixels = Uint8List.fromList(srcPixels);
-      recolorLogoPixels(purplePixels, AccentColor.purple, isLight: false);
+      recolorLogoPixels(purplePixels,
+          accentColor: AccentColor.purple, isLight: false);
 
       expect(_pixelHash(bluePixels), isNot(_pixelHash(purplePixels)),
           reason: 'Blue and purple should produce different results on dark icon');
@@ -158,10 +163,10 @@ void main() {
 
       for (final color in [AccentColor.blue, AccentColor.green, AccentColor.purple]) {
         final lightPixels = Uint8List.fromList(lightSrc);
-        recolorLogoPixels(lightPixels, color, isLight: true);
+        recolorLogoPixels(lightPixels, accentColor: color, isLight: true);
 
         final darkPixels = Uint8List.fromList(darkSrc);
-        recolorLogoPixels(darkPixels, color, isLight: false);
+        recolorLogoPixels(darkPixels, accentColor: color, isLight: false);
 
         expect(_pixelHash(lightPixels), isNot(_pixelHash(darkPixels)),
             reason: 'Light and dark should differ for ${color.name}');
@@ -171,7 +176,7 @@ void main() {
     test('green accent produces green-ish hue on light icon', () {
       final (srcPixels, _, _) = _loadIcon(lightIconPath);
       final pixels = Uint8List.fromList(srcPixels);
-      recolorLogoPixels(pixels, AccentColor.green, isLight: true);
+      recolorLogoPixels(pixels, accentColor: AccentColor.green, isLight: true);
 
       final hue = _averageColoredHue(pixels);
       // Green hue ~120-160
@@ -188,11 +193,13 @@ void main() {
 
       // Correct: light icon + isLight=true
       final correctLight = Uint8List.fromList(lightSrc);
-      recolorLogoPixels(correctLight, AccentColor.green, isLight: true);
+      recolorLogoPixels(correctLight,
+          accentColor: AccentColor.green, isLight: true);
 
       // Bug: light icon + isLight=false (race condition scenario)
       final buggyLight = Uint8List.fromList(lightSrc);
-      recolorLogoPixels(buggyLight, AccentColor.green, isLight: false);
+      recolorLogoPixels(buggyLight,
+          accentColor: AccentColor.green, isLight: false);
 
       // These should be different - the buggy version has inverted alpha
       expect(_pixelHash(correctLight), isNot(_pixelHash(buggyLight)),

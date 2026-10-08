@@ -5,14 +5,14 @@ import 'package:webspace/services/tab_list_engine.dart';
 /// TAB-017: which other trees a site's list shows, and in what order.
 void main() {
   /// A tree of [tabs] whose host id (or [owner]) is the site a tab runs as.
-  TabTree tree(String owner, List<SiteTab> tabs) =>
-      TabTree(owner, tabs, (t) => t.hostSiteId ?? owner);
+  TabTree tree(String owner, {required List<SiteTab> tabs}) =>
+      TabTree(owner, tabs: tabs, runsAs: (t) => t.hostSiteId ?? owner);
 
   SiteTab tab(String id, {String? parent, String? runsAs}) => SiteTab(
       id: id, url: 'https://x.example/$id', parentId: parent, hostSiteId: runsAs);
 
   // The example branch: ddg > gh > hf, in DuckDuckGo's tree, gh on screen.
-  final branchTree = tree('ddg', [
+  final branchTree = tree('ddg', tabs: [
     tab('d'),
     tab('g', parent: 'd', runsAs: 'gh'),
     tab('h', parent: 'g', runsAs: 'hf'),
@@ -21,25 +21,31 @@ void main() {
 
   group('branchContainers', () {
     test('the sites from the root down through what was opened below', () {
-      expect(TabListEngine.branchContainers(branchTree, 'g'), ['ddg', 'gh', 'hf']);
+      expect(TabListEngine.branchContainers(branchTree, activeTabId: 'g'),
+          ['ddg', 'gh', 'hf']);
     });
 
     test('a sibling is not on the branch', () {
-      expect(TabListEngine.branchContainers(branchTree, 'h'), ['ddg', 'gh', 'hf']);
-      expect(TabListEngine.branchContainers(branchTree, 'd2'), ['ddg']);
+      expect(TabListEngine.branchContainers(branchTree, activeTabId: 'h'),
+          ['ddg', 'gh', 'hf']);
+      expect(TabListEngine.branchContainers(branchTree, activeTabId: 'd2'),
+          ['ddg']);
     });
 
     test('the root takes in the whole tree', () {
-      expect(TabListEngine.branchContainers(branchTree, 'd'), ['ddg', 'gh', 'hf']);
+      expect(TabListEngine.branchContainers(branchTree, activeTabId: 'd'),
+          ['ddg', 'gh', 'hf']);
     });
 
     test('a missing tab and a parent cycle end the walk', () {
-      expect(TabListEngine.branchContainers(branchTree, 'gone'), isEmpty);
-      final cycle = tree('ddg', [
+      expect(TabListEngine.branchContainers(branchTree, activeTabId: 'gone'),
+          isEmpty);
+      final cycle = tree('ddg', tabs: [
         tab('a', parent: 'b', runsAs: 'gh'),
         tab('b', parent: 'a'),
       ]);
-      expect(TabListEngine.branchContainers(cycle, 'a').toSet(), {'ddg', 'gh'});
+      expect(TabListEngine.branchContainers(cycle, activeTabId: 'a').toSet(),
+          {'ddg', 'gh'});
     });
   });
 
@@ -48,10 +54,10 @@ void main() {
 
     test('each tree holding one of the branch\'s sites, in branch order', () {
       final others = [
-        tree('wiki', [tab('w', runsAs: 'hf')]),
-        tree('mastodon', [tab('m')]),
-        tree('news', [tab('n', runsAs: 'gh')]),
-        tree('blog', [tab('b', runsAs: 'ddg')]),
+        tree('wiki', tabs: [tab('w', runsAs: 'hf')]),
+        tree('mastodon', tabs: [tab('m')]),
+        tree('news', tabs: [tab('n', runsAs: 'gh')]),
+        tree('blog', tabs: [tab('b', runsAs: 'ddg')]),
       ];
       expect(
         ids(TabListEngine.otherTrees(
@@ -63,8 +69,8 @@ void main() {
 
     test('a tree is placed by the earliest site it holds, then as given', () {
       final others = [
-        tree('a', [tab('a1', runsAs: 'hf'), tab('a2', runsAs: 'gh')]),
-        tree('b', [tab('b1', runsAs: 'gh')]),
+        tree('a', tabs: [tab('a1', runsAs: 'hf'), tab('a2', runsAs: 'gh')]),
+        tree('b', tabs: [tab('b1', runsAs: 'gh')]),
       ];
       expect(
         ids(TabListEngine.otherTrees(
@@ -75,11 +81,12 @@ void main() {
 
     test('more than five branches follow only the tab on screen\'s site', () {
       final others = [
-        for (var i = 0; i < 5; i++) tree('s$i', [tab('x$i', runsAs: 'hf')]),
-        tree('gh-elsewhere', [tab('y', runsAs: 'gh')]),
+        for (var i = 0; i < 5; i++)
+          tree('s$i', tabs: [tab('x$i', runsAs: 'hf')]),
+        tree('gh-elsewhere', tabs: [tab('y', runsAs: 'gh')]),
       ];
       expect(
-        TabListEngine.branchCount(others, {'ddg', 'gh', 'hf'}),
+        TabListEngine.branchCount(others, followed: {'ddg', 'gh', 'hf'}),
         6,
       );
       expect(
@@ -91,8 +98,9 @@ void main() {
 
     test('five branches are all listed', () {
       final others = [
-        for (var i = 0; i < 4; i++) tree('s$i', [tab('x$i', runsAs: 'hf')]),
-        tree('gh-elsewhere', [tab('y', runsAs: 'gh')]),
+        for (var i = 0; i < 4; i++)
+          tree('s$i', tabs: [tab('x$i', runsAs: 'hf')]),
+        tree('gh-elsewhere', tabs: [tab('y', runsAs: 'gh')]),
       ];
       expect(
         TabListEngine.otherTrees(
@@ -102,26 +110,26 @@ void main() {
     });
 
     test('a branch inside a branch counts once, since it is listed whole', () {
-      final nested = tree('t', [
+      final nested = tree('t', tabs: [
         tab('r', runsAs: 'gh'),
         tab('mid', parent: 'r'),
         tab('deep', parent: 'mid', runsAs: 'gh'),
         tab('other'),
         tab('again', parent: 'other', runsAs: 'gh'),
       ]);
-      expect(TabListEngine.branchCount([nested], {'gh'}), 2);
+      expect(TabListEngine.branchCount([nested], followed: {'gh'}), 2);
     });
 
     test('where the user was is listed, last and uncounted', () {
       final others = [
-        tree('wiki', [tab('w0'), tab('w', parent: 'w0')]),
-        tree('news', [tab('n', runsAs: 'gh')]),
+        tree('wiki', tabs: [tab('w0'), tab('w', parent: 'w0')]),
+        tree('news', tabs: [tab('n', runsAs: 'gh')]),
       ];
       final listed = TabListEngine.otherTrees(
         containers: ['gh'],
         selected: 'gh',
         others: others,
-        keep: (site, t) => site == 'wiki' && t.id == 'w',
+        keep: (site, {required tab}) => site == 'wiki' && tab.id == 'w',
       );
       expect(ids(listed), ['news', 'wiki']);
       expect([for (final r in listed.last.rows) r.tab.id], ['w0', 'w']);
@@ -132,7 +140,7 @@ void main() {
         containers: ['ddg'],
         selected: 'ddg',
         others: [
-          tree('gh', [
+          tree('gh', tabs: [
             tab('root'),
             tab('hosted', parent: 'root', runsAs: 'ddg'),
             tab('below', parent: 'hosted'),

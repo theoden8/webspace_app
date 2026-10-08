@@ -61,7 +61,7 @@ void main() {
     before.syntheticKeepAlive = true;
     after.syntheticKeepAlive = true;
     loopback = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    listenFixture<HttpRequest>(loopback!, (request) {
+    listenFixture<HttpRequest>(loopback!, onEvent: (request) {
       request.response
         ..headers.contentType = ContentType.html
         ..write('<!doctype html><html><body><p>direct</p></body></html>');
@@ -138,10 +138,12 @@ void main() {
       UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:${f.port}');
 
   /// Every request [f] served for `<dest><path>`, as `<tunnel> <host><path>`.
-  List<String> served(Socks5Fixture f, int dest, String path) => [
-        for (final r in f.syntheticRequests)
-          if (r.endsWith(' ${syntheticOrigin(dest)}$path')) r,
-      ];
+List<String> served(Socks5Fixture f,
+        {required int dest, required String path}) =>
+    [
+      for (final r in f.syntheticRequests)
+        if (r.endsWith(' ${syntheticOrigin(dest)}$path')) r,
+    ];
 
   final waitReal = RealWait(log: log, timeout: Duration(seconds: 20));
 
@@ -156,7 +158,8 @@ void main() {
         proxySettings: via(before));
     expect(
         await waitReal(tester,
-            () => served(before, sameHostDest, '/before').isNotEmpty,
+            done: () =>
+                served(before, dest: sameHostDest, path: '/before').isNotEmpty,
             label: 'first load through the first proxy'),
         isTrue,
         reason: 'the site never loaded through its first proxy, so nothing '
@@ -171,13 +174,13 @@ void main() {
         proxySettings: via(after));
     await waitReal(
         tester,
-        () =>
-            served(after, sameHostDest, '/after').isNotEmpty ||
-            served(before, sameHostDest, '/after').isNotEmpty,
+        done: () =>
+            served(after, dest: sameHostDest, path: '/after').isNotEmpty ||
+            served(before, dest: sameHostDest, path: '/after').isNotEmpty,
         label: 'same host after the change');
 
     // And a host the site has never reached, from the new WebView.
-    expect(await waitReal(tester, () => controller != null,
+    expect(await waitReal(tester, done: () => controller != null,
         label: 'controller created'), isTrue);
     await tester.runAsync(() async {
       await controller!.nativeController.loadUrl(
@@ -187,15 +190,15 @@ void main() {
     });
     await waitReal(
         tester,
-        () =>
-            served(after, freshHostDest, '/fresh').isNotEmpty ||
-            served(before, freshHostDest, '/fresh').isNotEmpty,
+        done: () =>
+            served(after, dest: freshHostDest, path: '/fresh').isNotEmpty ||
+            served(before, dest: freshHostDest, path: '/fresh').isNotEmpty,
         label: 'fresh host after the change');
 
-    final sameOld = served(before, sameHostDest, '/after');
-    final sameNew = served(after, sameHostDest, '/after');
-    final freshOld = served(before, freshHostDest, '/fresh');
-    final freshNew = served(after, freshHostDest, '/fresh');
+    final sameOld = served(before, dest: sameHostDest, path: '/after');
+    final sameNew = served(after, dest: sameHostDest, path: '/after');
+    final freshOld = served(before, dest: freshHostDest, path: '/fresh');
+    final freshNew = served(after, dest: freshHostDest, path: '/fresh');
     final lateOnOld = before.syntheticRequests.skip(beforeTunnels).toList();
     verdict.add('same-host=${sameNew.isNotEmpty ? "new" : sameOld.isNotEmpty ? "OLD" : "none"} '
         'fresh-host=${freshNew.isNotEmpty ? "new" : freshOld.isNotEmpty ? "OLD" : "none"}');
@@ -230,15 +233,16 @@ void main() {
     // network session with no proxy on it.
     await mount(tester,
         siteId: site, url: 'http://127.0.0.1:${loopback!.port}/direct');
-    await waitReal(tester, () => false,
+    await waitReal(tester, done: () => false,
         label: 'direct settle window', timeout: const Duration(seconds: 3));
 
     await mount(tester,
         siteId: site,
         url: 'http://${syntheticOrigin(afterDirectDest)}/after',
         proxySettings: via(after));
-    final reached = await waitReal(
-        tester, () => served(after, afterDirectDest, '/after').isNotEmpty,
+    final reached = await waitReal(tester,
+        done: () =>
+            served(after, dest: afterDirectDest, path: '/after').isNotEmpty,
         label: 'first proxied load after a direct one');
     verdict.add('after-direct=${reached ? "proxied" : "DIRECT-or-failed"}');
     expect(reached, isTrue,

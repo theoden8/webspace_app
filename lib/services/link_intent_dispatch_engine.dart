@@ -228,10 +228,10 @@ class LinkIntentDispatchEngine {
     if (target == null) {
       return const DispatchUnsupported('non-http(s) target or empty host');
     }
-    final match = LinkRoutingService.resolve(target, sites);
+    final match = LinkRoutingService.resolve(target, sites: sites);
     if (match is RoutingSingle) {
-      return _openInExisting(
-          match.site as DispatchableSite, target, InboundOrigin.share, false);
+      return _openInExisting(match.site as DispatchableSite,
+          inbound: target, origin: InboundOrigin.share, tabsEnabled: false);
     }
     return DispatchShowPicker(
       winnerSiteIds: match is RoutingAmbiguous
@@ -303,12 +303,14 @@ class LinkIntentDispatchEngine {
     if (url.scheme != 'http' && url.scheme != 'https' || url.host.isEmpty) {
       return null;
     }
-    final able = _tabHosts(urlNavigationDomain, source.siteId, hosts());
+    final able = _tabHosts(urlNavigationDomain,
+        sourceSiteId: source.siteId, hosts: hosts());
     if (able.isEmpty) return null;
     if (!routeOutboundLinks) {
       return DispatchOpenInTab(siteId: source.siteId, url: url.toString());
     }
-    final sites = _tabHostChoice(url, source.siteId, sourcePrefs, able);
+    final sites = _tabHostChoice(url,
+        sourceSiteId: source.siteId, sourcePrefs: sourcePrefs, able: able);
     return sites.length == 1
         ? DispatchOpenInTab(siteId: sites.single.siteId, url: url.toString())
         : DispatchShowPicker(
@@ -338,18 +340,20 @@ class LinkIntentDispatchEngine {
     required String current,
   }) {
     if (!routeOutboundLinks || !containersActive) return opener.siteId;
-    final able = _tabHosts(homeNavigationDomain, opener.siteId, hosts());
+    final able = _tabHosts(homeNavigationDomain,
+        sourceSiteId: opener.siteId, hosts: hosts());
     if (able.isEmpty) return opener.siteId;
-    final sites = _tabHostChoice(homeUrl, opener.siteId, openerPrefs, able);
+    final sites = _tabHostChoice(homeUrl,
+        sourceSiteId: opener.siteId, sourcePrefs: openerPrefs, able: able);
     if (sites.length == 1) return sites.single.siteId;
     return sites.any((s) => s.siteId == current) ? current : opener.siteId;
   }
 
   static List<DispatchableSite> _tabHosts(
-    String navigationDomain,
-    String sourceSiteId,
-    List<DispatchableSite> hosts,
-  ) =>
+    String navigationDomain, {
+    required String sourceSiteId,
+    required List<DispatchableSite> hosts,
+  }) =>
       [
         for (final h in hosts)
           if (h.siteId != sourceSiteId && h.navigationDomain == navigationDomain)
@@ -359,13 +363,13 @@ class LinkIntentDispatchEngine {
   /// The sites a link is for, chosen as LIR-014 chooses: the source's
   /// preferences first, then claim specificity. More than one means ask.
   static List<RoutableSite> _tabHostChoice(
-    Uri url,
-    String sourceSiteId,
-    List<OutboundPreference> sourcePrefs,
-    List<DispatchableSite> able,
-  ) {
-    final resolution =
-        LinkRoutingService.resolveOutbound(url, sourceSiteId, sourcePrefs, able);
+    Uri url, {
+    required String sourceSiteId,
+    required List<OutboundPreference> sourcePrefs,
+    required List<DispatchableSite> able,
+  }) {
+    final resolution = LinkRoutingService.resolveOutbound(url,
+        sourceSiteId: sourceSiteId, sourcePrefs: sourcePrefs, candidates: able);
     return switch (resolution) {
       OutboundByPreference(:final site) ||
       OutboundByClaims(match: RoutingSingle(:final site)) =>
@@ -394,9 +398,9 @@ class LinkIntentDispatchEngine {
     if (!hadGesture || !containersActive) return unrouted;
     final resolution = LinkRoutingService.resolveOutbound(
       targetUrl,
-      source.siteId,
-      sourcePrefs,
-      candidates,
+      sourceSiteId: source.siteId,
+      sourcePrefs: sourcePrefs,
+      candidates: candidates,
     );
     switch (resolution) {
       case OutboundByPreference(:final site):
@@ -478,7 +482,8 @@ class LinkIntentDispatchEngine {
     bool tabsEnabled = false,
   }) {
     final target = _normalizeInbound(inbound) ?? inbound;
-    return _openInExisting(site, target, origin, tabsEnabled);
+    return _openInExisting(site,
+        inbound: target, origin: origin, tabsEnabled: tabsEnabled);
   }
 
   /// User picked "Send [host] (and subdomains) to [site]". The returned
@@ -499,7 +504,8 @@ class LinkIntentDispatchEngine {
       // still produces an out-of-domain share → nested webview. This is
       // by design (LIR-011): claims drive routing of *future* arrivals;
       // the current arrival respects the existing site's session.
-      followUp: _openInExisting(site, target, InboundOrigin.share, false),
+      followUp: _openInExisting(site,
+          inbound: target, origin: InboundOrigin.share, tabsEnabled: false),
     );
   }
 
@@ -541,11 +547,11 @@ class LinkIntentDispatchEngine {
   }
 
   static DispatchAction _openInExisting(
-    DispatchableSite site,
-    Uri inbound,
-    InboundOrigin origin,
-    bool tabsEnabled,
-  ) {
+    DispatchableSite site, {
+    required Uri inbound,
+    required InboundOrigin origin,
+    required bool tabsEnabled,
+  }) {
     final inDomain =
         getNormalizedDomain(inbound.toString()) == site.navigationDomain;
     if (!inDomain) {

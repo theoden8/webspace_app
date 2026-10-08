@@ -21,7 +21,8 @@ void main() {
 
   test('a new local list is enabled and its rules reach the rule set',
       () async {
-    final id = await service.addLocalList('Mine', '! note\n||ads.local.example^\n');
+    final id = await service.addLocalList('Mine',
+        rules: '! note\n||ads.local.example^\n');
 
     final list = service.lists.singleWhere((l) => l.id == id);
     expect(list.isLocal, isTrue);
@@ -32,8 +33,9 @@ void main() {
   });
 
   test('editing replaces the rules in place', () async {
-    final id = await service.addLocalList('Mine', '||old.example^');
-    await service.updateLocalList(id, 'Renamed', '||new.example^\n||b.example^');
+    final id = await service.addLocalList('Mine', rules: '||old.example^');
+    await service.updateLocalList(id,
+        name: 'Renamed', rules: '||new.example^\n||b.example^');
 
     final list = service.lists.singleWhere((l) => l.id == id);
     expect(list.name, 'Renamed');
@@ -43,14 +45,16 @@ void main() {
   });
 
   test('a disabled local list leaves the rule set', () async {
-    final id = await service.addLocalList('Mine', '||ads.local.example^');
-    await service.toggleList(id, false);
+    final id =
+        await service.addLocalList('Mine', rules: '||ads.local.example^');
+    await service.toggleList(id, enabled: false);
 
     expect(service.abpNetworkBlockHosts, isNot(contains('ads.local.example')));
   });
 
   test('a local list is never downloaded', () async {
-    final id = await service.addLocalList('Mine', '||ads.local.example^');
+    final id =
+        await service.addLocalList('Mine', rules: '||ads.local.example^');
 
     expect(await service.downloadList(id), isFalse);
     expect(await service.downloadAllLists(), 0);
@@ -59,7 +63,8 @@ void main() {
   });
 
   test('the rules persist with the list entry across a restart', () async {
-    final id = await service.addLocalList('Mine', '||ads.local.example^');
+    final id =
+        await service.addLocalList('Mine', rules: '||ads.local.example^');
     final prefs = await SharedPreferences.getInstance();
     final stored = prefs.getString('content_blocker_lists')!;
 
@@ -75,8 +80,9 @@ void main() {
 
   test('the rules ride the settings backup, download lists stay url-only',
       () async {
-    await service.addCustomList('Remote', 'https://x.example/l.txt');
-    final id = await service.addLocalList('Mine', '||ads.local.example^');
+    await service.addCustomList('Remote', url: 'https://x.example/l.txt');
+    final id =
+        await service.addLocalList('Mine', rules: '||ads.local.example^');
     final exported = jsonDecode(jsonEncode(service.exportListSelection()))
         as List<dynamic>;
 

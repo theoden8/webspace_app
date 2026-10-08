@@ -131,8 +131,8 @@ String generateFingerprintResetNonce() {
 /// site, under [posture] (see [SitePosture], which a new per-site field joins
 /// rather than this signature). Implemented by `_WebSpacePageState.launchUrl`.
 typedef LaunchUrlFunc = void Function(
-  String url,
-  SitePosture posture, {
+  String url, {
+  required SitePosture posture,
   String? homeTitle,
 });
 
@@ -229,7 +229,7 @@ class WebViewModel implements MediaGrantRecord {
 
   String stateKeyForTab(String tabId) {
     final tab = tabs.where((t) => t.id == tabId).firstOrNull;
-    return webViewStateKey(tab?.hostSiteId ?? siteId, tabId);
+    return webViewStateKey(tab?.hostSiteId ?? siteId, tabId: tabId);
   }
 
   /// Whether the active tab's back stack may be written (LIR-022): its record
@@ -269,8 +269,8 @@ class WebViewModel implements MediaGrantRecord {
   /// stays in the list; without, that tab is sent home.
   void landAtHome({required bool tabsOn}) {
     if (tabsOn) {
-      final landing =
-          TabLifecycleEngine.homeLanding(tabs, activeTabId, initUrl);
+      final landing = TabLifecycleEngine.homeLanding(tabs,
+          activeTabId: activeTabId, initUrl: initUrl);
       if (landing == null) return;
       tabs = landing.tabs;
       activeTabId = landing.activeTabId;
@@ -287,7 +287,7 @@ class WebViewModel implements MediaGrantRecord {
   /// root tab at home. A live slot moves through a tab switch instead.
   void bindOwnerRunTab() {
     if (!runsHostedTab && !runsForeignTab) return;
-    final id = TabLifecycleEngine.ownerRunTab(tabs, activeTabId,
+    final id = TabLifecycleEngine.ownerRunTab(tabs, activeTabId: activeTabId,
         isForeign: isForeignTab);
     if (id != null) {
       activeTabId = id;
@@ -589,7 +589,8 @@ class WebViewModel implements MediaGrantRecord {
   bool matchesSiteClaim(String url) {
     final uri = Uri.tryParse(url);
     return uri != null &&
-        LinkRoutingService.urlMatchesAnyClaim(uri, effectiveDomainClaims);
+        LinkRoutingService.urlMatchesAnyClaim(uri,
+            claims: effectiveDomainClaims);
   }
 
   /// Where a link the user explicitly chose to open goes, decided exactly as
@@ -658,21 +659,21 @@ class WebViewModel implements MediaGrantRecord {
   /// sites never participate in [`NotificationService`] background
   /// polling or `flutter_local_notifications` delivery regardless of
   /// stored value.
-  bool get effectiveNotificationsEnabled =>
-      ArchiveFold.notifications(notificationsEnabled, archived: isArchiveTier);
+  bool get effectiveNotificationsEnabled => ArchiveFold.notifications(
+      stored: notificationsEnabled, archived: isArchiveTier);
 
   /// Effective background-audio enable. Archive-tier sites never opt out
   /// of lifecycle pausing: audibly playing while the app looks idle (and
   /// surfacing in the OS now-playing UI) would reveal an open archive
   /// (ARCH-006).
   bool get effectiveBackgroundAudioEnabled => ArchiveFold.backgroundAudio(
-      backgroundAudioEnabled, archived: isArchiveTier);
+      stored: backgroundAudioEnabled, archived: isArchiveTier);
 
   /// Forced on by Tracking Protection (ETP-002), but the archive fold comes
   /// last: an archive-tier site never uses LocalCDN (ARCH-006).
   bool get effectiveLocalCdnEnabled => ArchiveFold.localCdn(
-      _forcedByTrackingProtection(
-          TrackingProtectionForce.localCdn, localCdnEnabled),
+      stored: _forcedByTrackingProtection(
+          TrackingProtectionForce.localCdn, stored: localCdnEnabled),
       archived: isArchiveTier);
 
   /// Whether this site's block events roll into the app-wide protection
@@ -703,7 +704,7 @@ class WebViewModel implements MediaGrantRecord {
   /// session beyond cookies." The stored value is preserved for when the
   /// site is moved back out of the archive.
   bool get effectiveIncognito =>
-      ArchiveFold.incognito(incognito, archived: isArchiveTier);
+      ArchiveFold.incognito(stored: incognito, archived: isArchiveTier);
 
   /// What the site may do with sign-ins typed into the HTTP authentication
   /// prompt (HTTPAUTH-004). Archive-tier sites neither read nor save: the
@@ -720,8 +721,8 @@ class WebViewModel implements MediaGrantRecord {
   /// list-based subordinates it already forces on, except that this one is
   /// forced *off* rather than on.
   bool get effectiveThirdPartyCookiesEnabled =>
-      _forcedByTrackingProtection(
-          TrackingProtectionForce.thirdPartyCookies, thirdPartyCookiesEnabled);
+      _forcedByTrackingProtection(TrackingProtectionForce.thirdPartyCookies,
+          stored: thirdPartyCookiesEnabled);
 
   /// Effective HTTPS upgrade decision. Tracking Protection forces it on
   /// (ETP-030); otherwise the site's own override, or the app-wide default
@@ -730,11 +731,13 @@ class WebViewModel implements MediaGrantRecord {
   /// what moves a login page to cleartext.
   bool get effectiveHttpsUpgradeEnabled => _forcedByTrackingProtection(
       TrackingProtectionForce.httpsUpgrade,
-      Scoped.fromStored(httpsUpgradeEnabled)
+      stored: Scoped.fromStored(httpsUpgradeEnabled)
           .resolve(AppPref.httpsUpgradeEnabled.value));
 
-  bool _forcedByTrackingProtection(TrackingProtectionForce force, bool stored) =>
-      force.resolve(stored, trackingProtection: trackingProtectionEnabled);
+  bool _forcedByTrackingProtection(TrackingProtectionForce force,
+          {required bool stored}) =>
+      force.resolve(
+          stored: stored, trackingProtection: trackingProtectionEnabled);
 
   /// Tracking Protection on a proxied site never runs direct WebRTC
   /// (ETP-031). "Proxied" follows the same ladder as the webview's own
@@ -757,7 +760,7 @@ class WebViewModel implements MediaGrantRecord {
   /// prompting (false, never null = never "ask"); the stored value is
   /// preserved for when the umbrella is turned off.
   bool? get effectiveProtectedContentAllowed => resolveProtectedContent(
-      protectedContentAllowed,
+      stored: protectedContentAllowed,
       archived: isArchiveTier,
       trackingProtection: trackingProtectionEnabled);
 
@@ -802,8 +805,8 @@ class WebViewModel implements MediaGrantRecord {
   /// of which the site opts into some.
   SitePosture sitePosture({required List<UserScriptConfig> globalUserScripts}) {
     final tp = trackingProtectionEnabled;
-    bool forced(TrackingProtectionForce force, bool stored) =>
-        _forcedByTrackingProtection(force, stored);
+    bool forced(TrackingProtectionForce force, {required bool stored}) =>
+        _forcedByTrackingProtection(force, stored: stored);
     return SitePosture(
       siteId: siteId,
       container: (
@@ -815,11 +818,11 @@ class WebViewModel implements MediaGrantRecord {
         passkeys: effectivePasskeysEnabled,
       ),
       blocking: (
-        clearUrls: forced(TrackingProtectionForce.clearUrls, clearUrlEnabled),
-        dns: forced(TrackingProtectionForce.dnsBlock, dnsBlockEnabled),
+        clearUrls: forced(TrackingProtectionForce.clearUrls, stored: clearUrlEnabled),
+        dns: forced(TrackingProtectionForce.dnsBlock, stored: dnsBlockEnabled),
         dnsLevel: effectiveDnsBlockLevel,
         contentBlock:
-            forced(TrackingProtectionForce.contentBlock, contentBlockEnabled),
+            forced(TrackingProtectionForce.contentBlock, stored: contentBlockEnabled),
         localCdn: effectiveLocalCdnEnabled,
         httpsUpgrade: effectiveHttpsUpgradeEnabled,
         contributesStats: contributesBlockStats,
@@ -907,7 +910,7 @@ class WebViewModel implements MediaGrantRecord {
   String get effectiveUserAgent => uaPreset == null
       ? userAgent
       : renderUserAgentPreset(
-          uaPreset!, FirefoxUserAgentService.instance.versionString);
+          uaPreset!, version: FirefoxUserAgentService.instance.versionString);
 
   /// [effectiveUserAgent] in the null-for-unset form the webview expects.
   String? get effectiveUserAgentOrNull {
@@ -1019,8 +1022,8 @@ class WebViewModel implements MediaGrantRecord {
     // the getter reads `tabs`, which this call is what fills in.
     final seeded = TabLifecycleEngine.normalize(
       tabs,
-      activeTabId,
-      currentUrl ?? initUrl,
+      activeTabId: activeTabId,
+      fallbackUrl: currentUrl ?? initUrl,
     );
     this.tabs = seeded.tabs;
     this.activeTabId = seeded.activeTabId;
@@ -1059,8 +1062,8 @@ class WebViewModel implements MediaGrantRecord {
     fingerprintResetNonce = generateFingerprintResetNonce();
   }
 
-  bool isCookieBlocked(String name, String? domain) =>
-      matchesBlockedCookie(blockedCookies, name, domain);
+  bool isCookieBlocked(String name, {required String? domain}) =>
+      matchesBlockedCookie(blockedCookies, name: name, domain: domain);
 
   /// Completes with whether the proxy override was applied for the current
   /// controller. The restore path awaits it before materialising, so no
@@ -1210,7 +1213,7 @@ class WebViewModel implements MediaGrantRecord {
   Widget? getWebView(
     WebViewHostHooks hooks, {
     String? initialHtml,
-    void Function(String url, String html)? onHtmlLoaded,
+    void Function(String url, {required String html})? onHtmlLoaded,
     bool Function()? shouldFetchHtml,
   }) {
     // LIR-018: a hosted tab runs as its host. Everything that decides the
@@ -1237,8 +1240,8 @@ class WebViewModel implements MediaGrantRecord {
     // false when this webview must not load [url]. The host's outbound hook
     // may take a leaving link over first (LIR-014) and hears of a blocked one
     // (NESTED-009).
-    bool dispatch(NavigationDecision decision, String url, bool hadGesture,
-        {required String via}) {
+bool dispatch(NavigationDecision decision,
+    {required String url, required bool hadGesture, required String via}) {
       LogTag.webView.debug('$via -> ${decision.name} $url', sensitive: true);
       if (NavigationDecisionEngine.stepFor(decision,
               returnsToOwner: returnsToOwner(url)) ==
@@ -1246,7 +1249,7 @@ class WebViewModel implements MediaGrantRecord {
         onReturnToOwner?.call(url);
         return false;
       }
-      bool takenOver() => hooks.routeOutbound(this, url, decision, hadGesture);
+      bool takenOver() => hooks.routeOutbound(this, url: url, decision: decision, hadGesture: hadGesture);
       switch (decision) {
         case NavigationDecision.allow:
           return true;
@@ -1257,7 +1260,7 @@ class WebViewModel implements MediaGrantRecord {
           if (!takenOver()) {
             hooks.launchNested(
               url,
-              id.sitePosture(globalUserScripts: globalUserScripts),
+              posture: id.sitePosture(globalUserScripts: globalUserScripts),
               homeTitle: id.name,
             );
           }
@@ -1346,7 +1349,7 @@ class WebViewModel implements MediaGrantRecord {
           backForwardGestures: true,
           deferInitialLoad: deferRestoreLoad || deferForProxy,
           backgroundAudioEnabled: effectiveBackgroundAudioEnabled,
-          onLinkLongPress: (url) => hooks.linkMenu(this, url),
+          onLinkLongPress: (url) => hooks.linkMenu(this, url: url),
           grants: PersistedGrantStore(
             id,
             prompter: hooks.media,
@@ -1358,7 +1361,7 @@ class WebViewModel implements MediaGrantRecord {
             blockedNavigationUrl = blocked;
             hooks.rebuild();
           },
-          shouldOverrideUrlLoading: (url, hasGesture) {
+          shouldOverrideUrlLoading: (url, {required hasGesture}) {
             LogTag.webView.debug(
                 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
                 sensitive: true);
@@ -1373,14 +1376,16 @@ class WebViewModel implements MediaGrantRecord {
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
             );
-            lastSameDomainGestureTime =
-                result.gestureUpdate.applyTo(lastSameDomainGestureTime, now);
-            return dispatch(result.decision, url, result.hadGesture,
+            lastSameDomainGestureTime = result.gestureUpdate
+                .applyTo(lastSameDomainGestureTime, now: now);
+            return dispatch(result.decision,
+                url: url,
+                hadGesture: result.hadGesture,
                 via: 'shouldOverrideUrlLoading');
           },
           onReloadIssued: () => onReloadIssued?.call(),
           onMainFrameLoad: resumeReload.noteLoad,
-          onLoadingChanged: (loading) {
+          onLoadingChanged: ({required loading}) {
             if (isLoading == loading) return;
             isLoading = loading;
             // Reset on start so the bar doesn't flash the previous
@@ -1418,8 +1423,8 @@ class WebViewModel implements MediaGrantRecord {
               externalLinkMode: id.effectiveExternalLinkMode,
               matchesSiteClaim: navClaim,
             );
-            lastSameDomainGestureTime =
-                handled.gestureUpdate.applyTo(lastSameDomainGestureTime, now);
+            lastSameDomainGestureTime = handled.gestureUpdate
+                .applyTo(lastSameDomainGestureTime, now: now);
             urlChangedState = handled.state;
             // No navigate-back to the last same-domain page: even
             // stopLoading + microtask + loadUrl(prev) races Chromium's
@@ -1429,7 +1434,7 @@ class WebViewModel implements MediaGrantRecord {
             // until the next navigation; the nested webview still opens.
             final decision = handled.decision;
             if (decision != null &&
-                !dispatch(decision, url, handled.hadGesture,
+                !dispatch(decision, url: url, hadGesture: handled.hadGesture,
                     via: 'onUrlChanged')) {
               return;
             }
@@ -1475,7 +1480,9 @@ class WebViewModel implements MediaGrantRecord {
             // Remove blocked cookies from the webview cookie jar. The mirror
             // and the block list are those of the site the slot runs as.
             if (id.blockedCookies.isNotEmpty) {
-              final blocked = newCookies.where((c) => id.isCookieBlocked(c.name, c.domain)).toList();
+              final blocked = newCookies
+                  .where((c) => id.isCookieBlocked(c.name, domain: c.domain))
+                  .toList();
               final url = Uri.parse(currentUrl.isNotEmpty ? currentUrl : id.initUrl);
               for (final c in blocked) {
                 final containerCookieManager = hooks.containerCookieManager;
@@ -1497,13 +1504,15 @@ class WebViewModel implements MediaGrantRecord {
                   );
                 }
               }
-              id.cookies = newCookies.where((c) => !id.isCookieBlocked(c.name, c.domain)).toList();
+              id.cookies = newCookies
+                  .where((c) => !id.isCookieBlocked(c.name, domain: c.domain))
+                  .toList();
             } else {
               id.cookies = newCookies;
             }
             await hooks.save();
           },
-          onFindResult: (activeMatch, totalMatches) {
+          onFindResult: (activeMatch, {required totalMatches}) {
             findMatches.activeMatchOrdinal = activeMatch;
             findMatches.numberOfMatches = totalMatches;
             if (stateSetterF != null) {
@@ -1513,7 +1522,7 @@ class WebViewModel implements MediaGrantRecord {
           onHtmlLoaded: onHtmlLoaded,
           shouldFetchHtml: shouldFetchHtml,
           initialHtml: initialHtml,
-          onRendererGone: (didCrash) => handleRendererGone(didCrash: didCrash),
+          onRendererGone: handleRendererGone,
           onPageCommitVisible: () => onPageCommitVisible?.call(),
           passkeys: PasskeyAccess.forHost(
             enabled: posture.container.passkeys,
@@ -1524,7 +1533,7 @@ class WebViewModel implements MediaGrantRecord {
             // Incognito and archive-tier icons stay in memory: an icon the
             // site served (an unread badge) is state it must not leave on disk.
             onIcon: (icon) => unawaited(SiteIconStore.instance
-                .offer(iconSiteUrl, icon, persist: !id.effectiveIncognito)),
+                .offer(iconSiteUrl, icon: icon, persist: !id.effectiveIncognito)),
           ),
           siteSearch: WebSearchEngine.discovers(
                   initUrl: id.initUrl, searchAddress: id.searchAddress)
@@ -1540,7 +1549,7 @@ class WebViewModel implements MediaGrantRecord {
                   },
                 )
               : null,
-          onConsoleMessage: (message, level) {
+          onConsoleMessage: (message, {required level}) {
             consoleLogs.add(ConsoleLogEntry(
               timestamp: DateTime.now(),
               message: message,
@@ -1627,8 +1636,8 @@ class WebViewModel implements MediaGrantRecord {
     return controller;
   }
 
-  Future<void> deleteCookies(CookieManager cookieManager,
-      ContainerCookieManager? containerCookieManager) async {
+  Future<void> deleteCookies(CookieManager cookieManager, {
+      required ContainerCookieManager? containerCookieManager}) async {
     final url = Uri.parse(initUrl);
     for (final Cookie cookie in cookies) {
       if (containerCookieManager != null) {
@@ -1737,7 +1746,7 @@ class WebViewModel implements MediaGrantRecord {
   /// A no-op for every other site: masking visibility for a page the user did
   /// not opt in for would keep timers and players running that should stop.
   /// Main frame only — the shim relays the state to its own subframes.
-  Future<void> setBackgroundPlayback(bool active) async {
+  Future<void> setBackgroundPlayback({required bool active}) async {
     if (!effectiveBackgroundAudioEnabled) return;
     await controller?.evaluateJavascript(
       'if(window.__wsMediaBackground)window.__wsMediaBackground($active);',
@@ -2158,8 +2167,8 @@ class WebViewModel implements MediaGrantRecord {
   /// next save deletes it, so one odd value (a hand-edited backup, a partial
   /// QR payload, a field a later build retyped) must not cost the whole site.
   factory WebViewModel.fromJson(
-    Map<String, dynamic> json,
-    Function? stateSetterF, {
+    Map<String, dynamic> json, {
+    required Function? stateSetterF,
     bool isArchiveTier = false,
   }) {
     T? field<T>(String key) {
@@ -2205,7 +2214,7 @@ class WebViewModel implements MediaGrantRecord {
       name: field<String>('name'),
       cookies: isIncognito
           ? const <Cookie>[]
-          : _jsonEntries(json['cookies'], tryCookieFromJson),
+          : _jsonEntries(json['cookies'], parse: tryCookieFromJson),
       proxySettings: proxy is Map
           ? UserProxySettings.fromJson(Map<String, dynamic>.from(proxy))
           : null,
@@ -2247,7 +2256,7 @@ class WebViewModel implements MediaGrantRecord {
       localCdnEnabled: field<bool>('localCdnEnabled') ?? true,
       // `externalLinksInBrowser` is the bool this field replaced.
       externalLinkMode: externalLinkModeFromJson(
-          json['externalLinkMode'], json['externalLinksInBrowser']),
+          json['externalLinkMode'], legacyInBrowser: json['externalLinksInBrowser']),
       fullscreenMode: field<bool>('fullscreenMode') ?? false,
       blockScreenshots: field<bool>('blockScreenshots') ?? false,
       // `tabBarButtonOnRight` is the short-lived bool predecessor of the
@@ -2267,13 +2276,13 @@ class WebViewModel implements MediaGrantRecord {
       protectedContentAllowed: field<bool>('protectedContentAllowed'),
       captures: CaptureGrants.fromJson(json),
       userScripts:
-          _jsonEntries(json['userScripts'], UserScriptConfig.fromJson),
+          _jsonEntries(json['userScripts'], parse: UserScriptConfig.fromJson),
       enabledGlobalScriptIds: {
         for (final id in field<List>('enabledGlobalScriptIds') ?? const [])
           if (id is String) id
       },
       blockedCookies:
-          _jsonEntries(json['blockedCookies'], BlockedCookie.tryFromJson).toSet(),
+          _jsonEntries(json['blockedCookies'], parse: BlockedCookie.tryFromJson).toSet(),
       locationMode: LocationMode.values.firstWhere(
         (m) => m.name == json['locationMode'],
         orElse: () => LocationMode.off,
@@ -2300,7 +2309,7 @@ class WebViewModel implements MediaGrantRecord {
       domainClaims: json['domainClaims'] is List
           ? [
               for (final claim
-                  in _jsonEntries(json['domainClaims'], DomainClaim.tryFromJson))
+                  in _jsonEntries(json['domainClaims'], parse: DomainClaim.tryFromJson))
                 if (claim.value.isNotEmpty) claim,
             ]
           : null,
@@ -2338,9 +2347,9 @@ class WebViewModel implements MediaGrantRecord {
 /// The entries of a JSON list that [parse] accepts. A malformed entry (a
 /// cookie, a script, a claim) is dropped rather than failing its site.
 List<T> _jsonEntries<T extends Object>(
-  Object? raw,
-  T? Function(Map<String, dynamic>) parse,
-) =>
+  Object? raw, {
+  required T? Function(Map<String, dynamic>) parse,
+}) =>
     raw is List
         ? [
             for (final entry in raw)

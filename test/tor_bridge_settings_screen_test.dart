@@ -264,7 +264,7 @@ void main() {
 
       final seen = <String>{};
       for (final e in TorBridgeParseError.values) {
-        final msg = bridgeParseErrorMessage(loc, e);
+        final msg = bridgeParseErrorMessage(loc, e: e);
         expect(msg, isNotEmpty, reason: '$e');
         expect(seen.add(msg), isTrue,
             reason: '$e reuses another error\'s message, so the user cannot '
@@ -280,7 +280,7 @@ void main() {
         return const SizedBox.shrink();
       })));
 
-      final msg = moatErrorMessage(loc, MoatErrorKind.unreachable);
+      final msg = moatErrorMessage(loc, kind: MoatErrorKind.unreachable);
       expect(msg, contains('expected'),
           reason: 'on a censored network this outcome is normal');
       expect(msg, contains('paste'));

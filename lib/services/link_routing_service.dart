@@ -93,12 +93,12 @@ class LinkRoutingService {
   }
 
   static int _score(
-    DomainClaim claim,
-    String hostKey,
-    String host,
-    String base,
-    bool defaultPort,
-  ) {
+    DomainClaim claim, {
+    required String hostKey,
+    required String host,
+    required String base,
+    required bool defaultPort,
+  }) {
     switch (claim.kind) {
       case DomainClaimKind.exactHost:
         return claim.value == hostKey ? _scoreExactHost : 0;
@@ -117,7 +117,7 @@ class LinkRoutingService {
   /// site (a claimed domain stays in-app) or goes where the site's external
   /// link mode sends it (the system browser, or nowhere). Non-http(s) or
   /// hostless URLs never match.
-  static bool urlMatchesAnyClaim(Uri url, List<DomainClaim> claims) {
+  static bool urlMatchesAnyClaim(Uri url, {required List<DomainClaim> claims}) {
     if (url.scheme != 'http' && url.scheme != 'https') return false;
     if (url.host.isEmpty) return false;
     final host = url.host.toLowerCase();
@@ -125,12 +125,19 @@ class LinkRoutingService {
     final hostKey = hostAuthority(url);
     final defaultPort = !url.hasPort;
     for (final claim in claims) {
-      if (_score(claim, hostKey, host, base, defaultPort) > 0) return true;
+      if (_score(claim,
+              hostKey: hostKey,
+              host: host,
+              base: base,
+              defaultPort: defaultPort) >
+          0) {
+        return true;
+      }
     }
     return false;
   }
 
-  static RoutingMatch resolve(Uri url, List<RoutableSite> sites) {
+  static RoutingMatch resolve(Uri url, {required List<RoutableSite> sites}) {
     if (url.scheme != 'http' && url.scheme != 'https') {
       return const RoutingNone();
     }
@@ -144,7 +151,8 @@ class LinkRoutingService {
     for (final site in sites) {
       int siteBest = 0;
       for (final claim in site.domainClaims) {
-        final s = _score(claim, hostKey, host, base, defaultPort);
+        final s = _score(claim,
+            hostKey: hostKey, host: host, base: base, defaultPort: defaultPort);
         if (s > siteBest) siteBest = s;
       }
       if (siteBest == 0) continue;
@@ -169,11 +177,11 @@ class LinkRoutingService {
   /// score wins and the earlier entry breaks a tie. Anything naming the
   /// source collapses to [OutboundResolution.selfMatch].
   static OutboundResolution resolveOutbound(
-    Uri url,
-    String sourceSiteId,
-    List<OutboundPreference> sourcePrefs,
-    List<RoutableSite> candidates,
-  ) {
+    Uri url, {
+    required String sourceSiteId,
+    required List<OutboundPreference> sourcePrefs,
+    required List<RoutableSite> candidates,
+  }) {
     if (url.scheme != 'http' && url.scheme != 'https' || url.host.isEmpty) {
       return const OutboundResolution.global(RoutingNone());
     }
@@ -187,7 +195,8 @@ class LinkRoutingService {
     for (final pref in sourcePrefs) {
       final target = byId[pref.targetSiteId];
       if (target == null) continue;
-      final score = _score(pref.claim, hostKey, host, base, defaultPort);
+      final score = _score(pref.claim,
+          hostKey: hostKey, host: host, base: base, defaultPort: defaultPort);
       if (score > best) {
         best = score;
         preferred = target;
@@ -198,7 +207,7 @@ class LinkRoutingService {
           ? const OutboundResolution.selfMatch()
           : OutboundResolution.preference(preferred);
     }
-    final match = resolve(url, candidates);
+    final match = resolve(url, sites: candidates);
     final namesSource = switch (match) {
       RoutingSingle(:final site) => site.siteId == sourceSiteId,
       RoutingAmbiguous(:final sites) =>
@@ -273,9 +282,9 @@ class LinkRoutingService {
   }
 
   static List<DomainClaim> mergeClaims(
-    List<DomainClaim> existing,
-    List<DomainClaim> additions,
-  ) {
+    List<DomainClaim> existing, {
+    required List<DomainClaim> additions,
+  }) {
     final seen = <DomainClaim>{...existing};
     final out = <DomainClaim>[...existing];
     for (final c in additions) {
@@ -285,10 +294,10 @@ class LinkRoutingService {
   }
 
   static List<ClaimConflict> validateClaims(
-    String editedSiteId,
-    List<DomainClaim> editedClaims,
-    List<RoutableSite> others,
-  ) {
+    String editedSiteId, {
+    required List<DomainClaim> editedClaims,
+    required List<RoutableSite> others,
+  }) {
     final out = <ClaimConflict>[];
     for (final claim in editedClaims) {
       final claimBase = getBaseDomain(claim.value);
@@ -306,7 +315,7 @@ class LinkRoutingService {
           continue;
         }
         for (final otherClaim in other.domainClaims) {
-          if (_claimsOverlap(claim, otherClaim)) {
+          if (_claimsOverlap(claim, b: otherClaim)) {
             out.add(ClaimConflict(
               claim: claim,
               otherSiteId: other.siteId,
@@ -320,7 +329,7 @@ class LinkRoutingService {
     return out;
   }
 
-  static bool _claimsOverlap(DomainClaim a, DomainClaim b) {
+  static bool _claimsOverlap(DomainClaim a, {required DomainClaim b}) {
     if (a == b) return true;
     final av = a.value;
     final bv = b.value;

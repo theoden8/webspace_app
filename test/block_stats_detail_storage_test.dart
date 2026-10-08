@@ -29,7 +29,7 @@ void main() {
         store: IoFileStore('block_stats', overrideRoot: tempDir),
       );
 
-  String payloadFor(String host, String siteId) => jsonEncode({
+  String payloadFor(String host, {required String siteId}) => jsonEncode({
         'v': 1,
         'cats': {
           'dns': {
@@ -50,14 +50,14 @@ void main() {
   }
 
   test('a payload written by one launch is read by the next', () async {
-    final payload = payloadFor('ads.example', 'site-a');
+    final payload = payloadFor('ads.example', siteId: 'site-a');
     await newStore().write(payload);
 
     expect(await newStore().read(), payload);
   });
 
   test('the bytes on disk carry neither the host nor the siteId', () async {
-    await newStore().write(payloadFor('ads.example', 'site-a'));
+    await newStore().write(payloadFor('ads.example', siteId: 'site-a'));
 
     final files = await filesOnDisk();
     expect(files, hasLength(1));
@@ -68,7 +68,7 @@ void main() {
 
   test('clear leaves nothing for the next launch to read', () async {
     final store = newStore();
-    await store.write(payloadFor('ads.example', 'site-a'));
+    await store.write(payloadFor('ads.example', siteId: 'site-a'));
 
     await store.clear();
 
@@ -79,7 +79,7 @@ void main() {
 
   test('a file the current key cannot open reads as absent, not as a throw',
       () async {
-    await newStore().write(payloadFor('ads.example', 'site-a'));
+    await newStore().write(payloadFor('ads.example', siteId: 'site-a'));
 
     // A keychain that lost the key mints a new one; the old ciphertext is
     // then undecryptable. The report must survive that as an empty list.
@@ -95,7 +95,7 @@ void main() {
   // left the blob malleable with no MAC.
   test('two writes of the same payload produce unrelated bytes', () async {
     final store = newStore();
-    final payload = payloadFor('ads.example', 'site-a');
+    final payload = payloadFor('ads.example', siteId: 'site-a');
 
     await store.write(payload);
     final first = await File((await filesOnDisk()).single).readAsString();
@@ -109,7 +109,7 @@ void main() {
   });
 
   test('a tampered blob reads as absent', () async {
-    await newStore().write(payloadFor('ads.example', 'site-a'));
+    await newStore().write(payloadFor('ads.example', siteId: 'site-a'));
     final path = (await filesOnDisk()).single;
     final wire = base64.decode(await File(path).readAsString());
     // Flip a ciphertext byte, past the 12-byte nonce.
@@ -122,7 +122,7 @@ void main() {
   test('no keychain means no detail on disk, and no exception', () async {
     final store = newStore(secureStorage: MockFlutterSecureStorage()..throwOnRead = true);
 
-    await store.write(payloadFor('ads.example', 'site-a'));
+    await store.write(payloadFor('ads.example', siteId: 'site-a'));
 
     expect(await store.read(), isNull);
     expect(await filesOnDisk(), isEmpty);

@@ -28,7 +28,7 @@ void main() {
           ),
         ));
 
-    bool switchAt(WidgetTester tester, int i) =>
+    bool switchAt(WidgetTester tester, {required int i}) =>
         tester.widget<Switch>(find.byType(Switch).at(i)).value;
 
     // The screen used to be pushed with the values of the moment, so a switch
@@ -40,18 +40,18 @@ void main() {
       await tester.tap(find.byType(Switch).first);
       await tester.pump();
       expect(AppPref.linkHandlingEnabled.value, isFalse);
-      expect(switchAt(tester, 0), isFalse);
+      expect(switchAt(tester, i: 0), isFalse);
     });
 
     testWidgets('claim-domains switch defaults off, flips and shows it',
         (tester) async {
       await pumpScreen(tester);
       expect(find.text('Claim domains from shared links'), findsOneWidget);
-      expect(switchAt(tester, 1), isFalse);
+      expect(switchAt(tester, i: 1), isFalse);
       await tester.tap(find.byType(Switch).at(1));
       await tester.pump();
       expect(AppPref.linkHandlingClaimDomains.value, isTrue);
-      expect(switchAt(tester, 1), isTrue);
+      expect(switchAt(tester, i: 1), isTrue);
     });
 
     testWidgets('claim-domains switch is disabled while master is off',

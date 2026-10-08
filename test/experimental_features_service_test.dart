@@ -9,9 +9,9 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   tearDown(() {
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     for (final f in ExperimentalFeature.values) {
-      ExperimentalFeaturesService.instance.debugSet(f, f.pref.fallback);
+      ExperimentalFeaturesService.instance.debugSet(f, on: f.pref.fallback);
     }
   });
 
@@ -32,7 +32,7 @@ void main() {
 
   test('Site tabs default off: they are new (TAB-012)', () async {
     await ExperimentalFeaturesService.instance.initialize();
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     expect(
         ExperimentalFeaturesService.instance
             .isEnabled(ExperimentalFeature.siteTabs),
@@ -64,7 +64,7 @@ void main() {
   test('the proxy router defaults on, so developer mode alone keeps it',
       () async {
     await ExperimentalFeaturesService.instance.initialize();
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     expect(
         ExperimentalFeaturesService.instance
             .isEnabled(ExperimentalFeature.proxyRouter),
@@ -74,13 +74,13 @@ void main() {
   test('site icons only defaults off, so developer mode alone keeps the '
       'public icon services', () async {
     await ExperimentalFeaturesService.instance.initialize();
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     expect(
         ExperimentalFeaturesService.instance
             .isEnabled(ExperimentalFeature.siteIconsOnly),
         isFalse);
     await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.siteIconsOnly, true);
+        .setSwitch(ExperimentalFeature.siteIconsOnly, on: true);
     expect(
         ExperimentalFeaturesService.instance
             .isEnabled(ExperimentalFeature.siteIconsOnly),
@@ -91,12 +91,12 @@ void main() {
 
   test('a switch persists and is read back', () async {
     await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.proxyRouter, false);
+        .setSwitch(ExperimentalFeature.proxyRouter, on: false);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getBool(AppPref.experimentalProxyRouter.key), isFalse);
 
     ExperimentalFeaturesService.instance
-        .debugSet(ExperimentalFeature.proxyRouter, true);
+        .debugSet(ExperimentalFeature.proxyRouter, on: true);
     await ExperimentalFeaturesService.instance.initialize();
     expect(
         ExperimentalFeaturesService.instance

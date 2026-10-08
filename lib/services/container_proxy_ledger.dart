@@ -18,7 +18,7 @@ class ContainerProxyLedger {
 
   /// A WebView is being built on [containerId] with a proxy of the site's
   /// own. Either null records nothing.
-  void noteBuild(String? containerId, Object? proxy) {
+  void noteBuild(String? containerId, {required Object? proxy}) {
     if (containerId == null || proxy == null) return;
     _builds.update(containerId, (n) => n + 1, ifAbsent: () => 1);
   }
@@ -26,9 +26,9 @@ class ContainerProxyLedger {
   /// Take [containerId]'s proxy off through [clear]. A failed clear keeps
   /// the entry, so the next build of the site asks again.
   Future<void> release(
-    String containerId,
-    Future<void> Function(String containerId) clear,
-  ) async {
+    String containerId, {
+    required Future<void> Function(String containerId) clear,
+  }) async {
     final buildsAtEntry = _builds[containerId];
     await clear(containerId);
     if (_builds[containerId] == buildsAtEntry) _builds.remove(containerId);

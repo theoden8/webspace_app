@@ -18,7 +18,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'helpers/user_script_bridge_fakes.dart';
 import 'helpers/fake_outbound.dart';
 
-Uint8List png(int width, [int? height]) => Uint8List.fromList(
+Uint8List png(int width, {int? height}) => Uint8List.fromList(
     img.encodePng(img.Image(width: width, height: height ?? width)));
 
 void main() {
@@ -61,7 +61,7 @@ void main() {
     test('scales a large icon down to the edge WebView uses', () async {
       final icon = await decodeSiteIcon(png(512));
       expect((icon!.width, icon.height), (kMaxSiteIconEdge, kMaxSiteIconEdge));
-      final wide = await decodeSiteIcon(png(384, 192));
+      final wide = await decodeSiteIcon(png(384, height: 192));
       expect((wide!.width, wide.height), (192, 96));
     });
 
@@ -75,7 +75,8 @@ void main() {
     test('null under the floor, over the decode bound, or not an image',
         () async {
       expect(await decodeSiteIcon(png(16)), isNull);
-      expect(await decodeSiteIcon(png(kMaxSiteIconDecodeEdge + 1, 64)), isNull);
+      expect(await decodeSiteIcon(png(kMaxSiteIconDecodeEdge + 1, height: 64)),
+          isNull);
       expect(await decodeSiteIcon(Uint8List.fromList(utf8.encode('<html>'))),
           isNull);
     });
@@ -88,55 +89,70 @@ void main() {
         'https://example.com/48.png': png(48),
         'https://example.com/96.png': png(96),
       };
-      final fetcher =
-          SiteIconFetcher(fetch: (url, _) async => served[url]);
-      final icon = await fetcher.best(served.keys.toList(), 'https://example.com/');
+      final fetcher = SiteIconFetcher(
+          fetch: (url, {required documentUrl}) async => served[url]);
+      final icon = await fetcher.best(served.keys.toList(),
+          documentUrl: 'https://example.com/');
       expect(icon!.edge, 96);
     });
 
     test('decodes a data: link without a request', () async {
       final requested = <String>[];
-      final fetcher = SiteIconFetcher(fetch: (url, _) async {
+      final fetcher =
+          SiteIconFetcher(fetch: (url, {required documentUrl}) async {
         requested.add(url);
         return null;
       });
       final data = 'data:image/png;base64,${base64Encode(png(40))}';
-      final icon = await fetcher.best([data], 'https://example.com/');
+      final icon =
+          await fetcher.best([data], documentUrl: 'https://example.com/');
       expect(icon!.edge, 40);
       expect(requested, isEmpty);
     });
 
     test('fetches a link once per webview, even an unusable one', () async {
       final requested = <String>[];
-      final fetcher = SiteIconFetcher(fetch: (url, _) async {
+      final fetcher =
+          SiteIconFetcher(fetch: (url, {required documentUrl}) async {
         requested.add(url);
         return url.endsWith('16.png') ? png(16) : png(64);
       });
       const urls = ['https://example.com/16.png', 'https://example.com/64.png'];
-      expect((await fetcher.best(urls, 'https://example.com/'))!.edge, 64);
-      expect((await fetcher.best(urls, 'https://example.com/b'))!.edge, 64);
+      expect(
+          (await fetcher.best(urls, documentUrl: 'https://example.com/'))!.edge,
+          64);
+      expect(
+          (await fetcher.best(urls, documentUrl: 'https://example.com/b'))!
+              .edge,
+          64);
       expect(requested, urls);
     });
 
     test('a failed request is tried again for the next document', () async {
       var attempts = 0;
-      final fetcher = SiteIconFetcher(fetch: (url, _) async {
+      final fetcher =
+          SiteIconFetcher(fetch: (url, {required documentUrl}) async {
         attempts++;
         return attempts == 1 ? null : png(64);
       });
       const urls = ['https://example.com/a.png'];
-      expect(await fetcher.best(urls, 'https://example.com/'), isNull);
-      expect((await fetcher.best(urls, 'https://example.com/'))!.edge, 64);
+      expect(await fetcher.best(urls, documentUrl: 'https://example.com/'),
+          isNull);
+      expect(
+          (await fetcher.best(urls, documentUrl: 'https://example.com/'))!.edge,
+          64);
       expect(attempts, 2);
     });
 
     test('passes the declaring document along', () async {
       final documents = <String>[];
-      final fetcher = SiteIconFetcher(fetch: (url, document) async {
-        documents.add(document);
+      final fetcher =
+          SiteIconFetcher(fetch: (url, {required documentUrl}) async {
+        documents.add(documentUrl);
         return png(64);
       });
-      await fetcher.best(['https://cdn.test/a.png'], 'https://example.com/p');
+      await fetcher.best(['https://cdn.test/a.png'],
+          documentUrl: 'https://example.com/p');
       expect(documents, ['https://example.com/p']);
     });
   });

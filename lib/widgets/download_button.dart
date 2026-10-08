@@ -165,7 +165,7 @@ class _DownloadTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final (IconData icon, String subtitle, Color? color) = switch (task.state) {
       DownloadState.downloading =>
-        (Icons.downloading, _progressSubtitle(loc, task), null),
+        (Icons.downloading, _progressSubtitle(loc, t: task), null),
       DownloadState.completed => (
           Icons.check_circle,
           savedPath == null
@@ -208,10 +208,13 @@ class _DownloadTile extends StatelessWidget {
     );
   }
 
-  static String _progressSubtitle(AppLocalizations loc, DownloadTask t) {
+  static String _progressSubtitle(AppLocalizations loc,
+      {required DownloadTask t}) {
     final done = _formatBytes(t.bytesDone);
     final total = t.bytesTotal;
-    if (total == null || total <= 0) return loc.downloadButtonBytesReceived(done);
+    if (total == null || total <= 0) {
+      return loc.downloadButtonBytesReceived(done);
+    }
     return '$done / ${_formatBytes(total)}';
   }
 

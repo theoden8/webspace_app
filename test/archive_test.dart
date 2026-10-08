@@ -28,7 +28,7 @@ class _CountingDeriver {
   int calls = 0;
   final List<bool> legacyCalls = <bool>[];
 
-  Future<Uint8List> call(String passphrase, Uint8List? salt) async {
+  Future<Uint8List> call(String passphrase, {required Uint8List? salt}) async {
     calls++;
     legacyCalls.add(salt == null);
     final material = Uint8List(32);
@@ -36,7 +36,7 @@ class _CountingDeriver {
     for (var i = 0; i < material.length; i++) {
       material[i] = src[i % src.length];
     }
-    return ArchiveCrypto.hmac(material, passphrase);
+    return ArchiveCrypto.hmac(material, info: passphrase);
   }
 }
 
@@ -218,7 +218,7 @@ void main() {
       );
       await legacy.ensureInitialized();
       await mock.delete(key: kArchiveKdfSaltKey);
-      final legacyKey = await deriver.call('pw', null);
+      final legacyKey = await deriver.call('pw', salt: null);
       final seeded = await legacy.createWithKey(Uint8List.fromList(legacyKey));
       seeded.state.sites.add({'siteId': 'old', 'initUrl': 'https://old.test'});
       await legacy.save(seeded);
@@ -235,7 +235,7 @@ void main() {
       // Re-sealed: the stored-salt key opens it and the legacy key no longer
       // does, so the second Argon2id is paid exactly once.
       final saltEntry = await storage.ensureKdfSalt();
-      final newKey = await deriver.call('pw', saltEntry.salt);
+      final newKey = await deriver.call('pw', salt: saltEntry.salt);
       final viaNew =
           await upgraded.tryOpenWithKey(Uint8List.fromList(newKey));
       expect(viaNew, isNotNull);
@@ -255,7 +255,7 @@ void main() {
       );
       await legacy.ensureInitialized();
       await mock.delete(key: kArchiveKdfSaltKey);
-      final legacyKey = await deriver.call('pw', null);
+      final legacyKey = await deriver.call('pw', salt: null);
       await legacy.close(await legacy.createWithKey(legacyKey));
 
       final upgraded = Archive(
@@ -289,7 +289,7 @@ void main() {
         storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
         deriveKey: deriver.call,
       );
-      final unmatched = await dst.importSections('pw', [blob]);
+      final unmatched = await dst.importSections('pw', base64Sections: [blob]);
       expect(unmatched, isEmpty);
 
       final reopened = await dst.tryOpen('pw');
@@ -321,7 +321,9 @@ void main() {
       expect((await dstStorage.ensureKdfSalt()).salt, isNot(equals(srcSalt)),
           reason: 'sanity: the two installs must have different salts');
 
-      expect(await dst.importSections('shared passphrase', [blob]), isEmpty);
+      expect(
+          await dst.importSections('shared passphrase', base64Sections: [blob]),
+          isEmpty);
 
       // Restored under device B's own salt, so B's normal open path finds it.
       final reopened = await dst.tryOpen('shared passphrase');
@@ -335,14 +337,15 @@ void main() {
         storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
         deriveKey: deriver.call,
       );
-      final legacyKey = await deriver.call('pw', null);
+      final legacyKey = await deriver.call('pw', salt: null);
       final handle = await src.createWithKey(Uint8List.fromList(legacyKey));
       handle.state.sites.add({'siteId': 's1', 'initUrl': 'https://a.test'});
       await src.save(handle);
       // The pre-salt wire: the bare AEAD blob with no salt header.
       final legacyBlob = base64.encode(await ArchiveCrypto.seal(
         handle.key,
-        Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson()))),
+        plaintext:
+            Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson()))),
       ));
       await src.close(handle);
 
@@ -350,7 +353,8 @@ void main() {
         storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
         deriveKey: deriver.call,
       );
-      expect(await dst.importSections('pw', [legacyBlob]), isEmpty);
+      expect(await dst.importSections('pw', base64Sections: [legacyBlob]),
+          isEmpty);
       final reopened = await dst.tryOpen('pw');
       expect(reopened, isNotNull);
       expect(reopened!.state.sites.single['siteId'], equals('s1'));
@@ -372,7 +376,8 @@ void main() {
         storage: ArchiveStorage(secureStorage: MockFlutterSecureStorage()),
         deriveKey: deriver.call,
       );
-      final unmatched = await dst.importSections('wrong', [blob]);
+      final unmatched =
+          await dst.importSections('wrong', base64Sections: [blob]);
       expect(unmatched, equals([blob]));
       expect(await dst.tryOpen('wrong'), isNull);
     });

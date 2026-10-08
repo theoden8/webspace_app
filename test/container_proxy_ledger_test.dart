@@ -10,7 +10,7 @@ class _ForkProxyTable {
   final Map<String, Object> proxies = {};
   final List<String> clears = [];
 
-  void build(String containerId, Object? proxy) {
+  void build(String containerId, {required Object? proxy}) {
     if (proxy != null) proxies[containerId] = proxy;
   }
 
@@ -44,13 +44,13 @@ void main() {
       final ledger = ContainerProxyLedger();
       final fork = _ForkProxyTable();
 
-      ledger.noteBuild('ws-a', proxy);
-      fork.build('ws-a', proxy);
+      ledger.noteBuild('ws-a', proxy: proxy);
+      fork.build('ws-a', proxy: proxy);
 
       // The site is now DEFAULT: the rebuild names no proxy.
       expect(mustRelease(ledger), isTrue);
-      await ledger.release('ws-a', fork.clear);
-      fork.build('ws-a', null);
+      await ledger.release('ws-a', clear: fork.clear);
+      fork.build('ws-a', proxy: null);
 
       expect(fork.proxies, isEmpty);
       expect(ledger.holds('ws-a'), isFalse);
@@ -60,56 +60,56 @@ void main() {
 
     test('without the clear the fork keeps the old proxy', () {
       final fork = _ForkProxyTable();
-      fork.build('ws-a', proxy);
-      fork.build('ws-a', null);
+      fork.build('ws-a', proxy: proxy);
+      fork.build('ws-a', proxy: null);
       expect(fork.proxies['ws-a'], proxy,
           reason: 'what the ledger exists to undo');
     });
 
     test('a container never given a proxy is not cleared', () {
       final ledger = ContainerProxyLedger();
-      ledger.noteBuild('ws-a', null);
+      ledger.noteBuild('ws-a', proxy: null);
       expect(mustRelease(ledger), isFalse);
     });
 
     test('a build that carries a proxy replaces the old one itself', () {
-      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy);
+      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy: proxy);
       expect(mustRelease(ledger, boundProxy: true), isFalse);
     });
 
     test('an unavailable proxy keeps the old one: the page stays blank', () {
-      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy);
+      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy: proxy);
       expect(mustRelease(ledger, proxyUnavailable: true), isFalse);
     });
 
     test('a caller that states no proxy leaves the container alone', () {
-      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy);
+      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy: proxy);
       expect(mustRelease(ledger, siteNamesProxy: false), isFalse);
     });
 
     test('no container, or a process-wide binding, has nothing to clear', () {
-      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy);
+      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy: proxy);
       expect(mustRelease(ledger, containerId: null), isFalse);
       expect(mustRelease(ledger, bindsProxyPerSite: false), isFalse);
     });
 
     test('only the named container is cleared', () async {
       final ledger = ContainerProxyLedger()
-        ..noteBuild('ws-a', proxy)
-        ..noteBuild('ws-b', proxy);
+        ..noteBuild('ws-a', proxy: proxy)
+        ..noteBuild('ws-b', proxy: proxy);
       final fork = _ForkProxyTable()
-        ..build('ws-a', proxy)
-        ..build('ws-b', proxy);
-      await ledger.release('ws-a', fork.clear);
+        ..build('ws-a', proxy: proxy)
+        ..build('ws-b', proxy: proxy);
+      await ledger.release('ws-a', clear: fork.clear);
       expect(fork.clears, ['ws-a']);
       expect(fork.proxies.keys, ['ws-b']);
       expect(ledger.holds('ws-b'), isTrue);
     });
 
     test('a failed clear is asked for again on the next build', () async {
-      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy);
+      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy: proxy);
       await expectLater(
-        ledger.release('ws-a', (_) async => throw Exception('channel')),
+        ledger.release('ws-a', clear: (_) async => throw Exception('channel')),
         throwsException,
       );
       expect(ledger.holds('ws-a'), isTrue);
@@ -117,10 +117,10 @@ void main() {
     });
 
     test('a proxy written while the clear is in flight stays tracked', () async {
-      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy);
+      final ledger = ContainerProxyLedger()..noteBuild('ws-a', proxy: proxy);
       final gate = Completer<void>();
-      final release = ledger.release('ws-a', (_) => gate.future);
-      ledger.noteBuild('ws-a', proxy);
+      final release = ledger.release('ws-a', clear: (_) => gate.future);
+      ledger.noteBuild('ws-a', proxy: proxy);
       gate.complete();
       await release;
       expect(ledger.holds('ws-a'), isTrue,

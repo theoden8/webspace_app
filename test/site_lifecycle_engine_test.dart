@@ -168,16 +168,17 @@ void main() {
   group('SiteLifecycleEngine.computeReorderPatch', () {
     // Ground truth: apply removeAt(old)+insert(new) to a labelled list and
     // read back where each original index landed.
-    Map<int, int> groundTruthMapping(int oldIndex, int newIndex, int count) {
-      final list = List<int>.generate(count, (i) => i);
-      final moved = list.removeAt(oldIndex);
-      list.insert(newIndex, moved);
-      return {for (var pos = 0; pos < list.length; pos++) list[pos]: pos};
-    }
+Map<int, int> groundTruthMapping(int oldIndex,
+    {required int newIndex, required int count}) {
+  final list = List<int>.generate(count, (i) => i);
+  final moved = list.removeAt(oldIndex);
+  list.insert(newIndex, moved);
+  return {for (var pos = 0; pos < list.length; pos++) list[pos]: pos};
+}
 
     test('remaps loadedIndices to match removeAt+insert (move forward)', () {
       // [0,1,2,3,4] move 1 -> 3 => [0,2,3,1,4]
-      final truth = groundTruthMapping(1, 3, 5);
+      final truth = groundTruthMapping(1, newIndex: 3, count: 5);
       final patch = SiteLifecycleEngine.computeReorderPatch(
         oldIndex: 1,
         newIndex: 3,
@@ -190,7 +191,7 @@ void main() {
 
     test('remaps loadedIndices to match removeAt+insert (move backward)', () {
       // [0,1,2,3,4] move 4 -> 0 => [4,0,1,2,3]
-      final truth = groundTruthMapping(4, 0, 5);
+      final truth = groundTruthMapping(4, newIndex: 0, count: 5);
       final patch = SiteLifecycleEngine.computeReorderPatch(
         oldIndex: 4,
         newIndex: 0,
@@ -223,7 +224,7 @@ void main() {
 
     test('active site pointer shifts when another site moves over it', () {
       // active at 3, move 0 -> 4 => [1,2,3,4,0]; index 3 (site "3") -> pos 2
-      final truth = groundTruthMapping(0, 4, 5);
+      final truth = groundTruthMapping(0, newIndex: 4, count: 5);
       final patch = SiteLifecycleEngine.computeReorderPatch(
         oldIndex: 0,
         newIndex: 4,
@@ -258,7 +259,8 @@ void main() {
       const count = 6;
       for (var oldIndex = 0; oldIndex < count; oldIndex++) {
         for (var newIndex = 0; newIndex < count; newIndex++) {
-          final truth = groundTruthMapping(oldIndex, newIndex, count);
+          final truth =
+              groundTruthMapping(oldIndex, newIndex: newIndex, count: count);
           final patch = SiteLifecycleEngine.computeReorderPatch(
             oldIndex: oldIndex,
             newIndex: newIndex,

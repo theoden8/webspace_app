@@ -83,7 +83,7 @@ WebViewModel appSite(String name) =>
     app.debugWebViewModels!.singleWhere((m) => m.name == name);
 
 /// Pick a webspace on the start screen.
-Future<void> openWebspace(WidgetTester tester, String name) async {
+Future<void> openWebspace(WidgetTester tester, {required String name}) async {
   final entry = find.descendant(
     of: find.byType(ListTile),
     matching: find.text(name),
@@ -93,7 +93,8 @@ Future<void> openWebspace(WidgetTester tester, String name) async {
 }
 
 /// Bring the site named [name] on screen from the drawer.
-Future<void> openSiteFromDrawer(WidgetTester tester, String name) async {
+Future<void> openSiteFromDrawer(WidgetTester tester,
+    {required String name}) async {
   await tester.tap(find.byTooltip('Open navigation menu'));
   await settleRealApp(tester);
   await tester.tap(find.text(name).last);
@@ -109,7 +110,7 @@ Future<void> openTabsSheet(WidgetTester tester) async {
 /// it: a main-frame navigation with a user gesture. Android reads the gesture
 /// from `hasGesture`, Apple hosts from the navigation type, so both are set
 /// or the tap reads as script-driven on a macOS runner.
-Future<void> tapLink(WidgetTester tester, String url) async {
+Future<void> tapLink(WidgetTester tester, {required String url}) async {
   final views = find.byType(inapp.InAppWebView).evaluate().toList();
   expect(views, hasLength(1), reason: 'one page on screen to tap in');
   final view = views.single.widget as inapp.InAppWebView;

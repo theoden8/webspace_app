@@ -27,7 +27,7 @@ int dnsLevelBit(int level) => 1 << (level - 1);
 /// that union would cost — and the group count is 1 while only one level is
 /// downloaded, which is the case for anyone not using a per-site level.
 class DnsLevelSets {
-  DnsLevelSets._(this._groups, this.levels)
+  DnsLevelSets._(this._groups, {required this.levels})
       : _masks = _groups.keys.toList(growable: false),
         _sets = _groups.values.toList(growable: false);
 
@@ -45,7 +45,7 @@ class DnsLevelSets {
   final Set<int> levels;
 
   static final DnsLevelSets empty =
-      DnsLevelSets._(const <int, Set<String>>{}, const <int>{});
+      DnsLevelSets._(const <int, Set<String>>{}, levels: const <int>{});
 
   bool get isEmpty => _groups.values.every((group) => group.isEmpty);
 
@@ -90,7 +90,7 @@ class DnsLevelSets {
     for (var i = 0; i < _masks.length; i++) {
       final groupMask = _masks[i];
       if (mask & groupMask == groupMask) continue;
-      if (hostInSet(host, _sets[i])) mask |= groupMask;
+      if (hostInSet(host, set: _sets[i])) mask |= groupMask;
     }
     return mask;
   }
@@ -159,7 +159,7 @@ class DnsLevelSetsBuilder {
       if (mask == 0) return;
       (groups[mask] ??= <String>{}).add(domain);
     });
-    return DnsLevelSets._(groups, Set<int>.unmodifiable(_levels));
+    return DnsLevelSets._(groups, levels: Set<int>.unmodifiable(_levels));
   }
 }
 

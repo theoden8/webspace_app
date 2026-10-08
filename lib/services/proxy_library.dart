@@ -214,12 +214,14 @@ class ProxyLibraryData {
   bool get isEmpty => gateways.isEmpty && credentials.isEmpty && proxies.isEmpty;
   int get length => gateways.length + credentials.length + proxies.length;
 
-  SavedGateway? gateway(String? id) => _find(gateways, id, (g) => g.id);
+  SavedGateway? gateway(String? id) =>
+      _find(gateways, id: id, idOf: (g) => g.id);
   SavedCredentials? credentialsById(String? id) =>
-      _find(credentials, id, (c) => c.id);
-  SavedProxy? proxy(String? id) => _find(proxies, id, (p) => p.id);
+      _find(credentials, id: id, idOf: (c) => c.id);
+  SavedProxy? proxy(String? id) => _find(proxies, id: id, idOf: (p) => p.id);
 
-  static T? _find<T>(List<T> list, String? id, String Function(T) idOf) {
+  static T? _find<T>(List<T> list,
+      {required String? id, required String Function(T) idOf}) {
     if (id == null) return null;
     for (final e in list) {
       if (idOf(e) == id) return e;
@@ -265,20 +267,23 @@ class ProxyLibraryData {
       return ProxyLibraryData();
     }
     if (json is! Map) return ProxyLibraryData();
-    List<T> list<T>(String key, T? Function(Object?) parse, String Function(T) idOf) {
-      final value = json is Map ? json[key] : null;
-      if (value is! List) return [];
-      final seen = <String>{};
-      return [
-        for (final e in value.map(parse))
-          if (e != null && seen.add(idOf(e))) e,
-      ];
-    }
+List<T> list<T>(String key,
+    {required T? Function(Object?) parse, required String Function(T) idOf}) {
+  final value = json is Map ? json[key] : null;
+  if (value is! List) return [];
+  final seen = <String>{};
+  return [
+    for (final e in value.map(parse))
+      if (e != null && seen.add(idOf(e))) e,
+  ];
+}
 
     return ProxyLibraryData(
-      gateways: list('gateways', SavedGateway.fromJson, (g) => g.id),
-      credentials: list('credentials', SavedCredentials.fromJson, (c) => c.id),
-      proxies: list('proxies', SavedProxy.fromJson, (p) => p.id),
+      gateways:
+          list('gateways', parse: SavedGateway.fromJson, idOf: (g) => g.id),
+      credentials: list('credentials',
+          parse: SavedCredentials.fromJson, idOf: (c) => c.id),
+      proxies: list('proxies', parse: SavedProxy.fromJson, idOf: (p) => p.id),
     );
   }
 }
@@ -400,7 +405,7 @@ enum LibraryProblem {
 }
 
 class LibraryResolution {
-  const LibraryResolution(this.route, [this.problem = LibraryProblem.none]);
+  const LibraryResolution(this.route, {this.problem = LibraryProblem.none});
 
   /// Concrete settings, or [ProxyType.SAVED] with no address when
   /// [problem] is set.
@@ -408,7 +413,7 @@ class LibraryResolution {
   final LibraryProblem problem;
 
   static LibraryResolution failed(LibraryProblem p) =>
-      LibraryResolution(UserProxySettings(type: ProxyType.SAVED), p);
+      LibraryResolution(UserProxySettings(type: ProxyType.SAVED), problem: p);
 }
 
 /// Resolve what [settings] takes from the library against [library]
@@ -422,29 +427,29 @@ class LibraryResolution {
 /// direct or through the app-wide proxy, either of which would be a route the
 /// user did not pick.
 LibraryResolution resolveLibrary(
-  UserProxySettings settings, [
+  UserProxySettings settings, {
   ProxyLibraryData? library,
-]) {
+}) {
   final lib = library ?? ProxyLibrary._data;
   if (settings.type == ProxyType.SAVED) {
     final proxy = lib.proxy(settings.savedProxyId);
     if (proxy == null) {
       return LibraryResolution.failed(LibraryProblem.proxyMissing);
     }
-    return _resolveChoices(proxy.settings, lib);
+    return _resolveChoices(proxy.settings, lib: lib);
   }
   if (settings.type == ProxyType.GATEWAY ||
       (kGatewayTypes.contains(settings.type) &&
           settings.credentialsId != null)) {
-    return _resolveChoices(settings, lib);
+    return _resolveChoices(settings, lib: lib);
   }
   return LibraryResolution(settings);
 }
 
 LibraryResolution _resolveChoices(
-  UserProxySettings s,
-  ProxyLibraryData lib,
-) {
+  UserProxySettings s, {
+  required ProxyLibraryData lib,
+}) {
   ProxyType type;
   String? address;
   if (s.type == ProxyType.GATEWAY) {
@@ -489,15 +494,16 @@ UserProxySettings resolveLibraryProxy(UserProxySettings settings) =>
 /// Whether [settings] uses the library entry [id] of [kind], directly or
 /// through a saved proxy. What deleting that entry would block.
 bool usesLibraryEntry(
-  UserProxySettings settings,
-  LibraryEntryKind kind,
-  String id,
-  ProxyLibraryData lib,
-) {
+  UserProxySettings settings, {
+  required LibraryEntryKind kind,
+  required String id,
+  required ProxyLibraryData lib,
+}) {
   if (settings.type == ProxyType.SAVED) {
     if (kind == LibraryEntryKind.proxy) return settings.savedProxyId == id;
     final proxy = lib.proxy(settings.savedProxyId);
-    return proxy != null && usesLibraryEntry(proxy.settings, kind, id, lib);
+    return proxy != null &&
+        usesLibraryEntry(proxy.settings, kind: kind, id: id, lib: lib);
   }
   return switch (kind) {
     LibraryEntryKind.proxy => false,

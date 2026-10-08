@@ -45,14 +45,15 @@ class CurrentLocationResult {
   final CurrentLocationFix? fix;
   final String? message;
 
-  const CurrentLocationResult._(this.status, this.fix, this.message);
+  const CurrentLocationResult._(this.status, {required this.fix, required this.message});
 
   factory CurrentLocationResult.ok(CurrentLocationFix fix) =>
-      CurrentLocationResult._(CurrentLocationStatus.ok, fix, null);
+      CurrentLocationResult._(CurrentLocationStatus.ok,
+          fix: fix, message: null);
 
   factory CurrentLocationResult.failure(
-          CurrentLocationStatus status, String? message) =>
-      CurrentLocationResult._(status, null, message);
+          CurrentLocationStatus status, {required String? message}) =>
+      CurrentLocationResult._(status, fix: null, message: message);
 }
 
 /// Thin wrapper around the platform method channel that returns a single GPS
@@ -79,7 +80,7 @@ class CurrentLocationService {
     if (!isSupported) {
       return CurrentLocationResult.failure(
         CurrentLocationStatus.unsupported,
-        'Current location is not available on this platform.',
+        message: 'Current location is not available on this platform.',
       );
     }
     try {
@@ -90,7 +91,7 @@ class CurrentLocationService {
       if (raw is! Map) {
         return CurrentLocationResult.failure(
           CurrentLocationStatus.error,
-          'Unexpected response from platform.',
+          message: 'Unexpected response from platform.',
         );
       }
       final status = (raw['status'] as String?) ?? 'error';
@@ -102,7 +103,7 @@ class CurrentLocationService {
           if (lat == null || lng == null) {
             return CurrentLocationResult.failure(
               CurrentLocationStatus.error,
-              'Missing coordinates in platform response.',
+              message: 'Missing coordinates in platform response.',
             );
           }
           return CurrentLocationResult.ok(
@@ -111,28 +112,28 @@ class CurrentLocationService {
         case 'permission_denied':
           return CurrentLocationResult.failure(
               CurrentLocationStatus.permissionDenied,
-              raw['message'] as String?);
+              message: raw['message'] as String?);
         case 'permission_denied_forever':
           return CurrentLocationResult.failure(
               CurrentLocationStatus.permissionDeniedForever,
-              raw['message'] as String?);
+              message: raw['message'] as String?);
         case 'service_disabled':
           return CurrentLocationResult.failure(
               CurrentLocationStatus.serviceDisabled,
-              raw['message'] as String?);
+              message: raw['message'] as String?);
         case 'timeout':
-          return CurrentLocationResult.failure(
-              CurrentLocationStatus.timeout, raw['message'] as String?);
+          return CurrentLocationResult.failure(CurrentLocationStatus.timeout,
+              message: raw['message'] as String?);
         default:
           return CurrentLocationResult.failure(
-              CurrentLocationStatus.error, raw['message'] as String?);
+              CurrentLocationStatus.error, message: raw['message'] as String?);
       }
     } on PlatformException catch (e) {
       return CurrentLocationResult.failure(
-          CurrentLocationStatus.error, e.message);
+          CurrentLocationStatus.error, message: e.message);
     } catch (e) {
       return CurrentLocationResult.failure(
-          CurrentLocationStatus.error, e.toString());
+          CurrentLocationStatus.error, message: e.toString());
     }
   }
 }

@@ -48,7 +48,8 @@ void main() {
   test('the page icon the site produced wins over the cached favicon URL',
       () async {
     final pageIcon = _png(64);
-    await store.offer(_site, SiteIcon(pageIcon, 64, 64), persist: true);
+    await store.offer(_site,
+        icon: SiteIcon(pageIcon, width: 64, height: 64), persist: true);
 
     final saved = await displayedSiteIconAsPng(_site,
         resolvedIconUrl: _fetched, siteIcons: store);
@@ -59,7 +60,8 @@ void main() {
 
   test('a custom icon wins over the page icon', () async {
     final custom = _png(48);
-    await store.offer(_site, SiteIcon(_png(64), 64, 64), persist: true);
+    await store.offer(_site,
+        icon: SiteIcon(_png(64), width: 64, height: 64), persist: true);
 
     final saved = await displayedSiteIconAsPng(_site,
         customIcon: custom, resolvedIconUrl: _fetched, siteIcons: store);

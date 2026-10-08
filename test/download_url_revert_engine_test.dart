@@ -44,7 +44,7 @@ void main() {
     test('renderable URL replaces previous', () {
       expect(
         DownloadUrlRevertEngine.updateStable(
-            'https://old/', 'https://new/'),
+            'https://old/', loadedUrl: 'https://new/'),
         'https://new/',
       );
     });
@@ -52,26 +52,27 @@ void main() {
     test('non-renderable URL preserves previous', () {
       expect(
         DownloadUrlRevertEngine.updateStable(
-            'https://old/', 'data:text/plain,x'),
+            'https://old/', loadedUrl: 'data:text/plain,x'),
         'https://old/',
       );
       expect(
         DownloadUrlRevertEngine.updateStable(
-            'https://old/', 'blob:https://old/abc'),
+            'https://old/', loadedUrl: 'blob:https://old/abc'),
         'https://old/',
       );
     });
 
     test('first renderable load seeds the stable value', () {
       expect(
-        DownloadUrlRevertEngine.updateStable(null, 'https://x/'),
+        DownloadUrlRevertEngine.updateStable(null, loadedUrl: 'https://x/'),
         'https://x/',
       );
     });
 
     test('non-renderable load with no previous returns null', () {
       expect(
-        DownloadUrlRevertEngine.updateStable(null, 'data:text/plain,x'),
+        DownloadUrlRevertEngine.updateStable(null,
+            loadedUrl: 'data:text/plain,x'),
         isNull,
       );
     });

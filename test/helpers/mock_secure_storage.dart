@@ -11,7 +11,7 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
   bool throwOnRead = false;
   bool throwOnWrite = false;
 
-  void _fail(bool when) {
+  void _fail({required bool when}) {
     if (when) throw PlatformException(code: 'secure storage unavailable');
   }
 
@@ -26,7 +26,7 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _fail(throwOnWrite);
+    _fail(when: throwOnWrite);
     if (value == null) {
       storage.remove(key);
     } else {
@@ -44,7 +44,7 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _fail(throwOnRead);
+    _fail(when: throwOnRead);
     return storage[key];
   }
 
@@ -58,7 +58,7 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _fail(throwOnWrite);
+    _fail(when: throwOnWrite);
     storage.remove(key);
   }
 
@@ -72,7 +72,7 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _fail(throwOnRead);
+    _fail(when: throwOnRead);
     return storage.containsKey(key);
   }
 
@@ -85,7 +85,7 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _fail(throwOnRead);
+    _fail(when: throwOnRead);
     return Map<String, String>.from(storage);
   }
 
@@ -98,7 +98,7 @@ class MockFlutterSecureStorage implements FlutterSecureStorage {
     AppleOptions? mOptions,
     WindowsOptions? wOptions,
   }) async {
-    _fail(throwOnWrite);
+    _fail(when: throwOnWrite);
     storage.clear();
   }
 

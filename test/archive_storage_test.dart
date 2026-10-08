@@ -125,7 +125,7 @@ void main() {
       await storage.ensureInitialized();
       final bytes =
           Uint8List.fromList(List<int>.generate(kArchiveSlotSize, (i) => i & 0xff));
-      await storage.writeSlot(7, bytes);
+      await storage.writeSlot(7, bytes: bytes);
       final read = await storage.readSlot(7);
       expect(read, equals(bytes));
     });
@@ -135,11 +135,13 @@ void main() {
       final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       expect(
-        () async => storage.writeSlot(0, Uint8List(kArchiveSlotSize - 1)),
+        () async =>
+            storage.writeSlot(0, bytes: Uint8List(kArchiveSlotSize - 1)),
         throwsA(isA<ArgumentError>()),
       );
       expect(
-        () async => storage.writeSlot(0, Uint8List(kArchiveSlotSize + 1)),
+        () async =>
+            storage.writeSlot(0, bytes: Uint8List(kArchiveSlotSize + 1)),
         throwsA(isA<ArgumentError>()),
       );
     });
@@ -149,11 +151,12 @@ void main() {
       final storage = ArchiveStorage(secureStorage: secureStorage);
       await storage.ensureInitialized();
       expect(
-        () async => storage.writeSlot(kArchiveSlotCount, Uint8List(kArchiveSlotSize)),
+        () async => storage.writeSlot(kArchiveSlotCount,
+            bytes: Uint8List(kArchiveSlotSize)),
         throwsA(isA<RangeError>()),
       );
       expect(
-        () async => storage.writeSlot(-1, Uint8List(kArchiveSlotSize)),
+        () async => storage.writeSlot(-1, bytes: Uint8List(kArchiveSlotSize)),
         throwsA(isA<RangeError>()),
       );
     });

@@ -27,12 +27,12 @@ import 'package:webspace/web_view_model.dart';
 /// (TOR-008), and revoking a pinned certificate.
 class SiteNetworkController {
   SiteNetworkController(
-    this._sites,
-    this._host, {
+    this._sites, {
+    required PageHost host,
     required this.residency,
     required this.background,
     required this.containers,
-  });
+  }) : _host = host;
 
   final SiteRuntime _sites;
   final PageHost _host;
@@ -66,7 +66,7 @@ class SiteNetworkController {
 
   void _torStatusChanged(TorStatus s) {
     if (!_host.mounted) return;
-    if (!torBindingChanged(_lastTorStatus, s)) return;
+    if (!torBindingChanged(_lastTorStatus, next: s)) return;
     _lastTorStatus = s;
     var anyTorSite = false;
     for (final m in _sites.models) {
@@ -114,7 +114,7 @@ class SiteNetworkController {
       final c = m.controller;
       if (c == null) continue;
       anyLive ??= c;
-      if (_pinnedBy(m, host, entry.port)) matching ??= c;
+      if (_pinnedBy(m, host: host, port: entry.port)) matching ??= c;
     }
     final preferred = matching ?? anyLive;
     if (preferred != null) {
@@ -146,14 +146,14 @@ class SiteNetworkController {
     final wipedSiteIds = <String>[];
     for (var i = 0; i < _sites.models.length; i++) {
       final model = _sites.models[i];
-      if (!_pinnedBy(model, host, entry.port)) continue;
+      if (!_pinnedBy(model, host: host, port: entry.port)) continue;
       HtmlCacheService.instance.deleteCache(model.siteId);
       // Outside the unload funnel on purpose: the session is wiped so the
       // next load re-handshakes (BUG-026).
       if (_sites.loaded.contains(i)) {
         model.disposeWebView();
         _sites.loaded.remove(i);
-        background.noteUnloaded(model, 'certificate trust revoked');
+        background.noteUnloaded(model, reason: 'certificate trust revoked');
         changed = true;
       }
       wipedSiteIds.add(model.siteId);
@@ -182,7 +182,8 @@ class SiteNetworkController {
   }
 
   /// Whether [model]'s home is the pinned [host] and [port].
-  static bool _pinnedBy(WebViewModel model, String host, int port) {
+  static bool _pinnedBy(WebViewModel model,
+      {required String host, required int port}) {
     final uri = Uri.tryParse(model.initUrl);
     if (uri == null || uri.host.toLowerCase() != host) return false;
     final sitePort = uri.hasPort
@@ -214,8 +215,8 @@ class SiteNetworkController {
     // pins, and the one that loses is unloaded before the pin moves, as
     // activation does, or it is rebuilt under a country it never chose.
     final order = <int>{?_sites.current, ..._sites.loaded.toList().reversed};
-    final plan = SiteUnloadEngine.plan(residency, TorExitSettled(order));
-    await SiteUnloadEngine.apply(residency, plan,
+    final plan = SiteUnloadEngine.plan(residency, event: TorExitSettled(order));
+    await SiteUnloadEngine.apply(residency, plan: plan,
         isStale: () => !_host.mounted);
     if (plan.unloads.isNotEmpty && _host.mounted) _host.rebuild();
     syncTorExitPin(order);

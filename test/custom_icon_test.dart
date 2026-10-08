@@ -6,7 +6,7 @@ import 'package:webspace/services/custom_icon.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/web_view_model.dart';
 
-Uint8List _pngOfSize(int w, int h) {
+Uint8List _pngOfSize(int w, {required int h}) {
   final im = img.Image(width: w, height: h);
   img.fill(im, color: img.ColorRgb8(30, 120, 200));
   return Uint8List.fromList(img.encodePng(im));
@@ -15,7 +15,7 @@ Uint8List _pngOfSize(int w, int h) {
 void main() {
   group('processCustomIconImage', () {
     test('downscales oversized images preserving aspect ratio', () {
-      final out = processCustomIconImage(_pngOfSize(1024, 512));
+      final out = processCustomIconImage(_pngOfSize(1024, h: 512));
       expect(out, isNotNull);
       final decoded = img.decodePng(out!);
       expect(decoded!.width, kCustomIconMaxDimension);
@@ -41,12 +41,13 @@ void main() {
 
   group('WebViewModel.customIconPng', () {
     test('round-trips through toJson/fromJson', () {
-      final icon = _pngOfSize(16, 16);
+      final icon = _pngOfSize(16, h: 16);
       final model = WebViewModel(
         initUrl: 'https://example.com',
         customIconPng: icon,
       );
-      final restored = WebViewModel.fromJson(model.toJson(), null);
+      final restored =
+          WebViewModel.fromJson(model.toJson(), stateSetterF: null);
       expect(restored.customIconPng, icon);
     });
 
@@ -55,13 +56,14 @@ void main() {
       expect(model.toJson().containsKey('customIconPng'), isFalse);
 
       final json = model.toJson()..['customIconPng'] = 'not-base64!!!';
-      expect(WebViewModel.fromJson(json, null).customIconPng, isNull);
+      expect(WebViewModel.fromJson(json, stateSetterF: null).customIconPng,
+          isNull);
     });
 
     test('never rides the QR share payload (EDIT-008)', () {
       final model = WebViewModel(
         initUrl: 'https://example.com',
-        customIconPng: _pngOfSize(16, 16),
+        customIconPng: _pngOfSize(16, h: 16),
       );
       final shared = SiteSettingsQrCodec.shareableSubset(model.toJson());
       expect(shared.containsKey('customIconPng'), isFalse);

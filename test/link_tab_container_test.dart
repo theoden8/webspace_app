@@ -107,7 +107,7 @@ void main() {
       final m = github(
         tabs: [SiteTab.primary(url: 'https://github.com/'), linkTab()],
       );
-      final back = WebViewModel.fromJson(m.toJson(), null);
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       final tab = back.tabs.singleWhere((t) => t.id == 'l');
       expect(tab.openerSiteId, 'gh');
       expect(tab.homeUrl, ddgLink);
@@ -158,9 +158,9 @@ void main() {
         active: 'l',
       );
       final asOpener = m.activeStateKey;
-      expect(asOpener, webViewStateKey('gh', 'l'));
+      expect(asOpener, webViewStateKey('gh', tabId: 'l'));
       m.activeTab.hostSiteId = 'ddg';
-      expect(m.activeStateKey, webViewStateKey('ddg', 'l'));
+      expect(m.activeStateKey, webViewStateKey('ddg', tabId: 'l'));
       expect(m.activeStateKey, isNot(asOpener));
     });
   });
@@ -222,10 +222,11 @@ void main() {
         linkTab(),
         linkTab(id: 'l2', parent: 'l'),
       ], active: 'l2');
-      expect(TabLifecycleEngine.ownerRunTab(m.tabs, 'l2'), 'l2',
+      expect(TabLifecycleEngine.ownerRunTab(m.tabs, activeTabId: 'l2'), 'l2',
           reason: 'without the predicate a foreign tab looks owner-run');
       expect(
-        TabLifecycleEngine.ownerRunTab(m.tabs, 'l2', isForeign: m.isForeignTab),
+        TabLifecycleEngine.ownerRunTab(m.tabs,
+            activeTabId: 'l2', isForeign: m.isForeignTab),
         kPrimaryTabId,
       );
     });
@@ -297,19 +298,22 @@ void main() {
         [for (final r in rows) '${r.tab.id}:${r.depth}'];
 
     test('a kept tab comes with its subtree and the tabs above it', () {
-      expect(ids(TabLifecycleEngine.rowsAround(tree(), asDdg)),
+      expect(ids(TabLifecycleEngine.rowsAround(tree(), keep: asDdg)),
           ['$kPrimaryTabId:0', 'a:1', 'a1:2', 'a11:3', 'a2:2', 'b:1', 'b1:2']);
     });
 
     test('what holds nothing kept is folded away', () {
-      expect(ids(TabLifecycleEngine.rowsAround(tree(), (t) => t.id == 'b1')),
+      expect(
+          ids(TabLifecycleEngine.rowsAround(tree(), keep: (t) => t.id == 'b1')),
           ['$kPrimaryTabId:0', 'b:1', 'b1:2']);
-      expect(TabLifecycleEngine.rowsAround(tree(), (t) => t.hostSiteId == 'zz'),
+      expect(
+          TabLifecycleEngine.rowsAround(tree(),
+              keep: (t) => t.hostSiteId == 'zz'),
           isEmpty);
     });
 
     test('depths and child counts are the whole tree\'s', () {
-      final rows = TabLifecycleEngine.rowsAround(tree(), asDdg);
+      final rows = TabLifecycleEngine.rowsAround(tree(), keep: asDdg);
       final whole = {
         for (final r in TabLifecycleEngine.treeOrder(tree())) r.tab.id: r,
       };
@@ -321,8 +325,9 @@ void main() {
 
     test('the rows are the tree\'s own, in its order', () {
       final order = TabLifecycleEngine.treeOrder(tree()).map((r) => r.tab.id);
-      final shown =
-          TabLifecycleEngine.rowsAround(tree(), asDdg).map((r) => r.tab.id).toList();
+      final shown = TabLifecycleEngine.rowsAround(tree(), keep: asDdg)
+          .map((r) => r.tab.id)
+          .toList();
       expect(order.where(shown.contains).toList(), shown);
     });
 
@@ -333,7 +338,8 @@ void main() {
         (t) => t.id == 'c',
       ]) {
         final shown = {
-          for (final r in TabLifecycleEngine.rowsAround(tree(), keep)) r.tab.id,
+          for (final r in TabLifecycleEngine.rowsAround(tree(), keep: keep))
+            r.tab.id,
         };
         for (final t in tree()) {
           if (!shown.contains(t.id) || t.parentId == null) continue;
@@ -350,7 +356,7 @@ void main() {
         SiteTab(id: 'y', url: ddgLink, parentId: 'x', hostSiteId: 'ddg'),
         SiteTab(id: 'n', url: 'https://github.com/n', parentId: 'gone'),
       ];
-      final rows = TabLifecycleEngine.rowsAround(tabs, asDdg);
+      final rows = TabLifecycleEngine.rowsAround(tabs, keep: asDdg);
       expect(rows.map((r) => r.tab.id).toSet(), {'o', 's', 'x', 'y'});
       expect(rows.every((r) => r.depth == 0), isTrue);
     });
@@ -358,42 +364,49 @@ void main() {
 
   group('ContainerColorEngine (TAB-018)', () {
     test('fills an empty list round the palette', () {
-      expect(ContainerColorEngine.assign([null, null, null, null, null], 3),
+      expect(
+          ContainerColorEngine.assign([null, null, null, null, null],
+              paletteSize: 3),
           [0, 1, 2, 0, 1]);
-      expect(ContainerColorEngine.assign([], 8), isEmpty);
+      expect(ContainerColorEngine.assign([], paletteSize: 8), isEmpty);
     });
 
     test('keeps every colour already given', () {
-      expect(ContainerColorEngine.assign([4, 2, 7], 8), [4, 2, 7]);
+      expect(ContainerColorEngine.assign([4, 2, 7], paletteSize: 8), [4, 2, 7]);
     });
 
     test('gives a new site the least used colour, lowest on a tie', () {
-      expect(ContainerColorEngine.assign([0, 0, 1, null], 3), [0, 0, 1, 2]);
-      expect(ContainerColorEngine.assign([1, null, 2, null], 3), [1, 0, 2, 0]);
-      expect(ContainerColorEngine.assign([0, 1, 2, null], 3), [0, 1, 2, 0]);
+      expect(ContainerColorEngine.assign([0, 0, 1, null], paletteSize: 3),
+          [0, 0, 1, 2]);
+      expect(ContainerColorEngine.assign([1, null, 2, null], paletteSize: 3),
+          [1, 0, 2, 0]);
+      expect(ContainerColorEngine.assign([0, 1, 2, null], paletteSize: 3),
+          [0, 1, 2, 0]);
     });
 
     test('counts colours given earlier in the same pass', () {
-      expect(ContainerColorEngine.assign([null, 0, null], 2), [1, 0, 0]);
+      expect(ContainerColorEngine.assign([null, 0, null], paletteSize: 2),
+          [1, 0, 0]);
     });
 
     test('a colour outside the palette counts as none', () {
-      expect(ContainerColorEngine.assign([9, -1, null], 3), [0, 1, 2]);
+      expect(ContainerColorEngine.assign([9, -1, null], paletteSize: 3),
+          [0, 1, 2]);
     });
 
     test('is idempotent', () {
       final once = ContainerColorEngine.assign(
-          [null, 3, null, null, 3, null, 0], 4);
-      expect(ContainerColorEngine.assign(once, 4), once);
+          [null, 3, null, null, 3, null, 0], paletteSize: 4);
+      expect(ContainerColorEngine.assign(once, paletteSize: 4), once);
     });
 
     test('removing or reordering sites changes nobody\'s colour', () {
       final given = ContainerColorEngine.assign(
-          List<int?>.filled(6, null), 8);
+          List<int?>.filled(6, null), paletteSize: 8);
       final removed = [...given]..removeAt(2);
-      expect(ContainerColorEngine.assign(removed, 8), removed);
+      expect(ContainerColorEngine.assign(removed, paletteSize: 8), removed);
       final reordered = given.reversed.toList();
-      expect(ContainerColorEngine.assign(reordered, 8), reordered);
+      expect(ContainerColorEngine.assign(reordered, paletteSize: 8), reordered);
     });
 
     test('the palette size matches both colour sets', () {
@@ -402,31 +415,37 @@ void main() {
     });
 
     test('release keeps a colour nobody holds and frees a taken one', () {
-      expect(ContainerColorEngine.release([2, 5], 8), [2, 5]);
-      expect(ContainerColorEngine.release([2, 2, 5], 8), [2, null, 5],
+      expect(ContainerColorEngine.release([2, 5], paletteSize: 8), [2, 5]);
+      expect(
+          ContainerColorEngine.release([2, 2, 5], paletteSize: 8), [2, null, 5],
           reason: 'the first holder keeps it');
-      expect(ContainerColorEngine.release([2, 5], 8, held: [5]), [2, null]);
-      expect(ContainerColorEngine.release([9, -1, null], 8), [null, null, null]);
+      expect(ContainerColorEngine.release([2, 5], paletteSize: 8, held: [5]),
+          [2, null]);
+      expect(ContainerColorEngine.release([9, -1, null], paletteSize: 8),
+          [null, null, null]);
     });
 
     test('release keeps a shared colour once every colour is held', () {
-      expect(ContainerColorEngine.release([1], 3, held: [0, 1, 2]), [1]);
-      expect(ContainerColorEngine.release([0, 1, 2, 1], 3), [0, 1, 2, 1]);
+      expect(ContainerColorEngine.release([1], paletteSize: 3, held: [0, 1, 2]),
+          [1]);
+      expect(ContainerColorEngine.release([0, 1, 2, 1], paletteSize: 3),
+          [0, 1, 2, 1]);
     });
 
     test('a released site then gets a free colour, the others keep theirs',
         () {
       final restored = ContainerColorEngine.assign(
-          ContainerColorEngine.release([3, 3, 3, 0], 8), 8);
+          ContainerColorEngine.release([3, 3, 3, 0], paletteSize: 8),
+          paletteSize: 8);
       expect(restored, [3, 1, 2, 0]);
     });
 
     test('the fallback is stable, in range and spread', () {
-      expect(ContainerColorEngine.fallback('gh', 8),
-          ContainerColorEngine.fallback('gh', 8));
+      expect(ContainerColorEngine.fallback('gh', paletteSize: 8),
+          ContainerColorEngine.fallback('gh', paletteSize: 8));
       final seen = <int>{};
       for (var i = 0; i < 200; i++) {
-        final c = ContainerColorEngine.fallback('site$i', 8);
+        final c = ContainerColorEngine.fallback('site$i', paletteSize: 8);
         expect(c, inInclusiveRange(0, 7));
         seen.add(c);
       }
@@ -488,14 +507,17 @@ void main() {
       final m = WebViewModel(siteId: 'a', initUrl: 'https://a.example/');
       expect(m.toJson(), isNot(contains('containerColor')));
       m.containerColor = 5;
-      expect(WebViewModel.fromJson(m.toJson(), null).containerColor, 5);
+      expect(
+          WebViewModel.fromJson(m.toJson(), stateSetterF: null).containerColor,
+          5);
     });
 
     test('a wrong-typed or negative value reads as none, keeping the site', () {
       final base = WebViewModel(siteId: 'a', initUrl: 'https://a.example/')
           .toJson();
       for (final bad in ['3', -1, 2.5, true, <int>[]]) {
-        final m = WebViewModel.fromJson({...base, 'containerColor': bad}, null);
+        final m = WebViewModel.fromJson({...base, 'containerColor': bad},
+            stateSetterF: null);
         expect(m.containerColor, isNull, reason: '$bad');
         expect(m.siteId, 'a');
       }

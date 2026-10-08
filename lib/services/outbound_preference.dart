@@ -30,7 +30,7 @@ class OutboundPreference {
       if (k.name == kindName) kind = k;
     }
     if (kind == null) return null;
-    final claim = DomainClaim(kind, value);
+    final claim = DomainClaim(kind, value: value);
     if (claim.value.isEmpty) return null;
     return OutboundPreference(claim: claim, targetSiteId: target);
   }
@@ -70,8 +70,8 @@ class OutboundBoundary {
   /// archive-tier one. [archiveOf] names the archive an archive-tier site
   /// belongs to; an archive-tier source it cannot place gets none.
   static List<T> candidatesOf<T>(
-    T source,
-    Iterable<T> sites, {
+    T source, {
+    required Iterable<T> sites,
     required bool Function(T site) isArchiveTier,
     required Object? Function(T site) archiveOf,
   }) {
@@ -98,9 +98,9 @@ class OutboundPreferenceGc {
   /// [prefs] without the entries whose target [isCandidate] rejects, or null
   /// when nothing would be dropped, so a caller persists only on a change.
   static List<OutboundPreference>? pruned(
-    List<OutboundPreference> prefs,
-    bool Function(String targetSiteId) isCandidate,
-  ) {
+    List<OutboundPreference> prefs, {
+    required bool Function(String targetSiteId) isCandidate,
+  }) {
     if (prefs.every((p) => isCandidate(p.targetSiteId))) return null;
     return [
       for (final p in prefs)
@@ -116,24 +116,25 @@ class OutboundPreferenceGc {
     required bool Function(T site) isArchiveTier,
     required Object? Function(T site) archiveOf,
     required List<OutboundPreference> Function(T site) prefsOf,
-    required void Function(T site, List<OutboundPreference> prefs) setPrefs,
+    required void Function(T site, {required List<OutboundPreference> prefs})
+        setPrefs,
   }) {
     final idsBySource = <String, Set<String>>{};
     return pruneAll<T>(
       sites,
       prefsOf: prefsOf,
       setPrefs: setPrefs,
-      isCandidate: (source, id) => idsBySource
+      isCandidate: (source, {required targetSiteId}) => idsBySource
           .putIfAbsent(siteIdOf(source), () => {
                 for (final c in OutboundBoundary.candidatesOf(
                   source,
-                  sites,
+                  sites: sites,
                   isArchiveTier: isArchiveTier,
                   archiveOf: archiveOf,
                 ))
                   siteIdOf(c),
               })
-          .contains(id),
+          .contains(targetSiteId),
     );
   }
 
@@ -141,14 +142,17 @@ class OutboundPreferenceGc {
   static bool pruneAll<T>(
     Iterable<T> sites, {
     required List<OutboundPreference> Function(T site) prefsOf,
-    required void Function(T site, List<OutboundPreference> prefs) setPrefs,
-    required bool Function(T source, String targetSiteId) isCandidate,
+    required void Function(T site, {required List<OutboundPreference> prefs})
+        setPrefs,
+    required bool Function(T source, {required String targetSiteId})
+        isCandidate,
   }) {
     var changed = false;
     for (final site in sites) {
-      final next = pruned(prefsOf(site), (id) => isCandidate(site, id));
+      final next = pruned(prefsOf(site),
+          isCandidate: (id) => isCandidate(site, targetSiteId: id));
       if (next == null) continue;
-      setPrefs(site, next);
+      setPrefs(site, prefs: next);
       changed = true;
     }
     return changed;

@@ -101,11 +101,12 @@ class FirefoxUserAgentService {
   String get versionString => firefoxVersionString(_major);
 
   String get linuxDesktopUserAgent =>
-      buildFirefoxUserAgent(kFirefoxLinuxPlatformToken, versionString);
+      buildFirefoxUserAgent(kFirefoxLinuxPlatformToken, version: versionString);
   String get macosDesktopUserAgent =>
-      buildFirefoxUserAgent(kFirefoxMacosPlatformToken, versionString);
+      buildFirefoxUserAgent(kFirefoxMacosPlatformToken, version: versionString);
   String get windowsDesktopUserAgent =>
-      buildFirefoxUserAgent(kFirefoxWindowsPlatformToken, versionString);
+      buildFirefoxUserAgent(kFirefoxWindowsPlatformToken,
+          version: versionString);
 
   /// The full set of Firefox UAs the randomize button cycles through —
   /// desktop (Linux/macOS/Windows) plus realistic Firefox-for-Android and
@@ -144,7 +145,7 @@ class FirefoxUserAgentService {
   /// user's opt-in — this is the single network seam of this service.
   /// Concurrent calls share one in-flight request.
   Future<FirefoxVersionRefreshResult> refresh() =>
-      _refreshes.run((), _refresh);
+      _refreshes.run((), call: _refresh);
 
   /// Minimum spacing between automatic refreshes. Manual refreshes are
   /// never throttled.

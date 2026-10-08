@@ -103,10 +103,10 @@ class TrustedHostsService {
           port: 443,
           sha256Hex: entry.sha256Hex,
         );
-        _byHostPort[_key(fixed.host, fixed.port)] = fixed.sha256Hex;
+        _byHostPort[_key(fixed.host, port: fixed.port)] = fixed.sha256Hex;
         migrated.add(fixed);
       } else {
-        _byHostPort[_key(entry.host, entry.port)] = entry.sha256Hex;
+        _byHostPort[_key(entry.host, port: entry.port)] = entry.sha256Hex;
       }
     }
     if (migrated.isNotEmpty) {
@@ -135,7 +135,7 @@ class TrustedHostsService {
     required String? fingerprint,
   }) {
     if (fingerprint == null) return false;
-    final pinned = _byHostPort[_key(host, port)];
+    final pinned = _byHostPort[_key(host, port: port)];
     return pinned != null && pinned.toLowerCase() == fingerprint.toLowerCase();
   }
 
@@ -145,7 +145,7 @@ class TrustedHostsService {
     required String fingerprint,
   }) async {
     final normalized = fingerprint.toLowerCase();
-    _byHostPort[_key(host, port)] = normalized;
+    _byHostPort[_key(host, port: port)] = normalized;
     await _persist();
     _trustController.add(TrustedHostEntry(
       host: host,
@@ -155,7 +155,7 @@ class TrustedHostsService {
   }
 
   Future<void> untrust({required String host, required int port}) async {
-    final removed = _byHostPort.remove(_key(host, port));
+    final removed = _byHostPort.remove(_key(host, port: port));
     if (removed != null) {
       await _persist();
       LogTag.tls.debug(
@@ -206,7 +206,8 @@ class TrustedHostsService {
     return sha256.convert(der).toString();
   }
 
-  String _key(String host, int port) => '${host.toLowerCase()}:$port';
+  String _key(String host, {required int port}) =>
+      '${host.toLowerCase()}:$port';
 
   Future<void> _persist() async {
     final prefs = await SharedPreferences.getInstance();

@@ -115,7 +115,7 @@ List<String> _lines(Object? v, {bool keepBlank = false}) {
 class UboAsset {
   final String title;
   final String url;
-  const UboAsset(this.title, this.url);
+  const UboAsset(this.title, {required this.url});
 }
 
 /// Filter lists in uBO's `assets.json`, keyed as backups name them. The
@@ -133,7 +133,7 @@ Map<String, UboAsset> parseUboAssetRegistry(String text) {
     final url = candidates.where((u) => u.startsWith('https://')).firstOrNull;
     if (url == null) continue;
     final title = v['title'];
-    out[entry.key] = UboAsset(title is String ? title : entry.key, url);
+    out[entry.key] = UboAsset(title is String ? title : entry.key, url: url);
   }
   return out;
 }
@@ -143,13 +143,13 @@ Map<String, UboAsset> parseUboAssetRegistry(String text) {
 class ExistingFilterList {
   final String id;
   final String url;
-  const ExistingFilterList(this.id, this.url);
+  const ExistingFilterList(this.id, {required this.url});
 }
 
 class PlannedList {
   final String name;
   final String url;
-  const PlannedList(this.name, this.url);
+  const PlannedList(this.name, {required this.url});
 }
 
 class UboImportPlan {
@@ -206,12 +206,12 @@ UboImportPlan planUboImport(
   final addedUrls = <String>{};
   final unresolved = <String>[];
 
-  void want(String url, String name) {
+  void want(String url, {required String name}) {
     final have = byUrl[url];
     if (have != null) {
       if (!enable.contains(have.id)) enable.add(have.id);
     } else if (addedUrls.add(url)) {
-      add.add(PlannedList(name, url));
+      add.add(PlannedList(name, url: url));
     }
   }
 
@@ -219,7 +219,9 @@ UboImportPlan planUboImport(
     if (key == _kUserFiltersKey) continue;
     final uri = Uri.tryParse(key);
     if (uri != null && (uri.scheme == 'https' || uri.scheme == 'http')) {
-      want(key, uri.pathSegments.where((s) => s.isNotEmpty).lastOrNull ?? uri.host);
+      want(key,
+          name: uri.pathSegments.where((s) => s.isNotEmpty).lastOrNull ??
+              uri.host);
       continue;
     }
     // The built-in lists share uBO's keys (easylist, easyprivacy,
@@ -234,7 +236,7 @@ UboImportPlan planUboImport(
       unresolved.add(key);
       continue;
     }
-    want(asset.url, asset.title);
+    want(asset.url, name: asset.title);
   }
 
   final trusted = <String>{};
@@ -288,12 +290,12 @@ String? trustedHostOf(String directive) {
 class UboTrustedSite {
   final String name;
   final String host;
-  const UboTrustedSite(this.name, this.host);
+  const UboTrustedSite(this.name, {required this.host});
 }
 
 /// Sites a trusted host covers. uBO's hostname directive covers
 /// subdomains, so `example.com` trusts `www.example.com` too.
-bool hostTrustedBy(String siteHost, Set<String> trustedHosts) {
+bool hostTrustedBy(String siteHost, {required Set<String> trustedHosts}) {
   final h = siteHost.toLowerCase();
   for (final t in trustedHosts) {
     if (h == t || h.endsWith('.$t')) return true;

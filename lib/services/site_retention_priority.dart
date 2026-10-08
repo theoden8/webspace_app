@@ -43,9 +43,9 @@ typedef SiteRetentionResolver = SiteRetentionPriority Function(int index);
 /// Bucketed rather than sorted: `List.sort` is not stable, and the order
 /// within a priority is the LRU order.
 List<int> evictionOrder(
-  Iterable<int> candidates,
-  SiteRetentionResolver priorityOf,
-) {
+  Iterable<int> candidates, {
+  required SiteRetentionResolver priorityOf,
+}) {
   final buckets = [for (final _ in SiteRetentionPriority.values) <int>[]];
   for (final i in candidates) {
     buckets[priorityOf(i).index].add(i);

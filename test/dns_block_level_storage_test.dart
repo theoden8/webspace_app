@@ -15,7 +15,7 @@ import 'helpers/fake_outbound.dart';
 /// `looksLikeDomainList` rejects anything under 1000 entries, so a plausible
 /// body has to be that big. [extra] are the domains the test actually asserts
 /// on; the filler exists only to clear the plausibility bar.
-String _body(int level, List<String> extra) {
+String _body(int level, {required List<String> extra}) {
   final buf = StringBuffer('# hagezi level $level\n');
   for (var i = 0; i < 1200; i++) {
     buf.writeln('filler$level-$i.example');
@@ -67,14 +67,15 @@ void main() {
   group('download and fold (DNS-019, DNS-021)', () {
     test('the app-wide download writes one file and records the level',
         () async {
-      outboundHttp = _mirror({3: _body(3, ['pro-only.example'])});
+      outboundHttp = _mirror({3: _body(3, extra: ['pro-only.example'])});
 
       expect(await service.downloadList(3), isTrue);
 
       expect(service.level, 3);
       expect(service.downloadedLevels, {3});
       expect(service.levelGroupCount, 1);
-      expect(service.isHostBlockedAtLevel('pro-only.example', 3), isTrue);
+      expect(
+          service.isHostBlockedAtLevel('pro-only.example', level: 3), isTrue);
       expect(await store.exists('dns_blocklist_levels.txt'), isTrue);
 
       final prefs = await SharedPreferences.getInstance();
@@ -86,8 +87,8 @@ void main() {
     test('a second level folds in without duplicating a shared domain',
         () async {
       outboundHttp = _mirror({
-        3: _body(3, ['shared.example', 'pro-only.example']),
-        1: _body(1, ['shared.example', 'light-only.example']),
+        3: _body(3, extra: ['shared.example', 'pro-only.example']),
+        1: _body(1, extra: ['shared.example', 'light-only.example']),
       });
 
       await service.downloadList(3);
@@ -98,17 +99,20 @@ void main() {
       // shared.example was already stored; only the level-1 filler and
       // light-only.example are new.
       expect(service.domainCount, afterOne + 1201);
-      expect(service.isHostBlockedAtLevel('shared.example', 1), isTrue);
-      expect(service.isHostBlockedAtLevel('shared.example', 3), isTrue);
-      expect(service.isHostBlockedAtLevel('light-only.example', 1), isTrue);
-      expect(service.isHostBlockedAtLevel('light-only.example', 3), isFalse,
+      expect(service.isHostBlockedAtLevel('shared.example', level: 1), isTrue);
+      expect(service.isHostBlockedAtLevel('shared.example', level: 3), isTrue);
+      expect(
+          service.isHostBlockedAtLevel('light-only.example', level: 1), isTrue);
+      expect(
+          service.isHostBlockedAtLevel('light-only.example', level: 3), isFalse,
           reason: 'Pro never named it, so folding Light in must not add it');
-      expect(service.isHostBlockedAtLevel('pro-only.example', 1), isFalse);
+      expect(
+          service.isHostBlockedAtLevel('pro-only.example', level: 1), isFalse);
       expect(service.level, 3, reason: 'an extra level is not the app level');
     });
 
     test('folding a level already held costs no request', () async {
-      final factory = _mirror({3: _body(3, ['a.example'])});
+      final factory = _mirror({3: _body(3, extra: ['a.example'])});
       outboundHttp = factory;
       await service.downloadList(3);
       final before = service.domainCount;
@@ -123,7 +127,7 @@ void main() {
 
     test('a level the mirrors do not have leaves the partition alone',
         () async {
-      outboundHttp = _mirror({3: _body(3, ['pro-only.example'])});
+      outboundHttp = _mirror({3: _body(3, extra: ['pro-only.example'])});
       await service.downloadList(3);
       final before = service.domainCount;
 
@@ -131,12 +135,13 @@ void main() {
 
       expect(service.downloadedLevels, {3});
       expect(service.domainCount, before);
-      expect(service.isHostBlockedAtLevel('pro-only.example', 3), isTrue);
+      expect(
+          service.isHostBlockedAtLevel('pro-only.example', level: 3), isTrue);
     });
 
     test('an implausible body never overwrites a working partition',
         () async {
-      outboundHttp = _mirror({3: _body(3, ['pro-only.example'])});
+      outboundHttp = _mirror({3: _body(3, extra: ['pro-only.example'])});
       await service.downloadList(3);
       final before = service.domainCount;
 
@@ -146,32 +151,35 @@ void main() {
 
       expect(service.downloadedLevels, {3});
       expect(service.domainCount, before);
-      expect(service.isHostBlockedAtLevel('pro-only.example', 3), isTrue);
+      expect(
+          service.isHostBlockedAtLevel('pro-only.example', level: 3), isTrue);
     });
 
     test('re-downloading a level drops what left its list', () async {
       outboundHttp = _mirror({
-        3: _body(3, ['stays.example', 'delisted.example']),
+        3: _body(3, extra: ['stays.example', 'delisted.example']),
       });
       await service.downloadList(3);
-      expect(service.isHostBlockedAtLevel('delisted.example', 3), isTrue);
+      expect(
+          service.isHostBlockedAtLevel('delisted.example', level: 3), isTrue);
 
       service.resetForTest();
       service.store = store;
       await service.initialize();
-      outboundHttp = _mirror({3: _body(3, ['stays.example'])});
+      outboundHttp = _mirror({3: _body(3, extra: ['stays.example'])});
       await service.downloadList(3);
 
-      expect(service.isHostBlockedAtLevel('stays.example', 3), isTrue);
-      expect(service.isHostBlockedAtLevel('delisted.example', 3), isFalse);
+      expect(service.isHostBlockedAtLevel('stays.example', level: 3), isTrue);
+      expect(
+          service.isHostBlockedAtLevel('delisted.example', level: 3), isFalse);
     });
   });
 
   group('reload from disk (DNS-019)', () {
     test('a cold start reproduces every level exactly', () async {
       outboundHttp = _mirror({
-        3: _body(3, ['shared.example', 'pro-only.example']),
-        1: _body(1, ['shared.example', 'light-only.example']),
+        3: _body(3, extra: ['shared.example', 'pro-only.example']),
+        1: _body(1, extra: ['shared.example', 'light-only.example']),
       });
       await service.downloadList(3);
       await service.downloadLevel(1);
@@ -185,7 +193,7 @@ void main() {
         ])
           host: [
             for (var level = 1; level <= kDnsMaxLevel; level++)
-              service.isHostBlockedAtLevel(host, level)
+              service.isHostBlockedAtLevel(host, level: level)
           ]
       };
       final countBefore = service.domainCount;
@@ -198,15 +206,15 @@ void main() {
       for (final entry in before.entries) {
         expect([
           for (var level = 1; level <= kDnsMaxLevel; level++)
-            service.isHostBlockedAtLevel(entry.key, level)
+            service.isHostBlockedAtLevel(entry.key, level: level)
         ], entry.value, reason: entry.key);
       }
     });
 
     test('the file carries each domain once', () async {
       outboundHttp = _mirror({
-        3: _body(3, ['shared.example']),
-        1: _body(1, ['shared.example']),
+        3: _body(3, extra: ['shared.example']),
+        1: _body(1, extra: ['shared.example']),
       });
       await service.downloadList(3);
       await service.downloadLevel(1);
@@ -225,8 +233,8 @@ void main() {
       // so a test using only adjacent low levels cannot see a radix drift —
       // and the Kotlin reader parses this marker with toIntOrNull(16).
       outboundHttp = _mirror({
-        4: _body(4, ['proplus-only.example', 'both.example']),
-        2: _body(2, ['normal-only.example', 'both.example']),
+        4: _body(4, extra: ['proplus-only.example', 'both.example']),
+        2: _body(2, extra: ['normal-only.example', 'both.example']),
       });
       await service.downloadList(4);
       await service.downloadLevel(2);
@@ -242,13 +250,17 @@ void main() {
       expect(markers, isNot(contains('10')));
 
       await coldStart();
-      expect(service.isHostBlockedAtLevel('both.example', 2), isTrue);
-      expect(service.isHostBlockedAtLevel('both.example', 4), isTrue);
-      expect(service.isHostBlockedAtLevel('both.example', 3), isFalse);
-      expect(service.isHostBlockedAtLevel('normal-only.example', 2), isTrue);
-      expect(service.isHostBlockedAtLevel('normal-only.example', 4), isFalse);
-      expect(service.isHostBlockedAtLevel('proplus-only.example', 4), isTrue);
-      expect(service.isHostBlockedAtLevel('proplus-only.example', 2), isFalse);
+      expect(service.isHostBlockedAtLevel('both.example', level: 2), isTrue);
+      expect(service.isHostBlockedAtLevel('both.example', level: 4), isTrue);
+      expect(service.isHostBlockedAtLevel('both.example', level: 3), isFalse);
+      expect(service.isHostBlockedAtLevel('normal-only.example', level: 2),
+          isTrue);
+      expect(service.isHostBlockedAtLevel('normal-only.example', level: 4),
+          isFalse);
+      expect(service.isHostBlockedAtLevel('proplus-only.example', level: 4),
+          isTrue);
+      expect(service.isHostBlockedAtLevel('proplus-only.example', level: 2),
+          isFalse);
     });
 
     test('a cold start with no file leaves the service empty', () async {
@@ -263,7 +275,7 @@ void main() {
         () async {
       SharedPreferences.setMockInitialValues({'dns_block_level': 2});
       await store.writeText(
-          'dns_blocklist.txt', _body(2, ['legacy.example']));
+          'dns_blocklist.txt', contents: _body(2, extra: ['legacy.example']));
       service.resetForTest();
       service.store = store;
 
@@ -271,8 +283,8 @@ void main() {
 
       expect(service.level, 2);
       expect(service.downloadedLevels, {2});
-      expect(service.isHostBlockedAtLevel('legacy.example', 2), isTrue);
-      expect(service.isHostBlockedAtLevel('legacy.example', 3), isFalse,
+      expect(service.isHostBlockedAtLevel('legacy.example', level: 2), isTrue);
+      expect(service.isHostBlockedAtLevel('legacy.example', level: 3), isFalse,
           reason: 'only level 2 ever named it');
       expect(await store.exists('dns_blocklist.txt'), isFalse);
       expect(await store.exists('dns_blocklist_levels.txt'), isTrue);
@@ -282,12 +294,13 @@ void main() {
 
       // And it survives the next launch, now through the mask path.
       await coldStart();
-      expect(service.isHostBlockedAtLevel('legacy.example', 2), isTrue);
+      expect(service.isHostBlockedAtLevel('legacy.example', level: 2), isTrue);
     });
 
     test('a legacy file with the level off is not migrated', () async {
       SharedPreferences.setMockInitialValues({'dns_block_level': 0});
-      await store.writeText('dns_blocklist.txt', _body(1, ['legacy.example']));
+      await store.writeText('dns_blocklist.txt',
+          contents: _body(1, extra: ['legacy.example']));
       service.resetForTest();
       service.store = store;
 
@@ -301,8 +314,8 @@ void main() {
   group('prune and clear (DNS-021)', () {
     test('pruning clears a level and the domains only it named', () async {
       outboundHttp = _mirror({
-        3: _body(3, ['shared.example', 'pro-only.example']),
-        1: _body(1, ['shared.example', 'light-only.example']),
+        3: _body(3, extra: ['shared.example', 'pro-only.example']),
+        1: _body(1, extra: ['shared.example', 'light-only.example']),
       });
       await service.downloadList(3);
       await service.downloadLevel(1);
@@ -311,20 +324,23 @@ void main() {
       await service.pruneLevels({3});
 
       expect(service.downloadedLevels, {3});
-      expect(service.isHostBlockedAtLevel('light-only.example', 1), isFalse);
-      expect(service.isHostBlockedAtLevel('light-only.example', 3), isFalse);
-      expect(service.isHostBlockedAtLevel('shared.example', 3), isTrue,
+      expect(service.isHostBlockedAtLevel('light-only.example', level: 1),
+          isFalse);
+      expect(service.isHostBlockedAtLevel('light-only.example', level: 3),
+          isFalse);
+      expect(service.isHostBlockedAtLevel('shared.example', level: 3), isTrue,
           reason: 'Pro still names it');
       expect(service.domainCount, lessThan(withBoth));
 
       await coldStart();
       expect(service.downloadedLevels, {3});
-      expect(service.isHostBlockedAtLevel('shared.example', 3), isTrue);
-      expect(service.isHostBlockedAtLevel('light-only.example', 1), isFalse);
+      expect(service.isHostBlockedAtLevel('shared.example', level: 3), isTrue);
+      expect(service.isHostBlockedAtLevel('light-only.example', level: 1),
+          isFalse);
     });
 
     test('pruning nothing rewrites nothing', () async {
-      outboundHttp = _mirror({3: _body(3, ['a.example'])});
+      outboundHttp = _mirror({3: _body(3, extra: ['a.example'])});
       await service.downloadList(3);
       final before = await store.readText('dns_blocklist_levels.txt');
 
@@ -335,7 +351,7 @@ void main() {
 
     test('setting the app level to Off clears the file and the prefs',
         () async {
-      outboundHttp = _mirror({3: _body(3, ['a.example'])});
+      outboundHttp = _mirror({3: _body(3, extra: ['a.example'])});
       await service.downloadList(3);
 
       expect(await service.downloadList(0), isTrue);
@@ -355,7 +371,7 @@ void main() {
     });
 
     test('an imported level drops the cache and keeps the intent', () async {
-      outboundHttp = _mirror({3: _body(3, ['a.example'])});
+      outboundHttp = _mirror({3: _body(3, extra: ['a.example'])});
       await service.downloadList(3);
 
       await service.applyImportedLevel(5);

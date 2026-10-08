@@ -75,7 +75,7 @@ Future<void> _loadRealFonts() async {
   }
   final dirPath = fonts.path;
 
-  Future<void> load(String family, List<String> files) async {
+  Future<void> load(String family, {required List<String> files}) async {
     final loader = FontLoader(family);
     var any = false;
     for (final f in files) {
@@ -87,8 +87,8 @@ Future<void> _loadRealFonts() async {
     if (any) await loader.load();
   }
 
-  await load('Roboto', ['Roboto-Regular.ttf', 'Roboto-Bold.ttf']);
-  await load('MaterialIcons', ['MaterialIcons-Regular.otf']);
+  await load('Roboto', files: ['Roboto-Regular.ttf', 'Roboto-Bold.ttf']);
+  await load('MaterialIcons', files: ['MaterialIcons-Regular.otf']);
   _fontsLoaded = true;
 }
 
@@ -108,13 +108,13 @@ void main() {
     TorService.overrideEngine(
       TorEngine(runtime: runtime, sessionSecret: 'secret'),
     );
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     return runtime;
   }
 
   tearDown(() async {
     await TorService.reset();
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
   });
 
   Future<void> settle(WidgetTester t) async {
@@ -122,7 +122,7 @@ void main() {
     await t.pump(const Duration(milliseconds: 10));
   }
 
-  Widget host(Widget child, Size size) => MaterialApp(
+  Widget host(Widget child, {required Size size}) => MaterialApp(
         debugShowCheckedModeBanner: false,
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
@@ -148,11 +148,11 @@ void main() {
   /// Park the runtime in [state], render [child], run [expectations], and
   /// optionally photograph it.
   Future<void> withState(
-    WidgetTester t,
-    String name,
-    Widget child,
-    TorStatus state,
-    void Function() expectations, {
+    WidgetTester t, {
+    required String name,
+    required Widget child,
+    required TorStatus state,
+    required void Function() expectations,
     Size size = const Size(430, 300),
   }) async {
     // The interstitial renders the last few Tor log lines, and LogService
@@ -164,7 +164,7 @@ void main() {
     // holds it (the resurrection guard), so without this the emit below is
     // silently discarded and every assertion reads the wrong state.
     await TorService.instance.maybeStart(TorSiteHolder('ui-test'));
-    await t.pumpWidget(host(child, size));
+    await t.pumpWidget(host(child, size: size));
     await settle(t);
 
     runtime.emit(state);
@@ -190,10 +190,10 @@ void main() {
     testWidgets('connected shows the live SOCKS endpoint', (t) async {
       await withState(
         t,
-        'card_connected',
-        const TorStatusCard(),
-        const TorUp('127.0.0.1', 41337),
-        () {
+        name: 'card_connected',
+        child: const TorStatusCard(),
+        state: const TorUp('127.0.0.1', port: 41337),
+        expectations: () {
           expect(find.text('Connected'), findsOneWidget);
           expect(find.text('SOCKS5 on 127.0.0.1:41337'), findsOneWidget);
           expect(find.text('Rebuild circuits'), findsOneWidget);
@@ -204,11 +204,11 @@ void main() {
     testWidgets('bootstrapping shows percent and phase', (t) async {
       await withState(
         t,
-        'card_bootstrapping',
-        const TorStatusCard(),
-        const TorBootstrapping(45,
+        name: 'card_bootstrapping',
+        child: const TorStatusCard(),
+        state: const TorBootstrapping(45,
             tag: 'loading_descriptors', summary: 'Loading relay descriptors'),
-        () {
+        expectations: () {
           expect(find.text('Connecting… 45%'), findsOneWidget);
           expect(find.text('Phase: Loading relay descriptors'), findsOneWidget);
           final bar = t.widget<LinearProgressIndicator>(
@@ -221,10 +221,10 @@ void main() {
     testWidgets('starting shows an indeterminate bar', (t) async {
       await withState(
         t,
-        'card_starting',
-        const TorStatusCard(),
-        const TorStarting(),
-        () {
+        name: 'card_starting',
+        child: const TorStatusCard(),
+        state: const TorStarting(),
+        expectations: () {
           expect(find.text('Starting'), findsOneWidget);
           final bar = t.widget<LinearProgressIndicator>(
               find.byType(LinearProgressIndicator));
@@ -235,7 +235,8 @@ void main() {
 
     testWidgets('the card is hidden while nothing uses Tor', (t) async {
       installEngine();
-      await t.pumpWidget(host(const TorStatusCard(), const Size(430, 300)));
+      await t
+          .pumpWidget(host(const TorStatusCard(), size: const Size(430, 300)));
       await settle(t);
       expect(TorService.instance.status, isA<TorStopped>());
       expect(find.text('Tor'), findsNothing,
@@ -247,7 +248,8 @@ void main() {
       TorService.overrideEngine(
         TorEngine(runtime: FakeTorRuntime(isAvailable: false), sessionSecret: 's'),
       );
-      await t.pumpWidget(host(const TorStatusCard(), const Size(430, 300)));
+      await t
+          .pumpWidget(host(const TorStatusCard(), size: const Size(430, 300)));
       await settle(t);
       expect(find.text('Tor'), findsNothing);
     });
@@ -311,10 +313,10 @@ void main() {
       testWidgets('$name states its own cause and remedy', (t) async {
         await withState(
           t,
-          'card_fail_$name',
-          const TorStatusCard(),
-          status,
-          () {
+          name: 'card_fail_$name',
+          child: const TorStatusCard(),
+          state: status,
+          expectations: () {
             expect(find.text(title), findsOneWidget);
             expect(
               find.textContaining(remedyFragment),
@@ -337,11 +339,11 @@ void main() {
     testWidgets('bootstrapping says so instead of a mute bar', (t) async {
       await withState(
         t,
-        'interstitial_bootstrapping',
-        const TorBootstrapPlaceholder(),
-        const TorBootstrapping(45,
+        name: 'interstitial_bootstrapping',
+        child: const TorBootstrapPlaceholder(),
+        state: const TorBootstrapping(45,
             tag: 'loading_descriptors', summary: 'Loading relay descriptors'),
-        () {
+        expectations: () {
           expect(find.text('Connecting… 45%'), findsOneWidget);
           expect(find.text('Phase: Loading relay descriptors'), findsOneWidget);
         },
@@ -352,11 +354,11 @@ void main() {
     testWidgets('a blocked network is named, with Retry', (t) async {
       await withState(
         t,
-        'interstitial_censored',
-        const TorBootstrapPlaceholder(),
-        _errored('bootstrap stalled',
+        name: 'interstitial_censored',
+        child: const TorBootstrapPlaceholder(),
+        state: _errored('bootstrap stalled',
             reason: 'CONNECTREFUSED', tag: 'conn_dir', pct: 10),
-        () {
+        expectations: () {
           expect(find.text('Tor appears to be blocked'), findsOneWidget);
           expect(find.textContaining('Bridges route around'), findsOneWidget);
           expect(find.text('Retry'), findsOneWidget);
@@ -387,12 +389,13 @@ void main() {
       // column shows stripes and swallows the Retry button below it.
       await withState(
         t,
-        'interstitial_long_detail',
-        const TorBootstrapPlaceholder(),
-        _errored('Tor exited before opening its control port: it rejected '
-            'its configuration. A bridge line is the usual cause. '
-            'Bootstrap stalled at 10% in conn_dir after 3 attempts.'),
-        () {
+        name: 'interstitial_long_detail',
+        child: const TorBootstrapPlaceholder(),
+        state:
+            _errored('Tor exited before opening its control port: it rejected '
+                'its configuration. A bridge line is the usual cause. '
+                'Bootstrap stalled at 10% in conn_dir after 3 attempts.'),
+        expectations: () {
           expect(find.byType(SingleChildScrollView), findsOneWidget);
           expect(find.text('Retry'), findsOneWidget);
         },
@@ -403,11 +406,11 @@ void main() {
     testWidgets('clock skew names the clock, not the network', (t) async {
       await withState(
         t,
-        'interstitial_clock_skew',
-        const TorBootstrapPlaceholder(),
-        _errored('Clock skew of 3600 seconds detected; '
+        name: 'interstitial_clock_skew',
+        child: const TorBootstrapPlaceholder(),
+        state: _errored('Clock skew of 3600 seconds detected; '
             'tor will not build circuits.'),
-        () {
+        expectations: () {
           expect(find.text('The device clock is wrong'), findsOneWidget);
           expect(find.text('Bridges'), findsNothing,
               reason: 'bridges cannot fix a wrong clock');
@@ -428,9 +431,9 @@ void main() {
   group('the interstitial where Tor cannot come up', () {
     testWidgets('developer mode off does not stop Tor coming up', (t) async {
       installEngine();
-      DeveloperModeService.instance.debugSet(false);
+      DeveloperModeService.instance.debugSet(on: false);
       await t.pumpWidget(
-          host(const TorBootstrapPlaceholder(), const Size(430, 430)));
+          host(const TorBootstrapPlaceholder(), size: const Size(430, 430)));
       await settle(t);
 
       expect(find.byType(LinearProgressIndicator), findsOneWidget,
@@ -448,7 +451,7 @@ void main() {
         TorEngine(runtime: FakeTorRuntime(isAvailable: false), sessionSecret: 's'),
       );
       await t.pumpWidget(
-          host(const TorBootstrapPlaceholder(), const Size(430, 430)));
+          host(const TorBootstrapPlaceholder(), size: const Size(430, 430)));
       await settle(t);
 
       expect(find.text('Tor is not available on this device'), findsOneWidget);

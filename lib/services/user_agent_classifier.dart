@@ -142,7 +142,7 @@ String firefoxVersionString(int major) => '$major.0';
 /// [version] (e.g. `"151.0"`). Single source of truth for the desktop UA
 /// shape, used both for the canonical constants below and by
 /// [FirefoxUserAgentService] to render UAs at the scraped current version.
-String buildFirefoxUserAgent(String platformToken, String version) =>
+String buildFirefoxUserAgent(String platformToken, {required String version}) =>
     'Mozilla/5.0 ($platformToken; rv:$version) Gecko/20100101 Firefox/$version';
 
 /// OS token Firefox for Android emits in its UA. Gecko reports the real

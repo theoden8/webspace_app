@@ -261,7 +261,7 @@ class LocalCdnService {
   void recordReplacement(String siteId, {String? url}) {
     BlockStatsService.instance.record(
       siteId,
-      BlockCategory.localCdn,
+      category: BlockCategory.localCdn,
       label: url == null ? null : extractHost(url),
     );
   }
@@ -360,18 +360,19 @@ class LocalCdnService {
     final fetched = await fetchViaAppProxy(Uri.parse(_cdnjsUrl(cacheKey)),
         tag: LogTag.localCdn);
     return switch (fetched) {
-      Fetched(:final response) => _saveToCache(cacheKey, response.bodyBytes),
+      Fetched(:final response) =>
+        _saveToCache(cacheKey, bytes: response.bodyBytes),
       FetchRefused() || FetchFailed() => null,
     };
   }
 
-  Future<Uint8List?> _saveToCache(String key, Uint8List bytes) async {
-    final safeFilename = key
-        .replaceAll('/', '__')
-        .replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
+  Future<Uint8List?> _saveToCache(String key,
+      {required Uint8List bytes}) async {
+    final safeFilename =
+        key.replaceAll('/', '__').replaceAll(RegExp(r'[^a-zA-Z0-9._-]'), '_');
     final filePath = '$_cacheDir/$safeFilename';
     try {
-      await hostWriteFileBytes(filePath, bytes);
+      await hostWriteFileBytes(filePath, bytes: bytes);
       _cache[key] = filePath;
       await _saveCacheIndex();
       return bytes;
@@ -385,7 +386,7 @@ class LocalCdnService {
   /// Returns the number of successfully downloaded resources.
   /// Calls [onProgress] with (completed, total) for UI updates.
   Future<int> downloadPopularResources({
-    void Function(int completed, int total)? onProgress,
+    void Function(int completed, {required int total})? onProgress,
   }) async {
     if (!_initialized) return 0;
 
@@ -398,13 +399,13 @@ class LocalCdnService {
 
       if (_cache.containsKey(key)) {
         downloaded++;
-        onProgress?.call(i + 1, total);
+        onProgress?.call(i + 1, total: total);
         continue;
       }
 
       final result = await _downloadAndCache(key);
       if (result != null) downloaded++;
-      onProgress?.call(i + 1, total);
+      onProgress?.call(i + 1, total: total);
     }
 
     final prefs = await SharedPreferences.getInstance();

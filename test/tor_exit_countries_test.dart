@@ -40,22 +40,26 @@ void main() {
   group('flag derivation', () {
     test('maps the code onto regional indicators', () {
       // U+1F1E9 U+1F1EA is the pair for "DE".
-      expect(const TorExitCountry('de', 'Deutschland').flag.runes.toList(),
+      expect(
+          const TorExitCountry('de', endonym: 'Deutschland')
+              .flag
+              .runes
+              .toList(),
           [0x1F1E9, 0x1F1EA]);
     });
 
     test('is case-insensitive about the stored code', () {
-      expect(const TorExitCountry('DE', 'Deutschland').flag,
-          const TorExitCountry('de', 'Deutschland').flag);
+      expect(const TorExitCountry('DE', endonym: 'Deutschland').flag,
+          const TorExitCountry('de', endonym: 'Deutschland').flag);
     });
 
     test('a malformed code yields no flag rather than garbage', () {
-      expect(const TorExitCountry('deu', 'x').flag, '');
-      expect(const TorExitCountry('', 'x').flag, '');
+      expect(const TorExitCountry('deu', endonym: 'x').flag, '');
+      expect(const TorExitCountry('', endonym: 'x').flag, '');
     });
 
     test('the label carries endonym and uppercase code', () {
-      final label = const TorExitCountry('de', 'Deutschland').label;
+      final label = const TorExitCountry('de', endonym: 'Deutschland').label;
       expect(label, contains('Deutschland'));
       expect(label, contains('(DE)'));
     });

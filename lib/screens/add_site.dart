@@ -30,20 +30,22 @@ class FaviconUrlCache {
 
   static Future<void> initialize() async {
     _prefs ??= await SharedPreferences.getInstance();
-    onSvgContentCached = setSvg;
+    onSvgContentCached =
+        (url, {required content}) => setSvg(url, svgContent: content);
   }
 
   static String? get(String siteUrl) =>
       usableIconUrl(_prefs?.getString('$_prefix$siteUrl'));
 
-  static Future<void> set(String siteUrl, String faviconUrl) async {
+  static Future<void> set(String siteUrl, {required String faviconUrl}) async {
     await _prefs?.setString('$_prefix$siteUrl', faviconUrl);
   }
 
   static String? getSvg(String faviconUrl) =>
       _prefs?.getString('$_svgPrefix$faviconUrl');
 
-  static Future<void> setSvg(String faviconUrl, String svgContent) async {
+  static Future<void> setSvg(String faviconUrl,
+      {required String svgContent}) async {
     await _prefs?.setString('$_svgPrefix$faviconUrl', svgContent);
   }
 
@@ -269,7 +271,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
             _currentQuality = update.quality;
             if (update.isFinal) {
               _isLoading = false;
-              if (widget.persist) FaviconUrlCache.set(widget.url, update.url);
+              if (widget.persist) {
+                FaviconUrlCache.set(widget.url, faviconUrl: update.url);
+              }
             }
           });
           if (_isSvgUrl(update.url)) _fetchSvgContent(update.url);
@@ -279,7 +283,9 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         if (!mounted) return;
         setState(() => _isLoading = false);
         final url = _currentIconUrl;
-        if (url != null && widget.persist) FaviconUrlCache.set(widget.url, url);
+        if (url != null && widget.persist) {
+          FaviconUrlCache.set(widget.url, faviconUrl: url);
+        }
       },
       onError: (e) {
         if (mounted) setState(() => _isLoading = false);

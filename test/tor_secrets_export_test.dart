@@ -42,18 +42,18 @@ void main() {
     );
     // The gate is capability AND developer mode; socksFor answers null with
     // it shut, which would make the needle unreachable and the test vacuous.
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
   });
 
   tearDown(() async {
     await TorService.reset();
     await runtime.dispose();
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
   });
 
   test('Tor secrets never appear in exports (TOR-009)', () async {
     await TorService.instance.syncHolders({TorSiteHolder('tor-site')});
-    runtime.emit(const TorUp('127.0.0.1', socksPort));
+    runtime.emit(const TorUp('127.0.0.1', port: socksPort));
     await Future<void>.delayed(Duration.zero);
 
     // The needle, proved real: this is what a site's traffic actually
@@ -103,7 +103,8 @@ void main() {
     // The configured type survives, which is the whole of what a Tor site
     // needs to be restored: everything else is minted at use time.
     final restored = SettingsBackup.fromJson(jsonDecode(exported));
-    final site = WebViewModel.fromJson(restored.sites.single, null);
+    final site =
+        WebViewModel.fromJson(restored.sites.single, stateSetterF: null);
     expect(site.proxySettings.type, ProxyType.TOR);
     expect(site.proxySettings.password, isNull);
     expect(site.proxySettings.username, isNull);

@@ -70,7 +70,7 @@ class GlobalOutboundProxy {
     await AppPref.globalOutboundProxy.set(jsonEncode(settings.toJson()));
     await _passwordStore.savePassword(
       ProxyPasswordSecureStorage.globalProxyKey,
-      settings.password,
+      password: settings.password,
     );
     LogTag.proxy.info(
         'GlobalOutboundProxy updated: ${settings.describeForLogs()}',

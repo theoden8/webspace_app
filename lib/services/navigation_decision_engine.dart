@@ -36,7 +36,8 @@ enum NavigationDecision {
 /// The decision for a cross-domain navigation that survived the gesture and
 /// background checks: a claimed target stays in the app, anything else goes
 /// where the site's [mode] sends it (NESTED-009).
-NavigationDecision _leaveDecision(ExternalLinkMode mode, bool claimed) {
+NavigationDecision _leaveDecision(ExternalLinkMode mode,
+    {required bool claimed}) {
   if (claimed) return NavigationDecision.blockOpenNested;
   return switch (mode) {
     ExternalLinkMode.inApp => NavigationDecision.blockOpenNested,
@@ -62,7 +63,7 @@ enum GestureStateUpdate {
 
 extension GestureStateUpdateApply on GestureStateUpdate? {
   /// The caller's stored same-domain gesture time after this update.
-  DateTime? applyTo(DateTime? last, DateTime now) => switch (this) {
+  DateTime? applyTo(DateTime? last, {required DateTime now}) => switch (this) {
         GestureStateUpdate.record => now,
         GestureStateUpdate.consume => null,
         null => last,
@@ -82,10 +83,10 @@ class NavigationDecisionResult {
   final bool hadGesture;
 
   const NavigationDecisionResult(
-    this.decision, [
+    this.decision, {
     this.gestureUpdate,
     this.hadGesture = false,
-  ]);
+  });
 }
 
 /// State owned by the onUrlChanged call site. Immutable; the engine returns
@@ -257,7 +258,7 @@ class NavigationDecisionEngine {
     if (targetDomain == baseDomain) {
       return NavigationDecisionResult(
         NavigationDecision.allow,
-        hasGesture ? GestureStateUpdate.record : null,
+        gestureUpdate: hasGesture ? GestureStateUpdate.record : null,
       );
     }
 
@@ -272,18 +273,18 @@ class NavigationDecisionEngine {
     }
 
     if (!effectiveGesture) {
-      return NavigationDecisionResult(
-          NavigationDecision.blockSilent, gestureUpdate, effectiveGesture);
+      return NavigationDecisionResult(NavigationDecision.blockSilent,
+          gestureUpdate: gestureUpdate, hadGesture: effectiveGesture);
     }
     if (!isSiteActive) {
-      return NavigationDecisionResult(
-          NavigationDecision.blockSuppressed, gestureUpdate, effectiveGesture);
+      return NavigationDecisionResult(NavigationDecision.blockSuppressed,
+          gestureUpdate: gestureUpdate, hadGesture: effectiveGesture);
     }
     return NavigationDecisionResult(
-      _leaveDecision(
-          externalLinkMode, matchesSiteClaim?.call(targetUrl) ?? false),
-      gestureUpdate,
-      effectiveGesture,
+      _leaveDecision(externalLinkMode,
+          claimed: matchesSiteClaim?.call(targetUrl) ?? false),
+      gestureUpdate: gestureUpdate,
+      hadGesture: effectiveGesture,
     );
   }
 
@@ -342,8 +343,8 @@ class NavigationDecisionEngine {
     }
 
     if (!hasRecentGesture) {
-      return NavigationDecisionResult(
-          NavigationDecision.blockSilent, gestureUpdate, hasRecentGesture);
+      return NavigationDecisionResult(NavigationDecision.blockSilent,
+          gestureUpdate: gestureUpdate, hadGesture: hasRecentGesture);
     }
     // Only rescues a navigation the checks above already let through. Ahead
     // of them it was a bypass: `isCaptchaChallenge` matches a URL *shape*,
@@ -351,17 +352,18 @@ class NavigationDecisionEngine {
     // with no gesture, which then renders in place, inside the site's own
     // container, and commits as `currentUrl`.
     if (isCaptchaChallenge(newUrl)) {
-      return NavigationDecisionResult(
-          NavigationDecision.allow, gestureUpdate, hasRecentGesture);
+      return NavigationDecisionResult(NavigationDecision.allow,
+          gestureUpdate: gestureUpdate, hadGesture: hasRecentGesture);
     }
     if (!isSiteActive) {
-      return NavigationDecisionResult(
-          NavigationDecision.blockSuppressed, gestureUpdate, hasRecentGesture);
+      return NavigationDecisionResult(NavigationDecision.blockSuppressed,
+          gestureUpdate: gestureUpdate, hadGesture: hasRecentGesture);
     }
     return NavigationDecisionResult(
-      _leaveDecision(externalLinkMode, matchesSiteClaim?.call(newUrl) ?? false),
-      gestureUpdate,
-      hasRecentGesture,
+      _leaveDecision(externalLinkMode,
+          claimed: matchesSiteClaim?.call(newUrl) ?? false),
+      gestureUpdate: gestureUpdate,
+      hadGesture: hasRecentGesture,
     );
   }
 

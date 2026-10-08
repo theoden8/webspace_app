@@ -85,16 +85,16 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
   }
 
   /// A title with its control at the end of the row.
-  Widget _row(Widget title, Widget trailing) => Padding(
+  Widget _row(Widget title, {required Widget trailing}) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
         child: Row(children: [Expanded(child: title), trailing]),
       );
 
   Widget _tabStripPicker(
-    List<TabStrip> modes,
-    TabStrip selected,
-    ValueChanged<TabStrip> onChanged,
-  ) {
+    List<TabStrip> modes, {
+    required TabStrip selected,
+    required ValueChanged<TabStrip> onChanged,
+  }) {
     final loc = AppLocalizations.of(context);
     return SegmentedButton<TabStrip>(
       segments: [
@@ -120,8 +120,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
         .where((s) => s.siteId == AppPref.webSearchDefaultSite.value)
         .firstOrNull;
     if (site == null) return null;
-    return searchSiteSummaryName(site.name, site.siteId,
-        widget.webSearchSites.map((s) => s.name));
+    return searchSiteSummaryName(site.name, siteId: site.siteId,
+        names: widget.webSearchSites.map((s) => s.name));
   }
 
   /// LIR-029: which web search site Web search starts with. Only sites outside
@@ -157,7 +157,7 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           _row(
             HintedTitle(loc.appSettingsSiteTabStrip,
                 hint: loc.appSettingsSiteTabStripSubtitle),
-            _tabStripPicker(TabStrip.values, TabStrip.current, _setTabStrip),
+            trailing: _tabStripPicker(TabStrip.values, selected: TabStrip.current, onChanged: _setTabStrip),
           ),
           // Pinned mode only: whether the pinned strip stays visible in full
           // screen. Button mode reveals the strip in full screen on its own;
@@ -165,19 +165,19 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           if (TabStrip.current == TabStrip.pinned)
             _row(
               Text(loc.appSettingsFullscreenTabStrip),
-              _tabStripPicker(
+              trailing: _tabStripPicker(
                 const [TabStrip.hidden, TabStrip.pinned],
-                AppPref.tabStripInFullscreen.value
+                selected: AppPref.tabStripInFullscreen.value
                     ? TabStrip.pinned
                     : TabStrip.hidden,
-                (mode) =>
+                onChanged: (mode) =>
                     AppPref.tabStripInFullscreen.set(mode == TabStrip.pinned),
               ),
             ),
           _row(
             HintedTitle(loc.appSettingsTabMaxWidth,
                 hint: loc.appSettingsTabMaxWidthHint),
-            Text(tabWidthLabel),
+            trailing: Text(tabWidthLabel),
           ),
           Slider(
             value: tabWidth,

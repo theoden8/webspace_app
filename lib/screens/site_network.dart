@@ -58,14 +58,14 @@ class SiteNetworkValues {
     Object? credentialsId = _keep,
     WebRtcPolicy? webRtcPolicy,
   }) {
-    String? or(Object? next, String? kept) =>
+    String? or(Object? next, {required String? kept}) =>
         identical(next, _keep) ? kept : next as String?;
     return SiteNetworkValues(
       proxyType: proxyType ?? this.proxyType,
-      torExitCountry: or(torExitCountry, this.torExitCountry),
-      savedProxyId: or(savedProxyId, this.savedProxyId),
-      gatewayId: or(gatewayId, this.gatewayId),
-      credentialsId: or(credentialsId, this.credentialsId),
+      torExitCountry: or(torExitCountry, kept: this.torExitCountry),
+      savedProxyId: or(savedProxyId, kept: this.savedProxyId),
+      gatewayId: or(gatewayId, kept: this.gatewayId),
+      credentialsId: or(credentialsId, kept: this.credentialsId),
       webRtcPolicy: webRtcPolicy ?? this.webRtcPolicy,
     );
   }
@@ -74,10 +74,10 @@ class SiteNetworkValues {
 /// The address check the save path runs; [ProxyTypeForm.typesAddress] says
 /// which types have an address to check.
 String? validateProxyAddress(
-  AppLocalizations loc,
-  ProxyType type,
-  String? value,
-) {
+  AppLocalizations loc, {
+  required ProxyType type,
+  required String? value,
+}) {
   if (!type.typesAddress) return null;
   if (value == null || value.isEmpty) {
     return loc.siteSettingsProxyAddressRequired;
@@ -225,7 +225,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
         username: orNull(widget.proxyUsernameController.text),
         password: orNull(widget.proxyPasswordController.text),
       ),
-      _library,
+      library: _library,
     );
   }
 
@@ -235,7 +235,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
     final resolved = _route();
     final problem = resolved.problem == LibraryProblem.none
         ? null
-        : libraryProblemLabel(loc, resolved.problem);
+        : libraryProblemLabel(loc, problem: resolved.problem);
     return ListTile(
       leading: const Icon(Icons.vpn_lock_outlined),
       title: problem == null ? Text(routeLabel(resolved.route)) : null,
@@ -331,7 +331,7 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           addressController: widget.proxyAddressController,
           usernameController: widget.proxyUsernameController,
           passwordController: widget.proxyPasswordController,
-          addressValidator: (value) => validateProxyAddress(loc, type, value),
+          addressValidator: (value) => validateProxyAddress(loc, type: type, value: value),
           onCredentialsChanged: (id) =>
               _update(_values.copyWith(credentialsId: id)),
         ),

@@ -11,8 +11,8 @@ enum ShimTime { start, end }
 /// The `;null;` tail keeps WebKit from reporting the last expression's value
 /// as an unsupported return type.
 inapp.UserScript pageShim(
-  String group,
-  String js, {
+  String group, {
+  required String js,
   required ShimFrames frames,
   ShimTime at = ShimTime.start,
 }) =>

@@ -42,7 +42,7 @@ void main() {
       buildSignature: '',
       installerStore: null,
     );
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
   });
 
   testWidgets('the About section shows the installed version', (tester) async {
@@ -131,7 +131,7 @@ void main() {
 
   testWidgets('tapping while already on does not re-arm the counter',
       (tester) async {
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
     final row = await versionRow(tester);

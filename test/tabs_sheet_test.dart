@@ -13,7 +13,7 @@ import 'helpers/localized.dart';
 
 /// A site with [urls] as tabs. The first is the active one; every later tab is
 /// a child of the one before it, so the fixture is a chain three deep.
-WebViewModel siteWithChain(String name, List<String> urls) {
+WebViewModel siteWithChain(String name, {required List<String> urls}) {
   final m = WebViewModel(initUrl: urls.first, name: name);
   var parent = m.activeTabId;
   for (final url in urls.skip(1)) {
@@ -25,30 +25,32 @@ WebViewModel siteWithChain(String name, List<String> urls) {
 }
 
 Future<void> pumpSheet(
-  WidgetTester tester,
-  List<TabsSheetSite> sites, {
-  void Function(int, String)? onOpenTab,
+  WidgetTester tester, {
+  required List<TabsSheetSite> sites,
+  void Function(int siteIndex, {required String tabId})? onOpenTab,
   void Function(int)? onNewTab,
   VoidCallback? onWebSearch,
-  void Function(int, String)? onCloseTab,
-  void Function(int, String)? onCloseSubtree,
-  bool Function(int, String, TabDrop)? onMoveTab,
-  List<TabsSheetSite>? Function(String, String)? onMoveSite,
+  void Function(int siteIndex, {required String tabId})? onCloseTab,
+  void Function(int siteIndex, {required String tabId})? onCloseSubtree,
+  bool Function(int siteIndex,
+      {required String tabId, required TabDrop drop})? onMoveTab,
+  List<TabsSheetSite>? Function(String siteId,
+      {required String ontoSiteId})? onMoveSite,
   TabReturn? wayBack,
   Locale? locale,
   double width = 400,
 }) async {
-  setViewSize(tester, Size(width, 900));
-  await pumpLocalized(tester, Scaffold(
+  setViewSize(tester, size: Size(width, 900));
+  await pumpLocalized(tester, home: Scaffold(
     key: UniqueKey(),
     body: TabsSheet(
       sites: sites,
       currentIndex: 0,
-      onOpenTab: onOpenTab ?? (_, _) {},
+      onOpenTab: onOpenTab ?? (_, {required tabId}) {},
       onNewTab: onNewTab ?? (_) {},
       onWebSearch: onWebSearch,
-      onCloseTab: onCloseTab ?? (_, _) {},
-      onCloseSubtree: onCloseSubtree ?? (_, _) {},
+      onCloseTab: onCloseTab ?? (_, {required tabId}) {},
+      onCloseSubtree: onCloseSubtree ?? (_, {required tabId}) {},
       onMoveTab: onMoveTab,
       onMoveSite: onMoveSite,
       wayBack: wayBack,
@@ -59,7 +61,7 @@ Future<void> pumpSheet(
 
 /// How strongly the row showing [text] is drawn: 1 for a tab that holds a
 /// webview, faded for a stored one (TAB-011).
-double strengthOf(WidgetTester tester, String text) => tester
+double strengthOf(WidgetTester tester, {required String text}) => tester
     .widget<Opacity>(find
         .ancestor(of: find.text(text).first, matching: find.byType(Opacity))
         .first)
@@ -73,7 +75,7 @@ bool isHighlighted(String text) => find
     .isNotEmpty;
 
 /// A site with [urls] as root tabs, the first one active.
-WebViewModel siteWithRoots(String name, List<String> urls) {
+WebViewModel siteWithRoots(String name, {required List<String> urls}) {
   final m = WebViewModel(initUrl: urls.first, name: name);
   for (final url in urls.skip(1)) {
     m.tabs = [...m.tabs, SiteTab(id: 'tab${m.tabs.length}', url: url)];
@@ -83,17 +85,16 @@ WebViewModel siteWithRoots(String name, List<String> urls) {
 
 /// Long-press the row showing [from] and drop it at [fraction] of the height
 /// of the row showing [to], or past the last row when [to] is null.
-Future<void> dragRow(WidgetTester tester, String from, String? to,
-    {double fraction = 0.5}) async {
+Future<void> dragRow(WidgetTester tester,
+    {required String from, required String? to, double fraction = 0.5}) async {
   final start = tester.getCenter(find.text(from));
   final Offset end;
   if (to == null) {
     final last = tester.getRect(find.byType(InkWell).last);
     end = Offset(last.center.dx, last.bottom + Spacing.sm);
   } else {
-    final row = tester.getRect(find
-        .ancestor(of: find.text(to), matching: find.byType(InkWell))
-        .first);
+    final row = tester.getRect(
+        find.ancestor(of: find.text(to), matching: find.byType(InkWell)).first);
     end = Offset(row.center.dx, row.top + row.height * fraction);
   }
   final gesture = await tester.startGesture(start);
@@ -107,7 +108,7 @@ Future<void> dragRow(WidgetTester tester, String from, String? to,
 }
 
 /// Row texts top to bottom.
-List<String> rowOrder(WidgetTester tester, List<String> texts) {
+List<String> rowOrder(WidgetTester tester, {required List<String> texts}) {
   final ys = {for (final t in texts) t: tester.getCenter(find.text(t)).dy};
   return [...texts]..sort((a, b) => ys[a]!.compareTo(ys[b]!));
 }
@@ -120,14 +121,17 @@ void main() {
 
     Future<(WebViewModel, List<(String, TabDrop)>)> pumpDraggable(
         WidgetTester tester) async {
-      final m = siteWithRoots('GitHub', [a, b, c]);
+      final m = siteWithRoots('GitHub', urls: [a, b, c]);
       final drops = <(String, TabDrop)>[];
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)],
-        onMoveTab: (i, id, drop) {
-          drops.add((id, drop));
-          final moved = TabLifecycleEngine.drop(m.tabs, id, drop);
+        sites: [
+          TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)
+        ],
+        onMoveTab: (i, {required tabId, required drop}) {
+          drops.add((tabId, drop));
+          final moved =
+              TabLifecycleEngine.drop(m.tabs, tabId: tabId, drop: drop);
           if (moved == null) return false;
           m.tabs = moved;
           return true;
@@ -136,15 +140,15 @@ void main() {
       return (m, drops);
     }
 
-    String idOf(WebViewModel m, String url) =>
+    String idOf(WebViewModel m, {required String url}) =>
         m.tabs.firstWhere((t) => t.url == url).id;
 
     testWidgets('the middle of a row nests the tab under it', (tester) async {
       final (m, drops) = await pumpDraggable(tester);
-      await dragRow(tester, c, a);
+      await dragRow(tester, from: c, to: a);
       expect(drops.single.$2.zone, TabDropZone.into);
-      expect(m.tabs.firstWhere((t) => t.url == c).parentId, idOf(m, a));
-      expect(rowOrder(tester, [a, b, c]), [a, c, b]);
+      expect(m.tabs.firstWhere((t) => t.url == c).parentId, idOf(m, url: a));
+      expect(rowOrder(tester, texts: [a, b, c]), [a, c, b]);
       expect(tester.getTopLeft(find.text(c)).dx,
           greaterThan(tester.getTopLeft(find.text(a)).dx),
           reason: 'the nested tab is indented');
@@ -152,47 +156,50 @@ void main() {
 
     testWidgets('the top of a row puts the tab before it', (tester) async {
       final (m, drops) = await pumpDraggable(tester);
-      await dragRow(tester, c, a, fraction: 0.1);
+      await dragRow(tester, from: c, to: a, fraction: 0.1);
       expect(drops.single.$2.zone, TabDropZone.before);
-      expect(rowOrder(tester, [a, b, c]), [c, a, b]);
+      expect(rowOrder(tester, texts: [a, b, c]), [c, a, b]);
       expect(m.tabs.every((t) => t.parentId == null), isTrue);
     });
 
     testWidgets('the bottom of a row puts the tab after it', (tester) async {
       final (_, drops) = await pumpDraggable(tester);
-      await dragRow(tester, a, b, fraction: 0.9);
+      await dragRow(tester, from: a, to: b, fraction: 0.9);
       expect(drops.single.$2.zone, TabDropZone.after);
-      expect(rowOrder(tester, [a, b, c]), [b, a, c]);
+      expect(rowOrder(tester, texts: [a, b, c]), [b, a, c]);
     });
 
     testWidgets('past the last row the tab becomes the last root',
         (tester) async {
       final (_, drops) = await pumpDraggable(tester);
-      await dragRow(tester, a, null);
+      await dragRow(tester, from: a, to: null);
       expect(drops.single.$2.targetId, isNull);
-      expect(rowOrder(tester, [a, b, c]), [b, c, a]);
+      expect(rowOrder(tester, texts: [a, b, c]), [b, c, a]);
     });
 
     testWidgets('a tab is not dropped into its own subtree', (tester) async {
-      final m = siteWithChain('GitHub', [a, b, c]);
+      final m = siteWithChain('GitHub', urls: [a, b, c]);
       final drops = <TabDrop>[];
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)],
-        onMoveTab: (i, id, drop) {
+        sites: [
+          TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)
+        ],
+        onMoveTab: (i, {required tabId, required drop}) {
           drops.add(drop);
           return false;
         },
       );
-      await dragRow(tester, a, c);
+      await dragRow(tester, from: a, to: c);
       expect(drops, isEmpty);
     });
 
     testWidgets('without a move handler a long press drags nothing',
         (tester) async {
-      final m = siteWithRoots('GitHub', [a, b]);
-      await pumpSheet(tester,
-          [TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)]);
+      final m = siteWithRoots('GitHub', urls: [a, b]);
+      await pumpSheet(tester, sites: [
+        TabsSheetSite(index: 0, model: m, isCurrent: true, isLoaded: true)
+      ]);
       expect(find.byWidgetPredicate((w) => w is LongPressDraggable),
           findsNothing);
       expect(find.byWidgetPredicate((w) => w is DragTarget), findsNothing);
@@ -206,14 +213,14 @@ void main() {
 
     /// Three sites in the All sites view. The host fake reorders as the
     /// drawer does and renumbers every site, as reordering "All" does.
-    Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
-        WidgetTester tester,
-        {bool refuse = false,
-        void Function(int, String)? onOpenTab}) async {
+Future<(List<WebViewModel>, List<(String, String)>)> pumpSites(
+    WidgetTester tester,
+    {bool refuse = false,
+    void Function(int siteIndex, {required String tabId})? onOpenTab}) async {
       final models = [
-        siteWithChain('GitHub', ['https://github.com/']),
-        siteWithChain('Mastodon', ['https://mastodon.social/']),
-        siteWithChain('Wikipedia', ['https://en.wikipedia.org/']),
+        siteWithChain('GitHub', urls: ['https://github.com/']),
+        siteWithChain('Mastodon', urls: ['https://mastodon.social/']),
+        siteWithChain('Wikipedia', urls: ['https://en.wikipedia.org/']),
       ];
       final current = models.first;
       List<TabsSheetSite> sites() => [
@@ -228,13 +235,13 @@ void main() {
       final moves = <(String, String)>[];
       await pumpSheet(
         tester,
-        sites(),
+        sites: sites(),
         onOpenTab: onOpenTab,
-        onMoveSite: (id, onto) {
-          moves.add((id, onto));
+        onMoveSite: (id, {required ontoSiteId}) {
+          moves.add((id, ontoSiteId));
           if (refuse) return null;
           final from = models.indexWhere((m) => m.siteId == id);
-          final to = models.indexWhere((m) => m.siteId == onto);
+          final to = models.indexWhere((m) => m.siteId == ontoSiteId);
           models.insert(to, models.removeAt(from));
           return sites();
         },
@@ -255,7 +262,7 @@ void main() {
     }
 
     Future<void> dragHeading(
-        WidgetTester tester, String from, String to) async {
+        WidgetTester tester, {required String from, required String to}) async {
       final gesture = await tester.startGesture(tester.getCenter(heading(from)));
       await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
       final end = tester.getCenter(heading(to));
@@ -272,7 +279,7 @@ void main() {
       final (models, moves) = await pumpSites(tester);
       final wikipedia = models[2].siteId;
       final github = models[0].siteId;
-      await dragHeading(tester, wp, gh);
+      await dragHeading(tester, from: wp, to: gh);
       expect(moves, [(wikipedia, github)]);
       expect([for (final m in models) m.name],
           ['Wikipedia', 'GitHub', 'Mastodon']);
@@ -282,7 +289,7 @@ void main() {
     testWidgets('a site dropped on a later heading takes its place',
         (tester) async {
       final (models, _) = await pumpSites(tester);
-      await dragHeading(tester, gh, md);
+      await dragHeading(tester, from: gh, to: md);
       expect([for (final m in models) m.name],
           ['Mastodon', 'GitHub', 'Wikipedia']);
       expect(headingOrder(tester), [md, gh, wp]);
@@ -291,7 +298,7 @@ void main() {
     testWidgets('a refused move leaves the headings where they were',
         (tester) async {
       final (_, moves) = await pumpSites(tester, refuse: true);
-      await dragHeading(tester, wp, gh);
+      await dragHeading(tester, from: wp, to: gh);
       expect(moves, hasLength(1));
       expect(headingOrder(tester), [gh, md, wp]);
     });
@@ -299,8 +306,9 @@ void main() {
     testWidgets('tabs open by the numbering the host hands back',
         (tester) async {
       final opened = <int>[];
-      await pumpSites(tester, onOpenTab: (i, _) => opened.add(i));
-      await dragHeading(tester, wp, gh);
+      await pumpSites(tester,
+          onOpenTab: (i, {required tabId}) => opened.add(i));
+      await dragHeading(tester, from: wp, to: gh);
       await tester.tap(find.text('https://en.wikipedia.org/'));
       await tester.pumpAndSettle();
       expect(opened, [0]);
@@ -309,9 +317,9 @@ void main() {
     testWidgets('This site follows the site on screen to its new number',
         (tester) async {
       final opened = <int>[];
-      final (models, _) =
-          await pumpSites(tester, onOpenTab: (i, _) => opened.add(i));
-      await dragHeading(tester, wp, gh);
+      final (models, _) = await pumpSites(tester,
+          onOpenTab: (i, {required tabId}) => opened.add(i));
+      await dragHeading(tester, from: wp, to: gh);
       expect(models[1].name, 'GitHub');
       await tester.tap(find.text('This site'));
       await tester.pumpAndSettle();
@@ -323,9 +331,9 @@ void main() {
 
     testWidgets('without a host reorder the headings are not draggable',
         (tester) async {
-      final a = siteWithChain('GitHub', ['https://github.com/']);
-      final b = siteWithChain('Mastodon', ['https://mastodon.social/']);
-      await pumpSheet(tester, [
+      final a = siteWithChain('GitHub', urls: ['https://github.com/']);
+      final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: false),
       ]);
@@ -343,12 +351,12 @@ void main() {
   group('TAB-008 — the tab list', () {
     testWidgets('lists every tab of the site, with the open one selected',
         (tester) async {
-      final site = siteWithChain('GitHub', [
+      final site = siteWithChain('GitHub', urls: [
         'https://github.com/',
         'https://github.com/pulls',
         'https://github.com/pull/601',
       ]);
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
       ]);
 
@@ -356,21 +364,22 @@ void main() {
       expect(find.text('GitHub · 3 tabs'), findsOneWidget);
       // Exactly one row is the loaded one: the active tab of the site on
       // screen. Every other tab is stored, not running.
-      expect(strengthOf(tester, 'https://github.com/'), 1);
+      expect(strengthOf(tester, text: 'https://github.com/'), 1);
       expect(isHighlighted('https://github.com/'), isTrue);
       for (final stored in [
         'https://github.com/pulls',
         'https://github.com/pull/601',
       ]) {
-        expect(strengthOf(tester, stored), lessThan(1));
+        expect(strengthOf(tester, text: stored), lessThan(1));
         expect(isHighlighted(stored), isFalse);
       }
       expect(find.text('open'), findsNothing);
     });
 
     testWidgets('a site on one tab says so in the singular', (tester) async {
-      final site = siteWithChain('Mastodon', ['https://mastodon.social/']);
-      await pumpSheet(tester, [
+      final site =
+          siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
       ]);
       expect(find.text('Mastodon · 1 tab'), findsOneWidget);
@@ -378,12 +387,12 @@ void main() {
 
     testWidgets('collapsing a tab hides the tabs opened from it',
         (tester) async {
-      final site = siteWithChain('GitHub', [
+      final site = siteWithChain('GitHub', urls: [
         'https://github.com/',
         'https://github.com/pulls',
         'https://github.com/pull/601',
       ]);
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
       ]);
       expect(find.byIcon(Icons.keyboard_arrow_down), findsNWidgets(2));
@@ -399,10 +408,12 @@ void main() {
 
     testWidgets('New tab reports the site it belongs to', (tester) async {
       int? opened;
-      final site = siteWithChain('GitHub', ['https://github.com/']);
+      final site = siteWithChain('GitHub', urls: ['https://github.com/']);
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 7, model: site, isCurrent: true, isLoaded: true)],
+        sites: [
+          TabsSheetSite(index: 7, model: site, isCurrent: true, isLoaded: true)
+        ],
         onNewTab: (i) => opened = i,
       );
       await tester.tap(find.text('New tab'));
@@ -412,23 +423,25 @@ void main() {
 
     testWidgets('Web search sits beside New tab (LIR-029)', (tester) async {
       var searched = 0;
-      final site = siteWithChain('GitHub', ['https://github.com/']);
+      final site = siteWithChain('GitHub', urls: ['https://github.com/']);
       final sites = [
         TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true),
       ];
-      await pumpSheet(tester, sites);
+      await pumpSheet(tester, sites: sites);
       expect(find.byIcon(Icons.travel_explore), findsNothing);
-      await pumpSheet(tester, sites, onWebSearch: () => searched++);
+      await pumpSheet(tester, sites: sites, onWebSearch: () => searched++);
       await tester.tap(find.byIcon(Icons.travel_explore));
       await tester.pump();
       expect(searched, 1);
     });
 
     testWidgets('both labels show where they fit', (tester) async {
-      final site = siteWithChain('GitHub', ['https://github.com/']);
+      final site = siteWithChain('GitHub', urls: ['https://github.com/']);
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
+        sites: [
+          TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)
+        ],
         onWebSearch: () {},
         width: 600,
       );
@@ -437,12 +450,15 @@ void main() {
     });
 
     testWidgets('the header fits a phone in every locale', (tester) async {
-      final site = siteWithChain('GitHub', ['https://github.com/']);
+      final site = siteWithChain('GitHub', urls: ['https://github.com/']);
       const width = 360.0;
       for (final locale in AppLocalizations.supportedLocales) {
         await pumpSheet(
           tester,
-          [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
+          sites: [
+            TabsSheetSite(
+                index: 0, model: site, isCurrent: true, isLoaded: true)
+          ],
           onWebSearch: () {},
           locale: locale,
           width: width,
@@ -462,14 +478,16 @@ void main() {
 
     testWidgets('closing a row reports that tab', (tester) async {
       String? closed;
-      final site = siteWithChain('GitHub', [
+      final site = siteWithChain('GitHub', urls: [
         'https://github.com/',
         'https://github.com/pulls',
       ]);
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
-        onCloseTab: (_, id) => closed = id,
+        sites: [
+          TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)
+        ],
+        onCloseTab: (_, {required tabId}) => closed = tabId,
       );
       await tester.tap(find.byIcon(Icons.close).last);
       await tester.pump();
@@ -479,14 +497,16 @@ void main() {
     testWidgets('a tab with children offers closing the subtree',
         (tester) async {
       String? closed;
-      final site = siteWithChain('GitHub', [
+      final site = siteWithChain('GitHub', urls: [
         'https://github.com/',
         'https://github.com/pulls',
       ]);
       await pumpSheet(
         tester,
-        [TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)],
-        onCloseSubtree: (_, id) => closed = id,
+        sites: [
+          TabsSheetSite(index: 0, model: site, isCurrent: true, isLoaded: true)
+        ],
+        onCloseSubtree: (_, {required tabId}) => closed = tabId,
       );
       // Only the parent row has the control: the leaf has nothing under it.
       expect(find.byIcon(Icons.layers_clear_outlined), findsOneWidget);
@@ -497,14 +517,14 @@ void main() {
 
     testWidgets('the all-sites scope appears only with more than one site',
         (tester) async {
-      final a = siteWithChain('GitHub', ['https://github.com/']);
-      await pumpSheet(tester, [
+      final a = siteWithChain('GitHub', urls: ['https://github.com/']);
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
       ]);
       expect(find.text('All sites'), findsNothing);
 
-      final b = siteWithChain('Mastodon', ['https://mastodon.social/']);
-      await pumpSheet(tester, [
+      final b = siteWithChain('Mastodon', urls: ['https://mastodon.social/']);
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: b, isCurrent: false, isLoaded: false),
       ]);
@@ -520,16 +540,16 @@ void main() {
 
     testWidgets('TAB-011 — a tab is faded unless the load policy holds it',
         (tester) async {
-      final a = siteWithChain('GitHub', [
+      final a = siteWithChain('GitHub', urls: [
         'https://github.com/',
         'https://github.com/pulls',
       ]);
-      final b = siteWithChain('Mastodon', [
+      final b = siteWithChain('Mastodon', urls: [
         'https://mastodon.social/',
         'https://mastodon.social/@a',
       ]);
-      final c = siteWithChain('Wikipedia', ['https://en.wikipedia.org/']);
-      await pumpSheet(tester, [
+      final c = siteWithChain('Wikipedia', urls: ['https://en.wikipedia.org/']);
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: true),
         // Backgrounded but still resident: its active tab keeps a paused
         // webview until the policy evicts the site.
@@ -541,15 +561,17 @@ void main() {
       await tester.pump();
       // One tab per loaded site holds a webview, never more (TAB-002), and
       // only the one on screen is selected.
-      expect(strengthOf(tester, 'https://github.com/'), 1);
+      expect(strengthOf(tester, text: 'https://github.com/'), 1);
       expect(isHighlighted('https://github.com/'), isTrue);
-      expect(strengthOf(tester, 'https://mastodon.social/'), 1);
+      expect(strengthOf(tester, text: 'https://mastodon.social/'), 1);
       expect(isHighlighted('https://mastodon.social/'), isFalse);
       // Each site's other tabs, and every tab of the unloaded site, are
       // stored and faded.
-      expect(strengthOf(tester, 'https://github.com/pulls'), lessThan(1));
-      expect(strengthOf(tester, 'https://mastodon.social/@a'), lessThan(1));
-      expect(strengthOf(tester, 'https://en.wikipedia.org/'), lessThan(1));
+      expect(strengthOf(tester, text: 'https://github.com/pulls'), lessThan(1));
+      expect(
+          strengthOf(tester, text: 'https://mastodon.social/@a'), lessThan(1));
+      expect(
+          strengthOf(tester, text: 'https://en.wikipedia.org/'), lessThan(1));
       // The fade has no words on screen; a screen reader gets them instead.
       expect(find.text('open'), findsNothing);
       expect(find.text('loaded'), findsNothing);
@@ -565,11 +587,11 @@ void main() {
 
     testWidgets('the site on screen but not yet built draws its tab faded',
         (tester) async {
-      final a = siteWithChain('GitHub', ['https://github.com/']);
-      await pumpSheet(tester, [
+      final a = siteWithChain('GitHub', urls: ['https://github.com/']);
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: a, isCurrent: true, isLoaded: false),
       ]);
-      expect(strengthOf(tester, 'https://github.com/'), lessThan(1));
+      expect(strengthOf(tester, text: 'https://github.com/'), lessThan(1));
       expect(isHighlighted('https://github.com/'), isFalse);
     });
   });
@@ -632,7 +654,7 @@ void main() {
           TabsSheetSite(index: 0, model: gh, isCurrent: false, isLoaded: false),
         ];
 
-    WebViewModel markedAs(WidgetTester tester, String text) => tester
+    WebViewModel markedAs(WidgetTester tester, {required String text}) => tester
         .widget<ContainerMark>(find.descendant(
           of: find
               .ancestor(of: find.text(text).first, matching: find.byType(InkWell))
@@ -651,7 +673,9 @@ void main() {
 
     testWidgets('This site lists the other site\'s tree around what runs as it',
         (tester) async {
-      await pumpSheet(tester, sites(), onMoveTab: (_, _, _) => true);
+      await pumpSheet(tester,
+          sites: sites(),
+          onMoveTab: (_, {required tabId, required drop}) => true);
       expect(find.text('In GitHub'), findsOneWidget);
       expect(find.text(hosted), findsOneWidget);
       expect(find.text(below), findsOneWidget,
@@ -662,7 +686,8 @@ void main() {
           reason: 'a branch with nothing run as DuckDuckGo is folded');
       expect(find.text('1 more GitHub tab'), findsOneWidget);
       expect(
-          rowOrder(tester, [ddgHome, ddgChild, 'https://github.com/', hosted, below]),
+          rowOrder(tester,
+              texts: [ddgHome, ddgChild, 'https://github.com/', hosted, below]),
           [ddgHome, ddgChild, 'https://github.com/', hosted, below]);
       expect(
         tester.getTopLeft(find.text('In GitHub')).dy,
@@ -672,7 +697,7 @@ void main() {
     });
 
     testWidgets('the folded part of a tree opens on a tap', (tester) async {
-      await pumpSheet(tester, sites());
+      await pumpSheet(tester, sites: sites());
       await tester.tap(find.text('1 more GitHub tab'));
       await tester.pump();
       expect(find.text(foreign), findsOneWidget);
@@ -683,7 +708,7 @@ void main() {
         (tester) async {
       gh.activeTabId = 'h';
       final newTabs = <int>[];
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: true),
       ], onNewTab: newTabs.add);
@@ -691,7 +716,7 @@ void main() {
       expect(find.text('In DuckDuckGo'), findsOneWidget,
           reason: 'the tab on screen runs as DuckDuckGo');
       const order = ['https://github.com/', hosted, below, foreign, ddgHome, ddgChild];
-      expect(rowOrder(tester, order), order,
+      expect(rowOrder(tester, texts: order), order,
           reason: 'the site on screen comes first, whatever its tab runs as');
       expect(
         tester.getTopLeft(find.text('In DuckDuckGo')).dy,
@@ -717,7 +742,7 @@ void main() {
         ],
       );
       WebViewModel.siteLookup = (id) => {'gh': gh, 'ddg': ddg, 'wiki': wiki}[id];
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         ...sites(),
         TabsSheetSite(index: 2, model: wiki, isCurrent: false, isLoaded: true),
       ], wayBack: const TabReturn(
@@ -731,7 +756,7 @@ void main() {
 
     testWidgets('a site the webspace hides still lists what runs as this one',
         (tester) async {
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
         TabsSheetSite(
             index: 0,
@@ -752,7 +777,7 @@ void main() {
           siteId: 'wiki',
           initUrl: 'https://wikipedia.org/',
           name: 'Wikipedia');
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 1, model: ddg, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 2, model: other, isCurrent: false, isLoaded: false),
         TabsSheetSite(
@@ -774,7 +799,7 @@ void main() {
       // GitHub on the tab it opened in DuckDuckGo's domain while its routing
       // was off: that tab and its root both run as GitHub.
       gh.activeTabId = 'f';
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),
       ]);
@@ -785,7 +810,7 @@ void main() {
         (tester) async {
       // GitHub on its home tab: everything below it is on the branch,
       // including the tab that runs as DuckDuckGo.
-      await pumpSheet(tester, [
+      await pumpSheet(tester, sites: [
         TabsSheetSite(index: 0, model: gh, isCurrent: true, isLoaded: true),
         TabsSheetSite(index: 1, model: ddg, isCurrent: false, isLoaded: false),
       ]);
@@ -797,7 +822,9 @@ void main() {
     testWidgets('a tap opens the tab in the site whose tree holds it',
         (tester) async {
       final opened = <(int, String)>[];
-      await pumpSheet(tester, sites(), onOpenTab: (i, id) => opened.add((i, id)));
+      await pumpSheet(tester,
+          sites: sites(),
+          onOpenTab: (i, {required tabId}) => opened.add((i, tabId)));
       await tester.tap(find.text(hosted));
       await tester.pump();
       expect(opened, [(0, 'h')]);
@@ -805,13 +832,17 @@ void main() {
 
     testWidgets('the other site\'s own tabs open from here too', (tester) async {
       final opened = <(int, String)>[];
-      void open(int i, String id) => opened.add((i, id));
+      void open(int i, {required String id}) => opened.add((i, id));
       // A tap pops the sheet, so each tab gets a sheet of its own.
-      await pumpSheet(tester, sites(), onOpenTab: open);
+      await pumpSheet(tester,
+          sites: sites(),
+          onOpenTab: (i, {required tabId}) => open(i, id: tabId));
       await tester.tap(find.text('https://github.com/'));
       await tester.pump();
       await tester.pumpWidget(const SizedBox());
-      await pumpSheet(tester, sites(), onOpenTab: open);
+      await pumpSheet(tester,
+          sites: sites(),
+          onOpenTab: (i, {required tabId}) => open(i, id: tabId));
       await tester.tap(find.text('1 more GitHub tab'));
       await tester.pump();
       await tester.tap(find.text(foreign));
@@ -824,27 +855,28 @@ void main() {
     testWidgets('rows from another site\'s tree are not dragged from here',
         (tester) async {
       final moves = <String>[];
-      await pumpSheet(tester, sites(), onMoveTab: (_, id, _) {
-        moves.add(id);
+      await pumpSheet(tester, sites: sites(),
+          onMoveTab: (_, {required tabId, required drop}) {
+        moves.add(tabId);
         return true;
       });
       expect(draggable(ddgChild), isTrue);
       expect(draggable(hosted), isFalse);
       expect(draggable(below), isFalse);
-      await dragRow(tester, hosted, ddgHome);
+      await dragRow(tester, from: hosted, to: ddgHome);
       expect(moves, isEmpty);
     });
 
     testWidgets('each row is marked with the container it runs in',
         (tester) async {
-      await pumpSheet(tester, sites());
-      expect(markedAs(tester, ddgHome), same(ddg));
-      expect(markedAs(tester, hosted), same(ddg));
-      expect(markedAs(tester, below), same(gh));
+      await pumpSheet(tester, sites: sites());
+      expect(markedAs(tester, text: ddgHome), same(ddg));
+      expect(markedAs(tester, text: hosted), same(ddg));
+      expect(markedAs(tester, text: below), same(gh));
 
       await tester.tap(find.text('All sites'));
       await tester.pump();
-      expect(markedAs(tester, foreign), same(gh),
+      expect(markedAs(tester, text: foreign), same(gh),
           reason: 'routing off: the tab runs in its opener\'s container');
       expect(find.text('as GitHub · duckduckgo.com'), findsOneWidget,
           reason: 'a foreign row names the site it runs as');
@@ -853,7 +885,7 @@ void main() {
 
     testWidgets('a mark draws its site\'s colour for the theme brightness',
         (tester) async {
-      await pumpSheet(tester, sites());
+      await pumpSheet(tester, sites: sites());
       Color colourOf(String text) {
         final mark = find.descendant(
           of: find.ancestor(of: find.text(text).first, matching: find.byType(InkWell)).first,
@@ -864,15 +896,17 @@ void main() {
         return (box.decoration! as BoxDecoration).color!;
       }
 
-      expect(colourOf(hosted), ContainerColors.of(1, Brightness.light));
-      expect(colourOf(below), ContainerColors.of(0, Brightness.light));
-      expect(containerColorOf(gh, Brightness.dark),
-          ContainerColors.of(0, Brightness.dark));
+      expect(colourOf(hosted),
+          ContainerColors.of(1, brightness: Brightness.light));
+      expect(
+          colourOf(below), ContainerColors.of(0, brightness: Brightness.light));
+      expect(containerColorOf(gh, brightness: Brightness.dark),
+          ContainerColors.of(0, brightness: Brightness.dark));
     });
 
     testWidgets('the marks say nothing to a screen reader', (tester) async {
       final handle = tester.ensureSemantics();
-      await pumpSheet(tester, sites());
+      await pumpSheet(tester, sites: sites());
       for (final e in find.byType(ContainerMark).evaluate()) {
         expect(
           find.ancestor(of: find.byWidget(e.widget), matching: find.byType(ExcludeSemantics)),
@@ -889,7 +923,7 @@ void main() {
 
     testWidgets('collapsing is per site, though tab ids repeat across sites',
         (tester) async {
-      await pumpSheet(tester, sites());
+      await pumpSheet(tester, sites: sites());
       await tester.tap(find.text('All sites'));
       await tester.pump();
       expect(find.text(ddgChild), findsOneWidget);
@@ -906,7 +940,7 @@ void main() {
 
     testWidgets('collapsing a subtree from here collapses it in its own tree',
         (tester) async {
-      await pumpSheet(tester, sites());
+      await pumpSheet(tester, sites: sites());
       final row = find.ancestor(of: find.text(hosted), matching: find.byType(InkWell));
       await tester.tap(find.descendant(
           of: row.first, matching: find.byIcon(Icons.keyboard_arrow_down)));
@@ -921,7 +955,7 @@ void main() {
     testWidgets('a double tap on a row opens the tab once and pops only the '
         'sheet', (tester) async {
       final opened = <String>[];
-      await pumpLocalized(tester, Builder(
+      await pumpLocalized(tester, home: Builder(
         builder: (context) => Scaffold(
           body: Center(
             child: TextButton(
@@ -931,10 +965,10 @@ void main() {
                 builder: (_) => TabsSheet(
                   sites: sites(),
                   currentIndex: 0,
-                  onOpenTab: (_, id) => opened.add(id),
+                  onOpenTab: (_, {required tabId}) => opened.add(tabId),
                   onNewTab: (_) {},
-                  onCloseTab: (_, _) {},
-                  onCloseSubtree: (_, _) {},
+                  onCloseTab: (_, {required tabId}) {},
+                  onCloseSubtree: (_, {required tabId}) {},
                 ),
               ),
               child: const Text('open sheet'),

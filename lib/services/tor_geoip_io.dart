@@ -44,7 +44,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
       final at = torGeoIpFetchedAt(entry.uri.pathSegments.last);
       if (at == null) continue;
       if (best == null || at.isAfter(best.fetchedAt)) {
-        best = TorGeoIpTable(entry.path, at);
+        best = TorGeoIpTable(entry.path, fetchedAt: at);
       }
     }
     return best;
@@ -52,7 +52,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
 
   @override
   Future<TorGeoIpTable?> download(UserProxySettings via) =>
-      _downloads.run((), () => _download(via));
+      _downloads.run((), call: () => _download(via));
 
   Future<TorGeoIpTable?> _download(UserProxySettings via) async {
     for (var pass = 0; pass < kTorGeoIpPasses; pass++) {
@@ -133,7 +133,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
       }
     }
     return TorGeoIpTable(
-        file.path, DateTime.fromMillisecondsSinceEpoch(
+        file.path, fetchedAt: DateTime.fromMillisecondsSinceEpoch(
             at.toUtc().millisecondsSinceEpoch, isUtc: true));
   }
 }

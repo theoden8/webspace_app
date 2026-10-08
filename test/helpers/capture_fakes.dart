@@ -18,24 +18,24 @@ VirtualSource pickedFor(
 /// [grants] with [kind] at [mode], serving [kind]'s sample file when
 /// [withSource].
 CaptureGrants grantsWith(
-  CaptureKind kind,
-  CaptureMode mode, {
+  CaptureKind kind, {
+  required CaptureMode mode,
   bool withSource = false,
   CaptureGrants grants = CaptureGrants.none,
-}) => kind.withGrant(grants, (
+}) => kind.withGrant(grants, grant: (
   mode: mode,
   source: withSource ? pickedFor(kind) : null,
 ));
 
 /// A site with [kind] at [mode].
 WebViewModel siteWith(
-  CaptureKind kind,
-  CaptureMode mode, {
+  CaptureKind kind, {
+  required CaptureMode mode,
   bool withSource = false,
   bool archived = false,
 }) => WebViewModel(
   initUrl: 'https://site.example',
-  captures: grantsWith(kind, mode, withSource: withSource),
+  captures: grantsWith(kind, mode: mode, withSource: withSource),
   isArchiveTier: archived,
 );
 
@@ -47,7 +47,8 @@ enum Answer { allow, useFile, block, dismiss, cancelPick }
 final class FakePrompter implements MediaPrompter {
   FakePrompter([this.answer]);
 
-  Answer Function(CaptureKind kind, String origin, CaptureMode current)? answer;
+  Answer Function(CaptureKind kind,
+      {required String origin, required CaptureMode current})? answer;
   Completer<void>? gate;
   final List<(CaptureKind, String, CaptureMode)> asked = [];
 
@@ -56,15 +57,15 @@ final class FakePrompter implements MediaPrompter {
 
   @override
   Future<CaptureGrant> capture(
-    CaptureKind kind,
-    String origin,
-    CaptureMode current,
-  ) async {
+    CaptureKind kind, {
+    required String origin,
+    required CaptureMode current,
+  }) async {
     asked.add((kind, origin, current));
     final choice = answer;
     if (choice == null) fail('$kind must not prompt for $origin');
     if (gate case final gate?) await gate.future;
-    return switch (choice(kind, origin, current)) {
+    return switch (choice(kind, origin: origin, current: current)) {
       Answer.allow => (mode: kind.real ?? kind.block, source: null),
       Answer.useFile => (mode: kind.virtual, source: pickedFor(kind)),
       Answer.block => (mode: kind.block, source: null),

@@ -22,89 +22,89 @@ import 'package:webspace/settings/demo_mode.dart';
 /// certificate silently. `TrustedHostsService` persists and reloads that key
 /// on its own; it just never rides a backup.
 enum AppPref<T extends Object> {
-  showUrlBar('showUrlBar', false),
-  showTabStrip('showTabStrip', false),
+  showUrlBar('showUrlBar', fallback: false),
+  showTabStrip('showTabStrip', fallback: false),
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.
-  tabStripInFullscreen('tabStripInFullscreen', false),
+  tabStripInFullscreen('tabStripInFullscreen', fallback: false),
   // Floating button that opens the tab strip (and its overflow menu) on
   // demand. Superseded `tabBarButtonInFullscreen` in v0.2.7; a device or a
   // backup from a build in between names only the old key.
-  tabBarButton('tabBarButton', false, legacyKey: 'tabBarButtonInFullscreen'),
+  tabBarButton('tabBarButton', fallback: false, legacyKey: 'tabBarButtonInFullscreen'),
   // Legacy app-wide default corner for the tab-bar button (true = right).
   // The corner is now remembered per site (WebViewModel.tabBarButtonCorner);
   // this is only the fallback for sites never dragged. No settings UI writes
   // it; kept so pre-per-site backups keep restoring the user's corner.
-  tabBarButtonOnRight('tabBarButtonOnRight', true),
+  tabBarButtonOnRight('tabBarButtonOnRight', fallback: true),
   // On by default: a pinned shortcut is the user's "app launcher" entry
   // point, so the chrome-free view matches the expectation. Per-site
   // `fullscreenMode` still applies independently on every activation.
-  fullscreenOnShortcut('fullscreenOnShortcut', true),
+  fullscreenOnShortcut('fullscreenOnShortcut', fallback: true),
   // Max width (logical px) of each tab in the tab strip.
-  tabMaxWidth('tabMaxWidth', 140),
-  showStatsBanner('showStatsBanner', true),
+  tabMaxWidth('tabMaxWidth', fallback: 140),
+  showStatsBanner('showStatsBanner', fallback: true),
   // Tile server for the location picker map. Only queried after the user
   // taps "Load map" on the picker.
-  osmTileUrl('osmTileUrl', 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
+  osmTileUrl('osmTileUrl', fallback: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'),
   // The app-wide outbound proxy, JSON of the non-secret fields of a
   // UserProxySettings; the default is a DEFAULT-type one. Every Dart-side
   // call not tied to a site goes through it, and so does a site on DEFAULT
   // (`resolveEffectiveProxy`).
   globalOutboundProxy(
-      'globalOutboundProxy', '{"type":0,"address":null,"username":null}'),
+      'globalOutboundProxy', fallback: '{"type":0,"address":null,"username":null}'),
   // PROXY-030: the proxy library (gateways, credentials, saved proxies), as
   // JSON of the non-secret fields. Passwords stay in secure storage and never
   // ride a backup (PWD-005, PWD-007).
-  proxyLibrary('proxyLibrary', '{}'),
+  proxyLibrary('proxyLibrary', fallback: '{}'),
   // Unlocked by tapping the version row seven times. Gates affordances that
   // only make sense while diagnosing the app.
-  developerMode('developerMode', false),
+  developerMode('developerMode', fallback: false),
   // DEVTOOLS-011: the Experimental switches. The proxy router is on so
   // developer mode alone keeps running it for a user who had it before the
   // switch existed; the rest are new, so off.
-  experimentalProxyRouter('experimentalProxyRouter', true),
-  experimentalSiteIconsOnly('experimentalSiteIconsOnly', false),
-  experimentalTextureRendering('experimentalTextureRendering', false),
-  experimentalSiteTabs('experimentalSiteTabs', false),
-  experimentalExternalTor('experimentalExternalTor', false),
+  experimentalProxyRouter('experimentalProxyRouter', fallback: true),
+  experimentalSiteIconsOnly('experimentalSiteIconsOnly', fallback: false),
+  experimentalTextureRendering('experimentalTextureRendering', fallback: false),
+  experimentalSiteTabs('experimentalSiteTabs', fallback: false),
+  experimentalExternalTor('experimentalExternalTor', fallback: false),
   // TOR-025: the external tor's SOCKS address; Orbot's and the system tor
   // service's SocksPort.
-  externalTorAddress('externalTorAddress', '127.0.0.1:9050'),
+  externalTorAddress('externalTorAddress', fallback: '127.0.0.1:9050'),
   // LIR-008: master "Handle shared links" switch. When off, incoming share
   // and open intents are dropped.
-  linkHandlingEnabled('linkHandlingEnabled', true),
+  linkHandlingEnabled('linkHandlingEnabled', fallback: true),
   // LIR-010: a shared link sent to a site through the picker also claims
   // its domain for that site. Opt-in: by default the link just opens there.
-  linkHandlingClaimDomains('linkHandlingClaimDomains', false),
+  linkHandlingClaimDomains('linkHandlingClaimDomains', fallback: false),
   // LIR-029: the siteId Web search starts with when the site on screen
   // names none. Empty until the user picks one, so no build ships a default
   // engine. Never an archived site's id (ARCH-001).
-  webSearchDefaultSite('webSearchDefaultSite', ''),
+  webSearchDefaultSite('webSearchDefaultSite', fallback: ''),
   // CB-013: uBO web_accessible_resources, which back $redirect= rules with
   // stubs that satisfy the page's expected API. Off makes $redirect= drop
   // the request instead, which breaks some sites.
-  useUboResources('useUboResources', true),
+  useUboResources('useUboResources', fallback: true),
   // UI language as a locale tag ('de', 'pt_BR', 'zh_Hant'); empty follows
   // the system locale.
-  appLocaleOverride('appLocaleOverride', ''),
+  appLocaleOverride('appLocaleOverride', fallback: ''),
   // DM-004: weekly check of Mozilla's published Firefox version for
   // generated User-Agents. Off: no network the user did not ask for.
-  firefoxUaAutoRefresh('firefoxUaAutoRefresh', false),
+  firefoxUaAutoRefresh('firefoxUaAutoRefresh', fallback: false),
   // androidx.webkit BACK_FORWARD_CACHE, applied to every WebView; a no-op
   // where unsupported.
-  backForwardCacheEnabled('backForwardCacheEnabled', true),
+  backForwardCacheEnabled('backForwardCacheEnabled', fallback: true),
   // NAV-009: what the back gesture does once a site has no page left to go
   // back to. Off keeps it on webview history; on opens the drawer there and
   // leaves the app on the next press.
-  backOpensMenu('backOpensMenu', false),
+  backOpensMenu('backOpensMenu', fallback: false),
   // HTTPS-005: retry a plain-http main-frame navigation over https, falling
   // back silently. On: chromium does the same and Android WebView does not.
-  httpsUpgradeEnabled('httpsUpgradeEnabled', true),
+  httpsUpgradeEnabled('httpsUpgradeEnabled', fallback: true),
   // SCREENBLOCK-002: withhold the whole app from screenshots, recordings
   // and the recent-apps preview. Android only.
-  blockScreenshots('blockScreenshots', false);
+  blockScreenshots('blockScreenshots', fallback: false);
 
-  const AppPref(this.key, this.fallback, {this.legacyKey})
+  const AppPref(this.key, {required this.fallback,this.legacyKey})
       : assert(fallback is bool || fallback is int || fallback is String);
 
   final String key;
@@ -135,7 +135,7 @@ enum AppPref<T extends Object> {
   Future<void> set(T next) async {
     _notifier.value = next;
     if (isDemoMode) return;
-    await _write(await SharedPreferences.getInstance(), next);
+    await _write(await SharedPreferences.getInstance(), next: next);
   }
 
   /// The stored value. A value of another type reads as absent: from
@@ -167,11 +167,11 @@ enum AppPref<T extends Object> {
   }
 
   Future<void> _restore(
-    SharedPreferences prefs,
-    Map<String, Object?> globalPrefs,
-  ) async {
+    SharedPreferences prefs, {
+    required Map<String, Object?> globalPrefs,
+  }) async {
     final next = fromBackup(globalPrefs);
-    await _write(prefs, next);
+    await _write(prefs, next: next);
     _notifier.value = next;
   }
 
@@ -182,7 +182,8 @@ enum AppPref<T extends Object> {
         _ => null,
       };
 
-  Future<void> _write(SharedPreferences prefs, T next) => switch (next) {
+  Future<void> _write(SharedPreferences prefs, {required T next}) =>
+      switch (next) {
         bool v => prefs.setBool(key, v),
         int v => prefs.setInt(key, v),
         String v => prefs.setString(key, v),
@@ -199,11 +200,11 @@ Map<String, Object?> readExportedAppPrefs(SharedPreferences prefs) => {
 /// absent from [values] take their default; unknown keys are ignored
 /// (forward compatibility).
 Future<void> writeExportedAppPrefs(
-  SharedPreferences prefs,
-  Map<String, Object?> values,
-) async {
+  SharedPreferences prefs, {
+  required Map<String, Object?> values,
+}) async {
   for (final pref in AppPref.values) {
-    await pref._restore(prefs, values);
+    await pref._restore(prefs, globalPrefs: values);
   }
 }
 

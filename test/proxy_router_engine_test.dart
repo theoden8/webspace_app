@@ -17,8 +17,8 @@ import 'package:webspace/settings/proxy.dart';
 ///    proxied site must never be encoded as direct).
 void main() {
   UserProxySettings proxy(
-    ProxyType type,
-    String? address, {
+    ProxyType type, {
+    required String? address,
     String? username,
     String? password,
   }) =>
@@ -202,8 +202,8 @@ void main() {
       final state = ProxyRouterState();
       final routes = ProxyRouterEngine.buildRoutes(
         perSiteProxies: {
-          'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050'),
-          'b': proxy(ProxyType.HTTP, 'proxy.example.com:8080'),
+          'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050'),
+          'b': proxy(ProxyType.HTTP, address: 'proxy.example.com:8080'),
         },
         tokens: {'a': state.tokenFor('a'), 'b': state.tokenFor('b')},
       );
@@ -224,8 +224,8 @@ void main() {
       final state = ProxyRouterState();
       final routes = ProxyRouterEngine.buildRoutes(
         perSiteProxies: {
-          'a': proxy(ProxyType.TOR, null),
-          'b': proxy(ProxyType.TOR, null),
+          'a': proxy(ProxyType.TOR, address: null),
+          'b': proxy(ProxyType.TOR, address: null),
         },
         tokens: {'a': state.tokenFor('a'), 'b': state.tokenFor('b')},
       );
@@ -240,7 +240,7 @@ void main() {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, null)},
+          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, address: null)},
           tokens: {'plain': state.tokenFor('plain')},
         ),
       );
@@ -249,12 +249,12 @@ void main() {
 
     test('a DEFAULT site inherits the app-global proxy (PROXY-009)', () {
       GlobalOutboundProxy.setForTest(
-        proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+        proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
       );
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, null)},
+          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, address: null)},
           tokens: {'plain': state.tokenFor('plain')},
         ),
       );
@@ -266,7 +266,7 @@ void main() {
 
     test('a site with no token gets no route', () {
       final routes = ProxyRouterEngine.buildRoutes(
-        perSiteProxies: {'a': proxy(ProxyType.HTTP, 'p:1')},
+        perSiteProxies: {'a': proxy(ProxyType.HTTP, address: 'p:1')},
         tokens: const {},
       );
       expect(routes, isEmpty);
@@ -280,7 +280,7 @@ void main() {
       for (final bad in ['proxy.example.com', 'host:notaport', ':8080', 'h:0']) {
         final wire = ProxyRouterEngine.toWire(
           ProxyRouterEngine.buildRoutes(
-            perSiteProxies: {'a': proxy(ProxyType.HTTP, bad)},
+            perSiteProxies: {'a': proxy(ProxyType.HTTP, address: bad)},
             tokens: {'a': state.tokenFor('a')},
           ),
         );
@@ -293,7 +293,7 @@ void main() {
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
           perSiteProxies: {
-            'a': proxy(ProxyType.SOCKS5, '127.0.0.1:9050',
+            'a': proxy(ProxyType.SOCKS5, address: '127.0.0.1:9050',
                 username: 'alice', password: 's3cret'),
           },
           tokens: {'a': state.tokenFor('a')},
@@ -314,7 +314,7 @@ void main() {
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
           perSiteProxies: {
-            'a': proxy(ProxyType.TOR, '203.0.113.9:9050'),
+            'a': proxy(ProxyType.TOR, address: '203.0.113.9:9050'),
           },
           tokens: {'a': state.tokenFor('a')},
         ),
@@ -324,12 +324,12 @@ void main() {
 
     test('a DEFAULT site inheriting a global TOR gets no route either', () {
       GlobalOutboundProxy.setForTest(
-        proxy(ProxyType.TOR, '203.0.113.9:9050'),
+        proxy(ProxyType.TOR, address: '203.0.113.9:9050'),
       );
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, null)},
+          perSiteProxies: {'plain': proxy(ProxyType.DEFAULT, address: null)},
           tokens: {'plain': state.tokenFor('plain')},
         ),
       );
@@ -340,7 +340,7 @@ void main() {
       final state = ProxyRouterState();
       final wire = ProxyRouterEngine.toWire(
         ProxyRouterEngine.buildRoutes(
-          perSiteProxies: {'a': proxy(ProxyType.HTTP, '[::1]:8080')},
+          perSiteProxies: {'a': proxy(ProxyType.HTTP, address: '[::1]:8080')},
           tokens: {'a': state.tokenFor('a')},
         ),
       );
@@ -386,11 +386,11 @@ void main() {
         sites: [
           RouterSite(
               siteId: 'a',
-              proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+              proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
               ownsContainer: true),
           RouterSite(
               siteId: 'b',
-              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: true),
         ],
       );
@@ -403,11 +403,11 @@ void main() {
         sites: [
           RouterSite(
               siteId: 'incog-a',
-              proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+              proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
               ownsContainer: false),
           RouterSite(
               siteId: 'incog-b',
-              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
         sharedProfilePriority: [1],
@@ -421,11 +421,11 @@ void main() {
       final sites = [
         RouterSite(
             siteId: 'incog-a',
-            proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+            proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
             ownsContainer: false),
         RouterSite(
             siteId: 'incog-b',
-            proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+            proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
             ownsContainer: false),
       ];
       final activatingB = ProxyRouterEngine.routeTable(
@@ -452,11 +452,11 @@ void main() {
         sites: [
           RouterSite(
               siteId: 'a',
-              proxy: proxy(ProxyType.HTTP, '10.0.0.1:8080'),
+              proxy: proxy(ProxyType.HTTP, address: '10.0.0.1:8080'),
               ownsContainer: true),
           RouterSite(
               siteId: 'incog',
-              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
         sharedProfilePriority: [0, 1],
@@ -474,7 +474,7 @@ void main() {
         sites: [
           RouterSite(
               siteId: 'incog',
-              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
         sharedProfilePriority: const [],
@@ -489,7 +489,7 @@ void main() {
         sites: [
           RouterSite(
               siteId: 'incog',
-              proxy: proxy(ProxyType.SOCKS5, '10.0.0.2:9050'),
+              proxy: proxy(ProxyType.SOCKS5, address: '10.0.0.2:9050'),
               ownsContainer: false),
         ],
         sharedProfilePriority: [-1, 7, 0],

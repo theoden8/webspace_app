@@ -18,7 +18,7 @@ String get hostOperatingSystemVersion => io.Platform.operatingSystemVersion;
 
 /// Write [bytes] to [path]. Unavailable on web; callers there must route
 /// through the browser's own download path instead.
-Future<void> hostWriteBytes(String path, List<int> bytes) =>
+Future<void> hostWriteBytes(String path, {required List<int> bytes}) =>
     io.File(path).writeAsBytes(bytes);
 
 /// [host]'s numeric addresses. Throws [io.SocketException] when the name
@@ -48,7 +48,7 @@ http.Client hostDirectDownloadClient() =>
 /// Read an absolute path chosen by the OS file picker.
 Future<Uint8List> hostReadFileBytes(String path) => io.File(path).readAsBytes();
 
-Future<void> hostWriteFileBytes(String path, List<int> bytes) =>
+Future<void> hostWriteFileBytes(String path, {required List<int> bytes}) =>
     io.File(path).writeAsBytes(bytes);
 
 Future<bool> hostFileExists(String path) => io.File(path).exists();
@@ -83,7 +83,7 @@ Converter<List<int>, List<int>> get hostGzipEncoder => io.gzip.encoder;
 /// Synchronous read, for the compute-isolate parse paths that take a path.
 String hostReadFileTextSync(String path) => io.File(path).readAsStringSync();
 
-Future<void> hostWriteFileText(String path, String contents) =>
+Future<void> hostWriteFileText(String path, {required String contents}) =>
     io.File(path).writeAsString(contents);
 
 Future<String> hostReadFileText(String path) => io.File(path).readAsString();

@@ -82,7 +82,7 @@ test('the model exposes an effective getter for the forced-off setting', () => {
   const src = read(MODEL);
   assert.match(
     src,
-    /bool get effectiveThirdPartyCookiesEnabled\s*=>\s*_forcedByTrackingProtection\(\s*TrackingProtectionForce\.thirdPartyCookies,\s*thirdPartyCookiesEnabled\);/,
+    /bool get effectiveThirdPartyCookiesEnabled\s*=>\s*_forcedByTrackingProtection\(\s*TrackingProtectionForce\.thirdPartyCookies,\s*stored:\s*thirdPartyCookiesEnabled\);/,
     'WebViewModel must derive third-party cookies from the umbrella',
   );
   // Stored separately from effective, so turning the umbrella off restores

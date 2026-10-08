@@ -75,7 +75,7 @@ void main() {
 
   test('an import applies to the running app as well as to disk', () async {
     final prefs = await SharedPreferences.getInstance();
-    await writeExportedAppPrefs(prefs, {'showStatsBanner': false});
+    await writeExportedAppPrefs(prefs, values: {'showStatsBanner': false});
     expect(AppPref.showStatsBanner.value, isFalse);
     expect(prefs.get('showStatsBanner'), false);
   });

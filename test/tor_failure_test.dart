@@ -173,7 +173,7 @@ void _authTests() {
 
     Future<void> bringUp() async {
       await engine.acquire(TorSiteHolder('holder'));
-      runtime.emit(const TorUp('127.0.0.1', 9999));
+      runtime.emit(const TorUp('127.0.0.1', port: 9999));
       await Future<void>.delayed(Duration.zero);
     }
 
@@ -203,7 +203,7 @@ void _authTests() {
       await other.dispose();
       final second = TorEngine(runtime: runtime, sessionSecret: 'other');
       await second.acquire(TorSiteHolder('h2'));
-      runtime.emit(const TorUp('127.0.0.1', 9999));
+      runtime.emit(const TorUp('127.0.0.1', port: 9999));
       await Future<void>.delayed(Duration.zero);
       expect(second.socksFor('site-a')!.password, isNot(first),
           reason: 'circuits must not outlive the process');

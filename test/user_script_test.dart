@@ -173,7 +173,7 @@ void main() {
         ],
       };
 
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
 
       expect(model.userScripts, hasLength(1));
       expect(model.userScripts[0].name, equals('My Script'));
@@ -200,7 +200,7 @@ void main() {
         'blockAutoRedirects': true,
       };
 
-      final model = WebViewModel.fromJson(json, null);
+      final model = WebViewModel.fromJson(json, stateSetterF: null);
 
       expect(model.userScripts, isEmpty);
     });
@@ -215,7 +215,8 @@ void main() {
         initUrl: 'https://example.com',
         enabledGlobalScriptIds: {'us-aaa', 'us-bbb'},
       );
-      final restored = WebViewModel.fromJson(model.toJson(), null);
+      final restored =
+          WebViewModel.fromJson(model.toJson(), stateSetterF: null);
       expect(restored.enabledGlobalScriptIds, {'us-aaa', 'us-bbb'});
     });
 
@@ -237,7 +238,7 @@ void main() {
           'contentBlockEnabled': true,
           'blockAutoRedirects': true,
         };
-        final model = WebViewModel.fromJson(json, null);
+        final model = WebViewModel.fromJson(json, stateSetterF: null);
         expect(model.enabledGlobalScriptIds, isEmpty);
       },
     );

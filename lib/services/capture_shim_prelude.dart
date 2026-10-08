@@ -27,7 +27,7 @@ String captureShim(
   return '''
 (function() {
   'use strict';
-${_prelude(kind, jsonEncode(deviceLabel))}
+${_prelude(kind, label: jsonEncode(deviceLabel))}
 ${device == null ? '' : _devicePrelude(device)}
 $body
 ${device == null ? '' : _deviceEpilogue(device)}
@@ -35,7 +35,7 @@ ${device == null ? '' : _deviceEpilogue(device)}
 ''';
 }
 
-String _prelude(CaptureKind kind, String label) => '''
+String _prelude(CaptureKind kind, {required String label}) => '''
   if (globalThis.__ws_${kind.shimGroup}_shim__) return;
   globalThis.__ws_${kind.shimGroup}_shim__ = true;
 

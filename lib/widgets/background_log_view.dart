@@ -81,9 +81,9 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
   Future<void> _copy(List<LogEntry> visible) => _copyGuard.run(
     () => copyLogs(
       context,
-      visible,
+      entries: visible,
       consent: AppLocalizations.of(context).devToolsBackgroundCopySensitiveBody,
-      format: (includeSensitive) => BackgroundLog.format(
+      format: ({required includeSensitive}) => BackgroundLog.format(
         visible,
         includeSensitive: includeSensitive,
         state: _state,
@@ -97,7 +97,7 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
     if (!mounted) return;
     await saveLogText(
       context,
-      BackgroundLog.format(entries, state: state),
+      text: BackgroundLog.format(entries, state: state),
       fileNamePrefix: 'webspace_background_log',
     );
   }
@@ -127,25 +127,25 @@ class _BackgroundLogViewState extends State<BackgroundLogView> {
                   ToolActions(wrap: true, [
                     toolButton(
                       Icons.refresh,
-                      loc.devToolsRefresh,
-                      () => _load(withState: true),
+                      label: loc.devToolsRefresh,
+                      onPressed: () => _load(withState: true),
                       key: const Key('background-log-refresh'),
                     ),
                     toolButton(
                       Icons.save,
-                      loc.devToolsExport,
-                      _entries.isEmpty ? null : _export,
+                      label: loc.devToolsExport,
+                      onPressed: _entries.isEmpty ? null : _export,
                     ),
                     toolButton(
                       Icons.copy,
-                      loc.devToolsCopy,
-                      visible.isEmpty ? null : () => _copy(visible),
+                      label: loc.devToolsCopy,
+                      onPressed: visible.isEmpty ? null : () => _copy(visible),
                       key: const Key('background-log-copy'),
                     ),
                     toolButton(
                       Icons.delete_outline,
-                      loc.devToolsClear,
-                      _entries.isEmpty ? null : _clear,
+                      label: loc.devToolsClear,
+                      onPressed: _entries.isEmpty ? null : _clear,
                     ),
                   ]),
                   SensitiveSwitch(

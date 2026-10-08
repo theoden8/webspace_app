@@ -59,8 +59,8 @@ class RecordingUpstream {
   final List<String> requestLines = [];
   final List<String> credentials = [];
 
-  RecordingUpstream._(this._server, this.label) {
-    listenFixture(_server, (socket) {
+  RecordingUpstream._(this._server, {required this.label}) {
+    listenFixture(_server, onEvent: (socket) {
       final buffer = StringBuffer();
       late StreamSubscription sub;
       sub = socket.listen(
@@ -90,7 +90,7 @@ class RecordingUpstream {
 
   static Future<RecordingUpstream> start(String label) async {
     final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
-    return RecordingUpstream._(server, label);
+    return RecordingUpstream._(server, label: label);
   }
 
   int get port => _server.port;

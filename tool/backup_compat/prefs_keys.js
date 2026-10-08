@@ -15,7 +15,7 @@ const GETTER_TYPES = { bool: 'Bool', int: 'Int', double: 'Double', String: 'Stri
 // A key is a literal, `AppPref.<name>.key`, or an identifier.
 const KEY = String.raw`(?:'([^'$]+)'|AppPref\.(\w+)\.key|([A-Za-z_]\w*))`;
 const CALL = new RegExp(String.raw`\.(set|get)(Bool|Int|Double|StringList|String)\(\s*${KEY}`, 'g');
-const READ_PREF_AS = new RegExp(String.raw`readPrefAs<(bool|int|double|String)>\(\s*\w+\s*,\s*${KEY}`, 'g');
+const READ_PREF_AS = new RegExp(String.raw`readPrefAs<(bool|int|double|String)>\(\s*\w+\s*,\s*(?:key:\s*)?${KEY}`, 'g');
 const CONST = /(?:static\s+)?const\s+String\s+([A-Za-z_]\w*)\s*=\s*'([^'$]+)'/g;
 const TYPED_DECL = /(?:const|final)\s+(String|bool|int|double)\s+([A-Za-z_]\w*)\s*=/g;
 
@@ -68,7 +68,7 @@ function scanRegistry(sources, globals) {
   const enumStart = src.indexOf('enum AppPref<');
   if (enumStart >= 0) {
     const block = src.slice(enumStart, src.indexOf('const AppPref(', enumStart));
-    const entry = /^\s*(\w+)\(\s*'([^']+)'\s*,\s*(true|false|-?\d+(?:\.\d+)?|'[^']*')\s*(?:,\s*legacyKey:\s*'([^']+)'\s*)?,?\s*\)\s*[,;]/gm;
+    const entry = /^\s*(\w+)\(\s*'([^']+)'\s*,\s*(?:fallback:\s*)?(true|false|-?\d+(?:\.\d+)?|'[^']*')\s*(?:,\s*legacyKey:\s*'([^']+)'\s*)?,?\s*\)\s*[,;]/gm;
     const out = { types: {}, names: {}, legacy: {} };
     for (const m of block.matchAll(entry)) {
       const type = literalType(m[3]);

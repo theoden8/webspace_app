@@ -147,7 +147,7 @@ void main() {
     // The callback must allow about:blank and about:srcdoc without domain comparison
 
     /// Simulates the shouldOverrideUrlLoading callback logic
-    bool shouldAllowNavigation(String requestUrl, String initUrl) {
+    bool shouldAllowNavigation(String requestUrl, {required String initUrl}) {
       // Allow about:blank and about:srcdoc - required for Cloudflare Turnstile iframes
       if (requestUrl == 'about:blank' || requestUrl == 'about:srcdoc') {
         return true;
@@ -161,15 +161,27 @@ void main() {
     }
 
     test('about:blank should be allowed regardless of initial URL', () {
-      expect(shouldAllowNavigation('about:blank', 'https://gitlab.com'), isTrue);
-      expect(shouldAllowNavigation('about:blank', 'https://github.com'), isTrue);
-      expect(shouldAllowNavigation('about:blank', 'https://example.com'), isTrue);
+      expect(
+          shouldAllowNavigation('about:blank', initUrl: 'https://gitlab.com'),
+          isTrue);
+      expect(
+          shouldAllowNavigation('about:blank', initUrl: 'https://github.com'),
+          isTrue);
+      expect(
+          shouldAllowNavigation('about:blank', initUrl: 'https://example.com'),
+          isTrue);
     });
 
     test('about:srcdoc should be allowed regardless of initial URL', () {
-      expect(shouldAllowNavigation('about:srcdoc', 'https://gitlab.com'), isTrue);
-      expect(shouldAllowNavigation('about:srcdoc', 'https://github.com'), isTrue);
-      expect(shouldAllowNavigation('about:srcdoc', 'https://example.com'), isTrue);
+      expect(
+          shouldAllowNavigation('about:srcdoc', initUrl: 'https://gitlab.com'),
+          isTrue);
+      expect(
+          shouldAllowNavigation('about:srcdoc', initUrl: 'https://github.com'),
+          isTrue);
+      expect(
+          shouldAllowNavigation('about:srcdoc', initUrl: 'https://example.com'),
+          isTrue);
     });
 
     test('getNormalizedDomain returns different value for about: URLs', () {
@@ -180,13 +192,25 @@ void main() {
     });
 
     test('same domain navigation should be allowed', () {
-      expect(shouldAllowNavigation('https://gitlab.com/dashboard', 'https://gitlab.com'), isTrue);
-      expect(shouldAllowNavigation('https://www.gitlab.com/login', 'https://gitlab.com'), isTrue);
+      expect(
+          shouldAllowNavigation('https://gitlab.com/dashboard',
+              initUrl: 'https://gitlab.com'),
+          isTrue);
+      expect(
+          shouldAllowNavigation('https://www.gitlab.com/login',
+              initUrl: 'https://gitlab.com'),
+          isTrue);
     });
 
     test('different domain navigation should be blocked', () {
-      expect(shouldAllowNavigation('https://github.com', 'https://gitlab.com'), isFalse);
-      expect(shouldAllowNavigation('https://example.com', 'https://gitlab.com'), isFalse);
+      expect(
+          shouldAllowNavigation('https://github.com',
+              initUrl: 'https://gitlab.com'),
+          isFalse);
+      expect(
+          shouldAllowNavigation('https://example.com',
+              initUrl: 'https://gitlab.com'),
+          isFalse);
     });
   });
 }

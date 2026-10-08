@@ -37,7 +37,7 @@ class MainFrameLoadSignal {
         url = null,
         errorType = null;
 
-  const MainFrameLoadSignal.failed(String this.url, String this.errorType)
+  const MainFrameLoadSignal.failed(String this.url, {required String this.errorType})
       : phase = MainFrameLoadPhase.failed;
 }
 

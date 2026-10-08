@@ -83,23 +83,24 @@ class TabsSheet extends StatefulWidget {
   /// Index into [sites] of the site whose tabs open first.
   final int currentIndex;
 
-  final void Function(int siteIndex, String tabId) onOpenTab;
+  final void Function(int siteIndex, {required String tabId}) onOpenTab;
   final void Function(int siteIndex) onNewTab;
 
   /// Opens web search for the site on screen (LIR-029); null hides it.
   final VoidCallback? onWebSearch;
-  final void Function(int siteIndex, String tabId) onCloseTab;
-  final void Function(int siteIndex, String tabId) onCloseSubtree;
+  final void Function(int siteIndex, {required String tabId}) onCloseTab;
+  final void Function(int siteIndex, {required String tabId}) onCloseSubtree;
 
   /// A tab dragged onto a row or past the last row (TAB-015). Returns whether
   /// the move was made. Null leaves the rows where they are.
-  final bool Function(int siteIndex, String tabId, TabDrop drop)? onMoveTab;
+  final bool Function(int siteIndex,
+      {required String tabId, required TabDrop drop})? onMoveTab;
 
   /// A site's heading dropped on another's in the All sites view (TAB-016):
   /// the site takes the other's place. Returns every site in its new order,
   /// or null when the move was refused. Null leaves the headings in place.
-  final List<TabsSheetSite>? Function(String siteId, String ontoSiteId)?
-      onMoveSite;
+  final List<TabsSheetSite>? Function(String siteId,
+      {required String ontoSiteId})? onMoveSite;
 
   /// The jump Back would undo from the tab on screen (TAB-019): the tab it
   /// came from is marked as where the user was, and its tree is listed.
@@ -111,7 +112,7 @@ class TabsSheet extends StatefulWidget {
 
 /// What a drag carries: the tab, its site, and the ids it may not land in.
 class _DraggedTab {
-  const _DraggedTab(this.siteIndex, this.tabId, this.subtree);
+  const _DraggedTab(this.siteIndex, {required this.tabId, required this.subtree});
 
   final int siteIndex;
   final String tabId;
@@ -188,9 +189,9 @@ class _TabsSheetState extends State<TabsSheet> {
             Padding(
               padding: const EdgeInsets.fromLTRB(
                   Spacing.lg, Spacing.xs, Spacing.sm, 0),
-              child: _header(site, loc, theme),
+              child: _header(site, loc: loc, theme: theme),
             ),
-            if (_shown.length > 1) _scopeSwitch(loc, theme),
+            if (_shown.length > 1) _scopeSwitch(loc, theme: theme),
             Flexible(
               child: ListView(
                 key: _listKey,
@@ -198,10 +199,10 @@ class _TabsSheetState extends State<TabsSheet> {
                 shrinkWrap: true,
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
                 children: _allSites
-                    ? _allSitesRows(loc, theme)
+                    ? _allSitesRows(loc, theme: theme)
                     : [
-                        ..._rowsFor(site, loc, theme),
-                        ..._otherTrees(site, loc, theme),
+                        ..._rowsFor(site, loc: loc, theme: theme),
+                        ..._otherTrees(site, loc: loc, theme: theme),
                       ],
               ),
             ),
@@ -223,7 +224,8 @@ class _TabsSheetState extends State<TabsSheet> {
   /// The title, then Web search and New tab. A label that leaves the title
   /// too little room drops to its icon, Web search first, so the row fits a
   /// phone in every locale.
-  Widget _header(TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
+  Widget _header(TabsSheetSite site,
+      {required AppLocalizations loc, required ThemeData theme}) {
     return LayoutBuilder(builder: (context, constraints) {
       final scaler = MediaQuery.textScalerOf(context);
       final direction = Directionality.of(context);
@@ -252,8 +254,8 @@ class _TabsSheetState extends State<TabsSheet> {
       if (needed() > constraints.maxWidth) searchLabel = false;
       if (needed() > constraints.maxWidth) newTabLabel = false;
 
-      Widget action(IconData icon, String label, bool withLabel,
-              VoidCallback onPressed) =>
+      Widget action(IconData icon, {required String label, required bool withLabel,
+              required VoidCallback onPressed}) =>
           withLabel
               ? TextButton.icon(
                   onPressed: _closing(onPressed),
@@ -279,10 +281,10 @@ class _TabsSheetState extends State<TabsSheet> {
             ),
           ),
           if (search)
-            action(Icons.travel_explore, loc.webSearchMenu, searchLabel,
-                widget.onWebSearch!),
-          action(Icons.add, loc.tabsNewTab, newTabLabel,
-              () => widget.onNewTab(site.index)),
+            action(Icons.travel_explore, label: loc.webSearchMenu, withLabel: searchLabel,
+                onPressed: widget.onWebSearch!),
+          action(Icons.add, label: loc.tabsNewTab, withLabel: newTabLabel,
+              onPressed: () => widget.onNewTab(site.index)),
         ],
       );
     });
@@ -300,7 +302,8 @@ class _TabsSheetState extends State<TabsSheet> {
         ),
       );
 
-  Widget _scopeSwitch(AppLocalizations loc, ThemeData theme) => Padding(
+  Widget _scopeSwitch(AppLocalizations loc, {required ThemeData theme}) =>
+      Padding(
         padding: const EdgeInsets.fromLTRB(
             Spacing.lg, Spacing.xs, Spacing.lg, Spacing.xs),
         child: SegmentedButton<bool>(
@@ -314,23 +317,24 @@ class _TabsSheetState extends State<TabsSheet> {
         ),
       );
 
-  List<Widget> _allSitesRows(AppLocalizations loc, ThemeData theme) {
+  List<Widget> _allSitesRows(AppLocalizations loc, {required ThemeData theme}) {
     final out = <Widget>[];
     for (final s in _shown) {
       final label =
           loc.tabsSheetTitle(s.model.getDisplayName(), s.model.tabs.length);
-      final heading = _heading(label, theme, site: s);
+      final heading = _heading(label, theme: theme, site: s);
       out.add(widget.onMoveSite == null
           ? heading
-          : _siteDragAndDrop(s, heading, label, theme));
-      out.addAll(_rowsFor(s, loc, theme));
+          : _siteDragAndDrop(s, heading: heading, label: label, theme: theme));
+      out.addAll(_rowsFor(s, loc: loc, theme: theme));
     }
     return out;
   }
 
   /// A heading over a site's rows, marked with the site's own container when
   /// it heads that site's tree.
-  Widget _heading(String label, ThemeData theme, {TabsSheetSite? site}) =>
+  Widget _heading(String label,
+          {required ThemeData theme, TabsSheetSite? site}) =>
       Padding(
         padding: const EdgeInsets.fromLTRB(
             Spacing.sm, Spacing.md, Spacing.sm, Spacing.xs),
@@ -360,18 +364,19 @@ class _TabsSheetState extends State<TabsSheet> {
   /// user was (TAB-019), so the way back is listed too. The rows stay in that
   /// site's tree: a tap opens that site on the tab, a close closes it there,
   /// and they are not dragged from here.
-  List<Widget> _otherTrees(
-      TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
+  List<Widget> _otherTrees(TabsSheetSite site,
+      {required AppLocalizations loc, required ThemeData theme}) {
     final back = widget.wayBack;
     final listed = TabListEngine.otherTrees(
       containers:
-          TabListEngine.branchContainers(_treeOf(site), site.model.activeTabId),
+          TabListEngine.branchContainers(_treeOf(site),
+              activeTabId: site.model.activeTabId),
       selected: site.model.runningIdentity.siteId,
       others: [
         for (final other in _sites)
           if (other.model.siteId != site.model.siteId) _treeOf(other),
       ],
-      keep: (siteId, t) => back?.leadsBackTo(siteId, t.id) ?? false,
+      keep: (siteId, {required tab}) => back?.leadsBackTo(siteId, tabId: tab.id) ?? false,
     );
     final out = <Widget>[];
     for (final tree in listed) {
@@ -379,21 +384,21 @@ class _TabsSheetState extends State<TabsSheet> {
       final rows = _unfolded.contains(tree.siteId)
           ? TabLifecycleEngine.treeOrder(other.model.tabs)
           : tree.rows;
-      out.add(_heading(loc.tabsInSite(other.model.getDisplayName()), theme,
+      out.add(_heading(loc.tabsInSite(other.model.getDisplayName()), theme: theme,
           site: other));
-      out.addAll(_rowsOf(other, rows, loc, theme, draggable: false));
+      out.addAll(_rowsOf(other, rows: rows, loc: loc, theme: theme, draggable: false));
       final folded = other.model.tabs.length - rows.length;
-      if (folded > 0) out.add(_foldRow(other, folded, loc, theme));
+      if (folded > 0) out.add(_foldRow(other, count: folded, loc: loc, theme: theme));
     }
     return out;
   }
 
-  TabTree _treeOf(TabsSheetSite s) => TabTree(s.model.siteId, s.model.tabs,
-      (t) => (s.model.hostOf(t) ?? s.model).siteId);
+  TabTree _treeOf(TabsSheetSite s) => TabTree(s.model.siteId,
+      tabs: s.model.tabs, runsAs: (t) => (s.model.hostOf(t) ?? s.model).siteId);
 
   /// The rest of another site's tree, folded away; a tap shows it whole.
-  Widget _foldRow(TabsSheetSite other, int count, AppLocalizations loc,
-          ThemeData theme) =>
+  Widget _foldRow(TabsSheetSite other, {required int count, required AppLocalizations loc,
+          required ThemeData theme}) =>
       InkWell(
         onTap: () => setState(() => _unfolded.add(other.model.siteId)),
         borderRadius: BorderRadius.circular(Radii.lg),
@@ -421,8 +426,10 @@ class _TabsSheetState extends State<TabsSheet> {
 
   /// A long press lifts a site's heading; a drop on another heading puts the
   /// site in that one's place, as the drawer and the tab strip do (TAB-016).
-  Widget _siteDragAndDrop(
-      TabsSheetSite site, Widget heading, String label, ThemeData theme) {
+  Widget _siteDragAndDrop(TabsSheetSite site,
+      {required Widget heading,
+      required String label,
+      required ThemeData theme}) {
     final id = site.model.siteId;
     final key = 'site:$id';
     int position(String siteId) =>
@@ -432,7 +439,7 @@ class _TabsSheetState extends State<TabsSheet> {
       onWillAcceptWithDetails: (d) => d.data.siteId != id,
       onMove: (_) => _hover(key),
       onLeave: (_) => _unhover(key),
-      onAcceptWithDetails: (d) => _dropSite(d.data.siteId, id),
+      onAcceptWithDetails: (d) => _dropSite(d.data.siteId, ontoSiteId: id),
       builder: (context, candidates, _) {
         final from = candidates.isEmpty ? null : candidates.first?.siteId;
         // The site lands in this one's place: above it coming from below,
@@ -445,7 +452,7 @@ class _TabsSheetState extends State<TabsSheet> {
           onDragUpdate: (d) => _autoScrollAt(d.globalPosition),
           onDragEnd: (_) => _stopAutoScroll(),
           onDraggableCanceled: (_, _) => _stopAutoScroll(),
-          feedback: _feedback(label, theme),
+          feedback: _feedback(label, theme: theme),
           childWhenDragging:
               Opacity(opacity: TabRows.draggingOpacity, child: heading),
           child: Stack(
@@ -469,7 +476,7 @@ class _TabsSheetState extends State<TabsSheet> {
   }
 
   /// Marks [key], and [zone] in it, as where the drag in progress would land.
-  void _hover(String key, [TabDropZone? zone]) {
+  void _hover(String key, {TabDropZone? zone}) {
     if (_dropKey == key && _dropZone == zone) return;
     setState(() {
       _dropKey = key;
@@ -487,27 +494,29 @@ class _TabsSheetState extends State<TabsSheet> {
         action();
       };
 
-  void _dropSite(String siteId, String ontoSiteId) {
+  void _dropSite(String siteId, {required String ontoSiteId}) {
     _stopAutoScroll();
-    final moved = widget.onMoveSite?.call(siteId, ontoSiteId);
+    final moved = widget.onMoveSite?.call(siteId, ontoSiteId: ontoSiteId);
     setState(() {
       _dropKey = _dropZone = null;
       if (moved != null) _sites = moved;
     });
   }
 
-  List<Widget> _rowsFor(
-      TabsSheetSite site, AppLocalizations loc, ThemeData theme) {
-    final out = _rowsOf(
-        site, TabLifecycleEngine.treeOrder(site.model.tabs), loc, theme,
+  List<Widget> _rowsFor(TabsSheetSite site,
+      {required AppLocalizations loc, required ThemeData theme}) {
+    final out = _rowsOf(site,
+        rows: TabLifecycleEngine.treeOrder(site.model.tabs),
+        loc: loc,
+        theme: theme,
         draggable: widget.onMoveTab != null);
-    if (widget.onMoveTab != null) out.add(_endTarget(site, theme));
+    if (widget.onMoveTab != null) out.add(_endTarget(site, theme: theme));
     return out;
   }
 
-  List<Widget> _rowsOf(TabsSheetSite site, List<TabRow> rows,
-      AppLocalizations loc, ThemeData theme,
-      {required bool draggable}) {
+  List<Widget> _rowsOf(TabsSheetSite site, {required List<TabRow> rows,
+      required AppLocalizations loc, required ThemeData theme,
+     required bool draggable}) {
     final hidden = <String>{};
     final out = <Widget>[];
     for (final row in rows) {
@@ -518,18 +527,21 @@ class _TabsSheetState extends State<TabsSheet> {
       if (row.depth > 0 &&
           parentId != null &&
           (hidden.contains(parentId) ||
-              _collapsed.contains(_keyOf(site, parentId)))) {
+              _collapsed.contains(_keyOf(site, tabId: parentId)))) {
         hidden.add(row.tab.id);
         continue;
       }
-      out.add(_row(site, row, loc, theme, draggable: draggable));
+      out.add(
+          _row(site, row: row, loc: loc, theme: theme, draggable: draggable));
     }
     return out;
   }
 
-  Widget _row(TabsSheetSite site, TabRow row, AppLocalizations loc,
-      ThemeData theme,
-      {required bool draggable}) {
+  Widget _row(TabsSheetSite site,
+      {required TabRow row,
+      required AppLocalizations loc,
+      required ThemeData theme,
+      required bool draggable}) {
     final tab = row.tab;
     // A hosted tab runs as another site (LIR-018), a foreign one as its owner
     // in another site's domain (LIR-034): the row shows the site it runs as
@@ -541,26 +553,26 @@ class _TabsSheetState extends State<TabsSheet> {
         ? domain
         : '${loc.tabsRunsAs(identity.getDisplayName())} · $domain';
     final secondLine =
-        widget.wayBack?.leadsBackTo(site.model.siteId, tab.id) ?? false
+        widget.wayBack?.leadsBackTo(site.model.siteId, tabId: tab.id) ?? false
             ? '$runsAs · ${loc.tabsWhereYouWere}'
             : runsAs;
     final isActive = tab.id == site.model.activeTabId;
     final isLoaded = isActive && site.isLoaded;
     final isOnScreen = isLoaded && site.isCurrent;
-    final collapseKey = _keyOf(site, tab.id);
+    final collapseKey = _keyOf(site, tabId: tab.id);
     final collapsed = _collapsed.contains(collapseKey);
     final shape = BorderRadius.circular(Radii.lg);
-    Widget close(String tooltip, IconData icon,
-            void Function(int siteIndex, String tabId) onClose) =>
+    Widget close(String tooltip, {required IconData icon,
+            required void Function(int siteIndex, {required String tabId}) onClose}) =>
         IconButton(
           visualDensity: VisualDensity.compact,
           iconSize: IconSizes.action,
           tooltip: tooltip,
           icon: Icon(icon),
-          onPressed: _closing(() => onClose(site.index, tab.id)),
+          onPressed: _closing(() => onClose(site.index, tabId: tab.id)),
         );
     final rowBody = InkWell(
-      onTap: _closing(() => widget.onOpenTab(site.index, tab.id)),
+      onTap: _closing(() => widget.onOpenTab(site.index, tabId: tab.id)),
       borderRadius: shape,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
@@ -617,7 +629,7 @@ class _TabsSheetState extends State<TabsSheet> {
                             collapsed && row.childCount > 0
                                 ? loc.tabsHiddenChildren(
                                     TabLifecycleEngine.descendants(
-                                            site.model.tabs, tab.id)
+                                            site.model.tabs, id: tab.id)
                                         .length)
                                 : secondLine,
                             maxLines: 1,
@@ -633,9 +645,9 @@ class _TabsSheetState extends State<TabsSheet> {
               ),
             ),
             if (row.childCount > 0)
-              close(loc.tabsCloseSubtree, Icons.layers_clear_outlined,
-                  widget.onCloseSubtree),
-            close(loc.tabsCloseTab, Icons.close, widget.onCloseTab),
+              close(loc.tabsCloseSubtree, icon: Icons.layers_clear_outlined,
+                  onClose: widget.onCloseSubtree),
+            close(loc.tabsCloseTab, icon: Icons.close, onClose: widget.onCloseTab),
           ],
         ),
       ),
@@ -655,24 +667,24 @@ class _TabsSheetState extends State<TabsSheet> {
           : rowBody,
     );
     if (!draggable || widget.onMoveTab == null) return drawn;
-    return _dragAndDrop(site, row, drawn, theme);
+    return _dragAndDrop(site, row: row, drawn: drawn, theme: theme);
   }
 
-  String _keyOf(TabsSheetSite site, String tabId) =>
+  String _keyOf(TabsSheetSite site, {required String tabId}) =>
       '${site.model.siteId}/$tabId';
 
   /// A long press lifts the row with its subtree; a drop in the top or
   /// bottom quarter of another row lands beside it, and in the middle, under
   /// it (TAB-015).
-  Widget _dragAndDrop(
-      TabsSheetSite site, TabRow row, Widget drawn, ThemeData theme) {
+  Widget _dragAndDrop(TabsSheetSite site,
+      {required TabRow row, required Widget drawn, required ThemeData theme}) {
     final tab = row.tab;
-    final key = _keyOf(site, tab.id);
+    final key = _keyOf(site, tabId: tab.id);
     final rowKey = _rowKeys.putIfAbsent(key, GlobalKey.new);
     final expanded = row.childCount > 0 && !_collapsed.contains(key);
-    final dragged = _DraggedTab(site.index, tab.id, {
+    final dragged = _DraggedTab(site.index, tabId: tab.id, subtree: {
       tab.id,
-      ...TabLifecycleEngine.descendants(site.model.tabs, tab.id)
+      ...TabLifecycleEngine.descendants(site.model.tabs, id: tab.id)
           .map((t) => t.id),
     });
 
@@ -691,12 +703,12 @@ class _TabsSheetState extends State<TabsSheet> {
     return DragTarget<_DraggedTab>(
       onWillAcceptWithDetails: (d) => accepts(d.data),
       onMove: (d) {
-        if (accepts(d.data)) _hover(key, zoneAt(d.offset));
+        if (accepts(d.data)) _hover(key, zone: zoneAt(d.offset));
       },
       onLeave: (_) => _unhover(key),
       onAcceptWithDetails: (d) {
         final zone = zoneAt(d.offset);
-        _drop(d.data, TabDrop.onto(tab.id, zone, targetExpanded: expanded),
+        _drop(d.data, drop: TabDrop.onto(tab.id, zone: zone, targetExpanded: expanded),
             expand: zone == TabDropZone.into ? key : null);
       },
       builder: (context, candidates, _) {
@@ -712,7 +724,7 @@ class _TabsSheetState extends State<TabsSheet> {
           onDragEnd: (_) => _stopAutoScroll(),
           onDraggableCanceled: (_, _) => _stopAutoScroll(),
           feedback: _feedback(
-              tab.title?.isNotEmpty == true ? tab.title! : tab.url, theme),
+              tab.title?.isNotEmpty == true ? tab.title! : tab.url, theme: theme),
           childWhenDragging:
               Opacity(opacity: TabRows.draggingOpacity, child: drawn),
           child: Stack(
@@ -749,13 +761,13 @@ class _TabsSheetState extends State<TabsSheet> {
   }
 
   /// Past a site's last row: the dragged tab becomes its last root.
-  Widget _endTarget(TabsSheetSite site, ThemeData theme) {
+  Widget _endTarget(TabsSheetSite site, {required ThemeData theme}) {
     final key = 'end:${site.model.siteId}';
     return DragTarget<_DraggedTab>(
       onWillAcceptWithDetails: (d) => d.data.siteIndex == site.index,
       onMove: (_) => _hover(key),
       onLeave: (_) => _unhover(key),
-      onAcceptWithDetails: (d) => _drop(d.data, const TabDrop.toEnd()),
+      onAcceptWithDetails: (d) => _drop(d.data, drop: const TabDrop.toEnd()),
       builder: (context, candidates, _) => SizedBox(
         height: Spacing.xl,
         child: candidates.isNotEmpty
@@ -772,16 +784,19 @@ class _TabsSheetState extends State<TabsSheet> {
     );
   }
 
-  void _drop(_DraggedTab d, TabDrop drop, {String? expand}) {
+  void _drop(_DraggedTab d, {required TabDrop drop,String? expand}) {
     _stopAutoScroll();
-    final moved = widget.onMoveTab?.call(d.siteIndex, d.tabId, drop) ?? false;
+    final moved =
+        widget.onMoveTab?.call(d.siteIndex, tabId: d.tabId, drop: drop) ??
+            false;
     setState(() {
       _dropKey = _dropZone = null;
       if (moved && expand != null) _collapsed.remove(expand);
     });
   }
 
-  Widget _feedback(String label, ThemeData theme) => Transform.translate(
+  Widget _feedback(String label, {required ThemeData theme}) =>
+      Transform.translate(
         // Above and beside the finger, so the row it names stays readable.
         offset: const Offset(-Spacing.lg, -Spacing.xl * 2),
         child: Material(

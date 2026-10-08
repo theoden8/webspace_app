@@ -26,7 +26,7 @@ void main() {
       final originalSiteId = model.siteId;
 
       final json = model.toJson();
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
 
       expect(restored.siteId, equals(originalSiteId));
     });
@@ -46,7 +46,7 @@ void main() {
         // No siteId field
       };
 
-      final model = WebViewModel.fromJson(legacyJson, null);
+      final model = WebViewModel.fromJson(legacyJson, stateSetterF: null);
 
       // Should have generated a new siteId
       expect(model.siteId, isNotEmpty);
@@ -67,7 +67,7 @@ void main() {
         'incognito': false,
       };
 
-      final model = WebViewModel.fromJson(legacyJson, null);
+      final model = WebViewModel.fromJson(legacyJson, stateSetterF: null);
 
       // Should have generated a new siteId
       expect(model.siteId, isNotEmpty);
@@ -87,7 +87,7 @@ void main() {
         // No incognito field
       };
 
-      final model = WebViewModel.fromJson(legacyJson, null);
+      final model = WebViewModel.fromJson(legacyJson, stateSetterF: null);
 
       expect(model.incognito, isFalse);
     });
@@ -109,7 +109,7 @@ void main() {
         // No siteId, no incognito
       };
 
-      final model = WebViewModel.fromJson(legacyJson, null);
+      final model = WebViewModel.fromJson(legacyJson, stateSetterF: null);
 
       // Verify all fields are preserved
       expect(model.initUrl, equals('https://github.com/user'));
@@ -435,7 +435,7 @@ void main() {
       );
 
       final json = model.toJson();
-      final restored = WebViewModel.fromJson(json, null);
+      final restored = WebViewModel.fromJson(json, stateSetterF: null);
 
       expect(restored.incognito, isTrue);
     });

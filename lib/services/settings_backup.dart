@@ -279,7 +279,7 @@ class SettingsBackupService {
 
       if (!isMobile) {
         final filePath = outputPath.endsWith('.json') ? outputPath : '$outputPath.json';
-        await hostWriteFileText(filePath, jsonString);
+        await hostWriteFileText(filePath, contents: jsonString);
       }
 
       if (context.mounted) {
@@ -365,11 +365,11 @@ class SettingsBackupService {
 
   /// Non-secure cookies from the backup are restored.
   static List<WebViewModel> restoreSites(
-    SettingsBackup backup,
-    Function? stateSetterF,
-  ) {
+    SettingsBackup backup, {
+    required Function? stateSetterF,
+  }) {
     return backup.sites.map((json) {
-      return WebViewModel.fromJson(json, stateSetterF);
+      return WebViewModel.fromJson(json, stateSetterF: stateSetterF);
     }).toList();
   }
 

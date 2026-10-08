@@ -109,7 +109,7 @@ String languageLabelForTag(String tag) => kLanguageNativeNames[tag] ?? tag;
 /// universal fallback. Matching is tried most- to least-specific:
 /// exact (language+script+country) -> language+script -> language.
 Locale resolveSupportedLocale(
-    List<Locale>? preferred, Iterable<Locale> supported) {
+    List<Locale>? preferred, {required Iterable<Locale> supported}) {
   if (preferred != null) {
     for (final pref in preferred) {
       for (final s in supported) {

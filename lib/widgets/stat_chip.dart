@@ -6,7 +6,7 @@ import 'package:webspace/theme/design_tokens.dart';
 
 /// A number over its label, tinted by what it counts.
 class StatChip extends StatelessWidget {
-  const StatChip(this.value, this.label, this.color, {super.key});
+  const StatChip(this.value, {required this.label, required this.color,super.key});
 
   final String value;
   final String label;
@@ -53,13 +53,16 @@ class DnsStatChips extends StatelessWidget {
     final loc = AppLocalizations.of(context);
     final rate = '${stats.blockRate.toStringAsFixed(1)}%';
     final chips = [
-      StatChip('${stats.total}', loc.devToolsDnsTotal, Colors.blue),
-      StatChip('${stats.allowed}', loc.devToolsDnsAllowed, Colors.green),
-      StatChip('${stats.blocked}', loc.devToolsDnsBlocked, Colors.red),
+      StatChip('${stats.total}',
+          label: loc.devToolsDnsTotal, color: Colors.blue),
+      StatChip('${stats.allowed}',
+          label: loc.devToolsDnsAllowed, color: Colors.green),
+      StatChip('${stats.blocked}',
+          label: loc.devToolsDnsBlocked, color: Colors.red),
       StatChip(
         rate,
-        loc.devToolsDnsBlockRate,
-        stats.blockRate > 0 ? Colors.orange : Colors.grey,
+        label: loc.devToolsDnsBlockRate,
+        color: stats.blockRate > 0 ? Colors.orange : Colors.grey,
       ),
     ];
     return Padding(

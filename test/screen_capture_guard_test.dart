@@ -47,26 +47,26 @@ void main() {
   group('ScreenCaptureGuard', () {
     test('sends a value only when it changes', () async {
       final guard = ScreenCaptureGuard(supported: true, channel: _channel);
-      await guard.apply(false);
-      await guard.apply(false);
-      await guard.apply(true);
-      await guard.apply(true);
-      await guard.apply(false);
+      await guard.apply(blocked: false);
+      await guard.apply(blocked: false);
+      await guard.apply(blocked: true);
+      await guard.apply(blocked: true);
+      await guard.apply(blocked: false);
       expect(sent, [false, true, false]);
     });
 
     test('sends nothing where the platform has no block', () async {
       final guard = ScreenCaptureGuard(supported: false, channel: _channel);
-      await guard.apply(true);
+      await guard.apply(blocked: true);
       expect(sent, isEmpty);
     });
 
     test('a failed call is sent again on the next apply', () async {
       final guard = ScreenCaptureGuard(supported: true, channel: _channel);
       failNext = PlatformException(code: 'boom');
-      await guard.apply(true);
-      await guard.apply(true);
-      await guard.apply(true);
+      await guard.apply(blocked: true);
+      await guard.apply(blocked: true);
+      await guard.apply(blocked: true);
       expect(sent, [true, true]);
     });
   });

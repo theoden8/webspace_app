@@ -35,7 +35,7 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
       navStateCaptured.add(model);
 
   @override
-  void noteUnloaded(WebViewModel model, UnloadReason reason) {}
+  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) {}
 
   @override
   List<WebViewModel> identities({int? except}) => sites;
@@ -54,8 +54,8 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   bool get torAvailable => false;
 
   /// Mirrors `_unloadSite` in main.dart.
-  Future<void> unload(int index, UnloadReason reason) =>
-      SiteUnloadEngine.unload(this, index, reason);
+  Future<void> unload(int index, {required UnloadReason reason}) =>
+      SiteUnloadEngine.unload(this, index: index, reason: reason);
 
   /// Monotonic counter mirroring `_setCurrentIndexVersion` in
   /// `_WebSpacePageState`. Every `switchToSite` call bumps it; the engine
@@ -77,8 +77,8 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
     if (index < 0 || index >= sites.length) return;
     final v = ++version;
 
-    final plan = SiteUnloadEngine.plan(this, Activating(index));
-    if (!await SiteUnloadEngine.apply(this, plan,
+    final plan = SiteUnloadEngine.plan(this, event: Activating(index));
+    if (!await SiteUnloadEngine.apply(this, plan: plan,
         isStale: () => v != version)) {
       return;
     }
@@ -146,12 +146,12 @@ class CookieIsolationTestHarness with SiteListState implements ResidencyHost {
   /// leak scenario the fix targets.
   Future<void> simulateSitePurgedFromPriorSession(int index) async {
     final model = sites[index];
-    await storage.saveCookiesForSite(model.siteId, const []);
+    await storage.saveCookiesForSite(model.siteId, cookies: const []);
     removeSiteAt(index);
   }
 
   /// Simulate a site receiving cookies (e.g., after login).
-  Future<void> simulateLogin(int index, List<Cookie> cookies) async {
+  Future<void> simulateLogin(int index, {required List<Cookie> cookies}) async {
     if (index < 0 || index >= sites.length) return;
     final model = sites[index];
     final url = Uri.parse(model.initUrl);
@@ -215,7 +215,7 @@ void main() {
       expect(harness.loadedIndices, contains(0));
 
       // Simulate login on site 0
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'user1_session', domain: 'github.com'),
         Cookie(name: 'user_id', value: '111', domain: 'github.com'),
       ]);
@@ -230,7 +230,7 @@ void main() {
       expect(harness.loadedIndices, containsAll([0, 2]));
 
       // Simulate login on site 2
-      await harness.simulateLogin(2, [
+      await harness.simulateLogin(2, cookies: [
         Cookie(name: 'gitlab_session', value: 'gitlab_abc', domain: 'gitlab.com'),
       ]);
 
@@ -265,7 +265,7 @@ void main() {
       expect(site2Saved[0].value, equals('gitlab_abc'));
 
       // Step 4: Login on site 1 (github user2)
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'session', value: 'user2_session', domain: 'github.com'),
         Cookie(name: 'user_id', value: '222', domain: 'github.com'),
       ]);
@@ -300,17 +300,17 @@ void main() {
 
       // Load all three sites
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'gh_session', value: 'gh123', domain: 'github.com'),
       ]);
 
       await harness.switchToSite(1);
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'gl_session', value: 'gl456', domain: 'gitlab.com'),
       ]);
 
       await harness.switchToSite(2);
-      await harness.simulateLogin(2, [
+      await harness.simulateLogin(2, cookies: [
         Cookie(name: 'bb_session', value: 'bb789', domain: 'bitbucket.org'),
       ]);
 
@@ -326,7 +326,7 @@ void main() {
       harness.addSite('https://gist.github.com', name: 'GitHub Gist');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'main_session', value: 'main123', domain: 'github.com'),
       ]);
 
@@ -353,7 +353,7 @@ void main() {
       ));
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'normal123', domain: 'github.com'),
       ]);
 
@@ -376,14 +376,14 @@ void main() {
 
       // Login to account 1
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'user', value: 'account1', domain: 'github.com'),
         Cookie(name: 'token', value: 'token_a1', domain: 'github.com'),
       ]);
 
       // Switch to account 2
       await harness.switchToSite(1);
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'user', value: 'account2', domain: 'github.com'),
         Cookie(name: 'token', value: 'token_a2', domain: 'github.com'),
       ]);
@@ -410,7 +410,7 @@ void main() {
 
       // Login to existing account
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'existing_session', domain: 'github.com'),
       ]);
 
@@ -443,13 +443,13 @@ void main() {
 
       // Load GitLab first
       await harness.switchToSite(2);
-      await harness.simulateLogin(2, [
+      await harness.simulateLogin(2, cookies: [
         Cookie(name: 'gitlab_auth', value: 'gl_token', domain: 'gitlab.com'),
       ]);
 
       // Load GitHub 1
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'github_auth', value: 'gh_user1', domain: 'github.com'),
       ]);
 
@@ -473,7 +473,7 @@ void main() {
       expect(gh1Saved.any((c) => c.value == 'gh_user1'), isTrue);
 
       // Login to GitHub 2
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'github_auth', value: 'gh_user2', domain: 'github.com'),
       ]);
 
@@ -496,11 +496,11 @@ void main() {
         harness.addSite('https://github.com', name: 'GitHub');
         harness.addSite('https://example.com', name: 'Example');
         await harness.switchToSite(0);
-        await harness.simulateLogin(0, [
+        await harness.simulateLogin(0, cookies: [
           Cookie(name: 'session', value: 'fresh', domain: 'github.com'),
         ]);
 
-        await harness.unload(0, reason);
+        await harness.unload(0, reason: reason);
         expect(harness.loadedIndices, isNot(contains(0)));
         await harness.switchToSite(1);
 
@@ -532,7 +532,7 @@ void main() {
       harness.addSite('https://linkedin.com', name: 'LinkedIn');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'li_at', value: 'auth_token', domain: 'linkedin.com'),
         Cookie(name: 'JSESSIONID', value: 'session123', domain: 'linkedin.com'),
       ]);
@@ -542,7 +542,8 @@ void main() {
       expect(cookies, hasLength(2));
 
       final siteId = harness.sites[0].siteId;
-      await harness.storage.saveCookiesForSite(siteId, harness.sites[0].cookies);
+      await harness.storage
+          .saveCookiesForSite(siteId, cookies: harness.sites[0].cookies);
 
       // Delete the site
       await harness.deleteSite(0);
@@ -577,17 +578,19 @@ void main() {
 
       // Login to personal account
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'personal_session', domain: 'github.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, harness.sites[0].cookies);
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId,
+          cookies: harness.sites[0].cookies);
 
       // Switch to work account (unloads personal, restores work's)
       await harness.switchToSite(1);
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'session', value: 'work_session', domain: 'github.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, harness.sites[1].cookies);
+      await harness.storage.saveCookiesForSite(harness.sites[1].siteId,
+          cookies: harness.sites[1].cookies);
 
       final personalSiteId = harness.sites[0].siteId;
       final workSiteId = harness.sites[1].siteId;
@@ -616,10 +619,11 @@ void main() {
       harness.addSite('https://linkedin.com', name: 'LinkedIn');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'li_at', value: 'auth_token', domain: 'linkedin.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, harness.sites[0].cookies);
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId,
+          cookies: harness.sites[0].cookies);
 
       // Delete
       await harness.deleteSite(0);
@@ -641,15 +645,16 @@ void main() {
       harness.addSite('https://gitlab.com', name: 'GitLab');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'gh_session', value: 'gh123', domain: 'github.com'),
       ]);
 
       await harness.switchToSite(1);
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'gl_session', value: 'gl456', domain: 'gitlab.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, harness.sites[1].cookies);
+      await harness.storage.saveCookiesForSite(harness.sites[1].siteId,
+          cookies: harness.sites[1].cookies);
 
       final gitlabSiteId = harness.sites[1].siteId;
 
@@ -707,7 +712,7 @@ void main() {
 
       // Login to app 1
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'app1_session', domain: '192.168.1.1'),
       ]);
 
@@ -731,17 +736,17 @@ void main() {
       harness.addSite('http://10.0.0.1:3000', name: 'Server 3');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 's1', value: 'server1', domain: '192.168.1.1'),
       ]);
 
       await harness.switchToSite(1);
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 's2', value: 'server2', domain: '192.168.1.2'),
       ]);
 
       await harness.switchToSite(2);
-      await harness.simulateLogin(2, [
+      await harness.simulateLogin(2, cookies: [
         Cookie(name: 's3', value: 'server3', domain: '10.0.0.1'),
       ]);
 
@@ -755,12 +760,12 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'local', value: 'local_session', domain: '192.168.1.1'),
       ]);
 
       await harness.switchToSite(1);
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'gh', value: 'github_session', domain: 'github.com'),
       ]);
 
@@ -795,7 +800,7 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'gh_token', domain: 'github.com'),
       ]);
 
@@ -810,7 +815,7 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'gh_token', domain: 'github.com'),
       ]);
 
@@ -833,7 +838,7 @@ void main() {
 
       // Login to user1
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'user1_token', domain: 'github.com'),
       ]);
 
@@ -861,7 +866,7 @@ void main() {
       harness.addSite('https://gitlab.com', name: 'GitLab');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'gh', value: 'gh_token', domain: 'github.com'),
       ]);
 
@@ -889,10 +894,11 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'session', value: 'gh_token', domain: 'github.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, harness.sites[0].cookies);
+      await harness.storage.saveCookiesForSite(harness.sites[0].siteId,
+          cookies: harness.sites[0].cookies);
 
       harness.simulateAppRestart();
 
@@ -905,7 +911,7 @@ void main() {
 
       // Pre-populate secure storage (as if saved before the restart)
       final siteId = harness.sites[0].siteId;
-      await harness.storage.saveCookiesForSite(siteId, [
+      await harness.storage.saveCookiesForSite(siteId, cookies: [
         Cookie(name: 'session', value: 'persisted_token', domain: 'github.com'),
       ]);
 
@@ -927,10 +933,12 @@ void main() {
       harness.addSite('https://github.com/user2', name: 'GitHub User2');
 
       // Simulate cookies saved before restart
-      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, [
+      await harness.storage
+          .saveCookiesForSite(harness.sites[0].siteId, cookies: [
         Cookie(name: 'session', value: 'user1_token', domain: 'github.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, [
+      await harness.storage
+          .saveCookiesForSite(harness.sites[1].siteId, cookies: [
         Cookie(name: 'session', value: 'user2_token', domain: 'github.com'),
       ]);
 
@@ -959,10 +967,12 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
       harness.addSite('https://gitlab.com', name: 'GitLab');
 
-      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, [
+      await harness.storage
+          .saveCookiesForSite(harness.sites[0].siteId, cookies: [
         Cookie(name: 'gh', value: 'gh_token', domain: 'github.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, [
+      await harness.storage
+          .saveCookiesForSite(harness.sites[1].siteId, cookies: [
         Cookie(name: 'gl', value: 'gl_token', domain: 'gitlab.com'),
       ]);
 
@@ -1128,7 +1138,7 @@ void main() {
       expect(gmailStored.any((c) => c.name == 'SSID' && c.value == 'google_sso'), isTrue,
           reason: 'precondition: Gmail\'s SSID captured on switch-away');
 
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'gh_session', value: 'gh_token', domain: 'github.com'),
       ]);
 
@@ -1235,7 +1245,7 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
 
       await harness.switchToSite(0);
-      await harness.simulateLogin(0, [
+      await harness.simulateLogin(0, cookies: [
         Cookie(name: 'ex', value: 'ex_val', domain: 'example.com'),
       ]);
       final exampleSiteId = harness.sites[0].siteId;
@@ -1243,15 +1253,16 @@ void main() {
       // Persist GitHub's login directly to storage — mirrors what the
       // production `onCookiesChanged` handler would do on a real page load.
       await harness.switchToSite(1);
-      await harness.simulateLogin(1, [
+      await harness.simulateLogin(1, cookies: [
         Cookie(name: 'gh', value: 'gh_val', domain: 'github.com'),
       ]);
       final githubSiteId = harness.sites[1].siteId;
-      await harness.storage.saveCookiesForSite(githubSiteId, harness.sites[1].cookies);
+      await harness.storage
+          .saveCookiesForSite(githubSiteId, cookies: harness.sites[1].cookies);
 
       // Seed a stale entry to prove the orphan sweep actually runs on delete.
       const stale = 'stale-from-prior-session';
-      await harness.storage.saveCookiesForSite(stale, [
+      await harness.storage.saveCookiesForSite(stale, cookies: [
         Cookie(name: 'x', value: 'y', domain: 'deleted.example.com'),
       ]);
       expect(harness.storage.allStorage.keys,
@@ -1273,13 +1284,14 @@ void main() {
 
       // Seed a real entry for the live site (production's onCookiesChanged
       // handler would save after a page load).
-      await harness.storage.saveCookiesForSite(liveSiteId, [
+      await harness.storage.saveCookiesForSite(liveSiteId, cookies: [
         Cookie(name: 'live', value: 'v', domain: 'example.com'),
       ]);
 
       // Seed a stale entry as if a site was deleted in a prior session
       // without the orphan sweep ever running (pre-fix state).
-      await harness.storage.saveCookiesForSite('stale-site-id-from-prior-session', [
+      await harness.storage
+          .saveCookiesForSite('stale-site-id-from-prior-session', cookies: [
         Cookie(name: 'leftover', value: 'old', domain: 'deleted.example.com'),
       ]);
       expect(harness.storage.allStorage.keys,
@@ -1345,10 +1357,12 @@ void main() {
       harness.addSite('https://github.com', name: 'GitHub');
 
       // Seed per-site storage so each activation has something to restore.
-      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, [
+      await harness.storage
+          .saveCookiesForSite(harness.sites[0].siteId, cookies: [
         Cookie(name: 'ex', value: 'example_persisted', domain: 'example.com'),
       ]);
-      await harness.storage.saveCookiesForSite(harness.sites[1].siteId, [
+      await harness.storage
+          .saveCookiesForSite(harness.sites[1].siteId, cookies: [
         Cookie(name: 'gh', value: 'github_persisted', domain: 'github.com'),
       ]);
 
@@ -1377,7 +1391,8 @@ void main() {
 
     test('current activation completes when version is stable', () async {
       harness.addSite('https://example.com', name: 'Example');
-      await harness.storage.saveCookiesForSite(harness.sites[0].siteId, [
+      await harness.storage
+          .saveCookiesForSite(harness.sites[0].siteId, cookies: [
         Cookie(name: 'ex', value: 'example_val', domain: 'example.com'),
       ]);
 
@@ -1404,42 +1419,70 @@ void main() {
     Cookie c(String? domain) => Cookie(name: 'x', value: 'y', domain: domain);
 
     test('exact match', () {
-      expect(cookieMatchesBaseDomain(c('google.com'), 'google.com'), isTrue);
+      expect(cookieMatchesBaseDomain(c('google.com'), baseDomain: 'google.com'),
+          isTrue);
     });
 
     test('subdomain match', () {
-      expect(cookieMatchesBaseDomain(c('mail.google.com'), 'google.com'), isTrue);
-      expect(cookieMatchesBaseDomain(c('accounts.google.com'), 'google.com'), isTrue);
+      expect(
+          cookieMatchesBaseDomain(c('mail.google.com'),
+              baseDomain: 'google.com'),
+          isTrue);
+      expect(
+          cookieMatchesBaseDomain(c('accounts.google.com'),
+              baseDomain: 'google.com'),
+          isTrue);
     });
 
     test('leading-dot domain match', () {
-      expect(cookieMatchesBaseDomain(c('.google.com'), 'google.com'), isTrue);
+      expect(
+          cookieMatchesBaseDomain(c('.google.com'), baseDomain: 'google.com'),
+          isTrue);
     });
 
     test('case-insensitive', () {
-      expect(cookieMatchesBaseDomain(c('Mail.GOOGLE.com'), 'GOOGLE.com'), isTrue);
+      expect(
+          cookieMatchesBaseDomain(c('Mail.GOOGLE.com'),
+              baseDomain: 'GOOGLE.com'),
+          isTrue);
     });
 
     test('no match on unrelated domain', () {
-      expect(cookieMatchesBaseDomain(c('googlethief.com'), 'google.com'), isFalse);
-      expect(cookieMatchesBaseDomain(c('evilgoogle.com'), 'google.com'), isFalse);
+      expect(
+          cookieMatchesBaseDomain(c('googlethief.com'),
+              baseDomain: 'google.com'),
+          isFalse);
+      expect(
+          cookieMatchesBaseDomain(c('evilgoogle.com'),
+              baseDomain: 'google.com'),
+          isFalse);
     });
 
     test('null / empty domain never matches', () {
-      expect(cookieMatchesBaseDomain(c(null), 'google.com'), isFalse);
-      expect(cookieMatchesBaseDomain(c(''), 'google.com'), isFalse);
-      expect(cookieMatchesBaseDomain(c('google.com'), ''), isFalse);
+      expect(
+          cookieMatchesBaseDomain(c(null), baseDomain: 'google.com'), isFalse);
+      expect(cookieMatchesBaseDomain(c(''), baseDomain: 'google.com'), isFalse);
+      expect(cookieMatchesBaseDomain(c('google.com'), baseDomain: ''), isFalse);
     });
 
     test('multi-part TLD', () {
-      expect(cookieMatchesBaseDomain(c('bbc.co.uk'), 'bbc.co.uk'), isTrue);
-      expect(cookieMatchesBaseDomain(c('news.bbc.co.uk'), 'bbc.co.uk'), isTrue);
-      expect(cookieMatchesBaseDomain(c('bbc.co.uk'), 'amazon.co.uk'), isFalse);
+      expect(cookieMatchesBaseDomain(c('bbc.co.uk'), baseDomain: 'bbc.co.uk'),
+          isTrue);
+      expect(
+          cookieMatchesBaseDomain(c('news.bbc.co.uk'), baseDomain: 'bbc.co.uk'),
+          isTrue);
+      expect(
+          cookieMatchesBaseDomain(c('bbc.co.uk'), baseDomain: 'amazon.co.uk'),
+          isFalse);
     });
 
     test('IP address', () {
-      expect(cookieMatchesBaseDomain(c('192.168.1.1'), '192.168.1.1'), isTrue);
-      expect(cookieMatchesBaseDomain(c('192.168.1.2'), '192.168.1.1'), isFalse);
+      expect(
+          cookieMatchesBaseDomain(c('192.168.1.1'), baseDomain: '192.168.1.1'),
+          isTrue);
+      expect(
+          cookieMatchesBaseDomain(c('192.168.1.2'), baseDomain: '192.168.1.1'),
+          isFalse);
     });
   });
 }

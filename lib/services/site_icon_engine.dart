@@ -21,7 +21,7 @@ const int kMaxDataIconLength = 256 * 1024;
 
 /// A PNG the webview reported for the site's own page.
 class SiteIcon {
-  SiteIcon(this.png, this.width, this.height);
+  SiteIcon(this.png, {required this.width, required this.height});
 
   final Uint8List png;
   final int width;
@@ -99,7 +99,8 @@ final RegExp _sizeToken = RegExp(r'^(\d+)[xX](\d+)$');
 /// are links whose declared sizes are all under [kMinSiteIconEdge]. An
 /// `http:` link on an `https:` document is upgraded, as a browser upgrades
 /// mixed images, so the request never goes out in cleartext.
-List<String> siteIconCandidates(List<SiteIconLink> links, String documentUrl) {
+List<String> siteIconCandidates(List<SiteIconLink> links,
+    {required String documentUrl}) {
   final doc = Uri.tryParse(documentUrl);
   if (doc == null ||
       (doc.scheme != 'http' && doc.scheme != 'https') ||
@@ -299,7 +300,7 @@ class SiteIconEngine {
 
   /// [png] fetched from the links claimed as [document]. Links the page
   /// edits later do not matter here: these are the ones it declared at load.
-  SiteIcon? onLinkedIcon(int document, Uint8List png) {
+  SiteIcon? onLinkedIcon(int document, {required Uint8List png}) {
     if (document != _document) return null;
     return _accept(png);
   }
@@ -323,7 +324,7 @@ class SiteIconEngine {
   SiteIcon? _accept(Uint8List png) {
     final size = pngDimensions(png);
     if (size == null) return null;
-    final icon = SiteIcon(png, size.width, size.height);
+    final icon = SiteIcon(png, width: size.width, height: size.height);
     if (icon.edge < kMinSiteIconEdge || icon.edge <= _documentBestEdge) {
       return null;
     }

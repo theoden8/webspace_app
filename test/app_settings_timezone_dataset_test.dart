@@ -74,13 +74,14 @@ void main() {
 
   /// The row's state comes from file IO, which only completes on the real
   /// event loop, so alternate real waits with frames until [done] holds.
-  Future<void> settle(WidgetTester tester, bool Function() done) async {
-    for (var i = 0; i < 100 && !done(); i++) {
-      await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)));
-      await tester.pump();
-    }
+Future<void> settle(WidgetTester tester,
+    {required bool Function() done}) async {
+  for (var i = 0; i < 100 && !done(); i++) {
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    await tester.pump();
   }
+}
 
   Future<void> open(WidgetTester tester) async {
     await tester.pumpWidget(host());
@@ -101,7 +102,8 @@ void main() {
     await tester.runAsync(() => dataset.writeAsString(_fixture));
 
     await open(tester);
-    await settle(tester, () => inRow(find.text('2 zones')).evaluate().isNotEmpty);
+    await settle(tester,
+        done: () => inRow(find.text('2 zones')).evaluate().isNotEmpty);
 
     expect(inRow(find.text('2 zones')), findsOneWidget);
     expect(inRow(find.text('Not downloaded')), findsNothing);
@@ -120,7 +122,8 @@ void main() {
     await tester.runAsync(() => dataset.writeAsString(_fixture));
 
     await open(tester);
-    await settle(tester, () => inRow(find.text('2 zones')).evaluate().isNotEmpty);
+    await settle(tester,
+        done: () => inRow(find.text('2 zones')).evaluate().isNotEmpty);
 
     expect(inRow(find.text('2 zones')), findsOneWidget);
     expect(inRow(find.text('Not downloaded')), findsNothing);
@@ -135,7 +138,7 @@ void main() {
     });
 
     await open(tester);
-    await settle(tester, () => false);
+    await settle(tester, done: () => false);
 
     expect(inRow(find.text('Not downloaded')), findsOneWidget);
     expect(inRow(find.textContaining('Updated:')), findsNothing);
@@ -151,11 +154,12 @@ void main() {
     await tester.runAsync(() => dataset.writeAsString(_fixture));
 
     await open(tester);
-    await settle(tester, () => inRow(find.text('2 zones')).evaluate().isNotEmpty);
+    await settle(tester,
+        done: () => inRow(find.text('2 zones')).evaluate().isNotEmpty);
 
     await tester.tap(inRow(find.byTooltip('Clear dataset')));
-    await settle(
-        tester, () => inRow(find.text('Not downloaded')).evaluate().isNotEmpty);
+    await settle(tester,
+        done: () => inRow(find.text('Not downloaded')).evaluate().isNotEmpty);
 
     expect(inRow(find.text('Not downloaded')), findsOneWidget);
     expect(inRow(find.textContaining('Updated:')), findsNothing);

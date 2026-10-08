@@ -28,10 +28,13 @@ String appNetworkSummary(AppLocalizations loc) {
   final route = switch (current.type) {
     ProxyType.DEFAULT => null,
     ProxyType.TOR => torRouteLabel(loc),
-    ProxyType.SAVED || ProxyType.GATEWAY => libraryRouteLabel(loc, current),
+    ProxyType.SAVED ||
+    ProxyType.GATEWAY =>
+      libraryRouteLabel(loc, route: current),
     ProxyType.HTTP ||
     ProxyType.HTTPS ||
-    ProxyType.SOCKS5 => routeLabel(current),
+    ProxyType.SOCKS5 =>
+      routeLabel(current),
   };
   final saved = ProxyLibrary.data.length;
   return [
@@ -315,7 +318,7 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                     proxy: resolved.route,
                     problem: resolved.problem == LibraryProblem.none
                         ? null
-                        : libraryProblemLabel(loc, resolved.problem),
+                        : libraryProblemLabel(loc, problem: resolved.problem),
                   );
                 }),
               ),

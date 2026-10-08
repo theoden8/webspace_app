@@ -75,7 +75,7 @@ class _FakeHost implements NestedOpenHost<String> {
   void reportProxyFailure(Object error) => events.add('refused');
 
   @override
-  Future<void> launchNested(String target, String url) async {
+  Future<void> launchNested(String target, {required String url}) async {
     events.add('screen $target');
     duringScreen?.call();
     events.add('pop');

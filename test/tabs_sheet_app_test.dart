@@ -25,16 +25,16 @@ void main() {
       (tester) async {
     github.routeOutboundLinks = true;
     await pumpRealApp(tester, sites: [github, ddg]);
-    await openWebspace(tester, 'All');
-    await openSiteFromDrawer(tester, 'GitHub');
-    await tapLink(tester, 'https://duckduckgo.com/?q=webspace');
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'GitHub');
+    await tapLink(tester, url: 'https://duckduckgo.com/?q=webspace');
 
     final link = appSite('GitHub').tabs.last;
     expect(link.url, 'https://duckduckgo.com/?q=webspace');
     expect(link.hostSiteId, ddg.siteId);
     expect(link.openerSiteId, github.siteId);
 
-    await openSiteFromDrawer(tester, 'DuckDuckGo');
+    await openSiteFromDrawer(tester, name: 'DuckDuckGo');
     await openTabsSheet(tester);
     expect(find.text('In GitHub'), findsOneWidget);
     expect(find.text('https://duckduckgo.com/?q=webspace'), findsOneWidget);
@@ -44,15 +44,15 @@ void main() {
       'GitHub\'s list with its parent', (tester) async {
     ddg.routeOutboundLinks = true;
     await pumpRealApp(tester, sites: [github, ddg]);
-    await openWebspace(tester, 'All');
-    await openSiteFromDrawer(tester, 'DuckDuckGo');
-    await tapLink(tester, 'https://github.com/theoden8/webspace_app');
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'DuckDuckGo');
+    await tapLink(tester, url: 'https://github.com/theoden8/webspace_app');
 
     final link = appSite('DuckDuckGo').tabs.last;
     expect(link.hostSiteId, github.siteId);
     expect(link.parentId, appSite('DuckDuckGo').tabs.first.id);
 
-    await openSiteFromDrawer(tester, 'GitHub');
+    await openSiteFromDrawer(tester, name: 'GitHub');
     await openTabsSheet(tester);
     expect(find.text('In DuckDuckGo'), findsOneWidget);
     expect(find.text('https://duckduckgo.com'), findsOneWidget,
@@ -65,7 +65,7 @@ void main() {
     );
   });
 
-  Future<void> typeAddress(WidgetTester tester, String url) async {
+  Future<void> typeAddress(WidgetTester tester, {required String url}) async {
     await tester.enterText(find.byType(TextField).first, url);
     await tester.testTextInput.receiveAction(TextInputAction.go);
     await settleRealApp(tester);
@@ -75,10 +75,10 @@ void main() {
       'routed like a link', (tester) async {
     github.routeOutboundLinks = true;
     await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
-    await openWebspace(tester, 'All');
-    await openSiteFromDrawer(tester, 'GitHub');
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'GitHub');
     await attachWebViews(tester);
-    await typeAddress(tester, 'https://duckduckgo.com/?q=typed');
+    await typeAddress(tester, url: 'https://duckduckgo.com/?q=typed');
 
     final tab = appSite('GitHub').tabs.last;
     expect(tab.url, 'https://duckduckgo.com/?q=typed');
@@ -91,10 +91,10 @@ void main() {
   testWidgets('with routing off the typed address is a tab run as GitHub',
       (tester) async {
     await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
-    await openWebspace(tester, 'All');
-    await openSiteFromDrawer(tester, 'GitHub');
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'GitHub');
     await attachWebViews(tester);
-    await typeAddress(tester, 'https://duckduckgo.com/?q=typed');
+    await typeAddress(tester, url: 'https://duckduckgo.com/?q=typed');
 
     final tab = appSite('GitHub').tabs.last;
     expect(tab.url, 'https://duckduckgo.com/?q=typed');
@@ -106,8 +106,8 @@ void main() {
   testWidgets('the Tabs list closes the keyboard before it opens',
       (tester) async {
     await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
-    await openWebspace(tester, 'All');
-    await openSiteFromDrawer(tester, 'GitHub');
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'GitHub');
     await attachWebViews(tester);
     await tester.tap(find.byType(TextField).first);
     await settleRealApp(tester);
@@ -122,15 +122,15 @@ void main() {
   testWidgets('with GitHub\'s routing off the tab is GitHub\'s own',
       (tester) async {
     await pumpRealApp(tester, sites: [github, ddg]);
-    await openWebspace(tester, 'All');
-    await openSiteFromDrawer(tester, 'GitHub');
-    await tapLink(tester, 'https://duckduckgo.com/?q=webspace');
+    await openWebspace(tester, name: 'All');
+    await openSiteFromDrawer(tester, name: 'GitHub');
+    await tapLink(tester, url: 'https://duckduckgo.com/?q=webspace');
 
     final link = appSite('GitHub').tabs.last;
     expect(link.hostSiteId, isNull);
     expect(link.openerSiteId, github.siteId);
 
-    await openSiteFromDrawer(tester, 'DuckDuckGo');
+    await openSiteFromDrawer(tester, name: 'DuckDuckGo');
     await openTabsSheet(tester);
     expect(find.text('In GitHub'), findsNothing);
   });
@@ -149,8 +149,8 @@ void main() {
     );
     github.tabs = [...github.tabs, hosted];
     await pumpRealApp(tester, sites: [github, ddg], webspaces: webspaces);
-    await openWebspace(tester, webspace);
-    await openSiteFromDrawer(tester, 'DuckDuckGo');
+    await openWebspace(tester, name: webspace);
+    await openSiteFromDrawer(tester, name: 'DuckDuckGo');
     await attachWebViews(tester);
     await openTabsSheet(tester);
     return hosted;
@@ -232,8 +232,8 @@ void main() {
     final hosted = await onDuckDuckGoWithItsList(tester);
     await tester.tap(find.text('https://duckduckgo.com/?q=webspace'));
     await settleRealApp(tester);
-    await openSiteFromDrawer(tester, 'DuckDuckGo');
-    await openSiteFromDrawer(tester, 'GitHub');
+    await openSiteFromDrawer(tester, name: 'DuckDuckGo');
+    await openSiteFromDrawer(tester, name: 'GitHub');
     await attachWebViews(tester);
     final prefs = await SharedPreferences.getInstance();
     expect(prefs.getInt('currentIndex'), 0);
@@ -264,8 +264,8 @@ void main() {
         Webspace(id: 'ws_search', name: 'Search', siteIds: [ddg.siteId]),
       ],
     );
-    await openWebspace(tester, 'Search');
-    await openSiteFromDrawer(tester, 'DuckDuckGo');
+    await openWebspace(tester, name: 'Search');
+    await openSiteFromDrawer(tester, name: 'DuckDuckGo');
     await openTabsSheet(tester);
     expect(find.text('All sites'), findsNothing,
         reason: 'the webspace shows one site with tabs');
@@ -283,8 +283,8 @@ void main() {
   group('races (UI race conditions)', () {
     testWidgets('a double tap on Tabs opens one list', (tester) async {
       await pumpRealApp(tester, sites: [github, ddg]);
-      await openWebspace(tester, 'All');
-      await openSiteFromDrawer(tester, 'GitHub');
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'GitHub');
       await attachWebViews(tester);
       // Two presses in one frame: the second lands while the first is still
       // closing the keyboard, before any sheet is up to take the tap.
@@ -315,8 +315,8 @@ void main() {
     testWidgets('an address submitted twice opens one tab', (tester) async {
       github.routeOutboundLinks = true;
       await pumpRealApp(tester, sites: [github, ddg], prefs: {'showUrlBar': true});
-      await openWebspace(tester, 'All');
-      await openSiteFromDrawer(tester, 'GitHub');
+      await openWebspace(tester, name: 'All');
+      await openSiteFromDrawer(tester, name: 'GitHub');
       await attachWebViews(tester);
       await tester.enterText(find.byType(TextField).first, 'https://duckduckgo.com/?q=a');
       await tester.testTextInput.receiveAction(TextInputAction.go);

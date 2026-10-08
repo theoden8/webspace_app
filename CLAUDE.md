@@ -53,11 +53,11 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 
 | Compartment | Owns | Join |
 |---|---|---|
-| `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture, {homeTitle})`; `WebViewConfig.posture` |
+| `SitePosture` (`services/site_posture.dart`) | a site's resolved settings in six groups, resolved once by `WebViewModel.sitePosture` | `LaunchUrlFunc(url, posture:, homeTitle:)`; `WebViewConfig.posture` |
 | `site_overrides.dart` | archive-tier and Tracking Protection overrides | `TrackingProtectionForce`, `ArchiveFold`; read through `effective*` getters and by screens |
 | `WebViewHostHooks` | the host's answers to every site webview: prompts, outbound links, capture | one required-field class, passed whole |
 | `BlockDecision` | whether a request is blocked, and by which blocker | `decide(BlockQuery)` → sealed `BlockVerdict` |
-| `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js, frames:)`; `ShimFrames` has no default |
+| `pageShim` (`services/page_shim.dart`) | how a page shim is injected | `pageShim(group, js:, frames:)`; `ShimFrames` has no default |
 | `site_unload_engine.dart` | which steps an unload runs | `enum UnloadReason` |
 | `OrphanSweepEngine` | the one orphan sweep and its store list | `enum OrphanStore` |
 | `CaptureKind` / `GrantStore` (`settings/capture.dart`, `services/media_grant_engine.dart`) | capture kinds and their grants | enum over three mode enums, `grantOf`/`withGrant` switches; sealed `GrantStore` |
@@ -418,7 +418,7 @@ Files under `fastlane/metadata/android/en-US/changelogs/<N>.txt` and sibling des
 
 A user-facing global pref is one entry of the `AppPref` enum; persistence, backup export/import, the demo-mode guard and the live value come with it.
 
-1. Declare it in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart): `name('sharedPrefsKey', default)`, a `bool`, `int` or `String` (a const assert rejects anything else). Declaration order is the order a backup lists it.
+1. Declare it in [lib/settings/app_prefs.dart](lib/settings/app_prefs.dart): `name('sharedPrefsKey', fallback: default)`, a `bool`, `int` or `String` (a const assert rejects anything else). Declaration order is the order a backup lists it.
 2. Bind its row: a switch is `SettingTile(..., control: const PrefToggle(AppPref.name))`; anything else reads `AppPref.name.value` and writes `AppPref.name.set(v)`. Code with a side effect listens on `AppPref.name.listenable`; main.dart rebuilds on `AppPref.anyChange`.
 
 - No per-pref constructor params, `_saveX` methods or second cache of the value: `set` persists (except in demo mode) and every reader sees the same notifier. `writeExportedAppPrefs` applies an import to disk and to the running app.
@@ -495,7 +495,7 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
     Simplified) — gen_l10n cannot express a `zh_Hant`-only setup.
   - **Per-string**: flags individual values left untranslated (in English) when neighbours were translated — CLD3 is unreliable on single short strings, so this uses heuristics (non-Latin: a Latin-only multi-word value where the locale's script is expected; Latin: a value whose words are almost all English-source vocabulary plus an unambiguous English stopword). No allowlist — translate the offender. Run `node tool/check_l10n_language.js --per-string [locale]` for the report.
 - Nested-webview rule applies to copy too: localized strings in `launchUrl`/`InAppWebViewScreen` flow through `BuildContext`, so resolve them at the call site.
-- Widget tests pump a screen/widget through `pumpLocalized(tester, child)` or wrap it in `localizedApp(child)` ([test/helpers/localized.dart](test/helpers/localized.dart)); a bare `MaterialApp` leaves `AppLocalizations.of(context)` null.
+- Widget tests pump a screen/widget through `pumpLocalized(tester, home: child)` or wrap it in `localizedApp(child)` ([test/helpers/localized.dart](test/helpers/localized.dart)); a bare `MaterialApp` leaves `AppLocalizations.of(context)` null.
 
 ## Touching the webspace archive
 
@@ -590,7 +590,7 @@ Orchestration (which sites unload on switch, how indices shift after delete, wha
 - Which loaded sites go, and why? A `ResidencyEvent` case in `SiteUnloadEngine.plan` ([site_unload_engine.dart](lib/services/site_unload_engine.dart)), run by `SiteUnloadEngine.apply`; every eviction picks through `evictionOrder`. Never unload from a loop at a call site.
 - `await native_call` then mutate shared state with scenario-dependent logic? Engine.
 - Engines never `import 'package:flutter/material.dart'`, never call `setState`, never touch `context`. Add interfaces on existing services (e.g. `CookieManager`) instead of reaching into concrete types.
-- Race protection: pass `(versionAtEntry, int Function() currentVersion)` so the engine can bail without knowing about widget state.
+- Race protection: pass `versionAtEntry:` and `currentVersion:` (an `int Function()`) so the engine can bail without knowing about widget state.
 - Tests import the engine directly with in-memory fakes that **model the interface** (e.g. `MockCookieManager` modeling RFC 6265 domain-match), not trivial stubs. See [test/cookie_isolation_integration_test.dart](test/cookie_isolation_integration_test.dart).
 - One fake per interface, in [test/helpers/](test/helpers/) (`MockCookieManager`, `MockFlutterSecureStorage`, `FakeTorRuntime`, `FakeOutbound`, `FakePathProvider`, `FakeWebViewController`). Extend it when a test needs a new knob; never redefine it in a test file, and never import another `*_test.dart` for its fakes.
 

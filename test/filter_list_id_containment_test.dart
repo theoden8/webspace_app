@@ -41,9 +41,11 @@ void main() {
       await store.ensure();
 
       for (final name in traversalNames) {
-        await expectLater(store.writeText(name, 'payload'), throwsArgumentError,
+        await expectLater(
+            store.writeText(name, contents: 'payload'), throwsArgumentError,
             reason: name);
-        await expectLater(store.writeBytes(name, [1, 2, 3]), throwsArgumentError,
+        await expectLater(
+            store.writeBytes(name, bytes: [1, 2, 3]), throwsArgumentError,
             reason: name);
         await expectLater(store.readText(name), throwsArgumentError,
             reason: name);
@@ -59,7 +61,7 @@ void main() {
 
     test('a plain name still round-trips', () async {
       final store = IoFileStore('lists', overrideRoot: root);
-      await store.writeText('easylist.txt', 'rules');
+      await store.writeText('easylist.txt', contents: 'rules');
       expect(await store.readText('easylist.txt'), 'rules');
       expect(await store.exists('easylist.txt'), isTrue);
       expect(await store.list(), ['easylist.txt']);
@@ -70,7 +72,8 @@ void main() {
     test('the in-memory store models the same refusal', () async {
       final store = MemoryFileStore();
       for (final name in traversalNames) {
-        await expectLater(store.writeText(name, 'payload'), throwsArgumentError,
+        await expectLater(
+            store.writeText(name, contents: 'payload'), throwsArgumentError,
             reason: name);
         await expectLater(store.readText(name), throwsArgumentError,
             reason: name);
@@ -129,7 +132,8 @@ void main() {
     }
 
     test('the ids the app itself mints survive a round-trip', () async {
-      final minted = await service.addCustomList('Mine', 'https://x.example/l.txt');
+      final minted =
+          await service.addCustomList('Mine', url: 'https://x.example/l.txt');
       final exported = service.exportListSelection();
       service.reset();
       service.store = MemoryFileStore();

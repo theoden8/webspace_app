@@ -132,7 +132,8 @@ String? searchAddressFromDescription(
         if (p.localName == 'Param' && (p.getAttribute('name') ?? '').isNotEmpty)
           (name: p.getAttribute('name')!, value: p.getAttribute('value') ?? ''),
     ];
-    final address = _address(template.trim(), params, descriptionUrl);
+    final address = _address(template.trim(),
+        params: params, descriptionUrl: descriptionUrl);
     if (address != null) return address;
   }
   return null;
@@ -150,10 +151,10 @@ const Map<String, String> _filled = {
 };
 
 String? _address(
-  String template,
-  List<({String name, String value})> params,
-  Uri descriptionUrl,
-) {
+  String template, {
+  required List<({String name, String value})> params,
+  required Uri descriptionUrl,
+}) {
   final Uri base;
   try {
     base = descriptionUrl.resolve(template);
@@ -229,7 +230,8 @@ Future<DiscoveredSearch?> discoverPageSearch(
   required Future<Uint8List?> Function(Uri description) fetch,
 }) async {
   final document = Uri.tryParse(documentUrl);
-  if (document == null || !WebSearchEngine.inDomainOf(document, siteUrl)) {
+  if (document == null ||
+      !WebSearchEngine.inDomainOf(document, initUrl: siteUrl)) {
     return null;
   }
   for (final link in report.links) {
@@ -237,7 +239,7 @@ Future<DiscoveredSearch?> discoverPageSearch(
     if (href == null || (href.scheme != 'http' && href.scheme != 'https')) {
       continue;
     }
-    if (!WebSearchEngine.inDomainOf(href, siteUrl)) continue;
+    if (!WebSearchEngine.inDomainOf(href, initUrl: siteUrl)) continue;
     final bytes = await fetch(href);
     if (bytes == null) continue;
     final address = searchAddressFromDescription(
@@ -246,7 +248,7 @@ Future<DiscoveredSearch?> discoverPageSearch(
       postAsGet: report.isSearx,
     );
     if (address == null ||
-        !WebSearchEngine.acceptsDiscovered(address, siteUrl)) {
+        !WebSearchEngine.acceptsDiscovered(address, initUrl: siteUrl)) {
       continue;
     }
     return DiscoveredSearch(address: address, web: report.isSearx);

@@ -55,8 +55,10 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
                 'username': final String username,
                 'password': final String password,
               })
-            _Saved(host, realm,
-                HttpAuthCredential(username: username, password: password)),
+            _Saved(host,
+                realm: realm,
+                credential:
+                    HttpAuthCredential(username: username, password: password)),
       ];
       if (list.isNotEmpty) out[key] = list;
     }
@@ -73,34 +75,35 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
 
   @override
   Future<HttpAuthCredential?> lookup(
-    String siteId,
-    Host host,
-    String realm,
-  ) async {
+    String siteId, {
+    required Host host,
+    required String realm,
+  }) async {
     for (final saved in (await _store.read())[siteId] ?? const <_Saved>[]) {
-      if (saved.covers(host, realm)) return saved.credential;
+      if (saved.covers(host, realm: realm)) return saved.credential;
     }
     return null;
   }
 
   @override
   Future<void> save(
-    String siteId,
-    Host host,
-    String realm,
-    HttpAuthCredential credential,
-  ) {
+    String siteId, {
+    required Host host,
+    required String realm,
+    required HttpAuthCredential credential,
+  }) {
     return _mutate((draft) {
       draft.putIfAbsent(siteId, () => [])
-        ..removeWhere((e) => e.covers(host, realm))
-        ..add(_Saved(host, realm, credential));
+        ..removeWhere((e) => e.covers(host, realm: realm))
+        ..add(_Saved(host, realm: realm, credential: credential));
     });
   }
 
   @override
-  Future<void> remove(String siteId, Host host, String realm) {
+  Future<void> remove(String siteId,
+      {required Host host, required String realm}) {
     return _mutate((draft) {
-      draft[siteId]?.removeWhere((e) => e.covers(host, realm));
+      draft[siteId]?.removeWhere((e) => e.covers(host, realm: realm));
     });
   }
 
@@ -120,13 +123,13 @@ class HttpAuthSecureStorage implements HttpAuthCredentialStore {
 
 /// One protection space's saved credential.
 class _Saved {
-  _Saved(this.host, this.realm, this.credential);
+  _Saved(this.host, {required this.realm, required this.credential});
 
   final String host;
   final String realm;
   final HttpAuthCredential credential;
 
-  bool covers(String host, String realm) =>
+  bool covers(String host, {required String realm}) =>
       this.host == host && this.realm == realm;
 
   Map<String, String> toJson() => {

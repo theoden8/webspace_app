@@ -5,32 +5,33 @@ import 'package:webspace/services/surface_diag_native.dart';
 
 void main() {
   group('SurfaceDiagNative.classify', () {
-    WindowRegionSample ok(int color, double fraction) => WindowRegionSample(
+WindowRegionSample ok(int color, {required double fraction}) =>
+    WindowRegionSample(
         status: 'ok', dominantColor: color, uniformFraction: fraction);
 
     test('uniform white is the BUG-001 fresh-surface fill', () {
-      expect(SurfaceDiagNative.classify(ok(0xFFFFFFFF, 1.0)),
+      expect(SurfaceDiagNative.classify(ok(0xFFFFFFFF, fraction: 1.0)),
           WindowSampleVerdict.uniformBlank);
-      expect(SurfaceDiagNative.classify(ok(0xFFFAFAFA, 0.99)),
+      expect(SurfaceDiagNative.classify(ok(0xFFFAFAFA, fraction: 0.99)),
           WindowSampleVerdict.uniformBlank);
     });
 
     test('uniform black is the BUG-001 re-attach fill', () {
-      expect(SurfaceDiagNative.classify(ok(0xFF000000, 1.0)),
+      expect(SurfaceDiagNative.classify(ok(0xFF000000, fraction: 1.0)),
           WindowSampleVerdict.uniformBlank);
-      expect(SurfaceDiagNative.classify(ok(0xFF050505, 0.995)),
+      expect(SurfaceDiagNative.classify(ok(0xFF050505, fraction: 0.995)),
           WindowSampleVerdict.uniformBlank);
     });
 
     test('a uniform colored page is content, not a blank surface', () {
-      expect(SurfaceDiagNative.classify(ok(0xFF123524, 1.0)),
+      expect(SurfaceDiagNative.classify(ok(0xFF123524, fraction: 1.0)),
           WindowSampleVerdict.content);
-      expect(SurfaceDiagNative.classify(ok(0xFF8C1D5A, 1.0)),
+      expect(SurfaceDiagNative.classify(ok(0xFF8C1D5A, fraction: 1.0)),
           WindowSampleVerdict.content);
     });
 
     test('a non-uniform region is content regardless of dominant color', () {
-      expect(SurfaceDiagNative.classify(ok(0xFFFFFFFF, 0.6)),
+      expect(SurfaceDiagNative.classify(ok(0xFFFFFFFF, fraction: 0.6)),
           WindowSampleVerdict.content);
     });
 

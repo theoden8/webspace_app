@@ -270,7 +270,8 @@ void main() {
       final events = <(int, int?)>[];
       final result = await DownloadEngine(client: client).fetch(
         url: 'https://example.com/big.bin',
-        onProgress: (done, total) => events.add((done, total)),
+        onProgress: (done, {required bytesTotal}) =>
+            events.add((done, bytesTotal)),
       );
 
       expect(result.bytes, payload);
@@ -401,7 +402,8 @@ void main() {
       final events = <(int, int?)>[];
       final result = await DownloadEngine(client: client).fetch(
         url: 'https://example.com/unknown',
-        onProgress: (done, total) => events.add((done, total)),
+        onProgress: (done, {required bytesTotal}) =>
+            events.add((done, bytesTotal)),
       );
 
       expect(result.bytes, [1, 2, 3, 4, 5]);

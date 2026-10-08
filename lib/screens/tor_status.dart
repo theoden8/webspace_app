@@ -57,8 +57,8 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
-    final using =
-        summarizeTorHolders(TorService.instance.holders, widget.siteNames);
+    final using = summarizeTorHolders(TorService.instance.holders,
+        siteNames: widget.siteNames);
     final external = TorService.instance.isExternal;
     final externalAddress = ExternalTorSettings.address;
 

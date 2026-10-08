@@ -91,5 +91,5 @@ test('hybrid composition is the default, texture mode an experiment', () => {
   assert.match(experimental,
     /textureRendering\(AppPref\.experimentalTextureRendering\)/);
   assert.match(read('lib/settings/app_prefs.dart'),
-    /experimentalTextureRendering\('experimentalTextureRendering', false\)/);
+    /experimentalTextureRendering\('experimentalTextureRendering', fallback: false\)/);
 });

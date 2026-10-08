@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:webspace/services/media_metadata_strip.dart';
 
-List<int> box(List<int> type, List<int> payload) {
+List<int> box(List<int> type, {required List<int> payload}) {
   final size = 8 + payload.length;
   return [
     (size >> 24) & 0xff,
@@ -21,21 +21,23 @@ List<int> t(String type) => type.codeUnits;
 void main() {
   group('ISO-BMFF (SEC-016)', () {
     final gps = '+37.7749-122.4194/'.codeUnits;
-    final udta = box(t('udta'), box([0xa9, 0x78, 0x79, 0x7a], gps));
-    final trakUdta =
-        box(t('trak'), box(t('udta'), box(t('meta'), 'trak-meta'.codeUnits)));
-    final moov = box(t('moov'), [
-      ...box(t('mvhd'), List.filled(20, 1)),
+    final udta =
+        box(t('udta'), payload: box([0xa9, 0x78, 0x79, 0x7a], payload: gps));
+    final trakUdta = box(t('trak'),
+        payload: box(t('udta'),
+            payload: box(t('meta'), payload: 'trak-meta'.codeUnits)));
+    final moov = box(t('moov'), payload: [
+      ...box(t('mvhd'), payload: List.filled(20, 1)),
       ...udta,
       ...trakUdta,
     ]);
-    final xmp = box(t('uuid'), [
+    final xmp = box(t('uuid'), payload: [
       ...List.filled(16, 0xab),
       ...'<x:xmpmeta>GPS</x:xmpmeta>'.codeUnits,
     ]);
-    final mdat = box(t('mdat'), [1, 2, 3, 4, 5]);
+    final mdat = box(t('mdat'), payload: [1, 2, 3, 4, 5]);
     final file = Uint8List.fromList([
-      ...box(t('ftyp'), 'isom'.codeUnits),
+      ...box(t('ftyp'), payload: 'isom'.codeUnits),
       ...moov,
       ...xmp,
       ...mdat,
@@ -129,14 +131,16 @@ void main() {
 
   test('a container this does not parse passes through untouched', () {
     final webm = Uint8List.fromList([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3]);
-    expect(stripContainerMetadata(webm, 'webm'), same(webm));
-    expect(stripContainerMetadata(webm, 'wav'), same(webm));
+    expect(stripContainerMetadata(webm, extension: 'webm'), same(webm));
+    expect(stripContainerMetadata(webm, extension: 'wav'), same(webm));
   });
 
   test('extensions route to their container walker', () {
-    final udta = Uint8List.fromList(box(t('udta'), [1, 2]));
+    final udta = Uint8List.fromList(box(t('udta'), payload: [1, 2]));
     for (final ext in ['mp4', 'm4v', 'mov', 'm4a']) {
-      expect(String.fromCharCodes(stripContainerMetadata(udta, ext), 4, 8),
+      expect(
+          String.fromCharCodes(
+              stripContainerMetadata(udta, extension: ext), 4, 8),
           'free');
     }
   });

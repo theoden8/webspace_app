@@ -60,14 +60,15 @@ class _ArchiveSlice {
 /// its sites in the lists marked archive-tier, closing seals them back.
 class ArchiveController {
   ArchiveController(
-    this._sites,
-    this._host,
-    this._prompts, {
+    this._sites, {
+    required ArchiveHost host,
+    required ArchivePrompts prompts,
     required this.containers,
     required this.cookieStore,
     required this.proxyPasswords,
     required this.navStates,
-  });
+  })  : _host = host,
+        _prompts = prompts;
 
   final SiteRuntime _sites;
   final ArchiveHost _host;
@@ -116,11 +117,11 @@ class ArchiveController {
     for (final siteJson in handle.state.sites) {
       final model = WebViewModel.fromJson(
         Map<String, dynamic>.from(siteJson),
-        _host.rebuild,
+        stateSetterF: _host.rebuild,
         isArchiveTier: true,
       );
       model.archiveContainerId =
-          await _containerIdFor(handle.key, model.siteId);
+          await _containerIdFor(handle.key, siteId: model.siteId);
       final cookieList = handle.state.cookies[model.siteId];
       if (cookieList != null && cookieList.isNotEmpty) {
         model.setPendingArchiveCookies([
@@ -151,10 +152,10 @@ class ArchiveController {
   /// app-tier siteId (radix-36-dash-radix-36) so directory listings look
   /// uniform.
   static Future<String> _containerIdFor(
-    Uint8List archiveKey,
-    String siteId,
-  ) async {
-    final mac = await ArchiveCrypto.hmac(archiveKey, 'container:$siteId');
+    Uint8List archiveKey, {
+    required String siteId,
+  }) async {
+    final mac = await ArchiveCrypto.hmac(archiveKey, info: 'container:$siteId');
     final bd = ByteData.view(mac.buffer, mac.offsetInBytes);
     final v1 =
         (bd.getUint16(0) * 0x100000000) + bd.getUint32(2); // 48-bit group
@@ -199,8 +200,8 @@ class ArchiveController {
     // App-tier membership of the archived sites goes into the archive
     // state and out of the runtime lists, so nothing names them once the
     // archive is closed (ARCH-001).
-    final membership =
-        ArchiveMembershipEngine.detach(_sites.webspaces, slice.siteIds);
+    final membership = ArchiveMembershipEngine.detach(_sites.webspaces,
+        siteIds: slice.siteIds);
     if (intact) {
       handle.state.appTierMembership
         ..clear()
@@ -234,7 +235,7 @@ class ArchiveController {
     // builds that predate them and by any path that forgets the gate.
     for (final sid in slice.siteIds) {
       await navStates.removeStatesForSite(sid);
-      await cookieStore.saveCookiesForSite(sid, const []);
+      await cookieStore.saveCookiesForSite(sid, cookies: const []);
       await HtmlCacheService.instance.deleteCache(sid);
     }
     for (final m in ownedSites) {
@@ -296,7 +297,8 @@ class ArchiveController {
     final capturedCookies = await _host.captureCookies(model);
     // Derived before the flip so it is atomic: an archive-tier model with no
     // opaque id would rebuild against the cleartext `ws-<siteId>` container.
-    final archiveContainerId = await _containerIdFor(target.key, model.siteId);
+    final archiveContainerId =
+        await _containerIdFor(target.key, siteId: model.siteId);
 
     // The tier flips before the app-tier stores drop the site (ARCH-001): a
     // concurrent persist filters on `!isArchiveTier` when it rebuilds the
@@ -306,7 +308,7 @@ class ArchiveController {
     model.isArchiveTier = true;
     model.archiveContainerId = archiveContainerId;
     model.setPendingArchiveCookies(capturedCookies);
-    await cookieStore.saveCookiesForSite(model.siteId, const []);
+    await cookieStore.saveCookiesForSite(model.siteId, cookies: const []);
     await proxyPasswords.mutate((draft) {
       draft[model.siteId] = null;
     });
@@ -323,7 +325,8 @@ class ArchiveController {
 
   /// The archived copy of [site] in [into], written once its references
   /// settled so it names no app-tier site, and before the app tier drops it.
-  Future<void> recordIn(WebViewModel site, ArchiveHandle into) async {
+  Future<void> recordIn(WebViewModel site,
+      {required ArchiveHandle into}) async {
     into.state.sites.add(site.toJson());
     // Which app-tier collections the site came from: the runtime lists keep
     // it while the archive is open, and the persisted form strips it
@@ -332,7 +335,7 @@ class ArchiveController {
       ..clear()
       ..addAll(ArchiveMembershipEngine.record(
         _sites.webspaces,
-        {site.siteId},
+        siteIds: {site.siteId},
         existing: into.state.appTierMembership,
       ));
     await _archive.save(into);
@@ -353,7 +356,8 @@ class ArchiveController {
     }
     handle.state.sites.removeWhere((s) => s['siteId'] == model.siteId);
     handle.state.cookies.remove(model.siteId);
-    ArchiveMembershipEngine.forget(handle.state.appTierMembership, model.siteId);
+    ArchiveMembershipEngine.forget(handle.state.appTierMembership,
+        siteId: model.siteId);
     slice.siteIds.remove(model.siteId);
     if (containerId != null) slice.containerIds.remove(containerId);
     await _archive.save(handle);
@@ -367,7 +371,7 @@ class ArchiveController {
     // app-tier site took that colour meanwhile.
     model.containerColor = ContainerColorEngine.release(
       [model.containerColor],
-      kContainerPaletteSize,
+      paletteSize: kContainerPaletteSize,
       held: [
         for (final m in _sites.models)
           if (!m.isArchiveTier && !identical(m, model)) m.containerColor,
@@ -419,7 +423,8 @@ class ArchiveController {
           await _prompts.passphrase(PassphrasePurpose.restoreSections);
       if (passphrase == null || passphrase.isEmpty) break;
       final before = remaining.length;
-      final unmatched = await _archive.importSections(passphrase, remaining);
+      final unmatched =
+          await _archive.importSections(passphrase, base64Sections: remaining);
       if (!_host.mounted) return;
       final restored = before - unmatched.length;
       remaining = unmatched;

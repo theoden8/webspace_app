@@ -73,7 +73,8 @@ Finder get _webRtcDropdown => find.byType(DropdownButton<WebRtcPolicy>);
 Finder get _addressField =>
     find.widgetWithText(TextFormField, 'Proxy Address');
 
-Future<void> _pick(WidgetTester tester, Finder dropdown, String label) async {
+Future<void> _pick(WidgetTester tester,
+    {required Finder dropdown, required String label}) async {
   await tester.tap(dropdown);
   await tester.pumpAndSettle();
   await tester.tap(find.text(label).last);
@@ -99,18 +100,25 @@ void main() {
 
   group('validateProxyAddress', () {
     test('DEFAULT and TOR carry no address to check', () {
-      expect(validateProxyAddress(loc, ProxyType.DEFAULT, ''), isNull);
-      expect(validateProxyAddress(loc, ProxyType.TOR, ''), isNull);
+      expect(validateProxyAddress(loc, type: ProxyType.DEFAULT, value: ''),
+          isNull);
+      expect(validateProxyAddress(loc, type: ProxyType.TOR, value: ''), isNull);
     });
 
     test('a manual proxy needs host:port with a real port', () {
-      expect(validateProxyAddress(loc, ProxyType.SOCKS5, ''),
+      expect(validateProxyAddress(loc, type: ProxyType.SOCKS5, value: ''),
           loc.siteSettingsProxyAddressRequired);
-      expect(validateProxyAddress(loc, ProxyType.HTTP, 'proxy.example.com'),
+      expect(
+          validateProxyAddress(loc,
+              type: ProxyType.HTTP, value: 'proxy.example.com'),
           loc.siteSettingsProxyAddressFormatError);
-      expect(validateProxyAddress(loc, ProxyType.HTTPS, 'proxy:70000'),
+      expect(
+          validateProxyAddress(loc,
+              type: ProxyType.HTTPS, value: 'proxy:70000'),
           loc.siteSettingsProxyInvalidPort);
-      expect(validateProxyAddress(loc, ProxyType.SOCKS5, '127.0.0.1:1080'),
+      expect(
+          validateProxyAddress(loc,
+              type: ProxyType.SOCKS5, value: '127.0.0.1:1080'),
           isNull);
     });
   });
@@ -142,7 +150,7 @@ void main() {
       values: _values(webRtcPolicy: WebRtcPolicy.relayOnly),
       onChanged: (v) => reported = v,
     );
-    await _pick(tester, _proxyDropdown, 'SOCKS5');
+    await _pick(tester, dropdown: _proxyDropdown, label: 'SOCKS5');
     expect(reported?.proxyType, ProxyType.SOCKS5);
     expect(reported?.webRtcPolicy, WebRtcPolicy.relayOnly);
     expect(_addressField, findsOneWidget);
@@ -196,7 +204,7 @@ void main() {
       values: _values(proxyType: ProxyType.SOCKS5),
       onChanged: (v) => reported = v,
     );
-    await _pick(tester, _webRtcDropdown, 'Disabled');
+    await _pick(tester, dropdown: _webRtcDropdown, label: 'Disabled');
     expect(reported?.webRtcPolicy, WebRtcPolicy.disabled);
     expect(reported?.proxyType, ProxyType.SOCKS5);
   });
@@ -241,7 +249,7 @@ void main() {
       expect(shown(tester), WebRtcPolicy.defaultPolicy);
       expect(find.text(loc.siteSettingsWebRtcNoDirect), findsNothing);
 
-      await _pick(tester, _proxyDropdown, 'HTTP');
+      await _pick(tester, dropdown: _proxyDropdown, label: 'HTTP');
       expect(shown(tester), WebRtcPolicy.relayOnly);
       expect(find.text(loc.siteSettingsWebRtcNoDirect), findsOneWidget);
     });
@@ -266,7 +274,7 @@ void main() {
         trackingProtectionEnabled: true,
         onChanged: (v) => reported = v,
       );
-      await _pick(tester, _webRtcDropdown, 'Disabled');
+      await _pick(tester, dropdown: _webRtcDropdown, label: 'Disabled');
       expect(reported?.webRtcPolicy, WebRtcPolicy.disabled);
       expect(shown(tester), WebRtcPolicy.disabled);
     });
@@ -280,7 +288,7 @@ void main() {
         trackingProtectionEnabled: true,
         onChanged: (v) => reported = v,
       );
-      await _pick(tester, _webRtcDropdown, 'Relay only');
+      await _pick(tester, dropdown: _webRtcDropdown, label: 'Relay only');
       expect(reported, isNull);
     });
   });
@@ -290,7 +298,7 @@ void main() {
     const probe = Text('probe', key: Key('probe'));
     await _pump(tester, values: _values(), proxyTest: probe);
     expect(find.byKey(const Key('probe')), findsNothing);
-    await _pick(tester, _proxyDropdown, 'HTTP');
+    await _pick(tester, dropdown: _proxyDropdown, label: 'HTTP');
     expect(find.byKey(const Key('probe')), findsOneWidget);
   });
 
@@ -302,8 +310,10 @@ void main() {
           HttpAuthSecureStorage(secureStorage: MockFlutterSecureStorage());
       const c = HttpAuthCredential(username: 'alice', password: 's3cret');
       await tester.runAsync(() async {
-        await store.save('site-1', Host('nas.example.com'), 'Files', c);
-        await store.save('site-1', Host('nas.example.com'), 'Admin', c);
+        await store.save('site-1',
+            host: Host('nas.example.com'), realm: 'Files', credential: c);
+        await store.save('site-1',
+            host: Host('nas.example.com'), realm: 'Admin', credential: c);
       });
 
       await tester.pumpWidget(MaterialApp(

@@ -9,25 +9,27 @@ class _MemoryStore implements HttpAuthCredentialStore {
   final Map<String, HttpAuthCredential> entries = {};
   int lookups = 0;
 
-  static String _key(String siteId, String host, String realm) =>
+  static String _key(String siteId,
+          {required String host, required String realm}) =>
       '$siteId|$host|$realm';
 
   @override
   Future<HttpAuthCredential?> lookup(
-      String siteId, Host host, String realm) async {
+      String siteId, {required Host host, required String realm}) async {
     lookups++;
-    return entries[_key(siteId, host, realm)];
+    return entries[_key(siteId, host: host, realm: realm)];
   }
 
   @override
-  Future<void> save(String siteId, Host host, String realm,
-      HttpAuthCredential credential) async {
-    entries[_key(siteId, host, realm)] = credential;
+  Future<void> save(String siteId, {required Host host, required String realm,
+      required HttpAuthCredential credential}) async {
+    entries[_key(siteId, host: host, realm: realm)] = credential;
   }
 
   @override
-  Future<void> remove(String siteId, Host host, String realm) async {
-    entries.remove(_key(siteId, host, realm));
+  Future<void> remove(String siteId,
+      {required Host host, required String realm}) async {
+    entries.remove(_key(siteId, host: host, realm: realm));
   }
 }
 
@@ -77,41 +79,53 @@ void main() {
   group('HttpAuthSession.isSiteHost', () {
     test('matches every host on the site\'s base domain', () {
       const site = 'https://nas.example.com/';
-      expect(HttpAuthSession.isSiteHost('nas.example.com', site), isTrue);
-      expect(HttpAuthSession.isSiteHost('NAS.Example.com.', site), isTrue);
-      expect(HttpAuthSession.isSiteHost('a.nas.example.com', site), isTrue);
-      expect(HttpAuthSession.isSiteHost('example.com', site), isTrue);
-      expect(HttpAuthSession.isSiteHost('files.example.com', site), isTrue);
+      expect(
+          HttpAuthSession.isSiteHost('nas.example.com', siteUrl: site), isTrue);
+      expect(HttpAuthSession.isSiteHost('NAS.Example.com.', siteUrl: site),
+          isTrue);
+      expect(HttpAuthSession.isSiteHost('a.nas.example.com', siteUrl: site),
+          isTrue);
+      expect(HttpAuthSession.isSiteHost('example.com', siteUrl: site), isTrue);
+      expect(HttpAuthSession.isSiteHost('files.example.com', siteUrl: site),
+          isTrue);
       expect(HttpAuthSession.isSiteHost('files.example.co.uk',
-          'https://nas.example.co.uk/'), isTrue);
+          siteUrl: 'https://nas.example.co.uk/'), isTrue);
     });
 
     test('rejects other registrable domains', () {
       const site = 'https://nas.example.com/';
-      expect(HttpAuthSession.isSiteHost('evil.com', site), isFalse);
-      expect(HttpAuthSession.isSiteHost('nas.example.com.evil.com', site),
+      expect(HttpAuthSession.isSiteHost('evil.com', siteUrl: site), isFalse);
+      expect(
+          HttpAuthSession.isSiteHost('nas.example.com.evil.com', siteUrl: site),
           isFalse);
       expect(HttpAuthSession.isSiteHost('example.co.uk',
-          'https://nas.other.co.uk/'), isFalse);
+          siteUrl: 'https://nas.other.co.uk/'), isFalse);
     });
 
     test('a private suffix is not a site', () {
       const site = 'https://victim.github.io/';
-      expect(HttpAuthSession.isSiteHost('attacker.github.io', site), isFalse);
-      expect(HttpAuthSession.isSiteHost('github.io', site), isFalse);
+      expect(HttpAuthSession.isSiteHost('attacker.github.io', siteUrl: site),
+          isFalse);
+      expect(HttpAuthSession.isSiteHost('github.io', siteUrl: site), isFalse);
     });
 
     test('matches IP literals and bracketed IPv6 exactly', () {
-      expect(HttpAuthSession.isSiteHost('192.168.1.10', 'http://192.168.1.10:8080/'),
+      expect(
+          HttpAuthSession.isSiteHost('192.168.1.10',
+              siteUrl: 'http://192.168.1.10:8080/'),
           isTrue);
-      expect(HttpAuthSession.isSiteHost('192.168.1.11', 'http://192.168.1.10/'),
+      expect(
+          HttpAuthSession.isSiteHost('192.168.1.11',
+              siteUrl: 'http://192.168.1.10/'),
           isFalse);
-      expect(HttpAuthSession.isSiteHost('[::1]', 'http://[::1]:8080/'), isTrue);
+      expect(HttpAuthSession.isSiteHost('[::1]', siteUrl: 'http://[::1]:8080/'),
+          isTrue);
     });
 
     test('a site without a host matches nothing', () {
-      expect(HttpAuthSession.isSiteHost('example.com', null), isFalse);
-      expect(HttpAuthSession.isSiteHost('example.com', 'file:///x.html'),
+      expect(HttpAuthSession.isSiteHost('example.com', siteUrl: null), isFalse);
+      expect(
+          HttpAuthSession.isSiteHost('example.com', siteUrl: 'file:///x.html'),
           isFalse);
     });
   });

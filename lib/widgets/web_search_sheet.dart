@@ -107,7 +107,7 @@ class _WebSearchSheetState extends State<WebSearchSheet> {
   }
 
   List<KnownSearchHost> get _addable => widget.canAddSites
-      ? WebSearchEngine.addable(_scope, widget.candidates)
+      ? WebSearchEngine.addable(_scope, candidates: widget.candidates)
       : const [];
 
   String? get _engineName => _options.isNotEmpty

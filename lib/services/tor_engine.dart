@@ -88,7 +88,7 @@ const Duration kTorReopenTimeout = Duration(seconds: 30);
 const Duration kTorSuspendedSlack = Duration(seconds: 15);
 
 /// Whether a SOCKS5 listener at [host]:[port] answers a greeting.
-typedef TorSocksProbe = Future<bool> Function(String host, int port);
+typedef TorSocksProbe = Future<bool> Function(String host, {required int port});
 
 sealed class TorStatus {
   const TorStatus();
@@ -128,7 +128,7 @@ class TorBootstrapping extends TorStatus {
 }
 
 class TorUp extends TorStatus {
-  const TorUp(this.host, this.port);
+  const TorUp(this.host, {required this.port});
   final String host;
   final int port;
   @override
@@ -149,7 +149,7 @@ String? torSocksEndpoint(TorStatus status) =>
 /// the OS, so Up -> Up is a different address more often than not. A webview
 /// left on the old one reaches nothing, and TOR-008 keeps it from falling
 /// back to direct, so the site simply never loads until the app is restarted.
-bool torBindingChanged(TorStatus previous, TorStatus next) =>
+bool torBindingChanged(TorStatus previous, {required TorStatus next}) =>
     torSocksEndpoint(previous) != torSocksEndpoint(next);
 
 /// What the interstitial in front of a Tor-bound site has to say, which the
@@ -459,7 +459,7 @@ class TorEngine {
   Future<bool> _reopenIfDead(TorUp up) async {
     final probe = _socksProbe;
     if (probe == null) return true;
-    if (await probe(up.host, up.port)) return true;
+    if (await probe(up.host, port: up.port)) return true;
     if (_disposed || !identical(_runtimeUp, up)) return false;
     // Held like a pin change: the listener the sites are bound to is gone,
     // and the one coming is on another port.
@@ -650,7 +650,7 @@ class TorEngine {
     if (pin != null) {
       final store = _geoIpStore;
       if (store != null) {
-        geoipFile = await _geoIpTable(store, up);
+        geoipFile = await _geoIpTable(store, up: up);
         if (superseded()) return;
         if (geoipFile == null) {
           final message = _mayFetchGeoIp
@@ -718,8 +718,8 @@ class TorEngine {
   /// happen *before* the pin, since a country tor cannot resolve leaves it
   /// no exit to download through. A kept table past [kTorGeoIpMaxAge] is
   /// used as it is and refreshed behind it, for the next pin to pick up.
-  Future<String?> _geoIpTable(TorGeoIpStore store, TorUp up) async {
-    final via = _socksAt(up, kTorGeoIpTag);
+  Future<String?> _geoIpTable(TorGeoIpStore store, {required TorUp up}) async {
+    final via = _socksAt(up, reason: kTorGeoIpTag);
     final kept = await _orNull(store.newest());
     if (kept != null) {
       if (_mayFetchGeoIp && kept.isStale(_clock())) {
@@ -744,10 +744,11 @@ class TorEngine {
   UserProxySettings? socksFor(String reason) {
     final s = _status;
     if (s is! TorUp) return null;
-    return _socksAt(s, reason);
+    return _socksAt(s, reason: reason);
   }
 
-  UserProxySettings _socksAt(TorUp up, String reason) => UserProxySettings(
+  UserProxySettings _socksAt(TorUp up, {required String reason}) =>
+      UserProxySettings(
         type: ProxyType.SOCKS5,
         address: '${up.host}:${up.port}',
         username: reason,

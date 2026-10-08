@@ -91,22 +91,25 @@ class SitePrivacyValues {
         blockScreenshots: blockScreenshots ?? this.blockScreenshots,
       );
 
-  bool _forced(TrackingProtectionForce force, bool stored) =>
-      force.resolve(stored, trackingProtection: trackingProtectionEnabled);
+  bool _forced(TrackingProtectionForce force, {required bool stored}) => force
+      .resolve(stored: stored, trackingProtection: trackingProtectionEnabled);
 
   bool get effectiveClearUrl =>
-      _forced(TrackingProtectionForce.clearUrls, clearUrlEnabled);
+      _forced(TrackingProtectionForce.clearUrls, stored: clearUrlEnabled);
   bool get effectiveDnsBlock =>
-      _forced(TrackingProtectionForce.dnsBlock, dnsBlockEnabled);
+      _forced(TrackingProtectionForce.dnsBlock, stored: dnsBlockEnabled);
   bool get effectiveContentBlock =>
-      _forced(TrackingProtectionForce.contentBlock, contentBlockEnabled);
+      _forced(TrackingProtectionForce.contentBlock,
+          stored: contentBlockEnabled);
   bool get effectiveLocalCdn => ArchiveFold.localCdn(
-      _forced(TrackingProtectionForce.localCdn, localCdnEnabled),
+      stored:
+          _forced(TrackingProtectionForce.localCdn, stored: localCdnEnabled),
       archived: archived);
-  bool get effectiveThirdPartyCookies => _forced(
-      TrackingProtectionForce.thirdPartyCookies, thirdPartyCookiesEnabled);
+  bool get effectiveThirdPartyCookies =>
+      _forced(TrackingProtectionForce.thirdPartyCookies,
+          stored: thirdPartyCookiesEnabled);
   bool get effectiveIncognito =>
-      ArchiveFold.incognito(incognito, archived: archived);
+      ArchiveFold.incognito(stored: incognito, archived: archived);
 
   /// The archive drops the per-site level, which would pin a level file on
   /// disk outside its keyspace.
@@ -220,7 +223,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           ? dnsBlockLevelNames[_effectiveDnsLevel]
           : loc.siteSettingsNotConfigured,
       lock: _umbrella(TrackingProtectionForce.dnsBlock),
-      control: Toggle(_values.effectiveDnsBlock, (value) {
+      control: Toggle(_values.effectiveDnsBlock, onChanged: (value) {
         if (value && !ready) _warnNotConfigured(loc.siteSettingsDnsBlocklist);
         _update(_values.copyWith(dnsBlockEnabled: value));
       }),
@@ -238,7 +241,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
               ContentBlockerService.instance.totalRuleCount)
           : loc.siteSettingsNotConfigured,
       lock: _umbrella(TrackingProtectionForce.contentBlock),
-      control: Toggle(_values.effectiveContentBlock, (value) {
+      control: Toggle(_values.effectiveContentBlock, onChanged: (value) {
         if (value && !ready) _warnNotConfigured(loc.siteSettingsContentBlocker);
         _update(_values.copyWith(contentBlockEnabled: value));
       }),
@@ -407,7 +410,8 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
               ? const ArchiveLock()
               : _umbrella(TrackingProtectionForce.localCdn),
       control: Toggle(_values.effectiveLocalCdn && hasCache,
-          (value) => _update(_values.copyWith(localCdnEnabled: value))),
+          onChanged: (value) =>
+              _update(_values.copyWith(localCdnEnabled: value))),
     );
   }
 
@@ -470,7 +474,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
             subtitle: loc.siteSettingsClearUrlsSubtitle,
             lock: _umbrella(TrackingProtectionForce.clearUrls),
             control: Toggle(_values.effectiveClearUrl,
-                (value) => _update(_values.copyWith(clearUrlEnabled: value))),
+                onChanged: (value) => _update(_values.copyWith(clearUrlEnabled: value))),
           ),
           _dnsBlocklist(loc),
           if (_values.effectiveDnsBlock && DnsBlockService.instance.hasBlocklist)
@@ -488,7 +492,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
             lock: _umbrella(TrackingProtectionForce.thirdPartyCookies),
             control: Toggle(
                 _values.effectiveThirdPartyCookies,
-                (value) =>
+                onChanged: (value) =>
                     _update(_values.copyWith(thirdPartyCookiesEnabled: value))),
           ),
           // Follows App Settings until the site picks its own value, and can
@@ -515,7 +519,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
                 : Lock.because(loc.siteSettingsNeedsTrackingProtection),
             control: Toggle(
                 _values.letterboxEnabled && _values.trackingProtectionEnabled,
-                (value) => _update(_values.copyWith(letterboxEnabled: value))),
+                onChanged: (value) => _update(_values.copyWith(letterboxEnabled: value))),
           ),
           // Only while the umbrella is on: with it off nothing is being
           // randomised, and the note would be describing something that is
@@ -531,7 +535,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
                   ? Lock.because(loc.siteSettingsBlockScreenshotsAppWide)
                   : null,
               control: Toggle(_values.effectiveBlockScreenshots,
-                  (value) => _update(_values.copyWith(blockScreenshots: value))),
+                  onChanged: (value) => _update(_values.copyWith(blockScreenshots: value))),
             ),
           ],
           const SizedBox(height: 24),

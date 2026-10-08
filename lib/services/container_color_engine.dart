@@ -16,7 +16,7 @@ abstract final class ContainerColorEngine {
   /// used index so far, lowest first on a tie, counting every index already
   /// given, including the ones given earlier in the same pass. Entries that
   /// have an index keep it; one outside the palette counts as having none.
-  static List<int> assign(List<int?> current, int paletteSize) {
+  static List<int> assign(List<int?> current, {required int paletteSize}) {
     assert(paletteSize > 0);
     final counts = List<int>.filled(paletteSize, 0);
     bool valid(int? i) => i != null && i >= 0 && i < paletteSize;
@@ -46,8 +46,8 @@ abstract final class ContainerColorEngine {
   /// entries before it, count as held. Once every colour is held a site keeps
   /// its own, since a new one would be shared too.
   static List<int?> release(
-    List<int?> incoming,
-    int paletteSize, {
+    List<int?> incoming, {
+    required int paletteSize,
     Iterable<int?> held = const [],
   }) {
     assert(paletteSize > 0);
@@ -72,7 +72,7 @@ abstract final class ContainerColorEngine {
   /// A colour for a site that has none stored, stable for its id. Only for
   /// sites the assignment never sees (an archive's, while it is open): the
   /// app-tier list must not depend on them (ARCH-001).
-  static int fallback(String siteId, int paletteSize) {
+  static int fallback(String siteId, {required int paletteSize}) {
     var hash = 0x811c9dc5;
     for (final unit in siteId.codeUnits) {
       hash = ((hash ^ unit) * 0x01000193) & 0xffffffff;

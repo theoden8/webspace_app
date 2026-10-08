@@ -92,8 +92,9 @@ class SiteBehaviourValues {
         searchDefault: searchDefault ?? this.searchDefault,
       );
 
-  bool effectiveAlwaysOpenHome(bool incognito) => resolveAlwaysOpenHome(
-      alwaysOpenHome: alwaysOpenHome, incognito: incognito);
+  bool effectiveAlwaysOpenHome({required bool incognito}) =>
+      resolveAlwaysOpenHome(
+          alwaysOpenHome: alwaysOpenHome, incognito: incognito);
 
   bool get effectiveTabsEnabled =>
       resolveTabs(tabs: tabsEnabled, kiosk: kioskMode);
@@ -102,7 +103,7 @@ class SiteBehaviourValues {
       route: routeOutboundLinks, mode: externalLinkMode);
 
   bool get effectiveHtmlCaching =>
-      ArchiveFold.htmlCaching(htmlCachingEnabled, archived: archived);
+      ArchiveFold.htmlCaching(stored: htmlCachingEnabled, archived: archived);
 
   ExternalLinkMode get effectiveExternalLinkMode =>
       ArchiveFold.externalLinks(externalLinkMode, archived: archived);
@@ -199,7 +200,8 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
             ? null
             : Lock.because(loc.siteSettingsRouteOutboundLinksNeedsContainers),
         control: Toggle(_values.routeOutboundLinks,
-            (value) => _update(_values.copyWith(routeOutboundLinks: value))),
+            onChanged: (value) =>
+                _update(_values.copyWith(routeOutboundLinks: value))),
       );
 
   Widget _outboundPreferences(AppLocalizations loc) {
@@ -268,7 +270,8 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
   /// [site]'s container colour, none on the legacy engine (TAB-018).
   int? _colorIndexOf(WebViewModel site) => widget.containersActive
       ? site.containerColor ??
-          ContainerColorEngine.fallback(site.siteId, kContainerPaletteSize)
+          ContainerColorEngine.fallback(site.siteId,
+              paletteSize: kContainerPaletteSize)
       : null;
 
   /// Two search sites can share a name, never an id (LIR-029).
@@ -280,8 +283,8 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
         ? null
         : widget.routingTargets.where((m) => m.siteId == siteId).firstOrNull;
     if (site == null) return null;
-    return searchSiteSummaryName(site.getDisplayName(), site.siteId,
-        _webSearchSites.map((m) => m.getDisplayName()));
+    return searchSiteSummaryName(site.getDisplayName(), siteId: site.siteId,
+        names: _webSearchSites.map((m) => m.getDisplayName()));
   }
 
   /// What the site searches with without an address of its own: what its
@@ -411,14 +414,14 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
             lock: widget.incognito
                 ? Lock.because(loc.siteSettingsAlwaysOpenHomeForced)
                 : null,
-            control: Toggle(_values.effectiveAlwaysOpenHome(widget.incognito),
-                (value) => _update(_values.copyWith(alwaysOpenHome: value))),
+            control: Toggle(_values.effectiveAlwaysOpenHome(incognito: widget.incognito),
+                onChanged: (value) => _update(_values.copyWith(alwaysOpenHome: value))),
           ),
           SettingTile(
             title: loc.siteSettingsKioskMode,
             hint: loc.siteSettingsKioskModeHint,
             control: Toggle(_values.kioskMode,
-                (value) => _update(_values.copyWith(kioskMode: value))),
+                onChanged: (value) => _update(_values.copyWith(kioskMode: value))),
           ),
           SettingTile(
             title: loc.siteSettingsFullscreen,
@@ -426,7 +429,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
             hint: loc.siteSettingsFullscreenHint,
             subtitle: loc.siteSettingsFullscreenSubtitle,
             control: Toggle(_values.fullscreenMode,
-                (value) => _update(_values.copyWith(fullscreenMode: value))),
+                onChanged: (value) => _update(_values.copyWith(fullscreenMode: value))),
           ),
           // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
           // off, and Kiosk mode on shows tabs off without forgetting the
@@ -437,7 +440,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
               hint: loc.siteSettingsTabsHint,
               control: Toggle(
                   _values.effectiveTabsEnabled,
-                  (value) => _update(value
+                  onChanged: (value) => _update(value
                       ? _values.copyWith(tabsEnabled: true, kioskMode: false)
                       : _values.copyWith(tabsEnabled: false))),
             ),
@@ -447,7 +450,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
             hint: loc.siteSettingsHtmlCachingHint,
             lock: _values.archived ? const ArchiveLock() : null,
             control: Toggle(_values.effectiveHtmlCaching,
-                (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
+                onChanged: (value) => _update(_values.copyWith(htmlCachingEnabled: value))),
           ),
           SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),

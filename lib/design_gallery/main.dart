@@ -359,7 +359,7 @@ class GalleryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = buildAccentColorScheme(accent, brightness);
+    final scheme = buildAccentColorScheme(accent, brightness: brightness);
     final single = cardId == null
         ? null
         : galleryCards.where((c) => c.id == cardId).firstOrNull;
@@ -558,10 +558,10 @@ Widget _urlBar(BuildContext _) => Column(
       onUrlSubmitted: (_) {},
       onSiteInfo: () {},
       searchSites: const [
-        UrlBarSearchSite('ddg', 'DuckDuckGo'),
-        UrlBarSearchSite('kagi', 'Kagi'),
+        UrlBarSearchSite('ddg', name: 'DuckDuckGo'),
+        UrlBarSearchSite('kagi', name: 'Kagi'),
       ],
-      onSearch: (_, _) {},
+      onSearch: (_, {required siteId}) {},
     ),
     UrlBar(currentUrl: 'http://example.org', onUrlSubmitted: (_) {}, onSiteInfo: () {}),
     Directionality(
@@ -694,9 +694,9 @@ class _WebspacesCardState extends State<_WebspacesCard> {
         onAddWebspace: () {},
         onEditWebspace: (_) {},
         onDeleteWebspace: (w) => setState(() => _webspaces.remove(w)),
-        onReorder: (from, to) => setState(() {
+        onReorder: (from, {required newIndex}) => setState(() {
           final moved = _webspaces.removeAt(from);
-          _webspaces.insert(to > from ? to - 1 : to, moved);
+          _webspaces.insert(newIndex > from ? newIndex - 1 : newIndex, moved);
         }),
       );
 }
@@ -827,10 +827,10 @@ class _SiteNetworkCardState extends State<_SiteNetworkCard> {
   final password = TextEditingController(text: 'hunter2');
   late final Future<void> _seeded = () async {
     const c = HttpAuthCredential(username: 'alice', password: 's3cret');
-    await HttpAuthSecureStorage.instance
-        .save(model.siteId, Host('nas.example.com'), 'Files', c);
-    await HttpAuthSecureStorage.instance
-        .save(model.siteId, Host('nas.example.com'), 'Admin', c);
+    await HttpAuthSecureStorage.instance.save(model.siteId,
+        host: Host('nas.example.com'), realm: 'Files', credential: c);
+    await HttpAuthSecureStorage.instance.save(model.siteId,
+        host: Host('nas.example.com'), realm: 'Admin', credential: c);
   }();
 
   @override
@@ -1017,17 +1017,24 @@ class _BrowserChromeCard extends StatelessWidget {
 }
 
 /// A site whose tabs are [tabs], with [active] bound to its webview.
-WebViewModel _siteWithTabs(
-    String name, String initUrl, List<SiteTab> tabs, String active,
-    {String? siteId, int? containerColor}) {
+WebViewModel _siteWithTabs(String name,
+    {required String initUrl,
+    required List<SiteTab> tabs,
+    required String active,
+    String? siteId,
+    int? containerColor}) {
   final m = WebViewModel(
-      initUrl: initUrl, name: name, siteId: siteId, containerColor: containerColor);
+      initUrl: initUrl,
+      name: name,
+      siteId: siteId,
+      containerColor: containerColor);
   m.tabs = tabs;
   m.activeTabId = active;
   return m;
 }
 
-SearchSite _site(String id, String name, String url) => SearchSite(
+SearchSite _site(String id, {required String name, required String url}) =>
+    SearchSite(
       siteId: id,
       name: name,
       initUrl: url,
@@ -1038,11 +1045,11 @@ Widget _webSearchSheet(BuildContext _) => _SheetOver(
       title: 'GitHub',
       top: Spacing.lg,
       sheet: WebSearchSheet(
-        identity: _site('gh', 'GitHub', 'https://github.com/'),
+        identity: _site('gh', name: 'GitHub', url: 'https://github.com/'),
         candidates: [
-          _site('ddg', 'DuckDuckGo', 'https://duckduckgo.com/'),
-          _site('kagi', 'Kagi', 'https://kagi.com/'),
-          _site('pplx', 'Perplexity', 'https://www.perplexity.ai/'),
+          _site('ddg', name: 'DuckDuckGo', url: 'https://duckduckgo.com/'),
+          _site('kagi', name: 'Kagi', url: 'https://kagi.com/'),
+          _site('pplx', name: 'Perplexity', url: 'https://www.perplexity.ai/'),
         ],
         containerColors: const {'gh': 0, 'ddg': 6, 'kagi': 2, 'pplx': 4},
       ),
@@ -1182,29 +1189,93 @@ class _SheetOver extends StatelessWidget {
 /// domain (LIR-034), while a search it ran in DuckDuckGo runs as DuckDuckGo
 /// (LIR-030). Each site has its colour (TAB-018).
 abstract final class _TabsDemo {
-  static final WebViewModel github = _siteWithTabs('GitHub', 'https://github.com/', [
-    SiteTab.primary(url: 'https://github.com/theoden8/webspace_app', title: 'theoden8/webspace_app'),
-    SiteTab(id: 'pulls', url: 'https://github.com/theoden8/webspace_app/pulls', title: 'Pull requests', parentId: kPrimaryTabId),
-    SiteTab(id: 'pr659', url: 'https://github.com/theoden8/webspace_app/pull/659', title: 'Let the routing switch pick the site #659', parentId: 'pulls'),
-    SiteTab(id: 'search', url: 'https://duckduckgo.com/?q=flutter+inappwebview', title: 'flutter inappwebview at DuckDuckGo', parentId: kPrimaryTabId, hostSiteId: 'ddg'),
-    SiteTab(id: 'result', url: 'https://github.com/pichillilorenzo/flutter_inappwebview', title: 'flutter_inappwebview', parentId: 'search'),
-    SiteTab(id: 'wiki', url: 'https://en.wikipedia.org/wiki/Tree_(data_structure)', title: 'Tree (data structure)', parentId: 'pr659', openerSiteId: 'gh', homeUrl: 'https://en.wikipedia.org/wiki/Tree_(data_structure)'),
-  ], 'pr659', siteId: 'gh', containerColor: 0);
+  static final WebViewModel github = _siteWithTabs('GitHub',
+      initUrl: 'https://github.com/',
+      tabs: [
+        SiteTab.primary(
+            url: 'https://github.com/theoden8/webspace_app',
+            title: 'theoden8/webspace_app'),
+        SiteTab(
+            id: 'pulls',
+            url: 'https://github.com/theoden8/webspace_app/pulls',
+            title: 'Pull requests',
+            parentId: kPrimaryTabId),
+        SiteTab(
+            id: 'pr659',
+            url: 'https://github.com/theoden8/webspace_app/pull/659',
+            title: 'Let the routing switch pick the site #659',
+            parentId: 'pulls'),
+        SiteTab(
+            id: 'search',
+            url: 'https://duckduckgo.com/?q=flutter+inappwebview',
+            title: 'flutter inappwebview at DuckDuckGo',
+            parentId: kPrimaryTabId,
+            hostSiteId: 'ddg'),
+        SiteTab(
+            id: 'result',
+            url: 'https://github.com/pichillilorenzo/flutter_inappwebview',
+            title: 'flutter_inappwebview',
+            parentId: 'search'),
+        SiteTab(
+            id: 'wiki',
+            url: 'https://en.wikipedia.org/wiki/Tree_(data_structure)',
+            title: 'Tree (data structure)',
+            parentId: 'pr659',
+            openerSiteId: 'gh',
+            homeUrl: 'https://en.wikipedia.org/wiki/Tree_(data_structure)'),
+      ],
+      active: 'pr659',
+      siteId: 'gh',
+      containerColor: 0);
 
-  static final WebViewModel mastodon = _siteWithTabs('Mastodon', 'https://mastodon.social/', [
-    SiteTab.primary(url: 'https://mastodon.social/home', title: 'Home'),
-    SiteTab(id: 'thread', url: 'https://mastodon.social/@flutter/113', title: 'Thread by @flutter', parentId: kPrimaryTabId),
-  ], 'thread', siteId: 'mastodon', containerColor: 6);
+  static final WebViewModel mastodon = _siteWithTabs('Mastodon',
+      initUrl: 'https://mastodon.social/',
+      tabs: [
+        SiteTab.primary(url: 'https://mastodon.social/home', title: 'Home'),
+        SiteTab(
+            id: 'thread',
+            url: 'https://mastodon.social/@flutter/113',
+            title: 'Thread by @flutter',
+            parentId: kPrimaryTabId),
+      ],
+      active: 'thread',
+      siteId: 'mastodon',
+      containerColor: 6);
 
-  static final WebViewModel wikipedia = _siteWithTabs('Wikipedia', 'https://en.wikipedia.org/', [
-    SiteTab.primary(url: 'https://en.wikipedia.org/wiki/Tab_(interface)', title: 'Tab (interface)'),
-  ], kPrimaryTabId, siteId: 'wiki', containerColor: 2);
+  static final WebViewModel wikipedia = _siteWithTabs('Wikipedia',
+      initUrl: 'https://en.wikipedia.org/',
+      tabs: [
+        SiteTab.primary(
+            url: 'https://en.wikipedia.org/wiki/Tab_(interface)',
+            title: 'Tab (interface)'),
+      ],
+      active: kPrimaryTabId,
+      siteId: 'wiki',
+      containerColor: 2);
 
-  static final WebViewModel duckduckgo = _siteWithTabs('DuckDuckGo', 'https://duckduckgo.com/', [
-    SiteTab.primary(url: 'https://duckduckgo.com/?q=webview+containers', title: 'webview containers at DuckDuckGo'),
-    SiteTab(id: 'own', url: 'https://duckduckgo.com/?q=tab+trees', title: 'tab trees at DuckDuckGo', parentId: kPrimaryTabId),
-    SiteTab(id: 'issue', url: 'https://github.com/theoden8/webspace_app/issues/422', title: 'Web search #422', parentId: 'own', hostSiteId: 'gh', openerSiteId: 'ddg', homeUrl: 'https://github.com/theoden8/webspace_app/issues/422'),
-  ], kPrimaryTabId, siteId: 'ddg', containerColor: 4);
+  static final WebViewModel duckduckgo = _siteWithTabs('DuckDuckGo',
+      initUrl: 'https://duckduckgo.com/',
+      tabs: [
+        SiteTab.primary(
+            url: 'https://duckduckgo.com/?q=webview+containers',
+            title: 'webview containers at DuckDuckGo'),
+        SiteTab(
+            id: 'own',
+            url: 'https://duckduckgo.com/?q=tab+trees',
+            title: 'tab trees at DuckDuckGo',
+            parentId: kPrimaryTabId),
+        SiteTab(
+            id: 'issue',
+            url: 'https://github.com/theoden8/webspace_app/issues/422',
+            title: 'Web search #422',
+            parentId: 'own',
+            hostSiteId: 'gh',
+            openerSiteId: 'ddg',
+            homeUrl: 'https://github.com/theoden8/webspace_app/issues/422'),
+      ],
+      active: kPrimaryTabId,
+      siteId: 'ddg',
+      containerColor: 4);
 
   static final List<WebViewModel> all = [github, mastodon, wikipedia, duckduckgo];
 
@@ -1227,19 +1298,19 @@ abstract final class _TabsDemo {
 }
 
 /// The real TabsSheet over a page, with site [current] on screen.
-Widget _tabsSheetOver(String title, int current,
-    {List<TabsSheetSite>? sites, TabReturn? wayBack}) {
+Widget _tabsSheetOver(String title, {required int current,
+   List<TabsSheetSite>? sites, TabReturn? wayBack}) {
   _TabsDemo.bindLookup();
   return _SheetOver(
     title: title,
     sheet: TabsSheet(
       sites: sites ?? _TabsDemo.sites(current: _TabsDemo.all[current]),
       currentIndex: current,
-      onOpenTab: (_, _) {},
+      onOpenTab: (_, {required tabId}) {},
       onNewTab: (_) {},
       onWebSearch: () {},
-      onCloseTab: (_, _) {},
-      onCloseSubtree: (_, _) {},
+      onCloseTab: (_, {required tabId}) {},
+      onCloseSubtree: (_, {required tabId}) {},
       wayBack: wayBack,
     ),
   );
@@ -1250,21 +1321,26 @@ Widget _tabsSheetOver(String title, int current,
 /// (TAB-011); GitHub's tree runs tabs as three sites, each row marked with
 /// the colour of the one it runs as, and DuckDuckGo's tree holds a GitHub tab
 /// under one of its own, listed with it under "In DuckDuckGo" (TAB-017).
-Widget _tabsSheet(BuildContext _) => _tabsSheetOver('GitHub', 0);
+Widget _tabsSheet(BuildContext _) => _tabsSheetOver('GitHub', current: 0);
 
 /// DuckDuckGo's Tabs sheet: its own tree, then GitHub's, folded around the
 /// tab it runs as DuckDuckGo, under "In GitHub" (TAB-017).
-Widget _tabsSheetInSite(BuildContext _) => _tabsSheetOver('DuckDuckGo', 3);
+Widget _tabsSheetInSite(BuildContext _) =>
+    _tabsSheetOver('DuckDuckGo', current: 3);
 
 /// The same sheet once that tab was tapped: GitHub is on screen on it, so
 /// GitHub's tree comes first with that tab highlighted, and DuckDuckGo's tab
 /// below it is marked as where the user was (TAB-019).
 Widget _tabsSheetWayBack(BuildContext _) {
-  final github = _siteWithTabs('GitHub', 'https://github.com/',
-      _TabsDemo.github.tabs, 'search', siteId: 'gh', containerColor: 0);
+  final github = _siteWithTabs('GitHub',
+      initUrl: 'https://github.com/',
+      tabs: _TabsDemo.github.tabs,
+      active: 'search',
+      siteId: 'gh',
+      containerColor: 0);
   return _tabsSheetOver(
     'GitHub',
-    0,
+    current: 0,
     sites: [
       TabsSheetSite(index: 0, model: github, isCurrent: true, isLoaded: true),
       for (final (i, m) in _TabsDemo.all.skip(1).indexed)

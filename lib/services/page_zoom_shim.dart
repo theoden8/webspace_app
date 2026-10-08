@@ -261,7 +261,7 @@ String buildPageZoomViewportShim({
 /// WebKit 17+ / WPE 2.40+ reflow the layout to fill the window.
 String buildPageZoomCssShim(int zoomPercent) => _styleShim(
       '__webspace_page_zoom__',
-      'html{zoom:$zoomPercent% !important;}',
+      css: 'html{zoom:$zoomPercent% !important;}',
       // Root `zoom` applied at document start can leave Blink on a blank
       // frame until a layout invalidation lands; force one.
       relayout: '''
@@ -279,13 +279,14 @@ String buildPageZoomCssShim(int zoomPercent) => _styleShim(
 /// that pins it to 100% still wins.
 String buildTextZoomShim(int zoomPercent) => _styleShim(
       '__webspace_text_zoom__',
-      'html{-webkit-text-size-adjust:$zoomPercent% !important;}',
+      css: 'html{-webkit-text-size-adjust:$zoomPercent% !important;}',
       relayout: '',
     );
 
 /// One `<style>` element, re-applied by id so a same-document navigation
 /// keeps it.
-String _styleShim(String id, String css, {required String relayout}) => '''
+String _styleShim(String id, {required String css, required String relayout}) =>
+    '''
 (function(){
   var id='$id';
   var css='$css';

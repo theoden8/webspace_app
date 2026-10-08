@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// Pumps frames in 100ms slices for [total]. pumpAndSettle deadlocks once a
 /// webview is live, so a bounded run of slices is how these tests advance
 /// the tree.
-Future<void> pumpFor(WidgetTester tester, Duration total) async {
+Future<void> pumpFor(WidgetTester tester, {required Duration total}) async {
   final deadline = DateTime.now().add(total);
   while (DateTime.now().isBefore(deadline)) {
     await tester.pump(const Duration(milliseconds: 100));
@@ -28,8 +28,8 @@ class RealWait {
   /// Whether [done] held before [timeout], this wait's default when null.
   /// With a [label], logs `<label> -> ok|timeout`.
   Future<bool> call(
-    WidgetTester tester,
-    bool Function() done, {
+    WidgetTester tester, {
+    required bool Function() done,
     String? label,
     Duration? timeout,
   }) async {
@@ -80,8 +80,8 @@ Future<void> openSiteDrawer(WidgetTester tester) async {
 /// title, so the search is scoped to the open drawer when there is one.
 /// [diagnose] runs before the failure when no tile is found.
 Future<void> tapSite(
-  WidgetTester tester,
-  String siteName, {
+  WidgetTester tester, {
+  required String siteName,
   void Function(String context)? diagnose,
 }) async {
   final drawer = find.byType(Drawer);

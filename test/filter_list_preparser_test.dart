@@ -22,37 +22,42 @@ void main() {
 
   group('expressions', () {
     test('tokens follow the webview engine', () {
-      expect(evaluatePreparserExpr('env_chromium', androidEnv), isTrue);
-      expect(evaluatePreparserExpr('env_mobile', androidEnv), isTrue);
-      expect(evaluatePreparserExpr('env_safari', androidEnv), isFalse);
-      expect(evaluatePreparserExpr('env_safari', macEnv), isTrue);
-      expect(evaluatePreparserExpr('env_mobile', macEnv), isFalse);
-      expect(evaluatePreparserExpr('env_firefox', androidEnv), isFalse);
-      expect(evaluatePreparserExpr('ext_ublock', macEnv), isTrue);
+      expect(evaluatePreparserExpr('env_chromium', env: androidEnv), isTrue);
+      expect(evaluatePreparserExpr('env_mobile', env: androidEnv), isTrue);
+      expect(evaluatePreparserExpr('env_safari', env: androidEnv), isFalse);
+      expect(evaluatePreparserExpr('env_safari', env: macEnv), isTrue);
+      expect(evaluatePreparserExpr('env_mobile', env: macEnv), isFalse);
+      expect(evaluatePreparserExpr('env_firefox', env: androidEnv), isFalse);
+      expect(evaluatePreparserExpr('ext_ublock', env: macEnv), isTrue);
     });
 
     test('negation, and/or, parentheses', () {
-      expect(evaluatePreparserExpr('!env_firefox', androidEnv), isTrue);
-      expect(evaluatePreparserExpr('env_firefox || env_chromium', androidEnv),
+      expect(evaluatePreparserExpr('!env_firefox', env: androidEnv), isTrue);
+      expect(
+          evaluatePreparserExpr('env_firefox || env_chromium', env: androidEnv),
           isTrue);
-      expect(evaluatePreparserExpr('(env_chromium && env_mobile)', androidEnv),
+      expect(
+          evaluatePreparserExpr('(env_chromium && env_mobile)',
+              env: androidEnv),
           isTrue);
-      expect(evaluatePreparserExpr('env_chromium && !env_mobile', androidEnv),
+      expect(
+          evaluatePreparserExpr('env_chromium && !env_mobile', env: androidEnv),
           isFalse);
     });
 
     test('false and ext_abp never hold, their negation always does', () {
-      expect(evaluatePreparserExpr('false', androidEnv), isFalse);
-      expect(evaluatePreparserExpr('!false', androidEnv), isTrue);
-      expect(evaluatePreparserExpr('ext_abp', androidEnv), isFalse);
-      expect(evaluatePreparserExpr('!ext_abp', androidEnv), isTrue);
+      expect(evaluatePreparserExpr('false', env: androidEnv), isFalse);
+      expect(evaluatePreparserExpr('!false', env: androidEnv), isTrue);
+      expect(evaluatePreparserExpr('ext_abp', env: androidEnv), isFalse);
+      expect(evaluatePreparserExpr('!ext_abp', env: androidEnv), isTrue);
     });
 
     test('an unknown cap_ token is false, any other unknown token is unknown',
         () {
-      expect(evaluatePreparserExpr('cap_future_thing', androidEnv), isFalse);
-      expect(evaluatePreparserExpr('env_future', androidEnv), isNull);
-      expect(evaluatePreparserExpr('&& env_chromium', androidEnv), isNull);
+      expect(
+          evaluatePreparserExpr('cap_future_thing', env: androidEnv), isFalse);
+      expect(evaluatePreparserExpr('env_future', env: androidEnv), isNull);
+      expect(evaluatePreparserExpr('&& env_chromium', env: androidEnv), isNull);
     });
   });
 
@@ -64,7 +69,7 @@ void main() {
           'other.example##.b\n'
           '!#endif\n'
           '||always.example^\n';
-      final out = pruneFilterList(list, androidEnv);
+      final out = pruneFilterList(list, env: androidEnv);
       expect(out, isNot(contains('firefox-only')));
       expect(out, contains('other.example##.b'));
       expect(out, contains('||always.example^'));
@@ -78,7 +83,7 @@ void main() {
           '!#endif\n'
           'c.example##.z\n'
           '!#endif\n';
-      final out = pruneFilterList(list, androidEnv);
+      final out = pruneFilterList(list, env: androidEnv);
       expect(out, contains('a.example'));
       expect(out, isNot(contains('b.example')));
       expect(out, contains('c.example'));
@@ -86,18 +91,18 @@ void main() {
 
     test('a block under an unknown token is kept, as uBO keeps it', () {
       const list = '!#if env_future\nkept.example##.x\n!#endif\n';
-      expect(pruneFilterList(list, androidEnv), contains('kept.example'));
+      expect(pruneFilterList(list, env: androidEnv), contains('kept.example'));
     });
 
     test('a list with no directives is returned untouched', () {
       const list = '||a.example^\n! comment\n##.ad\n';
-      expect(identical(pruneFilterList(list, androidEnv), list), isTrue);
+      expect(identical(pruneFilterList(list, env: androidEnv), list), isTrue);
     });
   });
 
   group('includes', () {
     Future<String?> Function(String) server(
-        Map<String, String> files, List<String> fetched) {
+        Map<String, String> files, {required List<String> fetched}) {
       return (url) async {
         fetched.add(url);
         return files[url];
@@ -108,13 +113,13 @@ void main() {
       final fetched = <String>[];
       final out = await expandFilterListIncludes(
         '||top.example^\n!#include sub/a.txt\n',
-        'https://lists.example/filters/main.txt',
-        androidEnv,
-        server({
+        url: 'https://lists.example/filters/main.txt',
+        env: androidEnv,
+        fetch: server({
           'https://lists.example/filters/sub/a.txt':
               '||a.example^\n!#include b.txt\n',
           'https://lists.example/filters/sub/b.txt': '||b.example^',
-        }, fetched),
+        }, fetched: fetched),
       );
       expect(fetched, [
         'https://lists.example/filters/sub/a.txt',
@@ -132,9 +137,9 @@ void main() {
         '!#include ../secret.txt\n'
         '!#include %2e%2e/secret.txt\n'
         '!#include a\\..\\b.txt\n',
-        'https://lists.example/filters/main.txt',
-        androidEnv,
-        server(const {}, fetched),
+        url: 'https://lists.example/filters/main.txt',
+        env: androidEnv,
+        fetch: server(const {}, fetched: fetched),
       );
       expect(fetched, isEmpty);
     });
@@ -144,9 +149,10 @@ void main() {
       final out = await expandFilterListIncludes(
         '!#if env_firefox\n!#include firefox.txt\n!#endif\n'
         '!#if env_chromium\n!#include chromium.txt\n!#endif\n',
-        'https://lists.example/main.txt',
-        androidEnv,
-        server({'https://lists.example/chromium.txt': '||c.example^'}, fetched),
+        url: 'https://lists.example/main.txt',
+        env: androidEnv,
+        fetch: server({'https://lists.example/chromium.txt': '||c.example^'},
+            fetched: fetched),
       );
       expect(fetched, ['https://lists.example/chromium.txt']);
       expect(out, contains('||c.example^'));
@@ -156,9 +162,10 @@ void main() {
       final fetched = <String>[];
       await expandFilterListIncludes(
         '!#include a.txt\n!#include a.txt\n',
-        'https://lists.example/main.txt',
-        androidEnv,
-        server({'https://lists.example/a.txt': '!#include a.txt\n'}, fetched),
+        url: 'https://lists.example/main.txt',
+        env: androidEnv,
+        fetch: server({'https://lists.example/a.txt': '!#include a.txt\n'},
+            fetched: fetched),
       );
       expect(fetched, ['https://lists.example/a.txt']);
     });
@@ -167,9 +174,9 @@ void main() {
       await expectLater(
         expandFilterListIncludes(
           '!#include missing.txt\n',
-          'https://lists.example/main.txt',
-          androidEnv,
-          server(const {}, []),
+          url: 'https://lists.example/main.txt',
+          env: androidEnv,
+          fetch: server(const {}, fetched: []),
         ),
         throwsA(isA<FilterListIncludeError>()),
       );
@@ -182,7 +189,9 @@ void main() {
       };
       await expectLater(
         expandFilterListIncludes('!#include 0.txt\n',
-            'https://lists.example/main.txt', androidEnv, server(files, []),
+            url: 'https://lists.example/main.txt',
+            env: androidEnv,
+            fetch: server(files, fetched: []),
             maxSublists: 3),
         throwsA(isA<FilterListIncludeError>()),
       );
@@ -211,7 +220,7 @@ void main() {
         return http.Response('', 404);
       });
       final id = await service.addCustomList(
-          'uBO filters', 'https://lists.example/f/filters.txt');
+          'uBO filters', url: 'https://lists.example/f/filters.txt');
 
       expect(await service.downloadList(id), isTrue);
       expect(service.abpNetworkBlockHosts,
@@ -224,7 +233,7 @@ void main() {
               ? http.Response('||main.example^\n!#include gone.txt\n', 200)
               : http.Response('', 404));
       final id = await service.addCustomList(
-          'uBO filters', 'https://lists.example/f/filters.txt');
+          'uBO filters', url: 'https://lists.example/f/filters.txt');
 
       expect(await service.downloadList(id), isFalse);
       expect(service.lists.singleWhere((l) => l.id == id).lastUpdated, isNull);

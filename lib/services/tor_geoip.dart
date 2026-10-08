@@ -62,7 +62,7 @@ const int kTorGeoIpMinRows = 100000;
 
 /// A table on disk.
 class TorGeoIpTable {
-  const TorGeoIpTable(this.path, this.fetchedAt);
+  const TorGeoIpTable(this.path, {required this.fetchedAt});
 
   /// Absolute path, as tor's `GeoIPFile` takes it.
   final String path;

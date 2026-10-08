@@ -12,7 +12,7 @@ class WebspacesListScreen extends StatelessWidget {
   final Function() onAddWebspace;
   final Function(Webspace) onEditWebspace;
   final Function(Webspace) onDeleteWebspace;
-  final Function(int, int)? onReorder;
+  final Function(int oldIndex, {required int newIndex})? onReorder;
 
   const WebspacesListScreen({
     super.key,
@@ -83,13 +83,12 @@ class WebspacesListScreen extends StatelessWidget {
                   final isSelected = selectedWebspaceId == webspace.id;
                   final isAll = webspace.id == kAllWebspaceId;
                   final siteCount = isAll ? totalSitesCount : webspace.siteIndices.length;
-                  Widget action(IconData icon, VoidCallback onPressed) =>
-                      IconButton(
-                        icon: Icon(icon, size: 20),
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(minWidth: 40, minHeight: 40),
-                        onPressed: onPressed,
-                      );
+Widget action(IconData icon, {required VoidCallback onPressed}) => IconButton(
+      icon: Icon(icon, size: 20),
+      padding: EdgeInsets.zero,
+      constraints: BoxConstraints(minWidth: 40, minHeight: 40),
+      onPressed: onPressed,
+    );
 
                   return Semantics(
                     key: Key(webspace.id),
@@ -121,7 +120,7 @@ class WebspacesListScreen extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (!isAll) ...[
-                              action(Icons.edit, () => onEditWebspace(webspace)),
+                              action(Icons.edit, onPressed: () => onEditWebspace(webspace)),
                               Container(
                                 color: Theme.of(context).cardTheme.color ??
                                        Theme.of(context).cardColor,
@@ -129,7 +128,7 @@ class WebspacesListScreen extends StatelessWidget {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     action(Icons.delete,
-                                        () => onDeleteWebspace(webspace)),
+                                        onPressed: () => onDeleteWebspace(webspace)),
                                     ReorderableDragStartListener(
                                       index: index,
                                       child: Padding(
@@ -163,7 +162,7 @@ class WebspacesListScreen extends StatelessWidget {
                 onReorder: (oldIndex, newIndex) {
                   // Don't allow moving "All" webspace (always at index 0)
                   if (oldIndex == 0 || newIndex == 0) return;
-                  onReorder?.call(oldIndex, newIndex);
+                  onReorder?.call(oldIndex, newIndex: newIndex);
                 },
               ),
             SliverToBoxAdapter(

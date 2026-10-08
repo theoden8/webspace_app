@@ -77,9 +77,9 @@ class TorHolderSummary {
 
 /// Reads the engine's holder set against [siteNames] (siteId to name).
 TorHolderSummary summarizeTorHolders(
-  Iterable<TorHolder> holders,
-  Map<String, String> siteNames,
-) {
+  Iterable<TorHolder> holders, {
+  required Map<String, String> siteNames,
+}) {
   var appWide = false;
   final siteIds = <String>{};
   for (final holder in holders) {

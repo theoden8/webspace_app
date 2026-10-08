@@ -89,7 +89,7 @@ Future<AppProxyFetch> fetchViaAppProxy(
   Map<String, String> headers = const {},
 }) async {
   if (url.scheme != 'https' && url.scheme != 'http') {
-    return _fetchFailed(tag, url, 'not an http(s) URL');
+    return _fetchFailed(tag, url: url, reason: 'not an http(s) URL');
   }
   final http.Client client;
   switch (outboundHttp.clientFor(GlobalOutboundProxy.current)) {
@@ -100,34 +100,36 @@ Future<AppProxyFetch> fetchViaAppProxy(
       client = ready;
   }
   try {
-    return await _fetch(client, url, tag, maxBytes, headers).timeout(timeout);
+    return await _fetch(client,
+            url: url, tag: tag, maxBytes: maxBytes, headers: headers)
+        .timeout(timeout);
   } on Exception catch (e) {
     // A timeout, or the proxy's, socket's or TLS layer's own failure, whose
     // types differ by platform. Errors are bugs and still reach the caller.
-    return _fetchFailed(tag, url, '$e');
+    return _fetchFailed(tag, url: url, reason: '$e');
   } finally {
     client.close();
   }
 }
 
 Future<AppProxyFetch> _fetch(
-  http.Client client,
-  Uri url,
-  LogTag tag,
-  int? maxBytes,
-  Map<String, String> headers,
-) async {
+  http.Client client, {
+  required Uri url,
+  required LogTag tag,
+  required int? maxBytes,
+  required Map<String, String> headers,
+}) async {
   final streamed =
       await client.send(http.Request('GET', url)..headers.addAll(headers));
   if (streamed.statusCode != 200) {
     unawaited(streamed.stream.listen(null).cancel());
-    return _fetchFailed(tag, url, 'HTTP ${streamed.statusCode}');
+    return _fetchFailed(tag, url: url, reason: 'HTTP ${streamed.statusCode}');
   }
   final body = BytesBuilder(copy: false);
   await for (final chunk in streamed.stream) {
     body.add(chunk);
     if (maxBytes != null && body.length > maxBytes) {
-      return _fetchFailed(tag, url, 'larger than $maxBytes bytes');
+      return _fetchFailed(tag, url: url, reason: 'larger than $maxBytes bytes');
     }
   }
   return Fetched(http.Response.bytes(
@@ -138,7 +140,8 @@ Future<AppProxyFetch> _fetch(
   ));
 }
 
-FetchFailed _fetchFailed(LogTag tag, Uri url, String reason) {
+FetchFailed _fetchFailed(LogTag tag,
+    {required Uri url, required String reason}) {
   tag.error('Download from ${url.host} failed: $reason');
   return FetchFailed(reason);
 }

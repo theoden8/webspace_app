@@ -2,7 +2,7 @@ import 'dart:async';
 
 /// One named step of the outgoing-site teardown.
 class SiteTeardownStep {
-  const SiteTeardownStep(this.name, this.run);
+  const SiteTeardownStep(this.name, {required this.run});
 
   final String name;
   final Future<void> Function() run;

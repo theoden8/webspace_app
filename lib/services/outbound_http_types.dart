@@ -43,10 +43,10 @@ UserProxySettings resolveEffectiveProxy(
   if (perSite.type == ProxyType.DEFAULT) {
     final global = resolveLibraryProxy(GlobalOutboundProxy.current);
     return global.type == ProxyType.TOR
-        ? _torTagged(global, kTorAppGlobalTag)
+        ? _torTagged(global, siteId: kTorAppGlobalTag)
         : global;
   }
-  if (perSite.type == ProxyType.TOR) return _torTagged(perSite, siteId);
+  if (perSite.type == ProxyType.TOR) return _torTagged(perSite, siteId: siteId);
   return resolveLibraryProxy(perSite);
 }
 
@@ -57,7 +57,7 @@ UserProxySettings resolveEffectiveProxy(
 /// settings object already carries (WebViewModel stamps its `siteId` there
 /// so the ~15 places that pass `model.proxySettings` straight through don't
 /// each have to thread an id), else app-global.
-UserProxySettings _torTagged(UserProxySettings s, String? siteId) {
+UserProxySettings _torTagged(UserProxySettings s, {required String? siteId}) {
   final existing = s.username;
   final tag = (siteId != null && siteId.isNotEmpty)
       ? siteId

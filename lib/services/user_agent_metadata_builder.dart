@@ -50,7 +50,7 @@ UserAgentMetadata? buildUserAgentMetadata(String? ua) {
   if (ua == null || ua.isEmpty) return null;
 
   final desktop = isDesktopUserAgent(ua);
-  final platform = _platformFor(ua, desktop);
+  final platform = _platformFor(ua, desktop: desktop);
   final brandList = _brandVersionListFor(ua);
 
   return UserAgentMetadata(
@@ -61,7 +61,7 @@ UserAgentMetadata? buildUserAgentMetadata(String? ua) {
   );
 }
 
-String _platformFor(String ua, bool desktop) {
+String _platformFor(String ua, {required bool desktop}) {
   if (desktop) {
     return switch (inferDesktopUaPlatform(ua)) {
       DesktopUaPlatform.linux => 'Linux',

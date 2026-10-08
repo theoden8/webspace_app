@@ -144,7 +144,7 @@ class SiteLifecyclePromotionEngine {
     ]) {
       final inTier = loadedIndices
           .where((i) => (states[i] ?? SiteLifecycleState.resident) == tier);
-      final pick = evictionOrder(inTier, priorityOf).firstOrNull;
+      final pick = evictionOrder(inTier, priorityOf: priorityOf).firstOrNull;
       if (pick != null) return pick;
     }
     return null;
@@ -180,7 +180,9 @@ class SiteLifecyclePromotionEngine {
         .toList();
     final excess = resident.length - maxResidentSites;
     if (excess <= 0) return const [];
-    return evictionOrder(resident, priorityOf).take(excess).toList();
+    return evictionOrder(resident, priorityOf: priorityOf)
+        .take(excess)
+        .toList();
   }
 
   /// Tier-count snapshot. The `active` count is whichever loaded

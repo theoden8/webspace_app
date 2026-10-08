@@ -81,7 +81,7 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
-SwitchListTile _switchTitled(WidgetTester tester, String title) {
+SwitchListTile _switchTitled(WidgetTester tester, {required String title}) {
   final tile = find.ancestor(
     of: find.text(title),
     matching: find.byType(SwitchListTile),
@@ -95,7 +95,7 @@ Finder get _modeDropdown => find.byType(DropdownButton<ExternalLinkMode>);
 ExternalLinkMode? _selectedMode(WidgetTester tester) =>
     tester.widget<DropdownButton<ExternalLinkMode>>(_modeDropdown).value;
 
-Future<void> _pickMode(WidgetTester tester, String label) async {
+Future<void> _pickMode(WidgetTester tester, {required String label}) async {
   await tester.tap(_modeDropdown);
   await tester.pumpAndSettle();
   await tester.tap(find.text(label).last);
@@ -125,12 +125,14 @@ void main() {
 
     test('incognito forces Always open Home without overwriting it', () {
       final stored = _values();
-      expect(stored.effectiveAlwaysOpenHome(false), isFalse);
-      expect(stored.effectiveAlwaysOpenHome(true), isTrue);
+      expect(stored.effectiveAlwaysOpenHome(incognito: false), isFalse);
+      expect(stored.effectiveAlwaysOpenHome(incognito: true), isTrue);
       // The stored value survives, so leaving incognito restores the user's
       // own choice rather than silently keeping the forced one.
       expect(
-        stored.copyWith(alwaysOpenHome: true).effectiveAlwaysOpenHome(false),
+        stored
+            .copyWith(alwaysOpenHome: true)
+            .effectiveAlwaysOpenHome(incognito: false),
         isTrue,
       );
     });
@@ -145,7 +147,8 @@ void main() {
       'HTML caching',
       'Route links to my sites',
     ]) {
-      expect(_switchTitled(tester, title).onChanged, isNotNull, reason: title);
+      expect(_switchTitled(tester, title: title).onChanged, isNotNull,
+          reason: title);
     }
     expect(find.text('Opening and display'), findsOneWidget);
     expect(find.text('Link handling'), findsOneWidget);
@@ -212,7 +215,7 @@ void main() {
         values: _values(kioskMode: true),
         onChanged: (v) => seen = v,
       );
-      await _pickMode(tester, 'Block');
+      await _pickMode(tester, label: 'Block');
       expect(seen!.externalLinkMode, ExternalLinkMode.block);
       expect(seen!.kioskMode, isTrue);
       expect(_selectedMode(tester), ExternalLinkMode.block);
@@ -222,7 +225,7 @@ void main() {
   testWidgets('Always open Home reads as forced under incognito',
       (tester) async {
     await _pump(tester, values: _values(), incognito: true);
-    final tile = _switchTitled(tester, 'Always open Home');
+    final tile = _switchTitled(tester, title: 'Always open Home');
     expect(tile.value, isTrue);
     expect(tile.onChanged, isNull);
     expect(find.text('Forced on by Incognito'), findsOneWidget);
@@ -249,7 +252,7 @@ void main() {
       await _pump(tester, values: _values());
       expect(find.text('Tabs'), findsNothing);
       await _pump(tester, values: _values(), tabsAvailable: true);
-      expect(_switchTitled(tester, 'Tabs').value, isTrue);
+      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
     });
 
     testWidgets('turning tabs on turns kiosk off and leaves full screen',
@@ -261,15 +264,15 @@ void main() {
         tabsAvailable: true,
         onChanged: (v) => seen = v,
       );
-      expect(_switchTitled(tester, 'Tabs').value, isFalse);
+      expect(_switchTitled(tester, title: 'Tabs').value, isFalse);
       await tester.tap(find.text('Tabs'));
       await tester.pumpAndSettle();
       expect(seen!.tabsEnabled, isTrue);
       expect(seen!.kioskMode, isFalse);
       expect(seen!.fullscreenMode, isTrue);
-      expect(_switchTitled(tester, 'Tabs').value, isTrue);
-      expect(_switchTitled(tester, 'Kiosk mode').value, isFalse);
-      expect(_switchTitled(tester, 'Full screen mode').value, isTrue);
+      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
+      expect(_switchTitled(tester, title: 'Kiosk mode').value, isFalse);
+      expect(_switchTitled(tester, title: 'Full screen mode').value, isTrue);
     });
 
     testWidgets('kiosk shows tabs off and gives them back', (tester) async {
@@ -282,18 +285,18 @@ void main() {
       );
       await tester.tap(find.text('Kiosk mode'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, 'Tabs').value, isFalse);
+      expect(_switchTitled(tester, title: 'Tabs').value, isFalse);
       expect(seen!.tabsEnabled, isTrue, reason: 'the stored choice is kept');
       await tester.tap(find.text('Kiosk mode'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, 'Tabs').value, isTrue);
+      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
     });
 
     testWidgets('full screen leaves tabs on', (tester) async {
       await _pump(tester, values: _values(), tabsAvailable: true);
       await tester.tap(find.text('Full screen mode'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, 'Tabs').value, isTrue);
+      expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
     });
 
     testWidgets('turning tabs off leaves kiosk and full screen alone',
@@ -357,13 +360,14 @@ void main() {
     });
 
     testWidgets('the rows need no developer mode', (tester) async {
-      DeveloperModeService.instance.debugSet(false);
+      DeveloperModeService.instance.debugSet(on: false);
       await _pump(
         tester,
         values: _values(routeOutboundLinks: true, outboundPreferences: [pref]),
         routingTargets: [gh],
       );
-      expect(_switchTitled(tester, 'Route links to my sites').value, isTrue);
+      expect(_switchTitled(tester, title: 'Route links to my sites').value,
+          isTrue);
       expect(find.text('1 preference'), findsOneWidget);
     });
 
@@ -391,17 +395,18 @@ void main() {
         values: _values(routeOutboundLinks: true),
         onChanged: (v) => seen = v,
       );
-      await _pickMode(tester, 'Open in browser');
+      await _pickMode(tester, label: 'Open in browser');
       expect(find.text('Route links to my sites'), findsNothing);
       expect(seen!.routeOutboundLinks, isTrue);
-      await _pickMode(tester, 'Open in the app');
-      expect(_switchTitled(tester, 'Route links to my sites').value, isTrue);
+      await _pickMode(tester, label: 'Open in the app');
+      expect(_switchTitled(tester, title: 'Route links to my sites').value,
+          isTrue);
     });
 
     testWidgets('the legacy engine disables it with the reason',
         (tester) async {
       await _pump(tester, values: _values(), containersActive: false);
-      expect(_switchTitled(tester, 'Route links to my sites').onChanged,
+      expect(_switchTitled(tester, title: 'Route links to my sites').onChanged,
           isNull);
       expect(find.text('Needs per-site containers'), findsOneWidget);
     });
@@ -518,7 +523,8 @@ void main() {
       );
       await tester.tap(find.text('https://duckduckgo.com/?q=%s'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, 'Searches the whole web').value, isTrue);
+      expect(
+          _switchTitled(tester, title: 'Searches the whole web').value, isTrue);
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(seen!.searchAddress, isNull);
@@ -556,7 +562,8 @@ void main() {
       expect(find.text('https://searx.lan/search?q=%s'), findsOneWidget);
       await tester.tap(find.text('https://searx.lan/search?q=%s'));
       await tester.pumpAndSettle();
-      expect(_switchTitled(tester, 'Searches the whole web').value, isTrue);
+      expect(
+          _switchTitled(tester, title: 'Searches the whole web').value, isTrue);
     });
 
     testWidgets('pickers tell same-named sites apart by id (LIR-029)',

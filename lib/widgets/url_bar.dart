@@ -7,7 +7,7 @@ import '../utils/url_utils.dart';
 
 /// One of the user's search sites, as the URL bar offers it (LIR-033).
 class UrlBarSearchSite {
-  const UrlBarSearchSite(this.id, this.name);
+  const UrlBarSearchSite(this.id, {required this.name});
 
   final String id;
   final String name;
@@ -32,7 +32,8 @@ class UrlBar extends StatefulWidget {
   /// Runs a search for [query] with the search site [siteId], or, when there
   /// is none, lets the host offer one. Null leaves the bar an address field:
   /// no magnifier, and typed words are an address.
-  final FutureOr<void> Function(String query, String? siteId)? onSearch;
+  final FutureOr<void> Function(String query, {required String? siteId})?
+      onSearch;
 
   const UrlBar({
     super.key,
@@ -164,7 +165,7 @@ class _UrlBarState extends State<UrlBar> {
         _searchMode = false;
       });
       try {
-        await widget.onSearch!(typed, siteId);
+        await widget.onSearch!(typed, siteId: siteId);
       } finally {
         if (mounted && !_isEditing) _urlController.text = widget.currentUrl;
       }
@@ -195,14 +196,15 @@ class _UrlBarState extends State<UrlBar> {
     final searchLabel = searchSite == null
         ? loc.webSearchMenu
         : loc.webSearchFieldHint(searchSite.name);
-    Widget button(IconData icon, VoidCallback? onPressed, String tooltip) =>
-        IconButton(
-          icon: Icon(icon, size: IconSizes.action),
-          onPressed: onPressed,
-          padding: EdgeInsets.all(Spacing.xs),
-          constraints: BoxConstraints(),
-          tooltip: tooltip,
-        );
+Widget button(IconData icon,
+        {required VoidCallback? onPressed, required String tooltip}) =>
+    IconButton(
+      icon: Icon(icon, size: IconSizes.action),
+      onPressed: onPressed,
+      padding: EdgeInsets.all(Spacing.xs),
+      constraints: BoxConstraints(),
+      tooltip: tooltip,
+    );
 
     final Widget leading;
     if (!_searchMode) {
@@ -242,10 +244,10 @@ class _UrlBarState extends State<UrlBar> {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       decoration: BoxDecoration(
-        color: Chrome.bar(isDark),
+        color: Chrome.bar(isDark: isDark),
         border: Border(
           top: BorderSide(
-            color: Chrome.hairline(isDark),
+            color: Chrome.hairline(isDark: isDark),
             width: Chrome.hairlineWidth,
           ),
         ),
@@ -290,13 +292,13 @@ class _UrlBarState extends State<UrlBar> {
           ),
           if (_isEditing)
             _submitSearches
-                ? button(Icons.search, _handleSubmit, searchLabel)
-                : button(Icons.check, _handleSubmit, loc.urlBarGoTooltip)
+                ? button(Icons.search, onPressed: _handleSubmit, tooltip: searchLabel)
+                : button(Icons.check, onPressed: _handleSubmit, tooltip: loc.urlBarGoTooltip)
           else ...[
             if (_canSearch)
-              button(Icons.search, _startSearch, loc.webSearchMenu),
+              button(Icons.search, onPressed: _startSearch, tooltip: loc.webSearchMenu),
             if (widget.onSiteInfo != null)
-              button(Icons.info_outline, widget.onSiteInfo, loc.siteInfoTitle),
+              button(Icons.info_outline, onPressed: widget.onSiteInfo, tooltip: loc.siteInfoTitle),
           ],
         ],
       ),

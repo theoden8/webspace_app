@@ -152,7 +152,7 @@ void main() {
 
     await waitReal(
       tester,
-      () => List.generate(paneCount, settled).every((s) => s),
+      done: () => List.generate(paneCount, settled).every((s) => s),
       label: 'every HTTP CONNECT pane settled',
     );
 
@@ -217,7 +217,7 @@ void main() {
     final target = '${syntheticOrigin(paneCount)}:';
     await waitReal(
       tester,
-      () => socks.targets.any((t) => t.startsWith(target)),
+      done: () => socks.targets.any((t) => t.startsWith(target)),
       label: 'later-frame SOCKS control settled',
     );
     verdict.add('later-socks-control='

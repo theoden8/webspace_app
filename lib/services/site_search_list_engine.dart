@@ -50,7 +50,7 @@ String? _addressOf(Map entry) {
 /// trigger is as often a narrower search (`prel` on archive.org searches one
 /// collection); then the one with fewest parameters; then the shortest
 /// trigger.
-(int, int, int) _rank(Map entry, String address) {
+(int, int, int) _rank(Map entry, {required String address}) {
   final label = Host(entry['d'] as String).withoutWww.split('.').first;
   final trigger = entry['t'] is String ? entry['t'] as String : '';
   final aliases = entry['ts'] is List ? entry['ts'] as List : const [];
@@ -59,7 +59,7 @@ String? _addressOf(Map entry) {
   return (named, params, trigger.length);
 }
 
-int _compare((int, int, int) a, (int, int, int) b) {
+int _compare((int, int, int) a, {required (int, int, int) b}) {
   if (a.$1 != b.$1) return a.$1 - b.$1;
   if (a.$2 != b.$2) return a.$2 - b.$2;
   return a.$3 - b.$3;
@@ -76,9 +76,9 @@ Map<String, String> siteSearchTable(Object? bangs) {
     final address = _addressOf(entry);
     if (address == null) continue;
     final host = Host(entry['d'] as String).withoutWww;
-    final rank = _rank(entry, address);
+    final rank = _rank(entry, address: address);
     final held = best[host];
-    if (held == null || _compare(rank, held.$2) < 0) {
+    if (held == null || _compare(rank, b: held.$2) < 0) {
       best[host] = (address, rank);
     }
   }
@@ -88,12 +88,14 @@ Map<String, String> siteSearchTable(Object? bangs) {
 /// The address [table] lists for the site at [initUrl]: its host's, else
 /// its domain's (`m.imdb.com` searches as `imdb.com`), and only one inside
 /// the site's own domain. Null when the list names none.
-String? listedAddressFor(Map<String, String> table, String initUrl) {
+String? listedAddressFor(Map<String, String> table, {required String initUrl}) {
   if (table.isEmpty) return null;
   final host = Host.inUrl(initUrl);
   if (host == null) return null;
   final address =
       table[host.withoutWww] ?? table[getNormalizedDomain(initUrl)];
   if (address == null) return null;
-  return WebSearchEngine.acceptsDiscovered(address, initUrl) ? address : null;
+  return WebSearchEngine.acceptsDiscovered(address, initUrl: initUrl)
+      ? address
+      : null;
 }

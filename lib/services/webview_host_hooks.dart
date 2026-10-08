@@ -56,21 +56,24 @@ final class WebViewHostHooks {
 
   /// [source]'s webview is about to nest, send out or block [url]: true when
   /// the host took the link over (LIR-014, NESTED-009).
-  final bool Function(WebViewModel source, String url,
-      NavigationDecision decision, bool hadGesture) routeOutbound;
+  final bool Function(WebViewModel source,
+      {required String url,
+      required NavigationDecision decision,
+      required bool hadGesture}) routeOutbound;
 
   /// A long-press on a link in [source]'s webview (TAB-006).
-  final void Function(WebViewModel source, String url) linkMenu;
+  final void Function(WebViewModel source, {required String url}) linkMenu;
   final void Function(String siteId) openSiteSettings;
-  final Future<void> Function(int windowId, String url) showPopup;
+  final Future<void> Function(int windowId, {required String url}) showPopup;
 
   /// Confirms and launches a URL no webview renders (`intent://`, `tel:`),
   /// loading its web fallback into [loadIn] when it has one.
-  final Future<void> Function(ExternalUrlInfo info, WebViewController? loadIn)
-      externalScheme;
+  final Future<void> Function(ExternalUrlInfo info,
+      {required WebViewController? loadIn}) externalScheme;
   final Future<bool> Function(String url) confirmScriptFetch;
-  final Future<bool> Function(
-      String host, int port, inapp.SslCertificate? certificate) untrustedCertificate;
+  final Future<bool> Function(String host,
+      {required int port,
+      required inapp.SslCertificate? certificate}) untrustedCertificate;
   final HttpAuthPrompt httpAuth;
 
   /// The capture and protected-content popups behind every [GrantStore].
@@ -86,15 +89,17 @@ final class WebViewHostHooks {
         save: save,
         rebuild: rebuild,
         onScreen: (_) => false,
-        launchNested: (_, _, {homeTitle}) {},
+        launchNested: (_, {required posture, homeTitle}) {},
         openInBrowser: (_) async => false,
-        routeOutbound: (_, _, _, _) => true,
-        linkMenu: (_, _) {},
+        routeOutbound:
+            (_, {required url, required decision, required hadGesture}) => true,
+        linkMenu: (_, {required url}) {},
         openSiteSettings: (_) {},
-        showPopup: (_, _) async {},
-        externalScheme: (_, _) async {},
+        showPopup: (_, {required url}) async {},
+        externalScheme: (_, {required loadIn}) async {},
         confirmScriptFetch: (_) async => false,
-        untrustedCertificate: (_, _, _) async => false,
+        untrustedCertificate:
+            (_, {required port, required certificate}) async => false,
         httpAuth: (_) async => null,
         media: const _Declines(),
       );
@@ -105,10 +110,10 @@ final class _Declines implements MediaPrompter {
 
   @override
   Future<CaptureGrant> capture(
-    CaptureKind kind,
-    String origin,
-    CaptureMode current,
-  ) async =>
+    CaptureKind kind, {
+    required String origin,
+    required CaptureMode current,
+  }) async =>
       (mode: kind.ask, source: null);
 
   @override

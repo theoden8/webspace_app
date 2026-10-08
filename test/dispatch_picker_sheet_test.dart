@@ -18,11 +18,11 @@ final _url = Uri.parse('https://github.com/x');
 
 /// Opens the sheet from a button and returns a getter for what it popped.
 Future<DispatchChoice? Function()> _open(
-  WidgetTester tester,
-  DispatchPickerSheet sheet,
-) async {
+  WidgetTester tester, {
+  required DispatchPickerSheet sheet,
+}) async {
   DispatchChoice? result;
-  await pumpLocalized(tester, Builder(
+  await pumpLocalized(tester, home: Builder(
     builder: (context) => TextButton(
       onPressed: () async {
         result = await showModalBottomSheet<DispatchChoice>(
@@ -53,7 +53,7 @@ void main() {
   group('outbound mode (LIR-016)', () {
     testWidgets('lists the winners, the checkbox and the fallback only',
         (tester) async {
-      await _open(tester, _outbound());
+      await _open(tester, sheet: _outbound());
       expect(find.text('Open in Work GitHub'), findsOneWidget);
       expect(find.text('Open in Personal GitHub'), findsOneWidget);
       expect(
@@ -69,7 +69,7 @@ void main() {
     });
 
     testWidgets('a winner pick carries the checkbox', (tester) async {
-      final result = await _open(tester, _outbound());
+      final result = await _open(tester, sheet: _outbound());
       await tester.tap(find.text('Open in Work GitHub'));
       await tester.pumpAndSettle();
       final choice = result();
@@ -81,7 +81,7 @@ void main() {
 
     testWidgets('unticking the checkbox picks without remembering',
         (tester) async {
-      final result = await _open(tester, _outbound());
+      final result = await _open(tester, sheet: _outbound());
       await tester.tap(find.byType(CheckboxListTile));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Open in Personal GitHub'));
@@ -92,14 +92,14 @@ void main() {
     });
 
     testWidgets('open without routing', (tester) async {
-      final result = await _open(tester, _outbound());
+      final result = await _open(tester, sheet: _outbound());
       await tester.tap(find.text('Open without routing'));
       await tester.pumpAndSettle();
       expect(result(), isA<DispatchChoiceFallback>());
     });
 
     testWidgets('dismissing opens nothing', (tester) async {
-      final result = await _open(tester, _outbound());
+      final result = await _open(tester, sheet: _outbound());
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       expect(result(), isNull);
@@ -110,7 +110,7 @@ void main() {
       (tester) async {
     final result = await _open(
       tester,
-      DispatchPickerSheet(
+      sheet: DispatchPickerSheet(
         url: _url,
         winners: [_work],
         otherSites: [_personal],

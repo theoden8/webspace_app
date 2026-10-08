@@ -10,9 +10,9 @@ import 'package:webspace/theme/design_tokens.dart';
 /// The server's realm string is not shown: it is text the server chose,
 /// and in a dialog the app draws it reads as the app's own words.
 Future<HttpAuthPromptResult?> promptHttpAuth(
-  BuildContext context,
-  HttpAuthPromptRequest request,
-) {
+  BuildContext context, {
+  required HttpAuthPromptRequest request,
+}) {
   if (!context.mounted) return Future.value(null);
   return showDialog<HttpAuthPromptResult>(
     context: context,

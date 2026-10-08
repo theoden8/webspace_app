@@ -7,7 +7,7 @@ import 'package:webspace/platform/host_platform.dart';
 /// The slice of [inapp.PullToRefreshController] the gate drives, kept as an
 /// interface so the state machine can be exercised without a platform channel.
 abstract class RefreshControl {
-  Future<void> setEnabled(bool enabled);
+  Future<void> setEnabled({required bool enabled});
   Future<void> endRefreshing();
 }
 
@@ -17,7 +17,8 @@ class _ControllerRefreshControl implements RefreshControl {
   final inapp.PullToRefreshController _controller;
 
   @override
-  Future<void> setEnabled(bool enabled) => _controller.setEnabled(enabled);
+  Future<void> setEnabled({required bool enabled}) =>
+      _controller.setEnabled(enabled);
 
   @override
   Future<void> endRefreshing() => _controller.endRefreshing();
@@ -38,7 +39,11 @@ class _ControllerRefreshControl implements RefreshControl {
 ///  2. swallows an `onRefresh` that beat step 1, so losing that race costs a
 ///     spinner rather than a page reload.
 class PullToRefreshGate {
-  PullToRefreshGate._(this._control, this.controller, this._now);
+  PullToRefreshGate._(
+    this._control, {
+    required this.controller,
+    required DateTime Function() now,
+  }) : _now = now;
 
   /// The refresh controller and the gate guarding it, on the platforms with
   /// a pull-to-refresh control (Android, iOS); null elsewhere.
@@ -55,8 +60,8 @@ class PullToRefreshGate {
     );
     gate = PullToRefreshGate._(
       _ControllerRefreshControl(controller),
-      controller,
-      DateTime.now,
+      controller: controller,
+      now: DateTime.now,
     );
     return gate;
   }
@@ -99,7 +104,7 @@ class PullToRefreshGate {
     _pointers.add(pointer);
     if (_pointers.length < 2 || _multiTouch) return;
     _multiTouch = true;
-    _setEnabled(false);
+    _setEnabled(enabled: false);
   }
 
   void onPointerUp(int pointer) {
@@ -107,7 +112,7 @@ class PullToRefreshGate {
     if (_pointers.isNotEmpty || !_multiTouch) return;
     _multiTouch = false;
     _multiTouchEndedAt = _now();
-    _setEnabled(true);
+    _setEnabled(enabled: true);
   }
 
   /// Runs [onRefresh] unless the gesture behind it was a pinch, in which
@@ -120,10 +125,10 @@ class PullToRefreshGate {
     await onRefresh();
   }
 
-  void _setEnabled(bool enabled) {
+  void _setEnabled({required bool enabled}) {
     if (_enabled == enabled) return;
     _enabled = enabled;
-    unawaited(_swallow(() => _control.setEnabled(enabled)));
+    unawaited(_swallow(() => _control.setEnabled(enabled: enabled)));
   }
 
   // The control is reachable only once the native view is attached; a pointer

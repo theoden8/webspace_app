@@ -53,8 +53,8 @@ class LogEntryLine extends StatelessWidget {
 /// dialog and confirms with a snackbar. Callers pass only what may leave the
 /// device: no sensitive entry is ever written to a file.
 Future<void> saveLogText(
-  BuildContext context,
-  String text, {
+  BuildContext context, {
+  required String text,
   required String fileNamePrefix,
 }) async {
   if (text.isEmpty) return;
@@ -76,7 +76,7 @@ Future<void> saveLogText(
   if (!isMobile) {
     final filePath =
         outputPath.endsWith('.txt') ? outputPath : '$outputPath.txt';
-    await hostWriteFileText(filePath, text);
+    await hostWriteFileText(filePath, contents: text);
   }
   messenger.toast(loc.devToolsLogsExported);
 }

@@ -14,7 +14,7 @@ void main() {
   final navigator = GlobalKey<NavigatorState>();
   late Future<Object?> result;
 
-  Future<void> open(WidgetTester tester, Widget editor) async {
+  Future<void> open(WidgetTester tester, {required Widget editor}) async {
     await tester.pumpWidget(
       MaterialApp(
         navigatorKey: navigator,
@@ -40,7 +40,7 @@ void main() {
     final script = UserScriptConfig(name: 'Dark', source: 'document.body;');
 
     testWidgets('back leaves an untouched editor at once', (tester) async {
-      await open(tester, UserScriptEditScreen(script: script));
+      await open(tester, editor: UserScriptEditScreen(script: script));
       await back(tester);
 
       expect(find.text('Discard changes?'), findsNothing);
@@ -50,7 +50,7 @@ void main() {
     testWidgets('an unsaved edit asks first, and Keep editing keeps it', (
       tester,
     ) async {
-      await open(tester, const UserScriptEditScreen());
+      await open(tester, editor: const UserScriptEditScreen());
       await tester.enterText(find.byType(TextField).first, 'Half-written');
       await tester.pump();
 
@@ -71,7 +71,7 @@ void main() {
     testWidgets('an edit to the injection time alone is guarded', (
       tester,
     ) async {
-      await open(tester, UserScriptEditScreen(script: script));
+      await open(tester, editor: UserScriptEditScreen(script: script));
       await tester.tap(
         find.byType(DropdownButtonFormField<UserScriptInjectionTime>),
       );
@@ -92,7 +92,7 @@ void main() {
     );
 
     testWidgets('back leaves an untouched editor at once', (tester) async {
-      await open(tester, editor());
+      await open(tester, editor: editor());
       await back(tester);
       expect(isOpen<WebspaceDetailScreen>(), isFalse);
     });
@@ -100,7 +100,7 @@ void main() {
     testWidgets('a renamed webspace asks before the name is dropped', (
       tester,
     ) async {
-      await open(tester, editor());
+      await open(tester, editor: editor());
       await tester.enterText(find.byType(TextField), 'Home');
       await tester.pump();
 

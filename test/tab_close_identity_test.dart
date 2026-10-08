@@ -25,7 +25,7 @@ class _Page extends Fake implements TabsHost {
   void evictCache(String siteId) {}
 
   @override
-  void noteUnloaded(WebViewModel model, String why) =>
+  void noteUnloaded(WebViewModel model, {required String why}) =>
       calls.add('unloaded ${model.initUrl} $why');
 }
 
@@ -67,11 +67,11 @@ void main() {
     sites.loaded.addAll({0, 1});
     sites.current = 1;
     final page = _Page();
-    final tabs = TabsController(sites, page,
+    final tabs = TabsController(sites, host: page,
         navStates: _NavStates(), residency: _ProcessGlobal());
     expect(owner.runningIdentity, same(host));
 
-    await tabs.closeTab(0, hosted.id);
+    await tabs.closeTab(0, tabId: hosted.id);
 
     expect(owner.runningIdentity, same(owner));
     expect(page.calls, ['unloaded https://duckduckgo.com/ identity change'],

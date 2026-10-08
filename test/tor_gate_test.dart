@@ -27,11 +27,11 @@ void main() {
   tearDown(() async {
     await TorService.reset();
     await runtime.dispose();
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
   });
 
   test('developer mode does not gate Tor', () async {
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     expect(TorService.instance.isAvailable, isTrue);
     await TorService.instance.syncHolders({TorSiteHolder('site-a')});
     expect(runtime.startCalls, 1,
@@ -39,12 +39,12 @@ void main() {
   });
 
   test('turning developer mode off keeps Tor sites routed', () async {
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     await TorService.instance.syncHolders({TorSiteHolder('site-a')});
-    runtime.emit(const TorUp('127.0.0.1', 41337));
+    runtime.emit(const TorUp('127.0.0.1', port: 41337));
     await Future<void>.delayed(Duration.zero);
 
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     expect(TorService.instance.socksFor(siteId: 'site-a'), isNotNull);
   });
 
@@ -80,7 +80,7 @@ void main() {
 
   test('the SOCKS settings carry the isolation tag', () async {
     await TorService.instance.syncHolders({TorSiteHolder('site-a')});
-    runtime.emit(const TorUp('127.0.0.1', 41337));
+    runtime.emit(const TorUp('127.0.0.1', port: 41337));
     await Future<void>.delayed(Duration.zero);
 
     final resolved = TorService.instance.socksFor(siteId: 'site-a')!;
@@ -115,7 +115,7 @@ void main() {
         const TorStopped(),
         const TorStarting(),
         const TorBootstrapping(40),
-        const TorUp('127.0.0.1', 41337),
+        const TorUp('127.0.0.1', port: 41337),
       ]) {
         expect(torGateFor(status: s, hasNativeTor: true), TorGate.working);
       }

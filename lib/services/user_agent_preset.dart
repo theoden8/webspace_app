@@ -35,14 +35,18 @@ UserAgentPreset? userAgentPresetFromName(String? name) {
 
 /// Render [preset] at [version] (e.g. `"152.0"`) using the same builders
 /// the randomize pool uses.
-String renderUserAgentPreset(UserAgentPreset preset, String version) {
+String renderUserAgentPreset(UserAgentPreset preset,
+    {required String version}) {
   switch (preset) {
     case UserAgentPreset.firefoxLinux:
-      return buildFirefoxUserAgent(kFirefoxLinuxPlatformToken, version);
+      return buildFirefoxUserAgent(kFirefoxLinuxPlatformToken,
+          version: version);
     case UserAgentPreset.firefoxWindows:
-      return buildFirefoxUserAgent(kFirefoxWindowsPlatformToken, version);
+      return buildFirefoxUserAgent(kFirefoxWindowsPlatformToken,
+          version: version);
     case UserAgentPreset.firefoxMacos:
-      return buildFirefoxUserAgent(kFirefoxMacosPlatformToken, version);
+      return buildFirefoxUserAgent(kFirefoxMacosPlatformToken,
+          version: version);
     case UserAgentPreset.firefoxAndroid:
       return buildFirefoxAndroidUserAgent(version);
     case UserAgentPreset.firefoxIos:

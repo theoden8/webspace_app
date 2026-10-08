@@ -15,7 +15,7 @@ import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 
 /// Pushes site settings over a plain home route, so a back press is a real
 /// pop that the unsaved-changes guard can intercept.
-Future<void> _pump(WidgetTester tester, WebViewModel model) async {
+Future<void> _pump(WidgetTester tester, {required WebViewModel model}) async {
   tester.view.physicalSize = const Size(1000, 4000);
   tester.view.devicePixelRatio = 1.0;
   addTearDown(tester.view.resetPhysicalSize);
@@ -65,7 +65,7 @@ void main() {
 
   testWidgets('the Network row sits between Behaviour and Privacy',
       (tester) async {
-    await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
+    await _pump(tester, model: WebViewModel(initUrl: 'https://example.com/'));
     double y(String text) => tester.getTopLeft(find.text(text)).dy;
     expect(y('Site'), lessThan(y('Behaviour')));
     expect(y('Behaviour'), lessThan(y('Network')));
@@ -75,7 +75,7 @@ void main() {
 
   testWidgets('no network control is left on the settings screen',
       (tester) async {
-    await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
+    await _pump(tester, model: WebViewModel(initUrl: 'https://example.com/'));
     expect(find.byType(DropdownButton<ProxyType>), findsNothing);
     expect(find.byType(ProxyChoiceDropdown), findsNothing);
     expect(find.byType(DropdownButton<WebRtcPolicy>), findsNothing);
@@ -84,7 +84,7 @@ void main() {
 
   testWidgets('a site with nothing set reads as the default connection',
       (tester) async {
-    await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
+    await _pump(tester, model: WebViewModel(initUrl: 'https://example.com/'));
     expect(_summary(tester), 'Default connection');
   });
 
@@ -95,7 +95,7 @@ void main() {
     );
     await _pump(
       tester,
-      WebViewModel(
+      model: WebViewModel(
         initUrl: 'https://example.com/',
         trackingProtectionEnabled: false,
       ),
@@ -108,7 +108,7 @@ void main() {
     GlobalOutboundProxy.setForTest(
       UserProxySettings(type: ProxyType.SOCKS5, address: '10.0.0.1:1080'),
     );
-    await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
+    await _pump(tester, model: WebViewModel(initUrl: 'https://example.com/'));
     expect(_summary(tester), 'App-wide proxy · WebRTC: Relay only');
   });
 
@@ -116,7 +116,7 @@ void main() {
       (tester) async {
     await _pump(
       tester,
-      WebViewModel(
+      model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.SOCKS5, address: '127.0.0.1:1080'),
@@ -145,7 +145,7 @@ void main() {
     addTearDown(ProxyLibrary.resetForTest);
     await _pump(
       tester,
-      WebViewModel(
+      model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'vpn'),
@@ -165,7 +165,7 @@ void main() {
     addTearDown(ProxyLibrary.resetForTest);
     await _pump(
       tester,
-      WebViewModel(
+      model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.GATEWAY, gatewayId: 'de'),
@@ -180,7 +180,7 @@ void main() {
   testWidgets('a deleted saved proxy reads as missing', (tester) async {
     await _pump(
       tester,
-      WebViewModel(
+      model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.SAVED, savedProxyId: 'gone'),
@@ -197,7 +197,7 @@ void main() {
     final country = kTorExitCountries.first;
     await _pump(
       tester,
-      WebViewModel(
+      model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings:
             UserProxySettings(type: ProxyType.TOR, torExitCountry: country.code),
@@ -209,7 +209,7 @@ void main() {
 
   testWidgets('a WebRTC edit comes back to the row and guards the leave',
       (tester) async {
-    await _pump(tester, WebViewModel(initUrl: 'https://example.com/'));
+    await _pump(tester, model: WebViewModel(initUrl: 'https://example.com/'));
     await _openNetwork(tester);
     await tester.tap(find.byType(DropdownButton<WebRtcPolicy>));
     await tester.pumpAndSettle();
@@ -230,7 +230,7 @@ void main() {
     final country = kTorExitCountries.first;
     await _pump(
       tester,
-      WebViewModel(
+      model: WebViewModel(
         initUrl: 'https://example.com/',
         proxySettings: UserProxySettings(type: ProxyType.TOR),
       ),
@@ -256,7 +256,7 @@ void main() {
         camera: (mode: CameraAccessMode.real, source: null),
         microphone: (mode: MicrophoneAccessMode.real, source: null),
       );
-    await _pump(tester, model);
+    await _pump(tester, model: model);
     final row = find.ancestor(
       of: find.text('Permissions'),
       matching: find.byType(ListTile),

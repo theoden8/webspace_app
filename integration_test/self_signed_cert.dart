@@ -75,8 +75,8 @@ SelfSignedCert generateSelfSignedCert({
     ..add(ASN1BitString(signature.bytes.toList()));
 
   return SelfSignedCert(
-    certPem: _pem('CERTIFICATE', cert.encodedBytes),
-    keyPem: _pem('RSA PRIVATE KEY', _pkcs1(priv).encodedBytes),
+    certPem: _pem('CERTIFICATE', der: cert.encodedBytes),
+    keyPem: _pem('RSA PRIVATE KEY', der: _pkcs1(priv).encodedBytes),
   );
 }
 
@@ -225,7 +225,7 @@ ASN1Object _pkcs1(pc.RSAPrivateKey key) {
     ..add(ASN1Integer(q.modInverse(p)));
 }
 
-String _pem(String label, Uint8List der) {
+String _pem(String label, {required Uint8List der}) {
   final body = base64.encode(der);
   final lines = <String>[];
   for (var i = 0; i < body.length; i += 64) {

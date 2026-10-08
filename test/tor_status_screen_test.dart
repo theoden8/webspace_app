@@ -42,7 +42,7 @@ void main() {
     await TorService.instance
         .syncHolders({TorSiteHolder('a1'), TorSiteHolder('b2'), TorSiteHolder('archived'), const TorAppWideHolder()});
     await t.pumpWidget(host());
-    runtime.emit(const TorUp('127.0.0.1', 41337));
+    runtime.emit(const TorUp('127.0.0.1', port: 41337));
     await settle(t);
 
     expect(find.text('Using Tor'), findsOneWidget);

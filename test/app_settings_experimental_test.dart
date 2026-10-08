@@ -69,24 +69,24 @@ void main() {
       installerStore: null,
     );
     // The Developer row is only listed once the flag is on.
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
   });
 
   /// Opens one App Settings category through its row on the index.
-  Future<void> openCategory(WidgetTester tester, String title) async {
-    final row = find.text(title);
-    await tester.scrollUntilVisible(row, 200,
-        scrollable: find.byType(Scrollable).first);
-    await tester.ensureVisible(row);
-    await tester.pumpAndSettle();
-    await tester.tap(row);
-    await tester.pumpAndSettle();
-  }
+Future<void> openCategory(WidgetTester tester, {required String title}) async {
+  final row = find.text(title);
+  await tester.scrollUntilVisible(row, 200,
+      scrollable: find.byType(Scrollable).first);
+  await tester.ensureVisible(row);
+  await tester.pumpAndSettle();
+  await tester.tap(row);
+  await tester.pumpAndSettle();
+}
 
   tearDown(() async {
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     for (final f in ExperimentalFeature.values) {
-      ExperimentalFeaturesService.instance.debugSet(f, f.pref.fallback);
+      ExperimentalFeaturesService.instance.debugSet(f, on: f.pref.fallback);
     }
     await TorService.reset();
   });
@@ -95,7 +95,7 @@ void main() {
   /// title rather than by position: it is not the only `SwitchListTile` on
   /// the screen, and which one is last changes as rows are added.
   Future<Finder> developerModeSwitch(WidgetTester tester) async {
-    await openCategory(tester, 'Developer');
+    await openCategory(tester, title: 'Developer');
     final title = find.text('Developer mode');
     await tester.scrollUntilVisible(title, 400,
         scrollable: find.byType(Scrollable).first);
@@ -134,13 +134,13 @@ void main() {
       runtime = FakeTorRuntime();
       TorService.overrideEngine(
           TorEngine(runtime: runtime, sessionSecret: 's'));
-      DeveloperModeService.instance.debugSet(false);
+      DeveloperModeService.instance.debugSet(on: false);
     });
 
     /// Opens the Network screen, where the outbound proxy block and the
     /// card under it fit without scrolling.
     Future<void> scrollToCard(WidgetTester tester) =>
-        openCategory(tester, 'Network');
+        openCategory(tester, title: 'Network');
 
     testWidgets('TOR is offered app-wide with developer mode off',
         (tester) async {
@@ -168,7 +168,7 @@ void main() {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await TorService.instance.maybeStart(TorSiteHolder('site-a'));
-      runtime.emit(const TorUp('127.0.0.1', 41337));
+      runtime.emit(const TorUp('127.0.0.1', port: 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);
       expect(find.text('Tor'), findsOneWidget);
@@ -180,7 +180,7 @@ void main() {
       await tester.pumpWidget(host(siteNames: const {'site-a': 'Mail'}));
       await tester.pumpAndSettle();
       await TorService.instance.syncHolders({TorSiteHolder('site-a')});
-      runtime.emit(const TorUp('127.0.0.1', 41337));
+      runtime.emit(const TorUp('127.0.0.1', port: 41337));
       await tester.pumpAndSettle();
       await scrollToCard(tester);
 
@@ -210,7 +210,7 @@ void main() {
           TorEngine(runtime: FakeTorRuntime(), sessionSecret: 's'));
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Developer');
+      await openCategory(tester, title: 'Developer');
       final header = find.text('Experimental');
       await tester.scrollUntilVisible(header, 400,
           scrollable: find.byType(Scrollable).first);
@@ -229,21 +229,21 @@ void main() {
       Finder savedProxies(Type tile) => find.ancestor(
           of: find.text('Saved proxies'), matching: find.byType(tile));
 
-      DeveloperModeService.instance.debugSet(false);
+      DeveloperModeService.instance.debugSet(on: false);
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Network');
+      await openCategory(tester, title: 'Network');
       await tester.scrollUntilVisible(find.text('Saved proxies'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
       expect(savedProxies(ListTile), findsOneWidget,
           reason: 'the library is offered with developer mode off');
 
-      DeveloperModeService.instance.debugSet(true);
+      DeveloperModeService.instance.debugSet(on: true);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Developer');
+      await openCategory(tester, title: 'Developer');
       await tester.scrollUntilVisible(find.text('Experimental'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
@@ -255,13 +255,13 @@ void main() {
         'Default search tells same-named sites apart by id and colour '
         '(LIR-029, TAB-018)', (tester) async {
       ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, true);
+          .debugSet(ExperimentalFeature.siteTabs, on: true);
       await tester.pumpWidget(host(webSearchSites: [
         (siteId: 'ddg-work', name: 'DuckDuckGo', containerColor: 2),
         (siteId: 'ddg-home', name: 'DuckDuckGo', containerColor: 5),
       ]));
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Behaviour');
+      await openCategory(tester, title: 'Behaviour');
       final row = find.text('Default search');
       await tester.scrollUntilVisible(row, 400,
           scrollable: find.byType(Scrollable).first);
@@ -281,8 +281,10 @@ void main() {
         return (box.decoration! as BoxDecoration).color!;
       }
 
-      expect(dotOf('ddg-work'), ContainerColors.of(2, Brightness.light));
-      expect(dotOf('ddg-home'), ContainerColors.of(5, Brightness.light));
+      expect(dotOf('ddg-work'),
+          ContainerColors.of(2, brightness: Brightness.light));
+      expect(dotOf('ddg-home'),
+          ContainerColors.of(5, brightness: Brightness.light));
 
       await tester.tap(find.text('ddg-home'));
       await tester.pumpAndSettle();
@@ -293,10 +295,10 @@ void main() {
     testWidgets('the site search list waits for the user (LIR-036)',
         (tester) async {
       ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, true);
+          .debugSet(ExperimentalFeature.siteTabs, on: true);
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Behaviour');
+      await openCategory(tester, title: 'Behaviour');
       final row = find.text('Site search list');
       await tester.scrollUntilVisible(row, 400,
           scrollable: find.byType(Scrollable).first);
@@ -316,7 +318,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Developer');
+      await openCategory(tester, title: 'Developer');
       final title = find.text('Site tabs');
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
@@ -339,7 +341,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getBool(AppPref.experimentalSiteTabs.key), isTrue);
 
-      DeveloperModeService.instance.debugSet(false);
+      DeveloperModeService.instance.debugSet(on: false);
       expect(
           ExperimentalFeaturesService.instance
               .isEnabled(ExperimentalFeature.siteTabs),
@@ -351,7 +353,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host(routerRunsHere: true));
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Developer');
+      await openCategory(tester, title: 'Developer');
       final title = find.text('Proxy router');
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
@@ -379,7 +381,7 @@ void main() {
         (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Developer');
+      await openCategory(tester, title: 'Developer');
       final title = find.text('Site icons only');
       await tester.scrollUntilVisible(title, 400,
           scrollable: find.byType(Scrollable).first);
@@ -414,12 +416,12 @@ void main() {
       SiteIconStore.instance = SiteIconStore(store: files);
       await SiteIconStore.instance.initialize();
       await SiteIconStore.instance.offer(
-          'https://a.test/', SiteIcon(_png64, 64, 64),
+          'https://a.test/', icon: SiteIcon(_png64, width: 64, height: 64),
           persist: true);
 
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
-      await openCategory(tester, 'Developer');
+      await openCategory(tester, title: 'Developer');
       final row = find.text('Reset icon cache');
       await tester.scrollUntilVisible(row, 400,
           scrollable: find.byType(Scrollable).first);
@@ -444,7 +446,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(host());
     await tester.pumpAndSettle();
-    await openCategory(tester, 'Privacy');
+    await openCategory(tester, title: 'Privacy');
     final row = find.ancestor(
         of: find.text('Firefox version'), matching: find.byType(ListTile));
     await tester.scrollUntilVisible(find.text('Firefox version'), 400,

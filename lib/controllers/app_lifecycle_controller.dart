@@ -34,13 +34,13 @@ abstract interface class LifecycleHost implements PageHost {
 /// screen (PAUSE-*).
 class AppLifecycleController {
   AppLifecycleController(
-    this._sites,
-    this._host, {
+    this._sites, {
+    required LifecycleHost host,
     required this.surface,
     required this.shortcuts,
     required this.background,
     required this.cookies,
-  });
+  }) : _host = host;
 
   final SiteRuntime _sites;
   final LifecycleHost _host;
@@ -111,13 +111,13 @@ class AppLifecycleController {
     _backgroundedAt = DateTime.now();
     BackgroundLog.instance.record(
       LogTag.lifecycle,
-      'App background: jsPause=${pausePlan.jsPauseIndex != null} '
+      message: 'App background: jsPause=${pausePlan.jsPauseIndex != null} '
           'capture=${pausePlan.captureStateIndex != null} '
           'bgAudio=$loadedBgAudio notif=$loadedNotif loaded',
     );
     // BGAUDIO-012: a player that stops when its page reports hidden (YouTube
     // and every other built for a tab) is told first.
-    _setBackgroundPlayback(true);
+    _setBackgroundPlayback(background: true);
     // BGAUDIO-009: a site never opted in must not keep sounding through a
     // backgrounded app (and keep the system controls up). Dispatched ahead of
     // the rest: the JS pause blocks the page's JS thread on iOS, and Android's
@@ -162,13 +162,14 @@ class AppLifecycleController {
       final c = background.counts();
       BackgroundLog.instance.record(
         LogTag.lifecycle,
-        'App resumed after ${DateTime.now().difference(since).inSeconds}s '
+        message:
+            'App resumed after ${DateTime.now().difference(since).inSeconds}s '
             'in background: notif sites ${c.enabled} enabled, '
             '${c.loaded} loaded',
       );
     }
     // BGAUDIO-012: a player that pauses when hidden behaves as it always has.
-    _setBackgroundPlayback(false);
+    _setBackgroundPlayback(background: false);
     // Before the async resume sequence, so a late SurfaceView re-attach (a
     // metrics change) is caught after its one tail nudge (PAUSE-020).
     surface.openResumeWindow();
@@ -176,11 +177,11 @@ class AppLifecycleController {
     background.noteResumed();
   }
 
-  void _setBackgroundPlayback(bool background) {
+  void _setBackgroundPlayback({required bool background}) {
     for (final i in _sites.loaded) {
       if (i < 0 || i >= _sites.models.length) continue;
       if (!_sites.models[i].effectiveBackgroundAudioEnabled) continue;
-      unawaited(_sites.models[i].setBackgroundPlayback(background));
+      unawaited(_sites.models[i].setBackgroundPlayback(active: background));
     }
   }
 

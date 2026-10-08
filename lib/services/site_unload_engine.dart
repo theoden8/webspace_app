@@ -70,7 +70,7 @@ abstract interface class SiteUnloadHost {
   /// Saves [model]'s back stack for its next activation.
   Future<void> captureNavState(WebViewModel model);
 
-  void noteUnloaded(WebViewModel model, UnloadReason reason);
+  void noteUnloaded(WebViewModel model, {required UnloadReason reason});
 }
 
 /// What [SiteUnloadEngine.plan] reads beyond what an unload needs.
@@ -229,15 +229,15 @@ class SiteUnloadEngine {
   /// a site unloaded without the capture loses what it set since its own
   /// activation.
   static Future<void> unload(
-    SiteUnloadHost host,
-    int index,
-    UnloadReason reason,
-  ) async {
+    SiteUnloadHost host, {
+    required int index,
+    required UnloadReason reason,
+  }) async {
     if (index < 0 || index >= host.models.length) return;
     final model = host.models[index];
     LogService.instance.log(
       LogTag.siteUnload,
-      'Unloading site $index "${model.name}": ${reason.label}',
+      message: 'Unloading site $index "${model.name}": ${reason.label}',
       level: reason.logLevel,
       sensitivity: LogSensitivity.sensitive,
     );
@@ -256,16 +256,17 @@ class SiteUnloadEngine {
         loadedIndices: host.loadedIndices,
       );
     }
-    host.noteUnloaded(model, reason);
+    host.noteUnloaded(model, reason: reason);
   }
 
   /// Every rule deciding which loaded sites go, and in what order, for
   /// [event]. Each rule reads the loaded set the rules before it leave.
-  static ResidencyPlan plan(ResidencyHost host, ResidencyEvent event) {
+  static ResidencyPlan plan(ResidencyHost host,
+      {required ResidencyEvent event}) {
     final models = host.models;
     final loaded = {...host.loadedIndices};
     final unloads = <({WebViewModel site, UnloadReason reason})>[];
-    void unload(Iterable<int> indices, UnloadReason reason) {
+    void unload(Iterable<int> indices, {required UnloadReason reason}) {
       for (final i in indices.toList()) {
         if (i < 0 || i >= models.length || !loaded.remove(i)) continue;
         unloads.add((site: models[i], reason: reason));
@@ -301,10 +302,10 @@ class SiteUnloadEngine {
             models: models,
             loadedIndices: loaded,
           );
-          unload([?conflict], UnloadReason.domainConflict);
+          unload([?conflict], reason: UnloadReason.domainConflict);
         }
-        unload(proxyContenders(target), UnloadReason.proxyMismatch);
-        unload(torDissenters(target), UnloadReason.torExitMismatch);
+        unload(proxyContenders(target), reason: UnloadReason.proxyMismatch);
+        unload(torDissenters(target), reason: UnloadReason.torExitMismatch);
         unload(
           indicesToEvictForLruCap(
             targetIndex: target,
@@ -312,7 +313,7 @@ class SiteUnloadEngine {
             maxLoadedSites: kMaxLoadedSites,
             priorityOf: host.priorityOf,
           ),
-          UnloadReason.loadedSiteCap,
+          reason: UnloadReason.loadedSiteCap,
         );
         final cacheClears =
             SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets(
@@ -349,19 +350,19 @@ class SiteUnloadEngine {
             previousWebspaceIndices: previous,
             newWebspaceIndices: next,
           ),
-          UnloadReason.webspaceSwitch,
+          reason: UnloadReason.webspaceSwitch,
         );
       case TorExitSettled(:final order):
         final anchor = torExitAnchor(indices: order, models: host.identities());
         if (anchor != null) {
-          unload(torDissenters(anchor), UnloadReason.torExitMismatch);
+          unload(torDissenters(anchor), reason: UnloadReason.torExitMismatch);
         }
       case NestedOpening(:final target):
         // The nested screen runs as [target] itself, whatever its slot shows.
         unload(proxyContenders(target, except: target),
-            UnloadReason.proxyMismatch);
+            reason: UnloadReason.proxyMismatch);
       case SlotIdentityChanged(:final slot):
-        unload(proxyContenders(slot), UnloadReason.proxyMismatch);
+        unload(proxyContenders(slot), reason: UnloadReason.proxyMismatch);
     }
     return ResidencyPlan(unloads: unloads);
   }
@@ -370,14 +371,14 @@ class SiteUnloadEngine {
   /// comes is skipped. False when [isStale] turned true across an await, in
   /// which case the rest of the plan did not run.
   static Future<bool> apply(
-    SiteUnloadHost host,
-    ResidencyPlan plan, {
+    SiteUnloadHost host, {
+    required ResidencyPlan plan,
     required bool Function() isStale,
   }) async {
     for (final (:site, :reason) in plan.unloads) {
       final i = host.models.indexOf(site);
       if (i < 0 || !host.loadedIndices.contains(i)) continue;
-      await unload(host, i, reason);
+      await unload(host, index: i, reason: reason);
       if (isStale()) return false;
     }
     bool stillResident(WebViewModel site) {
@@ -594,7 +595,7 @@ class SiteUnloadEngine {
     if (overflow <= 0) return const [];
     return evictionOrder(
       loadedIndices.where((i) => i != targetIndex),
-      priorityOf,
+      priorityOf: priorityOf,
     ).take(overflow).toList();
   }
 }

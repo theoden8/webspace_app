@@ -15,7 +15,8 @@ Future<String?> hostReadDocumentText(String name) async {
   return file.readAsString();
 }
 
-Future<void> hostWriteDocumentText(String name, String contents) async {
+Future<void> hostWriteDocumentText(String name,
+    {required String contents}) async {
   final dir = await pp.getApplicationDocumentsDirectory();
   await io.File('${dir.path}/$name').writeAsString(contents);
 }

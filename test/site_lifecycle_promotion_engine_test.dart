@@ -27,7 +27,7 @@ void main() {
       final loaded = [for (var i = 0; i < 100; i++) i];
       final order = evictionOrder(
         loaded,
-        (i) => i.isEven
+        priorityOf: (i) => i.isEven
             ? SiteRetentionPriority.loaded
             : SiteRetentionPriority.webspace,
       );
@@ -40,10 +40,10 @@ void main() {
     });
 
     test('never yields a site that is not evictable', () {
-      final order = evictionOrder([0, 1, 2], tiers(active: {0, 2}));
+      final order = evictionOrder([0, 1, 2], priorityOf: tiers(active: {0, 2}));
       expect(order, [1]);
       for (final p in SiteRetentionPriority.values) {
-        expect(evictionOrder([0], (_) => p).isEmpty, !p.evictable);
+        expect(evictionOrder([0], priorityOf: (_) => p).isEmpty, !p.evictable);
       }
     });
   });

@@ -57,7 +57,8 @@ void main() {
   group('evictInMemory', () {
     test('drops in-memory snapshot synchronously', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1', '<p>cached</p>', 'https://example.com/');
+      await svc.saveHtml('site-1',
+          html: '<p>cached</p>', url: 'https://example.com/');
       expect(svc.getHtmlSync('site-1'), '<p>cached</p>');
 
       svc.evictInMemory('site-1');
@@ -70,7 +71,8 @@ void main() {
 
     test('resets the debounce window so the next save is allowed', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1', '<p>cached</p>', 'https://example.com/');
+      await svc.saveHtml('site-1',
+          html: '<p>cached</p>', url: 'https://example.com/');
       // Just-saved: shouldSave is false within the 10s debounce.
       expect(svc.shouldSave('site-1'), isFalse);
 
@@ -86,7 +88,8 @@ void main() {
       final svc = HtmlCacheService.instance;
       // Two evictions in a row both bump the gen, so any save that
       // captured a gen between them is also rejected.
-      await svc.saveHtml('site-1', '<p>v1</p>', 'https://example.com/');
+      await svc.saveHtml('site-1',
+          html: '<p>v1</p>', url: 'https://example.com/');
       svc.evictInMemory('site-1');
       svc.evictInMemory('site-1');
       // The visible effect: getHtmlSync still returns null, and a
@@ -99,7 +102,8 @@ void main() {
   group('saveHtml gen check', () {
     test('rejects a save whose gen was invalidated mid-flight', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1', '<p>baseline</p>', 'https://example.com/');
+      await svc.saveHtml('site-1',
+          html: '<p>baseline</p>', url: 'https://example.com/');
       expect(svc.getHtmlSync('site-1'), '<p>baseline</p>');
 
       // Race: schedule a save. Synchronously evict before the save's
@@ -108,8 +112,8 @@ void main() {
       // when saveHtml lands.
       final saving = svc.saveHtml(
         'site-1',
-        '<p>stale-from-pre-home</p>',
-        'https://example.com/deep',
+        html: '<p>stale-from-pre-home</p>',
+        url: 'https://example.com/deep',
       );
       svc.evictInMemory('site-1');
       await saving;
@@ -125,7 +129,8 @@ void main() {
     test('a save started after eviction is allowed', () async {
       final svc = HtmlCacheService.instance;
       svc.evictInMemory('site-1');
-      await svc.saveHtml('site-1', '<p>fresh</p>', 'https://example.com/');
+      await svc.saveHtml('site-1',
+          html: '<p>fresh</p>', url: 'https://example.com/');
       expect(svc.getHtmlSync('site-1'), '<p>fresh</p>');
     });
   });
@@ -133,7 +138,8 @@ void main() {
   group('deleteCache', () {
     test('drops in-memory entry synchronously even before disk delete completes', () async {
       final svc = HtmlCacheService.instance;
-      await svc.saveHtml('site-1', '<p>cached</p>', 'https://example.com/');
+      await svc.saveHtml('site-1',
+          html: '<p>cached</p>', url: 'https://example.com/');
       expect(svc.getHtmlSync('site-1'), '<p>cached</p>');
 
       // Don't await - check the in-memory state in the same turn.
@@ -147,7 +153,8 @@ void main() {
       final svc = HtmlCacheService.instance;
       // Stale save in flight when delete fires - same shape as a
       // disposed-webview onLoadStop racing an explicit deletion.
-      final saving = svc.saveHtml('site-1', '<p>stale</p>', 'https://example.com/');
+      final saving = svc.saveHtml('site-1',
+          html: '<p>stale</p>', url: 'https://example.com/');
       final deleting = svc.deleteCache('site-1');
       await Future.wait([saving, deleting]);
       expect(svc.getHtmlSync('site-1'), isNull);

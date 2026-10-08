@@ -33,9 +33,9 @@ abstract final class CapturePermissionEngine {
   /// camera request bundled with anything but the microphone is not the
   /// camera flow's to answer (CAM-004).
   static Future<DeviceAnswer> answer(
-    DeviceRequest request,
-    DeviceGrantHost host,
-  ) async {
+    DeviceRequest request, {
+    required DeviceGrantHost host,
+  }) async {
     final (:camera, :microphone, :other) = request;
     if (!microphone && (!camera || other)) return DeviceAnswer.prompt;
     if (microphone && !await host.opensDevice(CaptureKind.microphone)) {

@@ -248,7 +248,8 @@ class AdblockEngine implements AdblockEngineApi {
   final _Bindings _b;
   ffi.Pointer<ffi.Void> _handle;
 
-  AdblockEngine._(this._b, this._handle);
+  AdblockEngine._(this._b, {required ffi.Pointer<ffi.Void> handle})
+      : _handle = handle;
 
   /// Try to load the shared library and parse [rulesText] into a
   /// new engine. Returns `null` if the library can't be loaded on
@@ -268,7 +269,7 @@ class AdblockEngine implements AdblockEngineApi {
       final handle = bindings.engineNew(
           ptr.cast<Utf8>(), bytes.length, enableUboResources);
       if (handle == ffi.nullptr) return null;
-      return AdblockEngine._(bindings, handle);
+      return AdblockEngine._(bindings, handle: handle);
     } finally {
       malloc.free(ptr);
     }
@@ -297,7 +298,7 @@ class AdblockEngine implements AdblockEngineApi {
       final handle = bindings.engineNewFromSerialized(
           ptr, bytes.length, enableUboResources);
       if (handle == ffi.nullptr) return null;
-      return AdblockEngine._(bindings, handle);
+      return AdblockEngine._(bindings, handle: handle);
     } finally {
       malloc.free(ptr);
     }
@@ -433,8 +434,8 @@ class AdblockEngine implements AdblockEngineApi {
   /// caller can degrade gracefully.
   @override
   List<String> hiddenClassIdSelectors(
-    Set<String> classes,
-    Set<String> ids, {
+    Set<String> classes, {
+    required Set<String> ids,
     Set<String> exceptions = const <String>{},
   }) {
     final classesJson = jsonEncode(classes.toList());
@@ -543,9 +544,9 @@ class AdblockEngine implements AdblockEngineApi {
   }) =>
       _callStringFn(
         _b.engineRewrittenUrl,
-        url,
-        sourceUrl,
-        requestType,
+        url: url,
+        sourceUrl: sourceUrl,
+        requestType: requestType,
       );
 
   /// `$csp=` lookup. Returns the CSP directives the engine wants to
@@ -564,27 +565,19 @@ class AdblockEngine implements AdblockEngineApi {
   }) =>
       _callStringFn(
         _b.engineCspFor,
-        url,
-        sourceUrl,
-        requestType,
+        url: url,
+        sourceUrl: sourceUrl,
+        requestType: requestType,
       );
 
   /// Helper to invoke the (engine, url, src, type) → cstring FFI shape
   /// without duplicating the malloc/copy/free boilerplate.
   String? _callStringFn(
-    ffi.Pointer<Utf8> Function(
-      ffi.Pointer<ffi.Void>,
-      ffi.Pointer<Utf8>,
-      int,
-      ffi.Pointer<Utf8>,
-      int,
-      ffi.Pointer<Utf8>,
-      int,
-    ) fn,
-    String url,
-    String sourceUrl,
-    String requestType,
-  ) {
+    _EngineRewrittenUrlDart fn, {
+    required String url,
+    required String sourceUrl,
+    required String requestType,
+  }) {
     final urlBytes = utf8.encode(url);
     final srcBytes = utf8.encode(sourceUrl);
     final typBytes = utf8.encode(requestType);

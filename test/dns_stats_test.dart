@@ -12,7 +12,7 @@ void main() {
   group('DnsStats counters', () {
     test('records allowed with default count=1', () {
       final s = DnsStats();
-      s.record('a.com', false);
+      s.record('a.com', wasBlocked: false);
       expect(s.allowed, equals(1));
       expect(s.blocked, equals(0));
       expect(s.total, equals(1));
@@ -20,8 +20,8 @@ void main() {
 
     test('records blocked with source attribution', () {
       final s = DnsStats();
-      s.record('ad.com', true, source: BlockSource.dns);
-      s.record('tr.com', true, source: BlockSource.abp);
+      s.record('ad.com', wasBlocked: true, source: BlockSource.dns);
+      s.record('tr.com', wasBlocked: true, source: BlockSource.abp);
       expect(s.blockedByDns, equals(1));
       expect(s.blockedByAbp, equals(1));
       expect(s.blocked, equals(2));
@@ -30,7 +30,7 @@ void main() {
 
     test('count > 1 increments totals by count but log grows by one', () {
       final s = DnsStats();
-      s.record('cdn.example.com', false, count: 47);
+      s.record('cdn.example.com', wasBlocked: false, count: 47);
       expect(s.allowed, equals(47),
           reason: 'count must fold into the total');
       expect(s.log, hasLength(1),
@@ -41,8 +41,10 @@ void main() {
 
     test('count > 1 with blocked + source attributes correctly', () {
       final s = DnsStats();
-      s.record('ad.example.com', true, source: BlockSource.dns, count: 12);
-      s.record('tr.example.com', true, source: BlockSource.abp, count: 5);
+      s.record('ad.example.com',
+          wasBlocked: true, source: BlockSource.dns, count: 12);
+      s.record('tr.example.com',
+          wasBlocked: true, source: BlockSource.abp, count: 5);
       expect(s.blocked, equals(17));
       expect(s.blockedByDns, equals(12));
       expect(s.blockedByAbp, equals(5));
@@ -51,25 +53,25 @@ void main() {
 
     test('count below 1 is clamped to 1', () {
       final s = DnsStats();
-      s.record('a.com', false, count: 0);
-      s.record('b.com', false, count: -3);
+      s.record('a.com', wasBlocked: false, count: 0);
+      s.record('b.com', wasBlocked: false, count: -3);
       expect(s.allowed, equals(2));
       expect(s.log, hasLength(2));
     });
 
     test('blockRate computes correctly', () {
       final s = DnsStats();
-      s.record('a.com', false);
-      s.record('a.com', false);
-      s.record('a.com', false);
-      s.record('ad.com', true, source: BlockSource.dns);
+      s.record('a.com', wasBlocked: false);
+      s.record('a.com', wasBlocked: false);
+      s.record('a.com', wasBlocked: false);
+      s.record('ad.com', wasBlocked: true, source: BlockSource.dns);
       expect(s.blockRate, equals(25.0));
     });
 
     test('clear resets everything', () {
       final s = DnsStats();
-      s.record('a.com', false, count: 10);
-      s.record('ad.com', true, source: BlockSource.dns, count: 5);
+      s.record('a.com', wasBlocked: false, count: 10);
+      s.record('ad.com', wasBlocked: true, source: BlockSource.dns, count: 5);
       s.clear();
       expect(s.allowed, equals(0));
       expect(s.blocked, equals(0));
@@ -82,7 +84,7 @@ void main() {
     test('log grows from empty in insertion order', () {
       final s = DnsStats();
       for (var i = 0; i < 5; i++) {
-        s.record('host$i.com', false);
+        s.record('host$i.com', wasBlocked: false);
       }
       final entries = s.log;
       expect(entries, hasLength(5));
@@ -96,7 +98,7 @@ void main() {
       final s = DnsStats();
       // Fill past the cap. The oldest 100 must be dropped.
       for (var i = 0; i < 600; i++) {
-        s.record('host$i.com', false);
+        s.record('host$i.com', wasBlocked: false);
       }
       final entries = s.log;
       expect(entries, hasLength(500));
@@ -109,7 +111,7 @@ void main() {
       final s = DnsStats();
       // Insert exactly cap + 1 to cross the boundary by one.
       for (var i = 0; i < 501; i++) {
-        s.record('h$i', false);
+        s.record('h$i', wasBlocked: false);
       }
       final entries = s.log;
       expect(entries, hasLength(500));
@@ -120,20 +122,20 @@ void main() {
     test('clear empties the ring and accepts new entries', () {
       final s = DnsStats();
       for (var i = 0; i < 600; i++) {
-        s.record('h$i', false);
+        s.record('h$i', wasBlocked: false);
       }
       s.clear();
       expect(s.log, isEmpty);
-      s.record('fresh.com', false);
+      s.record('fresh.com', wasBlocked: false);
       expect(s.log, hasLength(1));
       expect(s.log.single.domain, equals('fresh.com'));
     });
 
     test('blocked entries retain source in log', () {
       final s = DnsStats();
-      s.record('a.com', true, source: BlockSource.dns);
-      s.record('b.com', true, source: BlockSource.abp);
-      s.record('c.com', false);
+      s.record('a.com', wasBlocked: true, source: BlockSource.dns);
+      s.record('b.com', wasBlocked: true, source: BlockSource.abp);
+      s.record('c.com', wasBlocked: false);
       final entries = s.log;
       expect(entries[0].source, equals(BlockSource.dns));
       expect(entries[1].source, equals(BlockSource.abp));
@@ -149,14 +151,16 @@ void main() {
 
     test('skips empty host', () {
       DnsBlockService.instance.recordVerdict('site-A',
-          const HostQuery(''), const Allowed());
+          query: const HostQuery(''), verdict: const Allowed());
       final stats = DnsBlockService.instance.statsForSite('site-A');
       expect(stats.total, equals(0));
     });
 
     test('records with count', () {
       DnsBlockService.instance.recordVerdict('site-A',
-          const HostQuery('cdn.example.com'), const Allowed(), count: 25);
+          query: const HostQuery('cdn.example.com'),
+          verdict: const Allowed(),
+          count: 25);
       final stats = DnsBlockService.instance.statsForSite('site-A');
       expect(stats.allowed, equals(25));
       expect(stats.log, hasLength(1));
@@ -164,7 +168,8 @@ void main() {
 
     test('records source-attributed block with count', () {
       DnsBlockService.instance.recordVerdict('site-A',
-          const HostQuery('ad.example.com'), const Blocked(BlockSource.abp),
+          query: const HostQuery('ad.example.com'),
+          verdict: const Blocked(BlockSource.abp),
           count: 7);
       final stats = DnsBlockService.instance.statsForSite('site-A');
       expect(stats.blocked, equals(7));
@@ -189,8 +194,8 @@ void main() {
         // Burst of recordings — the listener must fire exactly once per
         // microtask flush, not once per recorded request.
         for (var i = 0; i < 50; i++) {
-          DnsBlockService.instance
-              .recordVerdict('site-N', HostQuery('h$i.com'), const Allowed());
+          DnsBlockService.instance.recordVerdict('site-N',
+              query: HostQuery('h$i.com'), verdict: const Allowed());
         }
         expect(notifications, equals(0),
             reason: 'notification deferred to next microtask');
@@ -201,8 +206,8 @@ void main() {
 
         // A second burst after the flush goes into a fresh microtask.
         for (var i = 0; i < 10; i++) {
-          DnsBlockService.instance
-              .recordVerdict('site-N', HostQuery('x$i.com'), const Allowed());
+          DnsBlockService.instance.recordVerdict('site-N',
+              query: HostQuery('x$i.com'), verdict: const Allowed());
         }
         await Future<void>.delayed(Duration.zero);
         expect(notifications, equals(2));
@@ -215,7 +220,7 @@ void main() {
       // Record before any listener is attached — these should not fire.
       for (var i = 0; i < 5; i++) {
         DnsBlockService.instance.recordVerdict('site-N',
-            HostQuery('pre$i.com'), const Allowed());
+            query: HostQuery('pre$i.com'), verdict: const Allowed());
       }
       var notifications = 0;
       DnsBlockService.instance.addDnsLogListener(() => notifications++);

@@ -173,7 +173,7 @@ enum AccentColor {
 /// long lines, so per-line preservation renders correctly without
 /// hurting paragraph flow.
 class _PerLineLicenseEntry extends LicenseEntry {
-  _PerLineLicenseEntry(this.packages, this._text);
+  _PerLineLicenseEntry(this.packages, {required String text}) : _text = text;
 
   @override
   final Iterable<String> packages;
@@ -291,7 +291,8 @@ Color _accentColorToColor(AccentColor accentColor) {
 
 /// Recolor RGBA pixel buffer in-place for logo display.
 /// Exported for testing.
-void recolorLogoPixels(Uint8List pixels, AccentColor accentColor, {required bool isLight}) {
+void recolorLogoPixels(Uint8List pixels,
+    {required AccentColor accentColor, required bool isLight}) {
   final accent = _accentColorToColor(accentColor);
   final skipRecolor = accentColor == AccentColor.blue;
 
@@ -424,7 +425,7 @@ class _AccentLogoState extends State<AccentLogo> {
 
     final pixels = Uint8List.fromList(byteData.buffer.asUint8List());
     final isLight = brightness == Brightness.light;
-    recolorLogoPixels(pixels, accentColor, isLight: isLight);
+    recolorLogoPixels(pixels, accentColor: accentColor, isLight: isLight);
 
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
@@ -506,7 +507,8 @@ Future<void> _migrateFileImportsToStorage() async {
         if (await HtmlImportStorage.instance.hasImport(siteId)) continue;
         final cached = await HtmlCacheService.instance.loadHtml(siteId);
         if (cached == null) continue;
-        await HtmlImportStorage.instance.saveHtml(siteId, cached.$2, cached.$1);
+        await HtmlImportStorage.instance
+            .saveHtml(siteId, html: cached.$2, url: cached.$1);
         migrated++;
       } catch (_) {
         // Skip malformed entries — the cache wipe is happening either way.
@@ -527,7 +529,7 @@ Future<void> _migrateFileImportsToStorage() async {
 /// reported ms can sum to more than the group wall-clock — read them as
 /// "which step is heaviest", not as additive. The serial-tail steps are
 /// additive.
-Future<void> _runTimed(String label, AsyncStep step) async {
+Future<void> _runTimed(String label, {required AsyncStep step}) async {
   if (!kDebugMode) return step();
   final sw = Stopwatch()..start();
   try {
@@ -602,16 +604,20 @@ void main([List<String> args = const []]) async {
   final swServices = kDebugMode ? (Stopwatch()..start()) : null;
   await StartupInitEngine.runIndependentInits(
     <AsyncStep>[
-      () => _runTimed('html', htmlInit),
-      () => _runTimed('clearUrl', ClearUrlService.instance.initialize),
-      () => _runTimed('dns', DnsBlockService.instance.initialize),
-      () => _runTimed('firefoxUa', FirefoxUserAgentService.instance.initialize),
-      () => _runTimed('adblock', ContentBlockerService.instance.initialize),
-      () => _runTimed('localCdn', LocalCdnService.instance.initialize),
-      () => _runTimed('searchList', SiteSearchListService.instance.initialize),
-      () => _runTimed('blockStats', BlockStatsService.instance.initialize),
+      () => _runTimed('html', step: htmlInit),
+      () => _runTimed('clearUrl', step: ClearUrlService.instance.initialize),
+      () => _runTimed('dns', step: DnsBlockService.instance.initialize),
+      () => _runTimed('firefoxUa',
+          step: FirefoxUserAgentService.instance.initialize),
+      () =>
+          _runTimed('adblock', step: ContentBlockerService.instance.initialize),
+      () => _runTimed('localCdn', step: LocalCdnService.instance.initialize),
+      () => _runTimed('searchList',
+          step: SiteSearchListService.instance.initialize),
+      () =>
+          _runTimed('blockStats', step: BlockStatsService.instance.initialize),
       if (hostIsAndroid)
-        () => _runTimed('swBlock', blockServiceWorkerNetwork),
+        () => _runTimed('swBlock', step: blockServiceWorkerNetwork),
     ],
     bridgeSetup: WebInterceptNative.initialize,
   );
@@ -628,7 +634,7 @@ void main([List<String> args = const []]) async {
   if (DnsBlockService.instance.hasBlocklist) {
     await _runTimed(
         'dnsSend(${DnsBlockService.instance.domainCount})',
-        () => WebInterceptNative.sendDnsLevelGroups(
+        step: () => WebInterceptNative.sendDnsLevelGroups(
             DnsBlockService.instance.levelGroups));
   }
 
@@ -653,7 +659,7 @@ void main([List<String> args = const []]) async {
 
   await _runTimed(
       'cdnSend',
-      () async {
+      step: () async {
         await WebInterceptNative.sendCdnPatterns(
             LocalCdnService.instance.cdnPatternStrings);
         await WebInterceptNative.sendCdnCacheIndex(
@@ -693,7 +699,7 @@ void main([List<String> args = const []]) async {
   for (final (packages, assetPath) in customLicenses) {
     LicenseRegistry.addLicense(() async* {
       final text = await rootBundle.loadString(assetPath);
-      yield _PerLineLicenseEntry(packages, text);
+      yield _PerLineLicenseEntry(packages, text: text);
     });
   }
 
@@ -742,13 +748,13 @@ void main([List<String> args = const []]) async {
       }
       yield _PerLineLicenseEntry(
         ['$name (Rust crate, transitive via adblock-rust)'],
-        parts.join('\n'),
+        text: parts.join('\n'),
       );
     }
   });
 
   // Initialize platform info to detect proxy support before UI loads
-  await _runTimed('platformInfo', PlatformInfo.initialize);
+  await _runTimed('platformInfo', step: PlatformInfo.initialize);
 
   // Prime ConnectivityService.lastKnownOnline before the first webview
   // is constructed. The offline cached-HTML render path needs a sync
@@ -756,7 +762,7 @@ void main([List<String> args = const []]) async {
   // time — without this the first webview always sees `null` and
   // defaults to live load even when the device is offline.
   await _runTimed(
-      'connectivity', ConnectivityService.instance.primeLastKnownOnline);
+      'connectivity', step: ConnectivityService.instance.primeLastKnownOnline);
 
   // HTML caches are not bulk-preloaded here: that would decrypt every
   // cached + imported page (e.g. a 9.7 MB notif import) before the first
@@ -770,10 +776,10 @@ void main([List<String> args = const []]) async {
   // Load the global outbound proxy from SharedPreferences. Synchronous
   // callers (flutter_map TileProvider, per-site DEFAULT fallthrough) read
   // GlobalOutboundProxy.current after this.
-  await _runTimed('proxyInit', GlobalOutboundProxy.initialize);
+  await _runTimed('proxyInit', step: GlobalOutboundProxy.initialize);
   // Before any site resolves a proxy: a site that uses a library entry that
   // has not loaded yet fails closed until it does.
-  await _runTimed('proxyLibraryInit', ProxyLibrary.initialize);
+  await _runTimed('proxyLibraryInit', step: ProxyLibrary.initialize);
   // Teach the outbound seams how to expand ProxyType.TOR. Until this is
   // installed every TOR request blocks rather than connecting directly,
   // which is the right failure but a useless one, so install it early —
@@ -794,7 +800,7 @@ void main([List<String> args = const []]) async {
   // a launch the user made.
   BackgroundLog.instance.record(
     LogTag.lifecycle,
-    'process started (app '
+    message: 'process started (app '
         '${WidgetsBinding.instance.lifecycleState?.name ?? 'state not reported yet'})',
   );
   await ExperimentalFeaturesService.instance.initialize();
@@ -870,14 +876,15 @@ class _WebSpaceAppState extends State<WebSpaceApp> {
       locale: locale,
       // Fall back to English for any device locale we don't ship, instead of
       // gen_l10n's default of supportedLocales.first (alphabetically 'af').
-      localeListResolutionCallback: resolveSupportedLocale,
+      localeListResolutionCallback: (locales, supportedLocales) =>
+          resolveSupportedLocale(locales, supported: supportedLocales),
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       theme: ThemeData(
-        colorScheme: buildAccentColorScheme(accentColor, Brightness.light),
+        colorScheme: buildAccentColorScheme(accentColor, brightness: Brightness.light),
         scaffoldBackgroundColor: Color(0xFFFFFFFF),
       ),
       darkTheme: ThemeData(
-        colorScheme: buildAccentColorScheme(accentColor, Brightness.dark),
+        colorScheme: buildAccentColorScheme(accentColor, brightness: Brightness.dark),
         scaffoldBackgroundColor: Color(0xFF000000),
       ),
       themeMode: _themeSettings.themeMode,
@@ -900,18 +907,18 @@ class _WebSpacePageState extends State<WebSpacePage>
     with WidgetsBindingObserver, RouteAware
     implements DeferredStartupHost, MediaPrompter {
   final SiteRuntime _sites = SiteRuntime();
-  late final ShortcutController _shortcuts =
-      ShortcutController(_sites, _PageHost(this), DialogShortcutPrompts(context));
+  late final ShortcutController _shortcuts = ShortcutController(_sites,
+      host: _PageHost(this), prompts: DialogShortcutPrompts(context));
   late final SurfaceRepaintController _surface = SurfaceRepaintController(
     _PageHost(this),
     repaints: hostIsAndroid,
     traceSuffix: '',
   );
   late final BackgroundSitesController _background =
-      BackgroundSitesController(_sites, _PageHost(this));
+      BackgroundSitesController(_sites, host: _PageHost(this));
   late final AppLifecycleController _lifecycle = AppLifecycleController(
     _sites,
-    _PageHost(this),
+    host: _PageHost(this),
     surface: _surface,
     shortcuts: _shortcuts,
     background: _background,
@@ -919,27 +926,27 @@ class _WebSpacePageState extends State<WebSpacePage>
   );
   late final SiteNetworkController _network = SiteNetworkController(
     _sites,
-    _PageHost(this),
+    host: _PageHost(this),
     residency: _ResidencyHost(this),
     background: _background,
     containers: _containerIsolation,
   );
   late final TabsController _tabs = TabsController(
     _sites,
-    _PageHost(this),
+    host: _PageHost(this),
     navStates: _stateStorage,
     residency: _ResidencyHost(this),
   );
   late final LinkController _links = LinkController(
     _sites,
-    _PageHost(this),
-    DialogLinkPrompts(context),
+    host: _PageHost(this),
+    prompts: DialogLinkPrompts(context),
     tabs: _tabs,
   );
   late final ArchiveController _archives = ArchiveController(
     _sites,
-    _PageHost(this),
-    DialogArchivePrompts(context),
+    host: _PageHost(this),
+    prompts: DialogArchivePrompts(context),
     containers: _containerIsolation,
     cookieStore: _cookieSecureStorage,
     proxyPasswords: _proxyPasswordStorage,
@@ -1301,20 +1308,21 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// [opensFromTab] is false for a screen a share opened, which came from no
   /// tab and so has none to hand a link to (LIR-032).
   Future<void> _launchNestedForModel(
-    WebViewModel model,
-    String url, {
+    WebViewModel model, {
+    required String url,
     bool opensFromTab = true,
   }) =>
       launchUrl(
         url,
-        model.sitePosture(globalUserScripts: _globalUserScripts),
+        posture: model.sitePosture(globalUserScripts: _globalUserScripts),
         opensFromTab: opensFromTab,
         homeTitle: model.name,
       );
 
   /// WEBSPACE-012 helper: switch the active webspace to "All" if [model]
   /// isn't a member of the current named webspace, with a snackbar.
-  Future<void> _maybeSwitchToAllForSite(WebViewModel model, int index) async {
+  Future<void> _maybeSwitchToAllForSite(WebViewModel model,
+      {required int index}) async {
     if (_sites.selectedWebspaceId == null ||
         _sites.selectedWebspaceId == kAllWebspaceId) {
       return;
@@ -1359,7 +1367,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (sites.every((m) => m.containerColor != null)) return;
     final given = ContainerColorEngine.assign(
       [for (final m in sites) m.containerColor],
-      kContainerPaletteSize,
+      paletteSize: kContainerPaletteSize,
     );
     for (var i = 0; i < sites.length; i++) {
       sites[i].containerColor = given[i];
@@ -1413,7 +1421,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!mounted) return;
     }
     if (change case SiteArchived(:final site, :final into)) {
-      await _archives.recordIn(site, into);
+      await _archives.recordIn(site, into: into);
       if (!mounted) return;
     }
     if (shownBefore != null && !_sites.models.contains(shownBefore)) {
@@ -1663,7 +1671,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // (the archive's own encrypted state carries them).
     List<String> webspacesJson = ArchiveMembershipEngine.persistable(
       _sites.webspaces,
-      _archivedSiteIds,
+      archivedSiteIds: _archivedSiteIds,
     ).map((webspace) => jsonEncode(webspace.toJson())).toList();
     await prefs.setStringList('webspaces', webspacesJson);
   }
@@ -1708,7 +1716,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       // near-immediate return to the same site keeps its in-memory tab.
       // Bytes-only capture — `lifecycleState` stays `live` because the
       // webview is not actually disposed.
-      if (leaving != null) await _quiesceOutgoingSite(leaving, version);
+      if (leaving != null) {
+        await _quiesceOutgoingSite(leaving, version: version);
+      }
       return;
     }
 
@@ -1795,7 +1805,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       loadedIndices: _sites.loaded,
     );
     if (outgoing != null) {
-      await _quiesceOutgoingSite(_sites.models[outgoing], version,
+      await _quiesceOutgoingSite(_sites.models[outgoing], version: version,
           captureState: false);
       if (version != _sites.activationVersion) return;
     }
@@ -1863,7 +1873,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       // would survive. Bound to a local model: the steps run a microtask
       // later, by which point _sites.models may have been reindexed.
       final model = _sites.models[i];
-      unawaited(_quiesceOutgoingSite(model, version, captureState: false));
+      unawaited(
+          _quiesceOutgoingSite(model, version: version, captureState: false));
     }
 
     if (target.fullscreenMode) {
@@ -1908,18 +1919,20 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Unloads the site at [index] (PAUSE-007, ISO-002); see
   /// [SiteUnloadEngine.unload].
-  Future<void> _unloadSite(int index, UnloadReason reason) =>
-      SiteUnloadEngine.unload(_ResidencyHost(this), index, reason);
+  Future<void> _unloadSite(int index, {required UnloadReason reason}) =>
+      SiteUnloadEngine.unload(_ResidencyHost(this),
+          index: index, reason: reason);
 
   ResidencyPlan _residencyPlan(ResidencyEvent event) =>
-      SiteUnloadEngine.plan(_ResidencyHost(this), event);
+      SiteUnloadEngine.plan(_ResidencyHost(this), event: event);
 
   /// False when [isStale] turned true partway; see [SiteUnloadEngine.apply].
   Future<bool> _applyResidency(
     ResidencyPlan plan, {
     required bool Function() isStale,
   }) =>
-      SiteUnloadEngine.apply(_ResidencyHost(this), plan, isStale: isStale);
+      SiteUnloadEngine.apply(_ResidencyHost(this),
+          plan: plan, isStale: isStale);
 
   /// Every navigation-state key that should survive a sweep, for the sites in
   /// [siteIds]. State is per tab, so a site contributes one key per tab it
@@ -1961,7 +1974,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           sensitive: true);
       return false;
     }
-    await _stateStorage.saveState(key, bytes);
+    await _stateStorage.saveState(key, state: bytes);
     LogTag.webViewState.debug(
         'Captured ${bytes.length} bytes for "${model.name}" '
         '(state key: $key)', sensitive: true);
@@ -1978,24 +1991,25 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// left frozen never answers `evaluateJavascript` again, and the caller's
   /// own state change must not hang on it (NAV-010).
   Future<void> _quiesceOutgoingSite(
-    WebViewModel model,
-    int version, {
+    WebViewModel model, {
+    required int version,
     bool captureState = true,
   }) async {
     final result = await SiteTeardownEngine.quiesceOutgoing(
       superseded: () => version != _sites.activationVersion,
       steps: [
         if (captureState)
-          SiteTeardownStep('captureState', () => _captureStateBytes(model)),
-        SiteTeardownStep('stopRealCapture', model.stopRealCapture),
-        SiteTeardownStep('pauseMediaPlayback', model.pauseMediaPlayback),
-        SiteTeardownStep('pauseWebView', model.pauseWebView),
+          SiteTeardownStep('captureState',
+              run: () => _captureStateBytes(model)),
+        SiteTeardownStep('stopRealCapture', run: model.stopRealCapture),
+        SiteTeardownStep('pauseMediaPlayback', run: model.pauseMediaPlayback),
+        SiteTeardownStep('pauseWebView', run: model.pauseWebView),
       ],
     );
     if (result.isClean) return;
     LogService.instance.log(
       LogTag.webView,
-      'Teardown of "${model.name}" ran ${result.ran}'
+      message: 'Teardown of "${model.name}" ran ${result.ran}'
           '${result.errors.isEmpty ? '' : ', failed ${result.errors}'}'
           '${result.stalledOn == null ? '' : ', stalled on ${result.stalledOn}'}'
           '${result.supersededBefore == null ? '' : ', superseded before ${result.supersededBefore}'}',
@@ -2029,7 +2043,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Shows a popup window for handling window.open() requests from webviews.
   /// Used for Cloudflare Turnstile challenges and other popup-based flows.
-  Future<void> _showPopupWindow(int windowId, String url) async {
+  Future<void> _showPopupWindow(int windowId, {required String url}) async {
     if (!mounted) return;
 
     LogTag.popupWindow.debug(
@@ -2134,17 +2148,17 @@ class _WebSpacePageState extends State<WebSpacePage>
     AppPref.loadAll(prefs);
     setState(() {
       // Load theme settings, with migration from old formats
-      final savedThemeSettings = readPrefAs<int>(prefs, 'themeSettings');
+      final savedThemeSettings = readPrefAs<int>(prefs, key: 'themeSettings');
       if (savedThemeSettings != null) {
         _themeSettings = AppThemeSettings.fromStorageIndex(savedThemeSettings);
       } else {
         // Try to migrate from old appTheme format
-        final savedAppTheme = readPrefAs<int>(prefs, 'appTheme');
+        final savedAppTheme = readPrefAs<int>(prefs, key: 'appTheme');
         if (savedAppTheme != null && savedAppTheme < AppTheme.values.length) {
           _themeSettings = _legacyAppThemeToSettings(AppTheme.values[savedAppTheme]);
         } else {
           // Migrate from old themeMode if exists
-          final oldThemeMode = readPrefAs<int>(prefs, 'themeMode');
+          final oldThemeMode = readPrefAs<int>(prefs, key: 'themeMode');
           if (oldThemeMode != null) {
             // Map old ThemeMode to new settings (assuming green was the old color)
             switch (oldThemeMode) {
@@ -2187,7 +2201,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
     // Legacy positional membership resolves against the restored order,
     // before the commit rebuilds every webspace's positions from siteIds.
-    if (promoteLegacySiteIndices(_sites.webspaces, restored)) {
+    if (promoteLegacySiteIndices(_sites.webspaces, sites: restored)) {
       await _saveWebspaces();
     }
     // Sites restored with ProxyType.TOR need the runtime coming up before
@@ -2296,7 +2310,7 @@ class _WebSpacePageState extends State<WebSpacePage>
           )) {
         if (await TimezoneLocationService.instance.loadFromCacheIfPresent()) {
           final tz = TimezoneLocationService.instance
-              .lookup(m.spoofLatitude!, m.spoofLongitude!);
+              .lookup(m.spoofLatitude!, longitude: m.spoofLongitude!);
           if (tz != null) m.spoofTimezone = tz;
         }
       }
@@ -2500,11 +2514,11 @@ class _WebSpacePageState extends State<WebSpacePage>
       TimezoneLocationService.instance.loadFromCacheIfPresent();
 
   @override
-  String? resolveTimezone(double latitude, double longitude) =>
-      TimezoneLocationService.instance.lookup(latitude, longitude);
+  String? resolveTimezone(double latitude, {required double longitude}) =>
+      TimezoneLocationService.instance.lookup(latitude, longitude: longitude);
 
   @override
-  bool setSpoofTimezone(String siteId, String timezone) {
+  bool setSpoofTimezone(String siteId, {required String timezone}) {
     final m = _sites.byId(siteId);
     if (m != null && m.spoofTimezone != timezone) {
       m.spoofTimezone = timezone;
@@ -2531,9 +2545,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// by the engine at sweep time so a site added post-paint isn't reclaimed.
   @override
   Future<void> sweepOrphanStorage(
-    Set<String> activeSiteIds,
-    Set<String> nonIncognitoSiteIds,
-  ) async {
+    Set<String> activeSiteIds, {
+    required Set<String> nonIncognitoSiteIds,
+  }) async {
     try {
       await OrphanSweepEngine.sweep(
         targets: _OrphanSweepTargets(this),
@@ -2584,15 +2598,16 @@ class _WebSpacePageState extends State<WebSpacePage>
     routeOutbound: _links.routeOutbound,
     // Identity, not index: the list can have been reordered by the time the
     // native event lands.
-    linkMenu: (source, url) {
+    linkMenu: (source, {required url}) {
       final at = _sites.models.indexOf(source);
-      if (at >= 0) unawaited(_showLinkLongPressMenu(at, url));
+      if (at >= 0) unawaited(_showLinkLongPressMenu(at, url: url));
     },
     openSiteSettings: _openSiteSettingsById,
     showPopup: _showPopupWindow,
-    externalScheme: (info, loadIn) async {
+    externalScheme: (info, {required loadIn}) async {
       if (!mounted) return;
-      await confirmAndLaunchExternalUrl(context, info, loadInWebView: loadIn);
+      await confirmAndLaunchExternalUrl(context,
+          info: info, loadInWebView: loadIn);
     },
     confirmScriptFetch: _confirmScriptFetch,
     untrustedCertificate: _promptUntrustedCertificate,
@@ -2601,8 +2616,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   );
 
   Future<void> launchUrl(
-    String url,
-    SitePosture posture, {
+    String url, {
+    required SitePosture posture,
     bool opensFromTab = true,
     String? homeTitle,
   }) async {
@@ -2626,18 +2641,22 @@ class _WebSpacePageState extends State<WebSpacePage>
           openedFrom: openedFrom,
           onOpenAsTab: owner == null || nestedSite == null
               ? null
-              : (link, hadGesture) {
-                  final tab = _links.tabRouteFor(owner, nestedSite, link, hadGesture);
+              : (link, {required hadGesture}) {
+                  final tab = _links.tabRouteFor(owner,
+                      source: nestedSite, url: link, hadGesture: hadGesture);
                   if (tab == null) return false;
-                  handOff = () => _links.executeTabRoute(
-                      owner, nestedSite, parentTabId, tab, Uri.parse(link));
+                  handOff = () => _links.executeTabRoute(owner,
+                      source: nestedSite,
+                      parentTabId: parentTabId,
+                      action: tab,
+                      url: Uri.parse(link));
                   return true;
                 },
           homeTitle: homeTitle,
           posture: posture,
           hooks: _webViewHooks,
           showUrlBar: AppPref.showUrlBar.value,
-          onShowUrlBarChanged: AppPref.showUrlBar.set,
+          onShowUrlBarChanged: ({required show}) => AppPref.showUrlBar.set(show),
         ),
       ),
     );
@@ -2651,10 +2670,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// the cert's SHA-256) happens inside [WebViewFactory] when this
   /// returns true — the dialog itself only collects user intent.
   Future<bool> _promptUntrustedCertificate(
-    String host,
-    int port,
-    inapp.SslCertificate? certificate,
-  ) {
+    String host, {
+    required int port,
+    required inapp.SslCertificate? certificate,
+  }) {
     if (!mounted) return Future.value(false);
     return promptUntrustedCertificate(
       context,
@@ -2668,7 +2687,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// parent and nested webviews (HTTPAUTH-003).
   Future<HttpAuthPromptResult?> _promptHttpAuth(HttpAuthPromptRequest request) {
     if (!mounted) return Future.value(null);
-    return promptHttpAuth(context, request);
+    return promptHttpAuth(context, request: request);
   }
 
   /// Stable callback for the user-script fetch-from-URL confirmation prompt.
@@ -2736,12 +2755,14 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// `CameraPermissionService`.
   @override
   Future<CaptureGrant> capture(
-    CaptureKind kind,
-    String origin,
-    CaptureMode current,
-  ) async {
+    CaptureKind kind, {
+    required String origin,
+    required CaptureMode current,
+  }) async {
     if (!mounted) return (mode: kind.block, source: null);
-    if (current == kind.virtual) return _pickVirtualOrKeep(kind, current);
+    if (current == kind.virtual) {
+      return _pickVirtualOrKeep(kind, fallback: current);
+    }
     final loc = AppLocalizations.of(context);
     final text = kind.text(loc);
     final real = kind.real;
@@ -2766,7 +2787,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
     return switch (choice) {
       _MediaChoice.allow => (mode: real ?? kind.block, source: null),
-      _MediaChoice.useFile => await _pickVirtualOrKeep(kind, kind.ask),
+      _MediaChoice.useFile =>
+        await _pickVirtualOrKeep(kind, fallback: kind.ask),
       _MediaChoice.block => (mode: kind.block, source: null),
       null => (mode: kind.ask, source: null),
     };
@@ -2776,9 +2798,9 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// or error returns [fallback] with no source, so the stored mode survives
   /// and the request is denied this once.
   Future<CaptureGrant> _pickVirtualOrKeep(
-    CaptureKind kind,
-    CaptureMode fallback,
-  ) async {
+    CaptureKind kind, {
+    required CaptureMode fallback,
+  }) async {
     final result = await VirtualMediaPicker.pick(kind.medium);
     if (result.source case final source?) {
       return (mode: kind.virtual, source: source);
@@ -2807,14 +2829,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     ));
   }
 
-  void _toastOpenedInNewTab(WebViewModel model, String tabId) => _toast(
+  void _toastOpenedInNewTab(WebViewModel model, {required String tabId}) =>
+      _toast(
         (loc) => loc.tabsOpenedInNewTab,
         action: (loc) => SnackBarAction(
           label: loc.tabsSwitchAction,
           // Sites may have moved or gone by the time this is tapped.
           onPressed: () {
             final at = _sites.models.indexOf(model);
-            if (at >= 0) unawaited(_tabs.openTab(at, tabId));
+            if (at >= 0) unawaited(_tabs.openTab(at, tabId: tabId));
           },
         ),
       );
@@ -3065,7 +3088,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
   }
 
-  void _reorderWebspaces(int oldIndex, int newIndex) {
+  void _reorderWebspaces(int oldIndex, {required int newIndex}) {
     // Don't allow reordering if "All" is involved (it stays at index 0)
     if (oldIndex == 0 || newIndex == 0) return;
 
@@ -3098,7 +3121,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       webViewModels: appTierModels,
       webspaces: ArchiveMembershipEngine.persistable(
         _sites.webspaces,
-        _archivedSiteIds,
+        archivedSiteIds: _archivedSiteIds,
       ),
       themeMode: _themeSettings.toStorageIndex(),
       globalPrefs: readExportedAppPrefs(prefs),
@@ -3131,11 +3154,13 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (m.isArchiveTier || !m.contentBlockEnabled) continue;
       if (m.trackingProtectionEnabled) continue;
       final host = Uri.tryParse(m.initUrl)?.host ?? '';
-      if (host.isNotEmpty && hostTrustedBy(host, hosts)) matched.add(m);
+      if (host.isNotEmpty && hostTrustedBy(host, trustedHosts: hosts)) {
+        matched.add(m);
+      }
     }
     final result = [
       for (final m in matched)
-        UboTrustedSite(m.getDisplayName(), Uri.parse(m.initUrl).host)
+        UboTrustedSite(m.getDisplayName(), host: Uri.parse(m.initUrl).host)
     ];
     if (apply && matched.isNotEmpty) {
       setState(() {
@@ -3239,7 +3264,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // it on the proxy settings screen, as they re-log into sites whose secure
     // cookies were stripped.
     await writeExportedAppPrefs(
-        await SharedPreferences.getInstance(), plan.appPrefs);
+        await SharedPreferences.getInstance(), values: plan.appPrefs);
     if (!mounted) return;
     // Every service that reads those prefs reloads before the sites commit,
     // so the Tor refcount and a DEFAULT site's first load see the imported
@@ -3288,7 +3313,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (importedCounts.enabled > 0) {
       BackgroundLog.instance.record(
         LogTag.siteUnload,
-        'settings import: ${importedCounts.enabled} notification sites, '
+        message:
+            'settings import: ${importedCounts.enabled} notification sites, '
             '${importedCounts.loaded} loaded until opened or the next launch',
         level: LogLevel.warning,
       );
@@ -3518,7 +3544,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     }
 
     if (plan.deleteKnownCookies) {
-      await model.deleteCookies(_cookieManager, _containerCookieManager);
+      await model.deleteCookies(_cookieManager,
+          containerCookieManager: _containerCookieManager);
     }
     // Restorable residue the container/cookie wipes don't reach, both engines:
     // the saved `controller.saveState()` bytes are replayed on the next
@@ -3582,7 +3609,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (i == _sites.current) {
         m.disposeWebView();
       } else {
-        await _unloadSite(i, UnloadReason.homeReset);
+        await _unloadSite(i, reason: UnloadReason.homeReset);
         if (!mounted) return;
       }
     }
@@ -3653,11 +3680,14 @@ class _WebSpacePageState extends State<WebSpacePage>
       builder: (ctx) => TabsSheet(
         sites: sites,
         currentIndex: at,
-        onOpenTab: (i, id) => unawaited(_tabs.openTab(i, id)),
+        onOpenTab: (i, {required tabId}) =>
+            unawaited(_tabs.openTab(i, tabId: tabId)),
         onNewTab: (i) => unawaited(_tabs.newTab(i)),
         onWebSearch: () => unawaited(_links.webSearch()),
-        onCloseTab: (i, id) => unawaited(_tabs.closeTab(i, id)),
-        onCloseSubtree: (i, id) => unawaited(_tabs.closeTab(i, id, subtree: true)),
+        onCloseTab: (i, {required tabId}) =>
+            unawaited(_tabs.closeTab(i, tabId: tabId)),
+        onCloseSubtree: (i, {required tabId}) =>
+            unawaited(_tabs.closeTab(i, tabId: tabId, subtree: true)),
         onMoveTab: _tabs.moveTab,
         onMoveSite: _canReorderCurrentView ? _moveSiteInTabsSheet : null,
         wayBack: _tabs.wayBackFrom(_sites.models[_sites.current!]),
@@ -3668,7 +3698,8 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// A site heading dropped on another in the Tabs sheet (TAB-016): the same
   /// reorder the drawer grid and the tab strip make. Returns the sheet's sites
   /// afresh, since reordering "All" renumbers them.
-  List<TabsSheetSite>? _moveSiteInTabsSheet(String siteId, String ontoSiteId) {
+  List<TabsSheetSite>? _moveSiteInTabsSheet(String siteId,
+      {required String ontoSiteId}) {
     if (_tabs.busy || !_canReorderCurrentView) return null;
     final order = _sites.filteredIndices();
     int at(String id) => order.indexWhere((i) =>
@@ -3676,14 +3707,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     final from = at(siteId);
     final to = at(ontoSiteId);
     if (from < 0 || to < 0 || from == to) return null;
-    _reorderSite(from, to);
+    _reorderSite(from, newListIndex: to);
     return _tabsSheetSites();
   }
 
   /// A long press that landed on a link. In-domain links can become a tab of
   /// this site; anything else keeps today's behaviour, and the sheet says why
   /// rather than silently offering nothing.
-  Future<void> _showLinkLongPressMenu(int index, String url) async {
+  Future<void> _showLinkLongPressMenu(int index, {required String url}) async {
     if (_kioskLocked || !_tabs.enabledAt(index)) return;
     if (index < 0 || index >= _sites.models.length) return;
     if (index != _sites.current) return;
@@ -3695,7 +3726,10 @@ class _WebSpacePageState extends State<WebSpacePage>
         getNormalizedDomain(url) == getNormalizedDomain(model.navigationHomeUrl);
     // A link into another of the user's sites becomes that site's tab, as a
     // tap would open it (LIR-032).
-    final tabRoute = inDomain ? null : _links.tabRouteFor(model, identity, url, true);
+    final tabRoute = inDomain
+        ? null
+        : _links.tabRouteFor(model,
+            source: identity, url: url, hadGesture: true);
     final tabHost = switch (tabRoute) {
       DispatchOpenInTab(:final siteId) => _sites.byId(siteId),
       _ => null,
@@ -3731,18 +3765,21 @@ class _WebSpacePageState extends State<WebSpacePage>
               onTap: () {
                 Navigator.of(ctx).pop();
                 if (tabRoute is DispatchShowPicker) {
-                  unawaited(_links.showOutboundPicker(
-                      model, identity, tabRoute, uri, parked: true));
+                  unawaited(_links.showOutboundPicker(model,
+                      source: identity,
+                      action: tabRoute,
+                      url: uri,
+                      parked: true));
                 } else if (inDomain) {
                   // A sibling of the tab on screen: same container, and when
                   // that tab follows an opener's switch (LIR-034), so does it.
                   final active = model.activeTab;
-                  unawaited(_tabs.openLinkInNewTab(index, url,
+                  unawaited(_tabs.openLinkInNewTab(index, url: url,
                       hostSiteId: active.hostSiteId,
                       openerSiteId: active.openerSiteId,
                       homeUrl: active.homeUrl));
                 } else {
-                  unawaited(_tabs.openLinkInNewTab(index, url,
+                  unawaited(_tabs.openLinkInNewTab(index, url: url,
                       hostSiteId: tabHost?.siteId,
                       openerSiteId: identity.siteId,
                       homeUrl: url));
@@ -3754,7 +3791,7 @@ class _WebSpacePageState extends State<WebSpacePage>
               title: Text(loc.commonOpen),
               onTap: () {
                 Navigator.of(ctx).pop();
-                unawaited(_links.openLinkAsTapped(index, url));
+                unawaited(_links.openLinkAsTapped(index, url: url));
               },
             ),
             ListTile(
@@ -3847,7 +3884,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   containerColor: _sites.useContainers
                       ? m.containerColor ??
                           ContainerColorEngine.fallback(
-                              m.siteId, kContainerPaletteSize)
+                              m.siteId, paletteSize: kContainerPaletteSize)
                       : null,
                 ),
           ],
@@ -3950,7 +3987,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         if (_sites.current != null && _sites.current! < _sites.models.length && !AppPref.showTabStrip.value)
           PopupMenuButton<SiteMenuAction>(
             itemBuilder: (context) =>
-                _siteMenuItems(context, _SiteMenuPlacement.appBar),
+                _siteMenuItems(context, placement: _SiteMenuPlacement.appBar),
             onSelected: _onSiteMenuAction,
           ),
       ],
@@ -4043,8 +4080,11 @@ class _WebSpacePageState extends State<WebSpacePage>
                 itemCount: filteredIndices.length,
                 padding: EdgeInsets.symmetric(horizontal: 4),
                 itemBuilder: (context, listIndex) {
-                  return _buildTabStripItem(
-                    context, listIndex, filteredIndices, theme, isDark);
+                  return _buildTabStripItem(context,
+                      listIndex: listIndex,
+                      filteredIndices: filteredIndices,
+                      theme: theme,
+                      isDark: isDark);
                 },
               ),
             ),
@@ -4062,16 +4102,17 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// gesture-arena fight with [LongPressDraggable] (same pattern as the
   /// drawer grid tiles).
   Widget _buildTabStripItem(
-    BuildContext context,
-    int listIndex,
-    List<int> filteredIndices,
-    ThemeData theme,
-    bool isDark,
-  ) {
+    BuildContext context, {
+    required int listIndex,
+    required List<int> filteredIndices,
+    required ThemeData theme,
+    required bool isDark,
+  }) {
     final siteIndex = filteredIndices[listIndex];
     final siteModel = _sites.models[siteIndex];
     final isActive = siteIndex == _sites.current;
-    final content = _buildTabStripItemContent(siteModel, isActive, theme, isDark);
+    final content = _buildTabStripItemContent(siteModel,
+        isActive: isActive, theme: theme, isDark: isDark);
 
     void handleTap() {
       // Tapping the chip of the site already on screen opens its tab list —
@@ -4099,7 +4140,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     Duration? pointerDownTime;
     return DragTarget<int>(
       onWillAcceptWithDetails: (details) => details.data != listIndex,
-      onAcceptWithDetails: (details) => _reorderSite(details.data, listIndex),
+      onAcceptWithDetails: (details) => _reorderSite(details.data, newListIndex: listIndex),
       builder: (context, candidateData, rejectedData) {
         final isHovered = candidateData.isNotEmpty;
         return LongPressDraggable<int>(
@@ -4147,11 +4188,11 @@ class _WebSpacePageState extends State<WebSpacePage>
   }
 
   Widget _buildTabStripItemContent(
-    WebViewModel siteModel,
-    bool isActive,
-    ThemeData theme,
-    bool isDark,
-  ) {
+    WebViewModel siteModel, {
+    required bool isActive,
+    required ThemeData theme,
+    required bool isDark,
+  }) {
     return Container(
       constraints: BoxConstraints(maxWidth: AppPref.tabMaxWidth.value.toDouble()),
       margin: EdgeInsets.symmetric(horizontal: 2, vertical: 4),
@@ -4238,13 +4279,13 @@ class _WebSpacePageState extends State<WebSpacePage>
             defaultSearchSiteId: urlBarSearch?.defaultId,
             onSearch: urlBarSearch == null
                 ? null
-                : (query, siteId) =>
-                    _links.searchFromUrlBar(model, query, siteId),
+                : (query, {required siteId}) =>
+                    _links.searchFromUrlBar(model, query: query, siteId: siteId),
             onSiteInfo: () {
               final id = model.runningIdentity;
               showSiteInfoSheet(
                 context,
-                SiteInfo(
+                info: SiteInfo(
                   siteName: id.getDisplayName(),
                   tabOf: identical(id, model) ? null : model.getDisplayName(),
                   pageUrl: model.currentUrl,
@@ -4261,12 +4302,12 @@ class _WebSpacePageState extends State<WebSpacePage>
                   containerColor: _sites.useContainers
                       ? id.containerColor ??
                           ContainerColorEngine.fallback(
-                              id.siteId, kContainerPaletteSize)
+                              id.siteId, paletteSize: kContainerPaletteSize)
                       : null,
                 ),
               );
             },
-            onUrlSubmitted: (url) => _links.openTypedAddress(model, url),
+            onUrlSubmitted: (url) => _links.openTypedAddress(model, url: url),
           ),
       ],
     );
@@ -4279,21 +4320,22 @@ class _WebSpacePageState extends State<WebSpacePage>
       padding: EdgeInsets.zero,
       tooltip: AppLocalizations.of(context).homeMenuTooltip,
       itemBuilder: (context) =>
-          _siteMenuItems(context, _SiteMenuPlacement.bottomBar),
+          _siteMenuItems(context, placement: _SiteMenuPlacement.bottomBar),
       onSelected: _onSiteMenuAction,
     );
   }
 
   List<PopupMenuEntry<SiteMenuAction>> _siteMenuItems(
-    BuildContext menuContext,
-    _SiteMenuPlacement placement,
-  ) {
+    BuildContext menuContext, {
+    required _SiteMenuPlacement placement,
+  }) {
     final loc = AppLocalizations.of(menuContext);
     return [
-      _siteMenuNavRow(menuContext, loc),
+      _siteMenuNavRow(menuContext, loc: loc),
       PopupMenuDivider(),
       for (final action in SiteMenuAction.values)
-        if (_siteMenuEntry(action, placement, loc) case (final icon, final label))
+        if (_siteMenuEntry(action, placement: placement, loc: loc)
+            case (final icon, final label))
           PopupMenuItem(
             value: action,
             child: Row(
@@ -4310,10 +4352,10 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Icon and label of [action] in the menu at [placement], or null where
   /// that menu does not offer it.
   (IconData, String)? _siteMenuEntry(
-    SiteMenuAction action,
-    _SiteMenuPlacement placement,
-    AppLocalizations loc,
-  ) =>
+    SiteMenuAction action, {
+    required _SiteMenuPlacement placement,
+    required AppLocalizations loc,
+  }) =>
       switch (action) {
         SiteMenuAction.newTab =>
           _tabs.enabledAt(_sites.current) ? (Icons.add, loc.tabsNewTab) : null,
@@ -4353,9 +4395,9 @@ class _WebSpacePageState extends State<WebSpacePage>
       };
 
   PopupMenuItem<SiteMenuAction> _siteMenuNavRow(
-    BuildContext menuContext,
-    AppLocalizations loc,
-  ) {
+    BuildContext menuContext, {
+    required AppLocalizations loc,
+  }) {
     final model = _sites.current != null ? _sites.models[_sites.current!] : null;
     final loading = model?.isLoading ?? false;
     return PopupMenuItem(
@@ -4511,7 +4553,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       if (!accepted || !mounted) return;
       model = WebViewModel.fromJson(
         SiteSettingsQrCodec.hydrateForFromJson(resultQrSettings),
-        stateSetter,
+        stateSetterF: stateSetter,
       );
       if (model.name.isEmpty) {
         final pageTitle = await getPageTitle(
@@ -4557,7 +4599,8 @@ class _WebSpacePageState extends State<WebSpacePage>
       // (cleared on app upgrade). The webview reads from the import store
       // for `initialHtml` on creation.
       if (htmlContent != null && !incognito) {
-        await HtmlImportStorage.instance.saveHtml(model.siteId, htmlContent, url);
+        await HtmlImportStorage.instance
+            .saveHtml(model.siteId, html: htmlContent, url: url);
       }
     }
 
@@ -4649,7 +4692,7 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   Future<void> _editSite(int index) async {
     final model = _sites.models[index];
-    final result = await showEditSiteDialog(context, model);
+    final result = await showEditSiteDialog(context, site: model);
     if (result == null || !mounted) return;
     // Apply by the captured model identity, not the index: a concurrent
     // delete of a lower-indexed site while the dialog was open shifts
@@ -4683,7 +4726,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     await _commitSites(const SitesEdited());
   }
 
-  void _showSiteContextMenu(BuildContext context, int index, Offset position) {
+  void _showSiteContextMenu(BuildContext context,
+      {required int index, required Offset position}) {
     final filteredIndices = _sites.filteredIndices();
     final listIndex = filteredIndices.indexOf(index);
     final isArchiveSite =
@@ -4697,9 +4741,9 @@ class _WebSpacePageState extends State<WebSpacePage>
 
     final loc = AppLocalizations.of(context);
     PopupMenuItem<_SiteListAction> item(
-      _SiteListAction action,
-      IconData icon,
-      String label, {
+      _SiteListAction action, {
+      required IconData icon,
+      required String label,
       Color? color,
     }) =>
         PopupMenuItem(
@@ -4715,22 +4759,22 @@ class _WebSpacePageState extends State<WebSpacePage>
       context: context,
       position: RelativeRect.fromLTRB(position.dx, position.dy, position.dx + 1, position.dy + 1),
       items: [
-        item(_SiteListAction.edit, Icons.edit, loc.commonEdit),
-        item(_SiteListAction.delete, Icons.delete, loc.commonDelete,
+        item(_SiteListAction.edit, icon: Icons.edit, label: loc.commonEdit),
+        item(_SiteListAction.delete, icon: Icons.delete, label: loc.commonDelete,
             color: Colors.red),
         if (_canReorderCurrentView && listIndex > 0)
-          item(_SiteListAction.moveUp, Icons.arrow_upward, loc.homeMoveUp),
+          item(_SiteListAction.moveUp, icon: Icons.arrow_upward, label: loc.homeMoveUp),
         if (_canReorderCurrentView && listIndex >= 0 && listIndex < filteredIndices.length - 1)
-          item(_SiteListAction.moveDown, Icons.arrow_downward, loc.homeMoveDown),
+          item(_SiteListAction.moveDown, icon: Icons.arrow_downward, label: loc.homeMoveDown),
         if (canMoveToArchive)
-          item(_SiteListAction.moveToArchive, Icons.archive_outlined,
-              loc.homeMoveToArchive),
+          item(_SiteListAction.moveToArchive, icon: Icons.archive_outlined,
+              label: loc.homeMoveToArchive),
         if (isArchiveSite)
-          item(_SiteListAction.moveOutOfArchive, Icons.unarchive_outlined,
-              loc.homeMoveOutOfArchive),
+          item(_SiteListAction.moveOutOfArchive, icon: Icons.unarchive_outlined,
+              label: loc.homeMoveOutOfArchive),
         if (isArchiveSite)
-          item(_SiteListAction.closeArchive, Icons.lock_outline,
-              loc.homeCloseArchive),
+          item(_SiteListAction.closeArchive, icon: Icons.lock_outline,
+              label: loc.homeCloseArchive),
       ],
     ).then((value) async {
       final site = index >= 0 && index < _sites.models.length
@@ -4748,11 +4792,11 @@ class _WebSpacePageState extends State<WebSpacePage>
         case _SiteListAction.edit:
           await _editSite(index);
         case _SiteListAction.delete:
-          await _deleteSite(context, index);
+          await _deleteSite(context, index: index);
         case _SiteListAction.moveUp:
-          _reorderSite(listIndex, listIndex - 1);
+          _reorderSite(listIndex, newListIndex: listIndex - 1);
         case _SiteListAction.moveDown:
-          _reorderSite(listIndex, listIndex + 1);
+          _reorderSite(listIndex, newListIndex: listIndex + 1);
       }
     });
   }
@@ -4767,19 +4811,20 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// current view. Dispatches to the per-webspace `siteIds` reorder for a
   /// named webspace, or the global `_sites.models` reorder for "All".
   /// [oldListIndex]/[newListIndex] are positions in `_sites.filteredIndices()`.
-  void _reorderSite(int oldListIndex, int newListIndex) {
+  void _reorderSite(int oldListIndex, {required int newListIndex}) {
     final filtered = _sites.filteredIndices();
     if (oldListIndex < 0 || oldListIndex >= filtered.length) return;
     if (newListIndex < 0 || newListIndex >= filtered.length) return;
     if (oldListIndex == newListIndex) return;
     if (_sites.selectedWebspaceId == kAllWebspaceId) {
-      unawaited(_reorderAllSites(filtered[oldListIndex], filtered[newListIndex]));
+      unawaited(_reorderAllSites(filtered[oldListIndex],
+          newModelIndex: filtered[newListIndex]));
     } else {
-      _reorderSiteInWebspace(oldListIndex, newListIndex);
+      _reorderSiteInWebspace(oldListIndex, newListIndex: newListIndex);
     }
   }
 
-  void _reorderSiteInWebspace(int oldListIndex, int newListIndex) {
+  void _reorderSiteInWebspace(int oldListIndex, {required int newListIndex}) {
     final webspace = _sites.webspaces.cast<Webspace?>().firstWhere(
       (ws) => ws!.id == _sites.selectedWebspaceId,
       orElse: () => null,
@@ -4798,11 +4843,12 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// Moves the site at [oldModelIndex] to [newModelIndex] in the "All"
   /// order. The IndexedStack children are keyed by siteId, so each webview
   /// keeps its State.
-  Future<void> _reorderAllSites(int oldModelIndex, int newModelIndex) async {
+  Future<void> _reorderAllSites(int oldModelIndex,
+      {required int newModelIndex}) async {
     if (oldModelIndex < 0 || oldModelIndex >= _sites.models.length) return;
     if (newModelIndex < 0 || newModelIndex >= _sites.models.length) return;
     if (oldModelIndex == newModelIndex) return;
-    await _commitSites(SitesMoved(oldModelIndex, newModelIndex));
+    await _commitSites(SitesMoved(oldModelIndex, to: newModelIndex));
     await _saveCurrentIndex();
   }
 
@@ -4843,7 +4889,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     await HtmlImportStorage.instance.deleteImport(site.siteId);
   }
 
-  Future<void> _deleteSite(BuildContext context, int index) async {
+  Future<void> _deleteSite(BuildContext context, {required int index}) async {
     final loc = AppLocalizations.of(context);
     final siteName = _sites.models[index].getDisplayName();
     final confirmed = await showDialog<bool>(
@@ -4875,7 +4921,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     final reachingTiles = await _shortcuts.tilesReaching(deletedModel);
     if (!mounted) return;
     await _commitSites(SiteRemoved(deletedModel));
-    await _shortcuts.siteDeleted(deletedModel, reachingTiles);
+    await _shortcuts.siteDeleted(deletedModel, tiles: reachingTiles);
 
     if (!mounted) return;
     // closeDrawer() (not Navigator.pop): `context` belongs to the drawer tile
@@ -4907,20 +4953,20 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// The page's hooks on a loaded site, set on every build; each reads the
   /// page's state when it fires.
-  void _wireSite(WebViewModel site, int index) {
+  void _wireSite(WebViewModel site, {required int index}) {
     _surface.watch(site, onScreen: () => index == _sites.current);
     // Keep the on-disk back/forward stack tracking browsing (PAUSE-009):
     // pause and dispose captures go stale for background sites, and a kill
     // from the switcher only delivers `inactive`, which is ignored (#308).
     // By identity: the list may have changed when the debounce fires.
     site.onNavigationCommitted = () {
-      _navStateDebouncer.schedule(site.siteId, () {
+      _navStateDebouncer.schedule(site.siteId, capture: () {
         if (!mounted || !_sites.models.contains(site)) return;
         unawaited(_captureStateBytes(site));
       });
     };
     site.onReturnToOwner = _tabs.enabledFor(site)
-        ? (url) => unawaited(_tabs.returnToOwner(site, url))
+        ? (url) => unawaited(_tabs.returnToOwner(site, url: url))
         : null;
   }
 
@@ -4929,7 +4975,7 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// The tab strip stays in bottomNavigationBar separately.
   Widget _buildBodyWithBottomBar() {
     for (final i in _sites.loaded) {
-      if (i < _sites.models.length) _wireSite(_sites.models[i], i);
+      if (i < _sites.models.length) _wireSite(_sites.models[i], index: i);
     }
     final inputBar = _buildInputBar();
     final nudgeInset = _surface.bottomInset;
@@ -5057,13 +5103,14 @@ class _WebSpacePageState extends State<WebSpacePage>
     // shown and the window flag then change in the same frame, and a new path
     // that moves _sites.current cannot skip it (SCREENBLOCK-002).
     final shown = _sites.current;
-    unawaited(_screenCaptureGuard.apply(screenCaptureBlocked(
+    unawaited(_screenCaptureGuard.apply(blocked: screenCaptureBlocked(
       appWide: AppPref.blockScreenshots.value,
       siteOnScreen: shown != null && shown >= 0 && shown < _sites.models.length
           ? _sites.models[shown].blockScreenshots
           : null,
     )));
-    final mainTree = _buildMainTree(context, webviewIsVisible);
+    final mainTree =
+        _buildMainTree(context, webviewIsVisible: webviewIsVisible);
     if (!_maskBackground) {
       return mainTree;
     }
@@ -5091,7 +5138,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  Widget _buildMainTree(BuildContext context, bool webviewIsVisible) {
+  Widget _buildMainTree(BuildContext context,
+      {required bool webviewIsVisible}) {
     final loc = AppLocalizations.of(context);
     return PopScope(
       // On Android, always intercept back so the gesture only ever navigates
@@ -5228,10 +5276,10 @@ class _WebSpacePageState extends State<WebSpacePage>
                                 showTabCount: _tabs.enabledAt(index) &&
                                     site.tabs.length > 1,
                                 onOpen: () => unawaited(_openSiteFromDrawer(index)),
-                                onMenu: (context, at) =>
-                                    _showSiteContextMenu(context, index, at),
+                                onMenu: (context, {required globalPosition}) =>
+                                    _showSiteContextMenu(context, index: index, position: globalPosition),
                                 onReorder:
-                                    _canReorderCurrentView ? _reorderSite : null,
+                                    _canReorderCurrentView ? (from, {required to}) => _reorderSite(from, newListIndex: to) : null,
                               );
                             },
                           );
@@ -5338,7 +5386,7 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
   Future<void> switchWebspaceFor(WebViewModel target) async {
     final index = state._sites.models.indexOf(target);
     if (index < 0) return;
-    await state._maybeSwitchToAllForSite(target, index);
+    await state._maybeSwitchToAllForSite(target, index: index);
   }
 
   @override
@@ -5351,7 +5399,7 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
 
   @override
   Future<void> unload(int index) =>
-      state._unloadSite(index, UnloadReason.proxyMismatch);
+      state._unloadSite(index, reason: UnloadReason.proxyMismatch);
 
   @override
   Future<void> applyProxyOf(WebViewModel target) => ProxyManager()
@@ -5366,8 +5414,8 @@ class _NestedOpenHost implements NestedOpenHost<WebViewModel> {
   }
 
   @override
-  Future<void> launchNested(WebViewModel target, String url) =>
-      state._launchNestedForModel(target, url, opensFromTab: fromTab);
+  Future<void> launchNested(WebViewModel target, {required String url}) =>
+      state._launchNestedForModel(target, url: url, opensFromTab: fromTab);
 
   @override
   Future<void> activate(int index) => state._setCurrentIndex(index);
@@ -5393,8 +5441,8 @@ class _ResidencyHost implements ResidencyHost {
       state._captureStateForRestore(model);
 
   @override
-  void noteUnloaded(WebViewModel model, UnloadReason reason) =>
-      state._background.noteUnloaded(model, reason.label);
+  void noteUnloaded(WebViewModel model, {required UnloadReason reason}) =>
+      state._background.noteUnloaded(model, reason: reason.label);
 
   @override
   List<WebViewModel> identities({int? except}) =>
@@ -5416,25 +5464,27 @@ class _OrphanSweepTargets implements OrphanSweepTargets {
   const _OrphanSweepTargets(this.state);
 
   @override
-  Future<void> removeOrphans(OrphanStore store, Set<String> live) =>
+  Future<void> removeOrphans(OrphanStore store,
+          {required Set<String> liveSiteIds}) =>
       switch (store) {
         OrphanStore.cookies =>
-          state._cookieSecureStorage.removeOrphanedCookies(live),
+          state._cookieSecureStorage.removeOrphanedCookies(liveSiteIds),
         OrphanStore.proxyPasswords =>
-          state._proxyPasswordStorage.removeOrphaned(live),
+          state._proxyPasswordStorage.removeOrphaned(liveSiteIds),
         OrphanStore.httpAuthCredentials =>
-          HttpAuthSecureStorage.instance.removeOrphaned(live),
+          HttpAuthSecureStorage.instance.removeOrphaned(liveSiteIds),
         OrphanStore.htmlCaches =>
-          HtmlCacheService.instance.removeOrphanedCaches(live),
+          HtmlCacheService.instance.removeOrphanedCaches(liveSiteIds),
         OrphanStore.htmlImports =>
-          HtmlImportStorage.instance.removeOrphanedImports(live),
+          HtmlImportStorage.instance.removeOrphanedImports(liveSiteIds),
         OrphanStore.webViewState =>
-          state._stateStorage.removeOrphans(state._liveStateKeys(live)),
+          state._stateStorage.removeOrphans(state._liveStateKeys(liveSiteIds)),
         OrphanStore.blockStatsSites =>
-          BlockStatsService.instance.removeOrphanedSites(live),
+          BlockStatsService.instance.removeOrphanedSites(liveSiteIds),
         OrphanStore.siteIcons => SiteIconStore.instance.removeOrphans({
             for (final m in state._sites.models)
-              if (live.contains(m.siteId) && !m.effectiveIncognito) m.initUrl,
+              if (liveSiteIds.contains(m.siteId) && !m.effectiveIncognito)
+                m.initUrl,
           }),
       };
 
@@ -5549,17 +5599,17 @@ class _PageHost
       model.getController(_s._webViewHooks);
 
   @override
-  Future<void> launchNestedFor(WebViewModel model, String url,
-          {bool opensFromTab = true}) =>
-      _s._launchNestedForModel(model, url, opensFromTab: opensFromTab);
+  Future<void> launchNestedFor(WebViewModel model, {required String url,
+         bool opensFromTab = true}) =>
+      _s._launchNestedForModel(model, url: url, opensFromTab: opensFromTab);
 
   @override
   Future<void> openNested(DispatchOpenNested action, {WebViewModel? source}) =>
       _s._executeOpenNested(action, source: source);
 
   @override
-  Future<void> unloadSite(int index, UnloadReason reason) =>
-      _s._unloadSite(index, reason);
+  Future<void> unloadSite(int index, {required UnloadReason reason}) =>
+      _s._unloadSite(index, reason: reason);
 
   @override
   Future<void> wipeContainer(String siteId) async {
@@ -5584,18 +5634,19 @@ class _PageHost
   Future<void> saveSelectedWebspace() => _s._saveSelectedWebspaceId();
 
   @override
-  Future<void> revealSite(WebViewModel model, int index) =>
-      _s._maybeSwitchToAllForSite(model, index);
+  Future<void> revealSite(WebViewModel model, {required int index}) =>
+      _s._maybeSwitchToAllForSite(model, index: index);
 
   @override
-  void offerOpenTab(WebViewModel model, String tabId) =>
-      _s._toastOpenedInNewTab(model, tabId);
+  void offerOpenTab(WebViewModel model, {required String tabId}) =>
+      _s._toastOpenedInNewTab(model, tabId: tabId);
 
   @override
-  List<DispatchableSite> tabHostsIn(WebViewModel owner, WebViewModel opener) =>
-      _s._links.tabHostsIn(owner, opener);
+  List<DispatchableSite> tabHostsIn(WebViewModel owner,
+          {required WebViewModel opener}) =>
+      _s._links.tabHostsIn(owner, source: opener);
 
   @override
-  void noteUnloaded(WebViewModel model, String why) =>
-      _s._background.noteUnloaded(model, why);
+  void noteUnloaded(WebViewModel model, {required String why}) =>
+      _s._background.noteUnloaded(model, reason: why);
 }

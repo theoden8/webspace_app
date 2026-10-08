@@ -29,11 +29,11 @@ import 'package:webspace/services/webview.dart'
 /// cannot resolve even if something did forward it.
 Future<void> runAttributionProbe(Map<String, String> siteIdToProbeUrl) async {
   for (final entry in siteIdToProbeUrl.entries) {
-    await _probeOne(entry.key, entry.value);
+    await _probeOne(entry.key, probeUrl: entry.value);
   }
 }
 
-Future<void> _probeOne(String siteId, String probeUrl) async {
+Future<void> _probeOne(String siteId, {required String probeUrl}) async {
   final done = Completer<void>();
   void finish() {
     if (!done.isCompleted) done.complete();
@@ -44,7 +44,7 @@ Future<void> _probeOne(String siteId, String probeUrl) async {
   // names the relay itself with this site's credential -- the same thing its
   // real WebView does. Null on Android, where the override already covers it.
   final proxy = routerRelayProxyFor(siteId: siteId, ownsContainer: true);
-  ProxyManager.noteStoreProxy(containerId, proxy);
+  ProxyManager.noteStoreProxy(containerId, proxy: proxy);
   final headless = inapp.HeadlessInAppWebView(
     initialUrlRequest: inapp.URLRequest(url: inapp.WebUri(probeUrl)),
     initialSettings: inapp.InAppWebViewSettings(
@@ -58,7 +58,7 @@ Future<void> _probeOne(String siteId, String probeUrl) async {
       useHybridComposition: WebViewFactory.hybridComposition,
     ),
     onReceivedHttpAuthRequest: (controller, challenge) =>
-        answerProxyRouterChallenge(siteId, challenge),
+        answerProxyRouterChallenge(siteId, challenge: challenge),
     onLoadStop: (controller, url) => finish(),
     // An error still ends the probe: the relay either recorded the pair
     // before the failure or it did not, and "did not" is a failed check.

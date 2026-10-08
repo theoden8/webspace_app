@@ -19,8 +19,8 @@ abstract interface class AdblockEngineApi {
 
   bool shouldBlock(String url, {String sourceUrl, String requestType});
 
-  List<String> hiddenClassIdSelectors(Set<String> classes, Set<String> ids,
-      {Set<String> exceptions});
+  List<String> hiddenClassIdSelectors(Set<String> classes,
+      {required Set<String> ids, Set<String> exceptions});
 
   String? redirectFor(String url, {String sourceUrl, String requestType});
 

@@ -67,7 +67,7 @@ class ExternalUrlParser {
     if (scheme.isEmpty || _internalSchemes.contains(scheme)) return null;
 
     if (scheme == 'intent') {
-      return _parseIntent(url, uri);
+      return _parseIntent(url, uri: uri);
     }
     return ExternalUrlInfo(
       url: url,
@@ -80,7 +80,7 @@ class ExternalUrlParser {
   ///   intent://HOST/PATH?QUERY#Intent;scheme=...;package=...;S.browser_fallback_url=...;end
   /// Extras live in the fragment, `;`-separated, with `S.` prefixing
   /// string extras per the Chrome intent scheme spec.
-  static ExternalUrlInfo _parseIntent(String url, Uri uri) {
+  static ExternalUrlInfo _parseIntent(String url, {required Uri uri}) {
     String? package;
     String? fallbackUrl;
     String? targetScheme;

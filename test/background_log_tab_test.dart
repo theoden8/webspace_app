@@ -30,13 +30,13 @@ void main() {
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null);
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     BackgroundLog.instance.resetForTest();
     LogService.instance.resetForTest();
   });
 
   Future<void> pump(WidgetTester tester, {bool startOnBackground = false}) async {
-    await pumpLocalized(tester, DevToolsScreen(
+    await pumpLocalized(tester, home: DevToolsScreen(
       cookieManager: MockCookieManager(),
       startOnBackground: startOnBackground,
     ));
@@ -44,19 +44,19 @@ void main() {
   }
 
   testWidgets('no Background tab outside developer mode', (tester) async {
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     await pump(tester);
     expect(find.text('Background'), findsNothing);
   });
 
   testWidgets('developer mode opens on the Background tab with its entries',
       (tester) async {
-    DeveloperModeService.instance.debugSet(true);
-    await BackgroundLog.instance.setRecording(true);
+    DeveloperModeService.instance.debugSet(on: true);
+    await BackgroundLog.instance.setRecording(on: true);
     BackgroundLog.instance.appState =
         () => const [MapEntry('app.notificationSitesLoaded', '0')];
     BackgroundLog.instance.record(LogTag.backgroundTask,
-        'cancel refresh — notif sites: 1 enabled, 0 loaded',
+        message: 'cancel refresh — notif sites: 1 enabled, 0 loaded',
         sensitive: 'unloaded notification site "Mail"');
     await pump(tester, startOnBackground: true);
 
@@ -71,12 +71,12 @@ void main() {
   });
 
   testWidgets('copying entries that name sites asks first', (tester) async {
-    DeveloperModeService.instance.debugSet(true);
-    await BackgroundLog.instance.setRecording(true);
+    DeveloperModeService.instance.debugSet(on: true);
+    await BackgroundLog.instance.setRecording(on: true);
     BackgroundLog.instance.appState =
         () => const [MapEntry('app.notificationSitesEnabled', '1')];
-    BackgroundLog.instance.record(LogTag.backgroundTask, 'wake site 1/1: loaded',
-        sensitive: 'wake site 1/1 is "Mail"');
+    BackgroundLog.instance.record(LogTag.backgroundTask,
+        message: 'wake site 1/1: loaded', sensitive: 'wake site 1/1 is "Mail"');
     await pump(tester, startOnBackground: true);
 
     await tester.tap(find.byKey(const Key('background-log-copy')));
@@ -113,12 +113,13 @@ void main() {
     tester.view.physicalSize = const Size(800, 360);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    DeveloperModeService.instance.debugSet(true);
-    await BackgroundLog.instance.setRecording(true);
+    DeveloperModeService.instance.debugSet(on: true);
+    await BackgroundLog.instance.setRecording(on: true);
     BackgroundLog.instance.appState = () => [
           for (var i = 0; i < 20; i++) MapEntry('app.row$i', 'value'),
         ];
-    BackgroundLog.instance.record(LogTag.backgroundTask, 'the newest line');
+    BackgroundLog.instance
+        .record(LogTag.backgroundTask, message: 'the newest line');
     await pump(tester, startOnBackground: true);
     expect(tester.takeException(), isNull);
     expect(find.textContaining('the newest line'), findsOneWidget);
@@ -127,7 +128,7 @@ void main() {
   testWidgets('notification diagnostics follow the same developer-mode flag',
       (tester) async {
     Future<void> pumpWithWake() async {
-      await pumpLocalized(tester, DevToolsScreen(
+      await pumpLocalized(tester, home: DevToolsScreen(
         key: UniqueKey(),
         cookieManager: MockCookieManager(),
         onSimulateBackgroundRefresh: () async {},
@@ -135,21 +136,22 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    DeveloperModeService.instance.debugSet(false);
+    DeveloperModeService.instance.debugSet(on: false);
     await pumpWithWake();
     expect(find.text('Simulate background refresh'), findsNothing);
     expect(find.text('Send test notification'), findsNothing);
 
-    DeveloperModeService.instance.debugSet(true);
+    DeveloperModeService.instance.debugSet(on: true);
     await pumpWithWake();
     expect(find.text('Simulate background refresh'), findsOneWidget);
     expect(find.text('Send test notification'), findsOneWidget);
   });
 
   testWidgets('nothing is recorded while developer mode is off', (tester) async {
-    DeveloperModeService.instance.debugSet(true);
-    await BackgroundLog.instance.setRecording(false);
-    BackgroundLog.instance.record(LogTag.backgroundTask, 'schedule refresh');
+    DeveloperModeService.instance.debugSet(on: true);
+    await BackgroundLog.instance.setRecording(on: false);
+    BackgroundLog.instance
+        .record(LogTag.backgroundTask, message: 'schedule refresh');
     await pump(tester, startOnBackground: true);
     expect(find.text('No background events recorded yet'), findsOneWidget);
   });

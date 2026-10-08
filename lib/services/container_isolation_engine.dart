@@ -65,7 +65,7 @@ class ContainerIsolationEngine {
     final ok = await containerNative.clearContainerData(siteId);
     LogService.instance.log(
       LogTag.container,
-      ok
+      message: ok
           ? 'Cleared container ws-$siteId'
           : 'clearContainerData(ws-$siteId) reported failure',
       level: ok ? LogLevel.debug : LogLevel.error,

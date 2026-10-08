@@ -32,7 +32,7 @@ import 'helpers/mock_secure_storage.dart' show MockFlutterSecureStorage;
 
 /// The removed per-store sealing code, verbatim in effect: AES-GCM under the
 /// base64 key, a random 12-byte nonce prepended, the whole base64-encoded.
-String _oldSeal(String keyBase64, String plaintext) {
+String _oldSeal(String keyBase64, {required String plaintext}) {
   final key = encrypt.Key(Uint8List.fromList(base64.decode(keyBase64)));
   final gcm = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.gcm));
   final iv = encrypt.IV.fromSecureRandom(12);
@@ -43,7 +43,7 @@ String _oldSeal(String keyBase64, String plaintext) {
   return base64.encode(wire);
 }
 
-String _oldUnseal(String keyBase64, String wireBase64) {
+String _oldUnseal(String keyBase64, {required String wireBase64}) {
   final key = encrypt.Key(Uint8List.fromList(base64.decode(keyBase64)));
   final gcm = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.gcm));
   final wire = base64.decode(wireBase64);
@@ -51,7 +51,7 @@ String _oldUnseal(String keyBase64, String wireBase64) {
       iv: encrypt.IV(Uint8List.fromList(wire.sublist(0, 12))));
 }
 
-String _oldLegacyCbcSeal(String keyBase64, String plaintext) {
+String _oldLegacyCbcSeal(String keyBase64, {required String plaintext}) {
   final bytes = base64.decode(keyBase64);
   final key = encrypt.Key(Uint8List.fromList(bytes));
   final cbc = encrypt.Encrypter(encrypt.AES(key, mode: encrypt.AESMode.cbc));
@@ -100,15 +100,16 @@ void main() {
     test('opens a key the old code stored, and leaves it as stored', () async {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'k', value: _key);
-      final aead = await KeychainAead.open(keychain, 'k', logTag: LogTag.test);
-      expect(aead!.unseal(_oldSeal(_key, 'hello')), 'hello');
-      expect(_oldUnseal(_key, aead.seal('world')), 'world');
+      final aead =
+          await KeychainAead.open(keychain, keyName: 'k', logTag: LogTag.test);
+      expect(aead!.unseal(_oldSeal(_key, plaintext: 'hello')), 'hello');
+      expect(_oldUnseal(_key, wireBase64: aead.seal('world')), 'world');
       expect(keychain.storage, {'k': _key});
     });
 
     test('a fresh key is 32 bytes, base64, under the given name', () async {
       final keychain = MockFlutterSecureStorage();
-      await KeychainAead.open(keychain, 'k', logTag: LogTag.test);
+      await KeychainAead.open(keychain, keyName: 'k', logTag: LogTag.test);
       expect(base64.decode(keychain.storage['k']!), hasLength(32));
     });
 
@@ -116,35 +117,47 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'short', value: base64.encode([1, 2, 3]));
       await keychain.write(key: 'garbage', value: 'not base64!');
-      expect(await KeychainAead.open(keychain, 'short', logTag: LogTag.test), isNull);
-      expect(await KeychainAead.open(keychain, 'garbage', logTag: LogTag.test), isNull);
+      expect(
+          await KeychainAead.open(keychain,
+              keyName: 'short', logTag: LogTag.test),
+          isNull);
+      expect(
+          await KeychainAead.open(keychain,
+              keyName: 'garbage', logTag: LogTag.test),
+          isNull);
       expect(keychain.storage['short'], base64.encode([1, 2, 3]),
           reason: 'an unreadable key is reported, never replaced');
     });
 
     test('seals with a fresh nonce each time', () async {
       final keychain = MockFlutterSecureStorage();
-      final aead = (await KeychainAead.open(keychain, 'k', logTag: LogTag.test))!;
+      final aead = (await KeychainAead.open(keychain,
+          keyName: 'k', logTag: LogTag.test))!;
       expect(aead.seal('same'), isNot(aead.seal('same')));
     });
 
     test('a tampered, truncated or foreign blob reads as null', () async {
       final keychain = MockFlutterSecureStorage();
-      final aead = (await KeychainAead.open(keychain, 'k', logTag: LogTag.test))!;
+      final aead = (await KeychainAead.open(keychain,
+          keyName: 'k', logTag: LogTag.test))!;
       final wire = base64.decode(aead.seal('secret'));
       wire[wire.length - 1] ^= 1;
       expect(aead.unseal(base64.encode(wire)), isNull);
       expect(aead.unseal('AAAA'), isNull);
       expect(aead.unseal('not base64!'), isNull);
-      expect(aead.unseal(_oldSeal(base64.encode(List.filled(32, 9)), 'x')),
+      expect(
+          aead.unseal(
+              _oldSeal(base64.encode(List.filled(32, 9)), plaintext: 'x')),
           isNull);
     });
 
     test('reads a pre-GCM import blob', () async {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'k', value: _key);
-      final aead = (await KeychainAead.open(keychain, 'k', logTag: LogTag.test))!;
-      final legacy = _oldLegacyCbcSeal(_key, 'https://a\n<p>old</p>');
+      final aead = (await KeychainAead.open(keychain,
+          keyName: 'k', logTag: LogTag.test))!;
+      final legacy =
+          _oldLegacyCbcSeal(_key, plaintext: 'https://a\n<p>old</p>');
       expect(aead.unseal(legacy), isNull);
       expect(aead.unsealLegacyCbc(legacy), 'https://a\n<p>old</p>');
       expect(aead.unsealLegacyCbc(aead.seal('gcm')), isNull);
@@ -156,7 +169,8 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'html_cache_encryption_key', value: _key);
       final store = MemoryFileStore();
-      await store.writeText('s1.enc', _oldSeal(_key, 'https://a\n<p>a</p>'));
+      await store.writeText('s1.enc',
+          contents: _oldSeal(_key, plaintext: 'https://a\n<p>a</p>'));
       HtmlCacheService.resetForTesting();
       await HtmlCacheService.instance
           .initialize(store: store, secureStorage: keychain);
@@ -168,7 +182,8 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'html_import_encryption_key', value: _key);
       final store = MemoryFileStore();
-      await store.writeText('s1.enc', _oldSeal(_key, 'file:///a\n<p>a</p>'));
+      await store.writeText('s1.enc',
+          contents: _oldSeal(_key, plaintext: 'file:///a\n<p>a</p>'));
       final imports = HtmlImportStorage(secureStorage: keychain, store: store);
       await imports.initialize();
       expect(await imports.loadHtml('s1'), ('file:///a', '<p>a</p>'));
@@ -178,8 +193,8 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'webview_state_encryption_key', value: _key);
       final store = MemoryFileStore();
-      await store.writeText(
-          's1.t1.enc', _oldSeal(_key, base64.encode([1, 2, 3])));
+      await store.writeText('s1.t1.enc',
+          contents: _oldSeal(_key, plaintext: base64.encode([1, 2, 3])));
       final state = SecureWebViewStateStorage(
           secureStorage: keychain, store: store, versionProvider: () => 'v1');
       expect(await state.loadState('s1.t1'), [1, 2, 3]);
@@ -190,7 +205,8 @@ void main() {
       await keychain.write(
           key: 'block_stats_detail_encryption_key', value: _key);
       final store = MemoryFileStore();
-      await store.writeText('detail.enc', _oldSeal(_key, '{"v":1}'));
+      await store.writeText('detail.enc',
+          contents: _oldSeal(_key, plaintext: '{"v":1}'));
       final detail =
           SecureBlockStatsDetailStore(secureStorage: keychain, store: store);
       expect(await detail.read(), '{"v":1}');
@@ -202,7 +218,7 @@ void main() {
       final keychain = MockFlutterSecureStorage();
       await keychain.write(key: 'proxy_passwords', value: '{"a":"old"}');
       final store = ProxyPasswordSecureStorage(secureStorage: keychain);
-      await store.savePassword('b', 'pw');
+      await store.savePassword('b', password: 'pw');
       expect(keychain.storage['proxy_passwords'], '{"a":"old","b":"pw"}');
       await store.mutate((draft) => draft
         ..['a'] = null
@@ -213,8 +229,8 @@ void main() {
     test('saved sign-ins', () async {
       final keychain = MockFlutterSecureStorage();
       final store = HttpAuthSecureStorage(secureStorage: keychain);
-      await store.save('s1', Host('h.example'), 'r',
-          const HttpAuthCredential(username: 'u', password: 'p'));
+      await store.save('s1', host: Host('h.example'), realm: 'r',
+          credential: const HttpAuthCredential(username: 'u', password: 'p'));
       expect(keychain.storage['http_auth_credentials'],
           '{"s1":[{"host":"h.example","realm":"r","username":"u","password":"p"}]}');
       await store.removeSite('s1');
@@ -234,7 +250,7 @@ void main() {
     test('cookies split by isSecure between keystore and prefs', () async {
       final keychain = MockFlutterSecureStorage();
       final store = CookieSecureStorage(secureStorage: keychain);
-      await store.saveCookiesForSite('s1', [
+      await store.saveCookiesForSite('s1', cookies: [
         inapp.Cookie(name: 'sid', value: 'x', domain: 'a.com', isSecure: true),
         inapp.Cookie(name: 'pref', value: 'y', domain: 'a.com'),
       ]);
