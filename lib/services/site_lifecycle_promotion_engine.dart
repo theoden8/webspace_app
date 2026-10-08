@@ -30,7 +30,7 @@ import 'package:webspace/services/site_retention_priority.dart';
 /// SPI on Apple, Chromium tab discarding on Android — neither is
 /// exposed by the current plugin).
 ///
-/// The engine is pure-Dart; the caller (typically `_handleMemoryPressure`
+/// The engine is pure-Dart; the caller (typically `SiteActivationController.memoryPressure`
 /// in `_WebSpacePageState`) is responsible for the actual platform
 /// channel calls (`clearCache`, `saveState`, `disposeWebView`) and for
 /// updating the per-site state map after each promotion.

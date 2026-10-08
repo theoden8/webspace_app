@@ -67,7 +67,6 @@ import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_posture.dart';
-import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/site_data_clear_engine.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/container_color_engine.dart';
@@ -276,14 +275,6 @@ class _WebSpacePageState extends State<WebSpacePage>
   /// archive get the normal screenshot.
   bool _maskBackground = false;
 
-  // Drops concurrent `_handleMemoryPressure` invocations. The OS may
-  // fire `didHaveMemoryPressure` repeatedly under sustained pressure;
-  // the first handler runs to completion, then the next event picks up
-  // the new state. Without this, in legacy (non-container) mode the
-  // capture-then-dispose await window lets two handlers pick the same
-  // victim and double-write its captured cookies to storage.
-  final _memoryPressureGuard = ReentryGuard();
-
   // AES-encrypted on-disk storage for per-site `controller.saveState()`
   // bytes. The same encryption pattern as the HTML cache: a 256-bit
   // AES key in `FlutterSecureStorage`, per-site files under
@@ -443,50 +434,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     // the callback fires again and we evict the next victim. The
     // active site is hard-protected; sites in the active webspace
     // are soft-keep (evicted only after every other candidate).
-    unawaited(_handleMemoryPressure());
-  }
-
-  Future<void> _handleMemoryPressure() async {
-    // Drop concurrent invocations: if the OS fires repeatedly while
-    // we're still applying the previous promotion's transition
-    // (clearCache, or saveState+dispose), we'd otherwise pick the
-    // same victim twice and re-apply the same transition.
-    await _memoryPressureGuard.run(() async {
-      // The active site and an in-flight activation's target are never
-      // picked (PAUSE-006): disposing the soon-to-be-active webview would
-      // silently wipe its state.
-      final plan = _activation.residencyPlan(const MemoryPressure());
-      if (plan.isEmpty) return;
-      if (!await _activation.applyResidency(plan, isStale: () => !mounted)) return;
-      if (plan.unloads.isNotEmpty) {
-        // The pin in force follows the loaded sites (TOR-014). Left for the
-        // next activation, the pin of a site evicted here was cleared at
-        // whatever moment that came, often after a long suspension had cost
-        // the control socket.
-        _network.syncTorExitPin(<int>{?_sites.current, ..._sites.loaded});
-      }
-      setState(() {});
-
-      // The pressure event itself — not our eviction — can blank the VISIBLE
-      // site: iOS may jettison its frontmost WKWebView's content process, and
-      // the Android hybrid-composition SurfaceView can drop its buffer under a
-      // low-memory GL reclaim. The active site is hard-protected from eviction,
-      // so neither the promotion above nor `setCurrentIndex` runs against it —
-      // it would otherwise stay blank until the next navigation. Probe + nudge
-      // it here, covering both outcomes: a dead renderer (recreate) and a
-      // live-but-unpainted surface (nudge). See PAUSE-019.
-      final activeIdx = AppLifecycleEngine.activeLoadedIndex(
-        currentIndex: _sites.current,
-        siteCount: _sites.models.length,
-        loadedIndices: _sites.loaded,
-      );
-      if (activeIdx != null) {
-        await _lifecycle.probeRenderer(_sites.models[activeIdx],
-            trigger: 'memory-pressure');
-        if (!mounted) return;
-        _surface.nudge('memory-pressure');
-      }
-    });
+    unawaited(_activation.memoryPressure());
   }
 
   @override

@@ -231,7 +231,7 @@ The handler applies the plan [`SiteUnloadEngine.plan`](../../../lib/services/sit
 
 ### Requirement: PAUSE-012 — Proactive Cache-Clear Threshold
 
-The system SHALL proactively promote the oldest sites from `resident` to `cacheCleared` once the count of `resident`-tier sites exceeds [`kMaxResidentSites`](../../../lib/services/site_lifecycle_promotion_engine.dart) (currently 10), without waiting for an OS memory-pressure event. This is the proactive complement to the reactive `_handleMemoryPressure` cascade — both call into the same priority hierarchy ([`SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets`](../../../lib/services/site_lifecycle_promotion_engine.dart) for proactive picks; the same out-of-keep ↦ in-keep, oldest-LRU-first rule).
+The system SHALL proactively promote the oldest sites from `resident` to `cacheCleared` once the count of `resident`-tier sites exceeds [`kMaxResidentSites`](../../../lib/services/site_lifecycle_promotion_engine.dart) (currently 10), without waiting for an OS memory-pressure event. This is the proactive complement to the reactive `SiteActivationController.memoryPressure` cascade — both call into the same priority hierarchy ([`SiteLifecyclePromotionEngine.pickProactiveCacheClearTargets`](../../../lib/services/site_lifecycle_promotion_engine.dart) for proactive picks; the same out-of-keep ↦ in-keep, oldest-LRU-first rule).
 
 Why proactive: `didHaveMemoryPressure` doesn't fire reliably on Linux/desktop (no equivalent OS signal in WebKitGTK / WPE), and on iOS Jetsam is reactive — by the time pressure is signaled the OS may already be reclaiming. The threshold ensures every platform sees consistent memory hygiene regardless of OS signaling fidelity.
 
@@ -452,7 +452,7 @@ Sites that enter `_sites.loaded` without going through `setCurrentIndex` — not
 
 Concurrent paths that may capture state for the same site SHALL coexist without corruption:
 
-- Two `_handleMemoryPressure` events firing rapidly: dropped via `_memoryPressureGuard` (the first runs to completion, the next event picks up the new state).
+- Two `SiteActivationController.memoryPressure` events firing rapidly: dropped via `_memoryPressureGuard` (the first runs to completion, the next event picks up the new state).
 - App-background `unawaited(captureStateBytes)` racing with `setCurrentIndex`: each path operates on per-site state independently; storage writes are last-writer-wins per siteId, both produce valid bytes.
 - Navigation-debounced capture firing while a dispose/pause path captures the same site: both go through `captureStateBytes`; writes are last-writer-wins per siteId and both produce valid bytes. The debounce callback re-checks `mounted` and model identity (`_sites.models.contains(model)`, not an index) before capturing, so a site deleted or a list reordered during the window is a no-op.
 - Re-activation of a `savedForRestore` site mid-fetch: the in-flight target is `SiteRuntime.activating` (set sync before any await in `setCurrentIndex`, cleared in finally); `SiteRuntime.retentionPriority` ranks that index `activating`, so the picker excludes it.
@@ -648,7 +648,7 @@ Every `AppLifecycleController.probeRenderer` call SHALL carry a `trigger` label 
 #### Scenario: Visible site blanks under memory pressure
 
 **Given** a site is visible on Android and the OS signals memory pressure
-**When** `_handleMemoryPressure` promotes a background victim
+**When** `SiteActivationController.memoryPressure` promotes a background victim
 **Then** it resolves the active loaded index and runs `AppLifecycleController.probeRenderer` then `SurfaceRepaintController.nudge` against the visible site, so a dead renderer is rebuilt and a blank surface recomposites instead of persisting until the next navigation
 
 #### Scenario: Diagnostic line is shareable

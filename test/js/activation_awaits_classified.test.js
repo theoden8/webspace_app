@@ -93,11 +93,11 @@ test('the activation path never waits on Tor', () => {
 });
 
 test('the pin follows a memory-pressure eviction', () => {
-  const pressure = blockAfter(main, 'Future<void> _handleMemoryPressure() async {',
-    null, mainRel);
-  const unload = pressure.search(/await _activation\.applyResidency\(plan,/);
+  const pressure = blockAfter(act, 'Future<void> memoryPressure() async {',
+    null, actRel);
+  const unload = pressure.search(/await applyResidency\(plan,/);
   assert.notEqual(unload, -1, 'memory pressure must still evict through the plan');
-  assert.ok(pressure.indexOf('_network.syncTorExitPin(', unload) > unload,
+  assert.ok(pressure.indexOf('_host.syncTorExitPin(', unload) > unload,
     'the pin of an evicted site must be recomputed when it goes, not at the '
     + 'next activation');
 });
