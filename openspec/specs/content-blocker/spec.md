@@ -934,6 +934,40 @@ downloaded, the user's filters become an enabled local list
 
 ---
 
+### Requirement: CB-019 - Early cosmetic CSS never becomes the document root
+
+The early `<style>` SHALL be inserted under the document's root element,
+never into the `Document` itself. The `onLoadStart` copy can run after a
+navigation commits and before the parser has made `<html>`, which happens
+whenever the server sends its headers before its body. On such a document
+the shim SHALL wait for the root and insert the `<style>` then, unless a
+copy is already there. A node appended to the `Document` becomes its root,
+and the parser then drops the page's `<html>` and everything under it
+([BUG-031](../../../docs/bugs/031-content-blocker-style-becomes-document-root.md)).
+
+#### Scenario: The shim lands before the parser has made <html>
+
+**Given** a page whose server sends its headers before its body
+**And** the early CSS shim runs after the navigation commits, before any of
+the body is parsed
+**When** the body arrives
+**Then** the document's root is the page's `<html>`, with its `<body>`
+**And** the shim's `<style>` is inside it
+
+#### Scenario: The document-start copy got there first
+
+**Given** the `onLoadStart` copy is waiting for the root
+**When** the root appears and the DOCUMENT_START copy inserts its `<style>`
+**Then** the waiting copy inserts nothing
+
+#### Scenario: No shim becomes the root
+
+**Given** any dumped shim fixture
+**When** it runs on a document that has no root element
+**Then** the document still has no root element afterwards
+
+---
+
 ## Implementation Details
 
 ### Architecture: Why Not flutter_inappwebview ContentBlocker
@@ -998,7 +1032,7 @@ shouldOverrideUrlLoading: (controller, navigationAction) async {
 
 Two-phase injection:
 
-1. **DOCUMENT_START** (`initialUserScripts` + `onLoadStart`): `<style>` tag with engine-supplied domain-scoped selectors as `display: none !important`. Prevents flash of unstyled content.
+1. **DOCUMENT_START** (`initialUserScripts` + `onLoadStart`): `<style>` tag with engine-supplied domain-scoped selectors as `display: none !important`. Prevents flash of unstyled content. The `onLoadStart` copy can run before `<html>` exists, so the shim waits for the root (CB-019).
 2. **onLoadStop**: re-asserts the same `<style>` tag (idempotent). Selector hides are owned entirely by the CSS engine; the procedural shim runs separately for `:has-text()` / `:upward()` / `:remove()` rules emitted by the engine.
 
 Late-added or class-flipped elements hide reactively without any JS sweep.
@@ -1050,6 +1084,7 @@ Late-added or class-flipped elements hide reactively without any JS sweep.
 fvm flutter test test/content_blocker_service_test.dart  # service surface + singleton
 fvm flutter test test/adblock_engine_test.dart           # FFI smoke + rule parity
 npm run test:js                                          # cosmetic + procedural shim behaviour
+npm run test:browser                                     # shims in real Chromium, early CSS at document start
 ```
 
 ### Manual Testing

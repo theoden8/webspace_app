@@ -59,6 +59,37 @@ test('early_css is idempotent — second injection is a no-op', () => {
   assert.equal(styles.length, 1, 'only one style tag should exist');
 });
 
+function rootlessDom() {
+  const dom = makeDom();
+  dom.window.document.removeChild(dom.window.document.documentElement);
+  return dom;
+}
+
+const settle = (dom) => new Promise((r) => dom.window.setTimeout(r, 0));
+
+test('early_css on a rootless document waits for the root, then lands in it (CB-019)',
+  async () => {
+    const dom = rootlessDom();
+    const doc = dom.window.document;
+    runInDom(dom, EARLY_CSS);
+    assert.equal(doc.documentElement, null, 'the shim must not become the root');
+    const html = doc.appendChild(doc.createElement('html'));
+    await settle(dom);
+    const style = doc.getElementById('_webspace_content_blocker_style');
+    assert.ok(style, 'style tag must be inserted once the root exists');
+    assert.equal(style.parentNode, html);
+  });
+
+test('early_css waiting for the root defers to a copy already inserted', async () => {
+  const dom = rootlessDom();
+  const doc = dom.window.document;
+  runInDom(dom, EARLY_CSS);
+  doc.appendChild(doc.createElement('html'));
+  runInDom(dom, EARLY_CSS);
+  await settle(dom);
+  assert.equal(doc.querySelectorAll('#_webspace_content_blocker_style').length, 1);
+});
+
 // ---------- cosmetic ----------
 
 test('cosmetic fixture: hides matching elements via early-CSS computed style',

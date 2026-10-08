@@ -30,6 +30,11 @@ typedef ContentBlockerStyleRule = ({String selector, String declarations});
 /// Build the early-injection shim that inserts a CSS `display: none`
 /// stylesheet at DOCUMENT_START. Returns `null` when both [selectors]
 /// and [styleRules] are empty (caller should skip injection entirely).
+///
+/// The `onLoadStart` copy can run after commit but before the parser has
+/// made `<html>`, so the shim waits for the root: a node appended to the
+/// document itself becomes the root, and the parser then drops the whole
+/// page (CB-019, BUG-031).
 String? buildContentBlockerEarlyCssShim({
   required List<String> selectors,
   List<ContentBlockerStyleRule> styleRules = const [],
@@ -43,7 +48,13 @@ String? buildContentBlockerEarlyCssShim({
   var s = document.createElement('style');
   s.id = ID;
   s.textContent = ${jsonEncode(cssText)};
-  (document.head || document.documentElement || document).appendChild(s);
+  function put() { (document.head || document.documentElement).appendChild(s); }
+  if (document.documentElement) { put(); return; }
+  new MutationObserver(function(_, o) {
+    if (!document.documentElement) return;
+    o.disconnect();
+    if (!document.getElementById(ID)) put();
+  }).observe(document, { childList: true });
 })();
 ''';
 }

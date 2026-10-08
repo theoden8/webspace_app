@@ -77,18 +77,27 @@ async function withShim(t, shim, fn, { atDocStart = true } = {}) {
 
 // ---------- early_css ----------
 
-// Early-CSS tests inject the shim post-load via page.evaluate, NOT
-// via evaluateOnNewDocument. Reason: Puppeteer's evaluateOnNewDocument
-// fires before document.documentElement exists, and the shim's
-// `(document.head || document.documentElement || document).appendChild(<style>)`
-// falls through to `document.appendChild(<style>)`, making <style>
-// the only child of the document and preventing the HTML parser from
-// creating <html>/<head>/<body>. Production WKWebView /
-// Android WebView Profile DOCUMENT_START fires after documentElement
-// is created, so the production timing differs from Puppeteer's. Same
-// workaround as the desktop_mode viewport rewrite test — inject after
-// load so the rewrite logic itself can be exercised under a real
-// engine.
+// evaluateOnNewDocument runs before the parser has made <html>, the same
+// window the onLoadStart copy can land in on Android (BUG-031).
+
+test('early_css at document start leaves the page its own root (CB-019)',
+  async (t) => {
+    await withShim(t, EARLY_CSS, async (page) => {
+      const r = await page.evaluate(() => {
+        const s = document.getElementById('_webspace_content_blocker_style');
+        return {
+          root: document.documentElement && document.documentElement.nodeName,
+          roots: document.children.length,
+          body: document.body !== null,
+          styleInRoot: s !== null && s !== document.documentElement &&
+            document.documentElement.contains(s),
+          keep: document.getElementById('keep') !== null,
+        };
+      });
+      assert.deepEqual(r,
+        { root: 'HTML', roots: 1, body: true, styleInRoot: true, keep: true });
+    });
+  });
 
 test('early_css: !important <style> overrides page-defined display: block',
   async (t) => {
@@ -107,7 +116,7 @@ test('early_css: !important <style> overrides page-defined display: block',
         '#sidebar-ad must override page rule via !important');
       assert.notEqual(r.keep, 'none',
         'unrelated #keep must remain visible');
-    }, { atDocStart: false });
+    });
   });
 
 test('early_css: matching elements have computed display=none', async (t) => {
@@ -123,7 +132,7 @@ test('early_css: matching elements have computed display=none', async (t) => {
       assert.equal(r.display, 'none',
         `${r.id} must be display:none, got ${r.display}`);
     }
-  }, { atDocStart: false });
+  });
 });
 
 test('early_css: non-matching elements stay visible', async (t) => {
@@ -131,7 +140,7 @@ test('early_css: non-matching elements stay visible', async (t) => {
     const r = await page.evaluate(() =>
       getComputedStyle(document.getElementById('keep')).display);
     assert.notEqual(r, 'none', 'unrelated #keep must not be hidden');
-  }, { atDocStart: false });
+  });
 });
 
 // ---------- cosmetic ----------
