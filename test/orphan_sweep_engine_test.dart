@@ -132,8 +132,10 @@ void main() {
     test('import and delete sweep through the engine', () {
       expect(body('Future<void> _commitSites(SiteSetChange change) async {'),
           contains('if (effects.sweepsOrphans) await _sweepOrphans();'));
-      expect(body('Future<void> _importSettings() async {'),
-          contains('await _commitSites(SitesReplaced('));
+      final backup =
+          File('lib/controllers/backup_controller.dart').readAsStringSync();
+      expect(backup.substring(backup.indexOf('Future<void> import() async {')),
+          contains('await _host.commitSites(SitesReplaced('));
       expect(
           body('Future<void> _deleteSite(BuildContext context, '
               '{required int index}) async {'),

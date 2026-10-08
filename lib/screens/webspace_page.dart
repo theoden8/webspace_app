@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/controllers/app_lifecycle_controller.dart';
 import 'package:webspace/controllers/archive_controller.dart';
 import 'package:webspace/controllers/background_sites_controller.dart';
+import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/controllers/fullscreen_controller.dart';
 import 'package:webspace/controllers/link_controller.dart';
 import 'package:webspace/controllers/site_network_controller.dart';
@@ -25,7 +26,6 @@ import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen, FaviconUrlCache;
-import 'package:webspace/settings/site_suggestion.dart';
 import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/block_stats.dart';
@@ -49,7 +49,6 @@ import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/deferred_startup_engine.dart';
 import 'package:webspace/services/timezone_spoof_policy.dart';
 import 'package:webspace/services/html_import_storage.dart';
-import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/surface_diag_native.dart';
@@ -57,7 +56,6 @@ import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
 import 'package:webspace/services/archive.dart' show ArchiveHandle;
-import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -80,7 +78,6 @@ import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/ubo_backup_import.dart' show UboTrustedSite, hostTrustedBy;
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
@@ -89,21 +86,17 @@ import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/screen_capture_guard.dart';
 import 'package:webspace/services/shortcut_service.dart';
-import 'package:webspace/services/background_log.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/nested_open_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
-import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/services/suggested_sites_service.dart' as suggested_sites;
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
-import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
-import 'package:webspace/services/proxy_library.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:webspace/widgets/download_button.dart';
 import 'package:webspace/widgets/edit_site_dialog.dart';
@@ -112,6 +105,7 @@ import 'package:webspace/widgets/site_webview_stack.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 import 'package:webspace/widgets/fullscreen_overlays.dart';
 import 'package:webspace/widgets/archive_prompts.dart';
+import 'package:webspace/widgets/backup_prompts.dart';
 import 'package:webspace/widgets/link_prompts.dart';
 import 'package:webspace/widgets/page_load_bar.dart';
 import 'package:webspace/widgets/protection_shield_button.dart';
@@ -195,6 +189,15 @@ class _WebSpacePageState extends State<WebSpacePage>
     host: _PageHost(this),
     prompts: DialogLinkPrompts(context),
     tabs: _tabs,
+  );
+  late final BackupController _backup = BackupController(
+    _sites,
+    host: _PageHost(this),
+    prompts: DialogBackupPrompts(context),
+    shell: _shell,
+    archives: _archives,
+    background: _background,
+    cookies: _cookieManager,
   );
   late final ArchiveController _archives = ArchiveController(
     _sites,
@@ -1548,268 +1551,6 @@ class _WebSpacePageState extends State<WebSpacePage>
     _shell.saveWebspaces();
   }
 
-  Future<void> _exportSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    // The global proxy password is in secure storage, not in the prefs
-    // value `readExportedAppPrefs` reads — and per PWD-005 we do NOT
-    // re-inject it for export (same as secure cookies).
-    // ARCH-010: exports never include archive-tier state, even when an
-    // archive is open. Filter on `isArchiveTier` so the export bytes
-    // match what a user with zero archives would produce.
-    final appTierModels =
-        _sites.models.where((m) => !m.isArchiveTier).toList();
-
-    final extraSections = await _archives.sectionsForExport();
-    if (!mounted) return;
-
-    await SettingsBackupService.exportAndSave(
-      context,
-      webViewModels: appTierModels,
-      webspaces: ArchiveMembershipEngine.persistable(
-        _sites.webspaces,
-        archivedSiteIds: _shell.archivedSiteIds,
-      ),
-      themeMode: _shell.theme.toStorageIndex(),
-      globalPrefs: readExportedAppPrefs(prefs),
-      selectedWebspaceId: _sites.selectedWebspaceId,
-      currentIndex: _sites.current != null &&
-              _sites.current! < appTierModels.length
-          ? _sites.current
-          : null,
-      suggestedSites: _shell.suggestedSites
-          .map((s) => {'name': s.name, 'url': s.url, 'domain': s.domain})
-          .toList(),
-      globalUserScripts: _shell.globalUserScripts.map((s) => s.toJson()).toList(),
-      // User intent for the downloaded-data blockers: the chosen DNS
-      // severity level and the content-blocker list selection. The blobs
-      // themselves stay machine state; the user re-downloads after import.
-      dnsBlockLevel: DnsBlockService.instance.level,
-      contentBlockerLists: ContentBlockerService.instance.exportListSelection(),
-      extraSections: extraSections,
-    );
-  }
-
-  /// uBO trusts a site by switching all filtering off on it; the per-site
-  /// content-blocker toggle is the equivalent here. Archive-tier sites are
-  /// left alone (ARCH-006), and so are sites whose Tracking Protection
-  /// would hold the blocker on regardless.
-  Future<List<UboTrustedSite>> _trustUboHosts(Set<String> hosts,
-      {required bool apply}) async {
-    final matched = <WebViewModel>[];
-    for (final m in _sites.models) {
-      if (m.isArchiveTier || !m.contentBlockEnabled) continue;
-      if (m.trackingProtectionEnabled) continue;
-      final host = Uri.tryParse(m.initUrl)?.host ?? '';
-      if (host.isNotEmpty && hostTrustedBy(host, trustedHosts: hosts)) {
-        matched.add(m);
-      }
-    }
-    final result = [
-      for (final m in matched)
-        UboTrustedSite(m.getDisplayName(), host: Uri.parse(m.initUrl).host)
-    ];
-    if (apply && matched.isNotEmpty) {
-      setState(() {
-        for (final m in matched) {
-          m.contentBlockEnabled = false;
-          m.disposeWebView();
-        }
-      });
-      await _commitSites(const SitesEdited());
-    }
-    return result;
-  }
-
-  Future<void> _importSettings() async {
-    final backup = await SettingsBackupService.pickAndImport(context);
-    if (backup == null) {
-      return;
-    }
-
-    final sitesCount = backup.sites.length;
-    final webspacesCount = backup.webspaces.length;
-    final exportDate = backup.exportedAt.toLocal().toString().split('.')[0];
-
-    final loc = AppLocalizations.of(context);
-    final exportedLabel = loc.homeImportExportedLabel(exportDate);
-    // State the backup installs that acts on its own once restored: the
-    // app-wide proxy captures every DEFAULT site including webview traffic,
-    // and a user script runs at document start with full page privileges.
-    // Neither is visible in a site list, so the dialog has to name them.
-    final incomingGlobalProxy = backupGlobalProxyAddress(backup);
-    final incomingScriptCount = backupUserScriptCount(backup);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(loc.homeImportSettingsTitle),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(loc.homeImportSettingsConfirm(sitesCount, webspacesCount)),
-              SizedBox(height: 12),
-              Text(
-                exportedLabel,
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              if (incomingGlobalProxy != null) ...[
-                SizedBox(height: 12),
-                Text(loc.homeImportGlobalProxyWarning(incomingGlobalProxy)),
-              ],
-              if (incomingScriptCount > 0) ...[
-                SizedBox(height: 12),
-                Text(loc.homeImportUserScriptsWarning(incomingScriptCount)),
-              ],
-              SizedBox(height: 16),
-              Text(
-                loc.homeImportSettingsSessionsNote,
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(loc.commonCancel),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(loc.homeImportAction),
-            style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.primary,
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    // Decide the whole import BEFORE touching live state: a site entry that
-    // does not parse throws here, and a malformed/hostile backup would
-    // otherwise leave the user with their sites already cleared and the
-    // restore half-done.
-    final SettingsImportPlan plan;
-    try {
-      plan = planSettingsImport(backup, stateSetterF: () {
-        setState(() {});
-      });
-    } catch (e) {
-      LogTag.import.error('Aborted import; live state left intact: $e');
-      _toast((loc) => loc.homeImportInvalidBackup);
-      return;
-    }
-
-    // Applied and persisted in one step, before any site activates, so a pref
-    // the backup does not name reads the same before and after a restart.
-    // Per PWD-005 the backup carries no proxy password: the user re-enters
-    // it on the proxy settings screen, as they re-log into sites whose secure
-    // cookies were stripped.
-    await writeExportedAppPrefs(
-        await SharedPreferences.getInstance(), values: plan.appPrefs);
-    if (!mounted) return;
-    // Every service that reads those prefs reloads before the sites commit,
-    // so the Tor refcount and a DEFAULT site's first load see the imported
-    // app-wide proxy, not the one it replaces.
-    await DeveloperModeService.instance.reload();
-    await TorService.instance.externalAddressChanged();
-    await TorService.instance.runtimeChoiceChanged();
-    // The imported value is password-less; the in-memory proxy follows it
-    // without an app restart.
-    final reloadedPrefs = await SharedPreferences.getInstance();
-    await GlobalOutboundProxy.update(readGlobalOutboundProxy(reloadedPrefs));
-    await ProxyLibrary.reloadAfterImport();
-    // The downloaded-data blockers' user intent: the selection only, never
-    // the blob, which the user re-downloads from App Settings.
-    if (plan.dnsBlockLevel != null) {
-      await DnsBlockService.instance.applyImportedLevel(plan.dnsBlockLevel!);
-    }
-    if (plan.contentBlockerLists != null) {
-      await ContentBlockerService.instance
-          .importListSelection(plan.contentBlockerLists!);
-    }
-    if (!mounted) return;
-    _shell.theme = AppThemeSettings.fromStorageIndex(plan.themeStorageIndex);
-    await _commitSites(SitesReplaced(
-      sites: plan.sites,
-      webspaces: plan.webspaces,
-      selectedWebspaceId: plan.selectedWebspaceId,
-    ));
-    if (!mounted) return;
-
-    final indexToRestore = plan.currentIndex;
-    // With no site activated, setCurrentIndex never reaches
-    // _restoreCookiesForSite, so the previously active site's cookies would
-    // stay in the native jar. Legacy engine only: container-mode sites never
-    // shared that jar, and an unscoped clear issued while live containers
-    // exist is the shape BUG-007 turned into a wiped session.
-    if (indexToRestore == null && !_sites.useContainers) {
-      await _cookieManager.deleteAllCookies();
-    }
-    await _activation.setCurrentIndex(indexToRestore);
-    if (!mounted) return;
-    setState(() {});
-    widget.onThemeSettingsChanged(_shell.theme);
-
-    final importedCounts = _background.counts();
-    if (importedCounts.enabled > 0) {
-      BackgroundLog.instance.record(
-        LogTag.siteUnload,
-        message:
-            'settings import: ${importedCounts.enabled} notification sites, '
-            '${importedCounts.loaded} loaded until opened or the next launch',
-        level: LogLevel.warning,
-      );
-    }
-    await _shell.saveTheme();
-    await _shell.saveSelectedWebspaceId();
-    await _shell.saveCurrentIndex();
-
-    if (plan.globalUserScripts != null) {
-      _shell.globalUserScripts = plan.globalUserScripts!;
-    }
-    await _shell.saveGlobalUserScripts();
-
-    if (plan.suggestedSites != null) {
-      _shell.suggestedSites = [
-        for (final s in plan.suggestedSites!)
-          SiteSuggestion(name: s.name, url: s.url, domain: s.domain),
-      ];
-      await suggested_sites.saveSuggestedSites(_shell.suggestedSites);
-    }
-
-    final webViewTheme = _shell.theme.themeMode.webViewTheme;
-    for (var webViewModel in _sites.models) {
-      await webViewModel.setTheme(webViewTheme);
-    }
-
-    if (mounted) {
-      final loc = AppLocalizations.of(context);
-      final hints = <String>[
-        if (plan.proxyPasswordsNeeded) loc.homeImportProxyPasswordsHint,
-        if (plan.blocklistsNeedDownload) loc.homeImportBlocklistRedownloadHint,
-      ];
-      _toast(
-        (loc) => hints.isEmpty
-            ? loc.homeSettingsImportedSuccess
-            : loc.homeSettingsImportedWithHints(hints.join(' ')),
-        duration: Duration(seconds: hints.isEmpty ? 4 : 6),
-      );
-    }
-
-    // If the backup carries encrypted sections, offer to restore them
-    // by passphrase. Each prompt restores the section(s) matching the
-    // entered passphrase; remaining ones can be restored by entering
-    // another passphrase, or skipped by cancelling.
-    if (plan.extraSections.isNotEmpty && mounted) {
-      await _archives.restoreSections(plan.extraSections);
-    }
-  }
-
   WebViewController? getController() {
     if(_sites.current == null) {
       return null;
@@ -2310,9 +2051,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           externalTorRunsHere: externalTorRunsHere,
           siteNames: _siteNames(),
           onSettingsChanged: _applyThemeSettings,
-          onExportSettings: _exportSettings,
-          onImportSettings: _importSettings,
-          onTrustUboHosts: _trustUboHosts,
+          onExportSettings: _backup.export,
+          onImportSettings: _backup.import,
+          onTrustUboHosts: _backup.trustUboHosts,
           onRestoreArchive: _archives.promptRestore,
           hasOpenArchives: _archives.anyOpen,
           onCloseAllArchives: () async {
@@ -3521,7 +3262,8 @@ class _PageHost
         TabsHost,
         LinkHost,
         FullscreenHost,
-        ActivationHost {
+        ActivationHost,
+        BackupHost {
   const _PageHost(this._s);
 
   final _WebSpacePageState _s;
@@ -3572,7 +3314,10 @@ class _PageHost
       Navigator.of(_s.context).popUntil((route) => route.isFirst);
 
   @override
-  Future<void> activate(int index) => _s._activation.setCurrentIndex(index);
+  Future<void> activate(int? index) => _s._activation.setCurrentIndex(index);
+
+  @override
+  void themeChanged() => _s.widget.onThemeSettingsChanged(_s._shell.theme);
 
   @override
   void syncTorExitPin(Set<int> indices) => _s._network.syncTorExitPin(indices);

@@ -7,7 +7,7 @@ ARCH-001 through ARCH-009 are wired end-to-end:
 
 - **ARCH-001 (active-state neutrality):** enforced by filtering on
   `WebViewModel.isArchiveTier` in `_persistSites`,
-  `ShortcutController.syncSites`, and `_exportSettings`. Regression tests in
+  `ShortcutController.syncSites`, and `BackupController.export`. Regression tests in
   `test/archive_neutrality_test.dart`.
 - **ARCH-002 (passphrase KDF):** `ArchiveStorage.ensureKdfSalt` (16 random
   bytes per install, minted with the slot pool) + `ArchiveCrypto.deriveKey`
