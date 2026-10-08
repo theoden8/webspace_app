@@ -1,10 +1,10 @@
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/site_posture.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// The posture of a site with every blocker and Tracking Protection off, so a
 /// test measures only the path it is about. Built by the app's own resolver,

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/webview.dart' show userProxyToInappProxy;
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/services/webview_proxy.dart';
 
 /// A proxy credential has to arrive in the form the target platform reads
 /// (PROXY-025), and the two platforms that read `ProxyRule` read different

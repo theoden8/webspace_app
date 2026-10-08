@@ -15,6 +15,7 @@ const assert = require('node:assert/strict');
 const { read, methodBody } = require('./helpers/source');
 
 const webviewRel = 'lib/services/webview.dart';
+const proxyRel = 'lib/services/webview_proxy.dart';
 const probeRel = 'lib/services/proxy_router_probe.dart';
 const networkRel = 'lib/controllers/site_network_controller.dart';
 const webview = read(webviewRel);
@@ -41,21 +42,21 @@ test('the relay rule is consulted when a WebView is built', () => {
 test('the relay rule is not gated on the site having a proxy', () => {
   // A store left unproxied cannot answer the PROXY-015 probe, and one
   // unproven site stands router mode down for every site.
-  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
+  const fn = methodBody('routerRelayProxyFor', { file: proxyRel });
   assert.doesNotMatch(
     fn,
     /proxySettings\s*==\s*null|effectiveProxy/,
-    `${webviewRel}: routerRelayProxyFor must not depend on the site's own `
+    `${proxyRel}: routerRelayProxyFor must not depend on the site's own `
       + 'proxy; a DEFAULT site rides the relay too',
   );
 });
 
 test('the relay rule rides the named binding, not a platform test', () => {
-  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
+  const fn = methodBody('routerRelayProxyFor', { file: proxyRel });
   assert.match(
     fn,
     /ProxyManager\.binding != ProxyBinding\.perSite/,
-    `${webviewRel}: Android carries the router on one ProxyController rule, `
+    `${proxyRel}: Android carries the router on one ProxyController rule, `
       + 'so a per-WebView rule there is a second source of truth for the '
       + 'same traffic. PROXY-027 says which platforms those are, and this '
       + 'path must read that decision rather than re-derive it',
@@ -63,37 +64,37 @@ test('the relay rule rides the named binding, not a platform test', () => {
   assert.doesNotMatch(
     fn,
     /hostIsIOS|hostIsMacOS/,
-    `${webviewRel}: PROXY-027 names the binding once; a platform test here `
+    `${proxyRel}: PROXY-027 names the binding once; a platform test here `
       + 'is a fourth place for it to drift',
   );
 });
 
 test('a webview with no site id is not routed', () => {
-  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
+  const fn = methodBody('routerRelayProxyFor', { file: proxyRel });
   assert.match(
     fn,
     /siteId == null \|\| siteId\.isEmpty/,
-    `${webviewRel}: a webview with no route-table row must keep its own `
+    `${proxyRel}: a webview with no route-table row must keep its own `
       + "rule; the shared identity belongs to a group it is not part of",
   );
 });
 
 test('the credential rides the fields, never only the URL', () => {
-  const fn = methodBody('routerRelayProxyFor', { file: webviewRel });
+  const fn = methodBody('routerRelayProxyFor', { file: proxyRel });
   assert.match(
     fn,
     /username: router\.usernameFor\(identity\)/,
-    `${webviewRel}: the relay rule must set ProxyRule.username`,
+    `${proxyRel}: the relay rule must set ProxyRule.username`,
   );
   assert.match(
     fn,
     /password: token/,
-    `${webviewRel}: the relay rule must set ProxyRule.password`,
+    `${proxyRel}: the relay rule must set ProxyRule.password`,
   );
   assert.doesNotMatch(
     fn,
     /http:\/\/\$\{?router[\s\S]{0,40}@/,
-    `${webviewRel}: userinfo in the URL never reaches applyCredential `
+    `${proxyRel}: userinfo in the URL never reaches applyCredential `
       + '(PROXY-025), so a credential written there authenticates with nothing',
   );
 });

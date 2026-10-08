@@ -132,6 +132,10 @@ import 'package:webspace/widgets/http_auth_prompt.dart';
 import 'package:webspace/widgets/untrusted_cert_prompt.dart';
 import 'package:webspace/widgets/accent_logo.dart';
 import 'package:webspace/theme/app_theme.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/popup_webview.dart';
 
 /// Test seam: when set, the page state uses this store instead of
 /// constructing a [SecureWebViewStateStorage]. Lets integration tests
@@ -1327,7 +1331,7 @@ class _WebSpacePageState extends State<WebSpacePage>
                   ),
                 ),
                 Expanded(
-                  child: WebViewFactory.createPopupWebView(
+                  child: PopupWebView.createPopupWebView(
                     windowId: windowId,
                     onCloseWindow: () {
                       if (Navigator.of(dialogContext).canPop()) {

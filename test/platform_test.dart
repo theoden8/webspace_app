@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
-import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/webview_config.dart';
 
 void main() {
   group('Cookie', () {

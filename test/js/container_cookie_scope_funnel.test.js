@@ -78,7 +78,7 @@ test('the HTTP download path reads cookies through the downloading WebView', () 
   // scoped to the WebView that raised onDownloadStartRequest. The controller
   // has to reach the handler for that to be possible at all, so assert both
   // halves.
-  const webview = read('lib/services/webview.dart');
+  const webview = read('lib/services/webview_downloads.dart');
 
   assert.match(
     webview,

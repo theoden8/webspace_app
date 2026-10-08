@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/widgets/theme_mode_button.dart';
+import 'package:webspace/services/webview_config.dart';
 
 // Helper to convert ThemeMode to WebViewTheme (duplicated from main.dart for testing)
 WebViewTheme _themeModeToWebViewTheme(ThemeMode mode) {

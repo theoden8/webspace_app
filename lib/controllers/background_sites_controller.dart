@@ -22,6 +22,8 @@ import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/headless_site_check.dart';
 
 /// What the background-site flows ask of the page.
 abstract interface class BackgroundSitesHost implements PageHost {
@@ -451,7 +453,7 @@ class _WakeHost implements BackgroundWakeHost {
     final m = _sites.byId(siteId);
     if (m == null) return WakeSkip.headlessFailed;
     if (_foreground) return WakeSkip.appInForeground;
-    final (check, skip) = await WebViewFactory.openHeadlessCheck(
+    final (check, skip) = await HeadlessSiteChecks.openHeadlessCheck(
         m.headlessCheckConfig(_host.webViewHooks));
     if (check == null) return skip;
     if (_foreground) {

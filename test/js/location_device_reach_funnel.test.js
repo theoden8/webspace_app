@@ -18,12 +18,13 @@ const assert = require('node:assert/strict');
 const { read, dartFiles, code } = require('./helpers/source');
 
 const WEBVIEW = read('lib/services/webview.dart');
+const HANDLERS_CODE = code(read('lib/services/page_handlers.dart'));
 
 // Comments blanked so prose describing a call does not count as one.
 const WEBVIEW_CODE = code(WEBVIEW);
 
 test('LOC-REACH-001: the getRealLocation bridge is registered only for live sites', () => {
-  const registrations = [...WEBVIEW_CODE.matchAll(/handlerName:\s*'getRealLocation'/g)];
+  const registrations = [...HANDLERS_CODE.matchAll(/handlerName:\s*'getRealLocation'/g)];
   assert.equal(registrations.length, 1,
     'expected exactly one getRealLocation registration');
 
@@ -31,11 +32,11 @@ test('LOC-REACH-001: the getRealLocation bridge is registered only for live site
   // the nearest enclosing condition rather than matching a fixed shape, so
   // reformatting does not break the test but removing the guard does.
   const at = registrations[0].index;
-  const before = WEBVIEW_CODE.slice(0, at);
+  const before = HANDLERS_CODE.slice(0, at);
   const guard = before.lastIndexOf('config.posture.location.mode == LocationMode.live');
   assert.notEqual(guard, -1,
     'getRealLocation must be registered behind a LocationMode.live check');
-  const between = WEBVIEW_CODE.slice(guard, at);
+  const between = HANDLERS_CODE.slice(guard, at);
   assert.ok(!between.includes('}\n    }'),
     'the LocationMode.live guard appears to close before the registration');
 });
@@ -45,7 +46,7 @@ test('LOC-REACH-002: the platform location service has exactly two call sites', 
   // Anything else reaching CurrentLocationService is a new way for a site to
   // cause a device fix, and needs its own review.
   const expected = new Set([
-    'lib/services/webview.dart',
+    'lib/services/page_handlers.dart',
     'lib/screens/location_picker.dart',
   ]);
   const found = dartFiles()

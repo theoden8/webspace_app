@@ -16,6 +16,7 @@ import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// What the app-lifecycle flows ask of the page.
 abstract interface class LifecycleHost implements PageHost {

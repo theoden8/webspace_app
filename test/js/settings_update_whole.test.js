@@ -30,7 +30,8 @@ test('every setSettings call sends the creation settings', () => {
 });
 
 test('each controller wrapper holds the settings its webview was created with', () => {
-  const sites = callSites('_WebViewController', { file: 'lib/services/webview.dart' })
+  const sites = ['lib/services/webview.dart', 'lib/services/popup_webview.dart']
+    .flatMap((file) => callSites('PlatformWebViewController', { file }))
     .filter((s) => !/^\s*this\._c/.test(s.args));
   assert.ok(sites.length >= 2, `found only ${sites.length} wrapper constructions`);
   const offending = sites

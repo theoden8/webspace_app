@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:webspace/services/webview.dart' show WebViewTheme;
 import 'package:webspace/theme/accent_theme.dart';
+import 'package:webspace/services/webview_config.dart';
 
 enum AccentColor {
   blue(accentBlue),

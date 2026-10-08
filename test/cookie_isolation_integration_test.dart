@@ -2,11 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/cookie_isolation.dart';
 import 'package:webspace/services/site_retention_priority.dart';
 import 'package:webspace/services/site_unload_engine.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/mock_cookie_manager.dart';
 import 'helpers/site_list_state.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// Test harness for cookie isolation. Delegates cookie-jar management to
 /// the REAL [CookieIsolationEngine] — the tests exercise production code,

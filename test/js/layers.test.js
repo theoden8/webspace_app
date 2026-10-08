@@ -13,7 +13,7 @@ const DEBT = new Set([
   'lib/services/site_activation_engine.dart -> lib/web_view_model.dart',
   'lib/services/site_unload_engine.dart -> lib/web_view_model.dart',
   'lib/services/startup_restore_engine.dart -> lib/web_view_model.dart',
-  'lib/services/webview.dart -> lib/widgets/root_messenger.dart',
+  'lib/services/webview_downloads.dart -> lib/widgets/root_messenger.dart',
   'lib/services/webview.dart -> lib/widgets/surface_nudge_scope.dart',
   'lib/services/webview_host_hooks.dart -> lib/web_view_model.dart',
 ]);

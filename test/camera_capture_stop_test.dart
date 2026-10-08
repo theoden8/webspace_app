@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/web_view_model.dart';
 import 'helpers/fake_webview_controller.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 WebViewModel _model(
   WebViewController? controller, {

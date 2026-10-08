@@ -2,13 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/capture_fakes.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 const _url = 'https://example.com';
 

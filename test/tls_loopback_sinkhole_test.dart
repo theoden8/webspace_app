@@ -1,11 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_tls.dart';
 
 void main() {
   group('TLS-010 loopback sinkhole cert classification', () {
     test('localhost cert for a remote host is a sinkhole', () {
       expect(
-        WebViewFactory.isLoopbackSinkholeCert(
+        WebViewTls.isLoopbackSinkholeCert(
           host: 'htlb.casalemedia.com',
           issuedToCName: 'localhost',
           issuedByCName: 'localhost',
@@ -16,7 +16,7 @@ void main() {
 
     test('only issuer is localhost still counts', () {
       expect(
-        WebViewFactory.isLoopbackSinkholeCert(
+        WebViewTls.isLoopbackSinkholeCert(
           host: 'fastlane.rubiconproject.com',
           issuedToCName: 'ads.example.com',
           issuedByCName: 'localhost',
@@ -27,7 +27,7 @@ void main() {
 
     test('case and whitespace are normalized', () {
       expect(
-        WebViewFactory.isLoopbackSinkholeCert(
+        WebViewTls.isLoopbackSinkholeCert(
           host: 'tracker.example.com',
           issuedToCName: '  LocalHost ',
           issuedByCName: null,
@@ -38,7 +38,7 @@ void main() {
 
     test('genuine https://localhost dev server is not suppressed', () {
       expect(
-        WebViewFactory.isLoopbackSinkholeCert(
+        WebViewTls.isLoopbackSinkholeCert(
           host: 'localhost',
           issuedToCName: 'localhost',
           issuedByCName: 'localhost',
@@ -46,7 +46,7 @@ void main() {
         isFalse,
       );
       expect(
-        WebViewFactory.isLoopbackSinkholeCert(
+        WebViewTls.isLoopbackSinkholeCert(
           host: '127.0.0.1',
           issuedToCName: 'localhost',
           issuedByCName: 'localhost',
@@ -57,7 +57,7 @@ void main() {
 
     test('ordinary self-signed cert with a real CN still prompts', () {
       expect(
-        WebViewFactory.isLoopbackSinkholeCert(
+        WebViewTls.isLoopbackSinkholeCert(
           host: 'self-signed.example.com',
           issuedToCName: 'self-signed.example.com',
           issuedByCName: 'My Homelab CA',
@@ -68,7 +68,7 @@ void main() {
 
     test('missing CNames are not a sinkhole', () {
       expect(
-        WebViewFactory.isLoopbackSinkholeCert(
+        WebViewTls.isLoopbackSinkholeCert(
           host: 'example.com',
           issuedToCName: null,
           issuedByCName: null,

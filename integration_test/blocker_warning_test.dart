@@ -32,9 +32,9 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/stat_chip.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();

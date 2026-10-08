@@ -197,7 +197,7 @@ final Set<String> _keysRead = {
   ])
     ..._readKeys(File(f).readAsStringSync()),
   ..._captureKeysRead,
-  ..._readKeys(_region('lib/services/webview.dart',
+  ..._readKeys(_region('lib/services/cookie_manager.dart',
       from: 'Cookie cookieFromJson(', to: ');\n')),
   ..._matches(
       _region('lib/services/settings_backup.dart',

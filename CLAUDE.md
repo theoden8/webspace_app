@@ -70,7 +70,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 
 Layers: UI `screens`, `widgets`, `controllers`, `theme`, `main.dart`, `app.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.
 
-Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · services → UI (`webview.dart` → `root_messenger`, `surface_nudge_scope`).
+Debt, files importing upward (the gate's list, target 0): services → model (engines take `WebViewModel`; each needs a narrow interface) · services → UI (`webview_downloads.dart` → `root_messenger`, `webview.dart` → `surface_nudge_scope`).
 
 | Axis | Budget | Now | Funnel |
 |---|---|---|---|
@@ -415,7 +415,7 @@ Workflow: edit shim in `lib/services/` → `fvm dart run tool/dump_shim_js.dart`
 
 New shim: register in `buildAllFixtures()` in [tool/dump_shim_js.dart](tool/dump_shim_js.dart). Builders importing Flutter widgets (lib/screens/*, lib/widgets/*) can't be reached — extract the JS string to a pure-Dart helper first.
 
-**Shims that also run in workers** (anything in `workerScopeShims` in [webview.dart](lib/services/webview.dart) — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
+**Shims that also run in workers** (anything in `workerScopeBodies` in [worker_shim.dart](lib/services/worker_shim.dart) — see [worker-shim-propagation](openspec/specs/worker-shim-propagation/spec.md)) must be scope-agnostic: `globalThis` never `window`, navigator prototype via `Object.getPrototypeOf(navigator)` never `Navigator.prototype`, window-only sections (`Screen`, `document`, `matchMedia`, `RTCPeerConnection`, `plugins`/`getBattery`) guarded, and never *add* a property a real `WorkerNavigator` lacks. The payload is one script of concatenated IIFEs, so an uncaught `ReferenceError` in one silences every shim after it; `test/worker_shim_test.dart` gates this structurally.
 
 jsdom has no canvas/WebGL/audio fingerprinting. Tests assert override **shape**, not engine behavior. Effects that need a real engine (canvas `captureStream`, Intl timezone math, real CSP, RTCPeerConnection semantics) go in the **browser tier** under `test/browser/` (Puppeteer + headless Chromium, `npm run test:browser`, run in CI's `validate` job). Use the `setupBrowser`/`requireBrowser`/`readFixture` helpers in [test/browser/helpers/launch.js](test/browser/helpers/launch.js) — the tier hard-fails when `CI=true` and no Chromium is found, and skips locally. Example: `camera_stream_real_engine.test.js` serves a page from `127.0.0.1` (getUserMedia needs a secure context), feeds the dumped camera shim a QR image, and asserts jsQR decodes it off the synthetic stream.
 

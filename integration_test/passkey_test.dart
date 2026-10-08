@@ -29,6 +29,8 @@ import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/passkey_native.dart';
 import 'package:webspace/services/webview.dart';
 import 'bare_site.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 const _gate = bool.fromEnvironment('PASSKEY_GATE');
 const _phase = String.fromEnvironment('PASSKEY_GATE_PHASE', defaultValue: 'main');

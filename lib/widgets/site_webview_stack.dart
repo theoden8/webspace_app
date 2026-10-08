@@ -3,12 +3,12 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/html_import_storage.dart';
 import 'package:webspace/services/html_source.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_host_hooks.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/stats_banner.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
+import 'package:webspace/services/webview_config.dart';
 
 /// One webview per loaded site, the one at [current] showing. A slot that is
 /// not loaded holds an empty box, so positions line up with [models] and a

@@ -13,10 +13,10 @@ import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// Why a passphrase is asked for; each reads differently.
 enum PassphrasePurpose { moveSite, openArchive, restoreSections }

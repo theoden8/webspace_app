@@ -4,7 +4,6 @@ import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/proxy_binding_engine.dart';
 import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/services/webview.dart' show ProxyManager;
 import 'package:webspace/settings/location.dart'
     show WebRtcPolicy, resolveWebRtcPolicy;
 import 'package:webspace/settings/proxy.dart';
@@ -15,6 +14,7 @@ import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/setting_tile.dart';
+import 'package:webspace/services/webview_proxy.dart';
 
 /// Everything the network screen may change through a switch or a picker, in
 /// one value so the caller can apply a whole edit in a single `setState`.

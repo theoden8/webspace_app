@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'helpers/mock_secure_storage.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// A site as builds before secure storage kept cookies in `webViewModels`,
 /// holding one [cookie] on [url]'s host.

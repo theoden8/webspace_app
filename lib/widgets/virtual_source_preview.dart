@@ -3,6 +3,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/services/webview.dart' show WebViewFactory;
 import 'package:webspace/settings/capture.dart';
+import 'package:webspace/services/webview.dart';
 
 /// Builds the preview page for a video [VirtualVisualSource].
 ///

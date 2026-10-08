@@ -10,9 +10,9 @@ import 'package:webspace/services/trusted_hosts_service.dart' show kTrustedHosts
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// What the export path builds for [sites] under default app settings.
 SettingsBackup _export(List<WebViewModel> sites, {List<Webspace>? webspaces}) =>

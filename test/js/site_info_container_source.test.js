@@ -18,7 +18,7 @@ const nested = read('lib/screens/inappbrowser.dart');
 
 test('the factory binds through containerIdFor', () => {
   assert.match(webview,
-    /static StoreBinding _bindingFor\(WebViewConfig config\) =>\s*storeBinding\(config\.posture\);/);
+    /static StoreBinding bindingFor\(WebViewConfig config\) =>\s*storeBinding\(config\.posture\);/);
   const create = blockAfter(webview, 'static StoreBinding storeBinding(SitePosture posture) {',
     null, 'webview.dart');
   const at = create.indexOf('final containerId = containerIdFor(');

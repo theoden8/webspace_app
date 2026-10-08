@@ -35,6 +35,7 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/licenses.dart';
 import 'package:webspace/app.dart';
+import 'package:webspace/services/webview_proxy.dart';
 
 /// Debug-only per-step timing for the cold-start critical path. Logs under
 /// the 'Startup' tag; compiled out of release builds via kDebugMode. Steps in

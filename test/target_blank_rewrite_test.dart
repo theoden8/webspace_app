@@ -35,7 +35,7 @@ void main() {
       // If the registration is dropped (or moved past DOCUMENT_END), the
       // rewrite never runs before the page wires its own click handlers and
       // target="_blank" cross-domain taps go silent again (issue #405).
-      final webviewSrc = File('lib/services/webview.dart').readAsStringSync();
+      final webviewSrc = File('lib/services/page_scripts.dart').readAsStringSync();
       final blockStart = webviewSrc.indexOf(
           "pageShim('target_blank_rewrite', js: targetBlankRewriteScript");
       expect(blockStart, greaterThan(0));

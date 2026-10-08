@@ -35,6 +35,10 @@ import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/unproxied_block.dart';
 import 'package:webspace/widgets/site_info_sheet.dart';
 import 'package:webspace/widgets/url_bar.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// Identifies the nested webview's slot, the counterpart of the main page's
 /// per-site `ValueKey(siteId)` slot. The BUG-001 pixel suite samples the

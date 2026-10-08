@@ -27,7 +27,7 @@ const { read, dartFiles } = require('./helpers/source');
 /// definition.
 const EXEMPT_FILES = new Set([
   'lib/services/cookie_isolation.dart',
-  'lib/services/webview.dart',
+  'lib/services/cookie_manager.dart',
 ]);
 
 /// Name of the OrphanSweepTargets method whose only caller is the engine's

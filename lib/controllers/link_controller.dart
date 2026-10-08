@@ -20,7 +20,6 @@ import 'package:webspace/services/share_intent_service.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/web_search_engine.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/dispatch_picker_sheet.dart'
@@ -34,6 +33,7 @@ import 'package:webspace/widgets/external_url_prompt.dart'
     show launchUrlInSystemBrowser, showExternalLinkBlocked;
 import 'package:webspace/widgets/url_bar.dart' show UrlBarSearchSite;
 import 'package:webspace/widgets/web_search_sheet.dart' show WebSearchRequest;
+import 'package:webspace/services/webview_controller.dart';
 
 /// What the web search sheet is asked (LIR-029).
 typedef WebSearchAsk = ({

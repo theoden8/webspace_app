@@ -46,10 +46,10 @@ import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/webview_state_storage.dart';
 import 'fixture_server.dart';
 import 'helpers/ui.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 const String _siteId = 'safari-nav';
 const String _siteName = 'Safari Nav';

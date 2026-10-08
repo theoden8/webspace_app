@@ -10,6 +10,9 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/capture_fakes.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// The native controller as the plugin hands it over: records every call that
 /// reaches the platform and fails them the way [failWith] says.

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// [WebViewController] that records the pause/resume, load and JavaScript
 /// calls it receives. Any other member is unimplemented and fails the test

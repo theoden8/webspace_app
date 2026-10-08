@@ -29,6 +29,8 @@ import 'bare_site.dart';
 
 import 'fixture_server.dart';
 import 'secure_storage_fake.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 const _user = 'alice';
 const _password = 's3cret';

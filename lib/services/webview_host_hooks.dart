@@ -5,10 +5,11 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// What the host app answers for every webview that runs as a site, its own
 /// and a nested screen alike. Built once by the host and passed whole, so a

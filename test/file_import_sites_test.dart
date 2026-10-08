@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/html_import_storage.dart';
-import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/file_import_document.dart';
 
 /// Tests for the file-import-sites feature.
 ///

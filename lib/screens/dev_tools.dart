@@ -13,7 +13,6 @@ import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/services/container_cookie_manager.dart';
-import 'package:webspace/services/webview.dart';
 import 'package:webspace/services/icon_png_export.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/notification_service.dart';
@@ -27,6 +26,8 @@ import 'package:webspace/widgets/dev_tools_parts.dart';
 import 'package:webspace/widgets/log_entry_line.dart';
 import 'package:webspace/widgets/stat_chip.dart';
 import 'package:webspace/widgets/toast.dart';
+import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
 

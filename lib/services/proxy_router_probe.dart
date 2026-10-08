@@ -3,12 +3,9 @@ import 'dart:async';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 
 import 'package:webspace/services/log_service.dart';
-import 'package:webspace/services/webview.dart'
-    show
-        ProxyManager,
-        WebViewFactory,
-        answerProxyRouterChallenge,
-        routerRelayProxyFor;
+import 'package:webspace/services/webview.dart' show WebViewFactory;
+import 'package:webspace/services/webview_proxy.dart'
+    show ProxyManager, answerProxyRouterChallenge, routerRelayProxyFor;
 
 /// The real attribution probe (PROXY-015).
 ///

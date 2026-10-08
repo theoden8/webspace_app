@@ -42,6 +42,9 @@ import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/webview.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'bare_site.dart';
+import 'package:webspace/services/webview_config.dart';
+import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/webview_controller.dart';
 
 /// Whether this run is the one that opted into the real Tor network.
 final bool torRequired = Platform.environment['WEBSPACE_TOR_NETWORK'] == '1';

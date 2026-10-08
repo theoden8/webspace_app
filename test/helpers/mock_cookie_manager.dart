@@ -1,5 +1,5 @@
 import 'package:webspace/services/cookie_secure_storage.dart';
-import 'package:webspace/services/webview.dart';
+import 'package:webspace/services/cookie_manager.dart';
 
 /// In-memory cookie jar that models RFC 6265 domain-match semantics so the
 /// sibling-subdomain scenarios the real fix addresses can actually be
