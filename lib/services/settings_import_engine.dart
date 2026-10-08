@@ -23,6 +23,7 @@ import 'package:webspace/services/proxy_library.dart'
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 /// A suggested site as the backup lists it.
 typedef ImportedSuggestion = ({String name, String url, String domain});

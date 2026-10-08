@@ -10,6 +10,7 @@ import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/site_posture.dart';
 
 /// What the host app answers for every webview that runs as a site, its own
 /// and a nested screen alike. Built once by the host and passed whole, so a

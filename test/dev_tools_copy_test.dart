@@ -12,6 +12,7 @@ import 'helpers/mock_cookie_manager.dart';
 import 'helpers/localized.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/webview_config.dart';
 
 class _StubHost implements DevToolsHost {
   @override

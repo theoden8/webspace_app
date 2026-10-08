@@ -519,3 +519,12 @@ class _ControllerScopeState extends State<ControllerScope> {
   @override
   Widget build(BuildContext context) => widget.child;
 }
+
+/// Interpret a renderer-health probe result. The probe reads
+/// `document.body.offsetHeight`: a live renderer returns a number — `0`
+/// (about:blank), `-1` (document/body not built yet, still loading), or a
+/// positive height. A dead renderer (iOS content-process jettisoned,
+/// Android renderer killed) makes `evaluateJavascript` throw, surfaced as a
+/// `null` result by [WebViewController.evaluateJavascriptReturning]. Only
+/// `null` means gone; every numeric value is alive.
+bool rendererProbeIndicatesGone(Object? probeResult) => probeResult == null;

@@ -16,6 +16,7 @@
 library;
 
 import 'dart:math';
+import 'package:webspace/settings/site_ids.dart';
 
 /// Id of the tab a site starts with, and of the one synthesised when legacy
 /// JSON (no `tabs` key) is rehydrated.
@@ -29,10 +30,6 @@ const String kPrimaryTabId = 'main';
 /// same path-safe shape as a siteId — minus `.`, which separates the two
 /// halves of a state key.
 final RegExp _kTabIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
-
-/// Same shape as `sanitizedSiteId` in `web_view_model.dart`, which this file
-/// cannot import without a cycle.
-final RegExp _kHostSiteIdPattern = RegExp(r'^[A-Za-z0-9_-]{1,128}$');
 
 String? sanitizedTabId(Object? raw) {
   if (raw is! String) return null;
@@ -130,14 +127,8 @@ class SiteTab {
       url: url,
       title: json['title'] is String ? json['title'] as String : null,
       parentId: sanitizedTabId(json['parentId']),
-      hostSiteId: json['hostSiteId'] is String &&
-              _kHostSiteIdPattern.hasMatch(json['hostSiteId'] as String)
-          ? json['hostSiteId'] as String
-          : null,
-      openerSiteId: json['openerSiteId'] is String &&
-              _kHostSiteIdPattern.hasMatch(json['openerSiteId'] as String)
-          ? json['openerSiteId'] as String
-          : null,
+      hostSiteId: sanitizedSiteId(json['hostSiteId']),
+      openerSiteId: sanitizedSiteId(json['openerSiteId']),
       homeUrl: _webUrl(json['homeUrl']),
       createdAt: _time(json['createdAt']),
       lastActiveAt: _time(json['lastActiveAt']),

@@ -5,9 +5,9 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/repaint_log_throttle.dart';
 import 'package:webspace/services/repaint_suppression.dart';
 import 'package:webspace/services/surface_repaint_engine.dart';
-import 'package:webspace/web_view_model.dart'
-    show WebViewModel, rendererProbeIndicatesGone;
-import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/webview_controller.dart'
+    show WebViewController, rendererProbeIndicatesGone;
+import 'package:webspace/web_view_model.dart' show WebViewModel;
 
 /// The screen whose webview surface is repainted.
 abstract interface class SurfaceHost {

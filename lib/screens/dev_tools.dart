@@ -28,6 +28,7 @@ import 'package:webspace/widgets/stat_chip.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/services/cookie_manager.dart';
 import 'package:webspace/services/webview_controller.dart';
+import 'package:webspace/services/webview_config.dart';
 
 typedef VoidAsyncCallback = Future<void> Function();
 

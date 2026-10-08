@@ -50,6 +50,7 @@
 // fixture through Puppeteer + FingerprintJS in
 // test/browser/fingerprint_real_engine.test.js.
 
+import 'dart:math';
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
@@ -1036,4 +1037,12 @@ String buildAntiFingerprintingShim(
   } catch (e) {}
 })();
 ''';
+}
+
+/// Generates a fresh per-site fingerprint reset nonce. Uses [Random.secure]
+/// so a site can't predict the post-reset fingerprint.
+String generateFingerprintResetNonce() {
+  final rng = Random.secure();
+  final bytes = List<int>.generate(8, (_) => rng.nextInt(256));
+  return bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
 }

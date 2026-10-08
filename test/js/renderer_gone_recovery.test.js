@@ -63,7 +63,7 @@ test('nested InAppWebViewScreen wires renderer-gone recovery (BUG-002 gap #1)', 
 });
 
 test('rendererProbeIndicatesGone treats only null as gone', () => {
-  const src = read('lib/web_view_model.dart');
+  const src = read('lib/services/webview_controller.dart');
   // A regression that flags 0 / -1 / positive height as "gone" would reload-loop
   // a healthy page. The predicate must be exactly `== null`.
   assert.match(

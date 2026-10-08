@@ -1,4 +1,5 @@
 
+import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
@@ -232,3 +233,17 @@ bool deferInitialLoadForRestore({
   required bool isFileImport,
 }) =>
     hasPendingRestoreState && isAndroid && !isFileImport;
+
+class ConsoleLogEntry {
+  final DateTime timestamp;
+  final String message;
+  final ConsoleMessageLevel level;
+  final bool isEvalInput;
+
+  ConsoleLogEntry({
+    required this.timestamp,
+    required this.message,
+    required this.level,
+    this.isEvalInput = false,
+  });
+}

@@ -43,6 +43,7 @@ import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'package:webspace/widgets/site_permission_badges.dart';
 import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/services/page_zoom_shim.dart';
 
 const List<MapEntry<String?, String>> _languages = [
   MapEntry(null, 'System default'),

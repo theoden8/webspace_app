@@ -9,6 +9,9 @@ import 'package:webspace/settings/proxy.dart';
 
 import 'helpers/capture_fakes.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/services/page_zoom_shim.dart';
+import 'package:webspace/web_view_model_json.dart';
+import 'package:webspace/settings/site_ids.dart';
 
 const _url = 'https://example.com';
 
