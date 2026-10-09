@@ -147,6 +147,11 @@ dependency_overrides:
 flutter:
   uses-material-design: true
   generate: true
+  # Stable turned SwiftPM on by default in 3.44. The Podfiles carry build logic
+  # (the adblock Rust phase, the Tor pod) SwiftPM does not run, and SwiftPM
+  # builds each plugin at its own deployment target, below the app's floor.
+  config:
+    enable-swift-package-manager: false
   assets:
     - assets/LICENSE
     - assets/licenses/
