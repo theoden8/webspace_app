@@ -239,7 +239,9 @@ Future<bool> _run() async {
           'a request through $before left from a Tor exit (${exitBefore.detail})');
 
   final tcp = await _Pair.open(InternetAddress.loopbackIPv4, port: 0);
-  final unixPath = '${(await getTemporaryDirectory()).path}/ts.sock';
+  // sun_path is 104 bytes on macOS, and the sandbox's Caches directory plus
+  // its bundle-id subdirectory is already past it; the container tmp is not.
+  final unixPath = '${Directory.systemTemp.path}/ts.sock';
   if (await File(unixPath).exists()) await File(unixPath).delete();
   final unix = await _Pair.open(
       InternetAddress(unixPath, type: InternetAddressType.unix), port: 0);
