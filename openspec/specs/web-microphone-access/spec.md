@@ -197,10 +197,9 @@ today. The masking is a property of the simulation, not of the feature, and
 extending it to a real grant would misreport the hardware the user chose to
 expose.
 
-The two gaps left open in CAM-008 (`__ws*` install markers enumerable on
-`window`; a parent realm's `Function.prototype.toString` revealing an override
-defined in a child realm) apply here too. They are shared by every shim in the
-repo rather than specific to this one.
+The gap left open in CAM-008 (`__ws*` install markers enumerable on `window`)
+applies here too. It is shared by every shim in the repo rather than specific
+to this one.
 
 #### Scenario: Enumeration exposes exactly one microphone
 
