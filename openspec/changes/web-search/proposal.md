@@ -50,7 +50,7 @@ requirements.
 - **References** (LIR-031). The per-site declarations and the app default name
   sites by id, so they are pruned where LIR-017 prunes, including on import,
   and the app default never names an archived site.
-- **Behaviour screen** (BEHAV-005). A Search group: the search address, the
+- **Behaviour screen** (BEHAV-006). A Search group: the search address, the
   default search from this site, and the search sites it offers.
 - **Hosted tabs core** from the `inactive-tabs` change, since results from
   another site's search have nowhere else to go: LIR-018 (running as another
@@ -104,7 +104,7 @@ Find and shared links are unchanged.
   tab runs as follows its opener). LIR-011 names a search as not an inbound share.
 - `navigation`: NAV-011 (in `site-info-sheet`) names the site in the Container
   row and adds the Tab of and Opened from rows.
-- `site-behaviour`: adds BEHAV-005 (the Search group).
+- `site-behaviour`: adds BEHAV-006 (the Search group).
 - `inactive-tabs`: TAB-004 lists a web search among the ways to create a tab,
   TAB-005 opens it the way New tab does, as a child of the tab searched from,
   and TAB-006 enables "Open in new tab" for a link one of the user's sites can

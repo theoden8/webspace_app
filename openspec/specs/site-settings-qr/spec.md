@@ -319,16 +319,19 @@ site's URL, its display name, its proxy, and the state of every per-site
 protection. The receiver SHALL NOT create a site from one until the user
 has seen those choices and accepted them.
 
-The gate SHALL live in `SiteEditingController.addSite`'s `qrSettings` branch so that **both**
+The gate SHALL live in `_addSite`'s `qrSettings` branch so that **both**
 entry points cross it: the in-app scanner / paste dialog
 (`AddSiteScreen._addByQr` → `showSiteSettingsQrApplyDialog`) and the
-`webspace://qr/` deep link handled by `LinkController.handleShareIntent`. The dialog
+`webspace://qr/` deep link handled by `_handleShareIntent`. The dialog
 SHALL show the payload's `initUrl`, its `name`, its proxy address when the
 payload sets a non-DEFAULT proxy, the protections the payload switches off
-(Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN,
-Block auto-redirects) and the permissions or modes it switches on
+(Tracking Protection, ClearURLs, DNS Blocklist, Content Blocker, LocalCDN)
+and the permissions or modes it switches on
 (third-party cookies, Notifications, Background audio, Kiosk mode,
-Geolocation), and SHALL require an explicit accept.
+Geolocation), and SHALL require an explicit accept. A payload's
+`blockAutoRedirects`, written by builds that had the switch, is ignored:
+every site blocks gesture-less cross-domain navigations (NESTED-004), so it
+turns nothing off.
 
 The blockers can also be weakened without either toggle moving, so the
 protections-switched-off list SHALL also name:
@@ -340,9 +343,9 @@ protections-switched-off list SHALL also name:
 Both are relaxations the payload's author chose for the receiver, and
 neither shows up in any boolean the dialog already reports.
 
-A site created from a deep link SHALL NOT be activated: `SiteEditingController.registerSite`
+A site created from a deep link SHALL NOT be activated: `_registerNewSite`
 is called with `activate: false`, so the site is added to the list and
-persisted but `setCurrentIndex` is not called and the current site keeps
+persisted but `_setCurrentIndex` is not called and the current site keeps
 the screen. A site created from the in-app scanner IS activated — the user
 went looking for it.
 
@@ -355,8 +358,8 @@ deep links along with every other inbound URL.
 **Given** link handling is enabled
 **And** another app opens `webspace://qr/site/v1/<payload>` where the
 payload sets `trackingProtectionEnabled: false` and a SOCKS5 proxy
-**When** `LinkController.handleShareIntent` decodes it and hands it to
-`SiteEditingController.addSite(deepLinkQrSettings: decoded)`
+**When** `_handleShareIntent` decodes it and calls
+`_addSite(deepLinkQrSettings: decoded)`
 **Then** a review dialog is shown naming the URL, the name, the proxy
 address, and "Tracking Protection" as a protection being turned off
 **And** no `WebViewModel` exists until the user accepts
@@ -384,15 +387,15 @@ string, so a value `fromJson` would coerce cannot slip past the review
 
 **Given** the review dialog is shown
 **When** the user cancels
-**Then** `SiteEditingController.registerSite` is not called
-**And** `_sites.models` is unchanged
+**Then** `_registerNewSite` is not called
+**And** `_webViewModels` is unchanged
 
 #### Scenario: Deep-link site does not take the screen
 
 **Given** the user accepts the review dialog for a deep-link payload
-**When** `SiteEditingController.registerSite(model, activate: false)` runs
-**Then** the model is appended to `_sites.models` and persisted
-**And** `setCurrentIndex` is NOT called, so the currently-visible site
+**When** `_registerNewSite(model, activate: false)` runs
+**Then** the model is appended to `_webViewModels` and persisted
+**And** `_setCurrentIndex` is NOT called, so the currently-visible site
 stays visible
 
 #### Scenario: Link handling off drops the QR deep link

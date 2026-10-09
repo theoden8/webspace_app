@@ -14,7 +14,7 @@ import 'package:webspace/web_view_model.dart';
 const int kMaxLoadedSites = 20;
 
 /// Why a loaded site leaves the loaded set, short of being deleted. The label
-/// is what the background log names (DEVTOOLS-011).
+/// is what the background log names (DEVTOOLS-012).
 enum UnloadReason {
   domainConflict('domain conflict'),
   proxyMismatch('proxy mismatch'),

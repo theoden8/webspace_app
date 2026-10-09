@@ -466,7 +466,7 @@ void main() {
     });
   });
 
-  group('DEVTOOLS-011 the wake reports what each site did', () {
+  group('DEVTOOLS-012 the wake reports what each site did', () {
     test('a load that finished, a page that never loaded, a webview gone',
         () async {
       final host = _Host({

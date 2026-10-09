@@ -488,7 +488,7 @@ void main() {
     });
   });
 
-  group('BEHAV-005 search group', () {
+  group('BEHAV-006 search group', () {
     final ddg = WebViewModel(
         siteId: 'ddg', initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo');
     final kagi =

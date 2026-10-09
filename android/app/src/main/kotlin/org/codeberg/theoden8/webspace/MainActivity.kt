@@ -390,7 +390,7 @@ class MainActivity: FlutterActivity() {
     }
 
     /**
-     * DEVTOOLS-011: the system asking for memory, or saying it may reclaim
+     * DEVTOOLS-012: the system asking for memory, or saying it may reclaim
      * the process. Flutter forwards every level from RUNNING_LOW up as memory
      * pressure, UI_HIDDEN included, which arrives on every exit from the
      * screen and is not pressure at all (PAUSE-034), so that one is left out.

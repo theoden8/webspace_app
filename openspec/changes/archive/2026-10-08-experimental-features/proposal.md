@@ -1,3 +1,23 @@
+## Status
+
+Shipped. The Experimental group is published as `developer-tools`
+DEVTOOLS-011.
+
+Two things this change built were later withdrawn, and the tasks below still
+describe them as they were done:
+
+- **The Built-in Tor switch and TOR-023.** Tor was the group's first feature,
+  with a switch that defaulted on and a confirmation before switching it off
+  with sites pinned to Tor (TOR-023). Tor then graduated out of the group: the
+  switch, its `experimentalTor` pref, `TorGate.switchedOff`, the TOR-023
+  confirmations and `test/tor_developer_mode_confirm_test.dart` all went with
+  it, and TOR-023 is withdrawn rather than published. The reasoning is in
+  `tor-proxy` TOR-007, under "No developer mode, no experimental switch".
+  Tasks 4.2 and 4.3 are the record of work that no longer exists.
+- **Developer mode's own text.** DEVTOOLS-010 and TOR-022 were edited in place
+  in `add-ios-tor-proxy`, which is still in flight, so those edits are
+  published when it archives, not here.
+
 ## Why
 
 Developer mode opens two unrelated things at once: diagnostic tools, and every

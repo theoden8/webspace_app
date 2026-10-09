@@ -216,7 +216,7 @@ The tier SHALL tap a control inside the sign-in dialog's scroll view only in a
 frame in which that control's centre hit-tests to it. On the Android emulator
 the real soft keyboard resizes the dialog whenever the IME gets to it, so a
 fixed pause before a tap does not wait for the layout. Lineage:
-[docs/bugs/020-http-auth-remember-tap-flake.md](../../../../../docs/bugs/020-http-auth-remember-tap-flake.md).
+[docs/bugs/020-http-auth-remember-tap-flake.md](../../../../../../docs/bugs/020-http-auth-remember-tap-flake.md).
 
 #### Scenario: Every platform runs the real-engine tier
 

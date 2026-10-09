@@ -257,7 +257,7 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
     );
   }
 
-  // --- Search (LIR-028, BEHAV-005) ------------------------------------------
+  // --- Search (LIR-028, BEHAV-006) ------------------------------------------
 
   /// The user's other sites that search the web, which a search from this
   /// site may use.

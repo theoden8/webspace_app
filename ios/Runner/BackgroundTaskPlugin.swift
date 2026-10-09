@@ -4,7 +4,7 @@ import Flutter
 import UIKit
 import UserNotifications
 
-/// Native half of the background log (DEVTOOLS-011): JSON lines under
+/// Native half of the background log (DEVTOOLS-012): JSON lines under
 /// Application Support, written by this plugin and the app delegate and
 /// appended to from Dart. The file exists only while developer mode is on, and
 /// its existence is the switch, so a launch iOS makes for a refresh task
@@ -207,7 +207,7 @@ class BackgroundTaskPlugin: NSObject {
     observeSystemEvents()
   }
 
-  /// DEVTOOLS-011: what decides whether a page or a refresh task gets to run
+  /// DEVTOOLS-012: what decides whether a page or a refresh task gets to run
   /// and that no lifecycle line shows. Flutter reports leaving the screen as
   /// memory pressure too (PAUSE-034), so a real warning is told apart here.
   private func observeSystemEvents() {
@@ -356,7 +356,7 @@ class BackgroundTaskPlugin: NSObject {
     }
   }
 
-  /// DEVTOOLS-011: the OS gates a refresh task and a notification depend on,
+  /// DEVTOOLS-012: the OS gates a refresh task and a notification depend on,
   /// as ordered (name, value) rows. Runs on the main queue.
   private func systemState(_ result: @escaping FlutterResult) {
     var rows: [[String]] = []

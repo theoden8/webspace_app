@@ -227,7 +227,7 @@ derivative (CLAUDE.md) and a build-time fetch is out of scope. Instead:
 **And** the two sites do not conflict, do not share a container, and a
 navigation from A to B is cross-domain (so
 `NavigationDecisionEngine.decideShouldOverrideUrlLoading` reaches the
-gesture and `blockAutoRedirects` checks instead of returning `allow`)
+gesture check instead of returning `allow`)
 
 #### Scenario: A private suffix still groups its own subdomains
 

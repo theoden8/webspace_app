@@ -61,7 +61,7 @@ class _FakeNative implements BackgroundLogNative {
 void main() {
   setUp(LogService.instance.resetForTest);
 
-  group('DEVTOOLS-011 recording follows developer mode', () {
+  group('DEVTOOLS-012 recording follows developer mode', () {
     test('off: nothing is kept, nothing reaches the native file', () async {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
@@ -98,7 +98,7 @@ void main() {
     });
   });
 
-  group('DEVTOOLS-011 sensitive content stays separate', () {
+  group('DEVTOOLS-012 sensitive content stays separate', () {
     test('the sensitive companion never reaches the native file', () async {
       final native = _FakeNative();
       final log = BackgroundLog(native: native);
@@ -145,7 +145,7 @@ void main() {
     });
   });
 
-  group('DEVTOOLS-011 the native file outlives the process', () {
+  group('DEVTOOLS-012 the native file outlives the process', () {
     test('entries from an earlier process and native-only steps show',
         () async {
       final native = _FakeNative();

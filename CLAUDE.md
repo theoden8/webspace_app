@@ -352,7 +352,7 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
 
 ## OpenSpec features
 
-Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the relevant spec before modifying a feature.** A slug marked *(change)* is implemented but not archived yet, so its requirements are still at `openspec/changes/<slug>/specs/<slug>/spec.md`. Slugs:
+Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the relevant spec before modifying a feature.** A slug marked *(change)* is still in flight: its requirements live at `openspec/changes/<change>/specs/<slug>/spec.md`, where the change is not always named after the capability (`tor-proxy` sits in `add-ios-tor-proxy`) and more than one change can hold a slice of it, so grep the requirement id when the obvious path is absent. Slugs:
 
 | Slug | One-liner (when not obvious) |
 |------|------|
@@ -373,8 +373,9 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | file-import-sites | local HTML via HtmlCacheService |
 | fullscreen-mode | hide app bar/tab strip/system UI; per-site auto |
 | home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
-| http-auth-prompt *(change)* | |
+| http-auth-prompt | a server's or proxy's 401/407 challenge as a per-site sign-in dialog; only the site's own hosts may ask, the credential is remembered in secure storage per site, never exported, and archive-tier sites keep none |
 | https-upgrade *(change)* | plain-http main-frame navigations retried over https, silent per-host fallback; default-on knob, forced on by Tracking Protection |
+| inactive-tabs *(change)* | tabs inside a site, behind the Experimental group's Site tabs switch; requirements (TAB-*) at `openspec/changes/inactive-tabs/` |
 | icon-fetching | progressive favicon w/ fallbacks; the page's own icon wins when it is on the site's host, >= 32px, and not a badge swapped in after load: on Android the one the webview reports (`onReceivedIcon`); elsewhere the links the page declared, fetched through the site's proxy and blockers. The Site icons only experiment drops Google/DuckDuckGo and sends Android to the declared links too; developer mode can reset every icon cache |
 | incognito-mode | per-site: nothing the site stores survives an app restart (cookies, localStorage, IDB, SW, cache, last URL/title); typed configuration does |
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |
@@ -385,6 +386,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | localization | UI strings via gen_l10n ARB; no-unkeyed-text guard; coverage parity tests |
 | integration-tests | flutter `integration_test/` harness conventions + headless Linux CI setup |
 | lazy-webview-loading | on-demand creation, IndexedStack placeholders |
+| link-intent-routing *(change)* | which site, tab or app an outbound link opens in. Published specs cite LIR-* ids, but the requirements are still split across `openspec/changes/{route-outbound-via-lir,default-app-for-links,web-search}/specs/link-intent-routing/` |
 | localcdn | cache CDN resources locally (Android) |
 | navigation | back gesture, drawer swipe, refresh, race guards; URL-bar site info sheet (site + container) |
 | nested-url-blocking | nested InAppBrowser; gesture-less cross-domain hops blocked on every site (no switch); per-site external link mode (in app / browser / block), routing to other sites only in app |
@@ -397,12 +399,12 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | proxy | per-site HTTP/HTTPS/SOCKS5; a proxy library (saved proxies, gateways, credentials tied to gateways) any site or the app-wide proxy picks from, with a connection indicator *(saved-proxies change)*; Android serialises mismatched-proxy sites |
 | proxy-password-secure-storage | secrets in flutter_secure_storage; never in JSON |
 | screenshots | integration-test driven |
-| screenshot-block *(change)* | app-wide or per-site `FLAG_SECURE` (per-site applies while that site is on screen); Android only, switches absent where no public API blocks capture |
-| app-settings *(change)* | App Settings as an index: Appearance, Behaviour, Network, Privacy, User scripts, Backup and archives, Developer; each row a screen of its own with a summary of its state (BEHAV-002 rule); one tap, one action on every opener |
+| screenshot-block | app-wide or per-site `FLAG_SECURE` (per-site applies while that site is on screen); Android only, switches absent where no public API blocks capture |
+| app-settings | App Settings as an index: Appearance, Behaviour, Network, Privacy, User scripts, Backup and archives, Developer; each row a screen of its own with a summary of its state (BEHAV-002 rule); one tap, one action on every opener |
 | settings-backup | JSON import/export; every released format still imports (per-release fixture corpus), and an import is planned whole before it is applied |
 | settings-hints | where a settings row's text goes: state in the subtitle, explanation behind the hint button; fixed-string subtitles capped across all locales |
 | site-behaviour | per-site Behaviour screen: how the app hosts the site (opening + display, link handling), reached from one row under "Site" |
-| site-network *(change)* | per-site Network screen: proxy, Tor exit, WebRTC policy, saved sign-ins, reached from one row under "Site" that names the route the traffic takes |
+| site-network | per-site Network screen: proxy, Tor exit, WebRTC policy, saved sign-ins, reached from one row under "Site" that names the route the traffic takes |
 | site-editing | URL + custom name |
 | site-permission-badges | drawer badges for location/camera/mic/background-audio grants; real device access vs simulated |
 | site-settings-qr | share a site's configuration as a QR / `webspace://qr/site/v1/` URL; never carries secrets, cookies, user scripts or imported HTML |
@@ -413,9 +415,9 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | upstream-webview-defects *(change)* | defects found auditing the pinned flutter_inappwebview fork's upstream tracker: a declined `onCreateWindow` still navigating on iOS/macOS, UA client hints that half-spoof, the plugin's unmasked console wrappers, the real Linux WPE build floor |
 | user-scripts | per-site JS injection w/ timing control |
 | web-camera-access | per-site camera for camera-only getUserMedia (banking QR flows); `cameraMode` ask/real/virtual/block. Virtual serves a user-picked image/looped video via a canvas `captureStream` shim (no real camera, no OS prompt); real grant ensures Android CAMERA perm |
-| web-microphone-access *(change)* | per-site audio capture; `microphoneMode` ask/real/virtual/block. Real hands over the device mic under the MIC-014 containment contract (on-screen site only, ends on deactivation, badged, never archived); virtual loops a user-picked clip through WebAudio into a `MediaStreamAudioDestinationNode`. Audio+video requests are split in every mode, so the platform's combined CAMERA_AND_MICROPHONE resource never arises from a shimmed page |
+| web-microphone-access | per-site audio capture; `microphoneMode` ask/real/virtual/block. Real hands over the device mic under the MIC-014 containment contract (on-screen site only, ends on deactivation, badged, never archived); virtual loops a user-picked clip through WebAudio into a `MediaStreamAudioDestinationNode`. Audio+video requests are split in every mode, so the platform's combined CAMERA_AND_MICROPHONE resource never arises from a shimmed page |
 | web-screen-sharing | per-site `getDisplayMedia`: no real-screen mode on any platform (a capture is whole-surface, so it would carry every other site); `screenShareMode` ask/virtual/block serves a picked image/video as the shared surface, top-frame only, never an audio track |
-| web-push-notifications *(change)* | per-site `notificationsEnabled` toggle: JS Notification polyfill → flutter_local_notifications, auto-loads + skips per-instance pause for notif sites, any loaded notif site vetoes the app-background JS pause (NOTIF-011), iOS `beginBackgroundTask` grace + `BGAppRefreshTask` wake, Android mirrors via `WorkManager` periodic wake (no foreground service); a wake checks every notification site, live ones reloaded and the rest in a headless webview with the site's own posture (NOTIF-016), waits for the loads and posts for a site whose title unread count rose (NOTIF-013/014) |
+| web-push-notifications | per-site `notificationsEnabled` toggle: JS Notification polyfill → flutter_local_notifications, auto-loads + skips per-instance pause for notif sites, any loaded notif site vetoes the app-background JS pause (NOTIF-011), iOS `beginBackgroundTask` grace + `BGAppRefreshTask` wake, Android mirrors via `WorkManager` periodic wake (no foreground service); a wake checks every notification site, live ones reloaded and the rest in a headless webview with the site's own posture (NOTIF-016), waits for the loads and posts for a site whose title unread count rose (NOTIF-013/014) |
 | archive | passphrase-gated archived webspaces in a fixed slot pool; active state stays byte-identical when no archive is open |
 | background-audio | per-site toggle: skips per-instance pause + app-background global JS pause (any-loaded veto), iOS `.playback` AVAudioSession + `audio` background mode; Android `mediaPlayback` foreground service + MediaStyle notification (BGAUDIO-006) driven by a page-JS media-session bridge; CI-tested via lifecycle injection + beaconing HTML fixture, plus a 3-tier notification gate (BGAUDIO-007: real-Chromium shim, channel contract, emulator assert on `getActiveNotifications()`) |
 | block-statistics | persistent app-wide protection report: per-category daily buckets, 7/30-day ranges, all-time total in plaintext prefs; the itemised half (blocked hosts, per-site counts) in an AES blob keyed from the keychain; archive-tier sites excluded from both |

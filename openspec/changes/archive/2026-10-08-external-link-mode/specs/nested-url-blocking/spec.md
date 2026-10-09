@@ -146,7 +146,7 @@ required with no default, so the chain cannot drop one, and the nested screen
 SHALL NOT re-derive a value the resolver already resolved (the umbrella's
 forcing, the archive overrides, the timezone). The one difference the nested
 screen has is `SitePosture.forNested()`: a `real` capture grant is asked again
-(CAM-005 / MIC-005). History: [BUG-025](../../../../../docs/bugs/025-nested-posture-drift.md).
+(CAM-005 / MIC-005). History: [BUG-025](../../../../../../docs/bugs/025-nested-posture-drift.md).
 
 A dropped field is not a cosmetic gap: `blockedCookies`, the
 camera/microphone modes and their sources, and `protectedContentAllowed`

@@ -304,19 +304,16 @@ The override matrix:
 | Home-shortcut action | unavailable | Pinning to launcher writes a system-level shortcut visible in launcher state. |
 | File-imported sites | unavailable | `HtmlCacheService` lands HTML in the app-tier encrypted store keyed by app-tier paths. |
 | Per-site authenticated proxies | password not persisted | `ProxyPasswordSecureStorage` keys by `siteId` in app-tier secure storage; unauthenticated (host/port-only) proxies are fine. |
-| Auto-load at startup | never | Archive `siteId`s never enter `_sites.loaded` at startup regardless of any per-site flag — loading happens only after archive open. |
+| Auto-load at startup | never | Archive `siteId`s never enter `_loadedIndices` at startup regardless of any per-site flag — loading happens only after archive open. |
 | Tracking-protection's LocalCDN sub-component | silently no-op | The umbrella ETP feature still applies (ClearURLs, DNS, content blocker, fingerprinting shim — all runtime-only); only the LocalCDN sub-component is skipped. |
-| HTML cache (`HtmlCacheService.saveHtml` / `getHtmlSync`) | disabled | The cache file path is keyed by `siteId`; even though the bytes are AES-encrypted, the file's existence correlates to specific archive sites on disk inspection. Gated by `htmlSourceFor` ([html_source.dart](../../../lib/services/html_source.dart)), which returns `HtmlSource.none` for archive-tier sites, read by the HTML save path in `lib/main.dart` and the first-paint path in `lib/widgets/site_webview_stack.dart`. Archive sites always load live from URL; first paint is slightly slower but on-disk footprint stays empty. |
-| Webview navigation state (`SecureWebViewStateStorage.saveState` / `loadState`) | disabled | Same shape as HTML cache: per-`siteId` encrypted file containing `controller.saveState()` bytes (back/forward URL stack, Apple form data). Gated by an explicit `isArchiveTier` check in `captureStateBytes` and the load path in `setCurrentIndex`. Archive sites lose the in-process back/forward stack on memory-pressure eviction; acceptable trade for not leaking the URL stack to disk. `ArchiveController.close` calls `removeState(siteId)` for every owned site as a defensive back-erasure pass — covers any pre-fix bytes plus future code paths that forget the gate. |
-| `cameraMode` (web camera access) | effectively `block` | `effectiveCaptures` (`ArchiveFold.captures`, every capture kind) denies without prompting: the Block/Use-file/Allow popup, the file picker, and Android's OS permission dialog are OS-level UI, and a real grant lights the system camera indicator. Stored mode and any picked `virtualCameraSource` preserved for when the site leaves the archive. See [web-camera-access](../web-camera-access/spec.md) CAM-006. |
-| Cookie persistence in the legacy engine | never written | `CookieIsolationEngine` reads `effectiveIncognito`, not the raw `incognito` field, at every guard. The raw field made an archive site's non-Secure cookies land in plaintext SharedPreferences (`cookies_fallback`) keyed by its cleartext `siteId` — underneath `_persistSites`'s `!isArchiveTier` filter, and a direct ARCH-001 break. See [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md) ISO-005. |
+| HTML cache (`HtmlCacheService.saveHtml` / `getHtmlSync`) | disabled | The cache file path is keyed by `siteId`; even though the bytes are AES-encrypted, the file's existence correlates to specific archive sites on disk inspection. Gated by `htmlSourceFor` ([html_source.dart](../../../../../lib/services/html_source.dart)), which returns `HtmlSource.none` for archive-tier sites, read by the HTML save path in `lib/main.dart` and the first-paint path in `lib/widgets/site_webview_stack.dart`. Archive sites always load live from URL; first paint is slightly slower but on-disk footprint stays empty. |
+| Webview navigation state (`SecureWebViewStateStorage.saveState` / `loadState`) | disabled | Same shape as HTML cache: per-`siteId` encrypted file containing `controller.saveState()` bytes (back/forward URL stack, Apple form data). Gated by an explicit `isArchiveTier` check in `_captureStateBytes` and the load path in `_setCurrentIndex`. Archive sites lose the in-process back/forward stack on memory-pressure eviction; acceptable trade for not leaking the URL stack to disk. `_closeArchive` calls `removeState(siteId)` for every owned site as a defensive back-erasure pass — covers any pre-fix bytes plus future code paths that forget the gate. |
+| `cameraMode` (web camera access) | effectively `block` | `effectiveCameraMode` denies without prompting: the Block/Use-file/Allow popup, the file picker, and Android's OS permission dialog are OS-level UI, and a real grant lights the system camera indicator. Stored mode and any picked `virtualCameraSource` preserved for when the site leaves the archive. See [web-camera-access](../web-camera-access/spec.md) CAM-006. |
+| Cookie persistence in the legacy engine | never written | `CookieIsolationEngine` reads `effectiveIncognito`, not the raw `incognito` field, at every guard. The raw field made an archive site's non-Secure cookies land in plaintext SharedPreferences (`cookies_fallback`) keyed by its cleartext `siteId` — underneath `_saveWebViewModels`'s `!isArchiveTier` filter, and a direct ARCH-001 break. See [per-site-cookie-isolation](../per-site-cookie-isolation/spec.md) ISO-005. |
 | Tor exit-country pin | uses a kept GeoIP table, never downloads one | The table a pin needs (TOR-014) is a file outside the archive's keyspace; downloaded for an archived site alone, its presence and timestamp would say one pinned a country. `SiteUnloadEngine.torExitPinIsArchiveOnly` decides it. With no table kept, the pin fails closed (`exitCountryData`) rather than being dropped, since dropping it would route the site through a country it did not ask for. |
-| Page icon from the webview (`SiteIconStore`, [icon-fetching](../icon-fetching/spec.md) ICON-009, ICON-013) | memory only | The file is named by a hash of the site's home URL, so its existence would name the archived site on disk. `WebViewModel` offers the icon with `persist: !effectiveIncognito`, and `ArchiveController.close` / `moveIn` drop it through `FaviconUrlCache.invalidate`. |
-| Passkeys ([passkey-support](../passkey-support/spec.md) PASSKEY-001, PASSKEY-013) | never offered | `effectivePasskeysEnabled` is false, so no bridge shim or handler is installed, and on iOS and macOS the block shim hides WebKit's own WebAuthn: the system passkey sheet is OS-level UI naming the relying party, and a passkey the site created would live in the credential provider, outside the archive's keyspace. |
-| Search address from the site's pages ([link-intent-routing](../../changes/web-search/specs/link-intent-routing/spec.md) LIR-035) | archive state only | Stored as a site field, which for an archive site is written only into the archive. The description is fetched through the site's proxy and blockers and nothing is cached on disk. |
-| Container colour (TAB-018) | archive state only | Kept inside the archive so the site comes back with it; never counted by the app tier, so no app-tier colour depends on an archive. |
-| Nested webviews (`InAppWebViewScreen`) | inherit the effective values | Every surface is built from the `SitePosture` that `WebViewModel.sitePosture` resolves through `effectiveNotificationsEnabled` / `effectiveCameraMode` / `effectiveMicrophoneMode` / `effectiveProtectedContentAllowed` / `effectiveIncognito`, not the stored fields (`test/js/effective_getter_boundary.test.js`). Passing a raw value let an archive site post OS notifications naming itself from a nested webview, and those persist in the shade after the archive is closed. |
-| Logging that mentions any per-`siteId` identifier | `LogSensitivity.sensitive` | The tier-aware [`LogService`](../../../lib/services/log_service.dart) routes sensitive entries to a memory-only ring; they never reach disk, `debugPrint`, exports, or `adb logcat` / Console.app. Any new log call that includes a `siteId`, container name, cookie hostname, URL, or page title MUST be tagged sensitive (audit per #354 already covers every existing call site in `lib/`). The archive runtime flow (`ArchiveController`) adds no log calls at all — strongest possible posture. |
+| Saved sign-ins (HTTP authentication) | never read or saved | `HttpAuthSecureStorage` keys by `siteId` in app-tier secure storage. `effectiveHttpAuthMemory` is `off`, so the sign-in prompt still works for the session but offers no Remember and reads nothing; the Saved sign-ins row is hidden. See [http-auth-prompt](../http-auth-prompt/spec.md) HTTPAUTH-004. |
+| Nested webviews (`InAppWebViewScreen`) | inherit the effective values | The two `launchUrlFunc` call sites pass `effectiveNotificationsEnabled` / `effectiveCameraMode` / `effectiveMicrophoneMode` / `effectiveProtectedContentAllowed` / `effectiveIncognito`, not the stored fields. Passing a raw value let an archive site post OS notifications naming itself from a nested webview, and those persist in the shade after the archive is closed. |
+| Logging that mentions any per-`siteId` identifier | `LogSensitivity.sensitive` | The tier-aware [`LogService`](../../../lib/services/log_service.dart) routes sensitive entries to a memory-only ring; they never reach disk, `debugPrint`, exports, or `adb logcat` / Console.app. Any new log call that includes a `siteId`, container name, cookie hostname, URL, or page title MUST be tagged sensitive (audit per #354 already covers every existing call site in `lib/`). The archive runtime flow (`_materialiseArchive`, `_openArchive`, `_closeArchive`, `_moveSiteToArchive`, `_promptRestoreArchive`) adds no log calls at all — strongest possible posture. |
 
 Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site checklist gains an explicit "archive-tier compatibility" item.
 
@@ -327,7 +324,7 @@ Adding any new per-site feature SHALL re-run this audit. The CLAUDE.md per-site 
 **Then** the effective `notificationsEnabled` is `false`
 **And** the JS Notification polyfill is not injected for that site
 **And** the site is not added to the `BGAppRefreshTask` / `WorkManager` periodic refresh set
-**And** the site does not enter `_sites.loaded` at startup
+**And** the site does not enter `_loadedIndices` at startup
 
 #### Scenario: Legacy cookie engine writes nothing for an archive site
 
@@ -347,7 +344,7 @@ cookies normally
 
 **Given** an archive-tier site whose stored `notificationsEnabled` is `true`
 **When** it opens an outbound link in an `InAppWebViewScreen`
-**Then** the nested `WebViewConfig.posture.page.notifications` is `false`
+**Then** the nested `WebViewConfig.notificationsEnabled` is `false`
 **And** the `webNotification` JavaScript handler is not registered, so
 nothing reaches `NotificationService`
 
@@ -361,6 +358,10 @@ nothing reaches `NotificationService`
 ### Requirement: ARCH-007 — Container lifecycle for archive-tier sites
 
 For archive-tier sites on container-capable platforms, per-site containers SHALL use opaque, key-derived identifiers and SHALL be torn down on archive close. The archive feature is unavailable on platforms without container support.
+
+Every webview that runs as an archive-tier site SHALL bind by that opaque identifier: the site's own webview, and a nested `InAppWebViewScreen` opened from its links, from its URL bar, or routed to it (link-intent-routing LIR-015). `archiveContainerId` is therefore part of the nested chain (`LaunchUrlFunc`, `launchUrl`, `InAppWebViewScreen`), like any posture field (NESTED-010). A nested screen that bound `ws-<siteId>` instead would, on Android, where incognito sites still bind a named profile, run in a persistent profile named after the archived site's cleartext id, signed out of the site, and left on disk by the close.
+
+On close, after deleting the archive's opaque containers, `_closeArchive` SHALL also delete `ws-<siteId>` for each of the archive's sites whose id no app-tier site holds, so a path that ever binds one without the opaque id leaves nothing behind. An id an app-tier site also holds (a backup can bring one back) is skipped: that container is the app-tier site's own.
 
 #### Scenario: Opaque container id for archive sites
 
@@ -376,6 +377,27 @@ For archive-tier sites on container-capable platforms, per-site containers SHALL
 **When** the archive is closed
 **Then** for each `C_i`, `ContainerNative.deleteContainer(C_i)` is called
 **And** no on-disk container directory survives the close (best-effort — see Limitations)
+
+#### Scenario: A nested screen of an archive site binds its opaque container
+
+**Given** an open archive holding site S, whose container is `ws-<X>`
+**When** the user taps a cross-domain link in S and it opens in a nested screen, on Android
+**Then** the nested webview binds `ws-<X>`
+**And** no container named `ws-<S>` is created
+**And** the nested screen's site info sheet (NAV-011) names `ws-<X>`
+
+#### Scenario: Close sweeps a cleartext-named container
+
+**Given** a container `ws-<S>` exists for archive site S (left by a build before this rule)
+**And** no app-tier site has id S
+**When** the archive is closed
+**Then** `ws-<S>` is deleted with the archive's opaque containers
+
+#### Scenario: Close leaves an app-tier site's container alone
+
+**Given** archive A holds site S and an app-tier site also has id S (restored from an old backup)
+**When** A is closed
+**Then** the app-tier site's container `ws-<S>` is not deleted
 
 #### Scenario: Cookies survive across archive sessions
 

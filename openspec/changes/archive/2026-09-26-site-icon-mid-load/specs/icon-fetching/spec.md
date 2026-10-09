@@ -45,7 +45,7 @@ shows another page, usually on another host.
 
 The icon is kept by `SiteIconStore`, keyed by the site's home URL. It is
 written to disk only when the site is not incognito (archive tier counts as
-incognito, see [archive](../../../../specs/archive/spec.md) ARCH-006); otherwise it lives for
+incognito, see [archive](../../../../../specs/archive/spec.md) ARCH-006); otherwise it lives for
 the session. An entry loaded from disk yields to the first icon of a launch
 that is at least as large, so an icon the site has since dropped heals on the
 next launch; within a launch only a larger icon replaces it, so pages of one

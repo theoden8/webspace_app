@@ -116,7 +116,7 @@ LogEntry? parseBackgroundLogLine(String line) {
   );
 }
 
-/// DEVTOOLS-011: what happened while the app was in the background, kept
+/// DEVTOOLS-012: what happened while the app was in the background, kept
 /// across process death so the user can read it on the device that missed a
 /// notification, without logcat or Console.app.
 ///

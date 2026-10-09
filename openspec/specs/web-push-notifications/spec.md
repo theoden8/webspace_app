@@ -343,7 +343,7 @@ The system SHALL request OS-level notification permission before displaying the 
 
 Because the wake-up chain (OS scheduler -> webview reload -> page JS -> `webNotification` handler -> `NotificationService.show` -> OS delivery) spans three layers that each fail silently, the system SHALL make the chain observable and foreground-triggerable so a regression can be localized without waiting on the OS background scheduler.
 
-The two foreground triggers below are developer affordances: they SHALL appear only while developer mode (`developer-tools` DEVTOOLS-010) is on, the same flag that keeps the background log (DEVTOOLS-011), so the controls and the record of what they did come and go together.
+The two foreground triggers below are developer affordances: they SHALL appear only while developer mode (`developer-tools` DEVTOOLS-010) is on, the same flag that keeps the background log (DEVTOOLS-012), so the controls and the record of what they did come and go together.
 
 #### Scenario: Every hop logs a trace line
 
@@ -356,7 +356,7 @@ The two foreground triggers below are developer affordances: they SHALL appear o
 
 **Given** developer mode is on
 **When** a background refresh runs, in a process that later dies or in one Dart never started
-**Then** the trace lines above, and the native bridge's, are kept in the background log (DEVTOOLS-011)
+**Then** the trace lines above, and the native bridge's, are kept in the background log (DEVTOOLS-012)
 **And** the Background tab of Developer Tools shows them with the OS gates the refresh depends on, without logcat or Console.app
 
 #### Scenario: Developer can simulate a background refresh in the foreground

@@ -595,7 +595,7 @@ Flutter never draws so a matching dominant color proves the sample
 came from the webview.
 
 The suite SHALL cover at least: fresh first activation (BUG-001 gap
-#7), loaded-site switch (`setCurrentIndex` reuse), the reload funnel
+#7), loaded-site switch (`_setCurrentIndex` reuse), the reload funnel
 (`PAUSE-021`), memory pressure against the visible site
 (`PAUSE-019`), fresh activation with other sites live
 (`PAUSE-017`), the return from a pushed opaque route (`PAUSE-024`),
@@ -615,15 +615,16 @@ actually been — it asserts only that the app renders at all. The
 delay SHALL come from the in-process server holding the response, not
 from a slow network, so the scenario stays deterministic.
 
-The nested-screen scenario SHALL reach the nested route through a
-**script-initiated cross-domain navigation** from a seeded site with
-`blockAutoRedirects` off, and the cross-domain target SHALL be the
+The nested-screen scenario SHALL reach the nested route by submitting a
+**cross-domain address in the seeded site's URL bar** (a script cannot
+open it: every site blocks gesture-less cross-domain navigations,
+NESTED-004), and the cross-domain target SHALL be the
 same in-process server reached under a second loopback address
 (`127.0.0.2` alongside `127.0.0.1`, hence a server bound to
 `anyIPv4`). Two hosts on one server keep the navigation genuinely
 cross-domain — `getBaseDomain` compares IP literals — while keeping a
-network failure impossible, and a scripted navigation keeps the
-scenario off any synthetic touch reaching the platform view.
+network failure impossible, and typed input keeps the scenario off any
+synthetic touch reaching the platform view.
 
 #### Scenario: A late-committing document is repainted promptly
 

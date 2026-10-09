@@ -295,6 +295,62 @@ fail-closed semantics.
 
 ---
 
+### Requirement: PROXY-010 - A field the selected type hides keeps its stored value
+
+A proxy configuration SHALL survive a round trip through a type that does not
+render it. Switching a setting from a typed gateway to DEFAULT, to TOR, or to
+a library entry (PROXY-030) and back SHALL restore the address and credentials
+the user last entered, so trying another route for an afternoon does not cost
+a configuration they then have to retype.
+
+- **One place decides it.** `applyProxyForm` in
+  [lib/services/proxy_form_engine.dart](../../../lib/services/proxy_form_engine.dart)
+  is the only reader of this rule, shared by the per-site Network screen
+  (NET-001) and the app-wide proxy form, so the two cannot disagree about it
+  (PROXY-019). A field the selected type renders is authoritative and
+  emptying it is how its value is removed; a field the type does not render
+  SHALL NOT be written back, because its controller still holds whatever was
+  last drawn.
+- **What carries over.** The address under DEFAULT, TOR, a saved proxy and a
+  saved gateway; the credentials under those types, and while saved
+  credentials are picked. A typed gateway SHALL instead drop a
+  saved-credentials reference, which fits saved gateways only and would fail
+  closed on a typed one (PROXY-030).
+- **A stored address is not a destination.** Because a setting keeps an
+  address its type does not use, no consumer SHALL dial the stored address
+  without resolving the type first: `resolveEffectiveProxy`, then
+  `expandTorProxy` for TOR. A rule or route built for a Tor site out of that
+  leftover address would reach an unrelated proxy in clear. Both the
+  process-wide rule (`webview_proxy.dart`) and the router's routes
+  (`proxy_router_engine.dart`) SHALL carry the endpoint the runtime serves
+  with the site's own credential, and drop the route when the runtime is not
+  up rather than send the site elsewhere (TOR-008). Gated by
+  `test/js/process_wide_tor_isolation.test.js`.
+
+#### Scenario: A trip through the library keeps the typed gateway
+
+**Given** a site's proxy is SOCKS5 `127.0.0.1:1080` with credentials
+**When** the user picks a saved proxy, saves, switches back to SOCKS5 and
+saves again
+**Then** the address and credentials are the ones first entered
+
+#### Scenario: A typed gateway drops a saved credential it cannot use
+
+**Given** a setting on a saved gateway with saved credentials picked
+**When** the user switches the type to SOCKS5 and saves
+**Then** the stored saved-credentials reference is null
+**And** the address and credentials are what the fields held on screen
+
+#### Scenario: A Tor site never dials the address it kept
+
+**Given** a site that was SOCKS5 `10.0.0.1:8080` and is now TOR
+**When** a proxy rule or a router route is built for it
+**Then** it names the loopback endpoint the Tor runtime serves, carrying the
+site's isolation tag as the SOCKS username
+**And** `10.0.0.1:8080` appears in no rule and no route
+
+---
+
 ### Requirement: PROXY-019 - Credentials are the fields, and the form can be tested
 
 The proxy credential pair SHALL be stored as the form holds it: a visible
@@ -305,9 +361,9 @@ gate whether credentials are saved.
 The rule for which fields are authoritative lives in one place,
 `applyProxyForm` in
 [lib/services/proxy_form_engine.dart](../../../lib/services/proxy_form_engine.dart),
-shared by the per-site and app-wide proxy forms. Fields hidden by the
-selected type (DEFAULT and TOR render neither address nor credentials)
-are NOT written back; their stored values carry over, per PROXY-010.
+shared by the per-site and app-wide proxy forms. A field the selected type
+does not render is not written back and keeps its stored value, which
+PROXY-010 states in full.
 
 The forms SHALL also offer a connection test that sends one request
 through the configuration currently in the form — not the persisted copy
@@ -600,16 +656,18 @@ session every site would present the first site's credential. Where the
 gate fails, PROXY-008 applies unchanged. The gate is per device; whether a
 given site actually receives a profile is PROXY-018.
 
-Router mode SHALL additionally be gated on developer mode, so the shipped
-default on every device is PROXY-008. The premise the feature rests on is
-read off Chromium's source and proven at runtime by the PROXY-015 probe,
-but so far only on WebView builds that pass it: no device that fails the
-probe has exercised the fallback, and the one defect that made the relay
-never bind at all was invisible to every test tier. Both gates are read
-once, at activation, so flipping developer mode applies at next launch
-rather than tearing a bound relay out from under loaded sites. The gate is
-temporary and SHALL be lifted once the fallback has been exercised on
-hardware that fails the probe.
+Router mode SHALL additionally be gated on its experimental switch
+(DEVTOOLS-011): developer mode and the **Proxy router** switch, so the
+shipped default on every device is PROXY-008. The switch defaults on, so
+developer mode alone keeps running the router for a user who had it. The
+premise the feature rests on is read off Chromium's source and proven at
+runtime by the PROXY-015 probe, but so far only on WebView builds that pass
+it: no device that fails the probe has exercised the fallback, and the one
+defect that made the relay never bind at all was invisible to every test
+tier. Both gates are read once, at activation, so flipping developer mode or
+the switch applies at next launch rather than tearing a bound relay out from
+under loaded sites. The gate is temporary and SHALL be lifted once the
+fallback has been exercised on hardware that fails the probe.
 
 #### Scenario: The default install does not engage router mode
 
@@ -620,10 +678,18 @@ hardware that fails the probe.
 **And** no relay is bound
 **And** mismatched-proxy sites serialise under PROXY-008
 
+#### Scenario: The switch off keeps PROXY-008 with developer mode on
+
+**Given** an Android device whose WebView reports `MULTI_PROFILE`
+**And** developer mode is on and the Proxy router switch is off
+**When** the app starts
+**Then** router mode does not activate
+**And** mismatched-proxy sites serialise under PROXY-008
+
 #### Scenario: Two same-domain sites with different proxies stay loaded
 
 **Given** container mode is active on Android
-**And** developer mode is on
+**And** developer mode and the Proxy router switch are on
 **And** Site A (`accountA.example.com`) uses SOCKS5 `127.0.0.1:9050`
 **And** Site B (`accountB.example.com`) uses HTTP `10.0.0.1:8080`
 **When** the user activates Site B while Site A is loaded
@@ -1149,6 +1215,191 @@ is cleared
 **And** the next build of that site clears again before loading
 
 ---
+
+### Requirement: PROXY-030 - A proxy library of saved proxies, gateways and credentials
+
+The app SHALL keep a proxy library of three kinds of named entry:
+
+- a **gateway**: a type (HTTP, HTTPS or SOCKS5) and an address;
+- **credentials**: a username and password, and the gateways they work on,
+  at least one;
+- a **saved proxy**: a gateway choice (typed, or a saved gateway) and a
+  credentials choice (typed, or saved credentials that list that gateway).
+
+The library SHALL be offered with developer mode on or off. It shipped first
+behind developer mode and an Experimental **Saved proxies** switch
+(DEVTOOLS-011); it graduated, and the switch and its pref
+(`experimentalProxyLibrary`, written by v0.3.3 and no longer read) went with
+it.
+
+With both halves typed, a saved proxy is simply a proxy, and the user never
+has to create a gateway or credentials entry for it. Those entries exist for
+what is shared: one account that works on several gateways, several accounts
+on one gateway. Tor SHALL NOT be a gateway: it is one built-in route with
+per-site circuits (TOR-003), not an endpoint to share.
+
+Wherever a proxy is chosen (a site's Network screen and the app-wide outbound
+proxy), the app SHALL offer the saved proxies and the saved gateways by name
+beside the plain types. A setting on a saved gateway SHALL offer the saved
+credentials that list it, and typed credentials; a setting on a typed gateway
+SHALL offer typed credentials only. Credentials SHALL NOT be offered for a
+gateway they do not list, and moving a setting to such a gateway SHALL drop
+the saved credentials rather than keep a pairing that cannot sign in.
+
+A setting SHALL store references (`ProxyType.SAVED` + `savedProxyId`,
+`ProxyType.GATEWAY` + `gatewayId`, `credentialsId`), not copies. They SHALL be
+resolved at use by `resolveEffectiveProxy`, so every outbound seam that
+already resolves through it (the native binding, the Android override and
+relay, the router, Dart-side HTTP) takes the entries' current values. Editing
+an entry SHALL therefore change every route that uses it, directly or through
+a saved proxy, and SHALL dispose every loaded webview, as an app-wide proxy
+change does.
+
+A reference that does not resolve SHALL fail closed: a missing saved proxy,
+gateway or credentials, or credentials paired with a gateway they do not
+list. It resolves to SAVED with no address, which every seam treats as
+unroutable, and SHALL NOT fall through to the app-wide proxy or to a direct
+connection. Deleting an entry SHALL first say how many sites use it, through
+a saved proxy included, and whether the app-wide proxy does, and that they
+will be blocked. Deleting a gateway SHALL remove it from every credentials
+entry's list. The Network row (NET-002), the site info sheet and the
+connection indicator SHALL name what failed.
+
+A setting SHALL keep its typed address and credentials across a switch to
+the library and back (PROXY-010).
+
+Settings that resolve to the same route have equal effective proxies, so
+Android SHALL load them together under PROXY-008; one gateway with two sets
+of credentials is two routes, kept apart unless router mode (PROXY-013) is
+on.
+
+Sharing a site by QR SHALL carry the resolved type, address and username in
+place of the references, never a password; a reference that does not resolve
+SHALL carry no proxy. A received payload that names the library SHALL be
+refused, since the encoder never emits one.
+
+#### Scenario: The library needs no developer mode
+
+- **GIVEN** developer mode is off and the library holds saved proxy "Work VPN"
+- **WHEN** the user opens a site's Network screen
+- **THEN** its proxy picker offers "Work VPN"
+- **AND** App Settings shows the Saved proxies row
+- **AND** the Experimental group has no Saved proxies switch
+
+#### Scenario: One VPN, typed once
+
+- **GIVEN** the user adds a saved proxy "Home", SOCKS5 `192.0.2.1:1080`, with
+  both halves typed
+- **AND** sites Mail and Chat pick "Home"
+- **THEN** both route through `192.0.2.1:1080`
+- **AND** no gateway or credentials entry was created
+
+#### Scenario: One account on several gateways
+
+- **GIVEN** gateways "VPN US" and "VPN DE", and credentials "Alice" that list
+  both
+- **AND** site Mail uses "VPN US" with "Alice", and site Chat uses "VPN DE"
+  with "Alice"
+- **WHEN** the user changes Alice's password
+- **THEN** both sites sign in with the new password
+
+#### Scenario: Several accounts on one gateway
+
+- **GIVEN** gateway "VPN DE" and credentials "Alice" and "Mail session" that
+  both list it
+- **AND** site Mail uses "VPN DE" with "Mail session"
+- **THEN** Mail signs in to `de.gw:1080` as the Mail session user
+- **AND** on Android without router mode, activating Mail unloads a loaded
+  site that uses "VPN DE" with "Alice"
+
+#### Scenario: Credentials are offered only where they fit
+
+- **GIVEN** "Mail session" lists "VPN DE" only
+- **WHEN** a site picks "VPN US"
+- **THEN** "Mail session" is not offered
+- **AND** a site that had "VPN DE" with "Mail session" and moves to "VPN US"
+  has its credentials dropped
+
+#### Scenario: A deleted entry blocks, it does not go direct
+
+- **GIVEN** Mail uses saved proxy "Work VPN" and the app-wide proxy is HTTP
+  `1.2.3.4:8080`
+- **WHEN** the user deletes the gateway "Work VPN" is built on
+- **THEN** the confirmation says one site uses it and will be blocked
+- **AND** Mail's webview fails closed rather than loading
+- **AND** no request from Mail goes through `1.2.3.4:8080` or direct
+
+#### Scenario: A pairing that does not fit blocks
+
+- **GIVEN** a site on "VPN US" with credentials that do not list it (a
+  hand-edited backup, or a list edited since)
+- **THEN** the site fails closed
+- **AND** its Network row reads that the credentials don't fit the gateway
+
+#### Scenario: The app-wide proxy can use the library
+
+- **GIVEN** the app-wide proxy names "Work VPN"
+- **AND** a site whose proxy type is DEFAULT
+- **THEN** the site and the app's own downloads route through "Work VPN"
+
+#### Scenario: A shared site carries the route, not the references
+
+- **GIVEN** Mail uses "VPN DE" with "Mail session"
+- **WHEN** the user shares Mail by QR
+- **THEN** the payload's proxy is SOCKS5 `de.gw:1080` with the Mail session
+  username
+- **AND** the payload carries no password and no library id
+
+---
+
+### Requirement: PROXY-031 - A proxy in use says whether it answers
+
+Wherever the app shows a proxy the user relies on, it SHALL show whether that
+proxy answers: a coloured dot and one line, reading that the proxy works, that
+it rejected the credentials, or that it could not be reached, and a progress
+mark while it is checking. The check SHALL be one request sent through the
+resolved proxy by the same `testProxyConnection` seam the connection test uses
+(PROXY-019), so a route that fails closed there reads as not reached and never
+probes over the device IP.
+
+The indicator SHALL appear on every saved proxy in the library, under a
+site's proxy picker and under the app-wide picker while they use the library,
+and in a Connection row of the URL-bar site info sheet. That row SHALL name
+the route the site's traffic takes: direct, the app-wide proxy, a saved proxy
+or gateway by name, the site's own proxy, or Tor; the indicator is absent for
+a direct route. The row SHALL be absent where the platform binds no per-site
+proxy (PROXY-006).
+
+A check SHALL run only when an indicator is shown and its last answer is
+older than two minutes, or when the user taps it again; never on a timer,
+which would be traffic the user did not cause. Answers SHALL be kept per
+proxy configuration, password included, so every surface showing one proxy
+agrees and an edited proxy is checked afresh. A route that does not resolve
+SHALL name what failed without a probe. An indicator whose proxy changes
+under it, as while an address is typed, SHALL wait a second before probing,
+so no intermediate `host:port` is sent a request.
+
+#### Scenario: The list shows which proxies are up
+
+- **GIVEN** three saved proxies, one reachable, one refusing its password,
+  one not listening
+- **WHEN** the user opens Saved proxies
+- **THEN** the rows read "The proxy works", "The proxy rejected these
+  credentials" and "Could not reach the proxy"
+
+#### Scenario: The site info sheet names the route
+
+- **GIVEN** a site that names "Work VPN"
+- **WHEN** the user opens the site info sheet from the URL bar
+- **THEN** its Connection row reads "Work VPN", with the proxy's type and
+  address beneath, and whether it answers
+
+#### Scenario: No background probing
+
+- **GIVEN** the saved proxies list was checked a minute ago
+- **WHEN** the user opens it again
+- **THEN** no request is sent
+- **AND** tapping a row's check button sends one
 
 ## Data Model
 
