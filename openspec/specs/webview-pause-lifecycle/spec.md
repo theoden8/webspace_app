@@ -134,7 +134,7 @@ The `WebViewController` interface SHALL expose `pause()`/`resume()` and `pauseAl
 
 ### Requirement: PAUSE-006 — Cascading Memory-Pressure Lifecycle
 
-When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure`, the system SHALL promote one loaded site by one tier per event, cascading through three states from least to most aggressive: `resident` → `cacheCleared` → `savedForRestore`.
+When the OS signals memory pressure via `WidgetsBindingObserver.didHaveMemoryPressure` while the app is resumed (PAUSE-034), the system SHALL promote one loaded site by one tier per event, cascading through three states from least to most aggressive: `resident` → `cacheCleared` → `savedForRestore`.
 
 The cascade is owned by [`SiteLifecyclePromotionEngine`](../../../lib/services/site_lifecycle_promotion_engine.dart), a pure-Dart picker that:
 
@@ -228,6 +228,30 @@ The load ordering differs by platform because the restore APIs differ. On iOS/ma
 The handler applies the plan [`SiteUnloadEngine.plan`](../../../lib/services/site_unload_engine.dart) gives for `MemoryPressure`: a cache clear for a `resident` victim, an unload for a `cacheCleared` one. Every other residency decision (activation, a webspace switch, a settled Tor exit, a nested open, a slot's identity change) is a `ResidencyEvent` case of the same plan, applied by `SiteUnloadEngine.apply`, which follows each site by identity and skips one no longer loaded when its turn comes.
 
 **Because** `setCurrentIndex` records its target in `SiteRuntime.activating` (set synchronously before any await), and `SiteRuntime.retentionPriority` ranks it `activating` alongside the `active` current site. Without the in-flight guard, mid-activation eviction would dispose A's about-to-be-built webview, leaving `restoreState` to no-op against a null controller.
+
+### Requirement: PAUSE-034 — Leaving The Screen Is Not Memory Pressure
+
+Flutter delivers two different things through `didHaveMemoryPressure`: an OS memory warning, and every exit from the screen. The iOS engine's `flutterDidEnterBackground` calls `notifyLowMemory`, which sends the same `memoryPressure` system message as `UIApplicationDidReceiveMemoryWarningNotification`; the Android embedding forwards every `onTrimMemory` level at or above `TRIM_MEMORY_RUNNING_LOW`, and `TRIM_MEMORY_UI_HIDDEN` arrives on every exit. The PAUSE-006 cascade SHALL run only for an event that arrives while the app is `resumed`, decided by `AppLifecycleEngine.memoryPressureTrims` on the binding's lifecycle state at the time of the event. Any other event SHALL trim nothing and probe nothing, and is logged at debug level as `memory pressure while <state>`.
+
+Trimming on the exit signal cleared one offscreen site's cache on one trip to the home screen and disposed it on the next, so within four trips every site but the one on screen was gone. Notification sites lost the live connection NOTIF-011 keeps them running for, and every other site lost its JS state and scroll (BUG-024 attempt 9).
+
+A real OS warning that lands while the app is in the background is dropped with the exit signal: the two arrive on the same callback and nothing in Dart tells them apart. Since API 34 Android sends apps only `TRIM_MEMORY_UI_HIDDEN` and `TRIM_MEMORY_BACKGROUND`, both while the app is off screen, so on Android 14 and later the cascade does not run at all; there the loaded-site cap (`kMaxLoadedSites`) and the proactive cache clear (`kMaxResidentSites`, PAUSE-012) bound the working set, and a renderer the OS kills is rebuilt by PAUSE-013 and PAUSE-014. Before this the cascade ran on those releases only when the user left the screen. The background log records the signals that are real pressure (DEVTOOLS-011): an iOS memory warning, and an Android trim level other than `UI_HIDDEN`.
+
+#### Scenario: Two trips to the home screen leave every loaded site loaded
+
+**Given** three loaded sites, one on screen, all `resident`
+**When** the user leaves the app and comes back, twice
+**Then** Flutter reports `didHaveMemoryPressure` on each exit
+**And** no site changes tier and none is unloaded
+**And** the log carries one `memory pressure while <state>` line per exit
+
+#### Scenario: A warning while the app is in use still trims
+
+**Given** the app is resumed with three loaded sites
+**When** the OS sends a memory warning
+**Then** the PAUSE-006 cascade promotes one non-active site by one tier
+
+**Tests:** `test/app_lifecycle_engine_test.dart` replays the platform messages of an exit (`flutter/lifecycle` and `flutter/system`, in both orders after `inactive`); `test/js/memory_pressure_background_gate.test.js` holds `didHaveMemoryPressure` to the decision and to being the only caller of the cascade; emulator Scenario P in `scripts/run_android_lifecycle_tests.sh` presses Home twice for real and fails on an unload as memory pressure, or on no memory-pressure report at all.
 
 ### Requirement: PAUSE-012 — Proactive Cache-Clear Threshold
 

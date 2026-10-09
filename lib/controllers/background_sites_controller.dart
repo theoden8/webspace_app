@@ -15,6 +15,7 @@ import 'package:webspace/services/media_session_service.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/proxy_conflict_engine.dart';
 import 'package:webspace/services/proxy_router_service.dart';
+import 'package:webspace/services/refresh_schedule_engine.dart';
 import 'package:webspace/services/site_unload_engine.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/services/wake_baseline_store.dart';
@@ -99,20 +100,33 @@ class BackgroundSitesController {
         : (blocker.initUrl.isNotEmpty ? blocker.initUrl : 'Another site');
   }
 
+  /// What the last [reschedule] asked the OS for; null before the first.
+  bool? _scheduled;
+
   /// NOTIF-005-{I,A}: a refresh is scheduled iff a site has notifications
   /// on, loaded or not: a wake checks the unloaded ones headless (NOTIF-016).
-  /// iOS `BGAppRefreshTask`, Android a `WorkManager` periodic request. Both
-  /// submissions replace any pending one, so this is idempotent.
-  Future<void> reschedule() async {
+  /// iOS `BGAppRefreshTask`, Android a `WorkManager` periodic request. The
+  /// request is touched only when that answer changes or the app is leaving
+  /// the screen ([RefreshScheduleEngine]).
+  Future<void> reschedule({bool leavingScreen = false}) async {
     if (!hostIsIOS && !hostIsAndroid) return;
     final c = counts();
     final any = c.enabled > 0;
-    BackgroundLog.instance.record(
-      LogTag.backgroundTask,
-      message: '${any ? "schedule" : "cancel"} refresh — '
-          'notif sites: ${c.enabled} enabled, ${c.loaded} loaded',
+    final action = RefreshScheduleEngine.next(
+      scheduled: _scheduled,
+      anyEnabled: any,
+      leavingScreen: leavingScreen,
     );
-    if (any) {
+    if (action == RefreshScheduleAction.keep) return;
+    if (_scheduled != any) {
+      BackgroundLog.instance.record(
+        LogTag.backgroundTask,
+        message: '${any ? "schedule" : "cancel"} refresh — '
+            'notif sites: ${c.enabled} enabled, ${c.loaded} loaded',
+      );
+    }
+    _scheduled = any;
+    if (action == RefreshScheduleAction.schedule) {
       await BackgroundTaskService.instance.scheduleNextRefresh();
     } else {
       await BackgroundTaskService.instance.cancelScheduledRefreshes();
@@ -258,9 +272,6 @@ class BackgroundSitesController {
     unawaited(_activeWake?.closeAllHeadless());
     startForegroundPoll();
     unawaited(BackgroundTaskService.instance.endGracePeriod());
-    // If memory pressure unloaded every notification site while away, the
-    // schedule goes; otherwise resubmitting it is a no-op.
-    unawaited(reschedule());
   }
 
   /// A post from the background told the user what the site's title now
@@ -329,17 +340,23 @@ class BackgroundSitesController {
         ? refreshSites()
         : wake();
     BackgroundTaskService.instance.initialize();
-    BackgroundLog.instance.appState = () {
+    BackgroundLog.instance.appState = () async {
       final c = counts();
-      final permission = NotificationService.instance.permissionGranted;
+      final lifecycle = WidgetsBinding.instance.lifecycleState?.name ?? 'unknown';
+      // The OS's answer, not this process's last one: a process that has
+      // posted nothing yet has none.
+      final permission = await NotificationService.instance.osPermission();
       return [
-        MapEntry('app.lifecycle',
-            WidgetsBinding.instance.lifecycleState?.name ?? 'unknown'),
+        MapEntry('app.lifecycle', lifecycle),
         MapEntry('app.notificationSitesEnabled', '${c.enabled}'),
         MapEntry('app.notificationSitesLoaded', '${c.loaded}'),
         MapEntry('app.notificationSitesWithWebview', '${c.live}'),
-        MapEntry('app.notificationPermission',
-            permission == null ? 'not asked yet' : (permission ? 'granted' : 'denied')),
+        MapEntry('app.notificationPermission', switch (permission) {
+          true => 'granted',
+          false => 'not granted',
+          null when hostIsAndroid || hostIsIOS || hostIsMacOS => 'unreadable',
+          null => 'not applicable',
+        }),
         MapEntry('app.isolation', _sites.useContainers ? 'containers' : 'legacy'),
       ];
     };

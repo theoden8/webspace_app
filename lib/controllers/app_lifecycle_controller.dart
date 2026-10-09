@@ -149,7 +149,7 @@ class AppLifecycleController {
       model.resumeReload.noteAppBackgrounded();
     }
     background.noteBackgrounded();
-    unawaited(background.reschedule());
+    unawaited(background.reschedule(leavingScreen: true));
     // After the media stops: WebKit republishes its Now Playing entry when it
     // processes a pause, so clearing before that leaves the controls up
     // (BGAUDIO-009).

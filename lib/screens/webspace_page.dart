@@ -75,6 +75,7 @@ import 'package:webspace/services/shortcut_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/nested_open_engine.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
+import 'package:webspace/services/app_lifecycle_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_router_service.dart';
 import 'package:webspace/screens/dev_tools.dart';
@@ -420,11 +421,17 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   @override
   void didHaveMemoryPressure() {
-    // OS is signaling memory pressure. Trim one loaded site per
-    // event so the system controls the curve — if pressure persists
-    // the callback fires again and we evict the next victim. The
-    // active site is hard-protected; sites in the active webspace
-    // are soft-keep (evicted only after every other candidate).
+    final state = WidgetsBinding.instance.lifecycleState;
+    if (!AppLifecycleEngine.memoryPressureTrims(state)) {
+      LogTag.lifecycle.debug(
+          'memory pressure while ${state?.name ?? 'unreported'}: '
+          'leaving the screen, nothing trimmed (PAUSE-034)');
+      return;
+    }
+    // Trim one loaded site per event so the system controls the curve: if
+    // pressure persists the callback fires again and we evict the next
+    // victim. The active site is hard-protected; sites in the active
+    // webspace are soft-keep (evicted only after every other candidate).
     unawaited(_activation.memoryPressure());
   }
 

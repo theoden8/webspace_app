@@ -114,3 +114,26 @@ test('the native file takes only what Dart appends and its own lines', () => {
     }
   }
 });
+
+test('iOS: the grace-period launch note reads markers the code still writes', () => {
+  // The note at launch is inferred from the last line about the grace window,
+  // matched by message prefix. A reworded message would leave the inference
+  // looking for a line nobody writes, and the note would silently stop.
+  const swift = read(swiftRel);
+  const fn = swift.indexOf('private static func endedInGrace(');
+  assert.notEqual(fn, -1, `${swiftRel} must define endedInGrace`);
+  const body = swift.slice(fn, swift.indexOf('\n  }\n', fn));
+  const prefixes = [...body.matchAll(/hasPrefix\("([^"]+)"\)/g)].map((m) => m[1]);
+  assert.deepEqual([...prefixes].sort(), [
+    'App resumed', 'grace period', 'grace period started',
+    'process launched', 'process terminating',
+  ].sort());
+  const writers = [swiftRel, 'ios/Runner/AppDelegate.swift',
+    'lib/controllers/app_lifecycle_controller.dart'].map(read).join('\n');
+  for (const p of prefixes) {
+    assert.ok(new RegExp(`["']${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(writers),
+      `nothing writes a line starting "${p}" any more; update endedInGrace`);
+  }
+  assert.match(read('ios/Runner/AppDelegate.swift'), /BackgroundLogFile\.shared\.recordLaunch\(/,
+    'the launch line must go through recordLaunch, which writes the note first');
+});

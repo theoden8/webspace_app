@@ -181,22 +181,24 @@ class NotificationService {
     await requestPermission();
   }
 
-  Future<void> _readPermission() async {
-    bool? granted;
+  /// The OS permission as it stands, read without prompting. Null where the
+  /// platform has no read or the read failed.
+  Future<bool?> osPermission() async {
+    if (!_initialized) await init();
     try {
       if (hostIsAndroid) {
-        granted = await _plugin
+        return await _plugin
             .resolvePlatformSpecificImplementation<
                 AndroidFlutterLocalNotificationsPlugin>()
             ?.areNotificationsEnabled();
       } else if (hostIsIOS) {
-        granted = (await _plugin
+        return (await _plugin
                 .resolvePlatformSpecificImplementation<
                     IOSFlutterLocalNotificationsPlugin>()
                 ?.checkPermissions())
             ?.isEnabled;
       } else if (hostIsMacOS) {
-        granted = (await _plugin
+        return (await _plugin
                 .resolvePlatformSpecificImplementation<
                     MacOSFlutterLocalNotificationsPlugin>()
                 ?.checkPermissions())
@@ -209,7 +211,11 @@ class NotificationService {
         level: LogLevel.warning,
       );
     }
-    final value = granted ?? false;
+    return null;
+  }
+
+  Future<void> _readPermission() async {
+    final value = await osPermission() ?? false;
     final changed = _permissionGranted != value;
     _permissionGranted = value;
     BackgroundLog.instance.record(

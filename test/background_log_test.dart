@@ -215,7 +215,7 @@ void main() {
     final native = _FakeNative()
       ..state = const [MapEntry('ios.backgroundRefreshStatus', 'denied')];
     final log = BackgroundLog(native: native)
-      ..appState = () => const [MapEntry('app.notificationSitesLoaded', '0')];
+      ..appState = () async => const [MapEntry('app.notificationSitesLoaded', '0')];
     expect((await log.systemState()).map((e) => e.key),
         ['app.notificationSitesLoaded', 'ios.backgroundRefreshStatus']);
   });

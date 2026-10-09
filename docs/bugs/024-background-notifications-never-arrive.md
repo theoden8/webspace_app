@@ -3,12 +3,17 @@
 Status: open
 
 **Spec:** [web-push-notifications](../../openspec/specs/web-push-notifications/spec.md)
-NOTIF-005-I, NOTIF-005-A, NOTIF-011, NOTIF-013, NOTIF-014, NOTIF-016
+NOTIF-005-I, NOTIF-005-A, NOTIF-011, NOTIF-013, NOTIF-014, NOTIF-016;
+[webview-pause-lifecycle](../../openspec/specs/webview-pause-lifecycle/spec.md)
+PAUSE-034
 **Tests:** [test/background_wake_engine_test.dart](../../test/background_wake_engine_test.dart)
 (the wake: which sites, how, and what it posts),
 [test/wake_candidates_test.dart](../../test/wake_candidates_test.dart) (the
 app's models as the wake sees them),
 [test/js/background_wake_cold_engine.test.js](../../test/js/background_wake_cold_engine.test.js),
+[test/app_lifecycle_engine_test.dart](../../test/app_lifecycle_engine_test.dart)
+and [test/js/memory_pressure_background_gate.test.js](../../test/js/memory_pressure_background_gate.test.js)
+(leaving the screen trims nothing),
 emulator Scenarios F, P and P2 in
 [scripts/run_android_lifecycle_tests.sh](../../scripts/run_android_lifecycle_tests.sh)
 
@@ -70,7 +75,7 @@ what it finds.**
    partial*: diagnostics only. Its first logs from a device showed iOS wakes
    with notification sites enabled and none checked, which is attempt 8.
 
-8. **2026-10-06 — this change.** A wake checks every notification site
+8. **2026-10-06 — PR #675.** A wake checks every notification site
    (NOTIF-016): a live webview is reloaded, any other site is opened in a
    headless webview built from the same per-site config (container, proxy,
    shims, blockers) and closed when the wake ends. Selection moved into the
@@ -87,6 +92,33 @@ what it finds.**
    ended at its first fallback post. *Why*: in a process iOS launched for the task no frame is
    drawn, so no webview is ever built, and on Android the reclaimed process
    was the common case. *Why partial*: see the open gaps.
+
+9. **2026-10-08 — this change.** The memory-pressure cascade runs only while
+   the app is resumed (PAUSE-034). *Why*: the first device log after attempt
+   8 put every `SiteUnload (memory pressure)` line in the same second as an
+   `App background` line, on every second exit. Flutter reports memory
+   pressure on every exit from the screen (the iOS engine's
+   `flutterDidEnterBackground` calls `notifyLowMemory`; Android forwards
+   `TRIM_MEMORY_UI_HIDDEN`), and PAUSE-006 trimmed a tier per report, so four
+   trips to the home screen disposed every notification site but the one on
+   screen, and its live connection with it. For most of two days that log
+   read "3 enabled, 1 loaded". No test saw it because none fed the two
+   signals together: unit tests call the cascade directly, integration tests
+   inject lifecycle through `handleAppLifecycleStateChanged`, which never
+   reaches the engine's enter-background hook, and Scenario P, the one that
+   pressed Home for real, did so once per process, which only clears a
+   cache. Scenario P now leaves the screen twice. The background log now
+   also records what told these cases apart only by inference: real OS
+   memory warnings (iOS) and trim levels (Android), Low Power Mode changes,
+   `willTerminate`, and a process that ended inside its grace period, of
+   which that log had four. The refresh request is no longer resubmitted on
+   every site switch and resume, each of which moved its earliest start, and
+   the state row reads the OS notification permission instead of what this
+   process last asked. *Why partial*: a real OS
+   memory warning that lands while the app is in the background is dropped
+   with the exit signal, since nothing in Dart tells them apart; and the
+   same log shows Low Power Mode on and no refresh task at all since attempt
+   8 shipped, so the headless wake has still not run on a device.
 
 ## Known open gaps
 
