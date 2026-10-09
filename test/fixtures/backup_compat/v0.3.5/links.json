@@ -1,0 +1,23 @@
+{
+  "webspace://open?url=https%3A%2F%2Fexample.com%2Fpath%3Fq%3D1": "https://example.com/path?q=1",
+  "webspace://open?url=https://example.com/": "https://example.com/",
+  "webspace:open?url=https%3A%2F%2Fexample.com%2F": "https://example.com/",
+  "webspace:///open?url=https%3A%2F%2Fexample.com%2F": "https://example.com/",
+  "WEBSPACE://OPEN?url=https%3A%2F%2Fexample.com%2F": "https://example.com/",
+  "webspace://open?url=http%3A%2F%2Flocalhost%3A8080%2F": "http://localhost:8080/",
+  "webspace://open?url=https%3A%2F%2F%5B%3A%3A1%5D%3A8443%2F": "https://[::1]:8443/",
+  "webspace://open?url=https%3A%2F%2Fuser%3Apass%40example.com%2F": "https://user:pass@example.com/",
+  "webspace://open?url=https%3A%2F%2Fexample.com%2F&url=https%3A%2F%2Fevil.example%2F": "https://evil.example/",
+  "webspace://open?url=https%3A%2F%2Fexample.com%2F%23frag": "https://example.com/#frag",
+  "webspace://open?url=javascript%3Aalert(1)": null,
+  "webspace://open?url=file%3A%2F%2F%2Fetc%2Fpasswd": null,
+  "webspace://open?url=data%3Atext%2Fhtml%2C%3Cscript%3Ealert(1)%3C%2Fscript%3E": null,
+  "webspace://open?url=intent%3A%2F%2Fexample.com%23Intent%3Bend": null,
+  "webspace://open?url=": null,
+  "webspace://open": null,
+  "webspace://open?url=https%3A%2F%2F": null,
+  "webspace://other?url=https%3A%2F%2Fexample.com%2F": null,
+  "webspace://qr/site/v1/AAAA": null,
+  "https://example.com/": null,
+  "webspace://open?url=%E0%A4%A": null
+}

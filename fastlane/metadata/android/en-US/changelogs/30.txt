@@ -1,0 +1,3 @@
+🐛 Bug Fixes:
+• Background notifications
+• White screens on Android
