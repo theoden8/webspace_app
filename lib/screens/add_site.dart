@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:material_design_icons_flutter/material_design_icons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
@@ -561,7 +560,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
                       border: OutlineInputBorder(),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          incognito ? MdiIcons.incognito : MdiIcons.incognitoOff,
+                          incognito ? Icons.visibility_off : Icons.visibility_off_outlined,
                           color: incognito ? Theme.of(context).colorScheme.primary : null,
                         ),
                         tooltip: incognito ? loc.addSiteIncognitoOn : loc.addSiteIncognitoOff,
