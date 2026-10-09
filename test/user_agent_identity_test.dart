@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_identity.dart';
 
+import 'helpers/user_agents.dart';
+
 void main() {
   group('describeUserAgent browser + OS', () {
     test('generated Firefox desktop shapes', () {
@@ -43,14 +45,11 @@ void main() {
       expect(chrome.browserVersion, '137');
       expect(chrome.os, UaOs.linux);
 
-      final safari = describeUserAgent(
-          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
-          'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 '
-          'Mobile/15E148 Safari/604.1');
+      final safari = describeUserAgent(mobileSafariIphoneUserAgent);
       expect(safari.browser, UaBrowser.safari);
-      expect(safari.browserVersion, '17');
+      expect(safari.browserVersion, '26');
       expect(safari.os, UaOs.ios);
-      expect(safari.osVersion, '17.5');
+      expect(safari.osVersion, '18.7');
 
       final edge = describeUserAgent(
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '

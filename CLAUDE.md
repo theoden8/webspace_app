@@ -191,7 +191,7 @@ missing piece: [docs/releasing.md](docs/releasing.md).
 Fresh sandboxes lack `fvm` and may lack `nvm`/Node. Skip a block if `command -v fvm` (or `node`) already prints a path — don't reinstall.
 
 ```bash
-# fvm — required (.fvmrc pins Flutter 3.38.6)
+# fvm — required (.fvmrc pins the Flutter version)
 curl -fsSL https://fvm.app/install.sh | bash
 export PATH="$HOME/fvm/bin:$PATH"
 fvm install

@@ -5,6 +5,8 @@ import 'package:webspace/services/user_agent_classifier.dart';
 import 'package:webspace/services/user_agent_preset.dart';
 import 'package:webspace/web_view_model.dart';
 
+import 'helpers/user_agents.dart';
+
 // The exact string observed in the wild on a device that generated its UA
 // with a pre-#410 build: iPhone platform token inside the Gecko desktop
 // grammar. No real browser sends this combination.
@@ -67,10 +69,7 @@ void main() {
   group('recognizeGeneratedUserAgent rejects non-generated strings', () {
     test('real browsers pass through as custom', () {
       const realUAs = [
-        // Mobile Safari.
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
-            'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 '
-            'Mobile/15E148 Safari/604.1',
+        mobileSafariIphoneUserAgent,
         // Desktop Chrome.
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
             '(KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',
@@ -132,9 +131,7 @@ void main() {
     test('does not claim real browsers or generated shapes', () {
       final notDefaults = [
         // Mobile Safari (Version/ + Safari/ tail).
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
-            'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 '
-            'Mobile/15E148 Safari/604.1',
+        mobileSafariIphoneUserAgent,
         // Desktop Chrome on Linux (no Version/ token).
         'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 '
             '(KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36',

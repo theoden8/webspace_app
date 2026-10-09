@@ -66,8 +66,8 @@ common task.
 ## The categories on each platform
 
 Apple's nine labels, the setting behind each on every platform, and what
-Flutter 3.38.6 (`.fvmrc`) hands to Dart for it. Read from the engine source
-at tag `3.38.6`: iOS `FlutterViewController.mm` (`onAccessibilityStatusChanged`),
+Flutter 3.44.9 (`.fvmrc`) hands to Dart for it. Read from the engine source
+at tag `3.44.9`: iOS `AccessibilityFeatures.swift` (`flags`),
 Android `AccessibilityBridge.java`, Linux `fl_settings_handler.cc`, macOS
 `FlutterEngine.mm`.
 
@@ -96,7 +96,8 @@ Three facts from that source that code must not assume away:
   GNOME High Contrast.** Android's high contrast text is not delivered.
 
 Also delivered, with no Apple label: `boldText` (iOS, Android),
-`invertColors` (iOS), `onOffSwitchLabels` (iOS).
+`invertColors` (iOS), `onOffSwitchLabels` (iOS), `autoPlayVideos` (iOS),
+`autoPlayAnimatedImages` and `deterministicCursor` (iOS 18 and later).
 
 ## What the engines give web content
 
@@ -145,7 +146,7 @@ A11Y-004, A11Y-005 and A11Y-015, and A11Y-016 puts the report into the
 release. Against those, the Android build fails today on labels (A11Y-005),
 contrast (A11Y-010) and touch targets (A11Y-014).
 
-Each Android setting and where it stands, from Flutter 3.38.6's
+Each Android setting and where it stands, from Flutter 3.44.9's
 `AccessibilityBridge.java` and Chromium's `AwSettings.java`:
 
 | Setting | Chrome (Flutter) | Web content (WebView) | Requirement |
@@ -309,7 +310,7 @@ modes (hybrid, and the texture experiment of PAUSE-032).
 The chrome side holds by construction: `WebspacesListScreen` and the site
 stack sit in `Offstage`s that exclude each other, and `IndexedStack` wraps
 each hidden child in `Visibility` with `maintainSemantics` false (Flutter
-3.38.6 `basic.dart`). The inner `Visibility` around the stack also drops
+3.44.9 `basic.dart`). The inner `Visibility` around the stack also drops
 semantics, so on Android the site's subtree leaves the tree for the 120 ms
 of `_holdUnpainted` (the BUG-001 repaint nudge), when the WebView also
 leaves the native hierarchy. Whether TalkBack keeps its place in the page
