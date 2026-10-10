@@ -163,6 +163,18 @@ Future<void> tapLink(WidgetTester tester, {required String url}) async {
   await settleRealApp(tester);
 }
 
+/// The page on screen moving to [url] without a load, as the platform reports
+/// a `history.pushState`/`replaceState`: many pages do it as the user types.
+Future<void> pageHistoryChanged(WidgetTester tester, {required String url}) async {
+  final views = find.byType(inapp.InAppWebView).evaluate().toList();
+  expect(views, hasLength(1), reason: 'one page on screen');
+  final view = views.single.widget as inapp.InAppWebView;
+  await tester.runAsync(() async {
+    view.platform.params.onUpdateVisitedHistory!(
+        _FakeWebViewController(), inapp.WebUri(url), false);
+  });
+}
+
 /// Hand every webview the app has built a controller, as the platform does
 /// once a webview exists. The page treats a site without one as still
 /// loading, so Back, for one, is not spent on its tabs until this runs.
