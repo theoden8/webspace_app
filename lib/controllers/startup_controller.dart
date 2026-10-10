@@ -150,9 +150,13 @@ class StartupController implements DeferredStartupHost {
       unawaited(SiteIconStore.instance.initialize());
     }
 
-    // Every launch starts on the webspace list unless a shortcut names a site.
-    final indexToRestore = await _shortcuts.resolveColdLaunch();
+    // Every launch starts on the webspace list unless a shortcut or the
+    // notification the user tapped names a site.
+    final shortcutIndex = await _shortcuts.resolveColdLaunch();
     if (!_host.mounted) return;
+    final tappedIndex = await _background.wireTaps();
+    if (!_host.mounted) return;
+    final indexToRestore = shortcutIndex ?? tappedIndex;
 
     // Notification sites auto-load so they poll and fire notifications without
     // the user opening them. In container mode this is deferred to AFTER the
@@ -231,17 +235,17 @@ class StartupController implements DeferredStartupHost {
       );
     }
     if (!_host.mounted) return;
-    // indexToRestore is non-null only for a shortcut cold launch, so apply
-    // the FS-008 shortcut-launch fullscreen policy here.
+    // The FS-008 shortcut-launch fullscreen policy; a notification launch is
+    // not a shortcut and opens the site as a tap on it would.
     // KIOSK-003: a locked kiosk launch always goes fullscreen, overriding the
     // per-site / fullscreenOnShortcut policy.
-    if (indexToRestore != null &&
+    if (shortcutIndex != null &&
         (_host.kioskLocked ||
             StartupRestoreEngine.shouldEnterFullscreen(
               viaShortcut: true,
               fullscreenOnShortcut: AppPref.fullscreenOnShortcut.value,
               perSiteFullscreenMode:
-                  _sites.models[indexToRestore].fullscreenMode,
+                  _sites.models[shortcutIndex].fullscreenMode,
             ))) {
       _host.enterFullscreen();
     }

@@ -23,13 +23,15 @@ import 'package:webspace/webspace_model.dart';
 /// callbacks the platform would call ([tapLink]).
 ///
 /// The models the app runs are decoded from the stored JSON, so they are not
-/// [sites]; read them back with [appSite].
+/// [sites]; read them back with [appSite]. [launchedByNotificationFor] is the
+/// siteId of a notification the platform reports the app was launched by.
 Future<void> pumpRealApp(
   WidgetTester tester, {
   required List<WebViewModel> sites,
   List<Webspace> webspaces = const [],
   bool siteTabs = true,
   Map<String, Object> prefs = const {},
+  String? launchedByNotificationFor,
 }) async {
   SharedPreferences.setMockInitialValues({
     'webViewModels': [for (final s in sites) jsonEncode(s.toJson())],
@@ -57,7 +59,19 @@ Future<void> pumpRealApp(
   final messenger = tester.binding.defaultBinaryMessenger;
   messenger.setMockMethodCallHandler(
     const MethodChannel('dexterous.com/flutter/local_notifications'),
-    (call) async => call.method == 'initialize' ? true : null,
+    (call) async => switch (call.method) {
+      'initialize' => true,
+      'getNotificationAppLaunchDetails' => {
+          'notificationLaunchedApp': launchedByNotificationFor != null,
+          if (launchedByNotificationFor != null)
+            'notificationResponse': {
+              'notificationId': 1,
+              'notificationResponseType': 0,
+              'payload': jsonEncode({'siteId': launchedByNotificationFor}),
+            },
+        },
+      _ => null,
+    },
   );
   messenger.setMockMethodCallHandler(
     SystemChannels.platform_views,
