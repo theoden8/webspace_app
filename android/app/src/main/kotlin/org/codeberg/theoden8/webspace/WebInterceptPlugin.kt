@@ -95,7 +95,7 @@ class WebInterceptPlugin(
                     val rulesText = call.argument<String>("rulesText")
                     val enableUboResources =
                         call.argument<Boolean>("enableUboResources") ?: true
-                    Thread {
+                    engineBuilds.execute {
                         if (blob != null) {
                             AdblockEngineNative.setEngine(blob, enableUboResources)
                         } else {
@@ -113,7 +113,7 @@ class WebInterceptPlugin(
                                 "active" to AdblockEngineNative.active,
                             ))
                         }
-                    }.apply { name = "adblock-engine-build"; isDaemon = true; start() }
+                    }
                 }
                 "isAdblockEngineSupported" -> {
                     // Diagnostic for the Dart-side UI: lets the toggle
@@ -405,6 +405,14 @@ class WebInterceptPlugin(
 
     companion object {
         const val CHANNEL = "org.codeberg.theoden8.webspace/web_intercept"
+
+        // At most one thread for the process, so engine pushes apply in the
+        // order they were sent whichever engine sent them; it exits when idle,
+        // so a background wake's engine leaves no thread behind.
+        private val engineBuilds = java.util.concurrent.ThreadPoolExecutor(
+            0, 1, 30L, java.util.concurrent.TimeUnit.SECONDS,
+            java.util.concurrent.LinkedBlockingQueue(),
+        ) { r -> Thread(r, "adblock-engine-build").apply { isDaemon = true } }
     }
 }
 
