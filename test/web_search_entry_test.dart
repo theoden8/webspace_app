@@ -41,57 +41,33 @@ void main() {
           contains('onWebSearch: () => unawaited(_links.webSearch()),'));
       expect(
         File('lib/widgets/site_menu.dart').readAsStringSync(),
-        matches(RegExp(r'SiteMenuAction\.webSearch => state\.tabsFeature && !state\.tabsOn\s*\?')),
+        matches(RegExp(r'SiteMenuAction\.webSearch =>\s*state\.tabsOn \? null :')),
         reason: 'the overflow menus offer it only while tabs are off',
       );
-      expect(
-        main,
-        matches(RegExp(r'tabsOn: _tabs\.enabledAt\(_sites\.current\),\s*'
-            r'tabsFeature: _tabs\.featureEnabled,')),
-      );
+      expect(main, contains('tabsOn: _tabs.enabledAt(_sites.current),'));
       expect(main,
           matches(RegExp(r'case SiteMenuAction\.webSearch:\s*await _links\.webSearch\(\);')));
     });
 
-    test('web search is behind the Site tabs switch (LIR-029)', () {
-      for (final entry in [
-        'Future<void> webSearch(',
-        'Future<void> searchFromUrlBar(',
-      ]) {
-        expect(firstStatement(links, signature: entry),
-            contains('!_tabs.featureEnabled'),
-            reason: entry);
-      }
+    test('web search needs no developer mode (LIR-029)', () {
       final settings = File('lib/screens/app_behaviour.dart').readAsStringSync();
-      expect(
-        RegExp(r'bool webSearchSettingsOffered\(\) =>\s*'
-                r'DeveloperModeService\.instance\.enabled &&\s*'
-                r'ExperimentalFeaturesService\.instance\s*'
-                r'\.switchOn\(ExperimentalFeature\.siteTabs\);')
-            .hasMatch(settings),
-        isTrue,
-        reason: 'the gate is developer mode and the Site tabs switch',
-      );
-      // Up to the spread's own closing bracket, at the list's indentation.
-      final gate = RegExp(
-              r'if \(webSearchSettingsOffered\(\)\) \.\.\.\[(.*?)\n {10}\],',
-              dotAll: true)
-          .firstMatch(settings);
-      expect(gate, isNotNull,
-          reason: 'App Settings offers search rows only behind the gate');
-      expect(gate![1], contains('leading: const Icon(Icons.travel_explore)'),
-          reason: 'Default search');
-      expect(gate[1], contains('create: SiteSearchListDataset.new'),
-          reason: 'and the site search list download (LIR-036)');
+      for (final (path, source) in [
+        ('link_controller.dart', links),
+        ('app_behaviour.dart', settings),
+      ]) {
+        expect(source, isNot(contains('DeveloperModeService')), reason: path);
+        expect(source, isNot(contains('ExperimentalFeature')), reason: path);
+      }
       expect('SiteSearchListDataset.new'.allMatches(settings).length, 1,
-          reason: 'built in one place, behind the gate');
+          reason: 'the site search list download is built in one place '
+              '(LIR-036)');
       for (final other in Directory('lib/screens').listSync()) {
         if (other.path.endsWith('app_behaviour.dart')) continue;
         if (other is! File || !other.path.endsWith('.dart')) continue;
         expect(other.readAsStringSync(),
             isNot(contains('SiteSearchListDataset.new')),
-            reason: '${other.path} builds the site search list outside the '
-                'gate');
+            reason: '${other.path} builds the site search list a second '
+                'time');
       }
     });
 
@@ -117,9 +93,9 @@ void main() {
       expect(body, contains('origin: InboundOrigin.search'));
     });
 
-    test('a results tab is a tab entry point behind the Site tabs gate', () {
+    test('a results tab is a tab entry point behind the owner\'s tabs', () {
       expect(firstStatement(tabs, signature: 'Future<void> openChildTab('),
-          contains('!enabledFor(owner)'));
+          contains('!owner.effectiveTabsEnabled'));
     });
 
     test('a fallback new tab goes through the gate and New tab', () {
@@ -141,9 +117,10 @@ void main() {
   group('URL bar search (LIR-033)', () {
     test('the URL bar searches through the page, not on its own', () {
       final bar = bodyOf(main, signature: 'Widget? _buildInputBar(');
-      expect(bar, contains('hasUrlBar && !_kioskLocked && _tabs.featureEnabled\n'
-          '        ? _links.urlBarSearchFor(model)\n'
-          '        : null'));
+      expect(
+          bar,
+          contains('hasUrlBar && !_kioskLocked ? _links.urlBarSearchFor(model) '
+              ': null'));
       expect(
           bar,
           contains(
@@ -247,16 +224,15 @@ void main() {
           contains('await _tabs.runWhenIdle(() => _tabs.switchToOwnerRunTab(model));'));
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
-      expect(count(main, needle: '_tabs.bindOwnerRunTab('), 1,
-          reason: 'the page host answers bindOwnerRunTab');
       expect(
           count(File('lib/controllers/site_reset_controller.dart')
                   .readAsStringSync(),
               needle: '_tabs.bindOwnerRunTab('),
           1,
           reason: 'an always-home site a shortcut resets lands at home');
-      expect(count(shortcuts, needle: '_host.bindOwnerRunTab('), 2,
-          reason: 'a cold launch and a confirmed reroute land at home');
+      expect(shortcuts, isNot(contains('bindOwnerRunTab(')),
+          reason: 'a shortcut loads an owner URL only through that reset '
+              '(HS-006)');
     });
 
     test('the webview is built with the identity\'s container and cookies', () {

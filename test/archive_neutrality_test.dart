@@ -21,6 +21,7 @@ import 'package:webspace/services/webspace_selection_engine.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/archive_membership_engine.dart';
 import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/webspace_model.dart';
 
 import 'helpers/mock_cookie_manager.dart';
@@ -209,7 +210,7 @@ void main() {
           reason: 'only the fixed pool exists after init');
 
       final handle = await archive.createWithKey(_testKey(7));
-      handle.state.sites.add({'siteId': 'arch-site', 'initUrl': 'https://x.test'});
+      handle.state.sites.add(_tabbedSite('arch-site').toArchiveJson());
       handle.state.cookies['arch-site'] = [
         {'name': 'sid', 'value': 'super-secret-session'},
       ];
@@ -228,6 +229,8 @@ void main() {
       for (final value in mock.storage.values) {
         expect(value.contains('arch-site'), isFalse);
         expect(value.contains('super-secret-session'), isFalse);
+        expect(value.contains('arch-site.test'), isFalse,
+            reason: 'tab addresses stay inside the ciphertext');
       }
     });
 
@@ -245,7 +248,8 @@ void main() {
           Archive(storage: ArchiveStorage(secureStorage: withArchives));
       for (var i = 0; i < 3; i++) {
         final handle = await archive.createWithKey(_testKey(20 + i));
-        handle.state.sites.add({'siteId': 's$i', 'initUrl': 'https://s$i.test'});
+        // TAB-009: holding tabs changes nothing outside the slots either.
+        handle.state.sites.add(_tabbedSite('s$i').toArchiveJson());
         await archive.save(handle);
         await archive.close(handle);
       }
@@ -745,3 +749,17 @@ WebViewModel _siteWithId(String siteId, {bool archive = false}) {
     isArchiveTier: archive,
   );
 }
+
+/// An archive-tier site with a tab tree, its active tab not the first.
+WebViewModel _tabbedSite(String siteId) => WebViewModel(
+      siteId: siteId,
+      initUrl: 'https://$siteId.test/',
+      isArchiveTier: true,
+      tabs: [
+        SiteTab(id: 'root', url: 'https://$siteId.test/a', title: 'A'),
+        SiteTab(
+            id: 'child', url: 'https://$siteId.test/a/1', parentId: 'root'),
+        SiteTab(id: 'other', url: 'https://$siteId.test/b'),
+      ],
+      activeTabId: 'child',
+    );

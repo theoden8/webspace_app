@@ -140,6 +140,8 @@ const Map<String, String> _retiredKeys = {
       'per-destination split is no longer a setting',
   'experimentalProxyLibrary': 'PROXY-030: saved proxies graduated out of '
       'the Experimental group; there is no switch to restore',
+  'experimentalSiteTabs': 'TAB-012: site tabs graduated out of the '
+      'Experimental group; there is no switch to restore',
 };
 
 /// Keys checked by hand below rather than by the generic oracle.

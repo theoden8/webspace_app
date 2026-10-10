@@ -49,7 +49,7 @@
 - [x] 6a.3 `_reconcileLinkTabs` after site settings, at startup and after an import, deferred through `TabHandlingGate` while a tab handler runs; the capture keeps the key it started under.
 - [x] 6a.4 With tabs on, the route hint says which site a link tab runs as, with its sign-in and settings (`siteSettingsRouteOutboundLinksTabsHint`).
 - [x] 6a.5 Tests: the `linkTabRunsAs` matrix, `test/link_tab_container_test.dart`, `test/tab_handling_gate_test.dart`, `test/link_tab_reconcile_entry_test.dart`.
-- [ ] 6a.6 Manual, Site tabs on: a `github.com` result from DuckDuckGo with routing on runs signed in; turn routing off, close settings: it reloads signed out; Home stays on `github.com`.
+- [ ] 6a.6 Manual: a `github.com` result from DuckDuckGo with routing on runs signed in; turn routing off, close settings: it reloads signed out; Home stays on `github.com`.
 
 ## 7. Strings
 
@@ -57,10 +57,10 @@
 
 ## 8. Manual smoke
 
-- [ ] 8.1 Android and iOS, Site tabs on: search the web from GitHub with a DuckDuckGo site; the results tab is labelled "as DuckDuckGo" and a `github.com` result returns to GitHub signed in.
+- [ ] 8.1 Android and iOS: search the web from GitHub with a DuckDuckGo site; the results tab is labelled "as DuckDuckGo" and a `github.com` result returns to GitHub signed in.
 - [ ] 8.2 Kagi signed in as its own site: search GitHub through Kagi; the results are signed in and GitHub's cookies are unchanged.
 - [ ] 8.3 Android without the proxy router, GitHub and DuckDuckGo on different proxies: opening and leaving the results tab applies each proxy.
-- [ ] 8.4 Site tabs off: the search switches to DuckDuckGo and loads there.
+- [ ] 8.4 GitHub and DuckDuckGo with Tabs off: the search switches to DuckDuckGo and loads there.
 
 ## 9. URL bar search (LIR-033)
 
@@ -79,7 +79,7 @@
 - [x] 10.4 `WebSearchEngine.addable`: the empty state never offers an engine the user has.
 - [x] 10.5 `SiteIdLine` under each site in Default search and the Behaviour pickers, a colour dot on each sheet chip.
 - [x] 10.6 Tests: `test/opensearch_engine_test.dart`, `test/js/search_link_watcher.test.js`, the LIR-035 structural check in `test/js/page_bridge_authority.test.js`, the table and discovery groups in `test/web_search_engine_test.dart`, sheet, Behaviour and App Settings widget tests.
-- [ ] 10.7 Manual, Site tabs on: add a SearXNG instance, open it once; it appears in Default search and as a chip for The web, and searching from GitHub through it with `site:` lands in a hosted tab.
-- [x] 10.8 Site search list (LIR-036): `site_search_list_engine.dart` (reduction, lookup), `SiteSearchListService` (download through the app-wide proxy, stored reduction, clear), the App Settings row behind the search gate, `assets/licenses/kagi_bangs.txt`; `webSearchSiteList*` strings in `app_en.arb`, then the 66 translations. Tests: `test/site_search_list_test.dart`, the row in `test/app_settings_experimental_test.dart`, the gate in `test/web_search_entry_test.dart`.
-- [ ] 10.9 Manual, Site tabs on: download the site search list, add `https://www.imdb.com/`, search it from its own sheet.
+- [ ] 10.7 Manual: add a SearXNG instance, open it once; it appears in Default search and as a chip for The web, and searching from GitHub through it with `site:` lands in a hosted tab.
+- [x] 10.8 Site search list (LIR-036): `site_search_list_engine.dart` (reduction, lookup), `SiteSearchListService` (download through the app-wide proxy, stored reduction, clear), the App Settings row, `assets/licenses/kagi_bangs.txt`; `webSearchSiteList*` strings in `app_en.arb`, then the 66 translations. Tests: `test/site_search_list_test.dart`, the row in `test/app_settings_experimental_test.dart`, its one construction in `test/web_search_entry_test.dart`.
+- [ ] 10.9 Manual: download the site search list, add `https://www.imdb.com/`, search it from its own sheet.
 

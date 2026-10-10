@@ -10,8 +10,8 @@
 // suite drives, through the real widget tree.
 //
 // Scenario map (requirement -> test):
-//   HS-002 / HS-006  cold launch selects the site and drops currentUrl to
-//                    initUrl (the pinned entry point, not last session's drift)
+//   HS-002 / HS-006  cold launch selects the site and opens it where it was
+//                    left, tabs on or off; with Always open Home, at initUrl
 //   HS-005 / HS-004  "Home Shortcut" hidden for a pinned site, shown for an
 //                    unpinned one, hidden for a site an orphaned tile was
 //                    rebound to
@@ -49,6 +49,7 @@ import 'package:webspace/main.dart' as app;
 import 'package:webspace/screens/webspace_page.dart';
 import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'fixture_server.dart';
@@ -141,12 +142,23 @@ void main() {
     await server?.close(force: true);
   });
 
-  WebViewModel siteA({String? currentUrl}) => WebViewModel(
-    siteId: 'ws-hs-a',
-    initUrl: '$hostA/a.html',
-    currentUrl: currentUrl,
-    name: 'Site A',
-  );
+  WebViewModel siteA({
+    String? currentUrl,
+    bool tabsEnabled = true,
+    List<SiteTab>? tabs,
+    String? activeTabId,
+    bool alwaysOpenHome = false,
+  }) =>
+      WebViewModel(
+        siteId: 'ws-hs-a',
+        initUrl: '$hostA/a.html',
+        currentUrl: currentUrl,
+        name: 'Site A',
+        tabsEnabled: tabsEnabled,
+        tabs: tabs,
+        activeTabId: activeTabId,
+        alwaysOpenHome: alwaysOpenHome,
+      );
   WebViewModel siteB() =>
       WebViewModel(siteId: 'ws-hs-b', initUrl: '$hostB/b.html', name: 'Site B');
 
@@ -352,12 +364,70 @@ Future<void> tapDialogButton(WidgetTester tester,
   // desktop integration loops skip this file by basename as well.
   final skipOffAndroid = !Platform.isAndroid;
 
+  for (final tabsOn in [false, true]) {
+    testWidgets(
+      'cold launch opens the pinned site where it was left, tabs '
+      '${tabsOn ? 'on' : 'off'} (HS-002 / HS-006)',
+      (tester) async {
+        seed(
+          sites: [
+            siteA(currentUrl: '$hostA/deep.html', tabsEnabled: tabsOn),
+            siteB(),
+          ],
+          pinnedTiles: {'ws-hs-a'},
+          launch: 'ws-hs-a',
+        );
+        await withApp(tester, body: () async {
+          await pumpUntil(
+            tester,
+            predicate: () => siteIsMounted('ws-hs-a'),
+            description: 'the launched site to activate',
+          );
+          final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
+          expect(launched.currentUrl, '$hostA/deep.html',
+              reason: 'without Always open Home a shortcut opens the site '
+                  'where it was left (HS-006, TAB-014)');
+          expect(
+            siteIsMounted('ws-hs-b'),
+            isFalse,
+            reason: 'only the launched site should be activated',
+          );
+
+          // HS-012: on the initState/resume cadence the ledger records the
+          // url of every pinned site that still exists, so a later deletion
+          // leaves a routable trail. Asserted after a resume because the
+          // initState pass races `StartupController.restore` for the loaded
+          // model list.
+          await resumeApp(tester);
+          await pumpUntilAsync(
+            tester,
+            predicate: () async =>
+                (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] ==
+                '$hostA/a.html',
+            description:
+                'the startup ledger reconcile to record the pinned url',
+          );
+        });
+      },
+      skip: skipOffAndroid,
+      timeout: const Timeout(Duration(minutes: 3)),
+    );
+  }
+
   testWidgets(
-    'cold launch opens the pinned site at its initUrl (HS-002 / HS-006)',
+    'cold launch with Always open Home lands on a tab at home (HS-006 / '
+    'TAB-014)',
     (tester) async {
       seed(
         sites: [
-          siteA(currentUrl: '$hostA/deep.html'),
+          siteA(
+            alwaysOpenHome: true,
+            tabs: [
+              SiteTab(id: 'deep', url: '$hostA/deep.html'),
+              SiteTab(id: 'other', url: '$hostA/other.html'),
+            ],
+            activeTabId: 'deep',
+          ),
           siteB(),
         ],
         pinnedTiles: {'ws-hs-a'},
@@ -370,31 +440,11 @@ Future<void> tapDialogButton(WidgetTester tester,
           description: 'the launched site to activate',
         );
         final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
-        expect(
-          launched.currentUrl,
-          launched.initUrl,
-          reason:
-              'a shortcut launch is the pinned entry point, so last '
-              'session\'s drift must be dropped (HS-006)',
-        );
-        expect(
-          siteIsMounted('ws-hs-b'),
-          isFalse,
-          reason: 'only the launched site should be activated',
-        );
-
-        // HS-012: on the initState/resume cadence the ledger records the url of
-        // every pinned site that still exists, so a later deletion leaves a
-        // routable trail. Asserted after a resume because the initState pass
-        // races `StartupController.restore` for the loaded model list.
-        await resumeApp(tester);
-        await pumpUntilAsync(
-          tester,
-          predicate: () async =>
-              (await prefsMap('shortcutUrlLedger'))['ws-hs-a'] ==
-              '$hostA/a.html',
-          description: 'the startup ledger reconcile to record the pinned url',
-        );
+        expect(launched.currentUrl, launched.initUrl,
+            reason: 'Always open Home is what sends a shortcut launch home');
+        expect(launched.tabs.map((t) => t.url),
+            containsAll(['$hostA/deep.html', '$hostA/other.html']),
+            reason: 'the tabs it had are kept (TAB-014)');
       });
     },
     skip: skipOffAndroid,

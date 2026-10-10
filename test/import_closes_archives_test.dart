@@ -29,10 +29,22 @@ void main() {
     expect(applied, isNot(contains('backup.')));
   });
 
+  test('an archive that cannot be sealed stops the import first (ARCH-011)',
+      () {
+    final import = body('Future<void> import() async {');
+    final seal = import.indexOf('if (!await _archives.closeAll()) {');
+    expect(seal, greaterThan(import.indexOf('planSettingsImport(')));
+    expect(seal, lessThan(import.indexOf('writeExportedAppPrefs(')),
+        reason: 'nothing of the import is applied while an archive stays '
+            'open');
+    expect(import.substring(seal, import.indexOf('}', seal)),
+        contains('return;'));
+  });
+
   test('a close never seals fewer rows than the archive opened with', () {
     final archives =
         File('lib/controllers/archive_controller.dart').readAsStringSync();
-    final start = archives.indexOf('  Future<void> close(ArchiveHandle handle) async {');
+    final start = archives.indexOf('  Future<bool> close(ArchiveHandle handle) async {');
     expect(start, greaterThan(-1));
     final close = archives.substring(start, archives.indexOf('\n  }\n', start));
     final guard = close.indexOf(

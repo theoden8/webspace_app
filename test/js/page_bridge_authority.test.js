@@ -283,7 +283,7 @@ test('LIR-035: only the site\'s top document declares its search', () => {
   const end = WEBVIEW.indexOf('siteSearch.onSearch(found)', at);
   assert.notEqual(end, -1, 'the handler no longer reports what it found');
   const handler = WEBVIEW.slice(at, end);
-  assert.ok(handler.includes('if (!call.isMainFrame || !siteSearch.enabled()) return null;'),
+  assert.ok(handler.includes('if (!call.isMainFrame) return null;'),
     'a subframe can call the handler; its search is not the site\'s');
   assert.ok(handler.includes('pageIconRequestAllowed('),
     'the description is fetched through the site\'s blockers');

@@ -55,7 +55,7 @@ import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/services/archive.dart' show ArchiveHandle;
+import 'package:webspace/services/archive.dart' show Archive, ArchiveHandle;
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -232,6 +232,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     cookieStore: _cookieSecureStorage,
     proxyPasswords: _proxyPasswordStorage,
     navStates: _stateStorage,
+    archive: Archive(),
   );
   late final ShellStore _shell = ShellStore(_sites);
   final CookieManager _cookieManager = CookieManager();
@@ -1054,8 +1055,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           onRestoreArchive: _archives.promptRestore,
           hasOpenArchives: _archives.anyOpen,
           onCloseAllArchives: () async {
-            await _archives.closeAll();
-            _toast((loc) => loc.homeArchivesClosed);
+            final closed = await _archives.closeAll();
+            _toast((loc) =>
+                closed ? loc.homeArchivesClosed : loc.homeArchiveFull);
           },
           onOpenLinkHandlingSettings: _openLinkHandlingSettings,
           webSearchSites: [
@@ -1229,7 +1231,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       onReorder: _webspaces.canReorderView
           ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
           : null,
-      showsTabCount: _tabs.enabledFor,
       menu: _siteMenu(SiteMenuPlacement.bottomBar),
     );
   }
@@ -1248,9 +1249,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!hasUrlBar && !hasFindToolbar) {
       return null;
     }
-    final urlBarSearch = hasUrlBar && !_kioskLocked && _tabs.featureEnabled
-        ? _links.urlBarSearchFor(model)
-        : null;
+    final urlBarSearch =
+        hasUrlBar && !_kioskLocked ? _links.urlBarSearchFor(model) : null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1285,7 +1285,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
           tabsOn: _tabs.enabledAt(_sites.current),
-          tabsFeature: _tabs.featureEnabled,
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1486,7 +1485,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         unawaited(_activation.captureStateBytes(site));
       });
     };
-    site.onReturnToOwner = _tabs.enabledFor(site)
+    site.onReturnToOwner = site.effectiveTabsEnabled
         ? (url) => unawaited(_tabs.returnToOwner(site, url: url))
         : null;
   }
@@ -1891,13 +1890,6 @@ class _PageHost
   @override
   Future<void> resetHomeOnLaunch(int index) =>
       _s._resets.resetHomeOnLaunch(index);
-
-  @override
-  bool tabsEnabledAt(int index) => _s._tabs.enabledAt(index);
-
-  @override
-  Future<void> bindOwnerRunTab(WebViewModel model) =>
-      _s._tabs.bindOwnerRunTab(model);
 
   @override
   Future<void> registerSite(WebViewModel model, {bool activate = true}) =>

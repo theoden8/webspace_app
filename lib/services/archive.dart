@@ -46,6 +46,23 @@ class ArchiveState {
           'selectedWebspaceId': selectedWebspaceId,
       };
 
+  /// This state with the given parts in place of its own.
+  ArchiveState copyWith({
+    List<Map<String, dynamic>>? sites,
+    Map<String, List<Map<String, dynamic>>>? cookies,
+    List<Map<String, dynamic>>? webspaces,
+    Map<String, List<String>>? appTierMembership,
+  }) =>
+      ArchiveState(
+        version: version,
+        createdAt: createdAt,
+        selectedWebspaceId: selectedWebspaceId,
+        sites: sites ?? this.sites,
+        cookies: cookies ?? this.cookies,
+        webspaces: webspaces ?? this.webspaces,
+        appTierMembership: appTierMembership ?? this.appTierMembership,
+      );
+
   factory ArchiveState.fromJson(Map<String, dynamic> json) {
     final rawCookies = json['cookies'] as Map<String, dynamic>? ??
         const <String, dynamic>{};
@@ -254,6 +271,15 @@ class Archive {
         ..._knownOccupied,
       };
 
+  /// Whether [state] fits one slot. Callers check before they change
+  /// anything, so a state that does not fit leaves everything as it was;
+  /// [save] refuses one that does not.
+  static bool fits(ArchiveState state) =>
+      _payload(state).length <= kArchiveSlotMaxPayload;
+
+  static Uint8List _payload(ArchiveState state) =>
+      Uint8List.fromList(utf8.encode(jsonEncode(state.toJson())));
+
   Future<void> save(ArchiveHandle handle) async {
     if (handle.isClosed) {
       throw StateError('cannot save a closed archive handle');
@@ -401,8 +427,7 @@ class Archive {
   }
 
   Future<void> _persist(ArchiveHandle handle) async {
-    final payload =
-        Uint8List.fromList(utf8.encode(jsonEncode(handle.state.toJson())));
+    final payload = _payload(handle.state);
     if (payload.length > kArchiveSlotMaxPayload) {
       throw StateError(
         'archive payload (${payload.length} B) exceeds slot capacity '

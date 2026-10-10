@@ -235,7 +235,7 @@ class LinkController {
   /// and one of the user's search sites, and the results land by
   /// [WebSearchEngine.land].
   Future<void> webSearch({String initialQuery = ''}) async {
-    if (!_tabs.featureEnabled || _host.kioskLocked || _webSearchGuard.busy) return;
+    if (_host.kioskLocked || _webSearchGuard.busy) return;
     final index = _sites.current;
     if (index == null || index < 0 || index >= _sites.models.length) return;
     await _webSearchGuard.run(() async {
@@ -326,7 +326,7 @@ class LinkController {
     required String query,
     required String? siteId,
   }) async {
-    if (!_tabs.featureEnabled || _host.kioskLocked || _webSearchGuard.busy) return;
+    if (_host.kioskLocked || _webSearchGuard.busy) return;
     if (!_sites.models.contains(owner)) return;
     final identity = owner.runningIdentity;
     final site = siteId == null ? null : _sites.byId(siteId);
@@ -361,7 +361,7 @@ class LinkController {
     final identity = owner.runningIdentity;
     final landing = WebSearchEngine.land(
       (search: searchSiteId, owner: owner.siteId, identity: identity.siteId),
-      tabsEnabled: _tabs.enabledFor(owner),
+      tabsEnabled: owner.effectiveTabsEnabled,
       canHost: _tabs.mayHost(searchSite, owner: owner),
       urlInSearchSiteDomain:
           WebSearchEngine.inDomainOf(url, initUrl: searchSite.initUrl),
@@ -387,7 +387,7 @@ class LinkController {
             inbound: url,
             site: SiteRoute(searchSite),
             origin: InboundOrigin.search,
-            tabsEnabled: _tabs.enabledFor(searchSite),
+            tabsEnabled: searchSite.effectiveTabsEnabled,
           ),
           inboundUri: url,
         );
@@ -552,10 +552,10 @@ class LinkController {
     return true;
   }
 
-  /// LIR-032: with Site tabs on, a link from [source] (on screen in
-  /// [owner]'s slot, or in a nested screen over it) into one of the user's
-  /// sites opens as a tab run as that site, not a nested screen. Null when
-  /// no site of the user's can run it in [owner]'s tree.
+  /// LIR-032: a link from [source] (on screen in [owner]'s slot, or in a
+  /// nested screen over it) into one of the user's sites opens as a tab run
+  /// as that site, not a nested screen. Null when no site of the user's can
+  /// run it in [owner]'s tree.
   DispatchAction? tabRouteFor(
     WebViewModel owner, {
     required WebViewModel source,
@@ -567,7 +567,7 @@ class LinkController {
     final action = LinkIntentDispatchEngine.routeToTab(
       url: uri,
       urlNavigationDomain: getNormalizedDomain(url),
-      tabsEnabled: _tabs.enabledFor(owner),
+      tabsEnabled: owner.effectiveTabsEnabled,
       routeOutboundLinks: source.effectiveRouteOutboundLinks,
       containersActive: _sites.useContainers,
       kioskLocked: _host.kioskLocked,
@@ -968,7 +968,7 @@ class LinkController {
     final step = NavigationDecisionEngine.stepFor(
       decision,
       returnsToOwner: (model.runsHostedTab || model.runsForeignTab) &&
-          _tabs.enabledFor(model) &&
+          model.effectiveTabsEnabled &&
           getNormalizedDomain(url) == getNormalizedDomain(model.initUrl),
     );
     switch (step) {

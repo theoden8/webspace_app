@@ -180,7 +180,9 @@ void main() {
             parentId: kPrimaryTabId,
             hostSiteId: 'ddg'),
       ], active: 'h');
-      m.landAtHome(tabsOn: false);
+      m
+        ..tabsEnabled = false
+        ..landAtHome();
       expect(m.activeTabId, kPrimaryTabId);
       expect(m.currentUrl, 'https://github.com/');
       expect(m.tabs.last.url, 'https://duckduckgo.com/?q=x');
