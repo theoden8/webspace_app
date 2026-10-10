@@ -60,6 +60,14 @@ them. The invariant: **every write to the site list remaps `loaded` and
    (LAZY-007). *Why*: attempt 2's version bump makes the switch bail, but the
    bump chooses no site, so the screen stayed on a site with no webview, the
    LAZY-003 placeholder. Found by the same walk, shrunk to four actions.
+7. **2026-10-10 — PR #696.** The activation hands the legacy jar's restore
+   its own version; the restore had read a fresh one when called. *Why*: a row
+   move that landed after the activation's last check passed for the entry
+   version, so the restore never bailed and filled the shared jar for the site
+   that moved into the tapped position, beside a loaded sibling on its base
+   domain: one site's session readable by another. Found by the walk, shrunk
+   to eight actions. *Why partial*: the same as attempt 5, a version or
+   position taken late on one path.
 
 ## Known open gaps
 

@@ -116,6 +116,12 @@ const _regressions = <(String, List<SiteAction>)>[
       Tap(8),
     ],
   ),
+  // BUG-029: a move just before the restore made it restore the site that
+  // moved into the tapped position, beside a loaded sibling on its domain.
+  ('a move before the restore leaks no cookies into the shared jar', [
+    Add(0), Tap(45), Login(33), Tap(40), Settle(), GoHome(), Tap(8),
+    Move(20, to: 23),
+  ]),
   // CONT-003: the superseded tap of a double tap unmarked the other's
   // target, which memory pressure then evicted.
   (

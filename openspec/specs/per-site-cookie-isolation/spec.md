@@ -97,7 +97,9 @@ a capture → nuke → restore cycle:
    share the same native jar).
 
 All async steps before the nuke SHALL check `SiteRuntime.activationVersion`
-and early-return if a newer `setCurrentIndex` invocation has started; once
+against the version the activation began at, never one read later, and
+early-return if a newer `setCurrentIndex` invocation or a row move has
+bumped it; once
 nuked, the jar SHALL be refilled before returning. The engine SHALL run one
 operation on the jar at a time (a restore, an unload's capture, a delete's
 cleanup), so no capture reads a jar another operation has emptied and saves

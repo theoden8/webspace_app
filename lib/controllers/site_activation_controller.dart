@@ -246,7 +246,7 @@ class SiteActivationController {
       await _containers.ensureContainer(target.siteId);
       if (version != _sites.activationVersion) return;
     } else {
-      await _restoreCookiesForSite(index);
+      await _restoreCookiesForSite(index, version: version);
       if (version != _sites.activationVersion) return;
     }
 
@@ -476,9 +476,15 @@ class SiteActivationController {
     }
   }
 
-  /// Restores cookies for a site before activation.
-  Future<void> _restoreCookiesForSite(int index) async {
-    final version = _sites.activationVersion;
+  /// Restores cookies for a site before activation. [version] is the
+  /// activation's own: read here instead, a row move landing since the
+  /// activation's last check would pass for the entry version, and the
+  /// restore would fill the jar for whichever site moved into [index]
+  /// (BUG-029).
+  Future<void> _restoreCookiesForSite(
+    int index, {
+    required int version,
+  }) async {
     await _residency.sharedJar!.restoreCookiesForSite(
       index: index,
       models: _sites.models,
