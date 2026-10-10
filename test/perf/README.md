@@ -1,14 +1,16 @@
-# Startup benchmarks
+# Performance benchmarks
 
-Opt-in: `flutter test` skips both files unless their variable is set.
+Opt-in: `flutter test` skips the Dart files unless their variable is set.
 
 | File | Times | Run |
 |---|---|---|
 | `startup_bench_test.dart` | the blocker data `main()` loads before `runApp` (DNS list, filter lists), per step, and the longest stall it causes on the UI isolate | `WS_PERF_DATA=<dir> fvm flutter test test/perf/startup_bench_test.dart` |
 | `startup_modes_bench_test.dart` | the cold start per mode (launcher, notification tap, background wake; 5 and 40 sites): first frame, the screen it lands on, end of `StartupController.restore` | `WS_PERF=1 fvm flutter test test/perf/startup_modes_bench_test.dart` |
+| `url_change_bench_test.dart` | what a page's `history.replaceState` costs the app, same URL and a new URL each time (pages that do it per keystroke) | `WS_PERF=1 fvm flutter test test/perf/url_change_bench_test.dart` |
+| [`../browser/perf/typing_bench.js`](../browser/perf/typing_bench.js) | in real Chromium: page-script time per keystroke on a page that re-renders as you type, and how long a time-sliced renderer holds the main thread under the anti-fingerprinting clock | `node test/browser/perf/typing_bench.js` |
 
-Both run the app's own code with the platform faked, in a JIT test process on
-the host: a number is Dart work on the UI isolate (the Android main thread),
+The Dart ones run the app's own code with the platform faked, in a JIT test
+process on the host: a number is Dart work on the UI isolate (the Android main thread),
 without the device's channel or webview latency. Compare runs on one machine,
 not against a phone.
 
