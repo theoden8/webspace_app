@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Sortir de l'archive",
   "homeCloseArchive": "Fermer l'archive",
   "homeArchiveClosed": "Archive fermée",
+  "homeArchiveFull": "Une archive est pleine et a été laissée ouverte telle quelle. Fermez certains de ses onglets ou sortez-en des sites, puis réessayez.",
   "homeTitleUpdatedTo": "Titre mis à jour : {title}",
   "homeDeleteSiteTitle": "Supprimer le site",
   "homeDeleteSiteConfirm": "Êtes-vous sûr de vouloir supprimer « {name} » ?",

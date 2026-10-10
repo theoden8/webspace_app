@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "انتقال به بیرون از بایگانی",
   "homeCloseArchive": "بستن بایگانی",
   "homeArchiveClosed": "بایگانی بسته شد",
+  "homeArchiveFull": "یک بایگانی پر است و همان‌طور که بود باز ماند. برخی از زبانه‌های آن را ببندید یا سایت‌هایی را از آن خارج کنید و دوباره تلاش کنید.",
   "homeTitleUpdatedTo": "عنوان به‌روزرسانی شد به: {title}",
   "homeDeleteSiteTitle": "حذف سایت",
   "homeDeleteSiteConfirm": "آیا مطمئنید که می‌خواهید «{name}» را حذف کنید؟",

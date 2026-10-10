@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Flytta ut ur arkiv",
   "homeCloseArchive": "Stäng arkiv",
   "homeArchiveClosed": "Arkiv stängt",
+  "homeArchiveFull": "Ett arkiv är fullt och lämnades öppet som det var. Stäng några av dess flikar eller flytta webbplatser ut ur det och försök igen.",
   "homeTitleUpdatedTo": "Titel uppdaterad till: {title}",
   "homeDeleteSiteTitle": "Ta bort webbplats",
   "homeDeleteSiteConfirm": "Är du säker på att du vill ta bort \"{name}\"?",

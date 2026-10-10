@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "アーカイブから移動",
   "homeCloseArchive": "アーカイブを閉じる",
   "homeArchiveClosed": "アーカイブを閉じました",
+  "homeArchiveFull": "アーカイブがいっぱいのため、そのまま開いた状態にしました。タブをいくつか閉じるか、サイトをアーカイブから移動してから、もう一度お試しください。",
   "homeTitleUpdatedTo": "タイトルを更新しました: {title}",
   "homeDeleteSiteTitle": "サイトを削除",
   "homeDeleteSiteConfirm": "「{name}」を削除してもよろしいですか？",

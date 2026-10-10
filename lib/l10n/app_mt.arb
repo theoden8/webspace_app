@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Ċaqlaq barra mill-arkivju",
   "homeCloseArchive": "Agħlaq l-arkivju",
   "homeArchiveClosed": "L-arkivju ngħalaq",
+  "homeArchiveFull": "Arkivju huwa mimli u tħalla miftuħ kif kien. Agħlaq xi wħud mit-tabs tiegħu jew ċaqlaq siti barra minnu, imbagħad erġa' pprova.",
   "homeTitleUpdatedTo": "It-titlu ġie aġġornat għal: {title}",
   "homeDeleteSiteTitle": "Ħassar Sit",
   "homeDeleteSiteConfirm": "Żgur li trid tħassar \"{name}\"?",

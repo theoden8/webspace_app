@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Sposta fuori dall'archivio",
   "homeCloseArchive": "Chiudi archivio",
   "homeArchiveClosed": "Archivio chiuso",
+  "homeArchiveFull": "Un archivio è pieno ed è stato lasciato aperto così com'era. Chiudi alcune delle sue schede o sposta dei siti fuori da esso, poi riprova.",
   "homeTitleUpdatedTo": "Titolo aggiornato a: {title}",
   "homeDeleteSiteTitle": "Elimina sito",
   "homeDeleteSiteConfirm": "Vuoi davvero eliminare \"{name}\"?",

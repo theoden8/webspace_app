@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Sacar do arquivo",
   "homeCloseArchive": "Pechar arquivo",
   "homeArchiveClosed": "Arquivo pechado",
+  "homeArchiveFull": "Un arquivo está cheo e deixouse aberto tal como estaba. Pecha algunhas das súas lapelas ou saca sitios del e téntao de novo.",
   "homeTitleUpdatedTo": "Título actualizado a: {title}",
   "homeDeleteSiteTitle": "Eliminar sitio",
   "homeDeleteSiteConfirm": "Seguro que queres eliminar \"{name}\"?",

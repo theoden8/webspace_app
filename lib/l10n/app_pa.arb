@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "ਆਰਕਾਈਵ ਤੋਂ ਬਾਹਰ ਭੇਜੋ",
   "homeCloseArchive": "ਆਰਕਾਈਵ ਬੰਦ ਕਰੋ",
   "homeArchiveClosed": "ਆਰਕਾਈਵ ਬੰਦ ਹੋ ਗਿਆ",
+  "homeArchiveFull": "ਇੱਕ ਆਰਕਾਈਵ ਭਰ ਗਿਆ ਹੈ ਅਤੇ ਜਿਵੇਂ ਸੀ ਉਵੇਂ ਹੀ ਖੁੱਲ੍ਹਾ ਛੱਡ ਦਿੱਤਾ ਗਿਆ ਹੈ। ਇਸ ਦੀਆਂ ਕੁਝ ਟੈਬਾਂ ਬੰਦ ਕਰੋ ਜਾਂ ਇਸ ਵਿੱਚੋਂ ਸਾਈਟਾਂ ਬਾਹਰ ਭੇਜੋ, ਫਿਰ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।",
   "homeTitleUpdatedTo": "ਸਿਰਲੇਖ ਅੱਪਡੇਟ ਹੋਇਆ: {title}",
   "homeDeleteSiteTitle": "ਸਾਈਟ ਮਿਟਾਓ",
   "homeDeleteSiteConfirm": "ਕੀ ਤੁਸੀਂ ਯਕੀਨੀ ਹੋ ਕਿ ਤੁਸੀਂ \"{name}\" ਮਿਟਾਉਣਾ ਚਾਹੁੰਦੇ ਹੋ?",

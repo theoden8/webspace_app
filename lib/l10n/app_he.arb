@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "העבר אל מחוץ לארכיון",
   "homeCloseArchive": "סגור ארכיון",
   "homeArchiveClosed": "הארכיון נסגר",
+  "homeArchiveFull": "ארכיון אחד מלא ונשאר פתוח כפי שהיה. סגרו חלק מהכרטיסיות שלו או העבירו אתרים אל מחוצה לו, ונסו שוב.",
   "homeTitleUpdatedTo": "הכותרת עודכנה ל: {title}",
   "homeDeleteSiteTitle": "מחק אתר",
   "homeDeleteSiteConfirm": "האם אתה בטוח שברצונך למחוק את \"{name}\"?",

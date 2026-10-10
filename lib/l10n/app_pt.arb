@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Mover para fora do arquivo",
   "homeCloseArchive": "Fechar arquivo",
   "homeArchiveClosed": "Arquivo fechado",
+  "homeArchiveFull": "Um arquivo está cheio e foi deixado aberto tal como estava. Feche alguns dos seus separadores ou mova sites para fora dele e tente novamente.",
   "homeTitleUpdatedTo": "Título atualizado para: {title}",
   "homeDeleteSiteTitle": "Eliminar site",
   "homeDeleteSiteConfirm": "Tem a certeza de que quer eliminar \"{name}\"?",

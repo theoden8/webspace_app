@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Ilipat palabas ng archive",
   "homeCloseArchive": "Isara ang archive",
   "homeArchiveClosed": "Nasara ang archive",
+  "homeArchiveFull": "Puno na ang isang archive at iniwan itong bukas gaya ng dati. Isara ang ilan sa mga tab nito o ilipat ang mga site palabas nito, pagkatapos ay subukan muli.",
   "homeTitleUpdatedTo": "Na-update ang pamagat sa: {title}",
   "homeDeleteSiteTitle": "Tanggalin ang Site",
   "homeDeleteSiteConfirm": "Sigurado ka bang gusto mong tanggalin ang \"{name}\"?",

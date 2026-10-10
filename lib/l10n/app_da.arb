@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Flyt ud af arkiv",
   "homeCloseArchive": "Luk arkiv",
   "homeArchiveClosed": "Arkiv lukket",
+  "homeArchiveFull": "Et arkiv er fuldt og er ladt åbent, som det var. Luk nogle af dets faneblade, eller flyt sider ud af det, og prøv igen.",
   "homeTitleUpdatedTo": "Titel opdateret til: {title}",
   "homeDeleteSiteTitle": "Slet side",
   "homeDeleteSiteConfirm": "Er du sikker på, at du vil slette \"{name}\"?",

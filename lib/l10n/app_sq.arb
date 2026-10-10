@@ -731,6 +731,7 @@
   "homeMoveOutOfArchive": "Zhvendos jashtë arkivit",
   "homeCloseArchive": "Mbyll arkivin",
   "homeArchiveClosed": "Arkivi u mbyll",
+  "homeArchiveFull": "Një arkiv është plot dhe u la i hapur siç ishte. Mbyllni disa nga skedat e tij ose zhvendosni faqe jashtë tij, pastaj provoni sërish.",
   "homeTitleUpdatedTo": "Titulli u përditësua në: {title}",
   "homeDeleteSiteTitle": "Fshi faqen",
   "homeDeleteSiteConfirm": "Je i sigurt që do të fshish \"{name}\"?",

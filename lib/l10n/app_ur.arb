@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "آرکائیو سے باہر منتقل کریں",
   "homeCloseArchive": "آرکائیو بند کریں",
   "homeArchiveClosed": "آرکائیو بند ہو گیا",
+  "homeArchiveFull": "ایک آرکائیو بھر گیا ہے اور جیسا تھا ویسا ہی کھلا چھوڑ دیا گیا ہے۔ اس کے کچھ ٹیبس بند کریں یا اس سے سائٹس باہر منتقل کریں، پھر دوبارہ کوشش کریں۔",
   "homeTitleUpdatedTo": "عنوان اپ ڈیٹ ہوا: {title}",
   "homeDeleteSiteTitle": "سائٹ حذف کریں",
   "homeDeleteSiteConfirm": "کیا آپ واقعی \"{name}\" حذف کرنا چاہتے ہیں؟",

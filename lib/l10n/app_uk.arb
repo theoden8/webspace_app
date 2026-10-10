@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Перемістити з архіву",
   "homeCloseArchive": "Закрити архів",
   "homeArchiveClosed": "Архів закрито",
+  "homeArchiveFull": "Архів заповнений і залишився відкритим без змін. Закрийте деякі його вкладки або перемістіть сайти з нього, а потім спробуйте ще раз.",
   "homeTitleUpdatedTo": "Назву оновлено до: {title}",
   "homeDeleteSiteTitle": "Видалити сайт",
   "homeDeleteSiteConfirm": "Ви впевнені, що хочете видалити «{name}»?",

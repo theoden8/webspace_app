@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Arşivden çıkar",
   "homeCloseArchive": "Arşivi kapat",
   "homeArchiveClosed": "Arşiv kapatıldı",
+  "homeArchiveFull": "Bir arşiv dolu ve olduğu gibi açık bırakıldı. Sekmelerinden bazılarını kapatın veya sitelerini arşivden çıkarın, ardından yeniden deneyin.",
   "homeTitleUpdatedTo": "Başlık şu şekilde güncellendi: {title}",
   "homeDeleteSiteTitle": "Siteyi Sil",
   "homeDeleteSiteConfirm": "\"{name}\" silmek istediğinizden emin misiniz?",

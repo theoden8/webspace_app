@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Przenieś z archiwum",
   "homeCloseArchive": "Zamknij archiwum",
   "homeArchiveClosed": "Archiwum zamknięte",
+  "homeArchiveFull": "Archiwum jest pełne i pozostało otwarte bez zmian. Zamknij część jego kart lub przenieś z niego strony, a następnie spróbuj ponownie.",
   "homeTitleUpdatedTo": "Tytuł zaktualizowano na: {title}",
   "homeDeleteSiteTitle": "Usuń stronę",
   "homeDeleteSiteConfirm": "Czy na pewno chcesz usunąć „{name}”?",

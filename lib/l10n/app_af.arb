@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Skuif uit argief",
   "homeCloseArchive": "Maak argief toe",
   "homeArchiveClosed": "Argief toegemaak",
+  "homeArchiveFull": "'n Argief is vol en is oop gelaat soos dit was. Maak van sy oortjies toe of skuif webwerwe daaruit uit, en probeer dan weer.",
   "homeTitleUpdatedTo": "Titel bygewerk na: {title}",
   "homeDeleteSiteTitle": "Vee webwerf uit",
   "homeDeleteSiteConfirm": "Is jy seker jy wil \"{name}\" uitvee?",

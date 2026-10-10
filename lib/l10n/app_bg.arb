@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Премести извън архива",
   "homeCloseArchive": "Затвори архива",
   "homeArchiveClosed": "Архивът е затворен",
+  "homeArchiveFull": "Един архив е пълен и е оставен отворен непроменен. Затворете някои от разделите му или преместете сайтове извън него и опитайте отново.",
   "homeTitleUpdatedTo": "Заглавието е обновено на: {title}",
   "homeDeleteSiteTitle": "Изтриване на сайт",
   "homeDeleteSiteConfirm": "Сигурни ли сте, че искате да изтриете „{name}“?",

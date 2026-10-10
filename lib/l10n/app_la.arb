@@ -731,6 +731,7 @@
   "homeMoveOutOfArchive": "Ex tabulario movere",
   "homeCloseArchive": "Tabularium claudere",
   "homeArchiveClosed": "Tabularium clausum",
+  "homeArchiveFull": "Tabularium plenum est et apertum relictum est ut erat. Nonnullas eius schedas claude aut locos ex eo move, deinde iterum conare.",
   "homeTitleUpdatedTo": "Titulus renovatus ad: {title}",
   "homeDeleteSiteTitle": "Locum delere",
   "homeDeleteSiteConfirm": "Certusne es te \"{name}\" delere velle?",

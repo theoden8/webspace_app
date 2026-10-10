@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Pārvietot ārpus arhīva",
   "homeCloseArchive": "Aizvērt arhīvu",
   "homeArchiveClosed": "Arhīvs aizvērts",
+  "homeArchiveFull": "Arhīvs ir pilns un atstāts atvērts nemainīts. Aizveriet dažas tā cilnes vai pārvietojiet vietnes ārpus tā un mēģiniet vēlreiz.",
   "homeTitleUpdatedTo": "Nosaukums atjaunināts uz: {title}",
   "homeDeleteSiteTitle": "Dzēst vietni",
   "homeDeleteSiteConfirm": "Vai tiešām vēlaties dzēst \"{name}\"?",

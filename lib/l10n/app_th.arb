@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "ย้ายออกจากคลังเก็บ",
   "homeCloseArchive": "ปิดคลังเก็บ",
   "homeArchiveClosed": "ปิดคลังเก็บแล้ว",
+  "homeArchiveFull": "คลังเก็บหนึ่งเต็มแล้วและยังคงเปิดอยู่ตามเดิม ปิดแท็บบางแท็บในคลังเก็บนั้นหรือย้ายเว็บไซต์ออกจากคลังเก็บ แล้วลองใหม่",
   "homeTitleUpdatedTo": "อัปเดตชื่อเป็น: {title}",
   "homeDeleteSiteTitle": "ลบเว็บไซต์",
   "homeDeleteSiteConfirm": "คุณแน่ใจหรือไม่ว่าต้องการลบ \"{name}\"?",

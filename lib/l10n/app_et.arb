@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Teisalda arhiivist välja",
   "homeCloseArchive": "Sulge arhiiv",
   "homeArchiveClosed": "Arhiiv suletud",
+  "homeArchiveFull": "Üks arhiiv on täis ja jäeti avatuks nii, nagu see oli. Sulgege mõni selle kaart või teisaldage saite sellest välja ja proovige uuesti.",
   "homeTitleUpdatedTo": "Pealkiri uuendatud: {title}",
   "homeDeleteSiteTitle": "Kustuta sait",
   "homeDeleteSiteConfirm": "Kas oled kindel, et soovid kustutada „{name}“?",

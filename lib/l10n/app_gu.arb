@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "આર્કાઇવમાંથી બહાર ખસેડો",
   "homeCloseArchive": "આર્કાઇવ બંધ કરો",
   "homeArchiveClosed": "આર્કાઇવ બંધ થયું",
+  "homeArchiveFull": "એક આર્કાઇવ ભરાઈ ગયું છે અને જેમ હતું તેમ ખુલ્લું રાખ્યું છે. તેના કેટલાક ટૅબ્સ બંધ કરો અથવા તેમાંથી સાઇટ્સ બહાર ખસેડો, પછી ફરી પ્રયાસ કરો.",
   "homeTitleUpdatedTo": "શીર્ષક અપડેટ થયું: {title}",
   "homeDeleteSiteTitle": "સાઇટ કાઢી નાખો",
   "homeDeleteSiteConfirm": "શું તમે ખરેખર \"{name}\" કાઢી નાખવા માંગો છો?",

@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Տեղափոխել արխիվից դուրս",
   "homeCloseArchive": "Փակել արխիվը",
   "homeArchiveClosed": "Արխիվը փակվեց",
+  "homeArchiveFull": "Արխիվներից մեկը լցված է և մնաց բաց՝ ինչպես կար։ Փակեք նրա որոշ ներդիրներ կամ տեղափոխեք կայքեր դրանից դուրս, ապա կրկին փորձեք։",
   "homeTitleUpdatedTo": "Վերնագիրը թարմացվեց՝ {title}",
   "homeDeleteSiteTitle": "Ջնջել կայքը",
   "homeDeleteSiteConfirm": "Վստա՞հ եք, որ ուզում եք ջնջել «{name}»-ը։",

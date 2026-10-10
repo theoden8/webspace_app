@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Áthelyezés archívumból",
   "homeCloseArchive": "Archívum bezárása",
   "homeArchiveClosed": "Archívum bezárva",
+  "homeArchiveFull": "Egy archívum megtelt, ezért változatlanul nyitva maradt. Zárja be néhány lapját, vagy helyezzen át belőle webhelyeket, majd próbálja újra.",
   "homeTitleUpdatedTo": "A cím frissítve erre: {title}",
   "homeDeleteSiteTitle": "Webhely törlése",
   "homeDeleteSiteConfirm": "Biztosan törli a következőt: „{name}”?",

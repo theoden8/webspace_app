@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Siirrä pois arkistosta",
   "homeCloseArchive": "Sulje arkisto",
   "homeArchiveClosed": "Arkisto suljettu",
+  "homeArchiveFull": "Arkisto on täynnä, ja se jätettiin auki ennallaan. Sulje osa sen välilehdistä tai siirrä sivustoja pois siitä ja yritä uudelleen.",
   "homeTitleUpdatedTo": "Otsikko päivitetty: {title}",
   "homeDeleteSiteTitle": "Poista sivusto",
   "homeDeleteSiteConfirm": "Haluatko varmasti poistaa \"{name}\"?",

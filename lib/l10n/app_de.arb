@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Aus dem Archiv verschieben",
   "homeCloseArchive": "Archiv schließen",
   "homeArchiveClosed": "Archiv geschlossen",
+  "homeArchiveFull": "Ein Archiv ist voll und bleibt unverändert geöffnet. Schließe einige seiner Tabs oder verschiebe Seiten daraus und versuche es dann erneut.",
   "homeTitleUpdatedTo": "Titel aktualisiert auf: {title}",
   "homeDeleteSiteTitle": "Seite löschen",
   "homeDeleteSiteConfirm": "Möchten Sie \"{name}\" wirklich löschen?",

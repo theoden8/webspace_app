@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Uit archief verplaatsen",
   "homeCloseArchive": "Archief sluiten",
   "homeArchiveClosed": "Archief gesloten",
+  "homeArchiveFull": "Een archief is vol en is ongewijzigd open gelaten. Sluit enkele tabbladen ervan of verplaats sites eruit en probeer het opnieuw.",
   "homeTitleUpdatedTo": "Titel bijgewerkt naar: {title}",
   "homeDeleteSiteTitle": "Site verwijderen",
   "homeDeleteSiteConfirm": "Weet je zeker dat je \"{name}\" wilt verwijderen?",

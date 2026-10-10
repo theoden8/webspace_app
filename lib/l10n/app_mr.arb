@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "संग्रहणाबाहेर हलवा",
   "homeCloseArchive": "संग्रहण बंद करा",
   "homeArchiveClosed": "संग्रहण बंद केले",
+  "homeArchiveFull": "एक संग्रहण भरले आहे आणि ते होते तसेच उघडे ठेवले आहे. त्यातील काही टॅब बंद करा किंवा त्यातून साइट बाहेर हलवा, मग पुन्हा प्रयत्न करा.",
   "homeTitleUpdatedTo": "शीर्षक यावर अद्यतनित केले: {title}",
   "homeDeleteSiteTitle": "साइट हटवा",
   "homeDeleteSiteConfirm": "तुम्हाला खात्री आहे की तुम्ही \"{name}\" हटवू इच्छिता?",

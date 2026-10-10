@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Alihkan keluar dari arkib",
   "homeCloseArchive": "Tutup arkib",
   "homeArchiveClosed": "Arkib ditutup",
+  "homeArchiveFull": "Sebuah arkib penuh dan dibiarkan terbuka seperti asal. Tutup beberapa tabnya atau alihkan tapak keluar daripadanya, kemudian cuba lagi.",
   "homeTitleUpdatedTo": "Tajuk dikemas kini kepada: {title}",
   "homeDeleteSiteTitle": "Padam Tapak",
   "homeDeleteSiteConfirm": "Adakah anda pasti mahu memadam \"{name}\"?",

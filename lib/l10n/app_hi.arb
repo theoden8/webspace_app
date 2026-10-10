@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "संग्रह से बाहर ले जाएँ",
   "homeCloseArchive": "संग्रह बंद करें",
   "homeArchiveClosed": "संग्रह बंद किया गया",
+  "homeArchiveFull": "एक संग्रह भर गया है और जैसा था वैसा ही खुला छोड़ दिया गया है। उसके कुछ टैब बंद करें या उससे साइटें बाहर ले जाएँ, फिर दोबारा कोशिश करें।",
   "homeTitleUpdatedTo": "शीर्षक इस पर अपडेट किया गया: {title}",
   "homeDeleteSiteTitle": "साइट हटाएँ",
   "homeDeleteSiteConfirm": "क्या आप वाकई \"{name}\" को हटाना चाहते हैं?",

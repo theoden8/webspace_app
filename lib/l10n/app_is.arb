@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Færa úr safni",
   "homeCloseArchive": "Loka safni",
   "homeArchiveClosed": "Safni lokað",
+  "homeArchiveFull": "Safn er fullt og var skilið eftir opið óbreytt. Lokaðu nokkrum flipum þess eða færðu svæði úr því og reyndu svo aftur.",
   "homeTitleUpdatedTo": "Titill uppfærður í: {title}",
   "homeDeleteSiteTitle": "Eyða svæði",
   "homeDeleteSiteConfirm": "Ertu viss um að þú viljir eyða „{name}“?",

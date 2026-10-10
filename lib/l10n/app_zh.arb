@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "移出封存",
   "homeCloseArchive": "關閉封存",
   "homeArchiveClosed": "封存已關閉",
+  "homeArchiveFull": "封存已滿，因此維持原樣並保持開啟。請關閉其中部分分頁，或將網站移出封存，然後再試一次。",
   "homeTitleUpdatedTo": "標題已更新為：{title}",
   "homeDeleteSiteTitle": "刪除網站",
   "homeDeleteSiteConfirm": "您確定要刪除「{name}」嗎？",

@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Mou fora de l'arxiu",
   "homeCloseArchive": "Tanca l'arxiu",
   "homeArchiveClosed": "Arxiu tancat",
+  "homeArchiveFull": "Un arxiu és ple i s'ha deixat obert tal com estava. Tanqueu algunes de les seves pestanyes o moveu llocs fora de l'arxiu i torneu-ho a provar.",
   "homeTitleUpdatedTo": "Títol actualitzat a: {title}",
   "homeDeleteSiteTitle": "Suprimeix el lloc",
   "homeDeleteSiteConfirm": "Segur que voleu suprimir \"{name}\"?",

@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Pindahkan keluar dari arsip",
   "homeCloseArchive": "Tutup arsip",
   "homeArchiveClosed": "Arsip ditutup",
+  "homeArchiveFull": "Sebuah arsip penuh dan dibiarkan terbuka seperti semula. Tutup beberapa tabnya atau pindahkan situs keluar darinya, lalu coba lagi.",
   "homeTitleUpdatedTo": "Judul diperbarui menjadi: {title}",
   "homeDeleteSiteTitle": "Hapus Situs",
   "homeDeleteSiteConfirm": "Apakah Anda yakin ingin menghapus \"{name}\"?",

@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "არქივიდან გადატანა",
   "homeCloseArchive": "არქივის დახურვა",
   "homeArchiveClosed": "არქივი დაიხურა",
+  "homeArchiveFull": "ერთ-ერთი არქივი სავსეა და ღია დარჩა ისე, როგორც იყო. დახურეთ მისი ზოგიერთი ჩანართი ან გადაიტანეთ საიტები მისგან, შემდეგ სცადეთ ხელახლა.",
   "homeTitleUpdatedTo": "სათაური განახლდა: {title}",
   "homeDeleteSiteTitle": "საიტის წაშლა",
   "homeDeleteSiteConfirm": "ნამდვილად გსურთ „{name}“-ის წაშლა?",

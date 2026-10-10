@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Symud allan o'r archif",
   "homeCloseArchive": "Cau'r archif",
   "homeArchiveClosed": "Caewyd yr archif",
+  "homeArchiveFull": "Mae archif yn llawn ac fe'i gadawyd ar agor fel yr oedd. Caewch rai o'i thabiau neu symudwch safleoedd allan ohoni, yna rhowch gynnig arall arni.",
   "homeTitleUpdatedTo": "Diweddarwyd y teitl i: {title}",
   "homeDeleteSiteTitle": "Dileu Safle",
   "homeDeleteSiteConfirm": "Ydych chi'n siŵr eich bod am ddileu \"{name}\"?",

@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Perkelti iš archyvo",
   "homeCloseArchive": "Uždaryti archyvą",
   "homeArchiveClosed": "Archyvas uždarytas",
+  "homeArchiveFull": "Archyvas pilnas ir paliktas atidarytas toks, koks buvo. Uždarykite kai kurias jo korteles arba perkelkite svetaines iš jo ir bandykite dar kartą.",
   "homeTitleUpdatedTo": "Pavadinimas atnaujintas į: {title}",
   "homeDeleteSiteTitle": "Ištrinti svetainę",
   "homeDeleteSiteConfirm": "Ar tikrai norite ištrinti „{name}“?",

@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Bog amach as cartlann",
   "homeCloseArchive": "Dún cartlann",
   "homeArchiveClosed": "Cartlann dúnta",
+  "homeArchiveFull": "Tá cartlann lán agus fágadh oscailte í mar a bhí. Dún cuid dá cluaisíní nó bog suíomhanna amach aisti, ansin bain triail eile as.",
   "homeTitleUpdatedTo": "Nuashonraíodh an teideal go: {title}",
   "homeDeleteSiteTitle": "Scrios Suíomh",
   "homeDeleteSiteConfirm": "An bhfuil tú cinnte gur mhaith leat \"{name}\" a scriosadh?",

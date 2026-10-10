@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Presunúť z archívu",
   "homeCloseArchive": "Zatvoriť archív",
   "homeArchiveClosed": "Archív zatvorený",
+  "homeArchiveFull": "Archív je plný a zostal otvorený bez zmeny. Zatvorte niektoré jeho karty alebo z neho presuňte stránky a skúste to znova.",
   "homeTitleUpdatedTo": "Názov aktualizovaný na: {title}",
   "homeDeleteSiteTitle": "Odstrániť stránku",
   "homeDeleteSiteConfirm": "Naozaj chcete odstrániť „{name}“?",

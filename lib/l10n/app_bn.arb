@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "আর্কাইভের বাইরে সরান",
   "homeCloseArchive": "আর্কাইভ বন্ধ করুন",
   "homeArchiveClosed": "আর্কাইভ বন্ধ হয়েছে",
+  "homeArchiveFull": "একটি আর্কাইভ পূর্ণ হয়ে গেছে এবং যেমন ছিল তেমনই খোলা রাখা হয়েছে। এর কিছু ট্যাব বন্ধ করুন বা এর থেকে সাইট সরিয়ে নিন, তারপর আবার চেষ্টা করুন।",
   "homeTitleUpdatedTo": "শিরোনাম আপডেট হয়েছে: {title}",
   "homeDeleteSiteTitle": "সাইট মুছুন",
   "homeDeleteSiteConfirm": "আপনি কি নিশ্চিত যে \"{name}\" মুছতে চান?",

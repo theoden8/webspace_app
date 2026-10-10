@@ -731,6 +731,7 @@
   "homeMoveOutOfArchive": "Move ចេញពី archive",
   "homeCloseArchive": "បិទ archive",
   "homeArchiveClosed": "Archive ត្រូវបានបិទ",
+  "homeArchiveFull": "Archive មួយពេញហើយ ហើយត្រូវបានទុកឱ្យបើកដូចដើម។ សូមបិទផ្ទាំងមួយចំនួនរបស់វា ឬផ្លាស់ទីគេហទំព័រចេញពីវា រួចព្យាយាមម្ដងទៀត។",
   "homeTitleUpdatedTo": "Title ត្រូវបានអាប់ដេតទៅ: {title}",
   "homeDeleteSiteTitle": "លុប Site",
   "homeDeleteSiteConfirm": "តើអ្នកប្រាកដចង់លុប \"{name}\"?",

@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "نقل خارج الأرشيف",
   "homeCloseArchive": "إغلاق الأرشيف",
   "homeArchiveClosed": "تم إغلاق الأرشيف",
+  "homeArchiveFull": "أحد الأرشيفات ممتلئ وتُرك مفتوحًا كما كان. أغلق بعض علامات التبويب فيه أو انقل مواقع خارجه، ثم أعد المحاولة.",
   "homeTitleUpdatedTo": "تم تحديث العنوان إلى: {title}",
   "homeDeleteSiteTitle": "حذف الموقع",
   "homeDeleteSiteConfirm": "هل أنت متأكد من رغبتك في حذف \"{name}\"؟",

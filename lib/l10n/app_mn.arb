@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Архиваас гаргах",
   "homeCloseArchive": "Архив хаах",
   "homeArchiveClosed": "Архив хаагдлаа",
+  "homeArchiveFull": "Нэг архив дүүрсэн тул байсан хэвээр нь нээлттэй үлдээлээ. Түүний зарим табыг хааж эсвэл сайтуудыг түүнээс гаргаад дахин оролдоно уу.",
   "homeTitleUpdatedTo": "Гарчиг шинэчлэгдлээ: {title}",
   "homeDeleteSiteTitle": "Сайт устгах",
   "homeDeleteSiteConfirm": "Та \"{name}\"-г устгахдаа итгэлтэй байна уу?",

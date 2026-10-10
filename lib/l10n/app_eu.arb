@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Eraman artxibotik kanpora",
   "homeCloseArchive": "Itxi artxiboa",
   "homeArchiveClosed": "Artxiboa itxita",
+  "homeArchiveFull": "Artxibo bat beteta dago eta zegoen bezala irekita utzi da. Itxi bere fitxa batzuk edo eraman guneak artxibotik kanpora, eta saiatu berriro.",
   "homeTitleUpdatedTo": "Izenburua eguneratuta: {title}",
   "homeDeleteSiteTitle": "Ezabatu gunea",
   "homeDeleteSiteConfirm": "Ziur zaude \"{name}\" ezabatu nahi duzula?",

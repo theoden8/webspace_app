@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Premjesti iz arhive",
   "homeCloseArchive": "Zatvori arhivu",
   "homeArchiveClosed": "Arhiva zatvorena",
+  "homeArchiveFull": "Jedna arhiva je puna i ostavljena je otvorena kakva je bila. Zatvorite neke njene kartice ili premjestite stranice iz nje i pokušajte ponovo.",
   "homeTitleUpdatedTo": "Naslov ažuriran na: {title}",
   "homeDeleteSiteTitle": "Izbriši stranicu",
   "homeDeleteSiteConfirm": "Jeste li sigurni da želite izbrisati \"{name}\"?",

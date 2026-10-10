@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Hamisha nje ya kumbukumbu",
   "homeCloseArchive": "Funga kumbukumbu",
   "homeArchiveClosed": "Kumbukumbu imefungwa",
+  "homeArchiveFull": "Kumbukumbu moja imejaa na imeachwa wazi kama ilivyokuwa. Funga baadhi ya vichupo vyake au hamisha tovuti nje yake, kisha ujaribu tena.",
   "homeTitleUpdatedTo": "Kichwa kimesasishwa kuwa: {title}",
   "homeDeleteSiteTitle": "Futa Tovuti",
   "homeDeleteSiteConfirm": "Una uhakika unataka kufuta \"{name}\"?",

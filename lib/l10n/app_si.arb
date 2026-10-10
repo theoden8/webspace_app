@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "සංරක්ෂිතයෙන් ඉවතට ගෙන යන්න",
   "homeCloseArchive": "සංරක්ෂිතය වසන්න",
   "homeArchiveClosed": "සංරක්ෂිතය වසන ලදී",
+  "homeArchiveFull": "එක් සංරක්ෂිතයක් පිරී ඇති අතර එය තිබූ ලෙසම විවෘතව තබා ඇත. එහි ටැබ් කිහිපයක් වසන්න හෝ අඩවි එයින් ඉවතට ගෙන යන්න, ඉන්පසු නැවත උත්සාහ කරන්න.",
   "homeTitleUpdatedTo": "මාතෘකාව යාවත්කාලීන විය: {title}",
   "homeDeleteSiteTitle": "අඩවිය මකන්න",
   "homeDeleteSiteConfirm": "\"{name}\" මැකීමට ඔබට අවශ්‍ය බව විශ්වාසද?",

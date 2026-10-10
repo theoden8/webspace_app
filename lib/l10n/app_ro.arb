@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "Mută în afara arhivei",
   "homeCloseArchive": "Închide arhiva",
   "homeArchiveClosed": "Arhivă închisă",
+  "homeArchiveFull": "O arhivă este plină și a fost lăsată deschisă așa cum era. Închideți câteva dintre filele ei sau mutați site-uri în afara ei, apoi încercați din nou.",
   "homeTitleUpdatedTo": "Titlu actualizat la: {title}",
   "homeDeleteSiteTitle": "Șterge site-ul",
   "homeDeleteSiteConfirm": "Sigur vrei să ștergi \"{name}\"?",

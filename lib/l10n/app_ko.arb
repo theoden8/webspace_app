@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "아카이브 밖으로 이동",
   "homeCloseArchive": "아카이브 닫기",
   "homeArchiveClosed": "아카이브가 닫혔습니다",
+  "homeArchiveFull": "아카이브가 가득 차서 그대로 열어 두었습니다. 탭 일부를 닫거나 사이트를 아카이브 밖으로 옮긴 뒤 다시 시도하세요.",
   "homeTitleUpdatedTo": "제목이 다음으로 업데이트되었습니다: {title}",
   "homeDeleteSiteTitle": "사이트 삭제",
   "homeDeleteSiteConfirm": "\"{name}\"을(를) 삭제하시겠습니까?",

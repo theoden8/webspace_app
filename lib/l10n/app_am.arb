@@ -729,6 +729,7 @@
   "homeMoveOutOfArchive": "ከማህደር አውጣ",
   "homeCloseArchive": "ማህደር ዝጋ",
   "homeArchiveClosed": "ማህደር ተዘግቷል",
+  "homeArchiveFull": "አንድ ማህደር ሞልቷል፣ እንደነበረው ክፍት ሆኖ ቀርቷል። አንዳንድ ትሮቹን ይዝጉ ወይም ጣቢያዎችን ከእሱ ያውጡ፣ ከዚያ እንደገና ይሞክሩ።",
   "homeTitleUpdatedTo": "ርዕስ ተዘምኗል ወደ: {title}",
   "homeDeleteSiteTitle": "ጣቢያ ሰርዝ",
   "homeDeleteSiteConfirm": "\"{name}\"ን መሰረዝ እንደሚፈልጉ እርግጠኛ ነዎት?",
