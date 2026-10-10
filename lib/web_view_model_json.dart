@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:webspace/services/dns_level_mask_engine.dart';
 import 'package:webspace/services/domain_claim.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/services/tab_bar_corner.dart';
@@ -289,11 +288,7 @@ WebViewModel webViewModelFromJson(
   // Loading a site is a fresh entry to it, so an always-home site lands at
   // home here (AOH-002, TAB-014), before anything can build its webview.
   if (isAlwaysOpenHome && !isIncognito) {
-    model.landAtHome(
-      tabsOn: model.effectiveTabsEnabled &&
-          ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.siteTabs),
-    );
+    model.landAtHome();
   }
   return model;
 }

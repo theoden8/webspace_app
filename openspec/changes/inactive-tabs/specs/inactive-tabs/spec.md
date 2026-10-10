@@ -350,14 +350,15 @@ site to the `resident` tier, because the rebuilt webview is fresh.
 
 ---
 
-### Requirement: TAB-012 - Tabs are experimental
+### Requirement: TAB-012 - Tabs are not experimental
 
-Tabs SHALL be reachable only while developer mode is on and the Experimental
-group's **Site tabs** switch is on (DEVTOOLS-011); the switch SHALL default off.
-The gate SHALL be read when it is used, so flipping the switch or developer mode
-takes effect without a restart.
+Tabs SHALL be reachable with developer mode on or off; whether a site has them
+is its own choice under TAB-013 alone. They shipped first behind developer mode
+and an Experimental **Site tabs** switch (DEVTOOLS-011), off by default; they
+graduated, and the switch and its pref (`experimentalSiteTabs`, written by
+v0.3.3 to v0.3.5 and no longer read) went with it.
 
-While tabs are off, a site SHALL behave as it did before tabs existed: the app
+While a site's tabs are off, it SHALL behave as it did before tabs existed: the app
 bar SHALL show no tab count, a tap on the active site's chip SHALL do nothing,
 the overflow menus SHALL NOT offer "New tab", a long press on a refresh button
 SHALL do nothing, a long press on a link SHALL open no link menu, system back at
@@ -365,29 +366,29 @@ the start of a page SHALL keep NAV-001 even in a tab opened from another, and no
 chip or tile SHALL show a count pill. Every way into tabs SHALL return before
 acting, not only hide its button.
 
-Turning tabs off SHALL NOT delete or rewrite a site's tabs. The site keeps
+Turning a site's tabs off SHALL NOT delete or rewrite them. The site keeps
 showing its active tab, its other tabs stay stored under TAB-009's rules, and
 turning tabs back on shows them again.
 
-#### Scenario: Off by default
+#### Scenario: Tabs need no developer mode
 
-- **GIVEN** a fresh install with developer mode on
-- **WHEN** the user opens a site
-- **THEN** there is no tab count in the app bar and no "New tab" in the menu
-- **AND** App settings lists "Site tabs" in the Experimental group, switched off
+- **GIVEN** a fresh install with developer mode off
+- **WHEN** the user adds a site and opens it
+- **THEN** the app bar shows its tab count and the menu offers "New tab"
+- **AND** App settings has no Site tabs switch
 
-#### Scenario: The switch applies without a restart
+#### Scenario: The old switch is not read
 
-- **GIVEN** developer mode is on and Site tabs is off
-- **WHEN** the user turns Site tabs on and returns to a site
-- **THEN** the tab count and the tab rows of the menu are there
+- **GIVEN** a device that stored `experimentalSiteTabs` off, and a site with Tabs on
+- **WHEN** the app starts
+- **THEN** the site has tabs
 
 #### Scenario: Turning tabs off keeps them
 
 - **GIVEN** GitHub has four tabs and its third is active
-- **WHEN** the user turns developer mode off
+- **WHEN** the user turns GitHub's Tabs switch off
 - **THEN** GitHub shows its third tab with no tab count or count pill
-- **AND** after developer mode is back on, all four tabs are listed again
+- **AND** after its Tabs switch is back on, all four tabs are listed again
 
 ---
 
@@ -399,12 +400,11 @@ mode only hides the shell and SHALL NOT turn tabs off.
 
 Each site SHALL carry a `tabsEnabled` choice, on by default, written to the
 site's JSON only when off, and carried by settings backup and the site QR share
-like `kioskMode`. Tabs SHALL be in effect for a site only while TAB-012's gate
-is open, its `tabsEnabled` is on, and its `kioskMode` is off
-(`effectiveTabsEnabled`). While they are not in effect for a site, that site
-SHALL behave as TAB-012 describes for tabs off, every way into its tabs SHALL
-return before acting, and the tab list's "All sites" scope SHALL leave the site
-out. Other sites are unaffected.
+like `kioskMode`. Tabs SHALL be in effect for a site only while its
+`tabsEnabled` is on and its `kioskMode` is off (`effectiveTabsEnabled`). While
+they are not in effect for a site, that site SHALL behave as TAB-012 describes
+for tabs off, every way into its tabs SHALL return before acting, and the tab
+list's "All sites" scope SHALL leave the site out. Other sites are unaffected.
 
 The Behaviour screen (BEHAV-005) SHALL show the effective value. Turning Tabs
 on SHALL turn Kiosk mode off. Turning Kiosk mode on SHALL show Tabs off without
@@ -414,14 +414,12 @@ tabs off SHALL delete or rewrite them (TAB-012).
 
 #### Scenario: A new site has tabs
 
-- **GIVEN** developer mode and the Site tabs switch are on
 - **WHEN** the user adds a site
 - **THEN** its Tabs switch is on and the app bar shows its tab count
 
 #### Scenario: A kiosk site has no tabs
 
-- **GIVEN** developer mode and the Site tabs switch are on
-- **AND** GitHub has three tabs and Kiosk mode on, and Mastodon has two tabs
+- **GIVEN** GitHub has three tabs and Kiosk mode on, and Mastodon has two tabs
 - **WHEN** WebSpace is opened normally and GitHub is shown
 - **THEN** GitHub shows no tab count, no "New tab", no count pill, and a long press on a link opens no menu
 - **AND** Mastodon's "All sites" tab list does not list GitHub
@@ -441,8 +439,7 @@ tabs off SHALL delete or rewrite them (TAB-012).
 
 #### Scenario: A full-screen site keeps its tabs
 
-- **GIVEN** developer mode and the Site tabs switch are on
-- **AND** a site with two tabs and Full screen mode on
+- **GIVEN** a site with two tabs and Full screen mode on
 - **THEN** its Tabs switch reads on and its tabs are listed
 
 ---

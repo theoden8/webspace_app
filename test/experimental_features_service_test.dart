@@ -30,21 +30,6 @@ void main() {
     }
   });
 
-  test('Site tabs default off: they are new (TAB-012)', () async {
-    await ExperimentalFeaturesService.instance.initialize();
-    DeveloperModeService.instance.debugSet(on: true);
-    expect(
-        ExperimentalFeaturesService.instance
-            .isEnabled(ExperimentalFeature.siteTabs),
-        isFalse);
-    SharedPreferences.setMockInitialValues({AppPref.experimentalSiteTabs.key: true});
-    await ExperimentalFeaturesService.instance.initialize();
-    expect(
-        ExperimentalFeaturesService.instance
-            .isEnabled(ExperimentalFeature.siteTabs),
-        isTrue);
-  });
-
   test('Tor graduated: it has no switch (TOR-007)', () {
     expect(
         ExperimentalFeature.values.map((f) => f.pref.key),
@@ -57,6 +42,14 @@ void main() {
     expect(
         ExperimentalFeature.values.map((f) => f.pref.key),
         isNot(contains('experimentalProxyLibrary')),
+        reason: 'a graduated feature removes its switch and stops reading '
+            'this gate (DEVTOOLS-011)');
+  });
+
+  test('Site tabs graduated: they have no switch (TAB-012)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains('experimentalSiteTabs')),
         reason: 'a graduated feature removes its switch and stops reading '
             'this gate (DEVTOOLS-011)');
   });

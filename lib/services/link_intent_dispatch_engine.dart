@@ -121,8 +121,8 @@ class DispatchOpenNested extends DispatchAction {
   });
 }
 
-/// A link into one of the user's sites, with Site tabs on: open it as a child
-/// tab of the tab it came from, run as [siteId] (LIR-032).
+/// A link into one of the user's sites, where the site on screen has tabs:
+/// open it as a child tab of the tab it came from, run as [siteId] (LIR-032).
 class DispatchOpenInTab extends DispatchAction {
   final String siteId;
   final String url;
@@ -276,10 +276,10 @@ class LinkIntentDispatchEngine {
     return action is DispatchNestedFallback ? null : action;
   }
 
-  /// A link [source] would nest, with Site tabs on: when one of the user's
-  /// sites can run it as a tab ([hosts], already limited to the sites that
-  /// may host in the owner's tree), it opens as a tab instead of a nested
-  /// screen (LIR-032). [routeOutboundLinks] is the source's routing switch,
+  /// A link [source] would nest, where the owner has tabs: when one of the
+  /// user's sites can run it as a tab ([hosts], already limited to the sites
+  /// that may host in the owner's tree), it opens as a tab instead of a
+  /// nested screen (LIR-032). [routeOutboundLinks] is the source's routing switch,
   /// and it decides the container (LIR-034): on, the tab runs as the site the
   /// link leads to, asking when several can; off, as [source] itself, anchored
   /// in the link's domain. Null keeps today's path. [urlNavigationDomain] is

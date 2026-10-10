@@ -1,4 +1,4 @@
-Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (TAB-001 to TAB-012) is implemented, behind the Experimental group's Site tabs switch (TAB-012, DEVTOOLS-011); its steps are the Migration Plan in `design.md`. Hosted tabs sit behind the same switch. The hosted-tab core (sections 1 to 3, 5 and 6) landed with web search (`web-search`), whose results from another site open as hosted tabs; creating one from a link (section 4) and the reattach instruments (7 and 8) are not built.
+Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (TAB-001 to TAB-012) is implemented and no longer experimental (TAB-012); its steps are the Migration Plan in `design.md`. The hosted-tab core (sections 1 to 3, 5 and 6) landed with web search (`web-search`), whose results from another site open as hosted tabs; creating one from a link (section 4) and the reattach instruments (7 and 8) are not built.
 
 ## 1. Hosted tabs: prerequisites
 
@@ -79,3 +79,16 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
 - [ ] 9.4 Move a subtree from DuckDuckGo to Mastodon; restart; both trees and back stacks survive.
 - [ ] 9.5 Run a tab as Work GitHub instead of Personal GitHub: it reloads signed in as Work, with no back history.
 - [ ] 9.6 Delete GitHub while a DuckDuckGo tab it hosts is active: the tab closes, DuckDuckGo shows the parent, GitHub's login is gone (a new GitHub site starts signed out).
+
+## 10. Graduate
+
+- [x] 10.1 Take tabs and web search out of developer mode and the Experimental
+  group (TAB-012, LIR-029): `ExperimentalFeature.siteTabs` and its
+  `experimentalSiteTabs` pref (retired in the compat and prefs-history tests)
+  are gone, and a site's own Tabs switch (TAB-013) is the only gate.
+  `TabsController.enabledFor` and the URL bar, menu, Behaviour screen and
+  search discovery reads of the switch went with it. Tests:
+  `test/tab_entry_points_test.dart`, `test/web_search_entry_test.dart`,
+  `test/site_behaviour_screen_test.dart`, `test/site_tabs_model_test.dart`,
+  `test/app_settings_experimental_test.dart`,
+  `test/experimental_features_service_test.dart`.

@@ -53,9 +53,6 @@ List<(ExperimentalFeature, IconData, String title, String hint)> _experiments(
         (ExperimentalFeature.textureRendering, Icons.layers_outlined,
             loc.appSettingsExperimentalTextureRendering,
             loc.appSettingsExperimentalTextureRenderingHint),
-      (ExperimentalFeature.siteTabs, Icons.tab_outlined,
-          loc.appSettingsExperimentalSiteTabs,
-          loc.appSettingsExperimentalSiteTabsHint),
     ];
 
 /// The names of the experiments switched on, for the App Settings row.
@@ -155,7 +152,8 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
                 onTap: () => guardedOpen(
                     () => openAppLogs(context, startOnBackground: true))),
           ),
-          // Site tabs run on every platform, so the group always has a row.
+          // Site icons only runs on every platform, so the group always has a
+          // row.
           SettingsSection(
             loc.appSettingsExperimental,
             hint: loc.appSettingsExperimentalHint,

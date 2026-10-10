@@ -375,7 +375,7 @@ Specs live under `openspec/specs/<slug>/spec.md` (Given/When/Then). **Read the r
 | home-shortcut | Android pinned shortcuts; iOS/macOS expose an "Open Site" App Intent through Shortcuts instead (no pin API) |
 | http-auth-prompt | a server's or proxy's 401/407 challenge as a per-site sign-in dialog; only the site's own hosts may ask, the credential is remembered in secure storage per site, never exported, and archive-tier sites keep none |
 | https-upgrade *(change)* | plain-http main-frame navigations retried over https, silent per-host fallback; default-on knob, forced on by Tracking Protection |
-| inactive-tabs *(change)* | tabs inside a site, behind the Experimental group's Site tabs switch; requirements (TAB-*) at `openspec/changes/inactive-tabs/` |
+| inactive-tabs *(change)* | tabs inside a site, on by default per site and off for a kiosk site; requirements (TAB-*) at `openspec/changes/inactive-tabs/` |
 | icon-fetching | progressive favicon w/ fallbacks; the page's own icon wins when it is on the site's host, >= 32px, and not a badge swapped in after load: on Android the one the webview reports (`onReceivedIcon`); elsewhere the links the page declared, fetched through the site's proxy and blockers. The Site icons only experiment drops Google/DuckDuckGo and sends Android to the declared links too; developer mode can reset every icon cache |
 | incognito-mode | per-site: nothing the site stores survives an app restart (cookies, localStorage, IDB, SW, cache, last URL/title); typed configuration does |
 | ios-universal-link-bypass | cancel+reissue gesture http(s) navs to dodge AASA |

@@ -26,7 +26,6 @@ enum SiteMenuPlacement { appBar, bottomBar }
 typedef SiteMenuState = ({
   bool loading,
   bool tabsOn,
-  bool tabsFeature,
   bool fullscreen,
   bool offersShortcut,
 });
@@ -111,9 +110,8 @@ class SiteMenuButton extends StatelessWidget {
               : null,
         SiteMenuAction.search => (Icons.search, loc.homeFindMenu),
         // Where the site has tabs, web search lives in the Tabs sheet.
-        SiteMenuAction.webSearch => state.tabsFeature && !state.tabsOn
-            ? (Icons.travel_explore, loc.webSearchMenu)
-            : null,
+        SiteMenuAction.webSearch =>
+          state.tabsOn ? null : (Icons.travel_explore, loc.webSearchMenu),
         SiteMenuAction.toggleUrlBar => AppPref.showUrlBar.value
             ? (Icons.visibility_off, loc.homeHideUrlBarMenu)
             : (Icons.visibility, loc.homeShowUrlBarMenu),

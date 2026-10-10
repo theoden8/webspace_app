@@ -27,6 +27,8 @@ const RETIRED = {
     'TOR-003: circuits are isolated per site only; the per-destination split is no longer a setting',
   experimentalProxyLibrary:
     'PROXY-030: saved proxies graduated out of the Experimental group; there is no switch to restore',
+  experimentalSiteTabs:
+    'TAB-012: site tabs graduated out of the Experimental group; there is no switch to restore',
 };
 
 const head = scan(path.join(root, 'lib'));

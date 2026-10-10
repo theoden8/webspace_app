@@ -879,7 +879,7 @@ class WebViewFactory {
           controller.addJavaScriptHandler(
             handlerName: kSearchLinksHandler,
             callback: (inapp.JavaScriptHandlerFunctionData call) {
-              if (!call.isMainFrame || !siteSearch.enabled()) return null;
+              if (!call.isMainFrame) return null;
               final report = PageSearchReport.from(
                   call.args.isEmpty ? null : call.args.first);
               if (report == null) return null;

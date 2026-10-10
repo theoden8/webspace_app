@@ -1229,7 +1229,6 @@ class _WebSpacePageState extends State<WebSpacePage>
       onReorder: _webspaces.canReorderView
           ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
           : null,
-      showsTabCount: _tabs.enabledFor,
       menu: _siteMenu(SiteMenuPlacement.bottomBar),
     );
   }
@@ -1248,9 +1247,8 @@ class _WebSpacePageState extends State<WebSpacePage>
     if (!hasUrlBar && !hasFindToolbar) {
       return null;
     }
-    final urlBarSearch = hasUrlBar && !_kioskLocked && _tabs.featureEnabled
-        ? _links.urlBarSearchFor(model)
-        : null;
+    final urlBarSearch =
+        hasUrlBar && !_kioskLocked ? _links.urlBarSearchFor(model) : null;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1285,7 +1283,6 @@ class _WebSpacePageState extends State<WebSpacePage>
         state: () => (
           loading: _sites.shown?.isLoading ?? false,
           tabsOn: _tabs.enabledAt(_sites.current),
-          tabsFeature: _tabs.featureEnabled,
           fullscreen: _fullscreen.active,
           offersShortcut: switch (_sites.shown) {
             final shown? => _shortcuts.offersShortcutFor(shown),
@@ -1486,7 +1483,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         unawaited(_activation.captureStateBytes(site));
       });
     };
-    site.onReturnToOwner = _tabs.enabledFor(site)
+    site.onReturnToOwner = site.effectiveTabsEnabled
         ? (url) => unawaited(_tabs.returnToOwner(site, url: url))
         : null;
   }

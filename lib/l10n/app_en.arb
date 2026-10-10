@@ -1576,14 +1576,6 @@
   "@appSettingsExperimentalTextureRenderingHint": {
     "description": "Explanation behind the hint button of the Android-only Texture page rendering switch in the Experimental group of App Settings: what the mode does, what problem it may fix, what is less tested, and that it applies after a restart."
   },
-  "appSettingsExperimentalSiteTabs": "Site tabs",
-  "@appSettingsExperimentalSiteTabs": {
-    "description": "Title of the switch in App settings > Developer > Experimental that turns on tabs inside a site: several pages of one site kept open at once, like browser tabs."
-  },
-  "appSettingsExperimentalSiteTabsHint": "Lets a site keep several pages at once, like browser tabs: a tab list from the tab count at the top, New tab in the menu, and Open in new tab when you hold a link. Every tab of a site shares that site's sign-in and settings. Off, each site shows one page, as before; tabs you already opened are kept for when you turn it back on. It also turns on Web search, which runs a search in one of your search sites and opens the results as a tab.",
-  "@appSettingsExperimentalSiteTabsHint": {
-    "description": "Explanation behind the hint button of the Site tabs switch in App settings > Developer > Experimental. 'Hold a link' means a long press on a link in a page. 'Web search' is the name of the menu item that searches in one of the user's sites that is a search engine; the same switch turns it on."
-  },
   "appSettingsExperimentalExternalTor": "Tor (external)",
   "@appSettingsExperimentalExternalTor": {
     "description": "Title of the switch in App settings > Developer > Experimental that sends sites set to Tor through a Tor program already running on the device (for example the Orbot app, or the tor service on Linux) instead of one inside this app. While it is on, also the name of the Tor choice in proxy pickers and in the summaries that name a site's route, to tell it from the Tor built into the app. Tor is a product name; keep it."
@@ -3440,7 +3432,7 @@
   },
   "webSearchMenu": "Web search",
   "@webSearchMenu": {
-    "description": "Button in the header of the Tabs sheet, beside New tab, that opens the web search sheet for searching the web or the site on screen with one of the user's search sites. With the Site tabs experiment off it is instead a row in the page's overflow menu, below Find. Also the tooltip of the magnifier button in the address bar that turns it into a search field, the tooltip of the arrow button that runs the search, and the field's placeholder before a search site is chosen."
+    "description": "Button in the header of the Tabs sheet, beside New tab, that opens the web search sheet for searching the web or the site on screen with one of the user's search sites. While the site on screen has no tabs it is instead a row in the page's overflow menu, below Find. Also the tooltip of the magnifier button in the address bar that turns it into a search field, the tooltip of the arrow button that runs the search, and the field's placeholder before a search site is chosen."
   },
   "webSearchFieldHint": "Search with {engine}",
   "@webSearchFieldHint": {
