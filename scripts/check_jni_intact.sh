@@ -77,7 +77,7 @@ if ! DEX_TREE="$("$APKANALYZER" dex packages "$APK" 2>"$err_file")"; then
 fi
 
 # Method (M) rows for the bridge class look like:
-#   M d 1 1 12  org.codeberg.theoden8.webspace.AdblockEngineNative long nativeEngineNew(java.lang.String,boolean)
+#   M d 1 1 12  org.codeberg.theoden8.webspace.AdblockEngineNative long nativeEngineFromSerialized(byte[],boolean)
 # Keep only M rows naming the class, then require "<name>(" so a param type
 # of the same class on an unrelated method can't satisfy the match.
 CLASS_METHODS="$(printf '%s\n' "$DEX_TREE" \

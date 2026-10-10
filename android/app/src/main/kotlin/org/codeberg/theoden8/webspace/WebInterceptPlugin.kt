@@ -38,7 +38,7 @@ class WebInterceptPlugin(
     private val dnsBlocklist = DnsHostBlocklist()
 
     // ABP rules are owned end-to-end by the native adblock-rust engine
-    // (see setAdblockEngineRules). The interceptor consults it for every
+    // (see setAdblockEngine). The interceptor consults it for every
     // request that wasn't already blocked by the DNS host-only fast path.
 
     private val cdnTables = LocalCdnTables()
@@ -84,27 +84,36 @@ class WebInterceptPlugin(
                         result.error("INVALID_ARGS", "domains blob required", null)
                     }
                 }
-                "setAdblockEngineRules" -> {
-                    // Phase 9: Dart pushes the concatenated filter-list
-                    // text once when the user flips the engine toggle.
-                    // Empty string = engine off → tear down + revert
-                    // to host-only fast path. Non-empty = parse on the
-                    // Rust side and keep the handle for per-request
-                    // checkUrl calls in FastSubresourceInterceptor.
-                    val rulesText = call.argument<String>("rulesText") ?: ""
+                "setAdblockEngine" -> {
+                    // Dart pushes the engine it built, serialized, at launch
+                    // and on every rebuild, or the rules text when the blob
+                    // did not hydrate; empty turns it off and reverts to the
+                    // host-only fast path. Built off the main thread, where
+                    // Dart itself runs; Dart awaits the reply, so no page
+                    // loads before the engine is in.
+                    val blob = call.argument<ByteArray>("blob")
+                    val rulesText = call.argument<String>("rulesText")
                     val enableUboResources =
                         call.argument<Boolean>("enableUboResources") ?: true
-                    AdblockEngineNative.setRules(rulesText, enableUboResources)
-                    // host-decision cache keys on host only, but the
-                    // engine answers per (url, source, type). Hits
-                    // that previously read ALLOWED from the cache
-                    // would shadow the engine — clear so the engine
-                    // gets to vote.
-                    clearAllHostDecisionCaches()
-                    result.success(mapOf(
-                        "supported" to AdblockEngineNative.supported,
-                        "active" to AdblockEngineNative.active,
-                    ))
+                    Thread {
+                        if (blob != null) {
+                            AdblockEngineNative.setEngine(blob, enableUboResources)
+                        } else {
+                            AdblockEngineNative.setRules(rulesText ?: "", enableUboResources)
+                        }
+                        mainHandler.post {
+                            // host-decision cache keys on host only, but the
+                            // engine answers per (url, source, type). Hits
+                            // that previously read ALLOWED from the cache
+                            // would shadow the engine — clear so the engine
+                            // gets to vote.
+                            clearAllHostDecisionCaches()
+                            result.success(mapOf(
+                                "supported" to AdblockEngineNative.supported,
+                                "active" to AdblockEngineNative.active,
+                            ))
+                        }
+                    }.apply { name = "adblock-engine-build"; isDaemon = true; start() }
                 }
                 "isAdblockEngineSupported" -> {
                     // Diagnostic for the Dart-side UI: lets the toggle

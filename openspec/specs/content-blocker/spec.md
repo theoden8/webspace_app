@@ -45,20 +45,22 @@ The system SHALL route every adblock decision — network blocking, cosmetic sel
 
 #### Scenario: Serialized engine cache speeds up warm starts
 
-**Given** a previous run wrote `<docs>/content_blocker_cache/.engine.bin` and `.engine.meta`
-**And** the meta's `<rulesHash>:<uboFlag>` matches the current state
+**Given** a previous run wrote `<docs>/content_blocker_cache/.engine.bin`, `.engine.prefilter` and `.engine.meta`
+**And** the meta names the same inputs as the current state: the app build (which fixes the pruning, rewrite and parser code), the platform the lists are pruned for, the uBO flag, and per enabled list in order its file stamp (size and modification time) or its inline rules' hash, and the hosts masked away from it
 **When** the next `_rebuildEngine` runs
-**Then** the engine is hydrated from the blob via `AdblockEngine.loadFromSerialized`
-**And** the multi-megabyte text parse is skipped
-**And** the load mode logs as `deserialize`
+**Then** the engine is hydrated from the blob via `AdblockEngine.loadFromSerialized` and the interceptor prefilter is read from `.engine.prefilter`
+**And** no list's text is read, pruned, rewritten or parsed
+**And** the engine is in place before `initialize` returns, as on a cold build: `main()` awaits it before `runApp`, so no page loads without it
 
-#### Scenario: Cache invalidates on rule or uBO-resources change
+#### Scenario: Cache invalidates on any input change
 
-**Given** the on-disk `.engine.meta` records hash X with uBO flag 1
-**When** either the concatenated rule text or the uBO toggle changes (`<rulesHash>:<uboFlag>` differs)
-**Then** the cache is treated as a miss
+**Given** the on-disk `.engine.meta` names inputs X
+**When** a list is downloaded again, a list is toggled, a site masks a list away, the uBO toggle flips, or the app is upgraded
+**Then** the inputs differ from X and the cache is treated as a miss
 **And** the engine re-parses from rule text
-**And** a fresh blob is written for the next warm start
+**And** a fresh blob, prefilter and meta are written for the next warm start, the meta last so a write cut short never matches
+
+Test: `test/content_blocker_engine_cache_test.dart`.
 
 #### Scenario: Cache miss falls back to parse
 
@@ -444,10 +446,11 @@ Whenever the engine is rebuilt (download, toggle, remove, add custom list, uBO t
 
 #### Scenario: Native Android engine kept in sync
 
-**Given** the engine is rebuilt with new rules
+**Given** the engine is loaded or rebuilt
 **When** `_rebuildEngine` finishes loading the Dart-side engine
-**Then** `WebInterceptNative.sendAdblockEngineRules(rulesText, enableUboResources)` is called
-**And** the native side spins up its own engine instance from the same text
+**Then** `WebInterceptNative.sendAdblockEngine(SerializedEngine(blob), ...)` hands the native side the same engine, serialized, and `_rebuildEngine` awaits the reply
+**And** the native side hydrates it off the main thread, freeing the old engine and building the new one under the write lock, so a sub-resource checked meanwhile waits for the new engine
+**And** when the reply reports the engine inactive, the rules text is pushed instead (`EngineRulesText`) and parsed natively: without an engine the interceptor applies no ABP rule to sub-resources, so it never runs without the engine Dart runs
 **And** clears its per-host decision cache so stale `ALLOWED` verdicts don't shadow the new rules
 
 ---
@@ -1011,7 +1014,7 @@ All licensed under GPL-3.0 / CC BY-SA 3.0 (dual-licensed, used under CC BY-SA 3.
 ### Storage
 
 - Filter list files: `<docs>/content_blocker_cache/<id>.txt`
-- Engine cache: `<docs>/content_blocker_cache/.engine.bin` + `.engine.meta` (sidecar `<rulesHash>:<uboFlag>`)
+- Engine cache: `<docs>/content_blocker_cache/.engine.bin` + `.engine.prefilter` (interceptor prefilter, JSON) + `.engine.meta` (hash of the build inputs, written last)
 - List metadata: SharedPreferences key `content_blocker_lists` (JSON string)
 
 ### Hook Point in WebView
@@ -1063,7 +1066,7 @@ Late-added or class-flipped elements hide reactively without any JS sweep.
 - `lib/web_view_model.dart` — Added `contentBlockEnabled` field, serialization, pass to WebViewConfig
 - `lib/services/webview.dart` — Added `contentBlockEnabled` to WebViewConfig, domain block hook in `shouldOverrideUrlLoading`, cosmetic + procedural shim injection
 - `lib/services/dns_block_service.dart` — `BlockSource` enum, `blockedByDns` / `blockedByAbp` counters, DNS-only `getMergedBlockBloom` (ABP lives in the engine)
-- `lib/services/web_intercept_native.dart` — `sendDnsDomains`, `sendAdblockEngineRules`, `isAdblockEngineSupported`
+- `lib/services/web_intercept_native.dart` — `sendDnsDomains`, `sendAdblockEngine`, `isAdblockEngineSupported`
 - `android/app/src/main/kotlin/.../WebInterceptPlugin.kt` — DNS host-only fast path, JNI bridge to `adblock-rust` via `AdblockEngineNative`
 - `lib/widgets/stats_banner.dart` — Shows banner when either DNS or engine has rules
 - `lib/screens/settings.dart` — Per-site Content Blocker toggle
@@ -1098,4 +1101,4 @@ npm run test:browser                                     # shims in real Chromiu
 7. Open site Settings, disable Content Blocker, reload page, verify ads and promoted content reappear
 8. Add a custom filter list via "Add Custom List" dialog, verify it can be downloaded, toggled, and removed
 9. Check Licenses page shows "EasyList filter lists (filter data)" + adblock-rust transitive deps
-10. Restart app, verify the engine deserializes from the cached blob (log line `Engine active: ... (deserialize ...)`)
+10. Restart app, verify the engine loads from the cached blob (log line `Engine active: ... (cached ...)`)

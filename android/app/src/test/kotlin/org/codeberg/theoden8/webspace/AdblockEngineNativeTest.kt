@@ -46,18 +46,27 @@ class AdblockEngineNativeTest {
     }
 
     @Test
-    fun setRules_isNoOpWhenNotLoaded() {
-        // Should NOT throw — the production-side toggle handler
-        // calls setRules unconditionally. If this throws, flipping
-        // the engine toggle on a non-Rust-built APK crashes the app.
-        AdblockEngineNative.setRules("||tracker.com^\n")
+    fun setEngine_isNoOpWhenNotLoaded() {
+        // Should NOT throw — the production-side push handler
+        // calls setEngine unconditionally. If this throws, every
+        // launch of a non-Rust-built APK with lists on crashes.
+        AdblockEngineNative.setEngine(byteArrayOf(1, 2, 3))
         // Engine still inactive because the .so wasn't loaded.
         assertFalse(AdblockEngineNative.active)
     }
 
     @Test
-    fun setRules_emptyStringIsNoOpAndIdempotent() {
-        AdblockEngineNative.setRules("")
+    fun setEngine_emptyBlobIsNoOpAndIdempotent() {
+        AdblockEngineNative.setEngine(ByteArray(0))
+        AdblockEngineNative.setEngine(ByteArray(0))
+        assertFalse(AdblockEngineNative.active)
+    }
+
+    @Test
+    fun setRules_isNoOpWhenNotLoaded() {
+        // The fallback for a blob that does not hydrate; same no-throw
+        // contract as setEngine.
+        AdblockEngineNative.setRules("||tracker.com^\n")
         AdblockEngineNative.setRules("")
         assertFalse(AdblockEngineNative.active)
     }
@@ -76,7 +85,7 @@ class AdblockEngineNativeTest {
         // The read/write lock added to guard free-vs-deref must not
         // deadlock when many threads pound the facade at once (the
         // production shape: chromium IO threads call checkUrl while the
-        // toggle handler calls setRules/dispose). With the .so absent
+        // push handler calls setEngine/setRules/dispose). With the .so absent
         // every call short-circuits, but the write-lock methods still
         // acquire the lock, so this pins "no deadlock, no exception".
         val threads = (0 until 16).map { i ->
@@ -85,7 +94,8 @@ class AdblockEngineNativeTest {
                     when (i % 3) {
                         0 -> AdblockEngineNative.checkUrl(
                             "https://t.com/x", "https://s.com/a", "script")
-                        1 -> AdblockEngineNative.setRules("||t.com^\n")
+                        1 -> if (it % 2 == 0) AdblockEngineNative.setEngine(byteArrayOf(1))
+                             else AdblockEngineNative.setRules("||t.com^\n")
                         else -> AdblockEngineNative.dispose()
                     }
                 }
