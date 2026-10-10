@@ -164,7 +164,7 @@ class SiteActivationController {
     // pressure events can't pick it as a victim before _sites.current
     // is updated below — disposing the webview mid-activation would
     // silently wipe its state from under the user.
-    _sites.activating = index;
+    _sites.activating = (target: index, version: version);
     try {
 
     // Whenever the target is about to be built fresh (not already in
@@ -337,9 +337,19 @@ class SiteActivationController {
     } finally {
       // Clear the in-flight marker only if we still own it; a newer
       // setCurrentIndex caller will have already overwritten it with
-      // its own target.
-      if (_sites.activating == index) {
+      // its own, the same target on a double tap.
+      if (_sites.activating?.version == version) {
         _sites.activating = null;
+      }
+      // Superseded after its residency step unloaded the site on screen (a
+      // domain conflict, a proxy mismatch): a row move bumps the version
+      // without choosing a site, so nothing else would leave that site with
+      // no webview behind it. Home, as a commit goes when the site on screen
+      // is gone (BUG-029).
+      if (_sites.current case final shown?
+          when !_sites.loaded.contains(shown)) {
+        _sites.current = null;
+        _host.exitFullscreen();
       }
     }
   }

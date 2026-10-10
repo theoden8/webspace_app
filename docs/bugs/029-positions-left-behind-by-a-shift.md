@@ -1,13 +1,15 @@
 # BUG-029 — A change that moves rows leaves positions naming other sites
 
-Status: closed
+Status: open
 
 **Spec:** [archive](../../openspec/specs/archive/spec.md) ARCH-004,
 [lazy-webview-loading](../../openspec/specs/lazy-webview-loading/spec.md)
 **Tests:** [test/site_runtime_test.dart](../../test/site_runtime_test.dart)
 ("closing an archive keeps the loaded and shown sites on their rows"),
 [test/js/site_set_commit.test.js](../../test/js/site_set_commit.test.js)
-("only the funnel writes the site list")
+("only the funnel writes the site list"),
+[test/site_activation_walk_test.dart](../../test/site_activation_walk_test.dart)
+(rows moved while activations and unloads are in flight)
 
 ## Symptom
 
@@ -46,9 +48,23 @@ them. The invariant: **every write to the site list remaps `loaded` and
    highest first). *Why it closes the class*: a new way to change the list is
    a new `SiteSetChange` kind, which `apply`'s exhaustive switch makes decide
    its positions, and a write anywhere else fails the gate.
+5. **2026-10-10 — PR #693.** The legacy jar's unload took its site's position
+   before the capture's awaits and removed that position after them; it now
+   finds the position again when it removes it. *Why*: the activation walk
+   moved a row while memory pressure unloaded a background site, and the
+   unload took the site on screen out of the loaded set instead. *Why
+   partial*: attempt 4 remaps the positions `SiteRuntime` holds; a position an
+   engine holds across an await is outside the funnel.
+6. **2026-10-10 — PR #693.** A switch that a row move supersedes after its
+   residency step unloaded the site on screen goes home on its way out
+   (LAZY-007). *Why*: attempt 2's version bump makes the switch bail, but the
+   bump chooses no site, so the screen stayed on a site with no webview, the
+   LAZY-003 placeholder. Found by the same walk, shrunk to four actions.
 
 ## Known open gaps
 
-None for the list. Positions themselves remain the identity the page uses;
-moving `loaded` and `current` to site ids would remove the remapping
-altogether.
+A position held across an await outside `SiteRuntime`. The activation walk
+moves rows mid-flight, so a new one on the paths it drives (activation, memory
+pressure, the legacy jar) fails there; tabs, link routing, webspace switches
+and archive close are not driven yet. Moving `loaded` and `current` to site
+ids would remove the remapping altogether.

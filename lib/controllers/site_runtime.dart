@@ -28,9 +28,11 @@ class SiteRuntime {
   /// against another site.
   int activationVersion = 0;
 
-  /// The target of an activation still in flight, which memory pressure
-  /// must not pick (PAUSE-016).
-  int? activating;
+  /// The activation still in flight: its target, which memory pressure must
+  /// not pick (CONT-003), and the [activationVersion] it began at, which
+  /// alone may clear it. Two activations of one site overlap on a double
+  /// tap, and the superseded one must not unmark the other's.
+  ({int target, int version})? activating;
 
   /// Native per-site containers, resolved once at startup; false runs the
   /// legacy shared-jar engine.
@@ -179,7 +181,7 @@ class SiteRuntime {
   /// How hard the site at [index] is to evict (PAUSE-006).
   SiteRetentionPriority retentionPriority(int index) {
     if (index == current) return SiteRetentionPriority.active;
-    if (index == activating) return SiteRetentionPriority.activating;
+    if (index == activating?.target) return SiteRetentionPriority.activating;
     if (index >= 0 && index < models.length) {
       final m = models[index];
       // Background-audio sites share the notification retention tier: both
