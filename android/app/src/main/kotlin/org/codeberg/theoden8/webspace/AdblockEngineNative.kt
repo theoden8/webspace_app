@@ -32,7 +32,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
  * Lifecycle: Dart pushes the engine it built, serialized, via the
  * `setAdblockEngine` method channel call at launch and on every rebuild
  * (or the rules text, when the blob does not hydrate). We build a
- * Box<Engine> on the Rust side and keep the long handle here. Subsequent navigation events have FastSubresourceInterceptor
+ * Box<Engine> on the Rust side and keep the long handle here.
+ * Subsequent navigation events have FastSubresourceInterceptor
  * call `checkUrl` per request; when the user flips the toggle off
  * we `dispose()` the handle and revert to host-only matching.
  */
@@ -44,7 +45,8 @@ object AdblockEngineNative {
     private var loaded: Boolean = false
 
     /**
-     * Opaque pointer the Rust side hands back from `engineFromSerialized`. Mutated
+     * Opaque pointer the Rust side hands back from
+     * `nativeEngineFromSerialized` / `nativeEngineNew`. Mutated
      * only under [rwLock]'s write lock; read under the read lock on the
      * hot path (and lock-free in the [active] getter, hence @Volatile).
      */
