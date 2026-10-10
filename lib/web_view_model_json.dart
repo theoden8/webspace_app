@@ -21,17 +21,25 @@ import 'package:webspace/settings/site_ids.dart';
 /// A site's JSON: the form it is saved in and the one a backup carries.
 extension WebViewModelJson on WebViewModel {
   /// [WebViewModel.toJson].
-  Map<String, dynamic> toJsonMap() {
-    // currentUrl/pageTitle are dropped when either incognito (full ephemeral
-    // session — issue #298) or alwaysOpenHome (URL-only ephemeral, cookies
-    // persist) is set. Cookies are dropped only by incognito; alwaysOpenHome
-    // banking-style sites keep their login state.
-    // Both keep the tab list (TAB-009): the site lands on a tab at home
-    // without closing the others (TAB-014), and what incognito wipes on a
-    // restart is its container and every tab's back stack (INC-002, INC-005).
-    // `currentUrl` stays dropped so a build that predates tabs still opens the
-    // site at home.
-    final dropUrl = incognito || alwaysOpenHome;
+  // currentUrl/pageTitle are dropped when either incognito (full ephemeral
+  // session — issue #298) or alwaysOpenHome (URL-only ephemeral, cookies
+  // persist) is set. Cookies are dropped only by incognito; alwaysOpenHome
+  // banking-style sites keep their login state.
+  // Both keep the tab list (TAB-009): the site lands on a tab at home
+  // without closing the others (TAB-014), and what incognito wipes on a
+  // restart is its container and every tab's back stack (INC-002, INC-005).
+  // `currentUrl` stays dropped so a build that predates tabs still opens the
+  // site at home.
+  Map<String, dynamic> toJsonMap() =>
+      _jsonMap(dropUrl: incognito || alwaysOpenHome);
+
+  /// [WebViewModel.toArchiveJson]: [toJsonMap] with the address and title
+  /// kept, so opening the archive brings the site back where it was
+  /// (ARCH-012). The archive is encrypted and opening it is not a fresh
+  /// entry, so neither reason to drop them applies.
+  Map<String, dynamic> toArchiveJsonMap() => _jsonMap(dropUrl: false);
+
+  Map<String, dynamic> _jsonMap({required bool dropUrl}) {
     return {
         'siteId': siteId,
         'initUrl': initUrl,
@@ -139,8 +147,9 @@ WebViewModel webViewModelFromJson(
   final isAlwaysOpenHome = field<bool>('alwaysOpenHome') ?? false;
   // Either flag drops persisted currentUrl/pageTitle on rehydrate; only
   // incognito additionally clears cookies. Defends against legacy JSON
-  // written by older builds that didn't strip on toJson.
-  final dropUrl = isIncognito || isAlwaysOpenHome;
+  // written by older builds that didn't strip on toJson. An archive keeps
+  // them (ARCH-012).
+  final dropUrl = !isArchiveTier && (isIncognito || isAlwaysOpenHome);
   final currentUrl = field<String>('currentUrl');
   final rawTabs = field<List<dynamic>>('tabs');
   final userAgent = field<String>('userAgent') ?? '';
@@ -287,7 +296,8 @@ WebViewModel webViewModelFromJson(
   )..pageTitle ??= dropUrl ? null : field<String>('pageTitle');
   // Loading a site is a fresh entry to it, so an always-home site lands at
   // home here (AOH-002, TAB-014), before anything can build its webview.
-  if (isAlwaysOpenHome && !isIncognito) {
+  // Opening an archive is not one: it restores what it sealed (ARCH-012).
+  if (isAlwaysOpenHome && !isIncognito && !isArchiveTier) {
     model.landAtHome();
   }
   return model;

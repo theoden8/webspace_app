@@ -67,8 +67,10 @@ class ArchiveController {
     required this.cookieStore,
     required this.proxyPasswords,
     required this.navStates,
+    required Archive archive,
   })  : _host = host,
-        _prompts = prompts;
+        _prompts = prompts,
+        _archive = archive;
 
   final SiteRuntime _sites;
   final ArchiveHost _host;
@@ -78,10 +80,9 @@ class ArchiveController {
   final ProxyPasswordSecureStorage proxyPasswords;
   final WebViewStateStorage navStates;
 
-  /// Built eagerly; its slot pool initialises on first open or create, so a
-  /// user who never touches the feature pays no secure-storage write at
-  /// startup (ARCH-001).
-  final Archive _archive = Archive();
+  /// Its slot pool initialises on first open or create, so a user who never
+  /// touches the feature pays no secure-storage write at startup (ARCH-001).
+  final Archive _archive;
 
   final Map<ArchiveHandle, _ArchiveSlice> _slices = {};
 
@@ -165,10 +166,12 @@ class ArchiveController {
 
   /// Seals [handle]: its sites, cookies and collections back into its state,
   /// saved; the key zeroed; its containers and every per-site trace outside
-  /// the archive gone; its rows out of the lists.
-  Future<void> close(ArchiveHandle handle) async {
-    final slice = _slices.remove(handle);
-    if (slice == null) return;
+  /// the archive gone; its rows out of the lists. False when the sealed
+  /// state does not fit its slot (ARCH-011): nothing changes and the
+  /// archive stays open.
+  Future<bool> close(ArchiveHandle handle) async {
+    final slice = _slices[handle];
+    if (slice == null) return true;
     final ownedSites = [
       for (final m in _sites.models)
         if (slice.siteIds.contains(m.siteId)) m,
@@ -177,37 +180,45 @@ class ArchiveController {
     // an open archive; sealing what is left would empty the archive. Keep
     // the state as opened instead.
     final intact = ownedSites.length >= slice.siteIds.length;
+    final sealed = handle.state.copyWith(
+      cookies: {
+        for (final m in ownedSites)
+          m.siteId: [for (final c in m.cookies) c.toJson()],
+      },
+      sites: [for (final m in ownedSites) m.toArchiveJson()],
+      // Renames, reorders and membership changes made while open persist.
+      webspaces: [
+        for (final w in _sites.webspaces)
+          if (slice.webspaceIds.contains(w.id)) w.toJson(),
+      ],
+      appTierMembership: ArchiveMembershipEngine.record(_sites.webspaces,
+          siteIds: slice.siteIds),
+    );
+    if (intact && !Archive.fits(sealed)) return false;
+    _slices.remove(handle);
     if (intact) {
       handle.state.cookies
         ..clear()
-        ..addEntries(ownedSites.map((m) =>
-            MapEntry(m.siteId, m.cookies.map((c) => c.toJson()).toList())));
+        ..addAll(sealed.cookies);
       handle.state.sites
         ..clear()
-        ..addAll(ownedSites.map((m) => m.toJson()));
-      // Renames, reorders and membership changes made while open persist.
+        ..addAll(sealed.sites);
       handle.state.webspaces
         ..clear()
-        ..addAll([
-          for (final w in _sites.webspaces)
-            if (slice.webspaceIds.contains(w.id)) w.toJson(),
-        ]);
+        ..addAll(sealed.webspaces);
+      handle.state.appTierMembership
+        ..clear()
+        ..addAll(sealed.appTierMembership);
     } else {
       LogTag.archive.error(
           'close: ${slice.siteIds.length - ownedSites.length} archived sites '
           'missing from the runtime; sealed state left as opened');
     }
-    // App-tier membership of the archived sites goes into the archive
-    // state and out of the runtime lists, so nothing names them once the
-    // archive is closed (ARCH-001).
-    final membership = ArchiveMembershipEngine.detach(_sites.webspaces,
-        siteIds: slice.siteIds);
-    if (intact) {
-      handle.state.appTierMembership
-        ..clear()
-        ..addAll(membership);
-      await _archive.save(handle);
-    }
+    // App-tier membership of the archived sites, sealed above, leaves the
+    // runtime lists, so nothing names them once the archive is closed
+    // (ARCH-001).
+    ArchiveMembershipEngine.detach(_sites.webspaces, siteIds: slice.siteIds);
+    if (intact) await _archive.save(handle);
     await _archive.close(handle);
     // Before the rows go, so the rebuild renders no orphan controller.
     for (final m in ownedSites) {
@@ -250,20 +261,28 @@ class ArchiveController {
       siteIds: slice.siteIds,
       webspaceIds: slice.webspaceIds,
     ));
+    return true;
   }
 
-  Future<void> closeAll() async {
+  /// Closes every open archive; false when one stayed open because it did
+  /// not fit its slot (ARCH-011).
+  Future<bool> closeAll() async {
+    var all = true;
     for (final h in List<ArchiveHandle>.from(_slices.keys)) {
-      await close(h);
+      if (!await close(h)) all = false;
     }
+    return all;
   }
 
   /// "Close this archive" on one of its sites.
   Future<void> closeArchiveOf(WebViewModel site) async {
     final handle = archiveOf(site);
     if (handle == null) return;
-    await close(handle);
-    _host.toast((loc) => loc.homeArchiveClosed);
+    if (await close(handle)) {
+      _host.toast((loc) => loc.homeArchiveClosed);
+    } else {
+      _host.toast((loc) => loc.homeArchiveFull);
+    }
   }
 
   /// Moves app-tier [model] into the archive a passphrase names, offering to
@@ -295,6 +314,23 @@ class ArchiveController {
     if (!_host.mounted) return;
 
     final capturedCookies = await _host.captureCookies(model);
+    // Before anything leaves the app tier (ARCH-011).
+    final withSite = target.state.copyWith(
+      sites: [...target.state.sites, model.toArchiveJson()],
+      cookies: {
+        ...target.state.cookies,
+        model.siteId: [for (final c in capturedCookies) c.toJson()],
+      },
+      appTierMembership: ArchiveMembershipEngine.record(
+        _sites.webspaces,
+        siteIds: {model.siteId},
+        existing: target.state.appTierMembership,
+      ),
+    );
+    if (!Archive.fits(withSite)) {
+      _host.toast((loc) => loc.homeArchiveFull);
+      return;
+    }
     // Derived before the flip so it is atomic: an archive-tier model with no
     // opaque id would rebuild against the cleartext `ws-<siteId>` container.
     final archiveContainerId =
@@ -327,7 +363,7 @@ class ArchiveController {
   /// settled so it names no app-tier site, and before the app tier drops it.
   Future<void> recordIn(WebViewModel site,
       {required ArchiveHandle into}) async {
-    into.state.sites.add(site.toJson());
+    into.state.sites.add(site.toArchiveJson());
     // Which app-tier collections the site came from: the runtime lists keep
     // it while the archive is open, and the persisted form strips it
     // (ARCH-001).

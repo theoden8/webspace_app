@@ -164,6 +164,15 @@ class BackupController {
       return;
     }
 
+    // ARCH-010 seals open archives before the rows they were materialised
+    // into are replaced; one that does not fit its slot stays open, and the
+    // import waits for it rather than replacing its rows (ARCH-011).
+    if (!await _archives.closeAll()) {
+      _host.toast((loc) => loc.homeArchiveFull);
+      return;
+    }
+    if (!_host.mounted) return;
+
     // Applied and persisted in one step, before any site activates, so a pref
     // the backup does not name reads the same before and after a restart.
     // Per PWD-005 the backup carries no proxy password: the user re-enters

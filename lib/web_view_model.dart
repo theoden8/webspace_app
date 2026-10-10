@@ -1971,6 +1971,9 @@ bool dispatch(NavigationDecision decision,
   /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
   Map<String, dynamic> toJson() => toJsonMap();
 
+  /// What an archive seals for this site (ARCH-012).
+  Map<String, dynamic> toArchiveJson() => toArchiveJsonMap();
+
   /// Only `initUrl` is required. Every other field of the wrong type reads
   /// as absent: the startup loader drops a site whose JSON throws and the
   /// next save deletes it, so one odd value (a hand-edited backup, a partial

@@ -92,3 +92,8 @@ Tasks for hosted tabs and reattach (LIR-018 to LIR-027). The tab model itself (T
   `test/site_behaviour_screen_test.dart`, `test/site_tabs_model_test.dart`,
   `test/app_settings_experimental_test.dart`,
   `test/experimental_features_service_test.dart`.
+- [x] 10.2 Archives with tabs: an archive restores every site's tabs, active
+  tab and address as sealed (ARCH-012, `WebViewModel.toArchiveJson`), and a
+  close, move in or import that would not fit the slot changes nothing
+  (ARCH-011, `Archive.fits`). Tests: `test/archive_round_trip_test.dart`,
+  `test/archive_neutrality_test.dart`, `test/import_closes_archives_test.dart`.

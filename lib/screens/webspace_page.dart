@@ -55,7 +55,7 @@ import 'package:webspace/services/surface_diag_native.dart';
 import 'package:webspace/services/surface_route_observer.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/proxy_password_secure_storage.dart';
-import 'package:webspace/services/archive.dart' show ArchiveHandle;
+import 'package:webspace/services/archive.dart' show Archive, ArchiveHandle;
 import 'package:webspace/services/container_isolation_engine.dart';
 import 'package:webspace/services/container_native.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
@@ -232,6 +232,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     cookieStore: _cookieSecureStorage,
     proxyPasswords: _proxyPasswordStorage,
     navStates: _stateStorage,
+    archive: Archive(),
   );
   late final ShellStore _shell = ShellStore(_sites);
   final CookieManager _cookieManager = CookieManager();
@@ -1054,8 +1055,9 @@ class _WebSpacePageState extends State<WebSpacePage>
           onRestoreArchive: _archives.promptRestore,
           hasOpenArchives: _archives.anyOpen,
           onCloseAllArchives: () async {
-            await _archives.closeAll();
-            _toast((loc) => loc.homeArchivesClosed);
+            final closed = await _archives.closeAll();
+            _toast((loc) =>
+                closed ? loc.homeArchivesClosed : loc.homeArchiveFull);
           },
           onOpenLinkHandlingSettings: _openLinkHandlingSettings,
           webSearchSites: [

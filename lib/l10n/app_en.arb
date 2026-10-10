@@ -3666,6 +3666,10 @@
   "@homeArchiveClosed": {
     "description": "Snackbar confirming an archive was closed"
   },
+  "homeArchiveFull": "An archive is full and was left open as it was. Close some of its tabs or move sites out of it, then try again.",
+  "@homeArchiveFull": {
+    "description": "Snackbar shown when an open archive has no room for what would be saved into it: on closing it, on moving a site into it, or on importing settings while it is open. Nothing was changed and the archive stays open with its sites. 'Tabs' are the pages kept open inside one site; 'move sites out of it' refers to the Move out of archive action on a site."
+  },
   "homeTitleUpdatedTo": "Title updated to: {title}",
   "@homeTitleUpdatedTo": {
     "description": "Snackbar confirming a site's title was refreshed",

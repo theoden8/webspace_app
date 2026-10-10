@@ -269,8 +269,9 @@ plaintext preferences as any other site's do. What a restart wipes for an
 incognito site is its container and every tab's back stack (INC-002, INC-005,
 INC-008). An
 archive-tier site's
-tabs ride the archive's encrypted state with no state bytes on disk, and
-app-tier persistence is byte-identical whether or not archives hold tabs
+tabs ride the archive's encrypted state with no state bytes on disk, come
+back exactly as sealed when the archive opens (ARCH-012), and app-tier
+persistence is byte-identical whether or not archives hold tabs
 (ARCH-001/006); the site QR share never carries tabs; settings backup carries
 `tabs` but never state bytes; deleting a site removes every
 `webview_state/<siteId>.*.enc`.
