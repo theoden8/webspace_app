@@ -445,7 +445,15 @@ jobs:
         run: gradle :app:testFdroidDebugUnitTest --console=plain --no-daemon
 
       - name: Run tests
+        env:
+          # The walks write their steps here for the model check below.
+          MODEL_WALK_DIR: ${{ github.workspace }}/build/model_walk
         run: fvm flutter test
+
+      # Here rather than in validate: it needs the traces flutter test just
+      # wrote and Java for TLC, and this job has both.
+      - name: Check the walks against the formal models
+        run: ./formal/trace/check_walk.sh build/model_walk
 
       - name: Generate launcher icons
         run: fvm dart run flutter_launcher_icons

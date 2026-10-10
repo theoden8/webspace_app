@@ -213,6 +213,31 @@ indices: {1, 2}`, `[Navigation/debug] Back gesture: navigated back`. That stream
 This is what flags a new code path that skipped its module. `check.sh` runs it after the
 kernel matrix. Next step: feed real `integration_test/` traces through `parse_log.py`.
 
+The log bridge reads two fixed files and takes `jar` to equal `cur` rather than observing
+it, so it says nothing about the code as it runs today. The walks below do.
+
+## Model ↔ code by walks — `trace/check_walk.sh`
+
+Random walks drive a real Dart engine and write each settled step in a module's variables
+([test/helpers/walk/model_trace.dart](../test/helpers/walk/model_trace.dart)), every value read
+off the code (the kernel's `jarOwner` comes from the cookies in the fake jar). `check_walk.py`
+has TLC dump the module's reachable graph under the trace's `.cfg`, projects it onto the
+observed variables, and holds the walk to it both ways:
+
+- **conformance** — each step's states are reachable, and some path between them matches the
+  step's action pattern (`Activate Evict*`: an activation unloads what it conflicts with after
+  the kernel's `Activate`);
+- **coverage** — each projected transition is taken by some step, or its action is listed for the
+  module in `trace/walk_uncovered.tsv` with the reason. A listed action that becomes covered fails,
+  so the list only shrinks.
+
+`walk_bad/` holds two planted steps the check MUST catch. The kernel's walk is
+[test/kernel_walk_test.dart](../test/kernel_walk_test.dart): three sites, the kernel's actions,
+every step settled, under both cookie engines and three domain layouts. It runs in the Android CI
+job, the one with both Flutter and Java: `flutter test` with `MODEL_WALK_DIR` set, then
+`check_walk.sh` on that directory. Another engine joins with a world over it, a `ModelTrace` for its
+module, and the module's lines in `walk_uncovered.tsv`.
+
 ## Honest limits
 
 - Verifies the **design composition**, and (via traces) **executed code** — never a

@@ -1,0 +1,12 @@
+{
+  "module": "kernel",
+  "config": "kernel.cfg",
+  "steps": [
+    {"from": {"currentIndex": "1", "loaded": "{1}", "jarOwner": "1"},
+     "path": "Activate Evict*",
+     "to": {"currentIndex": "2", "loaded": "{1, 2}", "jarOwner": "1"}},
+    {"from": {"currentIndex": "1", "loaded": "{1, 2}", "jarOwner": "1"},
+     "path": "Evict?",
+     "to": {"currentIndex": "2", "loaded": "{2}", "jarOwner": "2"}}
+  ]
+}
