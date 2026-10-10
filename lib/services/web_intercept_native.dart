@@ -18,7 +18,11 @@ class WebInterceptNative {
   static const _channel =
       MethodChannel('org.codeberg.theoden8.webspace/web_intercept');
 
-  static bool get isSupported => hostIsAndroid;
+  static bool get isSupported => hostIsAndroid || debugAssumeAndroid;
+
+  /// Lets a host test drive the Android paths against a mocked channel.
+  @visibleForTesting
+  static bool debugAssumeAndroid = false;
 
   static void initialize() {
     if (!isSupported) return;
@@ -159,13 +163,17 @@ class WebInterceptNative {
   /// Returns `null` on platforms where the engine isn't supported
   /// (no Android, library not bundled). Returns `{supported, active}`
   /// otherwise.
-  static Future<Map<String, bool>?> sendAdblockEngineRules(
-      String rulesText,
-      {bool enableUboResources = true}) async {
+  /// Hands the native interceptor the engine the Dart side runs, so Android
+  /// decides sub-resources without a Dart round trip. Empty turns it off.
+  static Future<Map<String, bool>?> sendAdblockEngine(NativeEngineSource source,
+      {required bool enableUboResources}) async {
     if (!isSupported) return null;
     try {
-      final raw = await _channel.invokeMethod('setAdblockEngineRules', {
-        'rulesText': rulesText,
+      final raw = await _channel.invokeMethod('setAdblockEngine', {
+        ...switch (source) {
+          SerializedEngine(:final blob) => {'blob': blob},
+          EngineRulesText(:final rulesText) => {'rulesText': rulesText},
+        },
         'enableUboResources': enableUboResources,
       });
       final map = (raw as Map?)
@@ -173,10 +181,10 @@ class WebInterceptNative {
           const {};
       LogTag.contentBlocker.info('Native adblock engine: '
           'supported=${map['supported']}, active=${map['active']} '
-          '(${rulesText.length} bytes pushed)');
+          '(${source.length} bytes pushed)');
       return map;
-    } catch (e) {
-      LogTag.contentBlocker.error('Failed to send engine rules to native: $e');
+    } on PlatformException catch (e) {
+      LogTag.contentBlocker.error('Failed to send engine to native: $e');
       return null;
     }
   }
@@ -277,4 +285,33 @@ class WebInterceptNative {
       return 0;
     }
   }
+}
+
+/// What the native adblock engine is built from.
+sealed class NativeEngineSource {
+  const NativeEngineSource();
+
+  int get length;
+}
+
+/// The engine as the Dart side serialized it, which Android hydrates instead
+/// of parsing the lists again.
+class SerializedEngine extends NativeEngineSource {
+  const SerializedEngine(this.blob);
+
+  final Uint8List blob;
+
+  @override
+  int get length => blob.length;
+}
+
+/// The rules text, parsed natively: the fallback for a blob that does not
+/// hydrate.
+class EngineRulesText extends NativeEngineSource {
+  const EngineRulesText(this.rulesText);
+
+  final String rulesText;
+
+  @override
+  int get length => rulesText.length;
 }

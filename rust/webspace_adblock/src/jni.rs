@@ -13,9 +13,11 @@
 //                        u64 by Kotlin so the GC can store it as
 //                        a regular long alongside the other plugin
 //                        state.
-//   String rulesText   — the same concatenated filter list the
-//                        Dart side parses; transferred once when
-//                        the user flips the toggle.
+//   byte[] blob        — the engine the Dart side built, as
+//                        `ws_engine_serialize` wrote it; pushed on
+//                        every launch and every rebuild.
+//   String rulesText   — the concatenated filter list, pushed only
+//                        when the blob does not hydrate.
 //   String url, source, requestType — passed per request from
 //                        FastSubresourceInterceptor.checkUrl.
 //
@@ -31,7 +33,7 @@
 
 use std::sync::OnceLock;
 
-use jni::objects::{JClass, JString};
+use jni::objects::{JByteArray, JClass, JString};
 use jni::sys::{jboolean, jlong, JNI_FALSE, JNI_TRUE};
 use jni::JNIEnv;
 
@@ -78,7 +80,44 @@ fn android_log(level: log::Level, msg: &str) {
     }
 }
 
+/// JNIEXPORT for `AdblockEngineNative.nativeEngineFromSerialized(blob, ubo)`.
+/// Hydrates the engine from the blob `ws_engine_serialize` wrote for the Dart
+/// side, which skips the multi-megabyte rule parse (a few hundred ms on a
+/// phone, on every launch). Returns 0 on failure (caller must treat as null
+/// and skip engine consultation). On success, returns a u64 cast of
+/// `Box::into_raw`.
+#[no_mangle]
+pub extern "system" fn Java_org_codeberg_theoden8_webspace_AdblockEngineNative_nativeEngineFromSerialized(
+    env: JNIEnv,
+    _class: JClass,
+    blob: JByteArray,
+    enable_ubo_resources: jboolean,
+) -> jlong {
+    let bytes = match env.convert_byte_array(&blob) {
+        Ok(bytes) => bytes,
+        Err(_) => {
+            android_log(log::Level::Warn, "JNI engineFromSerialized: unreadable blob");
+            return 0;
+        }
+    };
+    let ptr = crate::ws_engine_new_from_serialized(
+        bytes.as_ptr(),
+        bytes.len(),
+        enable_ubo_resources != 0,
+    );
+    android_log(
+        log::Level::Info,
+        &format!(
+            "JNI engineFromSerialized: {} bytes, ptr=0x{:x}",
+            bytes.len(),
+            ptr as usize
+        ),
+    );
+    ptr as jlong
+}
+
 /// JNIEXPORT for `AdblockEngineNative.engineNew(rulesText: String): Long`.
+/// The fallback for a blob `nativeEngineFromSerialized` could not hydrate.
 /// Returns 0 on failure (caller must treat as null and skip engine
 /// consultation). On success, returns a u64 cast of `Box::into_raw`.
 #[no_mangle]
