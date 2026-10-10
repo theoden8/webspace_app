@@ -1892,13 +1892,6 @@ class _PageHost
       _s._resets.resetHomeOnLaunch(index);
 
   @override
-  bool tabsEnabledAt(int index) => _s._tabs.enabledAt(index);
-
-  @override
-  Future<void> bindOwnerRunTab(WebViewModel model) =>
-      _s._tabs.bindOwnerRunTab(model);
-
-  @override
   Future<void> registerSite(WebViewModel model, {bool activate = true}) =>
       _s._editing.registerSite(model, activate: activate);
 

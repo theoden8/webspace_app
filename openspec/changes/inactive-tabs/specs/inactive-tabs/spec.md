@@ -451,8 +451,7 @@ A cold start and a home-shortcut tap, warm or cold, are fresh entries to a
 site. For a site whose tabs are in effect (TAB-013), Always open Home SHALL
 decide where it lands:
 
-- **Off**: on the tab it was on, with that tab's history. A cold shortcut
-  launch SHALL NOT send it home as HS-006 does for a site without tabs.
+- **Off**: on the tab it was on, with that tab's history (HS-006).
 - **On** (incognito implies it, AOH-005): on a tab at home. When the active tab
   is at `initUrl` the site SHALL stay on it and SHALL NOT open a tab. Otherwise
   it SHALL switch to the most recently used parked tab at `initUrl`, or when
@@ -464,8 +463,8 @@ case, a trailing slash or a fragment. The same rule SHALL apply to every flagged
 site AOH-004 resets on a shortcut tap, and an offscreen site landed this way
 SHALL NOT change whether the app is in full screen. A cold start lands an Always
 open Home site when it is loaded, before any webview exists (AOH-002). A site
-whose tabs are not in effect keeps HS-006 and AOH-001 to AOH-004 as written:
-its active tab is sent home in place.
+whose tabs are not in effect keeps AOH-001 to AOH-004 as written: with Always
+open Home on, its active tab is sent home in place.
 
 #### Scenario: A shortcut resumes the last tab
 

@@ -250,21 +250,18 @@ void guarded(String src,
           contains('TabLifecycleEngine.homeLanding('));
     });
 
-    test('a cold shortcut launch leaves a site with tabs on its last tab', () {
-      // HS-006 sends the launched site home; with tabs, TAB-014 decides.
+    test('a shortcut sends a site home only through Always open Home '
+        '(HS-006)', () {
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
-      expect(
-        RegExp(r'if \(!_host\.tabsEnabledAt\(index\) && '
-                r'm\.currentUrl != m\.initUrl\)')
-            .hasMatch(shortcuts),
-        isTrue,
-      );
-      expect(
-        RegExp(r'coldLaunch &&\s*!_host\.tabsEnabledAt\(index\) &&')
-            .hasMatch(shortcuts),
-        isTrue,
-      );
+      expect(RegExp(r'currentUrl\s*=').hasMatch(shortcuts), isFalse,
+          reason: 'a launch opens the site where it was left; '
+              'resetHomeOnLaunch, flagged by Always open Home, is the one '
+              'way home');
+      final cold = shortcuts.substring(
+          shortcuts.indexOf('Future<int?> resolveColdLaunch('));
+      expect(cold.substring(0, cold.indexOf('\n  }\n')),
+          contains('await _host.resetHomeOnLaunch(index);'));
     });
   });
 

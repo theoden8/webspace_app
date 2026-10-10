@@ -270,7 +270,7 @@ nobody trusts.
 | Site delete / `SiteTeardownEngine` | Removes every `webview_state/<siteId>.*.enc`. |
 | Nested screen (NESTED-010) | Unchanged. It is opened from the active tab and is not a tab. |
 | Legacy cookie engine (ISO-001) | Untouched: a tab switch never changes the site's domain, so no capture-nuke-restore runs. |
-| Home shortcut (HS-006) | A site with tabs lands by TAB-014: its last tab, or with Always open Home a tab at home. A site without tabs is reset in place, as before. |
+| Home shortcut (HS-006) | A site with tabs lands by TAB-014: its last tab, or with Always open Home a tab at home. A site without tabs opens where it was left, or with Always open Home is sent home in place. |
 
 ## Hosted tabs and reattach (LIR-018 to LIR-027)
 
