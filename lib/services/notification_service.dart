@@ -180,6 +180,14 @@ class NotificationService {
   /// before [init] is held back the same way, so a cold start reads it here.
   Future<String?> launchSiteId() async {
     await init();
+    // Only these report what launched the app; Linux's implementation throws
+    // UnimplementedError for the call.
+    final platform = FlutterLocalNotificationsPlatform.instance;
+    if (platform is! AndroidFlutterLocalNotificationsPlugin &&
+        platform is! IOSFlutterLocalNotificationsPlugin &&
+        platform is! MacOSFlutterLocalNotificationsPlugin) {
+      return null;
+    }
     final NotificationAppLaunchDetails? details;
     try {
       details = await _plugin.getNotificationAppLaunchDetails();
