@@ -1355,19 +1355,14 @@ bool dispatch(NavigationDecision decision,
                     via: 'onUrlChanged')) {
               return;
             }
-            final urlBefore = currentUrl;
-            currentUrl = urlChangedState.currentUrl;
             final currentNotifyUrl = urlChangedState.currentUrl;
-            // Nothing to show or persist: a page restating its own URL (some
-            // do on every keystroke) or the second of onLoadStop /
-            // onUpdateVisitedHistory for one navigation. The page rebuild and
-            // the save of every site would otherwise run per event, on the
-            // thread the webview takes its input on.
-            if (decision == null &&
-                currentUrl == urlBefore &&
+            // Nothing to show or save: a page restating its URL (some do per
+            // keystroke) would rebuild the page and write every site per event.
+            if (decision == null && currentUrl == currentNotifyUrl &&
                 currentNotifyUrl == lastNotifiedUrl) {
               return;
             }
+            currentUrl = currentNotifyUrl;
             stateSetterF?.call();
             // Skip the title + theme IPCs when the URL didn't actually
             // advance — this is the duplicate event from the other of
