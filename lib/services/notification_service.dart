@@ -150,18 +150,53 @@ class NotificationService {
   }
 
   void _onTap(NotificationResponse response) {
-    if (response.payload == null) return;
+    final siteId = siteIdOfPayload(response.payload);
+    if (siteId == null) return;
+    LogTag.notification.debug(
+        'Tapped notification for siteId: $siteId', sensitive: true);
+    onNotificationTapped?.call(siteId);
+  }
+
+  /// The site a posted notification belongs to, from the payload [show]
+  /// wrote; null for anything else.
+  @visibleForTesting
+  static String? siteIdOfPayload(String? payload) {
+    if (payload == null) return null;
+    final Object? data;
     try {
-      final data = jsonDecode(response.payload!);
-      final siteId = data['siteId'] as String?;
-      if (siteId != null) {
-        LogTag.notification.debug(
-            'Tapped notification for siteId: $siteId', sensitive: true);
-        onNotificationTapped?.call(siteId);
-      }
-    } catch (e) {
+      data = jsonDecode(payload);
+    } on FormatException catch (e) {
       LogTag.notification.error('Failed to parse tap payload: $e');
+      return null;
     }
+    return data is Map && data['siteId'] is String
+        ? data['siteId'] as String
+        : null;
+  }
+
+  /// The site whose notification the user tapped to start this process.
+  /// [onNotificationTapped] only hears taps while the app runs: a tap that
+  /// launches it reaches no callback on Android, and on iOS one that lands
+  /// before [init] is held back the same way, so a cold start reads it here.
+  Future<String?> launchSiteId() async {
+    await init();
+    // Only these report what launched the app; Linux's implementation throws
+    // UnimplementedError for the call.
+    final platform = FlutterLocalNotificationsPlatform.instance;
+    if (platform is! AndroidFlutterLocalNotificationsPlugin &&
+        platform is! IOSFlutterLocalNotificationsPlugin &&
+        platform is! MacOSFlutterLocalNotificationsPlugin) {
+      return null;
+    }
+    final NotificationAppLaunchDetails? details;
+    try {
+      details = await _plugin.getNotificationAppLaunchDetails();
+    } on PlatformException catch (e) {
+      LogTag.notification.error('Failed to read launch details: $e');
+      return null;
+    }
+    if (details == null || !details.didNotificationLaunchApp) return null;
+    return siteIdOfPayload(details.notificationResponse?.payload);
   }
 
   /// A prompt needs the app on screen, and on Android the plugin asks through

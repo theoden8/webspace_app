@@ -23,13 +23,37 @@ import 'package:webspace/webspace_model.dart';
 /// callbacks the platform would call ([tapLink]).
 ///
 /// The models the app runs are decoded from the stored JSON, so they are not
-/// [sites]; read them back with [appSite].
+/// [sites]; read them back with [appSite]. [launchedByNotificationFor] is the
+/// siteId of a notification the platform reports the app was launched by.
 Future<void> pumpRealApp(
   WidgetTester tester, {
   required List<WebViewModel> sites,
   List<Webspace> webspaces = const [],
   bool siteTabs = true,
   Map<String, Object> prefs = const {},
+  String? launchedByNotificationFor,
+}) async {
+  await prepareRealApp(
+    tester,
+    sites: sites,
+    webspaces: webspaces,
+    siteTabs: siteTabs,
+    prefs: prefs,
+    launchedByNotificationFor: launchedByNotificationFor,
+  );
+  await tester.pumpWidget(WebSpaceApp());
+  await settleRealApp(tester);
+}
+
+/// What [pumpRealApp] sets up before it pumps the app: the disk a cold start
+/// reads and the faked platform.
+Future<void> prepareRealApp(
+  WidgetTester tester, {
+  required List<WebViewModel> sites,
+  List<Webspace> webspaces = const [],
+  bool siteTabs = true,
+  Map<String, Object> prefs = const {},
+  String? launchedByNotificationFor,
 }) async {
   SharedPreferences.setMockInitialValues({
     'webViewModels': [for (final s in sites) jsonEncode(s.toJson())],
@@ -57,7 +81,19 @@ Future<void> pumpRealApp(
   final messenger = tester.binding.defaultBinaryMessenger;
   messenger.setMockMethodCallHandler(
     const MethodChannel('dexterous.com/flutter/local_notifications'),
-    (call) async => call.method == 'initialize' ? true : null,
+    (call) async => switch (call.method) {
+      'initialize' => true,
+      'getNotificationAppLaunchDetails' => {
+          'notificationLaunchedApp': launchedByNotificationFor != null,
+          if (launchedByNotificationFor != null)
+            'notificationResponse': {
+              'notificationId': 1,
+              'notificationResponseType': 0,
+              'payload': jsonEncode({'siteId': launchedByNotificationFor}),
+            },
+        },
+      _ => null,
+    },
   );
   messenger.setMockMethodCallHandler(
     SystemChannels.platform_views,
@@ -65,8 +101,6 @@ Future<void> pumpRealApp(
   );
   await DeveloperModeService.instance.initialize();
   await ExperimentalFeaturesService.instance.initialize();
-  await tester.pumpWidget(WebSpaceApp());
-  await settleRealApp(tester);
 }
 
 /// Startup and site activation do real I/O, which a fake-async pump alone
@@ -127,6 +161,18 @@ Future<void> tapLink(WidgetTester tester, {required String url}) async {
     );
   });
   await settleRealApp(tester);
+}
+
+/// The page on screen moving to [url] without a load, as the platform reports
+/// a `history.pushState`/`replaceState`: many pages do it as the user types.
+Future<void> pageHistoryChanged(WidgetTester tester, {required String url}) async {
+  final views = find.byType(inapp.InAppWebView).evaluate().toList();
+  expect(views, hasLength(1), reason: 'one page on screen');
+  final view = views.single.widget as inapp.InAppWebView;
+  await tester.runAsync(() async {
+    view.platform.params.onUpdateVisitedHistory!(
+        _FakeWebViewController(), inapp.WebUri(url), false);
+  });
 }
 
 /// Hand every webview the app has built a controller, as the platform does

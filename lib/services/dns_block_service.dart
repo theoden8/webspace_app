@@ -240,9 +240,6 @@ class DnsBlockService {
         downloadedLevels: _levelSets.levels,
       );
 
-  /// Cached Bloom filter built from DNS domains only.
-  BloomFilter? _bloomFilter;
-
   /// Cached Bloom filter built from DNS ∪ ABP blocked domains. Used by the
   /// iOS/macOS JS sub-resource interceptor as a "maybe blocked" prefilter;
   /// the authoritative DNS-vs-ABP decision happens in Dart on hit.
@@ -400,19 +397,6 @@ class DnsBlockService {
     await prefs.remove(_domainCacheKey);
   }
 
-  /// Get (and cache) a Bloom filter built from all DNS-blocked domains.
-  /// Kept for callers that want the DNS-only set; the webview JS
-  /// interceptor uses [getMergedBlockBloom] instead.
-  BloomFilter getBloomFilter() {
-    if (_bloomFilter != null) return _bloomFilter!;
-    final sw = Stopwatch()..start();
-    _bloomFilter = BloomFilter.build(_levelSets.domains, fpRate: 0.05);
-    sw.stop();
-    LogTag.dnsBlock.info(
-        'Built bloom filter: ${_bloomFilter!.sizeInBytes} bytes, k=${_bloomFilter!.k}, from ${_levelSets.domainCount} domains in ${sw.elapsedMilliseconds}ms');
-    return _bloomFilter!;
-  }
-
   /// Get (and cache) a Bloom filter built from the DNS blocked domains.
   /// Used as the JS-side prefilter for sub-resource interception. On a
   /// bloom hit the JS interceptor asks Dart for the authoritative
@@ -549,7 +533,9 @@ class DnsBlockService {
   Future<void> _loadFromDisk(SharedPreferences prefs) async {
     final stored = await _store.readText(_levelsFileName);
     if (stored != null) {
-      _applyLevelSets(_parseLevelSets(stored));
+      // Hundreds of thousands of domains: parsed off the UI isolate, so the
+      // other startup inits run beside it instead of after it.
+      _applyLevelSets(await compute(_parseLevelSets, stored));
       return;
     }
     if (_level < 1 || _level > kDnsMaxLevel) return;
@@ -626,12 +612,6 @@ class DnsBlockService {
 
   void _applyLevelSets(DnsLevelSets sets) {
     _levelSets = sets;
-    // Rebuild the bloom filter eagerly so the first webview page load doesn't
-    // pay the ~500ms build cost synchronously.
-    _bloomFilter = null;
-    if (!sets.isEmpty) {
-      getBloomFilter();
-    }
     _notifyBlocklistChanged();
   }
 
@@ -935,7 +915,6 @@ class DnsBlockService {
   void resetForTest() {
     _levelSets = DnsLevelSets.empty;
     _level = 0;
-    _bloomFilter = null;
     _mergedBloomFilter = null;
     _abpNetworkHosts = <String>{};
     _dnsBlockCache.clear();

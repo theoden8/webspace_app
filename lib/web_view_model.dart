@@ -1355,7 +1355,14 @@ bool dispatch(NavigationDecision decision,
                     via: 'onUrlChanged')) {
               return;
             }
-            currentUrl = urlChangedState.currentUrl;
+            final currentNotifyUrl = urlChangedState.currentUrl;
+            // Nothing to show or save: a page restating its URL (some do per
+            // keystroke) would rebuild the page and write every site per event.
+            if (decision == null && currentUrl == currentNotifyUrl &&
+                currentNotifyUrl == lastNotifiedUrl) {
+              return;
+            }
+            currentUrl = currentNotifyUrl;
             stateSetterF?.call();
             // Skip the title + theme IPCs when the URL didn't actually
             // advance — this is the duplicate event from the other of
@@ -1365,7 +1372,6 @@ bool dispatch(NavigationDecision decision,
             // for the `partition_alloc_support.cc:770` dangling-raw_ptr
             // SIGTRAP that can fire when an `evaluateJavascript`
             // continuation lands on a frame chromium has torn down.
-            final currentNotifyUrl = urlChangedState.currentUrl;
             if (currentNotifyUrl != lastNotifiedUrl) {
               lastNotifiedUrl = currentNotifyUrl;
               onNavigationCommitted?.call();

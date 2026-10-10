@@ -73,6 +73,15 @@ class IoFileStore implements FileStore {
     if (await file.exists()) await file.delete();
   }
 
+  /// Size and modification time, the make-style test: a rewrite lands at a
+  /// later mtime even when the size happens to match.
+  @override
+  Future<String?> stamp(String name) async {
+    final stat = await _file(await _directory(), name: name).stat();
+    if (stat.type == FileSystemEntityType.notFound) return null;
+    return '${stat.size}:${stat.modified.microsecondsSinceEpoch}';
+  }
+
   @override
   Future<List<String>> list() async {
     final dir = await _directory();

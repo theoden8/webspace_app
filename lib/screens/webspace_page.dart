@@ -116,6 +116,11 @@ WebViewStateStorage? debugWebViewStateStorageOverride;
 @visibleForTesting
 List<WebViewModel>? debugWebViewModels;
 
+/// Test seam: the cold start of the current run, from the first frame to the
+/// last step of [StartupController.restore], so a benchmark can time it.
+@visibleForTesting
+Future<void>? debugStartupRestore;
+
 class WebSpacePage extends StatefulWidget {
   final Function(AppThemeSettings) onThemeSettingsChanged;
 
@@ -307,7 +312,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     AppPref.anyChange.addListener(_onAppPrefChanged);
     AppPref.tabStripInFullscreen.listenable.addListener(_onTabStripPrefChanged);
     AppPref.tabBarButton.listenable.addListener(_onTabStripPrefChanged);
-    _startup.restore();
+    debugStartupRestore = _startup.restore();
     _shortcuts.refreshPinned();
     _shortcuts.probeAppIntents();
     _network.start();
