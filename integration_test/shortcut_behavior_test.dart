@@ -141,12 +141,14 @@ void main() {
     await server?.close(force: true);
   });
 
-  WebViewModel siteA({String? currentUrl}) => WebViewModel(
-    siteId: 'ws-hs-a',
-    initUrl: '$hostA/a.html',
-    currentUrl: currentUrl,
-    name: 'Site A',
-  );
+  WebViewModel siteA({String? currentUrl, bool tabsEnabled = true}) =>
+      WebViewModel(
+        siteId: 'ws-hs-a',
+        initUrl: '$hostA/a.html',
+        currentUrl: currentUrl,
+        name: 'Site A',
+        tabsEnabled: tabsEnabled,
+      );
   WebViewModel siteB() =>
       WebViewModel(siteId: 'ws-hs-b', initUrl: '$hostB/b.html', name: 'Site B');
 
@@ -357,7 +359,9 @@ Future<void> tapDialogButton(WidgetTester tester,
     (tester) async {
       seed(
         sites: [
-          siteA(currentUrl: '$hostA/deep.html'),
+          // HS-006 is for a site without tabs; one with tabs lands on its
+          // tab (TAB-014, the next test).
+          siteA(currentUrl: '$hostA/deep.html', tabsEnabled: false),
           siteB(),
         ],
         pinnedTiles: {'ws-hs-a'},
@@ -395,6 +399,30 @@ Future<void> tapDialogButton(WidgetTester tester,
               '$hostA/a.html',
           description: 'the startup ledger reconcile to record the pinned url',
         );
+      });
+    },
+    skip: skipOffAndroid,
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  testWidgets(
+    'cold launch lands a site with tabs on the tab it was on (TAB-014)',
+    (tester) async {
+      seed(
+        sites: [siteA(currentUrl: '$hostA/deep.html'), siteB()],
+        pinnedTiles: {'ws-hs-a'},
+        launch: 'ws-hs-a',
+      );
+      await withApp(tester, body: () async {
+        await pumpUntil(
+          tester,
+          predicate: () => siteIsMounted('ws-hs-a'),
+          description: 'the launched site to activate',
+        );
+        final launched = models().firstWhere((m) => m.siteId == 'ws-hs-a');
+        expect(launched.currentUrl, '$hostA/deep.html',
+            reason: 'with Always open Home off, a site with tabs opens on '
+                'the tab it was on (TAB-014)');
       });
     },
     skip: skipOffAndroid,

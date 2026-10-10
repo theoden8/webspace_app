@@ -516,15 +516,25 @@ A pinned shortcut SHALL launch the targeted site at its `initUrl`, not at the la
 
 This requirement applies only to **process-startup** launches (cold or post-kill). When the app is already running and the user taps a shortcut, the live in-memory session is preserved — the shortcut just brings the app to the foreground and switches to the site, matching HS-002's "App already running" scenario.
 
+It applies to a site without tabs: Tabs off, or Kiosk mode on (TAB-013). A site whose tabs are in effect lands as TAB-014 says: on the tab it was on, or with Always open Home on a tab at home, its other tabs kept. Always open Home is how such a site drops a session's drift.
+
 #### Scenario: Cold-launch via shortcut resets to initUrl
 
 **Given** site A's `initUrl` is `https://www.google.com/maps`
+**And** A has Tabs off or Kiosk mode on
 **And** the previous session ended with `currentUrl` = `https://www.google.com/maps/@40.7,-74.0,15z`
 **And** the user has force-killed the app
 **When** the user taps A's home shortcut
 **Then** the app starts up
 **And** A's webview is created with `initialUrl` = `https://www.google.com/maps`
 **And** the URL bar shows `https://www.google.com/maps`
+
+#### Scenario: A site with tabs keeps its tab
+
+**Given** site A has tabs and Always open Home off
+**And** the previous session ended with A's active tab at `https://www.google.com/maps/@40.7,-74.0,15z`
+**When** the user taps A's home shortcut after the app was killed
+**Then** A opens on that tab at that address (TAB-014)
 
 #### Scenario: Warm tap leaves running session intact
 
