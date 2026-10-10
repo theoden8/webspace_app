@@ -33,6 +33,28 @@ Future<void> pumpRealApp(
   Map<String, Object> prefs = const {},
   String? launchedByNotificationFor,
 }) async {
+  await prepareRealApp(
+    tester,
+    sites: sites,
+    webspaces: webspaces,
+    siteTabs: siteTabs,
+    prefs: prefs,
+    launchedByNotificationFor: launchedByNotificationFor,
+  );
+  await tester.pumpWidget(WebSpaceApp());
+  await settleRealApp(tester);
+}
+
+/// What [pumpRealApp] sets up before it pumps the app: the disk a cold start
+/// reads and the faked platform.
+Future<void> prepareRealApp(
+  WidgetTester tester, {
+  required List<WebViewModel> sites,
+  List<Webspace> webspaces = const [],
+  bool siteTabs = true,
+  Map<String, Object> prefs = const {},
+  String? launchedByNotificationFor,
+}) async {
   SharedPreferences.setMockInitialValues({
     'webViewModels': [for (final s in sites) jsonEncode(s.toJson())],
     'webspaces': [
@@ -79,8 +101,6 @@ Future<void> pumpRealApp(
   );
   await DeveloperModeService.instance.initialize();
   await ExperimentalFeaturesService.instance.initialize();
-  await tester.pumpWidget(WebSpaceApp());
-  await settleRealApp(tester);
 }
 
 /// Startup and site activation do real I/O, which a fake-async pump alone
