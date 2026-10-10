@@ -3,7 +3,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show PlatformException;
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -1063,6 +1064,9 @@ class ContentBlockerService {
     try {
       info = await PackageInfo.fromPlatform();
     } on PlatformException catch (e) {
+      LogTag.contentBlocker.warning('No app build for the engine cache: $e');
+      return null;
+    } on MissingPluginException catch (e) {
       LogTag.contentBlocker.warning('No app build for the engine cache: $e');
       return null;
     }
