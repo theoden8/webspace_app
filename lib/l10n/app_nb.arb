@@ -324,8 +324,6 @@
   "appSettingsIconCacheCleared": "Hurtigbuffer for ikoner tømt",
   "appSettingsExperimentalTextureRendering": "Teksturgjengivelse av sider",
   "appSettingsExperimentalTextureRenderingHint": "Tegner hver side i en tekstur som WebSpace setter sammen selv, i stedet for som en egen Android-visning lagt oppå appen. Det kan hindre sider som blir stående blanke og hvite til du snur telefonen eller bytter app. Skriving, tekstmarkering og skjermlesere er mindre testet på denne måten, og rask rulling kan hakke. Trer i kraft neste gang appen starter.",
-  "appSettingsExperimentalSiteTabs": "Nettstedsfaner",
-  "appSettingsExperimentalSiteTabsHint": "Lar et nettsted holde flere sider åpne samtidig, som faner i en nettleser: en faneliste fra fanetelleren øverst, «Ny fane» i menyen, og «Åpne i ny fane» når du trykker lenge på en lenke. Alle faner på et nettsted deler nettstedets pålogging og innstillinger. Når dette er av, viser hvert nettsted én side, som før; faner du allerede har åpnet, beholdes til du slår det på igjen. Det slår også på nettsøk, som søker på et av søkenettstedene dine og åpner resultatene i en fane.",
   "appSettingsExperimentalExternalTor": "Tor (ekstern)",
   "appSettingsExperimentalExternalTorHint": "Sender nettsteder som er satt til Tor, gjennom en tor som allerede kjører på denne enheten, for eksempel Orbot, InviZible, Arti eller tor-tjenesten; på macOS erstatter den den innebygde Tor. Hvert nettsted gir den tor-en sitt eget SOCKS-brukernavn og -passord, så en tor med IsolateSOCKSAuth, som er på med mindre SocksPort sier NoIsolateSOCKSAuth, holder hvert nettsted på egne kretser. Utgangsland, broer og nye kretser stilles inn i den tor-en.",
   "externalTorAddress": "Tor SOCKS-adresse",

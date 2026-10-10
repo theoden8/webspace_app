@@ -324,8 +324,6 @@
   "appSettingsIconCacheCleared": "Ikonu kešatmiņa notīrīta",
   "appSettingsExperimentalTextureRendering": "Lapu attēlošana tekstūrā",
   "appSettingsExperimentalTextureRenderingHint": "Zīmē katru lapu tekstūrā, ko WebSpace pati sastāda, nevis kā atsevišķu Android skatu, kas uzklāts lietotnei. Tas var novērst lapas, kas paliek tukšas un baltas, līdz pagriežat tālruni vai pārslēdzat lietotni. Rakstīšana, teksta atlase un ekrāna lasītāji šādā veidā ir mazāk pārbaudīti, un ātra ritināšana var raustīties. Stājas spēkā nākamajā lietotnes palaišanas reizē.",
-  "appSettingsExperimentalSiteTabs": "Vietnes cilnes",
-  "appSettingsExperimentalSiteTabsHint": "Ļauj vietnei vienlaikus turēt atvērtas vairākas lapas, kā pārlūka cilnes: ciļņu saraksts, ko atver, pieskaroties ciļņu skaitam augšā, “Jauna cilne” izvēlnē, kā arī “Atvērt jaunā cilnē”, kad ilgi turat nospiestu saiti. Visas vietnes cilnes izmanto tās pašas vietnes pieteikšanos un iestatījumus. Kad izslēgts, katra vietne rāda vienu lapu, tāpat kā līdz šim; jau atvērtās cilnes tiek saglabātas, līdz to atkal ieslēgsiet. Tas ieslēdz arī meklēšanu tīmeklī, kas meklē vienā no jūsu meklēšanas vietnēm un atver rezultātus cilnē.",
   "appSettingsExperimentalExternalTor": "Tor (ārējais)",
   "appSettingsExperimentalExternalTorHint": "Sūta uz Tor iestatītās vietnes caur tor, kas jau darbojas šajā ierīcē, piemēram, Orbot, InviZible, Arti vai tor pakalpojumu; macOS sistēmā tas aizstāj iebūvēto Tor. Katra vietne šim tor nodod savu SOCKS lietotājvārdu un paroli, tāpēc tor ar IsolateSOCKSAuth, kas ir ieslēgts, ja vien tā SocksPort nenorāda NoIsolateSOCKSAuth, tur katru vietni savās ķēdēs. Izejas valstis, tilti un jaunas ķēdes tiek iestatītas šajā tor.",
   "externalTorAddress": "Tor SOCKS adrese",
