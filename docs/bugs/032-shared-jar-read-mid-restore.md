@@ -32,7 +32,7 @@ operation reads the jar while another has it emptied.**
    its nuke, and nothing stopped a newer activation's snapshot from reading the
    jar during that refill. `jar_nonempty.tla` checks one restore against
    supersession, so the interleaving of two was outside the model.
-2. **2026-10-10 — PR #693.** `CookieIsolationEngine` runs its operations on the
+2. **2026-10-10 — PR #696.** `CookieIsolationEngine` runs its operations on the
    jar one at a time through a `SerialQueue`: a restore, an unload's capture
    and a delete's cleanup each take a turn, and a restore superseded while
    waiting bails before it reads. An unload whose site is no longer loaded

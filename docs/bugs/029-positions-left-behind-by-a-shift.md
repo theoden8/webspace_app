@@ -48,14 +48,14 @@ them. The invariant: **every write to the site list remaps `loaded` and
    highest first). *Why it closes the class*: a new way to change the list is
    a new `SiteSetChange` kind, which `apply`'s exhaustive switch makes decide
    its positions, and a write anywhere else fails the gate.
-5. **2026-10-10 — PR #693.** The legacy jar's unload took its site's position
+5. **2026-10-10 — PR #696.** The legacy jar's unload took its site's position
    before the capture's awaits and removed that position after them; it now
    finds the position again when it removes it. *Why*: the activation walk
    moved a row while memory pressure unloaded a background site, and the
    unload took the site on screen out of the loaded set instead. *Why
    partial*: attempt 4 remaps the positions `SiteRuntime` holds; a position an
    engine holds across an await is outside the funnel.
-6. **2026-10-10 — PR #693.** A switch that a row move supersedes after its
+6. **2026-10-10 — PR #696.** A switch that a row move supersedes after its
    residency step unloaded the site on screen goes home on its way out
    (LAZY-007). *Why*: attempt 2's version bump makes the switch bail, but the
    bump chooses no site, so the screen stayed on a site with no webview, the
