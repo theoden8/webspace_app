@@ -264,6 +264,8 @@ Debug") so a dev build installs beside a store one; the namespace is unchanged, 
 
 Dart in `test/`, integration in `integration_test/` (screenshots).
 
+Random walks ([test/helpers/walk/](test/helpers/walk/)) drive the real engines with seeded action sequences, interleaved at microtask granularity, plus noise that must change nothing it does not predict; each runs twice and must match itself, and a broken one shrinks to a list that pastes as a regression. CI runs fixed seeds; `WALK_SEED=n` reruns one, `WALK_SEEDS=k` explores. A change to state other features read adds its actions and invariants to a world there ([site_activation_walk_test.dart](test/site_activation_walk_test.dart)).
+
 ## Design (`tool/design_gallery/`)
 
 `web/` exists only so a designer can drive the real UI in a browser and so it
@@ -345,6 +347,10 @@ missing-transition classes, and cross-spec interference — bugs in the gaps *be
 - `formal/proofs/` holds **unbounded TLAPS proofs** (machine-checked by `tlapm`): every
   kernel safety invariant *and* the surface-repaint liveness `RepaintLiveness` for all N,
   not just TLC's N = 3. Run via `proofs/check_proofs.sh` (in the `validate` CI job).
+- `trace/check_walk.sh` holds a Dart walk's steps against a module's TLC state graph both ways:
+  every step is a path the model allows, and every transition is taken or listed with its reason
+  in `trace/walk_uncovered.tsv` (that list only shrinks). It runs in the Android CI job, after
+  `flutter test` writes the traces.
 - A bug's recurrence is also gated in **code**: structural Node tests under `test/js/`
   (`surface_repaint_funnel`, `renderer_gone_recovery`) fail CI if a new path skips the fix.
 - Don't commit `tla2tools.jar`, `states/`, `.tlacache/`, or generated `mc_*.tla` (derivatives).

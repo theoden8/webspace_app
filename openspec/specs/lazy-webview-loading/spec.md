@@ -137,6 +137,27 @@ The system SHALL clear loaded indices when importing settings.
 
 ---
 
+### Requirement: LAZY-007 - The Site On Screen Is Built
+
+Whenever no activation is in flight, the site on screen SHALL be in the loaded set (`Inv_CurrentLoaded` in `formal/kernel.tla`). A switch whose residency step unloaded the site on screen (a domain conflict, a proxy mismatch) and that a row move then supersedes SHALL leave for the webspace list, as a change that removes the site on screen does, never LAZY-003's placeholder. An unload SHALL find its site's position when it removes it, not before its capture, so a row move during the capture cannot take another site out of the loaded set. The activation walks (`test/site_activation_walk_test.dart`) check both.
+
+#### Scenario: A row move supersedes a switch that unloaded the site on screen
+
+**Given** site A is on screen under the legacy engine
+**And** the user taps site B on A's base domain, whose switch unloads A
+**When** a row move lands before the switch finishes
+**Then** the switch bails
+**And** the webspace list is shown, not A's placeholder
+
+#### Scenario: A row move lands during a memory-pressure unload
+
+**Given** sites A, on screen, and B are loaded, and memory pressure is unloading B
+**When** a row move shifts both before B's capture finishes
+**Then** B leaves the loaded set
+**And** A stays loaded
+
+---
+
 ## Implementation
 
 ### Loaded Indices Set

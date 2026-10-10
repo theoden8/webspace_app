@@ -1,5 +1,6 @@
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'package:webspace/services/log_service.dart';
+import 'package:webspace/utils/concurrency.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/services/cookie_manager.dart';
 
@@ -18,15 +19,20 @@ bool cookieMatchesBaseDomain(Cookie cookie, {required String baseDomain}) {
 /// code with mocked [CookieManager] and [CookieSecureStorage] instead of
 /// re-implementing the orchestration in a test harness.
 ///
-/// The engine is stateless; it operates on mutable state (`models`,
-/// `loadedIndices`) passed into each method. All native cookie-jar writes
-/// go through [cookieManager]; all per-site persistence goes through
-/// [storage]. Concurrency is serialized by an optional version check —
-/// callers pass a version captured at entry and a current-version getter;
-/// if they diverge, the operation bails early.
+/// The engine operates on mutable state (`models`, `loadedIndices`) passed
+/// into each method. All native cookie-jar writes go through
+/// [cookieManager]; all per-site persistence goes through [storage].
+///
+/// Every operation takes its turn on the jar, one at a time (ISO-003): a
+/// capture that read the jar while another operation had emptied it would
+/// save the emptiness as the loaded sites' sessions (BUG-032). A superseded
+/// activation's restore still bails at its version checks, callers passing
+/// a version captured at entry and a current-version getter.
 class CookieIsolationEngine {
   final CookieManager cookieManager;
   final CookieSecureStorage storage;
+
+  final SerialQueue _turns = SerialQueue();
 
   CookieIsolationEngine({
     required this.cookieManager,
@@ -44,12 +50,26 @@ class CookieIsolationEngine {
     required int index,
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
-  }) async {
-    if (index < 0 || index >= models.length) return;
-
+  }) {
+    if (index < 0 || index >= models.length) return Future<void>.value();
     final model = models[index];
+    return _turns.run(
+        () => _unload(model, models: models, loadedIndices: loadedIndices));
+  }
+
+  /// [model] rather than its position: a row move or delete can shift the
+  /// list while the turn waits or the capture runs (BUG-029).
+  Future<void> _unload(
+    WebViewModel model, {
+    required List<WebViewModel> models,
+    required Set<int> loadedIndices,
+  }) async {
+    // A site no longer loaded was captured when it left, and the jar has
+    // been refilled without it since: capturing again would save nothing
+    // over its session (BUG-032). Two plans in flight can both name it.
+    if (!loadedIndices.contains(models.indexOf(model))) return;
     LogTag.cookieIsolation.debug(
-        'Unloading site $index: "${model.name}" (siteId: ${model.siteId})',
+        'Unloading site "${model.name}" (siteId: ${model.siteId})',
         sensitive: true);
 
     if (!model.effectiveIncognito) {
@@ -66,14 +86,15 @@ class CookieIsolationEngine {
           .toList();
       await storage.saveCookiesForSite(model.siteId, cookies: model.cookies);
       LogTag.cookieIsolation.debug(
-          'Captured ${model.cookies.length} cookies for site $index: "${model.name}"',
+          'Captured ${model.cookies.length} cookies for "${model.name}"',
           sensitive: true);
     }
 
     model.disposeWebView();
     LogTag.cookieIsolation.debug(
-        'Disposed webview for site $index', sensitive: true);
-    loadedIndices.remove(index);
+        'Disposed webview for "${model.name}"', sensitive: true);
+    final at = models.indexOf(model);
+    if (at >= 0) loadedIndices.remove(at);
   }
 
   /// Restores cookies for a site before it's activated:
@@ -94,6 +115,25 @@ class CookieIsolationEngine {
   /// need the guard can pass matching ints and a lambda that returns that
   /// same int.
   Future<void> restoreCookiesForSite({
+    required int index,
+    required List<WebViewModel> models,
+    required Set<int> loadedIndices,
+    required int versionAtEntry,
+    required int Function() currentVersion,
+  }) =>
+      _turns.run(() async {
+        // Superseded while waiting for its turn.
+        if (versionAtEntry != currentVersion()) return;
+        await _restore(
+          index: index,
+          models: models,
+          loadedIndices: loadedIndices,
+          versionAtEntry: versionAtEntry,
+          currentVersion: currentVersion,
+        );
+      });
+
+  Future<void> _restore({
     required int index,
     required List<WebViewModel> models,
     required Set<int> loadedIndices,
@@ -175,6 +215,19 @@ class CookieIsolationEngine {
   /// restores after — the URL-scoped delete would otherwise evict the
   /// surviving site's live cookies too.
   Future<void> preDeleteCookieCleanup({
+    required WebViewModel deletedModel,
+    required int deletedIndex,
+    required List<WebViewModel> models,
+    required Set<int> loadedIndices,
+  }) =>
+      _turns.run(() => _preDelete(
+            deletedModel: deletedModel,
+            deletedIndex: deletedIndex,
+            models: models,
+            loadedIndices: loadedIndices,
+          ));
+
+  Future<void> _preDelete({
     required WebViewModel deletedModel,
     required int deletedIndex,
     required List<WebViewModel> models,

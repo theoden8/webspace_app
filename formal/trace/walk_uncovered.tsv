@@ -1,0 +1,10 @@
+# Model transitions no Dart walk takes, read by check_walk.py. One line per
+# module and action: module<TAB>action<TAB>why. A listed action every step
+# covers fails the check, so the list only shrinks.
+kernel	LoadSite	code builds a site without showing it only at cold start (notification sites, StartupController), which the walk does not drive; the kernel allows it at any time
+kernel	Resume	moves only surface and owed, which the walk does not observe; it drives no AppLifecycleController
+kernel	ControllerAttach	moves only surface and owed; the walk builds no webview controller
+kernel	Back	moves only surface and owed; the walk drives no BackGestureController
+kernel	Forward	moves only surface and owed; the walk drives no BackGestureController
+kernel	RouteReturn	moves only surface and owed; the walk pushes no route
+kernel	Nudge	moves only surface and owed; the walk's SurfaceRepaintController has repaints off

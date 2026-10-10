@@ -96,9 +96,14 @@ a capture → nuke → restore cycle:
    restore every other still-loaded site's cookies (parallel-loaded sites
    share the same native jar).
 
-All async steps SHALL check `SiteRuntime.activationVersion` and early-return if a
-newer `setCurrentIndex` invocation has started, to prevent concurrent
-cookie mutations from interleaving under rapid tab switching.
+All async steps before the nuke SHALL check `SiteRuntime.activationVersion`
+against the version the activation began at, never one read later, and
+early-return if a newer `setCurrentIndex` invocation or a row move has
+bumped it; once
+nuked, the jar SHALL be refilled before returning. The engine SHALL run one
+operation on the jar at a time (a restore, an unload's capture, a delete's
+cleanup), so no capture reads a jar another operation has emptied and saves
+the emptiness as the loaded sites' sessions (BUG-032).
 
 #### Scenario: Restore cookies on activation
 
@@ -148,8 +153,10 @@ cookie mutations from interleaving under rapid tab switching.
 **Given** the user taps Site B, then taps Site C before Site B's activation
   completes
 **When** Site C's activation runs
-**Then** any in-flight step of Site B's activation SHALL early-return on the
-  version mismatch
+**Then** any in-flight step of Site B's activation before its nuke SHALL
+  early-return on the version mismatch
+**And** Site C's snapshot SHALL NOT read the jar until Site B's restore has
+  refilled it
 **And** the cookie jar and encrypted storage SHALL NOT reflect interleaved
   captures from the two activations
 

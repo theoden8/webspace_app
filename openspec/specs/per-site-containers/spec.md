@@ -360,6 +360,17 @@ under this policy, two backstops apply:
   (no-op) — the IndexedStack would re-create a fresh webview on next
   paint, silently wiping the user's URL/scroll/session.
 
+#### Scenario: Memory pressure during a double tap does not strand state
+
+**Given** site A is loaded but not the currently-active site
+**When** the user taps A twice before the first activation lands
+**And** the OS fires `didHaveMemoryPressure` while the second is in flight
+**Then** A is NOT picked as the eviction victim
+**Because** `SiteRuntime.activating` records the `activationVersion` the
+  activation began at with its target, and only that activation clears it:
+  the superseded first tap, whose target is the same, leaves the second's
+  marker in place.
+
 ### Requirement: CONT-004 — Orphan Garbage Collection
 
 The system SHALL sweep profiles whose owning site no longer exists.
