@@ -9,6 +9,7 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/clearurl_service.dart';
 import 'package:webspace/services/html_snapshot.dart';
+import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/https_upgrade_engine.dart';
 import 'package:webspace/services/letterbox.dart';
 import 'package:webspace/services/page_shim.dart';
@@ -329,7 +330,7 @@ class WebViewFactory {
       proxySettings: binding.proxy,
     )
       ..javaScriptEnabled = posture.page.javascript
-      ..userAgent = posture.page.userAgent
+      ..userAgent = webViewUserAgent(posture.page.userAgent)
       // Sec-CH-UA*/navigator.userAgentData on Android come from a separate
       // metadata object — not the UA string. Without this override the
       // wire-level UA-CH headers contradict the spoofed UA. Silently

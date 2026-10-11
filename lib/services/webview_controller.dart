@@ -12,6 +12,7 @@ import 'package:webspace/services/user_agent_metadata_builder.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/file_import_document.dart';
+import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/webview.dart';
 
 abstract class WebViewController {
@@ -215,7 +216,7 @@ void applyWebViewOptions(
 }) {
   settings
     ..javaScriptEnabled = javascriptEnabled
-    ..userAgent = userAgent
+    ..userAgent = webViewUserAgent(userAgent)
     // Keep Sec-CH-UA*/navigator.userAgentData consistent with the UA
     // string. Webview recreation on UA edits is the primary path
     // (DM-001), so this is a defensive parallel apply for the rare
