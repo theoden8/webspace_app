@@ -126,6 +126,22 @@ class MainActivity: FlutterActivity() {
                     }
                     result.success(true)
                 }
+                "updateShortcuts" -> {
+                    // HS-016: a pinned tile follows the name and icon of the
+                    // site it opens. A tile sent without iconBytes keeps the
+                    // icon it has.
+                    val tiles = call.argument<List<Map<String, Any?>>>("tiles").orEmpty()
+                    val shortcuts = tiles.mapNotNull { tile ->
+                        val siteId = tile["siteId"] as? String
+                        val label = tile["label"] as? String
+                        if (siteId == null || label.isNullOrEmpty()) {
+                            null
+                        } else {
+                            siteShortcut(siteId, label, decodeIcon(tile["iconBytes"] as? ByteArray))
+                        }
+                    }
+                    result.success(updateTiles(shortcuts))
+                }
                 "disableShortcut" -> {
                     // Explicit user opt-in (HS-011): the app can't remove a
                     // pinned tile, but it can disable it — greyed out, launcher
@@ -200,31 +216,13 @@ class MainActivity: FlutterActivity() {
 
         Thread {
             try {
-                val intent = Intent(this, MainActivity::class.java).apply {
-                    action = Intent.ACTION_VIEW
-                    putExtra("siteId", siteId)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                }
-
-                val appIcon = IconCompat.createWithResource(this, R.mipmap.ic_launcher)
                 // Dart rasterizes the favicon through the site's proxy; when that
                 // fails the shortcut gets the app icon (HS-003). Never fetch the
                 // page-chosen iconUrl here: this is a raw HttpURLConnection over
                 // the device IP, outside the proxy (LEAK-003).
-                val icon = when {
-                    iconBytes != null -> {
-                        val bmp = BitmapFactory.decodeByteArray(iconBytes, 0, iconBytes.size)
-                        if (bmp != null) IconCompat.createWithBitmap(bmp) else appIcon
-                    }
-                    else -> appIcon
-                }
-
-                val shortcut = ShortcutInfoCompat.Builder(this, "site_$siteId")
-                    .setShortLabel(label)
-                    .setLongLabel(label)
-                    .setIcon(icon)
-                    .setIntent(intent)
-                    .build()
+                val icon = decodeIcon(iconBytes)
+                    ?: IconCompat.createWithResource(this, R.mipmap.ic_launcher)
+                val shortcut = siteShortcut(siteId, label, icon)
 
                 republish(shortcut)
                 if (isPinnedAndEnabled(shortcut.id)) {
@@ -246,6 +244,41 @@ class MainActivity: FlutterActivity() {
                 }
             }
         }.start()
+    }
+
+    // A null icon leaves it unset, which an update reads as "keep the tile's
+    // icon": ShortcutInfo.copyNonNullFieldsFrom only replaces non-null fields.
+    private fun siteShortcut(siteId: String, label: String, icon: IconCompat?): ShortcutInfoCompat {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_VIEW
+            putExtra("siteId", siteId)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        }
+        val builder = ShortcutInfoCompat.Builder(this, "site_$siteId")
+            .setShortLabel(label)
+            .setLongLabel(label)
+            .setIntent(intent)
+        if (icon != null) builder.setIcon(icon)
+        return builder.build()
+    }
+
+    private fun decodeIcon(bytes: ByteArray?): IconCompat? {
+        if (bytes == null) return null
+        val bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+        return IconCompat.createWithBitmap(bmp)
+    }
+
+    // updateShortcuts is the documented way to change a pinned shortcut. It
+    // returns false when rate-limited (an app in the background) and throws
+    // for an immutable id; either way Dart keeps the tile stale and retries
+    // on its next sync.
+    private fun updateTiles(shortcuts: List<ShortcutInfoCompat>): Boolean {
+        if (shortcuts.isEmpty()) return true
+        return try {
+            ShortcutManagerCompat.updateShortcuts(this, shortcuts)
+        } catch (e: IllegalArgumentException) {
+            false
+        }
     }
 
     // requestPinShortcut throws when the id already exists disabled. A device

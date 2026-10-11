@@ -311,6 +311,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _startup.restore();
     _shortcuts.refreshPinned();
     _shortcuts.probeAppIntents();
+    _shortcuts.start();
     _network.start();
     _fullscreen.start();
   }
@@ -399,6 +400,7 @@ class _WebSpacePageState extends State<WebSpacePage>
     _surface.dispose();
     _navStateDebouncer.dispose();
     _network.dispose();
+    _shortcuts.dispose();
     AppPref.anyChange.removeListener(_onAppPrefChanged);
     AppPref.tabStripInFullscreen.listenable
         .removeListener(_onTabStripPrefChanged);

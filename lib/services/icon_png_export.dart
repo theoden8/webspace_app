@@ -25,10 +25,18 @@ Future<Uint8List?> displayedSiteIconAsPng(
   UserProxySettings? proxy,
   SiteIconStore? siteIcons,
 }) async =>
-    customIcon ??
-    (siteIcons ?? SiteIconStore.instance).get(siteUrl) ??
+    knownSiteIcon(siteUrl, customIcon: customIcon, siteIcons: siteIcons) ??
     await exportIconAsPng(siteUrl,
         resolvedIconUrl: resolvedIconUrl, proxy: proxy);
+
+/// [displayedSiteIconAsPng] without the fetch: null while the site has
+/// neither a custom icon nor a page icon of its own.
+Uint8List? knownSiteIcon(
+  String siteUrl, {
+  Uint8List? customIcon,
+  SiteIconStore? siteIcons,
+}) =>
+    customIcon ?? (siteIcons ?? SiteIconStore.instance).get(siteUrl);
 
 /// Resolve, fetch, and normalize a site's favicon to PNG bytes.
 ///

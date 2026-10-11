@@ -148,6 +148,7 @@ renders (drawer list/grid, tab strip, webspace detail, site dispatch)
 **When** the user pins the site to the Android home screen
 **Then** the pinned shortcut uses the custom icon bytes instead of the fetched
 favicon
+**And** a shortcut pinned before the icon was picked takes it too (HS-016)
 
 #### Scenario: Revert to the automatic icon
 

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/web_view_model.dart';
@@ -326,6 +328,124 @@ void main() {
         ),
         isEmpty,
       );
+    });
+  });
+
+  group('ShortcutPinState.sitesOfTiles (HS-016)', () {
+    test('a tile opens its own site, else the site it was rebound to', () {
+      final a = WebViewModel(initUrl: 'https://a.com', siteId: 'a');
+      final b = WebViewModel(initUrl: 'https://b.com', siteId: 'b');
+      expect(
+        ShortcutPinState.sitesOfTiles(
+          pinnedSiteIds: {'a', 'gone'},
+          rememberedRemap: const {'gone': 'b'},
+          models: [a, b],
+        ),
+        {'a': a, 'gone': b},
+      );
+    });
+
+    test('the own site wins over a rebind, as a tap resolves it', () {
+      final a = WebViewModel(initUrl: 'https://a.com', siteId: 'a');
+      final b = WebViewModel(initUrl: 'https://b.com', siteId: 'b');
+      expect(
+        ShortcutPinState.sitesOfTiles(
+          pinnedSiteIds: {'a'},
+          rememberedRemap: const {'a': 'b'},
+          models: [a, b],
+        ),
+        {'a': a},
+      );
+    });
+
+    test('leaves out a tile that opens no site', () {
+      expect(
+        ShortcutPinState.sitesOfTiles(
+          pinnedSiteIds: {'gone'},
+          rememberedRemap: const {'gone': 'also-gone'},
+          models: [WebViewModel(initUrl: 'https://a.com', siteId: 'a')],
+        ),
+        isEmpty,
+      );
+    });
+
+    test('leaves out an archive-tier site (ARCH-006)', () {
+      final archived = WebViewModel(initUrl: 'https://a.com', siteId: 'a')
+        ..isArchiveTier = true;
+      expect(
+        ShortcutPinState.sitesOfTiles(
+          pinnedSiteIds: {'a'},
+          rememberedRemap: const {},
+          models: [archived],
+        ),
+        isEmpty,
+      );
+    });
+  });
+
+  group('ShortcutPinState.staleTiles (HS-016)', () {
+    final png1 = Uint8List.fromList([1, 2, 3]);
+    final png2 = Uint8List.fromList([4, 5, 6]);
+
+    test('a tile never written this launch is rewritten', () {
+      final plan = ShortcutPinState.staleTiles(
+        want: {'a': (label: 'Mail', icon: png1)},
+        shown: const {},
+      );
+      expect(plan.updates, [(tile: 'a', label: 'Mail', icon: png1)]);
+      expect(plan.shown, {'a': (label: 'Mail', icon: png1)});
+    });
+
+    test('a matching tile is left alone', () {
+      final plan = ShortcutPinState.staleTiles(
+        want: {'a': (label: 'Mail', icon: Uint8List.fromList([1, 2, 3]))},
+        shown: {'a': (label: 'Mail', icon: png1)},
+      );
+      expect(plan.updates, isEmpty);
+    });
+
+    test('a rename rewrites the label and keeps the icon', () {
+      final plan = ShortcutPinState.staleTiles(
+        want: {'a': (label: 'Inbox', icon: png1)},
+        shown: {'a': (label: 'Mail', icon: png1)},
+      );
+      expect(plan.updates, [(tile: 'a', label: 'Inbox', icon: null)]);
+      expect(plan.shown['a'], (label: 'Inbox', icon: png1));
+    });
+
+    test('a new icon is sent', () {
+      final plan = ShortcutPinState.staleTiles(
+        want: {'a': (label: 'Mail', icon: png2)},
+        shown: {'a': (label: 'Mail', icon: png1)},
+      );
+      expect(plan.updates, [(tile: 'a', label: 'Mail', icon: png2)]);
+    });
+
+    test('an icon not known yet never replaces the one a tile has', () {
+      final plan = ShortcutPinState.staleTiles(
+        want: {'a': (label: 'Mail', icon: null)},
+        shown: {'a': (label: 'Mail', icon: png1)},
+      );
+      expect(plan.updates, isEmpty);
+
+      final renamed = ShortcutPinState.staleTiles(
+        want: {'a': (label: 'Inbox', icon: null)},
+        shown: {'a': (label: 'Mail', icon: png1)},
+      );
+      expect(renamed.updates, [(tile: 'a', label: 'Inbox', icon: null)]);
+      expect(renamed.shown['a'], (label: 'Inbox', icon: png1));
+    });
+
+    test('a tile not wanted keeps its record', () {
+      final plan = ShortcutPinState.staleTiles(
+        want: {'a': (label: 'Inbox', icon: null)},
+        shown: {
+          'a': (label: 'Mail', icon: null),
+          'b': (label: 'News', icon: png2),
+        },
+      );
+      expect(plan.updates.map((u) => u.tile), ['a']);
+      expect(plan.shown['b'], (label: 'News', icon: png2));
     });
   });
 

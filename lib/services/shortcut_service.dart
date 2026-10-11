@@ -1,6 +1,8 @@
 import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 import 'package:flutter/services.dart';
+import 'package:webspace/services/startup_restore_engine.dart'
+    show TileUpdate;
 
 /// One site as it crosses the platform-channel boundary into the iOS App
 /// Intents picker (HS-007). `iconUrl` is reserved for future favicon syncing
@@ -164,6 +166,25 @@ class ShortcutService {
       return const <String>{};
     } on PlatformException {
       return const <String>{};
+    }
+  }
+
+  /// Rewrite the label, and the icon where one is given, of pinned tiles
+  /// (Android only, HS-016). False when nothing was written: off Android, on
+  /// a channel error, or when the launcher rate-limits the call, so the
+  /// caller retries on its next sync.
+  static Future<bool> updateTiles(List<TileUpdate> updates) async {
+    if (!hostIsAndroid) return false;
+    try {
+      final result = await _channel.invokeMethod('updateShortcuts', {
+        'tiles': [
+          for (final u in updates)
+            {'siteId': u.tile, 'label': u.label, 'iconBytes': u.icon},
+        ],
+      });
+      return result == true;
+    } on PlatformException {
+      return false;
     }
   }
 
