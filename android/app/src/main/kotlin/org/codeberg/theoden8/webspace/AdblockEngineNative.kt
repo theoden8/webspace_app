@@ -17,22 +17,23 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /**
  * Singleton wrapper around the JNI bridge to adblock-rust. Thread-safe
- * for concurrent reads (`checkUrl`, `redirectFor`); writes (`setRules`,
- * `dispose`) are exclusive.
+ * for concurrent reads (`checkUrl`, `redirectFor`); writes (`setEngine`,
+ * `setRules`, `dispose`) are exclusive.
  *
  * Concurrency: readers and the freeing writer are serialised through a
  * [ReentrantReadWriteLock]. `checkUrl`/`redirectFor` hand the raw
  * `enginePtr` to Rust, which dereferences it (`&(*(handle as *mut
- * Engine))`). Without the lock a concurrent `dispose()`/`setRules()`
+ * Engine))`). Without the lock a concurrent `dispose()`/`setEngine()`
  * could `Box::from_raw` the same pointer mid-deref — a use-after-free
  * on the chromium IO thread. The read lock lets many `checkUrl` calls
  * run at once (the design goal) while the write lock guarantees no free
  * happens while any read is in flight.
  *
- * Lifecycle: Dart pushes rules text via the `setAdblockEngineRules`
- * method channel call when the user flips the toggle. We parse them
- * once into a Box<Engine> on the Rust side and keep the long handle
- * here. Subsequent navigation events have FastSubresourceInterceptor
+ * Lifecycle: Dart pushes the engine it built, serialized, via the
+ * `setAdblockEngine` method channel call at launch and on every rebuild
+ * (or the rules text, when the blob does not hydrate). We build a
+ * Box<Engine> on the Rust side and keep the long handle here.
+ * Subsequent navigation events have FastSubresourceInterceptor
  * call `checkUrl` per request; when the user flips the toggle off
  * we `dispose()` the handle and revert to host-only matching.
  */
@@ -44,7 +45,8 @@ object AdblockEngineNative {
     private var loaded: Boolean = false
 
     /**
-     * Opaque pointer the Rust side hands back from `engineNew`. Mutated
+     * Opaque pointer the Rust side hands back from
+     * `nativeEngineFromSerialized` / `nativeEngineNew`. Mutated
      * only under [rwLock]'s write lock; read under the read lock on the
      * hot path (and lock-free in the [active] getter, hence @Volatile).
      */
@@ -83,11 +85,28 @@ object AdblockEngineNative {
         get() = loaded
 
     /**
-     * Parse [rulesText] into a fresh engine. Drops the previous
-     * engine if any. Pass an empty string to tear down (same effect
-     * as [dispose]).
+     * Replace the engine with the one [blob] holds, as the Dart side
+     * serialized it. An empty blob tears down (same effect as [dispose]).
      */
-    fun setRules(rulesText: String, enableUboResources: Boolean = true) {
+    fun setEngine(blob: ByteArray, enableUboResources: Boolean = true) = replace {
+        if (blob.isEmpty()) 0L else nativeEngineFromSerialized(blob, enableUboResources)
+    }
+
+    /**
+     * Replace the engine with one parsed from [rulesText]: the fallback for
+     * a blob [setEngine] could not hydrate, so the interceptor never runs
+     * without the engine Dart runs. An empty string tears down.
+     */
+    fun setRules(rulesText: String, enableUboResources: Boolean = true) = replace {
+        if (rulesText.isEmpty()) 0L else nativeEngineNew(rulesText, enableUboResources)
+    }
+
+    /**
+     * Frees the engine and builds its successor under the write lock, so a
+     * request that arrives meanwhile waits for the new engine rather than
+     * being judged by the old one or by none.
+     */
+    private inline fun replace(build: () -> Long) {
         if (!loaded) return
         val writeLock = rwLock.writeLock()
         writeLock.lock()
@@ -96,16 +115,8 @@ object AdblockEngineNative {
                 nativeEngineFree(enginePtr)
                 enginePtr = 0L
             }
-            if (rulesText.isEmpty()) {
-                Log.i(TAG, "engine torn down")
-                return
-            }
-            val ptr = nativeEngineNew(rulesText, enableUboResources)
-            enginePtr = ptr
-            Log.i(TAG, if (ptr != 0L)
-                "engine built (${rulesText.length} bytes, handle=0x${java.lang.Long.toHexString(ptr)}, ubo=$enableUboResources)"
-            else
-                "engine build failed")
+            enginePtr = build()
+            Log.i(TAG, if (enginePtr != 0L) "engine built" else "engine torn down or build failed")
         } finally {
             writeLock.unlock()
         }
@@ -173,6 +184,9 @@ object AdblockEngineNative {
     // ---- JNI declarations (implemented in rust/webspace_adblock/src/jni.rs) ----
     @JvmStatic
     private external fun nativeProbe(): Boolean
+
+    @JvmStatic
+    private external fun nativeEngineFromSerialized(blob: ByteArray, enableUboResources: Boolean): Long
 
     @JvmStatic
     private external fun nativeEngineNew(rulesText: String, enableUboResources: Boolean): Long

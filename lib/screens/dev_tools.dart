@@ -676,6 +676,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
       if (mounted) {
         widget.host!.cookies = cookies;
         setState(() => _loadingCookies = false);
+        await widget.onSave?.call();
       }
     } catch (e) {
       if (mounted) {
@@ -707,7 +708,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     }
     if (!mounted) return;
     _toast((loc) => loc.devToolsCookieDeleted(cookie.name));
-    _refreshCookies();
+    await _refreshCookies();
   }
 
   Future<void> _blockCookie(Cookie cookie) async {

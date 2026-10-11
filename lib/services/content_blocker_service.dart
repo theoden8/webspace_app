@@ -3,6 +3,9 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:webspace/services/abp_network_hosts.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/adblock_engine.dart';
@@ -115,13 +118,10 @@ class ContentBlockerService {
   static const String _listMasksKey = 'content_blocker_list_masks';
   static const String _cacheDir = 'content_blocker_cache';
 
-  /// Bump when the rules-text preprocessing (procedural backfill
-  /// rewrite, future similar transforms) changes its output, so a
-  /// blob written under the old transform is rejected and the
-  /// engine re-parses fresh. The constant becomes a cache-key
-  /// prefix; the actual rules text still hashes into the key, so
-  /// list-content changes are detected independently.
-  static const int _kEngineCacheVersion = 2;
+  /// Bump when the engine cache's own format changes. The app build is part
+  /// of the cache key too, so a release that changes the pruning, rewrite or
+  /// parser rebuilds once without a bump here.
+  static const int _kEngineCacheVersion = 3;
 
   static ContentBlockerService? _instance;
   static ContentBlockerService get instance =>
@@ -934,6 +934,51 @@ class ContentBlockerService {
     _rustEngine = null;
     _engineCosmeticCache.clear();
 
+    // What a warm launch costs: the engine and prefilter the last build with
+    // the same inputs left on disk, with no list text read. Rebuilding from
+    // text (below) is several hundred ms on a phone, on the UI thread.
+    final key = await _engineInputsKey();
+    if (key != null && await _loadCachedEngine(key)) {
+      _notifyRulesChanged();
+      return;
+    }
+
+    final built = await _rulesFromLists();
+    _applyPrefilter(built.prefilter);
+    if (built.rulesText.isEmpty) {
+      await _pushToNative(Uint8List(0), rulesText: () async => '');
+      _notifyRulesChanged();
+      return;
+    }
+    final sw = Stopwatch()..start();
+    final engine = AdblockEngine.load(built.rulesText,
+        enableUboResources: useUboResources);
+    sw.stop();
+    if (engine == null) {
+      LogTag.contentBlocker.warning(
+          'Engine library is not loadable on this platform — '
+          'adblock decisions will all return "allowed".');
+      await _pushToNative(Uint8List(0), rulesText: () async => '');
+      _notifyRulesChanged();
+      return;
+    }
+    _rustEngine = engine;
+    LogTag.contentBlocker.info('Engine active: ${engine.version} '
+        '(parse ${built.listCount} list(s), ${built.rulesText.length} bytes, '
+        '${sw.elapsedMilliseconds}ms)');
+    final blob = engine.serialize() ?? Uint8List(0);
+    if (key != null && blob.isNotEmpty) {
+      unawaited(
+          _writeEngineCache(key, blob: blob, prefilter: built.prefilter));
+    }
+    await _pushToNative(blob, rulesText: () async => built.rulesText);
+    _notifyRulesChanged();
+  }
+
+  /// The rules the engine is parsed from and the interceptor prefilter, from
+  /// the enabled lists' text. Empty rules when no list has any.
+  Future<({String rulesText, AbpNetworkPrefilter prefilter, int listCount})>
+      _rulesFromLists() async {
     final buf = StringBuffer();
     var listCount = 0;
     for (final list in _lists) {
@@ -961,75 +1006,111 @@ class ContentBlockerService {
     // cosmetic lines. Listeners push the hosts to DnsBlockService on
     // _notifyRulesChanged; the token bloom rides the getBlockBloom map.
     final prefilter = parseAbpNetworkPrefilter(concatenated);
+    // Rewrite generic procedural rules with a synthetic-host prefix
+    // so adblock-rust's parser stores them as domain-scoped (it would
+    // otherwise drop them at parse time — see
+    // procedural_action_backfill.dart).
+    return (
+      rulesText: concatenated.isEmpty
+          ? ''
+          : rewriteGenericProceduralsForBackfill(concatenated),
+      prefilter: prefilter,
+      listCount: listCount,
+    );
+  }
+
+  void _applyPrefilter(AbpNetworkPrefilter prefilter) {
     _abpNetworkHosts = prefilter.hosts;
     _genericNetworkTokens = prefilter.tokens;
     _hasUntokenizableNetworkRules = prefilter.hasUntokenizable;
     _genericTokenBloom = null;
-    if (buf.isEmpty) {
-      if (hostIsAndroid) {
-        await WebInterceptNative.sendAdblockEngineRules('');
-      }
-      _notifyRulesChanged();
-      return;
-    }
-    // Rewrite generic procedural rules with a synthetic-host prefix
-    // so adblock-rust's parser stores them as domain-scoped (it would
-    // otherwise drop them at parse time — see
-    // procedural_action_backfill.dart). The rewritten text is what
-    // the engine sees and what the cache key is computed over; bump
-    // [_kEngineCacheVersion] when the rewrite output format changes
-    // so old cached blobs get re-parsed.
-    final rulesText = rewriteGenericProceduralsForBackfill(concatenated);
-    final rulesHash =
-        sha256.convert(utf8.encode('v$_kEngineCacheVersion:$rulesText')).toString();
-    AdblockEngine? engine;
-    String loadMode = 'parse';
-    final sw = Stopwatch()..start();
+  }
 
-    final cached = await _readEngineCache(rulesHash);
-    if (cached != null) {
-      engine = AdblockEngine.loadFromSerialized(cached,
-          enableUboResources: useUboResources);
-      if (engine != null) {
-        loadMode = 'deserialize';
-      } else {
-        await _clearEngineCache();
-      }
-    }
-    engine ??= AdblockEngine.load(rulesText,
+  /// Android's interceptor runs its own engine and, without one, lets every
+  /// sub-resource the DNS list allows through, so it gets the engine Dart
+  /// runs: hydrated from [blob], or parsed from [rulesText] when it does not
+  /// hydrate. Empty turns it off. Awaited: no page loads before it is in.
+  Future<void> _pushToNative(Uint8List blob,
+      {required Future<String> Function() rulesText}) async {
+    if (!WebInterceptNative.isSupported) return;
+    var result = await WebInterceptNative.sendAdblockEngine(
+        SerializedEngine(blob),
         enableUboResources: useUboResources);
-    sw.stop();
-    if (engine == null) {
+    if (blob.isEmpty) return;
+    if (result?['supported'] == true && result?['active'] != true) {
       LogTag.contentBlocker.warning(
-          'Engine library is not loadable on this platform — '
-          'adblock decisions will all return "allowed".');
-      if (hostIsAndroid) {
-        await WebInterceptNative.sendAdblockEngineRules('');
-      }
-      _notifyRulesChanged();
-      return;
+          'Native engine did not hydrate the serialized engine; parsing rules');
+      result = await WebInterceptNative.sendAdblockEngine(
+          EngineRulesText(await rulesText()),
+          enableUboResources: useUboResources);
+    }
+    if (result == null || result['active'] != true) {
+      LogTag.contentBlocker.warning(
+          'Native engine inactive on this Android build — '
+          'ABP rules do not apply to sub-resources.');
+    } else {
+      LogTag.contentBlocker.info(
+          'Native engine active for Android sub-resources.');
+    }
+  }
+
+  /// Everything the engine is built from, read without opening a list: the
+  /// app build (which fixes the pruning, rewrite and parser code), the
+  /// platform the lists are pruned for, and per enabled list its file stamp
+  /// or inline rules and the hosts masked away from it. Null when the build
+  /// cannot be read; the engine is then built from text and not cached.
+  Future<String?> _engineInputsKey() async {
+    final PackageInfo info;
+    try {
+      info = await PackageInfo.fromPlatform();
+    } on PlatformException catch (e) {
+      LogTag.contentBlocker.warning('No app build for the engine cache: $e');
+      return null;
+    } on MissingPluginException catch (e) {
+      LogTag.contentBlocker.warning('No app build for the engine cache: $e');
+      return null;
+    }
+    final parts = <String>[
+      'v$_kEngineCacheVersion',
+      '${info.version}+${info.buildNumber}',
+      (_preparserEnv.toList()..sort()).join(','),
+      'ubo=$useUboResources',
+    ];
+    var listCount = 0;
+    for (final list in _lists) {
+      if (!list.enabled) continue;
+      final inline = list.rules;
+      final content = inline != null
+          ? 'inline:${sha256.convert(utf8.encode(inline))}'
+          : await _store.stamp(_cacheName(list.id));
+      if (content == null) continue;
+      listCount++;
+      final masked = (_listMasks[list.id] ?? const <String>{}).toList()..sort();
+      parts.add('${list.id}|$content|${masked.join(',')}');
+    }
+    if (listCount == 0) return null;
+    return sha256.convert(utf8.encode(parts.join('\n'))).toString();
+  }
+
+  /// Loads the engine and prefilter a build with inputs [key] cached. False
+  /// on any miss, which leaves the build to the text path.
+  Future<bool> _loadCachedEngine(String key) async {
+    final sw = Stopwatch()..start();
+    final cached = await _readEngineCache(key);
+    if (cached == null) return false;
+    final engine = AdblockEngine.loadFromSerialized(cached.blob,
+        enableUboResources: useUboResources);
+    if (engine == null) {
+      await _clearEngineCache();
+      return false;
     }
     _rustEngine = engine;
+    _applyPrefilter(cached.prefilter);
     LogTag.contentBlocker.info('Engine active: ${engine.version} '
-        '($loadMode $listCount list(s), ${rulesText.length} bytes, '
-        '${sw.elapsedMilliseconds}ms)');
-    if (loadMode == 'parse') {
-      unawaited(_writeEngineCache(rulesHash, engine: engine));
-    }
-    if (hostIsAndroid) {
-      final result =
-          await WebInterceptNative.sendAdblockEngineRules(rulesText,
-              enableUboResources: useUboResources);
-      if (result == null || result['active'] != true) {
-        LogTag.contentBlocker.warning(
-            'Native engine inactive on this Android build — '
-            'sub-resource blocking will Dart-roundtrip per request.');
-      } else {
-        LogTag.contentBlocker.info(
-            'Native engine active for Android sub-resources.');
-      }
-    }
-    _notifyRulesChanged();
+        '(cached, ${cached.blob.length} bytes, ${sw.elapsedMilliseconds}ms)');
+    await _pushToNative(cached.blob,
+        rulesText: () async => (await _rulesFromLists()).rulesText);
+    return true;
   }
 
   /// Coarse line count of the raw filter list, used only for the
@@ -1129,47 +1210,73 @@ class ContentBlockerService {
   FileStore get _store => _storeOverride ??= defaultFileStore(_cacheDir);
 
   static const String _engineCacheName = '.engine.bin';
+  static const String _engineCachePrefilterName = '.engine.prefilter';
   static const String _engineCacheMetaName = '.engine.meta';
 
   String _cacheName(String id) => '$id.txt';
 
-  Future<Uint8List?> _readEngineCache(String expectedHash) async {
+  /// The meta file names the inputs and is written last, so a cache whose
+  /// write was cut short never matches.
+  Future<({Uint8List blob, AbpNetworkPrefilter prefilter})?> _readEngineCache(
+      String expectedKey) async {
+    final Uint8List? blob;
+    final Object? decoded;
     try {
-      final metaText = await _store.readText(_engineCacheMetaName);
-      if (metaText == null) return null;
-      final parts = metaText.split(':');
-      if (parts.length != 2) return null;
-      if (parts[0] != expectedHash) return null;
-      if ((parts[1] == '1') != useUboResources) return null;
-      return _store.readBytes(_engineCacheName);
-    } catch (e) {
-      LogTag.contentBlocker.debug(
-          'engine cache read failed: $e — falling back to parse');
+      if (await _store.readText(_engineCacheMetaName) != expectedKey) {
+        return null;
+      }
+      blob = await _store.readBytes(_engineCacheName);
+      final prefilterText = await _store.readText(_engineCachePrefilterName);
+      if (blob == null || prefilterText == null) return null;
+      decoded = jsonDecode(prefilterText);
+    } on Exception catch (e) {
+      // FormatException from a torn prefilter, or the store's own I/O error.
+      LogTag.contentBlocker.debug('engine cache unreadable: $e');
       return null;
     }
+    if (decoded case {
+      'hosts': final List<Object?> hosts,
+      'tokens': final List<Object?> tokens,
+      'untokenizable': final bool untokenizable,
+    }) {
+      return (
+        blob: blob,
+        prefilter: (
+          hosts: hosts.whereType<String>().toSet(),
+          tokens: tokens.whereType<String>().toSet(),
+          hasUntokenizable: untokenizable,
+        ),
+      );
+    }
+    return null;
   }
 
-  Future<void> _writeEngineCache(String hash,
-      {required AdblockEngine engine}) async {
+  Future<void> _writeEngineCache(String key,
+      {required Uint8List blob, required AbpNetworkPrefilter prefilter}) async {
     try {
-      final blob = engine.serialize();
-      if (blob == null) return;
+      await _store.delete(_engineCacheMetaName);
       await _store.writeBytes(_engineCacheName, bytes: blob);
-      await _store.writeText(_engineCacheMetaName,
-          contents: '$hash:${useUboResources ? '1' : '0'}');
+      await _store.writeText(_engineCachePrefilterName,
+          contents: jsonEncode({
+            'hosts': prefilter.hosts.toList(),
+            'tokens': prefilter.tokens.toList(),
+            'untokenizable': prefilter.hasUntokenizable,
+          }));
+      await _store.writeText(_engineCacheMetaName, contents: key);
       LogTag.contentBlocker.debug(
-          'engine cache written: ${blob.length} bytes (hash=${hash.substring(0, 8)}…)');
-    } catch (e) {
+          'engine cache written: ${blob.length} bytes (key=${key.substring(0, 8)}…)');
+    } on Exception catch (e) {
       LogTag.contentBlocker.warning('engine cache write failed: $e');
     }
   }
 
   Future<void> _clearEngineCache() async {
     try {
-      await _store.delete(_engineCacheName);
       await _store.delete(_engineCacheMetaName);
+      await _store.delete(_engineCacheName);
+      await _store.delete(_engineCachePrefilterName);
     } on Exception {
-      // A stale engine cache fails its version check on the next load.
+      // A stale engine cache fails its key check on the next load.
     }
   }
 

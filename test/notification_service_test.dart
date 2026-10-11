@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:ui' show AppLifecycleState;
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/services/notification_service.dart';
 
@@ -28,6 +30,17 @@ void main() {
       // platform plugin; the important contract is the type shape.
       final value = NotificationService.instance.permissionGranted;
       expect(value, anyOf(isNull, isA<bool>()));
+    });
+  });
+
+  group('NOTIF-003 the notification that launched the app', () {
+    test('a platform that cannot report one reads as none', () async {
+      // Linux: the plugin throws UnimplementedError for the call, and a
+      // cold start that asked failed in restore.
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      FlutterLocalNotificationsPlatform.instance = _NoLaunchDetails();
+      expect(await NotificationService.instance.launchSiteId(), isNull);
     });
   });
 
@@ -122,3 +135,7 @@ NotificationTarget target(String siteId,
     });
   });
 }
+
+/// A notifications implementation with only the base class's calls, as
+/// Linux's is for launch details.
+class _NoLaunchDetails extends FlutterLocalNotificationsPlatform {}

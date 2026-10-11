@@ -36,6 +36,10 @@ abstract class FileStore {
 
   Future<void> delete(String name);
 
+  /// Identifies what [name] holds without reading it: a write that changes it
+  /// changes the stamp. Null when absent.
+  Future<String?> stamp(String name);
+
   /// File names (not paths) currently in the directory.
   Future<List<String>> list();
 
@@ -66,6 +70,8 @@ void checkFileStoreName(String name) {
 class MemoryFileStore implements FileStore {
   final Map<String, String> _files = {};
   final Map<String, Uint8List> _bytes = {};
+  final Map<String, int> _writes = {};
+  int _writeCount = 0;
 
   @override
   Future<void> ensure() async {}
@@ -86,6 +92,7 @@ class MemoryFileStore implements FileStore {
   Future<void> writeText(String name, {required String contents}) async {
     checkFileStoreName(name);
     _files[name] = contents;
+    _writes[name] = ++_writeCount;
   }
 
   @override
@@ -101,6 +108,7 @@ class MemoryFileStore implements FileStore {
   Future<void> writeBytes(String name, {required List<int> bytes}) async {
     checkFileStoreName(name);
     _bytes[name] = Uint8List.fromList(bytes);
+    _writes[name] = ++_writeCount;
   }
 
   @override
@@ -108,6 +116,14 @@ class MemoryFileStore implements FileStore {
     checkFileStoreName(name);
     _files.remove(name);
     _bytes.remove(name);
+    _writes.remove(name);
+  }
+
+  @override
+  Future<String?> stamp(String name) async {
+    checkFileStoreName(name);
+    final write = _writes[name];
+    return write == null ? null : '$write';
   }
 
   @override
@@ -117,5 +133,6 @@ class MemoryFileStore implements FileStore {
   Future<void> deleteAll() async {
     _files.clear();
     _bytes.clear();
+    _writes.clear();
   }
 }

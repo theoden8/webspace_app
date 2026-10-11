@@ -221,6 +221,7 @@ fvm flutter test                                         # all Dart tests
 fvm flutter test test/cookie_isolation_test.dart         # single file
 npm run test:js                                          # JS shim tests (jsdom)
 ./scripts/test_all.sh                                    # Dart + JS
+WS_PERF=1 fvm flutter test test/perf/                    # benchmarks (test/perf/README.md)
 fvm flutter analyze
 fvm flutter build apk    --flavor fdroid --release       # F-Droid (CI, unsigned)
 fvm flutter build apk    --flavor fmain  --release --split-per-abi   # Play (signed)

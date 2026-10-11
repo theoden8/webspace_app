@@ -95,6 +95,23 @@ The system SHALL navigate to the originating site when the user taps a notificat
 **And** Site A's webview is created with its profile
 **And** Site A becomes the active site
 
+#### Scenario: The tap starts the app
+
+**Given** a native notification was created by Site A
+**And** no app process is running (the OS reclaimed it, or a background wake's engine posted the notification)
+**When** the user taps the notification
+**Then** the cold start opens Site A in place of the webspace list
+**And** it reads the tap from the plugin's launch details, since a tap that launches the app reaches no tap callback on Android, and one that lands before the plugin initializes is held back the same way on iOS
+**And** no shortcut-launch policy (fullscreen, kiosk, home reset) applies
+
+#### Scenario: A screen covers the page
+
+**Given** the app runs with a screen pushed over the page (settings, a sheet)
+**When** the user taps a notification from Site A
+**Then** the pushed screens close and Site A is on screen
+
+Test: `test/notification_launch_app_test.dart`.
+
 ### Requirement: NOTIF-004 - Per-Site Notification Toggle
 
 The system SHALL provide a per-site toggle to control whether the site is allowed to show notifications. Defaults to off (opt-in). Only visible when container mode is active.

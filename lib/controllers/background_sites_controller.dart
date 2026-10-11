@@ -30,6 +30,10 @@ import 'package:webspace/services/headless_site_check.dart';
 abstract interface class BackgroundSitesHost implements PageHost {
   Future<void> activate(int index);
 
+  /// A notification tap is an app entry point: nothing pushed over the page
+  /// may stay on top of the site it opens.
+  void popToRoot();
+
   /// Points Tor's exit country at what the sites at [indices] agree on
   /// (TOR-014).
   void syncTorExitPin(Set<int> indices);
@@ -294,17 +298,34 @@ class BackgroundSitesController {
   }
 
   void _onNotificationTapped(String siteId) {
+    final index = _indexOfTapped(siteId);
+    if (index == null) return;
+    _host.popToRoot();
+    unawaited(_host.activate(index));
+    _host.rebuild();
+  }
+
+  int? _indexOfTapped(String siteId) {
     final index = _sites.models.indexWhere((m) => m.siteId == siteId);
     if (index < 0) {
       LogTag.notification.warning(
           'Tap for unknown siteId: $siteId', sensitive: true);
-      return;
+      return null;
     }
     LogTag.notification.debug(
         'Tap routing to site $index: "${_sites.models[index].name}"',
         sensitive: true);
-    unawaited(_host.activate(index));
-    _host.rebuild();
+    return index;
+  }
+
+  /// Taps on posted notifications open their site from here on. Returns the
+  /// site whose notification started this process, for the cold start to open
+  /// in place of the webspace list; the tap that launched the app reaches no
+  /// callback.
+  Future<int?> wireTaps() async {
+    NotificationService.instance.onNotificationTapped = _onNotificationTapped;
+    final siteId = await NotificationService.instance.launchSiteId();
+    return siteId == null ? null : _indexOfTapped(siteId);
   }
 
   void startForegroundPoll() {
@@ -320,12 +341,11 @@ class BackgroundSitesController {
     _foregroundPollTimer = null;
   }
 
-  /// Startup wiring, once the sites are up: notification taps and posts,
+  /// Startup wiring, once the sites are up: notification posts,
   /// the native refresh handler, the background log's app state and the
   /// Android media transport (BGAUDIO-006).
   Future<void> install() async {
     await NotificationService.instance.init();
-    NotificationService.instance.onNotificationTapped = _onNotificationTapped;
     NotificationService.instance.onPosted = _noteBaselineAfterPost;
     // Before the handler below: a wake in a process the OS launched for it
     // compares against what the last process saw (NOTIF-014).

@@ -51,6 +51,9 @@ class _FlakyEnsureStore implements FileStore {
   Future<void> delete(String name) => _inner.delete(name);
 
   @override
+  Future<String?> stamp(String name) => _inner.stamp(name);
+
+  @override
   Future<List<String>> list() => _inner.list();
 
   @override

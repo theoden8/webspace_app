@@ -1230,6 +1230,7 @@ bool dispatch(NavigationDecision decision,
       // + 2× evaluateJavascript IPCs per navigation, doubling the
       // race-window count for the chromium dangling-raw_ptr crash.
       String? lastNotifiedUrl;
+      String? lastSavedUrl;
       // Android restore ordering: when nav-state bytes are queued for this
       // build, the webview must apply restoreState to a pristine back/forward
       // list. Suppress the initial load on Android and materialize the
@@ -1354,7 +1355,13 @@ bool dispatch(NavigationDecision decision,
                     via: 'onUrlChanged')) {
               return;
             }
-            currentUrl = urlChangedState.currentUrl;
+            final currentNotifyUrl = urlChangedState.currentUrl;
+            // Nothing moved since this URL was saved (a page restating it per keystroke).
+            if (decision == null && currentUrl == currentNotifyUrl &&
+                currentNotifyUrl == lastSavedUrl) {
+              return;
+            }
+            currentUrl = currentNotifyUrl;
             stateSetterF?.call();
             // Skip the title + theme IPCs when the URL didn't actually
             // advance — this is the duplicate event from the other of
@@ -1364,7 +1371,6 @@ bool dispatch(NavigationDecision decision,
             // for the `partition_alloc_support.cc:770` dangling-raw_ptr
             // SIGTRAP that can fire when an `evaluateJavascript`
             // continuation lands on a frame chromium has torn down.
-            final currentNotifyUrl = urlChangedState.currentUrl;
             if (currentNotifyUrl != lastNotifiedUrl) {
               lastNotifiedUrl = currentNotifyUrl;
               onNavigationCommitted?.call();
@@ -1391,6 +1397,7 @@ bool dispatch(NavigationDecision decision,
               controller?.setThemePreference(_currentTheme);
             }
             await hooks.save();
+            lastSavedUrl = currentNotifyUrl;
           },
           onCookiesChanged: (newCookies) async {
             // Remove blocked cookies from the webview cookie jar. The mirror
