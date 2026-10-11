@@ -138,6 +138,7 @@ class SiteActivationController {
       // nothing. Nothing in the teardown decides where we end up.
       _sites.current = index;
       _host.exitFullscreen();
+      _host.rebuild();
       // Opportunistically capture state for the previously-active site so a
       // later cold start (or OS-killed-while-backgrounded scenario) can
       // re-hydrate its back/forward stack and form data on re-activation.
@@ -264,6 +265,9 @@ class SiteActivationController {
     // least-recently-used first (consumed by the LRU eviction above).
     _sites.loaded.remove(index);
     _sites.loaded.add(index);
+    // The page shows what this decided, not what its caller last drew: a
+    // caller that rebuilt before these awaits ended drew the old site.
+    _host.rebuild();
 
     await _sites.models[index].resumeWebView();
 

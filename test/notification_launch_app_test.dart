@@ -1,5 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:webspace/screens/webspace_page.dart' show debugWebViewStateStorageOverride;
+import 'package:webspace/services/notification_service.dart';
+import 'package:webspace/services/webview_state_storage.dart';
 import 'package:webspace/web_view_model.dart';
 
 import 'helpers/real_app.dart';
@@ -34,4 +38,29 @@ void main() {
     expect(inAppBar('Mail'), findsNothing);
     expect(find.text('All'), findsWidgets);
   });
+
+  testWidgets('a tap on a notification while the app runs opens its site',
+      (tester) async {
+    // On a device the activation's reads outlast the frame the tap asks for.
+    debugWebViewStateStorageOverride = _SlowNavStates();
+    addTearDown(() => debugWebViewStateStorageOverride = null);
+    await pumpRealApp(tester, sites: [news, mail]);
+    await openWebspace(tester, name: 'All');
+    expect(inAppBar('News'), findsNothing);
+
+    await tester.runAsync(() async {
+      NotificationService.instance.onNotificationTapped!(news.siteId);
+    });
+    await settleRealApp(tester);
+
+    expect(inAppBar('News'), findsOneWidget);
+  });
+}
+
+class _SlowNavStates extends InMemoryWebViewStateStorage {
+  @override
+  Future<Uint8List?> loadState(String key) async {
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    return super.loadState(key);
+  }
 }

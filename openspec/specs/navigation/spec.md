@@ -460,6 +460,29 @@ Covered by `test/startup_restore_engine_test.dart` (the decision) and `test/js/s
 
 ---
 
+### Requirement: NAV-013 - An Activation Shows The Site It Made Current
+
+`SiteActivationController.setCurrentIndex` SHALL rebuild the page once it has assigned `_sites.current` (and, for a site, moved it to the end of `_sites.loaded`), on both the site path and the webspace-list path. A caller's own rebuild does not stand in for it: one made before the activation's awaits end draws the previous state, and a caller that never rebuilds leaves the site unbuilt.
+
+**Rationale:** callers rebuilt on their own schedule. A notification tap rebuilt synchronously, before the activation's state reads finished; the launch link's open-in-main path did not rebuild at all. On a device those reads outlast a frame, so the app stayed on the webspace list with the site marked current and no webview. It went unnoticed while the notification-site auto-load, which rebuilds, usually reached the same site first; a faster startup let the link win.
+
+#### Scenario: A tap whose activation outlasts its frame
+
+**Given** the app is on the webspace list
+**And** reading a site's saved navigation state takes longer than a frame
+**When** a notification for that site is tapped
+**Then** the site is shown once its activation completes
+
+#### Scenario: A launch link opens its site without another rebuild
+
+**Given** the app was launched from a link that one site claims
+**When** the link's activation of that site completes
+**Then** the site is shown, whether or not the notification auto-load also loads it
+
+Covered by `test/notification_launch_app_test.dart` (the tap); the launch link reaches the page through the same `setCurrentIndex`.
+
+---
+
 ### Requirement: NAV-011 - Site Info From The URL Bar
 
 The URL bar SHALL end with an info button that opens a sheet saying which of
