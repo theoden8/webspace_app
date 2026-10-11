@@ -38,7 +38,9 @@ List<WebViewModel> _sites() => [
 void main() {
   final skip = Platform.environment['WS_PERF'] == null;
 
-  for (final changing in [false, true]) {
+  // New URLs first: the same-URL run then follows identical work on any
+  // checkout, so state the first test leaves behind cannot favour one side.
+  for (final changing in [true, false]) {
     testWidgets(
         '$_events history updates, ${changing ? 'a new URL each' : 'same URL'}',
         (tester) async {
@@ -60,7 +62,11 @@ void main() {
       String url(int i) => changing
           ? 'https://site0.example.test/search?q=${'a' * (i + 1)}'
           : 'https://site0.example.test/search';
-      // The first burst pays for compiling the path.
+      // Warm the whole save path in each test, so neither test's numbers
+      // depend on which ran first in the process.
+      for (var w = 0; w < 10; w++) {
+        await burst((i) => 'https://site0.example.test/warm?w=$w&i=$i');
+      }
       await burst(url);
       // settleRealApp's fixed pumps cost the same in every burst.
       final settleOnly = await () async {
