@@ -269,6 +269,8 @@ jobs:
             pub-${{ runner.os }}-
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: fvm dart tool/gen_l10n.dart
       # DESIGN-002 + DESIGN-003. The build is the compile gate; shoot.js is
       # the only check that can see a correct widget tree render an empty
       # frame, and it fails on unexpected page errors too.
@@ -374,6 +376,8 @@ jobs:
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: fvm dart tool/gen_l10n.dart
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -882,6 +886,8 @@ jobs:
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: fvm dart tool/gen_l10n.dart
 
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -1315,6 +1321,8 @@ jobs:
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: fvm dart tool/gen_l10n.dart
 
       - name: Cache cargo registry
         uses: actions/cache@v4

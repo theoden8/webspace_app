@@ -103,6 +103,8 @@ jobs:
 
       - name: Get dependencies
         run: fvm flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: fvm dart tool/gen_l10n.dart
 
       - name: Read Rust toolchain
         id: rust

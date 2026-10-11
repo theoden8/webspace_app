@@ -20,8 +20,10 @@ esac
 
 if command -v fvm >/dev/null 2>&1; then
   flutter="fvm flutter"
+  dart="fvm dart"
 elif command -v flutter >/dev/null 2>&1; then
   flutter="flutter"
+  dart="dart"
 else
   echo "no flutter on PATH; see the sandbox bootstrap in CLAUDE.md" >&2
   exit 1
@@ -31,6 +33,8 @@ fi
 # --no-web-resources-cdn is what keeps the engine itself local.
 node tool/design_gallery/sync_fonts.js
 
+# A web build runs no native build, so nothing else writes the l10n API.
+$dart tool/gen_l10n.dart
 $flutter build web -t "$entry" "${output[@]}" --no-web-resources-cdn "${@:2}"
 
 echo "$target -> $out (serve it with: npm run design:serve -- --root $out)"

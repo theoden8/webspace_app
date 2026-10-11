@@ -33,7 +33,8 @@ import 'helpers/mock_secure_storage.dart';
 /// pool; only the platform (keychain, native containers) is faked.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  final en = lookupAppLocalizations(const Locale('en'));
+  late final AppLocalizations en;
+  setUpAll(() async => en = await AppLocalizations.delegate.load(const Locale('en')));
 
   setUp(() => SharedPreferences.setMockInitialValues({}));
 

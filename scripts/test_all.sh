@@ -25,6 +25,7 @@ echo "==> Swift type-check (tool/swift_typecheck)"
 
 echo
 echo "==> Dart tests (fvm flutter test)"
+fvm dart tool/gen_l10n.dart
 fvm flutter test "$@"
 
 echo
