@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';
 
 /// Full-screen camera scanner that returns the decoded shareable subset

@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
 import 'package:webspace/services/tor_bridges.dart';

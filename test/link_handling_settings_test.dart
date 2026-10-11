@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
 import 'package:webspace/services/domain_claim.dart';
 import 'package:webspace/settings/app_prefs.dart';

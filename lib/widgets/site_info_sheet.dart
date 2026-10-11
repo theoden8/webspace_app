@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show resolveEffectiveProxy;
 import 'package:webspace/settings/proxy.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/user_script_service.dart'
     show fetchUserScriptSource;
 import 'package:webspace/services/reentry_guard.dart';

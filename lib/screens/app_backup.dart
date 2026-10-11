@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
 /// What the Backup and archives screen asks App Settings to do. Each one runs

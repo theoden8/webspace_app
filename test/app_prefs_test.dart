@@ -9,7 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/settings/demo_mode.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/settings/app_prefs.dart';

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';

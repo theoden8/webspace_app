@@ -2,7 +2,7 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/virtual_media_picker.dart';

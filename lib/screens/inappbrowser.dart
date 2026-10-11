@@ -6,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:webspace/controllers/surface_repaint_controller.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/dev_tools.dart';
 import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/navigation_decision_engine.dart';

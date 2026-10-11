@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 
 /// What a site's long-press menu in the list offers.
 enum SiteListAction {

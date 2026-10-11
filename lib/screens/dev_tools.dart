@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' show ConsoleMessageLevel;
 import 'package:share_plus/share_plus.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;

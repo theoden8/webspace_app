@@ -1,5 +1,5 @@
 import 'package:webspace/controllers/site_set_change.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 
 /// What every controller of the page asks of it.
 abstract interface class PageHost {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/root_messenger.dart';
 import 'package:webspace/widgets/setting_tile.dart';

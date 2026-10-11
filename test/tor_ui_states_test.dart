@@ -23,7 +23,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/external_tor_runtime.dart';

@@ -1,4 +1,4 @@
-// Generates lib/l10n/gen/app_localizations.dart, the typed API over the ARB
+// Generates lib/l10n/gen/localizations.dart, the typed API over the ARB
 // files, from the template lib/l10n/app_en.arb. The translations themselves
 // stay data: the app reads the active locale's ARB from its assets (LOC-012).
 // Every shipped ARB is parsed here so a broken translation fails the build,
@@ -13,7 +13,10 @@ import 'dart:io';
 import 'package:webspace/l10n/runtime/icu_message.dart';
 
 const _template = 'en';
-const _output = 'app_localizations.dart';
+// Not gen_l10n's app_localizations.dart: a .dart_tool kept from a gen_l10n
+// build still lists that path as Flutter's own output, and Flutter deletes it
+// on the next build once its l10n step stops running.
+const _output = 'localizations.dart';
 const _placeholderTypes = {'String', 'int', 'num', 'double', 'Object'};
 const _numberTypes = {'int', 'num', 'double'};
 final _key = RegExp(r'^[a-z][a-zA-Z0-9_]*$');

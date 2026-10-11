@@ -266,7 +266,7 @@ tasks.register("buildRustAdblock", Exec) {
 // runs before every Flutter compile and rewrites nothing when the ARBs are
 // unchanged.
 tasks.register("generateL10n", Exec) {
-    description = "Generate lib/l10n/gen/app_localizations.dart from lib/l10n/*.arb"
+    description = "Generate lib/l10n/gen/localizations.dart from lib/l10n/*.arb"
     group = "build"
     workingDir rootProject.projectDir.parentFile
     commandLine "${localProperties.getProperty('flutter.sdk')}/bin/dart", "tool/gen_l10n.dart"

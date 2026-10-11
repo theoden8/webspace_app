@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_editing_controller.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/add_site.dart' show AddSiteScreen;
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/site_settings_qr_codec.dart';

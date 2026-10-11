@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:webspace/controllers/webspaces_controller.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/screens/webspace_detail.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';

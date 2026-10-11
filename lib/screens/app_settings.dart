@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/theme/app_theme.dart';
 import 'package:webspace/screens/app_appearance.dart';
 import 'package:webspace/screens/app_backup.dart';

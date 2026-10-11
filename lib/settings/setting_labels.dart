@@ -2,7 +2,7 @@
 /// mode does not compile until it has a name everywhere it is shown.
 library;
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/capture.dart';
 import 'package:webspace/settings/external_links.dart';
 import 'package:webspace/settings/location.dart';

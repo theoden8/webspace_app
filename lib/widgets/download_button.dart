@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/download_manager.dart';
 
 /// AppBar action that surfaces active downloads. Renders nothing when the
