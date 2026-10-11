@@ -22,7 +22,7 @@ Each category screen SHALL hold:
 | Category | Rows |
 |---|---|
 | Appearance | app language; theme mode; accent colour |
-| Behaviour | "Tab strip": the strip's mode, the full-screen choice while it is pinned, the tab width limit; "Opening and navigation": full screen on shortcut launch, back gesture opens the menu (where NAV-009 offers it), link handling; "Search" while the Site tabs gate is open (LIR-029): Default search, the site search list |
+| Behaviour | "Tab strip": the strip's mode, the full-screen choice while it is pinned, the tab width limit; "Opening and navigation": full screen on shortcut launch, back gesture opens the menu (where NAV-009 offers it), link handling; "Search" (LIR-029): Default search, the site search list |
 | Network | "Outbound proxy": saved proxies, the app-wide proxy and its status, fields and connection test, the Tor status card (TOR-004); "Certificates" on Android and Linux (TLS-009) |
 | Privacy | the protection report and the stats bar; "Trackers and ads": HTTPS upgrade, ClearURLs rules, the DNS blocklist and its level, the content blocker (a row opening its own screen), LocalCDN on Android; "What sites learn": the Firefox version, the timezone dataset, the location picker's map tiles; "Screen capture" where SCREENBLOCK-002 applies |
 | Backup and archives | export, import, restore archive, close all archives while one is open (ARCH-001) |

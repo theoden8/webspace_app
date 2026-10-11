@@ -500,6 +500,56 @@ When at least one archive is open and the app is backgrounded, the visible UI SH
 **Then** the "include open archives" tick MAY be absent in v1 — the export remains app-tier-only.
 **Note:** v1 ships export/import as app-tier-only; the tick is deferred to a follow-up. The byte-identity invariant in ARCH-001 makes adding the tick later additive, not breaking.
 
+### Requirement: ARCH-011 — An archive with no room left changes nothing
+
+An archive's sealed state SHALL fit its one slot (`kArchiveSlotMaxPayload`). Every path that seals into an archive SHALL check that the state it is about to write fits (`Archive.fits`) before it changes anything, and when it does not fit SHALL leave everything as it was and say so with one neutral message ("An archive is full and was left open as it was. Close some of its tabs or move sites out of it, then try again."):
+
+- **Closing an archive** SHALL leave it open: its sites stay in the lists, its slice stays registered, and its slot keeps the last state that fitted. "Close all archives" closes every other archive and reports the one left open.
+- **Moving a site into an archive** SHALL leave the site in the app tier: its tier, container, cookies and tabs untouched.
+- **Importing settings while an archive is open** (ARCH-010) SHALL seal the open archives before it applies anything; when one does not fit, nothing of the import is applied.
+
+`Archive.save` refusing a state that does not fit stays as the last line, never the first.
+
+#### Scenario: A full archive stays open
+
+**Given** an open archive whose sites have grown past what its slot holds
+**When** the user closes it
+**Then** it stays open with every site and tab where it was
+**And** its slot still holds the state sealed at the last close or move
+**And** after the user closes some of its tabs, closing it seals and closes it
+
+#### Scenario: A site that does not fit is not moved
+
+**Given** an open archive near its slot size and an app-tier site with many tabs
+**When** the user moves the site into the archive
+**Then** the site stays in the app tier with its cookies and tabs as they were
+
+#### Scenario: An import waits for a full archive
+
+**Given** an open archive that does not fit its slot
+**When** the user confirms a settings import
+**Then** no app preference, site or collection of the import is applied
+**And** the archive stays open
+
+### Requirement: ARCH-012 — Opening an archive restores what it sealed
+
+Closing an archive SHALL seal each of its sites with its tab list (TAB-009), which tab is active, its address and its page title, and opening the archive SHALL bring each site back exactly so. This holds for every site, Always open Home and incognito ones included: an archive is encrypted, and opening one is neither a cold start nor a shortcut launch, so it is not the fresh entry that sends such a site home (AOH-002, TAB-014, INC-008). Moving a site into an archive and back out SHALL leave its tabs as they were. Per-tab back stacks are not sealed (ARCH-006: archive-tier sites write no navigation state), so each tab reloads with no history.
+
+The sealed form is `WebViewModel.toArchiveJson`, read back by `WebViewModel.fromJson(..., isArchiveTier: true)`.
+
+#### Scenario: Close and open bring every site back
+
+**Given** an archive holding a site with a tab tree whose active tab is not the first, an Always open Home site and an incognito site each away from home, a kiosk site and a site with Tabs off
+**When** the user closes the archive and opens it again, twice
+**Then** each site has the same tabs, the same active tab, address and title as before the first close
+**And** no tab was added
+
+#### Scenario: Moving in and out keeps the tree
+
+**Given** an app-tier site with tabs
+**When** the user moves it into an archive and back out
+**Then** its tabs and active tab are as they were
+
 ## Implementation Details
 
 ### Crypto primitives
@@ -527,7 +577,7 @@ class ArchiveCrypto {
 
 ### Slot pool
 
-`lib/services/archive_storage.dart` owns the K slots in `flutter_secure_storage`. Slot count `K = 16`. Slot size `S = 128 KiB` (covers a typical archive — webspace list + cookies for ~50 sites — with comfortable headroom; oversize archives currently fail at write time, surfacing as a "this archive is too large" error to the user). Slot entry names are `ws_slot_00 ... ws_slot_15` — fixed constants.
+`lib/services/archive_storage.dart` owns the K slots in `flutter_secure_storage`. Slot count `K = 16`. Slot size `S = 128 KiB` (covers a typical archive — webspace list, cookies and tab lists for ~50 sites — with comfortable headroom; a change that would not fit is refused before anything moves, ARCH-011). Slot entry names are `ws_slot_00 ... ws_slot_15` — fixed constants.
 
 Initialization on first launch writes `K` slots of `S` random bytes each. The check is idempotent: missing slots are filled; existing ones are not rewritten.
 
@@ -634,7 +684,7 @@ These tests run in CI and are the regression-prevention spine of ARCH-001.
 - **Best-effort deletion.** Flutter `flutter_secure_storage` and underlying OS-level secure stores do not guarantee bit-level erasure of overwritten or deleted entries. The same caveat applies to per-site container directory deletion — the underlying filesystem may retain freed blocks. Documented; not addressable at app layer.
 - **Memory zeroization is best-effort.** Dart strings are immutable; the passphrase string can't be reliably zero-filled. We keep the passphrase as a `String` only for the brief moment between dialog submit and KDF call, then immediately drop it. The derived `MK_arch` is held in `Uint8List` and zero-filled on close.
 - **Live-device forensics is out of scope.** An adversary executing code inside the running app process while an archive is open can read `MK_arch` and the archive's plaintext from memory. There is no software-only mitigation at the app layer.
-- **Slot size cap.** Archives larger than 128 KiB of packed state (typically: cookies + webspace JSON for ~50 sites) currently fail at write with a clear error to the user. v1 does not split archives across slots.
+- **Slot size cap.** An archive holds at most 128 KiB of packed state (cookies, webspace JSON and tab lists). A close, move or import that would exceed it is refused with nothing changed (ARCH-011). v1 does not split archives across slots.
 - **Slot collision is bounded, not eliminated.** The slot for a new archive is picked at random among the slots the process does not know to be occupied: open handles plus every slot that decrypted or was written since launch (`_knownOccupied`, memory only, since a persisted occupancy marker would vary with archive count and break ARCH-001). A closed archive under a passphrase that has not been entered since launch is invisible to the scan and still eligible, with probability `unseen / (16 - known)` per create or import; it is lost if picked. Entering each passphrase once after launch removes the risk for that archive.
 - **Per-site browser state beyond cookies does not migrate on move-to-archive.** Cookies are captured from the running container and pushed into the new opaque container on next webview build. `localStorage`, `IndexedDB`, `ServiceWorker` registrations, and `HTTP cache` are not — the new container is a fresh slate. Sites that store user preferences (theme, language, layout) in `localStorage` will revert to defaults the first time they're opened from an archive after a move. The move-to-archive snackbar warns the user. Mitigation would require fork-side API to read/write per-container `localStorage`; tracked but out of scope for v1.
 - **Dart-side console leakage is closed.** Every `LogService` call in `lib/` that interpolated a URL, host, site JSON, or stack trace is now `LogSensitivity.sensitive` (download / blob errors, share-intent failures, malformed-site-JSON boot warnings, proxy-apply failures), so it lands in the memory-only ring and never reaches disk / `debugPrint` / `adb logcat` / Console.app.

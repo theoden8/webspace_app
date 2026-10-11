@@ -20,7 +20,6 @@ class SiteTabStrip extends StatelessWidget {
     required this.onOpen,
     required this.onShowTabs,
     required this.onReorder,
-    required this.showsTabCount,
     required this.menu,
   });
 
@@ -39,7 +38,6 @@ class SiteTabStrip extends StatelessWidget {
 
   /// Null where the view cannot be reordered.
   final void Function(int fromListIndex, {required int to})? onReorder;
-  final bool Function(WebViewModel site) showsTabCount;
   final Widget menu;
 
   @override
@@ -210,7 +208,7 @@ class SiteTabStrip extends StatelessWidget {
           ),
           // Tab count, only once there is more than one: a site with a single
           // tab looks exactly as it did before tabs existed (TAB-008).
-          if (showsTabCount(site) && site.tabs.length > 1)
+          if (site.effectiveTabsEnabled && site.tabs.length > 1)
             TabCountPill(count: site.tabs.length, active: isActive),
         ],
       ),

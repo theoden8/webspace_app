@@ -68,9 +68,9 @@ class InAppWebViewScreen extends StatefulWidget {
   final WebViewHostHooks hooks;
   final bool showUrlBar;
 
-  /// A link here into one of the user's sites, with Site tabs on: true when
-  /// the app takes it as a tab of the site this screen was opened from, and
-  /// this screen closes (LIR-032). Null for a screen a share opened.
+  /// A link here into one of the user's sites, where the site this screen was
+  /// opened from has tabs: true when the app takes it as a tab of that site,
+  /// and this screen closes (LIR-032). Null for a screen a share opened.
   final bool Function(String url, {required bool hadGesture})? onOpenAsTab;
 
   /// What the site on screen was running as when this screen opened, for

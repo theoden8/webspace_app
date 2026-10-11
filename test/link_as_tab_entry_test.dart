@@ -33,7 +33,7 @@ void main() {
   test('the engine gets the live gates and the hosts of the owner\'s tree', () {
     final body = bodyOf(links, signature: 'DispatchAction? tabRouteFor(');
     for (final arg in [
-      'tabsEnabled: _tabs.enabledFor(owner)',
+      'tabsEnabled: owner.effectiveTabsEnabled',
       'containersActive: _sites.useContainers',
       'kioskLocked: _host.kioskLocked',
       'hadGesture: hadGesture',

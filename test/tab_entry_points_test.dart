@@ -59,7 +59,7 @@ void main() {
     expect(body.contains('TabLifecycleEngine.insertAfter('), isTrue);
   });
 
-  group('TAB-012 / TAB-013: tabs are experimental and per site', () {
+  group('TAB-012 / TAB-013: tabs are per site', () {
     String firstStatement(String source, {required String signature}) {
       final start = source.indexOf(signature);
       expect(start, isNot(-1), reason: '$signature not found');
@@ -69,25 +69,13 @@ void main() {
       return source.substring(body + 1, source.indexOf(';', body));
     }
 
-    test('the gate is the Site tabs switch and the site\'s own Tabs', () {
-      expect(
-        RegExp(r'bool get featureEnabled => ExperimentalFeaturesService'
-                r'\.instance\s*\.isEnabled\(ExperimentalFeature\.siteTabs\);')
-            .hasMatch(tabs),
-        isTrue,
-      );
-      expect(
-        RegExp(r'bool enabledFor\(WebViewModel model\) =>\s*'
-                r'featureEnabled && model\.effectiveTabsEnabled;')
-            .hasMatch(tabs),
-        isTrue,
-        reason: 'a kiosk or full-screen site has no tabs',
-      );
+    test('the gate is the site\'s own Tabs', () {
       expect(
         RegExp(r'bool enabledAt\(int\? index\) =>[^;]*'
-                r'enabledFor\(_sites\.models\[index\]\);')
+                r'_sites\.models\[index\]\.effectiveTabsEnabled;')
             .hasMatch(tabs),
         isTrue,
+        reason: 'a kiosk site has no tabs',
       );
       expect(RegExp(r'\b_tabsEnabled\b').hasMatch(source), isFalse,
           reason: 'an app-wide gate would let a kiosk site reach its tabs');
@@ -103,7 +91,7 @@ void main() {
         (tabs, 'Future<bool> _returnFromJumpOnBack(', '!enabledAt(_sites.current)'),
         (source, 'Future<void> _showTabsSheet(', '!_tabs.enabledAt(_sites.current)'),
         (source, 'Future<void> _showLinkLongPressMenu(', '!_tabs.enabledAt(index)'),
-        (tabs, 'Future<void> openChildTab(', '!enabledFor(owner)'),
+        (tabs, 'Future<void> openChildTab(', '!owner.effectiveTabsEnabled'),
         (tabs, 'bool moveTab(', '!enabledAt(index)'),
       ]) {
         expect(firstStatement(src, signature: signature), contains(gate),
@@ -116,7 +104,7 @@ void main() {
         () {
       expect(
         RegExp(r'site\.onReturnToOwner =\s*'
-                r'_tabs\.enabledFor\(site\)\s*\?')
+                r'site\.effectiveTabsEnabled\s*\?')
             .hasMatch(source),
         isTrue,
         reason: 'an owner without tabs has no tree to take the child',
@@ -234,9 +222,7 @@ void guarded(String src,
 
       guarded(File('lib/widgets/site_tab_strip.dart').readAsStringSync(),
           count: 1,
-          guard: RegExp(r'^if \(showsTabCount\(site\) && '),
-          reason: 'the strip chip');
-      expect(source, contains('showsTabCount: _tabs.enabledFor,'),
+          guard: RegExp(r'^if \(site\.effectiveTabsEnabled && '),
           reason: 'the strip chip counts tabs only where the site has them');
       expect(File('lib/widgets/site_drawer.dart').readAsStringSync(),
           matches(RegExp(r'showTabCount:\s*showsTabCount\(index\) &&')),
@@ -264,21 +250,18 @@ void guarded(String src,
           contains('TabLifecycleEngine.homeLanding('));
     });
 
-    test('a cold shortcut launch leaves a site with tabs on its last tab', () {
-      // HS-006 sends the launched site home; with tabs, TAB-014 decides.
+    test('a shortcut sends a site home only through Always open Home '
+        '(HS-006)', () {
       final shortcuts =
           File('lib/controllers/shortcut_controller.dart').readAsStringSync();
-      expect(
-        RegExp(r'if \(!_host\.tabsEnabledAt\(index\) && '
-                r'm\.currentUrl != m\.initUrl\)')
-            .hasMatch(shortcuts),
-        isTrue,
-      );
-      expect(
-        RegExp(r'coldLaunch &&\s*!_host\.tabsEnabledAt\(index\) &&')
-            .hasMatch(shortcuts),
-        isTrue,
-      );
+      expect(RegExp(r'currentUrl\s*=').hasMatch(shortcuts), isFalse,
+          reason: 'a launch opens the site where it was left; '
+              'resetHomeOnLaunch, flagged by Always open Home, is the one '
+              'way home');
+      final cold = shortcuts.substring(
+          shortcuts.indexOf('Future<int?> resolveColdLaunch('));
+      expect(cold.substring(0, cold.indexOf('\n  }\n')),
+          contains('await _host.resetHomeOnLaunch(index);'));
     });
   });
 

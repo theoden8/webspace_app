@@ -2,7 +2,7 @@
 
 ### Requirement: INC-008 - A Restart Wipes The Container, Not The Tabs
 
-With Site tabs on, an incognito site's tab list SHALL survive an app restart as
+With tabs on, an incognito site's tab list SHALL survive an app restart as
 any other site's does: each tab's address, title and place in the tree. What a
 restart SHALL wipe is the site's container (INC-005), its cookies (INC-001) and
 every tab's back stack (INC-002), so every tab reloads signed out with no

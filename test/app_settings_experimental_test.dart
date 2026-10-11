@@ -254,8 +254,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     testWidgets(
         'Default search tells same-named sites apart by id and colour '
         '(LIR-029, TAB-018)', (tester) async {
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, on: true);
+      DeveloperModeService.instance.debugSet(on: false);
       await tester.pumpWidget(host(webSearchSites: [
         (siteId: 'ddg-work', name: 'DuckDuckGo', containerColor: 2),
         (siteId: 'ddg-home', name: 'DuckDuckGo', containerColor: 5),
@@ -294,8 +293,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
 
     testWidgets('the site search list waits for the user (LIR-036)',
         (tester) async {
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, on: true);
+      DeveloperModeService.instance.debugSet(on: false);
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Behaviour');
@@ -314,39 +312,19 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
           reason: 'nothing is fetched until the user asks');
     });
 
-    testWidgets('offers Site tabs everywhere, off by default (TAB-012)',
-        (tester) async {
+    testWidgets('Site tabs have no switch (TAB-012)', (tester) async {
       await tester.pumpWidget(host());
       await tester.pumpAndSettle();
       await openCategory(tester, title: 'Developer');
-      final title = find.text('Site tabs');
-      await tester.scrollUntilVisible(title, 400,
+      await tester.scrollUntilVisible(find.text('Experimental'), 400,
           scrollable: find.byType(Scrollable).first);
       await tester.pumpAndSettle();
-      final tile =
-          find.ancestor(of: title, matching: find.byType(SwitchListTile));
-      expect(tester.widget<SwitchListTile>(tile).value, isFalse,
-          reason: 'tabs are new, so developer mode alone does not open them');
       expect(
-          ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.siteTabs),
-          isFalse);
-
-      await tester.tap(tile);
-      await tester.pumpAndSettle();
-      expect(
-          ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.siteTabs),
-          isTrue);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getBool(AppPref.experimentalSiteTabs.key), isTrue);
-
-      DeveloperModeService.instance.debugSet(on: false);
-      expect(
-          ExperimentalFeaturesService.instance
-              .isEnabled(ExperimentalFeature.siteTabs),
-          isFalse,
-          reason: 'the switch narrows developer mode, never widens it');
+          find.ancestor(
+              of: find.text('Site tabs'),
+              matching: find.byType(SwitchListTile)),
+          findsNothing,
+          reason: 'tabs are not experimental');
     });
 
     testWidgets('offers the Proxy router where it could run, on by default',

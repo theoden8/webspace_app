@@ -62,9 +62,6 @@ abstract interface class ShortcutHost implements PageHost {
   /// Sends the always-open-home siblings of [index] home (HS-007, TAB-014).
   Future<void> resetHomeOnLaunch(int index);
 
-  bool tabsEnabledAt(int index);
-  Future<void> bindOwnerRunTab(WebViewModel model);
-
   /// Adds [model] and puts it on screen.
   Future<void> registerSite(WebViewModel model);
 }
@@ -223,8 +220,8 @@ class ShortcutController {
   }
 
   /// A cold launch: the index to activate for a shortcut that resolves to a
-  /// site, with its home reset done (issue #298, HS-007), or null. A launch
-  /// that needs a prompt is parked for [promptParkedAfterFrame].
+  /// site, with the Always open Home resets done (HS-006, HS-007), or null.
+  /// A launch that needs a prompt is parked for [promptParkedAfterFrame].
   Future<int?> resolveColdLaunch() async {
     final resolution = await _resolveLaunch(warm: false);
     if (resolution is! LaunchOpenSite) {
@@ -232,16 +229,7 @@ class ShortcutController {
       return null;
     }
     final index = resolution.index;
-    final m = _sites.models[index];
-    _host.kioskLocked = m.kioskMode;
-    // A Home Shortcut is the user's stated entry point for the site, so it
-    // lands at home. A site with tabs lands by TAB-014 instead, which loading
-    // it arranges.
-    if (!_host.tabsEnabledAt(index) && m.currentUrl != m.initUrl) {
-      await _host.bindOwnerRunTab(m);
-      if (!_host.mounted) return null;
-      m.currentUrl = m.initUrl;
-    }
+    _host.kioskLocked = _sites.models[index].kioskMode;
     await _host.resetHomeOnLaunch(index);
     if (!_host.mounted) return null;
     return index;
@@ -253,7 +241,7 @@ class ShortcutController {
       final parked = _parked;
       _parked = null;
       if (parked == null || !_host.mounted) return;
-      unawaited(_applyInteractive(parked, coldLaunch: true));
+      unawaited(_applyInteractive(parked));
     });
   }
 
@@ -264,7 +252,7 @@ class ShortcutController {
     if (resolution is LaunchOpenSite) {
       await _openIndex(resolution.index);
     } else if (resolution is! LaunchNone) {
-      await _applyInteractive(resolution, coldLaunch: false);
+      await _applyInteractive(resolution);
     }
   }
 
@@ -328,10 +316,7 @@ class ShortcutController {
 
   /// HS-011: the prompts for a shortcut whose siteId no longer maps to a
   /// site. Every choice is remembered as a remap so the next tap is direct.
-  Future<void> _applyInteractive(
-    LaunchResolution resolution, {
-    required bool coldLaunch,
-  }) async {
+  Future<void> _applyInteractive(LaunchResolution resolution) async {
     await _promptGuard.run(() async {
       switch (resolution) {
         case LaunchConfirmExisting(:final index, :final shortcutSiteId):
@@ -342,13 +327,6 @@ class ShortcutController {
             return;
           }
           await _rememberRemap(shortcutSiteId, resolvedSiteId: model.siteId);
-          if (coldLaunch &&
-              !_host.tabsEnabledAt(index) &&
-              model.currentUrl != model.initUrl) {
-            await _host.bindOwnerRunTab(model);
-            if (!_host.mounted) return;
-            model.currentUrl = model.initUrl;
-          }
           await _openIndex(index);
         case LaunchOfferCreate(:final url, :final shortcutSiteId):
           final choice = await _prompts.missingSite(url);

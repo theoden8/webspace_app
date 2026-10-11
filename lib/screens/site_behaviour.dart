@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/link_handling_settings.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/site_overrides.dart';
 import 'package:webspace/services/web_search_engine.dart';
@@ -122,7 +121,6 @@ class SiteBehaviourScreen extends StatefulWidget {
     this.domainClaims,
     this.containersActive = true,
     this.routingTargets = const [],
-    this.tabsAvailable,
     this.initUrl,
     this.discoveredSearchAddress,
     this.discoveredSearchesWeb = false,
@@ -152,11 +150,6 @@ class SiteBehaviourScreen extends StatefulWidget {
   /// other than itself.
   final List<WebViewModel> routingTargets;
 
-  /// Whether the Tabs row is shown: tabs are experimental (TAB-012), so the
-  /// row exists only while the app-wide switch lets them in. Null reads the
-  /// switch.
-  final bool? tabsAvailable;
-
   /// The site's home, which decides the search address it is known for.
   final String? initUrl;
 
@@ -182,16 +175,11 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
 
   // --- Link handling -------------------------------------------------------
 
-  bool get _tabsAvailable =>
-      widget.tabsAvailable ??
-      ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.siteTabs);
-
   /// With tabs, the switch also decides which container a link's tab runs in
   /// (LIR-034), so the hint says so where that applies.
   Widget _routeOutboundLinks(AppLocalizations loc) => SettingTile(
         title: loc.siteSettingsRouteOutboundLinks,
-        hint: _tabsAvailable && _values.effectiveTabsEnabled
+        hint: _values.effectiveTabsEnabled
             ? '${loc.siteSettingsRouteOutboundLinksHint}\n\n'
                 '${loc.siteSettingsRouteOutboundLinksTabsHint}'
             : loc.siteSettingsRouteOutboundLinksHint,
@@ -430,16 +418,15 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           // Either tabs or kiosk (TAB-013): turning tabs on turns Kiosk mode
           // off, and Kiosk mode on shows tabs off without forgetting the
           // stored choice.
-          if (_tabsAvailable)
-            SettingTile(
-              title: loc.siteSettingsTabs,
-              hint: loc.siteSettingsTabsHint,
-              control: Toggle(
-                  _values.effectiveTabsEnabled,
-                  onChanged: (value) => _update(value
-                      ? _values.copyWith(tabsEnabled: true, kioskMode: false)
-                      : _values.copyWith(tabsEnabled: false))),
-            ),
+          SettingTile(
+            title: loc.siteSettingsTabs,
+            hint: loc.siteSettingsTabsHint,
+            control: Toggle(
+                _values.effectiveTabsEnabled,
+                onChanged: (value) => _update(value
+                    ? _values.copyWith(tabsEnabled: true, kioskMode: false)
+                    : _values.copyWith(tabsEnabled: false))),
+          ),
           SettingTile(
             title: loc.siteSettingsHtmlCaching,
             hintTitle: loc.siteSettingsHtmlCachingHintTitle,
@@ -451,12 +438,10 @@ class _SiteBehaviourScreenState extends State<SiteBehaviourScreen> {
           SettingsSection(loc.linkHandlingScreenTitle),
           _externalLinks(loc),
           if (widget.domainClaims != null) widget.domainClaims!,
-          if (_tabsAvailable) ...[
-            SettingsSection(loc.webSearchGroup),
-            _searchAddressRow(loc),
-            _searchDefaultRow(loc),
-            _searchOfferedRow(loc),
-          ],
+          SettingsSection(loc.webSearchGroup),
+          _searchAddressRow(loc),
+          _searchDefaultRow(loc),
+          _searchOfferedRow(loc),
           const SizedBox(height: 24),
         ],
       ),

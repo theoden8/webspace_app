@@ -491,7 +491,7 @@ does not use.
 
 #### Scenario: A routed page names the site it runs as
 
-- **GIVEN** Site tabs are off and a DuckDuckGo site routes `github.com` links to a GitHub site
+- **GIVEN** a DuckDuckGo site with its Tabs switch off routes `github.com` links to a GitHub site
 - **WHEN** the user taps a GitHub link and then the info button of the nested screen
 - **THEN** the sheet's Site row reads GitHub and its Opened from row reads DuckDuckGo
 - **AND** its Container row reads "GitHub's own container"

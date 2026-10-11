@@ -1106,7 +1106,6 @@ Widget _siteBehaviourSearch(BuildContext _) => SiteBehaviourScreen(
         searchSites: ['ddg-work', 'ddg-home'],
       ),
       onChanged: (_) {},
-      tabsAvailable: true,
       initUrl: 'https://searx.lan/',
       discoveredSearchAddress: 'https://searx.lan/search?q=%s',
       discoveredSearchesWeb: true,

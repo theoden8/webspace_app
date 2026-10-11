@@ -496,47 +496,48 @@ The features are:
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | A site's icon taken only from the site: no third-party icon service, and on Android the declared links in place of WebView's icon (`icon-fetching` ICON-014) | Site icons only | off | `publicIconServicesAllowed` in `icon_service.dart`, read on every icon fetch; `pageIconSource` in `site_icon_fetcher.dart`, read when a site's webview is created |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
-| Tabs inside a site (`inactive-tabs` TAB-012), and web search, whose results are tabs (`link-intent-routing` LIR-029) | Site tabs | off | `_tabsFeatureEnabled` in `main.dart`, read on every use; the Default search row in App Settings and the Search group in a site's Behaviour screen, read on every build |
 | Tor sites through a tor already running on the device, on Android, Linux and macOS (`tor-proxy` TOR-025) | Tor (external) | off | `TorService.wantsExternal`, read again on every flip of the switch or of developer mode (`runtimeChoiceChanged`), so it applies without a relaunch |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
 The proxy library and the connection indicator (`proxy` PROXY-030, PROXY-031) were in the group with a Saved proxies switch that defaulted off; they graduated, and are offered with developer mode on or off.
 
+Tabs inside a site (`inactive-tabs` TAB-012), and web search, whose results are tabs (`link-intent-routing` LIR-029), were in the group with a Site tabs switch that defaulted off; they graduated. Tabs answer to each site's own Tabs switch (TAB-013) alone, and web search is offered with developer mode on or off.
+
 The embedded Tor client (`tor-proxy` TOR-007) was the first feature in the group, with a Built-in Tor switch that defaulted on; it graduated, and Tor is now offered wherever the platform has the runtime, with developer mode on or off.
 
 #### Scenario: A feature needs both
 
-- **GIVEN** developer mode is on and the Site tabs switch is off
-- **WHEN** the user opens a site
-- **THEN** it shows one page, with no tabs
-- **AND** turning the switch on offers tabs with no restart
+- **GIVEN** developer mode is on and the Site icons only switch is off
+- **WHEN** a site's icon is fetched
+- **THEN** Google's and DuckDuckGo's icon services are asked
+- **AND** after turning the switch on, the next fetch asks neither, with no restart
 
 #### Scenario: Developer mode off closes every feature
 
-- **GIVEN** the Site tabs switch is on
+- **GIVEN** the Site icons only switch is on
 - **WHEN** the user turns developer mode off
-- **THEN** tabs are not reachable
-- **AND** turning developer mode back on makes them reachable again, with the switch still on
+- **THEN** the next icon fetch asks Google's and DuckDuckGo's icon services again
+- **AND** turning developer mode back on stops it again, with the switch still on
 
 #### Scenario: The group appears with developer mode
 
 - **GIVEN** an iOS build with developer mode off
 - **WHEN** the user opens App settings
 - **THEN** there is no Experimental group
-- **AND** after unlocking developer mode the Developer section shows it, with Site tabs off and no Tor switch
+- **AND** after unlocking developer mode the Developer section shows it, with Site icons only off and no Tor switch
 
 #### Scenario: Only what this platform can run
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and Texture page rendering, Site icons only, Site tabs and Tor (external), off
+- **THEN** the Experimental group lists Proxy router, on, and Texture page rendering, Site icons only and Tor (external), off
 
 #### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists only Site icons only, Site tabs and Tor (external), all off
+- **THEN** the Experimental group lists only Site icons only and Tor (external), both off
 
 #### Scenario: Site icons only starts off
 

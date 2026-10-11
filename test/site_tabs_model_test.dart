@@ -1,6 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/site_tab.dart';
 import 'package:webspace/web_view_model.dart';
 
@@ -193,18 +191,6 @@ void main() {
   });
 
   group('TAB-014 — an always-open-home site lands at home on load', () {
-    tearDown(() {
-      DeveloperModeService.instance.debugSet(on: false);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, on: false);
-    });
-
-    void tabsOn() {
-      DeveloperModeService.instance.debugSet(on: true);
-      ExperimentalFeaturesService.instance
-          .debugSet(ExperimentalFeature.siteTabs, on: true);
-    }
-
     WebViewModel awayFromHome() {
       final m = WebViewModel(initUrl: 'https://mastodon.social/');
       m.alwaysOpenHome = true;
@@ -221,7 +207,6 @@ void main() {
     });
 
     test('with tabs it opens a new tab at home and keeps the others', () {
-      tabsOn();
       final back =
           WebViewModel.fromJson(awayFromHome().toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(3));
@@ -231,7 +216,6 @@ void main() {
     });
 
     test('with tabs, a site already at home opens no new tab', () {
-      tabsOn();
       final m = awayFromHome()..currentUrl = 'https://mastodon.social';
       final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));
@@ -239,7 +223,6 @@ void main() {
     });
 
     test('reloading the landed site opens no second home tab', () {
-      tabsOn();
       final once =
           WebViewModel.fromJson(awayFromHome().toJson(), stateSetterF: null);
       final twice = WebViewModel.fromJson(once.toJson(), stateSetterF: null);
@@ -248,8 +231,8 @@ void main() {
     });
 
     test('without tabs the tab it was on is sent home, others are kept', () {
-      final back =
-          WebViewModel.fromJson(awayFromHome().toJson(), stateSetterF: null);
+      final m = awayFromHome()..tabsEnabled = false;
+      final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));
       expect(back.activeTabId, kPrimaryTabId);
       expect(back.currentUrl, 'https://mastodon.social/');
@@ -257,7 +240,6 @@ void main() {
     });
 
     test('a kiosk site has no tabs, so it is sent home in place', () {
-      tabsOn();
       final m = awayFromHome()..kioskMode = true;
       final back = WebViewModel.fromJson(m.toJson(), stateSetterF: null);
       expect(back.tabs, hasLength(2));

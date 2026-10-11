@@ -2,7 +2,7 @@
 
 ### Requirement: BEHAV-006 - Search group
 
-While web search is reachable (LIR-029: the Site tabs gate), the Behaviour screen SHALL end with a "Search" group, after "Link handling", holding three rows; while it is not, the group SHALL be absent and the site's stored search fields SHALL be kept. Each row's explanation SHALL sit behind a `HintButton` on its title (HINT-001) and its subtitle SHALL name state only.
+The Behaviour screen SHALL end with a "Search" group, after "Link handling", holding three rows, with developer mode on or off (LIR-029). Each row's explanation SHALL sit behind a `HintButton` on its title (HINT-001) and its subtitle SHALL name state only.
 
 - **Search address** (LIR-028): subtitle the site's effective address, its own `searchAddress`, else the one its host is known for, else the one its pages declared (LIR-035), else the one the site search list names (LIR-036), else "Not configured". Tapping it opens a dialog with the address field, validated as LIR-028 requires, and a "Searches the whole web" switch; its Reset button clears `searchAddress` back to the known address and turns `searchesWeb` off.
 - **Default search from this site** (LIR-029): subtitle the name of `searchDefault`, or "App default". Tapping it lists "App default" and the site's candidate web search sites, each with its siteId and container colour beneath its name (LIR-029, Telling sites apart).

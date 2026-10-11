@@ -939,13 +939,14 @@ which an in-process test cannot produce. Those two scenarios live in
 lifecycle scenarios, which already own the emulator, the page server,
 and the frame classifier.
 
-#### Scenario: Cold launch opens the pinned site at its home URL
+#### Scenario: Cold launch opens the pinned site where it was left
 
 - **Given** a seeded site whose persisted `currentUrl` drifted away
   from its `initUrl`, and a pending launch carrying its `siteId`
 - **When** the app cold-starts
 - **Then** that site is the activated one, no other site is mounted,
-  and its `currentUrl` is back at `initUrl` (HS-006)
+  and its `currentUrl` is where it was left, with tabs on or off; with
+  Always open Home on it is back at `initUrl` (HS-006)
 - **And** the startup reconcile has recorded the pinned site's url in
   `shortcutUrlLedger` (HS-012)
 

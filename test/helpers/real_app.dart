@@ -28,7 +28,6 @@ Future<void> pumpRealApp(
   WidgetTester tester, {
   required List<WebViewModel> sites,
   List<Webspace> webspaces = const [],
-  bool siteTabs = true,
   Map<String, Object> prefs = const {},
 }) async {
   SharedPreferences.setMockInitialValues({
@@ -39,8 +38,6 @@ Future<void> pumpRealApp(
     ],
     'selectedWebspaceId': kAllWebspaceId,
     'currentIndex': 10000,
-    'developerMode': siteTabs,
-    'experimentalSiteTabs': siteTabs,
     ...prefs,
   });
   FlutterSecureStorage.setMockInitialValues({});

@@ -23,10 +23,6 @@ enum ExperimentalFeature {
   /// default: every release before it drew pages with hybrid composition.
   textureRendering(AppPref.experimentalTextureRendering),
 
-  /// Several pages per site (inactive-tabs TAB-012). Off by default: it is
-  /// new. With it off a site shows its one page.
-  siteTabs(AppPref.experimentalSiteTabs),
-
   /// Tor sites through a tor already running on the device, with per-site
   /// SOCKS credentials (tor-proxy TOR-025). Off by default: it is new.
   /// Applies without a relaunch through `TorService.runtimeChoiceChanged`.

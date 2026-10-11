@@ -37,15 +37,11 @@ class DiscoveredSearch {
 class SiteSearchTarget {
   const SiteSearchTarget({
     required this.siteUrl,
-    required this.enabled,
     required this.onSearch,
   });
 
   /// The site's home, whose domain a declared address must stay in.
   final String siteUrl;
-
-  /// Read on every report: discovery runs only while web search is offered.
-  final bool Function() enabled;
   final void Function(DiscoveredSearch search) onSearch;
 }
 

@@ -85,7 +85,7 @@ A search URL SHALL be the address with every `%s` replaced by the trimmed query,
 
 ### Requirement: LIR-029 - Web Search From The Page Menu
 
-Web search SHALL be reachable only while the Site tabs gate is open (TAB-012, DEVTOOLS-011): developer mode on and the Experimental group's Site tabs switch on. A search's results are a hosted tab, the feature tabs exist for, so the two ship together. While the gate is closed no page menu, sheet or URL bar SHALL offer a search, App Settings SHALL NOT offer Default search, the Behaviour screen SHALL have no Search group (BEHAV-006), and the URL bar SHALL load what is typed as an address, as before LIR-033. Search settings already stored SHALL be kept for when the gate opens again. Every way into a search SHALL return before acting, not only hide its button. The gate SHALL be read when it is used, so flipping either switch takes effect without a restart.
+Web search SHALL be reachable with developer mode on or off. A search's results are a hosted tab, the feature tabs exist for, so it shipped first behind the same Experimental Site tabs switch (TAB-012, DEVTOOLS-011) and graduated with tabs.
 
 The Tabs sheet (TAB-008) SHALL offer "Web search" in its header, beside "New tab": a search opens a tab (LIR-030), so it sits with the other ways to make one. The label SHALL drop to its icon, with the label as its tooltip, when it would leave the sheet's title too little room, before "New tab" does, so the header fits a phone in every locale. While the site on screen has no tabs (TAB-012, TAB-013) there is no Tabs sheet for it, and both page overflow menus (the app bar's, and the bottom bar's when the tab strip is shown) SHALL offer "Web search" below Find instead; while it has tabs they SHALL NOT. Neither is reachable while the kiosk shell is locked (KIOSK-002). The URL bar searches too, under LIR-033. Find and shared links SHALL NOT change.
 
@@ -171,14 +171,14 @@ Submitting SHALL pop the sheet with the query, the scope and the chosen chip; a 
 
 #### Scenario: Web search sits beside New tab
 
-- **GIVEN** Site tabs are on and GitHub is on screen
+- **GIVEN** GitHub has tabs and is on screen
 - **WHEN** the user opens the Tabs sheet
 - **THEN** its header offers Web search beside New tab
 - **AND** neither page menu offers Web search
 
-#### Scenario: With Site tabs off the menu offers it
+#### Scenario: Without tabs the menu offers it
 
-- **GIVEN** Site tabs are off
+- **GIVEN** the site on screen has its Tabs switch off
 - **THEN** both page menus offer Web search below Find
 
 #### Scenario: A long label gives way to its icon
@@ -211,24 +211,22 @@ A results tab SHALL be a tab like any other: it parks with its back stack, reope
 
 Inside a hosted results tab, a link the host's rules would not load in place (LIR-018: nested, routed, or sent to the browser) whose normalized domain is the owner's navigation domain SHALL instead open as a child tab of the hosted tab, run as the owner, and take the slot. This is the owner's own content coming back to it, so the host's external-link mode and routing do not apply to it. A redirect without a gesture that the host blocks stays blocked.
 
-#### Scenario: Search is gated with tabs
+#### Scenario: Search needs no developer mode
 
-- **GIVEN** developer mode is on and the Site tabs switch is off
-- **WHEN** the user opens the page menu, the URL bar and App Settings
-- **THEN** there is no Web search item, no magnifier and no Default search row
-- **AND** typing `flutter hot reload` in the URL bar and submitting loads it as an address
-- **AND** turning the Site tabs switch on brings all three back with the search sites chosen before
+- **GIVEN** developer mode is off and GitHub has tabs and is on screen
+- **WHEN** the user opens the Tabs sheet, the URL bar and App Settings
+- **THEN** there is a Web search item, a magnifier and a Default search row
 
 #### Scenario: Own search opens a child tab (S1)
 
-- **GIVEN** Site tabs are on and GitHub is on its repo page
+- **GIVEN** GitHub has tabs and is on its repo page
 - **WHEN** the user searches `flutter tabs` with GitHub
 - **THEN** a child tab of the repo tab shows `https://github.com/search?q=flutter+tabs`, run as GitHub
 - **AND** back at its start closes it and returns to the repo tab
 
 #### Scenario: Another site's search opens a hosted child tab (S2)
 
-- **GIVEN** Site tabs are on, the container engine is active and GitHub is on its repo page
+- **GIVEN** the container engine is active, and GitHub has tabs and is on its repo page
 - **WHEN** the user searches the web from GitHub with DuckDuckGo
 - **THEN** a child tab of the repo tab shows the results, running as DuckDuckGo with its container, proxy and blockers
 - **AND** GitHub's one webview is rebuilt as DuckDuckGo, with no second webview
@@ -272,16 +270,16 @@ Inside a hosted results tab, a link the host's rules would not load in place (LI
 - **WHEN** the app restarts
 - **THEN** GitHub reopens on the results tab, running as DuckDuckGo, with its back stack
 
-#### Scenario: With Site tabs off the search site takes over (S13)
+#### Scenario: Without tabs the search site takes over (S13)
 
-- **GIVEN** Site tabs are off
+- **GIVEN** GitHub and DuckDuckGo have their Tabs switches off
 - **WHEN** the user searches the web from GitHub with DuckDuckGo
 - **THEN** the app switches to DuckDuckGo and loads the results in its page
 - **AND** a search with GitHub's own search loads in GitHub's page
 
 #### Scenario: A search site that cannot host takes over (S14)
 
-- **GIVEN** Site tabs are on and the DuckDuckGo site is incognito, or the legacy cookie engine is active
+- **GIVEN** GitHub and DuckDuckGo have tabs, and the DuckDuckGo site is incognito or the legacy cookie engine is active
 - **WHEN** the user searches the web from GitHub with DuckDuckGo
 - **THEN** the app switches to DuckDuckGo and opens the results as a new tab there
 - **AND** an incognito DuckDuckGo's webview is not disposed, its container is not wiped and its cookies are not cleared
@@ -339,14 +337,14 @@ An address the user types in the URL bar and submits SHALL go where a tapped lin
 
 #### Scenario: A typed address of another site opens as its tab
 
-- **GIVEN** Site tabs are on, GitHub's routing switch is on, and GitHub is on screen
+- **GIVEN** GitHub has tabs and its routing switch on, and is on screen
 - **WHEN** the user types `duckduckgo.com/?q=webview` in the URL bar and submits
 - **THEN** a child tab of GitHub's current tab opens there, running as DuckDuckGo
 - **AND** no nested screen opens in GitHub's container
 
 #### Scenario: A GitHub result opens as GitHub's tab
 
-- **GIVEN** Site tabs are on, the user has DuckDuckGo and GitHub sites, and DuckDuckGo's routing switch is on
+- **GIVEN** the user has DuckDuckGo and GitHub sites, and DuckDuckGo has tabs and its routing switch on
 - **WHEN** the user taps a `github.com` result in DuckDuckGo
 - **THEN** a child tab of DuckDuckGo's current tab opens, running as GitHub and signed in
 - **AND** no nested screen opens
@@ -360,7 +358,7 @@ An address the user types in the URL bar and submits SHALL go where a tapped lin
 
 #### Scenario: A site the user does not have stays nested
 
-- **GIVEN** Site tabs are on
+- **GIVEN** DuckDuckGo has tabs
 - **WHEN** the user taps a `medium.com` result in DuckDuckGo
 - **THEN** it opens as DuckDuckGo's settings decide, in a nested screen with DuckDuckGo's posture or routed
 
@@ -379,13 +377,13 @@ An address the user types in the URL bar and submits SHALL go where a tapped lin
 
 #### Scenario: Tabs off keeps today's behaviour
 
-- **GIVEN** Site tabs are off
+- **GIVEN** DuckDuckGo has its Tabs switch off
 - **WHEN** the user taps a `github.com` link in DuckDuckGo
 - **THEN** it opens nested, with GitHub's posture when DuckDuckGo routes and its own otherwise
 
 #### Scenario: A kiosk site opens no tab
 
-- **GIVEN** Site tabs are on, and DuckDuckGo has Kiosk mode on (TAB-013)
+- **GIVEN** DuckDuckGo has Kiosk mode on (TAB-013)
 - **WHEN** the user taps a `github.com` link in DuckDuckGo
 - **THEN** it opens as DuckDuckGo's routing decides, as with tabs off, and DuckDuckGo's tab list is unchanged
 
@@ -410,7 +408,7 @@ The URL bar of the site on screen SHALL search as well as open addresses, with t
 
 #### Scenario: The magnifier searches with the default
 
-- **GIVEN** the app default is Kagi and GitHub is on screen with Site tabs on
+- **GIVEN** the app default is Kagi and GitHub is on screen with tabs
 - **WHEN** the user taps the magnifier in the URL bar, types `webview` and submits
 - **THEN** the field read "Search with Kagi" before anything was typed
 - **AND** the Kagi search opens as GitHub's hosted child tab labelled "as Kagi" (LIR-030)

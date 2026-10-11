@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/back_gesture_engine.dart';
-import 'package:webspace/services/developer_mode_service.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/widgets/datasets.dart';
 import 'package:webspace/widgets/dataset_tile.dart';
@@ -37,13 +35,6 @@ extension on TabStrip {
         TabStrip.button => loc.appSettingsFullscreenTabStripButton,
       };
 }
-
-/// Whether the Default search row and the site search list are offered: web
-/// search ships with Site tabs (LIR-029, TAB-012), read on every build so
-/// flipping either switch takes effect at once.
-bool webSearchSettingsOffered() =>
-    DeveloperModeService.instance.enabled &&
-    ExperimentalFeaturesService.instance.switchOn(ExperimentalFeature.siteTabs);
 
 /// Apple has no back gesture the app can act on (NAV-009), so the Back opens
 /// menu setting is absent there rather than present and inert.
@@ -222,22 +213,20 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             control: Opens(() => guardedOpen(
                 () async => widget.onOpenLinkHandlingSettings())),
           ),
-          if (webSearchSettingsOffered()) ...[
-            SettingsSection(loc.webSearchGroup),
-            SettingTile(
-              leading: const Icon(Icons.travel_explore),
-              title: loc.webSearchDefaultTitle,
-              hint: loc.webSearchDefaultHint,
-              subtitle: _webSearchDefaultName ?? loc.appSettingsNotConfigured,
-              control: Opens(() => guardedOpen(_pickWebSearchDefault)),
-            ),
-            DatasetTile(
-              create: SiteSearchListDataset.new,
-              icon: Icons.manage_search,
-              title: loc.webSearchSiteListTitle,
-              hint: loc.webSearchSiteListHint,
-            ),
-          ],
+          SettingsSection(loc.webSearchGroup),
+          SettingTile(
+            leading: const Icon(Icons.travel_explore),
+            title: loc.webSearchDefaultTitle,
+            hint: loc.webSearchDefaultHint,
+            subtitle: _webSearchDefaultName ?? loc.appSettingsNotConfigured,
+            control: Opens(() => guardedOpen(_pickWebSearchDefault)),
+          ),
+          DatasetTile(
+            create: SiteSearchListDataset.new,
+            icon: Icons.manage_search,
+            title: loc.webSearchSiteListTitle,
+            hint: loc.webSearchSiteListHint,
+          ),
           const SizedBox(height: 24),
         ],
       ),

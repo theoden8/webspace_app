@@ -10,7 +10,6 @@ import 'package:webspace/services/connectivity_service.dart';
 import 'package:webspace/services/container_color_engine.dart';
 import 'package:webspace/services/container_cookie_manager.dart';
 import 'package:webspace/services/domain_claim.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/html_cache_service.dart';
 import 'package:webspace/services/http_auth_engine.dart';
@@ -193,8 +192,8 @@ class WebViewModel implements MediaGrantRecord {
   /// Put a site that has no webview yet on a tab at its home page, as Always
   /// open Home asks of every fresh entry (TAB-014). With tabs the tab it was on
   /// stays in the list; without, that tab is sent home.
-  void landAtHome({required bool tabsOn}) {
-    if (tabsOn) {
+  void landAtHome() {
+    if (effectiveTabsEnabled) {
       final landing = TabLifecycleEngine.homeLanding(tabs,
           activeTabId: activeTabId, initUrl: initUrl);
       if (landing == null) return;
@@ -1456,9 +1455,6 @@ bool dispatch(NavigationDecision decision,
                   initUrl: id.initUrl, searchAddress: id.searchAddress)
               ? SiteSearchTarget(
                   siteUrl: id.initUrl,
-                  // Search ships behind the Site tabs switch (LIR-029).
-                  enabled: () => ExperimentalFeaturesService.instance
-                      .isEnabled(ExperimentalFeature.siteTabs),
                   onSearch: (found) {
                     if (!id.offerDiscoveredSearch(found)) return;
                     stateSetterF?.call();
@@ -1974,6 +1970,9 @@ bool dispatch(NavigationDecision decision,
   /// `isSecure=true` cookies, which are also stripped from exports. See
   /// `openspec/specs/proxy-password-secure-storage/spec.md` (PWD-005).
   Map<String, dynamic> toJson() => toJsonMap();
+
+  /// What an archive seals for this site (ARCH-012).
+  Map<String, dynamic> toArchiveJson() => toArchiveJsonMap();
 
   /// Only `initUrl` is required. Every other field of the wrong type reads
   /// as absent: the startup loader drops a site whose JSON throws and the

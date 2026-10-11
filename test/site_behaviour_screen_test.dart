@@ -50,7 +50,6 @@ Future<void> _pump(
   ValueChanged<SiteBehaviourValues>? onChanged,
   bool containersActive = true,
   List<WebViewModel> routingTargets = const [],
-  bool tabsAvailable = false,
   String? initUrl,
   String? discoveredSearchAddress,
   bool discoveredSearchesWeb = false,
@@ -72,7 +71,6 @@ Future<void> _pump(
       onChanged: onChanged ?? (_) {},
       containersActive: containersActive,
       routingTargets: routingTargets,
-      tabsAvailable: tabsAvailable,
       initUrl: initUrl,
       discoveredSearchAddress: discoveredSearchAddress,
       discoveredSearchesWeb: discoveredSearchesWeb,
@@ -247,11 +245,8 @@ void main() {
   });
 
   group('Tabs (TAB-013)', () {
-    testWidgets('the row exists only while tabs are available',
-        (tester) async {
+    testWidgets('a site has tabs unless it says otherwise', (tester) async {
       await _pump(tester, values: _values());
-      expect(find.text('Tabs'), findsNothing);
-      await _pump(tester, values: _values(), tabsAvailable: true);
       expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
     });
 
@@ -261,7 +256,6 @@ void main() {
       await _pump(
         tester,
         values: _values(kioskMode: true, fullscreenMode: true),
-        tabsAvailable: true,
         onChanged: (v) => seen = v,
       );
       expect(_switchTitled(tester, title: 'Tabs').value, isFalse);
@@ -280,7 +274,6 @@ void main() {
       await _pump(
         tester,
         values: _values(),
-        tabsAvailable: true,
         onChanged: (v) => seen = v,
       );
       await tester.tap(find.text('Kiosk mode'));
@@ -293,7 +286,7 @@ void main() {
     });
 
     testWidgets('full screen leaves tabs on', (tester) async {
-      await _pump(tester, values: _values(), tabsAvailable: true);
+      await _pump(tester, values: _values());
       await tester.tap(find.text('Full screen mode'));
       await tester.pumpAndSettle();
       expect(_switchTitled(tester, title: 'Tabs').value, isTrue);
@@ -305,7 +298,6 @@ void main() {
       await _pump(
         tester,
         values: _values(),
-        tabsAvailable: true,
         onChanged: (v) => seen = v,
       );
       await tester.tap(find.text('Tabs'));
@@ -494,18 +486,16 @@ void main() {
     final kagi =
         WebViewModel(siteId: 'kagi', initUrl: 'https://kagi.com/', name: 'Kagi');
 
-    testWidgets('the group is offered only with the Site tabs switch (LIR-029)',
-        (tester) async {
+    testWidgets('the group needs no developer mode (LIR-029)', (tester) async {
       await _pump(tester, values: _values(), initUrl: 'https://github.com/');
-      expect(find.text('Search'), findsNothing);
-      expect(find.text('Default search from this site'), findsNothing);
-      expect(find.text('Search sites offered'), findsNothing);
+      expect(find.text('Search'), findsOneWidget);
+      expect(find.text('Default search from this site'), findsOneWidget);
+      expect(find.text('Search sites offered'), findsOneWidget);
     });
 
     testWidgets('a known site shows its address and follows the app',
         (tester) async {
-      await _pump(tester,
-          values: _values(), initUrl: 'https://github.com/', tabsAvailable: true);
+      await _pump(tester, values: _values(), initUrl: 'https://github.com/');
       expect(find.text('https://github.com/search?q=%s'), findsOneWidget);
       expect(find.text('App default'), findsOneWidget);
       expect(find.text('All'), findsOneWidget);
@@ -516,7 +506,6 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
-        tabsAvailable: true,
         values: _values(),
         initUrl: 'https://duckduckgo.com/',
         onChanged: (v) => seen = v,
@@ -535,7 +524,6 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
-        tabsAvailable: true,
         values: _values(
             searchAddress: 'https://github.com/search?type=code&q=%s'),
         initUrl: 'https://github.com/',
@@ -553,7 +541,6 @@ void main() {
         (tester) async {
       await _pump(
         tester,
-        tabsAvailable: true,
         values: _values(),
         initUrl: 'https://searx.lan/',
         discoveredSearchAddress: 'https://searx.lan/search?q=%s',
@@ -579,7 +566,6 @@ void main() {
           name: 'DuckDuckGo')
         ..containerColor = 6;
       await _pump(tester,
-          tabsAvailable: true,
           values: _values(searchSites: ['ddg-work', 'ddg-home']),
           routingTargets: [work, home]);
       expect(find.text('DuckDuckGo (ddg-work), DuckDuckGo (ddg-home)'),
@@ -611,7 +597,6 @@ void main() {
           siteId: 'ddg', initUrl: 'https://duckduckgo.com/', name: 'DuckDuckGo')
         ..containerColor = 1;
       await _pump(tester,
-          tabsAvailable: true,
           containersActive: false,
           values: _values(),
           routingTargets: [ddg]);
@@ -630,7 +615,6 @@ void main() {
       SiteBehaviourValues? seen;
       await _pump(
         tester,
-        tabsAvailable: true,
         values: _values(searchDefault: 'kagi'),
         routingTargets: [ddg, kagi],
         onChanged: (v) => seen = v,

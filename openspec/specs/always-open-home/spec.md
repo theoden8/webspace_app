@@ -106,10 +106,10 @@ when `alwaysOpenHome = true` or `incognito = true`. The launched site
 itself is reset whenever it is flagged. The synthetic "All" webspace
 MUST NOT count as shared membership for this rule.
 
-The reset SHALL apply to both cold launches via shortcut (overlapping
-with [HS-006](../home-shortcut/spec.md), which already resets the
-launched site itself regardless of its flag) and warm taps while the
-app is already running.
+The reset SHALL apply to both cold launches via shortcut and warm taps
+while the app is already running. It is the only reset a shortcut makes:
+an unflagged launched site opens where it was left
+([HS-006](../home-shortcut/spec.md)).
 
 #### Scenario: Warm shortcut tap resets banking siblings
 
@@ -132,12 +132,12 @@ app is already running.
 **Then** A resets to its initUrl
 **And** C's currentUrl is unchanged
 
-#### Scenario: Unflagged launched site still gets HS-006 cold-reset
+#### Scenario: Unflagged launched site keeps its page
 
-**Given** site A has `alwaysOpenHome = false`
+**Given** site A has `alwaysOpenHome = false` and `incognito = false`
 **And** the user cold-launches the app via A's home shortcut
-**Then** A's currentUrl resets to its initUrl per [HS-006](../home-shortcut/spec.md)
-**And** no flagged sibling propagation runs against A's webspace if A's flag is false (the flag controls the propagation; sibling flagged sites in A's webspace still reset because the propagation is anchored on the launched site, not gated by its own flag)
+**Then** A opens where it was left per [HS-006](../home-shortcut/spec.md)
+**And** flagged sites sharing a named webspace with A still reset: the propagation is anchored on the launched site, not gated by its own flag
 
 ---
 

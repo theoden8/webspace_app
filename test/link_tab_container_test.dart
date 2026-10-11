@@ -265,7 +265,9 @@ void main() {
         SiteTab.primary(url: 'https://github.com/x'),
         linkTab(),
       ], active: 'l');
-      m.landAtHome(tabsOn: false);
+      m
+        ..tabsEnabled = false
+        ..landAtHome();
       expect(m.activeTabId, kPrimaryTabId);
       expect(m.currentUrl, m.initUrl);
       expect(m.tabs.last.url, ddgLink, reason: 'the link tab is kept');

@@ -4,7 +4,6 @@ import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/controllers/site_route.dart';
 import 'package:webspace/controllers/site_runtime.dart';
 import 'package:webspace/controllers/site_set_change.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -104,24 +103,13 @@ class TabsController {
       TabReturnEngine.wayBack(_returns,
           siteId: model.siteId, activeTabId: model.activeTabId);
 
-  /// Tabs are experimental (TAB-012, DEVTOOLS-011): developer mode and the Site
-  /// tabs switch. Read on every use, so the switch applies without a restart.
-  /// Web search ships behind it too (LIR-029): a search's results are a
-  /// hosted tab, the feature tabs exist for.
-  bool get featureEnabled => ExperimentalFeaturesService.instance
-      .isEnabled(ExperimentalFeature.siteTabs);
-
-  /// Whether [model] has tabs: the feature is on and the site is not run as an
-  /// app (TAB-013). Off, every way into its tabs is closed and it shows its
-  /// active tab alone.
-  bool enabledFor(WebViewModel model) =>
-      featureEnabled && model.effectiveTabsEnabled;
-
+  /// Whether the site at [index] has tabs (TAB-013). Off, every way into its
+  /// tabs is closed and it shows its active tab alone.
   bool enabledAt(int? index) =>
       index != null &&
       index >= 0 &&
       index < _sites.models.length &&
-      enabledFor(_sites.models[index]);
+      _sites.models[index].effectiveTabsEnabled;
 
   /// Every site with tabs: the current webspace's in the order the drawer
   /// shows them, then the rest, whose trees can hold tabs that run as a site
@@ -522,7 +510,7 @@ class TabsController {
     String? openerSiteId,
     String? homeUrl,
   }) async {
-    if (!enabledFor(owner)) return;
+    if (!owner.effectiveTabsEnabled) return;
     await _gate.run(() async {
       if (!_sites.models.contains(owner)) return;
       final parent = parentTabId != null &&
