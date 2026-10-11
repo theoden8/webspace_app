@@ -36,7 +36,6 @@ Future<void> pumpRealApp(
     tester,
     sites: sites,
     webspaces: webspaces,
-    siteTabs: siteTabs,
     prefs: prefs,
     launchedByNotificationFor: launchedByNotificationFor,
   );
@@ -50,7 +49,6 @@ Future<void> prepareRealApp(
   WidgetTester tester, {
   required List<WebViewModel> sites,
   List<Webspace> webspaces = const [],
-  bool siteTabs = true,
   Map<String, Object> prefs = const {},
   String? launchedByNotificationFor,
 }) async {
