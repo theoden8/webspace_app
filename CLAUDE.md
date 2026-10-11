@@ -526,7 +526,8 @@ Spec: [openspec/specs/localization/spec.md](openspec/specs/localization/spec.md)
     `hanVariant()` counts variant-exclusive characters and requires each Chinese
     locale to carry its own. Exactly one Chinese locale ships and it is
     Traditional, under the base code `zh` (`zh` is BCP-47 for Chinese, not for
-    Simplified) — gen_l10n cannot express a `zh_Hant`-only setup.
+    Simplified) — `tool/gen_l10n.dart` requires a base file beside any
+    script- or region-qualified one, so a `zh_Hant`-only setup cannot ship.
   - **Per-string**: flags individual values left untranslated (in English) when neighbours were translated — CLD3 is unreliable on single short strings, so this uses heuristics (non-Latin: a Latin-only multi-word value where the locale's script is expected; Latin: a value whose words are almost all English-source vocabulary plus an unambiguous English stopword). No allowlist — translate the offender. Run `node tool/check_l10n_language.js --per-string [locale]` for the report.
 - Nested-webview rule applies to copy too: localized strings in `launchUrl`/`InAppWebViewScreen` flow through `BuildContext`, so resolve them at the call site.
 - Widget tests pump a screen/widget through `pumpLocalized(tester, home: child)` or wrap it in `localizedApp(child)` ([test/helpers/localized.dart](test/helpers/localized.dart)); a bare `MaterialApp` leaves `AppLocalizations.of(context)` null.

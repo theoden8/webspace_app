@@ -98,6 +98,7 @@ matching placeholder tokens and no empty values.
 #### Scenario: A translation that does not parse fails the build
 
 - **Given** a locale ARB whose message for a template key is missing, has unbalanced braces or an invalid plural case, or reads a placeholder the template does not declare
+- **Or** a script- or region-qualified ARB (`app_zh_Hant.arb`) without its base language file, which a device locale the app does not ship falls back to
 - **When** `tool/gen_l10n.dart` runs
 - **Then** it exits non-zero naming the file and key, so the build stops before a screen could show the message
 

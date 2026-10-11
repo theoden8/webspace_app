@@ -47,6 +47,15 @@ void main() {
 
   final tags = arbs.keys.toList()..sort();
   for (final tag in tags) {
+    final language = tag.split('_').first;
+    if (language != tag && !arbs.containsKey(language)) {
+      problems.add(
+        'app_$tag.arb needs app_$language.arb: a $language device locale '
+        'without its script or region falls back to it',
+      );
+    }
+  }
+  for (final tag in tags) {
     final arb = arbs[tag]!;
     final keys = {
       for (final key in arb.keys)
