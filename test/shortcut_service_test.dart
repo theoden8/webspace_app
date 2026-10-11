@@ -128,6 +128,16 @@ void main() {
         expect(calls, isEmpty);
       }
     });
+
+    test('updateTiles writes nothing off Android', () async {
+      final written = await ShortcutService.updateTiles(const [
+        (tile: 'a', label: 'A', icon: null),
+      ]);
+      if (!Platform.isAndroid) {
+        expect(written, isFalse);
+        expect(calls, isEmpty);
+      }
+    });
   });
 
   group('ShortcutService — channel error handling', () {
@@ -144,6 +154,7 @@ void main() {
       expect(await ShortcutService.getLaunch(), isNull);
       expect(await ShortcutService.getPinnedSiteIds(), isEmpty);
       expect(await ShortcutService.isAppIntentsSupported(), isFalse);
+      expect(await ShortcutService.updateTiles(const []), isFalse);
       await ShortcutService.syncSites(const []);
       await ShortcutService.removeShortcut('a');
     });

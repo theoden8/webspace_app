@@ -14,6 +14,7 @@ import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
 import 'package:webspace/services/shortcut_service.dart';
+import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/startup_restore_engine.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/web_view_model.dart';
@@ -109,10 +110,27 @@ class ShortcutController {
   /// excluded from backups.
   Map<String, String> _remap = {};
 
+  /// What each pinned Android tile was last given (HS-016). Held in memory
+  /// only, so a launch's first sync rewrites every tile once, which also
+  /// brings a tile pinned by an earlier version up to date.
+  Map<String, TileFace> _tileFaces = const {};
+  StreamSubscription<String?>? _siteIconChanges;
+
   /// A cold-launch resolution that needs a prompt, parked until the first
   /// frame: there is no UI mid-restore.
   LaunchResolution? _parked;
   final _promptGuard = ReentryGuard();
+
+  /// A pinned tile takes its site's page icon once the webview reports one.
+  void start() {
+    if (!hostIsAndroid) return;
+    _siteIconChanges =
+        SiteIconStore.instance.changes.listen((_) => _syncTiles());
+  }
+
+  void dispose() {
+    _siteIconChanges?.cancel();
+  }
 
   void load(SharedPreferences prefs) {
     _remap = _decodeStringMap(prefs.getString(_kRemapKey));
@@ -199,6 +217,7 @@ class ShortcutController {
     if (setEquals(ids, _pinnedSiteIds)) return;
     _pinnedSiteIds = ids;
     _host.rebuild();
+    _syncTiles();
   }
 
   /// Drops remembered state naming sites that no longer exist: a remap whose
@@ -434,9 +453,15 @@ class ShortcutController {
     }
   }
 
-  /// HS-007: the iOS App Intents picker follows renames, additions and
-  /// deletions, with tombstones resolving a deleted site's tile (HS-011).
+  /// The shortcuts follow the site list. HS-007: the iOS App Intents picker
+  /// takes renames, additions and deletions, with tombstones resolving a
+  /// deleted site's tile (HS-011). HS-016: a pinned Android tile takes the
+  /// name and icon of the site it opens.
   void syncSites() {
+    if (hostIsAndroid) {
+      _syncTiles();
+      return;
+    }
     if (!hostIsIOS && !hostIsMacOS) return;
     final sites = [
       for (final m in _sites.models)
@@ -459,12 +484,39 @@ class ShortcutController {
     unawaited(ShortcutService.syncSites(sites, tombstones: tombstones));
   }
 
+  /// The tile writes stay in call order: nothing between the plan and the
+  /// channel call awaits.
+  void _syncTiles() {
+    if (!hostIsAndroid || !_host.mounted) return;
+    final sitesOfTiles = ShortcutPinState.sitesOfTiles(
+      pinnedSiteIds: _pinnedSiteIds,
+      rememberedRemap: _remap,
+      models: _sites.models,
+    );
+    final plan = ShortcutPinState.staleTiles(
+      want: {
+        for (final MapEntry(key: tile, value: site) in sitesOfTiles.entries)
+          tile: (
+            label: site.name,
+            icon: knownSiteIcon(site.initUrl, customIcon: site.customIconPng),
+          ),
+      },
+      shown: _tileFaces,
+    );
+    if (plan.updates.isEmpty) return;
+    unawaited(ShortcutService.updateTiles(plan.updates).then((written) {
+      if (written) _tileFaces = plan.shown;
+    }));
+  }
+
   Future<void> _rememberRemap(
     String shortcutSiteId, {
     required String resolvedSiteId,
   }) async {
     if (_remap[shortcutSiteId] == resolvedSiteId) return;
     _remap[shortcutSiteId] = resolvedSiteId;
+    // The rebound tile now opens another site, so it takes that one's face.
+    _syncTiles();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kRemapKey, jsonEncode(_remap));
   }
