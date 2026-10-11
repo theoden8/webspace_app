@@ -38,6 +38,8 @@ import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/licenses.dart';
 import 'package:webspace/app.dart';
 import 'package:webspace/services/webview_proxy.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
+import 'package:webspace/settings/app_locale.dart';
 
 /// Debug-only per-step timing for the cold-start critical path. Logs under
 /// the 'Startup' tag; compiled out of release builds via kDebugMode. Steps in
@@ -82,6 +84,18 @@ void main([List<String> args = const []]) async {
     );
   }
 
+  // MaterialApp resolves the platform locale on its first frame (the in-app
+  // override is read after it), so reading that ARB here lets the first
+  // frame's Localizations complete synchronously instead of holding the frame
+  // and the page's startup restore behind an asset read. A different locale
+  // later only costs that read.
+  Future<void> l10nPreload() => AppLocalizations.delegate.load(
+        resolveSupportedLocale(
+          WidgetsBinding.instance.platformDispatcher.locales,
+          supported: AppLocalizations.supportedLocales,
+        ),
+      );
+
   // Disable network loads from any service worker registered by a visited
   // site. Service workers stay alive across page navigations (tied to the
   // origin, not the document), and on Android System WebView there are open
@@ -122,6 +136,7 @@ void main([List<String> args = const []]) async {
     <AsyncStep>[
       () => _runTimed('html', step: htmlInit),
       () => _runTimed('pageJs', step: PageJs.load),
+      () => _runTimed('l10n', step: l10nPreload),
       () => _runTimed('clearUrl', step: ClearUrlService.instance.initialize),
       () => _runTimed('dns', step: DnsBlockService.instance.initialize),
       () => _runTimed('firefoxUa',

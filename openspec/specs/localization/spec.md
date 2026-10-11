@@ -172,7 +172,8 @@ name, and plurals through `Intl.pluralLogic` with `=0`/`=1`/`=2` folded into
 - **Given** the ARB files declared as assets under `lib/l10n/`
 - **When** `AppLocalizations.delegate.load(locale)` runs
 - **Then** it reads the ARB of the most specific shipped locale (language, script and country, then fewer), parses it once and caches it
-- **And** while that read is in flight, `Localizations` holds the first frame, so no frame shows without text
+- **And** `main()` reads the ARB of the locale the first frame resolves to before `runApp`, so the first frame's load completes synchronously
+- **And** a later locale (the in-app override, a system change) is read asynchronously while the previous locale's text stays on screen
 
 #### Scenario: Output matches the compiled classes
 
