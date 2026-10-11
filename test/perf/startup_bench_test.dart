@@ -25,43 +25,37 @@ import 'package:webspace/services/procedural_action_backfill.dart';
 import 'package:webspace/services/startup_init_engine.dart';
 
 import 'blocker_disk.dart';
+import 'perf_samples.dart';
 
 const _groupDnsLevel = 3;
-const _runs = 5;
-
-/// Median of [_runs] timings of [body], in ms.
-Future<int> _median(Future<void> Function() body) async {
-  final samples = <int>[];
-  for (var i = 0; i < _runs; i++) {
-    final sw = Stopwatch()..start();
-    await body();
-    samples.add(sw.elapsedMilliseconds);
-  }
-  samples.sort();
-  return samples[_runs ~/ 2];
-}
 
 /// The longest the isolate went without running a timer while [body] ran:
 /// on Android the UI isolate is the main thread, so this is how long input
 /// and platform-channel replies would have queued.
-Future<int> _longestStall(Future<void> Function() body) async {
-  var longest = 0;
+Future<double> _longestStall(Future<void> Function() body) async {
+  var longest = 0.0;
   final sw = Stopwatch()..start();
-  var last = 0;
+  var last = 0.0;
   final ticker = Timer.periodic(const Duration(milliseconds: 1), (_) {
-    final now = sw.elapsedMilliseconds;
+    final now = elapsedMs(sw);
     if (now - last > longest) longest = now - last;
     last = now;
   });
   await body();
   ticker.cancel();
-  final now = sw.elapsedMilliseconds;
+  final now = elapsedMs(sw);
   return now - last > longest ? now - last : longest;
 }
 
-void _report(String label, {required int ms}) =>
-    // ignore: avoid_print
-    print('${label.padRight(56)} ${'$ms'.padLeft(6)} ms');
+Future<List<double>> _stalls(Future<void> Function() body,
+        {required Map<String, Object> prefs}) async =>
+    [
+      for (var i = 0; i < perfRuns; i++)
+        await () {
+          SharedPreferences.setMockInitialValues(prefs);
+          return _longestStall(body);
+        }(),
+    ];
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -78,11 +72,11 @@ void main() {
           dnsStored: dns.serializeLevelSetsForTest(),
           dnsCount: dns.domainCount,
         );
-        final ms = await _median(() async {
+        reportSamples('dns init, level $level (${disk.dnsCount} domains)',
+            samples: await timeRuns(() async {
           SharedPreferences.setMockInitialValues(disk.prefs);
           await disk.dnsInit();
-        });
-        _report('dns init, level $level (${disk.dnsCount} domains)', ms: ms);
+        }));
       }, skip: skip);
     }
   });
@@ -92,21 +86,21 @@ void main() {
       final env = preparserEnv(android: true, ios: false, macos: false, linux: false);
       final bodies = [for (final id in filterListIds) readPerfData('$id.txt')];
       late String concatenated;
-      _report('prune + scope, ${bodies.length} lists', ms: await _median(() async {
+      reportSamples('prune + scope, ${bodies.length} lists', samples: await timeRuns(() async {
         final buf = StringBuffer();
         for (final body in bodies) {
           buf.writeln(scopeRulesAwayFromHosts(pruneFilterList(body, env: env), hosts: const {}));
         }
         concatenated = buf.toString();
       }));
-      _report('parseAbpNetworkPrefilter', ms: await _median(() async {
+      reportSamples('parseAbpNetworkPrefilter', samples: await timeRuns(() async {
         parseAbpNetworkPrefilter(concatenated);
       }));
       late String rules;
-      _report('rewriteGenericProceduralsForBackfill', ms: await _median(() async {
+      reportSamples('rewriteGenericProceduralsForBackfill', samples: await timeRuns(() async {
         rules = rewriteGenericProceduralsForBackfill(concatenated);
       }));
-      _report('sha256 over the rules (${rules.length ~/ 1024} KiB)', ms: await _median(() async {
+      reportSamples('sha256 over the rules (${rules.length ~/ 1024} KiB)', samples: await timeRuns(() async {
         sha256.convert(utf8.encode(rules));
       }));
       final parsed = AdblockEngine.load(rules);
@@ -116,21 +110,20 @@ void main() {
       }
       final blob = parsed.serialize()!;
       parsed.dispose();
-      _report('adblock-rust parse from text', ms: await _median(() async {
+      reportSamples('adblock-rust parse from text', samples: await timeRuns(() async {
         AdblockEngine.load(rules)!.dispose();
       }));
-      _report('adblock-rust deserialize (${blob.length ~/ 1024} KiB)', ms: await _median(() async {
+      reportSamples('adblock-rust deserialize (${blob.length ~/ 1024} KiB)', samples: await timeRuns(() async {
         AdblockEngine.loadFromSerialized(blob)!.dispose();
       }));
     }, skip: skip);
 
     test('initialize, engine cache written by the last launch', () async {
       final disk = await BlockerDisk.seed(dnsLevel: _groupDnsLevel);
-      final ms = await _median(() async {
+      reportSamples('content blocker init, warm cache', samples: await timeRuns(() async {
         SharedPreferences.setMockInitialValues(disk.prefs);
         await disk.contentBlockerInit();
-      });
-      _report('content blocker init, warm cache', ms: ms);
+      }));
     }, skip: skip);
   });
 
@@ -138,39 +131,25 @@ void main() {
   // they spend adds up however they are awaited.
   test('StartupInitEngine.runIndependentInits, both blockers', () async {
     final disk = await BlockerDisk.seed(dnsLevel: _groupDnsLevel);
-    final dnsMs = await _median(() async {
+    reportSamples('dns alone (level $_groupDnsLevel)', samples: await timeRuns(() async {
       SharedPreferences.setMockInitialValues(disk.prefs);
       await disk.dnsInit();
-    });
-    final cbMs = await _median(() async {
+    }));
+    reportSamples('content blocker alone', samples: await timeRuns(() async {
       SharedPreferences.setMockInitialValues(disk.prefs);
       await disk.contentBlockerInit();
-    });
-    final groupMs = await _median(() async {
+    }));
+    reportSamples('group wall-clock (main() before runApp)', samples: await timeRuns(() async {
       SharedPreferences.setMockInitialValues(disk.prefs);
       await StartupInitEngine.runIndependentInits([disk.dnsInit, disk.contentBlockerInit]);
-    });
-    final stalls = <int>[];
-    for (var i = 0; i < _runs; i++) {
-      SharedPreferences.setMockInitialValues(disk.prefs);
-      stalls.add(await _longestStall(() => StartupInitEngine.runIndependentInits(
-          [disk.dnsInit, disk.contentBlockerInit])));
-    }
-    stalls.sort();
-    final dnsStalls = <int>[], cbStalls = <int>[];
-    for (var i = 0; i < _runs; i++) {
-      SharedPreferences.setMockInitialValues(disk.prefs);
-      dnsStalls.add(await _longestStall(disk.dnsInit));
-      SharedPreferences.setMockInitialValues(disk.prefs);
-      cbStalls.add(await _longestStall(disk.contentBlockerInit));
-    }
-    dnsStalls.sort();
-    cbStalls.sort();
-    _report('dns alone, longest UI-isolate stall', ms: dnsStalls[_runs ~/ 2]);
-    _report('content blocker alone, longest UI-isolate stall', ms: cbStalls[_runs ~/ 2]);
-    _report('dns alone (level $_groupDnsLevel)', ms: dnsMs);
-    _report('content blocker alone', ms: cbMs);
-    _report('group wall-clock (main() before runApp)', ms: groupMs);
-    _report('group, longest UI-isolate stall', ms: stalls[_runs ~/ 2]);
+    }));
+    reportSamples('dns alone, longest UI-isolate stall',
+        samples: await _stalls(disk.dnsInit, prefs: disk.prefs));
+    reportSamples('content blocker alone, longest UI-isolate stall',
+        samples: await _stalls(disk.contentBlockerInit, prefs: disk.prefs));
+    reportSamples('group, longest UI-isolate stall',
+        samples: await _stalls(
+            () => StartupInitEngine.runIndependentInits([disk.dnsInit, disk.contentBlockerInit]),
+            prefs: disk.prefs));
   }, skip: skip);
 }

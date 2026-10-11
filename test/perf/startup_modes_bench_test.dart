@@ -23,8 +23,7 @@ import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/web_view_model.dart';
 
 import '../helpers/real_app.dart';
-
-const _runs = 5;
+import 'perf_samples.dart';
 
 enum _Mode { launcher, notificationTap, backgroundWake }
 
@@ -36,7 +35,7 @@ List<WebViewModel> _sites(int count) => [
 
 /// One cold start: ms to the first frame, to the screen the mode lands on,
 /// and to the end of restore.
-Future<({int frame, int landed, int restored})> _coldStart(
+Future<({double frame, double landed, double restored})> _coldStart(
   WidgetTester tester, {
   required _Mode mode,
   required int siteCount,
@@ -62,18 +61,18 @@ Future<({int frame, int landed, int restored})> _coldStart(
   var restoreDone = false;
   final sw = Stopwatch()..start();
   await tester.pumpWidget(WebSpaceApp());
-  final frame = sw.elapsedMilliseconds;
+  final frame = elapsedMs(sw);
   unawaited(debugStartupRestore!.then((_) => restoreDone = true));
-  int? landedAt;
+  double? landedAt;
   while (!restoreDone || landedAt == null) {
-    if (landedAt == null && landed()) landedAt = sw.elapsedMilliseconds;
+    if (landedAt == null && landed()) landedAt = elapsedMs(sw);
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pump(const Duration(milliseconds: 16));
     if (sw.elapsed > const Duration(seconds: 30)) {
       fail('$mode with $siteCount sites did not finish');
     }
   }
-  final restored = sw.elapsedMilliseconds;
+  final restored = elapsedMs(sw);
   await tester.pumpWidget(const SizedBox());
   await settleRealApp(tester);
   launchedForBackgroundWake = false;
@@ -88,16 +87,13 @@ void main() {
         // The first start in a process pays for compiling the app.
         await _coldStart(tester, mode: mode, siteCount: siteCount);
         final runs = [
-          for (var i = 0; i < _runs; i++)
+          for (var i = 0; i < perfRuns; i++)
             await _coldStart(tester, mode: mode, siteCount: siteCount),
         ];
-        int median(int Function(({int frame, int landed, int restored})) f) =>
-            (runs.map(f).toList()..sort())[_runs ~/ 2];
-        // ignore: avoid_print
-        print('${'${mode.name}, $siteCount sites'.padRight(30)}'
-            ' first frame ${'${median((r) => r.frame)}'.padLeft(5)} ms'
-            '  landed ${'${median((r) => r.landed)}'.padLeft(5)} ms'
-            '  restore done ${'${median((r) => r.restored)}'.padLeft(5)} ms');
+        final label = '${mode.name}, $siteCount sites';
+        reportSamples('$label: first frame', samples: [for (final r in runs) r.frame]);
+        reportSamples('$label: landed', samples: [for (final r in runs) r.landed]);
+        reportSamples('$label: restore done', samples: [for (final r in runs) r.restored]);
       }, skip: skip);
     }
   }

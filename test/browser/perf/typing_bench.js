@@ -4,13 +4,26 @@
 //
 //   node test/browser/perf/typing_bench.js
 //
-// Not a test (no .test.js), so the browser tier does not run it.
+// Not a test (no .test.js), so the browser tier does not run it. WS_PERF_RUNS
+// and WS_PERF_OUT work as for the Dart benchmarks (test/perf/README.md).
 
+const fs = require('node:fs');
 const puppeteer = require('puppeteer');
 const { pageJs } = require('../../js/helpers/page_js');
 
 const ELEMENTS = 4000;
 const KEYSTROKES = 60;
+const RUNS = Number(process.env.WS_PERF_RUNS) || 5;
+
+function report(label, samples) {
+  const sorted = [...samples].sort((a, b) => a - b);
+  const at = (q) => sorted[Math.round((sorted.length - 1) * q)];
+  console.log(`${label.padEnd(56)} ${at(0.5).toFixed(2).padStart(7)} ms` +
+    `  [p10 ${at(0.1).toFixed(2)}, p90 ${at(0.9).toFixed(2)}, n=${sorted.length}]`);
+  if (process.env.WS_PERF_OUT) {
+    fs.appendFileSync(process.env.WS_PERF_OUT, `${JSON.stringify({ label, samples })}\n`);
+  }
+}
 
 function pageHtml() {
   const rows = [];
@@ -120,20 +133,20 @@ async function main() {
     };
     for (const [name, scripts] of Object.entries(variants)) {
       const samples = [];
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < RUNS; i++) {
         samples.push(await scriptMsPerKeystroke(browser, { scripts }));
       }
-      samples.sort((a, b) => a - b);
-      console.log(`${name.padEnd(20)} ${samples[2].toFixed(2)} ms script per keystroke`);
+      report(`${name}: script ms per keystroke`, samples);
     }
     const quantized = pageJs('anti_fingerprinting', { seed: 'bench-seed', letterbox: false });
     for (const [name, scripts] of Object.entries({
       'clock as the engine': [],
       'anti_fingerprinting': [quantized],
     })) {
-      const { mean, longest } = await renderSlices(browser, { scripts });
-      console.log(`time-sliced renderer, ${name.padEnd(20)} holds the main thread ` +
-        `${mean.toFixed(1)} ms per slice, ${longest.toFixed(1)} ms at most`);
+      const runs = [];
+      for (let i = 0; i < RUNS; i++) runs.push(await renderSlices(browser, { scripts }));
+      report(`time-sliced renderer, ${name}: mean slice`, runs.map((r) => r.mean));
+      report(`time-sliced renderer, ${name}: longest slice`, runs.map((r) => r.longest));
     }
   } finally {
     await browser.close();

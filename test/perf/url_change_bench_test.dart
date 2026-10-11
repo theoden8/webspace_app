@@ -16,6 +16,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:webspace/web_view_model.dart';
 
 import '../helpers/real_app.dart';
+import 'perf_samples.dart';
 
 const _events = 40;
 const _siteCount = 20;
@@ -46,14 +47,14 @@ void main() {
       await openSiteFromDrawer(tester, name: 'Site 0');
       await attachWebViews(tester);
 
-      Future<int> burst(String Function(int i) url) async {
+      Future<double> burst(String Function(int i) url) async {
         final sw = Stopwatch()..start();
         for (var i = 0; i < _events; i++) {
           await pageHistoryChanged(tester, url: url(i));
           await tester.pump();
         }
         await settleRealApp(tester);
-        return sw.elapsedMilliseconds;
+        return elapsedMs(sw);
       }
 
       String url(int i) => changing
@@ -61,17 +62,15 @@ void main() {
           : 'https://site0.example.test/search';
       // The first burst pays for compiling the path.
       await burst(url);
-      final samples = [for (var r = 0; r < 3; r++) await burst(url)]..sort();
       // settleRealApp's fixed pumps cost the same in every burst.
       final settleOnly = await () async {
         final sw = Stopwatch()..start();
         await settleRealApp(tester);
-        return sw.elapsedMilliseconds;
+        return elapsedMs(sw);
       }();
-      // ignore: avoid_print
-      print('${changing ? 'new URL each' : 'same URL'}: '
-          '${((samples[1] - settleOnly) / _events).toStringAsFixed(2)} ms per update '
-          '(burst ${samples[1]} ms, settle alone $settleOnly ms)');
+      reportSamples('${changing ? 'new URL each' : 'same URL'}: ms per update', samples: [
+        for (var r = 0; r < perfRuns; r++) ((await burst(url)) - settleOnly) / _events,
+      ]);
     }, skip: skip);
   }
 }
