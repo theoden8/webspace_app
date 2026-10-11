@@ -95,26 +95,29 @@ String _join(
   required String locale,
 }) {
   if (parts case [_Text(:final text)]) return text;
-  String? form(List<_Part>? parts) =>
-      parts == null ? null : _join(parts, args: args, locale: locale);
   final out = StringBuffer();
   for (final part in parts) {
     out.write(switch (part) {
       _Text(:final text) => text,
       _Arg(:final name) => _argument(args, name: name),
-      _Plural(:final name, :final forms) => intl.Intl.pluralLogic(
-        _argument(args, name: name) as num,
+      _Plural(:final name, :final forms) => _join(
+        intl.Intl.pluralLogic(
+          _argument(args, name: name) as num,
+          locale: locale,
+          zero: forms[_PluralForm.zero],
+          one: forms[_PluralForm.one],
+          two: forms[_PluralForm.two],
+          few: forms[_PluralForm.few],
+          many: forms[_PluralForm.many],
+          other: forms[_PluralForm.other]!,
+        ),
+        args: args,
         locale: locale,
-        zero: form(forms[_PluralForm.zero]),
-        one: form(forms[_PluralForm.one]),
-        two: form(forms[_PluralForm.two]),
-        few: form(forms[_PluralForm.few]),
-        many: form(forms[_PluralForm.many]),
-        other: form(forms[_PluralForm.other])!,
       ),
-      _Select(:final name, :final cases) => intl.Intl.selectLogic(
-        _argument(args, name: name),
-        {for (final MapEntry(:key, :value) in cases.entries) key: form(value)!},
+      _Select(:final name, :final cases) => _join(
+        intl.Intl.selectLogic(_argument(args, name: name), cases),
+        args: args,
+        locale: locale,
       ),
     });
   }

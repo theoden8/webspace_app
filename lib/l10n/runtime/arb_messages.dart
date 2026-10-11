@@ -15,16 +15,25 @@ typedef ArbRead = FutureOr<String> Function(String path);
 class ArbMessages {
   ArbMessages._({
     required this.localeName,
-    required Map<String, IcuMessage> messages,
-  }) : _messages = messages;
+    required Map<String, String> sources,
+  }) : _sources = sources;
 
   final String localeName;
-  final Map<String, IcuMessage> _messages;
+  final Map<String, String> _sources;
+  final Map<String, IcuMessage> _parsed = {};
 
-  String text(String key) => format(key, args: const {});
+  /// A message without placeholders, which tool/gen_l10n.dart has checked
+  /// parses to its own text in every locale.
+  String text(String key) {
+    final source = _sources[key]!;
+    assert(!source.contains('{'), '$key has placeholders; read it with format');
+    return source;
+  }
 
   String format(String key, {required Map<String, Object> args}) =>
-      _messages[key]!.format(args: args, locale: localeName);
+      (_parsed[key] ??= IcuMessage.parse(
+        _sources[key]!,
+      )).format(args: args, locale: localeName);
 
   /// How an ARB file is read: the asset bundle in the app, the checkout in tests.
   static ArbRead read = (path) => rootBundle.loadString(path, cache: false);
@@ -74,18 +83,17 @@ class ArbMessages {
     required List<String> keys,
   }) {
     final arb = jsonDecode(source) as Map<String, dynamic>;
-    final messages = {
+    final sources = {
       for (final MapEntry(:key, :value) in arb.entries)
-        if (!key.startsWith('@') && value is String)
-          key: IcuMessage.parse(value),
+        if (!key.startsWith('@') && value is String) key: value,
     };
     assert(
-      keys.every(messages.containsKey),
-      'app_$shipped.arb lacks ${keys.where((key) => !messages.containsKey(key)).join(', ')}',
+      keys.every(sources.containsKey),
+      'app_$shipped.arb lacks ${keys.where((key) => !sources.containsKey(key)).join(', ')}',
     );
     return _loaded[shipped] = ArbMessages._(
       localeName: intl.Intl.canonicalizedLocale(shipped.toString()),
-      messages: messages,
+      sources: sources,
     );
   }
 }
