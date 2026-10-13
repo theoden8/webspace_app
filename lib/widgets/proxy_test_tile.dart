@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/proxy_test_service.dart';
 import 'package:webspace/services/reentry_guard.dart';
+import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/hint_button.dart';
@@ -47,6 +48,9 @@ class _ProxyTestTileState extends State<ProxyTestTile> {
           settings,
           target: widget.target,
           siteId: widget.siteId,
+          holdTor: ({required within, required probe}) =>
+              TorService.instance.whileHeld(TorTestHolder(this),
+                  within: within, use: probe),
         );
         logProxyTest(settings, result: result);
         _result = result;

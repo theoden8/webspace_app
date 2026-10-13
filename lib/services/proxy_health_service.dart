@@ -44,8 +44,11 @@ class ProxyHealthService extends ChangeNotifier {
   final Map<ProxyRouteKey, ProxyHealth> _results = {};
   final SingleFlight<ProxyRouteKey, ProxyHealth> _probes = SingleFlight();
 
+  // No Tor hold: an indicator coming on screen is not the user asking for
+  // Tor to start.
   static Future<ProxyTestResult> _defaultProbe(UserProxySettings settings) =>
-      testProxyConnection(settings, target: kDefaultProxyTestTarget);
+      testProxyConnection(settings,
+          target: kDefaultProxyTestTarget, holdTor: null);
 
   /// Whether [settings] names a route the indicator can probe: a concrete
   /// proxy, or Tor. DEFAULT is the absence of one, and an unresolved SAVED

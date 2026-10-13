@@ -37,13 +37,13 @@ import 'package:webspace/services/webview_config.dart';
 inapp.ProxySettings? userProxyToInappProxy(UserProxySettings settings) {
   if (settings.type == ProxyType.DEFAULT) return null;
   if (settings.type == ProxyType.TOR) {
-    // TOR has no address until the runtime is up. A null expansion means
-    // "not routable yet", and returning null here is what trips the
-    // `proxyUnavailable` fail-closed branch below rather than loading the
-    // page over the device IP.
-    final expanded = expandTorProxy(settings);
-    if (expanded == null) return null;
-    return userProxyToInappProxy(expanded);
+    // TOR has no address until the runtime is up. Returning null while it
+    // is not is what trips the `proxyUnavailable` fail-closed branch below
+    // rather than loading the page over the device IP.
+    return switch (expandTorProxy(settings)) {
+      TorRouteUp(:final socks) => userProxyToInappProxy(socks),
+      TorRouteBlocked() => null,
+    };
   }
   if (settings.type == ProxyType.SAVED ||
       settings.type == ProxyType.GATEWAY ||
@@ -349,14 +349,16 @@ class ProxyManager {
     // the runtime serves and this site's credential, or the leftover manual
     // address a TOR setting keeps (PROXY-010) would be dialled in clear.
     if (effective.type == ProxyType.TOR) {
-      final expanded = expandTorProxy(effective);
-      if (expanded == null) {
-        LogTag.proxy.error(
-            'Tor is not up; refusing to apply a proxy rule for a Tor site.',
-            sensitive: true);
-        throw Exception('Tor is not up');
+      switch (expandTorProxy(effective)) {
+        case TorRouteUp(:final socks):
+          effective = socks;
+        case TorRouteBlocked(:final reason):
+          LogTag.proxy.error(
+              'Tor is not up ($reason); refusing to apply a proxy rule for a '
+              'Tor site.',
+              sensitive: true);
+          throw Exception('Tor is not up');
       }
-      effective = expanded;
     }
 
     if (effective.type == ProxyType.DEFAULT) {

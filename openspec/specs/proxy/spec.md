@@ -374,6 +374,17 @@ call, so a configuration that fails closed there (Tor not bootstrapped,
 malformed address) reports as not reached rather than silently probing
 over the device IP.
 
+A route that resolves to Tor, including a DEFAULT site under an app-wide
+Tor, SHALL hold the runtime for the length of the test
+(`TorTestHolder`), since a Tor choice not yet saved has no other holder,
+and SHALL give it up to the test's timeout to come up or fail before the
+probe. A Tor route that is still blocked SHALL say what the runtime is
+doing (`TorRoute`): not running, starting, bootstrapping and how far, or
+the runtime's own error (for an external tor, which address did not
+answer), never a bare "not bootstrapped". The connection indicator
+(PROXY-031) SHALL NOT start Tor: an indicator coming on screen is not the
+user asking for it.
+
 The probe target is the site's own origin where there is one, and the
 fixed `https://example.com` otherwise. A site whose host is a private or
 loopback literal falls back to the fixed target: PROXY-007 exempts those
@@ -416,6 +427,16 @@ proxy
 **Then** `outboundHttp.clientFor` returns blocked
 **And** the result reads as not reached, carrying the reason
 **And** no request leaves over the device IP
+
+#### Scenario: Testing a Tor choice before saving it
+
+**Given** Tor (external) is on and nothing has started Tor
+**And** the user picks Tor for a site and does not save
+**When** the user taps Test connection
+**Then** Tor is started for the test and the external tor is asked
+**And** the result is the request's outcome, or names the address that did
+not answer
+**And** the test's hold on Tor ends with the test
 
 ---
 

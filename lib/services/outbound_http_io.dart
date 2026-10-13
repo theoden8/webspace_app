@@ -75,18 +75,17 @@ class DefaultOutboundHttpFactory implements OutboundHttpFactory {
       case ProxyType.TOR:
         // TOR carries no address of its own; it expands at use-time into
         // the loopback SOCKS5 endpoint plus this caller's isolation tag.
-        // A null expansion means the runtime is not up, and the only safe
-        // answer is to block: falling through to SOCKS5-with-no-address or
-        // to a direct client would put the request on the device IP, which
-        // is the exact thing the user turned Tor on to prevent (TOR-008).
-        final tor = expandTorProxy(settings);
-        if (tor == null) {
-          return const OutboundClientBlocked(
-            'Tor is not bootstrapped yet. Outbound request blocked to avoid '
-            'leaking the device IP via a direct fallback.',
-          );
-        }
-        return clientFor(tor);
+        // While the runtime is not up the only safe answer is to block:
+        // falling through to SOCKS5-with-no-address or to a direct client
+        // would put the request on the device IP, which is the exact thing
+        // the user turned Tor on to prevent (TOR-008).
+        return switch (expandTorProxy(settings)) {
+          TorRouteUp(:final socks) => clientFor(socks),
+          TorRouteBlocked(:final reason) => OutboundClientBlocked(
+              '$reason Outbound request blocked to avoid leaking the device '
+              'IP via a direct fallback.',
+            ),
+        };
 
       case ProxyType.SAVED:
       case ProxyType.GATEWAY:

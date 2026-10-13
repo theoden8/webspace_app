@@ -74,17 +74,37 @@ Uri proxyTestTarget(String? siteUrl) {
   );
 }
 
+/// Runs [probe] with Tor held up, given [within] to come up first.
+typedef TorTestHold = Future<ProxyTestResult> Function({
+  required Duration within,
+  required Future<ProxyTestResult> Function() probe,
+});
+
 /// Ask [settings] to carry one request to [target] and report what happened.
 ///
 /// [siteId] is the Tor stream-isolation tag, so a per-site test rides the
-/// same circuit the site itself would (PROXY-011).
+/// same circuit the site itself would (PROXY-011). A route that resolves to
+/// Tor runs inside [holdTor], so the form's own Tor choice has a runtime
+/// even before it is saved; null tests whatever state Tor is in.
 Future<ProxyTestResult> testProxyConnection(
   UserProxySettings settings, {
   required Uri target,
+  required TorTestHold? holdTor,
   String? siteId,
   Duration timeout = const Duration(seconds: 15),
-}) async {
+}) {
   final effective = resolveEffectiveProxy(settings, siteId: siteId);
+  Future<ProxyTestResult> probe() =>
+      _probe(effective, target: target, timeout: timeout);
+  if (effective.type != ProxyType.TOR || holdTor == null) return probe();
+  return holdTor(within: timeout, probe: probe);
+}
+
+Future<ProxyTestResult> _probe(
+  UserProxySettings effective, {
+  required Uri target,
+  required Duration timeout,
+}) async {
   final client = outboundHttp.clientFor(effective);
   switch (client) {
     case OutboundClientBlocked(:final reason):

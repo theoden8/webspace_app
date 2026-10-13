@@ -1510,6 +1510,13 @@ port this one can dial. The tor's address, `externalTorAddress`
 - **Resume.** The TOR-024 greeting on return applies. A listener that no
   longer answers is asked again rather than reopened, and a tor that stopped
   while the app was away is `externalUnreachable`.
+- **A tor that was not answering is asked again.** The user starts Orbot or
+  InviZible after the app first asked, so `externalUnreachable` is not
+  final: a return to the foreground, and any new holder (a site saved as
+  `TOR`, a nested browser, a connection test), SHALL ask the address again
+  while the external tor is errored. The embedded tor SHALL NOT: it runs
+  once per process (BUG-013), and its retry is Retry. Which runtime retries
+  is the runtime's own answer (`TorRuntime.retriesFreely`).
 - **One process-wide rule.** Where one proxy rule serves the whole process
   (Android without the router, Linux), the rule SHALL carry the expanded
   endpoint and the credential of the site it is applied for, resolved with
@@ -1536,6 +1543,14 @@ port this one can dial. The tor's address, `externalTorAddress`
 - **THEN** the interstitial says the external tor is not answering and
   offers Retry
 - **AND** the site is not loaded over the device IP
+
+#### Scenario: Orbot started after the app asked
+
+- **GIVEN** Tor (external) is on, a site is set to `TOR`, and the first ask
+  found nothing at the address
+- **WHEN** the user starts Orbot and returns to the app
+- **THEN** the address is asked again and Tor is reported up
+- **AND** the site loads through it without a Retry
 
 #### Scenario: A SOCKS proxy that is not tor
 

@@ -52,7 +52,8 @@ void main() {
       outboundHttp = FakeOutbound(
           client: () => client = _ScriptedClient((_) async => _response(204)));
 
-      final result = await testProxyConnection(_socks5(), target: target);
+      final result = await testProxyConnection(_socks5(),
+          target: target, holdTor: null);
 
       expect(result.outcome, ProxyTestOutcome.reachable);
       expect(result.statusCode, 204);
@@ -66,6 +67,7 @@ void main() {
       final result = await testProxyConnection(
         _socks5(username: 'u', password: 'wrong'),
         target: target,
+        holdTor: null,
       );
 
       expect(result.outcome, ProxyTestOutcome.authRejected);
@@ -82,6 +84,7 @@ void main() {
       final result = await testProxyConnection(
         _socks5(username: 'u', password: 'wrong'),
         target: target,
+        holdTor: null,
       );
 
       expect(result.outcome, ProxyTestOutcome.authRejected);
@@ -96,6 +99,7 @@ void main() {
       final result = await testProxyConnection(
         _socks5(username: 'u', password: 'wrong'),
         target: target,
+        holdTor: null,
       );
 
       expect(result.outcome, ProxyTestOutcome.authRejected);
@@ -107,7 +111,8 @@ void main() {
           client: () => _ScriptedClient(
               (_) async => throw http.ClientException('Connection refused')));
 
-      final result = await testProxyConnection(_socks5(), target: target);
+      final result = await testProxyConnection(_socks5(),
+          target: target, holdTor: null);
 
       expect(result.outcome, ProxyTestOutcome.unreachable);
       expect(result.detail, contains('Connection refused'));
@@ -121,6 +126,7 @@ void main() {
       final result = await testProxyConnection(
         _socks5(),
         target: target,
+        holdTor: null,
         timeout: const Duration(milliseconds: 20),
       );
 
@@ -136,6 +142,7 @@ void main() {
       final result = await testProxyConnection(
         UserProxySettings(type: ProxyType.TOR),
         target: target,
+        holdTor: null,
         siteId: 'site-1',
       );
 
@@ -151,10 +158,57 @@ void main() {
       await testProxyConnection(
         UserProxySettings(type: ProxyType.TOR),
         target: target,
+        holdTor: null,
         siteId: 'site-42',
       );
 
       expect(factory.lastQuery!.username, 'site-42');
+    });
+
+    test('a Tor route is probed with Tor held, any other route without it',
+        () async {
+      final factory = FakeOutbound(blockWhen: (_) => true);
+      outboundHttp = factory;
+      final holds = <Duration>[];
+      Future<ProxyTestResult> hold({
+        required Duration within,
+        required Future<ProxyTestResult> Function() probe,
+      }) async {
+        holds.add(within);
+        expect(factory.queries, isEmpty, reason: 'probed inside the hold');
+        return probe();
+      }
+
+      await testProxyConnection(
+        UserProxySettings(type: ProxyType.TOR),
+        target: target,
+        holdTor: hold,
+        siteId: 'site-1',
+        timeout: const Duration(seconds: 7),
+      );
+      expect(holds, [const Duration(seconds: 7)]);
+      expect(factory.queries.single.type, ProxyType.TOR);
+
+      await testProxyConnection(_socks5(), target: target, holdTor: hold);
+      expect(holds, hasLength(1), reason: 'SOCKS5 starts no Tor');
+    });
+
+    test('a DEFAULT site under an app-wide Tor holds Tor too', () async {
+      GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.TOR));
+      addTearDown(() =>
+          GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT)));
+      outboundHttp = FakeOutbound(blockWhen: (_) => true);
+      var held = false;
+
+      await testProxyConnection(
+        UserProxySettings(type: ProxyType.DEFAULT),
+        target: target,
+        holdTor: ({required within, required probe}) {
+          held = true;
+          return probe();
+        },
+      );
+      expect(held, isTrue);
     });
 
     test('DEFAULT falls through to the app-wide proxy (PROXY-009)', () async {
@@ -171,6 +225,7 @@ void main() {
       await testProxyConnection(
         UserProxySettings(type: ProxyType.DEFAULT),
         target: target,
+        holdTor: null,
       );
 
       expect(factory.lastQuery!.type, ProxyType.HTTP);

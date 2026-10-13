@@ -39,6 +39,9 @@ export 'package:webspace/services/tor_engine.dart'
         TorFailure,
         TorFailureKind,
         classifyTorFailure,
+        TorRoute,
+        TorRouteUp,
+        TorRouteBlocked,
         kTorAppGlobalTag;
 
 const String _kChannel = 'org.codeberg.theoden8.webspace/tor';
@@ -73,6 +76,9 @@ class MethodChannelTorRuntime implements TorRuntime {
 
   @override
   bool get isAvailable => _hasNativeTor;
+
+  @override
+  bool get retriesFreely => false;
 
   // Every channel touch below is gated on [isAvailable]. Without the gate,
   // simply *asking* whether Tor is available on Android builds the engine,
@@ -519,6 +525,23 @@ class TorService {
 
   void release(TorHolder holder) => _engine.release(holder);
 
+  /// Run [use] with Tor held for [holder], after giving the runtime up to
+  /// [within] to come up or fail. A connection test of a Tor route the user
+  /// has not saved has nothing else holding Tor (PROXY-019).
+  Future<T> whileHeld<T>(
+    TorHolder holder, {
+    required Duration within,
+    required Future<T> Function() use,
+  }) async {
+    await maybeStart(holder);
+    try {
+      if (isAvailable) await _engine.settled(within: within);
+      return await use();
+    } finally {
+      release(holder);
+    }
+  }
+
   Future<void> syncHolders(Iterable<TorHolder> holders) async {
     if (!isAvailable) return;
     await _engine.syncHolders(holders);
@@ -566,14 +589,23 @@ class TorService {
 
   String? get exitNodes => _engine.exitNodes;
 
-  /// SOCKS5 settings for a site (or app-global traffic when [siteId] is
-  /// null). Null means "not routable yet" — the caller must fail closed.
+  /// What a site (or app-global traffic when [siteId] is null) dials through
+  /// Tor, or why it may not — the caller must fail closed.
   ///
-  /// Returns null on a platform with no runtime, which is the fail-closed
-  /// answer: a site carrying `ProxyType.TOR` imported from an Apple device is
+  /// Blocked on a platform with no runtime, which is the fail-closed answer:
+  /// a site carrying `ProxyType.TOR` imported from an Apple device is
   /// blocked, never quietly sent out over the device IP.
+  TorRoute routeFor({String? siteId}) => isAvailable
+      ? _engine.routeFor(TorEngine.tagFor(siteId))
+      : const TorRouteBlocked(
+          'This build has no Tor of its own, and no external tor is chosen.');
+
+  /// [routeFor]'s settings, or null when Tor is not routable.
   UserProxySettings? socksFor({String? siteId}) =>
-      isAvailable ? _engine.socksFor(TorEngine.tagFor(siteId)) : null;
+      switch (routeFor(siteId: siteId)) {
+        TorRouteUp(:final socks) => socks,
+        TorRouteBlocked() => null,
+      };
 
   /// Per-launch SOCKS password. Not a secret Tor verifies — it only has to
   /// be unguessable and stable within a launch so a site keeps one circuit,

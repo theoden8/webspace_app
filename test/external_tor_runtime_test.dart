@@ -158,8 +158,71 @@ void main() {
     expect(engine.socksFor('site-a'), isNull);
   });
 
+  test('a tor that was not answering says so where a request is blocked',
+      () async {
+    answers.answer = ExternalTorAnswer.unreachable;
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    final route = engine.routeFor('site-a');
+    expect((route as TorRouteBlocked).reason,
+        'Nothing answers at 127.0.0.1:9050.');
+  });
+
+  test('a tor started while the app was away is found on return', () async {
+    answers.answer = ExternalTorAnswer.unreachable;
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    answers.answer = ExternalTorAnswer.tor;
+    final s = await settled(engine.revive);
+    expect(s, isA<TorUp>());
+    expect(engine.socksFor('site-a'), isNotNull);
+  });
+
+  test('a new claim asks a tor that was not answering again', () async {
+    answers.answer = ExternalTorAnswer.unreachable;
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    answers.answer = ExternalTorAnswer.tor;
+    final s = await settled(() => engine.acquire(TorSiteHolder('site-b')));
+    expect(s, isA<TorUp>());
+    expect(answers.asked, hasLength(2));
+  });
+
+  test('a claim already counted asks nothing', () async {
+    answers.answer = ExternalTorAnswer.unreachable;
+    await settled(() => engine.acquire(TorSiteHolder('site-a')));
+    await engine.acquire(TorSiteHolder('site-a'));
+    expect(answers.asked, hasLength(1));
+  });
+
   group('TorService', () {
     tearDown(TorService.reset);
+
+    test('a connection test of an unsaved Tor route brings it up, then lets '
+        'go', () async {
+      TorService.overrideEngine(engine, external: runtime);
+      final owner = Object();
+      final route = await TorService.instance.whileHeld(
+        TorTestHolder(owner),
+        within: const Duration(seconds: 5),
+        use: () async => TorService.instance.routeFor(siteId: 'site-a'),
+      );
+      expect((route as TorRouteUp).socks.username, 'site-a');
+      expect(TorService.instance.holders, isEmpty);
+    });
+
+    test('a connection test asks a tor that was not answering again',
+        () async {
+      TorService.overrideEngine(engine, external: runtime);
+      answers.answer = ExternalTorAnswer.unreachable;
+      await settled(
+          () => TorService.instance.maybeStart(TorSiteHolder('site-a')));
+      answers.answer = ExternalTorAnswer.tor;
+      final route = await TorService.instance.whileHeld(
+        TorTestHolder(Object()),
+        within: const Duration(seconds: 5),
+        use: () async => TorService.instance.routeFor(siteId: 'site-a'),
+      );
+      expect(route, isA<TorRouteUp>());
+      expect(TorService.instance.holders, {TorSiteHolder('site-a')});
+    });
 
     test('offers Tor and says it is an existing one', () async {
       TorService.overrideEngine(engine, external: runtime);
