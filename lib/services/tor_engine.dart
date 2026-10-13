@@ -135,6 +135,24 @@ class TorUp extends TorStatus {
   String toString() => 'up($host:$port)';
 }
 
+/// What a Tor-bound caller dials, or why it may dial nothing (TOR-008).
+sealed class TorRoute {
+  const TorRoute();
+}
+
+/// Tor is up: its SOCKS5 endpoint, with this caller's credential (TOR-003).
+final class TorRouteUp extends TorRoute {
+  const TorRouteUp(this.socks);
+  final UserProxySettings socks;
+}
+
+/// Tor is not up, and [reason] says what it is doing instead. Shown as it is
+/// by a connection test (PROXY-019), so it names the state, not "not up".
+final class TorRouteBlocked extends TorRoute {
+  const TorRouteBlocked(this.reason);
+  final String reason;
+}
+
 /// The loopback endpoint a webview would be bound to for [status], or null
 /// when there is nothing to bind to.
 String? torSocksEndpoint(TorStatus status) =>
@@ -207,6 +225,15 @@ class TorErrored extends TorStatus {
 abstract class TorRuntime {
   /// Whether this build/platform has a Tor runtime at all.
   bool get isAvailable;
+
+  /// Whether a [start] after a failure costs nothing but asking again, so
+  /// the engine retries on a new claim and on resume. True for a tor reached
+  /// over its SOCKS port, whose start is a probe and which the user may
+  /// start after the app asked (TOR-025). False for the embedded tor: it
+  /// runs once per process (BUG-013), and a failed exit pin retried on
+  /// every resume would download a GeoIP table each time; the user's Retry
+  /// is its retry.
+  bool get retriesFreely;
 
   /// Spawn tor. Resolves once the thread is running; bootstrap progress
   /// arrives asynchronously on [events].
@@ -369,6 +396,33 @@ class TorEngine {
   /// What currently pins the runtime up.
   Set<TorHolder> get holders => Set.unmodifiable(_holders);
 
+  /// Completes once the runtime is up, has failed or is stopped, or after
+  /// [within], whichever is first. Every hold short of those ends on its own
+  /// deadline (TOR-013, the pin and reopen timeouts), so [within] only
+  /// bounds how long a caller is willing to wait.
+  Future<void> settled({required Duration within}) {
+    bool done(TorStatus s) => s is TorUp || s is TorErrored || s is TorStopped;
+    if (done(_status) || _statuses.isClosed) return Future.value();
+    final finished = Completer<void>();
+    late final StreamSubscription<TorStatus> sub;
+    void finish() {
+      if (finished.isCompleted) return;
+      finished.complete();
+      sub.cancel();
+    }
+
+    final deadline = Timer(within, finish);
+    sub = _statuses.stream.listen((s) {
+      if (!done(s)) return;
+      deadline.cancel();
+      finish();
+    }, onDone: () {
+      deadline.cancel();
+      finish();
+    });
+    return finished.future;
+  }
+
   /// Register [holder] as needing Tor, starting the runtime on the 0 -> 1
   /// transition and canceling any pending idle shutdown (TOR-002).
   Future<void> acquire(TorHolder holder) async {
@@ -377,7 +431,10 @@ class TorEngine {
     if (!_holders.add(holder)) return;
     _idleTimer?.cancel();
     _idleTimer = null;
-    if (!wasEmpty) return;
+    if (!wasEmpty) {
+      if (_runtime.retriesFreely && _status is TorErrored) await restart();
+      return;
+    }
     // A tor that is up behind a pending or failed pin is still up: starting
     // it again would publish `starting` over a runtime that never answers.
     if (_runtimeUp != null || _status is TorStarting) return;
@@ -444,7 +501,14 @@ class TorEngine {
   /// ([torBindingChanged]). A runtime still bootstrapping is asked when it
   /// comes up.
   Future<void> revive() async {
-    if (!_runtime.isAvailable || _disposed || _socksProbe == null) return;
+    if (!_runtime.isAvailable || _disposed) return;
+    // The tor that was not answering may have been started while the app
+    // was away.
+    if (_runtime.retriesFreely && _status is TorErrored) {
+      await restart();
+      return;
+    }
+    if (_socksProbe == null) return;
     final up = _runtimeUp;
     if (up == null) {
       _checkNextUp = true;
@@ -736,16 +800,28 @@ class TorEngine {
   static Future<TorGeoIpTable?> _orNull(Future<TorGeoIpTable?> table) =>
       table.catchError((Object _) => null, test: (e) => e is Exception);
 
-  /// Materialize the SOCKS5 settings [reason] should dial (TOR-003).
-  ///
-  /// Returns null when the runtime is not up: callers must fail closed
-  /// rather than fall through to a direct connection. The username is the
-  /// isolation tag, so two reasons never share a circuit.
-  UserProxySettings? socksFor(String reason) {
-    final s = _status;
-    if (s is! TorUp) return null;
-    return _socksAt(s, reason: reason);
-  }
+  /// The SOCKS5 settings [reason] should dial (TOR-003), or what the runtime
+  /// is doing instead of being up: callers must fail closed rather than fall
+  /// through to a direct connection. The username is the isolation tag, so
+  /// two reasons never share a circuit.
+  TorRoute routeFor(String reason) => switch (_status) {
+        TorUp up => TorRouteUp(_socksAt(up, reason: reason)),
+        TorStopped() => const TorRouteBlocked('Tor is not running.'),
+        TorStarting() => const TorRouteBlocked('Tor is starting.'),
+        TorBootstrapping(tag: kTorExitPinTag) =>
+          const TorRouteBlocked('Tor is putting the exit country in force.'),
+        TorBootstrapping(tag: kTorReopenTag) =>
+          const TorRouteBlocked('Tor is reopening its SOCKS listener.'),
+        TorBootstrapping(:final percent) =>
+          TorRouteBlocked('Tor is bootstrapping ($percent%).'),
+        TorErrored(:final message) => TorRouteBlocked(message),
+      };
+
+  /// [routeFor]'s settings, or null when the runtime is not up.
+  UserProxySettings? socksFor(String reason) => switch (routeFor(reason)) {
+        TorRouteUp(:final socks) => socks,
+        TorRouteBlocked() => null,
+      };
 
   UserProxySettings _socksAt(TorUp up, {required String reason}) =>
       UserProxySettings(

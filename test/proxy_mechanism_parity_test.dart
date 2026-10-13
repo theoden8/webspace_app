@@ -141,11 +141,11 @@ void main() {
     setUp(() {
       // What the app installs at runtime: TOR expands to the loopback
       // SOCKS5 listener, carrying the isolation tag as the SOCKS username.
-      torProxyResolver = (tag) => UserProxySettings(
+      torProxyResolver = (tag) => TorRouteUp(UserProxySettings(
             type: ProxyType.SOCKS5,
             address: '127.0.0.1:19050',
             username: tag,
-          );
+          ));
     });
 
     test('a Tor site egresses through the loopback SOCKS5 port on both', () {

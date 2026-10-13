@@ -54,6 +54,18 @@ final class TorInterstitialHolder extends TorHolder {
   Object? get _id => owner;
 }
 
+/// A connection test of a Tor route, held by the [owner] running it for as
+/// long as the test runs: the route may be one the user has not saved yet,
+/// which nothing else holds (PROXY-019).
+final class TorTestHolder extends TorHolder {
+  const TorTestHolder(this.owner);
+
+  final Object owner;
+
+  @override
+  Object? get _id => owner;
+}
+
 /// What is keeping the Tor runtime up, in terms a person can read.
 class TorHolderSummary {
   const TorHolderSummary({
@@ -88,7 +100,7 @@ TorHolderSummary summarizeTorHolders(
         appWide = true;
       case TorSiteHolder(:final siteId) || TorNestedHolder(:final siteId):
         siteIds.add(siteId);
-      case TorInterstitialHolder():
+      case TorInterstitialHolder() || TorTestHolder():
         break;
     }
   }

@@ -13,17 +13,22 @@ import 'package:webspace/web_view_model.dart';
 
 UserProxySettings _tor() => UserProxySettings(type: ProxyType.TOR);
 
+UserProxySettings _socks(TorRoute route) => switch (route) {
+      TorRouteUp(:final socks) => socks,
+      TorRouteBlocked(:final reason) => throw StateError(reason),
+    };
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     GlobalOutboundProxy.setForTest(UserProxySettings(type: ProxyType.DEFAULT));
     // Stand in for a bootstrapped runtime on a port nothing hardcodes.
-    torProxyResolver = (tag) => UserProxySettings(
+    torProxyResolver = (tag) => TorRouteUp(UserProxySettings(
           type: ProxyType.SOCKS5,
           address: '127.0.0.1:41337',
           username: tag,
           password: 'session-secret',
-        );
+        ));
   });
 
   tearDown(() {
@@ -38,7 +43,7 @@ void main() {
       expect(resolved.type, ProxyType.TOR);
       expect(resolved.username, 'site-a');
 
-      expect(expandTorProxy(resolved)!.username, 'site-a');
+      expect(_socks(expandTorProxy(resolved)).username, 'site-a');
     });
 
     test('a DEFAULT site inheriting global TOR gets the app-global tag', () {
@@ -70,8 +75,8 @@ void main() {
     });
 
     test('two sites never share an isolation tag', () {
-      final a = expandTorProxy(resolveEffectiveProxy(_tor(), siteId: 'a1'))!;
-      final b = expandTorProxy(resolveEffectiveProxy(_tor(), siteId: 'b2'))!;
+      final a = _socks(expandTorProxy(resolveEffectiveProxy(_tor(), siteId: 'a1')));
+      final b = _socks(expandTorProxy(resolveEffectiveProxy(_tor(), siteId: 'b2')));
       expect(a.username, isNot(b.username));
       expect(a.address, b.address);
     });
@@ -125,15 +130,16 @@ void main() {
   });
 
   group('TOR-008 fail-closed', () {
-    test('clientFor blocks when the runtime is not up', () {
-      torProxyResolver = (_) => null; // bootstrapping, or errored
+    test('clientFor blocks when the runtime is not up, saying why', () {
+      torProxyResolver =
+          (_) => const TorRouteBlocked('Nothing answers at 127.0.0.1:9050.');
 
       final result = outboundHttp
           .clientFor(resolveEffectiveProxy(_tor(), siteId: 'site-a'));
 
       expect(result, isA<OutboundClientBlocked>());
       expect((result as OutboundClientBlocked).reason,
-          contains('Tor is not bootstrapped'));
+          startsWith('Nothing answers at 127.0.0.1:9050.'));
     });
 
     test('clientFor blocks when no resolver was ever installed', () {

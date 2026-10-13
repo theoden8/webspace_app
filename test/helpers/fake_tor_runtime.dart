@@ -5,11 +5,19 @@ import 'package:webspace/services/tor_engine.dart';
 /// [TorRuntime] that records every call and lets a test play the native
 /// side: [emit] pushes a status as the event channel would.
 class FakeTorRuntime implements TorRuntime {
-  FakeTorRuntime({this.isAvailable = true, this.onStart});
+  FakeTorRuntime({
+    this.isAvailable = true,
+    this.retriesFreely = false,
+    this.onStart,
+  });
 
   /// Settable so a test can be the platform that ships no Tor (TOR-022).
   @override
   final bool isAvailable;
+
+  /// True to play an external tor, whose start is a probe (TOR-025).
+  @override
+  final bool retriesFreely;
 
   /// Runs inside [start], after the call is counted and [startError] checked.
   final void Function(FakeTorRuntime runtime)? onStart;

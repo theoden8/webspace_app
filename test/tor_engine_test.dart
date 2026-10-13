@@ -113,6 +113,49 @@ void main() {
       await e.dispose();
     });
 
+    test('a failed embedded tor is not restarted by a new claim or a resume',
+        () async {
+      // It runs once per process (BUG-013); its retry is the user's Retry.
+      final e = build(socksProbe: (_, {required port}) async => true);
+      await e.acquire(TorSiteHolder('site-a'));
+      runtime.emit(TorErrored('Tor did not finish bootstrapping in time.'));
+      await pumpEventQueue();
+
+      await e.acquire(TorSiteHolder('site-b'));
+      await e.revive();
+      expect(runtime.startCalls, 1);
+      expect(e.status, isA<TorErrored>());
+      await e.dispose();
+    });
+
+    test('settled waits for up or a failure, and no longer than asked', () {
+      fakeAsync((async) {
+        final e = build();
+        e.acquire(TorSiteHolder('site-a'));
+        async.flushMicrotasks();
+
+        var done = false;
+        e.settled(within: const Duration(seconds: 10)).then((_) => done = true);
+        runtime.emit(const TorBootstrapping(50));
+        async.flushMicrotasks();
+        expect(done, isFalse, reason: 'still bootstrapping');
+        runtime.emit(TorUp('127.0.0.1', port: 9999));
+        async.flushMicrotasks();
+        expect(done, isTrue);
+
+        runtime.emit(const TorBootstrapping(100, tag: kTorReopenTag));
+        async.flushMicrotasks();
+        done = false;
+        e.settled(within: const Duration(seconds: 10)).then((_) => done = true);
+        async.elapse(const Duration(seconds: 9));
+        expect(done, isFalse);
+        async.elapse(const Duration(seconds: 1));
+        expect(done, isTrue, reason: 'the caller stops waiting at its bound');
+        e.dispose();
+        async.flushMicrotasks();
+      });
+    });
+
     test('acquiring the same reason twice counts once', () async {
       final e = build();
       await e.acquire(TorSiteHolder('site-a'));
@@ -320,6 +363,31 @@ void main() {
       await pumpEventQueue();
       expect(e.socksFor('a1'), isNull,
           reason: 'an error must not keep serving a stale endpoint');
+      await e.dispose();
+    });
+
+    test('a blocked route names what the runtime is doing', () async {
+      String reason(TorEngine e) =>
+          (e.routeFor('a1') as TorRouteBlocked).reason;
+      final e = build();
+      expect(reason(e), 'Tor is not running.');
+
+      await e.acquire(TorSiteHolder('a1'));
+      expect(reason(e), 'Tor is starting.');
+
+      runtime.emit(const TorBootstrapping(40));
+      await pumpEventQueue();
+      expect(reason(e), 'Tor is bootstrapping (40%).');
+
+      runtime.emit(TorErrored('control port died'));
+      await pumpEventQueue();
+      expect(reason(e), 'control port died');
+
+      runtime.emit(TorUp('127.0.0.1', port: 9999));
+      await pumpEventQueue();
+      final up = e.routeFor('a1') as TorRouteUp;
+      expect(up.socks, isA<UserProxySettings>());
+      expect(up.socks.username, 'a1');
       await e.dispose();
     });
 

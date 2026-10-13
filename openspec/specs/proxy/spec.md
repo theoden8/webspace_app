@@ -374,6 +374,17 @@ call, so a configuration that fails closed there (Tor not bootstrapped,
 malformed address) reports as not reached rather than silently probing
 over the device IP.
 
+A route that resolves to Tor, including a DEFAULT site under an app-wide
+Tor, SHALL hold the runtime for the length of the test
+(`TorTestHolder`), since a Tor choice not yet saved has no other holder,
+and SHALL give it up to the test's timeout to come up or fail before the
+probe. A Tor route that is still blocked SHALL say what the runtime is
+doing (`TorRoute`): not running, starting, bootstrapping and how far, or
+the runtime's own error (for an external tor, which address did not
+answer), never a bare "not bootstrapped". The connection indicator
+(PROXY-031) SHALL NOT start Tor: an indicator coming on screen is not the
+user asking for it.
+
 The probe target is the site's own origin where there is one, and the
 fixed `https://example.com` otherwise. A site whose host is a private or
 loopback literal falls back to the fixed target: PROXY-007 exempts those
@@ -416,6 +427,16 @@ proxy
 **Then** `outboundHttp.clientFor` returns blocked
 **And** the result reads as not reached, carrying the reason
 **And** no request leaves over the device IP
+
+#### Scenario: Testing a Tor choice before saving it
+
+**Given** Tor (external) is on and nothing has started Tor
+**And** the user picks Tor for a site and does not save
+**When** the user taps Test connection
+**Then** Tor is started for the test and the external tor is asked
+**And** the result is the request's outcome, or names the address that did
+not answer
+**And** the test's hold on Tor ends with the test
 
 ---
 
@@ -579,7 +600,18 @@ The Android authenticated-proxy relay SHALL never open a direct connection
 to an origin on behalf of a client; it SHALL only connect to the configured
 upstream. When the upstream is unreachable or rejects authentication, the
 relay SHALL return an error status (HTTP `502`) to the client and close the
-connection. When the relay cannot bind its listener at all,
+connection.
+
+A `CONNECT` through a SOCKS5 upstream SHALL be answered `200` before the
+upstream is asked, and the relay SHALL wait up to 30 s for the upstream's
+reply. Chromium on Android abandons a proxy tunnel 10 s after the `CONNECT`
+(`kHttpProxyConnectJobTunnelTimeout`) and then gives the TLS handshake 30 s
+(`kSSLHandshakeTimeout`); tor attaching a stream to a fresh circuit routinely
+takes longer than the first, so answering only once tor has answered made a
+Tor site time out. What the client sends in the meantime stays in the socket
+until the splice reads it. When that upstream then fails, the relay SHALL
+close the connection with nothing written to it, which the client sees as a
+failed handshake. When the relay cannot bind its listener at all,
 `ProxyManager.setProxySettings` SHALL throw and SHALL NOT clear the existing
 proxy override — clearing it would let traffic flow directly and leak the
 user's IP.
@@ -589,6 +621,21 @@ user's IP.
 - **GIVEN** the relay is configured with an upstream that is unreachable
 - **WHEN** a client opens a `CONNECT` request through the relay
 - **THEN** the relay responds with `502`
+- **AND** the relay does not connect the client directly to the requested origin
+
+#### Scenario: A slow SOCKS5 upstream does not time the tunnel out
+
+- **GIVEN** the relay's upstream is a tor SOCKS port that takes 15 s to
+  attach a stream
+- **WHEN** a WebView opens a `CONNECT` through the relay
+- **THEN** the relay answers `200` at once
+- **AND** the WebView's TLS handshake completes through tor once it attaches
+
+#### Scenario: A SOCKS5 upstream that fails after the early answer
+
+- **GIVEN** the relay answered a `CONNECT` through a SOCKS5 upstream
+- **WHEN** the upstream replies that the host is unreachable
+- **THEN** the relay closes the connection without writing to it
 - **AND** the relay does not connect the client directly to the requested origin
 
 #### Scenario: Bind failure does not fall back to direct

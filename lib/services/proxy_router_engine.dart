@@ -230,13 +230,15 @@ class ProxyRouterEngine {
     // switching back restores it (PROXY-010). Encoding that leftover address
     // would route a Tor site through an unrelated proxy in clear, so expand
     // TOR into the loopback SOCKS5 endpoint the runtime is actually serving,
-    // carrying this site's isolation tag as the SOCKS username. A null
-    // expansion means the runtime is not up: drop the route and let the
-    // relay answer 502 rather than send the site anywhere else (TOR-008).
+    // carrying this site's isolation tag as the SOCKS username. While the
+    // runtime is not up, drop the route and let the relay answer 502 rather
+    // than send the site anywhere else (TOR-008).
     if (proxy.type == ProxyType.TOR) {
-      final expanded = expandTorProxy(proxy);
-      if (expanded == null) return null;
-      return _encodeUpstream(ProxyRoute(siteId: route.siteId, upstream: expanded));
+      return switch (expandTorProxy(proxy)) {
+        TorRouteUp(:final socks) =>
+          _encodeUpstream(ProxyRoute(siteId: route.siteId, upstream: socks)),
+        TorRouteBlocked() => null,
+      };
     }
     // Same leftover-address hazard as TOR: an unresolved library route still
     // holds the manual address the site had before, which is not its route.

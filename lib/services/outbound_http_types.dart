@@ -11,6 +11,9 @@ import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 
+export 'package:webspace/services/tor_engine.dart'
+    show TorRoute, TorRouteUp, TorRouteBlocked;
+
 /// Resolve the effective proxy for a per-site outbound call.
 ///
 /// When the per-site [ProxyType] is [ProxyType.DEFAULT], the call falls
@@ -93,9 +96,9 @@ UserProxySettings _torTagged(UserProxySettings s, {required String? siteId}) {
   return (host: host, port: port);
 }
 
-/// Expands a tagged [ProxyType.TOR] into live SOCKS5 settings, or returns
-/// null when the runtime is not up.
-typedef TorProxyResolver = UserProxySettings? Function(String isolationTag);
+/// Expands a tagged [ProxyType.TOR] into live SOCKS5 settings, or says why
+/// the runtime is not up.
+typedef TorProxyResolver = TorRoute Function(String isolationTag);
 
 /// Installed once at startup from `TorService`. Left null, every TOR request
 /// blocks — which is the correct default: a missing resolver must never mean
@@ -103,13 +106,17 @@ typedef TorProxyResolver = UserProxySettings? Function(String isolationTag);
 TorProxyResolver? torProxyResolver;
 
 /// Shared TOR expansion for both outbound seams (Dart HTTP and the native
-/// webview). Null means block.
-UserProxySettings? expandTorProxy(UserProxySettings settings) {
-  if (settings.type != ProxyType.TOR) return settings;
+/// webview). Anything but [TorRouteUp] means block.
+TorRoute expandTorProxy(UserProxySettings settings) {
+  assert(settings.type == ProxyType.TOR, 'only a TOR setting expands');
   final tag = (settings.username == null || settings.username!.isEmpty)
       ? kTorAppGlobalTag
       : settings.username!;
-  return torProxyResolver?.call(tag);
+  final resolver = torProxyResolver;
+  if (resolver == null) {
+    return const TorRouteBlocked('Tor is not set up yet in this launch.');
+  }
+  return resolver(tag);
 }
 
 /// Result of asking the [OutboundHttpFactory] to build a client honoring a

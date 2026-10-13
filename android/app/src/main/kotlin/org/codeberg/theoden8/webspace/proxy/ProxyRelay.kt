@@ -27,7 +27,9 @@ import javax.net.ssl.SSLSocketFactory
  * upstream configured for that connection, and for an HTTPS upstream only
  * past a handshake that verified that upstream's certificate identity
  * (see [startTls]). If the upstream is unreachable, untrusted, or rejects
- * auth, the client gets a `502` and the connection closes. There is no
+ * auth, the client gets a `502` and the connection closes; a CONNECT through
+ * SOCKS5 has been answered before the upstream was asked, so it is only
+ * closed. Either way nothing is written anywhere else. There is no
  * fallback path of any kind, so a failed proxy cannot leak the IP — not
  * even in router mode, where a *different* connection may legitimately be
  * routed [UpstreamType.DIRECT] because its own site has no proxy set.
@@ -432,6 +434,14 @@ class ProxyRelay(
         }
 
         log("upstream connecting via ${cfg.type} ${cfg.host}:${cfg.port} for ${if (isConnect) "CONNECT" else method} $host:$hostPort")
+        // A CONNECT through SOCKS5 is answered before the upstream is reached.
+        // Chromium on Android gives a proxy tunnel 10 s and the TLS handshake
+        // after it 30 s, and tor attaching a stream to a fresh circuit takes
+        // longer than the first. What the client sends meanwhile waits in the
+        // socket until the splice reads it; a failure closes the connection,
+        // so nothing leaves except through the upstream.
+        val establishedEarly = isConnect && cfg.type == UpstreamType.SOCKS5
+        if (establishedEarly) writeEstablished(cout)
         val upstream: Socket = try {
             when (cfg.type) {
                 UpstreamType.DIRECT -> openDirect(host, hostPort)
@@ -440,8 +450,9 @@ class ProxyRelay(
                     openViaHttpProxy(cfg, host, hostPort, isConnect)
             }
         } catch (e: Exception) {
-            log("upstream connect FAILED for $host:$hostPort via ${cfg.type}: ${e.javaClass.simpleName}: ${e.message} — sending 502")
-            writeStatus(cout, 502, "Bad Gateway")
+            val answer = if (establishedEarly) "closing the tunnel" else "sending 502"
+            log("upstream connect FAILED for $host:$hostPort via ${cfg.type}: ${e.javaClass.simpleName}: ${e.message} — $answer")
+            if (!establishedEarly) writeStatus(cout, 502, "Bad Gateway")
             return
         }
         log("upstream connected for $host:$hostPort")
@@ -450,8 +461,7 @@ class ProxyRelay(
             if (isConnect) {
                 // Tunnel established at the upstream; tell the WebView the
                 // CONNECT succeeded and splice raw bytes both ways.
-                cout.write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
-                cout.flush()
+                if (!establishedEarly) writeEstablished(cout)
             } else {
                 // Forward mode: replay the (rewritten) request preamble to
                 // the upstream, then splice. SOCKS gives an origin tunnel
@@ -535,6 +545,9 @@ class ProxyRelay(
         out.write(req)
         out.flush()
 
+        // The reply waits on the upstream reaching the destination, which
+        // for tor includes building or retrying a circuit.
+        s.soTimeout = SOCKS_CONNECT_REPLY_TIMEOUT_MS
         val reply = ByteArray(4)
         readFully(ins, reply)
         if (reply[1].toInt() != 0x00) throw IllegalStateException("socks connect failed rep=${reply[1].toInt()}")
@@ -765,6 +778,11 @@ class ProxyRelay(
         }
     }
 
+    private fun writeEstablished(out: OutputStream) {
+        out.write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
+        out.flush()
+    }
+
     private fun writeStatus(out: OutputStream, code: Int, reason: String) {
         runCatching {
             out.write("HTTP/1.1 $code $reason\r\nConnection: close\r\n\r\n".toByteArray(Charsets.ISO_8859_1))
@@ -871,6 +889,11 @@ class ProxyRelay(
 
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val HANDSHAKE_TIMEOUT_MS = 20_000
+
+        /** Chromium's TLS handshake allowance (`kSSLHandshakeTimeout`), which
+         *  an early-answered CONNECT spends waiting on this reply: longer
+         *  holds a thread for a connection nobody reads. */
+        private const val SOCKS_CONNECT_REPLY_TIMEOUT_MS = 30_000
         private const val MAX_PREAMBLE = 64 * 1024
         private val REALM_ALPHABET = ('a'..'f') + ('0'..'9')
 

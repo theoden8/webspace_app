@@ -49,6 +49,11 @@ class ExternalTorRuntime implements TorRuntime {
   @override
   bool get isAvailable => true;
 
+  /// A start is one probe of the listener, and the user may have started
+  /// that tor since the last one.
+  @override
+  bool get retriesFreely => true;
+
   @override
   Stream<TorStatus> get events => _events.stream;
 
