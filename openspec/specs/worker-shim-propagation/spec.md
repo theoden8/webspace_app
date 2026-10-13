@@ -391,6 +391,51 @@ and posts a message to it
 **Then** the page's handler receives it
 **And** nothing is rebuilt
 
+### Requirement: WORK-009 - A wrapped worker keeps its own URL
+
+A wrapped worker starts from a `blob:` URL, which becomes its own URL and the
+base its relative URLs resolve against. A `blob:` URL cannot be a base for a
+path, so without a fix every relative URL the site's script uses fails:
+`importScripts('lib.js')` throws, `fetch('data.json')` rejects, and webpack's
+chunk path, derived from `self.location`, names nothing. WORK-001 made the
+constructor's specifier absolute; the URLs inside the worker are this
+requirement's.
+
+The wrapper SHALL, before it imports the shim or the original script, make the
+worker report and resolve against the original script's absolute URL:
+`self.location` and its fields, and the URL argument of `importScripts`,
+`fetch`, `Request`, `XMLHttpRequest.prototype.open`, `Worker` and
+`SharedWorker`. The fix SHALL travel in the wrapper itself, not the shim
+payload, so a CSP that refuses the shim's import still leaves the site's worker
+working (WORK-006). What it replaces SHALL read as the engine's own once the
+payload loads: same `toString`, `name` and `length`, `location` with no own
+properties, `Request.prototype.constructor === Request`.
+
+History: [BUG-032](../../../docs/bugs/032-wrapped-worker-relative-urls.md).
+
+#### Scenario: A wrapped worker loads relative URLs
+
+**Given** a site with an active per-site shim, and a classic, module or shared
+worker at `https://<origin>/w.js`
+**When** the worker reads `self.location.href` and loads `lib.js` and
+`data.json` through `importScripts`, `fetch`, `Request` and `XMLHttpRequest`
+**Then** it reads `https://<origin>/w.js`
+**And** every load reaches `https://<origin>/<file>`, as in an unwrapped worker
+
+#### Scenario: A worker it spawns from a relative URL is wrapped too
+
+**Given** a wrapped worker
+**When** it calls `new Worker('leaf.js')`
+**Then** the leaf starts from `https://<origin>/leaf.js`, wrapped
+**And** reads that URL as its own
+
+#### Scenario: A refused shim import keeps the fix
+
+**Given** a page whose `worker-src` admits `blob:` and whose `script-src` does not
+**When** a worker's shim import is refused
+**Then** the worker runs unshimmed
+**And** its relative URLs resolve as in an unwrapped worker
+
 ---
 
 ## Limitations
@@ -408,6 +453,10 @@ and posts a message to it
   so a module worker cannot learn its own URL.
 - **Service workers.** Out of reach: `ServiceWorkerContainer.register()` rejects
   `blob:` script URLs.
+- **Loaders WORK-009 leaves alone.** `EventSource` and `WebSocket` (each a
+  constructor with static constants a stand-in would have to carry),
+  `Response.redirect` and Cache API keys still resolve a relative URL against
+  the `blob:` base.
 - **Non-JS-observable axes.** Engine math ULPs, API-shape key counts, and
   system-font tells identify the real engine in a worker exactly as they do on
   the page; no shim addresses those (see `tracking-protection`).
@@ -430,3 +479,5 @@ and posts a message to it
   executed in a simulated `WorkerGlobalScope` via `node:vm`
 - `test/browser/worker_realm_escape.test.js` — realm coverage, the CSP
   branches, and the WORK-008 window under a real engine
+- `test/browser/worker_base_url.test.js` — WORK-009: each worker kind wrapped
+  against unwrapped, under a real engine
