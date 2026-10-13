@@ -222,6 +222,16 @@ SharedPreferences and gives each test a deterministic starting state.
   prefs, `test/app_prefs_test.dart`)
 - **And** the test does not pollute SharedPreferences across runs
 
+#### Scenario: Orphan sweeps are skipped
+
+- **Given** `isDemoMode = true` and a site list that is not the user's (a
+  seed, or a test's own sites) on a host whose storage the installed app
+  shares (a Mac, a physical device)
+- **When** the app starts, or a site is deleted or imported
+- **Then** `PageOrphanSweep` sweeps nothing: no container, cookie, secret,
+  cache or icon of a site outside that list is deleted
+  (`test/demo_mode_test.dart`)
+
 #### Scenario: Initial state seeded for the test
 
 - **Given** the test pre-seeds

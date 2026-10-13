@@ -6,6 +6,14 @@ import 'package:webspace/settings/demo_mode.dart';
 import 'package:webspace/services/cookie_secure_storage.dart';
 import 'helpers/mock_secure_storage.dart';
 import 'package:webspace/services/cookie_manager.dart';
+import 'package:webspace/controllers/page_orphan_sweep.dart';
+import 'package:webspace/controllers/site_runtime.dart';
+import 'package:webspace/services/container_isolation_engine.dart';
+import 'package:webspace/services/container_native.dart';
+import 'package:webspace/services/proxy_password_secure_storage.dart';
+import 'package:webspace/services/webview_state_storage.dart';
+import 'helpers/mock_container_native.dart';
+import 'helpers/mock_cookie_manager.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -151,6 +159,57 @@ void main() {
       // Both cookies should still be there
       final loaded = await cookieSecureStorage.loadCookies();
       expect(loaded.keys, contains('other'));
+    });
+  });
+
+  // A demo or test run starts the app on the user's own storage (a Mac, a
+  // physical device) with a site list that is not theirs.
+  group('Demo Mode - Orphan sweeps', () {
+    final user = SiteId('user-site');
+    final demo = SiteId('demo-site');
+    late MockContainerNative native;
+    late ProxyPasswordSecureStorage proxyPasswords;
+    late PageOrphanSweep sweep;
+
+    setUp(() async {
+      SharedPreferences.setMockInitialValues({});
+      native = MockContainerNative();
+      final containers = ContainerIsolationEngine(containerNative: native);
+      await containers.ensureContainer(ContainerKey.ofSite(user));
+      proxyPasswords = ProxyPasswordSecureStorage(
+          secureStorage: MockFlutterSecureStorage());
+      await proxyPasswords.savePassword(ProxyPasswordKey.site(user),
+          password: 'hunter2');
+      sweep = PageOrphanSweep(
+        SiteRuntime(),
+        cookieStore:
+            CookieSecureStorage(secureStorage: MockFlutterSecureStorage()),
+        proxyPasswords: proxyPasswords,
+        navStates: InMemoryWebViewStateStorage(),
+        cookies: MockCookieManager(),
+        containers: containers,
+      );
+    });
+
+    test('a seeded site list deletes nothing the user\'s sites keep',
+        () async {
+      isDemoMode = true;
+      await sweep.containersBeforeBind({ContainerKey.ofSite(demo)},
+          nonIncognito: {ContainerKey.ofSite(demo)});
+      await sweep.atLaunch({demo}, nonIncognitoSiteIds: {demo});
+      await sweep.afterRemoval();
+
+      expect(native.profiles.keys, contains(user));
+      expect(await proxyPasswords.loadPassword(ProxyPasswordKey.site(user)),
+          'hunter2');
+    });
+
+    test('outside demo mode the same launch sweep reclaims the container',
+        () async {
+      await sweep.containersBeforeBind({ContainerKey.ofSite(demo)},
+          nonIncognito: {ContainerKey.ofSite(demo)});
+
+      expect(native.profiles.keys, isNot(contains(user)));
     });
   });
 
