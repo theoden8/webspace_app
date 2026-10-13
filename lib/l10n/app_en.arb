@@ -1576,13 +1576,13 @@
   "@appSettingsExperimentalTextureRenderingHint": {
     "description": "Explanation behind the hint button of the Android-only Texture page rendering switch in the Experimental group of App Settings: what the mode does, what problem it may fix, what is less tested, and that it applies after a restart."
   },
-  "appSettingsExperimentalExternalTor": "Tor (external)",
-  "@appSettingsExperimentalExternalTor": {
-    "description": "Title of the switch in App settings > Developer > Experimental that sends sites set to Tor through a Tor program already running on the device (for example the Orbot app, or the tor service on Linux) instead of one inside this app. While it is on, also the name of the Tor choice in proxy pickers and in the summaries that name a site's route, to tell it from the Tor built into the app. Tor is a product name; keep it."
+  "externalTor": "Tor (external)",
+  "@externalTor": {
+    "description": "Title of the switch in App settings > Network, under the Tor heading, that sends sites set to Tor through a Tor program already running on the device (for example the Orbot app, or the tor service on Linux) instead of one inside this app. While it is on, also the name of the Tor choice in proxy pickers and in the summaries that name a site's route, to tell it from the Tor built into the app. Tor is a product name; keep it."
   },
-  "appSettingsExperimentalExternalTorHint": "Sends sites set to Tor through a tor already running on this device, such as Orbot, InviZible, Arti or the tor service; on macOS it replaces the built-in Tor. Each site gives that tor its own SOCKS username and password, so a tor with IsolateSOCKSAuth, which is on unless its SocksPort says NoIsolateSOCKSAuth, keeps each site on circuits of its own. Exit countries, bridges and new circuits are set in that tor.",
-  "@appSettingsExperimentalExternalTorHint": {
-    "description": "Explanation behind the hint button of the Tor (external) switch in App settings > Developer > Experimental. Orbot and InviZible are Android apps and Arti is Tor's Rust implementation; Tor, SOCKS, SocksPort, IsolateSOCKSAuth and NoIsolateSOCKSAuth are names from Tor's configuration and must stay as written. A circuit is Tor's path through the network."
+  "externalTorHint": "Sends sites set to Tor through a tor already running on this device, such as Orbot, InviZible, Arti or the tor service; on macOS it replaces the built-in Tor. Each site gives that tor its own SOCKS username and password, so a tor with IsolateSOCKSAuth, which is on unless its SocksPort says NoIsolateSOCKSAuth, keeps each site on circuits of its own. Exit countries, bridges and new circuits are set in that tor.",
+  "@externalTorHint": {
+    "description": "Explanation behind the hint button of the Tor (external) switch in App settings > Network. Orbot and InviZible are Android apps and Arti is Tor's Rust implementation; Tor, SOCKS, SocksPort, IsolateSOCKSAuth and NoIsolateSOCKSAuth are names from Tor's configuration and must stay as written. A circuit is Tor's path through the network."
   },
   "externalTorAddress": "Tor SOCKS address",
   "@externalTorAddress": {
@@ -4348,7 +4348,7 @@
   },
   "torStatusTitle": "Tor",
   "@torStatusTitle": {
-    "description": "Title of the Tor status card in App Settings."
+    "description": "Title of the Tor status card and the Tor status screen in App Settings, and the heading of the Tor group in App settings > Network that holds the Tor (external) switch. Tor is a product name; keep it."
   },
   "torStatusHint": "Shows whether the embedded Tor client is running and connected. Sites set to the TOR proxy type wait for this to be connected before they load; they never fall back to a direct connection.",
   "@torStatusHint": {

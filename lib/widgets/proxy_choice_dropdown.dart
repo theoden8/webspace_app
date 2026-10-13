@@ -88,7 +88,7 @@ String libraryRouteLabel(AppLocalizations loc,
 /// the other. [external] defaults to the running service.
 String torRouteLabel(AppLocalizations loc, {bool? external}) =>
     (external ?? TorService.instance.isExternal)
-        ? loc.appSettingsExperimentalExternalTor
+        ? loc.externalTor
         : ProxyType.TOR.name;
 
 /// A route as data (LOC-002): the type name and the address.

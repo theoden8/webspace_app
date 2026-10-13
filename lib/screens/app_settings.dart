@@ -34,8 +34,8 @@ class AppSettingsScreen extends StatefulWidget {
   final bool proxyRouterRunsHere;
 
   /// Whether Tor sites can use a tor already running on this device, so the
-  /// Experimental group lists Tor (external) (TOR-025). Passed in so the
-  /// design gallery, which runs on web, can show it.
+  /// Network screen lists Tor (external) (TOR-025). Passed in so the design
+  /// gallery, which runs on web, can show it.
   final bool externalTorRunsHere;
   final Function(AppThemeSettings) onSettingsChanged;
   final VoidCallback onExportSettings;
@@ -290,6 +290,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               onOutboundProxyChanged: widget.onOutboundProxyChanged,
               siteProxies: widget.siteProxies,
               onSavedProxiesChanged: widget.onSavedProxiesChanged,
+              externalTorRunsHere: widget.externalTorRunsHere,
             )),
           ),
           SummaryNavRow(
@@ -340,7 +341,6 @@ class _AppSettingsScreenState extends State<AppSettingsScreen>
               ),
               onTap: () => _open(AppDeveloperScreen(
                 proxyRouterRunsHere: widget.proxyRouterRunsHere,
-                externalTorRunsHere: widget.externalTorRunsHere,
               )),
             )
           else

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
-import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/outbound_http_types.dart'
     show splitProxyAddress;
 import 'package:webspace/services/tor_service.dart';
@@ -9,8 +8,8 @@ import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
-/// The Tor (external) switch of the Experimental group and, while it is on,
-/// the SOCKS address of the tor it names (TOR-025).
+/// The Tor (external) switch of App Settings' Network screen and, while it
+/// is on, the SOCKS address of the tor it names (TOR-025).
 class ExternalTorTiles extends StatefulWidget {
   const ExternalTorTiles({super.key, this.onTorChanged});
 
@@ -23,13 +22,11 @@ class ExternalTorTiles extends StatefulWidget {
 }
 
 class _ExternalTorTilesState extends State<ExternalTorTiles> {
-  bool _switch = ExperimentalFeaturesService.instance
-      .switchOn(ExperimentalFeature.externalTor);
+  bool _switch = AppPref.externalTor.value;
   String _address = ExternalTorSettings.address;
 
   Future<void> _setSwitch(bool value) async {
-    await ExperimentalFeaturesService.instance
-        .setSwitch(ExperimentalFeature.externalTor, on: value);
+    await AppPref.externalTor.set(value);
     if (!mounted) return;
     setState(() => _switch = value);
     await TorService.instance.runtimeChoiceChanged();
@@ -56,8 +53,8 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
       children: [
         SettingTile(
           leading: const Icon(Icons.security_outlined),
-          title: loc.appSettingsExperimentalExternalTor,
-          hint: loc.appSettingsExperimentalExternalTorHint,
+          title: loc.externalTor,
+          hint: loc.externalTorHint,
           control: Toggle(_switch, onChanged: _setSwitch),
         ),
         if (_switch)

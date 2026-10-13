@@ -96,8 +96,8 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
           if (external)
             SettingTile(
               leading: const Icon(Icons.lan_outlined),
-              title: loc.appSettingsExperimentalExternalTor,
-              hint: loc.appSettingsExperimentalExternalTorHint,
+              title: loc.externalTor,
+              hint: loc.externalTorHint,
               subtitle: externalAddress,
             ),
           if (!external) ...[

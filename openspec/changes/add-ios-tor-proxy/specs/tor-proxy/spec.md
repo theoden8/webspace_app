@@ -1458,19 +1458,26 @@ the embedded runtime: Orbot or InviZible on Android, the tor service or Arti
 on Linux and macOS, where on macOS it stands in for the built-in tor. Orbot
 (`TorConfig.kt`), InviZible (its shipped `tor.conf`) and the tor service
 listen on `127.0.0.1:9050` and Arti on `127.0.0.1:9150`, and none of them
-turns `IsolateSOCKSAuth` off by default. It is an experimental feature
-(DEVTOOLS-011): the **Tor (external)** switch, off by default, listed on
-Android, Linux and macOS and not on iOS, where no other app exposes a SOCKS
-port this one can dial. The tor's address, `externalTorAddress`
-(`host:port`, default `127.0.0.1:9050`), is a user-facing global pref in
-`AppPref`, edited under the switch while it is on.
+turns `IsolateSOCKSAuth` off by default. The **Tor (external)** switch, off
+by default, is under the Tor heading of App settings' Network screen, listed
+on Android, Linux and macOS and not on iOS, where no other app exposes a
+SOCKS port this one can dial. The switch (`AppPref.externalTor`, stored
+under `experimentalExternalTor`, the key it shipped under) and the tor's
+address, `externalTorAddress` (`host:port`, default `127.0.0.1:9050`), are
+user-facing global prefs in `AppPref`; the address is edited under the
+switch while it is on. `ExternalTorSettings.chosen` is the one reader.
+
+**No developer mode, no experimental switch.** Tor (external) began in the
+Experimental group (DEVTOOLS-011), reachable only with developer mode on. It
+graduated: developer mode has no effect on which tor runs, and a switch
+turned on while developer mode was on stays on with developer mode off.
 
 - **One tor at a time, switched in place.** `TorService` SHALL keep one
   engine per runtime and route every Tor-bound connection through the one
   the switch names (`TorService.wantsExternal`), so on macOS the switch
   picks between the two and never runs traffic through both. Flipping the
-  switch, or developer mode, or importing settings that change either,
-  SHALL take effect without a relaunch (`runtimeChoiceChanged`): the
+  switch, or importing settings that change it, SHALL take effect without
+  a relaunch (`runtimeChoiceChanged`): the
   holders move to the tor now named, the exit pin last asked for is asked
   of it, and its status is published, which rebinds every Tor-bound site
   and re-installs the router's routes. The embedded tor runs at most once
@@ -1589,8 +1596,22 @@ port this one can dial. The tor's address, `externalTorAddress`
 - **THEN** the Tor entry reads "Tor (external)"
 - **AND** with the switch off it reads `TOR` again
 
+#### Scenario: Offered with developer mode off
+
+- **GIVEN** an Android build with developer mode off
+- **WHEN** the user opens App settings' Network screen
+- **THEN** it lists the Tor (external) switch, off
+- **AND** turning it on moves Tor to the external tor without a relaunch
+
+#### Scenario: Developer mode does not choose the tor
+
+- **GIVEN** Tor (external) is on, with developer mode on
+- **WHEN** the user turns developer mode off
+- **THEN** Tor stays on the external tor
+- **AND** the Experimental group never lists Tor (external)
+
 #### Scenario: Not on iOS
 
-- **GIVEN** an iOS build with developer mode on
-- **WHEN** the user opens App settings
-- **THEN** the Experimental group lists no Tor (external) switch
+- **GIVEN** an iOS build
+- **WHEN** the user opens App settings' Network screen
+- **THEN** it lists no Tor (external) switch

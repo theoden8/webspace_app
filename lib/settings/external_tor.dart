@@ -13,15 +13,20 @@ bool get externalTorRunsHere =>
         defaultTargetPlatform == TargetPlatform.linux ||
         defaultTargetPlatform == TargetPlatform.macOS);
 
-/// Where the external tor's SOCKS port listens, as `host:port` (TOR-025),
-/// for the runtime's synchronous read.
+/// The Tor (external) switch and the SOCKS address of the tor it names, as
+/// `host:port` (TOR-025), for the runtime's synchronous reads.
 class ExternalTorSettings {
   ExternalTorSettings._();
+
+  /// Whether Tor sites ride the external tor rather than the built-in one.
+  static bool get chosen => externalTorRunsHere && AppPref.externalTor.value;
 
   static String get address => AppPref.externalTorAddress.value;
 
   static Future<void> initialize() async {
-    AppPref.externalTorAddress.load(await SharedPreferences.getInstance());
+    final prefs = await SharedPreferences.getInstance();
+    AppPref.externalTor.load(prefs);
+    AppPref.externalTorAddress.load(prefs);
   }
 
   static Future<void> setAddress(String value) =>
