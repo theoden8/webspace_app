@@ -211,7 +211,7 @@
     "showUrlBar": true,
     "showTabStrip": true,
     "tabStripInFullscreen": true,
-    "tabStripOnTop": true,
+    "tabStripEdge": "top",
     "tabBarButton": true,
     "tabBarButtonOnRight": false,
     "fullscreenOnShortcut": false,

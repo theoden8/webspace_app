@@ -152,20 +152,21 @@ void main() {
 
   testWidgets('the tab strip edge is picked once the strip can show',
       (tester) async {
+    AppPref.tabStripEdge.debugValue = 'bottom';
     await tester.pumpWidget(app(settings()));
     await tester.pumpAndSettle();
     await openRow(tester, title: 'Behaviour');
 
     await tester.tap(find.byTooltip('Top'));
     await tester.pumpAndSettle();
-    expect(AppPref.tabStripOnTop.value, isFalse,
+    expect(AppPref.tabStripEdge.value, 'bottom',
         reason: 'a hidden strip has no edge to pick');
 
     await tester.tap(find.byTooltip('Always visible'));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Top'));
     await tester.pumpAndSettle();
-    expect(AppPref.tabStripOnTop.value, isTrue);
+    expect(AppPref.tabStripEdge.value, 'top');
   });
 
   testWidgets('Network and Privacy say what every site gets', (tester) async {

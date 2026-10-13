@@ -186,11 +186,11 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
             ),
           _row(
             Text(loc.appSettingsTabStripPosition),
-            trailing: _picker(
+            trailing: _picker<TabStripEdge>(
               [for (final e in TabStripEdge.values) e.segment(loc)],
               selected: TabStripEdge.current,
               onChanged: _tabStripCanShow
-                  ? (edge) => AppPref.tabStripOnTop.set(edge == TabStripEdge.top)
+                  ? (edge) => AppPref.tabStripEdge.set(edge.name)
                   : null,
             ),
           ),

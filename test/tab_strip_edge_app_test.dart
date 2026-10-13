@@ -7,16 +7,34 @@ import 'package:webspace/widgets/tab_bar_corner_button.dart';
 
 import 'helpers/real_app.dart';
 
-/// FS-012: the tab strip runs along the edge the user picked, with the page
-/// between it and the other edge.
+/// FS-012: the tab strip runs along the edge the user picked, else the
+/// platform's, with the page between it and the other edge.
 void main() {
+  group('TabStripEdge.of', () {
+    test('top on a desktop, bottom elsewhere, until the user picks', () {
+      expect(TabStripEdge.of('', desktop: true), TabStripEdge.top);
+      expect(TabStripEdge.of('', desktop: false), TabStripEdge.bottom);
+    });
+
+    test('a choice holds on every platform', () {
+      for (final desktop in [true, false]) {
+        expect(TabStripEdge.of('top', desktop: desktop), TabStripEdge.top);
+        expect(TabStripEdge.of('bottom', desktop: desktop), TabStripEdge.bottom);
+      }
+    });
+
+    test('a value no edge is named reads as no choice', () {
+      expect(TabStripEdge.of('left', desktop: false), TabStripEdge.bottom);
+    });
+  });
+
   for (final onTop in [true, false]) {
     testWidgets('a pinned strip set to the ${onTop ? 'top' : 'bottom'} '
         'sits there, the page beside it', (tester) async {
       await pumpRealApp(
         tester,
         sites: [WebViewModel(initUrl: 'https://example.test', name: 'Site')],
-        prefs: {'showTabStrip': true, 'tabStripOnTop': onTop},
+        prefs: {'showTabStrip': true, 'tabStripEdge': onTop ? 'top' : 'bottom'},
       );
       await openWebspace(tester, name: 'All');
       await openSiteFromDrawer(tester, name: 'Site');
@@ -43,7 +61,7 @@ void main() {
         WebViewModel(
             initUrl: 'https://example.test', name: 'Site', fullscreenMode: true),
       ],
-      prefs: {'tabBarButton': true, 'tabStripOnTop': true, 'showUrlBar': true},
+      prefs: {'tabBarButton': true, 'tabStripEdge': 'top', 'showUrlBar': true},
     );
     await openWebspace(tester, name: 'All');
     await openSiteFromDrawer(tester, name: 'Site');
