@@ -94,6 +94,7 @@ void main() {
       await enterFullscreenOn(tester, prefs: {
         'showTabStrip': true,
         'tabStripInFullscreen': true,
+        'tabStripEdge': 'bottom',
       });
       expect(find.byTooltip('Open navigation menu'), findsNothing,
           reason: 'the site opened in full screen');

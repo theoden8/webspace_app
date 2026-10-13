@@ -18,9 +18,9 @@ enum SiteMenuAction {
   addToHome,
 }
 
-/// Where a site's overflow menu sits: the app bar, or the bottom bar while
-/// the tab strip is on.
-enum SiteMenuPlacement { appBar, bottomBar }
+/// Where a site's overflow menu sits: the app bar, or the end of the tab
+/// strip while the strip is on.
+enum SiteMenuPlacement { appBar, tabStrip }
 
 /// What the menu shows for the site on screen, read when it opens.
 typedef SiteMenuState = ({
@@ -64,7 +64,7 @@ class SiteMenuButton extends StatelessWidget {
             itemBuilder: _items,
             onSelected: onSelected,
           ),
-        SiteMenuPlacement.bottomBar => PopupMenuButton<SiteMenuAction>(
+        SiteMenuPlacement.tabStrip => PopupMenuButton<SiteMenuAction>(
             icon: Icon(Icons.more_vert, size: 20),
             padding: EdgeInsets.zero,
             tooltip: AppLocalizations.of(context).homeMenuTooltip,
@@ -105,7 +105,7 @@ class SiteMenuButton extends StatelessWidget {
         SiteMenuAction.newTab =>
           state.tabsOn ? (Icons.add, loc.tabsNewTab) : null,
         SiteMenuAction.backToWebspaces =>
-          placement == SiteMenuPlacement.bottomBar
+          placement == SiteMenuPlacement.tabStrip
               ? (Icons.arrow_back, loc.homeBackToWebspaces)
               : null,
         SiteMenuAction.search => (Icons.search, loc.homeFindMenu),

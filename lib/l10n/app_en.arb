@@ -911,7 +911,7 @@
   },
   "appSettingsGroupTabStrip": "Tab strip",
   "@appSettingsGroupTabStrip": {
-    "description": "Heading on the app Behaviour screen over the settings for the strip of site tabs shown above the page: whether it shows, in full screen, and how wide a tab can be."
+    "description": "Heading on the app Behaviour screen over the settings for the strip of site tabs shown along the top or bottom of the page: whether it shows, in full screen, which edge it runs along, and how wide a tab can be."
   },
   "appSettingsGroupOpening": "Opening and navigation",
   "@appSettingsGroupOpening": {
@@ -929,9 +929,9 @@
   "@appSettingsSiteTabStrip": {
     "description": "Toggle title for showing the site tab strip"
   },
-  "appSettingsSiteTabStripSubtitle": "Show a tab bar with all sites at the top",
+  "appSettingsSiteTabStripSubtitle": "Show a tab bar with all sites",
   "@appSettingsSiteTabStripSubtitle": {
-    "description": "Subtitle for the site tab strip toggle"
+    "description": "Explanation behind the hint button of the site tab strip setting. The bar sits at the top or the bottom of the screen, a separate setting, so this text names no edge."
   },
   "appSettingsFullscreenOnShortcut": "Full screen on shortcut launch",
   "@appSettingsFullscreenOnShortcut": {
@@ -968,6 +968,18 @@
   "appSettingsFullscreenTabStripButton": "Reveal with button",
   "@appSettingsFullscreenTabStripButton": {
     "description": "Option: keep the tab strip hidden but show a small floating button that reveals it (and its menu) on demand, in and out of full screen"
+  },
+  "appSettingsTabStripPosition": "Position",
+  "@appSettingsTabStripPosition": {
+    "description": "Label on the app Behaviour screen, under the Tab strip heading, for the choice of which screen edge the strip of site tabs runs along. Followed by two icon buttons, Top and Bottom."
+  },
+  "appSettingsTabStripPositionTop": "Top",
+  "@appSettingsTabStripPositionTop": {
+    "description": "Tooltip of an icon button. Option: the strip of site tabs runs along the top of the screen, under the app bar."
+  },
+  "appSettingsTabStripPositionBottom": "Bottom",
+  "@appSettingsTabStripPositionBottom": {
+    "description": "Tooltip of an icon button. Option: the strip of site tabs runs along the bottom of the screen."
   },
   "appSettingsTabMaxWidth": "Tab Width Limit",
   "@appSettingsTabMaxWidth": {

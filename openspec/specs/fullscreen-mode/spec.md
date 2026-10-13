@@ -150,7 +150,7 @@ The system SHALL support a global option to keep the site tab strip visible in f
 **And** "Keep Tab Strip in Full Screen" is enabled
 **When** the user enters full screen mode
 **Then** the app bar, URL bar, find toolbar, and system UI are hidden
-**And** the tab strip remains visible at the bottom
+**And** the tab strip remains visible at its edge (FS-012)
 
 #### Scenario: Tab strip hidden in full screen (default)
 
@@ -271,7 +271,7 @@ The system SHALL keep the tab strip and the tab-bar button usable while the user
 The site tab strip's presentation SHALL be a single mutually-exclusive choice, not independent toggles, because the floating button is simply the on-demand presentation of the same strip:
 
 - **Hidden** — no tab strip and no button.
-- **Always visible** — the strip is pinned at the bottom. Its full-screen behavior is a sub-choice ("Keep Tab Strip in Full Screen", FS-007).
+- **Always visible** — the strip is pinned at its edge (FS-012). Its full-screen behavior is a sub-choice ("Keep Tab Strip in Full Screen", FS-007).
 - **Button** — the strip is hidden, and a small floating button reveals it (together with its overflow menu) on demand. The button works both in and out of full screen, so the user reaches tabs and the menu without pinning the strip. Its corner (any of the four) is chosen by dragging the button itself — either immediately (press-and-move) or after a long-press hold: while dragging it follows the finger freely, and on release it glides (animated, not teleported) to the nearest corner. The corner is remembered **per site** (`WebViewModel.tabBarButtonCorner`, riding the site's JSON like any per-site setting), so each site can keep the button out of the way of its own controls. A site that was never dragged falls back to the legacy app-wide `tabBarButtonOnRight` preference mapped to the matching bottom corner (kept read-only for migration; there is no settings control for the corner).
 
 Selecting Hidden or Button clears the "Keep Tab Strip in Full Screen" sub-choice (it only applies to a pinned strip). The "Keep Tab Strip in Full Screen" control is shown only for the pinned mode it belongs to; the button's corner has no settings control (it is placed by dragging the button itself).
@@ -347,6 +347,58 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 
 ---
 
+### Requirement: FS-012 - Tab Strip Edge (Top / Bottom)
+
+The site tab strip SHALL run along the top or the bottom edge of the screen, a global choice offered on every platform. Until the user picks one it follows the platform: the top on macOS, Linux and Windows, where desktop browsers keep their tabs, and the bottom on Android and iOS, within a thumb's reach. Only a choice the user made is stored, so a backup restored on another kind of device keeps that device's default unless the user picked an edge. The choice is one setting for every presentation of the strip: pinned (FS-009), kept in full screen (FS-007), and revealed by the tab-bar button (FS-009).
+
+- **Top** — out of full screen the strip sits under the app bar, above the page; in full screen (no app bar) it sits at the top of the body, below any system bar that persists or that the user revealed (FS-006, FS-011). The URL bar and find toolbar stay at the bottom.
+- **Bottom** — the strip sits along the bottom of the screen, below the URL bar, and hides while the keyboard is open.
+
+The page sits between the strip and the opposite edge, and moving the strip or showing and hiding it never rebuilds a site's webview: navigation history and scroll position survive.
+
+The control is shown in App Settings > Behaviour under "Tab strip" and is inactive while the strip is Hidden, where it has no strip to place.
+
+#### Scenario: Strip at the top
+
+**Given** the tab strip presentation is set to Always visible
+**And** its position is set to Top
+**When** a site is on screen
+**Then** the strip sits directly under the app bar and the page below it
+
+#### Scenario: Strip at the bottom
+
+**Given** the tab strip presentation is set to Always visible
+**And** its position is set to Bottom
+**When** a site is on screen
+**Then** the strip sits along the bottom edge and the page above it
+
+#### Scenario: The default follows the platform
+
+**Given** the user never picked a position
+**Then** the strip runs along the top on macOS, Linux and Windows
+**And** along the bottom on Android and iOS
+
+#### Scenario: A backup carries only a picked edge
+
+**Given** a backup exported on a Mac where the user never picked a position
+**When** it is imported on a phone
+**Then** the strip runs along the bottom there
+
+#### Scenario: Leaving full screen with a revealed top strip keeps the page
+
+**Given** the tab strip presentation is set to Button, its position to Top, and the URL bar is on
+**And** the user revealed the strip in full screen
+**When** the user leaves full screen
+**Then** the revealed strip is dismissed and the URL bar appears
+**And** the site's webview is the same one, not rebuilt
+
+#### Scenario: No position to pick for a hidden strip
+
+**Given** the tab strip presentation is set to Hidden
+**Then** the position control is inactive
+
+---
+
 ## Implementation Details
 
 ### Data Model
@@ -361,13 +413,14 @@ The presentation is backed by two booleans, `showTabStrip` (pinned) and `tabBarB
 **_WebSpacePageState** (`lib/main.dart`):
 - `FullscreenController.active` - Current fullscreen state (not persisted; runtime only)
 - `AppPref.tabStripInFullscreen` (`lib/settings/app_prefs.dart`, default off) - Global pref under the `tabStripInFullscreen` SharedPreferences key; round-trips through settings backup
+- `AppPref.tabStripEdge` (default empty) - Global pref under the `tabStripEdge` SharedPreferences key: `top`, `bottom`, or empty to follow the platform. Read as `TabStripEdge.current` (`lib/widgets/site_tab_strip.dart`, FS-012), which resolves it through the pure `TabStripEdge.of(stored, desktop:)`; round-trips through settings backup
 - `AppPref.tabBarButton` (default off) - Global pref under the `tabBarButton` SharedPreferences key. When set, a floating button reveals the tab strip (and its overflow menu) on demand, in and out of full screen (FS-009). Read falls back to the legacy `tabBarButtonInFullscreen` key (and backup field) once on upgrade. `AppPref.tabBarButtonOnRight` is the legacy app-wide corner default, mapped to a bottom corner via `_tabBarButtonCornerEffective` only for sites whose per-site `tabBarButtonCorner` is null (still read from prefs/backups, never written by UI anymore); `bool FullscreenController.tabBarOverlayVisible` is the runtime-only flag for "the button has revealed the strip" (reset on exit-fullscreen and site switch, never persisted).
 - `AppPref.fullscreenOnShortcut` (on by default) - Global pref under the `fullscreenOnShortcut` SharedPreferences key. Both shortcut launch paths — `_openShortcutIndex` (warm) and the cold-launch restore path (`indexToRestore != null`) — route the decision through the pure `StartupRestoreEngine.shouldEnterFullscreen(viaShortcut, fullscreenOnShortcut, perSiteFullscreenMode)` policy and call `FullscreenController.enter()` when it returns true. The policy returns `perSiteFullscreenMode || (viaShortcut && fullscreenOnShortcut)`, so a normal in-app switch (`viaShortcut: false`) is never pulled into fullscreen by the global option. Covered by `test/startup_restore_engine_test.dart`.
 
 ### UI Changes
 
 - **App bar**: Hidden when `FullscreenController.active` is true (`appBar: _fullscreen.active ? null : _buildAppBar()`)
-- **Tab strip**: `_buildTabStrip()` returns null when `_fullscreen.active` unless the global `tabStripInFullscreen` pref is set (then it stays in `bottomNavigationBar` and owns the bottom safe-area inset). The `_tabStripShown` getter also renders it on demand in either mode when `_tabBarButton && FullscreenController.tabBarOverlayVisible`; the revealed strip carries an inline close button.
+- **Tab strip**: `_buildTabStrip(at:)` builds the strip for one edge and returns null unless `_tabStripEdge` (the edge it is on screen at, or null while `_tabStripShown` is false) is that edge. The bottom one sits in `bottomNavigationBar` and owns the bottom safe-area inset; the top one leads the body `Column`, above the keyed site stack, so the body `SafeArea` gives it the top inset in full screen (FS-012). `_tabStripShown` is false in full screen unless the global `tabStripInFullscreen` pref is set. The `_tabStripShown` getter also renders it on demand in either mode when `_tabBarButton && FullscreenController.tabBarOverlayVisible`; the revealed strip carries an inline close button.
 - **Tab bar button**: the `_tabBarButtonShown` getter places `TabBarCornerOverlay` (`lib/widgets/tab_bar_corner_button.dart`, a hit-test-transparent `Padding > AnimatedAlign` around `TabBarCornerButton`) in the body `Stack` inside a `Positioned.fill`, resting at the corner from `_tabBarButtonCornerEffective` (the active site's `tabBarButtonCorner`, or the legacy app-wide default mapped to a bottom corner when null). Shown when `_tabBarButton` is on, a site is loaded, the overlay is not already revealed, and the strip is not pinned for the current mode (`_showTabStrip` out of fullscreen / `_tabStripInFullscreen` in fullscreen). Tapping sets `FullscreenController.tabBarOverlayVisible = true` (FS-009). The widget recognizes both an immediate pan and a long-press drag (same callbacks; one recognizer wins per gesture); the drag tracks the finger through the overlay's runtime-only drag alignment (fractional position from `tabBarCornerDragFraction`, measured against the area the overlay fills; `AnimatedAlign` runs with `Duration.zero` while dragging so the button follows instantly). On release the overlay picks `tabBarCornerNearest` (quadrant of the drop point) and reports it through `onCornerChosen`; the page stores it on the current site's model and persists it through `_commitSites`, and the `AnimatedAlign` glides the button to its corner (`Motion.settle`, 250ms ease-out). Corner math is pure and covered by `test/tab_bar_corner_test.dart`; gesture recognition by `test/tab_bar_corner_button_test.dart`.
 - **Input bar**: `_buildInputBar()` returns null when `_fullscreen.active`
 - **Body insets**: The fullscreen body keeps top/bottom `SafeArea` active (`top: _fullscreen.active`, `bottom: _fullscreen.active || ...`). `immersiveSticky` does not reliably hide the system bars on Android 15 (edge-to-edge enforced); when a bar persists, the inset keeps the site's top/bottom controls clear of it. When the bars are truly hidden the inset is ~0 and the webview still fills the screen. Left/right insets are dropped in fullscreen (`left: !_fullscreen.active`, `right: !_fullscreen.active`) so the webview uses the display-cutout strip beside a landscape notch (FS-010); out of fullscreen they stay active so chrome avoids the notch.

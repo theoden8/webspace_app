@@ -6,13 +6,13 @@ import 'package:webspace/web_view_model.dart';
 
 import 'helpers/real_app.dart';
 
-/// The app bar and the bottom bar (tab strip on) carry the same site menu.
-/// They were two copies once, and the bottom one opened Developer Tools
-/// without the background-refresh simulation.
+/// The app bar and the tab strip carry the same site menu. They were two
+/// copies once, and the strip's opened Developer Tools without the
+/// background-refresh simulation.
 void main() {
   for (final tabStrip in [false, true]) {
     testWidgets(
-        'Developer Tools from the ${tabStrip ? 'bottom bar' : 'app bar'} '
+        'Developer Tools from the ${tabStrip ? 'tab strip' : 'app bar'} '
         'menu can simulate a background refresh', (tester) async {
       await pumpRealApp(
         tester,

@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 /// TAB-005 / TAB-010: where "New tab" and "Duplicate tab" are reached from.
-/// The app has two overflow menus (app bar, and the bottom bar when the tab
+/// The app has two overflow menus (app bar, and the tab strip's when the
 /// strip is on), and a spec that names "the overflow menu" means both.
 /// "Duplicate tab" is a long press on refresh only, never a menu row.
 /// Structural, because `_WebSpacePageState` is not constructible from a unit
@@ -27,7 +27,7 @@ void main() {
   test('both overflow menus offer New tab and neither offers Duplicate tab',
       () {
     expect(count('_siteMenu(SiteMenuPlacement.appBar)'), 1);
-    expect(count('_siteMenu(SiteMenuPlacement.bottomBar)'), 1);
+    expect(count('_siteMenu(SiteMenuPlacement.tabStrip)'), 1);
     expect('SiteMenuAction.newTab =>'.allMatches(menu), hasLength(1));
     expect(menu, isNot(contains('SiteMenuAction.duplicateTab')));
     expect(source, isNot(contains('SiteMenuAction.duplicateTab')));
