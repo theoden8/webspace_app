@@ -20,6 +20,7 @@ import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
+import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/launch_context.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/localcdn_service.dart';
@@ -125,6 +126,7 @@ void main([List<String> args = const []]) async {
       () => _runTimed('dns', step: DnsBlockService.instance.initialize),
       () => _runTimed('firefoxUa',
           step: FirefoxUserAgentService.instance.initialize),
+      () => _runTimed('hostUa', step: HostBrowser.initialize),
       () =>
           _runTimed('adblock', step: ContentBlockerService.instance.initialize),
       () => _runTimed('localCdn', step: LocalCdnService.instance.initialize),

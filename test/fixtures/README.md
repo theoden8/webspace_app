@@ -102,7 +102,8 @@ This directory contains HTML test files for automated testing of WebSpace featur
   2. Reload → no second popup (the grant is remembered per-site).
   3. Set the site's "Protected content (DRM)" dropdown to **Always block** and
      reload → the probe fails with no popup.
-  4. On iOS/macOS the EME API is unavailable, so every probe fails — expected.
+  4. On iOS/macOS there is no Widevine, so the Widevine probe fails (expected).
+     macOS WebKit has EME with FairPlay (`com.apple.fps`) instead.
 - **Note**: For manual testing. The fixture logs all events with timestamps.
 
 ## General Test Page

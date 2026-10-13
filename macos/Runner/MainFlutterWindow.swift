@@ -22,6 +22,7 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     torControllerPlugin = TorControllerPlugin(
       messenger: flutterViewController.engine.binaryMessenger)
+    HostBrowserPlugin.attach(to: flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
   }

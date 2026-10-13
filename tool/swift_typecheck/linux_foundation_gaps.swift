@@ -11,3 +11,9 @@ extension FileManager {
     nil
   }
 }
+
+extension ProcessInfo {
+  // NSProcessInfo.h:
+  // @property (readonly, getter=isiOSAppOnMac) BOOL iOSAppOnMac;
+  public var isiOSAppOnMac: Bool { false }
+}

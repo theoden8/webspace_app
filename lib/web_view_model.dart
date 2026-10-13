@@ -24,6 +24,7 @@ import 'package:webspace/services/media_grant_engine.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/firefox_user_agent_service.dart';
+import 'package:webspace/services/host_user_agent.dart';
 import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/site_lifecycle_promotion_engine.dart';
@@ -837,10 +838,10 @@ class WebViewModel implements MediaGrantRecord {
       : renderUserAgentPreset(
           uaPreset!, version: FirefoxUserAgentService.instance.versionString);
 
-  /// [effectiveUserAgent] in the null-for-unset form the webview expects.
+  /// [effectiveUserAgent], or the host's claim when unset (UAID-005).
   String? get effectiveUserAgentOrNull {
     final ua = effectiveUserAgent;
-    return ua.isEmpty ? null : ua;
+    return ua.isEmpty ? HostBrowser.userAgent.claim : ua;
   }
 
   /// Store a user-entered UA. Strings that exactly match a generated
@@ -1034,7 +1035,8 @@ class WebViewModel implements MediaGrantRecord {
       incognito: id.effectiveIncognito,
     );
     await c.setThemePreference(_currentTheme);
-    defaultUserAgent ??= await c.getDefaultUserAgent();
+    defaultUserAgent ??= HostBrowser.userAgent.defaultUserAgent ??
+        await c.getDefaultUserAgent();
   }
 
   /// Android: routes through the global `inapp.ProxyController`. Takes

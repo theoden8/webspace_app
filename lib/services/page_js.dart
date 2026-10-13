@@ -36,6 +36,7 @@ enum PageJs {
   locationSpoof('location_spoof'),
   mediaPause('media_pause'),
   mediaSession('media_session'),
+  mediaSource('media_source'),
   microphoneStream('microphone_stream'),
   notificationPolyfill('notification_polyfill'),
   pageZoomCss('page_zoom_css'),

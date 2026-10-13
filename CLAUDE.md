@@ -69,6 +69,7 @@ Rules are fixed; a new one replaces one. The map grows one row per item. No reci
 | `ReentryGuard` | one run of an async UI handler at a time | `guard.run(() async {...})` |
 | `PageJs` (`services/page_js.dart`) | every script the app runs in a page (`lib/js/`), and how a value reaches one | `PageJs.x.script`; `PageJs.x.withConfig({...})`; shared parts by `// @include` |
 | `LogTag` (`services/log_service.dart`) | every log tag and the label it shows | `LogTag.x.debug(msg, sensitive: true)`; `LogService.log` takes a `LogTag` |
+| `HostUserAgent` (`services/host_user_agent.dart`) | the user agent a site sends when the user set none (UAID-005) | `HostBrowser.userAgent.claim` into the posture; `webViewUserAgent(claimed)` at both native settings writers |
 | `Guarded<T>` / `SiteEventInbox` (Kotlin) | native state shared with IO threads | reachable only inside `with { }` |
 
 Layers: UI `screens`, `widgets`, `controllers`, `theme`, `main.dart`, `app.dart` · model `web_view_model.dart`, `demo_data.dart`, `diag_seed.dart` · services `services` · values `settings`, `utils`, `webspace_model.dart` · platform `platform`.

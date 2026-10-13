@@ -443,6 +443,40 @@ current version
 
 ---
 
+### Requirement: DM-007 — A desktop page gets MediaSource
+
+iOS WebKit exposes `MediaSource` only for desktop-class browsing, which an app
+running as an iPhone app (on a phone, or as the iOS build on a Mac) never gets,
+whatever its content mode; it always exposes `ManagedMediaSource`. A page told
+it is on a desktop tests `window.MediaSource` and has no other way to play an
+adaptive stream. With desktop mode on, `lib/js/media_source.js` (group
+`media_source_shim`, every frame) SHALL expose `ManagedMediaSource` as
+`MediaSource` (and `ManagedSourceBuffer` as `SourceBuffer`) when the page has
+no `MediaSource` of its own, and SHALL change nothing where it has one.
+
+WebKit keeps a managed source closed until its element cannot be handed to
+AirPlay or offers an AirPlay alternative
+(`HTMLMediaElement::deferredMediaSourceOpenCanProgress`). The shim SHALL set
+`disableRemotePlayback` on a media element before a managed source is
+attached to it, by `src`, `srcObject` or `setAttribute('src', ...)`.
+
+#### Scenario: An iPhone-class webview plays a desktop page's stream
+
+**Given** a desktop-mode site on a webview with `ManagedMediaSource` and no
+`MediaSource`
+**When** the page creates a `MediaSource` and attaches its object URL to a
+`<video>` by `src`
+**Then** the source is a `ManagedMediaSource`
+**And** the element's `disableRemotePlayback` is `true` before the URL is set
+
+#### Scenario: A webview with MediaSource is untouched
+
+**Given** a desktop-mode site on a webview that exposes `MediaSource`
+**Then** `MediaSource`, `URL.createObjectURL` and the media element setters
+are the engine's own
+
+---
+
 ## Files
 
 | File | Role |
@@ -456,6 +490,7 @@ current version
 | `lib/screens/app_settings.dart` | "Update Firefox version" control — the sole, explicit trigger for the scrape, with a hint explaining it is the only network access |
 | `test/firefox_user_agent_service_test.dart` | Coverage for version parsing, UA rendering, and the scrape/cache/floor behavior |
 | `lib/services/desktop_mode_shim.dart` | `buildDesktopModeShim(userAgent)` — JS source for AT_DOCUMENT_START injection |
+| `lib/js/media_source.js` | DM-007: `ManagedMediaSource` as `MediaSource` for a desktop page; `test/js/media_source_shim.test.js` |
 | `lib/services/user_agent_metadata_builder.dart` | `buildUserAgentMetadata(userAgent)` — UA-CH override mapped 1:1 with the spoofed UA. Wired through to `WebSettingsCompat.setUserAgentMetadata` on Android via the fork's `InAppWebViewSettings.userAgentMetadata`. |
 | `lib/services/webview.dart` | `createWebView`: injects shim, sets `preferredContentMode`, and assigns `userAgentMetadata` from the per-site UA |
 | `test/user_agent_classifier_test.dart` | Coverage for the inference helpers |
