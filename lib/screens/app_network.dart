@@ -13,6 +13,7 @@ import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/widgets/dirty_guard.dart';
+import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/proxy_choice_dropdown.dart';
 import 'package:webspace/widgets/proxy_status_indicator.dart';
 import 'package:webspace/widgets/proxy_test_tile.dart';
@@ -52,10 +53,16 @@ class AppNetworkScreen extends StatefulWidget {
     this.onOutboundProxyChanged,
     this.siteProxies,
     this.onSavedProxiesChanged,
+    this.externalTorRunsHere = false,
   });
 
   /// `siteId` -> display name, for the Tor status screen's list of users.
   final Map<String, String> siteNames;
+
+  /// Whether Tor sites can use a tor already running on this device, so the
+  /// screen lists Tor (external) (TOR-025). Passed in so the design gallery,
+  /// which runs on web, can show it.
+  final bool externalTorRunsHere;
 
   /// Fired after the global outbound proxy is updated. Parent should
   /// dispose every loaded webview so the next render re-applies the new
@@ -360,6 +367,13 @@ class _AppNetworkScreenState extends State<AppNetworkScreen>
                     ),
                   )),
             ),
+            if (widget.externalTorRunsHere) ...[
+              SettingsSection(loc.torStatusTitle),
+              // The dropdowns above name and offer Tor by the tor it picks.
+              ExternalTorTiles(onTorChanged: () {
+                if (mounted) setState(() {});
+              }),
+            ],
             // Trusted certificates — only Android and Linux can create
             // pins via the in-app prompt. On iOS/macOS the prompt is
             // skipped entirely (TLS-009) because Apple's WKWebView

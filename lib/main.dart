@@ -244,10 +244,7 @@ void main([List<String> args = const []]) async {
   // Before anything touches TorService.instance, which picks its tor from
   // this on first use and on every runtimeChoiceChanged (TOR-025).
   await ExternalTorSettings.initialize();
-  TorService.wantsExternal = () =>
-      externalTorRunsHere &&
-      ExperimentalFeaturesService.instance
-          .isEnabled(ExperimentalFeature.externalTor);
+  TorService.wantsExternal = () => ExternalTorSettings.chosen;
   // Before any webview exists, and only here: a process runs one composition
   // mode, so the Experimental switch applies from the next launch (PAUSE-032).
   WebViewFactory.hybridComposition = !ExperimentalFeaturesService.instance

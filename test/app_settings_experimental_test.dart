@@ -1,9 +1,10 @@
 // App settings' Developer screen and the Tor rows it no longer carries.
 //
-// Tor graduated out of the Experimental group (TOR-007): developer mode does
-// not hold it, so turning developer mode off costs a Tor site nothing and asks
-// nothing. The status card under the proxy block reports a runtime something
-// uses, so it stays out of the list until something does (TOR-004).
+// Tor graduated out of the Experimental group (TOR-007), and so did Tor
+// (external) (TOR-025), whose switch is on the Network screen: developer mode
+// holds neither, so turning it off costs a Tor site nothing and asks nothing.
+// The status card under the proxy block reports a runtime something uses, so
+// it stays out of the list until something does (TOR-004).
 
 import 'dart:typed_data';
 
@@ -19,6 +20,7 @@ import 'package:webspace/screens/add_site.dart' show FaviconUrlCache;
 import 'package:webspace/screens/app_settings.dart';
 import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/services/file_store.dart';
@@ -26,6 +28,7 @@ import 'package:webspace/services/site_icon_engine.dart';
 import 'package:webspace/services/site_icon_store.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/widgets/container_mark.dart';
@@ -39,6 +42,7 @@ final Uint8List _png64 =
 void main() {
   Widget host({
     bool routerRunsHere = false,
+    bool externalTorRunsHere = false,
     Map<String, String> siteNames = const {},
     List<({String siteId, String name, int? containerColor})> webSearchSites =
         const [],
@@ -49,6 +53,7 @@ void main() {
         home: AppSettingsScreen(
           currentSettings: AppThemeSettings(),
           proxyRouterRunsHere: routerRunsHere,
+          externalTorRunsHere: externalTorRunsHere,
           siteNames: siteNames,
           onSettingsChanged: (_) {},
           onExportSettings: () {},
@@ -88,6 +93,7 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
     for (final f in ExperimentalFeature.values) {
       ExperimentalFeaturesService.instance.debugSet(f, on: f.pref.fallback);
     }
+    AppPref.externalTor.debugValue = AppPref.externalTor.fallback;
     await TorService.reset();
   });
 
@@ -200,6 +206,89 @@ Future<void> openCategory(WidgetTester tester, {required String title}) async {
       await scrollToCard(tester);
       expect(find.text('Separate circuit per destination'), findsNothing,
           reason: 'circuits are isolated per site only (TOR-003)');
+    });
+  });
+
+  group('Tor (external) on the Network screen (TOR-025)', () {
+    setUp(() {
+      final external = ExternalTorRuntime(
+        address: () => ExternalTorSettings.address,
+        identify: (_, {required port}) async => ExternalTorAnswer.tor,
+      );
+      TorService.wantsExternal = () => ExternalTorSettings.chosen;
+      TorService.overrideEngines(
+        embedded: TorEngine(runtime: FakeTorRuntime(), sessionSecret: 'e'),
+        external: TorEngine(runtime: external, sessionSecret: 'x'),
+        externalRuntime: external,
+      );
+      DeveloperModeService.instance.debugSet(on: false);
+    });
+
+    Finder externalTorSwitch() => find.ancestor(
+        of: find.text('Tor (external)'), matching: find.byType(SwitchListTile));
+
+    Future<void> scrollToSwitch(WidgetTester tester) async {
+      await openCategory(tester, title: 'Network');
+      await tester.scrollUntilVisible(find.text('Tor (external)'), 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('switches tor with developer mode off', (tester) async {
+      await tester.pumpWidget(host(externalTorRunsHere: true));
+      await tester.pumpAndSettle();
+      await scrollToSwitch(tester);
+      expect(tester.widget<SwitchListTile>(externalTorSwitch()).value, isFalse,
+          reason: 'off until the user names a tor of their own');
+      expect(find.text('Tor SOCKS address'), findsNothing);
+
+      await tester.tap(externalTorSwitch());
+      await tester.pumpAndSettle();
+      expect(TorService.instance.isExternal, isTrue,
+          reason: 'developer mode no longer decides which tor runs');
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getBool(AppPref.externalTor.key), isTrue);
+      expect(find.text('Tor SOCKS address'), findsOneWidget);
+      expect(find.text('127.0.0.1:9050'), findsOneWidget);
+
+      await tester.tap(externalTorSwitch());
+      await tester.pumpAndSettle();
+      expect(TorService.instance.isExternal, isFalse);
+    });
+
+    testWidgets('turning developer mode off keeps the external tor',
+        (tester) async {
+      AppPref.externalTor.debugValue = true;
+      DeveloperModeService.instance.debugSet(on: true);
+      await TorService.instance.runtimeChoiceChanged();
+      expect(TorService.instance.isExternal, isTrue);
+
+      await tester.pumpWidget(host(externalTorRunsHere: true));
+      await tester.pumpAndSettle();
+      await tester.tap(await developerModeSwitch(tester));
+      await tester.pumpAndSettle();
+      expect(DeveloperModeService.instance.enabled, isFalse);
+
+      await TorService.instance.runtimeChoiceChanged();
+      expect(TorService.instance.isExternal, isTrue);
+    });
+
+    testWidgets('is not in the Experimental group', (tester) async {
+      DeveloperModeService.instance.debugSet(on: true);
+      await tester.pumpWidget(host(externalTorRunsHere: true));
+      await tester.pumpAndSettle();
+      await openCategory(tester, title: 'Developer');
+      await tester.scrollUntilVisible(find.text('Experimental'), 400,
+          scrollable: find.byType(Scrollable).first);
+      await tester.pumpAndSettle();
+      expect(find.text('Tor (external)', skipOffstage: false), findsNothing);
+    });
+
+    testWidgets('is not offered where no other tor can run', (tester) async {
+      await tester.pumpWidget(host());
+      await tester.pumpAndSettle();
+      await openCategory(tester, title: 'Network');
+      expect(find.text('Tor (external)', skipOffstage: false), findsNothing);
     });
   });
 

@@ -314,7 +314,7 @@ class TorService {
   static TorService get instance => _instance ??= _production();
 
   /// Whether the external tor is wanted (TOR-025). Installed at startup from
-  /// the Experimental switch, and read again by [runtimeChoiceChanged].
+  /// the Tor (external) switch, and read again by [runtimeChoiceChanged].
   static bool Function() wantsExternal = _never;
 
   static bool _never() => false;

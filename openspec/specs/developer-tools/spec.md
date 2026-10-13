@@ -496,7 +496,6 @@ The features are:
 | Android's per-site proxy router (`proxy` PROXY-013) | Proxy router | on | `ProxyRouterService.isSupported`, read once at launch |
 | A site's icon taken only from the site: no third-party icon service, and on Android the declared links in place of WebView's icon (`icon-fetching` ICON-014) | Site icons only | off | `publicIconServicesAllowed` in `icon_service.dart`, read on every icon fetch; `pageIconSource` in `site_icon_fetcher.dart`, read when a site's webview is created |
 | Android's texture page rendering (`webview-pause-lifecycle` PAUSE-032) | Texture page rendering | off | `WebViewFactory.hybridComposition`, read once at launch |
-| Tor sites through a tor already running on the device, on Android, Linux and macOS (`tor-proxy` TOR-025) | Tor (external) | off | `TorService.wantsExternal`, read again on every flip of the switch or of developer mode (`runtimeChoiceChanged`), so it applies without a relaunch |
 
 Outbound link routing (`link-intent-routing` LIR-013 to LIR-017) was in the group with a switch that defaulted off; it graduated with the site info sheet (`site-info-sheet`, NAV-011), which shows the site and container a routed page runs as. Page icons fetched from the links a page declares on iOS, macOS and Linux (`icon-fetching` ICON-013) were in the group with a switch that defaulted off; they graduated to the default there, and the group's Site icons only switch took the slot.
 
@@ -505,6 +504,8 @@ The proxy library and the connection indicator (`proxy` PROXY-030, PROXY-031) we
 Tabs inside a site (`inactive-tabs` TAB-012), and web search, whose results are tabs (`link-intent-routing` LIR-029), were in the group with a Site tabs switch that defaulted off; they graduated. Tabs answer to each site's own Tabs switch (TAB-013) alone, and web search is offered with developer mode on or off.
 
 The embedded Tor client (`tor-proxy` TOR-007) was the first feature in the group, with a Built-in Tor switch that defaulted on; it graduated, and Tor is now offered wherever the platform has the runtime, with developer mode on or off.
+
+Tor sites through a tor already running on the device (`tor-proxy` TOR-025) were in the group with a Tor (external) switch that defaulted off; they graduated. The switch moved to App settings' Network screen, keeps its stored value, and is offered with developer mode on or off.
 
 #### Scenario: A feature needs both
 
@@ -531,13 +532,13 @@ The embedded Tor client (`tor-proxy` TOR-007) was the first feature in the group
 
 - **GIVEN** an Android build whose WebView reports `MULTI_PROFILE`, with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists Proxy router, on, and Texture page rendering, Site icons only and Tor (external), off
+- **THEN** the Experimental group lists Proxy router, on, and Texture page rendering and Site icons only, off
 
 #### Scenario: A platform without the router
 
 - **GIVEN** a Linux build with developer mode on
 - **WHEN** the user opens App settings
-- **THEN** the Experimental group lists only Site icons only and Tor (external), both off
+- **THEN** the Experimental group lists only Site icons only, off
 
 #### Scenario: Site icons only starts off
 

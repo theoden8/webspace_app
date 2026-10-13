@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/settings/external_tor.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -44,6 +45,19 @@ void main() {
         isNot(contains('experimentalProxyLibrary')),
         reason: 'a graduated feature removes its switch and stops reading '
             'this gate (DEVTOOLS-011)');
+  });
+
+  test('Tor (external) graduated: its switch ignores developer mode '
+      '(TOR-025)', () {
+    expect(
+        ExperimentalFeature.values.map((f) => f.pref.key),
+        isNot(contains(AppPref.externalTor.key)),
+        reason: 'a graduated feature removes its switch and stops reading '
+            'this gate (DEVTOOLS-011)');
+    addTearDown(() => AppPref.externalTor.debugValue = false);
+    AppPref.externalTor.debugValue = true;
+    DeveloperModeService.instance.debugSet(on: false);
+    expect(ExternalTorSettings.chosen, isTrue);
   });
 
   test('Site tabs graduated: they have no switch (TAB-012)', () {

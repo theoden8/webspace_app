@@ -8,8 +8,6 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/services/icon_service.dart'
     show notifyIconSourcesChanged;
-import 'package:webspace/services/tor_service.dart';
-import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
 import 'package:webspace/widgets/toast.dart';
@@ -19,8 +17,6 @@ import 'package:webspace/services/cookie_manager.dart';
 Future<void> setDeveloperMode({required bool on}) async {
   await DeveloperModeService.instance.setEnabled(on: on);
   notifyIconSourcesChanged();
-  // The external tor is an experiment, so developer mode decides it too.
-  await TorService.instance.runtimeChoiceChanged();
 }
 
 /// Opens the app logs, which every user can reach to report a bug.
@@ -71,18 +67,12 @@ class AppDeveloperScreen extends StatefulWidget {
   const AppDeveloperScreen({
     super.key,
     this.proxyRouterRunsHere = false,
-    this.externalTorRunsHere = false,
   });
 
   /// Whether this device could run the per-site proxy router, so the
   /// Experimental group lists its switch (DEVTOOLS-011). Passed in because
   /// the answer needs the container engine the app resolved at startup.
   final bool proxyRouterRunsHere;
-
-  /// Whether Tor sites can use a tor already running on this device, so the
-  /// Experimental group lists Tor (external) (TOR-025). Passed in so the
-  /// design gallery, which runs on web, can show it.
-  final bool externalTorRunsHere;
 
   @override
   State<AppDeveloperScreen> createState() => _AppDeveloperScreenState();
@@ -175,10 +165,6 @@ class _AppDeveloperScreenState extends State<AppDeveloperScreen>
                 },
               ),
             ),
-          if (widget.externalTorRunsHere)
-            ExternalTorTiles(onTorChanged: () {
-              if (mounted) setState(() {});
-            }),
           SettingTile(
             leading: const Icon(Icons.hide_image_outlined),
             title: loc.appSettingsResetIconCache,

@@ -65,7 +65,9 @@ enum AppPref<T extends Object> {
   experimentalProxyRouter('experimentalProxyRouter', fallback: true),
   experimentalSiteIconsOnly('experimentalSiteIconsOnly', fallback: false),
   experimentalTextureRendering('experimentalTextureRendering', fallback: false),
-  experimentalExternalTor('experimentalExternalTor', fallback: false),
+  // TOR-025: Tor sites through a tor already running on the device. The key
+  // keeps the name it shipped under as an Experimental switch.
+  externalTor('experimentalExternalTor', fallback: false),
   // TOR-025: the external tor's SOCKS address; Orbot's and the system tor
   // service's SocksPort.
   externalTorAddress('externalTorAddress', fallback: '127.0.0.1:9050'),

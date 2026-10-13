@@ -21,12 +21,7 @@ enum ExperimentalFeature {
 
   /// Android's texture-layer webview composition (PAUSE-032). Off by
   /// default: every release before it drew pages with hybrid composition.
-  textureRendering(AppPref.experimentalTextureRendering),
-
-  /// Tor sites through a tor already running on the device, with per-site
-  /// SOCKS credentials (tor-proxy TOR-025). Off by default: it is new.
-  /// Applies without a relaunch through `TorService.runtimeChoiceChanged`.
-  externalTor(AppPref.experimentalExternalTor);
+  textureRendering(AppPref.experimentalTextureRendering);
 
   const ExperimentalFeature(this.pref);
 
