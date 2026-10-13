@@ -13,10 +13,7 @@ typedef ArbRead = FutureOr<String> Function(String path);
 /// One shipped locale's messages, read from its ARB at run time rather than
 /// compiled into the app (LOC-012).
 class ArbMessages {
-  ArbMessages._({
-    required this.localeName,
-    required Map<String, String> sources,
-  }) : _sources = sources;
+  ArbMessages._({required this.localeName, required this._sources});
 
   final String localeName;
   final Map<String, String> _sources;
