@@ -9,6 +9,7 @@ import 'package:webspace/widgets/dataset_tile.dart';
 import 'package:webspace/widgets/search_site_picker.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/settings_rows.dart';
+import 'package:webspace/widgets/site_tab_strip.dart';
 
 /// How the site tab strip is reached. The floating button is the on-demand
 /// presentation of the strip, so the three are one choice, not two toggles.
@@ -23,17 +24,33 @@ enum TabStrip {
 }
 
 extension on TabStrip {
-  IconData get icon => switch (this) {
-        TabStrip.hidden => Icons.visibility_off,
-        TabStrip.pinned => Icons.visibility,
-        TabStrip.button => Icons.smart_button,
-      };
+  ButtonSegment<TabStrip> segment(AppLocalizations loc) => ButtonSegment(
+        value: this,
+        icon: Icon(switch (this) {
+          TabStrip.hidden => Icons.visibility_off,
+          TabStrip.pinned => Icons.visibility,
+          TabStrip.button => Icons.smart_button,
+        }),
+        tooltip: switch (this) {
+          TabStrip.hidden => loc.appSettingsFullscreenTabStripHidden,
+          TabStrip.pinned => loc.appSettingsFullscreenTabStripAlways,
+          TabStrip.button => loc.appSettingsFullscreenTabStripButton,
+        },
+      );
+}
 
-  String tooltip(AppLocalizations loc) => switch (this) {
-        TabStrip.hidden => loc.appSettingsFullscreenTabStripHidden,
-        TabStrip.pinned => loc.appSettingsFullscreenTabStripAlways,
-        TabStrip.button => loc.appSettingsFullscreenTabStripButton,
-      };
+extension on TabStripEdge {
+  ButtonSegment<TabStripEdge> segment(AppLocalizations loc) => ButtonSegment(
+        value: this,
+        icon: Icon(switch (this) {
+          TabStripEdge.top => Icons.vertical_align_top,
+          TabStripEdge.bottom => Icons.vertical_align_bottom,
+        }),
+        tooltip: switch (this) {
+          TabStripEdge.top => loc.appSettingsTabStripPositionTop,
+          TabStripEdge.bottom => loc.appSettingsTabStripPositionBottom,
+        },
+      );
 }
 
 /// Apple has no back gesture the app can act on (NAV-009), so the Back opens
@@ -81,26 +98,24 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
         child: Row(children: [Expanded(child: title), trailing]),
       );
 
-  Widget _tabStripPicker(
-    List<TabStrip> modes, {
-    required TabStrip selected,
-    required ValueChanged<TabStrip> onChanged,
-  }) {
-    final loc = AppLocalizations.of(context);
-    return SegmentedButton<TabStrip>(
-      segments: [
-        for (final m in modes)
-          ButtonSegment(value: m, icon: Icon(m.icon), tooltip: m.tooltip(loc)),
-      ],
-      selected: {selected},
-      showSelectedIcon: false,
-      onSelectionChanged: (selection) => onChanged(selection.first),
-    );
-  }
+  /// Icon segments for one choice; a null [onChanged] disables them.
+  Widget _picker<T extends Object>(
+    List<ButtonSegment<T>> segments, {
+    required T selected,
+    required ValueChanged<T>? onChanged,
+  }) =>
+      SegmentedButton<T>(
+        segments: segments,
+        selected: {selected},
+        showSelectedIcon: false,
+        onSelectionChanged: onChanged == null
+            ? null
+            : (selection) => onChanged(selection.first),
+      );
 
   /// Whether the tab strip can appear at all (pinned out of fullscreen, pinned
-  /// in fullscreen, or revealed by the tab-bar button), so the width limit is
-  /// meaningful.
+  /// in fullscreen, or revealed by the tab-bar button), so its position and
+  /// width limit are meaningful.
   bool get _tabStripCanShow =>
       AppPref.showTabStrip.value ||
       AppPref.tabStripInFullscreen.value ||
@@ -148,7 +163,11 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           _row(
             HintedTitle(loc.appSettingsSiteTabStrip,
                 hint: loc.appSettingsSiteTabStripSubtitle),
-            trailing: _tabStripPicker(TabStrip.values, selected: TabStrip.current, onChanged: _setTabStrip),
+            trailing: _picker(
+              [for (final m in TabStrip.values) m.segment(loc)],
+              selected: TabStrip.current,
+              onChanged: _setTabStrip,
+            ),
           ),
           // Pinned mode only: whether the pinned strip stays visible in full
           // screen. Button mode reveals the strip in full screen on its own;
@@ -156,8 +175,8 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
           if (TabStrip.current == TabStrip.pinned)
             _row(
               Text(loc.appSettingsFullscreenTabStrip),
-              trailing: _tabStripPicker(
-                const [TabStrip.hidden, TabStrip.pinned],
+              trailing: _picker(
+                [TabStrip.hidden.segment(loc), TabStrip.pinned.segment(loc)],
                 selected: AppPref.tabStripInFullscreen.value
                     ? TabStrip.pinned
                     : TabStrip.hidden,
@@ -165,6 +184,16 @@ class _AppBehaviourScreenState extends State<AppBehaviourScreen>
                     AppPref.tabStripInFullscreen.set(mode == TabStrip.pinned),
               ),
             ),
+          _row(
+            Text(loc.appSettingsTabStripPosition),
+            trailing: _picker(
+              [for (final e in TabStripEdge.values) e.segment(loc)],
+              selected: TabStripEdge.current,
+              onChanged: _tabStripCanShow
+                  ? (edge) => AppPref.tabStripOnTop.set(edge == TabStripEdge.top)
+                  : null,
+            ),
+          ),
           _row(
             HintedTitle(loc.appSettingsTabMaxWidth,
                 hint: loc.appSettingsTabMaxWidthHint),

@@ -6,12 +6,22 @@ import 'package:webspace/theme/design_tokens.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/tab_count_pill.dart';
 
-/// The selected webspace's sites along the bottom of the screen. A tap opens
+/// The screen edge the site tab strip runs along (FS-012).
+enum TabStripEdge {
+  top,
+  bottom;
+
+  static TabStripEdge get current =>
+      AppPref.tabStripOnTop.value ? top : bottom;
+}
+
+/// The selected webspace's sites along one edge of the screen. A tap opens
 /// a site, a tap on the one on screen opens its tabs (TAB-008), and a long
 /// press drags a site to another place where the view can be reordered.
 class SiteTabStrip extends StatelessWidget {
   const SiteTabStrip({
     super.key,
+    required this.edge,
     required this.models,
     required this.order,
     required this.current,
@@ -23,6 +33,7 @@ class SiteTabStrip extends StatelessWidget {
     required this.menu,
   });
 
+  final TabStripEdge edge;
   final List<WebViewModel> models;
 
   /// Positions in [models], in the order the strip shows them.
@@ -44,18 +55,21 @@ class SiteTabStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final hairline = BorderSide(
+      color: Chrome.hairline(isDark: isDark),
+      width: Chrome.hairlineWidth,
+    );
     return SafeArea(
-      top: false,
+      top: edge == TabStripEdge.top,
+      bottom: edge == TabStripEdge.bottom,
       child: Container(
         height: 52,
         decoration: BoxDecoration(
           color: Chrome.bar(isDark: isDark),
-          border: Border(
-            top: BorderSide(
-              color: Chrome.hairline(isDark: isDark),
-              width: Chrome.hairlineWidth,
-            ),
-          ),
+          border: switch (edge) {
+            TabStripEdge.top => Border(bottom: hairline),
+            TabStripEdge.bottom => Border(top: hairline),
+          },
         ),
         child: Row(
           children: [

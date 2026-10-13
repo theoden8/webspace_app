@@ -27,6 +27,8 @@ enum AppPref<T extends Object> {
   // Keep the site tab strip visible in fullscreen (top bar still hidden).
   // Only meaningful when showTabStrip is on.
   tabStripInFullscreen('tabStripInFullscreen', fallback: false),
+  // FS-012: the strip sits along the top edge instead of the bottom.
+  tabStripOnTop('tabStripOnTop', fallback: false),
   // Floating button that opens the tab strip (and its overflow menu) on
   // demand. Superseded `tabBarButtonInFullscreen` in v0.2.7; a device or a
   // backup from a build in between names only the old key.

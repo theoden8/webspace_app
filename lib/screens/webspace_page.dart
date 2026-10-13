@@ -1174,10 +1174,10 @@ class _WebSpacePageState extends State<WebSpacePage>
     );
   }
 
-  /// Whether the bottom tab strip should currently occupy the
-  /// bottomNavigationBar slot. Out of fullscreen it follows the "Site Tab
-  /// Strip" pref. In fullscreen the behavior is an independent choice: always
-  /// visible, revealed on demand by the tab-bar button, or hidden.
+  /// Whether the tab strip is on screen, at either edge. Out of fullscreen it
+  /// follows the "Site Tab Strip" pref. In fullscreen the behavior is an
+  /// independent choice: always visible, revealed on demand by the tab-bar
+  /// button, or hidden.
   bool get _tabStripShown {
     // KIOSK-002: never show the tab strip in a locked session, in or out of
     // fullscreen — no switching away from the kiosk site.
@@ -1210,12 +1210,20 @@ class _WebSpacePageState extends State<WebSpacePage>
     return !AppPref.showTabStrip.value;
   }
 
-  /// The tab strip in bottomNavigationBar, which stays at the screen bottom
-  /// and is hidden while the keyboard is open.
-  Widget? _buildTabStrip() {
-    if (!_tabStripShown) return null;
-    if (MediaQuery.of(context).viewInsets.bottom > 0) return null;
+  /// The edge the tab strip is on screen at, or null while it is not.
+  TabStripEdge? get _tabStripEdge =>
+      _tabStripShown ? TabStripEdge.current : null;
+
+  /// The tab strip when it is on screen at [at]: the top of the body, or
+  /// bottomNavigationBar, where it is hidden while the keyboard is open.
+  Widget? _buildTabStrip({required TabStripEdge at}) {
+    if (_tabStripEdge != at) return null;
+    if (at == TabStripEdge.bottom &&
+        MediaQuery.of(context).viewInsets.bottom > 0) {
+      return null;
+    }
     return SiteTabStrip(
+      edge: at,
       models: _sites.models,
       order: _sites.filteredIndices(),
       current: _sites.current,
@@ -1238,7 +1246,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       onReorder: _webspaces.canReorderView
           ? (from, {required to}) => _webspaces.reorderSite(from, newListIndex: to)
           : null,
-      menu: _siteMenu(SiteMenuPlacement.bottomBar),
+      menu: _siteMenu(SiteMenuPlacement.tabStrip),
     );
   }
 
@@ -1499,19 +1507,21 @@ class _WebSpacePageState extends State<WebSpacePage>
 
   /// Build the body with the input bar (URL bar / find toolbar) integrated,
   /// so resizeToAvoidBottomInset naturally keeps them above the keyboard.
-  /// The tab strip stays in bottomNavigationBar separately.
+  /// A top tab strip leads the body; a bottom one stays in
+  /// bottomNavigationBar.
   Widget _buildBodyWithBottomBar() {
     for (final i in _sites.loaded) {
       if (i < _sites.models.length) _wireSite(_sites.models[i], index: i);
     }
     final inputBar = _buildInputBar();
+    final topStrip = _buildTabStrip(at: TabStripEdge.top);
     final nudgeInset = _surface.bottomInset;
-    // Tab strip in bottomNavigationBar handles bottom safe area when visible.
-    // Input bar has its own SafeArea. Only apply body safe area when neither
-    // is present (e.g. webspace list screen). The tab strip is also rendered
-    // (in bottomNavigationBar) when kept in fullscreen or temporarily revealed
-    // by the tab-bar button, in which case it owns the bottom safe-area inset.
-    final hasTabStrip = _tabStripShown;
+    // A bottom tab strip (in bottomNavigationBar) handles the bottom safe
+    // area when visible. Input bar has its own SafeArea. Only apply body safe
+    // area when neither is present (e.g. webspace list screen). The tab strip
+    // is also rendered when kept in fullscreen or temporarily revealed by the
+    // tab-bar button, in which case it owns the safe-area inset of its edge.
+    final hasBottomStrip = _tabStripEdge == TabStripEdge.bottom;
     return SafeArea(
       // Out of fullscreen the AppBar absorbs the top inset, so top stays false.
       // In fullscreen there is no AppBar, and the immersive modes do not
@@ -1522,7 +1532,7 @@ class _WebSpacePageState extends State<WebSpacePage>
       // revealed under `immersive` (FS-011); when they are truly hidden the
       // padding is ~0 and the webview still fills the screen. github #385
       top: _fullscreen.active,
-      bottom: !hasTabStrip && inputBar == null,
+      bottom: !hasBottomStrip && inputBar == null,
       // Out of fullscreen, inset around a landscape display cutout so chrome
       // and content avoid the notch. In fullscreen let the webview fill the
       // cutout strip (with shortEdges cutout mode the window already extends
@@ -1536,7 +1546,12 @@ class _WebSpacePageState extends State<WebSpacePage>
       // navigation history and scroll position.
       child: Column(
         children: [
+          ?topStrip,
+          // Keyed: the strip above and the input bar below come and go in
+          // one frame (leaving full screen), and an unkeyed child between
+          // them is remounted, taking the webviews with it.
           Expanded(
+            key: const ValueKey('site-stack'),
             child: Stack(
               children: [
                 Offstage(
@@ -1706,7 +1721,7 @@ class _WebSpacePageState extends State<WebSpacePage>
         onAddSite: () => unawaited(_editing.addSite()),
       ),
       body: _buildBodyWithBottomBar(),
-      bottomNavigationBar: _buildTabStrip(),
+      bottomNavigationBar: _buildTabStrip(at: TabStripEdge.bottom),
       floatingActionButton:
           !(_sites.current == null || _sites.current! >= _sites.models.length) ? null
           : FloatingActionButton(
