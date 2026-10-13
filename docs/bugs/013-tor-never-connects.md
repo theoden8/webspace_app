@@ -1,7 +1,9 @@
 # BUG-013: Tor never reaches `up`, and the runtime is unusable afterwards
 
-**Status:** open on iOS. **Closed on macOS as of attempt 10:** the tier runs the
-plugin and tor bootstraps to 100% and reaches `up`, in CI and on local hardware.
+**Status:** open on iOS. **Closed on macOS as of attempt 13:** the tier runs the
+plugin and tor bootstraps to 100% and reaches `up`, in CI and on local hardware
+(attempt 10), and a Release build's sandbox now lets tor open its listener. Attempt 10
+measured Debug builds only, and Release recurred through the one entitlement they differ in.
 Every mechanism in this file was inferred from reading Tor.framework's source and
 first observed on a phone; none has been watched on one. The class stays open until
 something runs the plugin on iOS — see open gaps.
@@ -419,6 +421,43 @@ not the class: any other relaunch tor makes from a close handler would hit the s
 refusal, and `cycleNetwork` still closes relay connections the only way that closes the
 dead listener. Conflux is a throughput feature, so a busy page may load a little slower.
 As with attempt 11, nothing has run this on an iOS device.
+
+### Attempt 13 — A macOS Release build's sandbox refused tor's listener
+**Date:** 2026-10-13 · **Commit:** (this one) · **Files:** `macos/Runner/Release.entitlements`,
+`macos/Runner.xcodeproj/project.pbxproj`, `ios/Runner/TorControllerPlugin.swift`,
+`test/js/macos_store_declarations.test.js`, `docs/releasing-macos.md`, spec TOR-007
+
+**What happened.** A Release build on macOS, no bridges configured:
+
+```
+[Tor/info] Tor thread started with no bridges configured.
+[Tor/error] Tor exited before opening its control port: it rejected its
+    configuration. A bridge line is the usual cause.
+[Tor/error] Tor has already run once in this app session and cannot be started again ...
+```
+
+tor's thread was gone within a second, and tor's own log said nothing. `Release.entitlements`
+lacked `com.apple.security.network.server` and the Release configuration set
+`ENABLE_INCOMING_NETWORK_CONNECTIONS = NO`; `DebugProfile.entitlements`, which Debug and
+Profile use, has always granted it. The App Sandbox refuses `listen()` without it, on
+loopback too, so tor could not open its `SocksPort auto` listener. tor 0.4.9's
+`options_act_reversible` opens listeners before its log transaction, so the failure went to
+tor's standard output and the file this plugin tails (attempt 3) was never opened.
+`docs/releasing-macos.md` had said all along that bringing Tor to macOS needs exactly this
+entitlement in Release; the pod came to macOS and the line stayed a note.
+
+**What it did.** Release grants `network.server`, with the build setting to match. A gate in
+`test/js/macos_store_declarations.test.js` fails while `macos/Podfile` carries the Tor pod and
+any Runner configuration lacks either half; it failed on the tree before the change. The
+plugin no longer blames a bridge line when no bridges were configured.
+
+**Why it was partial.** Attempt 10 measured Debug, and so does every run of the tier: the
+CI step even rewrites `DebugProfile.entitlements` before building. Any other way Release
+differs from Debug (entitlements, compiled-out asserts, signing) is still untested by
+anything that runs tor; this gate covers one key. tor's own reason for exiting before its log
+opens is still unreadable from inside the app. And nothing here touches iOS, whose sandbox
+has no such entitlement and lets an app listen on loopback, so the iOS instances above keep
+their own causes.
 
 ## Known open gaps
 

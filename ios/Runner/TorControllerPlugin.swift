@@ -662,14 +662,19 @@ class TorControllerPlugin: NSObject {
   ) {
     guard starting, generation == self.generation else { return }
     guard !thread.isFinished else {
-      // A tor that is already gone did not refuse the connection, it
-      // rejected its own configuration and exited — which it does before
-      // the control port exists, so its reason is not on any surface this
-      // app can read. Naming the difference is the only diagnosis
-      // available, and a bad bridge line is what usually causes it.
+      // A tor that is already gone did not refuse the connection: it
+      // rejected its configuration or could not open a listener, and exited.
+      // tor does both before it opens its log file, so its reason went to
+      // standard output and is not on any surface this app can read. With
+      // bridges configured, a bad bridge line is the usual cause; without
+      // any, blaming one sends the user after something that is not there.
       failLocked(
-        "Tor exited before opening its control port: it rejected its configuration. "
-          + "A bridge line is the usual cause.",
+        (config.arguments?.count ?? 0) > 0
+          ? "Tor exited before opening its control port: it rejected its configuration. "
+            + "A bridge line is the usual cause."
+          : "Tor exited before opening its control port, with no bridges configured: it "
+            + "rejected its configuration or could not open a listener, and says which "
+            + "only on its standard output.",
         generation: generation)
       return
     }

@@ -15,6 +15,7 @@ const PBXPROJ = 'macos/Runner.xcodeproj/project.pbxproj';
 const WORKFLOW = '.github/workflows/build-and-test.yml';
 const GITIGNORE = 'macos/.gitignore';
 const SIGN_SCRIPT = 'scripts/sign_macos.sh';
+const PODFILE = 'macos/Podfile';
 
 const ENTITLEMENTS = {
   'Runner/Release.entitlements': 'macos/Runner/Release.entitlements',
@@ -90,6 +91,29 @@ test('PLATFORM-006: entitlements and sandbox build settings agree', () => {
         'in one and not the other and the failure surfaces at runtime.',
       );
     }
+  }
+});
+
+// The sandbox refuses listen() without network.server, on loopback as
+// anywhere, and tor's SOCKS port and every pluggable transport are loopback
+// listeners: tor exits before its control port opens and says why only on
+// stdout (BUG-013 attempt 13). The integration tier builds Debug, whose
+// entitlements always had it, so no run could see Release without it.
+test('TOR-007: every macOS build that links tor may open its loopback listeners', () => {
+  if (!/^\s*pod 'Tor'/m.test(read(PODFILE))) return;
+  for (const { entitlements, body } of runnerBuildSettings()) {
+    const file = ENTITLEMENTS[entitlements];
+    assert.strictEqual(
+      boolForKey(read(file), 'com.apple.security.network.server'), true,
+      `${PODFILE} links tor, but ${file} does not grant ` +
+      'com.apple.security.network.server. The sandbox then refuses tor\'s ' +
+      'loopback SOCKS listener and tor exits before its control port opens.',
+    );
+    assert.match(
+      body, /ENABLE_INCOMING_NETWORK_CONNECTIONS = YES;/,
+      `${PODFILE} links tor, but the build configuration using ${file} sets ` +
+      'ENABLE_INCOMING_NETWORK_CONNECTIONS = NO.',
+    );
   }
 });
 
