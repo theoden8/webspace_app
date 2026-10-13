@@ -317,8 +317,9 @@ class _SiteNetworkScreenState extends State<SiteNetworkScreen> {
           onChanged: _pickProxy,
         )),
       ),
-      // An external tor picks its own exits (TOR-025).
-      if (type == ProxyType.TOR && !TorService.instance.isExternal)
+      // An external tor picks its own exits unless the app holds its
+      // control port (TOR-025, TOR-026).
+      if (type == ProxyType.TOR && TorService.instance.hasControlPort)
         _torExitCountry(loc),
       if (type == ProxyType.SAVED || type == ProxyType.GATEWAY)
         _libraryRoute(loc),

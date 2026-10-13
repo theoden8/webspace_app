@@ -1592,9 +1592,9 @@
   "@externalTor": {
     "description": "Title of the switch in App settings > Network, under the Tor heading, that sends sites set to Tor through a Tor program already running on the device (for example the Orbot app, or the tor service on Linux) instead of one inside this app. While it is on, also the name of the Tor choice in proxy pickers and in the summaries that name a site's route, to tell it from the Tor built into the app. Tor is a product name; keep it."
   },
-  "externalTorHint": "Sends sites set to Tor through a tor already running on this device, such as Orbot, InviZible, Arti or the tor service; on macOS it replaces the built-in Tor. Each site gives that tor its own SOCKS username and password, so a tor with IsolateSOCKSAuth, which is on unless its SocksPort says NoIsolateSOCKSAuth, keeps each site on circuits of its own. Exit countries, bridges and new circuits are set in that tor.",
+  "externalTorHint": "Sends sites set to Tor through a tor already running on this device, such as Orbot, InviZible, Arti or the tor service; on macOS it replaces the built-in Tor. Each site gives that tor its own SOCKS username and password, so a tor with IsolateSOCKSAuth, which is on unless its SocksPort says NoIsolateSOCKSAuth, keeps each site on circuits of its own. Bridges are set in that tor, and so are exit countries and new circuits unless the app has its control port (Linux and macOS).",
   "@externalTorHint": {
-    "description": "Explanation behind the hint button of the Tor (external) switch in App settings > Network. Orbot and InviZible are Android apps and Arti is Tor's Rust implementation; Tor, SOCKS, SocksPort, IsolateSOCKSAuth and NoIsolateSOCKSAuth are names from Tor's configuration and must stay as written. A circuit is Tor's path through the network."
+    "description": "Explanation behind the hint button of the Tor (external) switch in App settings > Network. Orbot and InviZible are Android apps and Arti is Tor's Rust implementation; Tor, SOCKS, SocksPort, IsolateSOCKSAuth and NoIsolateSOCKSAuth are names from Tor's configuration and must stay as written. A circuit is Tor's path through the network; a control port is how another program asks Tor for its configuration and gives it commands."
   },
   "externalTorAddress": "Tor SOCKS address",
   "@externalTorAddress": {
@@ -1603,6 +1603,116 @@
   "externalTorAddressHint": "Where that tor's SOCKS port listens, as host:port. Orbot, InviZible and the tor service use 127.0.0.1:9050, Arti and Tor Browser 127.0.0.1:9150. The app checks that tor answers there before any site uses it.",
   "@externalTorAddressHint": {
     "description": "Explanation behind the hint button of the Tor SOCKS address row. Keep the addresses 127.0.0.1:9050 and 127.0.0.1:9150 and the product names Orbot, InviZible, Arti and Tor Browser exactly as written."
+  },
+  "externalTorControl": "Tor control port",
+  "@externalTorControl": {
+    "description": "Title of the row, shown under the Tor (external) switch on Linux and macOS, that names where the external Tor program's control port listens. The control port is how another program asks Tor for its configuration and gives it commands. Also the title of the dialog that edits it. Tor is a product name; keep it."
+  },
+  "externalTorControlHint": "Optional. With that tor's control port the app reads how it isolates sites and lists what differs from the built-in Tor, and offers new circuits and exit countries as it does with the built-in Tor. Enter a socket path, such as /run/tor/control for the tor service on Debian and Ubuntu, or host:port, such as 127.0.0.1:9051. The app signs in with tor's cookie file when it may read it (on Debian and Ubuntu, add your user to the debian-tor group), or with the password saved here. An exit country set this way applies to everything that uses that tor, and is taken back when no site needs it.",
+  "@externalTorControlHint": {
+    "description": "Explanation behind the hint button of the Tor control port row. Keep /run/tor/control, 127.0.0.1:9051, host:port, debian-tor, Debian and Ubuntu exactly as written. A cookie file is a small secret file Tor writes so that programs allowed to read it can prove it; a circuit is Tor's path through the network; an exit country is the country traffic leaves the Tor network from."
+  },
+  "externalTorControlNotSet": "Not set",
+  "@externalTorControlNotSet": {
+    "description": "Subtitle of the Tor control port row when no control port has been entered."
+  },
+  "externalTorControlConnected": "Connected",
+  "@externalTorControlConnected": {
+    "description": "Subtitle of the Tor control port row when the app is signed in to the external Tor program's control port."
+  },
+  "externalTorControlUnreachable": "Not answering",
+  "@externalTorControlUnreachable": {
+    "description": "Subtitle of the Tor control port row when nothing answered at the control port address, or it did not answer in time."
+  },
+  "externalTorControlNotTor": "Not a tor control port",
+  "@externalTorControlNotTor": {
+    "description": "Subtitle of the Tor control port row when something answered at the address, but not as Tor's control port. tor is the program's name; keep it."
+  },
+  "externalTorControlNeedsPassword": "Needs a password",
+  "@externalTorControlNeedsPassword": {
+    "description": "Subtitle of the Tor control port row when the external Tor program only accepts a password there and none is saved in the app."
+  },
+  "externalTorControlCookieUnreadable": "Cannot read tor's cookie file",
+  "@externalTorControlCookieUnreadable": {
+    "description": "Subtitle of the Tor control port row when the external Tor program wants its cookie file (a small secret file proving access) and the app is not allowed to read that file. tor is the program's name; keep it."
+  },
+  "externalTorControlRefused": "Password or cookie refused",
+  "@externalTorControlRefused": {
+    "description": "Subtitle of the Tor control port row when the external Tor program rejected the password or cookie the app sent."
+  },
+  "externalTorControlOtherTor": "Belongs to another tor",
+  "@externalTorControlOtherTor": {
+    "description": "Subtitle of the Tor control port row when the control port answered, but belongs to a different Tor program than the one at the Tor SOCKS address, so the app does not use it. tor is the program's name; keep it."
+  },
+  "externalTorControlAddressLabel": "Socket path or host:port",
+  "@externalTorControlAddressLabel": {
+    "description": "Label of the text field, in the Tor control port dialog, where the user enters a file path of a socket or a host:port address. Keep host:port as written."
+  },
+  "externalTorControlPasswordLabel": "Password (optional)",
+  "@externalTorControlPasswordLabel": {
+    "description": "Label of the password field in the Tor control port dialog. Only needed when the external Tor program is set up to accept a password on its control port."
+  },
+  "externalTorControlFormat": "Enter a socket path that starts with /, or host:port",
+  "@externalTorControlFormat": {
+    "description": "Error under the address field of the Tor control port dialog when what was typed is neither a file path starting with / nor a host:port address. Keep / and host:port as written."
+  },
+  "externalTorPostureSame": "Same isolation as the built-in Tor",
+  "@externalTorPostureSame": {
+    "description": "Row shown under the Tor control port row once the app has read the external Tor program's configuration and found it keeps sites apart the same way the Tor built into the app does."
+  },
+  "externalTorGapSharedCircuits": "Sites share circuits",
+  "@externalTorGapSharedCircuits": {
+    "description": "Warning row under the Tor control port row: the external Tor program is set up so that all sites use the same paths through the Tor network, so they can be linked to each other. A circuit is Tor's path through the network."
+  },
+  "externalTorGapSharedCircuitsHint": "That tor's SocksPort says NoIsolateSOCKSAuth, so the username and password each site sends do not keep it on circuits of its own, and two sites can be linked by the exit they arrive from. Remove NoIsolateSOCKSAuth from that SocksPort line.",
+  "@externalTorGapSharedCircuitsHint": {
+    "description": "Explanation behind the hint button of the 'Sites share circuits' warning. SocksPort and NoIsolateSOCKSAuth are names from Tor's configuration file; keep them as written. An exit is the Tor relay traffic leaves the network from."
+  },
+  "externalTorGapPerHost": "A circuit per host",
+  "@externalTorGapPerHost": {
+    "description": "Warning row under the Tor control port row: the external Tor program gives a site a separate path through the Tor network for every server (host) it contacts, unlike the Tor built into the app."
+  },
+  "externalTorGapPerHostHint": "That tor's SocksPort says IsolateDestAddr, so a site gets a separate circuit for every host it reaches, where the built-in Tor uses one circuit per site. A page that loads from several hosts arrives from several exits, and a sign-in that checks your address across hosts can fail.",
+  "@externalTorGapPerHostHint": {
+    "description": "Explanation behind the hint button of the 'A circuit per host' warning. SocksPort and IsolateDestAddr are names from Tor's configuration file; keep them as written."
+  },
+  "externalTorGapPerPort": "A circuit per port",
+  "@externalTorGapPerPort": {
+    "description": "Warning row under the Tor control port row: the external Tor program gives a site a separate path through the Tor network for every network port it contacts, unlike the Tor built into the app."
+  },
+  "externalTorGapPerPortHint": "That tor's SocksPort says IsolateDestPort, so a site gets a separate circuit for every port it reaches, where the built-in Tor uses one circuit per site.",
+  "@externalTorGapPerPortHint": {
+    "description": "Explanation behind the hint button of the 'A circuit per port' warning. SocksPort and IsolateDestPort are names from Tor's configuration file; keep them as written."
+  },
+  "externalTorGapOwnExits": "That tor picks exits: {nodes}",
+  "@externalTorGapOwnExits": {
+    "description": "Warning row under the Tor control port row: the external Tor program is configured to leave the Tor network only through the relays or countries named by the placeholder, written in Tor's own syntax (two-letter country codes in curly brackets, or relay names).",
+    "placeholders": {
+      "nodes": {
+        "type": "String",
+        "example": "US and Canada exits"
+      }
+    }
+  },
+  "externalTorGapOwnExitsHint": "That tor's own ExitNodes is set, so every site without an exit country of its own leaves through those nodes instead of any country. If the app closed while a site's exit country was in force, reloading that tor puts its own setting back.",
+  "@externalTorGapOwnExitsHint": {
+    "description": "Explanation behind the hint button of the 'That tor picks exits' warning. ExitNodes is a name from Tor's configuration file; keep it as written. Reloading means telling the Tor program to read its configuration file again."
+  },
+  "externalTorGapLogs": "That tor logs addresses",
+  "@externalTorGapLogs": {
+    "description": "Warning row under the Tor control port row: the external Tor program's log can contain the addresses of the servers the user's sites connect to."
+  },
+  "externalTorGapLogsHint": "That tor's SafeLogging is not 1, so its log can name the hosts your sites reach. The built-in Tor keeps them out of its log.",
+  "@externalTorGapLogsHint": {
+    "description": "Explanation behind the hint button of the 'That tor logs addresses' warning. SafeLogging is a name from Tor's configuration file; keep it and the value 1 as written."
+  },
+  "externalTorGapUnknownFlags": "Isolation not known",
+  "@externalTorGapUnknownFlags": {
+    "description": "Warning row under the Tor control port row: the app could not tell how the external Tor program keeps sites apart."
+  },
+  "externalTorGapUnknownFlagsHint": "That tor has more than one SocksPort on an automatic port, and the app cannot tell which one sites reach, so it cannot check its isolation flags.",
+  "@externalTorGapUnknownFlagsHint": {
+    "description": "Explanation behind the hint button of the 'Isolation not known' warning. SocksPort is a name from Tor's configuration file; keep it as written. Isolation flags are the options that decide which traffic shares a path through Tor."
   },
   "appSettingsDeveloperModeAlreadyOn": "Developer mode is already on",
   "@appSettingsDeveloperModeAlreadyOn": {
@@ -4538,9 +4648,9 @@
   "@torFailExternalPinTitle": {
     "description": "Tor failure heading: a site has an exit country set, and the Tor in use is one already running on the device, which this app cannot tell which country to leave from."
   },
-  "torFailExternalPinBody": "A site here has an exit country, and the external tor chooses its own exits. Set the site's exit country back to any country, or set ExitNodes in that tor.",
+  "torFailExternalPinBody": "A site here has an exit country, and the external tor cannot take one from the app. Set that tor's control port under Tor (external) in App settings, or set the site's exit country back to any country.",
   "@torFailExternalPinBody": {
-    "description": "Tor failure explanation for an exit country that cannot be applied to an external Tor program. ExitNodes is a Tor configuration option name; keep it as written."
+    "description": "Tor failure explanation for an exit country that cannot be applied to an external Tor program: the app has no working control port to it, or that Tor cannot take the country. 'Tor (external)' is the name of a switch and 'App settings' the name of a screen; keep them as they are translated elsewhere."
   },
   "torFailTransientNote": "Tor expects to recover from this on its own.",
   "@torFailTransientNote": {
