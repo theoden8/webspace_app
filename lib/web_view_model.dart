@@ -539,6 +539,7 @@ class WebViewModel implements MediaGrantRecord {
         targetUrl: url,
         initUrl: homeUrl ?? initUrl,
         hasGesture: true,
+        frame: NavigationFrame.top,
         isSiteActive: isActive,
         lastSameDomainGestureTime: null,
         now: DateTime.now(),
@@ -1281,7 +1282,7 @@ bool dispatch(NavigationDecision decision,
             blockedNavigationUrl = blocked;
             hooks.rebuild();
           },
-          shouldOverrideUrlLoading: (url, {required hasGesture}) {
+          shouldOverrideUrlLoading: (url, {required hasGesture, required frame}) {
             LogTag.webView.debug(
                 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
                 sensitive: true);
@@ -1290,6 +1291,7 @@ bool dispatch(NavigationDecision decision,
               targetUrl: url,
               initUrl: navHome,
               hasGesture: hasGesture,
+              frame: frame,
               isSiteActive: isActive(),
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: now,

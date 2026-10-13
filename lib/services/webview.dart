@@ -33,6 +33,7 @@ import 'package:webspace/services/external_url_engine.dart';
 import 'package:webspace/services/ios_universal_link_bypass.dart';
 import 'package:webspace/services/web_intercept_native.dart';
 import 'package:webspace/services/icon_link_watcher_shim.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/opensearch_engine.dart';
 import 'package:webspace/services/search_link_watcher_shim.dart';
 import 'package:webspace/services/site_icon_engine.dart';
@@ -966,6 +967,12 @@ class WebViewFactory {
         navigationGen++;
         final url = navigationAction.request.url.toString();
         if (_shouldBlockUrl(url)) return inapp.NavigationActionPolicy.CANCEL;
+        final frame = NavigationDecisionEngine.frameOf(
+          reportedMainFrame: navigationAction.isForMainFrame,
+          mainFrameInferred: hostIsLinux,
+          linkActivated: navigationAction.navigationType ==
+              inapp.NavigationType.LINK_ACTIVATED,
+        );
         // External app schemes (intent://, tel:, mailto:, market:, custom
         // app schemes) can't be rendered in a webview — flutter_inappwebview
         // returns ERR_UNKNOWN_URL_SCHEME. Cancel and hand the URL to the
@@ -994,9 +1001,10 @@ class WebViewFactory {
           final resolved = ExternalUrlParser.toWebUrl(externalInfo);
           if (resolved != null) {
             // The reissued load below lands on the top-frame controller, so
-            // a subframe must not reach it (NESTED-013): an ad iframe would
-            // otherwise steer the top document with the session attached.
-            if (navigationAction.isForMainFrame == false) {
+            // only a navigation the platform vouches is the page may reach it
+            // (NESTED-013): an ad iframe would otherwise steer the top
+            // document with the session attached.
+            if (frame != NavigationFrame.top) {
               return inapp.NavigationActionPolicy.CANCEL;
             }
             final hasGesture = _hasUserGesture(navigationAction);
@@ -1019,7 +1027,7 @@ class WebViewFactory {
             bool allow = true;
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved,
-                  hasGesture: hasGesture);
+                  hasGesture: hasGesture, frame: frame);
             }
             if (allow) {
               controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
@@ -1047,26 +1055,23 @@ class WebViewFactory {
         // webview — wrong, intrusive, and on Android can race the
         // chromium frame-lifecycle code path that the
         // `partition_alloc_support.cc:770` dangle ride sits on top
-        // of. Allow iframe navigations to load in-place; the engine
-        // sees only main-frame navigations.
-        final isMainFrame = navigationAction.isForMainFrame;
-        // Diagnostic: log the raw isForMainFrame so we can tell
-        // when a platform reports true vs. false. WebKit2GTK
-        // on Linux has been observed to return true for navigations
-        // that originate from inside an iframe; Android API 24+
-        // returns false for child-frame navigations consistently.
+        // of. Allow iframe navigations to load in-place.
         LogTag.webView.debug(
-            'shouldOverrideUrlLoading: isForMainFrame=${navigationAction.isForMainFrame}');
-        if (!isMainFrame) {
+            'shouldOverrideUrlLoading: isForMainFrame=${navigationAction.isForMainFrame} '
+            'frame=${frame.name}');
+        if (frame == NavigationFrame.sub) {
           return inapp.NavigationActionPolicy.ALLOW;
         }
         // URL rewrites (ClearURLs, $removeparam) drive a load on the TOP
-        // frame, so they live below the main-frame gate: a cross-origin
-        // subframe navigation must never be able to steer the top document.
+        // frame, so they run only for a frame the platform vouches is the
+        // page: a cross-origin subframe navigation must never be able to
+        // steer the top document (NESTED-013).
         // The rewrite target is likewise re-checked before it is loaded — a
         // ClearURLs redirection rule yields whatever the matched URL carried
         // in its capture group, and `loadUrl` on Android takes any scheme.
-        if (config.posture.blocking.clearUrls && ClearUrlService.instance.hasRules) {
+        if (frame == NavigationFrame.top &&
+            config.posture.blocking.clearUrls &&
+            ClearUrlService.instance.hasRules) {
           final cleanedUrl = ClearUrlService.instance.cleanUrl(url);
           if (cleanedUrl.isEmpty) return inapp.NavigationActionPolicy.CANCEL;
           if (cleanedUrl != url &&
@@ -1086,7 +1091,8 @@ class WebViewFactory {
         // strips matching keys. Runs AFTER ClearURLs so the static
         // rules go first and the filter list catches what they miss.
         // No-op when the engine is off or the URL has no query.
-        if (config.posture.blocking.contentBlock &&
+        if (frame == NavigationFrame.top &&
+            config.posture.blocking.contentBlock &&
             ContentBlockerService.instance.usingRustEngine &&
             url.contains('?')) {
           // requestType: 'document' — adblock-rust restricts
@@ -1109,7 +1115,8 @@ class WebViewFactory {
         if (config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(navigationAction);
           final allow =
-              config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture);
+              config.shouldOverrideUrlLoading!(url,
+                  hasGesture: hasGesture, frame: frame);
           if (!allow) return inapp.NavigationActionPolicy.CANCEL;
         }
         // Fail closed where the platform cannot be shown to put this request
@@ -1131,9 +1138,11 @@ class WebViewFactory {
         // HTTPS upgrade, decided AFTER the routing decision above for the same
         // reason the captcha allow is (HTTPS-004): taken first, a scheme
         // rewrite re-enters the pipeline with the gesture requirement and the
-        // cross-domain nested route already behind it.
-        final upgrade = WebViewFactory.httpsUpgrade
-            .onNavigation(url, enabled: config.posture.blocking.httpsUpgrade);
+        // cross-domain nested route already behind it. Its reissue lands on
+        // the top frame, so it is for a vouched top frame only (NESTED-013).
+        final upgrade = WebViewFactory.httpsUpgrade.onNavigation(url,
+            enabled: frame == NavigationFrame.top &&
+                config.posture.blocking.httpsUpgrade);
         if (upgrade.armDeadlineFor != null) {
           final armed = upgrade.armDeadlineFor!;
           final genAtUpgrade = navigationGen;
@@ -1198,7 +1207,7 @@ class WebViewFactory {
         // are passed through here without interception.
         if (hostIsIOS &&
             IosUniversalLinkBypass.isEligibleNavigation(
-              isMainFrame: isMainFrame,
+              isMainFrame: frame == NavigationFrame.top,
               url: url,
               isLinkActivated: navigationAction.navigationType ==
                   inapp.NavigationType.LINK_ACTIVATED,
@@ -1287,7 +1296,8 @@ class WebViewFactory {
             bool allow = true;
             if (config.shouldOverrideUrlLoading != null) {
               allow = config.shouldOverrideUrlLoading!(resolved,
-                  hasGesture: hasGesture);
+                  hasGesture: hasGesture,
+                  frame: NavigationFrame.top);
             }
             // A window this webview did not ask for by gesture never loads
             // into it (NESTED-013); a real target="_blank" tap is rewritten
@@ -1310,7 +1320,8 @@ class WebViewFactory {
         if (url.startsWith('http') && config.shouldOverrideUrlLoading != null) {
           final hasGesture = _hasUserGesture(createWindowAction);
           final allow =
-              config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture);
+              config.shouldOverrideUrlLoading!(url,
+                  hasGesture: hasGesture, frame: NavigationFrame.top);
           if (allow && hasGesture) {
             // Same-domain target="_blank": load in current webview
             controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url)));
@@ -1680,7 +1691,8 @@ class WebViewFactory {
               sensitive: true);
           Future.microtask(() async {
             final bool allow = config.shouldOverrideUrlLoading
-                    ?.call(resolved, hasGesture: false) ??
+                    ?.call(resolved,
+                        hasGesture: false, frame: NavigationFrame.top) ??
                 true;
             await view?.loadUrl(allow ? resolved : 'about:blank');
           });

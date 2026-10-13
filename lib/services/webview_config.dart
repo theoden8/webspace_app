@@ -6,6 +6,7 @@ import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/pull_to_refresh_gate.dart';
 import 'package:webspace/services/resume_reload_engine.dart';
 import 'package:webspace/services/media_grant_engine.dart';
+import 'package:webspace/services/navigation_decision_engine.dart';
 import 'package:webspace/services/passkey_engine.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/dns_level_mask_engine.dart';
@@ -61,8 +62,9 @@ class WebViewConfig {
   final Function(String url)? onUrlChanged;
   final Function(List<Cookie> cookies)? onCookiesChanged;
   final Function(int activeMatch, {required int totalMatches})? onFindResult;
-  final Function(String url, {required bool hasGesture})?
-      shouldOverrideUrlLoading;
+  final Function(String url,
+      {required bool hasGesture,
+      required NavigationFrame frame})? shouldOverrideUrlLoading;
   /// Fires when a main-frame navigation was cancelled because the app could
   /// not establish that it would go through this site's proxy (LEAK-010).
   /// Carries the destination that was not requested, so the host can render

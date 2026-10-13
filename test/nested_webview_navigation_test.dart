@@ -54,6 +54,7 @@ class NavigationTestHarness {
       targetUrl: targetUrl,
       initUrl: site.initUrl,
       hasGesture: hasGesture,
+      frame: NavigationFrame.top,
       isSiteActive: true,
       lastSameDomainGestureTime: _lastSameDomainGestureTime[siteIndex],
       now: DateTime.now(),

@@ -13,6 +13,7 @@ void main() {
     required String targetUrl,
     String initUrl = 'https://example.com',
     bool hasGesture = false,
+    NavigationFrame frame = NavigationFrame.top,
     bool isSiteActive = true,
     DateTime? lastSameDomainGestureTime,
     DateTime? now,
@@ -23,6 +24,7 @@ void main() {
         targetUrl: targetUrl,
         initUrl: initUrl,
         hasGesture: hasGesture,
+        frame: frame,
         isSiteActive: isSiteActive,
         lastSameDomainGestureTime: lastSameDomainGestureTime,
         now: now ?? t0,
@@ -398,6 +400,74 @@ void main() {
         hasGesture: false,
       );
       expect(r.decision, NavigationDecision.allow);
+    });
+  });
+
+  group('a main frame the platform only guessed (NESTED-013)', () {
+    test('frameOf believes a guessed main frame only for a link click', () {
+      expect(
+          NavigationDecisionEngine.frameOf(
+              reportedMainFrame: true, mainFrameInferred: true, linkActivated: true),
+          NavigationFrame.top);
+      expect(
+          NavigationDecisionEngine.frameOf(
+              reportedMainFrame: true, mainFrameInferred: true, linkActivated: false),
+          NavigationFrame.unverified);
+      expect(
+          NavigationDecisionEngine.frameOf(
+              reportedMainFrame: false, mainFrameInferred: true, linkActivated: true),
+          NavigationFrame.sub);
+      expect(
+          NavigationDecisionEngine.frameOf(
+              reportedMainFrame: true, mainFrameInferred: false, linkActivated: false),
+          NavigationFrame.top);
+    });
+
+    test('an iframe loading inside the window after a click stays in place', () {
+      final r = decideShould(
+        targetUrl: 'https://js.stripe.com/v3/m-outer.html',
+        initUrl: 'https://huggingface.co',
+        frame: NavigationFrame.unverified,
+        lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
+      );
+      expect(r.decision, NavigationDecision.allow);
+      expect(r.gestureUpdate, isNull,
+          reason: 'an iframe must not consume the window a redirect may need');
+    });
+
+    test('the same load as a vouched main frame is routed', () {
+      final r = decideShould(
+        targetUrl: 'https://js.stripe.com/v3/m-outer.html',
+        initUrl: 'https://huggingface.co',
+        lastSameDomainGestureTime: t0.subtract(const Duration(seconds: 2)),
+      );
+      expect(r.decision, NavigationDecision.blockOpenNested);
+    });
+
+    test('an unverified gesture is recorded for the onUrlChanged check', () {
+      final r = decideShould(
+        targetUrl: 'https://other.example/page',
+        frame: NavigationFrame.unverified,
+        hasGesture: true,
+      );
+      expect(r.decision, NavigationDecision.allow);
+      expect(r.gestureUpdate, GestureStateUpdate.record);
+      expect(r.hadGesture, isTrue);
+      final changed = decideChanged(
+          newUrl: 'https://other.example/page', lastSameDomainGestureTime: t0);
+      expect(changed.decision, NavigationDecision.blockOpenNested,
+          reason: 'a click the page handled in script still reaches the link mode');
+    });
+
+    test('an unverified script hop is left to the onUrlChanged check', () {
+      final r = decideShould(
+        targetUrl: 'https://other.example/page',
+        frame: NavigationFrame.unverified,
+      );
+      expect(r.decision, NavigationDecision.allow);
+      final changed = decideChanged(newUrl: 'https://other.example/page');
+      expect(changed.decision, NavigationDecision.blockSilent,
+          reason: 'if it was the page itself, the top-level check pulls it back');
     });
   });
 

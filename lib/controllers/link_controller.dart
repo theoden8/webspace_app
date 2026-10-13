@@ -11,7 +11,7 @@ import 'package:webspace/services/link_intent_dispatch_engine.dart';
 import 'package:webspace/services/link_routing_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/navigation_decision_engine.dart'
-    show NavigationDecision, NavigationDecisionEngine, NavigationStep;
+    show NavigationDecision, NavigationDecisionEngine, NavigationFrame, NavigationStep;
 import 'package:webspace/services/outbound_preference.dart';
 import 'package:webspace/services/page_title.dart';
 import 'package:webspace/services/reentry_guard.dart';
@@ -959,6 +959,7 @@ class LinkController {
       targetUrl: url,
       initUrl: model.navigationHomeUrl,
       hasGesture: true,
+      frame: NavigationFrame.top,
       isSiteActive: true,
       lastSameDomainGestureTime: null,
       now: DateTime.now(),

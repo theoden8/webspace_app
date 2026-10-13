@@ -41,9 +41,9 @@ const WEBVIEW = [
 const NAV = blockAfter(WEBVIEW, 'shouldOverrideUrlLoading: (controller, navigationAction) async {',
   undefined, 'webview.dart');
 
-test('CURL-014/015 + CB-014: URL rewrites sit below the main-frame gate', () => {
-  const gate = NAV.indexOf('if (!isMainFrame) {');
-  assert.notEqual(gate, -1, 'the isForMainFrame gate is gone');
+test('CURL-014/015 + CB-014 + NESTED-013: URL rewrites run only for a vouched top frame', () => {
+  const gate = NAV.indexOf('if (frame == NavigationFrame.sub) {');
+  assert.notEqual(gate, -1, 'the subframe gate is gone');
 
   for (const rewrite of ['ClearUrlService.instance.cleanUrl(url)',
     'ContentBlockerService.instance\n              .rewrittenUrl(url']) {
@@ -51,8 +51,13 @@ test('CURL-014/015 + CB-014: URL rewrites sit below the main-frame gate', () => 
     assert.notEqual(at, -1, `${rewrite} is gone from shouldOverrideUrlLoading`);
     assert.ok(at > gate,
       `${rewrite} drives a top-frame loadUrl, so it must run below the ` +
-      'main-frame gate — above it, a cross-origin subframe navigation ' +
+      'subframe gate — above it, a cross-origin subframe navigation ' +
       'steers the top document');
+    const guard = NAV.slice(NAV.lastIndexOf('if (', at), at);
+    assert.ok(guard.includes('frame == NavigationFrame.top'),
+      `${rewrite} must be guarded by frame == NavigationFrame.top: where the ` +
+      'platform only guessed the main frame (Linux), an iframe\'s own load ' +
+      'would otherwise steer the top document');
   }
 });
 
@@ -75,7 +80,7 @@ test('CURL-014/015 + CB-014: a rewrite target is scheme-checked before it is loa
 });
 
 test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
-  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture)');
+  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url,');
   const captcha = NAV.indexOf('isCaptchaChallenge(url, siteUrl: config.initialUrl)');
   assert.notEqual(override, -1, 'the shouldOverrideUrlLoading call is gone');
   assert.notEqual(captcha, -1, 'the captcha allow is gone');
@@ -85,8 +90,17 @@ test('CAPTCHA-008: the captcha allow comes after the routing decision', () => {
     'cross-domain nested route skipped');
 });
 
+test('NESTED-013: the https upgrade reissues only for a vouched top frame', () => {
+  const at = NAV.indexOf('WebViewFactory.httpsUpgrade.onNavigation(url,');
+  assert.notEqual(at, -1, 'the https upgrade call is gone');
+  const call = NAV.slice(at, NAV.indexOf(');', at));
+  assert.ok(call.includes('frame == NavigationFrame.top'),
+    'the upgrade reissues on the top frame, so it must be enabled only for a '
+    + 'frame the platform vouches is the page');
+});
+
 test('HTTPS-004: the https upgrade comes after the routing decision', () => {
-  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url, hasGesture: hasGesture)');
+  const override = NAV.indexOf('config.shouldOverrideUrlLoading!(url,');
   const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
   assert.notEqual(override, -1, 'the shouldOverrideUrlLoading call is gone');
   assert.notEqual(upgrade, -1, 'the https upgrade is gone');
@@ -101,7 +115,7 @@ test('HTTPS-004: the https upgrade comes after the routing decision', () => {
 // must be one the engine produced from the navigation's own URL, never one a
 // page supplied.
 test('HTTPS-004: the upgraded URL is the engine\'s, not the page\'s', () => {
-  assert.match(NAV, /onNavigation\(url, enabled: config\.posture\.blocking\.httpsUpgrade\)/,
+  assert.match(NAV, /onNavigation\(url,\s*enabled:[^)]*config\.posture\.blocking\.httpsUpgrade\)/,
     'the engine must be asked about the navigation URL itself, and about the ' +
     'site\'s own setting');
   const upgrade = NAV.indexOf('WebViewFactory.httpsUpgrade');
@@ -152,11 +166,11 @@ test('NESTED-013: a subframe cannot steer the top document through an external s
   const at = WEBVIEW.indexOf("'External scheme intercepted: scheme=");
   assert.notEqual(at, -1, 'the external-scheme branch is gone');
   const body = WEBVIEW.slice(at, WEBVIEW.indexOf('config.hooks.externalScheme(', at));
-  const gate = body.indexOf('navigationAction.isForMainFrame == false');
+  const gate = body.indexOf('frame != NavigationFrame.top');
   const load = body.indexOf('controller.loadUrl(');
   assert.notEqual(gate, -1,
-    'the external branch must refuse a subframe: it resolves intent:// and '
-    + 'x-safari- targets onto the top-frame controller');
+    'the external branch must refuse anything but a vouched top frame: it '
+    + 'resolves intent:// and x-safari- targets onto the top-frame controller');
   assert.ok(load === -1 || gate < load,
     'the frame test must precede the reissued load');
 });

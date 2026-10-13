@@ -319,12 +319,13 @@ class _InAppWebViewScreenState extends State<InAppWebViewScreen>
         // for gesture-less hops). A nested screen has nowhere further to
         // nest, so `blockOpenNested` navigates in place, unless the link is
         // one of the user's sites and goes back as a tab (LIR-032).
-        shouldOverrideUrlLoading: (url, {required hasGesture}) {
+        shouldOverrideUrlLoading: (url, {required hasGesture, required frame}) {
           final result = NavigationDecisionEngine
               .decideShouldOverrideUrlLoading(
             targetUrl: url,
             initUrl: _currentUrl,
             hasGesture: hasGesture,
+            frame: frame,
             isSiteActive: mounted,
             lastSameDomainGestureTime: _lastSameDomainGestureTime,
             now: DateTime.now(),

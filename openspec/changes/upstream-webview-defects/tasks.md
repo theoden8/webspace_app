@@ -166,20 +166,20 @@ The signal's unreliability is already documented in PR #356, which covers the
 nested-webview consequence and offers a per-site escape hatch. This section is
 about the half that hatch does not reach: the top-frame rewrites.
 
-- [ ] 12.0 Land or close PR #356 first. It has been conflicted since August, it
+- [x] 12.0 Land or close PR #356 first. It has been conflicted since August, it
   edits the same spec section, and it fixes a different signal (`hasGesture`) on
   the same handler. Two open edits to one section is how one of them gets lost.
 
-- [ ] 12.1 Stop resolving a missing or inferred main-frame signal to the
+- [x] 12.1 Stop resolving a missing or inferred main-frame signal to the
   permissive answer at `lib/services/webview.dart:3918`
   (`isForMainFrame ?? true`). Distinguish "reported false", "reported true" and
   "not trustworthy on this platform".
-- [ ] 12.2 On the untrustworthy branch, allow the navigation unmodified: skip
+- [x] 12.2 On the untrustworthy branch, allow the navigation unmodified: skip
   the ClearURLs and `$removeparam` top-frame `loadUrl` rewrites and the
   cross-domain nested route. Losing a stripped parameter beats letting a
   subframe steer the top document.
-- [ ] 12.3 Keep the existing diagnostic log at `:3925`; it is what surfaced this.
-- [ ] 12.4 Regression test for the two NESTED-013 scenarios against a fake
+- [x] 12.3 Keep the existing diagnostic log at `:3925`; it is what surfaced this.
+- [x] 12.4 Regression test for the two NESTED-013 scenarios against a fake
   navigation action reporting the inferred signal.
 - [ ] 12.5 Once WebKit PR 65415 lands and WPE ships it, replace the fork's
   heuristic (`in_app_webview.cc:3966-3972`) and the hardcoded
