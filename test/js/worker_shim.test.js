@@ -351,10 +351,31 @@ test('a refused shim import still leaves the original script loading', () => {
   new ctx.window.Worker('/app/w.js');
   const wrapper = wrapperFor(ctx);
   assert.match(wrapper, /try \{ importScripts\("blob:[^"]+"\); \}/);
-  assert.match(wrapper, /catch \(e\) \{ try \{ delete self\.__wsShimUrl; \}/);
-  const guarded = wrapper.indexOf('catch (e)');
+  assert.match(wrapper,
+    /catch \(e\) \{ try \{ delete self\.__wsShimUrl; delete self\.__wsRebased; \}/);
+  const guarded = wrapper.indexOf('catch (e) { try { delete self.__wsShimUrl');
   const original = wrapper.indexOf('importScripts("https://example.com/app/w.js")');
   assert.ok(original > guarded, `original import must follow the catch:\n${wrapper}`);
+});
+
+test('the wrapper rebases the worker onto its own URL before anything loads', () => {
+  // A blob: worker resolves relative URLs against the blob, so the fix has to
+  // run ahead of the shim and the site's script, with the absolute URL baked
+  // in (WORK-009). Its behaviour is the browser tier's
+  // (test/browser/worker_base_url.test.js).
+  const ctx = pageWithStubs(COMBINED);
+  new ctx.window.Worker('w.js');
+  new ctx.window.Worker('m.js', { type: 'module' });
+  const call = /\(function rebaseWorker\([\s\S]*\)\("https:\/\/example\.com\/app\/(\w)\.js"\); \}/;
+
+  const classic = wrapperFor(ctx, 0);
+  assert.equal(call.exec(classic)[1], 'w');
+  assert.ok(classic.indexOf('rebaseWorker') < classic.indexOf('self.__wsShimUrl'),
+    `the rebase must come first:\n${classic}`);
+
+  // Module: the first static import evaluates first, so it carries the rebase.
+  const setter = ctx.blobs.get(/^import "(blob:[^"]+)"/.exec(wrapperFor(ctx, 1))[1]);
+  assert.equal(call.exec(setter)[1], 'm');
 });
 
 test('re-running the installer does not double-wrap', () => {
@@ -363,7 +384,7 @@ test('re-running the installer does not double-wrap', () => {
   new ctx.window.Worker('/app/w.js');
   const wrapper = wrapperFor(ctx);
   // A double patch would produce a wrapper that imports another wrapper.
-  assert.equal((wrapper.match(/importScripts/g) || []).length, 2);
+  assert.equal((wrapper.match(/importScripts\("/g) || []).length, 2);
 });
 
 test('installer is absent when there are no shims to propagate', () => {
@@ -552,7 +573,7 @@ test('payload re-installs the patch for nested workers', () => {
   const nestedWrapper = worker.run('globalThis.__nestedWrapper');
   assert.ok(nestedWrapper.includes(`importScripts(${JSON.stringify(shimUrl)})`),
     `nested wrapper must import the shim:\n${nestedWrapper}`);
-  assert.ok(nestedWrapper.indexOf('inner.js') >
+  assert.ok(nestedWrapper.indexOf('importScripts("https://example.com/app/inner.js")') >
     nestedWrapper.indexOf(shimUrl), 'shim must load before the inner script');
 });
 
@@ -561,4 +582,76 @@ test('the shim URL handle is cleaned off the worker global', () => {
   // must not linger as an inspectable own-property.
   const { worker } = loadPayloadInWorker();
   assert.equal(worker.run("'__wsShimUrl' in globalThis"), false);
+});
+
+// What the wrapper's rebase leaves for the payload: the functions it replaced,
+// with the names they stand in for.
+function handOverRebased() {
+  globalThis.__replaced = function fetch(input) { return input; };
+  self.__wsRebased = [[globalThis.__replaced, 'fetch']];
+}
+
+test('the payload disguises what the rebase replaced and drops the handle', () => {
+  // The rebase runs before any shim, so it cannot disguise its own functions;
+  // the payload does, through the same stub map every shim uses.
+  const { worker } = loadPayloadInWorker({ prelude: handOverRebased });
+  assert.equal(worker.run("'__wsRebased' in globalThis"), false);
+  assert.equal(worker.run('Function.prototype.toString.call(globalThis.__replaced)'),
+    'function fetch() { [native code] }');
+});
+
+// A worker scope as far as the rebase reaches into it: a blob: location, and a
+// loader of each shape that records the URL it was handed.
+function simulateRebaseScope() {
+  globalThis.self = globalThis;
+  globalThis.__loaded = [];
+  function WorkerLocation() {}
+  Object.defineProperty(WorkerLocation.prototype, 'href', {
+    get: function () { return 'blob:https://example.com/0f1e'; },
+    enumerable: true, configurable: true,
+  });
+  WorkerLocation.prototype.toString = function toString() { return this.href; };
+  globalThis.WorkerLocation = WorkerLocation;
+  globalThis.location = new WorkerLocation();
+  globalThis.importScripts = function importScripts() {
+    globalThis.__loaded.push.apply(globalThis.__loaded, arguments);
+  };
+  globalThis.fetch = function fetch(input) { globalThis.__loaded.push(String(input)); };
+  globalThis.Request = class Request { constructor(input) { this.url = String(input); } };
+  globalThis.XMLHttpRequest = class XMLHttpRequest {
+    open(method, url) { globalThis.__loaded.push(url); }
+  };
+}
+
+function useEveryLoader() {
+  importScripts('lib.js', '/root.js');
+  fetch('data.json');
+  new XMLHttpRequest().open('GET', 'x.json');
+  return [location.href, String(location), new Request('r.json').url]
+    .concat(globalThis.__loaded).join(' ');
+}
+
+test('the rebase resolves against the script, and its stand-ins add no own property', () => {
+  // The engine-level proof is the browser tier's; this one runs the wrapper's
+  // own rebase source on Node's V8, which still gives a sloppy function own
+  // `arguments` and `caller`, so a stand-in that is not strict shows here.
+  const page = pageWithStubs(COMBINED);
+  new page.window.Worker('w.js');
+  const wrapper = wrapperFor(page);
+  const call = wrapper.slice(wrapper.indexOf('(function rebaseWorker'),
+    wrapper.indexOf('; } catch (e) {}'));
+  const ctx = vm.createContext({ URL: URL });
+  const run = (src) => vm.runInContext(src, ctx);
+  run(scriptOf(simulateRebaseScope));
+  run(call);
+
+  const app = 'https://example.com/app/';
+  assert.equal(run(scriptOf(useEveryLoader)), [
+    `${app}w.js`, `${app}w.js`, `${app}r.json`,
+    `${app}lib.js`, 'https://example.com/root.js', `${app}data.json`, `${app}x.json`,
+  ].join(' '));
+  assert.equal(run('Object.getOwnPropertyNames(Request).sort().join()'), 'length,name,prototype');
+  assert.equal(run('Request.prototype.constructor === Request'), true);
+  assert.equal(run('Object.getOwnPropertyDescriptor(WorkerLocation.prototype, "href").get.name'),
+    'get href');
 });

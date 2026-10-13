@@ -41,8 +41,8 @@ const PAYLOAD = WORKER.COMBINED_PAYLOAD;
 const CSP = "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:";
 
 // Reports its own scope's fingerprint, then optionally spawns a nested
-// worker and reports that one too. The leaf URL is passed in because a
-// wrapped worker's base URL is the blob, not the origin.
+// worker and reports that one too. The leaf URL is passed in so the caller
+// decides whether the probe nests.
 function probeWorker() {
   function scopeVals() {
     return {
