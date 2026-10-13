@@ -838,10 +838,10 @@ class WebViewModel implements MediaGrantRecord {
       : renderUserAgentPreset(
           uaPreset!, version: FirefoxUserAgentService.instance.versionString);
 
-  /// [effectiveUserAgent], or the host's claim when unset (UAID-005).
+  /// [effectiveUserAgent] in the null-for-unset form the webview expects.
   String? get effectiveUserAgentOrNull {
     final ua = effectiveUserAgent;
-    return ua.isEmpty ? HostBrowser.userAgent.claim : ua;
+    return ua.isEmpty ? null : ua;
   }
 
   /// Store a user-entered UA. Strings that exactly match a generated
@@ -1035,8 +1035,8 @@ class WebViewModel implements MediaGrantRecord {
       incognito: id.effectiveIncognito,
     );
     await c.setThemePreference(_currentTheme);
-    defaultUserAgent ??= HostBrowser.userAgent.defaultUserAgent ??
-        await c.getDefaultUserAgent();
+    defaultUserAgent ??=
+        HostBrowser.defaultUserAgent ?? await c.getDefaultUserAgent();
   }
 
   /// Android: routes through the global `inapp.ProxyController`. Takes
