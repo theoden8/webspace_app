@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/services/external_tor_control_password_storage.dart';
 import 'package:webspace/services/external_tor_posture_engine.dart';
 import 'package:webspace/services/external_tor_runtime.dart';
