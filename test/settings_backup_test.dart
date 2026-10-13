@@ -694,7 +694,7 @@ void main() {
         ),
         stateSetterF: null,
       );
-      sanitizeImportedSites(restored);
+      sanitizeImportedSites(restored, globalScripts: const []);
       return restored;
     }
 

@@ -83,7 +83,7 @@ bool _has(String tag, {required String name}) =>
 /// must come back as.
 Map<String, dynamic> _freshSiteJson(String initUrl) {
   final fresh = [WebViewModel(initUrl: initUrl)];
-  sanitizeImportedSites(fresh);
+  sanitizeImportedSites(fresh, globalScripts: const []);
   return fresh.single.toJson();
 }
 

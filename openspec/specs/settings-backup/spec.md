@@ -89,7 +89,7 @@ Backups SHALL include all settings, with cookies filtered by security flag.
 | **DNS / filter download metadata** | **No** | Rule counts, last-updated timestamps, domain cache |
 | **TLS certificate pins** | **No** | BACKUP-010: restoring one makes the app trust a certificate with no prompt |
 | Global outbound proxy | Yes | Named in the import dialog before it is applied (BACKUP-006) |
-| Global + per-site user scripts | Yes | Restored switched off and opted out (BACKUP-011) |
+| Global + per-site user scripts | Yes | Restored switched off and opted out (BACKUP-011); the ones the backup ran are offered back after import (BACKUP-015) |
 | **Proxy passwords** | **No** | Stripped on export (PWD-005) *and* on import (BACKUP-011) |
 
 ---
@@ -247,9 +247,11 @@ live state, and SHALL:
   sites sharing an id would share one container, so one cookie jar and one
   storage partition.
 
-The user re-enables scripts from the per-site user-scripts screen, which is
-where they can read the source first, and re-grants a permission from the
-site's settings or at the page's next request.
+The user turns the scripts back on from the prompt that follows the import,
+which names each one and the sites it ran on (BACKUP-015), or one at a time
+from the per-site user-scripts screen, which shows its source first, and
+re-grants a permission from the site's settings or at the page's next
+request.
 
 #### Scenario: Hand-written proxy password is dropped
 
@@ -285,6 +287,40 @@ site's settings or at the page's next request.
 **When** the import restores them
 **Then** the first keeps `"dup"` and the second has a fresh id
 **And** webspace membership naming `"dup"` stays with the first
+
+---
+
+### Requirement: BACKUP-015 - Scripts The Backup Ran Are Offered Back
+
+An import SHALL NOT lose which scripts the backup ran. `sanitizeImportedSites`
+SHALL return, for every script it switched off that ran somewhere in the
+backup, a held script naming the restored sites it ran on: a per-site script
+whose `enabled` was true, and a global script with every site whose
+`enabledGlobalScriptIds` named it. A disabled script, a global script no site
+opted into, and an opt-in naming a global script the backup does not carry
+are not held.
+
+Once the import is applied, the app SHALL name the held scripts, each with
+the sites it ran on, and ask once whether to turn them back on. On yes every
+held script SHALL run again exactly where the backup ran it; on no, or when
+the prompt is dismissed, they SHALL all stay off. That yes is what BACKUP-011
+waits for, so nothing runs before it.
+
+#### Scenario: The backup's scripts come back as they were
+
+**Given** a backup whose site A ran its own script `s1` (its `s2` off) and
+the global `g1`, and whose site B ran `g1`
+**When** the user imports it
+**Then** the prompt names `g1` on A and B, and `s1` on A, and not `s2`
+**When** the user picks "Turn on"
+**Then** site A injects `g1` and `s1`, site B injects `g1`
+**And** `s2` stays off
+
+#### Scenario: Leaving them off
+
+**Given** the same backup
+**When** the user picks "Leave off"
+**Then** no restored site injects any script, as BACKUP-011 left them
 
 ---
 

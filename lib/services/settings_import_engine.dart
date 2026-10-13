@@ -28,6 +28,51 @@ import 'package:webspace/settings/site_ids.dart';
 /// A suggested site as the backup lists it.
 typedef ImportedSuggestion = ({String name, String url, String domain});
 
+/// A script the backup ran that [sanitizeImportedSites] switched off, held
+/// until the user reads it and turns it back on (BACKUP-015).
+sealed class HeldScript {
+  const HeldScript(this.script);
+
+  final UserScriptConfig script;
+
+  /// The restored sites it ran on.
+  List<WebViewModel> get sites;
+
+  /// Runs it again on [sites], as the backup had it.
+  void release();
+}
+
+/// A site's own script that the backup had switched on.
+final class HeldSiteScript extends HeldScript {
+  const HeldSiteScript(super.script, {required this.site});
+
+  final WebViewModel site;
+
+  @override
+  List<WebViewModel> get sites => [site];
+
+  @override
+  void release() {
+    assert(site.userScripts.contains(script), 'a script of its own site');
+    script.enabled = true;
+  }
+}
+
+/// A global script, with the sites that had opted into it.
+final class HeldGlobalScript extends HeldScript {
+  const HeldGlobalScript(super.script, {required this.sites});
+
+  @override
+  final List<WebViewModel> sites;
+
+  @override
+  void release() {
+    for (final site in sites) {
+      site.enabledGlobalScriptIds.add(script.id);
+    }
+  }
+}
+
 class SettingsImportPlan {
   final List<WebViewModel> sites;
 
@@ -47,6 +92,9 @@ class SettingsImportPlan {
   /// Null when the backup has no such section, which leaves the device's
   /// own list alone.
   final List<UserScriptConfig>? globalUserScripts;
+
+  /// What [sanitizeImportedSites] switched off that the backup ran.
+  final List<HeldScript> heldScripts;
   final List<ImportedSuggestion>? suggestedSites;
   final int? dnsBlockLevel;
   final List<Map<String, dynamic>>? contentBlockerLists;
@@ -65,6 +113,7 @@ class SettingsImportPlan {
     required this.selectedWebspaceId,
     required this.currentIndex,
     required this.globalUserScripts,
+    required this.heldScripts,
     required this.suggestedSites,
     required this.dnsBlockLevel,
     required this.contentBlockerLists,
@@ -93,7 +142,11 @@ SettingsImportPlan planSettingsImport(
     }
     sites.add(WebViewModel.fromJson(json, stateSetterF: stateSetterF));
   }
-  sanitizeImportedSites(sites);
+  final globalScripts = backup.globalUserScripts
+      ?.map(UserScriptConfig.fromJson)
+      .toList();
+  final heldScripts =
+      sanitizeImportedSites(sites, globalScripts: globalScripts ?? const []);
   // TAB-018: a restored site keeps its colour unless a site before it holds
   // it, which a re-minted duplicate or a hand-edited backup can. A released
   // site gets the least used colour when the import is applied.
@@ -151,12 +204,8 @@ SettingsImportPlan planSettingsImport(
         current != null && current >= 0 && current < sites.length
             ? current
             : null,
-    globalUserScripts: backup.globalUserScripts == null
-        ? null
-        : [
-            for (final e in backup.globalUserScripts!)
-              UserScriptConfig.fromJson(e)..enabled = false,
-          ],
+    globalUserScripts: globalScripts,
+    heldScripts: heldScripts,
     suggestedSites: backup.suggestedSites == null
         ? null
         : [
@@ -200,14 +249,31 @@ SettingsImportPlan planSettingsImport(
 ///     whatever site the same file chose. Nothing restored runs before the
 ///     user has opened it and said yes;
 ///   * a permission grant is consent the user gave on the exporting device.
-void sanitizeImportedSites(List<WebViewModel> sites) {
+///
+/// Returns the scripts it switched off that ran somewhere, so the user can
+/// turn them back on without rebuilding the backup's choices from memory.
+List<HeldScript> sanitizeImportedSites(
+  List<WebViewModel> sites, {
+  required List<UserScriptConfig> globalScripts,
+}) {
+  final globalOptIns = {for (final g in globalScripts) g.id: <WebViewModel>[]};
+  final heldSiteScripts = <HeldSiteScript>[];
+  for (final g in globalScripts) {
+    g.enabled = false;
+  }
   for (final site in sites) {
     site.proxySettings.password = null;
     // Global scripts inject on per-site opt-in regardless of their own
     // `enabled` flag (`combineUserScripts` forces that true), so the opt-in
     // set is what has to be dropped.
+    for (final id in site.enabledGlobalScriptIds) {
+      globalOptIns[id]?.add(site);
+    }
     site.enabledGlobalScriptIds.clear();
     for (final script in site.userScripts) {
+      if (script.enabled) {
+        heldSiteScripts.add(HeldSiteScript(script, site: site));
+      }
       script.enabled = false;
     }
     // A grant that hands the page a real device or capability is consent the
@@ -224,6 +290,12 @@ void sanitizeImportedSites(List<WebViewModel> sites) {
     site.notificationsEnabled = false;
     site.backgroundAudioEnabled = false;
   }
+  return [
+    for (final g in globalScripts)
+      if (globalOptIns.remove(g.id) case final optedIn? when optedIn.isNotEmpty)
+        HeldGlobalScript(g, sites: optedIn),
+    ...heldSiteScripts,
+  ];
 }
 
 /// Webspaces written before membership was keyed by siteId (v0.2.3 and

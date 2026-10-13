@@ -1515,13 +1515,13 @@ jobs:
       # scenario into no coverage at all.
       - name: Run macOS integration tests
         if: success() || failure()
-        # 60, not 45. The tier is ~35m on a good runner and the cap was nine
-        # minutes above that, so a slow one spends the margin and the step
-        # dies mid-file with nothing to read. #605 went red that way with
-        # every step in the job slower than master's -- the Tor scenario by
-        # 47% on identical code. Each file still carries its own 12m cap, so
-        # this bounds the tier, not a hung WebView.
-        timeout-minutes: 60
+        # 90, not 60. The tier grew to ~50m on a good runner, and a slow one
+        # ran past 60 with all nineteen files it reached passing (master at
+        # 0ca37ce), as #605 did at 45. A cap close above the good-runner time
+        # turns a slow runner into a red run with nothing to read. Each file
+        # still carries its own 12m cap, so this bounds the tier, not a hung
+        # WebView.
+        timeout-minutes: 90
         run: |
           set -x
           # This step runs on failure too, so it is reached when an earlier
