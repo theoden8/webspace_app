@@ -34,6 +34,10 @@ abstract interface class BackupPrompts {
 
   /// Writes [backup] where the user chooses.
   Future<void> save(SettingsBackup backup);
+
+  /// Whether to run [held], the scripts the backup ran, again where it ran
+  /// them.
+  Future<bool> confirmRestoreScripts(List<HeldScript> held);
 }
 
 /// What a backup asks of the page.
@@ -269,6 +273,22 @@ class BackupController {
       },
       duration: Duration(seconds: hinted ? 6 : 4),
     );
+
+    // BACKUP-015: the scripts the backup ran come back as they were, but
+    // only once the user has seen them named and said yes.
+    if (plan.heldScripts.isNotEmpty &&
+        _host.mounted &&
+        await _prompts.confirmRestoreScripts(plan.heldScripts) &&
+        _host.mounted) {
+      for (final script in plan.heldScripts) {
+        script.release();
+        for (final site in script.sites) {
+          site.disposeWebView();
+        }
+      }
+      _host.rebuild();
+      await _host.commitSites(const SitesEdited());
+    }
 
     // If the backup carries encrypted sections, offer to restore them
     // by passphrase. Each prompt restores the section(s) matching the

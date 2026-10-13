@@ -243,7 +243,7 @@ void main() {
           screenShare: (mode: ScreenShareMode.virtual, source: _image),
         ),
       );
-      sanitizeImportedSites([site]);
+      sanitizeImportedSites([site], globalScripts: const []);
       expect(site.captures.camera.mode, CameraAccessMode.ask);
       expect(site.captures.microphone.mode, MicrophoneAccessMode.ask);
       expect(site.captures.screenShare, (mode: ScreenShareMode.virtual, source: _image));

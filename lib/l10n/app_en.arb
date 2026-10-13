@@ -3413,6 +3413,32 @@
       }
     }
   },
+  "homeImportHeldScriptsTitle": "Turn imported scripts back on?",
+  "@homeImportHeldScriptsTitle": {
+    "description": "Title of the dialog shown right after a settings import, listing the user scripts the backup had switched on. The import switches every user script off; this dialog asks whether to turn them back on where they ran."
+  },
+  "homeImportHeldScriptsBody": "The backup ran these user scripts. They were imported switched off. A user script can read and change everything on the sites it runs on, so turn them back on only if you recognise them.",
+  "@homeImportHeldScriptsBody": {
+    "description": "Body of the post-import dialog that lists the user scripts the backup had switched on, each with the sites it ran on, and asks once whether to turn them all back on. A user script is JavaScript the app injects into web pages."
+  },
+  "homeImportHeldScriptsRunsOn": "Runs on {sites}",
+  "@homeImportHeldScriptsRunsOn": {
+    "description": "Line under a script's name in the post-import script dialog, naming the sites the script ran on in the backup.",
+    "placeholders": {
+      "sites": {
+        "type": "String",
+        "example": "GitHub, Wikipedia"
+      }
+    }
+  },
+  "homeImportHeldScriptsLeaveOff": "Leave off",
+  "@homeImportHeldScriptsLeaveOff": {
+    "description": "Button in the post-import script dialog that closes it and keeps every listed user script switched off."
+  },
+  "homeImportHeldScriptsTurnOn": "Turn on",
+  "@homeImportHeldScriptsTurnOn": {
+    "description": "Button in the post-import script dialog that switches every listed user script back on, on the sites it ran on in the backup."
+  },
   "homeQrReviewTitle": "Review shared site settings",
   "@homeQrReviewTitle": {
     "description": "Title of the dialog shown before a site is created from a scanned or linked WebSpace QR code"

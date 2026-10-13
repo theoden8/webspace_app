@@ -3,6 +3,8 @@ import 'package:webspace/controllers/backup_controller.dart';
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/settings_import_engine.dart';
+import 'package:webspace/theme/design_tokens.dart';
+import 'package:webspace/widgets/confirm_dialog.dart';
 
 /// [BackupPrompts] as a file picker and dialogs over the page that owns
 /// [context].
@@ -79,5 +81,34 @@ class DialogBackupPrompts implements BackupPrompts {
       ),
     );
     return confirmed == true;
+  }
+
+  @override
+  Future<bool> confirmRestoreScripts(List<HeldScript> held) {
+    final loc = AppLocalizations.of(context);
+    final theme = Theme.of(context).textTheme;
+    return confirm(
+      context,
+      title: loc.homeImportHeldScriptsTitle,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(loc.homeImportHeldScriptsBody),
+          for (final script in held) ...[
+            const SizedBox(height: Spacing.md),
+            Text(script.script.name, style: theme.titleSmall),
+            Text(
+              loc.homeImportHeldScriptsRunsOn(
+                  script.sites.map((s) => s.getDisplayName()).join(', ')),
+              style: theme.bodySmall,
+            ),
+          ],
+        ],
+      ),
+      confirmLabel: loc.homeImportHeldScriptsTurnOn,
+      cancelLabel: loc.homeImportHeldScriptsLeaveOff,
+      destructive: false,
+    );
   }
 }
