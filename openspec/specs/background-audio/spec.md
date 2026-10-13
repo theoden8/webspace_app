@@ -183,7 +183,8 @@ Both directions are covered, on the platforms where each is observable:
 - **Exempt direction** (`background_audio_lifecycle_test.dart`): runs on the
   Linux/WPE + macOS per-file loops and on the Android emulator. Asserts
   `jsPause=false` and that beacons keep arriving through the backgrounded
-  window with monotonically increasing ticks.
+  window with no tick repeated. Each beacon is its own fetch, so two may
+  arrive swapped; a reload restarts the count and repeats one.
 - **Negative control** (`background_audio_freeze_test.dart`): a plain site
   with no exemption. The universal assertion `jsPause=true` holds everywhere;
   the observable freeze (beacons stop) is asserted **only on Android/iOS**,
@@ -199,7 +200,7 @@ Both directions are covered, on the platforms where each is observable:
 **Given** the fixture site with `backgroundAudioEnabled` is active and beaconing
 **When** the test injects `AppLifecycleState.paused`, waits 3 s of wall-clock, then injects `resumed`
 **Then** the decision line reads `jsPause=false capture=true`
-**And** beacons keep arriving throughout the window with monotonically increasing ticks (same live page, never reloaded)
+**And** beacons keep arriving throughout the window with no tick value repeated (same live page, never reloaded)
 
 #### Scenario: Plain site's JS freezes on Android background
 

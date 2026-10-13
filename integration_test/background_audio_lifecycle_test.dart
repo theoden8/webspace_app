@@ -188,14 +188,13 @@ void main() {
         reason: 'the fixture page must keep ticking while the app is '
             'backgrounded — the whole point of the background-audio toggle');
 
-    // Ticks must be monotonically increasing (same page, never reloaded or
-    // recreated by the pause path).
+    // Same page, never reloaded or recreated by the pause path: a reload
+    // restarts the count at 1, so it repeats a tick. Not strict order: each
+    // beacon is its own fetch, and two can reach the server swapped.
     final ticksSeq = beacons.map((b) => b.ticks).toList();
-    for (var i = 1; i < ticksSeq.length; i++) {
-      expect(ticksSeq[i], greaterThan(ticksSeq[i - 1]),
-          reason: 'beacon ticks reset — the page was reloaded during the '
-              'lifecycle round-trip');
-    }
+    expect(ticksSeq.toSet().length, ticksSeq.length,
+        reason: 'a beacon tick repeated ($ticksSeq): the page was reloaded '
+            'during the lifecycle round-trip');
 
     // Resume and verify the page is still the same live instance.
     tester.binding
