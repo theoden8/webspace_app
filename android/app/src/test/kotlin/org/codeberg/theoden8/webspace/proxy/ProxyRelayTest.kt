@@ -141,6 +141,93 @@ class ProxyRelayTest {
         }
     }
 
+    /**
+     * A SOCKS5 upstream that accepts the greeting and holds its CONNECT reply
+     * until [release] opens, then answers [rep] and, on success, splices to
+     * [originPort]. Models tor attaching a stream to a circuit.
+     */
+    private fun slowSocks(release: CountDownLatch, rep: Int, originPort: Int): ServerSocket =
+        fakeServer { sock ->
+            val ins = sock.getInputStream()
+            val out = sock.getOutputStream()
+            ins.read(); val nm = ins.read(); readFully(ins, ByteArray(nm))
+            out.write(byteArrayOf(0x05, 0x00)); out.flush()
+            val head = ByteArray(4); readFully(ins, head)
+            val hl = ins.read(); readFully(ins, ByteArray(hl)); readFully(ins, ByteArray(2))
+            release.await(10, TimeUnit.SECONDS)
+            out.write(byteArrayOf(0x05, rep.toByte(), 0x00, 0x01, 0, 0, 0, 0, 0, 0)); out.flush()
+            if (rep == 0) spliceTo(sock, originPort)
+        }
+
+    @Test
+    fun socks5Connect_isEstablishedBeforeTheUpstreamAnswers() {
+        // Chromium on Android abandons a proxy tunnel after 10 s, and tor can
+        // take longer to attach a stream: the WebView's answer cannot wait on
+        // tor's. What the client sends meanwhile reaches the origin intact.
+        val origin = fakeOrigin("HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        val release = CountDownLatch(1)
+        val socks = slowSocks(release, rep = 0, originPort = origin.localPort)
+        val relay = ProxyRelay()
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.SOCKS5, "127.0.0.1", socks.localPort, null, null,
+                )
+            )
+            Socket().use { c ->
+                c.connect(InetSocketAddress(relay.host, port), 3000)
+                c.soTimeout = 5000
+                val out = c.getOutputStream()
+                out.write("CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\n\r\n".toByteArray())
+                out.flush()
+                val status = readPreamble(c.getInputStream()).requestLine
+                assertTrue("answered while the upstream is still connecting: $status", status.contains("200"))
+                out.write("GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n".toByteArray())
+                out.flush()
+                release.countDown()
+                val body = c.getInputStream().readBytes().toString(Charsets.ISO_8859_1)
+                assertTrue("origin response should reach the client: $body", body.contains("ok"))
+            }
+        } finally {
+            release.countDown(); relay.stop(); socks.close(); origin.close()
+        }
+    }
+
+    @Test
+    fun socks5Connect_upstreamFailureClosesTheTunnelWithNothingElseSent() {
+        // tor answering "host unreachable" after the 200: the tunnel closes
+        // without a byte, and nothing is dialled in its place.
+        val directHits = CountDownLatch(1)
+        val origin = fakeServer { directHits.countDown() }
+        val release = CountDownLatch(1)
+        val socks = slowSocks(release, rep = 4, originPort = origin.localPort)
+        val relay = ProxyRelay()
+        try {
+            val port = relay.start(
+                ProxyRelay.UpstreamConfig(
+                    ProxyRelay.UpstreamType.SOCKS5, "127.0.0.1", socks.localPort, null, null,
+                )
+            )
+            Socket().use { c ->
+                c.connect(InetSocketAddress(relay.host, port), 3000)
+                c.soTimeout = 5000
+                c.getOutputStream().write(
+                    "CONNECT 127.0.0.1:${origin.localPort} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n".toByteArray()
+                )
+                c.getOutputStream().flush()
+                assertTrue(readPreamble(c.getInputStream()).requestLine.contains("200"))
+                release.countDown()
+                assertEquals("the tunnel closes with nothing in it", -1, c.getInputStream().read())
+            }
+            assertFalse(
+                "a failed upstream must not be replaced by a direct connection",
+                directHits.await(500, TimeUnit.MILLISECONDS),
+            )
+        } finally {
+            release.countDown(); relay.stop(); socks.close(); origin.close()
+        }
+    }
+
     // --- peer ownership -------------------------------------------------
     //
     // The listener is on loopback, so every app on the device can reach it and
