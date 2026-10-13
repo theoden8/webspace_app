@@ -47,7 +47,6 @@ import UserNotifications
         )
       }
       shareIntent.attach(to: controller.binaryMessenger)
-      HostBrowserPlugin.attach(to: controller.binaryMessenger)
     }
     shareIntent.receive([launchOptions?[.url] as? URL].compactMap { $0 })
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)

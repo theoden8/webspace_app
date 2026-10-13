@@ -18,40 +18,17 @@ String? _postureUserAgent(WebViewModel m) =>
     m.sitePosture(globalUserScripts: const <UserScriptConfig>[]).page.userAgent;
 
 void main() {
-  tearDown(() => HostBrowser.userAgentForTest = const WebViewOwnUserAgent());
+  tearDown(() => HostBrowser.defaultUserAgentForTest = null);
 
-  group('hostUserAgentFor', () {
-    test('a Mac app completes the webview UA with Safari\'s', () {
-      final host =
-          hostUserAgentFor(host: AppHost.mac, safariVersion: '26.0.1');
-      expect(host, isA<SafariCompletion>());
-      expect(host.completion, _safari);
-      expect(host.claim, isNull);
-      expect(host.defaultUserAgent, _safari);
-    });
-
-    test('the iOS build on a Mac claims the Mac\'s Safari', () {
-      final host = hostUserAgentFor(
-          host: AppHost.iosAppOnMac, safariVersion: '26.0.1');
-      expect(host, isA<MacSafariClaim>());
-      expect(host.claim, _safari);
-      expect(host.completion, isNull);
-      expect(host.defaultUserAgent, _safari);
-    });
-
-    test('elsewhere the webview\'s own UA is left alone', () {
-      final host = hostUserAgentFor(host: AppHost.other, safariVersion: null);
-      expect(host, isA<WebViewOwnUserAgent>());
-      expect(host.claim, isNull);
-      expect(host.completion, isNull);
-      expect(host.defaultUserAgent, isNull);
+  group('macSafariUserAgent', () {
+    test('names the installed Safari', () {
+      expect(macSafariUserAgent(safariVersion: '26.0.1'), _safari);
     });
 
     for (final unread in [null, '', 'Safari', '26.0 beta', '1.2.3.4']) {
       test('an unreadable Safari version ($unread) falls back', () {
         expect(
-          hostUserAgentFor(host: AppHost.mac, safariVersion: unread)
-              .completion,
+          macSafariUserAgent(safariVersion: unread),
           buildMacSafariUserAgent(kFallbackSafariVersion),
         );
       });
@@ -76,35 +53,37 @@ void main() {
   });
 
   group('a site with no user agent', () {
-    test('claims the Mac Safari UA in the iOS build on a Mac', () {
-      HostBrowser.userAgentForTest = const MacSafariClaim(_safari);
+    test('claims none, so no desktop-mode or identity shim follows it', () {
+      HostBrowser.defaultUserAgentForTest = _safari;
       final m = WebViewModel(initUrl: 'https://example.com');
-      expect(_postureUserAgent(m), _safari);
+      expect(_postureUserAgent(m), isNull);
       expect(m.effectiveUserAgent, isEmpty,
           reason: 'the settings field shows no override');
     });
 
-    test('claims nothing on a Mac app: its navigator already is Safari\'s',
-        () {
-      HostBrowser.userAgentForTest = const SafariCompletion(_safari);
+    test('is built with Safari\'s user agent on a Mac', () {
+      HostBrowser.defaultUserAgentForTest = _safari;
       final m = WebViewModel(initUrl: 'https://example.com');
-      expect(_postureUserAgent(m), isNull);
       expect(webViewUserAgent(_postureUserAgent(m)), _safari);
     });
 
+    test('is built with the webview\'s own everywhere else', () {
+      final m = WebViewModel(initUrl: 'https://example.com');
+      expect(webViewUserAgent(_postureUserAgent(m)), isNull);
+    });
+
     test('a user agent the user set wins over the host\'s', () {
-      HostBrowser.userAgentForTest = const MacSafariClaim(_safari);
+      HostBrowser.defaultUserAgentForTest = _safari;
       final m = WebViewModel(
           initUrl: 'https://example.com', userAgent: 'Custom/1.0');
       expect(_postureUserAgent(m), 'Custom/1.0');
-      HostBrowser.userAgentForTest = const SafariCompletion(_safari);
       expect(webViewUserAgent(_postureUserAgent(m)), 'Custom/1.0');
     });
   });
 
-  test('a settings update keeps the completed UA the webview was built with',
+  test('a settings update keeps the Safari UA the webview was built with',
       () {
-    HostBrowser.userAgentForTest = const SafariCompletion(_safari);
+    HostBrowser.defaultUserAgentForTest = _safari;
     final settings = inapp.InAppWebViewSettings()
       ..userAgent = webViewUserAgent(null);
     applyWebViewOptions(settings, javascriptEnabled: true, userAgent: null);

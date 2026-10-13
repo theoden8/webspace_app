@@ -161,19 +161,18 @@ OS it runs on ships, so a site that reads the user agent to pick a code path
 (a media or DRM player choosing its key system, a sign-in page checking for a
 supported browser) sees the browser the engine is. The host's answer is
 resolved once at startup (`HostBrowser.initialize`) and owned by
-`HostUserAgent` (`lib/services/host_user_agent.dart`):
+`HostBrowser` (`lib/services/host_user_agent.dart`):
 
 * **macOS app**: WKWebView's own user agent stops at `(KHTML, like Gecko)`,
   where Safari, the same engine, continues with `Version/<v> Safari/605.1.15`.
   The webview SHALL be built with Safari's full user agent. The site claims no
   user agent, so no identity or desktop-mode shim runs: the page's navigator
   already is Safari's.
-* **iOS build running on a Mac** (`ProcessInfo.isiOSAppOnMac`): iOS WebKit
-  reports an iPhone or iPad while the app runs on a Mac. The site SHALL claim
-  the Mac's Safari user agent as if the user had picked it, so desktop mode
-  (DM-001) and the identity shim (UAID-002) follow it.
-* **Everywhere else** (Android, Linux, iOS on an iPhone or iPad) the webview's
-  own user agent is left alone.
+* **Everywhere else** (Android, Linux, iOS on an iPhone or iPad, and the iOS
+  build running on a Mac) the webview's own user agent is left alone. The iOS
+  build on a Mac runs iOS WebKit, which has neither `MediaSource` nor
+  encrypted media there, so a site told it is talking to desktop Safari picks
+  a player that cannot start.
 
 `<v>` is the installed Safari's `CFBundleShortVersionString`, read by the
 `host_browser` channel from `/Applications/Safari.app`; when it cannot be read
@@ -187,11 +186,11 @@ wins, and the settings screen shows the host's as the default.
 **Then** the webview is built with the Mac Safari user agent
 **And** no `ua_identity_shim` or `desktop_mode_shim` is injected
 
-#### Scenario: iOS build on a Mac claims the Mac's Safari
+#### Scenario: The iOS build on a Mac sends its own user agent
 
 **Given** the iOS build running on a Mac and a site with no user agent
-**Then** the site's posture carries the Mac Safari user agent
-**And** desktop mode applies to it as to a desktop user agent the user picked
+**Then** the site's posture carries no user agent
+**And** the webview is built with its own
 
 #### Scenario: The user's choice wins
 
@@ -203,8 +202,8 @@ wins, and the settings screen shows the host's as the default.
 ## Files
 
 - `lib/services/user_agent_classifier.dart` — `UaEngine` + `inferUaEngine`
-- `lib/services/host_user_agent.dart` — `HostUserAgent`, `HostBrowser` (UAID-005)
-- `ios/Runner/HostBrowserPlugin.swift` — the `host_browser` channel, compiled by both Apple Runners
+- `lib/services/host_user_agent.dart` — `HostBrowser`, `webViewUserAgent` (UAID-005)
+- `macos/Runner/HostBrowserPlugin.swift` — the `host_browser` channel
 - `test/host_user_agent_test.dart` — UAID-005
 - `lib/services/user_agent_identity_shim.dart` — `uaIdentityFor`, `buildUserAgentIdentityShim`
 - `lib/services/webview.dart` — `UserScript` registration (group

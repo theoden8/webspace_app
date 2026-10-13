@@ -12,7 +12,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, exists, files, code } = require('./helpers/source');
 
-const SHARED = ['AppGroup', 'HostBrowserPlugin', 'ShareIntentPlugin', 'ShortcutsPlugin', 'WebSpaceAppIntents'];
+const SHARED = ['AppGroup', 'ShareIntentPlugin', 'ShortcutsPlugin', 'WebSpaceAppIntents'];
 const PROJECTS = {
   ios: { pbx: 'ios/Runner.xcodeproj/project.pbxproj', path: (n) => `path = ${n}.swift; sourceTree = "<group>"` },
   macos: { pbx: 'macos/Runner.xcodeproj/project.pbxproj', path: (n) => `path = ../ios/Runner/${n}.swift; sourceTree = SOURCE_ROOT` },

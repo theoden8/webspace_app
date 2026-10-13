@@ -55,7 +55,7 @@ echo "swift_typecheck: TorControllerPlugin.swift type-checks"
 if [ "$(uname -s)" != "Darwin" ]; then
   for side in false true; do
     mkdir "$work/$side"
-    for name in AppGroup HostBrowserPlugin ShareIntentPlugin ShortcutsPlugin WebSpaceAppIntents; do
+    for name in AppGroup ShareIntentPlugin ShortcutsPlugin WebSpaceAppIntents; do
       sed "s/#if canImport(FlutterMacOS)/#if $side/" \
         "$root/ios/Runner/$name.swift" > "$work/$side/$name.swift"
     done

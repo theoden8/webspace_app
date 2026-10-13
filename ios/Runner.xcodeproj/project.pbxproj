@@ -19,7 +19,6 @@
 		7AC200032ED2DC5600515821 /* WebSpaceAppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */; };
 		7AC200052ED2DC5600515822 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC200042ED2DC5600515822 /* AppGroup.swift */; };
 		7AC200072ED2DC5600515823 /* ShareIntentPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC200062ED2DC5600515823 /* ShareIntentPlugin.swift */; };
-		7AC2000B2ED2DC5600515824 /* HostBrowserPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC2000A2ED2DC5600515824 /* HostBrowserPlugin.swift */; };
 		7AC200082ED2DC5600515822 /* AppGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC200042ED2DC5600515822 /* AppGroup.swift */; };
 		7AC300012ED2DC5600515830 /* MediaSessionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */; };
 		7B0E0000000000000000001E /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B0E0000000000000000000A /* ShareViewController.swift */; };
@@ -89,7 +88,6 @@
 		7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebSpaceAppIntents.swift; sourceTree = "<group>"; };
 		7AC200042ED2DC5600515822 /* AppGroup.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppGroup.swift; sourceTree = "<group>"; };
 		7AC200062ED2DC5600515823 /* ShareIntentPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ShareIntentPlugin.swift; sourceTree = "<group>"; };
-		7AC2000A2ED2DC5600515824 /* HostBrowserPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = HostBrowserPlugin.swift; sourceTree = "<group>"; };
 		7AC300002ED2DC5600515830 /* MediaSessionPlugin.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MediaSessionPlugin.swift; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		7B0E00000000000000000009 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -237,7 +235,6 @@
 				7AC200022ED2DC5600515821 /* WebSpaceAppIntents.swift */,
 				7AC200042ED2DC5600515822 /* AppGroup.swift */,
 				7AC200062ED2DC5600515823 /* ShareIntentPlugin.swift */,
-				7AC2000A2ED2DC5600515824 /* HostBrowserPlugin.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				7B0E0000000000000000000D /* Runner.entitlements */,
 			);
@@ -507,7 +504,6 @@
 				7AC200032ED2DC5600515821 /* WebSpaceAppIntents.swift in Sources */,
 				7AC200052ED2DC5600515822 /* AppGroup.swift in Sources */,
 				7AC200072ED2DC5600515823 /* ShareIntentPlugin.swift in Sources */,
-				7AC2000B2ED2DC5600515824 /* HostBrowserPlugin.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
