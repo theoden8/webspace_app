@@ -2003,6 +2003,22 @@ jobs:
           path: screenshots/ios/*.png
           if-no-files-found: warn
 
+      # macOS Screenshots (conditional). The debug build takes the stock
+      # entitlements "Prepare the macOS test run" wrote, and the lane passes
+      # --ci for the same reason the macOS tier does.
+      - name: Generate macOS screenshots
+        if: github.event_name == 'workflow_dispatch'
+        timeout-minutes: 30
+        run: fastlane mac screenshots
+
+      - name: Upload macOS screenshots
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-screenshots
+          path: screenshots/macos/*.png
+          if-no-files-found: warn
+
   release-summary:
     name: Release Summary
     needs: [build-android, build-linux, build-apple]

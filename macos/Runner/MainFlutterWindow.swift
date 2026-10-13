@@ -26,6 +26,10 @@ class MainFlutterWindow: NSWindow {
     contentRuleListPlugin = ContentRuleListPlugin(
       messenger: flutterViewController.engine.binaryMessenger)
     HostBrowserPlugin.attach(to: flutterViewController.engine.binaryMessenger)
+    #if DEBUG
+      WindowCapturePlugin.attach(
+        to: flutterViewController.engine.binaryMessenger, window: self)
+    #endif
 
     super.awakeFromNib()
   }

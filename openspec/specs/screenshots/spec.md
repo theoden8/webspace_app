@@ -7,7 +7,7 @@ Automated screenshot generation for app store submissions using Flutter integrat
 ## Status
 
 - **Status**: Completed
-- **Platforms**: Android, iOS
+- **Platforms**: Android, iOS, macOS
 - **CI Integration**: GitHub Actions (conditional on file changes)
 
 ---
@@ -16,7 +16,7 @@ Automated screenshot generation for app store submissions using Flutter integrat
 
 ### SCREENSHOT-001 - Cross-Platform Generation
 
-Screenshots SHALL be generated using Flutter integration tests on both Android and iOS.
+Screenshots SHALL be generated using Flutter integration tests on Android, iOS and macOS.
 
 #### Scenario: Generate screenshots on Android
 
@@ -30,6 +30,12 @@ Screenshots SHALL be generated using Flutter integration tests on both Android a
 - **WHEN** the user runs `fastlane ios screenshots`
 - **THEN** 8 screenshots are captured (4 per theme)
 
+#### Scenario: Generate screenshots on macOS
+
+- **GIVEN** a Mac
+- **WHEN** the user runs `fastlane mac screenshots`
+- **THEN** 8 screenshots are captured (4 per theme) into `screenshots/macos/`
+
 ---
 
 ### SCREENSHOT-002 - Demo Data Seeding
@@ -41,6 +47,13 @@ Screenshots SHALL use demo data seeded automatically via `lib/demo_data.dart`.
 - **WHEN** the screenshot test starts
 - **THEN** demo sites are seeded (SearXNG, Piped, Nitter, Reddit, GitHub, Hacker News, Weights & Biases, Wikipedia)
 - **AND** demo webspaces are created (All, Work, Privacy, Social)
+
+#### Scenario: The run keeps the installed app's sites
+
+- **GIVEN** a Mac or a physical device where the debug build shares the installed app's storage
+- **WHEN** the screenshot test seeds and runs
+- **THEN** the seed goes to an in-memory SharedPreferences store (INTEG-004)
+- **AND** no orphan sweep runs against the demo site list (INTEG-004)
 
 ---
 
@@ -63,13 +76,13 @@ Screenshots SHALL be generated in GitHub Actions when relevant files change.
 
 - **GIVEN** changes to screenshot-related files (test, demo data, fastlane, workflow)
 - **WHEN** CI workflow runs
-- **THEN** screenshots are generated on both Android emulator and iOS simulator
+- **THEN** screenshots are generated on the Android emulator, the iOS simulator and the macOS runner
 
 ---
 
 ### SCREENSHOT-005 - Device Frame Integration
 
-Screenshots SHALL be frameable with device bezels using frameit.
+Android and iOS screenshots SHALL be frameable with device bezels using frameit. macOS screenshots are left unframed: frameit has no Mac bezel (SCREENSHOT-007).
 
 #### Scenario: Add device frames
 
@@ -87,6 +100,25 @@ Screenshots SHALL be captured in both light and dark themes.
 - **WHEN** the screenshot test runs
 - **THEN** it executes twice (once per theme)
 - **AND** files are named with `-light`/`-dark` suffix
+
+---
+
+### SCREENSHOT-007 - macOS Window Capture
+
+On macOS a screenshot SHALL be the app's window as the window server composites it, so the site's WKWebView is in it, at a size App Store Connect takes for a Mac app (1280x800, 1440x900, 2560x1600 or 2880x1800). Flutter's macOS `integration_test` plugin does not implement `captureScreenshot`, so the Runner provides a debug-only `window_capture` channel; no release build carries it.
+
+#### Scenario: Capture includes the webview
+
+- **GIVEN** a site is on screen
+- **WHEN** the test takes a screenshot on macOS
+- **THEN** the image is the window captured with ScreenCaptureKit from the current process's own shareable content (macOS 14.4+, no Screen Recording permission), webview included
+- **AND** the driver writes it through `onScreenshot` like an iOS screenshot
+
+#### Scenario: Store size
+
+- **WHEN** the test starts on macOS
+- **THEN** the window is set to 1440x900 points, title bar included
+- **AND** a capture whose pixel size is not a Mac App Store size fails the test
 
 ---
 
@@ -116,10 +148,12 @@ On Android every screenshot SHALL be taken by `binding.takeScreenshot`, which af
 - `integration_test/screenshot_test.dart` - Main test
 - `test_driver/integration_test.dart` - Driver that writes each screenshot the test takes into `SCREENSHOT_DIR`
 - `lib/demo_data.dart` - Demo data seeding
+- `macos/Runner/WindowCapturePlugin.swift` - Debug-only macOS window capture
 
 **Fastlane config:**
-- `android/fastlane/Fastfile`, `ios/fastlane/Fastfile` - Screenshot lanes
+- `android/fastlane/Fastfile`, `ios/fastlane/Fastfile`, `macos/fastlane/Fastfile` - Screenshot lanes
 - `screenshots/android/`, `screenshots/ios/` - Output + frameit config
+- `screenshots/macos/` - Output (no frameit: Mac screenshots are unframed window captures)
 
 **CI:**
 - `.github/workflows/build-and-test.yml` - Build + conditional screenshots

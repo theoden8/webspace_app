@@ -70,6 +70,17 @@ flutter drive \
   -d iPhone
 ```
 
+### With screenshot capture on macOS:
+```bash
+fastlane mac screenshots    # writes screenshots/macos/
+```
+The test sizes the window to 1440x900 points and captures it through the
+debug-only `window_capture` channel in `macos/Runner/WindowCapturePlugin.swift`
+(SCREENSHOT-007). Prefs are seeded in memory and demo mode skips the orphan
+sweeps (INTEG-004), so a run on your own Mac keeps the installed app's sites,
+their containers, cookies and saved passwords. Until the installed app next
+starts, Shortcuts offers the demo sites.
+
 ## Screenshot Locations
 
 ### When using `flutter test`:
