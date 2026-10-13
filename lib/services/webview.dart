@@ -118,7 +118,7 @@ class WebViewFactory {
   }
 
   static bool _hasUserGesture(inapp.NavigationAction action) {
-    if (hostIsAndroid) {
+    if (hostIsAndroid || hostIsLinux) {
       return action.hasGesture ?? true;
     }
     if (hostIsIOS || hostIsMacOS) {
