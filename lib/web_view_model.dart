@@ -427,7 +427,8 @@ class WebViewModel implements MediaGrantRecord {
   /// (LIR-014).
   List<OutboundPreference> get outboundPreferences => _outboundPreferences;
   set outboundPreferences(List<OutboundPreference> value) {
-    assert(_onePerClaim(value), 'at most one outbound preference per claim');
+    assert(OutboundPreference.onePerClaim(value),
+        'at most one outbound preference per claim');
     _outboundPreferences = value;
   }
 
@@ -930,7 +931,7 @@ class WebViewModel implements MediaGrantRecord {
     this.searchDefault,
     this.stateSetterF,
     this.isArchiveTier = false,
-  })  : assert(_onePerClaim(outboundPreferences ?? const []),
+  })  : assert(OutboundPreference.onePerClaim(outboundPreferences ?? const []),
             'at most one outbound preference per claim'),
         userScripts = userScripts ?? [],
         _outboundPreferences = outboundPreferences ?? [],
@@ -1995,6 +1996,3 @@ bool dispatch(NavigationDecision decision,
       webViewModelFromJson(json,
           stateSetterF: stateSetterF, isArchiveTier: isArchiveTier);
 }
-
-bool _onePerClaim(List<OutboundPreference> prefs) =>
-    prefs.map((p) => p.claim).toSet().length == prefs.length;
