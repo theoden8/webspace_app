@@ -299,6 +299,14 @@ integration tier can run the real control-port handshake (TOR-021). Both
 platforms SHALL pin the same pod versions: a skew would mean the tier tests
 something other than what iOS ships.
 
+Every macOS build configuration SHALL grant the sandbox's
+`com.apple.security.network.server`, with
+`ENABLE_INCOMING_NETWORK_CONNECTIONS = YES` to match. tor's SOCKS port and
+each pluggable transport are loopback listeners, and the App Sandbox refuses
+`listen()` without that entitlement, loopback included; tor then exits before
+its control port opens. The tier builds Debug only, so Release is held by
+`test/js/macos_store_declarations.test.js` (BUG-013 attempt 13).
+
 The macOS floor moves with the pod. `Tor` is a macOS 11 pod, so
 `platform :osx`, `MACOSX_DEPLOYMENT_TARGET` and the
 `LSMinimumSystemVersion` that derives from it are 11.0, and macOS 10.15
@@ -333,6 +341,14 @@ is no longer a supported floor — state it in the listing
 - **THEN** `TOR` is offered in the proxy-type dropdown
 - **AND** choosing it hides the manual `host:port` / credentials inputs
   (the values persist underneath but are inert)
+
+#### Scenario: A macOS release build can open tor's listener
+
+- **GIVEN** a macOS Release build whose pods carry tor, with no bridges
+- **WHEN** the runtime starts
+- **THEN** tor binds its loopback SOCKS listener and opens its control port
+- **AND** a build whose entitlements omit `network.server` fails the gate
+  rather than reaching a user
 
 ### Requirement: TOR-008 - Fail-closed before bootstrap
 

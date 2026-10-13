@@ -102,8 +102,8 @@ and deletes it afterwards. Repository secrets:
 ## What the store build has to keep true
 
 - **The sandbox stays on.** All file IO already goes through
-  `FilePicker` (powerbox) or the app container, and nothing binds a socket,
-  so the sandbox costs the app nothing today.
+  `FilePicker` (powerbox) or the app container, and the only sockets the app
+  listens on are loopback ones, so the sandbox costs the app nothing today.
 - **The signature is taken from the built bundle, not from the file.** The
   build resolves the team prefix, adds what the `ENABLE_*` settings generate
   (`com.apple.security.network.client`, without which a sandboxed browser
@@ -120,10 +120,14 @@ and deletes it afterwards. Repository secrets:
 - **Export compliance.** `macos/Runner/Info.plist` carries
   `ITSAppUsesNonExemptEncryption` on the same basis as iOS (EXPORT-001);
   `scripts/check_export_compliance.sh` runs before the `.pkg` is built.
-- **Tor is iOS-only.** Bringing it to macOS means a local SOCKS listener,
-  which needs `network.server`, so
-  `ENABLE_INCOMING_NETWORK_CONNECTIONS = YES` in the Release configuration
-  and the matching entitlement. Release has both off today.
+- **Tor needs `network.server`.** tor's SOCKS port and each pluggable
+  transport are loopback listeners, and the sandbox refuses `listen()`
+  without `network.server`, loopback included: tor then exits before its
+  control port opens. Every configuration grants it, with
+  `ENABLE_INCOMING_NETWORK_CONNECTIONS = YES` to match, while
+  `macos/Podfile` carries the Tor pod (TOR-007, BUG-013 attempt 13). The
+  integration tier builds Debug only, so Release rests on the gate in
+  [test/js/macos_store_declarations.test.js](../test/js/macos_store_declarations.test.js).
 - **Privacy manifests do not apply.** Apple reads `PrivacyInfo.xcprivacy` on
   iOS, iPadOS, tvOS, visionOS and watchOS only. If that changes,
   `ios/Runner/PrivacyInfo.xcprivacy` is the template.
