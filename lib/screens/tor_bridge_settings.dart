@@ -30,9 +30,11 @@ String bridgeParseErrorMessage(AppLocalizations loc,
         {required TorBridgeParseError e}) =>
     switch (e) {
       TorBridgeParseError.empty => loc.torBridgeErrorEmpty,
-      TorBridgeParseError.unknownTransport => loc.torBridgeErrorTransport,
+      TorBridgeParseError.unknownTransport => loc.torBridgeErrorTransport(
+          TorTransport.values.map((t) => t.wireName).join(' / ')),
       TorBridgeParseError.malformedAddress => loc.torBridgeErrorAddress,
       TorBridgeParseError.missingCertificate => loc.torBridgeErrorCert,
+      TorBridgeParseError.missingDnsttArguments => loc.torBridgeErrorDnstt,
     };
 
 String moatErrorMessage(AppLocalizations loc, {required MoatErrorKind kind}) =>

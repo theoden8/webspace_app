@@ -4767,9 +4767,14 @@
   "@torBridgeErrorEmpty": {
     "description": "Validation error when the bridge-line field is empty."
   },
-  "torBridgeErrorTransport": "That transport is not one this app can run. Bridge lines must start with obfs4, snowflake, meek_lite or webtunnel.",
+  "torBridgeErrorTransport": "That transport is not one this app can run. Bridge lines must start with {transports}.",
   "@torBridgeErrorTransport": {
-    "description": "Validation error for an unknown or unsupported pluggable transport."
+    "description": "Validation error for an unknown or unsupported pluggable transport. {transports} is the list of transport names the app can run, separated by slashes (e.g. 'obfs4 / snowflake / dnstt'); the names are technical identifiers and are never translated.",
+    "placeholders": {
+      "transports": {
+        "type": "String"
+      }
+    }
   },
   "torBridgeErrorAddress": "That line is missing the address, or it is not in host:port form.",
   "@torBridgeErrorAddress": {
@@ -4778,6 +4783,10 @@
   "torBridgeErrorCert": "That obfs4 line is missing its cert= value, so it cannot connect. Copy the whole line.",
   "@torBridgeErrorCert": {
     "description": "Validation error for an obfs4 bridge line with no certificate."
+  },
+  "torBridgeErrorDnstt": "That dnstt line is missing pubkey=, domain= or its resolver (doh=, dot= or udp=), so it cannot connect. Copy the whole line.",
+  "@torBridgeErrorDnstt": {
+    "description": "Validation error for a dnstt bridge line (a DNS tunnel) that lacks one of the values it needs: the server's public key, the tunnel domain, or the DNS resolver to send lookups through. dnstt, pubkey=, domain=, doh=, dot= and udp= are technical identifiers; keep them as written."
   },
   "torMoatErrorUnreachable": "Could not reach the bridge service. On a network that blocks Tor this is expected — paste a bridge line obtained another way instead.",
   "@torMoatErrorUnreachable": {

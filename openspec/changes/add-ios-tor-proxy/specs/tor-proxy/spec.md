@@ -879,7 +879,7 @@ bridges can plausibly fix (`censored`, `bootstrapTimeout`).
 
 Where Tor itself is blocked, a bridge is the only route in, so the app
 SHALL let the user configure pluggable transports: obfs4, snowflake,
-meek_lite and webtunnel, run by IPtProxy.
+meek_lite, webtunnel and dnstt, run by IPtProxy.
 
 The configuration applied at start SHALL be the persisted one, read by
 the engine itself rather than pushed in by a caller. Bridges are kept in
@@ -918,7 +918,17 @@ dial.
 
 Bridge lines SHALL be kept verbatim. The tail of a line is
 transport-defined and tor is the authority on it, so the app validates
-shape only and never re-serialises from parsed parts.
+shape only and never re-serialises from parsed parts. Shape includes the
+arguments without which a transport's client refuses every connection,
+since tor reports that only as a bootstrap that never moves: `cert=` for
+obfs4, and for dnstt `pubkey=`, `domain=` and one resolver (`doh=`, `dot=`
+or `udp=`).
+
+dnstt SHALL be offered with no fallback line and no Moat fetch. Its
+server is run by whoever hands out the line: the Tor Project publishes no
+built-in dnstt bridge and BridgeDB allocates none, so a pasted line is
+its one route in, and without one the configuration is unusable rather
+than bridgeless.
 
 Storage is covered by TOR-017; the exposure of fetching bridges over Moat
 is covered by LEAK-015.
@@ -966,6 +976,21 @@ is covered by LEAK-015.
 - **WHEN** the runtime starts
 - **THEN** tor receives the built-in snowflake `Bridge` line
 - **AND** that line carries its own `url=`, `fronts=` and `ice=`
+
+#### Scenario: A dnstt line missing what its client needs is refused
+
+- **GIVEN** a pasted dnstt line with an address and `doh=` but no `pubkey=`
+- **WHEN** the user adds it
+- **THEN** the line is rejected with a message naming `pubkey=`, `domain=`
+  and the resolver keys
+- **AND** nothing is stored
+
+#### Scenario: dnstt with no pasted line sends nothing
+
+- **GIVEN** bridges are enabled with dnstt and no pasted lines
+- **WHEN** the runtime starts
+- **THEN** no bridge options are produced
+- **AND** the screen asks for a line and offers no fetch
 
 #### Scenario: Only the selected transport's lines are sent
 

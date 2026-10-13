@@ -24,6 +24,14 @@ const _obfs4 =
     'obfs4 192.0.2.10:9443 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
     'cert=abcdEFGH1234ijklMNOP5678qrstUVWX90yzABcdEFghIJklMNop iat-mode=0';
 
+// A dnstt line as IPtProxy's client reads it (key, domain and address are
+// invented). The address is a placeholder tor needs; the lookups go to doh=.
+const _dnstt =
+    'dnstt 192.0.2.30:1 A1B2C3D4E5F60718293A4B5C6D7E8F9012345678 '
+    'doh=https://resolver.example/dns-query '
+    'pubkey=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef '
+    'domain=t.example.com';
+
 void main() {
   group('parsing', () {
     test('accepts a well-formed obfs4 line', () {
@@ -91,6 +99,38 @@ void main() {
         parseTorBridgeLine('obfs4 192.0.2.10:9443 DEADBEEF iat-mode=0').error,
         TorBridgeParseError.missingCertificate,
       );
+    });
+
+    test('accepts a dnstt line with any one of its resolver kinds', () {
+      expect(parseTorBridgeLine(_dnstt).line?.transport, TorTransport.dnstt);
+      for (final resolver in [
+        'dot=dns.example:853',
+        'udp=192.0.2.53:53',
+      ]) {
+        final line = _dnstt.replaceFirst(
+            'doh=https://resolver.example/dns-query', resolver);
+        expect(parseTorBridgeLine(line).isOk, isTrue, reason: resolver);
+      }
+    });
+
+    test('names a dnstt line missing what its client needs', () {
+      // dnstt's client refuses the connection without each of these, which
+      // tor reports only as a bootstrap that never moves.
+      for (final dropped in [
+        'pubkey=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+        'domain=t.example.com',
+        'doh=https://resolver.example/dns-query',
+      ]) {
+        expect(parseTorBridgeLine(_dnstt.replaceFirst(dropped, '')).error,
+            TorBridgeParseError.missingDnsttArguments,
+            reason: 'without $dropped');
+      }
+    });
+
+    test('a dnstt line still needs the address tor dials', () {
+      expect(parseTorBridgeLine('dnstt doh=https://r.example/ pubkey=ab '
+              'domain=t.example.com')
+          .error, TorBridgeParseError.malformedAddress);
     });
 
     test('snowflake needs no address of its own', () {
@@ -175,6 +215,30 @@ void main() {
       expect(opts, contains(('Bridge', kBuiltInSnowflakeBridge)));
     });
 
+    test('dnstt emits its plugin and the pasted line', () {
+      final cfg = TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.dnstt,
+        lines: [line(_obfs4), line(_dnstt)],
+      );
+      final opts = torBridgeOptions(cfg, transportPort: 47000);
+      expect(
+        opts,
+        contains(('ClientTransportPlugin', 'dnstt socks5 127.0.0.1:47000')),
+      );
+      expect(opts.where((o) => o.$1 == 'Bridge'), [('Bridge', _dnstt)]);
+    });
+
+    test('dnstt with no line of its own produces nothing', () {
+      // There is no published dnstt bridge to fall back to.
+      const cfg = TorBridgeConfig(
+        enabled: true,
+        transport: TorTransport.dnstt,
+      );
+      expect(cfg.isUsable, isFalse);
+      expect(torBridgeOptions(cfg, transportPort: 47000), isEmpty);
+    });
+
     test('meek with no lines falls back to its built-in bridge', () {
       const cfg = TorBridgeConfig(
         enabled: true,
@@ -192,11 +256,20 @@ void main() {
       expect(TorTransport.webtunnel.moatDistributes, isTrue);
       expect(TorTransport.snowflake.moatDistributes, isFalse);
       expect(TorTransport.meekLite.moatDistributes, isFalse);
-      // The two Moat will not serve are exactly the two the app already
-      // carries a line for, so neither is left without a route.
+      expect(TorTransport.dnstt.moatDistributes, isFalse);
+      // Of those Moat will not serve, snowflake and meek_lite have a line the
+      // app carries. dnstt has neither: its line comes from whoever runs the
+      // server, so pasting it is the one route in, and the only exception.
+      const pasteOnly = {TorTransport.dnstt};
       for (final t in TorTransport.values) {
-        expect(t.moatDistributes || t.builtInLine != null, isTrue,
+        expect(
+            t.moatDistributes || t.builtInLine != null || pasteOnly.contains(t),
+            isTrue,
             reason: '${t.wireName} has no way to obtain a bridge');
+      }
+      for (final t in pasteOnly) {
+        expect(t.moatDistributes || t.builtInLine != null, isFalse,
+            reason: '${t.wireName} has another route; drop the exception');
       }
     });
 
