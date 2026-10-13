@@ -12,7 +12,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { read, exists, files, code } = require('./helpers/source');
 
-const SHARED = ['AppGroup', 'ShareIntentPlugin', 'ShortcutsPlugin', 'WebSpaceAppIntents'];
+const SHARED = ['AppGroup', 'HostBrowserPlugin', 'ShareIntentPlugin', 'ShortcutsPlugin', 'WebSpaceAppIntents'];
 const PROJECTS = {
   ios: { pbx: 'ios/Runner.xcodeproj/project.pbxproj', path: (n) => `path = ${n}.swift; sourceTree = "<group>"` },
   macos: { pbx: 'macos/Runner.xcodeproj/project.pbxproj', path: (n) => `path = ../ios/Runner/${n}.swift; sourceTree = SOURCE_ROOT` },
@@ -45,6 +45,29 @@ test('both Runners compile every shared source', () => {
       assert.ok(pbx.includes(path(name)), `${rel} must reference the ${platform} path of ${name}.swift`);
       assert.ok(compiled.includes(`${name}.swift`), `${rel}: the Runner target does not compile ${name}.swift`);
     }
+  }
+});
+
+// Xcode resolves a duplicated object id to either definition, so a project
+// that names a file twice can build from the wrong path on one machine and
+// not another. A merge of two Xcode saves is how this happens.
+test('no project defines an object id twice', () => {
+  for (const { pbx: rel } of Object.values(PROJECTS)) {
+    const ids = [...read(rel).matchAll(/^\t\t(\w{24}) \/\*[^*]*\*\/ = \{/gm)].map((m) => m[1]);
+    const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+    assert.deepEqual(twice, [], `${rel} defines these ids twice`);
+  }
+});
+
+// The team comes from Configs/Signing.xcconfig, so CI and contributors build
+// without one and a release machine sets it in Signing.local.xcconfig
+// (docs/releasing-macos.md). Xcode's Signing & Capabilities editor writes the
+// literal id instead.
+test('the macOS project takes its team from the signing config', () => {
+  const teams = [...read(PROJECTS.macos.pbx).matchAll(/DEVELOPMENT_TEAM = ([^;]*);/g)].map((m) => m[1]);
+  assert.ok(teams.length > 0, 'no DEVELOPMENT_TEAM in the macOS project');
+  for (const team of teams) {
+    assert.equal(team, '"$(WEBSPACE_TEAM_ID)"', 'set the team in Signing.local.xcconfig, not the project');
   }
 });
 

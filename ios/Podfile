@@ -144,6 +144,10 @@ post_install do |installer|
       defs = [defs] unless defs.is_a?(Array)
       defs << 'NS_BLOCK_ASSERTIONS=1' unless defs.include?('NS_BLOCK_ASSERTIONS=1')
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs
+      # With eager linking on, ld met Xcode's stub of this pod's own framework
+      # (EagerLinkingTBDs/.../Tor.tbd) while linking it, and stopped: "can't
+      # link a dylib with itself".
+      config.build_settings['EAGER_LINKING'] = 'NO'
     end
   end
 
