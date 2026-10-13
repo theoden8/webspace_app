@@ -1,6 +1,8 @@
 import 'package:webspace/services/external_tor_runtime.dart'
     show ExternalTorIdentify;
 import 'package:webspace/services/file_store.dart';
+import 'package:webspace/services/tor_control_link.dart'
+    show TorControlConnect, TorCookieRead;
 import 'package:webspace/services/tor_engine.dart' show TorSocksProbe;
 import 'package:webspace/services/tor_geoip.dart' show TorGeoIpStore;
 
@@ -11,6 +13,8 @@ FileStore createFileStore(String directoryName) => MemoryFileStore();
 TorGeoIpStore? createTorGeoIpStore() => null;
 TorSocksProbe? createTorSocksProbe() => null;
 ExternalTorIdentify? createExternalTorIdentify() => null;
+TorControlConnect? createTorControlConnect() => null;
+TorCookieRead? createTorCookieRead() => null;
 
 /// No documents directory on web: downloaded caches simply stay empty, which
 /// leaves the depending services in their no-data state.

@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
 import 'package:webspace/screens/tor_bridge_settings.dart';
+import 'package:webspace/services/external_tor_posture_engine.dart';
+import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/external_tor.dart';
 import 'package:webspace/settings/tor_exit_countries.dart';
+import 'package:webspace/widgets/external_tor_control_tiles.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
 
@@ -25,6 +28,10 @@ class TorStatusScreen extends StatefulWidget {
 class _TorStatusScreenState extends State<TorStatusScreen> {
   StreamSubscription<TorStatus>? _sub;
 
+  /// Whether an external tor takes an exit country moves with its control
+  /// channel, not with the status (TOR-026).
+  StreamSubscription<ExternalTorControlState>? _controlSub;
+
   @override
   void initState() {
     super.initState();
@@ -33,11 +40,15 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
     _sub = TorService.instance.statusStream.listen((_) {
       if (mounted) setState(() {});
     });
+    _controlSub = TorService.instance.externalControlStream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _controlSub?.cancel();
     super.dispose();
   }
 
@@ -47,6 +58,18 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
     final code = RegExp(r'^\{([a-zA-Z]{2})\}$').firstMatch(nodes)?.group(1);
     return torExitCountryFor(code)?.label ?? code?.toUpperCase() ?? nodes;
   }
+
+  bool get _isolationDiffers => switch (TorService.instance.externalControl) {
+        TorControlAttached(:final gaps) => gaps.any((gap) => switch (gap) {
+              TorSharedCircuits() ||
+              TorPerDestinationHost() ||
+              TorPerDestinationPort() ||
+              TorSocksFlagsUnknown() =>
+                true,
+              TorOwnExits() || TorLogsAddresses() => false,
+            }),
+        _ => false,
+      };
 
   String _bridges(AppLocalizations loc) {
     final config = TorService.instance.bridges;
@@ -91,22 +114,25 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
               title: Text(loc.torStateOtherSites(using.otherSites)),
             ),
           const Divider(),
-          // An external tor keeps its exits and bridges to itself: the app
-          // reaches it over SOCKS alone (TOR-025).
-          if (external)
+          // An external tor keeps its bridges to itself, and its exits too
+          // unless the app holds its control port (TOR-025, TOR-026).
+          if (external) ...[
             SettingTile(
               leading: const Icon(Icons.lan_outlined),
               title: loc.externalTor,
               hint: loc.externalTorHint,
               subtitle: externalAddress,
             ),
-          if (!external) ...[
+            if (externalTorControlRunsHere) const ExternalTorControlTiles(),
+          ],
+          if (TorService.instance.hasControlPort)
             SettingTile(
               leading: const Icon(Icons.flag_outlined),
               title: loc.siteSettingsTorExitCountry,
               hint: loc.torStateExitCountryHint,
               subtitle: _exitCountry(loc),
             ),
+          if (!external) ...[
             SettingTile(
               leading: const Icon(Icons.alt_route),
               title: loc.torBridgesTitle,
@@ -126,7 +152,9 @@ class _TorStatusScreenState extends State<TorStatusScreen> {
             leading: const Icon(Icons.call_split),
             title: loc.torStateCircuits,
             hint: loc.torStateCircuitsHint,
-            subtitle: loc.torStateCircuitsPerSite,
+            // Not claimed for an external tor the app read otherwise; the
+            // rows above say how it splits them (TOR-026).
+            subtitle: _isolationDiffers ? null : loc.torStateCircuitsPerSite,
           ),
         ],
       ),

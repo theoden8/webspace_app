@@ -233,6 +233,7 @@
     "experimentalProxyLibrary": true,
     "experimentalExternalTor": true,
     "externalTorAddress": "127.0.0.1:9150",
+    "externalTorControl": "/run/tor/control",
     "linkHandlingEnabled": false,
     "linkHandlingClaimDomains": true,
     "webSearchDefaultSite": "compat-site-b",

@@ -13,6 +13,21 @@ bool get externalTorRunsHere =>
         defaultTargetPlatform == TargetPlatform.linux ||
         defaultTargetPlatform == TargetPlatform.macOS);
 
+/// Whether the external tor's control port can be named (TOR-026): a tor
+/// service on the same machine. Orbot and InviZible keep theirs to
+/// themselves.
+bool get externalTorControlRunsHere =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.macOS);
+
+/// What a control endpoint looks like here: the tor service's socket on
+/// Linux, a ControlPort elsewhere.
+String get externalTorControlExample =>
+    defaultTargetPlatform == TargetPlatform.linux
+        ? '/run/tor/control'
+        : '127.0.0.1:9051';
+
 /// The Tor (external) switch and the SOCKS address of the tor it names, as
 /// `host:port` (TOR-025), for the runtime's synchronous reads.
 class ExternalTorSettings {
@@ -23,12 +38,20 @@ class ExternalTorSettings {
 
   static String get address => AppPref.externalTorAddress.value;
 
+  /// Where that tor's control port listens, or empty for none (TOR-026).
+  static String get control =>
+      externalTorControlRunsHere ? AppPref.externalTorControl.value : '';
+
   static Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
     AppPref.externalTor.load(prefs);
     AppPref.externalTorAddress.load(prefs);
+    AppPref.externalTorControl.load(prefs);
   }
 
   static Future<void> setAddress(String value) =>
       AppPref.externalTorAddress.set(value);
+
+  static Future<void> setControl(String value) =>
+      AppPref.externalTorControl.set(value);
 }

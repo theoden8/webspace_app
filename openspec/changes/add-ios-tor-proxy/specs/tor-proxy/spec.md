@@ -1506,8 +1506,9 @@ turned on while developer mode was on stays on with developer mode off.
   as the SOCKS username, a password derived from the per-launch secret.
   Isolation then rests on that tor's `IsolateSOCKSAuth`, on by default and
   off only where its `SocksPort` says `NoIsolateSOCKSAuth`; Arti isolates by
-  SOCKS credential too. The app cannot read that tor's configuration, so the
-  switch's hint SHALL state the condition rather than promise isolation.
+  SOCKS credential too. Without its control port the app cannot read that
+  tor's configuration, so the switch's hint SHALL state the condition rather
+  than promise isolation; with it, TOR-026 reads and shows it.
 - **It is tor or it is nothing.** Before publishing `up` the runtime SHALL
   send an HTTP request to the address and require tor's fixed refusal,
   `HTTP/1.0 501 Tor is not an HTTP Proxy`, which C tor and Arti both send
@@ -1521,12 +1522,14 @@ turned on while developer mode was on stays on with developer mode off.
   never `TOR`, so it is never passed off as the built-in one. The stored
   setting stays `ProxyType.TOR`: which tor serves it is the switch's choice,
   not the site's.
-- **What needs a control port is not offered.** No exit-country picker, no
-  bridges row, no New circuits button. A site that already carries an exit
-  country (an import, or an earlier launch on the built-in tor) SHALL be
-  held behind kind `externalExitPin`, never sent out through exits nobody
-  chose, and no GeoIP table SHALL be fetched for it. Clearing the pin
-  releases it.
+- **What needs a control port is not offered without one.** No bridges row
+  ever: bridges are that tor's own. No exit-country picker and no New
+  circuits button unless the app holds that tor's control port (TOR-026;
+  `TorService.hasControlPort`). A site that carries an exit country the
+  external tor cannot take (no control port, or one that refuses the pin)
+  SHALL be held behind kind `externalExitPin`, never sent out through exits
+  nobody chose, and no GeoIP table SHALL be fetched for it. Clearing the
+  pin releases it.
 - **The address can change under a running Tor.** Saving a new address
   SHALL ask again and publish the new endpoint, which rebinds every
   Tor-bound site, or the failure. While nothing uses Tor nothing is asked.
@@ -1631,3 +1634,120 @@ turned on while developer mode was on stays on with developer mode off.
 - **GIVEN** an iOS build
 - **WHEN** the user opens App settings' Network screen
 - **THEN** it lists no Tor (external) switch
+
+### Requirement: TOR-026 - The external tor's control port, when the user names it
+
+On Linux and macOS (`externalTorControlRunsHere`; Orbot and InviZible keep
+theirs to themselves) the user MAY name the external tor's control port
+under the Tor (external) switch: a Unix socket path (`/run/tor/control`,
+the Debian and Ubuntu tor service's, or tor's own `unix:` spelling) or
+`host:port`. It is `AppPref.externalTorControl` (`externalTorControl`,
+empty for none) and rides a backup; its password is a secret in the
+keystore (`ExternalTorControlPasswordStorage`, `Keystores.credentials`) and
+never reaches a backup.
+
+Held against real tor by `test/external_tor_real_daemon_test.dart`: a
+ControlSocket with its cookie (the Debian and Ubuntu service), a ControlPort
+with a password, with its cookie (Tor Browser's) and with none, each tor
+reaching nothing but a dead loopback bridge. CI's Android job installs tor
+for it and sets `WS_REAL_TOR=1`, under which a missing tor fails the tier.
+
+Linux is the platform this is built for. On macOS the App Sandbox is
+expected to refuse a socket path and a cookie file outside the app's
+container, so there the control port is `host:port` with a password; the
+dialog's example says so (`externalTorControlExample`). Not yet exercised on
+a Mac.
+
+- **Attached before `up`.** After the SOCKS address answers as tor
+  (TOR-025) and before the runtime publishes `up`, it SHALL open the
+  control channel, send `PROTOCOLINFO`, and authenticate with what tor
+  offers: none when tor takes `NULL`; the saved password when tor takes
+  `HASHEDPASSWORD`; else `SAFECOOKIE` from the cookie file `PROTOCOLINFO`
+  names. Plain `COOKIE` SHALL NOT be sent: the path comes from whatever
+  answers at the endpoint, which could name any file, and `COOKIE` sends its
+  bytes; under `SAFECOOKIE` the listener proves it read the file first, and
+  a server hash that does not match is a refusal. The cookie is read to authenticate and nothing else: never kept,
+  logged or exported (TOR-009). A control port that cannot be used leaves
+  Tor up over SOCKS as TOR-025 has it, and the row says why: not answering,
+  not tor's control port, needs a password, cannot read tor's cookie file,
+  password or cookie refused.
+- **It must be the same tor.** The SOCKS address sites use SHALL be among
+  the control port's `net/listeners/socks`; a control port whose tor does
+  not listen there SHALL NOT be used for anything, and says it belongs to
+  another tor.
+- **What differs is shown.** The runtime SHALL read `GETCONF SocksPort
+  SafeLogging ExitNodes` and judge it against the built-in tor's
+  configuration (`judgeExternalTor`; the built-in values are held to
+  `TorControllerPlugin.swift` by `test/external_tor_posture_test.dart`),
+  listing under the control port row each way that tor treats sites
+  differently: `NoIsolateSOCKSAuth` on the SocksPort sites dial (sites share
+  circuits), `IsolateDestAddr` and `IsolateDestPort` (a circuit per host or
+  port), its own `ExitNodes`, `SafeLogging` other than 1, and a SocksPort
+  that cannot be told apart from others on automatic ports. None is one row
+  saying it matches the built-in tor. The Tor screen's "One per site"
+  circuits claim SHALL NOT be shown when an isolation difference is listed.
+  The verdict is read again on every `CONF_CHANGED`.
+- **New circuits and exit countries, as the built-in tor has them.** While
+  attached, New circuits SHALL send `SIGNAL NEWNYM` (never `SIGNAL RELOAD`,
+  which would drop a pin), and the exit-country picker is offered. A pin
+  SHALL follow TOR-014 on that tor: tor's own GeoIP is required (none is
+  downloaded or loaded into it, and a tor without one refuses the pin with
+  `externalExitPin`, naming `tor-geoipdb`); a country with no exit in its
+  consensus is refused with `exitPolicy` before tor sees it; the pin is one
+  `SETCONF ExitNodes StrictNodes=1 ConfluxEnabled=0`, and the exit circuits
+  open before it are closed.
+- **A shared tor gets its own configuration back.** The values a pin changes
+  are read before the first pin, and clearing the pin, letting the control
+  channel go, switching Tor (external) off, or naming another control port
+  SHALL put them back as they were. An exit country set this way applies to
+  everything using that tor while in force; the row's hint says so.
+- **A pin nobody holds up is not trusted.** With a pin in force, a
+  `CONF_CHANGED` the app did not cause to `ExitNodes`, `StrictNodes` or
+  `ConfluxEnabled` (a reload, another controller) or a closed control
+  channel (tor restarted) SHALL hold every Tor site (`starting`) until a new
+  link has put the pin back or failed. Without one, the channel is opened
+  again quietly and no site is rebuilt.
+- **What it cannot catch.** The app killed while a pin is in force leaves
+  the pin in that tor until tor reloads its configuration; the next attach
+  lists it as that tor's own exits, whose hint says to reload it.
+
+#### Scenario: The Debian tor service
+
+- **GIVEN** Linux with Tor (external) on, the control port
+  `/run/tor/control`, and the user in the `debian-tor` group
+- **WHEN** a site set to `TOR` opens
+- **THEN** the app authenticates with `SAFECOOKIE` from
+  `/run/tor/control.authcookie` before Tor is reported up
+- **AND** the control port row reads Connected, with "Same isolation as the
+  built-in Tor" beneath it
+
+#### Scenario: A SocksPort that isolates differently
+
+- **GIVEN** the external tor's SocksPort is `9050 IsolateDestAddr`
+- **WHEN** the app attaches to its control port
+- **THEN** "A circuit per host" is listed under the control port row
+- **AND** the Tor screen does not claim one circuit per site
+
+#### Scenario: An exit country on the external tor
+
+- **GIVEN** an attached external tor whose consensus has German exits
+- **WHEN** a site pinned to Germany opens
+- **THEN** that tor's `ExitNodes` is `{de}` with `StrictNodes 1` before the
+  site loads
+- **WHEN** the pin is cleared
+- **THEN** `ExitNodes`, `StrictNodes` and `ConfluxEnabled` read what they
+  did before the pin
+
+#### Scenario: A reload drops the pin
+
+- **GIVEN** a site pinned to Germany loaded through an attached external tor
+- **WHEN** that tor reloads its torrc
+- **THEN** every Tor site is held until the pin is in force again
+
+#### Scenario: A control port that wants a password
+
+- **GIVEN** an external tor whose control port takes only `HASHEDPASSWORD`
+  and no password saved
+- **WHEN** Tor comes up
+- **THEN** sites load over SOCKS, the control port row reads "Needs a
+  password", and no exit-country picker or New circuits is offered

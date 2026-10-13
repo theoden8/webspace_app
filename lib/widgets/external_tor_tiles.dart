@@ -6,10 +6,12 @@ import 'package:webspace/services/outbound_http_types.dart'
 import 'package:webspace/services/tor_service.dart';
 import 'package:webspace/settings/app_prefs.dart';
 import 'package:webspace/settings/external_tor.dart';
+import 'package:webspace/widgets/external_tor_control_tiles.dart';
 import 'package:webspace/widgets/setting_tile.dart';
 
 /// The Tor (external) switch of App Settings' Network screen and, while it
-/// is on, the SOCKS address of the tor it names (TOR-025).
+/// is on, the SOCKS address of the tor it names (TOR-025) and its control
+/// port (TOR-026).
 class ExternalTorTiles extends StatefulWidget {
   const ExternalTorTiles({super.key, this.onTorChanged});
 
@@ -66,6 +68,8 @@ class _ExternalTorTilesState extends State<ExternalTorTiles> {
             control: Trailing(const Icon(Icons.edit_outlined),
                 onTap: _editAddress),
           ),
+        if (_switch && externalTorControlRunsHere)
+          const ExternalTorControlTiles(),
       ],
     );
   }

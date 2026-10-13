@@ -444,7 +444,19 @@ jobs:
         working-directory: android
         run: gradle :app:testFdroidDebugUnitTest --console=plain --no-daemon
 
+      - name: Install tor for the real-tor tier
+        # test/external_tor_real_daemon_test.dart drives the external tor's
+        # control port against real tor processes (TOR-026), and WS_REAL_TOR
+        # below makes a missing tor fail it rather than skip it. The package
+        # starts the system service, which nothing here uses.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tor tor-geoipdb
+          sudo systemctl disable --now tor || true
+
       - name: Run tests
+        env:
+          WS_REAL_TOR: '1'
         run: fvm flutter test
 
       - name: Generate launcher icons

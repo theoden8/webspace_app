@@ -3,6 +3,8 @@ import 'dart:io' as io;
 import 'package:path_provider/path_provider.dart' as pp;
 
 export 'package:webspace/services/file_store_io.dart' show createFileStore;
+export 'package:webspace/services/tor_control_io.dart'
+    show createTorControlConnect, createTorCookieRead;
 export 'package:webspace/services/tor_geoip_io.dart' show createTorGeoIpStore;
 export 'package:webspace/services/tor_socks_probe_io.dart'
     show createTorSocksProbe, createExternalTorIdentify;

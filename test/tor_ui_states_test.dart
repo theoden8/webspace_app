@@ -18,17 +18,25 @@
 
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:webspace/l10n/gen/app_localizations.dart';
+import 'package:webspace/screens/tor_status.dart';
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/external_tor_runtime.dart';
+import 'package:webspace/services/tor_control.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_service.dart';
+import 'package:webspace/settings/app_prefs.dart';
+import 'package:webspace/widgets/external_tor_control_tiles.dart';
+import 'package:webspace/widgets/external_tor_tiles.dart';
 import 'package:webspace/widgets/tor_bootstrap.dart';
 import 'package:webspace/widgets/tor_status_card.dart';
+import 'helpers/fake_tor_control.dart';
 import 'helpers/fake_tor_runtime.dart';
 
 final bool _writePngs = Platform.environment['WS_TOR_UI_PNG'] == '1';
@@ -457,6 +465,179 @@ void main() {
       expect(find.text('Tor is not available on this device'), findsOneWidget);
       expect(find.textContaining('iOS and macOS only'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsNothing);
+    });
+  });
+
+  // TOR-026: an external tor on Linux whose control port the user named.
+  group('external tor control port', () {
+    tearDown(() {
+      AppPref.externalTor.debugValue = AppPref.externalTor.fallback;
+      AppPref.externalTorControl.debugValue =
+          AppPref.externalTorControl.fallback;
+    });
+
+    /// Brings Tor up through an [ExternalTorRuntime] talking to [tor], with
+    /// a site holding it, as on a Linux desktop with the tor service.
+    Future<void> external(WidgetTester t, {required FakeTorControl tor}) async {
+      AppPref.externalTor.debugValue = true;
+      AppPref.externalTorControl.debugValue = '/run/tor/control';
+      final runtime = ExternalTorRuntime(
+        address: () => '127.0.0.1:9050',
+        identify: (_, {required port}) async => ExternalTorAnswer.tor,
+        control: ExternalTorControlAccess(
+          endpoint: () => AppPref.externalTorControl.value,
+          password: () async => null,
+          connect: (_) async => tor.connect(),
+          readCookie: (_) async => null,
+        ),
+      );
+      TorService.overrideEngine(
+        TorEngine(runtime: runtime, sessionSecret: 'secret'),
+        external: runtime,
+      );
+      await TorService.instance.syncHolders({TorSiteHolder('mail')});
+      await settle(t);
+    }
+
+    /// A phone-sized window [height] tall, so a whole screen fits the PNG.
+    void window(WidgetTester t, {required double height}) {
+      t.view.devicePixelRatio = 2;
+      t.view.physicalSize = Size(430 * 2, height * 2);
+      addTearDown(t.view.reset);
+    }
+
+    Future<void> shoot(WidgetTester t, {required String name}) async {
+      if (_writePngs) {
+        await expectLater(find.byType(MaterialApp),
+            matchesGoldenFile('../build/tor_ui/$name.png'));
+      }
+      await t.pumpWidget(const SizedBox.shrink());
+      await settle(t);
+      await t.pump(const Duration(seconds: 91));
+    }
+
+    testWidgets('the Tor screen lists how that tor differs', (t) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        await external(t,
+            tor: FakeTorControl(torrc: {
+              'SocksPort': ['9050 IsolateDestAddr'],
+              'ExitNodes': ['{us}'],
+              'SafeLogging': ['0'],
+              'StrictNodes': ['0'],
+              'ConfluxEnabled': ['auto'],
+            }));
+        window(t, height: 1100);
+        await t.pumpWidget(host(
+            const TorStatusScreen(siteNames: {'mail': 'Mail'}),
+            size: const Size(430, 1100)));
+        await settle(t);
+
+        expect(find.text('Tor control port'), findsOneWidget);
+        expect(find.text('A circuit per host'), findsOneWidget);
+        expect(find.text('That tor picks exits: {us}'), findsOneWidget);
+        expect(find.text('That tor logs addresses'), findsOneWidget);
+        expect(find.text('Exit country'), findsOneWidget,
+            reason: 'an exit country can be asked of it now');
+        expect(find.text('Rebuild circuits'), findsOneWidget);
+        expect(find.text('Bridges'), findsNothing,
+            reason: "bridges stay that tor's own");
+        await shoot(t, name: 'external_control_differences');
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('a stock tor service matches the built-in isolation',
+        (t) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        await external(t, tor: FakeTorControl());
+        window(t, height: 420);
+        await t.pumpWidget(host(
+            ListView(children: const [ExternalTorTiles()]),
+            size: const Size(430, 420)));
+        await settle(t);
+
+        expect(find.text('Connected'), findsOneWidget);
+        expect(find.text('Same isolation as the built-in Tor'), findsOneWidget);
+        await shoot(t, name: 'external_control_same');
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('a control port that wants a password says so, and offers '
+        'no exit country', (t) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        await external(t,
+            tor: FakeTorControl(
+                methods: {TorAuthMethod.hashedPassword}, password: 'p'));
+        window(t, height: 900);
+        await t.pumpWidget(host(
+            const TorStatusScreen(siteNames: {'mail': 'Mail'}),
+            size: const Size(430, 900)));
+        await settle(t);
+
+        expect(find.text('Needs a password'), findsOneWidget);
+        expect(find.text('Exit country'), findsNothing);
+        expect(find.text('Rebuild circuits'), findsNothing);
+        await shoot(t, name: 'external_control_needs_password');
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    testWidgets('the dialog takes a socket path or host:port', (t) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      try {
+        ({String endpoint, String password})? saved;
+        window(t, height: 420);
+        await t.pumpWidget(host(
+            Builder(
+                builder: (context) => TextButton(
+                    onPressed: () async {
+                      saved = await showDialog(
+                          context: context,
+                          builder: (_) => const ExternalTorControlDialog(
+                              endpoint: '', password: ''));
+                    },
+                    child: const Text('open'))),
+            size: const Size(430, 420)));
+        await t.tap(find.text('open'));
+        await t.pump(const Duration(milliseconds: 500));
+
+        await t.enterText(find.byType(TextField).first, 'run/tor/control');
+        await t.tap(find.text('Save'));
+        // One frame builds the error, the next runs its fade-in.
+        await t.pump();
+        await t.pump(const Duration(milliseconds: 500));
+        expect(find.text('Enter a socket path that starts with /, or host:port'),
+            findsOneWidget);
+        await shoot(t, name: 'external_control_dialog');
+
+        await t.pumpWidget(host(
+            Builder(
+                builder: (context) => TextButton(
+                    onPressed: () async {
+                      saved = await showDialog(
+                          context: context,
+                          builder: (_) => const ExternalTorControlDialog(
+                              endpoint: '', password: ''));
+                    },
+                    child: const Text('open'))),
+            size: const Size(430, 420)));
+        await t.tap(find.text('open'));
+        await settle(t);
+        await t.enterText(find.byType(TextField).first, '127.0.0.1:9051');
+        await t.enterText(find.byType(TextField).last, 'hunter2');
+        await t.tap(find.text('Save'));
+        await settle(t);
+        expect(saved, (endpoint: '127.0.0.1:9051', password: 'hunter2'));
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
   });
 }

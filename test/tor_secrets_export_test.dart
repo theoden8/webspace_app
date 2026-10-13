@@ -18,8 +18,10 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/services/developer_mode_service.dart';
+import 'package:webspace/services/external_tor_control_password_storage.dart';
 import 'package:webspace/services/settings_backup.dart';
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/services/tor_service.dart';
@@ -28,6 +30,7 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
 import 'helpers/fake_tor_runtime.dart';
+import 'helpers/mock_secure_storage.dart';
 
 void main() {
   const sessionSecret = 'tor-session-needle-9b2e';
@@ -108,5 +111,32 @@ void main() {
     expect(site.proxySettings.type, ProxyType.TOR);
     expect(site.proxySettings.password, isNull);
     expect(site.proxySettings.username, isNull);
+  });
+
+  test("the external tor's control password never appears in exports "
+      '(TOR-026)', () async {
+    const password = 'control-password-needle-41c7';
+    final keystore = MockFlutterSecureStorage();
+    final storage = ExternalTorControlPasswordStorage(secureStorage: keystore);
+    expect(await storage.save(password), isTrue);
+    expect(await storage.load(), password,
+        reason: 'the needle is in the keystore, where a leak would read it');
+
+    SharedPreferences.setMockInitialValues({
+      AppPref.externalTor.key: true,
+      AppPref.externalTorControl.key: '127.0.0.1:9051',
+    });
+    final prefs = await SharedPreferences.getInstance();
+    final exported = SettingsBackupService.exportToJson(
+      SettingsBackupService.createBackup(
+        webViewModels: const [],
+        webspaces: [Webspace.all()],
+        themeMode: 0,
+        globalPrefs: readExportedAppPrefs(prefs),
+      ),
+    );
+    expect(exported.contains('127.0.0.1:9051'), isTrue,
+        reason: 'the endpoint is configuration and rides the backup');
+    expect(exported.contains(password), isFalse);
   });
 }

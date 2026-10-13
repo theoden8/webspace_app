@@ -15,8 +15,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding, WidgetsBindingObserver;
 
 import 'package:webspace/services/host_storage.dart'
-    show createExternalTorIdentify, createTorGeoIpStore, createTorSocksProbe;
+    show
+        createExternalTorIdentify,
+        createTorControlConnect,
+        createTorCookieRead,
+        createTorGeoIpStore,
+        createTorSocksProbe;
 
+import 'package:webspace/services/external_tor_control_password_storage.dart';
 import 'package:webspace/services/external_tor_runtime.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/tor_bridge_secure_storage.dart';
@@ -325,6 +331,7 @@ class TorService {
             address: () => ExternalTorSettings.address,
             identify: createExternalTorIdentify() ??
                 (_, {required port}) async => ExternalTorAnswer.unreachable,
+            control: _externalControlAccess(),
           )
         : null;
     final service = TorService._(
@@ -356,6 +363,22 @@ class TorService {
     // reaches it, whatever is on screen (TOR-024).
     WidgetsBinding.instance.addObserver(_TorResumeWatch(service));
     return service;
+  }
+
+  /// How the external runtime reaches its tor's control port, where one
+  /// can be named (TOR-026).
+  static ExternalTorControlAccess? _externalControlAccess() {
+    final connect = createTorControlConnect();
+    final readCookie = createTorCookieRead();
+    if (!externalTorControlRunsHere || connect == null || readCookie == null) {
+      return null;
+    }
+    return ExternalTorControlAccess(
+      endpoint: () => ExternalTorSettings.control,
+      password: () => ExternalTorControlPasswordStorage().load(),
+      connect: connect,
+      readCookie: readCookie,
+    );
   }
 
   /// Swap in an engine backed by a fake runtime. Tests only. Pass
@@ -438,9 +461,23 @@ class TorService {
   }
 
   /// Whether Tor here is an external tor rather than the embedded one
-  /// (TOR-025). Exit countries, bridges and New circuits need the embedded
-  /// runtime's control port, so screens hide them when this is true.
+  /// (TOR-025). Bridges are the embedded tor's alone, so screens hide them
+  /// when this is true.
   bool get isExternal => _externalActive;
+
+  /// Whether exit countries and New circuits can be asked of the tor in
+  /// use: the embedded one, or an external one the app holds a control
+  /// channel to (TOR-026). Screens offer them only when this is true.
+  bool get hasControlPort =>
+      !_externalActive || externalControl is TorControlAttached;
+
+  /// The app's control channel to the external tor (TOR-026).
+  ExternalTorControlState get externalControl =>
+      _externalRuntime?.controlState ?? const TorControlIdle();
+
+  Stream<ExternalTorControlState> get externalControlStream =>
+      _externalRuntime?.controlStates ??
+      const Stream<ExternalTorControlState>.empty();
 
   /// Move to the tor [wantsExternal] names now, without a relaunch
   /// (TOR-025). The holders move with it and the last exit pin is asked of
@@ -478,6 +515,10 @@ class TorService {
         'Switched to the ${external ? 'external' : 'built-in'} tor');
     _forward(_engine.status);
     await from.syncHolders(const <TorHolder>[]);
+    // An external tor left behind gets back whatever exit pin the app put
+    // in it (TOR-026). Stopping it costs a probe on the way back; the
+    // embedded one is never stopped (TOR-020).
+    if (identical(from, _externalEngine)) await _externalRuntime?.stop();
     if (!_engine.isAvailable) return;
     final pin = _exitRequest;
     if (pin != null) {
@@ -489,8 +530,9 @@ class TorService {
     await _engine.revive();
   }
 
-  /// Ask the external tor again after its address changed. Nothing to ask
-  /// while nothing has used it: the next start reads the address anyway.
+  /// Ask the external tor again after its address or its control port
+  /// changed. Nothing to ask while nothing has used it: the next start
+  /// reads both anyway.
   Future<void> externalAddressChanged() async {
     final runtime = _externalRuntime;
     final engine = _externalEngine;

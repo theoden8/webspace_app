@@ -244,9 +244,9 @@ class _TorStatusCardState extends State<TorStatusCard> {
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
-        // An external tor has no control port here to send NEWNYM to
-        // (TOR-025).
-        if (!TorService.instance.isExternal) ...[
+        // NEWNYM needs a control port: the built-in tor's, or an external
+        // tor's the user named (TOR-025, TOR-026).
+        if (TorService.instance.hasControlPort) ...[
           const SizedBox(height: Spacing.xs),
           Align(
             alignment: Alignment.centerLeft,

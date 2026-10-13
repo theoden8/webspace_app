@@ -74,6 +74,9 @@ enum AppPref<T extends Object> {
   // TOR-025: the external tor's SOCKS address; Orbot's and the system tor
   // service's SocksPort.
   externalTorAddress('externalTorAddress', fallback: '127.0.0.1:9050'),
+  // TOR-026: the external tor's control port, a socket path or host:port;
+  // empty for none. Its password is a secret and lives in the keystore.
+  externalTorControl('externalTorControl', fallback: ''),
   // LIR-008: master "Handle shared links" switch. When off, incoming share
   // and open intents are dropped.
   linkHandlingEnabled('linkHandlingEnabled', fallback: true),
