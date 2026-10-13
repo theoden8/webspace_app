@@ -191,8 +191,7 @@ abstract final class PageScripts {
       ];
 
   /// The per-site UA's identity. A desktop UA also gets userAgentData,
-  /// maxTouchPoints, matchMedia, MediaSource and the viewport of a desktop
-  /// (DM-007); any UA gets
+  /// maxTouchPoints, matchMedia and the viewport of a desktop; any UA gets
   /// the navigator fields the host engine would otherwise fill in its own
   /// name (vendor, productSub, oscpu, buildID, platform).
   static List<inapp.UserScript> _identityShims(
@@ -205,9 +204,6 @@ abstract final class PageScripts {
           pageShim('desktop_mode_shim',
               js: buildDesktopModeShim(p.page.userAgent ?? ''),
               frames: ShimFrames.all),
-        if (desktopMode)
-          pageShim('media_source_shim',
-              js: PageJs.mediaSource.script, frames: ShimFrames.all),
         if (scoped.identity case final js?)
           pageShim('ua_identity_shim', js: js, frames: ShimFrames.all),
       ];

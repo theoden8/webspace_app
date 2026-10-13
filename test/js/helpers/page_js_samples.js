@@ -40,7 +40,6 @@ const SAMPLES = {
   location_spoof: LOC.FULL_COMBO,
   media_pause: pageJs('media_pause'),
   media_session: pageJs('media_session'),
-  media_source: pageJs('media_source'),
   microphone_stream: CAPTURE.MICROPHONE,
   notification_polyfill: pageJs('notification_polyfill', { siteId: 'site-fixture', notificationsEnabled: true }),
   page_zoom_css: pageJs('page_zoom_css', { zoomPercent: 120 }),
