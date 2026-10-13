@@ -1646,6 +1646,12 @@ empty for none) and rides a backup; its password is a secret in the
 keystore (`ExternalTorControlPasswordStorage`, `Keystores.credentials`) and
 never reaches a backup.
 
+Held against real tor by `test/external_tor_real_daemon_test.dart`: a
+ControlSocket with its cookie (the Debian and Ubuntu service), a ControlPort
+with a password, with its cookie (Tor Browser's) and with none, each tor
+reaching nothing but a dead loopback bridge. CI's Android job installs tor
+for it and sets `WS_REAL_TOR=1`, under which a missing tor fails the tier.
+
 Linux is the platform this is built for. On macOS the App Sandbox is
 expected to refuse a socket path and a cookie file outside the app's
 container, so there the control port is `host:port` with a password; the
