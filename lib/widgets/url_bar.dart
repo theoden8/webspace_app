@@ -257,6 +257,9 @@ Widget button(IconData icon,
           leading,
           SizedBox(width: Spacing.sm),
           Expanded(
+            // The search site picker replacing the padlock would otherwise
+            // remount the field and close the keyboard it just opened.
+            key: const ValueKey('url-field'),
             child: TextField(
               controller: _urlController,
               focusNode: _focusNode,
@@ -283,8 +286,14 @@ Widget button(IconData icon,
                     ? theme.colorScheme.onSurface
                     : theme.colorScheme.onSurface.withOpacity(0.7),
               ),
-              keyboardType:
-                  _searchMode ? TextInputType.text : TextInputType.url,
+              // iOS's url keyboard has no space bar, and words typed in the
+              // address field search; webSearch is url on Android.
+              keyboardType: _searchMode
+                  ? TextInputType.text
+                  : _canSearch
+                      ? TextInputType.webSearch
+                      : TextInputType.url,
+              autocorrect: _searchMode,
               textInputAction: _searchMode
                   ? TextInputAction.search
                   : TextInputAction.go,

@@ -92,6 +92,42 @@ void main() {
     expect(searches, isEmpty);
   });
 
+  String keyboard(WidgetTester tester) =>
+      (tester.testTextInput.setClientArgs!['inputType'] as Map)['name']
+          as String;
+
+  bool autocorrect(WidgetTester tester) =>
+      tester.testTextInput.setClientArgs!['autocorrect'] as bool;
+
+  testWidgets('the address field has a space bar when words search',
+      (tester) async {
+    await pumpBar(tester);
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    expect(keyboard(tester), 'TextInputType.webSearch',
+        reason: "iOS's url keyboard has no space bar");
+    expect(autocorrect(tester), isFalse,
+        reason: 'autocorrect would rewrite a typed host');
+  });
+
+  testWidgets('the magnifier keeps the keyboard up, as a text keyboard',
+      (tester) async {
+    await pumpBar(tester);
+    await tester.tap(magnifier());
+    await tester.pump();
+    expect(tester.testTextInput.isVisible, isTrue,
+        reason: 'the picker replacing the padlock must not rebuild the field');
+    expect(keyboard(tester), 'TextInputType.text');
+    expect(autocorrect(tester), isTrue);
+  });
+
+  testWidgets('an address-only bar keeps the url keyboard', (tester) async {
+    await pumpBar(tester, canSearch: false);
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    expect(keyboard(tester), 'TextInputType.url');
+  });
+
   testWidgets('the picker changes the search site and keeps the field',
       (tester) async {
     await pumpBar(tester);
