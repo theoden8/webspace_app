@@ -427,7 +427,8 @@ class WebViewModel implements MediaGrantRecord {
   /// (LIR-014).
   List<OutboundPreference> get outboundPreferences => _outboundPreferences;
   set outboundPreferences(List<OutboundPreference> value) {
-    assert(_onePerClaim(value), 'at most one outbound preference per claim');
+    assert(OutboundPreference.onePerClaim(value),
+        'at most one outbound preference per claim');
     _outboundPreferences = value;
   }
 
@@ -538,6 +539,7 @@ class WebViewModel implements MediaGrantRecord {
         targetUrl: url,
         initUrl: homeUrl ?? initUrl,
         hasGesture: true,
+        frame: NavigationFrame.top,
         isSiteActive: isActive,
         lastSameDomainGestureTime: null,
         now: DateTime.now(),
@@ -930,7 +932,7 @@ class WebViewModel implements MediaGrantRecord {
     this.searchDefault,
     this.stateSetterF,
     this.isArchiveTier = false,
-  })  : assert(_onePerClaim(outboundPreferences ?? const []),
+  })  : assert(OutboundPreference.onePerClaim(outboundPreferences ?? const []),
             'at most one outbound preference per claim'),
         userScripts = userScripts ?? [],
         _outboundPreferences = outboundPreferences ?? [],
@@ -1280,7 +1282,7 @@ bool dispatch(NavigationDecision decision,
             blockedNavigationUrl = blocked;
             hooks.rebuild();
           },
-          shouldOverrideUrlLoading: (url, {required hasGesture}) {
+          shouldOverrideUrlLoading: (url, {required hasGesture, required frame}) {
             LogTag.webView.debug(
                 'shouldOverrideUrlLoading: site="$name" (siteId: $siteId) initUrl=$initUrl request=$url hasGesture=$hasGesture',
                 sensitive: true);
@@ -1289,6 +1291,7 @@ bool dispatch(NavigationDecision decision,
               targetUrl: url,
               initUrl: navHome,
               hasGesture: hasGesture,
+              frame: frame,
               isSiteActive: isActive(),
               lastSameDomainGestureTime: lastSameDomainGestureTime,
               now: now,
@@ -1995,6 +1998,3 @@ bool dispatch(NavigationDecision decision,
       webViewModelFromJson(json,
           stateSetterF: stateSetterF, isArchiveTier: isArchiveTier);
 }
-
-bool _onePerClaim(List<OutboundPreference> prefs) =>
-    prefs.map((p) => p.claim).toSet().length == prefs.length;

@@ -384,6 +384,7 @@ void main() {
           targetUrl: 'https://github.com/x',
           initUrl: 'https://duckduckgo.com/',
           hasGesture: hasGesture,
+          frame: NavigationFrame.top,
           isSiteActive: true,
           lastSameDomainGestureTime: lastGesture,
           now: now,

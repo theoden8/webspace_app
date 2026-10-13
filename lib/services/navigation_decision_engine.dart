@@ -33,6 +33,12 @@ enum NavigationDecision {
   blockOutbound,
 }
 
+/// Which frame a navigation is for, as far as the platform can vouch
+/// (NESTED-013). [unverified] is a main frame the platform only guessed: it
+/// loads where it is, unrouted and unrewritten, and the top-level URL check
+/// in `onUrlChanged` judges it if it turns out to be the page itself.
+enum NavigationFrame { top, sub, unverified }
+
 /// The decision for a cross-domain navigation that survived the gesture and
 /// background checks: a claimed target stays in the app, anything else goes
 /// where the site's [mode] sends it (NESTED-009).
@@ -217,6 +223,19 @@ class NavigationDecisionEngine {
         _ => NavigationStep.route,
       };
 
+  /// Where [mainFrameInferred], a reported main frame is a guess (the Linux
+  /// plugin cannot tell an iframe's own load from the page's), so only a link
+  /// click is taken as the page navigating (NESTED-013).
+  static NavigationFrame frameOf({
+    required bool reportedMainFrame,
+    required bool mainFrameInferred,
+    required bool linkActivated,
+  }) {
+    if (!reportedMainFrame) return NavigationFrame.sub;
+    if (mainFrameInferred && !linkActivated) return NavigationFrame.unverified;
+    return NavigationFrame.top;
+  }
+
   /// Decision for `shouldOverrideUrlLoading`. Semantics mirror the
   /// production callback exactly:
   ///
@@ -226,6 +245,10 @@ class NavigationDecisionEngine {
   ///   * same normalized base domain — allowed; records a gesture if
   ///     `hasGesture` is true so any cross-domain redirect within the
   ///     next 10 seconds can inherit it.
+  ///   * cross-domain in a frame the platform did not vouch for
+  ///     ([NavigationFrame.sub] or [NavigationFrame.unverified]) — allowed
+  ///     in place; an unverified one with a gesture records it, so the
+  ///     `onUrlChanged` check can route it if it was the page itself.
   ///   * cross-domain — consumes any pending gesture, then:
   ///       * `!effectiveGesture` → [blockSilent]
   ///       * `!isSiteActive` → [blockSuppressed]
@@ -239,6 +262,7 @@ class NavigationDecisionEngine {
     required String targetUrl,
     required String initUrl,
     required bool hasGesture,
+    required NavigationFrame frame,
     required bool isSiteActive,
     required DateTime? lastSameDomainGestureTime,
     required DateTime now,
@@ -260,6 +284,19 @@ class NavigationDecisionEngine {
         NavigationDecision.allow,
         gestureUpdate: hasGesture ? GestureStateUpdate.record : null,
       );
+    }
+
+    switch (frame) {
+      case NavigationFrame.top:
+        break;
+      case NavigationFrame.sub:
+        return const NavigationDecisionResult(NavigationDecision.allow);
+      case NavigationFrame.unverified:
+        return NavigationDecisionResult(
+          NavigationDecision.allow,
+          gestureUpdate: hasGesture ? GestureStateUpdate.record : null,
+          hadGesture: hasGesture,
+        );
     }
 
     var effectiveGesture = hasGesture;

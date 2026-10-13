@@ -9,6 +9,9 @@ class OutboundPreference {
 
   const OutboundPreference({required this.claim, required this.targetSiteId});
 
+  static bool onePerClaim(List<OutboundPreference> prefs) =>
+      prefs.map((p) => p.claim).toSet().length == prefs.length;
+
   Map<String, dynamic> toJson() => {
         'claim': claim.toJson(),
         'targetSiteId': targetSiteId,

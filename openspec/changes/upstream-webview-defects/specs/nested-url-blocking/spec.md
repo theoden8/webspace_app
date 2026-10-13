@@ -99,16 +99,17 @@ The gate is only as good as its input, and its input is not uniform. Android
 reports `isForMainFrame` correctly. Linux cannot: WPE WebKit exposes no
 main-frame flag on `WebKitNavigationAction`, so the plugin infers it from
 `webkit_navigation_action_get_frame_name()` being empty, which is the *target*
-frame name and so is also empty for every unnamed iframe. The inference defaults
+frame name (set only by `<a target=>` and `window.open(url, name)`) and so is
+also empty for every load an iframe makes of itself. The inference defaults
 to main frame, and the app then reads `isForMainFrame ?? true`, so an unreliable
 signal and a missing signal both resolve to the permissive answer.
 
 That much is already recorded, in this spec's platform-gesture section and in
-[PR #356](https://github.com/theoden8/webspace_app/pull/356), which names the
-nested-webview consequence and offers per-site `blockAutoRedirects = false` as
-the escape hatch. This requirement exists because that hatch covers only the
-routing half. It does not disable the rewrites, and the rewrites are the half
-that lets a subframe navigate the top document.
+[PR #356](https://github.com/theoden8/webspace_app/pull/356), which named the
+nested-webview consequence and offered per-site `blockAutoRedirects = false` as
+the escape hatch. That hatch covered only the routing half, and NESTED-006 has
+since withdrawn it. It never disabled the rewrites, and the rewrites are the
+half that lets a subframe navigate the top document.
 
 Therefore: an action that navigates or replaces the top document MUST NOT run on
 a main-frame signal the platform cannot vouch for. Where the signal is absent or
@@ -121,6 +122,15 @@ This requirement is satisfied either by the platform supplying a real signal
 WPE/GTK, after which the fork can drop the inference) or by the app treating the
 inferred signal as untrustworthy. The app-side half MUST NOT wait for the
 platform half.
+
+Where the main frame is inferred, the app believes it only for a link click: a
+navigation of type `LINK_ACTIVATED` is taken as the page navigating, and any
+other is unverified (`NavigationDecisionEngine.frameOf`). An unverified
+navigation loads where it is, with no rewrite and no route, and consumes no
+pending gesture. If it was the page itself, the top-level URL check in
+`onUrlChanged`, which sees only the main frame, judges it like a server
+redirect, with the gesture the navigation carried recorded first. A link
+clicked inside an iframe is still taken as top-level: the one inference left.
 
 #### Scenario: A tracking parameter inside an iframe URL
 
@@ -137,6 +147,24 @@ platform half.
 - **WHEN** the navigation is evaluated
 - **THEN** it loads in place
 - **AND** it is not routed into a nested `InAppWebViewScreen`
+
+#### Scenario: An iframe that loads just after a click
+
+- **GIVEN** a site on Linux whose user taps a same-site link, and the new page
+  inserts a cross-origin iframe (Stripe.js) within the gesture window
+- **WHEN** the iframe's own load reaches `shouldOverrideUrlLoading`, reported as
+  main frame and not a link click
+- **THEN** it loads in place and is not routed into a nested
+  `InAppWebViewScreen`
+- **AND** the pending gesture is not consumed
+
+#### Scenario: A click the page handles in script
+
+- **GIVEN** a site on Linux whose page answers a click by setting
+  `location.href` to another domain, so the navigation is not a link click but
+  carries the user's gesture
+- **WHEN** it loads in place and the top-level URL changes to that domain
+- **THEN** the `onUrlChanged` check routes it by the site's external link mode
 
 #### Scenario: An external scheme from an iframe
 
