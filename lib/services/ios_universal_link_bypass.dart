@@ -33,6 +33,12 @@
 /// URL match an installed app's AASA?", so the bypass treats every
 /// gesture-rooted main-frame nav as at-risk and reissues it.
 ///
+/// Except a fragment navigation within the current document
+/// (IOS-UL-007): it loads nothing, so nothing can leave for an app,
+/// while `loadUrl` turns it into a full page load. GitHub moves to the
+/// `#issuecomment-…` anchor of a page opened from its notification
+/// inbox after every load, so each reissue reloaded the page forever.
+///
 /// Scope: iOS only. Android's WebView doesn't auto-launch installed
 /// apps for plain http(s) URLs — `intent://` schemes are handled
 /// separately via `ExternalUrlParser`.
@@ -45,7 +51,8 @@ class IosUniversalLinkBypass {
   /// HTTP method has no body (a server redirect following a form POST
   /// is re-issued by WebKit as a GET but still tagged `.formSubmitted`).
   /// Body-carrying form submits (POST/PUT/PATCH) are excluded — see
-  /// the class doc for why.
+  /// the class doc for why, as is a fragment navigation within
+  /// [currentUrl], the document the webview is showing.
   ///
   /// Caller passes `isLinkActivated` / `isFormSubmitted` derived from
   /// `navigationAction.navigationType` and `httpMethod` from
@@ -54,11 +61,13 @@ class IosUniversalLinkBypass {
   static bool isEligibleNavigation({
     required bool isMainFrame,
     required String url,
+    required String? currentUrl,
     required bool isLinkActivated,
     bool isFormSubmitted = false,
     String? httpMethod,
   }) {
     if (!isMainFrame || !url.startsWith('http')) return false;
+    if (_isFragmentNavigation(url, currentUrl: currentUrl)) return false;
     if (isLinkActivated) return true;
     if (isFormSubmitted) {
       // Only reissue when we positively know the method is bodyless.
@@ -67,6 +76,16 @@ class IosUniversalLinkBypass {
       return m == 'GET' || m == 'HEAD';
     }
     return false;
+  }
+
+  /// Whether navigating to [url] from [currentUrl] stays in the same
+  /// document: the HTML "navigate to a fragment" case, where [url] has a
+  /// fragment and equals [currentUrl] once fragments are dropped.
+  static bool _isFragmentNavigation(String url, {required String? currentUrl}) {
+    final target = Uri.tryParse(url);
+    final current = currentUrl == null ? null : Uri.tryParse(currentUrl);
+    if (target == null || current == null || !target.hasFragment) return false;
+    return target.removeFragment() == current.removeFragment();
   }
 
   /// Per-WebView memo: URL → timestamp of the cancel-and-reissue.

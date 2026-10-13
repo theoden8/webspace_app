@@ -183,6 +183,27 @@ The system SHALL apply the bypass equally to webviews opened via the cross-domai
 
 ---
 
+### Requirement: IOS-UL-007 - Pass Through Fragment Navigations
+
+The system SHALL NOT intercept a navigation that stays in the current document: one whose URL has a fragment and equals the URL the webview is showing once fragments are dropped (HTML's "navigate to a fragment"). It loads nothing, so no app can take it, while `loadUrl` would turn the scroll into a full page load. A target without a fragment, or one that differs from the current URL in anything but the fragment, is a new document and stays eligible under IOS-UL-001.
+
+#### Scenario: A GitHub notification opened from the inbox does not reload in a loop
+
+**Given** the user taps a notification in `github.com/notifications`, which links to `/{owner}/{repo}/pull/{n}?notification_referrer_id=…#issuecomment-{id}`
+**And** that tap was cancelled and reissued once under IOS-UL-001
+**And** GitHub replaced the URL with `/{owner}/{repo}/pull/{n}#issuecomment-{id}` and the page finished loading
+**When** GitHub's script navigates to `#issuecomment-{id}` and WKWebView reports it as `.linkActivated`
+**Then** the bypass does NOT fire
+**And** the page scrolls to the comment without loading again
+
+#### Scenario: Dropping the fragment is still a new document
+
+**Given** the webview shows `/{owner}/{repo}/pull/{n}#issuecomment-{id}`
+**When** the user taps a link to `/{owner}/{repo}/pull/{n}`
+**Then** the navigation is cancelled and reissued under IOS-UL-001
+
+---
+
 ## Implementation Details
 
 ### IosUniversalLinkBypass
@@ -221,6 +242,7 @@ if (Platform.isIOS &&
     IosUniversalLinkBypass.isEligibleNavigation(
       isMainFrame: isMainFrame,
       url: url,
+      currentUrl: (await view?.getUrl())?.toString(),
       isLinkActivated:
           navigationAction.navigationType == inapp.NavigationType.LINK_ACTIVATED,
       isFormSubmitted:
@@ -272,7 +294,7 @@ The reissued navigation therefore renders inside the webview without any further
 
 ## Testing
 
-Unit tests in [`test/ios_universal_link_bypass_test.dart`](../../../test/ios_universal_link_bypass_test.dart) cover the memo state machine: first pass triggers, second pass passes through, third pass triggers again, expiry, multi-URL independence, `clear()` resets, and (negatively) no domain filtering.
+Unit tests in [`test/ios_universal_link_bypass_test.dart`](../../../test/ios_universal_link_bypass_test.dart) cover the memo state machine: first pass triggers, second pass passes through, third pass triggers again, expiry, multi-URL independence, `clear()` resets, and (negatively) no domain filtering. The eligibility gate's tests include the GitHub notification sequence (IOS-UL-007): the inbox tap is eligible, the anchor navigation that follows is not.
 
 ### Manual Test: Google Maps redirect doesn't open the native app
 
