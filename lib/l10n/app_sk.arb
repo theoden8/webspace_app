@@ -324,6 +324,8 @@
   "appSettingsIconCacheCleared": "Vyrovnávacia pamäť ikon vymazaná",
   "appSettingsExperimentalTextureRendering": "Vykresľovanie stránok do textúry",
   "appSettingsExperimentalTextureRenderingHint": "Kreslí každú stránku do textúry, ktorú WebSpace skladá sám, namiesto ako samostatné zobrazenie Androidu vrstvené s aplikáciou. Môže to zabrániť stránkam, ktoré zostávajú prázdne a biele, kým neotočíte telefón alebo neprepnete aplikáciu. Písanie, výber textu a čítačky obrazovky sú týmto spôsobom menej vyskúšané a rýchle posúvanie sa môže zasekávať. Prejaví sa pri najbližšom spustení aplikácie.",
+  "appSettingsExperimentalContentRuleLists": "Blokovanie obsahu cez WebKit",
+  "appSettingsExperimentalContentRuleListsHint": "Odovzdá sieťové pravidlá vašich zoznamov filtrov WebKitu, ktorý potom tieto požiadavky zablokuje skôr, než sa odošlú, vrátane tých, ktoré spustí samotné HTML stránky skôr, než ich bežný blokovač uvidí. Pravidlá sa skompilujú raz pre každú sadu zoznamov, na pozadí, a stránky otvorené potom ich používajú. Kozmetické pravidlá a presmerovania zostávajú pri bežnom blokovači, ktorý ďalej beží.",
   "externalTor": "Tor (externý)",
   "externalTorHint": "Posiela stránky nastavené na Tor cez tor, ktorý už na tomto zariadení beží, napríklad Orbot, InviZible, Arti alebo službu tor; v macOS nahrádza vstavaný Tor. Každá stránka dá tomuto toru vlastné používateľské meno a heslo SOCKS, takže tor s IsolateSOCKSAuth, ktoré je zapnuté, ak jeho SocksPort neuvádza NoIsolateSOCKSAuth, drží každú stránku na vlastných okruhoch. Mosty sa nastavujú v tomto tore a krajiny výstupu a nové okruhy tiež, ak aplikácia nemá jeho riadiaci port (Linux a macOS).",
   "externalTorAddress": "Adresa SOCKS pre Tor",

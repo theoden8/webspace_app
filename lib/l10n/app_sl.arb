@@ -324,6 +324,8 @@
   "appSettingsIconCacheCleared": "Predpomnilnik ikon počiščen",
   "appSettingsExperimentalTextureRendering": "Izris strani v teksturo",
   "appSettingsExperimentalTextureRenderingHint": "Vsako stran izriše v teksturo, ki jo WebSpace sestavi sam, namesto kot ločen pogled Android, naložen skupaj z aplikacijo. To lahko prepreči strani, ki ostanejo prazne in bele, dokler ne zasukate telefona ali zamenjate aplikacije. Tipkanje, izbiranje besedila in bralniki zaslona so na ta način manj preizkušeni, hitro drsenje pa se lahko zatika. Začne veljati ob naslednjem zagonu aplikacije.",
+  "appSettingsExperimentalContentRuleLists": "Blokiranje vsebine prek WebKita",
+  "appSettingsExperimentalContentRuleListsHint": "Omrežna pravila vaših seznamov filtrov preda WebKitu, ki nato te zahteve blokira, še preden so poslane, vključno s tistimi, ki jih sproži HTML same strani, preden jih običajni blokator lahko vidi. Pravila se prevedejo enkrat za vsak nabor seznamov, v ozadju, in strani, odprte po tem, jih uporabljajo. Kozmetična pravila in preusmeritve ostanejo pri običajnem blokatorju, ki še naprej deluje.",
   "externalTor": "Tor (zunanji)",
   "externalTorHint": "Spletna mesta, nastavljena na Tor, pošilja prek tor, ki že teče v tej napravi, na primer Orbot, InviZible, Arti ali storitev tor; v macOS nadomesti vgrajeni Tor. Vsako spletno mesto temu toru da svoje uporabniško ime in geslo SOCKS, zato tor z IsolateSOCKSAuth, ki je vklopljen, razen če njegov SocksPort pravi NoIsolateSOCKSAuth, vsako spletno mesto drži na lastnih tokokrogih. Mostovi se nastavijo v tem toru, prav tako izhodne države in novi tokokrogi, razen če ima aplikacija njegova nadzorna vrata (Linux in macOS).",
   "externalTorAddress": "Naslov SOCKS za Tor",
