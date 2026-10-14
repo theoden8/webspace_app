@@ -12,7 +12,8 @@
 
 import 'package:webspace/services/tor_failure.dart' show TorFailureKind;
 
-/// Transports IPtProxy 5.x can run. The wire names are tor's, and are what
+/// Transports IPtProxy 5.x can run (its `Obfs4`, `Snowflake`, `MeekLite`,
+/// `Webtunnel` and `Dnstt` constants). The wire names are tor's, and are what
 /// both `ClientTransportPlugin` and the first token of a bridge line use, so
 /// they are not free to rename.
 enum TorTransport {
@@ -27,7 +28,13 @@ enum TorTransport {
   meekLite('meek_lite'),
 
   /// Lyrebird's webtunnel, looks like ordinary HTTPS.
-  webtunnel('webtunnel');
+  webtunnel('webtunnel'),
+
+  /// A tunnel inside DNS lookups sent to a public resolver over DoH or DoT.
+  /// The slowest, and the last that works where only DNS gets through. A
+  /// dnstt server is run by whoever hands out its line: there is no
+  /// published one and BridgeDB allocates none.
+  dnstt('dnstt');
 
   const TorTransport(this.wireName);
 
@@ -60,7 +67,10 @@ enum TorTransport {
   String? get builtInLine => switch (this) {
         TorTransport.snowflake => kBuiltInSnowflakeBridge,
         TorTransport.meekLite => kBuiltInMeekBridge,
-        _ => null,
+        TorTransport.obfs4 ||
+        TorTransport.webtunnel ||
+        TorTransport.dnstt =>
+          null,
       };
 
   /// Whether the user can leave the bridge-line list empty for this
@@ -140,6 +150,11 @@ enum TorBridgeParseError {
   /// obfs4 without the `cert=` it cannot connect without. Catching this
   /// here turns a silent bootstrap failure into an immediate explanation.
   missingCertificate,
+
+  /// dnstt without `pubkey=`, `domain=`, or a resolver to send its lookups
+  /// to (`doh=`, `dot=` or `udp=`). The client refuses every connection
+  /// from such a line, which tor reports only as a stalled bootstrap.
+  missingDnsttArguments,
 }
 
 /// Result of parsing one line: exactly one of [line] or [error] is set.
@@ -191,10 +206,21 @@ TorBridgeParseResult parseTorBridgeLine(String input) {
     }
   }
 
-  if (transport == TorTransport.obfs4 &&
-      !parts.any((p) => p.startsWith('cert='))) {
+  bool has(String key) => parts.any((p) => p.startsWith('$key='));
+
+  if (transport == TorTransport.obfs4 && !has('cert')) {
     return const TorBridgeParseResult.failed(
         TorBridgeParseError.missingCertificate);
+  }
+
+  // The keys dnstt's client reads (dnstt-client/lib/client.go in the fork
+  // IPtProxy builds); it rejects the SOCKS request when any is absent.
+  if (transport == TorTransport.dnstt &&
+      !(has('pubkey') &&
+          has('domain') &&
+          (has('doh') || has('dot') || has('udp')))) {
+    return const TorBridgeParseResult.failed(
+        TorBridgeParseError.missingDnsttArguments);
   }
 
   return TorBridgeParseResult.ok(

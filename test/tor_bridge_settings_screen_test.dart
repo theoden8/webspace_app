@@ -230,6 +230,23 @@ void main() {
     expect(find.text('Get bridges automatically'), findsOneWidget);
   });
 
+  testWidgets('dnstt asks for a pasted line and offers no fetch', (t) async {
+    final backing = MockFlutterSecureStorage();
+    backing.storage['tor_bridges'] = jsonEncode({
+      'enabled': true,
+      'transport': 'dnstt',
+      'lines': <String>[],
+    });
+    await t.pumpWidget(host(TorBridgeSettingsScreen(
+      storage: TorBridgeSecureStorage(secureStorage: backing),
+    )));
+    await t.pumpAndSettle();
+
+    expect(find.text('Get bridges automatically'), findsNothing);
+    expect(find.text('No bridge lines added'), findsOneWidget,
+        reason: 'no published dnstt line stands in for one');
+  });
+
   testWidgets('the fetch button is absent where BridgeDB serves nothing',
       (t) async {
     // Asking Moat for snowflake or meek_lite is an HTTP 400, not an empty
@@ -269,6 +286,21 @@ void main() {
         expect(seen.add(msg), isTrue,
             reason: '$e reuses another error\'s message, so the user cannot '
                 'tell which half of the line is wrong');
+      }
+    });
+
+    testWidgets('the unknown-transport message names every transport',
+        (t) async {
+      late AppLocalizations loc;
+      await t.pumpWidget(host(Builder(builder: (ctx) {
+        loc = AppLocalizations.of(ctx);
+        return const SizedBox.shrink();
+      })));
+
+      final msg =
+          bridgeParseErrorMessage(loc, e: TorBridgeParseError.unknownTransport);
+      for (final transport in TorTransport.values) {
+        expect(msg, contains(transport.wireName));
       }
     });
 

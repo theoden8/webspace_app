@@ -166,6 +166,8 @@ the nested-webview propagation chain. See PROXY-020 for the reasoning.
 - [x] 6b.8 `lib/screens/tor_bridge_settings.dart`: toggle, transport picker, verbatim line list, paste with per-error messages, Moat fetch with the LEAK-015 exposure stated above the button, restart-needed notice. Reached from the status card only where `bridgesMayHelp`.
 - [x] 6b.9 iOS native: `setTorrcOptions`, `startTransport` and `setExitCountry` handlers in `TorControllerPlugin.swift`; `IPtProxy` 5.5.1 in the Podfile; Go pinned in the Apple CI job, since that pod cross-compiles from source during `pod install`. Bridges reach tor through `TORConfiguration.arguments`, not `options` — the latter is a dictionary and would collapse repeated `Bridge` keys.
 - [ ] 6b.10 On-device: obfs4 and snowflake each bootstrap on a network that blocks tor directly. Not reachable from CI — no simulator can be censored, and the transports need a real hostile network to mean anything.
+- [x] 6b.11 dnstt, the fifth transport IPtProxy 5.5.1 already builds: picker entry, paste-only (no published line, no Moat), and a parse error naming `pubkey=`, `domain=` and the resolver keys its client refuses a connection without. The unknown-transport message takes its list from `TorTransport.values`.
+- [ ] 6b.12 On-device: a dnstt line bootstraps through a DoH resolver.
 
 ## 6c. Bootstrap observability (TOR-018)
 
