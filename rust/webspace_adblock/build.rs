@@ -34,7 +34,7 @@
 //      (a lightweight tag prints the commit directly; an annotated tag
 //      prints a second `<sha> refs/tags/<tag>^{}` line — use that one).
 //   3. Replace UBO_TAG (display only) and UBO_COMMIT below, and the
-//      uBO commit in flatpak/flatpak-flutter.yml.
+//      uBO commit in linux/flatpak/flatpak-flutter.yml.
 //   4. Commit. Next `cargo build` re-fetches + reparses.
 //
 // Why pin the commit SHA and not the tag: a git tag is a mutable
