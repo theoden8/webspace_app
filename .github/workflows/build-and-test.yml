@@ -703,7 +703,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Upload passkey gate evidence
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: passkey-gate-evidence
