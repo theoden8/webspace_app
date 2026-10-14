@@ -1209,6 +1209,7 @@ class WebViewFactory {
             IosUniversalLinkBypass.isEligibleNavigation(
               isMainFrame: frame == NavigationFrame.top,
               url: url,
+              currentUrl: (await view?.getUrl())?.toString(),
               isLinkActivated: navigationAction.navigationType ==
                   inapp.NavigationType.LINK_ACTIVATED,
               isFormSubmitted: navigationAction.navigationType ==

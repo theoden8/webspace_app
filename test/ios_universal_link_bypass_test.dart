@@ -98,6 +98,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'https://maps.google.com/maps',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: true,
         ),
         isTrue,
@@ -113,6 +114,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'https://www.linkedin.com/checkpoint/lg/login-submit?_l=de_DE',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: false,
           isFormSubmitted: true,
           httpMethod: 'POST',
@@ -131,6 +133,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'https://maps.google.com/maps',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: false,
           isFormSubmitted: true,
           httpMethod: 'GET',
@@ -146,6 +149,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'https://maps.google.com/maps?q=cafe',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: false,
           isFormSubmitted: true,
           httpMethod: 'get',
@@ -161,6 +165,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'https://maps.google.com/maps',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: false,
           isFormSubmitted: true,
           httpMethod: null,
@@ -176,6 +181,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: false,
           url: 'https://maps.google.com/maps',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: true,
         ),
         isFalse,
@@ -188,6 +194,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'intent://maps.google.com#Intent;...;end',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: true,
         ),
         isFalse,
@@ -196,10 +203,62 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'about:blank',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: true,
         ),
         isFalse,
       );
+    });
+
+    group('fragment navigation within the current document (IOS-UL-007)', () {
+      const pr = 'https://github.com/WebKit/WebKit/pull/65415';
+      bool eligible(String url, {required String? currentUrl}) =>
+          IosUniversalLinkBypass.isEligibleNavigation(
+            isMainFrame: true,
+            url: url,
+            currentUrl: currentUrl,
+            isLinkActivated: true,
+          );
+
+      test('opening a notification from the inbox is reissued once', () {
+        expect(
+          eligible('$pr?notification_referrer_id=NT_x#issuecomment-1',
+              currentUrl: 'https://github.com/notifications'),
+          isTrue,
+        );
+      });
+
+      test('GitHub moving to its own anchor after load is NOT reissued', () {
+        // The reload loop: GitHub drops notification_referrer_id with
+        // replaceState, then navigates to the anchor it is already on after
+        // every load. Reissued, that is a full load, which navigates again.
+        expect(eligible('$pr#issuecomment-1', currentUrl: '$pr#issuecomment-1'),
+            isFalse);
+      });
+
+      test('a hash added to the current page is NOT reissued', () {
+        expect(eligible('$pr#issuecomment-1', currentUrl: pr), isFalse);
+        expect(eligible('$pr#issuecomment-2', currentUrl: '$pr#issuecomment-1'),
+            isFalse);
+      });
+
+      test('an empty fragment still stays in the document', () {
+        expect(eligible('$pr#', currentUrl: pr), isFalse);
+      });
+
+      test('the same path with another query loads a new document', () {
+        expect(eligible('$pr#issuecomment-1', currentUrl: '$pr?tab=files'),
+            isTrue);
+      });
+
+      test('dropping the fragment loads a new document', () {
+        // HTML navigates to a fragment only when the target has one.
+        expect(eligible(pr, currentUrl: '$pr#issuecomment-1'), isTrue);
+      });
+
+      test('an unknown current page leaves the tap eligible', () {
+        expect(eligible('$pr#issuecomment-1', currentUrl: null), isTrue);
+      });
     });
 
     test('programmatic navigation (no link activation) is NOT eligible', () {
@@ -210,6 +269,7 @@ void main() {
         IosUniversalLinkBypass.isEligibleNavigation(
           isMainFrame: true,
           url: 'https://maps.google.com/maps',
+          currentUrl: 'https://example.com/start',
           isLinkActivated: false,
         ),
         isFalse,
