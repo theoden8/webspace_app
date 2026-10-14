@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:webspace/platform/host_platform.dart';
 
@@ -158,7 +159,9 @@ class CookieManager {
     if (!flushSupported) return;
     try {
       await _manager.flush();
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.cookieManager.warning('flush() failed: $e');
+    } on MissingPluginException catch (e) {
       LogTag.cookieManager.warning('flush() failed: $e');
     }
   }

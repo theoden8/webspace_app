@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/ubo_backup_import.dart';
 import 'package:webspace/widgets/confirm_dialog.dart';
@@ -171,15 +171,16 @@ class _ContentBlockerSettingsScreenState
     final messenger = ScaffoldMessenger.of(context);
     String? text;
     try {
-      final picked = await FilePicker.pickFiles(allowMultiple: false);
-      final file = picked?.files.firstOrNull;
+      final file = await FileDialog.pickFile();
       if (file == null) return;
       if (file.bytes != null) {
         text = utf8.decode(file.bytes!, allowMalformed: true);
       } else if (file.path != null) {
         text = await hostReadFileText(file.path!);
       }
-    } catch (e) {
+    } on FileDialogFailure catch (e) {
+      LogTag.contentBlocker.warning('uBO backup read failed: $e');
+    } on IOException catch (e) {
       LogTag.contentBlocker.warning('uBO backup read failed: $e');
     }
     final backup = text == null ? null : UboBackup.parse(text);

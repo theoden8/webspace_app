@@ -94,12 +94,19 @@ class CurrentLocationService {
           message: 'Unexpected response from platform.',
         );
       }
-      final status = (raw['status'] as String?) ?? 'error';
-      switch (status) {
+      final message = switch (raw['message']) {
+        final String m => m,
+        _ => null,
+      };
+      double? number(String key) => switch (raw[key]) {
+            final num n => n.toDouble(),
+            _ => null,
+          };
+      switch (raw['status']) {
         case 'ok':
-          final lat = (raw['latitude'] as num?)?.toDouble();
-          final lng = (raw['longitude'] as num?)?.toDouble();
-          final acc = (raw['accuracy'] as num?)?.toDouble() ?? 0;
+          final lat = number('latitude');
+          final lng = number('longitude');
+          final acc = number('accuracy') ?? 0;
           if (lat == null || lng == null) {
             return CurrentLocationResult.failure(
               CurrentLocationStatus.error,
@@ -112,28 +119,28 @@ class CurrentLocationService {
         case 'permission_denied':
           return CurrentLocationResult.failure(
               CurrentLocationStatus.permissionDenied,
-              message: raw['message'] as String?);
+              message: message);
         case 'permission_denied_forever':
           return CurrentLocationResult.failure(
               CurrentLocationStatus.permissionDeniedForever,
-              message: raw['message'] as String?);
+              message: message);
         case 'service_disabled':
           return CurrentLocationResult.failure(
               CurrentLocationStatus.serviceDisabled,
-              message: raw['message'] as String?);
+              message: message);
         case 'timeout':
           return CurrentLocationResult.failure(CurrentLocationStatus.timeout,
-              message: raw['message'] as String?);
+              message: message);
         default:
           return CurrentLocationResult.failure(
-              CurrentLocationStatus.error, message: raw['message'] as String?);
+              CurrentLocationStatus.error, message: message);
       }
     } on PlatformException catch (e) {
       return CurrentLocationResult.failure(
           CurrentLocationStatus.error, message: e.message);
-    } catch (e) {
+    } on MissingPluginException catch (e) {
       return CurrentLocationResult.failure(
-          CurrentLocationStatus.error, message: e.toString());
+          CurrentLocationStatus.error, message: e.message);
     }
   }
 }

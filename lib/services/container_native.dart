@@ -169,7 +169,10 @@ class _ContainerNative implements ContainerNative {
       } else {
         _supportedCache = false;
       }
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.container.error('isSupported() failed: $e');
+      _supportedCache = false;
+    } on MissingPluginException catch (e) {
       LogTag.container.error('isSupported() failed: $e');
       _supportedCache = false;
     }
@@ -185,7 +188,11 @@ class _ContainerNative implements ContainerNative {
     try {
       return await inapp.ContainerController.instance()
           .deleteContainer(ContainerName.of(key));
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.container.error(
+          'deleteContainer($key) failed: $e', sensitive: true);
+      return false;
+    } on MissingPluginException catch (e) {
       LogTag.container.error(
           'deleteContainer($key) failed: $e', sensitive: true);
       return false;
@@ -197,7 +204,11 @@ class _ContainerNative implements ContainerNative {
     try {
       return await inapp.ContainerController.instance()
           .clearContainerData(ContainerName.of(key));
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.container.error(
+          'clearContainerData($key) failed: $e', sensitive: true);
+      return false;
+    } on MissingPluginException catch (e) {
       LogTag.container.error(
           'clearContainerData($key) failed: $e', sensitive: true);
       return false;
@@ -213,7 +224,10 @@ class _ContainerNative implements ContainerNative {
         for (final name in names)
           ?ContainerName.parse(name)?.key,
       ];
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.container.error('listContainers() failed: $e');
+      return const [];
+    } on MissingPluginException catch (e) {
       LogTag.container.error('listContainers() failed: $e');
       return const [];
     }

@@ -2,6 +2,8 @@
 /// [DatasetTile] renders them all.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,7 +23,7 @@ import 'package:webspace/widgets/dataset_tile.dart';
 abstract class _LoadedDataset extends ChangeNotifier
     implements DownloadableDataset {
   _LoadedDataset() {
-    _reload();
+    unawaited(_reload());
   }
 
   int _generation = 0;

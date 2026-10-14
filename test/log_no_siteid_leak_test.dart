@@ -19,7 +19,7 @@ String _generateSiteId() {
 Future<List<String>> _captureZonePrint(FutureOr<void> Function() body) async {
   final captured = <String>[];
   final completer = Completer<void>();
-  runZoned(
+  unawaited(runZoned(
     () async {
       try {
         await body();
@@ -33,7 +33,7 @@ Future<List<String>> _captureZonePrint(FutureOr<void> Function() body) async {
         captured.add(line);
       },
     ),
-  );
+  ));
   await completer.future;
   return captured;
 }

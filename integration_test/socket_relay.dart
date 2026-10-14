@@ -14,6 +14,9 @@ import 'dart:io';
 /// and `onError`, so the teardown passed to `listen` never ran: the fixture
 /// relayed correctly and leaked every client socket. The integration files
 /// never wait for a close, so only a self-test of the fixture could see it.
+///
+/// A socket's stream ends right after its error, so `onDone` tears down
+/// both halves either way; the fixture's stream handles its own errors.
 Future<void> relaySockets(
   Socket client, {
   required StreamSubscription<List<int>> incoming,
@@ -25,38 +28,18 @@ Future<void> relaySockets(
     if (!finished.isCompleted) finished.complete();
   }
 
-  // Writing to a socket the other end has already dropped throws rather
-  // than ending the relay; the half that is still open has to keep going
-  // until its own close arrives.
-  void forward(Socket to, {required List<int> data}) {
-    try {
-      to.add(data);
-    } on Object {
-      to.destroy();
-    }
-  }
-
-  if (pending.isNotEmpty) forward(upstream, data: pending);
+  if (pending.isNotEmpty) upstream.add(pending);
   incoming
-    ..onData((data) => forward(upstream, data: data))
-    ..onError((Object _) {
-      upstream.destroy();
-      finish();
-    })
+    ..onData(upstream.add)
     ..onDone(() {
       upstream.destroy();
       finish();
     });
-  upstream.listen(
-    (data) => forward(client, data: data),
-    onError: (Object _) {
-      client.destroy();
-      finish();
-    },
-    onDone: () {
-      client.destroy();
-      finish();
-    },
-  );
+  upstream
+      .handleError((Object _) {}, test: (e) => e is SocketException)
+      .listen(client.add, onDone: () {
+        client.destroy();
+        finish();
+      });
   await finished.future;
 }

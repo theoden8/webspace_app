@@ -6,6 +6,7 @@
 
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/tor_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
@@ -163,6 +164,18 @@ class DoNotTrackClient extends http.BaseClient {
 class OutboundClientBlocked extends OutboundClient {
   final String reason;
   const OutboundClientBlocked(this.reason);
+}
+
+/// A SOCKS5 proxy answered and refused the handshake: a credential it would
+/// not take, a protocol it does not speak, or a CONNECT it could not make.
+/// [message] is the refusal as the SOCKS client reported it.
+final class SocksHandshakeFailure implements IOException {
+  const SocksHandshakeFailure(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 /// Contract for producing an [http.Client] that routes through a given

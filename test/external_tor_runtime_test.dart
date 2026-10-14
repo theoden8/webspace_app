@@ -339,7 +339,7 @@ void main() {
       server.listen((socket) {
         socket.listen((_) {
           socket.add(reply);
-          socket.close();
+          unawaited(socket.close());
         });
       });
       return server.port;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 /// Subscribe to a test fixture's socket stream, tolerating its errors.
 ///
@@ -19,4 +20,6 @@ StreamSubscription<T> listenFixture<T>(
   Stream<T> source, {
   required void Function(T event) onEvent,
 }) =>
-    source.listen(onEvent, onError: (Object _) {});
+    source
+        .handleError((Object _) {}, test: (e) => e is SocketException)
+        .listen(onEvent);

@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/apple_os_floor.dart';
@@ -14,7 +15,10 @@ import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/services/proxy_library.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/proxy_refused.dart';
 import 'package:webspace/services/webview_config.dart';
+
+export 'package:webspace/services/proxy_refused.dart';
 
 /// Translate WebSpace's [UserProxySettings] into the fork's
 /// [`inapp.ProxySettings`] type, which the fork's
@@ -279,23 +283,40 @@ class ProxyManager {
       containerProxies.noteBuild(containerId, proxy: proxy);
 
   /// Clear [containerId]'s proxy through `ProxyController`, which hands its
-  /// WebViews back to the app-wide override or to no proxy. Throws if the
-  /// clear fails; the caller keeps the page blank rather than loading it
-  /// through the proxy the site gave up.
+  /// WebViews back to the app-wide override or to no proxy. Throws
+  /// [ProxyRefused] if the clear fails; the caller keeps the page blank
+  /// rather than loading it through the proxy the site gave up.
   Future<void> releaseContainerProxy(ContainerName containerId) async {
-    await containerProxies.release(
-      containerId,
-      clear: (id) =>
-          inapp.ProxyController.instance().clearProxyOverride(containerId: id),
-    );
+    await _platformTakes(() => containerProxies.release(
+          containerId,
+          clear: (id) => inapp.ProxyController.instance()
+              .clearProxyOverride(containerId: id),
+        ));
     LogTag.proxy.info(
         'Cleared container proxy for $containerId', sensitive: true);
   }
 
   /// [siteId] is the isolation tag a TOR proxy carries (TOR-003): without
   /// it every Tor site would present the app-global credential, and the one
-  /// rule in force would put them all on one circuit.
+  /// rule in force would put them all on one circuit. Throws [ProxyRefused]
+  /// for a rule it will not make or the platform did not take.
   Future<void> setProxySettings(UserProxySettings settings,
+          {required SiteId siteId}) =>
+      _platformTakes(() => _applyRule(settings, siteId: siteId));
+
+  /// Runs [call], reporting the plugin's refusal of a rule (its channel
+  /// failure, or no plugin) as [ProxyRefused].
+  static Future<void> _platformTakes(Future<void> Function() call) async {
+    try {
+      await call();
+    } on PlatformException catch (e, st) {
+      Error.throwWithStackTrace(ProxyRefused('$e'), st);
+    } on MissingPluginException catch (e, st) {
+      Error.throwWithStackTrace(ProxyRefused('$e'), st);
+    }
+  }
+
+  Future<void> _applyRule(UserProxySettings settings,
       {required SiteId siteId}) async {
     if (!PlatformInfo.isProxySupported) {
       LogTag.proxy.debug(
@@ -349,7 +370,7 @@ class ProxyManager {
               'Tor is not up ($reason); refusing to apply a proxy rule for a '
               'Tor site.',
               sensitive: true);
-          throw Exception('Tor is not up');
+          throw const ProxyRefused('Tor is not up');
       }
     }
 
@@ -371,7 +392,7 @@ class ProxyManager {
       LogTag.proxy.error(
           'Effective proxy missing address; aborting setProxyOverride. '
           'Effective: ${effective.describeForLogs()}', sensitive: true);
-      throw Exception('Proxy address is required');
+      throw const ProxyRefused('Proxy address is required');
     }
 
     final parts = effective.address!.split(':');
@@ -379,7 +400,7 @@ class ProxyManager {
       LogTag.proxy.error(
           'Effective proxy address malformed (expected host:port). '
           'Effective: ${effective.describeForLogs()}', sensitive: true);
-      throw Exception('Proxy address must be in format host:port');
+      throw const ProxyRefused('Proxy address must be in format host:port');
     }
 
     final host = parts[0];
@@ -387,7 +408,7 @@ class ProxyManager {
     if (port == null) {
       LogTag.proxy.error('Effective proxy port is not numeric. '
           'Effective: ${effective.describeForLogs()}', sensitive: true);
-      throw Exception('Invalid port number');
+      throw const ProxyRefused('Invalid port number');
     }
 
     final scheme = switch (effective.type) {
@@ -410,7 +431,7 @@ class ProxyManager {
             'Auth proxy relay failed to start; refusing to fall back to a '
             'direct connection. Effective: ${effective.describeForLogs()}',
             sensitive: true);
-        throw Exception('Proxy relay failed to start');
+        throw const ProxyRefused('Proxy relay failed to start');
       }
       LogTag.proxy.info(
           'Applying Android proxy override via auth relay (upstream scheme=$scheme'
@@ -478,24 +499,15 @@ class ProxyManager {
       LogTag.proxy.info(
           'Applied router override -> $host:$port', sensitive: true);
       return true;
-    } catch (e) {
+    } on PlatformException catch (e) {
+      LogTag.proxy.error(
+          'Router override failed to apply: $e', sensitive: true);
+      return false;
+    } on MissingPluginException catch (e) {
       LogTag.proxy.error(
           'Router override failed to apply: $e', sensitive: true);
       return false;
     }
-  }
-
-  Future<void> clearProxy() async {
-    if (!PlatformInfo.isProxySupported) return;
-    // Nothing process-wide to clear when each store carries its own rule.
-    if (binding == ProxyBinding.perSite) return;
-    if (hostIsAndroid) await ProxyRelay.instance.stop();
-    final sw = Stopwatch()..start();
-    await inapp.ProxyController.instance().clearProxyOverride();
-    overrideActive = false;
-    LogTag.proxy.info(
-        'Cleared proxy override via clearProxy() (native call took ${sw.elapsedMilliseconds}ms)',
-        sensitive: true);
   }
 }
 
@@ -535,7 +547,9 @@ class PlatformInfo {
       _isProxySupportedCached = await inapp.WebViewFeature.isFeatureSupported(
         inapp.WebViewFeature.PROXY_OVERRIDE,
       );
-    } catch (e) {
+    } on PlatformException {
+      _isProxySupportedCached = false;
+    } on MissingPluginException {
       _isProxySupportedCached = false;
     }
   }

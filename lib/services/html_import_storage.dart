@@ -1,6 +1,9 @@
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
@@ -98,7 +101,7 @@ class HtmlImportStorage {
     try {
       await store.writeText(_importFileName(siteId),
           contents: aead.seal(plaintext));
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlImport.warning(
           'Could not re-encrypt import for $siteId: $e', sensitive: true);
     }
@@ -146,7 +149,7 @@ class HtmlImportStorage {
                   sensitive: true);
               skipped++;
             }
-          } on Exception catch (e) {
+          } on IOException catch (e) {
             LogTag.htmlImport.warning(
                 'Skipping unreadable import file (kept on disk): $name ($e)',
                 sensitive: true);
@@ -156,7 +159,7 @@ class HtmlImportStorage {
       }
       LogTag.htmlImport.debug(
           'Pre-loaded ${_memoryStore.length} imported pages (skipped $skipped unreadable file(s))');
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlImport.error('Error pre-loading imports: $e');
     }
   }
@@ -193,7 +196,7 @@ class HtmlImportStorage {
       LogTag.htmlImport.debug(
           'Saved ${html.length} bytes for site $siteId (encrypted)',
           sensitive: true);
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlImport
           .error('Error saving HTML for $siteId: $e', sensitive: true);
     }
@@ -221,7 +224,7 @@ class HtmlImportStorage {
       final html = decrypted.plaintext.substring(newlineIndex + 1);
 
       return (url, html);
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlImport.error(
           'Error loading HTML for $siteId: $e', sensitive: true);
       return null;
@@ -271,6 +274,8 @@ class HtmlImportStorage {
   /// silently — keeping the call wired keeps the path safe against
   /// future regressions without behavioral cost.
   static Future<void> migrateFromCache() async {
+    void failed(Exception e) =>
+        LogTag.htmlImport.error('File-import migration failed: $e');
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getStringList('webViewModels');
@@ -278,29 +283,43 @@ class HtmlImportStorage {
 
       var migrated = 0;
       for (final entry in raw) {
+        // A malformed or unreadable entry is skipped: the cache wipe happens
+        // either way.
+        final Object? m;
         try {
-          final m = jsonDecode(entry) as Map<String, dynamic>;
-          final initUrl = m['initUrl'] as String? ?? '';
-          if (!initUrl.startsWith('file://')) continue;
-          final siteId = SiteId.parse(m['siteId']);
-          if (siteId == null) continue;
+          m = jsonDecode(entry);
+        } on FormatException {
+          continue;
+        }
+        if (m is! Map) continue;
+        final initUrl = m['initUrl'];
+        if (initUrl is! String || !initUrl.startsWith('file://')) continue;
+        final siteId = SiteId.parse(m['siteId']);
+        if (siteId == null) continue;
 
+        try {
           if (await HtmlImportStorage.instance.hasImport(siteId)) continue;
           final cached = await HtmlCacheService.instance.loadHtml(siteId);
           if (cached == null) continue;
           await HtmlImportStorage.instance
               .saveHtml(siteId, html: cached.$2, url: cached.$1);
           migrated++;
-        } catch (_) {
-          // Skip malformed entries — the cache wipe is happening either way.
+        } on IOException catch (e) {
+          LogTag.htmlImport.error('File-import migration skipped $siteId: $e');
         }
       }
       if (migrated > 0) {
         LogTag.htmlImport.info(
             'Migrated $migrated file-import page(s) from cache to import storage');
       }
-    } catch (e) {
-      LogTag.htmlImport.error('File-import migration failed: $e');
+    } on PlatformException catch (e) {
+      failed(e);
+    } on MissingPluginException catch (e) {
+      failed(e);
+    } on IOException catch (e) {
+      failed(e);
+    } on FormatException catch (e) {
+      failed(e);
     }
   }
 }

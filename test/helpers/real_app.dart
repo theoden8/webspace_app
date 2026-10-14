@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,6 +16,25 @@ import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/experimental_features_service.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/webspace_model.dart';
+
+import 'fake_path_provider.dart';
+
+/// The documents directory the faked platform reports, one path per test
+/// file, since a store the app keeps across tests (SiteIconStore) holds on
+/// to it. Each test starts it empty, as it does prefs and secure storage, and
+/// removes it when done.
+final Directory _documents =
+    Directory.systemTemp.createTempSync('webspace_real_app_');
+
+void _freshDocuments() {
+  void remove() {
+    if (_documents.existsSync()) _documents.deleteSync(recursive: true);
+  }
+
+  remove();
+  _documents.createSync(recursive: true);
+  addTearDown(remove);
+}
 
 /// The shipped `WebSpaceApp`, pumped in a widget test: page state, drawer,
 /// app bar and sheets are the real ones, started from [sites] and
@@ -63,6 +83,8 @@ Future<void> prepareRealApp(
     ...prefs,
   });
   FlutterSecureStorage.setMockInitialValues({});
+  _freshDocuments();
+  useFakePathProvider(_documents);
   PackageInfo.setMockInitialValues(
     appName: 'WebSpace',
     packageName: 'org.codeberg.theoden8.webspace',

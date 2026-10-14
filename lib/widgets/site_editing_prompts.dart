@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webspace/controllers/shell_store.dart';
 import 'package:webspace/controllers/site_editing_controller.dart';
@@ -38,7 +40,7 @@ class DialogSiteEditingPrompts implements SiteEditingPrompts {
         suggestions: shell.suggestedSites,
         onSuggestionsChanged: (sites) {
           shell.suggestedSites = sites;
-          suggested_sites.saveSuggestedSites(sites);
+          unawaited(suggested_sites.saveSuggestedSites(sites));
         },
         initialUrl: initialUrl,
       ),

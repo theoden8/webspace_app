@@ -1,8 +1,9 @@
+import 'dart:async';
+
 import 'dart:convert';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +21,7 @@ import 'package:webspace/services/notification_service.dart';
 import 'package:webspace/services/content_blocker_service.dart';
 import 'package:webspace/services/developer_mode_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
+import 'package:webspace/services/file_dialog.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'package:webspace/settings/user_script.dart';
 import 'package:webspace/widgets/background_log_view.dart';
@@ -410,7 +412,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             final text = logs
                 .map((e) => '[${_formatTime(e.timestamp)}] [${_consoleLevelName(e.level)}] ${e.message}')
                 .join('\n');
-            Clipboard.setData(ClipboardData(text: text));
+            unawaited(Clipboard.setData(ClipboardData(text: text)));
             ScaffoldMessenger.of(context).toast(
               loc.devToolsConsoleCopied(logs.length),
             );
@@ -612,8 +614,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           if (cookies.isNotEmpty)
             toolButton(Icons.copy, label: loc.devToolsCopyAsJson, onPressed: () {
               final json = cookies.map((c) => c.toJson()).toList();
-              Clipboard.setData(
-                  ClipboardData(text: const JsonEncoder.withIndent('  ').convert(json)));
+              unawaited(Clipboard.setData(
+                  ClipboardData(text: const JsonEncoder.withIndent('  ').convert(json))));
               ScaffoldMessenger.of(context).toast(
                 loc.devToolsCookiesCopiedJson(cookies.length),
               );
@@ -653,8 +655,8 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
     final url = widget.host!.currentUrl;
     if (url.isEmpty) return;
     setState(() => _loadingCookies = true);
+    final List<Cookie> cookies;
     try {
-      final List<Cookie> cookies;
       final container = widget.containerCookieManager;
       final controller = widget.host!.controller;
       if (container != null && controller != null) {
@@ -674,16 +676,20 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
             '(container=${container != null} ctrl=${controller != null})',
             sensitive: true);
       }
-      if (mounted) {
-        widget.host!.cookies = cookies;
-        setState(() => _loadingCookies = false);
-        await widget.onSave?.call();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _loadingCookies = false);
-      }
+    } on PlatformException {
+      if (mounted) setState(() => _loadingCookies = false);
+      return;
+    } on MissingPluginException {
+      if (mounted) setState(() => _loadingCookies = false);
+      return;
+    } on FormatException {
+      if (mounted) setState(() => _loadingCookies = false);
+      return;
     }
+    if (!mounted) return;
+    widget.host!.cookies = cookies;
+    setState(() => _loadingCookies = false);
+    await widget.onSave?.call();
   }
 
   Future<void> _deleteCookie(Cookie cookie) async {
@@ -839,7 +845,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         .toList();
     final scripts = [...activeGlobals, ...siteScripts];
     final globalCount = activeGlobals.length;
-    showModalBottomSheet(
+    unawaited(showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (context) {
@@ -944,7 +950,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                                     icon: const Icon(Icons.copy, size: 16),
                                     tooltip: loc.devToolsScriptCopySource,
                                     onPressed: () {
-                                      Clipboard.setData(ClipboardData(text: script.source));
+                                      unawaited(Clipboard.setData(ClipboardData(text: script.source)));
                                       ScaffoldMessenger.of(context).toast(
                                         loc.devToolsScriptCopied(script.name),
                                       );
@@ -966,12 +972,12 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           },
         );
       },
-    );
+    ));
   }
 
   void _showShareSheet() {
     final loc = AppLocalizations.of(context);
-    showModalBottomSheet(
+    unawaited(showModalBottomSheet(
       context: context,
       builder: (sheetContext) {
         return SafeArea(
@@ -999,7 +1005,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           ),
         );
       },
-    );
+    ));
   }
 
   Widget _buildSheetHandle() {
@@ -1029,9 +1035,6 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
         return null;
       }
       return _exportedHtml = html;
-    } catch (e) {
-      _toast((loc) => loc.devToolsHtmlFetchFailed(e.toString()));
-      return null;
     } finally {
       _isFetchingHtml = false;
     }
@@ -1049,7 +1052,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   Future<bool> _saveAs(String fileName,
       {required String dialogTitle, required Uint8List bytes}) async {
     final isMobile = !kIsWeb && (hostIsIOS || hostIsAndroid);
-    final outputPath = await FilePicker.saveFile(
+    final outputPath = await FileDialog.saveFile(
       dialogTitle: dialogTitle,
       fileName: fileName,
       bytes: isMobile ? bytes : null,
@@ -1067,7 +1070,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   Future<void> _shareHtml() async {
     final html = _exportedHtml ?? await _fetchHtml();
     if (html == null || !mounted) return;
-    SharePlus.instance.share(ShareParams(text: html, title: _htmlFileName));
+    unawaited(SharePlus.instance.share(ShareParams(text: html, title: _htmlFileName)));
   }
 
   Future<void> _saveHtmlToFile() async {
@@ -1079,7 +1082,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           dialogTitle: title, bytes: utf8.encode(html))) {
         _toast((loc) => loc.devToolsHtmlSaved);
       }
-    } catch (e) {
+    } on FileDialogFailure catch (e) {
+      _toast((loc) => loc.devToolsSaveFailed(e.toString()));
+    } on IOException catch (e) {
       _toast((loc) => loc.devToolsSaveFailed(e.toString()));
     }
   }
@@ -1087,7 +1092,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
   void _copyHtml() async {
     final html = _exportedHtml ?? await _fetchHtml();
     if (html == null || !mounted) return;
-    Clipboard.setData(ClipboardData(text: html));
+    unawaited(Clipboard.setData(ClipboardData(text: html)));
     _toast((loc) => loc.devToolsHtmlCopied);
   }
 
@@ -1116,7 +1121,9 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
           mounted) {
         messenger.toast(loc.devToolsIconSaved);
       }
-    } catch (e) {
+    } on FileDialogFailure catch (e) {
+      if (mounted) messenger.toast(loc.devToolsSaveFailed(e.toString()));
+    } on IOException catch (e) {
       if (mounted) messenger.toast(loc.devToolsSaveFailed(e.toString()));
     } finally {
       if (mounted) setState(() => _isSavingIcon = false);
@@ -1147,7 +1154,7 @@ class _DevToolsScreenState extends State<DevToolsScreen> {
                   .map((e) =>
                       '[${_formatTimeMs(e.timestamp)}] ${e.blocked ? 'BLOCKED' : 'ALLOWED'} ${e.domain}')
                   .join('\n');
-              Clipboard.setData(ClipboardData(text: text));
+              unawaited(Clipboard.setData(ClipboardData(text: text)));
               ScaffoldMessenger.of(context).toast(loc.devToolsDnsLogCopied);
             },
             key: const Key('devtools-dns-copy'),

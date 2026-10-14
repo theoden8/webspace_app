@@ -1,12 +1,13 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:image/image.dart' as img;
 
+import 'package:webspace/services/engine_image.dart';
 import 'package:webspace/services/icon_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/site_icon_store.dart';
+import 'package:webspace/services/untrusted_image.dart';
 import 'package:webspace/settings/proxy.dart';
 
 bool _isSvgUrl(String url) {
@@ -66,10 +67,10 @@ Future<Uint8List?> exportIconAsPng(
     }
     final bytes = await fetchIconBytes(iconUrl, proxy: proxy);
     if (bytes == null) return null;
-    final decoded = img.decodeImage(bytes);
+    final decoded = decodeUntrustedImage(bytes);
     if (decoded == null) return null;
     return Uint8List.fromList(img.encodePng(decoded));
-  } catch (e) {
+  } on EngineImageFailure catch (e) {
     LogTag.icon.error('PNG export failed: $e');
     return null;
   }
@@ -86,7 +87,8 @@ Future<String?> _resolveIconUrl(String siteUrl,
 }
 
 Future<Uint8List?> _rasterizeSvg(String svg, {required int size}) async {
-  final info = await vg.loadPicture(SvgStringLoader(svg), null);
+  final info = await loadUntrustedSvg(svg);
+  if (info == null) return null;
   try {
     final srcW = info.size.width > 0 ? info.size.width : size.toDouble();
     final srcH = info.size.height > 0 ? info.size.height : size.toDouble();
@@ -100,9 +102,10 @@ Future<Uint8List?> _rasterizeSvg(String svg, {required int size}) async {
     canvas.drawPicture(info.picture);
     final scaled = recorder.endRecording();
     try {
-      final image = await scaled.toImage(outW, outH);
+      final image = await engineImage(() => scaled.toImage(outW, outH));
       try {
-        final data = await image.toByteData(format: ui.ImageByteFormat.png);
+        final data = await engineImage(
+            () => image.toByteData(format: ui.ImageByteFormat.png));
         return data?.buffer.asUint8List();
       } finally {
         image.dispose();

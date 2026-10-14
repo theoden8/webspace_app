@@ -10,6 +10,7 @@ import 'package:webspace/services/host_resolution.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:webspace/services/outbound_http.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// One `wsMediaSession` report: what a frame of the page says it is playing.
@@ -365,12 +366,11 @@ class MediaSessionService {
       {required UserProxySettings? proxy}) async {
     final override = debugArtworkFetchOverride;
     if (override != null) return override(url, proxy: proxy);
-    if (url.isEmpty) return null;
-    final uri = Uri.tryParse(url);
-    if (uri == null || !(uri.isScheme('http') || uri.isScheme('https'))) {
-      return null;
-    }
-    if (isPrivateOrLoopbackHost(uri.host)) return null;
+    // dart:io refuses anything but http(s) with a host with an ArgumentError.
+    final host = Host.ofWebUrl(url);
+    if (host == null) return null;
+    final uri = Uri.parse(url);
+    if (isPrivateOrLoopbackHost(host)) return null;
     final effective = resolveEffectiveProxy(
       proxy ?? UserProxySettings(type: ProxyType.DEFAULT),
       siteId: null,
@@ -401,8 +401,14 @@ class MediaSessionService {
       if (response.statusCode != 200) return null;
       if (response.bodyBytes.length > cap) return null;
       return response.bodyBytes;
-    } on Exception {
+    } on http.ClientException {
       // http, SOCKS and TLS failures alike: the notification goes without art.
+      return null;
+    } on IOException {
+      return null;
+    } on FormatException {
+      return null;
+    } on TimeoutException {
       return null;
     } finally {
       client.close();

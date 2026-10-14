@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -196,8 +198,8 @@ class _AppPrivacyScreenState extends State<AppPrivacyScreen>
               ),
               onChanged: (value) {
                 final url = value.trim();
-                AppPref.osmTileUrl
-                    .set(url.isEmpty ? AppPref.osmTileUrl.fallback : url);
+                unawaited(AppPref.osmTileUrl
+                    .set(url.isEmpty ? AppPref.osmTileUrl.fallback : url));
               },
             ),
           ),

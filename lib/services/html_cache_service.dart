@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
@@ -106,7 +107,7 @@ class HtmlCacheService {
       final nl = decrypted.indexOf('\n');
       if (nl == -1) return;
       _memoryCache[siteId] = decrypted.substring(nl + 1);
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlCache.error(
           'preloadOne error for $siteId: $e', sensitive: true);
     }
@@ -142,7 +143,7 @@ class HtmlCacheService {
               LogTag.htmlCache.warning(
                   'Discarded undecryptable cache file: $name', sensitive: true);
             }
-          } on Exception catch (e) {
+          } on IOException catch (e) {
             await store.delete(name);
             LogTag.htmlCache.warning(
                 'Discarded corrupted cache file: $name ($e)', sensitive: true);
@@ -150,7 +151,7 @@ class HtmlCacheService {
         }
       }
       LogTag.htmlCache.debug('Pre-loaded ${_memoryCache.length} cached pages');
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlCache.error('Error pre-loading cache: $e');
     }
   }
@@ -322,7 +323,7 @@ class HtmlCacheService {
       LogTag.htmlCache.debug(
           'Saved ${html.length} bytes for site $siteId (encrypted)',
           sensitive: true);
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlCache.error(
           'Error saving HTML for $siteId: $e', sensitive: true);
     }
@@ -352,7 +353,7 @@ class HtmlCacheService {
           sensitive: true);
 
       return (url, html);
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.htmlCache.error(
           'Error loading HTML for $siteId: $e', sensitive: true);
       return null;

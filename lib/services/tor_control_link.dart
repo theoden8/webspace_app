@@ -381,14 +381,7 @@ final class TorControlLink {
   Future<void> _pin(String? exitNodes) async {
     if (exitNodes == _pinned) return;
     if (exitNodes == null) {
-      final previous = _pinned;
-      _pinned = null;
-      try {
-        await _restore();
-      } on Exception {
-        _pinned = previous;
-        rethrow;
-      }
+      await _withPinned(null, send: _restore);
       await _closeExitCircuits();
       return;
     }
@@ -412,18 +405,37 @@ final class TorControlLink {
           'not applied. Sites pinned there stay blocked: nothing leaves from '
           'another country instead.');
     }
-    final previous = _pinned;
-    _pinned = exitNodes;
-    try {
+    await _withPinned(exitNodes, send: () async {
       _expectOk(
           await _bounded(_channel.send('SETCONF ExitNodes=${torQuoted(exitNodes)} '
               'StrictNodes=1 ConfluxEnabled=0')),
           command: 'SETCONF');
-    } on Exception {
+    });
+    await _closeExitCircuits();
+  }
+
+  /// Runs [send] with [_pinned] already at [pin], so the CONF_CHANGED it
+  /// causes reads as the app's own, and puts the old value back when tor
+  /// did not take it.
+  Future<void> _withPinned(String? pin,
+      {required Future<void> Function() send}) async {
+    final previous = _pinned;
+    _pinned = pin;
+    try {
+      await send();
+    } on TorControlClosed {
+      _pinned = previous;
+      rethrow;
+    } on TimeoutException {
+      _pinned = previous;
+      rethrow;
+    } on TorControlRejected {
+      _pinned = previous;
+      rethrow;
+    } on FormatException {
       _pinned = previous;
       rethrow;
     }
-    await _closeExitCircuits();
   }
 
   /// Puts the exit options back as they were before the first pin.

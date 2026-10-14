@@ -388,9 +388,10 @@ class SiteActivationController {
       SiteUnloadEngine.apply(_residency,
           plan: plan, isStale: isStale);
 
-  /// Capture [model]'s navigation state to encrypted on-disk storage.
-  /// Returns true if bytes were captured and persisted. No-op for
-  /// incognito sites or when there's nothing to save.
+  /// Capture [model]'s navigation state to encrypted on-disk storage, and
+  /// say how it went: [CaptureOutcome.nothing] for a site that keeps none or
+  /// a capture with nothing to save, [CaptureOutcome.refused] when the store
+  /// would not take the bytes.
   ///
   /// Does NOT mutate `model.lifecycleState` — callers that are
   /// disposing the webview should do that themselves (typically
@@ -398,10 +399,10 @@ class SiteActivationController {
   /// are *only* opportunistically persisting (go-home,
   /// app-background) should leave the state at [SiteLifecycleState.resident]
   /// since the webview is still in memory.
-  Future<bool> captureStateBytes(WebViewModel model) async {
+  Future<CaptureOutcome> captureStateBytes(WebViewModel model) async {
     // Archive-tier (ARCH-006) and incognito sites never persist nav state,
     // and a hosted tab only when its host would keep it (LIR-022).
-    if (!model.activeTabPersistsNavState) return false;
+    if (!model.activeTabPersistsNavState) return CaptureOutcome.nothing;
     // The key is the one the bytes belong to, read before the capture: a tab
     // switch or a container flip (LIR-034) landing while it runs would make
     // the key read afterwards name another tab or another identity, and these
@@ -409,18 +410,20 @@ class SiteActivationController {
     final tabId = model.activeTabId;
     final key = model.activeStateKey;
     final bytes = await model.captureNavigationState();
-    if (bytes == null) return false;
+    if (bytes == null) return CaptureOutcome.nothing;
     if (model.activeTabId != tabId || model.activeStateKey != key) {
       LogTag.webViewState.debug(
           'Dropped a capture for "${model.name}": its tab changed meanwhile',
           sensitive: true);
-      return false;
+      return CaptureOutcome.nothing;
     }
-    await _navStates.saveState(key, state: bytes);
+    if (!await _navStates.saveState(key, state: bytes)) {
+      return CaptureOutcome.refused;
+    }
     LogTag.webViewState.debug(
         'Captured ${bytes.length} bytes for "${model.name}" '
         '(state key: $key)', sensitive: true);
-    return true;
+    return CaptureOutcome.saved;
   }
 
   /// Quiesce the site the user is leaving — a site switch, or a return to the
@@ -442,17 +445,21 @@ class SiteActivationController {
       steps: [
         if (captureState)
           SiteTeardownStep('captureState',
-              run: () => captureStateBytes(model)),
-        SiteTeardownStep('stopRealCapture', run: model.stopRealCapture),
-        SiteTeardownStep('pauseMediaPlayback', run: model.pauseMediaPlayback),
-        SiteTeardownStep('pauseWebView', run: model.pauseWebView),
+              run: () async =>
+                  await captureStateBytes(model) != CaptureOutcome.refused),
+        SiteTeardownStep('stopRealCapture',
+            run: () => model.stopRealCapture().then((_) => true)),
+        SiteTeardownStep('pauseMediaPlayback',
+            run: () => model.pauseMediaPlayback().then((_) => true)),
+        SiteTeardownStep('pauseWebView',
+            run: () => model.pauseWebView().then((_) => true)),
       ],
     );
     if (result.isClean) return;
     LogService.instance.log(
       LogTag.webView,
       message: 'Teardown of "${model.name}" ran ${result.ran}'
-          '${result.errors.isEmpty ? '' : ', failed ${result.errors}'}'
+          '${result.failed.isEmpty ? '' : ', failed ${result.failed}'}'
           '${result.stalledOn == null ? '' : ', stalled on ${result.stalledOn}'}'
           '${result.supersededBefore == null ? '' : ', superseded before ${result.supersededBefore}'}',
       level: result.stalledOn == null ? LogLevel.info : LogLevel.warning,
@@ -465,8 +472,7 @@ class SiteActivationController {
   /// legacy webspace-switch unload) where the webview is about to be
   /// torn down.
   Future<void> captureStateForRestore(WebViewModel model) async {
-    final ok = await captureStateBytes(model);
-    if (ok) {
+    if (await captureStateBytes(model) == CaptureOutcome.saved) {
       model.lifecycleState = SiteLifecycleState.savedForRestore;
     }
   }
@@ -510,4 +516,16 @@ class SiteActivationController {
         break;
     }
   }
+}
+
+/// How a capture of a site's navigation state went.
+enum CaptureOutcome {
+  saved,
+
+  /// The site keeps none, the webview had nothing to give, or the tab moved
+  /// while it ran.
+  nothing,
+
+  /// The store would not take the bytes.
+  refused,
 }

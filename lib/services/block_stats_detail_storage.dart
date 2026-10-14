@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
@@ -71,7 +72,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final store = _overrideStore ?? defaultFileStore(_storageDir);
     try {
       await store.ensure();
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.blockStats.warning('Detail storage unavailable, counts only: $e');
       return;
     }
@@ -88,7 +89,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     final String? wire;
     try {
       wire = await store.readText(_fileName);
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.blockStats.warning('Detail read failed: $e');
       return null;
     }
@@ -107,7 +108,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     try {
       await store.writeText(_fileName, contents: aead.seal(payload));
       return true;
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.blockStats.warning('Detail write failed: $e');
       return false;
     }
@@ -120,7 +121,7 @@ class SecureBlockStatsDetailStore implements BlockStatsDetailStore {
     if (store == null) return;
     try {
       await store.delete(_fileName);
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.blockStats.warning('Detail clear failed: $e');
     }
   }

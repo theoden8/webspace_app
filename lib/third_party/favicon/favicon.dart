@@ -26,10 +26,11 @@ import 'dart:typed_data';
 
 import 'package:html/parser.dart';
 import 'package:http/http.dart' as http;
-import 'package:image/image.dart';
 
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/global_outbound_proxy.dart';
+import 'package:webspace/services/untrusted_image.dart';
+import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 
 // Signatures from https://en.wikipedia.org/wiki/List_of_file_signatures
@@ -84,6 +85,7 @@ class FaviconFinder {
   }) async {
     var favicons = <Favicon>[];
     var iconUrls = <String>[];
+    if (Host.ofWebUrl(url) == null) return favicons;
 
     final effectiveProxy = proxy == null
         ? GlobalOutboundProxy.current
@@ -152,7 +154,8 @@ class FaviconFinder {
         continue;
       }
 
-      var image = decodeImage((await client.get(Uri.parse(iconUrl))).bodyBytes);
+      var image = decodeUntrustedImage(
+          (await client.get(Uri.parse(iconUrl))).bodyBytes);
       if (image != null) {
         favicons
             .add(Favicon(iconUrl, width: image.width, height: image.height));
@@ -167,6 +170,9 @@ class FaviconFinder {
 
   static Future<bool> _verifyImage(String url,
       {required http.Client client}) async {
+    // A link the fix-ups above leave without a host (`href="http:x.png"`):
+    // dart:io refuses it with an ArgumentError.
+    if (Host.ofWebUrl(url) == null) return false;
     var response = await client.get(Uri.parse(url));
 
     var contentType = response.headers['content-type'];
@@ -189,6 +195,7 @@ class FaviconFinder {
 
   static bool _verifySignature(Uint8List bodyBytes,
       {required List<int> signature}) {
+    if (bodyBytes.length < signature.length) return false;
     var fileSignature = bodyBytes.sublist(0, signature.length);
     for (var i = 0; i < fileSignature.length; i++) {
       if (fileSignature[i] != signature[i]) return false;

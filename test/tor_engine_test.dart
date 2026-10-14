@@ -83,7 +83,7 @@ void main() {
     TorSocksProbe? socksProbe,
   }) {
     final e = build(debounce: debounce, timeout: timeout, socksProbe: socksProbe);
-    e.acquire(TorSiteHolder(site ?? SiteId('site-a')));
+    unawaited(e.acquire(TorSiteHolder(site ?? SiteId('site-a'))));
     async.flushMicrotasks();
     runtime.bootstrapTo(port);
     async.flushMicrotasks();
@@ -132,11 +132,13 @@ void main() {
     test('settled waits for up or a failure, and no longer than asked', () {
       fakeAsync((async) {
         final e = build();
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         async.flushMicrotasks();
 
         var done = false;
-        e.settled(within: const Duration(seconds: 10)).then((_) => done = true);
+        unawaited(e
+            .settled(within: const Duration(seconds: 10))
+            .then((_) => done = true));
         runtime.emit(const TorBootstrapping(50));
         async.flushMicrotasks();
         expect(done, isFalse, reason: 'still bootstrapping');
@@ -147,12 +149,14 @@ void main() {
         runtime.emit(const TorBootstrapping(100, tag: kTorReopenTag));
         async.flushMicrotasks();
         done = false;
-        e.settled(within: const Duration(seconds: 10)).then((_) => done = true);
+        unawaited(e
+            .settled(within: const Duration(seconds: 10))
+            .then((_) => done = true));
         async.elapse(const Duration(seconds: 9));
         expect(done, isFalse);
         async.elapse(const Duration(seconds: 1));
         expect(done, isTrue, reason: 'the caller stops waiting at its bound');
-        e.dispose();
+        unawaited(e.dispose());
         async.flushMicrotasks();
       });
     });
@@ -195,7 +199,7 @@ void main() {
 
         e.release(TorSiteHolder(SiteId('site-a')));
         async.elapse(const Duration(seconds: 30));
-        e.acquire(TorSiteHolder(SiteId('site-b')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-b'))));
         async.flushMicrotasks();
 
         async.elapse(const Duration(seconds: 120));
@@ -227,7 +231,7 @@ void main() {
     });
 
     test('a start that throws surfaces as an error, not a hang', () async {
-      runtime.startError = StateError('no tor for you');
+      runtime.startError = const TorRuntimeFailure('no tor for you');
       final e = build();
       await e.acquire(TorSiteHolder(SiteId('site-a')));
       expect(e.status, isA<TorErrored>());
@@ -239,7 +243,7 @@ void main() {
     test('bootstrap that never completes errors out, tor left running', () {
       fakeAsync((async) {
         final e = build(timeout: const Duration(seconds: 90));
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         async.flushMicrotasks();
         runtime.emit(const TorBootstrapping(40));
         async.flushMicrotasks();
@@ -263,7 +267,7 @@ void main() {
         final e = buildUpIn(async, timeout: const Duration(seconds: 90));
         expect(e.status, isA<TorUp>());
 
-        e.restart();
+        unawaited(e.restart());
         async.flushMicrotasks();
         expect(e.status, isA<TorUp>(), reason: 'a Retry must not blank it');
 
@@ -473,7 +477,8 @@ void main() {
       // leaving from a country it is not.
       final e = await buildUp();
 
-      runtime.exitCountryError = StateError('control port said no');
+      runtime.exitCountryError =
+          const TorRuntimeFailure('control port said no');
       await e.setExitCountry('{de}');
       expect(e.status, isA<TorErrored>());
       await e.dispose();
@@ -509,7 +514,7 @@ void main() {
       // SETCONF that carried it belonged to the run that failed.
       fakeAsync((async) {
         final e = buildUpIn(async, site: SiteId('a1'), debounce: const Duration(seconds: 60));
-        e.setExitCountry('{de}');
+        unawaited(e.setExitCountry('{de}'));
         async.flushMicrotasks();
         expect(runtime.appliedExitNodes, ['{de}']);
 
@@ -519,7 +524,7 @@ void main() {
         runtime.emit(TorErrored('control port died'));
         async.flushMicrotasks();
 
-        e.restart();
+        unawaited(e.restart());
         async.flushMicrotasks();
         expect(runtime.stopCalls, 0,
             reason: 'a restart never stops tor: the process has one launch '
@@ -722,18 +727,18 @@ void main() {
       fakeAsync((async) {
         final store = FakeGeoIpStore()..kept = table;
         final e = build(geoIpStore: store, clock: () => fetchedAt);
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
 
         runtime.exitCountryHangs = true;
-        e.setExitCountry('{br}');
+        unawaited(e.setExitCountry('{br}'));
         async.elapse(kTorExitPinApplyTimeout);
         expect(e.status, isA<TorErrored>(),
             reason: 'a hung control connection is a failure, not a wait');
 
         runtime.exitCountryHangs = false;
-        e.setExitCountry('{de}');
+        unawaited(e.setExitCountry('{de}'));
         async.flushMicrotasks();
         expect(runtime.appliedExitNodes, ['{de}']);
         expect(e.status, isA<TorUp>());
@@ -745,12 +750,12 @@ void main() {
       // the moment the change is asked for, not once tor answers.
       fakeAsync((async) {
         final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
 
         runtime.exitCountryHangs = true;
-        e.setExitCountry('{br}');
+        unawaited(e.setExitCountry('{br}'));
         expect(e.status, isA<TorBootstrapping>());
         expect(e.socksFor(TorTag.fromWire('site-a')), isNull);
         async.elapse(kTorExitPinApplyTimeout);
@@ -764,17 +769,17 @@ void main() {
       // re-sent it and waited again.
       fakeAsync((async) {
         final e = build(geoIpStore: FakeGeoIpStore()..kept = table);
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         runtime.bootstrapTo(9999);
         async.flushMicrotasks();
-        e.setExitCountry('{br}');
+        unawaited(e.setExitCountry('{br}'));
         async.flushMicrotasks();
         expect(e.status, isA<TorUp>());
 
         runtime.exitCountryHangs = true;
         final calls = runtime.applyCalls;
         var settled = false;
-        e.setExitCountry(null).then((_) => settled = true);
+        unawaited(e.setExitCountry(null).then((_) => settled = true));
         async.elapse(kTorExitPinApplyTimeout);
         expect(settled, isTrue, reason: 'the change is bounded');
         final status = e.status;
@@ -784,14 +789,14 @@ void main() {
         expect(e.socksFor(TorTag.fromWire('site-a')), isNull, reason: 'fails closed');
 
         for (var tap = 0; tap < 3; tap++) {
-          e.setExitCountry(null);
+          unawaited(e.setExitCountry(null));
           async.flushMicrotasks();
         }
         expect(runtime.applyCalls, calls + 1,
             reason: 'a tap after the failure does not re-send and wait again');
 
         runtime.exitCountryHangs = false;
-        e.restart();
+        unawaited(e.restart());
         async.flushMicrotasks();
         expect(runtime.appliedExitNodes.last, isNull);
         expect(e.status, isA<TorUp>(), reason: 'Retry re-applies the clear');
@@ -802,9 +807,8 @@ void main() {
         () async {
       final store = FakeGeoIpStore()..kept = table;
       final e = await upWith(store);
-      runtime.exitCountryError = StateError(
-          'PlatformException(geoip_unavailable, Tor has no GeoIP data '
-          'loaded, null, null)');
+      runtime.exitCountryError =
+          const TorRuntimeFailure('Tor has no GeoIP data loaded');
       await e.setExitCountry('{br}');
       expect((e.status as TorErrored).kind, TorFailureKind.exitCountryData);
       await e.dispose();
@@ -832,7 +836,7 @@ void main() {
       fakeAsync((async) {
         final e = buildUpIn(async, port: 41337, socksProbe: probe);
 
-        e.revive();
+        unawaited(e.revive());
         async.flushMicrotasks();
         expect(asked, [41337]);
         expect(runtime.reopenCalls, 0);
@@ -845,14 +849,14 @@ void main() {
         final e = build(socksProbe: probe);
         final seen = <TorStatus>[];
         e.statusStream.listen(seen.add);
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         async.flushMicrotasks();
         runtime.bootstrapTo(41337);
         async.flushMicrotasks();
         final before = e.status;
 
         dead.add(41337);
-        e.revive();
+        unawaited(e.revive());
         async.flushMicrotasks();
         expect(runtime.reopenCalls, 1);
         expect(runtime.startCalls, 1,
@@ -873,15 +877,15 @@ void main() {
         final e = buildUpIn(async, port: 41337, socksProbe: probe);
 
         dead.add(41337);
-        runtime.reopenError = StateError('control_unreachable');
-        e.revive();
+        runtime.reopenError = const TorRuntimeFailure('control_unreachable');
+        unawaited(e.revive());
         async.flushMicrotasks();
         expect(e.status, isA<TorErrored>());
         expect(e.socksFor(TorTag.fromWire('site-a')), isNull,
             reason: 'the dead listener must never be handed out as up');
 
         runtime.reopenError = null;
-        e.restart();
+        unawaited(e.restart());
         async.flushMicrotasks();
         expect(runtime.reopenCalls, 2);
         expect(e.socksFor(TorTag.fromWire('site-a'))!.address, '127.0.0.1:45000');
@@ -895,12 +899,12 @@ void main() {
         final e = build(socksProbe: probe);
         final seen = <TorStatus>[];
         e.statusStream.listen(seen.add);
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         async.flushMicrotasks();
         runtime.emit(const TorBootstrapping(40));
         async.flushMicrotasks();
 
-        e.revive();
+        unawaited(e.revive());
         async.flushMicrotasks();
         expect(asked, isEmpty, reason: 'there is no listener to ask yet');
 
@@ -916,12 +920,12 @@ void main() {
     test('an exit pin in force stays in force across a reopen', () {
       fakeAsync((async) {
         final e = buildUpIn(async, port: 41337, socksProbe: probe);
-        e.setExitCountry('{de}');
+        unawaited(e.setExitCountry('{de}'));
         async.flushMicrotasks();
         expect(runtime.appliedExitNodes, ['{de}']);
 
         dead.add(41337);
-        e.revive();
+        unawaited(e.revive());
         async.flushMicrotasks();
         expect(e.socksFor(TorTag.fromWire('site-a'))!.address, '127.0.0.1:45000');
         expect(runtime.appliedExitNodes, ['{de}'],
@@ -936,7 +940,7 @@ void main() {
           timeout: const Duration(seconds: 90),
           clock: () => now,
         );
-        e.acquire(TorSiteHolder(SiteId('site-a')));
+        unawaited(e.acquire(TorSiteHolder(SiteId('site-a'))));
         async.flushMicrotasks();
         runtime.emit(const TorBootstrapping(10));
         async.flushMicrotasks();
@@ -956,7 +960,7 @@ void main() {
     test('without a probe nothing is asked', () {
       fakeAsync((async) {
         final e = buildUpIn(async, port: 41337);
-        e.revive();
+        unawaited(e.revive());
         async.flushMicrotasks();
         expect(runtime.reopenCalls, 0);
       });

@@ -130,7 +130,7 @@ class ShortcutController {
   }
 
   void dispose() {
-    _siteIconChanges?.cancel();
+    unawaited(_siteIconChanges?.cancel());
   }
 
   void load(SharedPreferences prefs) {

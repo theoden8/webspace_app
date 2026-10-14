@@ -63,18 +63,30 @@ class FilterList {
         if (rules != null) 'rules': rules,
       };
 
-  factory FilterList.fromJson(Map<String, dynamic> json) => FilterList(
-        id: FilterListId(json['id'] as String),
-        name: json['name'],
-        url: json['url'],
-        enabled: json['enabled'] ?? false,
-        lastUpdated: json['lastUpdated'] != null
-            ? DateTime.tryParse(json['lastUpdated'])
-            : null,
-        ruleCount: json['ruleCount'] ?? 0,
-        skippedCount: json['skippedCount'] ?? 0,
-        rules: json['rules'] is String ? json['rules'] as String : null,
-      );
+  /// The stored list, or null when [json] names none: an id that does not
+  /// parse, or a name or URL that is not a string. Any other field of the
+  /// wrong type reads as absent, so one odd value does not stop the app
+  /// loading its lists.
+  static FilterList? fromJson(Map<String, dynamic> json) {
+    final id = FilterListId.parse(json['id']);
+    final name = json['name'];
+    final url = json['url'];
+    if (id == null || name is! String || url is! String) return null;
+    final updated = json['lastUpdated'];
+    final ruleCount = json['ruleCount'];
+    final skippedCount = json['skippedCount'];
+    final rules = json['rules'];
+    return FilterList(
+      id: id,
+      name: name,
+      url: url,
+      enabled: json['enabled'] == true,
+      lastUpdated: updated is String ? DateTime.tryParse(updated) : null,
+      ruleCount: ruleCount is int ? ruleCount : 0,
+      skippedCount: skippedCount is int ? skippedCount : 0,
+      rules: rules is String ? rules : null,
+    );
+  }
 }
 
 /// Default filter lists added on first initialization.
@@ -692,10 +704,12 @@ class ContentBlockerService {
       final listsJson = prefs.getString(_listsKey);
 
       if (listsJson != null) {
-        final List<dynamic> decoded = jsonDecode(listsJson);
-        _lists = decoded
-            .map((e) => FilterList.fromJson(Map<String, dynamic>.from(e)))
-            .toList();
+        final decoded = jsonDecode(listsJson);
+        _lists = [
+          if (decoded is List)
+            for (final e in decoded)
+              if (e is Map<String, dynamic>) ?FilterList.fromJson(e),
+        ];
       } else {
         _lists = _defaultLists
             .map((d) => FilterList(
@@ -712,15 +726,18 @@ class ContentBlockerService {
       LogTag.contentBlocker.info(
           'Initialized: ${_lists.length} list(s), engine '
           '${_rustEngine == null ? "inactive" : "active"}');
-    } catch (e) {
+    } on FormatException catch (e) {
+      LogTag.contentBlocker.error('Error initializing: $e');
+    } on IOException catch (e) {
+      LogTag.contentBlocker.error('Error initializing: $e');
+    } on PlatformException catch (e) {
       LogTag.contentBlocker.error('Error initializing: $e');
     }
   }
 
   Future<bool> downloadList(FilterListId id) async {
-    final list = _lists.firstWhere((l) => l.id == id,
-        orElse: () => throw Exception('List not found: $id'));
-    if (list.isLocal) return false;
+    final list = _lists.where((l) => l.id == id).firstOrNull;
+    if (list == null || list.isLocal) return false;
 
     final response = switch (await _fetch(list.url)) {
       Fetched(:final response) => response,
@@ -754,7 +771,16 @@ class ContentBlockerService {
           'Downloaded ${list.name}: ~${list.ruleCount} rules');
 
       return true;
-    } on Exception catch (e) {
+    } on FilterListIncludeError catch (e) {
+      LogTag.contentBlocker.error('Error downloading ${list.name}: $e');
+      return false;
+    } on FormatException catch (e) {
+      LogTag.contentBlocker.error('Error downloading ${list.name}: $e');
+      return false;
+    } on IOException catch (e) {
+      LogTag.contentBlocker.error('Error downloading ${list.name}: $e');
+      return false;
+    } on PlatformException catch (e) {
       LogTag.contentBlocker.error('Error downloading ${list.name}: $e');
       return false;
     }
@@ -895,7 +921,7 @@ class ContentBlockerService {
 
     try {
       await _store.delete(_cacheName(id));
-    } on Exception {
+    } on IOException {
       // The list is gone from the set either way; a stray file is only space.
     }
 
@@ -982,7 +1008,7 @@ class ContentBlockerService {
       if (cached == null) {
         try {
           cached = await _store.readText(_cacheName(list.id));
-        } on Exception {
+        } on IOException {
           // An unreadable cache leaves the list out until it is downloaded.
         }
       }
@@ -1225,8 +1251,10 @@ class ContentBlockerService {
       final prefilterText = await _store.readText(_engineCachePrefilterName);
       if (blob == null || prefilterText == null) return null;
       decoded = jsonDecode(prefilterText);
-    } on Exception catch (e) {
-      // FormatException from a torn prefilter, or the store's own I/O error.
+    } on FormatException catch (e) {
+      LogTag.contentBlocker.debug('engine cache unreadable: $e');
+      return null;
+    } on IOException catch (e) {
       LogTag.contentBlocker.debug('engine cache unreadable: $e');
       return null;
     }
@@ -1261,7 +1289,7 @@ class ContentBlockerService {
       await _store.writeText(_engineCacheMetaName, contents: key);
       LogTag.contentBlocker.debug(
           'engine cache written: ${blob.length} bytes (key=${key.substring(0, 8)}…)');
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.contentBlocker.warning('engine cache write failed: $e');
     }
   }
@@ -1271,7 +1299,7 @@ class ContentBlockerService {
       await _store.delete(_engineCacheMetaName);
       await _store.delete(_engineCacheName);
       await _store.delete(_engineCachePrefilterName);
-    } on Exception {
+    } on IOException {
       // A stale engine cache fails its key check on the next load.
     }
   }

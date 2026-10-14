@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
 import 'package:http/testing.dart';
 import 'package:webspace/services/download_engine.dart';
 
@@ -100,6 +103,29 @@ void main() {
       throwsA(isA<DownloadException>()),
     );
     expect(n, DownloadEngine.maxRedirects + 1);
+  });
+
+  test('a redirect to a URL with no host fails the download', () async {
+    // dart:io refuses such a URL with an ArgumentError, so the redirect is
+    // served by a real server and requested by a real client.
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((req) async {
+      req.response
+        ..statusCode = 302
+        ..headers.set('location', req.uri.queryParameters['to']!);
+      await req.response.close();
+    });
+    for (final location in ['https:', '//', 'http:', 'https:///x']) {
+      final client = IOClient(HttpClient());
+      addTearDown(client.close);
+      final url = Uri.http('127.0.0.1:${server.port}', '/dl', {'to': location});
+      await expectLater(
+        DownloadEngine(client: client).fetch(url: '$url'),
+        throwsA(isA<DownloadException>()),
+        reason: 'Location: $location',
+      );
+    }
   });
 
   test('a redirect without a location is an HTTP error', () async {

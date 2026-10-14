@@ -8,6 +8,23 @@ import 'package:webspace/services/content_blocker_service.dart';
 
 void main() {
   group('FilterList', () {
+    test('a stored entry that names no list reads as none, and an odd field '
+        'as absent', () {
+      expect(FilterList.fromJson({'id': 3, 'name': 'n', 'url': 'u'}), isNull);
+      expect(FilterList.fromJson({'id': 'a', 'url': 'u'}), isNull);
+      final list = FilterList.fromJson({
+        'id': 'a',
+        'name': 'n',
+        'url': 'u',
+        'enabled': 'yes',
+        'lastUpdated': 7,
+        'ruleCount': '12',
+      })!;
+      expect(list.enabled, isFalse);
+      expect(list.lastUpdated, isNull);
+      expect(list.ruleCount, 0);
+    });
+
     test('serializes to JSON correctly', () {
       final list = FilterList(
         id: FilterListId('test-list'),
@@ -41,7 +58,7 @@ void main() {
         'skippedCount': 50,
       };
 
-      final list = FilterList.fromJson(json);
+      final list = FilterList.fromJson(json)!;
 
       expect(list.id, equals('test-list'));
       expect(list.name, equals('Test List'));
@@ -59,7 +76,7 @@ void main() {
         'url': 'https://example.com/list.txt',
       };
 
-      final list = FilterList.fromJson(json);
+      final list = FilterList.fromJson(json)!;
 
       expect(list.enabled, isFalse);
       expect(list.lastUpdated, isNull);
@@ -79,7 +96,7 @@ void main() {
       );
 
       final json = original.toJson();
-      final restored = FilterList.fromJson(json);
+      final restored = FilterList.fromJson(json)!;
 
       expect(restored.id, equals(original.id));
       expect(restored.name, equals(original.name));
@@ -105,7 +122,7 @@ void main() {
 
       expect(decoded.length, equals(2));
       final restored = decoded
-          .map((e) => FilterList.fromJson(Map<String, dynamic>.from(e)))
+          .map((e) => FilterList.fromJson(Map<String, dynamic>.from(e))!)
           .toList();
       expect(restored[0].id, equals('a'));
       expect(restored[1].enabled, isTrue);

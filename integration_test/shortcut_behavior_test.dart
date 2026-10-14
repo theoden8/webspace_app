@@ -36,6 +36,8 @@
 // delivering a real intent to a running activity — lives in the adb tier
 // (scripts/run_android_lifecycle_tests.sh, INTEG-013).
 
+import 'dart:async';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -106,7 +108,7 @@ void main() {
         response.headers.contentType = ContentType.html;
         response.write(page);
       }
-      response.close();
+      unawaited(response.close());
     });
     hostA = 'http://127.0.0.1:${server!.port}';
     hostB = 'http://localhost:${server!.port}';

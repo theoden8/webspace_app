@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
@@ -196,9 +198,9 @@ class _SettingsScreenState extends State<SettingsScreen>
     // Load the timezone polygon dataset on demand here (it is not loaded
     // at app startup) so the "From picked location" preview/resolution works.
     if (!TimezoneLocationService.instance.isReady) {
-      TimezoneLocationService.instance
+      unawaited(TimezoneLocationService.instance
           .loadFromCacheIfPresent()
-          .then((_) => _rebuild());
+          .then((_) => _rebuild()));
     }
   }
 
@@ -488,116 +490,112 @@ class _SettingsScreenState extends State<SettingsScreen>
       }
     }
 
-    try {
-      final m = widget.webViewModel;
-      if (PlatformInfo.isProxySupported) {
-        _proxySettings = _formProxy();
-        m.proxySettings = _proxySettings;
-        LogTag.proxy.info(
-            'Saving per-site proxy for siteId=${m.siteId}: '
-            '${_proxySettings.describeForLogs()}', sensitive: true);
-        await m.updateProxySettings(_proxySettings);
-      } else {
-        final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
-        m.proxySettings = defaultProxy;
-        LogTag.proxy.debug(
-            'Per-site proxy unsupported on this platform; forcing DEFAULT for '
-            'siteId=${m.siteId}', sensitive: true);
-        await m.updateProxySettings(defaultProxy);
-      }
-
-      // Unconditional: an empty field clears the override (previously it
-      // was skipped, making an override impossible to remove). setUserAgent
-      // re-attaches a preset for generated shapes and drops stock
-      // webview-default strings back to "no override".
-      m.setUserAgent(_userAgentController.text);
-      m.javascriptEnabled = _javascriptEnabled;
-      m.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
-      m.httpsUpgradeEnabled = _httpsUpgradeEnabled;
-      m.incognito = _incognito;
-      m.alwaysOpenHome = _alwaysOpenHome;
-      m.kioskMode = _kioskMode;
-      m.clearUrlEnabled = _clearUrlEnabled;
-      m.dnsBlockEnabled = _dnsBlockEnabled;
-      m.dnsBlockLevel = _dnsBlockLevel;
-      m.contentBlockEnabled = _contentBlockEnabled;
-      m.disabledFilterLists = {..._disabledFilterLists};
-      m.trackingProtectionEnabled = _trackingProtectionEnabled;
-      m.letterboxEnabled = _letterboxEnabled;
-      m.blockScreenshots = _blockScreenshots;
-      m.localCdnEnabled = _localCdnEnabled;
-      m.externalLinkMode = _externalLinkMode;
-      m.routeOutboundLinks = _routeOutboundLinks;
-      m.outboundPreferences = [..._outboundPreferences];
-      m.searchAddress = _searchAddress;
-      m.searchesWeb = _searchesWeb;
-      m.searchSites = [..._searchSites];
-      m.searchDefault = _searchDefault;
-      m.fullscreenMode = _fullscreenMode;
-      m.tabsEnabled = _tabsEnabled;
-      m.htmlCachingEnabled = _htmlCachingEnabled;
-      m.notificationsEnabled = _notificationsEnabled;
-      m.backgroundAudioEnabled = _backgroundAudioEnabled;
-      m.protectedContentAllowed = _protectedContentAllowed;
-      m.captures = _captures;
-      m.language = _selectedLanguage;
-      m.zoomPercent = _zoomPercent;
-      // Live and custom coordinates are mutually exclusive in the UI; only a
-      // spoofed location keeps its coordinates.
-      final lat = _latitude;
-      final lng = _longitude;
-      final mode = _effectiveLocationMode;
-      m.locationMode = mode;
-      m.spoofLatitude = mode == LocationMode.spoof ? lat : null;
-      m.spoofLongitude = mode == LocationMode.spoof ? lng : null;
-      final accuracy = double.tryParse(_accuracyController.text.trim());
-      if (accuracy != null && accuracy > 0) m.spoofAccuracy = accuracy;
-      // Persist the EFFECTIVE timezone string. The polygon dataset is loaded
-      // only here (settings), so resolving coords -> IANA zone at save time
-      // lets the runtime read a stored value and keeps the multi-MB dataset
-      // off the cold-start path. Tracking Protection forces from-location when
-      // coords are set, mirroring _buildTimezoneDropdown's forceFromLocation.
-      final bool effFromLocation = derivesTimezoneFromLocation(
-        spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
-        trackingProtectionEnabled: _trackingProtectionEnabled,
-        spoofLatitude: lat,
-        spoofLongitude: lng,
-      );
-      if (effFromLocation && lat != null && lng != null) {
-        // Don't clobber a previously-resolved zone with null if the dataset
-        // isn't loaded right now.
-        m.spoofTimezone =
-            TimezoneLocationService.instance.lookup(lat, longitude: lng) ??
-                m.spoofTimezone;
-      } else {
-        m.spoofTimezone = _spoofTimezone;
-      }
-      m.spoofTimezoneFromLocation = _spoofTimezoneFromLocation;
-      m.liveLocationGranularity = _liveLocationGranularity;
-      m.webRtcPolicy = _webRtcPolicy;
-
-      if (!mounted) return;
-
-      // Dispose the webview so it gets recreated with the new settings, at
-      // the URL it was showing.
-      final currentUrl = m.currentUrl;
-      m.disposeWebView();
-      m.currentUrl = currentUrl;
-
-      // Pop first so the Settings route leaves the tree before the parent
-      // rebuilds. Notifying the parent inline would mark the Navigator dirty
-      // while it is locked during the pop, tripping the '!_debugLocked'
-      // assertion in NavigatorState.build.
-      if (!await popClean()) return;
-
-      rootScaffoldMessengerKey.currentState?.toast(loc.siteSettingsSavedSnack);
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        widget.onSettingsSaved?.call();
-      });
-    } catch (e) {
-      rootScaffoldMessengerKey.currentState?.toast(loc.siteSettingsSaveError('$e'));
+    final m = widget.webViewModel;
+    if (PlatformInfo.isProxySupported) {
+      _proxySettings = _formProxy();
+      m.proxySettings = _proxySettings;
+      LogTag.proxy.info(
+          'Saving per-site proxy for siteId=${m.siteId}: '
+          '${_proxySettings.describeForLogs()}', sensitive: true);
+      await m.updateProxySettings(_proxySettings);
+    } else {
+      final defaultProxy = UserProxySettings(type: ProxyType.DEFAULT);
+      m.proxySettings = defaultProxy;
+      LogTag.proxy.debug(
+          'Per-site proxy unsupported on this platform; forcing DEFAULT for '
+          'siteId=${m.siteId}', sensitive: true);
+      await m.updateProxySettings(defaultProxy);
     }
+
+    // Unconditional: an empty field clears the override (previously it
+    // was skipped, making an override impossible to remove). setUserAgent
+    // re-attaches a preset for generated shapes and drops stock
+    // webview-default strings back to "no override".
+    m.setUserAgent(_userAgentController.text);
+    m.javascriptEnabled = _javascriptEnabled;
+    m.thirdPartyCookiesEnabled = _thirdPartyCookiesEnabled;
+    m.httpsUpgradeEnabled = _httpsUpgradeEnabled;
+    m.incognito = _incognito;
+    m.alwaysOpenHome = _alwaysOpenHome;
+    m.kioskMode = _kioskMode;
+    m.clearUrlEnabled = _clearUrlEnabled;
+    m.dnsBlockEnabled = _dnsBlockEnabled;
+    m.dnsBlockLevel = _dnsBlockLevel;
+    m.contentBlockEnabled = _contentBlockEnabled;
+    m.disabledFilterLists = {..._disabledFilterLists};
+    m.trackingProtectionEnabled = _trackingProtectionEnabled;
+    m.letterboxEnabled = _letterboxEnabled;
+    m.blockScreenshots = _blockScreenshots;
+    m.localCdnEnabled = _localCdnEnabled;
+    m.externalLinkMode = _externalLinkMode;
+    m.routeOutboundLinks = _routeOutboundLinks;
+    m.outboundPreferences = [..._outboundPreferences];
+    m.searchAddress = _searchAddress;
+    m.searchesWeb = _searchesWeb;
+    m.searchSites = [..._searchSites];
+    m.searchDefault = _searchDefault;
+    m.fullscreenMode = _fullscreenMode;
+    m.tabsEnabled = _tabsEnabled;
+    m.htmlCachingEnabled = _htmlCachingEnabled;
+    m.notificationsEnabled = _notificationsEnabled;
+    m.backgroundAudioEnabled = _backgroundAudioEnabled;
+    m.protectedContentAllowed = _protectedContentAllowed;
+    m.captures = _captures;
+    m.language = _selectedLanguage;
+    m.zoomPercent = _zoomPercent;
+    // Live and custom coordinates are mutually exclusive in the UI; only a
+    // spoofed location keeps its coordinates.
+    final lat = _latitude;
+    final lng = _longitude;
+    final mode = _effectiveLocationMode;
+    m.locationMode = mode;
+    m.spoofLatitude = mode == LocationMode.spoof ? lat : null;
+    m.spoofLongitude = mode == LocationMode.spoof ? lng : null;
+    final accuracy = double.tryParse(_accuracyController.text.trim());
+    if (accuracy != null && accuracy > 0) m.spoofAccuracy = accuracy;
+    // Persist the EFFECTIVE timezone string. The polygon dataset is loaded
+    // only here (settings), so resolving coords -> IANA zone at save time
+    // lets the runtime read a stored value and keeps the multi-MB dataset
+    // off the cold-start path. Tracking Protection forces from-location when
+    // coords are set, mirroring _buildTimezoneDropdown's forceFromLocation.
+    final bool effFromLocation = derivesTimezoneFromLocation(
+      spoofTimezoneFromLocation: _spoofTimezoneFromLocation,
+      trackingProtectionEnabled: _trackingProtectionEnabled,
+      spoofLatitude: lat,
+      spoofLongitude: lng,
+    );
+    if (effFromLocation && lat != null && lng != null) {
+      // Don't clobber a previously-resolved zone with null if the dataset
+      // isn't loaded right now.
+      m.spoofTimezone =
+          TimezoneLocationService.instance.lookup(lat, longitude: lng) ??
+              m.spoofTimezone;
+    } else {
+      m.spoofTimezone = _spoofTimezone;
+    }
+    m.spoofTimezoneFromLocation = _spoofTimezoneFromLocation;
+    m.liveLocationGranularity = _liveLocationGranularity;
+    m.webRtcPolicy = _webRtcPolicy;
+
+    if (!mounted) return;
+
+    // Dispose the webview so it gets recreated with the new settings, at
+    // the URL it was showing.
+    final currentUrl = m.currentUrl;
+    m.disposeWebView();
+    m.currentUrl = currentUrl;
+
+    // Pop first so the Settings route leaves the tree before the parent
+    // rebuilds. Notifying the parent inline would mark the Navigator dirty
+    // while it is locked during the pop, tripping the '!_debugLocked'
+    // assertion in NavigatorState.build.
+    if (!await popClean()) return;
+
+    rootScaffoldMessengerKey.currentState?.toast(loc.siteSettingsSavedSnack);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onSettingsSaved?.call();
+    });
   }
 
   Future<bool> _openLocationPicker() async {
@@ -1125,7 +1123,7 @@ IconButton zoomStep(IconData icon,
             hint: null,
             subtitle: _userScriptsSubtitle(),
             control: Opens(() {
-              Navigator.push(
+              unawaited(Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => UserScriptsScreen(
@@ -1158,7 +1156,7 @@ IconButton zoomStep(IconData icon,
                     },
                   ),
                 ),
-              );
+              ));
             }),
           ),
           SettingsSection(loc.siteSettingsSectionSite),

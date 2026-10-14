@@ -18,6 +18,7 @@
 //   webview  - the WebView's own FOR_BROWSER WebAuthn instead of the bridge.
 //              Best effort: reported, never failed on.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -89,8 +90,10 @@ Future<Map<String, dynamic>?> read(WidgetTester tester,
       } else if (decoded is Map<String, dynamic>) {
         out = decoded;
       }
-    } catch (_) {
+    } on TimeoutException {
       // The page or the bridge is still coming up.
+    } on FormatException {
+      // A result that is not the expression's JSON yet.
     }
   });
   return out;

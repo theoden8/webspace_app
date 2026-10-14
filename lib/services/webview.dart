@@ -6,6 +6,7 @@ import 'package:webspace/platform/host_platform.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/block_decision.dart';
 import 'package:webspace/services/clearurl_service.dart';
@@ -865,9 +866,6 @@ class WebViewFactory {
                   logSiteIcon('linked doc=$document ${icon.edge}px '
                       'taken=${accepted != null} ${iconEngine.stateForLog}');
                   if (accepted != null) siteIcon!.onIcon(accepted);
-                }).catchError((Object e) {
-                  LogTag.icon
-                      .warning('Page icon fetch failed: $e', sensitive: true);
                 }));
                 return null;
               },
@@ -930,14 +928,14 @@ class WebViewFactory {
         // view is in the hierarchy, since that is where the plugin finds it.
         if (hostIsAndroid &&
             config.passkeys?.backend == PasskeyBackend.webView) {
-          Future.microtask(() async {
+          unawaited(Future.microtask(() async {
             try {
               final kept = await PasskeyNative.setWebViewSupport('browser');
               LogTag.passkey.debug('WebView support: $kept');
-            } catch (e) {
+            } on PlatformException catch (e) {
               LogTag.passkey.warning('WebView support failed: $e');
             }
-          });
+          }));
         }
         // Attach native interceptor (DNS blocking + LocalCDN serving) once
         // the view is in the hierarchy. Always attach on Android — the
@@ -952,10 +950,10 @@ class WebViewFactory {
           LogTag.webView.debug(
               'requesting native interceptor attach: siteId=${config.posture.siteId} '
               'initialUrl=${config.initialUrl}', sensitive: true);
-          Future.microtask(() => WebInterceptNative.attachToWebViews(
+          unawaited(Future.microtask(() => WebInterceptNative.attachToWebViews(
               siteId: config.posture.siteId,
               dnsLevel: config.effectiveDnsLevel,
-              localCdn: config.posture.blocking.localCdn));
+              localCdn: config.posture.blocking.localCdn)));
         }
       },
       shouldOverrideUrlLoading: (controller, navigationAction) async {
@@ -1030,11 +1028,11 @@ class WebViewFactory {
                   hasGesture: hasGesture, frame: frame);
             }
             if (allow) {
-              controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
+              unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
             }
             return inapp.NavigationActionPolicy.CANCEL;
           }
-          config.hooks.externalScheme(externalInfo, loadIn: view);
+          unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
           return inapp.NavigationActionPolicy.CANCEL;
         }
         // Counted even with no list loaded, so the per-site log reflects
@@ -1082,7 +1080,7 @@ class WebViewFactory {
               label:
                   ClearUrlService.strippedParamLabel(url, cleaned: cleanedUrl),
             );
-            controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl)));
+            unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(cleanedUrl))));
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
@@ -1107,8 +1105,8 @@ class WebViewFactory {
               ExternalUrlParser.isLoadableWebUrl(rewritten)) {
             LogTag.contentBlocker.debug(
                 '\$removeparam= rewrote $url → $rewritten', sensitive: true);
-            controller.loadUrl(
-                urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten)));
+            unawaited(controller.loadUrl(
+                urlRequest: inapp.URLRequest(url: inapp.WebUri(rewritten))));
             return inapp.NavigationActionPolicy.CANCEL;
           }
         }
@@ -1156,16 +1154,16 @@ class WebViewFactory {
               LogTag.webView.debug(
                   'https upgrade timed out, falling back to ${out.load}',
                   sensitive: true);
-              controller.loadUrl(
-                  urlRequest: inapp.URLRequest(url: inapp.WebUri(out.load!)));
+              unawaited(controller.loadUrl(
+                  urlRequest: inapp.URLRequest(url: inapp.WebUri(out.load!))));
             }
           });
         }
         if (upgrade.load != null) {
           LogTag.webView.debug(
               '  -> CANCEL (https upgrade) $url', sensitive: true);
-          controller.loadUrl(
-              urlRequest: inapp.URLRequest(url: inapp.WebUri(upgrade.load!)));
+          unawaited(controller.loadUrl(
+              urlRequest: inapp.URLRequest(url: inapp.WebUri(upgrade.load!))));
         }
         if (upgrade.cancel) return inapp.NavigationActionPolicy.CANCEL;
         // A captcha challenge loads in place. Decided AFTER the routing
@@ -1222,10 +1220,10 @@ class WebViewFactory {
                 sensitive: true);
             final originalUrl = navigationAction.request.url;
             final originalHeaders = navigationAction.request.headers;
-            controller.loadUrl(urlRequest: inapp.URLRequest(
+            unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(
               url: originalUrl,
               headers: originalHeaders,
-            ));
+            )));
             return inapp.NavigationActionPolicy.CANCEL;
           }
           LogTag.webView.debug(
@@ -1304,11 +1302,11 @@ class WebViewFactory {
             // into it (NESTED-013); a real target="_blank" tap is rewritten
             // before it gets here (NESTED-008).
             if (allow && hasGesture) {
-              controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved)));
+              unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(resolved))));
             }
             return false;
           }
-          config.hooks.externalScheme(externalInfo, loadIn: view);
+          unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
           return false;
         }
 
@@ -1325,7 +1323,7 @@ class WebViewFactory {
                   hasGesture: hasGesture, frame: NavigationFrame.top);
           if (allow && hasGesture) {
             // Same-domain target="_blank": load in current webview
-            controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url)));
+            unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(url: inapp.WebUri(url))));
           }
         }
 
@@ -1433,7 +1431,7 @@ class WebViewFactory {
         if (url != null) {
           WebViewFactory.httpsUpgrade.onLoadFinished(url.toString());
         }
-        config.pullToRefreshGate?.controller?.endRefreshing();
+        unawaited(config.pullToRefreshGate?.controller?.endRefreshing());
         // Whether or not `url` is renderable: the loading UI does not
         // depend on the snapshot logic below.
         config.onLoadingChanged?.call(loading: false);
@@ -1478,7 +1476,7 @@ class WebViewFactory {
         if (firedLiveReload) {
           pendingLiveReload = false;
           final genAtSchedule = navigationGen;
-          awaitOnlineForLiveSwap(
+          unawaited(awaitOnlineForLiveSwap(
             isOnline: ConnectivityService.instance.isOnline,
             stillWanted: () => navigationGen == genAtSchedule,
           ).then((online) async {
@@ -1489,7 +1487,7 @@ class WebViewFactory {
             }
             config.onReloadIssued?.call();
             await view?.reload();
-          });
+          }));
         }
 
         lastStableUrl = DownloadUrlRevertEngine.updateStable(lastStableUrl,
@@ -1577,7 +1575,7 @@ class WebViewFactory {
           // re-run user scripts' source code (not the library).
           final urlStr = url.toString();
           if (urlStr != lastLoadStartUrl) {
-            userScriptService.reinjectOnSpaNavigation(controller);
+            unawaited(userScriptService.reinjectOnSpaNavigation(controller));
           }
           lastLoadStartUrl = null;
         }
@@ -1602,8 +1600,8 @@ class WebViewFactory {
         if (upgradeFailure.load != null) {
           LogTag.webView.debug('https upgrade did not answer, falling back to '
               '${upgradeFailure.load}', sensitive: true);
-          controller.loadUrl(urlRequest: inapp.URLRequest(
-              url: inapp.WebUri(upgradeFailure.load!)));
+          unawaited(controller.loadUrl(urlRequest: inapp.URLRequest(
+              url: inapp.WebUri(upgradeFailure.load!))));
           return;
         }
                 LogTag.webViewLifecycle.warning(
@@ -1679,9 +1677,9 @@ class WebViewFactory {
           // dropped users out of the webview entirely). The
           // suppression already prevents another dialog if the page
           // tries again.
-          Future.microtask(() async {
+          unawaited(Future.microtask(() async {
             await view?.loadUrl('about:blank');
-          });
+          }));
           return;
         }
         final resolved = ExternalUrlParser.toWebUrl(externalInfo);
@@ -1690,20 +1688,20 @@ class WebViewFactory {
           LogTag.webView.debug(
               'onReceivedError: external scheme resolved → $resolved (from $reqUrl)',
               sensitive: true);
-          Future.microtask(() async {
+          unawaited(Future.microtask(() async {
             final bool allow = config.shouldOverrideUrlLoading
                     ?.call(resolved,
                         hasGesture: false, frame: NavigationFrame.top) ??
                 true;
             await view?.loadUrl(allow ? resolved : 'about:blank');
-          });
+          }));
           return;
         }
         // No web equivalent — fall through to the dialog path so the
         // user can still choose to launch the target app.
         LogTag.webView.debug('onReceivedError: type=${error.type} url=$reqUrl '
             '— routing to external-scheme dialog', sensitive: true);
-        config.hooks.externalScheme(externalInfo, loadIn: view);
+        unawaited(config.hooks.externalScheme(externalInfo, loadIn: view));
       },
       // Header names, never values, and no URL, so the line reaches logcat:
       // the name set tells the app's own proxy relay (`connection` alone, or

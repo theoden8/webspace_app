@@ -110,9 +110,8 @@ void main() {
       while (DateTime.now().isBefore(deadline)) {
         final c = controller;
         if (c != null) {
-          final body = await c.nativeController
-              .evaluateJavascript(source: 'document.body ? document.body.innerText : ""')
-              .catchError((Object _) => null);
+          final body = await c.evaluateJavascriptReturning(
+              'document.body ? document.body.innerText : ""');
           if (body != null && '$body'.toLowerCase().contains('nginx')) {
             arrived = true;
             return;

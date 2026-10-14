@@ -160,7 +160,10 @@ WebViewModel webViewModelFromJson(
     // set siteId to `../…` and escape the cache/import/storage keyspace.
     // null (missing or unsafe) auto-generates a fresh id.
     siteId: SiteId.parse(json['siteId']),
-    initUrl: migrateLegacyFileImportUrl(json['initUrl'] as String),
+    initUrl: migrateLegacyFileImportUrl(switch (json['initUrl']) {
+      final String url => url,
+      _ => throw const FormatException('a site has no initUrl'),
+    }),
     currentUrl: dropUrl || currentUrl == null
         ? null
         : migrateLegacyFileImportUrl(currentUrl),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
@@ -129,7 +131,7 @@ class _TabBarCornerOverlayState extends State<TabBarCornerOverlay> {
           dragging: _drag != null,
           onTap: widget.onTap,
           onDragBegin: (globalPosition) {
-            HapticFeedback.mediumImpact();
+            unawaited(HapticFeedback.mediumImpact());
             _dragTo(globalPosition);
           },
           onDragUpdate: _dragTo,

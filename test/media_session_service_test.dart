@@ -291,6 +291,24 @@ void main() {
       expect(fake.queries, isEmpty);
     });
 
+    test('an artwork URL with no host is dropped without a fetch', () async {
+      // Under a proxy nothing resolves the name here, so only the URL itself
+      // keeps the request from dart:io, which refuses it with an
+      // ArgumentError (_http/http_impl.dart:2983-2990).
+      fake.responder = (req) => req.url.host.isEmpty
+          ? throw ArgumentError('No host specified in URI ${req.url}')
+          : http.Response.bytes(<int>[1], 200);
+
+      await reportPlaying(
+        SiteId('a'),
+        artworkUrl: 'https:///art.png',
+        proxy: UserProxySettings(type: ProxyType.HTTP, address: '10.0.0.1:8080'),
+      );
+
+      expect((controlCalls().single.arguments as Map)['artwork'], isNull);
+      expect(fake.queries, isEmpty);
+    });
+
     test('an unreachable artwork URL still raises the notification', () async {
       fake.responder = (_) => throw http.ClientException('refused');
 

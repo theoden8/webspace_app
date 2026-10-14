@@ -1,4 +1,6 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/services/experimental_features_service.dart';
@@ -16,7 +18,9 @@ import 'package:webspace/settings/proxy.dart';
 ///
 /// A function rather than a concrete type so the service stays testable
 /// without a WebView; `main.dart` supplies the real one, which opens a
-/// short-lived headless WebView bound to that site's container.
+/// short-lived headless WebView bound to that site's container. It fails
+/// with the webview plugin's [PlatformException] or
+/// [MissingPluginException].
 typedef ProxyAttributionProbe = Future<void> Function(
   Map<SiteId, String> siteIdToProbeUrl,
 );
@@ -297,11 +301,10 @@ class ProxyRouterService {
         for (final e in expected.entries)
           e.key: ProxyRouterEngine.probeUrlFor(e.value),
       });
-    } catch (e) {
-      LogTag.proxy.error(
-          'Attribution probe failed to run ($e); not activating router mode',
-          sensitive: true);
-      return false;
+    } on PlatformException catch (e) {
+      return _probeFailed(e);
+    } on MissingPluginException catch (e) {
+      return _probeFailed(e);
     }
 
     final observed = await _relay.probeResults();
@@ -324,6 +327,13 @@ class ProxyRouterService {
     LogTag.proxy.info(
         'Attribution verified for ${sites.length} site(s)', sensitive: true);
     return true;
+  }
+
+  bool _probeFailed(Exception e) {
+    LogTag.proxy.error(
+        'Attribution probe failed to run ($e); not activating router mode',
+        sensitive: true);
+    return false;
   }
 
   /// Re-install the route table after sites or proxies changed.

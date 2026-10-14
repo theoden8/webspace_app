@@ -94,7 +94,7 @@ class WebspacesController {
         );
         _sites.resolveWebspaceIndices();
         _host.rebuild();
-        _shell.saveWebspaces();
+        unawaited(_shell.saveWebspaces());
       },
     );
   }
@@ -138,7 +138,7 @@ class WebspacesController {
           _sites.resolveWebspaceIndices();
         }
         _host.rebuild();
-        _shell.saveWebspaces();
+        unawaited(_shell.saveWebspaces());
       },
     );
   }
@@ -235,7 +235,7 @@ class WebspacesController {
     final webspace = _sites.webspaces.removeAt(oldIndex);
     _sites.webspaces.insert(newIndex, webspace);
     _host.rebuild();
-    _shell.saveWebspaces();
+    unawaited(_shell.saveWebspaces());
   }
 
   /// Whether the currently-selected view supports drag/menu reordering.
@@ -277,7 +277,7 @@ class WebspacesController {
     webspace.siteIds.insert(newListIndex, movedSiteId);
     _sites.resolveWebspaceIndices();
     _host.rebuild();
-    _shell.saveWebspaces();
+    unawaited(_shell.saveWebspaces());
   }
 
   /// Moves the site at [oldModelIndex] to [newModelIndex] in the "All"

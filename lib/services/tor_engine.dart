@@ -238,8 +238,23 @@ class TorErrored extends TorStatus {
   String toString() => 'error($failure)';
 }
 
+/// How a [TorRuntime] call fails, whatever the runtime: [message] is the
+/// cause as the runtime reported it.
+class TorRuntimeFailure implements Exception {
+  const TorRuntimeFailure(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
 /// The side of the runtime the engine cannot decide for itself. Implemented
 /// by the method-channel binding in production and by a fake in tests.
+///
+/// A call that fails throws [TorRuntimeFailure], or for
+/// [applyExitCountry] [TorExitCountryEmpty] or [TorExitPinUnsupported];
+/// nothing else.
 abstract class TorRuntime {
   /// Whether this build/platform has a Tor runtime at all.
   bool get isAvailable;
@@ -426,7 +441,7 @@ class TorEngine {
     void finish() {
       if (finished.isCompleted) return;
       finished.complete();
-      sub.cancel();
+      unawaited(sub.cancel());
     }
 
     final deadline = Timer(within, finish);
@@ -461,7 +476,7 @@ class TorEngine {
     try {
       await _applyBridgeConfig();
       await _runtime.start();
-    } catch (e) {
+    } on TorRuntimeFailure catch (e) {
       _cancelBootstrapTimeout();
       _emit(TorErrored('$e'));
     }
@@ -548,13 +563,14 @@ class TorEngine {
     _emit(const TorBootstrapping(100, tag: kTorReopenTag));
     try {
       await _runtime.reopenListeners().timeout(kTorReopenTimeout);
-    } catch (e) {
+    } on TimeoutException {
       if (_disposed || !identical(_runtimeUp, up)) return false;
-      final message = e is TimeoutException
-          ? 'Tor did not reopen its SOCKS listener after the app was suspended.'
-          : 'Tor could not reopen its SOCKS listener after the app was '
-              'suspended: $e';
-      _emit(TorErrored(message));
+      _emit(TorErrored(
+          'Tor did not reopen its SOCKS listener after the app was suspended.'));
+    } on TorRuntimeFailure catch (e) {
+      if (_disposed || !identical(_runtimeUp, up)) return false;
+      _emit(TorErrored('Tor could not reopen its SOCKS listener after the app '
+          'was suspended: $e'));
     }
     return false;
   }
@@ -610,7 +626,7 @@ class TorEngine {
     int port = 0;
     try {
       port = await _runtime.startTransport(config.transport.wireName);
-    } catch (e) {
+    } on TorRuntimeFailure {
       // A transport that will not start is not fatal on its own: falling
       // through with port 0 produces no bridge options, so tor starts
       // without bridges rather than not at all. On a censored network that
@@ -666,7 +682,7 @@ class TorEngine {
       // an app restart rather than a Retry.
       await _applyBridgeConfig();
       await _runtime.start();
-    } catch (e) {
+    } on TorRuntimeFailure catch (e) {
       _cancelBootstrapTimeout();
       _emit(TorErrored('$e'));
     }
@@ -775,7 +791,7 @@ class TorEngine {
           failure: TorFailure(
               kind: TorFailureKind.externalExitPin, detail: e.message)));
       return;
-    } catch (e) {
+    } on TorRuntimeFailure catch (e) {
       if (superseded()) return;
       // A pin that did not land must not be reported as in force: the user
       // would believe traffic is leaving from a country it is not.
@@ -802,21 +818,16 @@ class TorEngine {
   /// used as it is and refreshed behind it, for the next pin to pick up.
   Future<String?> _geoIpTable(TorGeoIpStore store, {required TorUp up}) async {
     final via = _socksAt(up, reason: kTorGeoIpTag);
-    final kept = await _orNull(store.newest());
+    final kept = await store.newest();
     if (kept != null) {
       if (_mayFetchGeoIp && kept.isStale(_clock())) {
-        unawaited(_orNull(store.download(via)));
+        unawaited(store.download(via));
       }
       return kept.path;
     }
     if (!_mayFetchGeoIp) return null;
-    return (await _orNull(store.download(via)))?.path;
+    return (await store.download(via))?.path;
   }
-
-  /// The store's disk failures read as "no table"; errors are bugs and are
-  /// not swallowed.
-  static Future<TorGeoIpTable?> _orNull(Future<TorGeoIpTable?> table) =>
-      table.catchError((Object _) => null, test: (e) => e is Exception);
 
   /// The SOCKS5 settings [reason] should dial (TOR-003), or what the runtime
   /// is doing instead of being up: callers must fail closed rather than fall

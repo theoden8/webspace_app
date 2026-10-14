@@ -46,7 +46,10 @@ Future<SecureServerSocket> _startConnectProxy(
     Socket? origin;
     var headDone = false;
     late StreamSubscription<Uint8List> sub;
-    sub = client.listen((data) async {
+    sub = client
+        .handleError((Object _) => origin?.close(),
+            test: (e) => e is IOException)
+        .listen((data) async {
       if (headDone) {
         origin?.add(data);
         return;
@@ -68,17 +71,16 @@ Future<SecureServerSocket> _startConnectProxy(
         return;
       }
       origin = await Socket.connect('127.0.0.1', originPort);
-      origin!.listen(
-        (d) => client.add(d),
-        onDone: () => client.close(),
-        onError: (_) => client.close(),
-      );
+      origin!
+          .handleError((Object _) => client.close(),
+              test: (e) => e is SocketException)
+          .listen((d) => client.add(d), onDone: () => client.close());
       final rest = bytes.sublist(end + 4);
       if (rest.isNotEmpty) origin!.add(rest);
       client.write('HTTP/1.1 200 Connection established\r\n\r\n');
       await client.flush();
       sub.resume();
-    }, onDone: () => origin?.close(), onError: (_) => origin?.close());
+    }, onDone: () => origin?.close());
   });
   return server;
 }
@@ -157,8 +159,8 @@ void main() {
     origin.listen((req) {
       req.response
         ..headers.contentType = ContentType.text
-        ..write('hello from ${req.uri.path}')
-        ..close();
+        ..write('hello from ${req.uri.path}');
+      unawaited(req.response.close());
     });
     addTearDown(() => origin.close(force: true));
     final heads = <String>[];

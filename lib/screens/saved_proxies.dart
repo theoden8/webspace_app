@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -141,7 +143,7 @@ class _ProxyLibraryScreenState extends State<ProxyLibraryScreen> {
     for (final p in _lib.proxies) {
       final resolved = resolveLibrary(p.settings, library: _lib);
       if (resolved.problem == LibraryProblem.none) {
-        ProxyHealthService.instance.check(resolved.route, force: true);
+        unawaited(ProxyHealthService.instance.check(resolved.route, force: true));
       }
     }
   }

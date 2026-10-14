@@ -15,9 +15,12 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/host_storage.dart' as impl
     show createFileStore;
 
+/// Every call fails with an [IOException] only (an unresolvable directory
+/// included); a name [checkFileStoreName] rejects is a caller's bug.
 abstract class FileStore {
   /// Create the directory if it does not exist.
   Future<void> ensure();

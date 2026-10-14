@@ -1,6 +1,11 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+// Arrives through path_provider; only tests swap the platform.
+// ignore: depend_on_referenced_packages
+import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/screens/add_site.dart' show addSitePreviewMayResolveLocally;
@@ -16,6 +21,7 @@ import 'package:webspace/services/user_script_service.dart'
 import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/settings/proxy.dart';
 import 'helpers/fake_outbound.dart';
+import 'helpers/fake_path_provider.dart';
 
 /// SOCKS5 is the type Dart HTTP cannot honour, so the fake refuses it the
 /// way the real factory does on platforms without a SOCKS client.
@@ -147,13 +153,15 @@ void main() {
       );
       outboundHttp = fake;
 
-      // Even if the underlying cache write fails, the network query must
-      // have been made through the proxied client.
-      try {
-        await ClearUrlService.instance.downloadRules();
-      } catch (_) {
-        // Path provider isn't initialized in unit tests; ignore.
-      }
+      final docs = Directory.systemTemp.createTempSync('clearurls_');
+      final previous = PathProviderPlatform.instance;
+      useFakePathProvider(docs);
+      addTearDown(() {
+        PathProviderPlatform.instance = previous;
+        docs.deleteSync(recursive: true);
+      });
+
+      expect(await ClearUrlService.instance.downloadRules(), isTrue);
       expect(fake.queries, isNotEmpty,
           reason: 'ClearURLs must always go through the outbound factory');
       expect(fake.lastQuery!.address, '10.0.0.1:8080');

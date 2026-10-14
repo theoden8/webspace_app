@@ -458,7 +458,8 @@ void main() {
     });
 
     test('a transport that throws does not stop tor starting', () async {
-      final runtime = FakeTorRuntime()..transportError = StateError('no go');
+      final runtime = FakeTorRuntime()
+        ..transportError = const TorRuntimeFailure('no go');
       final engine = TorEngine(runtime: runtime, sessionSecret: 's');
       engine.setBridges(TorBridgeConfig(
         enabled: true,

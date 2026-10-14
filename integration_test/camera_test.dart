@@ -32,6 +32,8 @@
 // failure diagnosable (INTEG-006), and solid-colour sources make the pixel
 // assertions exact.
 
+import 'dart:async';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -206,20 +208,23 @@ void main() {
       if (request.uri.path == '/report') {
         final tag = request.uri.queryParameters['site'] ?? 'unknown';
         final raw = request.uri.queryParameters['data'] ?? '{}';
+        Object? decoded;
         try {
-          reports[tag] = jsonDecode(raw) as Map<String, dynamic>;
-        } catch (_) {
-          reports[tag] = {'ok': false, 'error': 'unparsable report: $raw'};
+          decoded = jsonDecode(raw);
+        } on FormatException {
+          decoded = null;
         }
-        request.response
-          ..statusCode = 204
-          ..close();
+        reports[tag] = decoded is Map<String, dynamic>
+            ? decoded
+            : {'ok': false, 'error': 'unparsable report: $raw'};
+        request.response.statusCode = 204;
+        unawaited(request.response.close());
         return;
       }
       request.response
         ..headers.contentType = ContentType.html
-        ..write(_probePage())
-        ..close();
+        ..write(_probePage());
+      unawaited(request.response.close());
     });
     final base = 'http://127.0.0.1:${server!.port}';
 

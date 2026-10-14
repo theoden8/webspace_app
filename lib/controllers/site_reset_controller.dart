@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:webspace/controllers/page_host.dart';
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/controllers/site_activation_controller.dart';
@@ -210,6 +212,6 @@ class SiteResetController {
     if (model.fullscreenMode) {
       _host.enterFullscreen();
     }
-    _host.commitSites(const SitesEdited());
+    unawaited(_host.commitSites(const SitesEdited()));
   }
 }

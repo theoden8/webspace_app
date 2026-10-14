@@ -8,6 +8,8 @@
 // attached and served in this environment, so the disabled site's "network"
 // is a decision, not an interceptor that never arrived.
 
+import 'dart:async';
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -54,7 +56,7 @@ void main() {
           ..headers.contentType = ContentType.html
           ..write('<!doctype html><html><body></body></html>');
       }
-      res.close();
+      unawaited(res.close());
     });
     base = 'http://127.0.0.1:${server.port}';
 

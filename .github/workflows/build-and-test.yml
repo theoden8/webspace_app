@@ -164,6 +164,43 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+      - name: Setup Flutter (for Dart SDK)
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version-file: '.fvmrc'
+          channel: 'stable'
+      - name: Cache fvm Flutter SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/.fvm/versions
+          key: fvm-${{ runner.os }}-${{ hashFiles('**/.fvmrc') }}
+          restore-keys: |
+            fvm-${{ runner.os }}-
+      - name: Install fvm
+        run: |
+          dart pub global activate fvm
+          echo "$HOME/.pub-cache/bin" >> $GITHUB_PATH
+      - name: Setup Flutter with fvm
+        run: |
+          fvm install
+          fvm use --force
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            .dart_tool
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            pub-${{ runner.os }}-
+      - name: Get dependencies
+        run: fvm flutter pub get --enforce-lockfile
+      - name: Generate localizations
+        run: fvm dart tool/gen_l10n.dart
+      # Errors only: the lints analysis_options.yaml raises to `error` fail
+      # here, and the warnings and infos the code already carries do not.
+      - name: Analyze (errors only)
+        run: fvm flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Verify formal kernel
         run: ./formal/check.sh
       # tlapm (the TLA+ Proof Manager) machine-checks the unbounded proofs in

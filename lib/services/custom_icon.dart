@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show compute;
 import 'package:image/image.dart' as img;
 
+import 'package:webspace/services/untrusted_image.dart';
+
 /// Longest side of a stored custom icon. Matches the size home-shortcut
 /// export rasterizes at; in-app renderings are 16-36px.
 const int kCustomIconMaxDimension = 256;
@@ -16,15 +18,7 @@ Uint8List? processCustomIconImage(
   Uint8List raw, {
   int maxDimension = kCustomIconMaxDimension,
 }) {
-  img.Image? decoded;
-  try {
-    decoded = img.decodeImage(raw);
-  } on img.ImageException {
-    return null;
-  } on RangeError {
-    // The decoders read past the end of truncated input instead of failing.
-    return null;
-  }
+  var decoded = decodeUntrustedImage(raw);
   if (decoded == null) return null;
   final longest =
       decoded.width > decoded.height ? decoded.width : decoded.height;

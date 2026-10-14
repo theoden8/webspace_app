@@ -31,6 +31,8 @@ final class SingleFlight<K, V> {
     final running = _running[key];
     if (running != null) return running;
     final flight = Future.sync(call).whenComplete(() {
+      // The flight is dropped from the table, not started.
+      // ignore: discarded_futures
       _running.remove(key);
     });
     _running[key] = flight;

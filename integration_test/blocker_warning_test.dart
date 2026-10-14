@@ -32,6 +32,7 @@ import 'package:webspace/screens/settings.dart';
 import 'package:webspace/screens/site_privacy.dart';
 import 'package:webspace/services/adblock_engine.dart';
 import 'package:webspace/services/content_blocker_service.dart';
+import 'package:webspace/services/global_outbound_proxy.dart';
 import 'package:webspace/web_view_model.dart';
 import 'package:webspace/widgets/stat_chip.dart';
 import 'package:webspace/services/cookie_manager.dart';
@@ -39,8 +40,11 @@ import 'package:webspace/services/cookie_manager.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  setUpAll(() {
+  setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
+    // The settings screen reads the app-wide proxy, which refuses a read
+    // before its load (LEAK-004).
+    await GlobalOutboundProxy.initialize();
   });
 
   setUp(ContentBlockerService.instance.reset);

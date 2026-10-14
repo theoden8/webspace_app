@@ -65,7 +65,10 @@ class RecordingUpstream {
     listenFixture(_server, onEvent: (socket) {
       final buffer = StringBuffer();
       late StreamSubscription sub;
-      sub = socket.listen(
+      sub = socket
+          .handleError((Object _) => socket.destroy(),
+              test: (e) => e is SocketException)
+          .listen(
         (data) {
           buffer.write(latin1.decode(data));
           if (!buffer.toString().contains('\r\n\r\n')) return;
@@ -84,7 +87,6 @@ class RecordingUpstream {
           unawaited(sub.cancel());
           unawaited(socket.flush().then((_) => socket.destroy()));
         },
-        onError: (_) => socket.destroy(),
         cancelOnError: true,
       );
     });

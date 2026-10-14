@@ -47,6 +47,9 @@ class _NativeController implements inapp.InAppWebViewController {
       _call('evaluateJavascript');
 
   @override
+  Future<void> clearSslPreferences() => _call('clearSslPreferences');
+
+  @override
   dynamic noSuchMethod(Invocation invocation) =>
       invocation.isMethod ? Future<Null>.value() : null;
 }
@@ -205,6 +208,23 @@ void main() {
         native.failWith = UnimplementedError('not on this platform');
         expect(await controller.reload(), isFalse);
       });
+    });
+
+    testWidgets(
+        'reads a platform without an SSL preferences table as not cleared, '
+        'so a pin revoke goes on to wipe the site (BUG-026)', (tester) async {
+      late WebViewController controller;
+      await tester.pumpWidget(
+          _webView(onControllerCreated: (c) => controller = c));
+      final (params: _, :native) = await _attach(tester);
+      await tester.runAsync(() async {
+        expect(await controller.clearSslPreferences(), isTrue);
+        // What the plugin answers on iOS, macOS and Linux.
+        native.failWith = UnimplementedError(
+            'clearSslPreferences is not implemented on the current platform');
+        expect(await controller.clearSslPreferences(), isFalse);
+      });
+      expect(native.calls, ['clearSslPreferences', 'clearSslPreferences']);
     });
 
     testWidgets('lets an Error through', (tester) async {

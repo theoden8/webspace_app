@@ -135,7 +135,7 @@ void main() {
       final body = bodyIn(
           File('lib/controllers/site_activation_controller.dart')
               .readAsStringSync(),
-          signature: 'Future<bool> captureStateBytes(');
+          signature: 'Future<CaptureOutcome> captureStateBytes(');
       final key = body.indexOf('final key = model.activeStateKey;');
       final tab = body.indexOf('final tabId = model.activeTabId;');
       final capture = body.indexOf('await model.captureNavigationState()');

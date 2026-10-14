@@ -26,7 +26,7 @@ Future<bool> _isAndroidTarget() async {
   try {
     final result = await Process.run('adb', ['devices']);
     return result.exitCode == 0 && result.stdout.toString().contains('device');
-  } catch (e) {
+  } on ProcessException {
     return false;
   }
 }
@@ -130,6 +130,12 @@ Future<void> _watchForNativeScreenshotRequests(String screenshotDir) async {
 /// This captures the actual screen content including webviews.
 /// Hides status bar and navigation bar for clean screenshots.
 Future<bool> _takeNativeScreenshot(String outputPath) async {
+  Future<bool> failed(Object e) async {
+    print('[Driver] Native screenshot error: $e');
+    await _restoreSystemBars();
+    return false;
+  }
+
   try {
     // Hide status bar and navigation bar for clean screenshots
     print('[Driver] Hiding system bars...');
@@ -180,10 +186,12 @@ Future<bool> _takeNativeScreenshot(String outputPath) async {
     await _restoreSystemBars();
     
     return true;
-  } catch (e) {
-    print('[Driver] Native screenshot error: $e');
-    await _restoreSystemBars();
-    return false;
+  } on IOException catch (e) {
+    // adb missing (ProcessException) or the output path (FileSystemException).
+    return failed(e);
+  } on FormatException catch (e) {
+    // adb printed something that is not UTF-8.
+    return failed(e);
   }
 }
 

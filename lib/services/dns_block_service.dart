@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
+import 'dart:isolate' show IsolateSpawnException;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/outbound_http.dart';
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/services/block_stats_service.dart';
@@ -290,7 +293,7 @@ class DnsBlockService {
     _mergedBloomFilter = null;
     // Fire-and-forget; the in-memory clear is synchronous, the prefs delete
     // happens on the microtask queue and never blocks the caller.
-    _clearDomainCache();
+    unawaited(_clearDomainCache());
   }
 
   /// Global per-domain merged-decision cache: host -> blocked_bool.
@@ -362,7 +365,7 @@ class DnsBlockService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_domainCacheKey, jsonEncode(_domainCache));
-    } catch (e) {
+    } on PlatformException catch (e) {
       LogTag.dnsBlock.error('Failed to persist domain cache: $e');
     }
   }
@@ -372,17 +375,18 @@ class DnsBlockService {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_domainCacheKey);
       if (raw == null) return;
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      _domainCache.clear();
-      // Defensively cap at load time. If a previous version (or a tampered
-      // prefs blob) wrote past _maxDomainCacheEntries, take only the first
-      // cap-many entries and let the rest fall off — better to drop tail
-      // entries than to load an unbounded cache into memory.
-      for (final e in data.entries) {
-        if (_domainCache.length >= _maxDomainCacheEntries) break;
-        _domainCache[e.key] = e.value as bool;
+      if (jsonDecode(raw) case final Map<String, dynamic> data) {
+        _domainCache.clear();
+        // Defensively cap at load time. If a previous version (or a tampered
+        // prefs blob) wrote past _maxDomainCacheEntries, take only the first
+        // cap-many entries and let the rest fall off — better to drop tail
+        // entries than to load an unbounded cache into memory.
+        for (final e in data.entries) {
+          if (_domainCache.length >= _maxDomainCacheEntries) break;
+          if (e.value case final bool blocked) _domainCache[e.key] = blocked;
+        }
       }
-    } catch (e) {
+    } on FormatException catch (e) {
       LogTag.dnsBlock.error('Failed to load domain cache: $e');
     }
   }
@@ -514,7 +518,8 @@ class DnsBlockService {
   Future<void> initialize() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      _level = prefs.getInt(_levelKey) ?? 0;
+      final level = prefs.get(_levelKey);
+      _level = level is int ? level : 0;
 
       await _loadFromDisk(prefs);
       if (!_levelSets.isEmpty) {
@@ -524,7 +529,13 @@ class DnsBlockService {
             '${_levelSets.groupCount} group(s))');
       }
       await _loadDomainCache();
-    } catch (e) {
+    } on FormatException catch (e) {
+      LogTag.dnsBlock.error('Error loading cached blocklist: $e');
+    } on IOException catch (e) {
+      LogTag.dnsBlock.error('Error loading cached blocklist: $e');
+    } on PlatformException catch (e) {
+      LogTag.dnsBlock.error('Error loading cached blocklist: $e');
+    } on IsolateSpawnException catch (e) {
       LogTag.dnsBlock.error('Error loading cached blocklist: $e');
     }
   }
@@ -633,7 +644,9 @@ class DnsBlockService {
         await prefs.setInt(_levelKey, 0);
         await prefs.remove(_lastUpdatedKey);
         await _persistDownloadedLevels(prefs, levels: const <int>{});
-      } catch (e) {
+      } on IOException catch (e) {
+        LogTag.dnsBlock.error('Error clearing blocklist: $e');
+      } on PlatformException catch (e) {
         LogTag.dnsBlock.error('Error clearing blocklist: $e');
       }
       _level = 0;
@@ -822,7 +835,9 @@ class DnsBlockService {
       await prefs.setInt(_levelKey, level);
       await prefs.remove(_lastUpdatedKey);
       await _persistDownloadedLevels(prefs, levels: const <int>{});
-    } catch (e) {
+    } on IOException catch (e) {
+      LogTag.dnsBlock.error('Error applying imported level: $e');
+    } on PlatformException catch (e) {
       LogTag.dnsBlock.error('Error applying imported level: $e');
     }
     _level = level;

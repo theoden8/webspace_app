@@ -56,12 +56,12 @@ class _TorBootstrapPlaceholderState extends State<TorBootstrapPlaceholder> {
       setState(() => _status = s);
     });
     // Kick a start attempt if nothing else has. Idempotent under refcount.
-    TorService.instance.maybeStart(TorInterstitialHolder(this));
+    unawaited(TorService.instance.maybeStart(TorInterstitialHolder(this)));
   }
 
   @override
   void dispose() {
-    _sub?.cancel();
+    unawaited(_sub?.cancel());
     // The refcount holder is per-placeholder-instance; releasing it here is
     // symmetric with the acquire above. The site itself still holds its own
     // refcount via _syncTorHolders, so the runtime does not shut down just

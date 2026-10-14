@@ -30,11 +30,13 @@
 //
 // Spec: openspec/specs/tor-proxy/spec.md (TOR-016).
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/tor_bridges.dart';
 
 /// Where BridgeDB answers. Not configurable by the user: a moat endpoint is
@@ -248,16 +250,21 @@ class MoatClient {
   }
 
   Future<Map<String, Object?>> _post(String url, {required String body}) async {
+    final uri = Uri.parse(url);
     http.Response response;
+    // The timeout and every socket and TLS failure. On a censored network
+    // this is the expected path, not an exceptional one.
     try {
-      response = await _client
-          .post(Uri.parse(url), headers: _headers, body: body)
-          .timeout(timeout);
-    } catch (e) {
-      // Includes the timeout and every socket failure. On a censored
-      // network this is the expected path, not an exceptional one.
-      throw MoatException(MoatErrorKind.unreachable,
-          detail: '${e.runtimeType}');
+      response =
+          await _client.post(uri, headers: _headers, body: body).timeout(timeout);
+    } on http.ClientException catch (e) {
+      throw _unreachable(e);
+    } on IOException catch (e) {
+      throw _unreachable(e);
+    } on TimeoutException catch (e) {
+      throw _unreachable(e);
+    } on FormatException catch (e) {
+      throw _unreachable(e);
     }
 
     if (response.statusCode != 200) {
@@ -274,11 +281,14 @@ class MoatClient {
       return decoded.cast<String, Object?>();
     } on MoatException {
       rethrow;
-    } catch (e) {
+    } on FormatException catch (e) {
       throw MoatException(MoatErrorKind.malformed,
           detail: 'bad JSON: ${e.runtimeType}');
     }
   }
+
+  static MoatException _unreachable(Exception cause) =>
+      MoatException(MoatErrorKind.unreachable, detail: '${cause.runtimeType}');
 
   Map<String, Object?> _firstData(Map<String, Object?> decoded) {
     final data = decoded['data'];

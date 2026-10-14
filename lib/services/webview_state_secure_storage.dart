@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'package:webspace/settings/site_ids.dart';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:webspace/platform/host_platform.dart' show IOException;
 import 'package:webspace/services/file_store.dart';
 import 'package:webspace/services/keychain_aead.dart';
 import 'package:webspace/services/keystore.dart';
@@ -63,6 +66,12 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
   }
 
   Future<void> _doInitialize() async {
+    // Never let an init failure escape: callers `await initialize()` from
+    // inside save/load, which run on the go-home and site-switch paths —
+    // a throw there used to abandon the navigation the user asked for.
+    // Nothing is initialized, so save/load degrade to no-ops below.
+    void failed(Exception e) =>
+        LogTag.webViewState.error('Error initializing state storage: $e');
     try {
       _store = _overrideStore ?? defaultFileStore(_cacheDir);
       _aead = await KeychainAead.open(_secureStorage,
@@ -70,12 +79,14 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       await _clearCacheOnUpgrade();
       await _store!.ensure();
       _initialized = true;
-    } on Exception catch (e) {
-      // Never let an init failure escape: callers `await initialize()` from
-      // inside save/load, which run on the go-home and site-switch paths —
-      // a throw there used to abandon the navigation the user asked for.
-      // Nothing is initialized, so save/load degrade to no-ops below.
-      LogTag.webViewState.error('Error initializing state storage: $e');
+    } on PlatformException catch (e) {
+      failed(e);
+    } on MissingPluginException catch (e) {
+      failed(e);
+    } on IOException catch (e) {
+      failed(e);
+    } on FormatException catch (e) {
+      failed(e);
     }
   }
 
@@ -101,7 +112,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       if (lastVersion != null && _store != null) {
         try {
           await _store!.deleteAll();
-        } on Exception catch (e) {
+        } on IOException catch (e) {
           LogTag.webViewState.error('Error clearing cache on upgrade: $e');
         }
         _aead = await KeychainAead.rotate(_secureStorage,
@@ -127,20 +138,22 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       name.substring(0, name.length - '.enc'.length);
 
   @override
-  Future<void> saveState(String key, {required Uint8List state}) async {
-    if (state.isEmpty) return;
+  Future<bool> saveState(String key, {required Uint8List state}) async {
+    if (state.isEmpty) return true;
     if (!_initialized) await initialize();
     final store = _store;
     final aead = _aead;
-    if (store == null || aead == null) return;
+    if (store == null || aead == null) return false;
     try {
       await store.writeText(_fileNameFor(key),
           contents: aead.seal(base64.encode(state)));
       LogTag.webViewState.debug(
           'Saved ${state.length} bytes for $key (encrypted)', sensitive: true);
-    } on Exception catch (e) {
+      return true;
+    } on IOException catch (e) {
       LogTag.webViewState.error(
           'Error saving state for $key: $e', sensitive: true);
+      return false;
     }
   }
 
@@ -153,7 +166,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     final String? raw;
     try {
       raw = await store.readText(_fileNameFor(key));
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.webViewState.error(
           'Error loading state for $key: $e', sensitive: true);
       return null;
@@ -167,7 +180,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     // Removed so a re-save can succeed and a load does not keep failing.
     try {
       await store.delete(_fileNameFor(key));
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.webViewState.warning('Could not discard it: $e', sensitive: true);
     }
     return null;
@@ -188,7 +201,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
     if (store == null) return;
     try {
       await store.delete(_fileNameFor(key));
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.webViewState.error(
           'Error deleting state for $key: $e', sensitive: true);
     }
@@ -208,7 +221,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         await store.delete(name);
         removed++;
       }
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.webViewState.error('Error removing state files for a site: $e');
     }
     return removed;
@@ -234,7 +247,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
       if (removed > 0) {
         LogTag.webViewState.debug('Removed $removed orphan state file(s)');
       }
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.webViewState.error('Error sweeping orphan state files: $e');
     }
     return removed;
@@ -254,7 +267,7 @@ class SecureWebViewStateStorage implements WebViewStateStorage {
         if (!name.endsWith('.enc')) continue;
         result.add(_keyForFileName(name));
       }
-    } on Exception catch (e) {
+    } on IOException catch (e) {
       LogTag.webViewState.warning('Could not list state files: $e');
     }
     return result;

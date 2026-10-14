@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:webspace/platform/host_platform.dart';
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +10,7 @@ import 'package:webspace/widgets/confirm_dialog.dart';
 import 'package:webspace/widgets/toast.dart';
 import 'favicon_image.dart';
 import '../services/icon_service.dart' show getFaviconUrlStream, getSvgContent, onSvgContentCached, invalidateFaviconFor, faviconInvalidations, IconUpdate, IconReload, iconReloads, reloadAllIcons, usableIconUrl;
+import '../services/file_dialog.dart';
 import '../services/html_import_storage.dart' show importedFileSite;
 import '../services/outbound_http.dart' show resolveEffectiveProxy;
 import '../services/site_icon_store.dart';
@@ -159,7 +159,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
     // for invalidations targeting our URL and reset.
     _invalidationSub = faviconInvalidations.listen((invalidatedUrl) {
       if (invalidatedUrl == widget.url && mounted && widget.customIcon == null) {
-        FaviconUrlCache.invalidate(widget.url, keepSiteIcon: true);
+        unawaited(FaviconUrlCache.invalidate(widget.url, keepSiteIcon: true));
         _resetAndLoad();
       }
     });
@@ -196,10 +196,10 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
 
   @override
   void dispose() {
-    _iconSub?.cancel();
-    _invalidationSub?.cancel();
-    _siteIconSub?.cancel();
-    _reloadSub?.cancel();
+    unawaited(_iconSub?.cancel());
+    unawaited(_invalidationSub?.cancel());
+    unawaited(_siteIconSub?.cancel());
+    unawaited(_reloadSub?.cancel());
     super.dispose();
   }
 
@@ -218,7 +218,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
   void _resetAndLoad() {
     // The previous fetch would keep writing into the reset state and persist
     // its result on done, including an icon from a source no longer allowed.
-    _iconSub?.cancel();
+    unawaited(_iconSub?.cancel());
     _iconSub = null;
     _currentIconUrl = null;
     _svgContent = null;
@@ -240,7 +240,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
       _currentQuality = 100;
       _isLoading = false;
       if (_isSvgUrl(cachedUrl)) {
-        _fetchSvgContent(cachedUrl);
+        unawaited(_fetchSvgContent(cachedUrl));
       } else {
         setState(() {});
       }
@@ -271,11 +271,11 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
             if (update.isFinal) {
               _isLoading = false;
               if (widget.persist) {
-                FaviconUrlCache.set(widget.url, faviconUrl: update.url);
+                unawaited(FaviconUrlCache.set(widget.url, faviconUrl: update.url));
               }
             }
           });
-          if (_isSvgUrl(update.url)) _fetchSvgContent(update.url);
+          if (_isSvgUrl(update.url)) unawaited(_fetchSvgContent(update.url));
         }
       },
       onDone: () {
@@ -283,7 +283,7 @@ class _UnifiedFaviconImageState extends State<UnifiedFaviconImage> {
         setState(() => _isLoading = false);
         final url = _currentIconUrl;
         if (url != null && widget.persist) {
-          FaviconUrlCache.set(widget.url, faviconUrl: url);
+          unawaited(FaviconUrlCache.set(widget.url, faviconUrl: url));
         }
       },
       onError: (e) {
@@ -433,15 +433,9 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
 
   Future<void> _importHtmlFile() async {
     try {
-      final result = await FilePicker.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['html', 'htm'],
-        allowMultiple: false,
-      );
+      final file = await FileDialog.pickFile(extensions: ['html', 'htm']);
+      if (file == null) return;
 
-      if (result == null || result.files.isEmpty) return;
-
-      final file = result.files.first;
       final bytes = file.bytes;
       final path = file.path;
       final htmlContent = bytes != null
@@ -462,7 +456,12 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
         'name': site.name,
         'htmlContent': htmlContent,
       });
-    } catch (e) {
+    } on FileDialogFailure catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .toast(AppLocalizations.of(context).addSiteImportFailed('$e'));
+      }
+    } on IOException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .toast(AppLocalizations.of(context).addSiteImportFailed('$e'));
@@ -474,7 +473,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
     final nameController = TextEditingController();
     final urlController = TextEditingController();
 
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (context) {
         final loc = AppLocalizations.of(context);
@@ -532,14 +531,14 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
           ],
         );
       },
-    );
+    ));
   }
 
   void _showSuggestionDialog(SiteSuggestion suggestion) {
     final TextEditingController urlController = TextEditingController(text: suggestion.url);
     bool incognito = false;
 
-    showDialog(
+    unawaited(showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
@@ -589,7 +588,7 @@ class _AddSiteScreenState extends State<AddSiteScreen> {
           },
         );
       },
-    );
+    ));
   }
 
   @override

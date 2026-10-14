@@ -19,10 +19,10 @@ import 'package:webspace/services/url_host.dart';
 import 'package:webspace/settings/proxy.dart';
 
 import 'package:webspace/platform/host_platform.dart'
-    show hostLookupAddresses;
+    show IOException, hostLookupAddresses;
 
 /// Resolves [host] to its addresses, or null when this build has no resolver.
-/// Throws when the name does not resolve.
+/// Throws an [IOException] when the name does not resolve.
 typedef HostLookup = Future<List<String>?> Function(String host);
 
 HostLookup _lookup = hostLookupAddresses;
@@ -112,9 +112,7 @@ Future<HostRangeVerdict> classifyResolvedHost(String host) async {
   final List<String>? addresses;
   try {
     addresses = await _lookup(host);
-  } on Exception {
-    // The resolver's own failure (a SocketException natively). Errors are
-    // bugs and still reach the caller.
+  } on IOException {
     return HostRangeVerdict.unresolvable;
   }
   if (addresses == null) return HostRangeVerdict.notResolvedHere;

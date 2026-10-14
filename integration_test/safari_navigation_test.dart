@@ -33,6 +33,7 @@
 // never pump frames.
 
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -87,7 +88,7 @@ void main() {
             'Math.floor(Math.random()*1e9));}, 1200);</script>'
             '</body></html>');
       }
-      res.close();
+      unawaited(res.close());
     });
 
     final site = WebViewModel(
@@ -156,7 +157,7 @@ void main() {
               ok = true;
               return;
             }
-          } catch (e) {
+          } on FormatException catch (e) {
             if (i % 10 == 0) log('$label poll error: $e');
           }
           i++;
@@ -171,7 +172,7 @@ void main() {
       if (c == null) return null;
       try {
         return await c.getUrl().timeout(callTimeout);
-      } catch (_) {
+      } on TimeoutException {
         return null;
       }
     }
@@ -181,7 +182,7 @@ void main() {
       if (c == null) return false;
       try {
         return await c.canGoBack().timeout(callTimeout);
-      } catch (_) {
+      } on TimeoutException {
         return false;
       }
     }

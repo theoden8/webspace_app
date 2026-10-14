@@ -2,6 +2,7 @@
 // and runtime are the real ones; tor is the fake that keeps a configuration,
 // over an in-memory channel or a real socket.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -278,7 +279,7 @@ void main() {
       server.listen((socket) {
         socket.listen((_) {
           socket.write('HTTP/1.1 400 Bad Request\r\n\r\n');
-          socket.close();
+          unawaited(socket.close());
         });
       });
       final channel =

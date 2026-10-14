@@ -27,6 +27,12 @@ void main() {
     });
   });
 
+  test('an SVG whose <use> names its own parent is rejected', () async {
+    const recursive = '<svg xmlns="http://www.w3.org/2000/svg" width="10" '
+        'height="10"><g id="a"><use href="#a"/></g></svg>';
+    expect(await loadUntrustedSvg(recursive), isNull);
+  });
+
   group('svgHasRealColor', () {
     test('detects attribute hex color', () {
       expect(svgHasRealColor('<path fill="#de5833"/>'.toLowerCase()), isTrue);

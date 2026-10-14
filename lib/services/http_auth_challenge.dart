@@ -5,7 +5,6 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart' as inapp;
 import 'package:webspace/services/http_auth_engine.dart';
 import 'package:webspace/services/http_auth_secure_storage.dart';
 import 'package:webspace/services/proxy_router_service.dart';
-import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/proxy_router_engine.dart';
 import 'package:webspace/services/webview_config.dart';
 import 'package:webspace/services/webview_proxy.dart';
@@ -30,21 +29,14 @@ Future<inapp.HttpAuthResponse?> answerHttpAuthChallenge({
     return answerProxyRouterChallenge(routerIdentity, challenge: challenge);
   }
   if (session == null) return null;
-  final HttpAuthCredential? credential;
-  try {
-    credential = await session.answer(HttpAuthChallengeInfo(
-      host: space.host,
-      realm: space.realm,
-      isProxy: space.proxyType != null,
-      // Android's count is one static shared by every webview in the
-      // process, and it already reads 1 on a first challenge.
-      platformRetry: !hostIsAndroid && challenge.previousFailureCount > 0,
-    ));
-  } catch (e) {
-    LogTag.httpAuth.error(
-        'Challenge from ${space.host} not answered: $e', sensitive: true);
-    return null;
-  }
+  final credential = await session.answer(HttpAuthChallengeInfo(
+    host: space.host,
+    realm: space.realm,
+    isProxy: space.proxyType != null,
+    // Android's count is one static shared by every webview in the
+    // process, and it already reads 1 on a first challenge.
+    platformRetry: !hostIsAndroid && challenge.previousFailureCount > 0,
+  ));
   if (credential == null) return null;
   return inapp.HttpAuthResponse(
     action: inapp.HttpAuthResponseAction.PROCEED,

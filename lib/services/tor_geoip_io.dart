@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
@@ -36,6 +37,17 @@ class IoTorGeoIpStore implements TorGeoIpStore {
 
   @override
   Future<TorGeoIpTable?> newest() async {
+    try {
+      return await _newest();
+    } on FileSystemException catch (e) {
+      LogTag.torGeoIp.warning('Could not read the kept tables: $e');
+    } on MissingPlatformDirectoryException catch (e) {
+      LogTag.torGeoIp.warning('Could not read the kept tables: $e');
+    }
+    return null;
+  }
+
+  Future<TorGeoIpTable?> _newest() async {
     final dir = await _directory();
     if (!await dir.exists()) return null;
     TorGeoIpTable? best;
@@ -67,6 +79,7 @@ class IoTorGeoIpStore implements TorGeoIpStore {
         }
         final uri = Uri.parse(url);
         final host = uri.host;
+        void failed(Exception e) => LogTag.torGeoIp.warning('$host failed: $e');
         try {
           final response = await client.get(uri).timeout(kTorGeoIpTimeout);
           if (response.statusCode != 200) {
@@ -84,8 +97,16 @@ class IoTorGeoIpStore implements TorGeoIpStore {
           final table = await _keep(bytes);
           LogTag.torGeoIp.info('Fetched ${bytes.length} bytes from $host');
           return table;
-        } on Exception catch (e) {
-          LogTag.torGeoIp.warning('$host failed: $e');
+        } on http.ClientException catch (e) {
+          failed(e);
+        } on IOException catch (e) {
+          failed(e);
+        } on TimeoutException catch (e) {
+          failed(e);
+        } on MissingPlatformDirectoryException catch (e) {
+          failed(e);
+        } on FormatException catch (e) {
+          failed(e);
         } finally {
           client.close();
         }

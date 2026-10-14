@@ -1,27 +1,30 @@
 import 'dart:async';
 
-/// One named step of the outgoing-site teardown.
+/// One named step of the outgoing-site teardown. [run] answers false when the
+/// step failed: a step owns its failure and reports it, never throws it, and
+/// one whose callee reports its own (a webview call) answers true once done.
 class SiteTeardownStep {
   const SiteTeardownStep(this.name, {required this.run});
 
   final String name;
-  final Future<void> Function() run;
+  final Future<bool> Function() run;
 }
 
 /// What a [SiteTeardownEngine.quiesceOutgoing] run actually managed to do.
 class SiteTeardownResult {
   const SiteTeardownResult({
     required this.ran,
-    required this.errors,
+    required this.failed,
     this.stalledOn,
     this.supersededBefore,
   });
 
-  /// Steps that ran to completion, in order.
+  /// Steps that answered success, in order.
   final List<String> ran;
 
-  /// Steps that threw, by name. A throwing step never stops the sequence.
-  final Map<String, Object> errors;
+  /// Steps that answered failure, in order. A failed step never stops the
+  /// sequence.
+  final List<String> failed;
 
   /// The step still in flight when the budget expired, if any.
   final String? stalledOn;
@@ -31,7 +34,7 @@ class SiteTeardownResult {
   final String? supersededBefore;
 
   bool get isClean =>
-      errors.isEmpty && stalledOn == null && supersededBefore == null;
+      failed.isEmpty && stalledOn == null && supersededBefore == null;
 }
 
 /// Quiesces the site the user is leaving — the step sequence shared by a site
@@ -45,8 +48,8 @@ class SiteTeardownResult {
 ///   * runs steps in the caller's order (camera stop and media pause before
 ///     the pause — CAM-012 / BGAUDIO-009: anything dispatched after the freeze
 ///     never runs);
-///   * treats a step that throws as best-effort and keeps going, so losing a
-///     state capture doesn't cost the pause behind it;
+///   * records a step that answers failure and keeps going, so losing a state
+///     capture doesn't cost the pause behind it;
 ///   * gives the whole sequence one budget and returns when it expires,
 ///     because the caller's own state change must not hinge on a native call
 ///     that may never answer.
@@ -67,7 +70,7 @@ class SiteTeardownEngine {
     Duration budget = defaultBudget,
   }) async {
     final ran = <String>[];
-    final errors = <String, Object>{};
+    final failed = <String>[];
     String? inFlight;
     String? supersededBefore;
 
@@ -78,11 +81,10 @@ class SiteTeardownEngine {
           return;
         }
         inFlight = step.name;
-        try {
-          await step.run();
+        if (await step.run()) {
           ran.add(step.name);
-        } catch (e) {
-          errors[step.name] = e;
+        } else {
+          failed.add(step.name);
         }
         inFlight = null;
       }
@@ -97,7 +99,7 @@ class SiteTeardownEngine {
 
     return SiteTeardownResult(
       ran: List.unmodifiable(ran),
-      errors: Map.unmodifiable(errors),
+      failed: List.unmodifiable(failed),
       stalledOn: stalledOn,
       supersededBefore: supersededBefore,
     );

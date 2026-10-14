@@ -46,17 +46,24 @@ class DiagSeed {
   /// (cookies, nav-state capture, containers) cannot bleed across runs;
   /// entries without one get a fresh generated id.
   static DiagSeedData parse(String encoded) {
-    final obj =
-        jsonDecode(utf8.decode(base64.decode(encoded))) as Map<String, dynamic>;
-    final rawSites = obj['sites'] as List<dynamic>? ?? const [];
+    final rawSites = switch (jsonDecode(utf8.decode(base64.decode(encoded)))) {
+      {'sites': final List sites} => sites,
+      _ => const <Object?>[],
+    };
     final sites = <WebViewModel>[
       for (final raw in rawSites)
-        WebViewModel(
-          siteId: SiteId.parse((raw as Map<String, dynamic>)['siteId']),
-          initUrl: raw['url'] as String,
-          name: raw['name'] as String? ?? 'Diag',
-          notificationsEnabled: raw['notificationsEnabled'] as bool? ?? false,
-        ),
+        switch (raw) {
+          {'url': final String url} => WebViewModel(
+              siteId: SiteId.parse(raw['siteId']),
+              initUrl: url,
+              name: switch (raw['name']) {
+                final String name => name,
+                _ => 'Diag',
+              },
+              notificationsEnabled: raw['notificationsEnabled'] == true,
+            ),
+          _ => throw const FormatException('a diag seed site has no url'),
+        },
     ];
     if (sites.isEmpty) {
       throw const FormatException('diag seed has no sites');
@@ -124,7 +131,7 @@ class DiagSeed {
     final DiagSeedData seed;
     try {
       seed = parse(encoded);
-    } catch (e) {
+    } on FormatException catch (e) {
       LogTag.diagSeed.error('ignoring unparseable seed: $e');
       return false;
     }

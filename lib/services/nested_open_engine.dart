@@ -7,6 +7,8 @@
 /// when to stop.
 library;
 
+import 'package:webspace/services/proxy_refused.dart';
+
 /// What the sequence needs from the app. [T] is the host's site handle, held
 /// across the awaits rather than an index, because the list can shift under
 /// them.
@@ -32,7 +34,7 @@ abstract class NestedOpenHost<T> {
 
   Future<void> unload(int index);
 
-  /// Throws when the proxy cannot be applied.
+  /// Throws [ProxyRefused] when the proxy cannot be applied.
   Future<void> applyProxyOf(T target);
 
   void reportProxyFailure(Object error);
@@ -95,7 +97,7 @@ class NestedOpenEngine {
       }
       try {
         await host.applyProxyOf(target);
-      } catch (e) {
+      } on ProxyRefused catch (e) {
         host.reportProxyFailure(e);
         if (!host.mounted) return NestedOpenOutcome.abandoned;
         await returnToSource();

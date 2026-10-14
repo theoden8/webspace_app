@@ -162,7 +162,7 @@ class BackupController {
     final SettingsImportPlan plan;
     try {
       plan = planSettingsImport(backup, stateSetterF: _host.rebuild);
-    } catch (e) {
+    } on FormatException catch (e) {
       LogTag.import.error('Aborted import; live state left intact: $e');
       _host.toast((loc) => loc.homeImportInvalidBackup);
       return;

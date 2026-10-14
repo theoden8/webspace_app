@@ -16,6 +16,7 @@
 // tor_geoip_io.dart.
 
 import 'package:webspace/settings/proxy.dart';
+import 'package:webspace/utils/epoch_millis.dart';
 
 /// Where the table comes from, in order. Both are fetched through Tor.
 ///
@@ -71,15 +72,18 @@ class TorGeoIpTable {
   bool isStale(DateTime now) => now.difference(fetchedAt) > kTorGeoIpMaxAge;
 }
 
-/// On-device store for the table.
+/// On-device store for the table. Neither call throws: a cache the store
+/// cannot read or write answers null, as no table does.
 abstract class TorGeoIpStore {
-  /// The newest table kept, or null when there is none.
+  /// The newest table kept, or null when there is none or the cache cannot
+  /// be read.
   Future<TorGeoIpTable?> newest();
 
   /// Download a fresh table through the SOCKS proxy [via], each request on
   /// a circuit of its own, keep it, and drop older ones. Null when every
-  /// source failed on every pass or answered with something that is not a
-  /// table. A download already in flight is joined, not repeated.
+  /// source failed on every pass, answered with something that is not a
+  /// table, or could not be kept. A download already in flight is joined,
+  /// not repeated.
   Future<TorGeoIpTable?> download(UserProxySettings via);
 }
 
@@ -123,7 +127,6 @@ String torGeoIpFileName(DateTime at) =>
 /// When the table in [name] was fetched, or null when [name] is not one.
 DateTime? torGeoIpFetchedAt(String name) {
   if (!name.startsWith(_fileNamePrefix)) return null;
-  final millis = int.tryParse(name.substring(_fileNamePrefix.length));
-  if (millis == null) return null;
-  return DateTime.fromMillisecondsSinceEpoch(millis, isUtc: true);
+  return timeAtEpochMillis(int.tryParse(name.substring(_fileNamePrefix.length)),
+      isUtc: true);
 }

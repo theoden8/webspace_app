@@ -55,6 +55,9 @@ dependencies:
   uuid: ^4.5.1
   image: ^4.3.0  # Required by third_party/favicon
   file_picker: ^11.0.2
+  # Named for the failures file_picker's Linux portal reports
+  # (file_dialog_io.dart); already locked through it.
+  dbus: ^0.7.12
   flutter_secure_storage: ^10.0.0
   package_info_plus: ^9.0.1
   flutter_cache_manager: ^3.3.0

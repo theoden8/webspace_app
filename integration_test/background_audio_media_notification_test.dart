@@ -20,6 +20,8 @@
 // POST_NOTIFICATIONS); it self-skips elsewhere, and the Linux/macOS
 // integration loops exclude it by name.
 
+import 'dart:async';
+
 import 'dart:convert';
 import 'dart:io';
 
@@ -75,14 +77,13 @@ void main() {
           currentTime: double.tryParse(q['t'] ?? '') ?? 0,
           paused: q['paused'] ?? '?',
         ));
-        req.response
-          ..statusCode = 204
-          ..close();
+        req.response.statusCode = 204;
+        unawaited(req.response.close());
         return;
       }
       final res = req.response..headers.contentType = ContentType.html;
       res.write(backgroundAudioFixtureHtml);
-      res.close();
+      unawaited(res.close());
     });
 
     isDemoMode = true;

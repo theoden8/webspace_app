@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:socks5_proxy/socks_client.dart' as socks5;
 import 'package:webspace/services/proxy_router_engine.dart';
+import 'package:webspace/services/socks_connect.dart';
 import 'package:webspace/settings/proxy.dart';
 
 /// A loopback HTTP CONNECT proxy that fans one endpoint out to one upstream
@@ -72,13 +72,13 @@ class LocalProxyRelay {
       final bind = address ?? InternetAddress.loopbackIPv4;
       final server = await ServerSocket.bind(bind, 0);
       _server = server;
-      _accepting = server.listen(
-        _serve,
-        onError: (Object _) {},
-      );
+      // A failed accept loses that one connection; the server stays up.
+      _accepting = server
+          .handleError((Object _) {}, test: (e) => e is SocketException)
+          .listen(_serve);
       lastError = null;
       return true;
-    } on Object catch (e) {
+    } on SocketException catch (e) {
       _server = null;
       lastError = '$e';
       return false;
@@ -115,10 +115,12 @@ class LocalProxyRelay {
     final head = _HeadBuffer();
     final incoming = client.listen(
       head.add,
-      onError: (Object _) => head.close(),
+      onError: (Object e, StackTrace st) =>
+          _socketErrorEnds(e, stack: st, close: head.close),
       onDone: head.close,
     );
-    unawaited(client.done.catchError((Object _) => client));
+    unawaited(client.done
+        .catchError((Object _) => client, test: (e) => e is SocketException));
     Socket? upstream;
     try {
       LocalProxyRoute? route;
@@ -175,11 +177,16 @@ class LocalProxyRelay {
       }
       _upstreams.add(upstream);
       upstream.setOption(SocketOption.tcpNoDelay, true);
-      unawaited(upstream.done.catchError((Object _) => upstream!));
+      unawaited(upstream.done.catchError((Object _) => upstream!,
+          test: (e) => e is SocketException));
       client.add(_response(200, reason: 'Connection Established'));
       await _relay(client,
           incoming: incoming, upstream: upstream, pending: head.drain());
-    } on Object {
+    } on SocketException {
+      client.destroy();
+      upstream?.destroy();
+    } on OSError {
+      // setOption's refusal, which is not an IOException.
       client.destroy();
       upstream?.destroy();
     }
@@ -199,21 +206,15 @@ class LocalProxyRelay {
         case ProxyType.TOR:
           final endpoint = _endpoint(upstream.address);
           if (endpoint == null) return null;
-          return await socks5.SocksTCPClient.connect(
-            [
-              socks5.ProxySettings(
-                await _resolve(endpoint.host),
-                endpoint.port,
-                username: upstream.username,
-                password: route.upstreamPassword,
-              ),
-            ],
-            // `type: unix` is how this package is told to send the hostname
-            // rather than resolve it locally -- the destination name must
-            // reach the SOCKS5 server, or the local resolver sees every site
-            // the user meant to hide.
-            InternetAddress(host, type: InternetAddressType.unix),
-            port,
+          return await socksConnect(
+            via: (
+              host: endpoint.host,
+              port: endpoint.port,
+              username: upstream.username,
+              password: route.upstreamPassword,
+            ),
+            host: host,
+            port: port,
           ).timeout(const Duration(seconds: 20));
         case ProxyType.HTTP:
         case ProxyType.HTTPS:
@@ -224,7 +225,9 @@ class LocalProxyRelay {
           // names an entry that no longer resolves, and has nowhere to go.
           return null;
       }
-    } on Object {
+    } on IOException {
+      return null;
+    } on TimeoutException {
       return null;
     }
   }
@@ -252,7 +255,9 @@ class LocalProxyRelay {
 
     final head = _HeadBuffer();
     final sub = socket.listen(head.add,
-        onError: (Object _) => head.close(), onDone: head.close);
+        onError: (Object e, StackTrace st) =>
+            _socketErrorEnds(e, stack: st, close: head.close),
+        onDone: head.close);
     final reply = await head.readHead();
     await sub.cancel();
     if (reply == null || !reply.startsWith('HTTP/1.1 200')) {
@@ -262,20 +267,12 @@ class LocalProxyRelay {
     return socket;
   }
 
-  static Future<InternetAddress> _resolve(String host) async {
-    final parsed = InternetAddress.tryParse(host);
-    if (parsed != null) return parsed;
-    final found = await InternetAddress.lookup(host);
-    if (found.isEmpty) throw const SocketException('upstream did not resolve');
-    return found.first;
-  }
-
   static ({String host, int port})? _endpoint(String? address) {
     if (address == null || address.isEmpty) return null;
     final colon = address.lastIndexOf(':');
     if (colon <= 0) return null;
     final port = int.tryParse(address.substring(colon + 1));
-    if (port == null) return null;
+    if (port == null || port < 1 || port > 65535) return null;
     return (host: address.substring(0, colon), port: port);
   }
 
@@ -296,7 +293,7 @@ class LocalProxyRelay {
         // presenting another's username and taking its circuit.
         if (route == null || route.token != token) return null;
         return route;
-      } on Object {
+      } on FormatException {
         return null;
       }
     }
@@ -328,7 +325,8 @@ class LocalProxyRelay {
     final colon = parts[1].lastIndexOf(':');
     if (colon <= 0) return null;
     final port = int.tryParse(parts[1].substring(colon + 1));
-    if (port == null) return null;
+    // Socket.connect throws an ArgumentError past this range.
+    if (port == null || port < 1 || port > 65535) return null;
     return (host: parts[1].substring(0, colon), port: port);
   }
 
@@ -355,7 +353,9 @@ class LocalProxyRelay {
     void forward(Socket to, {required List<int> data}) {
       try {
         to.add(data);
-      } on Object {
+      } on StateError {
+        // IOSink.add's refusal of a sink closed or mid-flush; the relay does
+        // neither to a socket it forwards to, so this only guards a change.
         to.destroy();
       }
     }
@@ -363,20 +363,24 @@ class LocalProxyRelay {
     if (pending.isNotEmpty) forward(upstream, data: pending);
     incoming
       ..onData((d) => forward(upstream, data: d))
-      ..onError((Object _) {
-        upstream.destroy();
-        finish();
-      })
+      ..onError((Object e, StackTrace st) => _socketErrorEnds(e,
+          stack: st,
+          close: () {
+            upstream.destroy();
+            finish();
+          }))
       ..onDone(() {
         upstream.destroy();
         finish();
       });
     upstream.listen(
       (d) => forward(client, data: d),
-      onError: (Object _) {
-        client.destroy();
-        finish();
-      },
+      onError: (Object e, StackTrace st) => _socketErrorEnds(e,
+          stack: st,
+          close: () {
+            client.destroy();
+            finish();
+          }),
       onDone: () {
         client.destroy();
         finish();
@@ -384,6 +388,14 @@ class LocalProxyRelay {
     );
     await finished.future;
   }
+}
+
+/// A socket stream's error: a [SocketException] ends the connection
+/// through [close]; anything else is a bug and is thrown on.
+void _socketErrorEnds(Object error,
+    {required StackTrace stack, required void Function() close}) {
+  if (error is! SocketException) Error.throwWithStackTrace(error, stack);
+  close();
 }
 
 /// One site's entry in the relay's table.

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
@@ -62,6 +65,9 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       TextEditingController(text: widget.initialAccuracy.toString());
 
   bool _mapLoaded = false;
+
+  /// The map has rendered and its controller can move the camera.
+  bool _mapReady = false;
   bool _fetchingLocation = false;
   String get _tileUrl => AppPref.osmTileUrl.value;
   // Compliant User-Agent per OSM Tile Usage Policy: clearly identifies the
@@ -87,7 +93,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
   @override
   void initState() {
     super.initState();
-    _loadTileUserAgent();
+    unawaited(_loadTileUserAgent());
   }
 
   Future<void> _loadTileUserAgent() async {
@@ -96,8 +102,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       final info = await PackageInfo.fromPlatform();
       final v = info.version;
       ua = 'Webspace/$v (+https://github.com/theoden8/webspace_app)';
-    } catch (_) {
+    } on PlatformException {
       // Keep the static fallback if PackageInfo is unavailable.
+    } on MissingPluginException {
+      // As above, on a host without the plugin.
     }
     if (!mounted) return;
     setState(() => _tileUserAgent = ua);
@@ -145,14 +153,10 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
 
   void _onCoordTyped(String _) {
     setState(() {});
-    if (_mapLoaded) {
+    if (_mapReady) {
       final p = _currentLatLng();
       if (p == null) return;
-      try {
-        _mapController.move(p, _mapController.camera.zoom);
-      } catch (_) {
-        // Camera not attached yet — ignore; marker still rebuilds from state.
-      }
+      _mapController.move(p, _mapController.camera.zoom);
     }
   }
 
@@ -181,11 +185,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
     final fix = res.fix!;
     final pin = LatLng(fix.latitude, fix.longitude);
     _setPin(pin, accuracy: fix.accuracy);
-    if (_mapLoaded) {
-      try {
-        _mapController.move(pin, 14.0);
-      } catch (_) {}
-    }
+    if (_mapReady) _mapController.move(pin, 14.0);
   }
 
   String _hostOfTileUrl() {
@@ -196,7 +196,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
           .replaceAll('{y}', '0')
           .replaceAll('{s}', 'a');
       return Uri.parse(clean).host;
-    } catch (_) {
+    } on FormatException {
       return _tileUrl;
     }
   }
@@ -370,6 +370,7 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
             initialCenter: pin ?? const LatLng(0, 0),
             initialZoom: pin == null ? 2.0 : 10.0,
             onTap: (_, p) => _setPin(p),
+            onMapReady: () => _mapReady = true,
           ),
           children: [
             TileLayer(

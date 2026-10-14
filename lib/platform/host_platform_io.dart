@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:http/io_client.dart';
 
+export 'dart:io' show IOException;
+
 bool get hostIsAndroid => io.Platform.isAndroid;
 bool get hostIsIOS => io.Platform.isIOS;
 bool get hostIsMacOS => io.Platform.isMacOS;

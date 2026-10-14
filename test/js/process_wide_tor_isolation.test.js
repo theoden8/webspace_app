@@ -16,7 +16,12 @@ test('the process-wide rule expands TOR with the site id before applying', () =>
   const text = code(read('lib/services/webview_proxy.dart'));
   const at = text.search(/Future<void>\s+setProxySettings\s*\(/);
   assert.ok(at >= 0, 'ProxyManager.setProxySettings not found');
-  const body = enclosed(text, text.indexOf(')', at), '{').body;
+  assert.match(text.slice(at, text.indexOf(';', at)),
+    /_platformTakes\(\s*\(\)\s*=>\s*_applyRule\(\s*settings\s*,\s*siteId:\s*siteId\s*\)\s*\)/,
+    'setProxySettings applies the rule through _applyRule');
+  const rule = text.search(/Future<void>\s+_applyRule\s*\(/);
+  assert.ok(rule >= 0, 'ProxyManager._applyRule not found');
+  const body = enclosed(text, text.indexOf(')', rule), '{').body;
   assert.match(body, /resolveEffectiveProxy\(\s*settings\s*,\s*siteId:\s*siteId\s*\)/);
   const expand = body.search(/expandTorProxy\(/);
   const override = body.search(/\.setProxyOverride\(/);

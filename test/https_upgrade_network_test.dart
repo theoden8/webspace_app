@@ -67,6 +67,15 @@ HttpClient clientFor(Map<String, int> httpPorts,
       await res.drain<void>();
     }
 
+    Future<({String loaded, bool fellBack, bool timedOut})?> fallBack() async {
+      final fallback = timedOut
+          ? engine.fallbackForTimeout(target)
+          : engine.fallbackFor(target);
+      if (fallback == null) return null;
+      await attempt(fallback);
+      return (loaded: fallback, fellBack: true, timedOut: timedOut);
+    }
+
     try {
       // The whole attempt is under the deadline, not one phase of it: the
       // Timer the call site arms does not know or care where a stall happens.
@@ -76,21 +85,23 @@ HttpClient clientFor(Map<String, int> httpPorts,
       });
       engine.recordUpgradeSuccess(target);
       return (loaded: target, fellBack: false, timedOut: false);
-    } catch (_) {
-      final fallback = timedOut
-          ? engine.fallbackForTimeout(target)
-          : engine.fallbackFor(target);
-      if (fallback == null) rethrow;
-      await attempt(fallback);
-      return (loaded: fallback, fellBack: true, timedOut: timedOut);
+    } on IOException {
+      final fell = await fallBack();
+      if (fell == null) rethrow;
+      return fell;
+    } on TimeoutException {
+      final fell = await fallBack();
+      if (fell == null) rethrow;
+      return fell;
     }
   }
 
   Future<HttpServer> plainServer() async {
     final s = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    s.listen((r) => r.response
-      ..write('plain')
-      ..close());
+    s.listen((r) {
+      r.response.write('plain');
+      unawaited(r.response.close());
+    });
     return s;
   }
 

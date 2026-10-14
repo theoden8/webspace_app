@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -311,7 +313,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
   }
 
   void _openCategory(BlockCategory category) {
-    Navigator.push(
+    unawaited(Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => BlockStatsCategoryScreen(
@@ -320,7 +322,7 @@ class _BlockStatsScreenState extends State<BlockStatsScreen>
           siteNames: widget.siteNames,
         ),
       ),
-    );
+    ));
   }
 }
 

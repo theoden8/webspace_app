@@ -37,13 +37,13 @@ class FullscreenController {
   /// it throws MissingPluginException.
   void start() {
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-      SystemChrome.setSystemUIChangeCallback(onSystemUiChange);
+      unawaited(SystemChrome.setSystemUIChangeCallback(onSystemUiChange));
     }
   }
 
   void dispose() {
     _revealedBarsHideTimer?.cancel();
-    SystemChrome.setSystemUIChangeCallback(null);
+    unawaited(SystemChrome.setSystemUIChangeCallback(null));
   }
 
   void enter() {
@@ -75,7 +75,7 @@ class FullscreenController {
     active = false;
     tabBarOverlayVisible = false;
     _host.rebuild();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
     _surface.nudge('fullscreen-exit');
   }
 
@@ -95,7 +95,7 @@ class FullscreenController {
 
   /// Sets the system UI mode full screen holds now.
   void apply() {
-    SystemChrome.setEnabledSystemUIMode(_systemUiMode);
+    unawaited(SystemChrome.setEnabledSystemUIMode(_systemUiMode));
   }
 
   /// Under `immersive` (FS-011) a bar the user swipes in stays until the app

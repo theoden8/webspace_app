@@ -14,6 +14,7 @@ import 'package:webspace/services/block_stats_service.dart';
 import 'package:webspace/services/dns_block_service.dart';
 import 'package:webspace/services/download_engine.dart';
 import 'package:webspace/services/download_manager.dart';
+import 'package:webspace/services/file_dialog.dart' show FileDialogFailure;
 import 'package:webspace/services/location_spoof_service.dart';
 import 'package:webspace/services/log_service.dart';
 import 'package:webspace/services/media_session_service.dart';
@@ -477,7 +478,13 @@ abstract final class PageHandlers {
           if (taskId.isNotEmpty) {
             DownloadsService.instance.fail(taskId, message: e.message);
           }
-        } catch (e, stack) {
+        } on FileDialogFailure catch (e, stack) {
+          LogTag.webView.error(
+              'Blob download error: $e\n$stack', sensitive: true);
+          if (taskId.isNotEmpty) {
+            DownloadsService.instance.fail(taskId, message: e.toString());
+          }
+        } on IOException catch (e, stack) {
           LogTag.webView.error(
               'Blob download error: $e\n$stack', sensitive: true);
           if (taskId.isNotEmpty) {

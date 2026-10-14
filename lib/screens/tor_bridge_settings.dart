@@ -12,6 +12,8 @@
 // offers the restart rather than performing one behind the user's back,
 // which would drop every site's circuits because a text field changed.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:webspace/l10n/gen/localizations.dart';
@@ -81,7 +83,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   @override
@@ -393,7 +395,7 @@ class _TorBridgeSettingsScreenState extends State<TorBridgeSettingsScreen> {
                     border: const OutlineInputBorder(),
                   ),
                   onSubmitted: (_) {
-                    if (!_busy) _addPasted();
+                    if (!_busy) unawaited(_addPasted());
                   },
                 ),
               ),

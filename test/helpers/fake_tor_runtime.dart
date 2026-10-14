@@ -4,6 +4,9 @@ import 'package:webspace/services/tor_engine.dart';
 
 /// [TorRuntime] that records every call and lets a test play the native
 /// side: [emit] pushes a status as the event channel would.
+///
+/// The failures it can be told to raise are the ones [TorRuntime] declares:
+/// [TorRuntimeFailure], and for [applyExitCountry] the exit-pin refusals.
 class FakeTorRuntime implements TorRuntime {
   FakeTorRuntime({
     this.isAvailable = true,
@@ -27,13 +30,15 @@ class FakeTorRuntime implements TorRuntime {
   int startCalls = 0;
   int stopCalls = 0;
   int rebuildCalls = 0;
-  Object? startError;
+  TorRuntimeFailure? startError;
 
   /// Every [applyExitCountry] that reached the runtime, answered or not.
   int applyCalls = 0;
   final appliedExitNodes = <String?>[];
   final appliedGeoIpFiles = <String?>[];
-  Object? exitCountryError;
+
+  /// A [TorRuntimeFailure], [TorExitCountryEmpty] or [TorExitPinUnsupported].
+  Exception? exitCountryError;
 
   /// Models a control connection that dropped: the call never returns.
   bool exitCountryHangs = false;
@@ -41,11 +46,11 @@ class FakeTorRuntime implements TorRuntime {
   int transportPort = 47000;
   final startedTransports = <String>[];
   List<(String, String)> torrcOptions = const [];
-  Object? transportError;
+  TorRuntimeFailure? transportError;
 
   int reopenCalls = 0;
   int reopenPort = 45000;
-  Object? reopenError;
+  TorRuntimeFailure? reopenError;
 
   @override
   Stream<TorStatus> get events => _events.stream;

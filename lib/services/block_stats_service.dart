@@ -3,7 +3,11 @@ import 'package:webspace/settings/site_ids.dart';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:webspace/platform/host_platform.dart' show IOException;
 
 import 'package:webspace/services/block_stats_detail.dart';
 import 'package:webspace/services/block_stats_detail_storage.dart';
@@ -84,6 +88,11 @@ class BlockStatsService {
 
   Future<void> _initialize(BlockStatsDetailStore? detailStore) async {
     _detailStore = detailStore ?? SecureBlockStatsDetailStore();
+    void failed(Exception e) {
+      LogTag.blockStats.warning('Failed to load stats: $e');
+      _engine = BlockStatsEngine();
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(prefsKey);
@@ -93,9 +102,14 @@ class BlockStatsService {
           _engine = BlockStatsEngine.fromJson(decoded);
         }
       }
-    } catch (e) {
-      LogTag.blockStats.warning('Failed to load stats: $e');
-      _engine = BlockStatsEngine();
+    } on PlatformException catch (e) {
+      failed(e);
+    } on MissingPluginException catch (e) {
+      failed(e);
+    } on IOException catch (e) {
+      failed(e);
+    } on FormatException catch (e) {
+      failed(e);
     }
     await _loadDetail();
     // Both, then decide: `||` would short-circuit the detail out of every
@@ -116,7 +130,7 @@ class BlockStatsService {
       if (decoded is Map<String, dynamic>) {
         _detail.mergeFromJson(decoded);
       }
-    } catch (e) {
+    } on FormatException catch (e) {
       LogTag.blockStats.warning('Failed to load detail: $e');
     }
   }
@@ -183,6 +197,8 @@ class BlockStatsService {
     if (!engine.isDirty) return;
     final revision = engine.revision;
     final payload = jsonEncode(engine.toJson());
+    void failed(Exception e) =>
+        LogTag.blockStats.warning('Failed to persist stats: $e');
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(prefsKey, payload);
@@ -190,8 +206,14 @@ class BlockStatsService {
       // hands the counters to a write that may never land, and anything
       // recorded while it was in flight is not in the payload at all.
       engine.markCleanAt(revision);
-    } catch (e) {
-      LogTag.blockStats.warning('Failed to persist stats: $e');
+    } on PlatformException catch (e) {
+      failed(e);
+    } on MissingPluginException catch (e) {
+      failed(e);
+    } on IOException catch (e) {
+      failed(e);
+    } on FormatException catch (e) {
+      failed(e);
     }
   }
 

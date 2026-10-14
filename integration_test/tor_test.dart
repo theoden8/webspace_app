@@ -173,7 +173,9 @@ Future<Duration> whenEnded(Socket stream) {
     if (!ended.isCompleted) ended.complete(clock.elapsed);
   }
 
-  stream.listen((_) {}, onDone: end, onError: end, cancelOnError: true);
+  stream
+      .handleError(end, test: (e) => e is SocketException)
+      .listen((_) {}, onDone: end, cancelOnError: true);
   return ended.future;
 }
 
@@ -183,6 +185,16 @@ Future<Duration> whenEnded(Socket stream) {
 /// circuit a stream rode, when that circuit was built, and which country tor
 /// puts its exit in. The plugin's connection is out of Dart's reach, and tor
 /// takes a second one without complaint.
+/// A tor control command tor refused, or a connection that went away.
+class TorControlFailure implements Exception {
+  const TorControlFailure(this.message);
+
+  final String message;
+
+  @override
+  String toString() => 'TorControlFailure: $message';
+}
+
 class TorProbe {
   TorProbe._(this._socket, {required StreamIterator<String> lines})
       : _lines = lines;
@@ -209,7 +221,7 @@ class TorProbe {
     } else {
       final port = RegExp(r'PORT=([\d.]+):(\d+)')
           .firstMatch(await File('$tor/controlport').readAsString());
-      if (port == null) throw StateError('no control port in $tor/controlport');
+      if (port == null) throw TorControlFailure('no control port in $tor/controlport');
       socket = await Socket.connect(port[1]!, int.parse(port[2]!));
     }
     final probe = TorProbe._(
@@ -231,7 +243,7 @@ class TorProbe {
     _socket.write('$command\r\n');
     final reply = <String>[];
     var inData = false;
-    while (await _lines.moveNext().timeout(const Duration(seconds: 10))) {
+    while (await _nextLine(verb: verb)) {
       final line = _lines.current;
       if (inData) {
         if (line == '.') {
@@ -247,13 +259,28 @@ class TorProbe {
         continue;
       }
       if (line.length < 4 || !line.startsWith('2')) {
-        throw StateError('$verb: $line');
+        throw TorControlFailure('$verb: $line');
       }
       reply.add(line.substring(4));
       if (line[3] == '+') inData = true;
       if (line[3] == ' ') return reply;
     }
-    throw StateError('$verb: the control connection closed');
+    throw TorControlFailure('$verb: the control connection closed');
+  }
+
+  /// Whether another reply line came; a timeout or a broken connection is a
+  /// [TorControlFailure], as a refusal is.
+  Future<bool> _nextLine({required String verb}) async {
+    try {
+      return await _lines.moveNext().timeout(const Duration(seconds: 10));
+    } on TimeoutException catch (e) {
+      throw TorControlFailure('$verb: $e');
+    } on SocketException catch (e) {
+      throw TorControlFailure('$verb: $e');
+    } on FormatException catch (e) {
+      // The reply was not UTF-8.
+      throw TorControlFailure('$verb: $e');
+    }
   }
 
   Future<String> info(String key) async {
@@ -314,12 +341,14 @@ class TorProbe {
             .split('\n')
             .firstWhere((l) => l.startsWith('r '), orElse: () => '');
         ip = r.split(' ').firstWhere(_ipv4.hasMatch, orElse: () => '?');
-      } catch (_) {}
+      } on TorControlFailure {
+        // No descriptor for the hop yet.
+      }
       String cc = '?';
       if (ip != '?') {
         try {
           cc = await info('ip-to-country/$ip');
-        } catch (_) {
+        } on TorControlFailure {
           // tor has no table until a pin has downloaded one.
         }
       }
@@ -657,7 +686,17 @@ void main() {
     try {
       probe = await TorProbe.open();
       await probe.watchStreams();
-    } catch (e) {
+    } on TorControlFailure catch (e) {
+      trace('no control probe: $e');
+    } on IOException catch (e) {
+      trace('no control probe: $e');
+    } on PlatformException catch (e) {
+      trace('no control probe: $e');
+    } on MissingPluginException catch (e) {
+      trace('no control probe: $e');
+    } on MissingPlatformDirectoryException catch (e) {
+      trace('no control probe: $e');
+    } on FormatException catch (e) {
       trace('no control probe: $e');
     }
     Future<String> askTor(Future<String> Function(TorProbe) ask) async {
@@ -665,7 +704,7 @@ void main() {
       if (p == null) return '(no control probe)';
       try {
         return await ask(p);
-      } catch (e) {
+      } on TorControlFailure catch (e) {
         return '(probe failed: $e)';
       }
     }
@@ -678,7 +717,7 @@ void main() {
           String where;
           try {
             where = await p.info('ip-to-country/$ip');
-          } catch (e) {
+          } on TorControlFailure catch (e) {
             where = '? ($e)';
           }
           return 'tor places $ip in $where; ${await p.config()}\n'
@@ -698,16 +737,13 @@ void main() {
       Future<http.Response> ask() => client.get(exitCheck).timeout(patience);
       http.Response response;
       try {
-        try {
-          response = await ask();
-        } on Exception catch (e) {
-          // A kept-alive connection tor has just ended can fail the request
-          // that races the close. The retry cannot hide a stale exit: that
-          // answers, it does not fail.
-          if (!connectionDropped(e)) rethrow;
+        // A kept-alive connection tor has just ended can fail the request
+        // that races the close. The retry cannot hide a stale exit: that
+        // answers, it does not fail.
+        response = await ask().catchError((Object e) {
           trace('check request $when failed once: $e');
-          response = await ask();
-        }
+          return ask();
+        }, test: connectionDropped);
       } catch (e) {
         fail('the check $when got no answer in ${clock.elapsed.inSeconds}s '
             '($e):\n${torTranscript()}');
@@ -983,16 +1019,12 @@ void main() {
     Future<http.Response> ask() =>
         route.client.get(exitCheck).timeout(const Duration(seconds: 45));
     try {
-      http.Response response;
-      try {
-        response = await ask();
-      } on Exception catch (e) {
-        // What this guards is a load that hangs because tor builds no
-        // circuit, and that still fails on the timeout.
-        if (!connectionDropped(e)) rethrow;
+      // What this guards is a load that hangs because tor builds no
+      // circuit, and that still fails on the timeout.
+      final response = await ask().catchError((Object e) {
         trace('after {$nowhere}: a request failed once: $e');
-        response = await ask();
-      }
+        return ask();
+      }, test: connectionDropped);
       trace('after {$nowhere}: a request answered in ${since.elapsed.inSeconds}s');
       expect(response.statusCode, 200);
     } finally {
@@ -1075,10 +1107,8 @@ void main() {
         while (DateTime.now().isBefore(deadline)) {
           final c = controller;
           if (c != null) {
-            final body = await c.nativeController
-                .evaluateJavascript(
-                    source: 'document.body ? document.body.innerText : ""')
-                .catchError((Object _) => null);
+            final body = await c.evaluateJavascriptReturning(
+                'document.body ? document.body.innerText : ""');
             seen = RegExp(r'^ip=(\S+)$', multiLine: true)
                 .firstMatch('${body ?? ''}')
                 ?.group(1);

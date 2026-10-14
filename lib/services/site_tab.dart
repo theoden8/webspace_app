@@ -17,6 +17,7 @@ library;
 
 import 'dart:math';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/utils/epoch_millis.dart';
 
 /// A tab id is concatenated into a state-storage file name, so it takes the
 /// same path-safe shape as a siteId — minus `.`, which separates the two
@@ -141,8 +142,8 @@ class SiteTab {
       hostSiteId: SiteId.parse(json['hostSiteId']),
       openerSiteId: SiteId.parse(json['openerSiteId']),
       homeUrl: _webUrl(json['homeUrl']),
-      createdAt: _time(json['createdAt']),
-      lastActiveAt: _time(json['lastActiveAt']),
+      createdAt: timeAtEpochMillis(json['createdAt']),
+      lastActiveAt: timeAtEpochMillis(json['lastActiveAt']),
     );
   }
 
@@ -166,10 +167,6 @@ class SiteTab {
     if (uri == null || uri.host.isEmpty) return null;
     return uri.scheme == 'http' || uri.scheme == 'https' ? raw : null;
   }
-
-  static DateTime? _time(Object? raw) => raw is int
-      ? DateTime.fromMillisecondsSinceEpoch(raw)
-      : null;
 
   @override
   String toString() => 'SiteTab($id, $url'

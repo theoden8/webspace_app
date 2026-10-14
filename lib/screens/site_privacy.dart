@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:webspace/settings/filter_list_id.dart';
 import 'package:webspace/platform/host_platform.dart';
 import 'package:webspace/settings/site_ids.dart';
@@ -317,7 +319,7 @@ class _SitePrivacyScreenState extends State<SitePrivacyScreen> {
           onChangeEnd: (stop) {
             if (stop != _followsAppStop &&
                 !DnsBlockService.instance.downloadedLevels.contains(stop)) {
-              _downloadLevel(stop);
+              unawaited(_downloadLevel(stop));
             }
           },
         ),

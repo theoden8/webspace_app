@@ -148,7 +148,7 @@ class WebInterceptNative {
       LogTag.dnsBlock.info(
           'Queued $total DNS domains across ${masks.length} group(s) for native build '
           '(join=${joinMs}ms channel+native=${sw.elapsedMilliseconds - joinMs}ms)');
-    } catch (e) {
+    } on PlatformException catch (e) {
       LogTag.dnsBlock.error('Failed to send DNS domains to native: $e');
     }
   }
@@ -213,7 +213,7 @@ class WebInterceptNative {
         'patterns': patterns,
       });
       LogTag.localCdn.info('Sent $count CDN patterns to native handler');
-    } catch (e) {
+    } on PlatformException catch (e) {
       LogTag.localCdn.error('Failed to send CDN patterns to native: $e');
     }
   }
@@ -227,7 +227,7 @@ class WebInterceptNative {
         'index': index,
       });
       LogTag.localCdn.info('Sent $count cached CDN entries to native handler');
-    } catch (e) {
+    } on PlatformException catch (e) {
       LogTag.localCdn.error('Failed to send CDN cache index to native: $e');
     }
   }
@@ -281,7 +281,7 @@ class WebInterceptNative {
           '(siteId: $siteId, dnsLevel: $dnsLevel, localCdn: $localCdn)',
           sensitive: true);
       return count as int;
-    } catch (e) {
+    } on PlatformException catch (e) {
       LogTag.webIntercept.error('Failed to attach native interceptor: $e');
       return 0;
     }

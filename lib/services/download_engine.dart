@@ -131,7 +131,11 @@ class DownloadEngine {
   static Future<void> _discard(http.StreamedResponse response) async {
     try {
       await response.stream.drain<void>();
-    } on Exception {
+    } on http.ClientException {
+      // Nothing to report; see above.
+    } on IOException {
+      // Nothing to report; see above.
+    } on FormatException {
       // Nothing to report; see above.
     }
   }
@@ -165,11 +169,7 @@ class DownloadEngine {
     if (client is _BlockedHttpClient) {
       throw DownloadException(client.reason);
     }
-    final uri = Uri.tryParse(url);
-    if (uri == null) throw DownloadException('Invalid URL: $url');
-    if (uri.scheme != 'http' && uri.scheme != 'https') {
-      throw DownloadException('Unsupported scheme: ${uri.scheme}');
-    }
+    final uri = _fetchable(Uri.tryParse(url), raw: url);
 
     // Many download servers use Referer for hotlink protection; without
     // one they may 302 to an error page or stream HTML with no
@@ -203,7 +203,11 @@ class DownloadEngine {
       }
       try {
         response = await _client.send(request);
-      } catch (e) {
+      } on http.ClientException catch (e) {
+        throw DownloadException('Network error: $e');
+      } on IOException catch (e) {
+        throw DownloadException('Network error: $e');
+      } on FormatException catch (e) {
         throw DownloadException('Network error: $e');
       }
       if (!_isRedirect(response.statusCode)) break;
@@ -215,10 +219,10 @@ class DownloadEngine {
       if (++hops > maxRedirects) {
         throw DownloadException('Too many redirects');
       }
-      final next = current.resolve(location);
-      if (next.scheme != 'http' && next.scheme != 'https') {
-        throw DownloadException('Unsupported scheme: ${next.scheme}');
-      }
+      final reference = Uri.tryParse(location);
+      final next = _fetchable(
+          reference == null ? null : current.resolveUri(reference),
+          raw: location);
       if (current.scheme == 'https' && next.scheme == 'http') {
         throw DownloadException('Redirect downgrades https to http');
       }
@@ -251,7 +255,11 @@ class DownloadEngine {
       }
     } on DownloadException {
       rethrow;
-    } catch (e) {
+    } on http.ClientException catch (e) {
+      throw DownloadException('Network error: $e');
+    } on IOException catch (e) {
+      throw DownloadException('Network error: $e');
+    } on FormatException catch (e) {
       throw DownloadException('Network error: $e');
     }
 
@@ -295,6 +303,19 @@ class DownloadEngine {
       ),
       mimeType: mime,
     );
+  }
+
+  /// [target], parsed from [raw], when the client can request it: an http(s)
+  /// URL with a host. dart:io refuses any other with an ArgumentError
+  /// (`_http/http_impl.dart:2983-2990`), which would leave the download
+  /// running forever.
+  static Uri _fetchable(Uri? target, {required String raw}) {
+    if (target == null) throw DownloadException('Invalid URL: $raw');
+    if (target.scheme != 'http' && target.scheme != 'https') {
+      throw DownloadException('Unsupported scheme: ${target.scheme}');
+    }
+    if (target.host.isEmpty) throw DownloadException('No host in URL: $raw');
+    return target;
   }
 
   static bool _isRedirect(int status) =>

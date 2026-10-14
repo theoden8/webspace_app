@@ -9,6 +9,14 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# A lint raised to `error` here is a gate: CI's validate job fails on the
+# analyzer's errors only, so the warnings and infos stay advisory.
+analyzer:
+  errors:
+    avoid_catches_without_on_clauses: error
+    discarded_futures: error
+    unawaited_futures: error
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
@@ -22,6 +30,9 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
+    avoid_catches_without_on_clauses: true
+    unawaited_futures: true
+    discarded_futures: true
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 

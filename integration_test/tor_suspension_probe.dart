@@ -22,7 +22,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
-import 'package:socks5_proxy/exceptions.dart';
 
 import 'package:webspace/settings/site_ids.dart';
 import 'package:webspace/services/log_service.dart';
@@ -74,7 +73,9 @@ class _Pair {
     final accepted = server.first;
     final client = await Socket.connect(address, server.port);
     final far = await accepted;
-    far.listen(far.add, onError: (Object _) {}, cancelOnError: true);
+    far
+        .handleError((Object _) {}, test: (e) => e is SocketException)
+        .listen(far.add, cancelOnError: true);
     return _Pair._(client, echoes: client.asBroadcastStream());
   }
 
@@ -84,7 +85,12 @@ class _Pair {
       client.add(const [42]);
       await client.flush().timeout(const Duration(seconds: 3));
       return (await back).contains(42);
-    } catch (_) {
+    } on SocketException {
+      return false;
+    } on TimeoutException {
+      return false;
+    } on StateError {
+      // The socket closed before it echoed anything (Stream.first).
       return false;
     }
   }
@@ -106,7 +112,15 @@ Future<bool> _socksAnswers(String endpoint) async {
     } finally {
       socket.destroy();
     }
-  } catch (_) {
+  } on SocketException {
+    return false;
+  } on TimeoutException {
+    return false;
+  } on FormatException {
+    // The endpoint's port is not a number.
+    return false;
+  } on StateError {
+    // The listener closed before it answered (Stream.first).
     return false;
   }
 }
@@ -160,7 +174,13 @@ class _Control {
         if (line.startsWith('250 ')) return true;
         if (!line.startsWith('250') && !line.startsWith('650')) return false;
       }
-    } catch (_) {}
+    } on TimeoutException {
+      // Timed out: not an answer.
+    } on SocketException {
+      // The socket went away: not an answer.
+    } on FormatException {
+      // Not UTF-8: not an answer.
+    }
     return false;
   }
 }
@@ -201,7 +221,7 @@ Future<({String? ip, String detail})> _exitAddress(SiteId reason) async {
     return (ip: ip, detail: ip);
   } on TimeoutException {
     return (ip: null, detail: failed('no answer'));
-  } on SocksClientException catch (e) {
+  } on SocksHandshakeFailure catch (e) {
     return (ip: null, detail: failed('SOCKS $e'));
   } on http.ClientException catch (e) {
     return (ip: null, detail: failed('$e'));
@@ -330,7 +350,15 @@ Future<void> main() async {
   var ok = false;
   try {
     ok = await _run();
-  } catch (e, stack) {
+  } on IOException catch (e, stack) {
+    _say('FAIL: $e\n$stack');
+  } on PlatformException catch (e, stack) {
+    _say('FAIL: $e\n$stack');
+  } on MissingPluginException catch (e, stack) {
+    _say('FAIL: $e\n$stack');
+  } on MissingPlatformDirectoryException catch (e, stack) {
+    _say('FAIL: $e\n$stack');
+  } on FormatException catch (e, stack) {
     _say('FAIL: $e\n$stack');
   }
   watchdog.cancel();

@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate' show IsolateSpawnException;
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:webspace/platform/host_platform.dart';
@@ -98,7 +100,7 @@ class TimezoneLocationService {
   Future<bool> hasCachedDataset() async {
     try {
       return await hostFileExists(await _cachePath());
-    } on Exception {
+    } on IOException {
       return false;
     }
   }
@@ -120,7 +122,16 @@ class TimezoneLocationService {
           (), call: () => compute(_readAndCountZones, path));
       await prefs.setInt(_zoneCountPrefKey, count);
       return count;
-    } catch (e) {
+    } on IOException catch (e) {
+      LogTag.tz.error('Failed to count tz cache: $e');
+      return 0;
+    } on FormatException catch (e) {
+      LogTag.tz.error('Failed to count tz cache: $e');
+      return 0;
+    } on IsolateSpawnException catch (e) {
+      LogTag.tz.error('Failed to count tz cache: $e');
+      return 0;
+    } on PlatformException catch (e) {
       LogTag.tz.error('Failed to count tz cache: $e');
       return 0;
     }
@@ -148,7 +159,16 @@ class TimezoneLocationService {
       LogTag.tz.debug('Loaded ${_zones?.length ?? 0} zones from cache');
       _notifyListeners();
       return _zones != null;
-    } catch (e) {
+    } on IOException catch (e) {
+      LogTag.tz.error('Failed to load tz cache: $e');
+      return false;
+    } on FormatException catch (e) {
+      LogTag.tz.error('Failed to load tz cache: $e');
+      return false;
+    } on IsolateSpawnException catch (e) {
+      LogTag.tz.error('Failed to load tz cache: $e');
+      return false;
+    } on PlatformException catch (e) {
       LogTag.tz.error('Failed to load tz cache: $e');
       return false;
     }
@@ -228,7 +248,16 @@ class TimezoneLocationService {
           'Downloaded and parsed ${_zones?.length ?? 0} zones from $url');
       _notifyListeners();
       return true;
-    } on Exception catch (e) {
+    } on FormatException catch (e) {
+      LogTag.tz.error('Download error: $e');
+      return false;
+    } on IOException catch (e) {
+      LogTag.tz.error('Download error: $e');
+      return false;
+    } on IsolateSpawnException catch (e) {
+      LogTag.tz.error('Download error: $e');
+      return false;
+    } on PlatformException catch (e) {
       LogTag.tz.error('Download error: $e');
       return false;
     }
@@ -243,7 +272,9 @@ class TimezoneLocationService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_lastUpdatedPrefKey);
       await prefs.remove(_zoneCountPrefKey);
-    } catch (e) {
+    } on IOException catch (e) {
+      LogTag.tz.error('Clear error: $e');
+    } on PlatformException catch (e) {
       LogTag.tz.error('Clear error: $e');
     }
     _notifyListeners();
@@ -318,65 +349,67 @@ int debugParseZoneCount(String geojson) => _parseZones(geojson).length;
 /// Parse a timezone-boundary GeoJSON body into zone entries. Top-level for the
 /// same isolate reason as [_readAndParseZones].
 List<_ZoneEntry> _parseZones(String body) {
-  final json = jsonDecode(body) as Map<String, dynamic>;
-  final features = (json['features'] as List?) ?? const [];
+  final features = switch (jsonDecode(body)) {
+    {'features': final List features} => features,
+    _ => const <Object?>[],
+  };
   final zones = <_ZoneEntry>[];
   for (final f in features) {
-    if (f is! Map) continue;
-    final props = f['properties'] as Map?;
-    final tzid = props?['tzid'] as String?;
-    if (tzid == null || tzid.isEmpty) continue;
-    final geometry = f['geometry'] as Map?;
-    if (geometry == null) continue;
-    final type = geometry['type'] as String?;
-    final coords = geometry['coordinates'] as List?;
-    if (coords == null) continue;
+    if (f
+        case {
+          'properties': {'tzid': final String tzid},
+          'geometry': {
+            'type': final Object? type,
+            'coordinates': final List coords,
+          },
+        } when tzid.isNotEmpty) {
+      final polygons = <List<Float64List>>[];
+      double minLng = double.infinity,
+          minLat = double.infinity,
+          maxLng = -double.infinity,
+          maxLat = -double.infinity;
 
-    final polygons = <List<Float64List>>[];
-    double minLng = double.infinity,
-        minLat = double.infinity,
-        maxLng = -double.infinity,
-        maxLat = -double.infinity;
-
-    void addPolygon(List<dynamic> rings) {
-      final ringList = <Float64List>[];
-      for (final ring in rings) {
-        if (ring is! List) continue;
-        final flat = Float64List(ring.length * 2);
-        var i = 0;
-        for (final pt in ring) {
-          if (pt is! List || pt.length < 2) continue;
-          final lng = (pt[0] as num).toDouble();
-          final lat = (pt[1] as num).toDouble();
-          flat[i++] = lng;
-          flat[i++] = lat;
-          if (lng < minLng) minLng = lng;
-          if (lat < minLat) minLat = lat;
-          if (lng > maxLng) maxLng = lng;
-          if (lat > maxLat) maxLat = lat;
+      void addPolygon(List<dynamic> rings) {
+        final ringList = <Float64List>[];
+        for (final ring in rings) {
+          if (ring is! List) continue;
+          final flat = Float64List(ring.length * 2);
+          var i = 0;
+          for (final pt in ring) {
+            if (pt case [final num x, final num y, ...]) {
+              final lng = x.toDouble();
+              final lat = y.toDouble();
+              flat[i++] = lng;
+              flat[i++] = lat;
+              if (lng < minLng) minLng = lng;
+              if (lat < minLat) minLat = lat;
+              if (lng > maxLng) maxLng = lng;
+              if (lat > maxLat) maxLat = lat;
+            }
+          }
+          ringList.add(flat);
         }
-        ringList.add(flat);
+        if (ringList.isNotEmpty) polygons.add(ringList);
       }
-      if (ringList.isNotEmpty) polygons.add(ringList);
-    }
 
-    if (type == 'Polygon') {
-      addPolygon(coords);
-    } else if (type == 'MultiPolygon') {
-      for (final poly in coords) {
-        if (poly is List) addPolygon(poly);
+      if (type == 'Polygon') {
+        addPolygon(coords);
+      } else if (type == 'MultiPolygon') {
+        for (final poly in coords) {
+          if (poly is List) addPolygon(poly);
+        }
+      } else {
+        continue;
       }
-    } else {
-      continue;
-    }
 
-    if (polygons.isEmpty) continue;
-    zones.add(_ZoneEntry(tzid,
-        polygons: polygons,
-        minLng: minLng,
-        minLat: minLat,
-        maxLng: maxLng,
-        maxLat: maxLat));
+      if (polygons.isEmpty) continue;
+      zones.add(_ZoneEntry(tzid,
+          polygons: polygons,
+          minLng: minLng,
+          minLat: minLat,
+          maxLng: maxLng,
+          maxLat: maxLat));
+    }
   }
   return zones;
 }

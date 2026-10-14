@@ -1,5 +1,6 @@
 import 'package:webspace/services/block_stats_engine.dart';
 import 'package:webspace/settings/site_ids.dart';
+import 'package:webspace/utils/epoch_millis.dart';
 
 /// One thing the blockers stopped, folded across the retention window: a
 /// blocked host, the set of tracking parameters stripped from a URL, or the
@@ -26,11 +27,12 @@ class BlockDetailItem {
     final lastSeen = raw[2];
     if (label is! String || label.isEmpty) return null;
     if (count is! int || count < 1) return null;
-    if (lastSeen is! int) return null;
+    final seen = timeAtEpochMillis(lastSeen);
+    if (seen == null) return null;
     return BlockDetailItem(
       label: label,
       count: count,
-      lastSeen: DateTime.fromMillisecondsSinceEpoch(lastSeen),
+      lastSeen: seen,
     );
   }
 }

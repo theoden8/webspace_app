@@ -134,7 +134,7 @@ void main() {
     await t.pumpWidget(host(TorBridgeSettingsScreen(
       storage: TorBridgeSecureStorage(secureStorage: _enabledStore()),
       moatClientFactory: () => MoatClient(
-        client: _FakeHttp((_) => throw Exception('no route')),
+        client: _FakeHttp((_) => throw http.ClientException('no route')),
       ),
     )));
     await t.pumpAndSettle();
